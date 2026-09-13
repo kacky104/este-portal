@@ -14,7 +14,6 @@ import {
 } from '@/app/actions/mediaCredentials';
 import { pushAvailability, pushButtonLabel, bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { siteMark } from '@/lib/mediaSites';
-import { SokuhimeSlots } from './SokuhimeSlots';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -42,6 +41,20 @@ type Site = {
 };
 
 const keyOf = (p: string, s: number) => p + '#' + s;
+
+/**
+ * ★★ 「押さなくても動くもの」の説明カード（第324便）。
+ *   ★ 即ヒメ（駅ちか）と即セラ（エステ魂）は、どちらも【フクエスから反映なら自動】。★ 同じ形で並べる。
+ *   ★ ボタンは持たない。★ ここに設定は無い、と分かることがこのカードの仕事。
+ */
+function AutoNote({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-1.5">
+      <h3 className="text-[16px] font-bold text-slate-700">{title}</h3>
+      {children}
+    </div>
+  );
+}
 /**
  * ★ 「フクエスに変える」を押しているあいだの印（第320便）。
  *   ★ 枠ごとの鍵（provider#slot）とは別物なので、枠には使えない名前にしておく（★ 取り違え防止）。
@@ -632,16 +645,29 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         );
       })}
 
-      {/* ★ 駅ちかの即ヒメ枠（第213便）。★ 読むだけ。
-          ★★ 第322便: 駅ちかのタブの中だけに出す（★ エステ魂を見ているときに駅ちかの枠が出ない）。
-            ★ 出す・出さないの決めごとは SokuhimeSlots が持つ（第318便・フクエスから反映のときだけ）。 */}
-      {!loading && !error && site && site.provider === 'ekichika' && (
-        <SokuhimeSlots
-          salonId={salonId}
-          hasCredential={site.hasCredential}
-          isWrite={site.direction === 'write'}
-          onToast={onToast}
-        />
+      {/* ── ★★★★ 駅ちかの即ヒメ（第324便・2026-09-13・カッキーさんの指示）──────────
+          ★ 枠の写し（即ヒメ枠 0/5…）と「フクエスで『今すぐ』の方」の一覧を【まるごと外した】。
+            ★ 第323便で自動が既定になり、この画面に設定が1つも無くなった。
+            ★ 残っていたのは「見るだけの枠」と「急ぐとき用の手押し」で、即セラ側にはどちらも無い。
+            ★★ 枠の数は店舗によって違う（★ ラビリンス様は5枠だが、10枠以上の店舗もある・カッキーさん）。
+              ★ だからこの説明には【枠の数を書かない】。
+          ★ 見えなくなったもの: 枠の空き具合と、1人ずつ押す道。★ 枠は駅ちかの管理画面で見られる。
+          ★ SokuhimeSlots.tsx は第324便で消した。 */}
+      {!loading && !error && site && site.provider === 'ekichika' && site.direction === 'write' && (
+        <AutoNote title="駅ちかの即ヒメ">
+          <p className="text-[13.5px] text-slate-500 leading-relaxed">
+            フクエスで「今すぐ」を押した方を、5分ごとに1人ずつ駅ちかの即ヒメにします。
+            <b className="font-bold text-slate-700">この画面での設定は要りません</b>（フクエスから反映にしていれば動きます）。
+          </p>
+          <p className="text-[13px] text-slate-400 leading-relaxed">
+            空いている枠が無いときは送りません（枠の方を勝手に入れ替えません）。
+            45分で消えたら、「今すぐ」が続いているあいだは押し直します。
+            「今すぐ」が終わった方は、フクエスが入れた枠だけ外します。すでに即ヒメの方には触りません。
+          </p>
+          <p className="text-[13px] text-slate-400 leading-relaxed">
+            ベンリーなどで即ヒメを自動にしている場合は、そちらが優先されます。
+          </p>
+        </AutoNote>
       )}
 
       {/* ── ★★★ エステ魂の即セラ（第322便・カッキーさんの質問から）──────────
@@ -651,8 +677,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             **違うほうを書いておく**（★ カッキーさんが実際に取り違えた）。
           ★ ONだけ打ってOFFは打たない（★ 60分で向こうが切る）。★ 1周で1人だけ。 */}
       {!loading && !error && site && site.provider === 'esutama' && site.direction === 'write' && (
-        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-1.5">
-          <h3 className="text-[16px] font-bold text-slate-700">エステ魂の即セラ</h3>
+        <AutoNote title="エステ魂の即セラ">
           <p className="text-[13.5px] text-slate-500 leading-relaxed">
             フクエスで「今すぐ」を押した方を、5分ごとに1人ずつエステ魂の即セラにします。
             <b className="font-bold text-slate-700">この画面での設定は要りません</b>（フクエスから反映にしていれば動きます）。
@@ -660,7 +685,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           <p className="text-[13px] text-slate-400 leading-relaxed">
             OFFは打ちません（60分でエステ魂側が切ります）。すでに即セラの方には触りません。
           </p>
-        </div>
+        </AutoNote>
       )}
     </div>
   );

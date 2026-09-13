@@ -78,7 +78,7 @@ import {
 } from '@/lib/esutamaSokuseraTargets';
 import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
 import { isImasuguLiveRow, isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
-import { planSokuhime, sokuhimePlanSummary } from '@/lib/ekichikaSokuhimePlan';
+import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND } from '@/lib/ekichikaSokuhimePlan';
 import { buildSokuhimeCheckStep, buildSokuhimeDelStep } from '@/lib/relayFlow';
 import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
@@ -565,9 +565,9 @@ export async function advanceRelayFlow(params: {
   // ★ 即ヒメ設定画面を読めた（第213便）。★ 写しを1件だけ上書きで残す。
   //   ★ sokuhime_read はここで終わり（何も書き換えていない）。
   //   ★ sokuhime_push / sokuhime_auto（第214便）: 段（sokuhimeStage）で分ける
-  //     plan       … DB を読んで計画 → 試し打ちなら記録して終わり／実弾なら check か del を積む
-  //     verify_set … 押したあとの読み直し → 枠に居るか照合 → write_sokuhime
-  //     verify_del … 消したあとの読み直し → 枠から消えたか照合 → delete_sokuhime
+  //     plan        … DB を読んで計画 → 試し打ちなら記録して終わり／実弾なら check か del を積む
+  //     verify_batch … ★ 第327便。6人ぶん送り終えたあとの【1回だけ】の読み直し → まとめて照合
+  //     verify_set / verify_del … ★ 第327便より前の形（1人ずつ照合）。★ 積み残しの job のために残す
   if (outcome.kind === 'sokuhime') {
     const r = await saveSokuhime(params, outcome.page, context);
     note = outcome.note + ' → ' + r.note;
@@ -1437,7 +1437,88 @@ async function advanceSokuhime(
   const nowUnix = Math.floor(Date.now() / 1000);
   const stage = ctx.sokuhimeStage ?? 'plan';
 
-  // ── 照合の段 ──
+  // ── ★★★ まとめて照合の段（第327便）──
+  //   ★ 6人ぶん送り終えたあとの【1回だけ】の読み直し。★ 送った全員を枠と突き合わせる。
+  //   ★ 記録（media_sokuhime_pushes）に残すのは、読み直した画面で【本当に枠に居た人】だけ。
+  if (stage === 'verify_batch') {
+    const setDone = ctx.sokuhimeSetDone ?? [];
+    const delDone = ctx.sokuhimeDelDone ?? [];
+    const audits: FlowAudit[] = [];
+    const nowISO = new Date().toISOString();
+    const liveBox = (castId: string) => page.boxes.find((b) => b.girlId === castId && (b.expiresAtUnix === null || b.expiresAtUnix > nowUnix));
+
+    // ★ ON にした人 ──────────────────────────────
+    const rows: Array<Record<string, unknown>> = [];
+    const okNames: string[] = [];
+    const ngNames: string[] = [];
+    for (const t of setDone) {
+      const box = liveBox(t.castId);
+      if (!box) {
+        ngNames.push(t.name);
+        audits.push({ event: 'write_sokuhime', outcome: 'failed', detail: { reason: 'not_in_box_after_set', name: t.name, castId: t.castId, flowId } });
+        continue;
+      }
+      okNames.push(t.name);
+      rows.push({
+        salon_id: params.salonId, provider: params.provider, slot: params.slot,
+        therapist_id: t.therapistId, cast_id: t.castId, slot_index: box.index, sokuiku_id: box.sokuikuId,
+        pushed_at: nowISO,
+        expires_at: box.expiresAtUnix ? new Date(box.expiresAtUnix * 1000).toISOString() : null,
+        flow_id: flowId,
+      });
+      audits.push({
+        event: 'write_sokuhime', outcome: 'ok',
+        detail: { name: t.name, castId: t.castId, slotIndex: box.index, until: box.untilLabel ?? t.untilLabel ?? '', expiresAt: box.expiresAtUnix, flowId },
+      });
+    }
+    if (rows.length > 0) {
+      const { error } = await supabase.from('media_sokuhime_pushes').insert(rows);
+      if (error) console.error('[relay] 即ヒメの記録を残せなかった', params.salonId, error.message);
+    }
+
+    // ★ OFF にした枠 ────────────────────────────
+    //   ★ 記録に名前を載せるため、castId → セラピスト名 を【1回のまとめ読み】で引く（★ 1件ずつ引かない）
+    const nameOf = new Map<string, string>();
+    if (delDone.length > 0) {
+      const { data: pr } = await supabase
+        .from('media_sokuhime_pushes').select('cast_id, therapist_id')
+        .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+        .in('cast_id', delDone.map((d) => d.castId)).is('removed_at', null);
+      const prRows = ((pr ?? []) as Array<{ cast_id: string; therapist_id: number }>);
+      const tids = Array.from(new Set(prRows.map((r) => Number(r.therapist_id)).filter((n2) => Number.isFinite(n2))));
+      if (tids.length > 0) {
+        const { data: th } = await supabase.from('therapists').select('id, name').in('id', tids);
+        const byId = new Map<number, string>(((th ?? []) as Array<{ id: number; name: string | null }>).map((r) => [Number(r.id), String(r.name ?? '')]));
+        for (const r of prRows) {
+          const nm = byId.get(Number(r.therapist_id));
+          if (nm) nameOf.set(String(r.cast_id), nm);
+        }
+      }
+    }
+    const delOk: number[] = [];
+    const delNg: number[] = [];
+    for (const d of delDone) {
+      const name = nameOf.get(d.castId) ?? '';
+      if (liveBox(d.castId)) {
+        delNg.push(d.slotIndex + 1);
+        audits.push({ event: 'delete_sokuhime', outcome: 'failed', detail: { reason: 'still_in_box_after_del', name, castId: d.castId, slotIndex: d.slotIndex, flowId } });
+        continue;
+      }
+      await supabase.from('media_sokuhime_pushes').update({ removed_at: nowISO })
+        .eq('salon_id', params.salonId).eq('cast_id', d.castId).is('removed_at', null);
+      delOk.push(d.slotIndex + 1);
+      audits.push({ event: 'delete_sokuhime', outcome: 'ok', detail: { name, castId: d.castId, slotIndex: d.slotIndex, flowId } });
+    }
+
+    const parts: string[] = [];
+    if (okNames.length > 0) parts.push('照合OK: ' + okNames.join('・') + '（' + okNames.length + '名）');
+    if (ngNames.length > 0) parts.push('★ 枠に居ない: ' + ngNames.join('・'));
+    if (delOk.length > 0) parts.push('枠' + delOk.join('・') + 'から消えた');
+    if (delNg.length > 0) parts.push('★ 枠' + delNg.join('・') + 'にまだ居る');
+    return { audits, note: parts.length > 0 ? parts.join(' ／ ') : '照合するものが無かった' };
+  }
+
+  // ── 照合の段（★ 第327便より前の形。積み残しの job が通り抜けるために残す）──
   if (stage === 'verify_set') {
     const t = ctx.sokuhimeTarget;
     if (!t) return { audits: [{ event: 'write_sokuhime', outcome: 'failed', detail: { reason: 'no_target', flowId } }], note: '照合の段に相手が無い' };
@@ -1531,6 +1612,8 @@ async function advanceSokuhime(
   // ★ 1人だけ試すとき、その人が今すぐでなければ理由を出す（planSokuhime は用の無い人を黙って外すため）
   const wanted = wantId !== 0 ? people[0] : undefined;
 
+  // ★★★ 第327便: 周（sokuhime_auto）は1回のログインで最大6人。★ 運営／店舗の「1人だけ試す」は1人のまま。
+  const perRound = ctx.intent === 'sokuhime_push' ? 1 : SOKUHIME_MAX_PER_ROUND;
   const plan = planSokuhime({
     people,
     boxes: page.boxes,
@@ -1538,6 +1621,8 @@ async function advanceSokuhime(
     pushedByFukues: ((pushedRows ?? []) as Array<{ cast_id: string }>).map((r) => String(r.cast_id)),
     remainingCount: page.countedPlan ? page.remainingCount : null,
     nowUnix,
+    maxSet: perRound,
+    maxDel: perRound,
   });
   if (wanted && !wanted.imasuguByFukues) {
     plan.blocked.unshift({ therapistId: wanted.therapistId, name: wanted.name, reason: 'not_imasugu', message: wanted.name + 'さんはフクエスの「今すぐ」（店舗か本人が押したもの）が入っていません' });
@@ -1548,30 +1633,41 @@ async function advanceSokuhime(
   const planAudit: FlowAudit = {
     event: 'plan_sokuhime', outcome: 'ok', summary,
     detail: {
-      apply, set: plan.set ? plan.set.name : '', del: plan.del ? plan.del.castId : '',
+      apply,
+      set: plan.sets.map((x) => x.name).join('・'),
+      del: plan.dels.map((x) => x.castId).join('・'),
+      setCount: plan.sets.length, delCount: plan.dels.length, perRound,
       waiting: plan.waiting.length, blocked: plan.blocked.length,
       slots: page.boxes.length, used: page.boxes.filter((b) => b.girlId).length, flowId,
     },
   };
   if (!apply) return { audits: [planAudit], note: '試し打ち: ' + summary };
 
+  // ★★★ 第327便: 押す人を列にして持ち回る。★ 1人ぶん（確認→設定）ごとに先頭を取り出す。
+  //   ★ 読み直し（照合）は【最後に1回だけ】。★ そのぶん駅ちかへのログインを10分に1回へ減らせる。
+  const queue = plan.sets.map((t) => ({
+    therapistId: t.therapistId, name: t.name, castId: t.castId, slotIndex: t.slotIndex,
+    oldGirlId: t.oldGirlId, oldSokuikuId: t.oldSokuikuId,
+    untilUnix: people.find((p) => p.therapistId === t.therapistId)?.imasuguUntilUnix ?? null,
+  }));
   const base = {
     ...ctx,
     sokuhimeShopId: page.shopId ?? '',
     sokuhimePrecedingFlg: page.precedingFlg ?? '',
     sokuhimeRemaining: page.countedPlan ? page.remainingCount : null,
+    sokuhimeSetDone: [],
+    sokuhimeDelDone: [],
+    sokuhimeQueue: [] as typeof queue,
+    sokuhimeDelQueue: plan.dels,
   };
-  if (plan.set) {
-    const t = plan.set;
-    const person = people.find((p) => p.therapistId === t.therapistId);
-    const next = buildSokuhimeCheckStep({
-      ...base,
-      sokuhimeTarget: { therapistId: t.therapistId, name: t.name, castId: t.castId, slotIndex: t.slotIndex, oldGirlId: t.oldGirlId, oldSokuikuId: t.oldSokuikuId, untilUnix: person?.imasuguUntilUnix ?? null },
-    });
-    return { audits: [planAudit], note: summary + ' → 在籍・出勤中の確認へ', next };
+  if (queue.length > 0) {
+    const [head, ...rest] = queue;
+    const next = buildSokuhimeCheckStep({ ...base, sokuhimeTarget: head, sokuhimeQueue: rest });
+    return { audits: [planAudit], note: summary + ' → 在籍・出勤中の確認へ（' + queue.length + '名ぶんを続けて送る）', next };
   }
-  if (plan.del) {
-    const next = buildSokuhimeDelStep({ ...base, sokuhimeDel: plan.del });
+  if (plan.dels.length > 0) {
+    const [head, ...rest] = plan.dels;
+    const next = buildSokuhimeDelStep({ ...base, sokuhimeDel: head, sokuhimeDelQueue: rest });
     return { audits: [planAudit], note: summary + ' → 解除へ', next };
   }
   return { audits: [planAudit], note: summary };

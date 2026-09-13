@@ -23,7 +23,7 @@ import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { snapClockPair } from '@/lib/timeSnap';
-import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow } from '@/lib/imasugu';
+import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow, imasuguUntilISO, IMASUGU_WINDOW_MIN } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
@@ -2174,7 +2174,8 @@ export default function MyPage() {
         .filter(sid => availableNow[sid])
         .slice(0, 3)
     );
-    const availableUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    // ★ 第326便: 有効時間の正は lib/imasugu（30分→45分）。★ ここに分数を書かない
+    const availableUntil = imasuguUntilISO();
     for (const t of therapists) {
       // キャスト本人が受付中の枠は触らない（オーナーは相手の枠を上書き・解除しない）。
       if (isCastLiveRow(t, now)) continue;
@@ -4415,7 +4416,8 @@ export default function MyPage() {
                 ★ ボタンはセラピスト一覧のすぐ上・右詰めへ移した（renderAvailableActions）。 */}
             <div>
               <h2 className="text-sm font-black text-slate-700 mb-1">今すぐ対応可能なセラピスト</h2>
-              <p className="text-[11px] text-slate-400">「今すぐ」設定は、30分後に自動解除。この画面上ではリロードするまでチェックは残ります。</p>
+              {/* ★ 第326便: 分数は IMASUGU_WINDOW_MIN から出す（★ 値を変えたときに文言だけ古くならない） */}
+              <p className="text-[11px] text-slate-400">「今すぐ」設定は、{IMASUGU_WINDOW_MIN}分後に自動解除。この画面上ではリロードするまでチェックは残ります。</p>
             </div>
             {(() => {
               // 「今すぐ」判定は営業日基準（深夜0〜6時は前日のスケジュールを参照）

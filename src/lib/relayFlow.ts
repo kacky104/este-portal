@@ -742,12 +742,27 @@ export type RelayFlowContext = {
   sokuhimeApply?: boolean;
   /** 運営／店舗が1人だけ試すときの相手（フクエス側の therapist_id）。★ auto では入れない */
   sokuhimeTherapistId?: number;
-  /** いま何をしているか。★ read_sokuhime の応答をどう扱うかを決める */
-  sokuhimeStage?: 'plan' | 'verify_set' | 'verify_del';
-  /** 押す相手（計画で決まる） */
+  /**
+   * いま何をしているか。★ read_sokuhime の応答をどう扱うかを決める。
+   *   'verify_batch' … ★ 第327便。6人ぶん送り終えたあとの【1回だけの】読み直し。まとめて照合する。
+   *   'verify_set' / 'verify_del' … ★ 第327便より前の形（1人ずつ照合）。★ 積み残しの job が通り抜けるために残す。
+   */
+  sokuhimeStage?: 'plan' | 'verify_set' | 'verify_del' | 'verify_batch';
+  /** 押す相手（計画で決まる）。★ いま扱っている1人 */
   sokuhimeTarget?: { therapistId: number; name: string; castId: string; slotIndex: number; oldGirlId: string | null; oldSokuikuId: string | null; untilUnix: number | null };
-  /** 消す相手（計画で決まる） */
+  /**
+   * ★★★ まだ押していない人の列（第327便）。★ sokuhimeTarget の【次】から。
+   *   ★ 1人ぶん（確認→設定）が終わるたびに先頭を取り出して sokuhimeTarget に移す。
+   */
+  sokuhimeQueue?: Array<{ therapistId: number; name: string; castId: string; slotIndex: number; oldGirlId: string | null; oldSokuikuId: string | null; untilUnix: number | null }>;
+  /** ★★★ 設定の POST が通った人（第327便）。★ 最後の読み直しでまとめて照合し、通った人だけ記録に残す */
+  sokuhimeSetDone?: Array<{ therapistId: number; name: string; castId: string; slotIndex: number; untilLabel: string }>;
+  /** 消す相手（計画で決まる）。★ いま扱っている1件 */
   sokuhimeDel?: { castId: string; slotIndex: number; sokuikuId: string | null; expiresAtUnix: number | null };
+  /** ★★★ まだ消していない枠の列（第327便）。★ sokuhimeDel の【次】から */
+  sokuhimeDelQueue?: Array<{ castId: string; slotIndex: number; sokuikuId: string | null; expiresAtUnix: number | null }>;
+  /** ★★★ 解除の POST が通った枠（第327便）。★ 最後の読み直しでまとめて照合する */
+  sokuhimeDelDone?: Array<{ castId: string; slotIndex: number }>;
   /** #hide_shop_id・#preceding_flg・回数（ページから） */
   sokuhimeShopId?: string;
   sokuhimePrecedingFlg?: string;
@@ -1569,7 +1584,7 @@ export function buildSokuhimeDelStep(ctx: RelayFlowContext): FlowNextRequest {
 }
 
 /** 照合のために即ヒメ設定画面を読み直す */
-export function buildSokuhimeVerifyStep(ctx: RelayFlowContext, stage: 'verify_set' | 'verify_del'): FlowNextRequest {
+export function buildSokuhimeVerifyStep(ctx: RelayFlowContext, stage: 'verify_set' | 'verify_del' | 'verify_batch'): FlowNextRequest {
   return {
     purpose: 'read_sokuhime', method: 'GET', url: EKICHIKA_SOKUHIME_URL,
     headers: buildReadWorkRequest(ctx.cookie), body: '',
@@ -1590,11 +1605,43 @@ export function parseSokuhimeJson(body: string): { empty: boolean; first: Record
   return { empty: false, first, obj, problems: [] };
 }
 
-function sokuhimeStop(ctx: RelayFlowContext, event: 'write_sokuhime' | 'delete_sokuhime', reason: string, summary: string, note: string, extra?: Record<string, string | number | boolean | null>): FlowOutcome {
-  return stop(
-    [{ event, outcome: 'stopped', summary, detail: { reason, castId: ctx.sokuhimeTarget?.castId ?? ctx.sokuhimeDel?.castId ?? null, flowId: ctx.flowId, ...(extra ?? {}) } }],
-    note,
-  );
+/**
+ * ★★★ 次の一手を決める（第327便）。★ 1人ぶんが終わるたびにここへ来る。
+ *   ① まだ押していない人が居る → その人の「在籍・出勤中の確認」へ
+ *   ② 押す人がもう居なくて、消す枠が残っている → 「解除」へ
+ *   ③ どちらも無い → ★ 画面を【1回だけ】読み直して、送った全員をまとめて照合する
+ * ★ 送る順は「押す」が先、「消す」があと。★ 途中で切れても、価値のある側（露出を増やす側）は済んでいる。
+ */
+function sokuhimeAdvanceQueue(ctx: RelayFlowContext): FlowNextRequest {
+  const queue = ctx.sokuhimeQueue ?? [];
+  if (queue.length > 0) {
+    const [head, ...rest] = queue;
+    return buildSokuhimeCheckStep({ ...ctx, sokuhimeTarget: head, sokuhimeQueue: rest, sokuhimeDel: undefined });
+  }
+  const dels = ctx.sokuhimeDelQueue ?? [];
+  if (dels.length > 0) {
+    const [head, ...rest] = dels;
+    return buildSokuhimeDelStep({ ...ctx, sokuhimeDel: head, sokuhimeDelQueue: rest, sokuhimeTarget: undefined });
+  }
+  return buildSokuhimeVerifyStep({ ...ctx, sokuhimeTarget: undefined, sokuhimeDel: undefined }, 'verify_batch');
+}
+
+/** ★ この周でまだやることが残っているか（照合すべき済みぶんも含む） */
+function sokuhimeHasMore(ctx: RelayFlowContext): boolean {
+  return (ctx.sokuhimeQueue?.length ?? 0) > 0
+    || (ctx.sokuhimeDelQueue?.length ?? 0) > 0
+    || (ctx.sokuhimeSetDone?.length ?? 0) > 0
+    || (ctx.sokuhimeDelDone?.length ?? 0) > 0;
+}
+
+/**
+ * ★★★ 1人がだめでも、周ごと落とさない（第327便）。
+ *   ★ その人ぶんの理由は【いまここで】記録に残し、残りの人へ進む。
+ *   ★ 残りが誰も居なければ、これまで通り止める（＝1人だけのときの動きと同じ）。
+ */
+function sokuhimeSkipOrStop(ctx: RelayFlowContext, audit: FlowAudit, note: string): FlowOutcome {
+  if (!sokuhimeHasMore(ctx)) return stop([audit], note);
+  return { kind: 'next', next: sokuhimeAdvanceQueue(ctx), audits: [audit], note: note + '。★ この人は飛ばして次へ進む' };
 }
 
 /** ①の応答。★ 空＝在籍していない／is_working=false＝出勤中でない → 止める。★ 通れば ② */
@@ -1606,15 +1653,22 @@ function afterSokuhimeCheck(
   if (lost) return lost;
   const j = parseSokuhimeJson(input.body);
   const name = ctx.sokuhimeTarget?.name ?? '';
+  // ★★★ 第327便: 1人がだめでも周ごと落とさない。★ その人ぶんを記録して次の人へ。
+  const skip = (reason: string, summary: string, note: string, extra?: Record<string, string | number | boolean | null>) =>
+    sokuhimeSkipOrStop(
+      ctx,
+      { event: 'write_sokuhime', outcome: 'stopped', summary, detail: { reason, castId: ctx.sokuhimeTarget?.castId ?? null, flowId: ctx.flowId, ...(extra ?? {}) } },
+      note,
+    );
   if (input.status !== 200 || j.problems.length > 0) {
-    return sokuhimeStop(ctx, 'write_sokuhime', 'check_bad_response', name + 'さんの即ヒメの確認で想定外の応答がありました', 'check の応答が読めない: ' + (j.problems[0] ?? input.status), responseClue(input));
+    return skip('check_bad_response', name + 'さんの即ヒメの確認で想定外の応答がありました', 'check の応答が読めない: ' + (j.problems[0] ?? input.status), responseClue(input));
   }
   if (j.empty) {
-    return sokuhimeStop(ctx, 'write_sokuhime', 'not_registered', name + 'さんは駅ちかに在籍していないため、即ヒメにできませんでした', '駅ちかが空を返した（在籍していない）');
+    return skip('not_registered', name + 'さんは駅ちかに在籍していないため、即ヒメにできませんでした', '駅ちかが空を返した（在籍していない）');
   }
   const working = j.obj?.['is_working'];
   if (!(working === true || working === 1 || working === '1')) {
-    return sokuhimeStop(ctx, 'write_sokuhime', 'not_working', name + 'さんは駅ちかで出勤中になっていないため、即ヒメにできませんでした', '駅ちかが is_working=false を返した');
+    return skip('not_working', name + 'さんは駅ちかで出勤中になっていないため、即ヒメにできませんでした', '駅ちかが is_working=false を返した');
   }
   return {
     kind: 'next',
@@ -1632,16 +1686,37 @@ function afterSokuhimeSet(
   const lost = diaryLoginLost(input, ctx, '即ヒメの設定の応答');
   if (lost) return lost;
   const j = parseSokuhimeJson(input.body);
-  const name = ctx.sokuhimeTarget?.name ?? '';
+  const t = ctx.sokuhimeTarget;
+  const name = t?.name ?? '';
   if (input.status !== 200 || j.problems.length > 0) {
-    return sokuhimeStop(ctx, 'write_sokuhime', 'set_bad_response', name + 'さんの即ヒメの設定で想定外の応答がありました', 'set の応答が読めない: ' + (j.problems[0] ?? input.status), responseClue(input));
+    return sokuhimeSkipOrStop(
+      ctx,
+      { event: 'write_sokuhime', outcome: 'stopped', summary: name + 'さんの即ヒメの設定で想定外の応答がありました', detail: { reason: 'set_bad_response', castId: t?.castId ?? null, flowId: ctx.flowId, ...responseClue(input) } },
+      'set の応答が読めない: ' + (j.problems[0] ?? input.status),
+    );
   }
   const tt = j.first?.['topprioritytime'];
+  // ★★★ 第327便: 送れた人を控えに積み、次の人へ。★ 読み直しは全員ぶんが済んでから【1回だけ】。
+  const done = [
+    ...(ctx.sokuhimeSetDone ?? []),
+    ...(t ? [{ therapistId: t.therapistId, name: t.name, castId: t.castId, slotIndex: t.slotIndex, untilLabel: typeof tt === 'string' ? tt : '' }] : []),
+  ];
+  // ★ 回数制のとき、次の人へ渡す残り回数を1つ減らす（★ 画面を読み直さずに続けて送るため）
+  const remaining = ctx.sokuhimeRemaining == null ? ctx.sokuhimeRemaining : Math.max(0, ctx.sokuhimeRemaining - 1);
+  const nextCtx: RelayFlowContext = {
+    ...ctx,
+    sokuhimeSetDone: done,
+    sokuhimeRemaining: remaining,
+    sokuhimeToppriorityTime: typeof tt === 'string' ? tt : undefined,
+    sokuhimeTarget: undefined,
+  };
+  const left = (nextCtx.sokuhimeQueue?.length ?? 0) + (nextCtx.sokuhimeDelQueue?.length ?? 0);
   return {
     kind: 'next',
-    next: buildSokuhimeVerifyStep({ ...ctx, sokuhimeToppriorityTime: typeof tt === 'string' ? tt : undefined }, 'verify_set'),
+    next: sokuhimeAdvanceQueue(nextCtx),
     audits: [],
-    note: '即ヒメの設定を送った（相手の返事: ' + (typeof tt === 'string' ? '～' + tt + ' 迄' : '時刻なし') + '）。★ 次は画面を読み直して照合',
+    note: name + 'さんの即ヒメの設定を送った（相手の返事: ' + (typeof tt === 'string' ? '～' + tt + ' 迄' : '時刻なし') + '）。'
+      + (left > 0 ? '★ 残り ' + left + ' 件を続けて送る' : '★ 次は画面を読み直して ' + done.length + '名まとめて照合'),
   };
 }
 
@@ -1653,14 +1728,24 @@ function afterSokuhimeDel(
   const lost = diaryLoginLost(input, ctx, '即ヒメの解除の応答');
   if (lost) return lost;
   const j = parseSokuhimeJson(input.body);
+  const d = ctx.sokuhimeDel;
   if (input.status !== 200 || j.problems.length > 0) {
-    return sokuhimeStop(ctx, 'delete_sokuhime', 'del_bad_response', '即ヒメの解除で想定外の応答がありました', 'del の応答が読めない: ' + (j.problems[0] ?? input.status), responseClue(input));
+    return sokuhimeSkipOrStop(
+      ctx,
+      { event: 'delete_sokuhime', outcome: 'stopped', summary: '即ヒメの解除で想定外の応答がありました', detail: { reason: 'del_bad_response', castId: d?.castId ?? null, flowId: ctx.flowId, ...responseClue(input) } },
+      'del の応答が読めない: ' + (j.problems[0] ?? input.status),
+    );
   }
+  // ★★★ 第327便: 解除も控えに積んで次へ。★ 読み直しは最後の1回にまとめる。
+  const delDone = [...(ctx.sokuhimeDelDone ?? []), ...(d ? [{ castId: d.castId, slotIndex: d.slotIndex }] : [])];
+  const nextCtx: RelayFlowContext = { ...ctx, sokuhimeDelDone: delDone, sokuhimeDel: undefined };
+  const left = nextCtx.sokuhimeDelQueue?.length ?? 0;
   return {
     kind: 'next',
-    next: buildSokuhimeVerifyStep(ctx, 'verify_del'),
+    next: sokuhimeAdvanceQueue(nextCtx),
     audits: [],
-    note: '即ヒメの解除を送った。★ 次は画面を読み直して照合',
+    note: '即ヒメの解除を送った（枠' + ((d?.slotIndex ?? 0) + 1) + '）。'
+      + (left > 0 ? '★ 残り ' + left + ' 枠を続けて消す' : '★ 次は画面を読み直してまとめて照合'),
   };
 }
 

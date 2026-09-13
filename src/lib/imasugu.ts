@@ -27,6 +27,26 @@
 //  - isImasuguLiveCamel  : camelCase にマップ済みオブジェクトを受けるラッパ。
 
 /** DB の snake_case 生行（3枠6列）。★ すべて必須。枠を増やしたら呼び出し側が落ちる。 */
+/**
+ * ★★★★ 「今すぐ対応」の有効時間（第326便・2026-09-13・カッキーさんの決定）。
+ *   ★★ 30分 → 45分。★ 正はここ1か所。★ 押す側（店舗・セラピスト本人）は必ずこの値を使う。
+ *   ★ それまでは店舗側（mypage）と本人側（castImasugu）が **別々に 30分を書いていた**。
+ *     ★ 片方だけ直すと「店舗が押すと45分・本人が押すと30分」という、いちばん質の悪いずれ方をする。
+ *   ★★ なぜ45分か:
+ *     ・駅ちかの即ヒメは45分で消える。★ 揃えると「今すぐは切れたのに即ヒメだけ残る」が減り、
+ *       フクエスが枠を外しに行く往復（＝相手へのログイン）が減る。
+ *     ・拾う締切が広がるので、5分ごとの周に取りこぼしの余裕ができる。
+ *     ・セラピスト本人の押し直しが30分ごと→45分ごとになる。
+ *   ★ 画面に出す分数を書くときは IMASUGU_WINDOW_MIN を使う（★ 文言に数字を焼き付けない）。
+ */
+export const IMASUGU_WINDOW_MIN = 45;
+export const IMASUGU_WINDOW_MS = IMASUGU_WINDOW_MIN * 60 * 1000;
+
+/** ★ 「今すぐ」をONにしたときの期限。★ 押す側はこれを呼ぶ（★ 各画面で now+分 を組み立てない） */
+export function imasuguUntilISO(now: Date = new Date()): string {
+  return new Date(now.getTime() + IMASUGU_WINDOW_MS).toISOString();
+}
+
 export type ImasuguRow = {
   is_available_now: boolean | null;
   available_until: string | null;

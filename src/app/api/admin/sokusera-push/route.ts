@@ -14,7 +14,7 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 // ★★★ **1回のフローでONにするのは1人だけ。** ★ 「全員にまとめて」は作らない。
 //   ★ 相手のアカウントを触る操作なので、1人ずつ・確かめながら進む。
 //
-// ★ 「今すぐ」は30分で切れる。★ 周は5分ごと。★ 取りこぼしは次の周が拾う。
+// ★ 「今すぐ」は45分で切れる（★ 第326便で30分から延ばした）。★ 周は5分ごと。★ 取りこぼしは次の周が拾う。
 //
 // crontab（VPS・5分ごと。★ 日記の周と1分ずらす）:
 //   1-59/5 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokusera-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1

@@ -2,7 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { isOwnerLiveRow } from '@/lib/imasugu';
+import { isOwnerLiveRow, imasuguUntilISO } from '@/lib/imasugu';
 import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 
 // セラピスト本人の「今すぐ受付中」（キャスト枠）を更新するサーバー専用処理。
@@ -13,9 +13,9 @@ import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
 //  - ログイン中ユーザーの user_id に一致する行のみ更新（.eq('user_id', user.id)）。
 //  - 更新列は is_available_now_cast / available_until_cast の2列のみ（キャスト専用枠）。
 //    オーナー枠（is_available_now / available_until）には一切触れない。
-//  - ON は30分有効（available_until_cast = now + 30分）。期限切れは cron／クライアント判定で失効。
-
-const THIRTY_MIN_MS = 30 * 60 * 1000;
+//  - ON の有効時間は lib/imasugu の IMASUGU_WINDOW_MIN（★ 第326便で30分→45分）。
+//    ★ ここに分数を書かない。★ 店舗側（mypage）と本人側（ここ）で別々の数字を持っていたのを1か所に集めた。
+//    期限切れは cron／クライアント判定で失効。
 
 export async function setCastImasugu(
   on: boolean
@@ -59,8 +59,8 @@ export async function setCastImasugu(
     }
   }
 
-  // ON：30分後まで有効。OFF：即失効（null）。
-  const availableUntil = on ? new Date(Date.now() + THIRTY_MIN_MS).toISOString() : null;
+  // ON：IMASUGU_WINDOW_MIN 分後まで有効（第326便で45分）。OFF：即失効（null）。
+  const availableUntil = on ? imasuguUntilISO() : null;
 
   const { data: updated, error } = await svc
     .from('therapists')

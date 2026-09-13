@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { needsConsent } from '@/lib/mediaConsent';
+// ★ 第325便: 「いま今すぐの人がいるか」を、画面と同じ物差しで見る（★ 決め方を2つ持たない）
+import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 
 // ── 即ヒメの周（第215便・2026-09-08）─────────────────────────────────────
 //   POST /api/admin/sokuhime-push  (Authorization: Bearer <CRON_SECRET>)
 //   body(form): （なし）                    … ★ 数えるだけ。中継ジョブを積まない
 //   body(form): dryrun=true                 … ★ 積むが【試し打ち】。駅ちかを1文字も触らない
 //                                              （読んで計画を「連携の記録」に残すだけ）
-//   body(form): apply=true                  … ★★★ 実弾。1周1店舗1人だけ押す
+//   body(form): apply=true                  … ★★★ 実弾。1周1店舗【最大6人】まとめて押す（第327便）
 //   body(form): salonId=6 therapistId=14    … ★ 運営が1人だけ試す（sokuhime_push・試し打ち既定）
 //   body(form): salonId=6 therapistId=14 apply=true … ★ 運営が1人だけ実弾
 //
@@ -19,9 +21,16 @@ import { needsConsent } from '@/lib/mediaConsent';
 //     （media_sokuhime_pushes に記録がある子だけ・pushedByFukues）。
 //     ★ 店舗様が駅ちかで直接押した子は絶対に触らない。
 //
-// ★★★ **1回のフローで押すのは1人だけ。** ★ 「全員にまとめて」は作らない。
-//   ★ 相手のアカウントを触る操作なので、1人ずつ・照合しながら進む（第143便 即セラと同じ作法）。
-//   ★ 残りは次の周が拾う（5分ごと・今すぐは30分もつ）。
+// ★★★★ 【第327便】（2026-09-13・カッキーさんの指示）: **1回のフローで最大6人**（それまでは1人だけ）。
+//   ★ 理由: 即ヒメ枠はオプションで15枠まで増やせる。1周1人・5分ごとでは45分の「今すぐ」の間に
+//     9人しか通せず、枠が埋まらないまま終わっていた（★ ラビリンス様は5枠だが、15枠の店がある）。
+//   ★★ 代わりに【周を10分に延ばす】。★ 駅ちかへのログインは 12回/時 → 6回/時（半分）。
+//     ★ 通せる人数は 45分で9人 → 45分で最大24人。★ ログインを減らしつつ、詰まりも消える。
+//   ★★★ 1人ずつ「確認→設定」を送るのは今までどおり（相手のアカウントを触るので順番に）。
+//     ★ 変えたのは【照合】だけ: 1人ごとに読み直していたのを、**最後に1回だけ読み直して全員まとめて**照合する。
+//     ★ だから1周の通信は「1人につき POST 2回 ＋ 最後に GET 1回」。
+//   ★ 1人がだめ（在籍していない・出勤中でない）でも周ごと落とさない。★ その人の理由を記録して次の人へ。
+//   ★ 残りは次の周が拾う（10分ごと・今すぐは45分もつ・第326便で30分から延ばした）。
 //
 // ★★★ ベンリー（Mr.Venrey）などの「即姫」タイマーを使っている店では、
 //   相手のほうが先に枠を埋めることがある。★ そのときフクエスは **必ず譲る**
@@ -39,9 +48,10 @@ import { needsConsent } from '@/lib/mediaConsent';
 //     ★ 落ち着いたら消す。★ 見ない列を残していることを、ここに書いておく（★ 次に読む人が探せるように）。
 //   ★ 実行前にカッキーさんが確認: 駅ちかを write にしている店舗はラビリンス様だけ（2026-09-13）。
 //
-// crontab（VPS・5分ごと。★ 即セラ 1-59/5・日記 と分を分ける）:
-//   ★ まずは1日、試し打ちで流す（駅ちかを触らない・記録だけ溜める）:
-//   3-59/5 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d dryrun=true >> /root/import.log 2>&1
+// crontab（VPS・★ 第327便で10分ごとへ。★ 即セラ 1-59/5・日記 と分を分ける）:
+//   3-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
+//   ★ 試し打ち（駅ちかを1文字も触らない・記録だけ溜める）に戻すときは apply=true を dryrun=true に差し替える:
+//   3-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d dryrun=true >> /root/import.log 2>&1
 //   ★ 記録が狙いどおりなら、-d dryrun=true を -d apply=true に差し替える（実弾）。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -114,6 +124,44 @@ export async function POST(req: Request) {
     if (!needsConsent(c.consent_version)) consentOk.add(Number(c.salon_id) + '#' + Number(c.slot ?? 1));
   }
 
+  /**
+   * ★★★★ 【第325便】（2026-09-13・カッキーさんの指示）: 【仕事がある店舗だけ】積む。
+   *   ★ それまでは、フクエスから反映の枠なら**誰も「今すぐ」でなくても周のたびにログイン**していた。
+   *     ★ 相手のサイトに用も無く入る回数は、少ないほうがよい（★ 中継の枠も無駄に埋まる）。
+   *   ★★ 「仕事がある」は2つ。★ 片方だけだと**外す仕事が永久に走らない**:
+   *     ① いま「今すぐ」の方がいる（★ これから上げる）
+   *     ② フクエスが入れた枠が残っている（★ 「今すぐ」が終わったら外す・removed_at が空）
+   *   ★ ①の物差しは画面（getSokuhimeCandidates）とも中継（planSokuhime）とも同じ関数を使う。
+   *     ★ 取り込み枠（駅ちか由来）は数えない（★ エコーバックしない・第214便）。
+   *   ★★ ここは【積むかどうか】だけを決める。★ 誰を上げるかは今までどおり中継の中で決める
+   *     （★ 枠の空きは駅ちかを読まないと分からない。★ ここで decide しない）。
+   */
+  const ids = rows.map((r) => Number(r.salon_id));
+  const now = new Date();
+  const liveSalons = new Set<number>();
+  const openSalons = new Set<number>();
+  if (ids.length > 0) {
+    const { data: ths, error: thErr } = await svc
+      .from('therapists')
+      .select('salon_id, is_available_now, available_until, is_available_now_cast, available_until_cast, is_available_now_import, available_until_import')
+      .in('salon_id', ids).eq('is_active', true);
+    if (thErr) return NextResponse.json({ ok: false, error: thErr.message }, { status: 500 });
+    for (const t of (ths ?? []) as Array<Record<string, unknown>>) {
+      const row = t as unknown as ImasuguRow;
+      if (isOwnerLiveRow(row, now) || isCastLiveRow(row, now)) liveSalons.add(Number(t['salon_id']));
+    }
+    // ★★ 24時間より古い記録は数えない。★ 中継の計画（planSokuhime）が見る範囲と同じにする。
+    //   ★ ここを広くすると、中継が触らない古い1行のせいで【永久に周のたびにログイン】になる。
+    const { data: open, error: opErr } = await svc
+      .from('media_sokuhime_pushes')
+      .select('salon_id')
+      .eq('provider', PROVIDER).is('removed_at', null)
+      .gte('pushed_at', new Date(now.getTime() - 24 * 3600 * 1000).toISOString())
+      .in('salon_id', ids);
+    if (opErr) return NextResponse.json({ ok: false, error: opErr.message }, { status: 500 });
+    for (const o of (open ?? []) as Array<{ salon_id: number }>) openSalons.add(Number(o.salon_id));
+  }
+
   const started: string[] = [];
   const skipped: Array<{ target: string; why: string }> = [];
 
@@ -121,6 +169,11 @@ export async function POST(req: Request) {
     const target = r.salon_id + '/' + PROVIDER + '#' + r.slot;
     if (!consentOk.has(Number(r.salon_id) + '#' + Number(r.slot))) {
       skipped.push({ target, why: '連携の説明にまだ同意していない' });
+      continue;
+    }
+    // ★ 第325便: 上げる人も、外す枠も無い店舗には入らない（★ 用が無いのにログインしない）
+    if (!liveSalons.has(Number(r.salon_id)) && !openSalons.has(Number(r.salon_id))) {
+      skipped.push({ target, why: '「今すぐ」の方がいない（外す枠も無い）ので入らなかった' });
       continue;
     }
     if (started.length >= MAX_SALONS_PER_RUN) { skipped.push({ target, why: '今回の上限に達したので次の周へ' }); continue; }
