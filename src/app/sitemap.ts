@@ -9,6 +9,7 @@ import { sanitizeBadges } from '@/lib/therapistBadges';
 import { badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { ARTICLE_CATEGORY_ORDER } from '@/app/lib/articleCategories';
 import { MAIN_ARTICLE_CATEGORY_ORDER } from '@/app/lib/mainArticleCategories';
+import { getAllGlossaryMeta } from '@/app/lib/glossary';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -92,6 +93,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/jobs/column`, changeFrequency: 'daily', priority: 0.7 },
     // 本体コラム一覧（/column・利用者向け）。
     { url: `${SITE_URL}/column`, changeFrequency: 'daily', priority: 0.7 },
+    // メンズエステ用語集のハブ（/glossary・第349便）。語は下の glossaryEntries。
+    { url: `${SITE_URL}/glossary`, changeFrequency: 'weekly', priority: 0.7 },
     // ポリシー類（法令対応・E-E-A-T用の静的ページ。更新頻度は低い）。
     // 運営者情報（E-E-A-T用の静的ページ。2026-07-23追加）。
     { url: `${SITE_URL}/about`, changeFrequency: 'yearly', priority: 0.3 },
@@ -301,8 +304,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       };
     });
 
+  // メンズエステ用語集の各語（/glossary/<slug>・第349便）。DB ではなく src/content/glossary/*.md を
+  // ビルド時に読む（同期・fs）。lastModified は frontmatter の publishedAt（実日付を持つので付けてよい）。
+  const glossaryEntries: MetadataRoute.Sitemap = getAllGlossaryMeta().map((m) => ({
+    url: `${SITE_URL}/glossary/${m.slug}`,
+    lastModified: new Date(`${m.publishedAt}T00:00:00+09:00`),
+    changeFrequency: 'monthly',
+    priority: 0.6,
+  }));
+
   return [
     ...staticEntries,
+    ...glossaryEntries,
     ...areaPageEntries,
     ...salonEntries,
     ...salonSubpageEntries,

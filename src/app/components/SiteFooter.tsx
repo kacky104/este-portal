@@ -53,6 +53,7 @@ const CONTENT_LINKS: FooterLinkDef[] = [
   { href: '/diary', label: '写メ日記' },
   { href: '/reviews', label: '口コミ' },
   { href: '/column', label: 'コラム' },
+  { href: '/glossary', label: '用語集' }, // メンズエステ用語集（第349便・2026-09-13）
   { href: '/x-shops', label: 'SNS' },
   { href: '/join', label: '会員登録について' },
 ];

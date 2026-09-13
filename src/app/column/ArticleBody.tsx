@@ -8,11 +8,15 @@ import { headingId } from '@/app/lib/articleToc';
 // - 許可要素を見出し(h2/h3)・段落・リスト・リンク・強調・引用程度に絞る（allowedElements）。
 // - リンクは内部パス（/... ・#...）は next/link 相当、外部URLは target=_blank rel=noopener。
 // - h2 には目次から飛ぶための id を振る（2026-08-19 第24便）。
+// - 画像（img）は既定で描画しない。用語集（/glossary）だけ allowImages=true で本文中の画像を出す
+//   （第349便）。コラムは引数を付けていないので今までどおり画像は出ない。
 //   id は articleToc.ts の headingId() が見出しの文言から作る。目次側（ページの
 //   extractArticleHeadings）と同じ関数なので、片方だけずれることが無い。
 //   ★ scroll-mt-20 は追従ヘッダー（h-14＝56px）に見出しが隠れないための余白。外さないこと。
 
 const ALLOWED = ['h2', 'h3', 'p', 'ul', 'ol', 'li', 'a', 'strong', 'em', 'blockquote', 'br'];
+// allowImages=true のときだけ img を許す（用語集）。
+const ALLOWED_WITH_IMAGES = [...ALLOWED, 'img'];
 
 // 描画される見出しの文字列を hast ノードから取り出す（**強調** やリンクを含む見出しでも、
 // 記号を除いた「読める文字列」になる＝目次側の抽出結果と一致する）。
@@ -53,8 +57,24 @@ function MarkdownLink({ href, children }: { href?: string; children?: React.Reac
 }
 
 // seen は同じ文言の見出しが2回以上出たときの枝番用。1回の描画につき1つ作る。
-function buildComponents(seen: Map<string, number>): Components {
+function buildComponents(seen: Map<string, number>, allowImages: boolean): Components {
+  // 本文中の画像（用語集）。★ 1200×800 固定（用語集の画像指示で本文中はこのサイズと決めた。
+  //   幅高さが無いと読み込み時に本文がガタつく）。★ next/image は通さない（/public の WebP を
+  //   原寸で配信＝変換を挟む意味が無い。著者アイコンと同じ作法）。
+  const img: Components['img'] = ({ src, alt }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={typeof src === 'string' ? src : ''}
+      alt={alt ?? ''}
+      width={1200}
+      height={800}
+      loading="lazy"
+      decoding="async"
+      className="w-full h-auto rounded-2xl border border-pink-100 my-6"
+    />
+  );
   return {
+    ...(allowImages ? { img } : {}),
     // h2: 本体の既存セクション見出し（ピンク→ローズの縦バー＋font-bold）のトーンに合わせ、
     // 下線（pink）で本文からの区切りを強調する。
     h2: ({ node, children }) => (
@@ -84,11 +104,15 @@ function buildComponents(seen: Map<string, number>): Components {
   };
 }
 
-export function ArticleBody({ body }: { body: string }) {
+export function ArticleBody({ body, allowImages = false }: { body: string; allowImages?: boolean }) {
   const seen = new Map<string, number>();
   return (
     <div className="break-words">
-      <ReactMarkdown allowedElements={ALLOWED} unwrapDisallowed components={buildComponents(seen)}>
+      <ReactMarkdown
+        allowedElements={allowImages ? ALLOWED_WITH_IMAGES : ALLOWED}
+        unwrapDisallowed
+        components={buildComponents(seen, allowImages)}
+      >
         {body}
       </ReactMarkdown>
     </div>

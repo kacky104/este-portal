@@ -19,14 +19,17 @@
 export function ColumnHeading({
   title,
   description,
+  eyebrow = 'COLUMN',
 }: {
   title: string;
   /** 空文字なら説明文の段落ごと出さない（未設定のカテゴリでも崩れない） */
   description: string;
+  /** 見出しの上の英字（既定 COLUMN。用語集 /glossary は GLOSSARY・第349便） */
+  eyebrow?: string;
 }) {
   return (
     <header className="mb-6 text-center">
-      <p className="text-[11px] font-semibold tracking-[0.35em] text-pink-700">COLUMN</p>
+      <p className="text-[11px] font-semibold tracking-[0.35em] text-pink-700">{eyebrow}</p>
       <h1 className="mt-2 bg-gradient-to-r from-pink-700 via-rose-500 to-pink-700 bg-clip-text text-2xl sm:text-4xl font-black tracking-[0.04em] text-transparent drop-shadow-[0_1px_10px_rgba(236,72,153,0.18)]">
         {title}
       </h1>
