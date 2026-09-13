@@ -621,12 +621,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   ★ 押せないボタンを灰色で置くのは「立てられない状態を作ってから禁じる」形。 */}
             {s.autoOn ? (
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                {/* ★ 第210便: 「30分ごと・変わったところだけ」を言う（周期は media-auto-push の crontab・§57） */}
-                <p className="text-[14px] font-bold text-indigo-700">
-                  いまは自動で更新しています
-                </p>
+                {/* ★★★★ 第342便（2026-09-13・カッキーさん）: 【いま自動で動いている】ことを一目で分かるようにした。
+                    ★ 即ヒメのカードと同じ形（16px 太字＋キラリ・.link-live-kirari）。★ 状態そのものを見出しにする。
+                    ★★ 「出勤」と付けるのは、同じ画面に「即ヒメ自動設定中」が並ぶため。★ どちらの自動かを取り違えさせない。
+                    ★ 第210便: 「◯分ごと・変わったところだけ」を言う（周期は media-auto-push の crontab・§57）。
+                      ★ 分数は AUTO_PUSH_INTERVAL_MIN から出す（★ 周を変えたときに文言だけ古くならない）。 */}
+                <h3 className="text-[16px] font-bold link-live-kirari">出勤 自動更新中</h3>
                 <p className="text-[13px] text-slate-400 leading-relaxed">
-                  30分ごとに、変わったところだけを承認なしで{s.label}を更新します。更新できないときは止めて、ここに出します。
+                  変わったところだけを、{AUTO_PUSH_INTERVAL_MIN}分以内に承認なしで{s.label}を更新します。更新できないときは止めて、ここに出します。
                 </p>
                 <button
                   onClick={() => onSwitchAuto(s, false)}
