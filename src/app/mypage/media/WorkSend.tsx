@@ -302,7 +302,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             <p className="text-[14px] leading-relaxed text-slate-600">
               <b className="font-bold text-sky-700">いま送れるサイトがありません。</b>{' '}
               {readSite
-                ? `いまは${readSite.label}から反映しています。送るには「フクエスから反映」に変えてください。変えると${readSite.label}からの反映は止まります。`
+                // ★ 第319便（2026-09-13・カッキーさん）: 「変えると◯◯からの反映は止まります。」を落とした。
+                //   ★ 止まることは、下の「フクエスに変える」を押したときの問い（switchAskText）が言う。
+                //   ★ ボタンの手前で先回りして書かない（★ 第296便の homeChoiceNote と同じ整理）。
+                ? `いまは${readSite.label}から反映しています。送るには「フクエスから反映」に変えてください。`
                 : offSite
                   ? '「反映しない」を選んでいます。送るには、ホームで「フクエスから反映」を押してください。'
                   // ★ ホームと同じ言い方に揃える（第119便）。★ 2か所で違う言い方をしない（第90便）
@@ -597,7 +600,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         );
       })}
 
-      {/* ★ 駅ちかの即ヒメ枠（第213便）。★ 読むだけ。★ 駅ちかのログイン情報がある店にだけ出す */}
+      {/* ★ 駅ちかの即ヒメ枠（第213便）。★ 読むだけ。★ 駅ちかのログイン情報がある店にだけ出す。
+          ★★ 第318便: 出す・出さないの決めごとは SokuhimeSlots が持つ（★ フクエスから反映のときだけ出す）。
+            ★ ここでは今までどおり材料（鍵があるか・向きは write か）を渡すだけ。 */}
       {!loading && !error && (
         <SokuhimeSlots
           salonId={salonId}

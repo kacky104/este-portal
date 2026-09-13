@@ -8,6 +8,14 @@ import { sokuhimeSummaryLabel } from '@/lib/ekichikaSokuhimeParse';
 // 駅ちかの即ヒメ枠（第213便・2026-09-08）。★ 読むだけ。★ 「出勤を送る」の下に置く。
 // ★ 第49便の作法「直す前に、まず見えることを作る」。★ 押す側（今すぐ→即ヒメ）は次の便。
 // ★ 写しが無いときは「まだ読んでいません」。★ 「0/0」と出さない（0件と分からないを混ぜない）。
+//
+// ★★★★ 【第318便】（2026-09-13・カッキーさんの指示）: 【フクエスから反映のときだけ】出す。
+//   ★ 駅ちかから反映（read）のあいだ、この箱は**使えない機能の説明だけ**になっていた:
+//     ・「駅ちかの即ヒメにする」は押せない灰色
+//     ・自動のスイッチは出ず「ホームで『フクエスから反映』にすると使えます」の1行だけ
+//     ・★ なのに「試す（送らない）」だけは押せる（★ 送れないのに試せる、という妙な形）
+//   ★ その向きのときは、即ヒメは駅ちかの管理画面で操作している。★ 枠の状態もそちらで足りる。
+//   ★★ 出さないと決めたので、読みにも行かない（★ 見えない箱のために3本問い合わせない）。
 
 function fmt(iso: string): string {
   const t = Date.parse(iso);
@@ -40,17 +48,19 @@ export function SokuhimeSlots({ salonId, hasCredential, isWrite, onToast }: {
   const [switching, setSwitching] = useState(false);
 
   const load = useCallback(async () => {
-    if (salonId == null) return;
+    // ★ 第318便: 出さない場面では読みにも行かない（★ 描かない箱のために問い合わせを増やさない）
+    if (salonId == null || !hasCredential || !isWrite) return;
     const [r, c, a] = await Promise.all([getMediaSokuhime({ salonId }), getSokuhimeCandidates({ salonId }), getSokuhimeAuto({ salonId })]);
     if (r.ok) setSnap(r.data);
     if (c.ok) setCands(c.data);
     if (a.ok) setAuto(a.data);
     setLoading(false);
-  }, [salonId]);
+  }, [salonId, hasCredential, isWrite]);
 
   useEffect(() => { void load(); }, [load]);
 
-  if (salonId == null || !hasCredential) return null;
+  // ★★★ 第318便: 鍵が無いとき（読む相手がいない）と、フクエスから反映でないとき（送れない）は出さない
+  if (salonId == null || !hasCredential || !isWrite) return null;
 
   const onRead = async () => {
     if (salonId == null) return;
@@ -159,7 +169,6 @@ export function SokuhimeSlots({ salonId, hasCredential, isWrite, onToast }: {
           <p className="text-[12.5px] text-slate-400 leading-relaxed">
             店舗か本人がフクエスで押した「今すぐ」だけです（駅ちかから取り込んだ即ヒメは除きます）。
             「試す」は駅ちかを触らず、送るとどうなるかを「連携の記録」に残します。
-            {!isWrite && '　★ 駅ちかの即ヒメにするには、ホームで駅ちかを「フクエスから反映」にしてください。'}
           </p>
           {cands.length === 0 ? (
             <p className="text-[13.5px] text-slate-400">いまフクエスで「今すぐ」の方はいません。</p>
