@@ -8,7 +8,6 @@ import { getAllGlossaryMeta, getGlossaryEntry } from '@/app/lib/glossary';
 import { GLOSSARY_CATEGORIES, KANA_ROW_IDS, kanaRow } from '@/lib/glossaryParse';
 import { ArticleBody } from '@/app/column/ArticleBody';
 import { ArticleToc } from '@/app/column/ArticleToc';
-import { formatColumnDate } from '@/app/column/format';
 import { GlossaryCardGrid, toCardData } from '../GlossaryCard';
 import { GlossaryNotice } from '../GlossaryNotice';
 import { GlossaryCta } from '../GlossaryCta';
@@ -24,6 +23,14 @@ import styles from '../glossary.module.css';
 //   ・注意文と店舗検索CTAは GlossaryNotice / GlossaryCta に切り出してハブと共用にした。
 //   ・関連する用語はハブと同じ GlossaryCard。
 //   ・本文（ArticleBody）は /column と共用の部品なので触らず、.termArticle の中だけ字を大きくしている。
+// ★★ 第358便: 【公開日をページに出すのをやめた】（カッキーさんの指示）。
+//   ★ 理由: 用語集は辞典なので日付が古びる。「健全店とは」の意味は来年も変わらないのに、
+//     公開日が出ていると時間が経つほど「古い記事」に見える。
+//   ★ 構造化データは失われない（DefinedTerm に公開日の項目がそもそも無い。Article とは違う）。
+//   ★★ frontmatter の publishedAt は【残す】。sitemap.xml の lastmod がこれを使っている。
+//     ★ 消すとファイルの更新時刻から取るしかなくなり、git は更新時刻を保存しないので
+//       デプロイのたびに全ページが「たった今更新された」ことになる（第24便で直した嘘の lastmod）。
+//   ★ 将来 書き直したときに出すなら updatedAt を足して「最終更新」として出す。
 // ★ 変えていないもの: title / description / canonical / OGP / パンくず / JSON-LD 3本 /
 //   URL / 本文の文章 / #row-ka への戻りリンク / h1 の文言（第350便）。
 //
@@ -90,8 +97,6 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
   const row = kanaRow(meta.reading);
   const rowId = KANA_ROW_IDS[row] ?? 'other';
   const rowLabel = row === 'その他' ? 'その他' : `${row}行`;
-
-  const publishedIso = `${meta.publishedAt}T00:00:00+09:00`;
 
   const termJsonLd = {
     '@context': 'https://schema.org/',
@@ -161,7 +166,6 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
                 </svg>
                 {rowLabel}の用語一覧へ戻る
               </Link>
-              <time className={styles.termDate} dateTime={meta.publishedAt}>公開: {formatColumnDate(publishedIso)}</time>
             </div>
           </div>
         </section>

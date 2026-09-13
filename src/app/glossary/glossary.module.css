@@ -109,7 +109,37 @@
 @media (min-width: 1024px) {
   .hero { padding: 52px 64px; }
 }
-/* 背景の円形装飾（本文の可読性を優先して、ごく薄く） */
+/* ★★ 第356便: PC（1024px以上）はヒーローの背景に写真（public/glossary/hero-bg.webp）を敷く。
+   ★ 右にモデル・左は淡いピンクの花柄。見出し・説明文・検索欄は【左52%】に収めて、人物の手に重ねない。
+   ★ 背景は3枚重ね（上から）:
+       ① 左を白く起こす帯（文字のコントラストを確保）
+       ② 写真（右寄せ・cover）
+       ③ 元のグラデーション（写真が読めなくてもここで色が残る＝崩れない）
+   ★★ 写真を出すのは 1024px 以上だけ。★ タブレット（768〜1023px）とスマホでは出さない。
+     ★ 理由: 幅が狭いとヒーローが縦に伸び、cover で写真が拡大されて【手が左に伸びて文字に重なる】。
+       実測で 768px のときは手が x=237 まで来て、どう文字を詰めても重なった。
+   ★ 高さは 420px 固定寄り（min-height）。★ ここを増やすと写真が拡大され、手が左に寄る。
+   ★ 背景画像＝装飾。見出し・説明文・検索欄は今までどおり HTML のまま。
+     ★ URL・タイトル・description・構造化データ・検索機能は1つも変えていない。 */
+@media (min-width: 1024px) {
+  .hero {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.5) 38%, rgba(255, 255, 255, 0) 60%),
+      url('/glossary/hero-bg.webp'),
+      linear-gradient(135deg, #fff 0%, #fff3f8 60%, #fff8ef 100%);
+    background-size: cover, cover, cover;
+    background-position: center, right center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat;
+    min-height: 420px;
+  }
+  /* 写真と喧嘩するので、円形のぼかし装飾は写真を出す幅では非表示 */
+  .hero::before,
+  .hero::after { display: none; }
+  /* 見出し・説明文・検索欄は左 52%（人物の手に重ねない） */
+  .heroInner { max-width: 52%; }
+}
+
+/* 背景の円形装飾（スマホ用。本文の可読性を優先して、ごく薄く） */
 .hero::before,
 .hero::after {
   content: "";
@@ -577,6 +607,8 @@
 }
 @media (min-width: 768px) { .termLead { font-size: 18px; } }
 
+/* ★ 第358便で公開日を外したので、いまは「か行へ戻る」だけが入る行。
+   ★ 将来「最終更新」を足すなら、また横に並ぶので flex のままにしてある。 */
 .termMetaRow {
   display: flex;
   flex-wrap: wrap;
@@ -584,7 +616,6 @@
   gap: 10px 16px;
   margin-top: 18px;
 }
-.termDate { font-size: 12px; color: var(--glossary-muted); }
 /* 「か行の用語一覧へ戻る」 */
 .termRowLink {
   display: inline-flex;
