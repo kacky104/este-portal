@@ -7,11 +7,12 @@ import {
   getMediaAutoEligible,
   getMediaWorkPlan,
   setMediaLinkMode,
+  setAllLinkModes,
   startMediaWorkDryRun,
   startMediaWorkPush,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
-import { pushAvailability, pushButtonLabel, switchDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
+import { pushAvailability, pushButtonLabel, bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { SokuhimeSlots } from './SokuhimeSlots';
 
 // 出勤を送る（第57便・㉞ その2）。
@@ -40,6 +41,11 @@ type Site = {
 };
 
 const keyOf = (p: string, s: number) => p + '#' + s;
+/**
+ * ★ 「フクエスに変える」を押しているあいだの印（第320便）。
+ *   ★ 枠ごとの鍵（provider#slot）とは別物なので、枠には使えない名前にしておく（★ 取り違え防止）。
+ */
+const BULK_KEY = '*bulk*';
 
 /** 「8/30 06:13」。★ 読めない値は空文字（"Invalid Date" を店舗に見せない）。 */
 function fmt(iso: string | null): string {
@@ -132,17 +138,23 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   /**
    * ★★★ その場でフクエスに変える（第86便その2・カッキーさん）。
    * ★ ここまで来た人は「送りたい」と分かっている。★ ログイン情報の画面へ回さない。
-   * ★ 止まるほう（取り込み）は、押した直後に文で返す（switchDoneText）。
+   *
+   * ★★★★ 【第320便】（2026-09-13・カッキーさんの指示）: 変えるのを【登録済みの全サイト】にした。
+   *   ★ それまでは駅ちか1枠だけを write にしていたので、押しても
+   *     エステ魂は「反映なし」のまま＝送り先が1つも増えない、ということが起きた。
+   *   ★ 押した人の気持ちは「フクエスから送れるようにしたい」であって「駅ちかだけ」ではない。
+   *   ★★ 使う受け口はホームの大きなボタンと**同じ** setAllLinkModes（第192便）。
+   *     ★ 順番も断り方（自動のままの枠は飛ばす等）も、あちらと1つの決まりで動く。
+   *     ★ 途中で止まったら、どこまで変わったかを bulkDoneText が文で返す。★ 黙って続けない。
    */
-  const onSwitchToWrite = async (site: Site) => {
+  const onSwitchToWrite = async () => {
     if (salonId == null) return;
-    const k = keyOf(site.provider, site.slot);
-    setSwitching(k);
-    const res = await setMediaLinkMode({ salonId, provider: site.provider, slot: site.slot, mode: 'write' });
+    setSwitching(BULK_KEY);
+    const res = await setAllLinkModes({ salonId, to: 'write' });
     setSwitching(null);
     if (!res.ok) { onToast(res.error); return; }
     await load();
-    onToast(switchDoneText('write', site.label, site.provider));
+    onToast(bulkDoneText(res.data));
   };
 
   useEffect(() => { void load(); }, [load]);
@@ -315,11 +327,11 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             {readSite ? (
               <button
                 type="button"
-                onClick={() => void onSwitchToWrite(readSite)}
+                onClick={() => void onSwitchToWrite()}
                 disabled={switching !== null}
                 className="mt-2 px-3 py-1.5 border border-sky-300 bg-white text-[14px] font-bold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
               >
-                {switching === keyOf(readSite.provider, readSite.slot) ? '変えています…' : 'フクエスに変える'}
+                {switching === BULK_KEY ? '変えています…' : 'フクエスに変える'}
               </button>
             ) : (
               <Link
