@@ -127,6 +127,7 @@ export async function fetchSalonWeeklyRanking(limit = 30, week: string = current
     .from('salons')
     .select('id')
     .eq('is_hidden', false)
+    .eq('listing_plan', 'standard') // 無料掲載店は店舗ランキングの母集団から外す（第368便）
     .gt('ranking_bonus', 0);
   const bonusIds = ((bonusIdRows ?? []) as Array<{ id: number }>).map((r) => Number(r.id));
 
@@ -137,7 +138,8 @@ export async function fetchSalonWeeklyRanking(limit = 30, week: string = current
     .from('salons')
     .select('id, name, area, area2, ranking_bonus, is_hidden, dispatch_type')
     .in('id', candidateIds)
-    .eq('is_hidden', false);
+    .eq('is_hidden', false)
+    .eq('listing_plan', 'standard'); // 無料掲載店は店舗ランキングの母集団から外す（第368便）
 
   return ((salonRows ?? []) as Array<{
     id: number;
@@ -327,11 +329,12 @@ export async function fetchOverallWeeklyRanking(limit = 10, week: string = curre
     therapistViews.set(Number(r.item_id), Number(r.views)),
   );
 
-  // 非表示でない店舗
+  // 非表示でない店舗（無料掲載店は店舗ランキングの母集団から外す・第368便）
   const { data: salonRows } = await supabase
     .from('salons')
     .select('id, name, area, area2, ranking_bonus, dispatch_type')
-    .eq('is_hidden', false);
+    .eq('is_hidden', false)
+    .eq('listing_plan', 'standard');
   type S = { id: number; name: string | null; area: string | null; area2: string | null; ranking_bonus: number | null; dispatch_type: 'none' | 'available' | 'only' | null };
   const salons = (salonRows ?? []) as S[];
 

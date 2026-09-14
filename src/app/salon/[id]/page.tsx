@@ -12,6 +12,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import PageViewLogger from '@/app/components/PageViewLogger';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
+import { FreeSalonPage } from "./FreeSalonPage";
 import { sanitizeInternalPath } from "@/app/lib/safeLink";
 import { getTheme, breadcrumbCurrentColor, type ThemeKey } from "@/app/lib/themes";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
@@ -228,7 +229,7 @@ export default async function SalonPage({
   ] = await Promise.all([
     supabase
       .from('salons')
-      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, course_note, theme, official_url, fukux_url, line_url, payment_methods, is_hidden, dispatch_type, postal_code')
+      .select('id, name, rating, review_count, tags, price, area, area2, hours, description, appeal, phone, address, access, closed_days, courses, course_note, theme, official_url, fukux_url, line_url, payment_methods, is_hidden, dispatch_type, postal_code, listing_plan')
       .eq('id', Number(id))
       .single(),
     supabase
@@ -257,6 +258,11 @@ export default async function SalonPage({
 
   // 非表示サロンは公開側から隠す（RLSに加え明示チェックで多重防御。直URLアクセスは404）。
   if (error || !row || row.is_hidden) notFound();
+
+  // ★ 無料掲載枠（第368便）：店舗基本情報と口コミだけの簡易ページ。第2段の取得（出勤・日記・壁紙・在籍）はしない。
+  if (row.listing_plan === 'free') {
+    return <FreeSalonPage id={Number(id)} row={row} />;
+  }
 
   const salonImages = (imageRows ?? []).map(r => ({
     pc:     r.image_url        as string,

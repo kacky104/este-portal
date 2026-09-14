@@ -24,7 +24,7 @@ export default async function ModerationPage() {
 
   const { data: rows } = await svc
     .from('therapist_reviews')
-    .select('id, therapist_id, user_id, rating_service, rating_technique, rating_reception, visited_on, body, created_at')
+    .select('id, therapist_id, salon_id, user_id, rating_service, rating_technique, rating_reception, visited_on, body, created_at')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
@@ -35,7 +35,7 @@ export default async function ModerationPage() {
   // それより古い口コミの削除が必要になったら DB 直接操作 or 検索機能の追加で対応。
   const { data: approvedRows } = await svc
     .from('therapist_reviews')
-    .select('id, therapist_id, user_id, rating_service, rating_technique, rating_reception, visited_on, body, created_at')
+    .select('id, therapist_id, salon_id, user_id, rating_service, rating_technique, rating_reception, visited_on, body, created_at')
     .eq('status', 'approved')
     .order('created_at', { ascending: false })
     .limit(200);
@@ -59,7 +59,10 @@ export default async function ModerationPage() {
   }
 
   // 対象セラピスト名・所属サロンを別クエリで解決（therapists は1回で名前＋salon_idを取得）。
-  const therapistIds = [...new Set(allRows.map((r) => r.therapist_id as number))];
+  // ★ 店舗宛て（therapist_id NULL・第368便）は除いて集める。
+  const therapistIds = [...new Set(allRows.map((r) => r.therapist_id as number | null))].filter(
+    (x): x is number => x != null,
+  );
   const therapistMap = new Map<number, string>();
   const therapistSalonMap = new Map<number, number>(); // therapist_id → salon_id
   if (therapistIds.length > 0) {
@@ -72,7 +75,11 @@ export default async function ModerationPage() {
   }
 
   // 対象サロン名を別クエリで解決（salon_id 群をまとめて1回引く）。
-  const salonIds = [...new Set([...therapistSalonMap.values()])];
+  // ★ 「セラピスト経由の salon_id」と「行の salon_id（店舗宛て・第368便）」の和集合。
+  const rowSalonIds = allRows
+    .map((r) => r.salon_id as number | null)
+    .filter((x): x is number => x != null);
+  const salonIds = [...new Set([...therapistSalonMap.values(), ...rowSalonIds])];
   const salonNameMap = new Map<number, string>();
   if (salonIds.length > 0) {
     const { data: salons } = await svc.from('salons').select('id, name').in('id', salonIds);
@@ -94,8 +101,13 @@ export default async function ModerationPage() {
       visitedOn: String(r.visited_on),
       body: (r.body as string) ?? '',
       nickname: (r.user_id ? nameMap.get(r.user_id as string) : undefined) ?? 'ゲスト',
-      therapistName: therapistMap.get(r.therapist_id as number) ?? `セラピスト#${r.therapist_id}`,
-      salonName: salonNameMap.get(therapistSalonMap.get(r.therapist_id as number) ?? -1) ?? '',
+      // 店舗宛て（therapist_id NULL・第368便）はセラピスト名の代わりに固定文言、店名は行の salon_id から。
+      therapistName: r.therapist_id == null
+        ? '店舗宛て（セラピスト指定なし）'
+        : (therapistMap.get(r.therapist_id as number) ?? `セラピスト#${r.therapist_id}`),
+      salonName: r.therapist_id == null
+        ? (salonNameMap.get(r.salon_id as number) ?? '')
+        : (salonNameMap.get(therapistSalonMap.get(r.therapist_id as number) ?? -1) ?? ''),
       createdAt: String(r.created_at),
     };
   };

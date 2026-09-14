@@ -10,7 +10,8 @@ import { AccountMenu } from "./components/AccountMenu";
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from "./components/NotificationBell";
 import { VipLetterIcon } from "./components/VipLetterIcon";
-import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst } from "./lib/salons";
+import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst, fetchFreeListings } from "./lib/salons";
+import { FreeListingCards } from "./components/FreeListingCards";
 import { weightedShuffleEvery6h } from "@/lib/shuffle";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { ALL_AREA, AREA_ORDER } from "./lib/areas";
@@ -68,7 +69,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -97,6 +98,8 @@ export default async function Home() {
     getAllApprovedReviews(40),
     // 「一覧を見る」カードの画像（第218便・/admin で運営が置く。無ければ null＝グラデーション）。
     fetchSiteImage(supabase, LIST_MORE_CARD_KEY),
+    // 無料掲載枠（listing_plan='free'）。TOP 最下部の簡易カード用。0件なら出さない（第368便）。
+    fetchFreeListings(supabase),
   ]);
 
   // TOPに出すのは先頭3件だけ。続きは /reviews。
@@ -306,6 +309,13 @@ export default async function Home() {
                 // 30枚目直下：新人セラピスト一覧（等倍＝zoom:false でカード肥大化を回避）。
                 ...(newFaceTherapists.length > 0
                   ? [{ afterIndex: 30, node: <NewFaceScroller therapists={newFaceTherapists} moreImageUrl={moreCardImage} />, zoom: false }]
+                  : []),
+                // 一番下：無料掲載枠の簡易カード（第368便）。0件なら出さない。
+                // ★ afterIndex は MAX_SAFE_INTEGER＝「必ず最後」。カード総数を入れてはいけない：
+                //   カードが30枚未満のとき（今はそう）、10/20/30 のブロックはどれも末尾に押し出されて afterIndex 順に並ぶので、
+                //   総数（例: 12）を入れるとおすすめバナー(10)の次・ピックアップ(20)と新人(30)の【前】に出てしまう。
+                ...(freeListings.length > 0
+                  ? [{ afterIndex: Number.MAX_SAFE_INTEGER, node: <FreeListingCards items={freeListings} />, zoom: false }]
                   : []),
               ]}
               heading={

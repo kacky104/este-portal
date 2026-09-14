@@ -7,6 +7,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
+import { notFoundIfFreeListing } from "../freeListingGuard";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getBookableTherapists } from "@/app/actions/booking";
 import { BookingFlow } from "./BookingFlow";
@@ -51,6 +52,7 @@ export default async function SalonBookPage({
   const { id } = await params;
   const salonId = Number(id);
   const supabase = createPublicClient();
+  await notFoundIfFreeListing(supabase, Number(id));
 
   const { data: salonRow, error } = await supabase
     .from('salons')

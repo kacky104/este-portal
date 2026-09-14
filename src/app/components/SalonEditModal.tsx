@@ -46,6 +46,8 @@ export type SalonForEdit = {
   dispatch_type: 'none' | 'available' | 'only' | null;
   jobs_enabled: boolean | null;
   booking_email: string | null;
+  listing_plan: 'standard' | 'free' | null; // 掲載プラン（第368便）
+  catchphrase: string | null; // 無料掲載枠のカード用の一言（第368便）
 };
 
 type Props = {
@@ -71,6 +73,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
     closed_days: salon.closed_days ?? '',
     owner_id:    salon.owner_id    ?? '',
     booking_email: salon.booking_email ?? '',
+    catchphrase: salon.catchphrase ?? '', // 無料掲載枠のカード用の一言（第368便）
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -79,6 +82,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>(salon.dispatch_type ?? 'none');
   // フクエスワーク（求人）掲載の契約有無。ON の店だけ /mypage に「求人」タブが出る。
   const [jobsEnabled,  setJobsEnabled]  = useState(salon.jobs_enabled ?? false);
+  // 掲載プラン（第368便）。standard=本契約／free=無料掲載枠（簡易カード＋基本情報と口コミだけの詳細）。
+  const [listingPlan,  setListingPlan]  = useState<'standard' | 'free'>(salon.listing_plan ?? 'standard');
 
   // ── ログインメール（auth.users）管理 ──
   // 対象は「この salon が開かれた時点の owner_uuid」に紐づくアカウント（既存アカウント引き継ぎのため
@@ -196,6 +201,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         dispatch_type: dispatchType,
         jobs_enabled: jobsEnabled,
         booking_email: bookingEmail || null,
+        listing_plan: listingPlan, // 掲載プラン（第368便）
+        catchphrase: form.catchphrase.trim(), // 無料掲載枠のカード用の一言（第368便）
       })
       .eq('id', salon.id)
       .select('id');   // 影響行を取得してRLSブロックを検出
@@ -331,6 +338,22 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
               />
               フクエスワーク掲載（求人タブ）
             </label>
+          </div>
+
+          {/* 掲載プラン（第368便）。free＝無料掲載枠（TOP最下部の簡易カード・詳細は基本情報と口コミのみ）。 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-400 block">掲載プラン</label>
+              <select
+                value={listingPlan}
+                onChange={e => setListingPlan(e.target.value as 'standard' | 'free')}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              >
+                <option value="standard">本契約（standard）</option>
+                <option value="free">無料掲載枠（free）</option>
+              </select>
+            </div>
+            {textField('一言（無料掲載枠のカード用・27文字まで）', 'catchphrase', '例: 博多駅チカ・当日予約OK')}
           </div>
 
           {/* 営業時間 */}

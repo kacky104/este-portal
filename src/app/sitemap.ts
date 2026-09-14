@@ -36,8 +36,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [salonRows, therapistRows, diaryRows, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfileRows, xPostRows] = await Promise.all([
     // updated_at は 20260806 マイグレーションで追加（bump・今すぐ系だけの変更では動かないトリガつき）。
     // courses は /salon/[id]/price を sitemap に入れるかの判定にだけ使う（0件＝準備中表示なので入れない）。
-    fetchAllRows<{ id: number; updated_at: string | null; courses: unknown }>((from, to) =>
-      supabase.from('salons').select('id, updated_at, courses').eq('is_hidden', false).order('id').range(from, to)),
+    fetchAllRows<{ id: number; updated_at: string | null; courses: unknown; listing_plan: string }>((from, to) =>
+      supabase.from('salons').select('id, updated_at, courses, listing_plan').eq('is_hidden', false).order('id').range(from, to)),
     // is_active=true のみ。退店・非公開セラピストを載せると 404 が sitemap 経由で発生する
     // （2026-07-28: /therapist/38・/therapist/40 が Search Console で「見つかりませんでした(404)」）。
     fetchAllRows<{ id: number; salon_id: number; feature_badges: unknown; updated_at: string | null }>((from, to) =>
@@ -157,6 +157,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     therapistCountBySalon.set(t.salon_id, (therapistCountBySalon.get(t.salon_id) ?? 0) + 1);
   }
   const salonSubpageEntries: MetadataRoute.Sitemap = salonRows.flatMap((s) => {
+    // 無料掲載枠（第368便）はサブページを持たない（404）ので sitemap にも載せない。本体 /salon/[id] は salonEntries で載る。
+    if (s.listing_plan === 'free') return [];
     const subs: string[] = ['info'];
     if (Array.isArray(s.courses) && s.courses.length > 0) subs.push('price');
     if ((therapistCountBySalon.get(s.id) ?? 0) > 0) subs.push('therapists');

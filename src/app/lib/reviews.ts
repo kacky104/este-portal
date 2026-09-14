@@ -17,7 +17,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 
 export type ApprovedReview = {
   id: string;
-  therapistId: number;
+  therapistId: number | null; // 店舗宛て（無料掲載枠・第368便）は null。セラピスト宛ては従来どおり数値。
   ratingService: number;
   ratingTechnique: number;
   ratingReception: number;
@@ -54,7 +54,8 @@ function overallOf(service: number, technique: number, reception: number): numbe
 
 type ReviewRow = {
   id: string | number;
-  therapist_id: number;
+  therapist_id: number | null; // 店舗宛て（無料掲載枠・第368便）は null。
+  salon_id: number | null; // 店舗宛てのときだけ入る（セラピスト宛ては null）。
   // 退会済み会員の口コミは NULL（therapist_reviews_user_id_fkey が ON DELETE SET NULL）。
   // 本文は残し、表示名だけ「ゲスト」に落とす＝匿名化（2026-08-03）。
   user_id: string | null;
@@ -67,7 +68,7 @@ type ReviewRow = {
 };
 
 const REVIEW_COLUMNS =
-  'id, therapist_id, user_id, rating_service, rating_technique, rating_reception, body, visited_on, created_at';
+  'id, therapist_id, salon_id, user_id, rating_service, rating_technique, rating_reception, body, visited_on, created_at';
 
 // user_id → nickname のマップを引く（空配列なら空マップ）。nickname 未設定/空白は載せない。
 // 退会済み（user_id が NULL）の行は引く対象から外す。
@@ -252,8 +253,67 @@ export async function getSalonApprovedReviews(salonId: number): Promise<Approved
       visitedOn: String(r.visited_on),
       createdAt: String(r.created_at),
       nickname: nicknameOf(nameMap, r.user_id),
-      therapistName: byId.get(r.therapist_id)?.name ?? '',
-      therapistImage: byId.get(r.therapist_id)?.image ?? null,
+      therapistName: byId.get(r.therapist_id as number)?.name ?? '',
+      therapistImage: byId.get(r.therapist_id as number)?.image ?? null,
+    };
+  });
+}
+
+// ── 無料掲載店の店舗宛て口コミ（第368便）─────────────────────────
+// 店舗宛て＝ therapist_id NULL・salon_id 一致・承認済み。無料掲載店の簡易ページ／口コミ一覧だけで使う。
+// ★ 本契約店の表示（getSalonReviewStats・getSalonApprovedReviews）はこれと別で、1ミリも変えない。
+
+/** 無料掲載店の店舗宛て口コミの集計（第368便）。therapist_id NULL・salon_id 一致・承認済み。 */
+export async function getFreeSalonReviewStats(salonId: number): Promise<ReviewStats> {
+  const empty: ReviewStats = { count: 0, avgService: null, avgTechnique: null, avgReception: null, avgOverall: null };
+  if (!Number.isFinite(salonId)) return empty;
+  const supabase = createPublicClient();
+
+  const { data, error } = await supabase
+    .from('therapist_reviews')
+    .select('rating_service, rating_technique, rating_reception')
+    .eq('salon_id', salonId)
+    .is('therapist_id', null)
+    .eq('status', 'approved');
+  if (error || !data) return empty;
+  return statsFromRows(data as unknown as ReviewRow[]);
+}
+
+/** 無料掲載店の店舗宛て口コミを新しい順（limit 省略で全件）。therapistName は付けない。 */
+export async function getFreeSalonApprovedReviews(salonId: number, limit?: number): Promise<ApprovedReview[]> {
+  if (!Number.isFinite(salonId)) return [];
+  const supabase = createPublicClient();
+
+  let query = supabase
+    .from('therapist_reviews')
+    .select(REVIEW_COLUMNS)
+    .eq('salon_id', salonId)
+    .is('therapist_id', null)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false });
+  if (typeof limit === 'number') query = query.limit(limit);
+  const { data, error } = await query;
+  if (error || !data || data.length === 0) return [];
+  const rows = data as unknown as ReviewRow[];
+
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const nameMap = await fetchNicknameMap(supabase, userIds);
+
+  return rows.map((r) => {
+    const s = Number(r.rating_service);
+    const t = Number(r.rating_technique);
+    const rc = Number(r.rating_reception);
+    return {
+      id: String(r.id),
+      therapistId: null,
+      ratingService: s,
+      ratingTechnique: t,
+      ratingReception: rc,
+      overall: overallOf(s, t, rc),
+      body: r.body ?? '',
+      visitedOn: String(r.visited_on),
+      createdAt: String(r.created_at),
+      nickname: nicknameOf(nameMap, r.user_id),
     };
   });
 }
@@ -276,7 +336,8 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
   const rows = data as unknown as ReviewRow[];
 
   // 2. 対象セラピスト → 名前/画像/所属店（公開・在籍のみ）。非表示店/非在籍はここで落ちる。
-  const therapistIds = [...new Set(rows.map((r) => r.therapist_id))];
+  // ★ 店舗宛て（therapist_id=null・第368便）はここで除外＝/reviews と TOP 新着には出さない（§12 で対応予定）。
+  const therapistIds = [...new Set(rows.map((r) => r.therapist_id))].filter((x): x is number => x != null);
   const { data: therapists } = await supabase
     .from('therapists')
     .select('id, name, profile_image_url, salon_id, salons!inner(name, is_hidden)')
@@ -302,9 +363,9 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
 
   // 4. 公開対象（byId に残った）口コミだけを組み立て（新着順は rows の順序を維持）。
   return rows
-    .filter((r) => byId.has(r.therapist_id))
+    .filter((r) => r.therapist_id != null && byId.has(r.therapist_id))
     .map((r) => {
-      const info = byId.get(r.therapist_id)!;
+      const info = byId.get(r.therapist_id as number)!;
       const s = Number(r.rating_service);
       const t = Number(r.rating_technique);
       const rc = Number(r.rating_reception);
@@ -428,7 +489,7 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
 
   // 1. 承認済み口コミの3軸＋対象IDを全件取得（PostgREST の1リクエスト上限対策に1000件ずつページング）。
   type CountRow = {
-    therapist_id: number;
+    therapist_id: number | null; // 店舗宛て（無料掲載枠・第368便）は null。
     rating_service: number | string;
     rating_technique: number | string;
     rating_reception: number | string;
@@ -452,6 +513,9 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
   // 2. therapist_id ごとに件数・総合値・最新口コミ日時を集計。
   const agg = new Map<number, { count: number; overalls: number[]; latest: string }>();
   for (const r of all) {
+    // ★ 店舗宛て（無料掲載枠・第368便）は therapist_id NULL。ここで弾かないと agg に null キーが入り、
+    //   後段の therapistIds に null が混ざって .in('id', [null, …]) になり、セラピストランキングが空になりうる。
+    if (r.therapist_id == null) continue;
     const o = overallOf(Number(r.rating_service), Number(r.rating_technique), Number(r.rating_reception));
     const cur = agg.get(r.therapist_id);
     if (cur) {
@@ -538,6 +602,16 @@ export async function syncSalonRating(salonId: number): Promise<void> {
       .eq('status', 'approved');
     rows = (data ?? []) as unknown as ReviewRow[];
   }
+
+  // 2b. 店舗宛ての承認済み口コミ（無料掲載枠・第368便。therapist_id NULL・salon_id 一致）も足す。
+  //     ★ 無料掲載店には在籍セラピストがいないので、この行が無いと rating/review_count が焼けない。
+  const { data: storeRows } = await svc
+    .from('therapist_reviews')
+    .select('rating_service, rating_technique, rating_reception')
+    .eq('salon_id', salonId)
+    .is('therapist_id', null)
+    .eq('status', 'approved');
+  rows = rows.concat((storeRows ?? []) as unknown as ReviewRow[]);
 
   // 3. getSalonReviewStats と同一の計算（statsFromRows）で総合平均・件数。
   const stats = statsFromRows(rows);

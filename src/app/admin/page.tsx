@@ -72,6 +72,8 @@ type Salon = {
   jobs_enabled: boolean | null;
   is_hidden: boolean | null;
   booking_email: string | null;
+  listing_plan: 'standard' | 'free' | null; // 掲載プラン（第368便）
+  catchphrase: string | null; // 無料掲載枠のカード用の一言（第368便）
 };
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
@@ -130,6 +132,7 @@ const EMPTY_FORM = {
   access: '',
   closed_days: '',
   owner_id: '',
+  catchphrase: '', // 無料掲載枠のカード用の一言（第368便・27文字まで）
 };
 
 export default function AdminDashboard() {
@@ -142,6 +145,7 @@ export default function AdminDashboard() {
   const [addError, setAddError] = useState('');
   // area とは独立した別軸のフラグ（文字列フォームとは別 state で型安全に管理）。
   const [showOnTop, setShowOnTop] = useState(true);
+  const [isFreeListing, setIsFreeListing] = useState(false); // 無料掲載枠として登録するか（第368便）
   const [dispatchType, setDispatchType] = useState<'none' | 'available' | 'only'>('none');
   const [editingSalon, setEditingSalon] = useState<SalonForEdit | null>(null);
   const [hidingId, setHidingId] = useState<number | null>(null);
@@ -194,7 +198,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, area2, price, rating, owner_id, hours, phone, postal_code, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email')
+      .select('id, name, area, area2, price, rating, owner_id, hours, phone, postal_code, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email, listing_plan, catchphrase')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('店舗データの取得に失敗しました');
@@ -288,6 +292,8 @@ export default function AdminDashboard() {
       owner_id:          form.owner_id.trim() || null,
       show_on_top:       showOnTop,
       dispatch_type:     dispatchType,
+      listing_plan:      isFreeListing ? 'free' : 'standard', // 無料掲載枠（第368便）
+      catchphrase:       form.catchphrase.trim(),
       rating:            0,
       review_count:      0,
       courses:           [],
@@ -307,6 +313,7 @@ export default function AdminDashboard() {
     } else {
       setForm(EMPTY_FORM);
       setShowOnTop(true);
+      setIsFreeListing(false);
       setDispatchType('none');
       revalidateTopAndAreas(); // 新規サロンをトップ＋地域ページ（出張含む）に反映
       showToast('店舗を追加しました');
@@ -314,13 +321,14 @@ export default function AdminDashboard() {
     }
   };
 
-  const field = (label: string, key: keyof typeof EMPTY_FORM, placeholder = '') => (
+  const field = (label: string, key: keyof typeof EMPTY_FORM, placeholder = '', maxLength?: number) => (
     <div className="space-y-1">
       <label className="text-[11px] font-bold text-slate-400 block">{label}</label>
       <input
         type="text"
         placeholder={placeholder}
         value={form[key]}
+        maxLength={maxLength}
         onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))}
         className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
       />
@@ -588,7 +596,7 @@ export default function AdminDashboard() {
           </AccordionSection>
 
           {/* ── 無料掲載枠（/salons のテキスト行）管理 ── */}
-          <AccordionSection id="free-salon-listings" title="無料掲載枠（/salons テキスト掲載）" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="free-salon-listings" title="テキスト掲載（/salons の店名・電話のみ）" expanded={expandedSections} onToggle={toggleSection}>
             <FreeSalonListingsManager onToast={showToast} />
           </AccordionSection>
 
@@ -680,6 +688,15 @@ export default function AdminDashboard() {
                 />
                 トップに表示
               </label>
+              <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isFreeListing}
+                  onChange={e => setIsFreeListing(e.target.checked)}
+                  className="w-4 h-4 accent-pink-500"
+                />
+                無料掲載枠として登録（TOP最下部の簡易カード・詳細は基本情報と口コミのみ）
+              </label>
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-slate-600">出張</label>
                 <select
@@ -693,6 +710,13 @@ export default function AdminDashboard() {
                 </select>
               </div>
             </div>
+
+            {/* 無料掲載枠のカード用の一言（チェック ON のときだけ・第368便） */}
+            {isFreeListing && (
+              <div className="pt-1">
+                {field('一言（カード用・27文字まで）', 'catchphrase', '例: 博多駅チカ・当日予約OK', 27)}
+              </div>
+            )}
 
             {addError && (
               <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">{addError}</p>
@@ -814,7 +838,12 @@ export default function AdminDashboard() {
                       className={`border-b border-slate-100 hover:bg-pink-50/20 transition-colors ${salon.is_hidden ? 'opacity-50' : i % 2 === 0 ? '' : 'bg-slate-50/30'}`}
                     >
                       <td className="px-4 py-3 text-xs text-slate-500 font-mono">{salon.id}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-slate-800">{salon.name ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs font-bold text-slate-800">
+                        <span className="align-middle">{salon.name ?? '—'}</span>
+                        {salon.listing_plan === 'free' && (
+                          <span className="ml-1.5 align-middle text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 border border-sky-200 font-bold">無料</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
                           {salon.area ? areaLabel(salon.area) + (salon.area2 ? ` / ${areaLabel(salon.area2)}` : '') : '—'}

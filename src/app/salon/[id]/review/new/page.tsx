@@ -35,12 +35,14 @@ export default async function SalonReviewNewPage({
   const supabase = createPublicClient();
   const { data: salon } = await supabase
     .from('salons')
-    .select('id, name')
+    .select('id, name, listing_plan, is_hidden')
     .eq('id', salonId)
     .maybeSingle();
-  if (!salon) notFound();
+  if (!salon || salon.is_hidden) notFound();
 
-  const therapists = await getSalonActiveTherapists(salonId);
+  // ★ 無料掲載枠（第368便）はセラピスト選択なし＝店舗宛て投稿。standard は従来どおりセラピスト宛て。
+  const storeLevel = salon.listing_plan === 'free';
+  const therapists = storeLevel ? [] : await getSalonActiveTherapists(salonId);
   const salonName = (salon.name as string) ?? '';
 
   return (
@@ -65,7 +67,7 @@ export default async function SalonReviewNewPage({
         </div>
         <p className="text-sm text-slate-500 mb-6 truncate">{salonName}</p>
 
-        <SalonReviewForm salonId={salonId} salonName={salonName} therapists={therapists} />
+        <SalonReviewForm salonId={salonId} salonName={salonName} therapists={therapists} storeLevel={storeLevel} />
       </main>
     </div>
   );

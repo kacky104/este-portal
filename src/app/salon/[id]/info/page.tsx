@@ -7,6 +7,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
+import { notFoundIfFreeListing } from "../freeListingGuard";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { paymentMethodLabel } from "@/app/lib/paymentMethods";
 import type { Metadata } from "next";
@@ -114,6 +115,7 @@ export default async function SalonInfoPage({
 }) {
   const { id } = await params;
   const supabase = createPublicClient();
+  await notFoundIfFreeListing(supabase, Number(id));
 
   const { data: salonRow, error } = await supabase
     .from('salons')

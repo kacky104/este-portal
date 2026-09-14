@@ -33,10 +33,11 @@ async function fetchFreePage(id: string, pid: string) {
   if (!_title && !_body && _imgs.length === 0) return null;
   const { data: salon } = await supabase
     .from('salons')
-    .select('id, name, theme, is_hidden')
+    .select('id, name, theme, is_hidden, listing_plan')
     .eq('id', Number(id))
     .maybeSingle();
-  if (!salon || salon.is_hidden) return null;
+  // 無料掲載枠（第368便）はフリーページを持たない＝404。既に salons を select しているので列を足すだけ。
+  if (!salon || salon.is_hidden || salon.listing_plan === 'free') return null;
   return { page, salon };
 }
 

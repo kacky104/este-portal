@@ -21,10 +21,13 @@ export function SalonReviewForm({
   salonId,
   salonName,
   therapists,
+  storeLevel = false,
 }: {
   salonId: number;
   salonName: string;
   therapists: { id: number; name: string }[];
+  /** 無料掲載枠（第368便）＝セラピスト選択なしの店舗宛て口コミ。 */
+  storeLevel?: boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -109,8 +112,8 @@ export function SalonReviewForm({
   const trimmed = body.trim();
   const ratingsOk = service > 0 && technique > 0 && reception > 0;
   const canSubmit =
-    !noTherapists &&
-    therapistId !== '' &&
+    // ★ 店舗宛て（storeLevel・第368便）はセラピスト選択が無いので、その条件を課さない。
+    (storeLevel || (!noTherapists && therapistId !== '')) &&
     ratingsOk &&
     visitedOn !== '' &&
     visitedOn <= today &&
@@ -126,7 +129,7 @@ export function SalonReviewForm({
     try {
       await submitReview({
         salonId,
-        therapistId: Number(therapistId),
+        therapistId: storeLevel ? null : Number(therapistId),
         ratingService: service,
         ratingTechnique: technique,
         ratingReception: reception,
@@ -150,32 +153,35 @@ export function SalonReviewForm({
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
       <p className="text-sm text-slate-500">
-        <span className="font-bold text-slate-700">{salonName}</span> への口コミを投稿します。
+        <span className="font-bold text-slate-700">{salonName}</span>
+        {storeLevel ? ' への口コミ（この店舗への口コミ）を投稿します。' : ' への口コミを投稿します。'}
       </p>
 
-      {/* 1. 誰への口コミか */}
-      <div>
-        <label htmlFor="review-therapist" className={labelClass}>誰への口コミですか？</label>
-        {noTherapists ? (
-          <p className="text-sm text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
-            在籍セラピストがいません。
-          </p>
-        ) : (
-          <select
-            id="review-therapist"
-            value={therapistId}
-            onChange={(e) => setTherapistId(e.target.value === '' ? '' : Number(e.target.value))}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
-          >
-            <option value="">セラピストを選択してください</option>
-            {therapists.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+      {/* 1. 誰への口コミか（★ 店舗宛て＝storeLevel のときは欄ごと出さない・第368便） */}
+      {!storeLevel && (
+        <div>
+          <label htmlFor="review-therapist" className={labelClass}>誰への口コミですか？</label>
+          {noTherapists ? (
+            <p className="text-sm text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
+              在籍セラピストがいません。
+            </p>
+          ) : (
+            <select
+              id="review-therapist"
+              value={therapistId}
+              onChange={(e) => setTherapistId(e.target.value === '' ? '' : Number(e.target.value))}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+            >
+              <option value="">セラピストを選択してください</option>
+              {therapists.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
 
       {/* 2. 3軸の星 */}
       <div>

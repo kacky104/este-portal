@@ -7,6 +7,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { notFoundIfFreeListing } from "../freeListingGuard";
 import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
 import { pickWithTable } from '@/lib/therapistPlaceholder';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
@@ -59,6 +60,7 @@ export default async function SalonDiaryPage({
   const page = Math.max(1, Math.floor(Number(pageParam)) || 1);
   const offset = (page - 1) * PAGE_SIZE;
   const supabase = createPublicClient();
+  await notFoundIfFreeListing(supabase, Number(id));
 
   // salons と写メ日記一覧は互いに独立なので並列取得。
   // 日記は range で1ページ32件＋count: 'exact' で総件数を同時取得。

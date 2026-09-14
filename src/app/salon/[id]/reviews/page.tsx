@@ -9,7 +9,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
-import { getSalonApprovedReviews } from "@/app/lib/reviews";
+import { getSalonApprovedReviews, getFreeSalonApprovedReviews } from "@/app/lib/reviews";
 import { ReviewList } from "@/app/components/ReviewList";
 import { PaginatedReviewList } from "@/app/components/PaginatedReviewList";
 import type { Metadata } from "next";
@@ -46,20 +46,19 @@ export default async function SalonReviewsPage({
   const { id } = await params;
   const supabase = createPublicClient();
 
-  // salons と口コミ一覧は互いに独立なので並列取得（読み取りは cookieレス匿名＝ISR維持）。
-  const [
-    { data: salonRow, error },
-    reviews,
-  ] = await Promise.all([
-    supabase
-      .from('salons')
-      .select('id, name, theme, address')
-      .eq('id', Number(id))
-      .single(),
-    getSalonApprovedReviews(Number(id)),
-  ]);
-
+  // ★ 口コミの取り方が listing_plan で変わる（第368便）ので、salons を先に1回引いてから口コミを取る。
+  const { data: salonRow, error } = await supabase
+    .from('salons')
+    .select('id, name, theme, address, listing_plan')
+    .eq('id', Number(id))
+    .single();
   if (error || !salonRow) notFound();
+
+  // 無料掲載店は店舗宛て（therapist_id NULL）を一覧に。本契約店は今までどおりセラピスト宛て。
+  const isFree = salonRow.listing_plan === 'free';
+  const reviews = isFree
+    ? await getFreeSalonApprovedReviews(Number(id))
+    : await getSalonApprovedReviews(Number(id));
 
   const theme = getTheme(salonRow.theme as string | null);
 
@@ -124,7 +123,8 @@ export default async function SalonReviewsPage({
     : null;
 
   // ★ スマホ右ドロワーの中身（第219便）。★ 数字は店舗トップと同じ数え方（salonNavItems.ts）。
-  const salonNavItems = await fetchSalonNavItems(Number(id));
+  // ★ 無料掲載店（第368便）はサブページ導線を持たないので fetchSalonNavItems を呼ばず、素の h1 を出す。
+  const salonNavItems = isFree ? [] : await fetchSalonNavItems(Number(id));
 
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
@@ -169,13 +169,25 @@ export default async function SalonReviewsPage({
         {/* タイトル */}
         {/* タイトル（店名＋ページ名）。★ 第219便: スマホは右に三本線・スクロールで店名バー・右ドロワー（SalonMobileNav）。
             ★ h1 の見た目は今までと同じ（部品の中で描いている）。 */}
-        <SalonMobileNav
-          mode="subpage"
-          salonName={salonName}
-          pageLabel="口コミ"
-          items={salonNavItems}
-          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
-        />
+        {isFree ? (
+          // 無料掲載店：サブページ導線が無いので、SalonMobileNav の subpage h1 と同じ見た目を素で描く（三本線なし）。
+          <div className="mb-6 flex items-center gap-2">
+            <h1 className="flex-1 min-w-0 text-center">
+              <span className="block font-bold whitespace-nowrap overflow-hidden" style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis', color: theme.heading }}>
+                {salonName}
+              </span>
+              <span className="block text-sm mt-1 font-normal" style={{ color: theme.body }}>口コミ</span>
+            </h1>
+          </div>
+        ) : (
+          <SalonMobileNav
+            mode="subpage"
+            salonName={salonName}
+            pageLabel="口コミ"
+            items={salonNavItems}
+            colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
+          />
+        )}
 
         {/* 口コミ一覧 */}
         {reviews.length === 0 ? (

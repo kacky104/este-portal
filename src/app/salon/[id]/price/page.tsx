@@ -7,6 +7,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
+import { notFoundIfFreeListing } from "../freeListingGuard";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { CoursesContent, type Course } from "../CoursesContent";
 import { PaymentSection } from "../PaymentSection";
@@ -43,6 +44,7 @@ export default async function SalonPricePage({
 }) {
   const { id } = await params;
   const supabase = createPublicClient();
+  await notFoundIfFreeListing(supabase, Number(id));
 
   // データ源は salons.courses(JSON)。既存「コースメニュー・料金表」ブロックと同じ読み方・フィールド対応。
   const { data: salonRow, error } = await supabase

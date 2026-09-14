@@ -7,6 +7,7 @@ import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from "next/navigation";
 import { createPublicClient } from "@/app/lib/supabase/public";
+import { notFoundIfFreeListing } from "../freeListingGuard";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { SalonOnDutyExcludingNow } from "@/components/SalonTherapists";
 import { ImasuguList } from "./ImasuguList";
@@ -43,6 +44,7 @@ export default async function SalonImasuguPage({
 }) {
   const { id } = await params;
   const supabase = createPublicClient();
+  await notFoundIfFreeListing(supabase, Number(id));
 
   // salon 本体（テーマ・店名）を取得。
   // ※「今すぐ」一覧は時刻ベース判定のためサーバー（ISRキャッシュ対象）では絞り込まず、

@@ -75,7 +75,7 @@ function todayJST(): string {
 
 type SubmitInput = {
   salonId: number;
-  therapistId: number;
+  therapistId: number | null; // 店舗宛て（無料掲載枠・第368便）は null。
   ratingService: number;
   ratingTechnique: number;
   ratingReception: number;
@@ -95,8 +95,11 @@ export async function submitReview(input: SubmitInput): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) throw new Error('口コミの投稿にはログインが必要です');
 
-  // 入力バリデーション。
-  if (!Number.isFinite(therapistId) || !Number.isFinite(salonId)) {
+  // 入力バリデーション。★ 店舗宛て（無料掲載枠・第368便）は therapistId=null を許す。
+  if (!Number.isFinite(salonId)) {
+    throw new Error('対象が不正です');
+  }
+  if (therapistId !== null && !Number.isFinite(therapistId)) {
     throw new Error('対象が不正です');
   }
   if (!isValidRating(ratingService) || !isValidRating(ratingTechnique) || !isValidRating(ratingReception)) {
@@ -113,16 +116,28 @@ export async function submitReview(input: SubmitInput): Promise<void> {
     throw new Error('来店日は今日以前の日付を選んでください');
   }
 
-  // therapistId が salonId に属し、かつ is_active=true かをサーバー側で検証（フォーム改ざん対策）。
-  // service_role ではなく通常クライアントの読みでよい（公開情報）。
-  const { data: th, error: thErr } = await supabase
-    .from('therapists')
-    .select('salon_id, is_active')
-    .eq('id', therapistId)
-    .maybeSingle();
-  if (thErr || !th) throw new Error('対象のセラピストが見つかりません');
-  if ((th.salon_id as number) !== salonId || !(th.is_active as boolean)) {
-    throw new Error('対象のセラピストが正しくありません');
+  if (therapistId === null) {
+    // 店舗宛て（無料掲載枠）：listing_plan='free' の公開店だけ受け付ける（サーバー検証）。
+    // 本契約店（standard）や非表示店への店舗宛て投稿は弾く。
+    const { data: sal, error: salErr } = await supabase
+      .from('salons')
+      .select('listing_plan, is_hidden')
+      .eq('id', salonId)
+      .maybeSingle();
+    if (salErr || !sal) throw new Error('対象が不正です');
+    if (sal.listing_plan !== 'free' || sal.is_hidden) throw new Error('対象が不正です');
+  } else {
+    // セラピスト宛て（従来）：therapistId が salonId に属し、かつ is_active=true かをサーバー側で検証（フォーム改ざん対策）。
+    // service_role ではなく通常クライアントの読みでよい（公開情報）。
+    const { data: th, error: thErr } = await supabase
+      .from('therapists')
+      .select('salon_id, is_active')
+      .eq('id', therapistId)
+      .maybeSingle();
+    if (thErr || !th) throw new Error('対象のセラピストが見つかりません');
+    if ((th.salon_id as number) !== salonId || !(th.is_active as boolean)) {
+      throw new Error('対象のセラピストが正しくありません');
+    }
   }
 
   // 連投ガード（2026-07-12）：従来は同一セラピストへ pending を無制限に連投でき、
@@ -131,17 +146,24 @@ export async function submitReview(input: SubmitInput): Promise<void> {
   // （user.id は auth.getUser() 由来のサーバー検証済みの値のみ使用）。
   const guardSvc = createServiceClient();
 
-  // (a) 同一 user × 同一セラピストの pending が既にあれば重複として拒否。
-  const { data: dupRows, error: dupErr } = await guardSvc
+  // (a) 同一 user × 同一対象の pending が既にあれば重複として拒否。
+  //     店舗宛ては salon_id＋therapist_id NULL で数える（第368便）。
+  let dupQuery = guardSvc
     .from('therapist_reviews')
     .select('id')
-    .eq('therapist_id', therapistId)
     .eq('user_id', user.id)
-    .eq('status', 'pending')
-    .limit(1);
+    .eq('status', 'pending');
+  dupQuery = therapistId === null
+    ? dupQuery.eq('salon_id', salonId).is('therapist_id', null)
+    : dupQuery.eq('therapist_id', therapistId);
+  const { data: dupRows, error: dupErr } = await dupQuery.limit(1);
   if (dupErr) console.error('submitReview: duplicate check failed:', dupErr.message);
   if (dupRows && dupRows.length > 0) {
-    throw new Error('このセラピストへの口コミは審査中です。承認をお待ちください');
+    throw new Error(
+      therapistId === null
+        ? 'この店舗への口コミは審査中です。承認をお待ちください'
+        : 'このセラピストへの口コミは審査中です。承認をお待ちください',
+    );
   }
 
   // (b) 同一 user の全投稿は24時間で3件まで（承認済み・却下も投稿実績として数える）。
@@ -161,6 +183,7 @@ export async function submitReview(input: SubmitInput): Promise<void> {
   // user_id はログインユーザーの id、status は送らず DB default 'pending' に任せる。
   const { error } = await supabase.from('therapist_reviews').insert({
     therapist_id: therapistId,
+    salon_id: therapistId === null ? salonId : null,
     user_id: user.id,
     rating_service: ratingService,
     rating_technique: ratingTechnique,
@@ -192,11 +215,10 @@ export async function approveReview(reviewId: string): Promise<void> {
 
   const { data: row, error: selErr } = await svc
     .from('therapist_reviews')
-    .select('therapist_id')
+    .select('therapist_id, salon_id')
     .eq('id', reviewId)
     .single();
   if (selErr || !row) throw new Error('対象の口コミが見つかりません');
-  const therapistId = row.therapist_id as number;
 
   const { error } = await svc
     .from('therapist_reviews')
@@ -205,7 +227,10 @@ export async function approveReview(reviewId: string): Promise<void> {
   if (error) throw new Error(error.message);
 
   // salons のキャッシュ列を最新化してから revalidate（同期後の値を反映させるため）。
-  const salonId = await getSalonIdOfTherapist(svc, therapistId);
+  // 店舗宛て（第368便）は row.salon_id、セラピスト宛ては therapist_id から店舗を引く。
+  const salonId = row.therapist_id != null
+    ? await getSalonIdOfTherapist(svc, row.therapist_id as number)
+    : ((row.salon_id as number | null) ?? null);
   if (salonId != null) await syncSalonRating(salonId);
   revalidateTherapist();
   revalidateSalon();
@@ -218,7 +243,7 @@ export async function rejectReview(reviewId: string): Promise<void> {
 
   const { data: row } = await svc
     .from('therapist_reviews')
-    .select('therapist_id')
+    .select('therapist_id, salon_id')
     .eq('id', reviewId)
     .single();
 
@@ -229,8 +254,9 @@ export async function rejectReview(reviewId: string): Promise<void> {
   if (error) throw new Error(error.message);
 
   if (row) {
-    const therapistId = row.therapist_id as number;
-    const salonId = await getSalonIdOfTherapist(svc, therapistId);
+    const salonId = row.therapist_id != null
+      ? await getSalonIdOfTherapist(svc, row.therapist_id as number)
+      : ((row.salon_id as number | null) ?? null);
     if (salonId != null) await syncSalonRating(salonId);
     revalidateTherapist();
     revalidateSalon();
@@ -245,7 +271,7 @@ export async function deleteReview(reviewId: string): Promise<void> {
 
   const { data: row } = await svc
     .from('therapist_reviews')
-    .select('therapist_id')
+    .select('therapist_id, salon_id')
     .eq('id', reviewId)
     .single();
 
@@ -253,8 +279,9 @@ export async function deleteReview(reviewId: string): Promise<void> {
   if (error) throw new Error(error.message);
 
   if (row) {
-    const therapistId = row.therapist_id as number;
-    const salonId = await getSalonIdOfTherapist(svc, therapistId);
+    const salonId = row.therapist_id != null
+      ? await getSalonIdOfTherapist(svc, row.therapist_id as number)
+      : ((row.salon_id as number | null) ?? null);
     if (salonId != null) await syncSalonRating(salonId);
     revalidateTherapist();
     revalidateSalon();

@@ -24,6 +24,7 @@ export type Salon = {
   dispatchType: 'none' | 'available' | 'only'; // 出張区分（none=なし / available=店舗あり＋出張 / only=出張専門）
   cardBoost:    boolean; // カード優先表示（バナー設置特典）。true で一覧の上側に来やすい。
   bumpedAt:     string | null; // 上位表示（bump）ボタンを最後に押した時刻。今朝6時以降なら先頭に出す。
+  listingPlan:  'standard' | 'free'; // 掲載プラン。standard=本契約（既存の全店）／free=無料掲載枠（第368便）。
 };
 
 export type DispatchType = Salon['dispatchType'];
@@ -33,7 +34,7 @@ export type DispatchType = Salon['dispatchType'];
 const SALON_COLUMNS_BASE =
   'id, name, rating, review_count, tags, price, area, area2, hours, description, show_on_top, dispatch_type, courses';
 // card_boost を含む本番用。マイグレーション未適用の環境では下記フォールバックで BASE に切替える。
-const SALON_COLUMNS = `${SALON_COLUMNS_BASE}, card_boost, catchphrase, bumped_at`;
+const SALON_COLUMNS = `${SALON_COLUMNS_BASE}, card_boost, catchphrase, bumped_at, listing_plan`;
 
 function mapSalonRow(row: Record<string, unknown>): Salon {
   return {
@@ -54,6 +55,7 @@ function mapSalonRow(row: Record<string, unknown>): Salon {
     dispatchType: (row.dispatch_type as 'none' | 'available' | 'only') ?? 'none',
     cardBoost:    (row.card_boost as boolean) ?? false,
     bumpedAt:     (row.bumped_at as string | null) ?? null,
+    listingPlan:  (row.listing_plan as 'standard' | 'free') ?? 'standard',
   };
 }
 
@@ -77,6 +79,10 @@ export async function fetchSalons(
     if (ids) q = q.in('id', ids);
     if (opts?.showOnTopOnly) q = q.eq('show_on_top', true);
     q = q.eq('is_hidden', false);
+    // 無料掲載枠（listing_plan='free'）は standard の一覧に混ぜない（第368便）。TOP・地域・保存・
+    // カードのシャッフルはすべて standard だけ。無料掲載店は fetchFreeListings で別に取る。
+    // ★ BASE フォールバック側にも同じ絞り込みが入る＝列が無い環境では落ちるが、§0 で先に列を作るので問題ない。
+    q = q.eq('listing_plan', 'standard');
     return q;
   };
   // card_boost 列を含めて取得。マイグレーション未適用の環境では列が無くクエリが失敗するため、
@@ -109,4 +115,20 @@ export function withBumpedFirst(salons: Salon[]): Salon[] {
   const isActive = (s: Salon) => !!s.bumpedAt && Date.parse(s.bumpedAt) >= boundary;
   const bumped = salons.filter(isActive).sort((a, b) => Date.parse(b.bumpedAt!) - Date.parse(a.bumpedAt!));
   return [...bumped, ...salons.filter((s) => !isActive(s))];
+}
+
+// ── 無料掲載枠（listing_plan='free'）─────────────────────────────
+// TOP 最下部の簡易カード用。standard の一覧（fetchSalons）とは別に取る（混ぜない）。
+export type FreeListing = { id: number; name: string; area: string; catchphrase: string };
+
+/** 無料掲載枠（listing_plan='free'・公開・トップ表示ON）を登録順で返す。TOP 最下部の簡易カード用（第368便）。 */
+export async function fetchFreeListings(supabase: SupabaseClient): Promise<FreeListing[]> {
+  const { data } = await supabase
+    .from('salons')
+    .select('id, name, area, catchphrase')
+    .eq('listing_plan', 'free')
+    .eq('is_hidden', false)
+    .eq('show_on_top', true)
+    .order('id', { ascending: true });
+  return (data ?? []).map((r) => ({ id: r.id as number, name: (r.name as string) ?? '', area: (r.area as string) ?? '', catchphrase: (r.catchphrase as string) ?? '' }));
 }
