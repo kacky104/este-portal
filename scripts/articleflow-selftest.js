@@ -523,13 +523,22 @@ console.log('\n── ★★★ 第214便: 今すぐ→即ヒメ（check → set
   eq('JSON でない → stop（理由つき）', [bad.kind, bad.audits[0].detail.reason], ['stop', 'check_bad_response']);
   // ② set → 照合
   const r4 = RF.advanceFlow({ purpose: 'sokuhime_set', status: 200, headers: {}, body: '[{"topprioritytime":"00:57"}]', context: r3.next.context });
-  eq('set のあとは画面を読み直して照合（stage=verify_set）', [r4.kind === 'next' && r4.next.purpose, r4.next.context.sokuhimeStage, r4.next.context.sokuhimeToppriorityTime], ['read_sokuhime', 'verify_set', '00:57']);
+  eq('set のあとは画面を読み直して照合（stage=verify_batch）', [r4.kind === 'next' && r4.next.purpose, r4.next.context.sokuhimeStage, r4.next.context.sokuhimeToppriorityTime], ['read_sokuhime', 'verify_batch', '00:57']);
+  eq('★ 第327便: 送れた人は控えに積む（まとめ照合の材料）',
+     (r4.next.context.sokuhimeSetDone ?? []).map((s) => [s.castId, s.untilLabel]), [['5257770', '00:57']]);
+  eq('★★ 第327便: まだ送る人が残っていれば照合せず次の人へ', (() => {
+    const q = { therapistId: 8, name: 'さら', castId: '5257771', slotIndex: 2, oldGirlId: null, oldSokuikuId: null, untilUnix: null };
+    const rq = RF.advanceFlow({ purpose: 'sokuhime_set', status: 200, headers: {}, body: '[{"topprioritytime":"00:57"}]',
+      context: { ...r3.next.context, sokuhimeQueue: [q] } });
+    return rq.kind === 'next' && rq.next.purpose;
+  })(), 'sokuhime_check');
   // ③ del → 照合
   const delCtx = Object.assign({}, base, { sokuhimeDel: { castId: '5257770', slotIndex: 0, sokuikuId: '851371885', expiresAtUnix: 1788793939 } });
   const d = RF.buildSokuhimeDelStep(delCtx);
   eq('del の body（girls.js と同じ7項目）', dec(d.body), ['boxname=setbox4', 'expired_at=1788793939', 'id=5257770', 'preceding_flg=', 'shopId=37168', 'sokuikuSetIndex=0', 'sokuikuid=851371885']);
   const r5 = RF.advanceFlow({ purpose: 'sokuhime_del', status: 200, headers: {}, body: '{"result":"ok"}', context: delCtx });
-  eq('del のあとは照合（stage=verify_del）', [r5.kind === 'next' && r5.next.purpose, r5.next.context.sokuhimeStage], ['read_sokuhime', 'verify_del']);
+  eq('del のあとは照合（stage=verify_batch）', [r5.kind === 'next' && r5.next.purpose, r5.next.context.sokuhimeStage], ['read_sokuhime', 'verify_batch']);
+  eq('★ 第327便: 消した枠も控えに積む', (r5.next.context.sokuhimeDelDone ?? []).map((x) => [x.castId, x.slotIndex]), [['5257770', 0]]);
   // 入口
   const l = RF.advanceFlow({ purpose: 'login', status: 302, headers: { 'set-cookie': 'fuelcid=x; Path=/' }, body: '', context: base });
   eq('push もログインのあと即ヒメ画面を読む', l.kind === 'next' && l.next.purpose, 'read_sokuhime');

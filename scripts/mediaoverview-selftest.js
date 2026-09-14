@@ -827,7 +827,10 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★★ 画面は bulkAskText / bulkDoneText / bulkLabel / readLinkLabel を呼んでいる',
      ['bulkAskText(', 'bulkDoneText(', 'bulkLabel(', 'readLinkLabel('].every((f) => jsx5.includes(f)), true);
   eq('★★★ 画面に「どのサイトへも送りません」の直書きが無い', jsx5.includes('どのサイトへも'), false);
-  eq('★★ 駅ちかの行には none だけ（read/write は上の3つの設定へ）', /canReadProvider\(s\.provider\) \? all\.filter\(\(c\) => c\.mode === 'none'\)/.test(jsx5), true);
+  eq('★★ 第347便: どの行も none だけ（read/write は上の3つの設定へ）',
+     /const choices = all\.filter\(\(c\) => c\.mode === 'none'\);/.test(jsx5), true);
+  eq('★★★ 第347便: 行に write の選択肢を戻していない（媒体ごとに出し分けない）',
+     /canReadProvider\(s\.provider\) \?\s*all\.filter/.test(jsx5), false);
   const act5 = fs5.readFileSync(path5.join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
   eq('★★★ 受け口: setAllLinkModes は applyLinkMode を1枠ずつ呼ぶ（ガードを二重に書かない）',
      /export async function setAllLinkModes[\s\S]*?for \(const step of plan\.steps\)[\s\S]*?await applyLinkMode\(/.test(act5), true);
