@@ -143,7 +143,7 @@ export function LatestReviewsBlock({
       <aside className="flex-1 flex flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
         <div className="p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+            <div aria-hidden="true" className="heading-star w-4 h-4" />
             <h2 className="text-sm font-bold text-slate-900">{heading}</h2>
           </div>
           <ul className="space-y-3">
@@ -160,7 +160,7 @@ export function LatestReviewsBlock({
   return (
     <section className={`${className}${mobileOnly ? ' lg:hidden' : ''}`}>
       <div className="flex items-center gap-2.5 mb-3">
-        <div className="w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+        <div aria-hidden="true" className="heading-star w-4 h-4" />
         <h2 className="text-base font-bold text-slate-900 min-w-0 flex-1">{heading}</h2>
       </div>
       <ul className="space-y-3">

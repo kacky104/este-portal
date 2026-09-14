@@ -568,3 +568,11 @@ body.paw-bg {
     -webkit-text-fill-color: var(--lk-base);
   }
 }
+
+/* ★ 第366便: 見出し左の飾り。ピンクの縦棒 → 星のアイコン（public/icons/heading-star.webp）。
+   大きさは Tailwind の w-*/h-* で場所ごとに指定する（縦棒の高さと同じ値を w と h の両方に）。 */
+.heading-star {
+  display: inline-block;
+  flex-shrink: 0;
+  background: url('/icons/heading-star.webp') center / contain no-repeat;
+}

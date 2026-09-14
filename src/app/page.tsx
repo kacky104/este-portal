@@ -162,7 +162,7 @@ export default async function Home() {
           <section className="py-5 sm:py-10 bg-white border-t border-pink-50">
             <div className="max-w-5xl mx-auto px-4">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                <div aria-hidden="true" className="heading-star w-6 h-6" />
                 {/* 短いタイトルは基準サイズ(1.25rem)のまま、長いタイトルだけ画面幅に応じて必要分だけ縮める */}
                 <h2 className="font-bold whitespace-nowrap leading-tight" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: `min(1.25rem, calc((100vw - 56px) / ${pickupTitle.length}))` }}>{pickupTitle}</h2>
                 <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
@@ -240,7 +240,7 @@ export default async function Home() {
                   2語増えた分、スマホ（〜639px）だけ見出しを text-lg・カウントを一段小さくして1行に収める
                   （従来の「出勤中のセラピスト」でも360px幅では2行に折り返していた）。sm以上は従来サイズ。 */}
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className="w-1 h-6 rounded-full bg-gradient-to-b from-pink-400 to-rose-500 flex-shrink-0" />
+                <div aria-hidden="true" className="heading-star w-6 h-6" />
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 whitespace-nowrap">現在出勤中のセラピスト</h2>
                 <div className="flex items-baseline gap-0.5 flex-shrink-0">
                   <span className="text-[11px] sm:text-[13px]" style={{ color: '#ec4899', fontWeight: 600 }}>本日出勤総数</span>
@@ -381,7 +381,7 @@ export default async function Home() {
                     外側は named group（group/columns）＝ArticleCard 内の無印 group（hover演出）と干渉しない。 */}
                 <details className="group/columns">
                   <summary className="flex items-center gap-2.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                    <div className="w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                    <div aria-hidden="true" className="heading-star w-4 h-4" />
                     <h2 className="text-base font-bold text-slate-900 min-w-0 flex-1">新着コラム</h2>
                     <svg
                       width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -419,7 +419,7 @@ export default async function Home() {
             <section className="mt-12">
               <details className="group/faq">
                 <summary className="flex items-center gap-2.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                  <div className="w-1 h-4 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+                  <div aria-hidden="true" className="heading-star w-4 h-4" />
                   <h2 className="text-base font-bold text-slate-900 min-w-0 flex-1">
                     福岡メンズエステのよくある質問
                   </h2>

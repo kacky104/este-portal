@@ -18,7 +18,7 @@ export function CollapsibleProfile({ title, children }: { title: string; childre
         className="w-full flex items-center justify-between gap-2.5 cursor-pointer select-none group"
       >
         <span className="flex items-center gap-2.5 min-w-0">
-          <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
+          <span aria-hidden="true" className="heading-star w-5 h-5" />
           <span className="font-bold text-left min-w-0 break-words text-slate-900">{title}</span>
         </span>
         <span className="flex items-center gap-1.5 flex-shrink-0 text-pink-500 group-hover:text-pink-600 transition-colors">

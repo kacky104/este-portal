@@ -55,7 +55,7 @@ function NewsCard({ item, theme }: { item: NewsItem; theme: SalonTheme }) {
             </span>
           )}
           <div className="flex items-center gap-2.5 mb-1">
-            <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
+            <span aria-hidden="true" className="heading-star w-5 h-5" />
             <h2 className="font-bold text-base min-w-0 break-words" style={{ color: theme.heading }}>{item.title}</h2>
           </div>
           <p className="text-xs" style={{ color: theme.body }}>{item.dateLabel}</p>

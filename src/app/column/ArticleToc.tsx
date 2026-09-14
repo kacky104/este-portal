@@ -12,7 +12,7 @@ export function ArticleToc({ headings }: { headings: ArticleHeading[] }) {
   return (
     <nav aria-label="目次" className="mt-6 rounded-2xl border border-pink-100 bg-pink-50/40 p-5">
       <div className="flex items-center gap-2.5">
-        <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+        <span aria-hidden="true" className="heading-star w-5 h-5" />
         <p className="text-sm font-bold text-slate-900">目次</p>
       </div>
       <ol className="mt-3 space-y-2 list-decimal pl-6 marker:text-pink-500 marker:font-bold marker:text-sm">

@@ -225,7 +225,7 @@ export function TherapistSearch({
         {/* エリア */}
         <div className="mb-4">
           <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-2">
-            <span className="inline-block h-3.5 w-1 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+            <span aria-hidden="true" className="heading-star w-3.5 h-3.5" />
             エリア
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -248,7 +248,7 @@ export function TherapistSearch({
         {/* 特徴バッジ（カテゴリ別・複数選択＝AND） */}
         <div>
           <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-3">
-            <span className="inline-block h-3.5 w-1 rounded-full bg-gradient-to-b from-pink-400 to-rose-500" />
+            <span aria-hidden="true" className="heading-star w-3.5 h-3.5" />
             特徴バッジ<span className="font-normal text-slate-400">（すべてを満たすセラピストを表示）</span>
           </p>
           <div className="space-y-3">

@@ -57,11 +57,12 @@
   margin: 0 0 16px;
 }
 @media (min-width: 768px) { .h2 { font-size: 24px; } }
+/* ★ 第366便: ピンクの縦棒 → 星のアイコン（サイト共通の /icons/heading-star.webp）。幅も高さに合わせて26px。 */
 .h2Bar {
   flex-shrink: 0;
-  width: 6px;
+  width: 26px;
   height: 26px;
-  background: linear-gradient(180deg, var(--glossary-accent) 0%, var(--glossary-accent-dark) 100%);
+  background: url('/icons/heading-star.webp') center / contain no-repeat;
 }
 /* ★ .h2Icon（見出し左の四角いアイコン）は第361便で削除。
    使っていたのは「五十音順」の見出しだけで、その見出し自体を外したため。 */

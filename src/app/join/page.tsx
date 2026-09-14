@@ -185,7 +185,7 @@ export default async function JoinPage() {
         {/* ─── 会員特典 ─── */}
         <section className="mt-10 sm:mt-12">
           <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-800 mb-4">
-            <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-fuchsia-500" />
+            <span aria-hidden="true" className="heading-star w-5 h-5" />
             会員になるとできること
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -209,7 +209,7 @@ export default async function JoinPage() {
         {/* ─── 登録の流れ ─── */}
         <section className="mt-10 sm:mt-12">
           <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-800 mb-4">
-            <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-fuchsia-500" />
+            <span aria-hidden="true" className="heading-star w-5 h-5" />
             登録の流れ
           </h2>
           <ol className="grid gap-3 sm:grid-cols-3">
@@ -239,7 +239,7 @@ export default async function JoinPage() {
         {/* ─── 安心してご利用いただくために ─── */}
         <section className="mt-10 sm:mt-12">
           <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-800 mb-4">
-            <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-fuchsia-500" />
+            <span aria-hidden="true" className="heading-star w-5 h-5" />
             プライバシーについて
           </h2>
           <div className="rounded-2xl border border-pink-100 bg-white/90 backdrop-blur-sm p-5 shadow-sm">
@@ -274,7 +274,7 @@ export default async function JoinPage() {
         {/* ─── よくある質問 ─── */}
         <section className="mt-10 sm:mt-12">
           <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-800 mb-4">
-            <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-400 to-fuchsia-500" />
+            <span aria-hidden="true" className="heading-star w-5 h-5" />
             よくある質問
           </h2>
           <div className="rounded-2xl border border-pink-100 bg-white/90 backdrop-blur-sm shadow-sm divide-y divide-pink-50 overflow-hidden">

@@ -82,7 +82,7 @@ function buildComponents(seen: Map<string, number>, allowImages: boolean): Compo
         id={headingId(nodeText(node), seen)}
         className="scroll-mt-20 text-xl sm:text-2xl font-extrabold text-slate-900 mt-10 mb-4 pb-2 border-b border-pink-100 flex items-center gap-2.5"
       >
-        <span className="w-1.5 h-6 rounded-full flex-shrink-0 bg-gradient-to-b from-pink-400 to-rose-500" />
+        <span aria-hidden="true" className="heading-star w-6 h-6" />
         {children}
       </h2>
     ),

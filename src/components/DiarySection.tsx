@@ -232,7 +232,7 @@ export function SalonDiaryCircles({
     <div className="w-full">
       {/* タイトルは他セクション（カード px-5）と開始位置を揃えるため pl-5。円の行は全幅のまま。 */}
       <div className="flex items-center gap-2 mb-3 pl-5">
-        <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />
+        <span aria-hidden="true" className="heading-star w-5 h-5" />
         <h2 className="text-base font-bold" style={{ color: heading }}>セラピスト写メ日記</h2>
       </div>
 

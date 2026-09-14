@@ -38,7 +38,7 @@ export function CollapsibleSection({
         <span className="flex items-center gap-2.5 min-w-0">
           {variant === 'emoji'
             ? <span className="text-lg flex-shrink-0">{emoji}</span>
-            : <span className="w-1 h-5 rounded-full bg-gradient-to-b from-pink-500 to-pink-700 flex-shrink-0" />}
+            : <span aria-hidden="true" className="heading-star w-5 h-5" />}
           <span className={`font-bold text-left min-w-0 break-words${variant === 'emoji' ? ' text-base' : ''}`} style={{ color: theme.heading }}>{title}</span>
         </span>
         <span className={`flex items-center gap-1.5 flex-shrink-0 text-pink-500 group-hover:text-pink-600 transition-colors${mobileOnly ? ' md:hidden' : ''}`}>
