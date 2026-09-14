@@ -633,6 +633,14 @@
 @supports not (width: 1cqw) {
   .termTitle { font-size: clamp(28px, 7vw, 46px); }
 }
+/* ★ 第362便: 長い語（h1 が 20em 超）は「メンズエステの」を1行目に、「「用語」とは？」を2行目にする。
+   用語名は途中で折らない。短い語には .termTitleSplit が付かないので第361便のまま1行。 */
+.termTitleSplit .termTitlePrefix {
+  display: block;
+}
+.termTitleSplit .termTitleTerm {
+  white-space: nowrap;
+}
 .termReading {
   margin: 8px 0 0;
   font-size: 13px;

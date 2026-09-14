@@ -14,6 +14,9 @@ import { GlossaryNotice } from '../GlossaryNotice';
 import { GlossaryCta } from '../GlossaryCta';
 import styles from '../glossary.module.css';
 
+// ★ 第362便: h1 全体がこの em を超えたら「メンズエステの」を1行目に割る（用語 8文字〜）。健全店 15.45／施術範囲 16.47 は割らない。
+const TITLE_SPLIT_EM = 20;
+
 // ★★★ メンズエステ用語集の1語ページ（/glossary/[slug]・第349便で新設・第354便でリデザイン）
 //
 // ★ 文章は DB ではなく src/content/glossary/<slug>.md（ビルド時に読む・静的生成）。
@@ -99,8 +102,15 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
   // ★ 第361便: h1 を1行に収めるための「文字幅（em）」。
   //   日本語（漢字・かな・全角記号）は1文字＝1em、半角英数は約0.5em で数える。
   //   CSS 側が font-size = 入る幅 ÷ この数 にする（glossary.module.css の .termTitle）。
-  const h1Text = `メンズエステの「${meta.term}」とは？`;
-  const titleEm = titleEmWidth(h1Text);
+  // ★ 第362便: 長い語は h1 を「前置き／「用語」とは？」の2行に割る。テキストは変えない（SEOの形は第350便のまま）。
+  //   割るときは、字の大きさを「長いほうの行」の em で決める（1行に全部を押し込まない）。
+  const h1Prefix = 'メンズエステの';
+  const h1Rest = `「${meta.term}」とは？`;
+  const h1Text = h1Prefix + h1Rest;
+  const splitTitle = titleEmWidth(h1Text) > TITLE_SPLIT_EM;
+  const titleEm = splitTitle
+    ? Math.max(titleEmWidth(h1Prefix), titleEmWidth(h1Rest))
+    : titleEmWidth(h1Text);
 
   // 「か行の用語一覧へ戻る」。★ 健全店に決め打ちせず、読みから行を出す（どの語でも効く）。
   const row = kanaRow(meta.reading);
@@ -164,10 +174,12 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
                 スマホで2行になっていた見出しが1行に収まる（長すぎる語は 18px で止めて折り返す）。 */}
             <h1
               id="glossary-term-title"
-              className={styles.termTitle}
+              className={splitTitle ? `${styles.termTitle} ${styles.termTitleSplit}` : styles.termTitle}
               style={{ '--term-title-em': titleEm } as CSSProperties}
             >
-              {h1Text}
+              <span className={styles.termTitlePrefix}>{h1Prefix}</span>
+              <span className={styles.termTitleTerm}>「{meta.term}」</span>
+              とは？
             </h1>
             <p className={styles.termReading}>読み: {meta.reading}</p>
 
