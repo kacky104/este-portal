@@ -7,10 +7,14 @@ import {
   getMediaOverview,
   startMediaMailImport,
 } from '@/app/actions/mediaCredentials';
+// ★ 第370便: エステ魂のタブに「了承あり／在籍」の人数を出すため（DiaryConsent と同じ読み口）
+import { getSalonDiaryConsents } from '@/app/actions/diaryForward';
+import { toConsentState } from '@/lib/therapistMediaConsent';
 // ★ 店舗全体の「どこで書くか」（第128便でセラピスト個人画面からここへ移した）
 // ★ サイトごとの「投稿先アドレスをどう手に入れるか」は mediaSites.ts が正本（第84便）
 import { findMediaSite } from '@/lib/mediaSites';
-import { diarySourceNote } from '@/lib/diarySource';
+// ★ 第370便: diarySourceNote の import は外した（「どこで書くか」のブロックを消したため）。
+//   ★ ライブラリ（lib/diarySource）と番人（check:diarysource）はそのまま残っている
 
 // 写メ日記の投稿先（第58便・㉞ その3）。
 //
@@ -53,16 +57,29 @@ function fmt(iso: string | null): string {
   }).format(new Date(t));
 }
 
-export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
+export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0 }: {
   salonId: number | null;
   onToast: (m: string) => void;
   /** ★ 「エステ魂」を選んだときに、投稿先の一覧の代わりに出すもの（送信状況・了承）。★ 第201便 */
   esutamaPanel?: React.ReactNode;
+  /**
+   * ★ 第370便: 下の了承パネル（DiaryConsent）で「了承あり」を押したら、タブの人数も読み直すための番号。
+   *   ★ 親（diary/page.tsx）が押されるたびに +1 する。★ 値そのものに意味はない
+   */
+  consentVersion?: number;
 }) {
   const [data, setData] = useState<Data | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
-  // ★ 第205便: 入口の1行を出すための、全サイトの事実（向き・鍵・同意）。★ getMediaOverview そのまま
-  const [siteFacts, setSiteFacts] = useState<Array<{ provider: string; direction: string; hasCredential: boolean; needsConsent: boolean }>>([]);
+  // ★ 第370便: エステ魂のタブに出す人数の【分子】＝了承ありが何名か。
+  //   ★ 駅ちか・エステラブの「投稿先が何人ぶん入っているか」に当たるものが、エステ魂では「了承が何人ぶん取れているか」。
+  //
+  //   ★★★ 母数は3つとも同じ（＝`total`＝この店のセラピスト全員・第370便でカッキーさんと決めた）。
+  //     ★ ここで【公開中だけ】に絞らない。絞ると「1/26名」と「40/40名」が横に並び、
+  //       同じ形の括弧なのに母数が違う＝読む人が数を比べられない。
+  //     ★ そのため分子も全員から数える（非公開の方の了承も1名として数える）。★ 分母と揃える
+  //   ★ 下の了承パネルの見出しは「在籍 26名」（公開中）のまま。★ あちらは"送る相手"の話、ここは"サイトの比較"。
+  const [esutamaAgreed, setEsutamaAgreed] = useState<number | null>(null);
+  // ★ 第370便: siteFacts（全サイトの向き・鍵・同意）は消した。★ 「どこで書くか」のブロックと一緒に用済み
   const [picked, setPicked] = useState<string>('ekichika');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -80,7 +97,6 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
     setData(d.data);
     // ★ 写メ日記を受け取れる媒体だけ並べる。★ 連携していない媒体も「未設定」で出す
     const known = ov.ok ? ov.data.sites : [];
-    setSiteFacts(known.map((x) => ({ provider: x.provider, direction: x.direction, hasCredential: x.hasCredential, needsConsent: x.needsConsent })));
     setSites(
       SITE_TABS.map((p) => {
         const hit = known.find((s) => s.provider === p);
@@ -96,6 +112,22 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
   }, [salonId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // ★ 第370便: エステ魂の了承の人数。★ 投稿先（forwards）とは別に読む——了承を押すたびにこちらだけ読み直す。
+  //   ★ 読めなかったときは null のまま＝タブに人数を出さない（★ 0/40 と書かない。読めていないことと0名は違う）
+  useEffect(() => {
+    if (salonId == null) return;
+    let live = true;
+    void (async () => {
+      const res = await getSalonDiaryConsents({ salonId, provider: 'esutama' });
+      if (!live) return;
+      if (!res.ok) { setEsutamaAgreed(null); return; }
+      const of = new Map(res.data.consents.map((c) => [c.therapistId, toConsentState(c.state)]));
+      // ★ 全員から数える（isActive で絞らない）。★ 母数を駅ちか・エステラブに揃えるため（上の★★★）
+      setEsutamaAgreed(res.data.therapists.filter((t) => (of.get(t.id) ?? 'unknown') === 'agreed').length);
+    })();
+    return () => { live = false; };
+  }, [salonId, consentVersion]);
 
   const onImport = async (apply: boolean) => {
     if (salonId == null) return;
@@ -166,10 +198,19 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
                         ・エステラブはログイン情報を預からないので【永久に「未設定」】だった
                       ★ 「設定していない＝使えない」と読まれ、しかも直しようが無かった。
                       → ★ このページの関心事は【何人ぶん入っているか】。それを出す。 */}
-                  {/* ★ 人数は投稿先（アドレス）があるサイトだけ。★ エステ魂には無いので出さない（第201便） */}
+                  {/* ★ 駅ちか・エステラブ: 投稿先（アドレス）が何人ぶん入っているか */}
                   {DIARY_PROVIDERS.includes(s.provider) && (
                     <span className="ml-1 font-medium text-slate-400 tabular-nums">
                       （{countOf(s.provider)}/{total}名）
+                    </span>
+                  )}
+                  {/* ★ 第370便（2026-09-15・カッキーさん）: エステ魂にも人数を出す。
+                      ★ 第201便では「投稿先が無いので出さない」としていたが、了承ありの人がいるのに
+                        駅ちか・エステラブだけ人数が付いていると「エステ魂は誰も送れない」と読める。
+                      ★ 数えるものだけ違う（投稿先の数／了承の数）。★★ 母数は3つとも同じ `total` に揃える */}
+                  {s.provider === 'esutama' && esutamaAgreed != null && (
+                    <span className="ml-1 font-medium text-slate-400 tabular-nums">
+                      （{esutamaAgreed}/{total}名）
                     </span>
                   )}
                 </button>
@@ -182,9 +223,11 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
             ★ もとは「エステ魂はメールでの投稿ができず、全国エステランキングには
               写メ日記そのものがありません」と、出ていない2サイトの理由まで書いていた。
             ★ その理由は mediaSites.ts の diaryAddressSource: 'none' に残してある。 */}
-        {/* ★ 第201便: エステ魂が並んだので、違い（投稿先が要るか）を1行で言う */}
+        {/* ★ 第201便: エステ魂が並んだので、違い（投稿先が要るか）を1行で言う
+            ★ 第370便（2026-09-15・カッキーさん）: 上のタブに3つとも人数が付いたので、この行は短く。
+              ★ 「投稿先が要らず」を落としたのは、直前の「投稿先メールアドレスを登録」との対比で読めるため */}
         <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
-          駅ちか・エステラブは、セラピストごとの投稿先（メールアドレス）を登録します。エステ魂は投稿先が要らず、ご本人の了承を記録します。
+          駅ちか・エステラブは、セラピストの投稿先メールアドレスを登録。エステ魂はご本人の了承を記録。
         </p>
       </div>
 
@@ -196,36 +239,21 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
           {/* ★ 第200便（2026-09-07・カッキーさん）: 「正本」「他社経由の転送」はこちらの言葉。
               ★ 店舗様が押すもの（下の「フクエスで書く」）で言い、理由は括弧で1つだけ。 */}
           <p className="text-[14px] leading-relaxed text-slate-600">
-            <b className="font-bold text-rose-700">いまは、フクエスから写メ日記を送っていません。</b>{' '}
-            投稿先を登録しても、ホームで「フクエスから反映」にするまでは送りません（同じ日記が二重に載らないようにするためです）。
+            {/* ★ 第370便（2026-09-15・カッキーさん）: 「送る」→「転送」に言い換え、次にすることを1文で言う。
+                ★ もとは「投稿先を登録しても…送りません」と、できないことの説明が先に来ていた。 */}
+            <b className="font-bold text-rose-700">現在、フクエスから写メ日記を転送していません。</b>{' '}
+            フクエスから写メ日記を転送する場合、ホームで「フクエスから反映」にしてください。（日記の二重投稿を防ぐため）
           </p>
         </div>
       )}
 
-      {/* ── ★★★ どこで書くか（第205便・2026-09-07）: ホームの「3つの設定」に連動。★ ここでは変えない ──
-          ★ 第128便で置いたラジオ（店舗単位の diary_source を手で選ぶ）は外した。
-          ★★ なぜ: 「駅ちかから反映」の店でも「フクエスで書く」が選べ、写メ日記だけ駅ちかへ送れていた
-            （方針「駅ちかから取り込む場合はフクエスからの内容を他媒体に反映させない。写メ日記も」に反する）。
-          ★ 値は受け口（syncDiarySource）が向きから導いて書く。★ 文言は diarySource.diarySourceNote（番人あり）。
-          ★ 変えるならホーム。★ read＋鍵なしだけは、ログイン情報へ案内する。 */}
-      {!loading && !error && data && (() => {
-        const facts = siteFacts.map((x) => ({ provider: x.provider, direction: x.direction, hasCredential: x.hasCredential, needsConsent: x.needsConsent }));
-        const note = diarySourceNote(data.diarySource, facts);
-        return (
-          <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-2">
-            <p className="text-[19px] font-black text-slate-800">写メ日記をどこで書くか</p>
-            <p className="text-[16px] font-bold text-slate-700">{note.title}</p>
-            <p className="text-[14px] text-slate-500 leading-relaxed">{note.body}</p>
-            <p className="text-[13px]">
-              {note.needsKey ? (
-                <Link href="/mypage/media/login" className="font-bold text-indigo-600 underline">ログイン情報を登録する</Link>
-              ) : (
-                <Link href="/mypage/media" className="font-bold text-indigo-600 underline">ホームで設定を変える</Link>
-              )}
-            </p>
-          </div>
-        );
-      })()}
+      {/* ★★★ 第370便（2026-09-15・カッキーさん）: 「写メ日記をどこで書くか」のブロックを【まるごと外した】。
+          ★ もとは第205便（2026-09-07）でホームの「3つの設定」を読み取って1行で言うために置いたもの。
+          ★★ 外した理由: すぐ上の赤い帯が「ホームで『フクエスから反映』にしてください」と同じことを言っており、
+            ホームへの案内が2つ並んでいた。★ 設定の正本はホーム——この画面は【投稿先を見る】場所に戻す。
+          ★★★ 消したのは【この画面の表示だけ】。判断そのもの（lib/diarySource の diarySourceNote・番人あり）も、
+            ホーム側（MediaHome）の設定も、`data.diarySource` を見ている上の赤い帯も、いっさい触っていない。
+            ★ 戻したくなったら、ここに diarySourceNote(data.diarySource, siteFacts) を呼ぶブロックを戻すだけ。 */}
 
       {/* ★★★ 手で入れてもらうサイト（第84便）。
           ★ これまでは「ログイン情報を登録すると読み取れます」と出していたが、
@@ -362,12 +390,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
               </p>
             )}
 
-            {/* ★ 上書きすることを、押す前に読める場所に書く */}
-            <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
-              登録すると、いま入っている投稿先は{site.label}の内容で上書きされます。
-              {site.label}側でアドレスが出し直されたときに、古いまま送り続けないためです。
-            </p>
-
+            {/* ★ 第370便（2026-09-15・カッキーさん）: 「取り込んで登録する」は下のブロックへ移した。
+                ★ ここに残すのは【読むだけ】の「取り込む内容を確認」。★ この画面を書き換えない操作 */}
             <div className="mt-3 flex flex-wrap gap-2 justify-end">
               <button
                 onClick={() => onImport(false)}
@@ -376,37 +400,49 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel }: {
               >
                 取り込む内容を確認
               </button>
-              {confirmApply ? (
-                <>
-                  <button
-                    onClick={() => setConfirmApply(false)}
-                    className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-500"
-                  >
-                    やめる
-                  </button>
-                  <button
-                    onClick={() => onImport(true)}
-                    disabled={busy}
-                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
-                  >
-                    上書きして登録する（確定）
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setConfirmApply(true)}
-                  disabled={busy}
-                  className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
-                >
-                  取り込んで登録する
-                </button>
-              )}
             </div>
           </div>
 
           {/* ── だれの日記が、どこへ届くか ────────────────── */}
           <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-            <h3 className="text-[16px] font-bold text-slate-700 mb-3">だれの日記が、どこへ届くか</h3>
+            {/* ★★ 第370便: 見出しの右に「取り込んで登録する」。★ 上書きされるのは【この一覧】なので、
+                操作をその一覧の上に置く。★ 確定の2段（やめる／上書きして登録する）も同じ場所に出す */}
+            <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
+              <h3 className="text-[16px] font-bold text-slate-700">だれの日記が、どこへ届くか</h3>
+              <div className="flex flex-wrap gap-2 justify-end">
+                {confirmApply ? (
+                  <>
+                    <button
+                      onClick={() => setConfirmApply(false)}
+                      className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-500"
+                    >
+                      やめる
+                    </button>
+                    <button
+                      onClick={() => onImport(true)}
+                      disabled={busy}
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                    >
+                      上書きして登録する（確定）
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setConfirmApply(true)}
+                    disabled={busy}
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                  >
+                    取り込んで登録する
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ★ 上書きすることを、押す前に読める場所に書く（★ ボタンと一緒にこちらへ移した） */}
+            <p className="mb-3 text-[13px] text-slate-400 leading-relaxed">
+              登録すると、いま入っている投稿先は{site.label}の内容で上書きされます。
+              {site.label}側でアドレスが出し直されたときに、古いまま送り続けないためです。
+            </p>
 
             {withAddress.length === 0 ? (
               <p className="text-[14px] text-slate-400">

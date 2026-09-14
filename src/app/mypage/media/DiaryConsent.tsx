@@ -22,7 +22,12 @@ const SITE_NAME = 'エステ魂';
 
 type Row = { id: string; name: string; isActive: boolean; state: ConsentState };
 
-export function DiaryConsent({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
+export function DiaryConsent({ salonId, onToast, onChanged }: {
+  salonId: number | null;
+  onToast: (m: string) => void;
+  /** ★ 第370便: 了承を変えたあとに呼ぶ。★ 上の「どのサイト」タブの人数を読み直すため（DiaryTargets） */
+  onChanged?: () => void;
+}) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,6 +66,7 @@ export function DiaryConsent({ salonId, onToast }: { salonId: number | null; onT
         : `${r.name}さんを「まだ確認していません」に戻しました`,
       );
       setReloadKey((k) => k + 1);
+      onChanged?.();
     } finally { setBusy(''); }
   };
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useMediaGate } from '../useMediaGate';
 import { MediaShell } from '../MediaShell';
 import { DiaryTargets } from '../DiaryTargets';
@@ -13,6 +14,8 @@ import { useToast } from '@/app/components/useToast';
 export default function MediaDiaryPage() {
   const { decision, salon, loadError } = useMediaGate();
   const { toast, showToast } = useToast();
+  // ★ 第370便: 了承パネルで押すたびに +1 → 上の「エステ魂（n/m名）」を読み直す
+  const [consentVersion, setConsentVersion] = useState(0);
 
   return (
     <MediaShell
@@ -31,12 +34,17 @@ export default function MediaDiaryPage() {
         <DiaryTargets
           salonId={salon ? Number(salon.id) : null}
           onToast={showToast}
+          consentVersion={consentVersion}
           esutamaPanel={
             <>
               {/* ★ エステ魂は代理ログインで送る（メールの口が無い）。★ 数だけ出す（第141便） */}
               <EsutamaDiaryStatus salonId={salon ? Number(salon.id) : null} />
               {/* ★ エステ魂は本人のアカウントから投稿する仕組み（第118便）。★ 了承を1人ずつ記録する */}
-              <DiaryConsent salonId={salon ? Number(salon.id) : null} onToast={showToast} />
+              <DiaryConsent
+                salonId={salon ? Number(salon.id) : null}
+                onToast={showToast}
+                onChanged={() => setConsentVersion((v) => v + 1)}
+              />
             </>
           }
         />
