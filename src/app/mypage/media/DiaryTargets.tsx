@@ -13,6 +13,8 @@ import { toConsentState } from '@/lib/therapistMediaConsent';
 // ★ 店舗全体の「どこで書くか」（第128便でセラピスト個人画面からここへ移した）
 // ★ サイトごとの「投稿先アドレスをどう手に入れるか」は mediaSites.ts が正本（第84便）
 import { findMediaSite } from '@/lib/mediaSites';
+// ★ 第372便: 顔のバッジは了承の一覧（DiaryConsent）でも使うので、1つのファイルに出した
+import { TherapistBadge } from './TherapistBadge';
 // ★ 第370便: diarySourceNote の import は外した（「どこで書くか」のブロックを消したため）。
 //   ★ ライブラリ（lib/diarySource）と番人（check:diarysource）はそのまま残っている
 
@@ -50,28 +52,6 @@ type Data = {
 
 // ★ 第371便: 日時を整える fmt() は消した（「◯名ぶん 登録済み」のブロックでしか使っていなかった）。
 //   ★ 読み取った日時は【連携の記録】が出す。★ Data.lastRead は受け口の戻り値の形なので型には残してある
-
-/**
- * ★ 第371便（2026-09-15・カッキーさん）: 名前の左に出す小さな顔のバッジ。
- *   ★ next/image を使わない。★ 店舗が外部URLを入れている場合があり、remotePatterns に無いホストだと
- *     実行時に落ちる（TherapistBoard の Photo と同じ判断・第217便）。★ ここは管理画面なので素の img で足りる。
- *   ★ 写真が無いときも空白にしない。★ 行の高さが揃わないと表が読みにくい——名前の頭文字を出す。
- */
-function TherapistBadge({ url, name }: { url: string | null; name: string }) {
-  if (url) {
-    return (
-      <span className="w-7 h-7 flex-none overflow-hidden rounded-full border border-slate-200 bg-slate-100 block">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={name} loading="lazy" className="w-full h-full object-cover" />
-      </span>
-    );
-  }
-  return (
-    <span className="w-7 h-7 flex-none rounded-full border border-slate-200 bg-slate-100 grid place-items-center text-[12px] font-bold text-slate-400">
-      {name.trim().slice(0, 1) || '？'}
-    </span>
-  );
-}
 
 export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0 }: {
   salonId: number | null;
@@ -289,16 +269,15 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
 
       {!loading && !error && site && hasAddressBook && manualAddress ? (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
+          {/* ★★ 第371便（2026-09-15・カッキーさん）: 見出し「◯◯の投稿先は、手でご入力ください」を外し、
+              本文を【入力する場所】の1行だけにした。
+              ★ もとは「フクエスのサーバからの接続を受け付けていないため自動で読み取れません」と、
+                読み取れない理由を3文で説明していた。★ 理由は mediaSites.ts の
+                diaryAddressSource: 'manual' に残っている（画面で毎回言わない）。
+              ★ 表の「未登録」と「入力する」を見れば、手で入れるものだと分かる。 */}
           <div>
-            <p className="text-[19px] font-black text-slate-800">
-              {site.label}の投稿先は、手でご入力ください
-            </p>
-            <p className="mt-1 text-[14px] text-slate-500 leading-relaxed">
-              {site.label}は、フクエスのサーバからの接続を受け付けていないため、
-              投稿用アドレスを自動で読み取れません。お手数ですが、
-              セラピストさんごとに{site.label}の投稿用アドレスをご登録ください。
-              <br />
-              ★ 登録は、セラピストさんのページの「写メ日記の転送先」で行えます。
+            <p className="text-[14px] text-slate-500 leading-relaxed">
+              入力は、セラピスト編集ページの「写メ日記の転送先」で行ってください。
             </p>
           </div>
 
@@ -319,7 +298,13 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                     const f = rows.find((r) => r.therapistId === t.id);
                     return (
                       <tr key={t.id} className="border-t border-slate-100">
-                        <td className="py-1.5 pr-3 text-slate-700 break-words">{t.name || '（名前なし）'}</td>
+                        {/* ★ 第372便: 駅ちか側の表と同じ顔バッジ（同じページの同じ「セラピスト」列なので揃える） */}
+                        <td className="py-1.5 pr-3 text-slate-700 break-words">
+                          <span className="flex items-center gap-2">
+                            <TherapistBadge url={t.imageUrl} name={t.name || ''} />
+                            <span className="min-w-0 break-words">{t.name || '（名前なし）'}</span>
+                          </span>
+                        </td>
                         <td className="py-1.5 pr-3 whitespace-nowrap tabular-nums">
                           {f && f.addressMask.length > 0 ? (
                             <span className="text-slate-500">{f.addressMask}</span>

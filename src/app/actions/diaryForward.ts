@@ -6,6 +6,8 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { isDiarySource } from '@/lib/diarySource';
 import { isConsentState } from '@/lib/therapistMediaConsent';
 import { findMediaSite } from '@/lib/mediaSites';
+// ★ 第372便: セラピストの既定画像（本人→店舗→運営）を当てる（第217便の決め方をそのまま使う）
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 // ★ 1人だけドメインが違うのを止める（第133-4便）。★ 判断は純粋関数側
 import { checkAddressDomain } from '@/lib/diaryAddressCheck';
 // ★ エステ魂の写メ日記の状況（第141便）。★ 数え方と文言は純粋関数側
@@ -231,7 +233,7 @@ export async function setSalonDiarySource(input: { salonId: string | number; sou
 /** その店舗の在籍と、了承の記録をまとめて返す（★ 読むだけ）。 */
 export async function getSalonDiaryConsents(input: { salonId: string | number; provider: string }): Promise<
   Result<{
-    therapists: Array<{ id: string; name: string; isActive: boolean }>;
+    therapists: Array<{ id: string; name: string; isActive: boolean; imageUrl: string | null }>;
     consents: Array<{ therapistId: string; state: string; decidedAt: string | null }>;
   }>
 > {
@@ -254,12 +256,24 @@ export async function getSalonDiaryConsents(input: { salonId: string | number; p
     return { ok: false, error: 'この店舗の操作権限がありません' };
   }
 
+  // ★ 第372便: profile_image_url を足した（了承の一覧に顔のバッジを出すため）。
+  //   ★ 写真は公開ページにも出ているものなので秘密値ではない（getSalonTherapists と同じ扱い）
   const { data: ths, error: thErr } = await svc
     .from('therapists')
-    .select('id, name, is_active')
+    .select('id, name, is_active, profile_image_url')
     .eq('salon_id', salonId)
     .order('id', { ascending: true });
   if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+
+  // ★★ 第372便: 写真が無い人には【店舗の既定画像 → 運営の既定画像】を当てる（第217便）。
+  //   ★ DBには書かない。★ 画面に出す直前に差し込むだけ（therapists.profile_image_url は触らない）
+  type ThRow = { id: number | string; name: string | null; is_active: boolean | null; profile_image_url: string | null };
+  const thRows = (ths ?? []) as unknown as ThRow[];
+  const thShown = await fillTherapistImages(svc, thRows, {
+    salonId: () => salonId,
+    image: (r) => r.profile_image_url,
+    set: (r, url) => ({ ...r, profile_image_url: url }),
+  });
 
   const ids = (ths ?? []).map((t) => Number(t.id));
   let consents: Array<{ therapistId: string; state: string; decidedAt: string | null }> = [];
@@ -282,10 +296,11 @@ export async function getSalonDiaryConsents(input: { salonId: string | number; p
   return {
     ok: true,
     data: {
-      therapists: (ths ?? []).map((t) => ({
+      therapists: thShown.map((t) => ({
         id: String(t.id),
-        name: (t.name as string | null) ?? '',
+        name: t.name ?? '',
         isActive: t.is_active === true,
+        imageUrl: t.profile_image_url ?? null,
       })),
       consents,
     },

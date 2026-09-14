@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { getSalonDiaryConsents, setDiaryConsent } from '@/app/actions/diaryForward';
 import {
-  toConsentState, consentLabel, consentNextStep, tallyConsents, consentSummary,
+  // ★ 第372便: consentNextStep は使わなくなった（いちばん下の1行を消したため）。lib には残っている
+  toConsentState, consentLabel, tallyConsents, consentSummary,
   type ConsentState,
 } from '@/lib/therapistMediaConsent';
+// ★ 第372便: 名前の左の顔バッジ（投稿先の一覧と同じ部品）
+import { TherapistBadge } from './TherapistBadge';
 
 // エステ魂の写メ日記：セラピスト本人の了承（第118便・2026-09-03）。
 //
@@ -18,9 +21,9 @@ import {
 //   ★ 先に作る理由: 店舗様がいまのうちからセラピストさんに了承を取り始められる。
 
 const PROVIDER = 'esutama';
-const SITE_NAME = 'エステ魂';
+// ★ 第372便: SITE_NAME は消した（使っていた黄色い帯を外し、残る文は「魂セラピスト」と直接書いている）
 
-type Row = { id: string; name: string; isActive: boolean; state: ConsentState };
+type Row = { id: string; name: string; isActive: boolean; imageUrl: string | null; state: ConsentState };
 
 export function DiaryConsent({ salonId, onToast, onChanged }: {
   salonId: number | null;
@@ -45,7 +48,7 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
       if (!res.ok) { setError(res.error); setLoading(false); return; }
       const of = new Map(res.data.consents.map((c) => [c.therapistId, toConsentState(c.state)]));
       setRows(res.data.therapists.map((t) => ({
-        id: t.id, name: t.name, isActive: t.isActive,
+        id: t.id, name: t.name, isActive: t.isActive, imageUrl: t.imageUrl,
         // ★ 記録が無い人は「まだ確認していません」。★ 送らない側の既定
         state: of.get(t.id) ?? 'unknown',
       })));
@@ -83,17 +86,21 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
 
   return (
     <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
-      <h3 className="text-[15.5px] font-bold text-slate-700">{SITE_NAME}へ日記を送ってよい方</h3>
-      <p className="mt-0.5 text-[13.5px] text-slate-500 leading-relaxed">
-        {SITE_NAME}の写メ日記は、<b className="text-slate-700">セラピストご本人のアカウント</b>から投稿する仕組みです。
-        そのため、<b className="text-slate-700">ご本人の了承を得た方だけ</b>にお送りします。
+      {/* ★ 第372便（2026-09-15・カッキーさん）: 見出し「◯◯へ日記を送ってよい方」を外し、
+          本文を1文にした。★ 送れる条件を2つとも先に言う——
+          ①ご本人が「魂セラピスト」を始めていること ②個人アカウントなので了承が要ること。
+          ★ もとは②だけを2文で説明しており、①（相手側の状態）はずっと下の帯まで出てこなかった。 */}
+      <p className="text-[13.5px] text-slate-500 leading-relaxed">
+        写メ日記の転送はセラピストが「魂セラピスト」を始めていること。また個人アカウントなので了承を得る必要があります。
       </p>
 
-      {/* ★★ 何を預かるのかを、はっきり書く。★ 本人の署名ではない */}
+      {/* ★★ 第372便（2026-09-15・カッキーさん）: 「何を預かるか」の説明から、
+          【押すと何が起きるか】に書き換えた。★ 押した先（転送が始まる）と、
+          押しても始まらない場合（魂セラピスト未開始）を、押す前に読める場所で言う。 */}
       <div className="mt-2.5 border border-sky-200 bg-sky-50 px-3 py-2.5">
         <p className="text-[13.5px] leading-relaxed text-slate-600">
-          ここに記録されるのは<b className="font-bold text-sky-700">店舗様が「ご本人の了承を得た」と申告された内容</b>です。
-          ご本人に確認のうえでお選びください。あとから変更できます。
+          了承を得たセラピストのみ<b className="font-bold text-sky-700">了承あり</b>を押してください。投稿したら数分後に反映します。
+          了承ありを押しても「魂セラピスト」を始めていないと転送できません。
         </p>
       </div>
 
@@ -122,18 +129,22 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
           <ul className="mt-2 border border-slate-200 divide-y divide-slate-100">
             {shown.map((r) => (
               <li key={r.id} className="px-3 py-2.5 flex items-start justify-between gap-3 flex-wrap">
-                <span className="min-w-0">
-                  <b className="text-[15px] font-bold text-slate-800 break-words">{r.name || '（名前なし）'}</b>
-                  {!r.isActive && (
-                    <span className="ml-1.5 text-[12px] font-bold px-1.5 py-px border border-slate-200 bg-slate-50 text-slate-400">
-                      非公開
+                {/* ★ 第372便: 名前の左に顔バッジ（投稿先の一覧と揃える） */}
+                <span className="min-w-0 flex items-start gap-2">
+                  <TherapistBadge url={r.imageUrl} name={r.name || ''} />
+                  <span className="min-w-0">
+                    <b className="text-[15px] font-bold text-slate-800 break-words">{r.name || '（名前なし）'}</b>
+                    {!r.isActive && (
+                      <span className="ml-1.5 text-[12px] font-bold px-1.5 py-px border border-slate-200 bg-slate-50 text-slate-400">
+                        非公開
+                      </span>
+                    )}
+                    <span className={`block text-[13px] mt-0.5 ${
+                      r.state === 'agreed' ? 'text-emerald-700'
+                      : r.state === 'declined' ? 'text-slate-500' : 'text-amber-700'
+                    }`}>
+                      {consentLabel(r.state)}
                     </span>
-                  )}
-                  <span className={`block text-[13px] mt-0.5 ${
-                    r.state === 'agreed' ? 'text-emerald-700'
-                    : r.state === 'declined' ? 'text-slate-500' : 'text-amber-700'
-                  }`}>
-                    {consentLabel(r.state)}
                   </span>
                 </span>
                 <span className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -141,7 +152,8 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
                   {([
                     ['agreed', '了承あり'],
                     ['declined', '送らない'],
-                    ['unknown', 'まだ確認していない'],
+                    // ★ 第372便: ボタンの名前を「まだ確認していない」→「未確認」に短く（3つのボタンの幅を揃える）
+                    ['unknown', '未確認'],
                   ] as Array<[ConsentState, string]>).map(([s, label]) => (
                     <button
                       key={s}
@@ -173,31 +185,18 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
             <p className="mt-2 text-[14px] text-slate-500">公開中のセラピストがいません。</p>
           )}
 
-          {/* ★ いま選んでいる状態が、次に何を意味するか */}
-          <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
-            {consentNextStep('unknown')}
-          </p>
+          {/* ★ 第372便（2026-09-15・カッキーさん）: いちばん下の
+              「ご本人に確認してから、「了承あり」または「送らない」を選んでください。」を消した。
+              ★ 上の水色の箱が同じこと（誰に押すか）を、押す前の位置で言っている。
+              ★ 文そのもの（consentNextStep）と番人（check:consent）は lib に残してある。 */}
 
-          {/*
-            ★★★ 2026-09-04（第141便）: 文言を書き直した。
-              ★ 以前は「いまはまだ、日記は送りません」だった（第118便・そのときは本当だった）。
-              ★★ 2026-09-04 18:01 に**自動で送れるようになった**のに、この文が残っていた。
-                ★ すぐ上に「お送りしました 2件」と出ているのに、下で「まだ送りません」。
-                ★★★ **できるようになったら、できないと書いた文を消す。**
-                  ★ 「できないことを、できないと書く」（§185）の裏返し。★ 同じくらい大事。
-          */}
-          <div className="mt-3 border border-amber-200 bg-amber-50 px-3 py-2.5">
-            <p className="text-[14px] leading-relaxed text-slate-600">
-              <b className="font-bold text-amber-800">「了承あり」の方から順にお送りします。</b>{' '}
-              フクエスで写メ日記を書くと、数分後に{SITE_NAME}へ反映されます。
-              なお、ご本人が{SITE_NAME}の「魂セラピスト」を始めていない場合は、了承をいただいていてもお送りできません。
-              {' '}
-              <b className="font-bold text-amber-800">
-                セラピストさんには「{SITE_NAME}へ直接書かず、フクエスに書く」とお伝えください。
-              </b>{' '}
-              両方から書くと、同じ日記が2本並びます。
-            </p>
-          </div>
+          {/* ★★★ 第372便（2026-09-15・カッキーさん）: 黄色い帯をブロックごと外した。
+              ★ 中身は「「了承あり」の方から順にお送りします／数分後に反映／魂セラピストを
+                始めていない方には送れない／セラピストさんには『エステ魂へ直接書かず、フクエスに書く』
+                とお伝えください（両方から書くと日記が2本並ぶ）」の4点だった。
+              ★★ 上の1文（魂セラピストを始めていること・了承が要ること）と重なっていた部分がある。
+              ★ 戻すときは git log でこの便を引く。★ 判断そのもの（canSendDiary）は触っていない。 */}
+
         </>
       )}
     </div>

@@ -25,6 +25,8 @@ import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
 import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
+// ★ 第372便: セラピストの既定画像（本人→店舗→運営）を当てる（第217便の決め方をそのまま使う）
+import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import {
   siteDirection,
   directionLabel,
@@ -2248,6 +2250,16 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
     .order('id', { ascending: true });
   if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
 
+  // ★★ 第372便: 写真が無い人には【店舗の既定画像 → 運営の既定画像】を当てる（第217便）。
+  //   ★ DBには書かない。★ 画面に出す直前に差し込むだけ（therapists.profile_image_url は触らない）
+  type ThRow = { id: number | string; name: string | null; profile_image_url: string | null };
+  const thRows = (ths ?? []) as unknown as ThRow[];
+  const thShown = await fillTherapistImages(svc, thRows, {
+    salonId: () => salonId,
+    image: (r) => r.profile_image_url,
+    set: (r, url) => ({ ...r, profile_image_url: url }),
+  });
+
   const ids = (ths ?? []).map((t) => Number(t.id));
   let forwards: Array<{ therapistId: string; provider: string; slot: number; addressMask: string; isEnabled: boolean }> = [];
   if (ids.length > 0) {
@@ -2298,10 +2310,10 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
     ok: true,
     data: {
       diarySource: (salon?.diary_source as string | null) ?? 'benry',
-      therapists: (ths ?? []).map((t) => ({
+      therapists: thShown.map((t) => ({
         id: String(t.id),
-        name: (t.name as string | null) ?? '',
-        imageUrl: (t.profile_image_url as string | null) ?? null,
+        name: t.name ?? '',
+        imageUrl: t.profile_image_url ?? null,
       })),
       forwards,
       lastRead,

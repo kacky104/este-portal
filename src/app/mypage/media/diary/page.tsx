@@ -5,7 +5,9 @@ import { useMediaGate } from '../useMediaGate';
 import { MediaShell } from '../MediaShell';
 import { DiaryTargets } from '../DiaryTargets';
 import { DiaryConsent } from '../DiaryConsent';
-import { EsutamaDiaryStatus } from '../EsutamaDiaryStatus';
+// ★ 第372便: EsutamaDiaryStatus（「エステ魂へ送った写メ日記」）の import を外した。
+//   ★ 部品（EsutamaDiaryStatus.tsx）・受け口（getEsutamaDiaryStatus）・番人（check:esutamadiarystatus）は
+//     そのまま残してある。★ 戻すなら、この import と下の1行を戻すだけ
 import { useToast } from '@/app/components/useToast';
 
 // 写メ日記の投稿先（第58便・㉞ その3）。
@@ -28,24 +30,20 @@ export default function MediaDiaryPage() {
       toast={toast}
     >
       <div className="space-y-3">
-        {/* ★ 第201便（2026-09-07・カッキーさん）: エステ魂の2つ（送信状況・了承）は、上のブロックで
-            「エステ魂」を選んだときだけ出す。★ 常に下に並べていると、上の「どのサイト」にエステ魂が無いのと
-            合わせて、どこがエステ魂の設定なのかが読めなかった（第三者視点）。 */}
+        {/* ★ 第201便（2026-09-07・カッキーさん）: エステ魂のものは、上のブロックで「エステ魂」を
+            選んだときだけ出す。★ 常に下に並べていると、どこがエステ魂の設定なのかが読めなかった。
+            ★ 第372便: 出すのは【了承】だけにした（「エステ魂へ送った写メ日記」は外した）。 */}
         <DiaryTargets
           salonId={salon ? Number(salon.id) : null}
           onToast={showToast}
           consentVersion={consentVersion}
           esutamaPanel={
-            <>
-              {/* ★ エステ魂は代理ログインで送る（メールの口が無い）。★ 数だけ出す（第141便） */}
-              <EsutamaDiaryStatus salonId={salon ? Number(salon.id) : null} />
-              {/* ★ エステ魂は本人のアカウントから投稿する仕組み（第118便）。★ 了承を1人ずつ記録する */}
-              <DiaryConsent
-                salonId={salon ? Number(salon.id) : null}
-                onToast={showToast}
-                onChanged={() => setConsentVersion((v) => v + 1)}
-              />
-            </>
+            /* ★ エステ魂は本人のアカウントから投稿する仕組み（第118便）。★ 了承を1人ずつ記録する */
+            <DiaryConsent
+              salonId={salon ? Number(salon.id) : null}
+              onToast={showToast}
+              onChanged={() => setConsentVersion((v) => v + 1)}
+            />
           }
         />
       </div>
