@@ -50,11 +50,30 @@ export function KanaBrowser({ rows }: { rows: KanaRowData[] }) {
   }, []);
 
   // ★ 初期値は必ず null（サーバー描画と同じ）。hash はマウント後に読む＝hydration がずれない。
+  // ★ 第369便: 用語ページの「か行の用語一覧へ戻る」（/glossary#row-ka）で来たときは、絞り込んだあと【ページの先頭】に置く。
+  //   理由: ブラウザは絞り込む前（全部の行がある長いページ）の位置で #row-ka に飛ぶ。その直後に か行だけに絞ると
+  //   ページが短くなり、結果として下の方針文やCTAのあたりに落ちていた（カッキーさん報告）。
+  //   先頭に置けば、ヒーロー → 「か」が選ばれた五十音ナビ → か行の一覧、の順で目に入る。
   useEffect(() => {
-    const read = () => setSelected(rowFromHash(window.location.hash, rows));
-    read();
-    window.addEventListener('hashchange', read);
-    return () => window.removeEventListener('hashchange', read);
+    const read = (initial: boolean) => {
+      const row = rowFromHash(window.location.hash, rows);
+      setSelected(row);
+      if (initial && row) {
+        // 絞り込みが描かれてから（＝ページが短くなってから）先頭へ。smooth を効かせず即座に。
+        const raf = window.requestAnimationFrame(() =>
+          window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior })),
+        );
+        return () => window.cancelAnimationFrame(raf);
+      }
+      return undefined;
+    };
+    const cancel = read(true);
+    const onHash = () => read(false);
+    window.addEventListener('hashchange', onHash);
+    return () => {
+      cancel?.();
+      window.removeEventListener('hashchange', onHash);
+    };
     // rows は配列なので中身のキーで比べる（親が描き直しても effect を無駄に走らせない）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsKey]);
