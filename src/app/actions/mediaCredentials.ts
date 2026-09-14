@@ -2224,8 +2224,8 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
   Result<{
     /** 写メ日記の正本（'fukues' なら他媒体へ転送する） */
     diarySource: string;
-    /** 名前つきのセラピスト（フクエスに登録されている全員） */
-    therapists: Array<{ id: string; name: string }>;
+    /** 名前つきのセラピスト（フクエスに登録されている全員）。★ 第371便で写真（imageUrl）を足した */
+    therapists: Array<{ id: string; name: string; imageUrl: string | null }>;
     /** 登録済みの投稿先（★ アドレスは伏せ字） */
     forwards: Array<{ therapistId: string; provider: string; slot: number; addressMask: string; isEnabled: boolean }>;
     /** ★ 最後に読み取った記録（無ければ null）。★ 「0件」と「まだ読んでいない」を混ぜない */
@@ -2239,9 +2239,11 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
 
   const svc = createServiceClient();
 
+  // ★ 第371便: profile_image_url を足した（投稿先の一覧に顔のバッジを出すため）。
+  //   ★ 写真は公開ページにも出ているものなので秘密値ではない（getSalonTherapists と同じ扱い）
   const { data: ths, error: thErr } = await svc
     .from('therapists')
-    .select('id, name')
+    .select('id, name, profile_image_url')
     .eq('salon_id', salonId)
     .order('id', { ascending: true });
   if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
@@ -2296,7 +2298,11 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
     ok: true,
     data: {
       diarySource: (salon?.diary_source as string | null) ?? 'benry',
-      therapists: (ths ?? []).map((t) => ({ id: String(t.id), name: (t.name as string | null) ?? '' })),
+      therapists: (ths ?? []).map((t) => ({
+        id: String(t.id),
+        name: (t.name as string | null) ?? '',
+        imageUrl: (t.profile_image_url as string | null) ?? null,
+      })),
       forwards,
       lastRead,
     },

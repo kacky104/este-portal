@@ -26,7 +26,7 @@ import { findMediaSite } from '@/lib/mediaSites';
 // ★★ アドレスは秘密値なので伏せ字で出す（maskAddress）。
 //   ★ 1人ぶんを直すのはセラピスト画面の仕事。ここは【一覧して確かめる】場所。
 //
-// ★ 取り込みは2段のまま（確認 → 登録）。★ 常に上書きすることを押す前に書く。
+// ★ 取り込みは【ワンクリック】（第371便で確認の一段を外した）。★ 上書きすることは押す前に書く。
 
 /** 写メ日記を【メールで】受け取れる媒体。★ ここに無い媒体には投稿先（アドレス）そのものが無い */
 const DIARY_PROVIDERS = ['ekichika', 'esulove'];
@@ -43,18 +43,34 @@ type Site = { provider: string; slot: number; label: string; hasCredential: bool
 type Forward = { therapistId: string; provider: string; slot: number; addressMask: string; isEnabled: boolean };
 type Data = {
   diarySource: string;
-  therapists: Array<{ id: string; name: string }>;
+  therapists: Array<{ id: string; name: string; imageUrl: string | null }>;
   forwards: Forward[];
   lastRead: { at: string; applied: boolean; created: number; updated: number; unchanged: number; unmatched: number } | null;
 };
 
-function fmt(iso: string | null): string {
-  if (!iso) return '';
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo',
-  }).format(new Date(t));
+// ★ 第371便: 日時を整える fmt() は消した（「◯名ぶん 登録済み」のブロックでしか使っていなかった）。
+//   ★ 読み取った日時は【連携の記録】が出す。★ Data.lastRead は受け口の戻り値の形なので型には残してある
+
+/**
+ * ★ 第371便（2026-09-15・カッキーさん）: 名前の左に出す小さな顔のバッジ。
+ *   ★ next/image を使わない。★ 店舗が外部URLを入れている場合があり、remotePatterns に無いホストだと
+ *     実行時に落ちる（TherapistBoard の Photo と同じ判断・第217便）。★ ここは管理画面なので素の img で足りる。
+ *   ★ 写真が無いときも空白にしない。★ 行の高さが揃わないと表が読みにくい——名前の頭文字を出す。
+ */
+function TherapistBadge({ url, name }: { url: string | null; name: string }) {
+  if (url) {
+    return (
+      <span className="w-7 h-7 flex-none overflow-hidden rounded-full border border-slate-200 bg-slate-100 block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={name} loading="lazy" className="w-full h-full object-cover" />
+      </span>
+    );
+  }
+  return (
+    <span className="w-7 h-7 flex-none rounded-full border border-slate-200 bg-slate-100 grid place-items-center text-[12px] font-bold text-slate-400">
+      {name.trim().slice(0, 1) || '？'}
+    </span>
+  );
 }
 
 export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0 }: {
@@ -84,7 +100,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [confirmApply, setConfirmApply] = useState(false);
+  // ★ 第371便: confirmApply（確定の2段目）は無くした。★ 「上書き登録する」はワンクリックで走る
   const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(async () => {
@@ -142,7 +158,6 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
       onToast(apply
         ? '登録を受け付けました。結果は「連携の記録」に出ます'
         : '取り込む内容を確認しています。結果は「連携の記録」に出ます（まだ登録していません）');
-      setConfirmApply(false);
     } finally {
       setBusy(false);
     }
@@ -155,6 +170,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
   const hasAddressBook = DIARY_PROVIDERS.includes(picked);
   const rows = (data?.forwards ?? []).filter((f) => f.provider === picked);
   const nameOf = new Map((data?.therapists ?? []).map((t) => [t.id, t.name]));
+  // ★ 第371便: 名前の左に出す写真（無い人は null）
+  const imageOf = new Map((data?.therapists ?? []).map((t) => [t.id, t.imageUrl]));
   const withAddress = rows.filter((r) => r.addressMask.length > 0);
   const shown = showAll ? withAddress : withAddress.slice(0, 5);
   const total = data?.therapists.length ?? 0;
@@ -179,13 +196,18 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
             投稿先を読み込めませんでした（{error}）。しばらくしてから開き直してください。
           </p>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          /* ★ 第371便（2026-09-15・カッキーさん）: 3つのタブの横幅を揃える。
+              ★ もとは flex で中身なりの幅だったため、文字数（駅ちか／エステラブ／エステ魂、40/40 と 1/40）で
+                1つずつ幅が違っていた。★ grid の3等分にすれば、人数が何桁になっても必ず揃う。
+              ★ 幅いっぱいに伸ばすと1つ280px超で間延びするので max-w で抑える（1つ約205px＝いまの一番長いタブと同じくらい）。
+              ★ スマホは3列だと「（40/40名）」が折れるので、1列（各タブが横いっぱい）に落とす。★ 縦に並んでも幅は揃う */
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:max-w-[640px]">
             {sites.map((s) => {
               const on = picked === s.provider;
               return (
                 <button
                   key={s.provider}
-                  onClick={() => { setPicked(s.provider); setConfirmApply(false); setShowAll(false); }}
+                  onClick={() => { setPicked(s.provider); setShowAll(false); }}
                   aria-pressed={on}
                   className={`px-3 py-2 border text-[14px] font-bold transition-colors ${
                     on ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
@@ -239,10 +261,12 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
           {/* ★ 第200便（2026-09-07・カッキーさん）: 「正本」「他社経由の転送」はこちらの言葉。
               ★ 店舗様が押すもの（下の「フクエスで書く」）で言い、理由は括弧で1つだけ。 */}
           <p className="text-[14px] leading-relaxed text-slate-600">
-            {/* ★ 第370便（2026-09-15・カッキーさん）: 「送る」→「転送」に言い換え、次にすることを1文で言う。
-                ★ もとは「投稿先を登録しても…送りません」と、できないことの説明が先に来ていた。 */}
-            <b className="font-bold text-rose-700">現在、フクエスから写メ日記を転送していません。</b>{' '}
-            フクエスから写メ日記を転送する場合、ホームで「フクエスから反映」にしてください。（日記の二重投稿を防ぐため）
+            {/* ★ 第370〜371便（2026-09-15・カッキーさん）: 「送る」→「転送」に言い換え、1行に収まるまで削った。
+                ★ もとは「投稿先を登録しても…送りません（同じ日記が二重に載らないようにするためです）」と長く、
+                  この幅で2行になっていた。★ 二重投稿を防ぐという理由は、この帯からは外した。
+                ★ 引用符は画面の他と揃えて「」（カッキーさんの原文は『』）。 */}
+            <b className="font-bold text-rose-700">現在、フクエスから転送不可。</b>{' '}
+            ホームで「フクエスから反映」にすると転送します。
           </p>
         </div>
       )}
@@ -335,118 +359,38 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
         </div>
       ) : !loading && !error && site && hasAddressBook ? (
         <>
-          {/* ── いまの状態 ────────────────────────────── */}
+          {/* ★★★ 第371便（2026-09-15・カッキーさん）: 「◯名ぶん 登録済み」のブロックを【まるごと外した】。
+              ★ 中にあったもの: 登録済み人数と「全◯名中」／最後に読み取った日時／新しく増えた・宛先が変わった・
+                変わりなしの3枚／結びつかなかった人の注意／「これは確認したときの件数です」／「取り込む内容を確認」。
+              ★★ 読み取りの結果は【連携の記録】（/mypage/media/log）に残る。★ ここで二重に見せない。
+              ★★★ 「取り込む内容を確認」も一緒に消えた。★ 戻すなら下のブロックの見出し右、
+                「上書き登録する」の隣に置くのが自然（onImport(false) を呼ぶだけ）。 */}
+
+          {/* ── 投稿先の一覧（第371便で見出し「だれの日記が、どこへ届くか」を外した） ── */}
           <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[19px] font-black text-slate-800">
-                  {withAddress.length}名ぶん 登録済み
-                </p>
-                <p className="mt-0.5 text-[14px] text-slate-500">
-                  {/* ★ 読んだ記録が無いことを「0件」と書かない */}
-                  {data?.lastRead
-                    ? `${fmt(data.lastRead.at)} に${site.label}から読み取りました`
-                    : `まだ${site.label}から読み取っていません`}
-                </p>
-              </div>
-              <span className="flex-none text-[13px] font-bold px-3 py-0.5 border bg-white text-slate-400 border-slate-200 tabular-nums">
-                全{total}名中
-              </span>
-            </div>
-
-            {data?.lastRead && (
-              <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
-                <div className="bg-white px-3 py-2.5">
-                  <dt className="text-[12px] font-bold text-slate-400">新しく増えた</dt>
-                  <dd className="text-[20px] font-black text-slate-800 tabular-nums">
-                    {data.lastRead.created}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
-                  </dd>
-                </div>
-                <div className="bg-white px-3 py-2.5">
-                  <dt className="text-[12px] font-bold text-slate-400">宛先が変わった</dt>
-                  <dd className="text-[20px] font-black text-slate-800 tabular-nums">
-                    {data.lastRead.updated}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
-                  </dd>
-                </div>
-                <div className="bg-white px-3 py-2.5">
-                  <dt className="text-[12px] font-bold text-slate-400">変わりなし</dt>
-                  <dd className="text-[20px] font-black text-slate-800 tabular-nums">
-                    {data.lastRead.unchanged}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
-                  </dd>
-                </div>
-              </dl>
-            )}
-
-            {data?.lastRead && data.lastRead.unmatched > 0 && (
-              <p className="mt-2.5 text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
-                {data.lastRead.unmatched}名は、フクエスのセラピストと結びつきませんでした。
-                お名前が違っている可能性があります。
+            {/* ★★★ 第371便（2026-09-15・カッキーさん）: ボタンを「上書き登録する」1段（ワンクリック）にした。
+                ★ もとは「取り込んで登録する」→「やめる／上書きして登録する（確定）」の2段だった。
+                ★★ 確定の一段を外したぶん、【何が起きるか】はボタン名そのもの（上書き）と、
+                  すぐ下の1行（★ 駅ちかの最新アドレスになる）で言う。★ 押す前に読める位置は変えていない。
+                ★ 見出しを外したのでボタンだけが残る＝右寄せ（justify-end）。 */}
+            {/* ★ 第371便: 注意文をボタンと同じ行に移した（左に文・右にボタン）。★ 空いていた行を使う。
+                ★ 上書きすることは押す前に読める位置のまま。★ 店名は選んでいるタブに合わせるので {site.label} */}
+            <div className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-[13px] text-slate-400 leading-relaxed">
+                上書き登録すると、{site.label}の最新アドレスになります。
               </p>
-            )}
-
-            {data?.lastRead && !data.lastRead.applied && (
-              <p className="mt-2.5 text-[13px] font-bold text-indigo-600">
-                これは確認したときの件数です。まだ登録していません。
-              </p>
-            )}
-
-            {/* ★ 第370便（2026-09-15・カッキーさん）: 「取り込んで登録する」は下のブロックへ移した。
-                ★ ここに残すのは【読むだけ】の「取り込む内容を確認」。★ この画面を書き換えない操作 */}
-            <div className="mt-3 flex flex-wrap gap-2 justify-end">
               <button
-                onClick={() => onImport(false)}
+                onClick={() => onImport(true)}
                 disabled={busy}
-                className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
+                className="flex-none px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
               >
-                取り込む内容を確認
+                上書き登録する
               </button>
             </div>
-          </div>
-
-          {/* ── だれの日記が、どこへ届くか ────────────────── */}
-          <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-            {/* ★★ 第370便: 見出しの右に「取り込んで登録する」。★ 上書きされるのは【この一覧】なので、
-                操作をその一覧の上に置く。★ 確定の2段（やめる／上書きして登録する）も同じ場所に出す */}
-            <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
-              <h3 className="text-[16px] font-bold text-slate-700">だれの日記が、どこへ届くか</h3>
-              <div className="flex flex-wrap gap-2 justify-end">
-                {confirmApply ? (
-                  <>
-                    <button
-                      onClick={() => setConfirmApply(false)}
-                      className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-500"
-                    >
-                      やめる
-                    </button>
-                    <button
-                      onClick={() => onImport(true)}
-                      disabled={busy}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
-                    >
-                      上書きして登録する（確定）
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setConfirmApply(true)}
-                    disabled={busy}
-                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
-                  >
-                    取り込んで登録する
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* ★ 上書きすることを、押す前に読める場所に書く（★ ボタンと一緒にこちらへ移した） */}
-            <p className="mb-3 text-[13px] text-slate-400 leading-relaxed">
-              登録すると、いま入っている投稿先は{site.label}の内容で上書きされます。
-              {site.label}側でアドレスが出し直されたときに、古いまま送り続けないためです。
-            </p>
 
             {withAddress.length === 0 ? (
               <p className="text-[14px] text-slate-400">
-                まだ登録されていません。「取り込んで登録する」を押すと、{site.label}から読み取って入れます。
+                まだ登録されていません。「上書き登録する」を押すと、{site.label}から読み取って入れます。
               </p>
             ) : (
               <>
@@ -463,7 +407,15 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                       {shown.map((r) => (
                         <tr key={r.therapistId + '#' + r.slot} className="border-t border-slate-100">
                           <td className="py-1.5 pr-3 text-slate-700 break-words">
-                            {nameOf.get(r.therapistId) || '（名前なし）'}
+                            <span className="flex items-center gap-2">
+                              <TherapistBadge
+                                url={imageOf.get(r.therapistId) ?? null}
+                                name={nameOf.get(r.therapistId) || ''}
+                              />
+                              <span className="min-w-0 break-words">
+                                {nameOf.get(r.therapistId) || '（名前なし）'}
+                              </span>
+                            </span>
                           </td>
                           <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap tabular-nums">{r.addressMask}</td>
                           <td className="py-1.5 whitespace-nowrap">
@@ -492,12 +444,9 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                   </button>
                 )}
 
-                {/* ★ アドレスを丸ごと出さない理由を書く。★ 隠していることを隠さない */}
-                <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
-                  アドレスは頭とドメインだけをお見せしています。
-                  このアドレスを知っている人は誰でもその媒体に投稿できるためです。
-                  全部を見たり直したりするときは、セラピストの画面をお使いください。
-                </p>
+                {/* ★ 第371便（2026-09-15・カッキーさん）: 「アドレスは頭とドメインだけ…」の3文を消した。
+                    ★ 伏せ字そのものは変えていない（addressMask のまま）。★ 直す場所（セラピストの画面）は
+                      手入力のサイトの表に同じ案内が残っている。 */}
               </>
             )}
           </div>
