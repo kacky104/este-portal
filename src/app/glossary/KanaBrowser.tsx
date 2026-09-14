@@ -33,6 +33,22 @@ export function KanaBrowser({ rows }: { rows: KanaRowData[] }) {
   const [selected, setSelected] = useState<string | null>(null);
   const rowsKey = rows.map((r) => r.row).join(',');
 
+  // ★ 第368便: リロードしたときはページの先頭から始める（ブラウザのスクロール位置の復元と、
+  //   #row-xx へのジャンプを打ち消す）。★ 用語ページから「か行の用語一覧へ戻る」で来たとき（navigate）と
+  //   ブラウザの戻る（back_forward）は今までどおり＝hash の行に飛ぶ。絞り込み（hash）自体は消さない。
+  useEffect(() => {
+    const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type !== 'reload') return;
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+    window.scrollTo(0, 0);
+    const raf = window.requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      // 先頭に戻したら復元の設定は元に戻す（あとで「戻る」で来たときの位置復元を邪魔しない）
+      if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'auto';
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
+
   // ★ 初期値は必ず null（サーバー描画と同じ）。hash はマウント後に読む＝hydration がずれない。
   useEffect(() => {
     const read = () => setSelected(rowFromHash(window.location.hash, rows));
