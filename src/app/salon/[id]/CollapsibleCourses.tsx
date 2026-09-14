@@ -20,7 +20,6 @@ export function CollapsibleCourses({ courses, theme, note }: { courses: Course[]
         className="w-full flex items-center justify-between gap-2.5 cursor-pointer select-none group"
       >
         <span className="flex items-center gap-2.5 min-w-0">
-          <span aria-hidden="true" className="heading-star w-5 h-5" />
           <span className="font-bold text-left min-w-0 break-words" style={{ color: theme.heading }}>コースメニュー・料金表</span>
         </span>
         <span className="flex items-center gap-1.5 flex-shrink-0 text-pink-500 group-hover:text-pink-600 transition-colors">

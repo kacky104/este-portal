@@ -128,7 +128,6 @@ export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { b
       {/* ── セクションタイトル（ピックアップサロンと同構造・同スタイル）。hideTitle 時は出さない（保存ページ等の単発利用向け） ── */}
       {!hideTitle && (
       <div className="flex items-center gap-3 mb-4">
-        <div aria-hidden="true" className="heading-star w-6 h-6" />
         <h2
           className="font-bold whitespace-nowrap leading-tight"
           style={{

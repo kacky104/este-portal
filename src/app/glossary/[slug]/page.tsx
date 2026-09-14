@@ -214,11 +214,11 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
             </div>
           )}
 
-          {showToc && <ArticleToc headings={headings} />}
+          {showToc && <ArticleToc headings={headings} star />}
 
           {/* 本文（Markdown・本文中の画像あり） */}
           <article className={`${styles.termArticle} ${styles.section}`}>
-            <ArticleBody body={body} allowImages />
+            <ArticleBody body={body} allowImages star />
           </article>
 
           {/* よくある質問（frontmatter の faq。★ 閉じない＝FAQPage の内容と同じものを常に表示） */}

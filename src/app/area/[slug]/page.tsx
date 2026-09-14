@@ -146,7 +146,6 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         {featuredSalons.length > 0 && (
           <section className="mb-10">
             <div className="flex items-center gap-3 mb-4">
-              <div aria-hidden="true" className="heading-star w-6 h-6" />
               {/* 短いタイトルは基準サイズ(1.25rem)のまま、長いタイトルだけ画面幅に応じて必要分だけ縮める */}
               <h2 className="font-bold whitespace-nowrap leading-tight" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: `min(1.25rem, calc((100vw - 56px) / ${pickupTitle.length}))` }}>{pickupTitle}</h2>
             </div>
@@ -161,7 +160,6 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             時刻依存（出勤中・今すぐ）の判定は TherapistScroller がクライアントのマウント時に行う＝ISR焼き付き回避。 */}
         <section className="mb-5">
           <div className="flex items-center gap-3 mb-4">
-            <div aria-hidden="true" className="heading-star w-6 h-6" />
             <h2 className="text-xl font-bold text-slate-900"><span className="text-pink-600">{area === DISPATCH_AREA ? '出張対応' : label}</span>で現在出勤中</h2>
           </div>
           <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} bleedMobile largeMobile moreImageUrl={moreCardImage} />
@@ -247,7 +245,6 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
             <details className="group/faq">
               {/* 見出しは従来のセクション見出しレイアウト（縦グラデバー＋text-slate-900）のまま summary 化。 */}
               <summary className="flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                <div aria-hidden="true" className="heading-star w-6 h-6" />
                 <h2 className="text-xl font-bold text-slate-900 min-w-0 flex-1">
                   {area === DISPATCH_AREA ? '出張メンズエステ' : label}のよくある質問
                 </h2>

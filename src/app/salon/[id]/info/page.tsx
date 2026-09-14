@@ -207,7 +207,6 @@ export default async function SalonInfoPage({
         {/* 店舗基本情報（個別サロンページと同項目・同データ源） */}
         <section className="rounded-2xl border shadow-sm p-6" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <div className="flex items-center gap-2.5 mb-4">
-            <span aria-hidden="true" className="heading-star w-5 h-5" />
             <h2 className="font-bold" style={{ color: theme.heading }}>店舗基本情報</h2>
           </div>
           <dl className="space-y-3.5 text-sm">

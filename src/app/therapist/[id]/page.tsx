@@ -639,7 +639,6 @@ export default async function TherapistPublicPage({
               <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-hidden min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div aria-hidden="true" className="heading-star w-5 h-5" />
                     <h3 className="font-bold text-slate-900 truncate">写メ日記</h3>
                   </div>
                   <Link
@@ -858,7 +857,6 @@ export default async function TherapistPublicPage({
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2.5 mb-4">
-      <div aria-hidden="true" className="heading-star w-5 h-5" />
       <h3 className="font-bold text-slate-900">{children}</h3>
     </div>
   );

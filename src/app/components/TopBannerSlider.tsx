@@ -88,7 +88,6 @@ export function TopBannerSlider({ banners }: { banners: TopBanner[] }) {
     <div>
       {/* ── セクションタイトル（ピックアップサロンと同一構造・スタイル） ── */}
       <div className="flex items-center gap-3 mb-4">
-        <div aria-hidden="true" className="heading-star w-6 h-6" />
         <h2
           className="font-bold whitespace-nowrap leading-tight"
           style={{

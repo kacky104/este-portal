@@ -81,7 +81,6 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
         </div>
 
         <div className="flex items-center gap-3 mb-2">
-          <div aria-hidden="true" className="heading-star w-6 h-6" />
           <h1 className="text-xl font-bold text-slate-900">「{label}」のセラピスト</h1>
         </div>
         <p className="text-sm text-slate-500 mb-5">

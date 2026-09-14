@@ -57,7 +57,8 @@ function MarkdownLink({ href, children }: { href?: string; children?: React.Reac
 }
 
 // seen は同じ文言の見出しが2回以上出たときの枝番用。1回の描画につき1つ作る。
-function buildComponents(seen: Map<string, number>, allowImages: boolean): Components {
+// star: h2 見出し左の星（第367便）。用語ページ /glossary だけ true。/column は false＝飾りなし。
+function buildComponents(seen: Map<string, number>, allowImages: boolean, star: boolean): Components {
   // 本文中の画像（用語集）。★ 1200×800 固定（用語集の画像指示で本文中はこのサイズと決めた。
   //   幅高さが無いと読み込み時に本文がガタつく）。★ next/image は通さない（/public の WebP を
   //   原寸で配信＝変換を挟む意味が無い。著者アイコンと同じ作法）。
@@ -82,7 +83,7 @@ function buildComponents(seen: Map<string, number>, allowImages: boolean): Compo
         id={headingId(nodeText(node), seen)}
         className="scroll-mt-20 text-xl sm:text-2xl font-extrabold text-slate-900 mt-10 mb-4 pb-2 border-b border-pink-100 flex items-center gap-2.5"
       >
-        <span aria-hidden="true" className="heading-star w-6 h-6" />
+        {star && <span aria-hidden="true" className="heading-star w-6 h-6" />}
         {children}
       </h2>
     ),
@@ -104,14 +105,14 @@ function buildComponents(seen: Map<string, number>, allowImages: boolean): Compo
   };
 }
 
-export function ArticleBody({ body, allowImages = false }: { body: string; allowImages?: boolean }) {
+export function ArticleBody({ body, allowImages = false, star = false }: { body: string; allowImages?: boolean; star?: boolean }) {
   const seen = new Map<string, number>();
   return (
     <div className="break-words">
       <ReactMarkdown
         allowedElements={allowImages ? ALLOWED_WITH_IMAGES : ALLOWED}
         unwrapDisallowed
-        components={buildComponents(seen, allowImages)}
+        components={buildComponents(seen, allowImages, star)}
       >
         {body}
       </ReactMarkdown>

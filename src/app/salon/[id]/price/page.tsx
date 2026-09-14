@@ -138,7 +138,6 @@ export default async function SalonPricePage({
         {/* コース・料金表（デスクトップは枠を中身幅に合わせて中央寄せ） */}
         <section className="rounded-2xl border shadow-sm p-6 md:max-w-[680px] md:mx-auto" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <div className="flex items-center gap-2.5 mb-4">
-            <span aria-hidden="true" className="heading-star w-5 h-5" />
             <h2 className="font-bold" style={{ color: theme.heading }}>コースメニュー・料金表</h2>
           </div>
 

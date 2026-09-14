@@ -7,12 +7,13 @@ import type { ArticleHeading } from '@/app/lib/articleToc';
 // ★ 見出し（h2）が TOC_MIN_HEADINGS 本未満の記事では、ページ側が描画しない。
 // ★ 飛び先で見出しが追従ヘッダーに隠れないよう、本文側 h2 に scroll-mt-20 を付けてある。
 
-export function ArticleToc({ headings }: { headings: ArticleHeading[] }) {
+// star: 見出し左の星（第367便）。用語ページ /glossary だけ true で星を出す。/column は省略＝飾りなし。
+export function ArticleToc({ headings, star = false }: { headings: ArticleHeading[]; star?: boolean }) {
   if (headings.length === 0) return null;
   return (
     <nav aria-label="目次" className="mt-6 rounded-2xl border border-pink-100 bg-pink-50/40 p-5">
       <div className="flex items-center gap-2.5">
-        <span aria-hidden="true" className="heading-star w-5 h-5" />
+        {star && <span aria-hidden="true" className="heading-star w-5 h-5" />}
         <p className="text-sm font-bold text-slate-900">目次</p>
       </div>
       <ol className="mt-3 space-y-2 list-decimal pl-6 marker:text-pink-500 marker:font-bold marker:text-sm">

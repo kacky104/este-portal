@@ -253,7 +253,6 @@ export default async function MainColumnDetailPage({
         {related.length > 0 && (
           <section className="mt-10">
             <div className="flex items-center gap-2.5 mb-3">
-              <span aria-hidden="true" className="heading-star w-5 h-5" />
               <h2 className="font-bold text-slate-900">同じカテゴリのコラム</h2>
             </div>
             <ul className="space-y-3">
@@ -269,7 +268,6 @@ export default async function MainColumnDetailPage({
         {/* サロン探しへの導線：トップCTA＋エリアページ */}
         <section className="mt-10 rounded-2xl border border-pink-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2.5 mb-3">
-            <span aria-hidden="true" className="heading-star w-5 h-5" />
             <h2 className="font-bold text-slate-900">福岡のメンズエステを探す</h2>
           </div>
           <Link
