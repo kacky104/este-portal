@@ -573,7 +573,7 @@ function SlotSection({
           <h2 className="text-[15px] font-black text-slate-800">{advice.label}</h2>
         </div>
         {/* ★★ 自動投稿の1行。★ 文言は articleRotation が作る（★ 画面で作らない） */}
-        <p className="text-[13px] font-bold text-slate-500 mt-1.5">自動投稿（1日1回・順番で投稿）</p>
+        <p className="text-[13px] font-bold text-slate-500 mt-1.5">自動投稿（1日1回）</p>
         {auto && auto.note !== null && (
           <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">{auto.note}</p>
         )}
@@ -694,7 +694,7 @@ function SlotSection({
                           disabled={busy}
                           className="text-[13.5px] font-bold px-3 py-1.5 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
                         >
-                          いま出す
+                          すぐ投稿
                         </button>
                       )}
                       {confirmDelete === row.id ? (
@@ -852,7 +852,7 @@ function Editor({
         <label className="text-[13.5px] font-bold text-slate-600">本文</label>
         {/* ★ 相手ができないと言っていることを、書く【前】に伝える */}
         <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
-          画像と外部リンクは駅ちかの決まりで入れられません。改行は
+          画像と外部リンクは不可。改行は
           <code className="mx-0.5 px-1 bg-slate-100">&lt;br&gt;</code>、
           段落は<code className="mx-0.5 px-1 bg-slate-100">&lt;p&gt;〜&lt;/p&gt;</code>で書けます。
         </p>
@@ -942,10 +942,6 @@ function Editor({
             </div>
           )
         )}
-
-        <p className="text-[13px] text-slate-400 leading-relaxed mt-1.5">
-          特定の方を紹介する文章のときに使ってください。固定すると、この文章を出すときは必ずその方の写真になります。
-        </p>
       </div>
 
       {/* ★★★ 保存ボタンを大きく。★ 「保存ボタンを押してなかったです」（2026-09-05・実際に起きた） */}

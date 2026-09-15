@@ -168,15 +168,17 @@ export function articleSlotAutoNote(input: {
     && input.dayKey !== null && input.lastAutoDay === input.dayKey;
   const time = input.timeLabel === null ? '' : input.timeLabel;
 
+  // ★ 第382便: ここも短く言い切る（カッキーさん・2026-09-15）
   if (done) {
     return time === ''
-      ? '今日はもう投稿しました。次は明日です。'
-      : '今日はもう投稿しました。次は明日 ' + time + ' ごろです。';
+      ? '本日投稿済み。明日予定。'
+      : '本日投稿済み。明日は ' + time + ' ごろ予定。';
   }
-  const tail = '（自動投稿設定' + n + '件・ローテーション）';
+  // ★ 第381便: 短く言い切る（カッキーさん・2026-09-15）。★ 「〜します」をやめて「投稿」で止める
+  const tail = '（自動設定' + n + '件・ローテーション）';
   return time === ''
-    ? '今日はこのあと1回投稿します' + tail
-    : '今日は ' + time + ' ごろに投稿します' + tail;
+    ? '今日はこのあと1回投稿' + tail
+    : '今日は ' + time + ' ごろ投稿' + tail;
 }
 
 // ─────────────────────────────────────────────────────────
