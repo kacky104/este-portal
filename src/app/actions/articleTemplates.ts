@@ -107,6 +107,14 @@ export type ArticleTemplateRow = {
    *   ★ null は【まだ一度も出していない】。★ 次に出るのは、この枠でいちばん古い1本
    */
   lastPostedAt: string | null;
+  /**
+   * ★★★ この文章のときだけ固定で出す写真の持ち主（第379便）。
+   *   ★ null なら【店舗の写真の箱からランダム】（★ これまでどおり）。
+   *   ★ 特定のセラピストを紹介する文章のための指定（★ 新人速報など）
+   */
+  photoTherapistId: number | null;
+  /** ★ その方のお名前。★ 引けなければ空（★ 番号を名前の代わりに出さない） */
+  photoTherapistName: string;
 };
 
 /**
@@ -197,7 +205,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
   // ★ 第376便: last_auto_day（今日この枠を出したか）と last_posted_at（順番と画面表示）を読む
   const { data: temps, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, is_active, sort_order, updated_at, last_auto_day, last_posted_at')
+    .select('id, article_slot, title, body, is_active, sort_order, updated_at, last_auto_day, last_posted_at, photo_therapist_id')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
@@ -218,17 +226,26 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
   const photoIds = normalizeArticlePhotoIds(st?.photo_therapist_ids)
     .filter((id) => therapists.some((x) => x.id === id));
 
-  const templates: ArticleTemplateRow[] = (temps ?? []).map((r) => ({
-    id: Number(r.id),
-    articleSlot: Number(r.article_slot),
-    slotLabel: articleSlotLabel(Number(r.article_slot)),
-    title: String(r.title ?? ''),
-    body: String(r.body ?? ''),
-    isActive: r.is_active === true,
-    sortOrder: Number(r.sort_order ?? 0),
-    updatedAt: String(r.updated_at ?? ''),
-    lastPostedAt: r.last_posted_at ? String(r.last_posted_at) : null,
-  }));
+  const templates: ArticleTemplateRow[] = (temps ?? []).map((r) => {
+    // ★ 第379便: 文章が指している1人。★ 0以下・数でないものは「指していない」に倒す
+    const pid = r.photo_therapist_id === null || r.photo_therapist_id === undefined
+      ? null : Number(r.photo_therapist_id);
+    const fixed = pid !== null && Number.isFinite(pid) && pid > 0 ? pid : null;
+    return {
+      id: Number(r.id),
+      articleSlot: Number(r.article_slot),
+      slotLabel: articleSlotLabel(Number(r.article_slot)),
+      title: String(r.title ?? ''),
+      body: String(r.body ?? ''),
+      isActive: r.is_active === true,
+      sortOrder: Number(r.sort_order ?? 0),
+      updatedAt: String(r.updated_at ?? ''),
+      lastPostedAt: r.last_posted_at ? String(r.last_posted_at) : null,
+      photoTherapistId: fixed,
+      // ★ 名前は写真つきの方から引く。★ 引けなければ空（★ 写真が消された方は画面で気づける）
+      photoTherapistName: fixed === null ? '' : (therapists.find((x) => x.id === fixed)?.name ?? ''),
+    };
+  });
 
   const autoEnabled = st?.auto_enabled === true;
   const today = dayKeyJST(new Date());
@@ -345,7 +362,13 @@ export async function saveArticleTemplate(input: {
   title: string;
   body: string;
   isActive?: boolean;
-  // ★ 第373便: girlId / therapistIds は受けない。★ 写真は saveArticlePhotoPool（店舗に1つの箱）
+  // ★ 第373便: girlId / therapistIds は受けない。★ ふだんの写真は saveArticlePhotoPool（店舗に1つの箱）
+  /**
+   * ★★★ この文章だけ固定で出す写真の持ち主（第379便）。
+   *   ★ null … 固定をやめる（＝店舗の箱からランダム）。★ 数 … その人で固定。
+   *   ★★ 送らなければ（undefined）いまの設定を変えない
+   */
+  photoTherapistId?: number | null;
 }): Promise<Result<{ id: number }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
@@ -366,6 +389,27 @@ export async function saveArticleTemplate(input: {
   const svc = createServiceClient();
   const id = Number(input.id);
 
+  // ★★★ 第379便: 文章に固定する写真。★ 他店の方を指せないよう、ここで必ず確かめる。
+  //   ★ 画面から来た番号をそのまま入れない（★ 番号は誰でも書き換えられる）
+  //   ★ undefined … 触らない ／ null・0以下 … 固定をやめる ／ 数 … その人で固定
+  let photoFixed: number | null | undefined;
+  if (input.photoTherapistId !== undefined) {
+    const want = Number(input.photoTherapistId);
+    if (input.photoTherapistId === null || !Number.isFinite(want) || want <= 0) {
+      photoFixed = null;
+    } else {
+      const { data: th, error: thErr } = await svc
+        .from('therapists').select('id, salon_id, profile_image_url')
+        .eq('id', Math.trunc(want)).eq('salon_id', salonId).maybeSingle();
+      if (thErr) return { ok: false, error: '写真を確かめられませんでした。時間をおいてお試しください' };
+      // ★★ この店の方で、★ 写真が入っている方だけ。★ 選べるように見せて送れない、を作らない
+      if (!th || !String(th.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/')) {
+        return { ok: false, error: 'その方の写真が見つかりません。画面を開き直してもう一度お選びください' };
+      }
+      photoFixed = Math.trunc(want);
+    }
+  }
+
   if (Number.isFinite(id) && id > 0) {
     // ★★ 必ず salon_id で絞る。★ id だけで更新すると他店の行を書き換えられる
     // ★ 第373便: ekichika_girl_id / therapist_ids は触らない（★ 古い値が残っていても読まないので無害）
@@ -376,6 +420,7 @@ export async function saveArticleTemplate(input: {
         title: title.trim(),
         body,
         ...(input.isActive === undefined ? {} : { is_active: input.isActive === true }),
+        ...(photoFixed === undefined ? {} : { photo_therapist_id: photoFixed }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id).eq('salon_id', salonId).eq('provider', PROVIDER)
@@ -414,9 +459,11 @@ export async function saveArticleTemplate(input: {
       body,
       // ★★★ 既定は「回さない」。★ 作っただけでは何も起きない
       is_active: input.isActive === true,
-      // ★ 第373便: 文章は写真を持たない。★ 列は残っているので空で埋める（★ 駅ちかの画像に触らない）
+      // ★ 第373便: 文章は「複数枚の箱」を持たない。★ 列は残っているので空で埋める
       ekichika_girl_id: null,
       therapist_ids: [],
+      // ★ 第379便: 固定の1人。★ 既定は null（＝店舗の箱からランダム）
+      photo_therapist_id: photoFixed ?? null,
     })
     .select('id').maybeSingle();
   if (error || !data) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };

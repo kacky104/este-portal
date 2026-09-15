@@ -115,6 +115,16 @@ console.log('\n── 7. ★ 「いま出す」の確認の1行 ──');
   eq('★ 1枚', P.articlePhotoConfirmNote(1), '写真は「写真」で選んでいる1枚を駅ちかへ送って差し替えます。');
   eq('★ 複数', P.articlePhotoConfirmNote(4), '写真は「写真」で選んでいる 4 枚の中から1枚を送って差し替えます（直前と同じ写真は避けます）。');
   eq('★ 文言に「★」を混ぜない', /★/.test(P.articlePhotoConfirmNote(0) + P.articlePhotoConfirmNote(4)), false);
+
+  // ★★★ 第379便: 文章が誰かに固定していれば、その人の話をする
+  eq('★★★ 固定しているときは、その方の名前を言う',
+     P.articlePhotoConfirmNote(7, 'サクラ'), '写真は「サクラ」の写真を駅ちかへ送って差し替えます。');
+  eq('★★★ 箱が0枚でも、固定が優先', P.articlePhotoConfirmNote(0, 'サクラ'), P.articlePhotoConfirmNote(7, 'サクラ'));
+  eq('★★ 空の名前は固定していないあつかい', P.articlePhotoConfirmNote(4, ''), P.articlePhotoConfirmNote(4));
+  eq('★★ 空白だけの名前も同じ', P.articlePhotoConfirmNote(4, '   '), P.articlePhotoConfirmNote(4));
+  eq('★ null も同じ', P.articlePhotoConfirmNote(4, null), P.articlePhotoConfirmNote(4));
+  eq('★ 名前の前後の空白は落とす',
+     P.articlePhotoConfirmNote(4, ' サクラ '), '写真は「サクラ」の写真を駅ちかへ送って差し替えます。');
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');

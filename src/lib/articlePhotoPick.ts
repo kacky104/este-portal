@@ -97,9 +97,16 @@ export function articlePhotoNote(count: number): string | null {
 }
 
 /**
- * ★ 「いま出す」の確認に出す1行。★ 箱の枚数だけで決まる（★ 文章ごとの違いは無い）。
+ * ★ 「いま出す」の確認に出す1行。
+ *   ★★ 第379便: **この文章が誰かに固定していれば、その人の話をする。**
+ *     ★ 固定しているのに「10枚の中から1枚」と書くと、嘘になる（★ 出るのは必ずその人）。
+ *
+ * @param count     店舗の写真の箱の枚数
+ * @param fixedName この文章が固定している方のお名前。★ 固定していなければ null／空
  */
-export function articlePhotoConfirmNote(count: number): string {
+export function articlePhotoConfirmNote(count: number, fixedName?: string | null): string {
+  const name = typeof fixedName === 'string' ? fixedName.trim() : '';
+  if (name !== '') return '写真は「' + name + '」の写真を駅ちかへ送って差し替えます。';
   const n = Number.isFinite(count) ? Math.trunc(count) : 0;
   if (n <= 0) return '写真は駅ちかに入っているものがそのまま残ります（変わるのはタイトルと本文だけです）。';
   if (n === 1) return '写真は「写真」で選んでいる1枚を駅ちかへ送って差し替えます。';

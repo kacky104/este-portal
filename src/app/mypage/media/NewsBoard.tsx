@@ -19,7 +19,8 @@ import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
 import { ARTICLE_PHOTO_MAX, articlePhotoConfirmNote } from '@/lib/articlePhotoPick';
 
 // 新着情報を送る（第158便 → 第167便で作り直し → 第373便で写真を店舗の箱へ →
-//   ★ 第376便で【カテゴリーごとの画面・1日1回】へ作り直し → ★ 第377便でタブに・2026-09-15）。
+//   ★ 第376便で【カテゴリーごとの画面・1日1回】へ作り直し → 第377便でタブに →
+//   ★ 第379便で【文章ごとに写真を1人固定】を足した・2026-09-15）。
 //
 // ★★★ 第376便の発端（カッキーさん・2026-09-15）
 //   「各カテゴリー自動投稿は1日1回にします。手動投稿はなんどでもOK」
@@ -71,8 +72,11 @@ function fmt(iso: string | null): string {
 const POLL_MS = 15000;
 const POLL_MAX = 20;
 
-/** ★ 開いているカードの下書き。★ 保存するまで DB には触らない */
-type Draft = { title: string; body: string };
+/**
+ * ★ 開いているカードの下書き。★ 保存するまで DB には触らない。
+ *   ★ photoId … この文章だけ固定で出す写真の持ち主（第379便）。★ null は「店舗の写真から1枚」
+ */
+type Draft = { title: string; body: string; photoId: number | null };
 
 /** ★ 2つの並びが同じか（★ 順番も見る）。★ 写真の箱の「変えたか」に使う */
 function sameIds(a: readonly number[], b: readonly number[]): boolean {
@@ -186,7 +190,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     setDrafts(d);
   };
   const setDraft = (key: string, patch: Partial<Draft>) => {
-    const cur = drafts[key] ?? { title: '', body: '' };
+    const cur = drafts[key] ?? { title: '', body: '', photoId: null };
     setDrafts({ ...drafts, [key]: { ...cur, ...patch } });
   };
 
@@ -201,10 +205,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   /** ★ 新しく書く（枠ごと）。★ 既定は「回さない」（★ 作っただけでは何も起きない） */
   const onCreate = async (articleSlot: number) => {
     const key = 'new-' + articleSlot;
-    const d = drafts[key] ?? { title: '', body: '' };
+    const d = drafts[key] ?? { title: '', body: '', photoId: null };
     setBusy('save');
     const r = await saveArticleTemplate({
       salonId, articleSlot, title: d.title, body: d.body, isActive: false,
+      photoTherapistId: d.photoId,
     });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
@@ -216,10 +221,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   /** ★ 直す（タイトルと本文だけ）。★ 自動で回すかは、その場のボタンが持つ */
   const onUpdate = async (row: ArticleTemplateRow) => {
     const key = 'tpl-' + row.id;
-    const d = drafts[key] ?? { title: row.title, body: row.body };
+    const d = drafts[key] ?? { title: row.title, body: row.body, photoId: row.photoTherapistId };
     setBusy('save');
     const r = await saveArticleTemplate({
       salonId, id: row.id, articleSlot: row.articleSlot, title: d.title, body: d.body,
+      photoTherapistId: d.photoId,
     });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
@@ -295,7 +301,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   };
 
   const poolDirty = !sameIds(pool, board.photoIds);
-  const photoNote = articlePhotoConfirmNote(board.photoIds.length);
 
   return (
     <div className="space-y-5">
@@ -460,16 +465,18 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             auto={auto}
             perSlotMax={board.perSlotMax}
             rows={rows}
-            photoNote={photoNote}
+            poolPhotoCount={board.photoIds.length}
             busy={busy !== ''}
             onRead={onRead}
+            therapists={board.therapists}
+            poolCount={board.photoIds.length}
             open={open}
             drafts={drafts}
             newOpen={open.has(newKey)}
-            onToggleNew={() => toggleOpen(newKey, { title: '', body: '' })}
+            onToggleNew={() => toggleOpen(newKey, { title: '', body: '', photoId: null })}
             onCancelNew={() => closeKey(newKey)}
             onCreate={() => onCreate(s.slot)}
-            onToggleRow={(row) => toggleOpen('tpl-' + row.id, { title: row.title, body: row.body })}
+            onToggleRow={(row) => toggleOpen('tpl-' + row.id, { title: row.title, body: row.body, photoId: row.photoTherapistId })}
             onCancelRow={(row) => closeKey('tpl-' + row.id)}
             onUpdate={onUpdate}
             onToggleActive={onToggleActive}
@@ -550,7 +557,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
  *   ・文章カード … 閉じているときはバー、開くと編集と操作
  */
 function SlotSection({
-  advice, auto, perSlotMax, rows, photoNote, busy, onRead,
+  advice, auto, perSlotMax, rows, poolPhotoCount, busy, onRead, therapists, poolCount,
   open, drafts, newOpen, onToggleNew, onCancelNew, onCreate,
   onToggleRow, onCancelRow, onUpdate, onToggleActive, setDraft,
   confirmDelete, onAskDelete, onDelete,
@@ -560,10 +567,15 @@ function SlotSection({
   auto: ArticleSlotAuto | undefined;
   perSlotMax: number;
   rows: ArticleTemplateRow[];
-  photoNote: string;
+  /** ★ 店舗の箱の枚数。★ 「いま出す」の確認の1行をここで作る（★ 固定の有無は行ごとに違う） */
+  poolPhotoCount: number;
   busy: boolean;
   /** ★ 第378便: 枠の状態を読み直す（★ 上のブロックから移してきた） */
   onRead: () => void;
+  /** ★ 第379便: 文章ごとの写真の固定に使う（★ 写真がある方ぜんぶ） */
+  therapists: Array<{ id: number; name: string; photoUrl: string }>;
+  /** ★ 店舗の箱の枚数（★ 固定していないときに何から選ばれるかを言うため） */
+  poolCount: number;
   open: Set<string>;
   drafts: Record<string, Draft>;
   newOpen: boolean;
@@ -584,7 +596,7 @@ function SlotSection({
 }) {
   const chip = STATE_CHIP[advice.state] ?? STATE_CHIP.unknown;
   const newKey = 'new-' + advice.slot;
-  const nd = drafts[newKey] ?? { title: '', body: '' };
+  const nd = drafts[newKey] ?? { title: '', body: '', photoId: null };
   const canAdd = auto?.canAdd !== false;
 
   return (
@@ -641,6 +653,8 @@ function SlotSection({
             saveLabel="保存する"
             onSave={onCreate}
             onCancel={onCancelNew}
+            therapists={therapists}
+            poolCount={poolCount}
           />
           <p className="text-[13px] text-slate-400 leading-relaxed mt-2">
             保存しただけでは自動では出ません。あとで「自動投稿にする」を押してください。
@@ -658,7 +672,7 @@ function SlotSection({
           {rows.map((row) => {
             const key = 'tpl-' + row.id;
             const isOpen = open.has(key);
-            const d = drafts[key] ?? { title: row.title, body: row.body };
+            const d = drafts[key] ?? { title: row.title, body: row.body, photoId: row.photoTherapistId };
             return (
               <li key={row.id}>
                 {/* ── 閉じているときのバー（★ お知らせと同じ並び） ── */}
@@ -681,6 +695,12 @@ function SlotSection({
                     {row.title || '(タイトル未設定)'}
                   </span>
                   <span className="ml-auto flex items-center gap-2 flex-none">
+                    {/* ★★ 第379便: 写真を固定している文章は、開かなくても分かるようにする */}
+                    {row.photoTherapistId !== null && (
+                      <span className="text-[12px] font-bold px-1.5 py-0.5 border border-indigo-200 text-indigo-700 bg-indigo-50">
+                        写真：{row.photoTherapistName || '指定あり'}
+                      </span>
+                    )}
                     {/* ★ 最後に出した日時。★ 一度も出していなければ何も出さない（★ 「なし」と書かない） */}
                     {row.lastPostedAt !== null && (
                       <span className="hidden sm:inline text-[12px] text-slate-400 tabular-nums">
@@ -772,7 +792,10 @@ function SlotSection({
                             いま入っている記事は<b>消えます</b>（元に戻せません）。
                           </p>
                         )}
-                        <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">{photoNote}</p>
+                        <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                          {/* ★★ 第379便: この文章が誰かに固定していれば、その人の話をする（★ 箱の枚数の話をしない） */}
+                          {articlePhotoConfirmNote(poolPhotoCount, row.photoTherapistName || null)}
+                        </p>
                         {advice.state === 'hidden' && (
                           <p className="text-[13.5px] text-amber-800 leading-relaxed mt-1">
                             なお、この枠はいま非表示です。送っても公開ページには出ません。
@@ -809,6 +832,8 @@ function SlotSection({
                       saveLabel="書き換える"
                       onSave={() => onUpdate(row)}
                       onCancel={() => onCancelRow(row)}
+                      therapists={therapists}
+                      poolCount={poolCount}
                     />
                   </div>
                 )}
@@ -822,11 +847,11 @@ function SlotSection({
 }
 
 /**
- * ★ タイトルと本文だけの編集。★ 新規も直すも同じ部品（★ 2つ作らない）。
+ * ★ タイトル・本文・写真の指定だけの編集。★ 新規も直すも同じ部品（★ 2つ作らない）。
  *   ★ 決まりごと（文字数・画像とリンクは入れられない）は、その項目の脇に書く
  */
 function Editor({
-  draft, onChange, busy, saveLabel, onSave, onCancel,
+  draft, onChange, busy, saveLabel, onSave, onCancel, therapists, poolCount,
 }: {
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
@@ -834,9 +859,16 @@ function Editor({
   saveLabel: string;
   onSave: () => void;
   onCancel: () => void;
+  /** ★ 写真がある方ぜんぶ（★ 店舗の箱の10枚に限らない・第379便） */
+  therapists: Array<{ id: number; name: string; photoUrl: string }>;
+  /** ★ 店舗の箱に入っている枚数。★ 「ふだんは何から選ばれるか」を言うため */
+  poolCount: number;
 }) {
   const width = titleWidth(draft.title);
   const over = width > ARTICLE_TITLE_MAX_WIDTH;
+  /** ★ 固定する方を選ぶ並びを開いているか。★ 普段は閉じておく（★ 40人ぶんのタイルは重い） */
+  const [pickOpen, setPickOpen] = useState(false);
+  const fixed = draft.photoId === null ? null : therapists.find((t) => t.id === draft.photoId) ?? null;
   return (
     <div className="space-y-4">
       <div>
@@ -877,6 +909,89 @@ function Editor({
           className="w-full mt-1.5 px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed bg-white"
           placeholder="本日も元気に営業しております。ご予約お待ちしております。"
         />
+      </div>
+
+      {/* ───── 写真（第379便・2026-09-15・カッキーさん） ─────
+          ★★★ 発端「新人速報、場合によっては速報NEWSや他のカテゴリーでも
+             特定のセラピストの写真を出す必要がある場面があると思います」
+          ★★ ふだんは店舗の箱からランダム。★ この文章だけ特定の方に固定できる。
+          ★ 固定は【1人だけ】。★ 第172便の「何枚でも選べる」には戻さない（★ 店舗の箱と二重になる） */}
+      <div className="border-t border-slate-100 pt-3.5">
+        <label className="text-[13.5px] font-bold text-slate-600">写真</label>
+        {fixed === null && draft.photoId !== null ? (
+          // ★★ 固定していた方の写真が消えた／見つからない。★ 黙って店舗の箱に落とさず、言う
+          <p className="text-[13.5px] text-amber-700 leading-relaxed mt-1">
+            固定していた方が見つかりません（写真が外された可能性があります）。選び直すか、店舗の写真に戻してください。
+          </p>
+        ) : null}
+
+        <div className="flex items-center gap-2 flex-wrap mt-1">
+          {fixed !== null ? (
+            <>
+              <span className="w-9 h-9 flex-none bg-slate-100 overflow-hidden">
+                {fixed.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={fixed.photoUrl} alt="" className="w-full h-full object-cover" />
+                ) : null}
+              </span>
+              <span className="text-[14px] text-slate-700">
+                <b>{fixed.name}</b> の写真で固定します。
+              </span>
+            </>
+          ) : (
+            <span className="text-[14px] text-slate-600">
+              {poolCount === 0
+                ? '駅ちかに入っている写真がそのまま残ります（上の「写真」で選ぶと、そこから1枚入ります）。'
+                : '上の「写真」で選んだ ' + poolCount + ' 枚から1枚がランダムで入ります。'}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap mt-1.5">
+          <button
+            type="button"
+            onClick={() => setPickOpen(!pickOpen)}
+            disabled={busy}
+            className="text-[13.5px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            {pickOpen ? '閉じる' : draft.photoId === null ? 'この文章だけ、特定の方に固定する' : '選び直す'}
+          </button>
+          {draft.photoId !== null && (
+            <button
+              type="button"
+              onClick={() => { onChange({ photoId: null }); setPickOpen(false); }}
+              disabled={busy}
+              className="text-[13.5px] font-bold px-2 py-1.5 text-slate-500 hover:text-slate-700 disabled:opacity-40"
+            >
+              固定をやめる
+            </button>
+          )}
+        </div>
+
+        {pickOpen && (
+          therapists.length === 0 ? (
+            <p className="text-[13.5px] text-slate-500 leading-relaxed mt-2">
+              フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
+              {therapists.map((t) => (
+                <PhotoTile
+                  key={t.id}
+                  on={draft.photoId === t.id}
+                  name={t.name}
+                  photoUrl={t.photoUrl}
+                  onClick={() => { onChange({ photoId: draft.photoId === t.id ? null : t.id }); setPickOpen(false); }}
+                  disabled={busy}
+                />
+              ))}
+            </div>
+          )
+        )}
+
+        <p className="text-[13px] text-slate-400 leading-relaxed mt-1.5">
+          特定の方を紹介する文章のときに使ってください。固定すると、この文章を出すときは必ずその方の写真になります。
+        </p>
       </div>
 
       {/* ★★★ 保存ボタンを大きく。★ 「保存ボタンを押してなかったです」（2026-09-05・実際に起きた） */}
