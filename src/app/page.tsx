@@ -12,7 +12,7 @@ import { NotificationBell } from "./components/NotificationBell";
 import { VipLetterIcon } from "./components/VipLetterIcon";
 import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst, fetchFreeListings } from "./lib/salons";
 import { FreeListingCards } from "./components/FreeListingCards";
-import { weightedShuffleEvery6h } from "@/lib/shuffle";
+import { weightedShuffleDaily } from "@/lib/shuffle";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
 import { ALL_AREA, AREA_ORDER } from "./lib/areas";
 import { getFeaturedSalons } from "./lib/featured";
@@ -280,7 +280,7 @@ export default async function Home() {
                   【要素そのものは truthy】なので、?? のフォールバックが効かず枠が消える。 */}
             <ShuffledSalons
               moreImageUrl={moreCardImage}
-              salons={withBumpedFirst(weightedShuffleEvery6h(salons, 'home', (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
+              salons={withBumpedFirst(weightedShuffleDaily(salons, 'home', (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
               areas={[...AREA_ORDER]}
               currentArea={ALL_AREA}
               tabsAsLinks

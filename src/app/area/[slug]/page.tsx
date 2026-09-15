@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst } from '@/app/lib/salons';
-import { weightedShuffleEvery6h } from '@/lib/shuffle';
+import { weightedShuffleDaily } from '@/lib/shuffle';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { TherapistScroller } from '@/app/components/TherapistScroller';
 import { fetchSiteImage, LIST_MORE_CARD_KEY } from '@/app/lib/siteImages';
@@ -91,7 +91,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   const areaReviews = await getLatestReviewsForSalons(areaSalonIds, 3);
 
   // ItemList 構造化データ（2026-08-06 追加）。このエリアに掲載しているサロンの一覧
-  // （画面の ShuffledSalons と同じ集合。並びは6時間ごとのシャッフルなので順序は保証しない）。
+  // （画面の ShuffledSalons と同じ集合。並びは1日1回のシャッフルなので順序は保証しない）。
   const itemListJsonLd =
     areaSalons.length > 0
       ? buildItemListJsonLd(
@@ -170,7 +170,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         <div className="-mx-3 lg:mx-0">
         <ShuffledSalons
           moreImageUrl={moreCardImage}
-          salons={withBumpedFirst(weightedShuffleEvery6h(salons, `area:${slug}`, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
+          salons={withBumpedFirst(weightedShuffleDaily(salons, `area:${slug}`, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
           areas={[...AREA_ORDER]}
           currentArea={area}
           tabsAsLinks

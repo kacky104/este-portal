@@ -1,3 +1,5 @@
+import { businessDateJSTFrom } from './dutyStatus';
+
 // seed付き決定論的シャッフル。
 // 同じ seed・同じ入力なら必ず同じ結果（純粋関数・副作用なし）。
 // 「同時刻内シャッフル」を一定時間固定したいとき（例：30分ごとに変える）に使う。
@@ -56,9 +58,24 @@ export function thirtyMinSeed(nowMs: number = Date.now()): number {
 }
 
 /** 現在時刻（ミリ秒）から6時間スロットの seed を作る。同じ6時間の間は同じ値、6時間ごとに変わる。
- *  スロットはエポック基準（UTC）なので JST では 3時/9時/15時/21時 に切り替わる。 */
+ *  スロットはエポック基準（UTC）なので JST では 3時/9時/15時/21時 に切り替わる。
+ *  ★★ 2026-09-15（第386便）から TOP・地域ページは使っていない（→ dailySeedJST）。
+ *    ★ 関数は残す（第372便の作法: 消すのは画面だけ）。 */
 export function sixHourSeed(nowMs: number = Date.now()): number {
   return Math.floor(nowMs / (6 * 60 * 60 * 1000));
+}
+
+/**
+ * ★★★ 営業日（JST 朝6時区切り）の seed（第386便・2026-09-15・カッキーさんの指示）。
+ *   ★ 同じ営業日のあいだは同じ値。★ 毎朝6時に1度だけ変わる。
+ *   ★ 朝6時は【上位表示の回数が戻る時刻】でもある。★ 並びと回数の1日を同じ切り方にそろえる。
+ *
+ * ★★ 区切りの決めごとは dutyStatus.businessDateJSTFrom に1本化してある（第150便・第224便）。
+ *   ★ ここで「+9時間 -6時間」を書き直さない。★ 2か所に持つと、片方だけ直した日にズレる。
+ * ★ '2026-09-15' → 20260915（32bitに収まる数字）。
+ */
+export function dailySeedJST(nowMs: number = Date.now()): number {
+  return Number(businessDateJSTFrom(nowMs).replace(/-/g, ''));
 }
 
 /** salt 文字列を 32bit ハッシュに（ページごとに並びを変えたい時用・FNV-1a）。 */
@@ -95,7 +112,23 @@ export function weightedShuffleEvery30min<T>(
 }
 
 /**
+ * ★★★ weightedShuffleEvery30min の【1日1回】版（第386便・2026-09-15）。
+ *   ★ TOP／地域ページの店舗カードと、フクエスワークの求人カードがこれを使う。
+ *   ★ 毎朝6時に1度だけ並びが変わる。★ 同じ営業日・同じ salt・同じ入力・同じ重みなら必ず同じ並び。
+ * ★★ 実際の入れ替わりはスロット切替後の最初の ISR 再生成時（revalidate=600 なので最大+10分ずれる）。
+ *   ★ つまり「6:00 ちょうど」ではなく「6:00〜6:10 のどこか」。★ ここは前からの性質で、変えていない。
+ */
+export function weightedShuffleDaily<T>(
+  items: readonly T[],
+  salt: string,
+  weightOf: (item: T) => number
+): T[] {
+  return seededWeightedShuffle(items, (dailySeedJST() ^ hashString(salt)) >>> 0, weightOf);
+}
+
+/**
  * weightedShuffleEvery30min の6時間版。TOP／地域ページの店舗カード用（2026-07-28 に30分→6時間へ変更）。
+ * ★★ 2026-09-15（第386便）に TOP・地域ページは weightedShuffleDaily へ移した。★ この関数は残してある。
  * 同じ6時間・同じ salt・同じ入力・同じ重みなら必ず同じ並び（純粋関数・副作用なし）。
  * 実際の入れ替わりはスロット切替後の最初の ISR 再生成時（revalidate=600 なので最大+10分ずれる）。
  */
