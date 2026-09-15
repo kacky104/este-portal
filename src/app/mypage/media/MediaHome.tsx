@@ -606,6 +606,14 @@ export function MediaHome({ salonId, onToast }: {
             >
               <p className="text-[17px] font-black text-slate-800">{text.title}</p>
               <p className="mt-2 text-[14px] text-slate-500 leading-relaxed">{text.body}</p>
+              {/* ★★★★ 第393便（2026-09-16・カッキーさん）: いちばん大事な一文は【赤字で別の行】に。
+                  ★ 「フクエスから反映」にした時点で出勤も自動更新になる、と読む方が居るため。
+                  ★ 本文にまぜない。★ まぜると読み飛ばされる（それが今までの形だった）。 */}
+              {text.note && (
+                <p className="mt-2 text-[14px] font-bold text-rose-600 leading-relaxed border border-rose-200 bg-rose-50 px-3 py-2">
+                  {text.note}
+                </p>
+              )}
               <div className="mt-4 flex justify-end gap-2">
                 <button
                   type="button"

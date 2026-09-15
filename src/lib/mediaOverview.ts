@@ -631,10 +631,15 @@ export function bulkPlan(sites: ReadonlyArray<BulkSite>, to: BulkTarget): BulkPl
  *   ★★★★ 第333便: 「送る」→「更新」（カッキーさん）。★ 店舗様から見れば、していることはサイトの更新。
  */
 export const WORK_FIRST_APPROVAL_NOTE =
-  // ★★★★ 第393便（2026-09-15・カッキーさん）: ボタンの名前を「内容を確かめる」→「出勤を自動更新にする」に
+  // ★★★★ 第393便（2026-09-15〜16・カッキーさん）: ボタンの名前を「内容を確かめる」→「出勤を自動更新にする」に
   //   変えたので、この文もそろえた（★ 2か所で違う名前を出さない）。
-  //   ★ 第337便の決めごとは守る: 画面の名前（「出勤を更新」）ではなく【押すボタンの名前】を書く。
-  '「出勤を自動更新にする」を押してください。いまの内容を確かめてから自動更新に切り替えます。';
+  //   ★ 第337便の決めごとは守る: 画面の名前ではなく【押すボタンの名前】を書く。
+  //
+  // ★★★★ 【2026-09-16・カッキーさんの指示】言い方を【お願い】に変え、赤字で出す。
+  //   ★★ 「フクエスから反映」にした時点で出勤も自動更新になる、と読む方が居る。
+  //     ★ 実際は【押しただけでは自動にならない】。★ 一括の問いのいちばん大事な一文がこれ。
+  //   ★ 2文目で「しないとどうなるか」を言う。★ お願いだけでは、なぜ必要かが伝わらない。
+  '出勤を自動更新にする設定を必ず行ってください。この設定をしないと、出勤は自動で反映されません。';
 
 /** ★ 一括ボタンに書く文字（★ 行き先の状態を名前にする・第90便の作法）。 */
 export function bulkLabel(to: BulkTarget): { label: string; sub: string } {
@@ -652,7 +657,14 @@ const joinNames = (xs: readonly string[]): string => [...new Set(xs)].join('・'
  * ★★ 鍵が無くて飛ばす枠は名前を出す（「◯◯はログイン情報が無いので変わりません」）。
  * ★ 変えるところが無いときは、そのことを言う（押しても何も起きないボタンを黙って出さない）。
  */
-export function bulkAskText(plan: BulkPlan): { title: string; body: string } {
+/**
+ * ★★★★ 第393便（2026-09-16・カッキーさん）: `note` を足した。
+ *   ★ 「出勤を自動更新にする設定を必ず行ってください」は、本文にまぎれていると読まれない。
+ *     ★ 画面（MediaHome の問い）では【赤字で本文の下】に出す。★ 位置と色で強める。
+ *   ★ 文そのものは WORK_FIRST_APPROVAL_NOTE（出勤を更新の画面の帯と同じ）。★ 2か所でずらさない。
+ *   ★ note を持つのは 'write' の問いだけ。★ 'none' や「変えるところがありません」には無い（undefined）。
+ */
+export function bulkAskText(plan: BulkPlan): { title: string; body: string; note?: string } {
   const names = joinNames(plan.steps.map((x) => x.label));
   const fromRead = joinNames(plan.steps.filter((x) => x.from === 'read').map((x) => x.label));
   const noCred = joinNames(plan.skipped.filter((x) => x.why === 'no_credential').map((x) => x.label));
@@ -669,11 +681,12 @@ export function bulkAskText(plan: BulkPlan): { title: string; body: string } {
   if (plan.to === 'write') {
     return {
       title: 'フクエスから反映しますか？',
-      // ★ 第208便: 「押しただけでは自動にならない」を先に言う（カッキーさんの問い・2026-09-07 17:1x）
-      body: `フクエスに入れた出勤を、${names}へ反映するようになります。${WORK_FIRST_APPROVAL_NOTE}`
+      body: `フクエスに入れた出勤を、${names}へ反映するようになります。`
         + (fromRead.length > 0 ? `${fromRead}からの取り込みは止まります。` : '')
         + '写メ日記も、フクエスで書いたものを投稿します。'
         + skipNote,
+      // ★ 第208便の「押しただけでは自動にならない」。★ 第393便で本文から出し、赤字の1行にした
+      note: WORK_FIRST_APPROVAL_NOTE,
     };
   }
   return {

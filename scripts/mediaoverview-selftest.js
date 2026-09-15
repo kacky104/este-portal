@@ -776,7 +776,13 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   // ★ 第208便: 「毎回内容をご確認」は WORK_FIRST_APPROVAL_NOTE（最初の1回は確かめてから／そのあと自動にできる）に置き換えた
   eq('★ write の本文: 一括では自動にしない（「自動にします」と書かない）', v.bulkAskText(pW).body.includes('自動にします'), false);
   eq('★★ 第205便: write の本文は写メ日記もフクエスで書いたものを投稿すると言う', v.bulkAskText(pW).body.includes('写メ日記も、フクエスで書いたものを投稿します'), true);
-  eq('★★ 第208便: write の本文は「最初の1回は確かめてから送る／そのあと自動にできる」と言う', v.bulkAskText(pW).body.includes(v.WORK_FIRST_APPROVAL_NOTE), true);
+  // ★★★★ 第393便（2026-09-16）: この一文は本文から出し、赤字の note にした（★ 読み飛ばされないため）
+  eq('★★ 第393便: write の問いは note に「自動更新の設定を必ず」を持つ', v.bulkAskText(pW).note, v.WORK_FIRST_APPROVAL_NOTE);
+  eq('★★ 第393便: その一文を本文にも二重に入れない', v.bulkAskText(pW).body.includes(v.WORK_FIRST_APPROVAL_NOTE), false);
+  eq('★ 第393便: none の問いに note は無い（自動更新の話は write のときだけ）',
+     v.bulkAskText(v.bulkPlan([EK({ direction: 'read' }), S({ direction: 'write' })], 'none')).note, undefined);
+  eq('★ 第393便: その文は「必ず」と、しないとどうなるかを言う',
+     /必ず/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動で反映されません/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
   // ★★★ 第337便: 画面の名前（「出勤を更新」）は書かない。★ 押すボタンの名前（「内容を確かめる」）を書く。
   //   ★ 画面の名前を書くと、店舗様はその名前のボタンを画面から探す（カッキーさんの指摘）。
   // ★ 第393便: ボタンの名前が「内容を確かめる」→「出勤を自動更新にする」に変わった
