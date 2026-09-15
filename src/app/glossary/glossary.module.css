@@ -77,13 +77,15 @@
   font-size: 16px;
   margin: 0 0 12px;
 }
+/* ★★ 第389便（2026-09-15・カッキーさんの指示）: 行見出しの前の【赤い丸】をキラ星に変えた。
+   ★ 画像は public/icons/heading-sparkle.webp（4方向に光がのびる星）。
+     ★ 「もっと詳しく」「よくある質問」で使っている /icons/heading-star.webp（5角の星）とは別の絵。
+   ★ 大きさは見出し（16px）に合わせて 20px。★ .h2Bar（見出し20〜24px）の26pxより一段小さい。 */
 .rowLabel {
   flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: var(--glossary-accent);
-  box-shadow: 0 0 0 4px var(--glossary-accent-soft);
+  width: 20px;
+  height: 20px;
+  background: url('/icons/heading-sparkle.webp') center / contain no-repeat;
 }
 
 /* ── ヒーロー（白→淡ピンク→淡オレンジのカード） ──
@@ -246,7 +248,14 @@
 .kanaCard {
   margin-top: 16px;
   border: 1px solid var(--glossary-line);
-  background: var(--glossary-white);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #fff6fa;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 246, 250, 0.90) 100%),
+    url('/glossary/card-bg.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   box-shadow: 0 8px 24px rgba(140, 102, 24, 0.12);
   padding: 12px;
 }
@@ -318,7 +327,14 @@
   margin-top: 12px;
   padding: 10px 14px;
   border: 1px solid var(--glossary-line);
-  background: var(--glossary-accent-soft);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #fff6fa;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 246, 250, 0.90) 100%),
+    url('/glossary/card-bg.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }
 .filterText {
   margin: 0;
@@ -370,7 +386,20 @@
   min-width: 0;
   padding: 18px;
   border: 1px solid #ffd8e6;
-  background: linear-gradient(135deg, #ffffff 0%, #fff6fa 100%);
+  /* ★★ 第389便（2026-09-15・カッキーさんの指示）: カードの背景を、フクエスの
+     【ピンクの壁紙テーマ】と同じ花柄にした。
+     ★ 用語集は DB を使わない静的ページなので、壁紙は theme_wallpapers から引かず
+       public/glossary/card-bg.webp に置いた1枚を読む（ヒーロー背景と同じ作法）。
+     ★★ 上に白〜淡ピンクの膜を重ねて、柄を薄くしてから文字を乗せる。
+       ★ 膜を外すと本文のコントラストが落ちる。★ 濃さを変えるときはこの2つの alpha だけ触る。
+     ★ 画像が無いときは膜だけが見える（＝前のグラデとほぼ同じ）。★ ページは壊れない。 */
+  background-color: #fff6fa;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 246, 250, 0.90) 100%),
+    url('/glossary/card-bg.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   color: inherit;
   text-decoration: none;
   box-shadow: 0 4px 14px rgba(140, 102, 24, 0.10);
@@ -441,7 +470,14 @@
   gap: 12px;
   padding: 18px;
   border: 1px solid var(--glossary-line);
-  background: linear-gradient(135deg, #fff2f7 0%, #ffffff 100%);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #fff6fa;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 246, 250, 0.90) 100%),
+    url('/glossary/card-bg.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
 }
 @media (min-width: 768px) {
   .notice { flex-direction: row; align-items: flex-start; gap: 16px; padding: 22px 24px; }
@@ -474,7 +510,14 @@
   min-height: 64px;
   padding: 14px 18px;
   border: 1px solid var(--glossary-line);
-  background: var(--glossary-white);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #fff6fa;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 246, 250, 0.90) 100%),
+    url('/glossary/card-bg.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   color: var(--glossary-ink);
   font-weight: 700;
   text-decoration: none;
@@ -505,7 +548,14 @@
 .cta {
   padding: 22px 18px;
   border: 1px solid var(--glossary-line);
-  background: var(--glossary-white);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #fff6fa;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 246, 250, 0.90) 100%),
+    url('/glossary/card-bg.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   box-shadow: 0 14px 40px rgba(140, 102, 24, 0.16);
 }
 @media (min-width: 768px) { .cta { padding: 28px 32px; } }
@@ -516,12 +566,24 @@
   gap: 8px;
   width: 100%;
   height: 64px;
-  background: linear-gradient(to right, #ec4899, #f97316); /* 既存 CTA と同じピンク→オレンジ */
+  /* ★★ 第389便（2026-09-15・カッキーさんの指示）: ピンク→オレンジのグラデをやめ、
+     赤の花柄（public/glossary/red.webp）に変えた。
+     ★ 白い文字が乗るので、上に薄い黒の膜を1枚かませてコントラストを確保する。
+       ★ 読みにくいときは、この膜の alpha（0.22 / 0.14）だけを上げる。
+     ★ 画像が読めないときは background-color の赤が出る（★ 文字は白のまま読める）。 */
+  background-color: #d8263f;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.14) 100%),
+    url('/glossary/red.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   color: var(--glossary-white);
   font-size: 17px;
   font-weight: 800;
   text-decoration: none;
-  box-shadow: 0 10px 24px rgba(236, 72, 153, 0.28);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 24px rgba(216, 38, 63, 0.28);
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 @media (min-width: 768px) { .ctaButton { height: 68px; font-size: 18px; } }
@@ -750,6 +812,22 @@
 }
 /* 本文中の画像は角を直角に（ArticleBody 側の rounded-2xl を上書き） */
 .termArticle :global(img) { border-radius: 0; }
+
+/* ★★ 第389便（2026-09-15・カッキーさんの指示）: 本文の箇条書きの「・」をキラ星に。
+   ★ ArticleBody（共用部品）の ul は Tailwind の list-disc ＋ marker:text-pink-400。
+     ★ ここは **用語集の中だけ**の上書き（.termArticle の下）。★ /column の見た目は変えていない。
+   ★ 点を消して、ul の左の余白（pl-6 = 24px）の中に星を置く。★ 番号つき（ol）はそのまま。 */
+.termArticle :global(ul) { list-style: none; }
+.termArticle :global(ul > li) { position: relative; }
+.termArticle :global(ul > li::before) {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 0.3em;
+  width: 16px;
+  height: 16px;
+  background: url('/icons/heading-sparkle.webp') center / contain no-repeat;
+}
 
 /* ── よくある質問 ── */
 .faqList { display: flex; flex-direction: column; gap: 12px; margin: 0; }
