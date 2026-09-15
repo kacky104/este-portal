@@ -8,7 +8,7 @@ summary: リンパの流れに沿って、やさしい圧で体を末端から�
 description: リンパドレナージュとは、リンパの流れに沿ってやさしい圧で体を流していく施術のこと。リンパの仕組み、施術の順番、オイルコースやもみほぐしとの違い、福岡での実情と選び方を解説します。
 publishedAt: 2026-09-15
 heroImage: /glossary/lymph-drainage/hero.webp
-heroAlt: 施術室のワゴンに、オイルのボトルとたたんだ白いタオル、奥に観葉植物が置かれているところ
+heroAlt: セラピストが、タオルをかけたお客様のふくらはぎに両手を当てて流しているところ
 related: [sokeibu, aroma-oil-treatment, micchaku, oil, atsu-no-tsuyosa, sejutsu-hani, counseling, course-jikan]
 areas: [nakasu-tenjin, hakata-eki]
 faq:

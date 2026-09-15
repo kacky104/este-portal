@@ -7,7 +7,7 @@ summary: 施術中に体を覆っているタオルを、いま施術する部�
 description: タオルワークとは、施術中に体を覆っているタオルを、いま施術する部位だけ開けて扱う技術のこと。体温を保つ目的と落ち着いて受けられるようにする目的、丁寧さが技術力として見られる理由を解説します。
 publishedAt: 2026-09-15
 heroImage: /glossary/towel-work/hero.webp
-heroAlt: 施術室の棚に、たたんだ白いタオルが重ねて置かれているところ
+heroAlt: タオルウォーマーから、湯気の立つ温かいタオルを取り出しているところ
 related: [sejutsu-hani, kami-pants, aroma-oil-treatment, counseling, kenzen-ten]
 areas: [nakasu-tenjin, hakata-eki]
 faq:

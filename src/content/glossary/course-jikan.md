@@ -7,7 +7,7 @@ summary: 60分・90分・120分など、コースとして設定されている�
 description: コース時間とは、60分・90分・120分などコースとして設定されている時間のこと。着替えやシャワーを含むお店と含まないお店の違い、初めての方の選び方、予約前の確認点を解説します。
 publishedAt: 2026-09-15
 heroImage: /glossary/course-jikan/hero.webp
-heroAlt: 施術室のテーブルに置かれた小さな置き時計と、たたんだ白いタオル
+heroAlt: メンズエステの受付カウンターと、壁に掛かった時計
 related: [counseling, shower, encho, aroma-oil-treatment, sejutsu-hani, shimei]
 areas: [nakasu-tenjin, hakata-eki]
 faq:

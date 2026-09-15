@@ -7,7 +7,7 @@ summary: 施術で肌に塗る植物性のオイル。ホホバやスイート�
 description: オイルとは、メンズエステの施術で肌に塗る植物性のオイルのこと。ベースになる植物油と精油の違い、香りの選び方、肌や香りに不安があるときに予約前へ確認しておくことを解説します。
 publishedAt: 2026-09-15
 heroImage: /glossary/oil/hero.webp
-heroAlt: 施術室のトレイに、オイルのボトルと精油の小瓶が数本並んでいるところ
+heroAlt: セラピストが手のひらに、施術用のオイルを落としているところ
 related: [aroma-oil-treatment, shower, kami-pants, micchaku, towel-work, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
