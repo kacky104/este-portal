@@ -29,6 +29,13 @@ eq('★ 知らない値は unknown', v.outcomeTone('なにか'), 'unknown');
 eq('★ 空文字も unknown', v.outcomeTone(''), 'unknown');
 eq('★ 大文字の OK は成功にしない', v.outcomeTone('OK'), 'unknown');
 eq('ok の言い方', v.outcomeLabel('ok'), 'できました');
+// ★★★ 第393便: 確かめただけの段（plan_*）は「確かめました」。★ 送った段と言い分ける
+eq('★ 第393便: plan_work の ok は「確かめました」', v.outcomeLabel('ok', 'plan_work'), '確かめました');
+eq('★ 第393便: plan_diary の ok も「確かめました」', v.outcomeLabel('ok', 'plan_diary'), '確かめました');
+eq('★ 第393便: 送った段（write_work）は「できました」のまま', v.outcomeLabel('ok', 'write_work'), 'できました');
+eq('★ 第393便: 段が分からなければ今までどおり', v.outcomeLabel('ok', undefined), 'できました');
+eq('★ 第393便: 止めた記録は段によらず「途中で止めました」', v.outcomeLabel('stopped', 'plan_work'), '途中で止めました');
+eq('★ 第393便: できなかった記録も段によらない', v.outcomeLabel('failed', 'plan_work'), 'できませんでした');
 eq('failed の言い方', v.outcomeLabel('failed'), 'できませんでした');
 eq('stopped の言い方', v.outcomeLabel('stopped'), '途中で止めました');
 eq('★ 知らない値は断定しない側へ', v.outcomeLabel('なにか'), 'まだ分かりません');

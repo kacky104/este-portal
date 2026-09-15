@@ -104,7 +104,10 @@ const ctxW = Object.assign({}, ctxR, { esutamaPeople: people, esutamaIndex: 0 })
   const r2 = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageSara }, r.next.context, NOW);
   eq('④試し打ち: 2人目は変更なし → done', [r2.kind, r2.audits.map((a) => a.event).join(',')], ['done', 'read_work,plan_work,plan_work']);
   eq('④試し打ち: done のまとめ（2人確認・1人に変更）', /2人を確認、1人に変更/.test(r2.audits[2].summary), true);
-  eq('④試し打ち: まとめは stopped（送っていない）', r2.audits[2].outcome, 'stopped');
+  // ★★★ 第393便: 確認は【送らずに終わるのが正常】なので ok（駅ちかの planWork と同じ）。
+  //   ★ 「できました」と読めないよう、画面では plan_* の ok を「確かめました」と出す（mediaLogView）。
+  eq('★ 第393便: 確認のまとめは ok（＝確かめました。送ってはいない）', r2.audits[2].outcome, 'ok');
+  eq('★ 第393便: 送っていないことは文言が言う', /まだ送っていません/.test(r2.audits[2].summary), true);
   // ★★★ 第149便: 人ごとの行は【こちらの作業ログ】。記録には残すが、店舗様の画面には出さない。
   //   ★ 2026-09-04 23:00: 「確かめる」を1回押しただけで23人ぶん（46行）並び、
   //     押したご本人が「何か動き続けている」と不安になった。★ 異常ではない・送っていない。

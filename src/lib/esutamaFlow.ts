@@ -674,7 +674,16 @@ export function nextEsutamaPerson(ctx: RelayFlowContext, audits: FlowAudit[], no
         ...audits,
         pushing
           ? { event: 'write_work', outcome: saved > 0 ? 'ok' : 'stopped', summary: saved > 0 ? 'エステ魂の出勤を ' + saved + '人ぶん 反映しました（' + people.length + '人を確認）' : 'エステ魂の出勤に変更はありませんでした（' + people.length + '人を確認）', detail: { people: people.length, saved, changed, flowId: ctx.flowId } }
-          : { event: 'plan_work', outcome: 'stopped', summary: 'エステ魂へ送る内容を確かめました（' + people.length + '人を確認、' + changed + '人に変更があります）。まだ送っていません', detail: { people: people.length, changed, flowId: ctx.flowId } },
+          /**
+           * ★★★★ 【第393便】（2026-09-16・カッキーさん）確認が終わった記録を 'stopped' から直した。
+           *   ★★ ここは【送らずに終わるのが正常】な段（確認）。★ それを 'stopped' にしていたので、
+             *     連携の記録に「途中で止めました」と並び、しかも【うまくいかなかったもの】に数えられていた。
+           *   ★ 駅ちかの planWork は前から `plan.ok ? 'ok' : 'stopped'`。★ そちらにそろえる。
+           *   ★★ 「できました」と読める心配は無い: 第393便で plan_* の 'ok' は
+           *     画面で【確かめました】と出る（mediaLogView.outcomeLabel）。★ 送った段とは言い分ける。
+           *   ★ 比べる相手が1人も居なければ、確かめられていないので 'stopped' のまま。
+           */
+          : { event: 'plan_work', outcome: people.length > 0 ? 'ok' : 'stopped', summary: 'エステ魂へ送る内容を確かめました（' + people.length + '人を確認、' + changed + '人に変更があります）。まだ送っていません', detail: { people: people.length, changed, flowId: ctx.flowId } },
       ],
       note: note + ' → 全員ぶん終わり（' + people.length + '人 / 変更' + changed + ' / 保存' + saved + '）',
     };

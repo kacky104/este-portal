@@ -256,7 +256,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
                         {providerLabel(r.provider)}（枠{r.slot}）
                       </span>
                       <span className={`text-[13px] font-bold ${TONE_TEXT[tone]}`}>
-                        {outcomeLabel(r.outcome)}
+                        {outcomeLabel(r.outcome, r.event)}
                       </span>
                     </div>
                     <p className="text-[14px] text-slate-600 leading-relaxed mt-0.5">{r.summary}</p>

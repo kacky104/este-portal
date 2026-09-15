@@ -20,6 +20,12 @@ export type MediaLogRow = {
   summary: string;
   createdAt: string;
   /**
+   * ★★★★ 第393便: どの段の記録か（'login' / 'plan_work' / 'write_work' …）。
+   *   ★ 言い方を分けるためだけに使う（★ 出す・出さないの判定には使わない）。
+   *   ★ 省略・undefined は【今までどおりの言い方】に倒す（★ 印が無い行の意味を変えない）。
+   */
+  event?: string;
+  /**
    * ★★★ 店舗様の画面に出す行か（第149便）。★ 決めるのは src/lib/mediaAudit.ts の isShopVisibleAudit。
    *   ★ ここでは【受け取った旗を読むだけ】。★ この画面で判定し直さない（物差しは1本）。
    *   ★★ 省略・undefined は【出す】。★ 印が無い行を黙らせない。
@@ -41,8 +47,21 @@ export function outcomeTone(outcome: string): LogTone {
   return 'unknown';
 }
 
-export function outcomeLabel(outcome: string): string {
-  if (outcome === 'ok') return 'できました';
+/**
+ * ★★★★ 【第393便】（2026-09-16・カッキーさん）「確かめただけ」の段はそう言う。
+ *
+ * ★★★ なぜ要るか — 出勤の【確認】は、最後に必ず送らずに終わる。
+ *   ★ それを「できました」と書くと、送ったように読める（★ 元の 'stopped' はもっと悪く、
+ *     正常な確認が「途中で止めました」＝失敗の顔で並んでいた）。
+ *   ★ 確認の段（plan_*）だけ、成功を【確かめました】と言う。★ 送ったのは write_* の段。
+ * ★ 止めた・できなかったは今までどおり。★ ここで変えるのは【成功の言い方】だけ。
+ */
+export function isPlanEvent(event: string | undefined): boolean {
+  return typeof event === 'string' && event.startsWith('plan_');
+}
+
+export function outcomeLabel(outcome: string, event?: string): string {
+  if (outcome === 'ok') return isPlanEvent(event) ? '確かめました' : 'できました';
   if (outcome === 'failed') return 'できませんでした';
   if (outcome === 'stopped') return '途中で止めました';
   return 'まだ分かりません';
