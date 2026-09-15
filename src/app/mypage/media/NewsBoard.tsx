@@ -6,7 +6,6 @@ import {
   readArticleSlots,
   saveArticleTemplate,
   deleteArticleTemplate,
-  saveArticleSettings,
   saveArticlePhotoPool,
   startArticlePost,
   type ArticleBoard,
@@ -46,13 +45,7 @@ import { ARTICLE_PHOTO_MAX, articlePhotoConfirmNote } from '@/lib/articlePhotoPi
 //   ・この画面のどの操作も、勝手に駅ちかを書き換えない
 //   ・決まりごとは、その項目の脇に書く。★ 保存ボタンは大きく
 
-/** ★ 枠の状態の色。★ 空も【使える】側（第163便）。★ 灰色は「使えない」に見えるので使わない */
-const STATE_CHIP: Record<string, string> = {
-  usable:  'text-emerald-700 bg-emerald-50 border-emerald-200',
-  empty:   'text-emerald-700 bg-emerald-50 border-emerald-200',
-  hidden:  'text-amber-700  bg-amber-50  border-amber-200',
-  unknown: 'text-slate-500  bg-slate-50  border-slate-200',
-};
+// ★ 第380便: 枠の状態バッジ（STATE_CHIP）は画面から外した。★ 色分けは articleSlotAdvice の state に残っている
 
 /** 「9/5 14:52」。★ 読めない値は空文字（"Invalid Date" を店舗に見せない） */
 function fmt(iso: string | null): string {
@@ -275,14 +268,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     await load();
   };
 
-  const onAutoEnabled = async (v: boolean) => {
-    setBusy('set');
-    const r = await saveArticleSettings({ salonId, autoEnabled: v });
-    setBusy('');
-    if (!r.ok) { onToast(r.error); return; }
-    await load();
-  };
-
   /** ★ 写真を1枚ずつ入れたり外したり。★ 上限は10枚。★ 保存するまで DB には触らない */
   const togglePhoto = (id: number) => {
     if (pool.includes(id)) { setPool(pool.filter((x) => x !== id)); return; }
@@ -467,7 +452,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             rows={rows}
             poolPhotoCount={board.photoIds.length}
             busy={busy !== ''}
-            onRead={onRead}
             therapists={board.therapists}
             poolCount={board.photoIds.length}
             open={open}
@@ -491,31 +475,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         );
       })}
 
-      {/* ───────── ③ 自動で出す（元栓だけ） ─────────
-          ★ 第376便: 「1日に出す本数」は消えた（★ 枠ごと1日1回に固定）。★ 残るのは元栓ひとつ */}
-      <section className="bg-white border border-slate-200">
-        <div className="px-3.5 py-3 border-b border-slate-200">
-          <h2 className="text-[15px] font-black text-slate-800">自動で出す</h2>
-        </div>
-        <div className="px-3.5 py-3.5">
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={board.autoEnabled}
-              onChange={(e) => onAutoEnabled(e.target.checked)}
-              disabled={busy !== ''}
-              className="mt-1"
-            />
-            <span className="text-[14px] text-slate-700 leading-relaxed">
-              自動で出すことを許可する
-              <span className="block text-[13px] text-slate-400">
-                ここを入れないかぎり、フクエスは駅ちかへ何も書きません。
-                入れると、カテゴリーごとに1日1回、「自動投稿中」の文章を順番に出します。
-              </span>
-            </span>
-          </label>
-        </div>
-      </section>
+      {/* ★★★ 第380便: 「自動で出す」の節（店舗の元栓）を消した（カッキーさん・2026-09-15）。
+          ★ 「デフォルトが自動で出す。出したくなかったら文章で自動設定を止めてもらう」
+          ★★ 止める場所は【文章の「自動投稿中」ボタン】ひとつ。★ 元栓と印の2か所を持たない。
+          ★ 暴発しない: 新しく作った文章の印は **付いていない**（★ 第43便の作法）。
+          ★ 受け口 saveArticleSettings と列 auto_enabled は残してある（★ 戻すならここに節を1つ） */}
 
       {/* ───────── ④ 送った記録 ───────── */}
       {board.runs.length > 0 && (
@@ -557,7 +521,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
  *   ・文章カード … 閉じているときはバー、開くと編集と操作
  */
 function SlotSection({
-  advice, auto, perSlotMax, rows, poolPhotoCount, busy, onRead, therapists, poolCount,
+  advice, auto, perSlotMax, rows, poolPhotoCount, busy, therapists, poolCount,
   open, drafts, newOpen, onToggleNew, onCancelNew, onCreate,
   onToggleRow, onCancelRow, onUpdate, onToggleActive, setDraft,
   confirmDelete, onAskDelete, onDelete,
@@ -570,8 +534,6 @@ function SlotSection({
   /** ★ 店舗の箱の枚数。★ 「いま出す」の確認の1行をここで作る（★ 固定の有無は行ごとに違う） */
   poolPhotoCount: number;
   busy: boolean;
-  /** ★ 第378便: 枠の状態を読み直す（★ 上のブロックから移してきた） */
-  onRead: () => void;
   /** ★ 第379便: 文章ごとの写真の固定に使う（★ 写真がある方ぜんぶ） */
   therapists: Array<{ id: number; name: string; photoUrl: string }>;
   /** ★ 店舗の箱の枚数（★ 固定していないときに何から選ばれるかを言うため） */
@@ -594,7 +556,6 @@ function SlotSection({
   onAskPost: (id: number | null) => void;
   onPost: (id: number) => void;
 }) {
-  const chip = STATE_CHIP[advice.state] ?? STATE_CHIP.unknown;
   const newKey = 'new-' + advice.slot;
   const nd = drafts[newKey] ?? { title: '', body: '', photoId: null };
   const canAdd = auto?.canAdd !== false;
@@ -603,20 +564,13 @@ function SlotSection({
     <section className="bg-white border border-slate-200">
       {/* ── 見出し ── */}
       <div className="px-3.5 py-3 border-b border-slate-200">
-        {/* ★ 第377便: 本数はタブに出ているので、ここでは出さない（★ 同じ話を2回書かない） */}
+        {/* ★ 第377便: 本数はタブに出ている（★ 同じ話を2回書かない）
+            ★★ 第380便: 枠の状態バッジ（「空いています」）と「読み直す」も消した（カッキーさん）。
+               ★ 状態は【押す前の確認】でちゃんと出る（★ 空なら「新しく作ります」、非表示なら「公開ページには出ません」）。
+               ★ 読み直す入口は、まだ一度も読んでいないときの大きなカードに残っている。
+               ★★ advice.state / canPost / currentTitle は下の確認で使い続けている */}
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-[15px] font-black text-slate-800">{advice.label}</h2>
-          <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + chip}>{advice.short}</span>
-          {/* ★★ 第378便: 上から移してきた「読み直す」。★ 状態バッジのすぐ隣（★ 直す対象の隣に置く）。
-              ★ 普段は押さない操作なので、小さく・下線だけ */}
-          <button
-            type="button"
-            onClick={onRead}
-            disabled={busy}
-            className="text-[12.5px] text-slate-400 underline underline-offset-2 hover:text-slate-600 disabled:opacity-40"
-          >
-            読み直す
-          </button>
         </div>
         {/* ★★ 自動投稿の1行。★ 文言は articleRotation が作る（★ 画面で作らない） */}
         <p className="text-[13px] font-bold text-slate-500 mt-1.5">自動投稿（1日1回・順番で投稿）</p>

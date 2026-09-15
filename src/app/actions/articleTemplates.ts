@@ -247,7 +247,11 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
     };
   });
 
-  const autoEnabled = st?.auto_enabled === true;
+  // ★★★ 第380便（カッキーさん・2026-09-15）: **店舗の元栓（auto_enabled）をやめた。**
+  //   「デフォルトが自動で出す。出したくなかったら文章で自動設定を止めてもらう」
+  //   ★ 回るかどうかは【文章の「自動投稿中」の印】だけで決まる。★ 既定は false なので暴発しない。
+  //   ★★ 列（auto_enabled）と受け口（saveArticleSettings）は残してある。★ 読まないだけ。
+  const autoEnabled = true;
   const today = dayKeyJST(new Date());
 
   // ★★★ 枠ごとの自動投稿の様子（第376便）。★ 必ず5枠ぶん作る（★ 文章が0本の枠も出す）

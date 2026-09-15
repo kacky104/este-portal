@@ -78,7 +78,12 @@ export type ArticleSlotPostInput = {
   salonId: number;
   /** 枠（カテゴリー）の番号 1〜5 */
   articleSlot: number;
-  /** 店舗の元栓（salon_article_settings.auto_enabled） */
+  /**
+   * 店舗の元栓（salon_article_settings.auto_enabled）。
+   * ★★★ 第380便（2026-09-15）: **呼び出し側は常に true を渡す。** ★ 元栓そのものをやめた。
+   *   ★ 「デフォルトが自動で出す。出したくなかったら文章で自動設定を止めてもらう」（カッキーさん）
+   *   ★★ 引数と 'auto_off' の道は消さずに残してある（★ 戻すなら渡す値を変えるだけ）。
+   */
   autoEnabled: boolean;
   /**
    * この枠の「自動で回す」印の付いた本数。

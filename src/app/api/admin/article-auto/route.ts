@@ -17,9 +17,15 @@ import { EKICHIKA_ARTICLE_SLOTS } from '@/lib/ekichikaArticle';
 //   ・その枠の中で、**最後に出したのがいちばん古い1本**を出す（★ 位置の数字は持たない）。
 //   ・**手で出したぶんは数えない。** ★ 手動と自動は別（★ last_auto_day は自動でしか入らない）。
 //
-// ★★★ 元栓は2つ。★ どちらか閉じていれば何も起きない。
-//   ① salon_article_settings.auto_enabled = true   （店舗様が入れる。★ 既定 false）
-//   ② その枠に「自動で回す」印の付いた文章が1本以上
+// ★★★ 第380便（カッキーさん・2026-09-15）: **店舗の元栓（auto_enabled）をやめた。**
+//   「デフォルトが自動で出す。出したくなかったら文章で自動設定を止めてもらう」
+//
+//   ★ 元栓は【1つだけ】: その枠に「自動投稿中」の印が付いた文章が1本以上あること。
+//   ★★ 暴発しない理由: 新しく作った文章の is_active は **false**（第43便の作法）。
+//      ★ 店舗様が「自動投稿にする」を押して初めて回る。★ 押していない文章は何もしない。
+//   ★★★ 起点も変えた: 前は salon_article_settings（auto_enabled=true の行）から引いていたので、
+//      **設定の行が無い店舗は永久に回らなかった**。★ いまは【印の付いた文章】から引く。
+//   ★ salon_article_settings.auto_enabled は列も受け口も残っている（★ 読まないだけ）。
 //
 // ★★ 1回の周で【1店舗につき1枠だけ】出す。
 //   ★ 初めて元栓を入れた日は、過ぎた枠がまとめて期限切れになる（★ 5本いっぺんに積まれる）。
@@ -43,45 +49,44 @@ export async function POST(req: Request) {
   const now = new Date();
   const svc = createServiceClient();
 
-  // ★ 元栓①が入っている枠だけ
-  const { data: settings, error: sErr } = await svc
-    .from('salon_article_settings')
-    .select('salon_id, slot, salons!inner(id, is_hidden)')
+  // ★★★ 第380便: 【「自動投稿中」の印が付いた文章】を起点に引く。
+  //   ★ 前は設定の行（auto_enabled=true）が起点だったので、行が無い店舗は永久に回らなかった。
+  //   ★★ 並びは「最後に出したのが古い順 → sort_order → id」。★ まだ出していない（null）が先。
+  //     ★★★ nullsFirst を明示する。★ 昇順の既定では null が【後ろ】に来るので、任せない。
+  //     ★ ここを間違えると「まだ一度も出していない文章が、いつまでも出ない」。
+  //   ★ 非表示の店舗は外す（★ salons!inner で絞る）
+  const { data: temps, error: tErr } = await svc
+    .from('salon_article_templates')
+    .select('id, salon_id, slot, article_slot, last_auto_day, last_posted_at, salons!inner(id, is_hidden)')
     .eq('provider', PROVIDER)
-    .eq('auto_enabled', true)
-    .eq('salons.is_hidden', false);
-  if (sErr) return NextResponse.json({ ok: false, error: sErr.message }, { status: 500 });
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false)
+    .order('last_posted_at', { ascending: true, nullsFirst: true })
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
+  // ★★ 読めなかったときは【何もしない】。★ 0件と混ぜない（作法3-5）
+  if (tErr) return NextResponse.json({ ok: false, error: tErr.message }, { status: 500 });
 
   const posted: string[] = [];
   const skipped: Array<{ salonId: number; articleSlot: number; why: string }> = [];
   const failed: Array<{ salonId: number; articleSlot: number; why: string }> = [];
 
-  for (const row of settings ?? []) {
-    const salonId = Number(row.salon_id);
-    const slot = Number(row.slot ?? 1);
+  // ★ 店舗×媒体枠ごとにまとめる。★ 並び（古い順）はそのまま保たれる
+  const groups = new Map<string, { salonId: number; slot: number }>();
+  for (const r of temps ?? []) {
+    const salonId = Number(r.salon_id);
+    const slot = Number(r.slot ?? 1);
+    groups.set(salonId + '#' + slot, { salonId, slot });
+  }
 
-    // ★★ この店舗の文章を1回で読む（★ 枠ごとに5回引かない）。
-    //   ★ 並びは「最後に出したのが古い順 → sort_order → id」。★ まだ出していない（null）が先。
-    //   ★★ nullsFirst を明示する。★ 昇順の既定では null が【後ろ】に来るので、任せない
-    const { data: temps, error: tErr } = await svc
-      .from('salon_article_templates')
-      .select('id, article_slot, last_auto_day, last_posted_at')
-      .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', slot)
-      .eq('is_active', true)
-      .order('last_posted_at', { ascending: true, nullsFirst: true })
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true });
-    // ★★ 読めなかったときは【何もしない】。★ 0件と混ぜない（作法3-5）
-    if (tErr) {
-      failed.push({ salonId, articleSlot: 0, why: '文章を読み出せなかった: ' + tErr.message.slice(0, 120) });
-      continue;
-    }
+  for (const { salonId, slot } of groups.values()) {
+    const ours = (temps ?? []).filter((r) => Number(r.salon_id) === salonId && Number(r.slot ?? 1) === slot);
 
     // ★★★ 枠を順に見て、**最初に「出す」になった1枠だけ**出す。★ 1周1店舗1本
     let did = false;
     for (const s of EKICHIKA_ARTICLE_SLOTS) {
       if (did) break;
-      const mine = (temps ?? []).filter((r) => Number(r.article_slot) === s.slot);
+      const mine = ours.filter((r) => Number(r.article_slot) === s.slot);
 
       // ★★ その枠のどれか1本でも今日 自動で出ていれば、今日ぶんは終わっている
       const lastAutoDay = mine
@@ -94,7 +99,8 @@ export async function POST(req: Request) {
         now,
         salonId,
         articleSlot: s.slot,
-        autoEnabled: true,          // ★ 元栓①で絞ってある
+        // ★★ 第380便: 店舗の元栓は無くなった。★ 常に true（★ 純粋関数の引数は残してある）
+        autoEnabled: true,
         activeCount: mine.length,
         lastAutoDay,
       });
@@ -141,7 +147,7 @@ export async function POST(req: Request) {
     ok: true,
     apply,
     at: now.toISOString(),
-    targets: (settings ?? []).length,
+    targets: groups.size,
     posted,
     skipped,
     failed,
