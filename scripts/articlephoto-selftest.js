@@ -91,20 +91,21 @@ console.log('\n── 5. ★★ さいころが壊れても送信を止めない
   }
 }
 
-console.log('\n── 6. ★ 画面に出す1行（★ 第373便: 0枚でも黙らない） ──');
+console.log('\n── 6. ★ 画面に出す1行（★ 第374便: 0枚なら何も言わない） ──');
+//
+// ★★ 節の見出しの下の1行が同じことを言っている。★ 青い箱をもう1つ出すと、同じ話が2回並ぶ。
 {
-  eq('★★ 0枚なら「いまのまま」と言う', P.articlePhotoNote(0),
-     '写真を選んでいないので、駅ちかに入っている写真はそのまま残ります。');
-  eq('★ 壊れた数も0枚あつかい', P.articlePhotoNote(NaN), P.articlePhotoNote(0));
+  eq('★★ 0枚なら null（★ 空文字と分ける）', P.articlePhotoNote(0), null);
+  eq('★ 壊れた数も0枚あつかい', P.articlePhotoNote(NaN), null);
   eq('★ 1枚', P.articlePhotoNote(1), 'この1枚が、どの枠から出すときもずっと入ります。');
   eq('★★ 複数なら、どの枠でも・直前を避ける、まで言う',
      P.articlePhotoNote(3), '3枚選んでいます。どの枠から出すときも、この中から1枚が入ります（直前と同じ写真は避けます）。');
-  for (const n of [0, 1, 3, 10]) {
+  for (const n of [1, 3, 10]) {
     eq('★ 空文字を返さない（' + n + '）', P.articlePhotoNote(n).length > 0, true);
     eq('★ 文言に「★」を混ぜない（' + n + '）', /★/.test(P.articlePhotoNote(n)), false);
   }
   eq('★ 内部の言葉を出さない',
-     /keep|fixed|rotate|null/.test(P.articlePhotoNote(1) + P.articlePhotoNote(5) + P.articlePhotoNote(0)), false);
+     /keep|fixed|rotate|null/.test(String(P.articlePhotoNote(1)) + String(P.articlePhotoNote(5))), false);
 }
 
 console.log('\n── 7. ★ 「いま出す」の確認の1行 ──');

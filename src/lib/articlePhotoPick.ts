@@ -78,12 +78,20 @@ export function pickArticlePhoto(
 
 /**
  * ★ 写真の箱の下に出す1行。★ 文言はここで作る（★ 画面で作らない・第167便で直した作法）。
- *   ★★ 第373便: 0枚のときも【何が起きるか】を言う（★ 「写真はいまのまま」は店舗様が知りたいこと）。
- *   ★ 空文字は返さない。
+ *
+ * ★★★ 第375便（2026-09-15）: **画面（NewsBoard）からは外した。** ★ いまどこからも呼ばれていない。
+ *   ★ 理由: 節の見出しの下の1行「ここで選んだ写真の中から1枚がランダムで入ります。最大10枚。」が
+ *     同じことを言っていて、青い箱が2つ目の説明になっていた（カッキーさんの指摘）。
+ *   ★★ 消さずに残してある（第372便の作法: 消すのは画面だけ。ライブラリ・番人・受け口は残す）。
+ *      ★ 戻すなら NewsBoard で import して1行出すだけ。★ 番人 check:articlephoto も残っている。
+ *
+ *   ★ 0枚のときは【何も言わない】（null）。★ 空文字と null を混ぜない（作法3-5）。
+ *   ★ 押す前の確認は articlePhotoConfirmNote が別に言う（★ こちらは画面で使っている）。
+ * @returns 言うことが無ければ null
  */
-export function articlePhotoNote(count: number): string {
+export function articlePhotoNote(count: number): string | null {
   const n = Number.isFinite(count) ? Math.trunc(count) : 0;
-  if (n <= 0) return '写真を選んでいないので、駅ちかに入っている写真はそのまま残ります。';
+  if (n <= 0) return null;
   if (n === 1) return 'この1枚が、どの枠から出すときもずっと入ります。';
   return n + '枚選んでいます。どの枠から出すときも、この中から1枚が入ります（直前と同じ写真は避けます）。';
 }

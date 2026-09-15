@@ -13,7 +13,8 @@ import {
   type ArticleTemplateRow,
 } from '@/app/actions/articleTemplates';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
-import { ARTICLE_PHOTO_MAX, articlePhotoNote, articlePhotoConfirmNote } from '@/lib/articlePhotoPick';
+// ★ 第375便: articlePhotoNote（選んだあとの青い箱）は画面から外した。★ 関数はライブラリに残っている
+import { ARTICLE_PHOTO_MAX, articlePhotoConfirmNote } from '@/lib/articlePhotoPick';
 import { articleQuotaNote } from '@/lib/articleRotation';
 
 // 新着情報を送る（第158便で作り、第167便で作り直し、★ 第373便で【写真を店舗に1つの箱】へ・2026-09-15）。
@@ -91,6 +92,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
    */
   const [pool, setPool] = useState<number[]>([]);
   /**
+   * ★★ 写真の節を開いているか（第374便）。★ 普段は畳む。
+   *   ★ まだ1枚も選んでいない店舗だけ、最初から開く（★ 気づかないまま終わらせない）
+   */
+  const [openPhoto, setOpenPhoto] = useState(false);
+  /**
    * ★ 結果が届くのを待っている印。値は【押した時点でいちばん新しかった記録のid】。
    *   ★★★ 「verify_article があるか」で止めてはいけない。★ 前回の送信の行が残っているから。
    *     ★ それだと押した瞬間に「終わりました」と出る。★ 何も起きていないのに。
@@ -111,6 +117,8 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     if (serverPool.current === null || !sameIds(serverPool.current, r.data.photoIds)) {
       setPool(r.data.photoIds);
     }
+    // ★ 第374便: 初めて読んだときだけ、開くかどうかを決める（★ あとは店舗様の開閉にまかせる）
+    if (serverPool.current === null) setOpenPhoto(r.data.photoIds.length === 0);
     serverPool.current = r.data.photoIds;
     setError('');
     setLoading(false);
@@ -285,75 +293,86 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </div>
       )}
 
-      {/* ───────── ① 写真（第373便・店舗に1つ） ─────────
+      {/* ───────── ① 写真（第373便・店舗に1つ／★ 第374便でアコーディオンに） ─────────
           ★★★ 文章ごとではなく、店舗で10枚まで。★ どの枠から出すときも、この中から1枚をランダムに。
-          ★ 選んだ順に並ぶ。★ 保存するまで DB には触らない（★ 「保存ボタンを押してなかった」を、下の帯で止める） */}
+          ★ 選んだ順に並ぶ。★ 保存するまで DB には触らない（★ 「保存ボタンを押してなかった」を、下の帯で止める）
+          ★★ 第374便: タイルが10人ぶん以上並ぶと画面が長い。★ 普段は畳んでおく。
+             ★ ただし【まだ1枚も選んでいないとき】は開いて出す（★ 第167便「一度も読んでいないときだけ出す」と同じ作法）。
+             ★★ 畳んでいても【枚数】と【未保存】は見出しに出す。★ 隠して気づかせない、をしない */}
       <section className="bg-white border border-slate-200">
-        <div className="px-3.5 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setOpenPhoto(!openPhoto)}
+          aria-expanded={openPhoto}
+          className="w-full text-left px-3.5 py-3 flex items-start justify-between gap-3 hover:bg-slate-50"
+        >
           <div className="min-w-0">
             <h2 className="text-[15px] font-black text-slate-800">写真</h2>
             <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
-              どの枠から出すときも、ここで選んだ写真の中から1枚がランダムで入ります。{ARTICLE_PHOTO_MAX}枚まで。
+              ここで選んだ写真の中から1枚がランダムで入ります。最大{ARTICLE_PHOTO_MAX}枚。
             </p>
           </div>
-          <span className="text-[13px] text-slate-400 tabular-nums flex-none">
-            {pool.length} / {ARTICLE_PHOTO_MAX} 枚
+          <span className="flex items-center gap-2 flex-none pt-0.5">
+            {/* ★★ 畳んでいるあいだも、保存し忘れが見えるように */}
+            {poolDirty && <span className="text-[12.5px] font-bold text-amber-700">未保存</span>}
+            <span className="text-[13px] text-slate-400 tabular-nums">
+              {pool.length} / {ARTICLE_PHOTO_MAX} 枚
+            </span>
+            <span className={'text-[13px] text-slate-400 ' + (openPhoto ? 'rotate-180' : '')}>▼</span>
           </span>
-        </div>
-        <div className="px-3.5 py-3.5">
-          {board.therapists.length === 0 ? (
-            <p className="text-[13.5px] text-slate-500 leading-relaxed">
-              フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
-              それまでは、駅ちかに入っている写真がそのまま残ります。
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {board.therapists.map((t) => (
-                <PhotoTile
-                  key={t.id}
-                  on={pool.includes(t.id)}
-                  name={t.name}
-                  photoUrl={t.photoUrl}
-                  onClick={() => togglePhoto(t.id)}
+        </button>
+
+        {openPhoto && (
+          <div className="px-3.5 py-3.5 border-t border-slate-200">
+            {board.therapists.length === 0 ? (
+              <p className="text-[13.5px] text-slate-500 leading-relaxed">
+                フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
+                それまでは、駅ちかに入っている写真がそのまま残ります。
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {board.therapists.map((t) => (
+                  <PhotoTile
+                    key={t.id}
+                    on={pool.includes(t.id)}
+                    name={t.name}
+                    photoUrl={t.photoUrl}
+                    onClick={() => togglePhoto(t.id)}
+                    disabled={busy !== ''}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* ★★ 第375便: 選んだあとの青い箱（articlePhotoNote）を【ブロックごと】外した。
+                ★ 見出しの下の1行「ここで選んだ写真の中から1枚がランダムで入ります。最大10枚。」が
+                  同じことを言っていて、枚数が変わるたびに説明が2つ並んでいた（カッキーさん・2026-09-15）。
+                ★★ 関数そのものは src/lib/articlePhotoPick.ts に残してある。★ 戻すなら import して1行出すだけ。 */}
+
+            {/* ★★★ 保存していない選択があるときだけ、帯を出す。★ 「選んだのに保存していなかった」を作らない */}
+            {poolDirty && (
+              <div className="flex items-center gap-3 flex-wrap mt-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={onSavePool}
                   disabled={busy !== ''}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* ★★★ いま何が起きるかを、選んだその場で言う。★ 文言は articlePhotoPick が作る（★ 画面で作らない） */}
-          <p className="text-[13.5px] text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-2 leading-relaxed mt-2.5">
-            {articlePhotoNote(pool.length)}
-          </p>
-
-          {/* ★ 決まりごとは、選ぶところの【すぐ下】に */}
-          <p className="text-[13px] text-slate-400 leading-relaxed mt-1.5">
-            駅ちかへ送るのはタイトルと本文と、この写真1枚です。JPEG でも PNG でもかまいません（送るときにこちらで整えます）。
-          </p>
-
-          {/* ★★★ 保存していない選択があるときだけ、帯を出す。★ 「選んだのに保存していなかった」を作らない */}
-          {poolDirty && (
-            <div className="flex items-center gap-3 flex-wrap mt-3 pt-3 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={onSavePool}
-                disabled={busy !== ''}
-                className="text-[15px] font-black px-6 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
-              >
-                写真を保存する
-              </button>
-              <button
-                type="button"
-                onClick={() => setPool(board.photoIds)}
-                disabled={busy !== ''}
-                className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700 disabled:opacity-40"
-              >
-                元に戻す
-              </button>
-              <span className="text-[13.5px] text-amber-700">まだ保存していません</span>
-            </div>
-          )}
-        </div>
+                  className="text-[15px] font-black px-6 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+                >
+                  写真を保存する
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPool(board.photoIds)}
+                  disabled={busy !== ''}
+                  className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700 disabled:opacity-40"
+                >
+                  元に戻す
+                </button>
+                <span className="text-[13.5px] text-amber-700">まだ保存していません</span>
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* ───────── ② 出す文章 ───────── */}
