@@ -1,5 +1,10 @@
 // 媒体連携を画面に出すかどうか（第54便・純粋関数）。
 //
+// ★★★ 【2026-09-15 現在：目隠しは外してある】（カッキーさんの指示）
+//   ★ canSeeMedia は常に true を返す。★ ?media=1 を付けなくても、どのブラウザからでも入れる。
+//   ★ 以下の §なぜ要るか は、目隠しを入れた当時（第54便）の経緯として残してある。
+//     ★ また隠したくなったときのために、戻し方は canSeeMedia の中に書いてある。
+//
 // ★★★ なぜ要るか（2026-08-29・カッキーさん）
 //   他社（いま店舗が使っている転送サービス）の担当者が、店舗のマイページを覗きに来る。
 //   ★ 媒体連携タブを開かれると、フクエスが駅ちかへの書き込みを作っていることが一目で分かる。
@@ -48,11 +53,26 @@ export type MediaVisibilityInput = {
  *   （mediaLinkMode の hasApprovedOnce と同じ「分からないときは危なくない側」）。
  */
 export function canSeeMedia(input: MediaVisibilityInput): boolean {
-  if (input.unlocked === true) return true;
-  const owner = input.ownerId;
-  if (typeof owner !== 'string' || owner.length === 0) return false;
-  if (typeof input.adminUuid !== 'string' || input.adminUuid.length === 0) return false;
-  return owner === input.adminUuid;
+  // ★★★ 2026-09-15・カッキーさんの指示で【目隠しを外した】。
+  //   ★ 隠す必要がなくなったので、ログインしている店舗には誰にでも出す。
+  //   ★ ?media=1 を付けなくても、どのブラウザからでもそのまま入れる。
+  //
+  // ★★ 配線は残してある（MEDIA_UNLOCK_PARAM / readUnlockIntent / unlocked / adminUuid）。
+  //   ★ また隠したくなったときは、この関数の中身を下の3行に戻すだけでよい。
+  //     ```
+  //     if (input.unlocked === true) return true;
+  //     const owner = input.ownerId;
+  //     if (typeof owner !== 'string' || owner.length === 0) return false;
+  //     if (typeof input.adminUuid !== 'string' || input.adminUuid.length === 0) return false;
+  //     return owner === input.adminUuid;
+  //     ```
+  //   ★ 呼び出し側（/mypage のタブ・useMediaGate）は一切変えていない。
+  //
+  // ★★ ここは【表示の出し分け】であって認可ではない（元からそう）。
+  //   ★ 開けても、他店のデータは触れない。server action 側のオーナー検証（assertSalonOwner）は
+  //     従来どおり効いている。★ そこは今回も一切触っていない。
+  void input;
+  return true;
 }
 
 /**
