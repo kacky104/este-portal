@@ -195,7 +195,9 @@ const ctxP = Object.assign({}, ctxW, { intent: 'work_push' });
   const v1 = F.afterEsutamaWorkVerify({ status: 200, headers: {}, body: after }, s1.next.context, NOW);
   eq('送れた人の行は残りから外す', v1.next.context.esutamaDiffs, []);
   const end = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageSara }, v1.next.context, NOW);
-  eq('送ったあとの計画は「残り0・送れる=false」', [end.esutamaPlan.diffs.length, end.esutamaPlan.sendable, end.esutamaPlan.saved], [0, false, 1]);
+  // ★★★ 第393便: sendable は「止めた理由が無い」（駅ちかと同じ意味）に変えた。
+  //   ★ 送るものがあるかは diffs.length（＝change_count）が持つ。★ 0件でも sendable は true。
+  eq('送ったあとの計画は「残り0・止めた理由なし」', [end.esutamaPlan.diffs.length, end.esutamaPlan.sendable, end.esutamaPlan.saved], [0, true, 1]);
 }
 
 // ── 第110便: work_auto は書く（旗 true）。ただし「その人の ○ が全部消える」書き換えは自動では送らない ──

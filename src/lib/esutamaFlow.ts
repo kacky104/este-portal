@@ -646,8 +646,25 @@ export function nextEsutamaPerson(ctx: RelayFlowContext, audits: FlowAudit[], no
       people: people.length,
       changed,
       saved,
-      // ★ 送る相手が1人でも居て、送らずに残った変更があるとき「送れる」
-      sendable: people.length > 0 && diffs.length > 0,
+      /**
+       * ★★★★ 【第393便】（2026-09-15）sendable の意味を駅ちかとそろえた。
+       *
+       * ★★★ 何が起きていたか — エステ魂だけ「自動更新にできない」状態で詰んでいた。
+       *   ★ ここは `diffs.length > 0`（＝送るものがある）を sendable としていた。
+       *     ★ 駅ちかの planWork は `sendable: plan.ok`（＝止めた理由が無い）。
+       *     ★★ 同じ media_work_plans.sendable に【違う意味】を書いていた。
+       *   ★ 第331便で「一致を確かめただけでも1回目の承認とみなす」を入れたが、
+       *     その条件は `change_count === 0 && sendable === true`（readWriteHistory）。
+       *     ★★ エステ魂は一致すると sendable が false になるので、この道が永久に通らない。
+       *       → 送るものが無いのに「送れないから自動にできない」。★ 第331便が塞いだ穴が、
+       *         エステ魂にだけ残っていた（★ 2026-09-16 00:33/00:34・ラビリンス様で発現）。
+       *   ★★★ しかも blocked が空なので、画面には【理由が1つも出なかった】。
+       *
+       * ★ 直し方 — ここは「止めた理由が無い」を書く。★ 「送るものがあるか」は change_count が持つ。
+       *   ★ 0件で送られる心配は無い: startMediaWorkPush が change_count === 0 を先に断る。
+       *   ★ blocked が居ても false にしない（★ 一部が結ばれていない店舗が送れなくなる）。
+       */
+      sendable: people.length > 0,
       fingerprint: esutamaFingerprint(diffs),
     };
     return {

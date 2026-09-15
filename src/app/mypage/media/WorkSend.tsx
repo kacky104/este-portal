@@ -254,7 +254,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           delete afterCheck.current[k];
           if (act === 'make_auto') {
             if (got.sendable !== true) {
-              onToast('自動更新にできませんでした。止めた理由をご確認ください');
+              onToast('自動更新にできませんでした。この画面に理由を出しています');
             } else if (got.changeCount === 0) {
               await setAuto(provider, Number(slotStr), true);   // ★ ここで「自動更新になりました」が出る
             } else {
@@ -262,7 +262,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             }
           } else if (act === 'push_now') {
             if (got.sendable !== true) {
-              onToast('いまは更新できません。止めた理由をご確認ください');
+              onToast('いまは更新できません。この画面に理由を出しています');
             } else if (got.changeCount > 0) {
               await doPush(provider, Number(slotStr), got.fingerprint, false);
             } else {
@@ -559,6 +559,17 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     ★ この画面は【誰の・いつの分を選ばせない】のが取り柄（駅ちかは全員×7日の一発送信）。
                       ★ 選べないのに数字が3つ並んでも、店舗様は何も決められない（カッキーさん）。
                     ★ 消したのは【表示】だけ。★ 計画（plan）の中身も送る仕組みも変えていない。 */}
+
+                {/* ★★★★ 第393便（2026-09-16 00:34 の実データ）: 止めた理由が【1つも無い】まま
+                    「自動更新にできません」になることがあった（エステ魂の sendable の取り違え）。
+                    ★ 元は直した（esutamaFlow）。★ そのうえで、**理由の無い不可を作らない**ための受け皿を置く。
+                    ★ 設計メモ §173:「押せないときは、その理由を書く」。★ 黙って押せなくしない。 */}
+                {plan && plan.sendable !== true && plan.blockers.length === 0 && plan.targets > 0 && (
+                  <p className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
+                    いまは自動更新にできませんでした。少し時間をおいて、もう一度お試しください。
+                    続くようでしたら「連携の記録」の時刻を添えて運営にお知らせください。
+                  </p>
+                )}
 
                 {/* 止めた理由 → 伝えること の順。★ 「◯名は連携していないため更新できません」はここ（残す） */}
                 {plan && plan.blockers.length > 0 && (
