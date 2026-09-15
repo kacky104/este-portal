@@ -56,6 +56,30 @@ export type ImasuguRow = {
   available_until_import: string | null;
 };
 
+/**
+ * ★★★★ 「今すぐ」に同時に出せる人数の上限（第390便・2026-09-15・カッキーさんの決定）。
+ *   ★★ 3名 → **5名**。★ フクエスワーク掲載店（jobs_enabled）は +5 で **10名**。
+ *   ★ 上位表示の回数（20回／ワーク掲載店40回）と同じ考え方にそろえた。
+ *
+ * ★★★ 数字はここ1か所。★ 画面（保存の切り詰め・上限の判定・文言）はこの関数を読む。
+ *   ★ それまでは mypage が 3 を【3か所に直接書いていた】。
+ *     ★ 片方だけ直すと「画面は5名まで押せるのに、保存すると3名に切られる」という
+ *       黙って消える形になる（★ いちばん気づきにくい）。
+ */
+export const IMASUGU_MAX_BASE = 5;
+/** フクエスワーク掲載店（jobs_enabled）の上乗せ。 */
+export const IMASUGU_MAX_JOBS_BONUS = 5;
+
+/** その店が同時に「今すぐ」にできる人数。★ 5名／ワーク掲載店は10名。 */
+export function imasuguMax(jobsEnabled: boolean | null | undefined): number {
+  return IMASUGU_MAX_BASE + (jobsEnabled === true ? IMASUGU_MAX_JOBS_BONUS : 0);
+}
+
+/** 上限に達したときに画面へ出す1行。★ 文言はここで作る（画面で組み立てない・第167便）。 */
+export function imasuguLimitNote(max: number): string {
+  return '今すぐは最大' + max + '名までです';
+}
+
 /** camelCase にマップ済み（3枠6値）。★ すべて必須。 */
 export type ImasuguCamel = {
   isAvailableNow: boolean | null;

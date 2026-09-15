@@ -23,7 +23,7 @@ import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { snapClockPair } from '@/lib/timeSnap';
-import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow, imasuguUntilISO, IMASUGU_WINDOW_MIN } from '@/lib/imasugu';
+import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow, imasuguUntilISO, IMASUGU_WINDOW_MIN, imasuguMax, imasuguLimitNote } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
@@ -2161,8 +2161,9 @@ export default function MyPage() {
 
   const handleAvailableNowSave = async () => {
     setSavingAvailable(true);
-    // 「今すぐ」を付けられるのは「本日出勤中」かつ「チェック済み」のセラピストのみ。最大3名。
-    // 出勤外・期限切れの古いフラグはここで確実にfalseへリセットする（3名制限の抜け穴対策）。
+    // 「今すぐ」を付けられるのは「本日出勤中」かつ「チェック済み」のセラピストのみ。
+    // ★ 人数の上限は imasuguMax（第390便: 5名／フクエスワーク掲載店は10名）。★ ここに数字を書かない。
+    // 出勤外・期限切れの古いフラグはここで確実にfalseへリセットする（人数制限の抜け穴対策）。
     // 排他制御：キャスト枠がライブのセラピストはオーナーが選べない（UIで無効化済み）。
     // 念のためここでも liveIds から除外し、かつ一括リセットの対象からも外して
     // オーナー枠（is_available_now / available_until）を一切触らない（キャスト枠列には絶対書き込まない）。
@@ -2172,7 +2173,7 @@ export default function MyPage() {
         .filter(t => !isCastLiveRow(t))
         .map(t => String(t.id))
         .filter(sid => availableNow[sid])
-        .slice(0, 3)
+        .slice(0, imasuguMax(salon?.jobs_enabled))
     );
     // ★ 第326便: 有効時間の正は lib/imasugu（30分→45分）。★ ここに分数を書かない
     const availableUntil = imasuguUntilISO();
@@ -4423,7 +4424,9 @@ export default function MyPage() {
               // 「今すぐ」判定は営業日基準（深夜0〜6時は前日のスケジュールを参照）
               const todayStr = getBusinessDateJST();
               const checkedCount = onDutyTherapists.filter(t => availableNow[String(t.id)]).length;
-              const atLimit = checkedCount >= 3;
+              // ★ 第390便: 上限は5名／フクエスワーク掲載店は10名。★ 判定も文言も lib から出す
+              const imasuguLimit = imasuguMax(salon?.jobs_enabled);
+              const atLimit = checkedCount >= imasuguLimit;
               if (onDutyTherapists.length === 0) {
                 return (
                   <div className="space-y-2">
@@ -4439,7 +4442,7 @@ export default function MyPage() {
                 <div className="space-y-2">
                   {atLimit && (
                     <p className="text-xs text-rose-500 font-bold text-center py-2 bg-rose-50 border border-rose-100 rounded-none">
-                      今すぐは最大3名までです
+                      {imasuguLimitNote(imasuguLimit)}
                     </p>
                   )}
                   {onDutyTherapists.some(t => isImportLiveRow(t, now)) && (
@@ -4467,7 +4470,7 @@ export default function MyPage() {
                     // ★ 駅ちかの「即ヒメ」から取り込んだ枠。【表示だけ】。
                     //   ★ チェックボックスを無効にしないこと。3枠は和集合であって排他ではないので、
                     //     取り込み中でも店舗は自分の枠を押せる。
-                    //   ★ 3名制限（checkedCount / atLimit）にも数えていない。数えると店舗が自分の枠を押せなくなる。
+                    //   ★ 人数制限（checkedCount / atLimit）にも数えていない。数えると店舗が自分の枠を押せなくなる。
                     const importLive = isImportLiveRow(t, now);
                     const remainingMin = t.available_until
                       ? Math.floor((new Date(t.available_until).getTime() - now.getTime()) / 60000)
