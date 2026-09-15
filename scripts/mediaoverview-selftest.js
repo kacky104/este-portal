@@ -808,8 +808,10 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
      v.autoOffWorkSites([W({}), W({ provider: 'esutama', label: 'エステ魂' })]).map((x) => x.label), ['駅ちか', 'エステ魂']);
   eq('★★★ 見出しは【状態】を言う', v.autoOffNoticeText(['駅ちか']).title, '出勤の自動更新が未設定です');
   eq('★★ 本文はサイト名を列挙する', v.autoOffNoticeText(['駅ちか', 'エステ魂']).body.includes('駅ちか・エステ魂'), true);
-  eq('★★ 本文は【このままだとどうなるか】を言う',
-     /反映されません/.test(v.autoOffNoticeText(['駅ちか']).body), true);
+  eq('★★ 本文は【どうなっているか】と【お願い】の2文（第393便の添削）',
+     v.autoOffNoticeText(['駅ちか']).body, '駅ちかの出勤が自動更新になっていません。設定をお願いします。');
+  eq('★ 2サイトぶんも1文に収まる',
+     v.autoOffNoticeText(['駅ちか', 'エステ魂']).body, '駅ちか・エステ魂の出勤が自動更新になっていません。設定をお願いします。');
   eq('★ 同じ名前は1つにまとめる', v.autoOffNoticeText(['駅ちか', '駅ちか']).body.includes('駅ちか・駅ちか'), false);
 
   const pN = v.bulkPlan([EK({ direction: 'read' }), S({ direction: 'write' })], 'none');

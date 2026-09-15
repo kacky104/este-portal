@@ -733,10 +733,12 @@ export function autoOffWorkSites<T extends {
  */
 export function autoOffNoticeText(labels: readonly string[]): { title: string; body: string } {
   const names = joinNames([...(labels ?? [])]);
+  // ★★★★ 第393便（2026-09-16・カッキーさんの添削）: 短い2文にした。
+  //   ★ 1文目で【どのサイトが、どうなっているか】。★ 2文目で【お願い】。
+  //   ★ 「このままだと〜」の説明は落とした。★ 見出し＋2文で足りる（長い文は読まれない）。
   return {
     title: '出勤の自動更新が未設定です',
-    body: `${names}へフクエスから反映する設定になっていますが、出勤は自動更新になっていません。`
-      + `このままでは、フクエスで出勤を変えても${names}に反映されません。`,
+    body: `${names}の出勤が自動更新になっていません。設定をお願いします。`,
   };
 }
 
