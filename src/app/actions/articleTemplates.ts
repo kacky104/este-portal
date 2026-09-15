@@ -25,15 +25,23 @@ import {
   articlePostTimeLabels,
 } from '@/lib/articleRotation';
 import { dayKeyJST } from '@/lib/announceAuto';
-import { normalizeArticlePhotoIds } from '@/lib/articlePhotoPick';
+import { normalizeArticlePhotoIds, ARTICLE_PHOTO_MAX } from '@/lib/articlePhotoPick';
 
-// 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05）。
+// 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05 → ★ 第373便で写真を【店舗に1つの箱】へ・2026-09-15）。
 //
 // ★★★ この画面が守ること
 //   ① **店舗様が選んだ枠しか触らない。** ★ 枠に既定値を作らない（選ばせる）
 //   ② **送る前に枠の状態を見せる。** ★ 非表示・カラを、登録の前に言う
 //      ★ 2026-09-05 の実弾で、送ってから「公開ページに出ていない」と分かった。★ 順番を逆にする
 //   ③ **作っただけでは何も起きない。** ★ is_active / auto_enabled の既定は false（第43便の作法）
+//
+// ★★★ 第373便（カッキーさん・2026-09-15）「まずシンプルにします」
+//   ・写真は【文章ごと】ではなく【店舗に1つの箱】（salon_article_settings.photo_therapist_ids・最大10枚）
+//   ・どの枠から出すときも、その箱から1枚をランダムに選ぶ（★ 選ぶのは articlePost.ts）
+//   ・「駅ちかに登録されている方から選ぶ」（駅ちか側の写真に差し替える道）は画面から外した
+//   ★★ 列は消していない: salon_article_templates.therapist_ids / last_photo_therapist_id / ekichika_girl_id
+//      ★ ここでは読まない・書かない（新規行の therapist_ids は空で埋める）。
+//      ★ 戻すなら: select に列を足し、ArticleTemplateRow に girlId/therapistIds を戻す（第172便の形）
 //
 // ★★ 秘密は扱わない。★ ログイン情報には触れない（それは mediaCredentials.ts の仕事）。
 
@@ -42,8 +50,6 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 const PROVIDER = 'ekichika';
 /** 店舗様がフクエスに上げた写真の置き場。★ 中継役が取りに来られるのはここだけ（第106便） */
 const PHOTO_BUCKET = 'therapist-photos';
-// ★ 第166便で写真を送る処理を articlePost.ts へ移したときの置き残しを、第172便で片づけた
-//   ★★ 使っていない道具を残さない。★ 次の担当が「ここでも写真を触るのか」と読む
 
 async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string }>> {
   const supabase = await createClient();
@@ -60,13 +66,28 @@ async function assertSalonOwner(salonId: number): Promise<Result<{ userId: strin
 }
 
 /**
- * ★ 「いまの写真のまま」を null に寄せる。
- *   ★★ '' と null を分けない——どちらも【触らない】という同じ意味なので、DBでは null に統一する。
- *   ★ 数字以外は受け取らない（★ 駅ちかの girl_id は数字）
+ * ★★ この店の方で、★ フクエスに写真が入っている方だけを返す（★ 名前順）。
+ *   ★ 写真の箱に入れられるのはこの方たちだけ（★ 中継役が取りに行けるのは therapist-photos だけ・第106便）。
+ *   ★★ 既定画像（第217便）は【本人の写真ではない】ので、ここでは当てない。
+ *      ★ 駅ちかへ送るのは本人の写真だけ。★ 既定画像を送ると「写真がある子」と区別がつかなくなる。
  */
-function girlIdOrNull(v: unknown): string | null {
-  const t = typeof v === 'string' ? v.trim() : '';
-  return /^\d{1,12}$/.test(t) ? t : null;
+async function listPhotoTherapists(
+  svc: ReturnType<typeof createServiceClient>,
+  salonId: number,
+): Promise<Array<{ id: number; name: string; photoUrl: string }>> {
+  const { data: ths } = await svc
+    .from('therapists').select('id, name, profile_image_url')
+    .eq('salon_id', salonId)
+    .order('name', { ascending: true });
+  return (ths ?? [])
+    .filter((r) => String(r.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/'))
+    // ★★★ 第167便: 写真そのものを画面へ渡す。★ 名前だけの一覧では「誰の写真か」が分からない
+    //   ★ ここは【見せるためのURL】。★ 中継役が取りに行く道（relayFileUrl）とは別物
+    .map((r) => ({
+      id: Number(r.id),
+      name: String(r.name ?? ''),
+      photoUrl: String(r.profile_image_url ?? ''),
+    }));
 }
 
 export type ArticleTemplateRow = {
@@ -78,21 +99,7 @@ export type ArticleTemplateRow = {
   isActive: boolean;
   sortOrder: number;
   updatedAt: string;
-  /**
-   * ★ 誰の紹介か（駅ちかの番号）。★ null なら【いまの写真のまま】。
-   *   ★ 0や空文字と混ぜない（作法3-5）
-   */
-  girlId: string | null;
-  /** ★ その人の名前（写しから引く）。★ 写しに無ければ空 */
-  girlName: string;
-  /**
-   * ★★★ この文章に付ける写真の持ち主（第172便で【複数】になった）。
-   *   ★ 空なら送らない（＝いまの写真のまま）。★ 1件なら固定。★ 2件以上なら出すたびに1枚。
-   *   ★★ girlId（駅ちか側の写真）とは別の道
-   */
-  therapistIds: number[];
-  /** ★ その方たちのお名前（★ 写真が登録されている方だけ引ける） */
-  therapistNames: string[];
+  // ★ 第373便: girlId / therapistIds は【文章から外した】。★ 写真は ArticleBoard.photoIds（店舗に1つの箱）
 };
 
 export type ArticleBoard = {
@@ -113,16 +120,18 @@ export type ArticleBoard = {
   /** ★ 自動で回している本数。★ 0なら回らない */
   activeCount: number;
   /**
-   * ★★★ 駅ちかで選べる人（第160便）。★ 相手の編集ページが出している選択肢そのまま。
-   *   ★ null は【まだ読めていない】。★ [] は【読めたが0人】。★ 混ぜない
-   */
-  girls: Array<{ id: string; name: string }> | null;
-  /**
-   * ★★★ フクエスの写真を送れる方（第162便）。
+   * ★★★ フクエスの写真を送れる方（第162便）。★ 写真の箱の【選択肢】。
    *   ★ プロフィール写真が therapist-photos に入っている方だけ。★ 無い方は出さない
    *     （★ 選べるように見せてから断らない・設計メモ §32）
    */
   therapists: Array<{ id: number; name: string; photoUrl: string }>;
+  /**
+   * ★★★ 写真の箱（第373便）。★ 店舗（＋媒体＋枠）に1つ。★ therapists.id の並び・最大10件。
+   *   ★ 空＝写真に触らない（駅ちかの写真のまま）。★ どの枠から出すときも、ここから1枚をランダムに。
+   *   ★★ 写真が消された方（therapists に写真が無くなった方）は、ここでは【落として】返す
+   *      （★ 画面に「いない人」を数えさせない。★ DBの並びは次の保存で整う）
+   */
+  photoIds: number[];
   /**
    * ★★★ 今日この枠へ出した本数（第159便）。★ 手で出したぶんも数える。
    *   ★ 区切りは営業日（朝6時）。★ 暦の0時ではない
@@ -155,7 +164,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   const { data: snap, error: snapErr } = await svc
     .from('media_article_slots')
-    .select('read_at, rows, girls')
+    .select('read_at, rows')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .maybeSingle();
   // ★★ 読めなかったときは【分からない】として返す。★ 「まだ読んでいない」と混ぜない
@@ -163,9 +172,10 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   const rows = Array.isArray(snap?.rows) ? (snap!.rows as ArticleSlotRow[]) : null;
 
+  // ★ 第373便: ekichika_girl_id / therapist_ids は読まない（★ 列は残っている）
   const { data: temps, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, is_active, sort_order, updated_at, ekichika_girl_id, therapist_ids')
+    .select('id, article_slot, title, body, is_active, sort_order, updated_at')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
@@ -173,56 +183,29 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   const { data: st, error: sErr } = await svc
     .from('salon_article_settings')
-    .select('posts_per_day, auto_enabled, last_day, last_count')
+    .select('posts_per_day, auto_enabled, last_day, last_count, photo_therapist_ids')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .maybeSingle();
   if (sErr) return { ok: false, error: '設定を読み出せませんでした。時間をおいてお試しください' };
 
-  // ★ 選べる人。★ 列がまだ無い／読めていないときは null（★ 空配列に潰さない）
-  const girls = Array.isArray(snap?.girls) ? (snap!.girls as Array<{ id: string; name: string }>) : null;
+  // ★★ フクエスの写真を送れる方。★ 写真が入っている方だけを出す（★ 写真の箱の選択肢）
+  const therapists = await listPhotoTherapists(svc, salonId);
 
-  // ★★ フクエスの写真を送れる方。★ 写真が入っている方だけを出す
-  //   ★ 第172便: テンプレートより先に読む（★ 名前を引くのに使う）
-  let therapists: ArticleBoard['therapists'] = [];
-  {
-    const { data: ths } = await svc
-      .from('therapists').select('id, name, profile_image_url')
-      .eq('salon_id', salonId)
-      .order('name', { ascending: true });
-    therapists = (ths ?? [])
-      .filter((r) => String(r.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/'))
-      // ★★★ 第167便: 写真そのものを画面へ渡す。★ 名前だけの一覧では「誰の写真か」が分からない
-      //   ★ ここは【見せるためのURL】。★ 中継役が取りに行く道（relayFileUrl）とは別物
-      .map((r) => ({
-        id: Number(r.id),
-        name: String(r.name ?? ''),
-        photoUrl: String(r.profile_image_url ?? ''),
-      }));
-  }
+  // ★★★ 写真の箱。★ 並びと重複はここで整え、★ 写真が無くなった方は落とす
+  //   （★ 画面に「いない人」を数えさせない。★ articlePost 側でも同じ理由で弾く）
+  const photoIds = normalizeArticlePhotoIds(st?.photo_therapist_ids)
+    .filter((id) => therapists.some((x) => x.id === id));
 
-  const templates: ArticleTemplateRow[] = (temps ?? []).map((r) => {
-    const gid = r.ekichika_girl_id === null || r.ekichika_girl_id === undefined ? null : String(r.ekichika_girl_id);
-    // ★★ 並びと重複はここで整える。★ DBに変な形が入っていても画面は壊れない
-    const tids = normalizeArticlePhotoIds(r.therapist_ids);
-    return {
-      id: Number(r.id),
-      articleSlot: Number(r.article_slot),
-      slotLabel: articleSlotLabel(Number(r.article_slot)),
-      title: String(r.title ?? ''),
-      body: String(r.body ?? ''),
-      isActive: r.is_active === true,
-      sortOrder: Number(r.sort_order ?? 0),
-      updatedAt: String(r.updated_at ?? ''),
-      girlId: gid,
-      // ★ 名前は写しから引く。★ 引けなければ空（★ 番号を名前の代わりに出さない）
-      girlName: gid === null ? '' : (girls?.find((g) => g.id === gid)?.name ?? ''),
-      therapistIds: tids,
-      // ★ 名前は写真つきの方から引く。★ 引けなければ出さない（★ 番号を名前の代わりに出さない）
-      therapistNames: tids
-        .map((id) => therapists.find((x) => x.id === id)?.name ?? '')
-        .filter((n) => n.length > 0),
-    };
-  });
+  const templates: ArticleTemplateRow[] = (temps ?? []).map((r) => ({
+    id: Number(r.id),
+    articleSlot: Number(r.article_slot),
+    slotLabel: articleSlotLabel(Number(r.article_slot)),
+    title: String(r.title ?? ''),
+    body: String(r.body ?? ''),
+    isActive: r.is_active === true,
+    sortOrder: Number(r.sort_order ?? 0),
+    updatedAt: String(r.updated_at ?? ''),
+  }));
 
   // ★ 行が無い＝まだ決めていない＝既定。★ 0（送らない）と混ぜない
   const postsPerDay = st ? Number(st.posts_per_day) : ARTICLE_POSTS_PER_DAY_DEFAULT;
@@ -258,8 +241,8 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       autoEnabled: st?.auto_enabled === true,
       postTimes: articlePostTimeLabels(salonId, postsPerDay),
       activeCount: templates.filter((t) => t.isActive).length,
-      girls,
       therapists,
+      photoIds,
       postedToday,
       runs,
     },
@@ -311,18 +294,7 @@ export async function saveArticleTemplate(input: {
   title: string;
   body: string;
   isActive?: boolean;
-  /**
-   * ★ 誰の紹介か（駅ちかの番号）。★ null / '' なら【いまの写真のまま】。
-   *   ★★ 送らなければ（undefined）いまの設定を変えない
-   */
-  girlId?: string | null;
-  /**
-   * ★★★ この文章に付ける写真の持ち主（第172便で【複数】になった）。
-   *   ★ 空配列なら送らない（＝いまの写真のまま）。★ 1件なら固定。★ 2件以上なら出すたびに1枚。
-   *   ★★ 送らなければ（undefined）いまの設定を変えない
-   *   ★ girlId（駅ちか側の写真）とは【別の道】
-   */
-  therapistIds?: number[] | null;
+  // ★ 第373便: girlId / therapistIds は受けない。★ 写真は saveArticlePhotoPool（店舗に1つの箱）
 }): Promise<Result<{ id: number }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
@@ -343,34 +315,9 @@ export async function saveArticleTemplate(input: {
   const svc = createServiceClient();
   const id = Number(input.id);
 
-  // ★★★ 第172便: 写真は【複数】。★ 他店の方を混ぜられないよう、ここで必ず確かめる。
-  //   ★ 画面から来た番号をそのまま入れない（★ 番号は誰でも書き換えられる）
-  let photoIds: number[] | undefined;
-  if (input.therapistIds !== undefined) {
-    const want = normalizeArticlePhotoIds(input.therapistIds);
-    if (want.length === 0) {
-      photoIds = [];
-    } else {
-      const { data: ths } = await svc
-        .from('therapists').select('id, salon_id, profile_image_url')
-        .eq('salon_id', salonId).in('id', want);
-      // ★★ この店の方で、★ 写真が入っている方だけ残す。★ 選べるように見せて送れない、を作らない
-      const okIds = new Set(
-        (ths ?? [])
-          .filter((r) => String(r.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/'))
-          .map((r) => Number(r.id)),
-      );
-      const kept = want.filter((x) => okIds.has(x));
-      // ★★★ 1枚でも落ちたら黙って保存しない。★ 「選んだのに入っていない」を作らない
-      if (kept.length !== want.length) {
-        return { ok: false, error: '選べない写真が混ざっています。画面を開き直してもう一度お選びください' };
-      }
-      photoIds = kept;
-    }
-  }
-
   if (Number.isFinite(id) && id > 0) {
     // ★★ 必ず salon_id で絞る。★ id だけで更新すると他店の行を書き換えられる
+    // ★ 第373便: ekichika_girl_id / therapist_ids は触らない（★ 古い値が残っていても読まないので無害）
     const { data, error } = await svc
       .from('salon_article_templates')
       .update({
@@ -378,8 +325,6 @@ export async function saveArticleTemplate(input: {
         title: title.trim(),
         body,
         ...(input.isActive === undefined ? {} : { is_active: input.isActive === true }),
-        ...(input.girlId === undefined ? {} : { ekichika_girl_id: girlIdOrNull(input.girlId) }),
-        ...(photoIds === undefined ? {} : { therapist_ids: photoIds }),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id).eq('salon_id', salonId).eq('provider', PROVIDER)
@@ -400,13 +345,83 @@ export async function saveArticleTemplate(input: {
       body,
       // ★★★ 既定は「回さない」。★ 作っただけでは何も起きない
       is_active: input.isActive === true,
-      // ★ 既定は「いまの写真のまま」。★ 駅ちかの画像に触らない
-      ekichika_girl_id: girlIdOrNull(input.girlId),
-      therapist_ids: photoIds ?? [],
+      // ★ 第373便: 文章は写真を持たない。★ 列は残っているので空で埋める（★ 駅ちかの画像に触らない）
+      ekichika_girl_id: null,
+      therapist_ids: [],
     })
     .select('id').maybeSingle();
   if (error || !data) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
   return { ok: true, data: { id: Number(data.id) } };
+}
+
+/**
+ * ★★★ 写真の箱を保存する（第373便）。★ 店舗（＋媒体＋枠）に1つ。★ 最大10枚。
+ *
+ * ★★ 守っていること
+ *   ① 他店の方を混ぜられない。★ 画面から来た番号をそのまま入れない（★ 番号は誰でも書き換えられる）
+ *   ② 写真が入っている方だけ。★ 選べるように見せて送れない、を作らない（設計メモ §32）
+ *   ③ 1枚でも落ちたら黙って保存しない。★ 「選んだのに入っていない」を作らない
+ *   ④ 設定の行が無ければ作る。★ そのとき本数・元栓は【既定（回さない側）】のまま
+ *   ⑤ 箱を入れ替えたら「直前に出した1枚」は忘れる。★ 箱に無い人を避け続けても意味が無い
+ */
+export async function saveArticlePhotoPool(input: {
+  salonId: string | number;
+  slot?: number;
+  /** ★ 箱に入れる写真の持ち主（therapists.id）。★ 空配列＝写真に触らない */
+  therapistIds: number[];
+}): Promise<Result<{ photoIds: number[] }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const mediaSlot = Number.isFinite(Number(input.slot)) && Number(input.slot) > 0 ? Number(input.slot) : 1;
+
+  // ★★ 上限を超えて来たら【切らずに断る】。★ 黙って落とすと「10枚選んだのに9枚」になる
+  const raw = Array.isArray(input.therapistIds) ? input.therapistIds : [];
+  const want = normalizeArticlePhotoIds(raw);
+  if (raw.length > ARTICLE_PHOTO_MAX || want.length > ARTICLE_PHOTO_MAX) {
+    return { ok: false, error: '写真は' + ARTICLE_PHOTO_MAX + '枚までです' };
+  }
+
+  const svc = createServiceClient();
+
+  if (want.length > 0) {
+    const { data: ths, error: thErr } = await svc
+      .from('therapists').select('id, salon_id, profile_image_url')
+      .eq('salon_id', salonId).in('id', want);
+    if (thErr) return { ok: false, error: '写真を確かめられませんでした。時間をおいてお試しください' };
+    const okIds = new Set(
+      (ths ?? [])
+        .filter((r) => String(r.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/'))
+        .map((r) => Number(r.id)),
+    );
+    if (want.some((x) => !okIds.has(x))) {
+      return { ok: false, error: '選べない写真が混ざっています。画面を開き直してもう一度お選びください' };
+    }
+  }
+
+  // ★ 行が無いときは既定で作る。★ 本数・元栓を勝手に「回す側」へ倒さない（saveArticleSettings と同じ作法）
+  const { data: cur, error: curErr } = await svc
+    .from('salon_article_settings')
+    .select('posts_per_day, auto_enabled')
+    .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
+    .maybeSingle();
+  if (curErr) return { ok: false, error: '設定を読み出せませんでした。時間をおいてお試しください' };
+
+  const { error } = await svc.from('salon_article_settings').upsert(
+    {
+      salon_id: salonId, provider: PROVIDER, slot: mediaSlot,
+      posts_per_day: cur ? Number(cur.posts_per_day) : ARTICLE_POSTS_PER_DAY_DEFAULT,
+      auto_enabled: cur?.auto_enabled === true,
+      photo_therapist_ids: want,
+      // ★ 箱を入れ替えたら「直前の1枚」は忘れる
+      last_photo_therapist_id: null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'salon_id,provider,slot' },
+  );
+  if (error) return { ok: false, error: '写真を保存できませんでした。時間をおいてお試しください' };
+  return { ok: true, data: { photoIds: want } };
 }
 
 /** テンプレートを1本消す。★ 消すのは店舗様が書いた文章だけ。★ 駅ちかの記事は消えない */

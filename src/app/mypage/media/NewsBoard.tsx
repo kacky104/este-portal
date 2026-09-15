@@ -7,41 +7,37 @@ import {
   saveArticleTemplate,
   deleteArticleTemplate,
   saveArticleSettings,
+  saveArticlePhotoPool,
   startArticlePost,
   type ArticleBoard,
   type ArticleTemplateRow,
 } from '@/app/actions/articleTemplates';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
-import { ARTICLE_PHOTO_MAX, articlePhotoNote } from '@/lib/articlePhotoPick';
+import { ARTICLE_PHOTO_MAX, articlePhotoNote, articlePhotoConfirmNote } from '@/lib/articlePhotoPick';
 import { articleQuotaNote } from '@/lib/articleRotation';
 
-// 新着情報を送る（第158便で作り、★ 第167便で作り直した・2026-09-05）。
+// 新着情報を送る（第158便で作り、第167便で作り直し、★ 第373便で【写真を店舗に1つの箱】へ・2026-09-15）。
 //
-// ★★★ 第167便の発端（★ この案件でいちばん大事な指摘・カッキーさん）
-//   「私が理解しがたく操作が難しいのに、今から使ってもらう第三者が理解できるわけがない」
-//   「第3者視点がないです。歌舞伎に　見、離見、離見の見　と言う言葉があります」
-//   「ベンリーはとても分かりやすくレイアウトしています。目的がベンリーからフクエスに
-//    チャンネルマネージャーを変更してもらう事なのに、無理そうです」
+// ★★★ 第373便の発端（カッキーさん・2026-09-15）
+//   「これからはベンリーに配慮する必要はありません。設計のやり直しです。まずシンプルにします」
+//   「画像選択のブロックを作ります。そこに10枚画像を設定できるようにします。
+//    どのカテゴリーからの投稿もここで設定した10枚の写真から1枚がランダムで表示されて投稿する」
 //
-// ★★★ そこで変えた5つ（★ 第158便版から）
-//   ① 【枠の状態だけの節】を消した
-//        ★ 前 … 画面のいちばん上に5枠の一覧。★ 店舗様は「まず何をすればいいのか」が分からない
-//        ★ 後 … 状態は【文章の脇】と【枠を選ぶボタンの中】に溶かす。★ 見る場所と決める場所を同じにする
-//   ② 【写真を写真で選ぶ】
-//        ★ 前 … 名前だけの選択肢が2つ並ぶ（フクエス／駅ちか）。★ どちらを選べばよいか分からない
-//        ★ 後 … 顔写真のタイルを1つの並びに。★ 「誰の写真か」を目で決める（ベンリーと同じ形）
-//   ③ 【「いまの状態を読む」を普段は出さない】
-//        ★ 店舗様の仕事ではない。★ まだ一度も読んでいないときだけ、大きく1回出す
-//   ④ 【決まりごとを、その項目の脇に書く】
-//        ★ 前 … 下にまとめて注意書き。★ 後 … 文字数はタイトルの右、写真の決まりは写真の上
-//   ⑤ 【保存ボタンを大きく】
-//        ★ 「保存ボタンを押してなかったです」（2026-09-05・実際に起きた）
+// ★★★ 第373便で変えた3つ
+//   ① 【写真】の節を1つ作った（画面の上・店舗に1つ）
+//        ★ 前 … 文章ごとに写真を何枚でも選ぶ（第172便）。★ 文章を書くたびに写真も決めさせていた
+//        ★ 後 … 写真は店舗で10枚まで。★ どの枠から出すときも、その中から1枚をランダムに
+//   ② 文章を書く画面から【写真】を外した
+//        ★ 枠・タイトル・本文・自動で回すか、の4つだけ。★ 「駅ちかに登録されている方から選ぶ」も外した
+//   ③ 一覧の左の写真と「写真：◯枚から毎回1枚」の文字を外した
+//        ★ 文章と写真が結びついていないので、文章の脇に写真を出すと嘘になる
 //
-// ★★ 変えていないこと（★ 崩さない）
+// ★★ 第167便から変えていないこと（★ 崩さない）
 //   ・枠に既定値を作らない（★ 選ばないと保存できない）
 //   ・押す前に【何が消えるか】を見せる（★ 新着は上書き。前の記事は戻らない）
 //   ・「送った」と「載った」と「公開ページに出た」を分けて書く
 //   ・この画面のどの操作も、勝手に駅ちかを書き換えない
+//   ・決まりごとは、その項目の脇に書く。★ 保存ボタンは大きく
 
 /** ★ 枠の状態の色。★ 空も【使える】側（第163便）。★ 灰色は「使えない」に見えるので使わない */
 const STATE_CHIP: Record<string, string> = {
@@ -71,16 +67,14 @@ const POLL_MAX = 20;
 
 type Draft = {
   id: number | null; articleSlot: number | null; title: string; body: string; isActive: boolean;
-  /** ★ 誰の紹介か（駅ちかの番号）。★ '' は【いまの写真のまま】 */
-  girlId: string;
-  /**
-   * ★★★ この文章に付ける写真の持ち主（第172便で【複数】になった）。
-   *   ★ 空なら送らない。★ 1件なら固定。★ 2件以上なら出すたびに1枚
-   */
-  therapistIds: number[];
 };
 
-const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false, girlId: '', therapistIds: [] };
+const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false };
+
+/** ★ 2つの並びが同じか（★ 順番も見る）。★ 写真の箱の「変えたか」に使う */
+function sameIds(a: readonly number[], b: readonly number[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
 
 export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
   const [board, setBoard] = useState<ArticleBoard | null>(null);
@@ -91,8 +85,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   /** ★ 「いま出す」の確認を出している文章 */
   const [confirmPost, setConfirmPost] = useState<number | null>(null);
-  /** ★ 駅ちかに登録されている方から選ぶ並びを開いているか（★ 普段は閉じておく） */
-  const [openGirls, setOpenGirls] = useState(false);
+  /**
+   * ★★★ 写真の箱の【画面の側の控え】（第373便）。★ 保存するまで DB には触らない。
+   *   ★ board.photoIds と違っていれば「まだ保存していない」
+   */
+  const [pool, setPool] = useState<number[]>([]);
   /**
    * ★ 結果が届くのを待っている印。値は【押した時点でいちばん新しかった記録のid】。
    *   ★★★ 「verify_article があるか」で止めてはいけない。★ 前回の送信の行が残っているから。
@@ -101,12 +98,20 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
    */
   const [waitFrom, setWaitFrom] = useState<number | null>(null);
   const pollCount = useRef(0);
+  /** ★ 最後に DB から読んだ箱。★ null は「まだ一度も読んでいない」 */
+  const serverPool = useRef<number[] | null>(null);
 
   const load = useCallback(async () => {
     if (salonId == null) return;
     const r = await getArticleBoard({ salonId });
     if (!r.ok) { setError(r.error); setLoading(false); return; }
     setBoard(r.data);
+    // ★★ 箱の控えは【DBの箱が変わったとき】だけ揃える。
+    //   ★ 送ったあとの15秒ごとの読み直しで、選びかけの写真が消えないように（★ 保存前の選択を勝手に捨てない）
+    if (serverPool.current === null || !sameIds(serverPool.current, r.data.photoIds)) {
+      setPool(r.data.photoIds);
+    }
+    serverPool.current = r.data.photoIds;
     setError('');
     setLoading(false);
   }, [salonId]);
@@ -168,13 +173,10 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
       title: draft.title,
       body: draft.body,
       isActive: draft.isActive,
-      girlId: draft.girlId,
-      therapistIds: draft.therapistIds,
     });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
     setDraft(null);
-    setOpenGirls(false);
     onToast('保存しました');
     await load();
   };
@@ -211,33 +213,27 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     await load();
   };
 
+  /** ★ 写真を1枚ずつ入れたり外したり。★ 上限は10枚。★ 保存するまで DB には触らない */
+  const togglePhoto = (id: number) => {
+    if (pool.includes(id)) { setPool(pool.filter((x) => x !== id)); return; }
+    // ★★ 上限を超えたら、黙って落とさずに言う
+    if (pool.length >= ARTICLE_PHOTO_MAX) { onToast('写真は' + ARTICLE_PHOTO_MAX + '枚までです'); return; }
+    setPool([...pool, id]);
+  };
+
+  const onSavePool = async () => {
+    setBusy('pool');
+    const r = await saveArticlePhotoPool({ salonId, therapistIds: pool });
+    setBusy('');
+    if (!r.ok) { onToast(r.error); return; }
+    onToast(pool.length === 0 ? '写真を外しました' : '写真を保存しました（' + pool.length + '枚）');
+    await load();
+  };
+
+  const poolDirty = !sameIds(pool, board.photoIds);
   const width = draft ? titleWidth(draft.title) : 0;
   const overTitle = width > ARTICLE_TITLE_MAX_WIDTH;
-  const openDraft = (d: Draft) => { setDraft(d); setOpenGirls(d.girlId !== ''); };
-
-  /**
-   * ★ 一覧のサムネに出す写真。★ 複数選ばれていれば【1枚目】を出す（★ 枚数は脇に出す）。
-   *   ★★ 駅ちか側の写真はこちらに無いので出せない
-   */
-  const photoOf = (t: ArticleTemplateRow): string =>
-    t.therapistIds.length === 0 ? '' : (board.therapists.find((x) => x.id === t.therapistIds[0])?.photoUrl ?? '');
-
-  /** ★ 写真を1枚ずつ入れたり外したり（第172便）。★ 上限は10枚 */
-  const togglePhoto = (id: number) => {
-    if (!draft) return;
-    const on = draft.therapistIds.includes(id);
-    if (on) {
-      setDraft({ ...draft, therapistIds: draft.therapistIds.filter((x) => x !== id) });
-      return;
-    }
-    // ★★ 上限を超えたら、黙って落とさずに言う
-    if (draft.therapistIds.length >= ARTICLE_PHOTO_MAX) {
-      onToast('写真は' + ARTICLE_PHOTO_MAX + '枚までです');
-      return;
-    }
-    // ★ 駅ちか側の写真とは同時に選べない（★ 送るのは1枚なので）
-    setDraft({ ...draft, therapistIds: [...draft.therapistIds, id], girlId: '' });
-  };
+  const openDraft = (d: Draft) => { setDraft(d); };
 
   return (
     <div className="space-y-5">
@@ -250,7 +246,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
       {/* ───────── ★★★ まだ一度も読んでいないとき（第167便） ─────────
           ★ 普段は「いまの状態を読む」を出さない。★ 店舗様の仕事ではないから。
-          ★★ ただし一度も読んでいないと、どの枠が使えるかも、誰の写真を選べるかも分からない。
+          ★★ ただし一度も読んでいないと、どの枠が使えるかも分からない。
              → ★ そのときだけ、これを大きく1回出す。 */}
       {board.readAt === null ? (
         <section className="bg-white border border-indigo-200">
@@ -289,7 +285,78 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </div>
       )}
 
-      {/* ───────── ① 出す文章 ───────── */}
+      {/* ───────── ① 写真（第373便・店舗に1つ） ─────────
+          ★★★ 文章ごとではなく、店舗で10枚まで。★ どの枠から出すときも、この中から1枚をランダムに。
+          ★ 選んだ順に並ぶ。★ 保存するまで DB には触らない（★ 「保存ボタンを押してなかった」を、下の帯で止める） */}
+      <section className="bg-white border border-slate-200">
+        <div className="px-3.5 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h2 className="text-[15px] font-black text-slate-800">写真</h2>
+            <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
+              どの枠から出すときも、ここで選んだ写真の中から1枚がランダムで入ります。{ARTICLE_PHOTO_MAX}枚まで。
+            </p>
+          </div>
+          <span className="text-[13px] text-slate-400 tabular-nums flex-none">
+            {pool.length} / {ARTICLE_PHOTO_MAX} 枚
+          </span>
+        </div>
+        <div className="px-3.5 py-3.5">
+          {board.therapists.length === 0 ? (
+            <p className="text-[13.5px] text-slate-500 leading-relaxed">
+              フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
+              それまでは、駅ちかに入っている写真がそのまま残ります。
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {board.therapists.map((t) => (
+                <PhotoTile
+                  key={t.id}
+                  on={pool.includes(t.id)}
+                  name={t.name}
+                  photoUrl={t.photoUrl}
+                  onClick={() => togglePhoto(t.id)}
+                  disabled={busy !== ''}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* ★★★ いま何が起きるかを、選んだその場で言う。★ 文言は articlePhotoPick が作る（★ 画面で作らない） */}
+          <p className="text-[13.5px] text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-2 leading-relaxed mt-2.5">
+            {articlePhotoNote(pool.length)}
+          </p>
+
+          {/* ★ 決まりごとは、選ぶところの【すぐ下】に */}
+          <p className="text-[13px] text-slate-400 leading-relaxed mt-1.5">
+            駅ちかへ送るのはタイトルと本文と、この写真1枚です。JPEG でも PNG でもかまいません（送るときにこちらで整えます）。
+          </p>
+
+          {/* ★★★ 保存していない選択があるときだけ、帯を出す。★ 「選んだのに保存していなかった」を作らない */}
+          {poolDirty && (
+            <div className="flex items-center gap-3 flex-wrap mt-3 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={onSavePool}
+                disabled={busy !== ''}
+                className="text-[15px] font-black px-6 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+              >
+                写真を保存する
+              </button>
+              <button
+                type="button"
+                onClick={() => setPool(board.photoIds)}
+                disabled={busy !== ''}
+                className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700 disabled:opacity-40"
+              >
+                元に戻す
+              </button>
+              <span className="text-[13.5px] text-amber-700">まだ保存していません</span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ───────── ② 出す文章 ───────── */}
       <section className="bg-white border border-slate-200">
         <div className="px-3.5 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0">
@@ -340,13 +407,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               <TemplateItem
                 key={t.id}
                 row={t}
-                photoUrl={photoOf(t)}
                 slotState={s?.state ?? 'unknown'}
                 slotShort={s?.short ?? 'まだ確かめていません'}
+                photoNote={articlePhotoConfirmNote(board.photoIds.length)}
                 onEdit={() => openDraft({
                   id: t.id, articleSlot: t.articleSlot, title: t.title, body: t.body, isActive: t.isActive,
-                  girlId: t.girlId ?? '',
-                  therapistIds: t.therapistIds,
                 })}
                 canPost={s?.canPost === true}
                 currentTitle={s?.currentTitle ?? ''}
@@ -365,7 +430,8 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </ul>
       </section>
 
-      {/* ───────── ② 文章を書く（開いたときだけ） ───────── */}
+      {/* ───────── ③ 文章を書く（開いたときだけ） ─────────
+          ★ 第373便: 枠・タイトル・本文・自動で回すか、の4つだけ。★ 写真はここでは決めない（上の【写真】） */}
       {draft !== null && (
         <section className="bg-white border-2 border-indigo-300">
           <div className="px-3.5 py-3 border-b border-slate-200">
@@ -454,106 +520,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               />
             </div>
 
-            {/* ───── 写真（第167便：写真で選ぶ／第172便：何枚でも選べる） ─────
-                ★★★ 第172便の発端（カッキーさん）
-                  「同じ文章でいい。毎回違うセラピストの写真がランダムで載るシステムが欲しい」
-                  「逆に特定のセラピスト紹介の時は選んだ画像がずっと出続けるようにできる」
-                ★★ 文章と写真は【寿命が別】。★ 新規割引の告知は何日も同じ、写真は毎回変えたい。
-                ★★★ 「1枚固定」と「複数から回す」を**別の設定にしない**。
-                   ★ 1枚だけ選べば固定。★ 10枚選べば回る。★ 同じ操作で両方できる。 */}
-            <div>
-              <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                <label className="text-[13.5px] font-bold text-slate-600">写真</label>
-                <span className="text-[12.5px] text-slate-400 tabular-nums">
-                  {draft.therapistIds.length} / {ARTICLE_PHOTO_MAX} 枚
-                </span>
-              </div>
-              {/* ★★★ 何もしなければ前の記事の写真が残る。★ そのことを先に書く */}
-              <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
-                駅ちかへ送るのは<b>タイトルと本文だけ</b>です。写真を選ばなければ、いま駅ちかに入っている写真がそのまま残ります。
-                <b>何枚でも選べます。</b>
-              </p>
-
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
-                {/* ★ 「変えない」も1枚のタイルにする。★ 押すと全部外れる */}
-                <PhotoTile
-                  on={draft.girlId === '' && draft.therapistIds.length === 0}
-                  name="変えない"
-                  caption="いまの写真のまま"
-                  onClick={() => setDraft({ ...draft, girlId: '', therapistIds: [] })}
-                />
-                {board.therapists.map((t) => (
-                  <PhotoTile
-                    key={t.id}
-                    on={draft.therapistIds.includes(t.id)}
-                    name={t.name}
-                    photoUrl={t.photoUrl}
-                    onClick={() => togglePhoto(t.id)}
-                  />
-                ))}
-              </div>
-
-              {board.therapists.length === 0 && (
-                <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
-                  フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
-                </p>
-              )}
-
-              {/* ★★★ いま何が起きるかを、選んだその場で言う。
-                  ★ 1枚 →「ずっとこれ」／複数 →「毎回この中から1枚」。★ 文言は articlePhotoPick が作る */}
-              {articlePhotoNote(draft.therapistIds.length) !== null && (
-                <p className="text-[13.5px] text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-2 leading-relaxed mt-2">
-                  {articlePhotoNote(draft.therapistIds.length)}
-                </p>
-              )}
-
-              {/* ★ 決まりごとは、選ぶところの【すぐ下】に */}
-              <p className="text-[13px] text-slate-400 leading-relaxed mt-1.5">
-                選んだ方の写真を、送るときに駅ちかへ届けます。JPEG でも PNG でもかまいません（送るときにこちらで整えます）。
-              </p>
-
-              {/* ───── 駅ちかに登録されている方から選ぶ（★ 普段は閉じておく） ─────
-                  ★★ ここは【逃げ道】。★ フクエスに写真が無い方を記事に付けたいときだけ使う。
-                  ★ 普段から2つ並べると「どちらを選ぶのか」で手が止まる（第167便の発端） */}
-              {board.girls !== null && board.girls.length > 0 && (
-                <div className="mt-2.5 border-t border-slate-100 pt-2.5">
-                  {!openGirls ? (
-                    <button
-                      type="button"
-                      onClick={() => setOpenGirls(true)}
-                      className="text-[13.5px] text-slate-500 underline underline-offset-2 hover:text-slate-700"
-                    >
-                      駅ちかに登録されている方から選ぶ（{board.girls.length}名）
-                    </button>
-                  ) : (
-                    <>
-                      <p className="text-[13px] text-slate-400 leading-relaxed">
-                        駅ちかに登録されている方です。フクエスからは写真を送らず、駅ちか側の写真に差し替えます。
-                      </p>
-                      <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {board.girls.map((g) => {
-                          const on = draft.girlId === g.id;
-                          return (
-                            <button
-                              key={g.id}
-                              type="button"
-                              onClick={() => setDraft({ ...draft, girlId: g.id, therapistIds: [] })}
-                              className={
-                                'text-[13.5px] font-bold px-2.5 py-1.5 border ' +
-                                (on ? 'border-indigo-500 text-indigo-700 bg-indigo-50' : 'border-slate-200 text-slate-600 hover:bg-slate-50')
-                              }
-                            >
-                              {g.name || g.id}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* ───── 自動で回すか ───── */}
             <label className="flex items-start gap-2 cursor-pointer border-t border-slate-100 pt-3.5">
               <input
@@ -582,7 +548,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               </button>
               <button
                 type="button"
-                onClick={() => { setDraft(null); setOpenGirls(false); }}
+                onClick={() => setDraft(null)}
                 className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700"
               >
                 やめる
@@ -596,7 +562,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </section>
       )}
 
-      {/* ───────── ③ 自動で出す ───────── */}
+      {/* ───────── ④ 自動で出す ───────── */}
       <section className="bg-white border border-slate-200">
         <div className="px-3.5 py-3 border-b border-slate-200">
           <h2 className="text-[15px] font-black text-slate-800">自動で出す</h2>
@@ -660,7 +626,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </div>
       </section>
 
-      {/* ───────── ④ 送った記録 ───────── */}
+      {/* ───────── ⑤ 送った記録 ───────── */}
       {board.runs.length > 0 && (
         <section className="bg-white border border-slate-200">
           <div className="px-3.5 py-3 border-b border-slate-200">
@@ -693,26 +659,28 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 }
 
 /**
- * ★★★ 写真1枚ぶんのタイル（第167便）。
- *   ★ 写真が無いとき（「変えない」・写真を読めなかった方）は、名前だけの四角にする。
+ * ★★★ 写真1枚ぶんのタイル（第167便）。★ 第373便からは【写真の箱】の選択肢。
+ *   ★ 写真を読めなかった方は、名前だけの四角にする。
  *   ★★ 「読み込めなかった」を空白にしない。★ 何のタイルか分かる文字を必ず置く。
+ *   ★★ next/image は使わない（店舗様の外部URLで実行時に落ちる・第217便）
  */
 function PhotoTile({
-  on, name, caption, photoUrl, onClick,
+  on, name, photoUrl, onClick, disabled,
 }: {
   on: boolean;
   name: string;
-  caption?: string;
   photoUrl?: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled === true}
       aria-pressed={on}
       className={
-        'text-left border p-1 ' +
+        'text-left border p-1 disabled:opacity-60 ' +
         (on ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50')
       }
     >
@@ -722,7 +690,13 @@ function PhotoTile({
           <img src={photoUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="absolute inset-0 flex items-center justify-center text-[12px] font-bold text-slate-400 text-center leading-tight px-1">
-            {caption ?? name}
+            {name}
+          </span>
+        )}
+        {/* ★ 選んでいる印。★ 枠の色だけだと写真によっては見えにくい */}
+        {on && (
+          <span className="absolute left-1 top-1 text-[11px] font-black text-white bg-indigo-600 px-1.5 py-0.5">
+            選択中
           </span>
         )}
       </span>
@@ -734,18 +708,19 @@ function PhotoTile({
 }
 
 /**
- * 登録した文章1本ぶん（★ 第167便で作り直した）。
- *   ★ 前 … 文字の帯が3つ並ぶだけ。★ どの文章がどれなのか、目で見分けられなかった
- *   ★ 後 … 左に写真、真ん中に枠と状態とタイトル、右に操作。★ ベンリーと同じ並び
+ * 登録した文章1本ぶん（第167便で作り直し、★ 第373便で左の写真を外した）。
+ *   ★ 文章と写真は結びついていないので、文章の脇に写真を出すと嘘になる。
+ *   ★ 真ん中に枠と状態とタイトル、右に操作。
  */
 function TemplateItem({
-  row, photoUrl, slotState, slotShort, onEdit, confirming, onAskDelete, onCancelDelete, onDelete, busy,
+  row, slotState, slotShort, photoNote, onEdit, confirming, onAskDelete, onCancelDelete, onDelete, busy,
   canPost, currentTitle, confirmingPost, onAskPost, onCancelPost, onPost,
 }: {
   row: ArticleTemplateRow;
-  photoUrl: string;
   slotState: string;
   slotShort: string;
+  /** ★ 「いま出す」の確認に出す写真の1行（★ 箱の枚数だけで決まる） */
+  photoNote: string;
   onEdit: () => void;
   confirming: boolean;
   onAskDelete: () => void;
@@ -760,36 +735,11 @@ function TemplateItem({
   onPost: () => void;
 }) {
   const chip = STATE_CHIP[slotState] ?? STATE_CHIP.unknown;
-  // ★ 写真をどうするか、ひと言で。★ 3つの道を3つの言い方に分ける（混ぜない）
-  //   ★★ 第172便: 複数選ばれているときは【枚数】を言う。★ 1枚目の名前だけ出すと嘘になる
-  const photoWord =
-    row.therapistIds.length >= 2 ? '写真：' + row.therapistIds.length + '枚から毎回1枚'
-    : row.therapistIds.length === 1 ? '写真：' + (row.therapistNames[0] || 'フクエスから送ります')
-    : row.girlId === null ? '写真はいまのまま'
-    : '写真：' + (row.girlName || row.girlId) + '（駅ちか）';
 
   return (
     <li className="px-3.5 py-3">
       <div className="flex items-start gap-3">
-        {/* ── 左：写真 ── */}
-        <div className="w-14 h-14 flex-none bg-slate-100 overflow-hidden relative">
-          {photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <span className="absolute inset-0 flex items-center justify-center text-[11px] text-slate-400 text-center leading-tight px-1">
-              いまの<br />写真
-            </span>
-          )}
-          {/* ★★ 第172便: 複数選ばれているときは枚数を出す。★ 1枚目だけ見せて「これが出る」と誤解させない */}
-          {row.therapistIds.length >= 2 && (
-            <span className="absolute right-0 bottom-0 text-[11px] font-bold text-white bg-slate-800/80 px-1 tabular-nums">
-              {row.therapistIds.length}枚
-            </span>
-          )}
-        </div>
-
-        {/* ── 中：枠・状態・タイトル ── */}
+        {/* ── 左：枠・状態・タイトル ── */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[12.5px] font-bold px-1.5 py-0.5 border border-slate-200 text-slate-600 bg-slate-50">
@@ -799,7 +749,6 @@ function TemplateItem({
             {row.isActive
               ? <span className="text-[12.5px] font-bold text-emerald-700">自動で回す</span>
               : <span className="text-[12.5px] text-slate-400">回さない</span>}
-            <span className="text-[12.5px] text-slate-400">{photoWord}</span>
           </div>
           <p className="text-[15px] font-bold text-slate-800 mt-1 break-words">{row.title}</p>
         </div>
@@ -863,15 +812,8 @@ function TemplateItem({
                   いま入っている記事は<b>消えます</b>（元に戻せません）。
                 </p>
               )}
-          <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
-            {row.therapistIds.length >= 2
-              ? '写真は、選んでいる ' + row.therapistIds.length + ' 枚の中から1枚を送って差し替えます（直前と同じ写真は避けます）。'
-              : row.therapistIds.length === 1
-                ? '写真は、フクエスに登録されている「' + (row.therapistNames[0] || 'この方') + '」の写真を駅ちかへ送って差し替えます。'
-                : row.girlId === null
-                  ? '写真は駅ちかに入っているものがそのまま残ります（変わるのはタイトルと本文だけです）。'
-                  : '写真は駅ちかに登録されている「' + (row.girlName || row.girlId) + '」に差し替わります。'}
-          </p>
+          {/* ★ 第373便: 写真の1行は箱の枚数だけで決まる。★ 文言は articlePhotoPick が作る */}
+          <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">{photoNote}</p>
           {slotState === 'hidden' && (
             <p className="text-[13.5px] text-amber-800 leading-relaxed mt-1">
               なお、この枠はいま非表示です。送っても公開ページには出ません。

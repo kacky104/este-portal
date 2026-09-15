@@ -5,13 +5,18 @@ import { checkArticleImage } from '@/lib/ekichikaArticleImage';
 import { isArticleSlot, articleSlotLabel, checkArticleTitle, checkArticleBody } from '@/lib/ekichikaArticle';
 import { pickArticlePhoto, normalizeArticlePhotoIds } from '@/lib/articlePhotoPick';
 
-// 新着情報を1本出す（第166便・2026-09-05）。
+// 新着情報を1本出す（第166便・2026-09-05 → ★ 第373便で写真を【店舗に1つの箱】から選ぶ形に・2026-09-15）。
 //
 // ★★★ 手で押したときも、自動の周も【ここを通る】。
 //   ★ 2か所に同じ手順を書かない。★ 書くと、いつか片方だけ直す（第141便の反省）。
 //
 // ★★ この関数がすること: 中継ジョブ（最初の段）を1件積むだけ。★ 実際に投げるのは VPS の周。
 // ★★★ 積んだ時点で「出そうとした回数」を1つ進める（★ 送れたかどうかとは別）。
+//
+// ★★★ 第373便: 写真は salon_article_settings.photo_therapist_ids（店舗に1つの箱）から1枚。
+//   ★ どの枠の文章でも同じ箱。★ 直前の1枚（last_photo_therapist_id）は避ける。★ 箱が空なら写真に触らない。
+//   ★★ 文章の therapist_ids / last_photo_therapist_id / ekichika_girl_id は【読まない】（列は残っている）。
+//      ★ 戻すなら: select に列を足し、photoIds / lastPhoto の出どころを文章へ戻す（第172便の形）。
 
 const PROVIDER = 'ekichika';
 /** 店舗様がフクエスに上げた写真の置き場。★ 中継役が取りに来られるのはここだけ（第106便） */
@@ -40,7 +45,7 @@ export async function postOneArticle(input: {
   // ★★★ 内容は【DBから読み直す】。★ 呼び出し側から受け取った文字をそのまま駅ちかへ流さない
   const { data: t, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, ekichika_girl_id, therapist_ids, last_photo_therapist_id')
+    .select('id, article_slot, title, body')
     .eq('id', input.templateId).eq('salon_id', input.salonId).eq('provider', PROVIDER)
     .maybeSingle();
   if (tErr) return { ok: false, error: '文章を読み出せませんでした' };
@@ -55,7 +60,15 @@ export async function postOneArticle(input: {
   if (!tc.ok) return { ok: false, error: tc.message };
   const bc = checkArticleBody(body);
   if (!bc.ok) return { ok: false, error: bc.message };
-  const girlId = /^\d{1,12}$/.test(String(t.ekichika_girl_id ?? '')) ? String(t.ekichika_girl_id) : null;
+
+  // ★★★ 写真の箱（第373便）。★ 文章ではなく【設定の行】が持つ。★ 行が無ければ空の箱
+  const { data: st, error: stErr } = await svc
+    .from('salon_article_settings')
+    .select('photo_therapist_ids, last_photo_therapist_id')
+    .eq('salon_id', input.salonId).eq('provider', PROVIDER).eq('slot', input.slot)
+    .maybeSingle();
+  // ★★ 読めなかったときは【送らない】。★ 「写真なし」で出すと、店舗様の意図と違う記事が載る
+  if (stErr) return { ok: false, error: '写真の設定を読み出せませんでした' };
 
   // ★★ 写しで先に弾く。★ 「まだ読んでいない」と「一覧に無い」を分ける
   const { data: snap } = await svc
@@ -75,13 +88,27 @@ export async function postOneArticle(input: {
   let file:
     | { bucket: string; path: string; filename: string; contentType: string; width: number; height: number; as?: 'jpeg' }
     | null = null;
-  // ★★★ 第172便: 写真は【複数】。★ 出すたびに1枚選ぶ。
-  //   ★ 1枚だけ選ばれていれば固定（★ 推しの子を上げ続ける）
+  // ★★★ 第373便: 写真は【店舗に1つの箱】から、出すたびに1枚選ぶ。
+  //   ★ 1枚だけ入っていれば固定（★ 推しの子を上げ続ける）
   //   ★ 2枚以上なら、直前と同じ1枚は避けて1枚（★ 「変わっていない」を作らない）
   //   ★★ さいころはここで振る。★ 選び方そのものは articlePhotoPick（点検できる形）
-  const photoIds = normalizeArticlePhotoIds(t.therapist_ids);
-  const lastPhoto = t.last_photo_therapist_id === null || t.last_photo_therapist_id === undefined
-    ? null : Number(t.last_photo_therapist_id);
+  //   ★★ 箱に入っている方の写真が消えていた場合は、その方を【外して】選び直す（★ 飾りで本体を止めない）
+  const boxIds = normalizeArticlePhotoIds(st?.photo_therapist_ids);
+  let photoIds = boxIds;
+  if (boxIds.length > 0) {
+    const { data: ths } = await svc
+      .from('therapists').select('id, profile_image_url')
+      .eq('salon_id', input.salonId).in('id', boxIds);
+    // ★★ この店の方で、★ いまも写真が入っている方だけ。★ 他店の id が紛れていても弾ける
+    const alive = new Set(
+      (ths ?? [])
+        .filter((r) => String(r.profile_image_url ?? '').includes('/' + PHOTO_BUCKET + '/'))
+        .map((r) => Number(r.id)),
+    );
+    photoIds = boxIds.filter((id) => alive.has(id));
+  }
+  const lastPhoto = st?.last_photo_therapist_id === null || st?.last_photo_therapist_id === undefined
+    ? null : Number(st.last_photo_therapist_id);
   const picked = pickArticlePhoto(photoIds, lastPhoto, Math.random());
   const therapistId = picked.kind === 'keep' ? 0 : picked.id;
   if (Number.isFinite(therapistId) && therapistId > 0) {
@@ -90,7 +117,7 @@ export async function postOneArticle(input: {
       .eq('id', therapistId).maybeSingle();
     // ★★ 他店の子を指せないこと。★ id だけで引かない
     if (!th || Number(th.salon_id) !== input.salonId) {
-      return { ok: false, error: 'この文章に設定された方が見つかりません' };
+      return { ok: false, error: '写真に設定された方が見つかりません' };
     }
     const url = String(th.profile_image_url ?? '');
     const i = url.indexOf('/' + PHOTO_BUCKET + '/');
@@ -128,24 +155,22 @@ export async function postOneArticle(input: {
       intent: input.intent,
       article: {
         slot: articleSlot, title, body,
-        ...(file !== null
-          ? { image: 'upload' as const, file }
-          : girlId !== null
-            ? { girlId, image: 'girl' as const }
-            : {}),
+        // ★ 第373便: 駅ちか側の写真に差し替える道（image: 'girl'）は使わない。★ 箱が空なら写真に触らない
+        ...(file !== null ? { image: 'upload' as const, file } : {}),
       },
       actor: input.actor,
     });
     if (!r.ok) return { ok: false, error: r.note };
 
-    // ★★★ 第172便: 出した写真を覚える。★ 次に選ぶとき、これと同じ1枚は避ける。
+    // ★★★ 出した写真を覚える（★ 第373便: 覚える先は【設定の行】）。★ 次に選ぶとき、これと同じ1枚は避ける。
     //   ★ 覚えられなくても送信は止めない（★ 写真は飾り。飾りのために本体を止めない）。
     //   ★★ 次が「直前と同じ」になるだけで、★ 記事は出る。
+    //   ★ 設定の行が無いことは無い（箱が空なら picked は keep でここへ来ない）。★ 念のため update（insert しない）
     if (picked.kind === 'rotate' || picked.kind === 'fixed') {
       const { error: memErr } = await svc
-        .from('salon_article_templates')
+        .from('salon_article_settings')
         .update({ last_photo_therapist_id: picked.id })
-        .eq('id', input.templateId).eq('salon_id', input.salonId);
+        .eq('salon_id', input.salonId).eq('provider', PROVIDER).eq('slot', input.slot);
       if (memErr) console.error('[article] 出した写真を覚えられなかった', memErr.message);
     }
 

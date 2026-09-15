@@ -1,10 +1,11 @@
-// 新着情報の写真の選び方（src/lib/articlePhotoPick.ts）の自己点検（第172便・2026-09-06）。
+// 新着情報の写真の選び方（src/lib/articlePhotoPick.ts）の自己点検（第172便・2026-09-06 → 第373便で箱の形に・2026-09-15）。
 //
 // ★★★ ここで危ないのは:
 //   ① 0枚を「1枚目」に倒す      → ★ 選んでいないのに写真が変わる
 //   ② 直前と同じ1枚を出す        → ★ 2枚しか選んでいないと2回に1回が同じ＝「壊れて見える」
 //   ③ 1枚だけのときに回そうとする → ★ 推しの子を上げ続けたいのに変わってしまう
 //   ④ さいころが壊れたときに落ちる → ★ 送信そのものが止まる
+//   ⑤ 画面の1行が空になる          → ★ 0枚のときこそ「写真はいまのまま」と言う（第373便）
 //
 //   使い方:  npm run check:articlephoto
 
@@ -18,7 +19,7 @@ const eq = (name, got, want) => {
   else console.log('ok ' + name);
 };
 
-console.log('── 1. ★★★ 選ばれていなければ、写真に触らない ──');
+console.log('── 1. ★★★ 箱が空なら、写真に触らない ──');
 {
   eq('★★★ 空なら keep', P.pickArticlePhoto([], null, 0.5).kind, 'keep');
   eq('★★ 配列でなくても keep（★ 落ちない）', P.pickArticlePhoto(null, null, 0.5).kind, 'keep');
@@ -42,7 +43,7 @@ console.log('\n── 3. ★★★ 複数なら回す。★ 直前と同じは�
   eq('★ まん中', P.pickArticlePhoto([1, 2, 3], null, 0.5), { kind: 'rotate', id: 2 });
   eq('★ 末尾', P.pickArticlePhoto([1, 2, 3], null, 0.99), { kind: 'rotate', id: 3 });
 
-  // ★★★ ここが第172便のいちばん大事なところ
+  // ★★★ ここが第172便のいちばん大事なところ（★ 第373便でも同じ）
   eq('★★★ 2枚のとき、直前と同じは出ない（r=0）', P.pickArticlePhoto([1, 2], 1, 0).id, 2);
   eq('★★★ 2枚のとき、直前と同じは出ない（r=0.99）', P.pickArticlePhoto([1, 2], 1, 0.99).id, 2);
   eq('★★★ 逆も同じ', P.pickArticlePhoto([1, 2], 2, 0.99).id, 1);
@@ -57,6 +58,12 @@ console.log('\n── 3. ★★★ 複数なら回す。★ 直前と同じは�
 
   // ★★ 直前が候補に入っていないときは、ふつうに全部から選ぶ
   eq('★★ 直前が候補に無ければ、そのまま全部から', P.pickArticlePhoto([1, 2], 99, 0).id, 1);
+
+  // ★★★ 第373便: 10枚の箱から、100通りの目で全員が出る（★ 偏って出ない子がいない）
+  const ten = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+  const seen = new Set();
+  for (let i = 0; i < 100; i++) seen.add(P.pickArticlePhoto(ten, null, i / 100).id);
+  eq('★★★ 10枚なら10人ぜんぶが出る', [...seen].sort((a, b) => a - b), ten);
 }
 
 console.log('\n── 4. ★ 並びを整える ──');
@@ -66,7 +73,7 @@ console.log('\n── 4. ★ 並びを整える ──');
   eq('★ 数でないものは落とす', P.normalizeArticlePhotoIds(['a', null, undefined, 6]), [6]);
   eq('★ 小数は切る', P.normalizeArticlePhotoIds([2.7]), [2]);
   eq('★ 文字の数字は受ける', P.normalizeArticlePhotoIds(['8']), [8]);
-  eq('★★ 上限は10枚（★ ベンリーと同じ）', P.ARTICLE_PHOTO_MAX, 10);
+  eq('★★ 上限は10枚', P.ARTICLE_PHOTO_MAX, 10);
   eq('★★ 11枚渡しても10枚に切る',
      P.normalizeArticlePhotoIds([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]).length, 10);
   eq('★ 順番は入れた順のまま', P.normalizeArticlePhotoIds([9, 1, 5]), [9, 1, 5]);
@@ -84,15 +91,29 @@ console.log('\n── 5. ★★ さいころが壊れても送信を止めない
   }
 }
 
-console.log('\n── 6. ★ 画面に出す1行 ──');
+console.log('\n── 6. ★ 画面に出す1行（★ 第373便: 0枚でも黙らない） ──');
 {
-  eq('★★ 0枚なら何も言わない（★ 空文字と分ける）', P.articlePhotoNote(0), null);
-  eq('★ 1枚', P.articlePhotoNote(1), 'この写真がずっと入ります。');
-  eq('★★ 複数なら、直前を避けることまで言う',
-     P.articlePhotoNote(3), '3枚選んでいます。出すたびに、この中から1枚が入ります（直前と同じ写真は避けます）。');
-  eq('★ 文言に「★」を混ぜない', /★/.test(String(P.articlePhotoNote(3))), false);
+  eq('★★ 0枚なら「いまのまま」と言う', P.articlePhotoNote(0),
+     '写真を選んでいないので、駅ちかに入っている写真はそのまま残ります。');
+  eq('★ 壊れた数も0枚あつかい', P.articlePhotoNote(NaN), P.articlePhotoNote(0));
+  eq('★ 1枚', P.articlePhotoNote(1), 'この1枚が、どの枠から出すときもずっと入ります。');
+  eq('★★ 複数なら、どの枠でも・直前を避ける、まで言う',
+     P.articlePhotoNote(3), '3枚選んでいます。どの枠から出すときも、この中から1枚が入ります（直前と同じ写真は避けます）。');
+  for (const n of [0, 1, 3, 10]) {
+    eq('★ 空文字を返さない（' + n + '）', P.articlePhotoNote(n).length > 0, true);
+    eq('★ 文言に「★」を混ぜない（' + n + '）', /★/.test(P.articlePhotoNote(n)), false);
+  }
   eq('★ 内部の言葉を出さない',
-     /keep|fixed|rotate|null/.test(String(P.articlePhotoNote(1)) + String(P.articlePhotoNote(5))), false);
+     /keep|fixed|rotate|null/.test(P.articlePhotoNote(1) + P.articlePhotoNote(5) + P.articlePhotoNote(0)), false);
+}
+
+console.log('\n── 7. ★ 「いま出す」の確認の1行 ──');
+{
+  eq('★ 0枚なら、タイトルと本文だけ変わると言う',
+     P.articlePhotoConfirmNote(0), '写真は駅ちかに入っているものがそのまま残ります（変わるのはタイトルと本文だけです）。');
+  eq('★ 1枚', P.articlePhotoConfirmNote(1), '写真は「写真」で選んでいる1枚を駅ちかへ送って差し替えます。');
+  eq('★ 複数', P.articlePhotoConfirmNote(4), '写真は「写真」で選んでいる 4 枚の中から1枚を送って差し替えます（直前と同じ写真は避けます）。');
+  eq('★ 文言に「★」を混ぜない', /★/.test(P.articlePhotoConfirmNote(0) + P.articlePhotoConfirmNote(4)), false);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
