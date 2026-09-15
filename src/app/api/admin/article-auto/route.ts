@@ -1,20 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { postOneArticle } from '@/app/lib/media/articlePost';
-import { shouldPostArticle, ARTICLE_POSTS_PER_DAY_DEFAULT } from '@/lib/articleRotation';
-import { dayKeyJST } from '@/lib/announceAuto';
+import { shouldPostArticleSlot } from '@/lib/articleRotation';
+import { EKICHIKA_ARTICLE_SLOTS } from '@/lib/ekichikaArticle';
 
-// ── 新着情報を自動で出す周（第166便・2026-09-05）────────────────────────────
+// ── 新着情報を自動で出す周（第166便・2026-09-05 → ★ 第376便で【枠ごとに1日1回】へ・2026-09-15）──
 //   POST /api/admin/article-auto        (Authorization: Bearer <CRON_SECRET>)
 //     apply=1 … 実際に出す ／ 付けなければ【数えるだけ】（★ 第43便の作法）
 //
 // ★★★ この周がすること: 出すと決めた店舗について、中継ジョブを1件積むだけ。
 //   ★ 実際に駅ちかへ投げるのは VPS の周。
 //
-// ★★★ 元栓は3つ。★ どれか1つでも閉じていれば何も起きない。
+// ★★★ 第376便の形（カッキーさん・2026-09-15）
+//   ・**枠（カテゴリー）ごとに1日1回。** ★ 枠は5つなので、目いっぱいでも1日5本。
+//   ・枠ごとに時刻が違う（★ 288分ずつずれる・articleSlotPostMinute）。
+//   ・その枠の中で、**最後に出したのがいちばん古い1本**を出す（★ 位置の数字は持たない）。
+//   ・**手で出したぶんは数えない。** ★ 手動と自動は別（★ last_auto_day は自動でしか入らない）。
+//
+// ★★★ 元栓は2つ。★ どちらか閉じていれば何も起きない。
 //   ① salon_article_settings.auto_enabled = true   （店舗様が入れる。★ 既定 false）
-//   ② posts_per_day > 0                            （★ 「出さない」なら出さない）
-//   ③ 「自動で回す」に印の付いたテンプレートが1本以上
+//   ② その枠に「自動で回す」印の付いた文章が1本以上
+//
+// ★★ 1回の周で【1店舗につき1枠だけ】出す。
+//   ★ 初めて元栓を入れた日は、過ぎた枠がまとめて期限切れになる（★ 5本いっぺんに積まれる）。
+//   ★ 中継役は1本ずつしかさばけないので、5分後の次の周へ送る。★ 相手にも自分にも優しい。
 //
 // ★★ 判断そのものは src/lib/articleRotation.ts（純粋関数）が持つ。★ ここはDBと配線だけ。
 export const runtime = 'nodejs';
@@ -37,76 +46,95 @@ export async function POST(req: Request) {
   // ★ 元栓①が入っている枠だけ
   const { data: settings, error: sErr } = await svc
     .from('salon_article_settings')
-    .select('salon_id, slot, posts_per_day, rotation_index, last_try_day, last_try_count, salons!inner(id, is_hidden)')
+    .select('salon_id, slot, salons!inner(id, is_hidden)')
     .eq('provider', PROVIDER)
     .eq('auto_enabled', true)
     .eq('salons.is_hidden', false);
   if (sErr) return NextResponse.json({ ok: false, error: sErr.message }, { status: 500 });
 
   const posted: string[] = [];
-  const skipped: Array<{ salonId: number; why: string }> = [];
-  const failed: Array<{ salonId: number; why: string }> = [];
+  const skipped: Array<{ salonId: number; articleSlot: number; why: string }> = [];
+  const failed: Array<{ salonId: number; articleSlot: number; why: string }> = [];
 
   for (const row of settings ?? []) {
     const salonId = Number(row.salon_id);
     const slot = Number(row.slot ?? 1);
 
-    // ★ 元栓③: 「自動で回す」に印の付いた本数。★ 行は取らない（数えるだけ）
-    const { count, error: cErr } = await svc
+    // ★★ この店舗の文章を1回で読む（★ 枠ごとに5回引かない）。
+    //   ★ 並びは「最後に出したのが古い順 → sort_order → id」。★ まだ出していない（null）が先。
+    //   ★★ nullsFirst を明示する。★ 昇順の既定では null が【後ろ】に来るので、任せない
+    const { data: temps, error: tErr } = await svc
       .from('salon_article_templates')
-      .select('id', { count: 'exact', head: true })
-      .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', slot)
-      .eq('is_active', true);
-    // ★★ 数えられなかったときは【何もしない】。★ 0件と混ぜない（作法3-5）
-    if (cErr) { failed.push({ salonId, why: '本数を数えられなかった: ' + cErr.message.slice(0, 120) }); continue; }
-
-    const judged = shouldPostArticle({
-      now,
-      salonId,
-      timesPerDay: Number(row.posts_per_day ?? ARTICLE_POSTS_PER_DAY_DEFAULT),
-      targetCount: count ?? null,
-      // ★★★ 「出そうとした回数」で判定する（★ 送れた本数ではない・第166便）。
-      //   ★ ここを送れた本数にすると、送れなかった日に延々と撃ち続ける。
-      postedToday: todayTry(row, now),
-      rotationIndex: row.rotation_index === null || row.rotation_index === undefined
-        ? null : Number(row.rotation_index),
-    });
-
-    if (!judged.post) { skipped.push({ salonId, why: judged.reason }); continue; }
-    if (!apply) { posted.push(`${salonId}#${judged.index}(${judged.nth}本目)`); continue; }
-
-    // ★★ 順番の位置の1本だけを取り出す（★ 全件は読まない）。
-    //   ★ 並びは sort_order 昇順 → id 昇順で固定。★ ここがぶれると順番が飛ぶ
-    const { data: picked, error: pErr } = await svc
-      .from('salon_article_templates')
-      .select('id')
+      .select('id, article_slot, last_auto_day, last_posted_at')
       .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', slot)
       .eq('is_active', true)
+      .order('last_posted_at', { ascending: true, nullsFirst: true })
       .order('sort_order', { ascending: true })
-      .order('id', { ascending: true })
-      .range(judged.index, judged.index);
-    if (pErr) { failed.push({ salonId, why: pErr.message.slice(0, 120) }); continue; }
-    const pick = (picked ?? [])[0];
-    // ★ 数えた直後に店舗様が消した／印を外した、が起こりうる。★ 黙って飛ばさず数える
-    if (!pick) { failed.push({ salonId, why: '順番の位置の文章が見つかりません（数えた直後に変わった可能性）' }); continue; }
+      .order('id', { ascending: true });
+    // ★★ 読めなかったときは【何もしない】。★ 0件と混ぜない（作法3-5）
+    if (tErr) {
+      failed.push({ salonId, articleSlot: 0, why: '文章を読み出せなかった: ' + tErr.message.slice(0, 120) });
+      continue;
+    }
 
-    const r = await postOneArticle({
-      salonId, slot, templateId: Number(pick.id),
-      intent: 'article_auto',
-      actor: 'system',
-    });
-    if (!r.ok) { failed.push({ salonId, why: r.error.slice(0, 160) }); continue; }
+    // ★★★ 枠を順に見て、**最初に「出す」になった1枠だけ**出す。★ 1周1店舗1本
+    let did = false;
+    for (const s of EKICHIKA_ARTICLE_SLOTS) {
+      if (did) break;
+      const mine = (temps ?? []).filter((r) => Number(r.article_slot) === s.slot);
 
-    // ★★ 位置は【積めたら進める】。★ 送れなくても次の文章へ進む。
-    //   ★ 同じ文章を延々と再試行しない（★ 1日の回数で止まる仕掛けは try 側が持っている）
-    const next = (judged.index + 1) % Math.max(1, count ?? 1);
-    const { error: uErr } = await svc
-      .from('salon_article_settings')
-      .update({ rotation_index: next, updated_at: new Date().toISOString() })
-      .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', slot);
-    if (uErr) console.error('[article-auto] 位置を進められなかった', salonId, uErr.message);
+      // ★★ その枠のどれか1本でも今日 自動で出ていれば、今日ぶんは終わっている
+      const lastAutoDay = mine
+        .map((r) => (r.last_auto_day ? String(r.last_auto_day) : ''))
+        .filter((d) => d !== '')
+        .sort()
+        .pop() ?? null;
 
-    posted.push(`${salonId}#${judged.index}(${judged.nth}本目)`);
+      const judged = shouldPostArticleSlot({
+        now,
+        salonId,
+        articleSlot: s.slot,
+        autoEnabled: true,          // ★ 元栓①で絞ってある
+        activeCount: mine.length,
+        lastAutoDay,
+      });
+
+      if (!judged.post) {
+        // ★ 「まだ時刻でない」「今日は出した」は毎回出るので、記録には残すが騒がない
+        skipped.push({ salonId, articleSlot: s.slot, why: judged.reason });
+        continue;
+      }
+      if (!apply) {
+        posted.push(`${salonId}#${s.slot}(${s.label})`);
+        did = true;
+        continue;
+      }
+
+      // ★ 並びの先頭＝この枠でいちばん長く出していない1本
+      const pick = mine[0];
+      // ★ 数えた直後に店舗様が消した／印を外した、が起こりうる。★ 黙って飛ばさず数える
+      if (!pick) {
+        failed.push({ salonId, articleSlot: s.slot, why: '出す文章が見つかりません（直前に変わった可能性）' });
+        continue;
+      }
+
+      const r = await postOneArticle({
+        salonId, slot, templateId: Number(pick.id),
+        intent: 'article_auto',
+        actor: 'system',
+      });
+      if (!r.ok) {
+        failed.push({ salonId, articleSlot: s.slot, why: r.error.slice(0, 160) });
+        // ★★ 失敗したらこの店舗は打ち切る。★ 同じ周で別の枠へ移ると、詰まっているときに束で撃つ
+        did = true;
+        continue;
+      }
+
+      // ★★★ 「今日この枠を出した」印は postOneArticle が文章に書く（last_auto_day）。
+      //   ★ ここで二重に書かない。★ 書く場所を2つ持つと、いつか片方だけ直す（第141便の反省）。
+      posted.push(`${salonId}#${s.slot}(${s.label})`);
+      did = true;
+    }
   }
 
   return NextResponse.json({
@@ -118,14 +146,4 @@ export async function POST(req: Request) {
     skipped,
     failed,
   });
-}
-
-/**
- * 今日（営業日）の試行回数。★ 区切りが変わっていれば0から数え直す。
- * ★★ 区切りの物差しは `dayKeyJST`（朝6時）1本。★ ここで別の計算を書かない
- */
-function todayTry(row: { last_try_day?: string | null; last_try_count?: number | null }, now: Date): number {
-  const key = dayKeyJST(now);
-  if (key === null) return 0;   // ★ 区切りが出せないなら0（★ 出さない側へ倒す）
-  return String(row.last_try_day ?? '') === key ? Math.max(0, Number(row.last_try_count ?? 0)) : 0;
 }

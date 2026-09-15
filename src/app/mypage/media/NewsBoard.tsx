@@ -11,30 +11,35 @@ import {
   startArticlePost,
   type ArticleBoard,
   type ArticleTemplateRow,
+  type ArticleSlotAuto,
 } from '@/app/actions/articleTemplates';
+import type { ArticleSlotAdvice } from '@/lib/articleSlotAdvice';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
 // ★ 第375便: articlePhotoNote（選んだあとの青い箱）は画面から外した。★ 関数はライブラリに残っている
 import { ARTICLE_PHOTO_MAX, articlePhotoConfirmNote } from '@/lib/articlePhotoPick';
-import { articleQuotaNote } from '@/lib/articleRotation';
 
-// 新着情報を送る（第158便で作り、第167便で作り直し、★ 第373便で【写真を店舗に1つの箱】へ・2026-09-15）。
+// 新着情報を送る（第158便 → 第167便で作り直し → 第373便で写真を店舗の箱へ →
+//   ★ 第376便で【カテゴリーごとの画面・1日1回】へ作り直し → ★ 第377便でタブに・2026-09-15）。
 //
-// ★★★ 第373便の発端（カッキーさん・2026-09-15）
-//   「これからはベンリーに配慮する必要はありません。設計のやり直しです。まずシンプルにします」
-//   「画像選択のブロックを作ります。そこに10枚画像を設定できるようにします。
-//    どのカテゴリーからの投稿もここで設定した10枚の写真から1枚がランダムで表示されて投稿する」
+// ★★★ 第376便の発端（カッキーさん・2026-09-15）
+//   「各カテゴリー自動投稿は1日1回にします。手動投稿はなんどでもOK」
+//   「レイアウトを各カテゴリーごと、/mypage のお知らせのようにしてほしいです」
+//   「1カテゴリーにつき最大5投稿、自動更新用に用意できる仕様で」
 //
-// ★★★ 第373便で変えた3つ
-//   ① 【写真】の節を1つ作った（画面の上・店舗に1つ）
-//        ★ 前 … 文章ごとに写真を何枚でも選ぶ（第172便）。★ 文章を書くたびに写真も決めさせていた
-//        ★ 後 … 写真は店舗で10枚まで。★ どの枠から出すときも、その中から1枚をランダムに
-//   ② 文章を書く画面から【写真】を外した
-//        ★ 枠・タイトル・本文・自動で回すか、の4つだけ。★ 「駅ちかに登録されている方から選ぶ」も外した
-//   ③ 一覧の左の写真と「写真：◯枚から毎回1枚」の文字を外した
-//        ★ 文章と写真が結びついていないので、文章の脇に写真を出すと嘘になる
+// ★★★ 第376便で変えた4つ
+//   ① 【カテゴリーごとの節】にした（★ マイページのお知らせと同じ形）
+//        ★ 前 … 文章の一覧が1つ。★ 文章を書くときに「どの枠に出すか」を選ばせていた
+//        ★ 後 … 枠ごとに節があり、その中に最大5本。★ **枠を選ぶ操作が消えた**
+//        ★★ 第377便: 5つを縦に並べると長いので【タブ】にした（カッキーさん・2026-09-15）
+//   ② 【自動は枠ごとに1日1回】
+//        ★ 前 … 店舗ぜんぶで1日◯回（2/3/4/6/8回から選ぶ）。★ 手で出したぶんも数えていた
+//        ★ 後 … 枠ごとに1日1回。★ 手動は何度でも（★ 自動とは別に数える）
+//   ③ 【文章の編集を、その場で開く】
+//        ★ 前 … 下に大きな「文章を書く」の節が出る
+//        ★ 後 … カードを開くとそこに編集が出る（★ お知らせと同じ）
+//   ④ 【「1日に出す本数」の設定を消した】★ 枠ごと1日1回に固定したので、選ぶものが無い
 //
 // ★★ 第167便から変えていないこと（★ 崩さない）
-//   ・枠に既定値を作らない（★ 選ばないと保存できない）
 //   ・押す前に【何が消えるか】を見せる（★ 新着は上書き。前の記事は戻らない）
 //   ・「送った」と「載った」と「公開ページに出た」を分けて書く
 //   ・この画面のどの操作も、勝手に駅ちかを書き換えない
@@ -66,11 +71,8 @@ function fmt(iso: string | null): string {
 const POLL_MS = 15000;
 const POLL_MAX = 20;
 
-type Draft = {
-  id: number | null; articleSlot: number | null; title: string; body: string; isActive: boolean;
-};
-
-const EMPTY: Draft = { id: null, articleSlot: null, title: '', body: '', isActive: false };
+/** ★ 開いているカードの下書き。★ 保存するまで DB には触らない */
+type Draft = { title: string; body: string };
 
 /** ★ 2つの並びが同じか（★ 順番も見る）。★ 写真の箱の「変えたか」に使う */
 function sameIds(a: readonly number[], b: readonly number[]): boolean {
@@ -82,29 +84,34 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
-  const [draft, setDraft] = useState<Draft | null>(null);
+
+  /** ★ 開いているカード。★ 'new-3'（枠3の新規）／'tpl-12'（文章12） */
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  /** ★ 開いているカードの下書き。★ 同じキー */
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   /** ★ 「いま出す」の確認を出している文章 */
   const [confirmPost, setConfirmPost] = useState<number | null>(null);
-  /**
-   * ★★★ 写真の箱の【画面の側の控え】（第373便）。★ 保存するまで DB には触らない。
-   *   ★ board.photoIds と違っていれば「まだ保存していない」
-   */
+
+  /** ★★ 写真の箱の【画面の側の控え】（第373便）。★ 保存するまで DB には触らない */
   const [pool, setPool] = useState<number[]>([]);
-  /**
-   * ★★ 写真の節を開いているか（第374便）。★ 普段は畳む。
-   *   ★ まだ1枚も選んでいない店舗だけ、最初から開く（★ 気づかないまま終わらせない）
-   */
+  /** ★★ 写真の節を開いているか（第374便）。★ 普段は畳む */
   const [openPhoto, setOpenPhoto] = useState(false);
+  /**
+   * ★★★ いま見ているカテゴリー（第377便）。★ 既定は枠1（速報NEWS）。
+   *   ★ タブを替えても、開いているカードや書きかけは消えない（★ キーが枠ごとに違う）
+   */
+  const [pickedSlot, setPickedSlot] = useState<number>(1);
+
   /**
    * ★ 結果が届くのを待っている印。値は【押した時点でいちばん新しかった記録のid】。
    *   ★★★ 「verify_article があるか」で止めてはいけない。★ 前回の送信の行が残っているから。
-   *     ★ それだと押した瞬間に「終わりました」と出る。★ 何も起きていないのに。
    *   → ★ この id より **新しい行が来たとき**だけ止める。
    */
   const [waitFrom, setWaitFrom] = useState<number | null>(null);
   const pollCount = useRef(0);
-  /** ★ 最後に DB から読んだ箱。★ null は「まだ一度も読んでいない」 */
+  /** ★ 最後に DB から読んだ写真の箱。★ null は「まだ一度も読んでいない」 */
   const serverPool = useRef<number[] | null>(null);
 
   const load = useCallback(async () => {
@@ -113,11 +120,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     if (!r.ok) { setError(r.error); setLoading(false); return; }
     setBoard(r.data);
     // ★★ 箱の控えは【DBの箱が変わったとき】だけ揃える。
-    //   ★ 送ったあとの15秒ごとの読み直しで、選びかけの写真が消えないように（★ 保存前の選択を勝手に捨てない）
+    //   ★ 送ったあとの15秒ごとの読み直しで、選びかけの写真が消えないように
     if (serverPool.current === null || !sameIds(serverPool.current, r.data.photoIds)) {
       setPool(r.data.photoIds);
     }
-    // ★ 第374便: 初めて読んだときだけ、開くかどうかを決める（★ あとは店舗様の開閉にまかせる）
+    // ★ 初めて読んだときだけ、写真の節を開くかどうかを決める（★ あとは店舗様の開閉にまかせる）
     if (serverPool.current === null) setOpenPhoto(r.data.photoIds.length === 0);
     serverPool.current = r.data.photoIds;
     setError('');
@@ -127,7 +134,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   useEffect(() => { void load(); }, [load]);
 
   // ★★★ 押したあと、結果が届くまで自分で見にいく（第159便）。
-  //   ★ 店舗様に「開き直してください」と言わせない。★ ただし永久には回さない（5分でやめる）。
   useEffect(() => {
     if (waitFrom === null) return;
     const id = setInterval(() => {
@@ -140,8 +146,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   }, [waitFrom, load]);
 
   // ★★★ 押したあとに来た【新しい行】だけを合図にする。
-  //   ★ 終わりの合図は verify_article（載ったか確かめた）／flow_stalled（始められなかった）／
-  //     push_article の失敗／plan_article の失敗。★ 「送った」だけでは終わりにしない（第136便）。
   useEffect(() => {
     if (waitFrom === null || !board) return;
     const done = board.runs.some((r) =>
@@ -162,6 +166,30 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   }
   if (!board) return null;
 
+  const toggleOpen = (key: string, init?: Draft) => {
+    const next = new Set(open);
+    if (next.has(key)) {
+      next.delete(key);
+    } else {
+      next.add(key);
+      // ★ 開くときに下書きを用意する。★ すでにあれば書きかけをそのまま残す
+      if (init && drafts[key] === undefined) setDrafts({ ...drafts, [key]: init });
+    }
+    setOpen(next);
+  };
+  const closeKey = (key: string) => {
+    const next = new Set(open);
+    next.delete(key);
+    setOpen(next);
+    const d = { ...drafts };
+    delete d[key];
+    setDrafts(d);
+  };
+  const setDraft = (key: string, patch: Partial<Draft>) => {
+    const cur = drafts[key] ?? { title: '', body: '' };
+    setDrafts({ ...drafts, [key]: { ...cur, ...patch } });
+  };
+
   const onRead = async () => {
     setBusy('read');
     const r = await readArticleSlots({ salonId });
@@ -170,22 +198,49 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     onToast(r.ok ? r.data.note : r.error);
   };
 
-  const onSave = async () => {
-    if (!draft) return;
-    if (draft.articleSlot === null) { onToast('どの枠へ出すかを選んでください'); return; }
+  /** ★ 新しく書く（枠ごと）。★ 既定は「回さない」（★ 作っただけでは何も起きない） */
+  const onCreate = async (articleSlot: number) => {
+    const key = 'new-' + articleSlot;
+    const d = drafts[key] ?? { title: '', body: '' };
     setBusy('save');
     const r = await saveArticleTemplate({
-      salonId,
-      id: draft.id,
-      articleSlot: draft.articleSlot,
-      title: draft.title,
-      body: draft.body,
-      isActive: draft.isActive,
+      salonId, articleSlot, title: d.title, body: d.body, isActive: false,
     });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
-    setDraft(null);
+    closeKey(key);
     onToast('保存しました');
+    await load();
+  };
+
+  /** ★ 直す（タイトルと本文だけ）。★ 自動で回すかは、その場のボタンが持つ */
+  const onUpdate = async (row: ArticleTemplateRow) => {
+    const key = 'tpl-' + row.id;
+    const d = drafts[key] ?? { title: row.title, body: row.body };
+    setBusy('save');
+    const r = await saveArticleTemplate({
+      salonId, id: row.id, articleSlot: row.articleSlot, title: d.title, body: d.body,
+    });
+    setBusy('');
+    if (!r.ok) { onToast(r.error); return; }
+    closeKey(key);
+    onToast('書き換えました');
+    await load();
+  };
+
+  /**
+   * ★★ 自動で回すかを、その場で切り替える（★ 保存を経由しない・お知らせと同じ）。
+   *   ★ 送るタイトルと本文は【いまDBに入っている値】。★ 書きかけを勝手に保存しない
+   */
+  const onToggleActive = async (row: ArticleTemplateRow) => {
+    setBusy('active');
+    const r = await saveArticleTemplate({
+      salonId, id: row.id, articleSlot: row.articleSlot,
+      title: row.title, body: row.body, isActive: !row.isActive,
+    });
+    setBusy('');
+    if (!r.ok) { onToast(r.error); return; }
+    onToast(row.isActive ? '自動投稿をやめました' : '自動投稿にしました');
     await load();
   };
 
@@ -195,6 +250,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     setBusy('');
     setConfirmDelete(null);
     if (!r.ok) { onToast(r.error); return; }
+    closeKey('tpl-' + id);
     onToast('消しました');
     await load();
   };
@@ -213,9 +269,9 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     await load();
   };
 
-  const onSettings = async (patch: { postsPerDay?: number; autoEnabled?: boolean }) => {
+  const onAutoEnabled = async (v: boolean) => {
     setBusy('set');
-    const r = await saveArticleSettings({ salonId, ...patch });
+    const r = await saveArticleSettings({ salonId, autoEnabled: v });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
     await load();
@@ -239,9 +295,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   };
 
   const poolDirty = !sameIds(pool, board.photoIds);
-  const width = draft ? titleWidth(draft.title) : 0;
-  const overTitle = width > ARTICLE_TITLE_MAX_WIDTH;
-  const openDraft = (d: Draft) => { setDraft(d); };
+  const photoNote = articlePhotoConfirmNote(board.photoIds.length);
 
   return (
     <div className="space-y-5">
@@ -252,10 +306,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </p>
       )}
 
-      {/* ───────── ★★★ まだ一度も読んでいないとき（第167便） ─────────
-          ★ 普段は「いまの状態を読む」を出さない。★ 店舗様の仕事ではないから。
-          ★★ ただし一度も読んでいないと、どの枠が使えるかも分からない。
-             → ★ そのときだけ、これを大きく1回出す。 */}
+      {/* ───────── ★★★ まだ一度も読んでいないとき（第167便） ───────── */}
       {board.readAt === null ? (
         <section className="bg-white border border-indigo-200">
           <div className="px-4 py-4">
@@ -275,8 +326,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
           </div>
         </section>
       ) : (
-        // ★ 読んだあとは、静かに「どの枠が使えるか」と「いつ確かめたか」だけ。
-        //   ★ 押し直したい人のために小さく置く（★ 普段は押さない）
         <div className="px-0.5">
           <p className="text-[13.5px] text-slate-500 leading-relaxed">{board.summary}</p>
           <p className="text-[13px] text-slate-400 leading-relaxed flex items-center gap-2 flex-wrap mt-0.5">
@@ -289,16 +338,12 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             >
               読み直す
             </button>
+            <span className="tabular-nums">／ 今日はここまで {board.postedToday} 本出しました</span>
           </p>
         </div>
       )}
 
-      {/* ───────── ① 写真（第373便・店舗に1つ／★ 第374便でアコーディオンに） ─────────
-          ★★★ 文章ごとではなく、店舗で10枚まで。★ どの枠から出すときも、この中から1枚をランダムに。
-          ★ 選んだ順に並ぶ。★ 保存するまで DB には触らない（★ 「保存ボタンを押してなかった」を、下の帯で止める）
-          ★★ 第374便: タイルが10人ぶん以上並ぶと画面が長い。★ 普段は畳んでおく。
-             ★ ただし【まだ1枚も選んでいないとき】は開いて出す（★ 第167便「一度も読んでいないときだけ出す」と同じ作法）。
-             ★★ 畳んでいても【枚数】と【未保存】は見出しに出す。★ 隠して気づかせない、をしない */}
+      {/* ───────── ① 写真（第373便・店舗に1つ／第374便でアコーディオン） ───────── */}
       <section className="bg-white border border-slate-200">
         <button
           type="button"
@@ -313,7 +358,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             </p>
           </div>
           <span className="flex items-center gap-2 flex-none pt-0.5">
-            {/* ★★ 畳んでいるあいだも、保存し忘れが見えるように */}
             {poolDirty && <span className="text-[12.5px] font-bold text-amber-700">未保存</span>}
             <span className="text-[13px] text-slate-400 tabular-nums">
               {pool.length} / {ARTICLE_PHOTO_MAX} 枚
@@ -344,12 +388,6 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               </div>
             )}
 
-            {/* ★★ 第375便: 選んだあとの青い箱（articlePhotoNote）を【ブロックごと】外した。
-                ★ 見出しの下の1行「ここで選んだ写真の中から1枚がランダムで入ります。最大10枚。」が
-                  同じことを言っていて、枚数が変わるたびに説明が2つ並んでいた（カッキーさん・2026-09-15）。
-                ★★ 関数そのものは src/lib/articlePhotoPick.ts に残してある。★ 戻すなら import して1行出すだけ。 */}
-
-            {/* ★★★ 保存していない選択があるときだけ、帯を出す。★ 「選んだのに保存していなかった」を作らない */}
             {poolDirty && (
               <div className="flex items-center gap-3 flex-wrap mt-3 pt-3 border-t border-slate-200">
                 <button
@@ -375,251 +413,94 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         )}
       </section>
 
-      {/* ───────── ② 出す文章 ───────── */}
-      <section className="bg-white border border-slate-200">
-        <div className="px-3.5 py-3 border-b border-slate-200 flex items-start justify-between gap-3 flex-wrap">
-          <div className="min-w-0">
-            <h2 className="text-[15px] font-black text-slate-800">出す文章</h2>
-            <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
-              登録した文章を、上から順に1本ずつ出していきます。
-            </p>
-            {/* ★★★ 手で出したぶんも1日の本数に数える。★ そのことを数字といっしょに出す */}
-            <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
-              今日はここまで {board.postedToday} 本出しました（手で出したぶんも数えます）。
-            </p>
-            {/* ★★★ 第168便: 「5本出した」と「1日2回」が並んでいるのに、関係を書いていなかった。
-                ★ 中身は正しいのに黙っている形（★ 送ったのに公開ページに出ていなかった、と同じ穴）。
-                ★★ 言葉は articleRotation の1か所で作る。★ ここで作らない（第167便で直した作法） */}
-            {(() => {
-              const q = articleQuotaNote({
-                autoEnabled: board.autoEnabled,
-                timesPerDay: board.postsPerDay,
-                postedToday: board.postedToday,
-                activeCount: board.activeCount,
-              });
-              return q === null ? null : (
-                <p className="text-[13px] text-slate-500 leading-relaxed mt-0.5">{q}</p>
-              );
-            })()}
-          </div>
-          {draft === null && (
+      {/* ───────── ② カテゴリーのタブ（第377便・2026-09-15・カッキーさん） ─────────
+          ★★★ 5つの節を縦に並べると画面が長い。★ タブで1つずつ出す。
+          ★ 形は写メ日記の投稿先ページ（DiaryTargets・第371便）と同じ:
+            ★ grid の等分（★ 文字数で幅がバラバラにならない）
+            ★ スマホは2列・中くらいで3列・広い画面で5列（★ 「激アツ割引情報」が折れない幅を確保）
+          ★★ タブには【本数】を出す。★ 開かなくても、どの枠が空かが分かる */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {board.slots.map((s) => {
+          const on = pickedSlot === s.slot;
+          const auto = board.slotAuto.find((a) => a.slot === s.slot);
+          return (
             <button
+              key={s.slot}
               type="button"
-              onClick={() => openDraft(EMPTY)}
-              className="text-[14px] font-bold px-3.5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 flex-none"
+              onClick={() => setPickedSlot(s.slot)}
+              aria-pressed={on}
+              className={
+                'px-3 py-2 border text-left transition-colors ' +
+                (on
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-300'
+                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50')
+              }
             >
-              ＋ 文章を追加
-            </button>
-          )}
-        </div>
-
-        {board.templates.length === 0 && draft === null && (
-          <p className="px-3.5 py-5 text-[14px] text-slate-400 leading-relaxed">
-            まだ1本もありません。「＋ 文章を追加」から作ってください。
-          </p>
-        )}
-
-        <ul className="divide-y divide-slate-100">
-          {board.templates.map((t) => {
-            const s = board.slots.find((x) => x.slot === t.articleSlot);
-            return (
-              <TemplateItem
-                key={t.id}
-                row={t}
-                slotState={s?.state ?? 'unknown'}
-                slotShort={s?.short ?? 'まだ確かめていません'}
-                photoNote={articlePhotoConfirmNote(board.photoIds.length)}
-                onEdit={() => openDraft({
-                  id: t.id, articleSlot: t.articleSlot, title: t.title, body: t.body, isActive: t.isActive,
-                })}
-                canPost={s?.canPost === true}
-                currentTitle={s?.currentTitle ?? ''}
-                confirmingPost={confirmPost === t.id}
-                onAskPost={() => setConfirmPost(t.id)}
-                onCancelPost={() => setConfirmPost(null)}
-                onPost={() => onPost(t.id)}
-                confirming={confirmDelete === t.id}
-                onAskDelete={() => setConfirmDelete(t.id)}
-                onCancelDelete={() => setConfirmDelete(null)}
-                onDelete={() => onDelete(t.id)}
-                busy={busy !== ''}
-              />
-            );
-          })}
-        </ul>
-      </section>
-
-      {/* ───────── ③ 文章を書く（開いたときだけ） ─────────
-          ★ 第373便: 枠・タイトル・本文・自動で回すか、の4つだけ。★ 写真はここでは決めない（上の【写真】） */}
-      {draft !== null && (
-        <section className="bg-white border-2 border-indigo-300">
-          <div className="px-3.5 py-3 border-b border-slate-200">
-            <h2 className="text-[15px] font-black text-slate-800">
-              {draft.id === null ? '文章を追加する' : '文章を直す'}
-            </h2>
-          </div>
-          <div className="px-3.5 py-4 space-y-5">
-
-            {/* ───── 枠 ─────
-                ★★★ 枠に既定値を作らない。★ 選ばないと保存できない。
-                ★★ 第167便: 状態を【ボタンの中】に書く。★ 別の節を見に行かせない */}
-            <div>
-              <label className="text-[13.5px] font-bold text-slate-600">どの枠に出しますか</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1.5">
-                {board.slots.map((s) => {
-                  const on = draft.articleSlot === s.slot;
-                  return (
-                    <button
-                      key={s.slot}
-                      type="button"
-                      onClick={() => setDraft({ ...draft, articleSlot: s.slot })}
-                      className={
-                        'text-left px-3 py-2 border ' +
-                        (on ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50')
-                      }
-                    >
-                      <b className={'text-[14.5px] font-black ' + (on ? 'text-indigo-800' : 'text-slate-700')}>
-                        {s.label}
-                      </b>
-                      <span className={'block text-[12.5px] mt-0.5 ' + (s.state === 'hidden' || s.state === 'unknown' ? 'text-amber-700' : 'text-slate-400')}>
-                        {s.short}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              {/* ★★★ 選んだ枠の見立てを、その場で出す。★ 保存してから気づかせない */}
-              {draft.articleSlot !== null && (
-                <p className="text-[13.5px] text-slate-600 leading-relaxed mt-2 bg-slate-50 border border-slate-200 px-3 py-2">
-                  {board.slots.find((s) => s.slot === draft.articleSlot)?.note}
-                </p>
-              )}
-            </div>
-
-            {/* ───── タイトル ─────
-                ★ 決まりごと（文字数）は、その項目の右に出す。★ 下にまとめない */}
-            <div>
-              <div className="flex items-baseline justify-between gap-2">
-                <label className="text-[13.5px] font-bold text-slate-600">タイトル</label>
-                <span className={'text-[12.5px] tabular-nums ' + (overTitle ? 'text-rose-600 font-bold' : 'text-slate-400')}>
-                  全角 {Math.ceil(width)} / {ARTICLE_TITLE_MAX_WIDTH}
-                </span>
-              </div>
-              <input
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                className={
-                  'w-full mt-1 px-3 py-2.5 text-[15px] border outline-none ' +
-                  (overTitle ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-indigo-400')
-                }
-                placeholder="本日も元気に営業中です"
-              />
-              {overTitle && (
-                <p className="text-[13px] text-rose-600 leading-relaxed mt-1">
-                  長すぎます。このままでは駅ちかに断られます。
-                </p>
-              )}
-            </div>
-
-            {/* ───── 本文 ───── */}
-            <div>
-              <label className="text-[13.5px] font-bold text-slate-600">本文</label>
-              {/* ★ 相手ができないと言っていることを、書く【前】に伝える */}
-              <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
-                画像と外部リンクは駅ちかの決まりで入れられません。改行は
-                <code className="mx-0.5 px-1 bg-slate-100">&lt;br&gt;</code>、
-                段落は<code className="mx-0.5 px-1 bg-slate-100">&lt;p&gt;〜&lt;/p&gt;</code>で書けます。
-              </p>
-              <textarea
-                value={draft.body}
-                onChange={(e) => setDraft({ ...draft, body: e.target.value })}
-                rows={6}
-                className="w-full mt-1.5 px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed"
-                placeholder="本日も元気に営業しております。ご予約お待ちしております。"
-              />
-            </div>
-
-            {/* ───── 自動で回すか ───── */}
-            <label className="flex items-start gap-2 cursor-pointer border-t border-slate-100 pt-3.5">
-              <input
-                type="checkbox"
-                checked={draft.isActive}
-                onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })}
-                className="mt-1"
-              />
-              <span className="text-[14px] text-slate-700 leading-relaxed">
-                この文章を自動で回す
-                <span className="block text-[13px] text-slate-400">
-                  外しておくと保存だけされ、自動では出しません。
-                </span>
+              <span className={'block text-[14px] font-bold ' + (on ? 'text-indigo-800' : 'text-slate-600')}>
+                {s.label}
               </span>
-            </label>
+              <span className="block text-[12.5px] tabular-nums mt-0.5">
+                {auto?.count ?? 0} / {board.perSlotMax} 本
+                {/* ★ 自動で回っている本数。★ 0なら何も出さない（★ 「0件」と書かない） */}
+                {auto !== undefined && auto.activeCount > 0 && (
+                  <span className={on ? 'text-emerald-700' : 'text-emerald-600'}>
+                    ・自動{auto.activeCount}
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-            {/* ★★★ 保存ボタンを大きく。★ 「保存ボタンを押してなかったです」（2026-09-05・実際に起きた） */}
-            <div className="flex items-center gap-3 border-t border-slate-200 pt-3.5">
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={busy !== '' || draft.articleSlot === null}
-                className="text-[16px] font-black px-7 py-3 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
-              >
-                {draft.id === null ? '保存する' : '書き換える'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDraft(null)}
-                className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700"
-              >
-                やめる
-              </button>
-              {/* ★ 押せない理由を、ボタンの脇に書く。★ 灰色のまま黙らない */}
-              {draft.articleSlot === null && (
-                <span className="text-[13.5px] text-slate-400">上で枠を選ぶと保存できます</span>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ───────── ③ 選んだカテゴリー（第376便） ─────────
+          ★ 「どの枠へ出すか」を選ぶ操作は無い。★ このタブで書けば、この枠へ出る */}
+      {board.slots.filter((s) => s.slot === pickedSlot).map((s) => {
+        const auto = board.slotAuto.find((a) => a.slot === s.slot);
+        const rows = board.templates.filter((t) => t.articleSlot === s.slot);
+        const newKey = 'new-' + s.slot;
+        return (
+          <SlotSection
+            key={s.slot}
+            advice={s}
+            auto={auto}
+            perSlotMax={board.perSlotMax}
+            rows={rows}
+            photoNote={photoNote}
+            busy={busy !== ''}
+            open={open}
+            drafts={drafts}
+            newOpen={open.has(newKey)}
+            onToggleNew={() => toggleOpen(newKey, { title: '', body: '' })}
+            onCancelNew={() => closeKey(newKey)}
+            onCreate={() => onCreate(s.slot)}
+            onToggleRow={(row) => toggleOpen('tpl-' + row.id, { title: row.title, body: row.body })}
+            onCancelRow={(row) => closeKey('tpl-' + row.id)}
+            onUpdate={onUpdate}
+            onToggleActive={onToggleActive}
+            setDraft={setDraft}
+            confirmDelete={confirmDelete}
+            onAskDelete={setConfirmDelete}
+            onDelete={onDelete}
+            confirmPost={confirmPost}
+            onAskPost={setConfirmPost}
+            onPost={onPost}
+          />
+        );
+      })}
 
-      {/* ───────── ④ 自動で出す ───────── */}
+      {/* ───────── ③ 自動で出す（元栓だけ） ─────────
+          ★ 第376便: 「1日に出す本数」は消えた（★ 枠ごと1日1回に固定）。★ 残るのは元栓ひとつ */}
       <section className="bg-white border border-slate-200">
         <div className="px-3.5 py-3 border-b border-slate-200">
           <h2 className="text-[15px] font-black text-slate-800">自動で出す</h2>
         </div>
-        <div className="px-3.5 py-3.5 space-y-3">
-          <div>
-            <label className="text-[13.5px] font-bold text-slate-600">1日に出す本数</label>
-            <div className="flex flex-wrap gap-1.5 mt-1.5">
-              {[0, 2, 3, 4, 6, 8].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => onSettings({ postsPerDay: n })}
-                  disabled={busy !== ''}
-                  className={
-                    'text-[14px] font-bold px-3.5 py-2 border disabled:opacity-40 ' +
-                    (board.postsPerDay === n
-                      ? 'border-indigo-500 text-indigo-700 bg-indigo-50'
-                      : 'border-slate-200 text-slate-600 hover:bg-slate-50')
-                  }
-                >
-                  {n === 0 ? '出さない' : n + '回'}
-                </button>
-              ))}
-            </div>
-            {/* ★★★ null（出さない）を「0時に出ます」と読ませない */}
-            <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1.5">
-              {board.postTimes === null
-                ? '自動では出しません。'
-                : 'だいたい ' + board.postTimes.join(' / ') + ' ごろに出ます。時刻は店舗ごとに自動で割り当てています。'}
-            </p>
-          </div>
-
-          <label className="flex items-start gap-2 cursor-pointer border-t border-slate-100 pt-3">
+        <div className="px-3.5 py-3.5">
+          <label className="flex items-start gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={board.autoEnabled}
-              onChange={(e) => onSettings({ autoEnabled: e.target.checked })}
+              onChange={(e) => onAutoEnabled(e.target.checked)}
               disabled={busy !== ''}
               className="mt-1"
             />
@@ -627,25 +508,14 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
               自動で出すことを許可する
               <span className="block text-[13px] text-slate-400">
                 ここを入れないかぎり、フクエスは駅ちかへ何も書きません。
+                入れると、カテゴリーごとに1日1回、「自動投稿中」の文章を順番に出します。
               </span>
             </span>
           </label>
-
-          {/* ★★ 「入れたのに出ない」を先に説明する。★ 黙って出さないことをしない */}
-          {board.autoEnabled && board.activeCount === 0 && (
-            <p className="text-[13.5px] text-amber-700 leading-relaxed">
-              自動で回す文章が1本もありません。上の文章で「この文章を自動で回す」を入れてください。
-            </p>
-          )}
-          {board.autoEnabled && board.activeCount > 0 && board.postsPerDay === 0 && (
-            <p className="text-[13.5px] text-amber-700 leading-relaxed">
-              1日に出す本数が「出さない」になっています。
-            </p>
-          )}
         </div>
       </section>
 
-      {/* ───────── ⑤ 送った記録 ───────── */}
+      {/* ───────── ④ 送った記録 ───────── */}
       {board.runs.length > 0 && (
         <section className="bg-white border border-slate-200">
           <div className="px-3.5 py-3 border-b border-slate-200">
@@ -678,8 +548,354 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 }
 
 /**
+ * ★★★ カテゴリー1つぶんの節（第376便）。★ マイページのお知らせと同じ形。
+ *   ・見出し … 枠の名前・枠の状態・何本あるか
+ *   ・その下 … 自動投稿の1行（★ 文言は articleRotation が作る）
+ *   ・「＋ 新しく書く」… 開くとその場にフォーム（★ 枠を選ばせない）
+ *   ・文章カード … 閉じているときはバー、開くと編集と操作
+ */
+function SlotSection({
+  advice, auto, perSlotMax, rows, photoNote, busy,
+  open, drafts, newOpen, onToggleNew, onCancelNew, onCreate,
+  onToggleRow, onCancelRow, onUpdate, onToggleActive, setDraft,
+  confirmDelete, onAskDelete, onDelete,
+  confirmPost, onAskPost, onPost,
+}: {
+  advice: ArticleSlotAdvice;
+  auto: ArticleSlotAuto | undefined;
+  perSlotMax: number;
+  rows: ArticleTemplateRow[];
+  photoNote: string;
+  busy: boolean;
+  open: Set<string>;
+  drafts: Record<string, Draft>;
+  newOpen: boolean;
+  onToggleNew: () => void;
+  onCancelNew: () => void;
+  onCreate: () => void;
+  onToggleRow: (row: ArticleTemplateRow) => void;
+  onCancelRow: (row: ArticleTemplateRow) => void;
+  onUpdate: (row: ArticleTemplateRow) => void;
+  onToggleActive: (row: ArticleTemplateRow) => void;
+  setDraft: (key: string, patch: Partial<Draft>) => void;
+  confirmDelete: number | null;
+  onAskDelete: (id: number | null) => void;
+  onDelete: (id: number) => void;
+  confirmPost: number | null;
+  onAskPost: (id: number | null) => void;
+  onPost: (id: number) => void;
+}) {
+  const chip = STATE_CHIP[advice.state] ?? STATE_CHIP.unknown;
+  const newKey = 'new-' + advice.slot;
+  const nd = drafts[newKey] ?? { title: '', body: '' };
+  const canAdd = auto?.canAdd !== false;
+
+  return (
+    <section className="bg-white border border-slate-200">
+      {/* ── 見出し ── */}
+      <div className="px-3.5 py-3 border-b border-slate-200">
+        {/* ★ 第377便: 本数はタブに出ているので、ここでは出さない（★ 同じ話を2回書かない） */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="text-[15px] font-black text-slate-800">{advice.label}</h2>
+          <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + chip}>{advice.short}</span>
+        </div>
+        {/* ★★ 自動投稿の1行。★ 文言は articleRotation が作る（★ 画面で作らない） */}
+        <p className="text-[13px] font-bold text-slate-500 mt-1.5">自動投稿（1日1回・順番で投稿）</p>
+        {auto && auto.note !== null && (
+          <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">{auto.note}</p>
+        )}
+      </div>
+
+      {/* ── ＋ 新しく書く ──
+          ★ 5本たまっていたら出さない。★ 押せるように見せて断らない（設計メモ §32） */}
+      <div className="px-3.5 py-2.5 border-b border-slate-100">
+        {canAdd ? (
+          <button
+            type="button"
+            onClick={newOpen ? onCancelNew : onToggleNew}
+            aria-expanded={newOpen}
+            className="text-[14px] font-bold px-3.5 py-2 border border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+          >
+            {newOpen ? '閉じる' : '＋ 新しく書く'}
+          </button>
+        ) : (
+          <p className="text-[13.5px] text-slate-400 leading-relaxed">
+            この枠は{perSlotMax}本たまっています。新しく書くには、どれかを消してください。
+          </p>
+        )}
+      </div>
+
+      {newOpen && (
+        <div className="px-3.5 py-4 border-b border-slate-200 bg-slate-50/60">
+          <Editor
+            draft={nd}
+            onChange={(patch) => setDraft(newKey, patch)}
+            busy={busy}
+            saveLabel="保存する"
+            onSave={onCreate}
+            onCancel={onCancelNew}
+          />
+          <p className="text-[13px] text-slate-400 leading-relaxed mt-2">
+            保存しただけでは自動では出ません。あとで「自動投稿にする」を押してください。
+          </p>
+        </div>
+      )}
+
+      {/* ── 文章のカード ── */}
+      {rows.length === 0 ? (
+        <p className="px-3.5 py-5 text-[14px] text-slate-400 leading-relaxed">
+          この枠にはまだ文章がありません。
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-100">
+          {rows.map((row) => {
+            const key = 'tpl-' + row.id;
+            const isOpen = open.has(key);
+            const d = drafts[key] ?? { title: row.title, body: row.body };
+            return (
+              <li key={row.id}>
+                {/* ── 閉じているときのバー（★ お知らせと同じ並び） ── */}
+                <button
+                  type="button"
+                  onClick={() => (isOpen ? onCancelRow(row) : onToggleRow(row))}
+                  aria-expanded={isOpen}
+                  className="w-full text-left px-3.5 py-3 flex items-center gap-2 hover:bg-slate-50"
+                >
+                  {row.isActive ? (
+                    <span className="text-[12px] font-bold px-2 py-0.5 border border-emerald-200 text-emerald-700 bg-emerald-50 flex-none">
+                      自動投稿中
+                    </span>
+                  ) : (
+                    <span className="text-[12px] font-bold px-2 py-0.5 border border-slate-200 text-slate-400 flex-none">
+                      手動のみ
+                    </span>
+                  )}
+                  <span className="text-[14.5px] font-bold text-slate-800 truncate min-w-0">
+                    {row.title || '(タイトル未設定)'}
+                  </span>
+                  <span className="ml-auto flex items-center gap-2 flex-none">
+                    {/* ★ 最後に出した日時。★ 一度も出していなければ何も出さない（★ 「なし」と書かない） */}
+                    {row.lastPostedAt !== null && (
+                      <span className="hidden sm:inline text-[12px] text-slate-400 tabular-nums">
+                        {fmt(row.lastPostedAt)} に投稿
+                      </span>
+                    )}
+                    <span className={'text-[13px] text-slate-400 ' + (isOpen ? 'rotate-180' : '')}>▼</span>
+                  </span>
+                </button>
+
+                {/* ── 開いたとき ── */}
+                {isOpen && (
+                  <div className="px-3.5 pb-4 pt-1 border-t border-slate-100">
+                    {/* ★ 操作は上（★ お知らせと同じ）。★ 押した時点で効くものと、保存が要るものを分ける */}
+                    <div className="flex flex-wrap items-center gap-2 justify-end pb-3">
+                      <button
+                        type="button"
+                        onClick={() => onToggleActive(row)}
+                        disabled={busy}
+                        title={row.isActive
+                          ? '1日1回・順番に1本ずつ自動で出しています。押すとやめます'
+                          : '押すと、この枠の自動投稿のローテーションに入ります'}
+                        className={
+                          'text-[13.5px] font-bold px-3 py-1.5 border disabled:opacity-40 ' +
+                          (row.isActive
+                            ? 'border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                            : 'border-slate-200 text-slate-500 hover:bg-slate-50')
+                        }
+                      >
+                        {row.isActive ? '自動投稿中' : '自動投稿にする'}
+                      </button>
+                      {/* ★★★ 出せない枠のときはボタンを出さない。★ 押せるように見せて断らない */}
+                      {advice.canPost && confirmPost !== row.id && (
+                        <button
+                          type="button"
+                          onClick={() => onAskPost(row.id)}
+                          disabled={busy}
+                          className="text-[13.5px] font-bold px-3 py-1.5 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40"
+                        >
+                          いま出す
+                        </button>
+                      )}
+                      {confirmDelete === row.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => onDelete(row.id)}
+                            disabled={busy}
+                            className="text-[13.5px] font-bold px-2.5 py-1.5 border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-40"
+                          >
+                            消します
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onAskDelete(null)}
+                            className="text-[13.5px] font-bold px-2 py-1.5 text-slate-500 hover:text-slate-700"
+                          >
+                            やめる
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onAskDelete(row.id)}
+                          className="text-[13.5px] font-bold px-2 py-1.5 text-slate-400 hover:text-rose-600"
+                        >
+                          消す
+                        </button>
+                      )}
+                    </div>
+
+                    {/* ★★★ 押す前に【何が消えるか】を見せる。★ 新着は上書きなので、前の記事は戻らない */}
+                    {confirmPost === row.id && (
+                      <div className="mb-3 p-3 bg-amber-50 border border-amber-200">
+                        <p className="text-[14px] text-slate-700 leading-relaxed">
+                          駅ちかの<b>{advice.label}</b>を、この文章に書き換えます。
+                        </p>
+                        {/* ★★★ 第163便: 空の枠は【新しく作る】。★ 消えるものが無いのに「消えます」と書かない */}
+                        {advice.state === 'empty' ? (
+                          <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                            この枠はいま空いています。<b>新しく記事を作ります。</b>
+                          </p>
+                        ) : advice.currentTitle ? (
+                          <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                            いま入っている「<b>{advice.currentTitle}</b>」は<b>消えます</b>（元に戻せません）。
+                          </p>
+                        ) : (
+                          <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
+                            いま入っている記事は<b>消えます</b>（元に戻せません）。
+                          </p>
+                        )}
+                        <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">{photoNote}</p>
+                        {advice.state === 'hidden' && (
+                          <p className="text-[13.5px] text-amber-800 leading-relaxed mt-1">
+                            なお、この枠はいま非表示です。送っても公開ページには出ません。
+                          </p>
+                        )}
+                        {/* ★ 手で出しても、この枠の自動（1日1回）は止まらない。★ 押す前に言う */}
+                        <p className="text-[13.5px] text-slate-500 leading-relaxed mt-1">
+                          手で出しても、この枠の自動投稿は今日ぶんが別に出ます。
+                        </p>
+                        <div className="flex items-center gap-2 mt-2.5">
+                          <button
+                            type="button"
+                            onClick={() => onPost(row.id)}
+                            disabled={busy}
+                            className="text-[15px] font-black px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+                          >
+                            書き換える
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onAskPost(null)}
+                            className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700"
+                          >
+                            やめる
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <Editor
+                      draft={d}
+                      onChange={(patch) => setDraft(key, patch)}
+                      busy={busy}
+                      saveLabel="書き換える"
+                      onSave={() => onUpdate(row)}
+                      onCancel={() => onCancelRow(row)}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/**
+ * ★ タイトルと本文だけの編集。★ 新規も直すも同じ部品（★ 2つ作らない）。
+ *   ★ 決まりごと（文字数・画像とリンクは入れられない）は、その項目の脇に書く
+ */
+function Editor({
+  draft, onChange, busy, saveLabel, onSave, onCancel,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+  busy: boolean;
+  saveLabel: string;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const width = titleWidth(draft.title);
+  const over = width > ARTICLE_TITLE_MAX_WIDTH;
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-baseline justify-between gap-2">
+          <label className="text-[13.5px] font-bold text-slate-600">タイトル</label>
+          <span className={'text-[12.5px] tabular-nums ' + (over ? 'text-rose-600 font-bold' : 'text-slate-400')}>
+            全角 {Math.ceil(width)} / {ARTICLE_TITLE_MAX_WIDTH}
+          </span>
+        </div>
+        <input
+          value={draft.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          className={
+            'w-full mt-1 px-3 py-2.5 text-[15px] border outline-none bg-white ' +
+            (over ? 'border-rose-400 focus:border-rose-500' : 'border-slate-300 focus:border-indigo-400')
+          }
+          placeholder="本日も元気に営業中です"
+        />
+        {over && (
+          <p className="text-[13px] text-rose-600 leading-relaxed mt-1">
+            長すぎます。このままでは駅ちかに断られます。
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label className="text-[13.5px] font-bold text-slate-600">本文</label>
+        {/* ★ 相手ができないと言っていることを、書く【前】に伝える */}
+        <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
+          画像と外部リンクは駅ちかの決まりで入れられません。改行は
+          <code className="mx-0.5 px-1 bg-slate-100">&lt;br&gt;</code>、
+          段落は<code className="mx-0.5 px-1 bg-slate-100">&lt;p&gt;〜&lt;/p&gt;</code>で書けます。
+        </p>
+        <textarea
+          value={draft.body}
+          onChange={(e) => onChange({ body: e.target.value })}
+          rows={6}
+          className="w-full mt-1.5 px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed bg-white"
+          placeholder="本日も元気に営業しております。ご予約お待ちしております。"
+        />
+      </div>
+
+      {/* ★★★ 保存ボタンを大きく。★ 「保存ボタンを押してなかったです」（2026-09-05・実際に起きた） */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={busy}
+          className="text-[16px] font-black px-7 py-3 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40"
+        >
+          {saveLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700"
+        >
+          やめる
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * ★★★ 写真1枚ぶんのタイル（第167便）。★ 第373便からは【写真の箱】の選択肢。
- *   ★ 写真を読めなかった方は、名前だけの四角にする。
  *   ★★ 「読み込めなかった」を空白にしない。★ 何のタイルか分かる文字を必ず置く。
  *   ★★ next/image は使わない（店舗様の外部URLで実行時に落ちる・第217便）
  */
@@ -712,7 +928,6 @@ function PhotoTile({
             {name}
           </span>
         )}
-        {/* ★ 選んでいる印。★ 枠の色だけだと写真によっては見えにくい */}
         {on && (
           <span className="absolute left-1 top-1 text-[11px] font-black text-white bg-indigo-600 px-1.5 py-0.5">
             選択中
@@ -723,133 +938,5 @@ function PhotoTile({
         {name}
       </span>
     </button>
-  );
-}
-
-/**
- * 登録した文章1本ぶん（第167便で作り直し、★ 第373便で左の写真を外した）。
- *   ★ 文章と写真は結びついていないので、文章の脇に写真を出すと嘘になる。
- *   ★ 真ん中に枠と状態とタイトル、右に操作。
- */
-function TemplateItem({
-  row, slotState, slotShort, photoNote, onEdit, confirming, onAskDelete, onCancelDelete, onDelete, busy,
-  canPost, currentTitle, confirmingPost, onAskPost, onCancelPost, onPost,
-}: {
-  row: ArticleTemplateRow;
-  slotState: string;
-  slotShort: string;
-  /** ★ 「いま出す」の確認に出す写真の1行（★ 箱の枚数だけで決まる） */
-  photoNote: string;
-  onEdit: () => void;
-  confirming: boolean;
-  onAskDelete: () => void;
-  onCancelDelete: () => void;
-  onDelete: () => void;
-  busy: boolean;
-  canPost: boolean;
-  currentTitle: string;
-  confirmingPost: boolean;
-  onAskPost: () => void;
-  onCancelPost: () => void;
-  onPost: () => void;
-}) {
-  const chip = STATE_CHIP[slotState] ?? STATE_CHIP.unknown;
-
-  return (
-    <li className="px-3.5 py-3">
-      <div className="flex items-start gap-3">
-        {/* ── 左：枠・状態・タイトル ── */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[12.5px] font-bold px-1.5 py-0.5 border border-slate-200 text-slate-600 bg-slate-50">
-              {row.slotLabel}
-            </span>
-            <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + chip}>{slotShort}</span>
-            {row.isActive
-              ? <span className="text-[12.5px] font-bold text-emerald-700">自動で回す</span>
-              : <span className="text-[12.5px] text-slate-400">回さない</span>}
-          </div>
-          <p className="text-[15px] font-bold text-slate-800 mt-1 break-words">{row.title}</p>
-        </div>
-
-        {/* ── 右：操作 ── */}
-        <div className="flex items-center gap-1.5 flex-none">
-          {confirming ? (
-            <>
-              <button type="button" onClick={onDelete} disabled={busy}
-                className="text-[13.5px] font-bold px-2.5 py-1.5 border border-rose-200 text-rose-700 hover:bg-rose-50 disabled:opacity-40">
-                消します
-              </button>
-              <button type="button" onClick={onCancelDelete}
-                className="text-[13.5px] font-bold px-2 py-1.5 text-slate-500 hover:text-slate-700">
-                やめる
-              </button>
-            </>
-          ) : (
-            <>
-              {/* ★★★ 出せない枠のときはボタンを出さない。★ 押せるように見せて断らない（設計メモ §32） */}
-              {canPost && !confirmingPost && (
-                <button type="button" onClick={onAskPost} disabled={busy}
-                  className="text-[13.5px] font-bold px-3 py-1.5 border border-indigo-300 text-indigo-700 hover:bg-indigo-50 disabled:opacity-40">
-                  いま出す
-                </button>
-              )}
-              <button type="button" onClick={onEdit}
-                className="text-[13.5px] font-bold px-2.5 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50">
-                直す
-              </button>
-              <button type="button" onClick={onAskDelete}
-                className="text-[13.5px] font-bold px-2 py-1.5 text-slate-400 hover:text-rose-600">
-                消す
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ★★★ 押す前に【何が消えるか】を見せる。★ 新着は上書きなので、前の記事は戻らない */}
-      {confirmingPost && (
-        <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200">
-          <p className="text-[14px] text-slate-700 leading-relaxed">
-            駅ちかの<b>{row.slotLabel}</b>を、この文章に書き換えます。
-          </p>
-          {/* ★★★ 第163便: 空の枠は【新しく作る】。★ 消えるものが無いのに「消えます」と書かない */}
-          {slotState === 'empty'
-            ? (
-              <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
-                この枠はいま空いています。<b>新しく記事を作ります。</b>
-              </p>
-            )
-            : currentTitle
-              ? (
-                <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
-                  いま入っている「<b>{currentTitle}</b>」は<b>消えます</b>（元に戻せません）。
-                </p>
-              )
-              : (
-                <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">
-                  いま入っている記事は<b>消えます</b>（元に戻せません）。
-                </p>
-              )}
-          {/* ★ 第373便: 写真の1行は箱の枚数だけで決まる。★ 文言は articlePhotoPick が作る */}
-          <p className="text-[13.5px] text-slate-600 leading-relaxed mt-1">{photoNote}</p>
-          {slotState === 'hidden' && (
-            <p className="text-[13.5px] text-amber-800 leading-relaxed mt-1">
-              なお、この枠はいま非表示です。送っても公開ページには出ません。
-            </p>
-          )}
-          <div className="flex items-center gap-2 mt-2.5">
-            <button type="button" onClick={onPost} disabled={busy}
-              className="text-[15px] font-black px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
-              書き換える
-            </button>
-            <button type="button" onClick={onCancelPost}
-              className="text-[14px] font-bold px-3 py-2 text-slate-500 hover:text-slate-700">
-              やめる
-            </button>
-          </div>
-        </div>
-      )}
-    </li>
   );
 }

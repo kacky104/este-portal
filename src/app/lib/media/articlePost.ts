@@ -3,6 +3,7 @@ import { startRelayFlow, countArticleTry } from '@/app/lib/media/relayFlow';
 import { readImageSize } from '@/lib/imageSize';
 import { checkArticleImage } from '@/lib/ekichikaArticleImage';
 import { isArticleSlot, articleSlotLabel, checkArticleTitle, checkArticleBody } from '@/lib/ekichikaArticle';
+import { dayKeyJST } from '@/lib/announceAuto';
 import { pickArticlePhoto, normalizeArticlePhotoIds } from '@/lib/articlePhotoPick';
 
 // 新着情報を1本出す（第166便・2026-09-05 → ★ 第373便で写真を【店舗に1つの箱】から選ぶ形に・2026-09-15）。
@@ -174,9 +175,27 @@ export async function postOneArticle(input: {
       if (memErr) console.error('[article] 出した写真を覚えられなかった', memErr.message);
     }
 
+    // ★★★ 第376便: 出した印を文章に残す。
+    //   ・last_posted_at … 自動でも手動でも入れる（★ 次に出す1本は、この枠でいちばん古いもの）
+    //   ・last_auto_day  … **自動のときだけ**（★ 枠ごと1日1回の判定）。
+    //     ★★ 手で出した日も自動は出る（カッキーさんの判断・2026-09-15）。★ だから手動では入れない。
+    //   ★ 覚えられなくても送信は止めない（★ 積んだ事実は変わらない）。★ ただし黙らない。
+    {
+      const day = input.intent === 'article_auto' ? dayKeyJST(new Date()) : null;
+      const { error: memErr } = await svc
+        .from('salon_article_templates')
+        .update({
+          last_posted_at: new Date().toISOString(),
+          ...(day === null ? {} : { last_auto_day: day }),
+        })
+        .eq('id', input.templateId).eq('salon_id', input.salonId);
+      // ★★★ ここが書けないと、自動が同じ日に何度も出る恐れがある。★ 記録に残す
+      if (memErr) console.error('[article] 出した印を残せなかった', input.templateId, memErr.message);
+    }
+
     // ★★★ 積めたので「出そうとした回数」を1つ進める（第166便）。
     //   ★ 送れたかどうかは別（★ それは push_article: ok で数える）。
-    //   ★★ ここで数えないと、送れなかった日に自動が延々と撃ち続ける。
+    //   ★ 第376便: 1日の回数で止める仕掛けは無くなったが、記録として数え続ける
     await countArticleTry({ salonId: input.salonId, provider: PROVIDER, slot: input.slot });
 
     return { ok: true, jobId: r.jobId, note: r.note };

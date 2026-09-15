@@ -197,5 +197,102 @@ console.log('\n── ★★★ 「今日はここまで◯本」の下の1行�
      /done_today|not_yet|postsPerDay|null/.test(String(q({ postedToday: 5 })) + String(q({ postedToday: 0 }))), false);
 }
 
+// ══════════════════════════════════════════════════════════════════
+// ★★★ 第376便: 枠ごとに1日1回（2026-09-15）
+// ══════════════════════════════════════════════════════════════════
+//
+// ★★★ ここで危ないのは:
+//   ① 1日に2回出す              → 枠は上書きなので、読まれる前に消える
+//   ② 手で出した日に自動が止まる → 「手動はなんどでもOK」が守られない
+//   ③ 5つの枠が同じ時刻に固まる → 中継役が詰まる
+//   ④ 「数えられていない」を0として扱う → 印が0本なのか読めていないのか分からないまま出す
+
+console.log('\n── 6. ★★ 1カテゴリーの上限は5本 ──');
+eq('★★★ 上限5本（カッキーさん・2026-09-15）', R.ARTICLE_TEMPLATES_PER_SLOT_MAX, 5);
+
+console.log('\n── 7. ★★★ 枠ごとの時刻 ──');
+{
+  const mins = [1, 2, 3, 4, 5].map((s) => R.articleSlotPostMinute(SALON, s));
+  eq('★ 5つとも0〜1439', mins.every((x) => x !== null && x >= 0 && x < 1440), true);
+  eq('★★ 同じ時刻が2つ無い', new Set(mins).size, 5);
+  // ★★★ 288分（4時間48分）ずつずれる。★ 1日の中でバラける
+  const sorted = mins.slice().sort((a, b) => a - b);
+  const gaps = sorted.slice(1).map((x, i) => x - sorted[i]);
+  eq('★★★ 間隔は288分ずつ', gaps, [288, 288, 288, 288]);
+
+  const labels = [1, 2, 3, 4, 5].map((s) => R.articleSlotPostTimeLabel(SALON, s));
+  eq('★ 時刻の形', labels.every((s) => /^\d{2}:\d{2}$/.test(s)), true);
+  // ★★ 枠1は、1日1回のときの時刻と同じ（★ 起点が同じだから）
+  eq('★★★ ラビリンス様（店舗6）の5枠の時刻', labels, ['15:42', '20:30', '01:18', '06:06', '10:54']);
+
+  eq('★★ 店舗が違えば時刻も違う', R.articleSlotPostMinute(6, 1) === R.articleSlotPostMinute(7, 1), false);
+  eq('★★ 枠の番号が範囲外なら null', R.articleSlotPostMinute(SALON, 0), null);
+  eq('★★ 枠6は無い', R.articleSlotPostMinute(SALON, 6), null);
+  eq('★★ 店舗IDが壊れていれば null', R.articleSlotPostMinute(NaN, 1), null);
+  eq('★ ラベルも null を返す', R.articleSlotPostTimeLabel(SALON, 9), null);
+}
+
+console.log('\n── 8. ★★★ 枠ごとに1日1回 出すか出さないか ──');
+{
+  const base = {
+    now: at('2026-09-15T07:00:00+09:00'),   // ★ 営業日 2026-09-15 の 15:42 より前
+    salonId: SALON, articleSlot: 1,
+    autoEnabled: true, activeCount: 2, lastAutoDay: null,
+  };
+  const j = (over) => R.shouldPostArticleSlot({ ...base, ...over });
+
+  eq('★ 時刻の前なら出さない', j({}).reason, 'not_yet');
+  eq('★ 時刻を過ぎたら出す', j({ now: at('2026-09-15T15:45:00+09:00') }).post, true);
+  eq('★ ちょうどの時刻でも出す', j({ now: at('2026-09-15T15:42:00+09:00') }).post, true);
+
+  // ★★★ 1日1回
+  eq('★★★ 今日すでに自動で出していれば出さない',
+     j({ now: at('2026-09-15T20:00:00+09:00'), lastAutoDay: '2026-09-15' }).reason, 'done_today');
+  eq('★★ 昨日出したぶんは関係ない',
+     j({ now: at('2026-09-15T20:00:00+09:00'), lastAutoDay: '2026-09-14' }).post, true);
+
+  // ★★★ 元栓と印
+  eq('★★ 元栓が入っていなければ出さない', j({ autoEnabled: false }).reason, 'auto_off');
+  eq('★★ 回す文章が0本なら出さない', j({ activeCount: 0 }).reason, 'no_targets');
+  eq('★★★ 数えられていなければ出さない（★ 0本と混ぜない）', j({ activeCount: null }).reason, 'unknown');
+  eq('★★ 枠の番号が壊れていれば出さない', j({ articleSlot: 9 }).reason, 'unknown');
+
+  // ★★★ 枠ごとに独立している（★ 枠1を出しても枠2は出る）
+  const t = at('2026-09-16T05:00:00+09:00');   // ★ 営業日は 2026-09-15（朝6時区切り）
+  eq('★★★ 枠2がまだなら出る',
+     R.shouldPostArticleSlot({ ...base, now: t, articleSlot: 2, lastAutoDay: null }).post, true);
+  eq('★★★ 同じ枠は2回出ない',
+     R.shouldPostArticleSlot({ ...base, now: t, articleSlot: 2, lastAutoDay: '2026-09-15' }).reason, 'done_today');
+
+  // ★ 出すときは日付と予定時刻も返す（★ 記録に残せる形）
+  const ok = j({ now: at('2026-09-15T16:00:00+09:00') });
+  eq('★ 営業日を返す', ok.dayKey, '2026-09-15');
+  eq('★ 予定時刻を返す', typeof ok.dueAtISO === 'string', true);
+  eq('★ 出すときは理由が null', ok.reason, null);
+}
+
+console.log('\n── 9. ★★ 枠の見出しの下の1行 ──');
+{
+  const base = {
+    autoEnabled: true, activeCount: 2, lastAutoDay: null,
+    dayKey: '2026-09-15', timeLabel: '09:42',
+  };
+  const n = (over) => R.articleSlotAutoNote({ ...base, ...over });
+
+  eq('★★ これから出る', n({}), '今日は 09:42 ごろに投稿します（自動投稿設定2件・ローテーション）');
+  eq('★★★ 今日はもう出した', n({ lastAutoDay: '2026-09-15' }), '今日はもう投稿しました。次は明日 09:42 ごろです。');
+  eq('★ 昨日のぶんは「もう出した」にしない', n({ lastAutoDay: '2026-09-14' }), n({}));
+  eq('★★ 回す文章が無い', n({ activeCount: 0 }), '自動投稿にする文章がまだありません。');
+  eq('★★ 元栓が入っていない', n({ autoEnabled: false }), '自動投稿は止まっています（下の「自動で出す」で許可できます）。');
+  // ★★★ 「回すものが無い」が先（★ 元栓より手前で言う）
+  eq('★★★ 0本かつ元栓オフなら、0本のほうを言う',
+     n({ activeCount: 0, autoEnabled: false }), '自動投稿にする文章がまだありません。');
+  eq('★★★ 数えられていなければ null（★ 空文字と分ける）', n({ activeCount: null }), null);
+  eq('★ 時刻が出せなくても文は返す', typeof n({ timeLabel: null }) === 'string', true);
+  eq('★ 文言に「★」を混ぜない', /★/.test(String(n({})) + String(n({ activeCount: 0 }))), false);
+  eq('★ 内部の言葉を出さない',
+     /done_today|not_yet|auto_off|lastAutoDay|null/.test(String(n({})) + String(n({ lastAutoDay: '2026-09-15' }))), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

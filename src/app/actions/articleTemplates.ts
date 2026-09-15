@@ -18,11 +18,13 @@ import {
   articleSlotLabel,
   checkArticleTitle,
   checkArticleBody,
+  EKICHIKA_ARTICLE_SLOTS,
 } from '@/lib/ekichikaArticle';
 import {
   ARTICLE_POSTS_PER_DAY_DEFAULT,
-  ARTICLE_POSTS_PER_DAY_MAX,
-  articlePostTimeLabels,
+  ARTICLE_TEMPLATES_PER_SLOT_MAX,
+  articleSlotPostTimeLabel,
+  articleSlotAutoNote,
 } from '@/lib/articleRotation';
 import { dayKeyJST } from '@/lib/announceAuto';
 import { normalizeArticlePhotoIds, ARTICLE_PHOTO_MAX } from '@/lib/articlePhotoPick';
@@ -100,6 +102,29 @@ export type ArticleTemplateRow = {
   sortOrder: number;
   updatedAt: string;
   // ★ 第373便: girlId / therapistIds は【文章から外した】。★ 写真は ArticleBoard.photoIds（店舗に1つの箱）
+  /**
+   * ★★ 最後に駅ちかへ出した時刻（第376便）。★ 自動・手動どちらでも入る。
+   *   ★ null は【まだ一度も出していない】。★ 次に出るのは、この枠でいちばん古い1本
+   */
+  lastPostedAt: string | null;
+};
+
+/**
+ * ★★★ 枠（カテゴリー）1つぶんの自動投稿の様子（第376便）。
+ *   ★ 画面の【枠の見出しの下】に、そのまま出す1行を持つ。★ 画面で文言を作らない（第167便の作法）
+ */
+export type ArticleSlotAuto = {
+  slot: number;
+  /** この枠に登録されている文章の本数（★ 自動の印が無いものも含む） */
+  count: number;
+  /** この枠で「自動で回す」印の付いた本数 */
+  activeCount: number;
+  /** この枠が自動で出る時刻「09:42」。★ 出せなければ null */
+  timeLabel: string | null;
+  /** ★ 見出しの下に出す1行。★ 材料が読めていなければ null */
+  note: string | null;
+  /** ★ まだ文章を足せるか（★ 1枠5本まで） */
+  canAdd: boolean;
 };
 
 export type ArticleBoard = {
@@ -110,15 +135,11 @@ export type ArticleBoard = {
   /** 枠の状態をいつ読んだか。★ 一度も読んでいなければ null（★ 0と混ぜない） */
   readAt: string | null;
   templates: ArticleTemplateRow[];
-  postsPerDay: number;
   autoEnabled: boolean;
-  /**
-   * ★ 何時ごろに出るか（店舗様に見せる）。★ 選ばせない（第67便と同じ作法）。
-   * ★★★ null は【出さない】（1日0回）。★ 空配列に潰さない（0と不明を混ぜない・作法3-5）。
-   */
-  postTimes: string[] | null;
-  /** ★ 自動で回している本数。★ 0なら回らない */
-  activeCount: number;
+  /** ★★★ 枠ごとの自動投稿の様子（第376便）。★ 必ず5枠ぶん */
+  slotAuto: ArticleSlotAuto[];
+  /** ★ 1枠に登録できる本数の上限。★ 画面が同じ数字を持たないよう、ここから渡す */
+  perSlotMax: number;
   /**
    * ★★★ フクエスの写真を送れる方（第162便）。★ 写真の箱の【選択肢】。
    *   ★ プロフィール写真が therapist-photos に入っている方だけ。★ 無い方は出さない
@@ -173,9 +194,10 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
   const rows = Array.isArray(snap?.rows) ? (snap!.rows as ArticleSlotRow[]) : null;
 
   // ★ 第373便: ekichika_girl_id / therapist_ids は読まない（★ 列は残っている）
+  // ★ 第376便: last_auto_day（今日この枠を出したか）と last_posted_at（順番と画面表示）を読む
   const { data: temps, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, is_active, sort_order, updated_at')
+    .select('id, article_slot, title, body, is_active, sort_order, updated_at, last_auto_day, last_posted_at')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
@@ -205,10 +227,39 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
     isActive: r.is_active === true,
     sortOrder: Number(r.sort_order ?? 0),
     updatedAt: String(r.updated_at ?? ''),
+    lastPostedAt: r.last_posted_at ? String(r.last_posted_at) : null,
   }));
 
-  // ★ 行が無い＝まだ決めていない＝既定。★ 0（送らない）と混ぜない
-  const postsPerDay = st ? Number(st.posts_per_day) : ARTICLE_POSTS_PER_DAY_DEFAULT;
+  const autoEnabled = st?.auto_enabled === true;
+  const today = dayKeyJST(new Date());
+
+  // ★★★ 枠ごとの自動投稿の様子（第376便）。★ 必ず5枠ぶん作る（★ 文章が0本の枠も出す）
+  //   ★★ 文言は articleRotation が作る。★ ここで作らない（第167便で直した作法）
+  const slotAuto: ArticleSlotAuto[] = EKICHIKA_ARTICLE_SLOTS.map((s) => {
+    const mine = (temps ?? []).filter((r) => Number(r.article_slot) === s.slot);
+    const active = mine.filter((r) => r.is_active === true);
+    // ★★ その枠のどれか1本でも今日 自動で出ていれば、その枠は今日ぶんを出し終えている
+    const lastAutoDay = mine
+      .map((r) => (r.last_auto_day ? String(r.last_auto_day) : ''))
+      .filter((d) => d !== '')
+      .sort()
+      .pop() ?? null;
+    const timeLabel = articleSlotPostTimeLabel(salonId, s.slot);
+    return {
+      slot: s.slot,
+      count: mine.length,
+      activeCount: active.length,
+      timeLabel,
+      note: articleSlotAutoNote({
+        autoEnabled,
+        activeCount: active.length,
+        lastAutoDay,
+        dayKey: today,
+        timeLabel,
+      }),
+      canAdd: mine.length < ARTICLE_TEMPLATES_PER_SLOT_MAX,
+    };
+  });
 
   // ★ 直近の記録。★ 読めなくても画面は出す（★ 記録が無いのと読めないのを画面で混ぜないよう空で返す）
   let runs: ArticleBoard['runs'] = [];
@@ -227,7 +278,6 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
   }
 
   // ★★ 今日ぶんは「区切りの日」が今日と同じときだけ数える。★ 昨日の数を持ち越さない
-  const today = dayKeyJST(new Date());
   const postedToday = st && today !== null && String(st.last_day ?? '') === today ? Number(st.last_count ?? 0) : 0;
 
   return {
@@ -237,10 +287,9 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       summary: articleSlotSummary(rows),
       readAt: snap?.read_at ? String(snap.read_at) : null,
       templates,
-      postsPerDay,
-      autoEnabled: st?.auto_enabled === true,
-      postTimes: articlePostTimeLabels(salonId, postsPerDay),
-      activeCount: templates.filter((t) => t.isActive).length,
+      autoEnabled,
+      slotAuto,
+      perSlotMax: ARTICLE_TEMPLATES_PER_SLOT_MAX,
       therapists,
       photoIds,
       postedToday,
@@ -284,7 +333,9 @@ export async function readArticleSlots(input: { salonId: string | number; slot?:
 /**
  * テンプレートを1本保存する（新規／上書き）。
  * ★★★ 枠は必ず選ばせる。★ 既定値を作らない（★ うっかり速報NEWSを上書きする道を残さない）。
+ *   ★ 第376便からは画面が【枠ごとに分かれている】ので、枠は画面が渡す（★ 店舗様は選ばない）。
  * ★★ タイトル・本文はここで弾く。★ 駅ちかへ送ってから断られるのは無駄。
+ * ★★★ 第376便: **1つの枠に5本まで。** ★ 6本目は断る（★ 黙って落とさない）。
  */
 export async function saveArticleTemplate(input: {
   salonId: string | number;
@@ -332,6 +383,24 @@ export async function saveArticleTemplate(input: {
     if (error) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
     if (!data) return { ok: false, error: 'その文章が見つかりません（画面を開き直してください）' };
     return { ok: true, data: { id: Number(data.id) } };
+  }
+
+  // ★★★ 第376便: この枠にあと足せるか。★ 数えてから入れる（★ 入れてから断らない）
+  const { count: mine, error: cErr } = await svc
+    .from('salon_article_templates')
+    .select('id', { count: 'exact', head: true })
+    .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
+    .eq('article_slot', articleSlot);
+  // ★★ 数えられなかったときは入れない。★ 0件と混ぜない（作法3-5）
+  if (cErr || mine === null) {
+    return { ok: false, error: 'いま登録されている本数を数えられませんでした。時間をおいてお試しください' };
+  }
+  if (mine >= ARTICLE_TEMPLATES_PER_SLOT_MAX) {
+    return {
+      ok: false,
+      error: articleSlotLabel(articleSlot) + ' に登録できるのは'
+        + ARTICLE_TEMPLATES_PER_SLOT_MAX + '本までです（いま' + mine + '本）。どれかを消してからお試しください',
+    };
   }
 
   const { data, error } = await svc
@@ -470,9 +539,10 @@ export async function startArticlePost(input: {
 export async function saveArticleSettings(input: {
   salonId: string | number;
   slot?: number;
-  postsPerDay?: number;
   autoEnabled?: boolean;
-}): Promise<Result<{ postsPerDay: number; autoEnabled: boolean }>> {
+  // ★ 第376便: postsPerDay は受けない（★ 枠ごと1日1回に固定したので設定そのものが無くなった）。
+  //   ★★ 列（posts_per_day）は残っている。★ upsert のときは今の値をそのまま書き戻す
+}): Promise<Result<{ autoEnabled: boolean }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   const guard = await assertSalonOwner(salonId);
@@ -480,27 +550,25 @@ export async function saveArticleSettings(input: {
   const mediaSlot = Number.isFinite(Number(input.slot)) && Number(input.slot) > 0 ? Number(input.slot) : 1;
 
   const svc = createServiceClient();
-  const { data: cur } = await svc
+  const { data: cur, error: curErr } = await svc
     .from('salon_article_settings')
     .select('posts_per_day, auto_enabled')
     .eq('salon_id', salonId).eq('provider', PROVIDER).eq('slot', mediaSlot)
     .maybeSingle();
+  if (curErr) return { ok: false, error: '設定を読み出せませんでした。時間をおいてお試しください' };
 
-  const n = Number(input.postsPerDay);
-  const postsPerDay = Number.isFinite(n)
-    ? Math.min(Math.max(Math.trunc(n), 0), ARTICLE_POSTS_PER_DAY_MAX)
-    : (cur ? Number(cur.posts_per_day) : ARTICLE_POSTS_PER_DAY_DEFAULT);
   const autoEnabled = input.autoEnabled === undefined ? cur?.auto_enabled === true : input.autoEnabled === true;
 
   const { error } = await svc.from('salon_article_settings').upsert(
     {
       salon_id: salonId, provider: PROVIDER, slot: mediaSlot,
-      posts_per_day: postsPerDay,
+      // ★ 読まなくなった列。★ 行を作り直すときに既定へ戻さないよう、今の値を書き戻すだけ
+      posts_per_day: cur ? Number(cur.posts_per_day) : ARTICLE_POSTS_PER_DAY_DEFAULT,
       auto_enabled: autoEnabled,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'salon_id,provider,slot' },
   );
   if (error) return { ok: false, error: '設定を保存できませんでした。時間をおいてお試しください' };
-  return { ok: true, data: { postsPerDay, autoEnabled } };
+  return { ok: true, data: { autoEnabled } };
 }
