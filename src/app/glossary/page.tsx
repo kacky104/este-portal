@@ -112,15 +112,12 @@ export default function GlossaryHubPage() {
       {/* 注意文（情報カード・文言は GLOSSARY_POLICY_NOTE のまま。個別ページと共通の部品） */}
       <GlossaryNotice className={styles.section} />
 
-      {/* 用語解説のコラムへ（関連記事カード） */}
+      {/* 用語解説のコラムへ（関連記事カード）
+          ★★ 第391便（カッキーさんの指示）: 左の書類アイコンを外した。
+            ★ 注意文の箱（第389便）と同じ判断。右の矢印だけで「押して進む」は伝わる。
+            ★ CSS の .linkCardIcon は残す（第372便の作法: 消すのは画面だけ）。 */}
       <div className="mt-6">
         <Link href="/column/category/glossary" className={styles.linkCard}>
-          <span className={styles.linkCardIcon} aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 5a2 2 0 0 1 2-2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" />
-              <path d="M15 3v5h5M8 13h8M8 17h6" />
-            </svg>
-          </span>
           <span>用語解説のコラムも読む</span>
           <span className={styles.linkCardArrow} aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

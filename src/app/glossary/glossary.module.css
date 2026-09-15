@@ -24,6 +24,14 @@
   --glossary-bg: #fff9fc;
   --glossary-white: #ffffff;
 
+  /* ★ 第391便（カッキーさんの指示）: 「いま選んでいる」「押して移動する」小さな部品を紫の花柄にそろえた。
+     ★ 花柄そのものは /glossary/purple.webp。ここでは枠線と文字の色だけ持つ。
+     ★★ ピンク（--glossary-accent）は見出し・強調のまま。紫は**操作する部品だけ**に使う。
+       ★ 両方をむやみに混ぜると、どれを押せばよいか分からなくなる。 */
+  --glossary-purple: #8b5cf6;
+  --glossary-purple-dark: #4c2a8c;
+  --glossary-purple-line: #c9b1ee;
+
   color: var(--glossary-text);
   max-width: 1024px; /* ヘッダー・フッターの内側（max-w-5xl）と同じ幅にそろえる */
   margin-inline: auto;
@@ -300,13 +308,35 @@
 @media (min-width: 768px) { .kanaBtn { width: 52px; } }
 .kanaBtn:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
 .kanaBtn:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+/* ★★ 第391便（カッキーさんの指示）: 選んでいる行を、赤べた塗り → 紫の花柄に。
+   ── 花柄の敷き方（この先 .filterClear / .termBadge / .termRowLink / .chip も同じ） ──
+   ・白い膜は **薄め（0.30〜0.45）**。★ カードの膜（0.86）と同じ濃さにすると、ほぼ白くなって
+     「選んでいる」ことが伝わらない。★ 小さい部品なので、色が出る濃さで敷く。
+   ・`background-position` は **left bottom**。★ この画像は中央が淡く、左下に花が寄っている。
+     44px の四角に cover で敷くと、center では淡いところしか出ない。
+   ・文字は濃い紫（--glossary-purple-dark）。★ 白文字は花の淡いところで読めなくなる。 */
 .kanaBtnActive {
-  background: var(--glossary-accent);
-  border-color: var(--glossary-accent);
-  color: var(--glossary-white);
-  box-shadow: 0 6px 16px rgba(255, 23, 104, 0.3);
+  background-color: #efe7fb;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.44) 100%),
+    url('/glossary/purple.webp');
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  border-color: var(--glossary-purple);
+  color: var(--glossary-purple-dark);
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.28);
 }
-.kanaBtnActive:hover { background: var(--glossary-accent-dark); border-color: var(--glossary-accent-dark); }
+/* ★ 膜を薄くするだけで「押している」感じを出す（画像は差し替えない）。
+   ★★ background-color も書いておく。★ 1つ上の .kanaBtn:hover が `background:`（一括指定）で
+     ピンクを入れてくるので、ここで書かないと下地だけピンクに戻る。 */
+.kanaBtnActive:hover {
+  background-color: #efe7fb;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    url('/glossary/purple.webp');
+  border-color: var(--glossary-purple);
+}
 .kanaBtnDisabled {
   background: #fafafa;
   border-color: #ececf1;
@@ -342,18 +372,30 @@
   color: var(--glossary-text);
 }
 .filterText strong { color: var(--glossary-accent-dark); font-weight: 800; }
+/* 「すべて表示」。★ 第391便: 紫の花柄（.kanaBtnActive と同じ敷き方）。
+   ★ この帯（.filterBar）はピンクの花柄なので、ボタンだけ紫にすると押せる場所が浮き上がる。 */
 .filterClear {
   min-height: 32px;
   padding: 0 12px;
-  border: 1.5px solid var(--glossary-accent);
-  background: var(--glossary-white);
-  color: var(--glossary-accent-dark);
+  border: 1.5px solid var(--glossary-purple);
+  background-color: #efe7fb;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.46) 100%),
+    url('/glossary/purple.webp');
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
-.filterClear:hover { background: var(--glossary-accent); color: var(--glossary-white); }
-.filterClear:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.filterClear:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    url('/glossary/purple.webp');
+}
+.filterClear:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
 
 /* ── セクション ── */
 .section { margin-top: 40px; }
@@ -601,21 +643,35 @@
   padding: 0;
   list-style: none;
 }
+/* 最下部の地域リンク（「中洲・天神・薬院の店舗」など）。
+   ★ 第391便: 白 → 紫の花柄。★ この節（.cta）はピンクの花柄なので、白のままだと沈む。
+   ★ 上の赤いバー（.ctaButton）＝いちばん押してほしい入口、紫のチップ＝地域で選ぶ入口、と役割を分けた。 */
 .chip {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
   padding: 0 16px;
-  border: 1.5px solid var(--glossary-line);
-  background: var(--glossary-white);
-  color: var(--glossary-accent-dark);
+  border: 1.5px solid var(--glossary-purple-line);
+  background-color: #efe7fb;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.50) 100%),
+    url('/glossary/purple.webp');
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
   transition: background-color 150ms ease, border-color 150ms ease;
 }
-.chip:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
-.chip:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.chip:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.32) 100%),
+    url('/glossary/purple.webp');
+  border-color: var(--glossary-purple);
+}
+.chip:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
 
 /* ── パンくず ── */
 .crumbs {
@@ -691,21 +747,33 @@
    100cqw ＝ この箱の中身の幅（termHero の padding を引いたあとの、文字が置ける幅）。 */
 .termHeroInner { position: relative; z-index: 1; container-type: inline-size; }
 
+/* 見出し画像の中の区分バッジ（「施術・コース」）。
+   ★ 第391便: 白 → 紫の花柄。★ 見出し画像の上に載るので、白いままだと背景と溶ける。 */
 .termBadge {
   display: inline-flex;
   align-items: center;
   min-height: 26px;
   margin-top: 10px;
   padding: 0 10px;
-  border: 1.5px solid var(--glossary-line);
-  background: var(--glossary-white);
-  color: var(--glossary-accent-dark);
+  border: 1.5px solid var(--glossary-purple);
+  background-color: #efe7fb;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.46) 100%),
+    url('/glossary/purple.webp');
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
 }
-.termBadge:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
-.termBadge:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.termBadge:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    url('/glossary/purple.webp');
+}
+.termBadge:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
 
 /* ★★★ 第361便（カッキーさんの指示）: スマホで h1 が2行になるのをやめ、字の大きさで1行に収める。
    ── しくみ ──
@@ -768,22 +836,33 @@
   margin-top: 18px;
 }
 /* 「か行の用語一覧へ戻る」 */
+/* ★ 第391便: 白 → 紫の花柄。★ 区分バッジ（.termBadge）と同じ画像の中に並ぶので、色をそろえる。 */
 .termRowLink {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   min-height: 44px;
   padding: 0 14px;
-  border: 1.5px solid var(--glossary-line);
-  background: var(--glossary-white);
-  color: var(--glossary-accent-dark);
+  border: 1.5px solid var(--glossary-purple);
+  background-color: #efe7fb;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.46) 100%),
+    url('/glossary/purple.webp');
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
   transition: background-color 150ms ease, border-color 150ms ease;
 }
-.termRowLink:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
-.termRowLink:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.termRowLink:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    url('/glossary/purple.webp');
+}
+.termRowLink:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
 .termRowLink svg { width: 14px; height: 14px; flex-shrink: 0; }
 
 /* ── 読み物の列（本文・FAQ・関連語は 800px 幅で中央に） ── */
@@ -893,6 +972,11 @@
   box-shadow: 0 4px 14px rgba(140, 102, 24, 0.10);
 }
 @media (min-width: 640px) { .backLinks { flex-direction: row; align-items: center; padding: 20px 24px; } }
+/* 「メンズエステ用語集に戻る」。
+   ★ 第391便（カッキーさんの指示）: 薄ピンクのべた塗り → ピンクの花柄（card-bg）。
+   ★ ここは**紫にしない**。紫は「いま選んでいる行」「地域で選ぶ」に使い、
+     この大きなボタンは用語集そのものへ戻る道なので、ページの基調（ピンク）のままにしてある。
+   ★ 膜の濃さ（0.86 / 0.90）はカード・注意文の箱と同じ。★ 文字は今までどおり読める。 */
 .backPrimary {
   display: inline-flex;
   align-items: center;
@@ -902,7 +986,13 @@
   min-height: 52px;
   padding: 0 18px;
   border: 1.5px solid var(--glossary-accent);
-  background: var(--glossary-accent-soft);
+  background-color: #fff6fa;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 246, 250, 0.90) 100%),
+    url('/glossary/card-bg.webp');
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
   color: var(--glossary-accent-dark);
   font-size: 15px;
   font-weight: 800;
