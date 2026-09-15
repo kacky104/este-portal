@@ -325,23 +325,17 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             </button>
           </div>
         </section>
-      ) : (
-        <div className="px-0.5">
-          <p className="text-[13.5px] text-slate-500 leading-relaxed">{board.summary}</p>
-          <p className="text-[13px] text-slate-400 leading-relaxed flex items-center gap-2 flex-wrap mt-0.5">
-            <span className="tabular-nums">{fmt(board.readAt)} に駅ちかを確認しました</span>
-            <button
-              type="button"
-              onClick={onRead}
-              disabled={busy !== ''}
-              className="underline underline-offset-2 hover:text-slate-600 disabled:opacity-40"
-            >
-              読み直す
-            </button>
-            <span className="tabular-nums">／ 今日はここまで {board.postedToday} 本出しました</span>
-          </p>
-        </div>
-      )}
+      ) : null}
+
+      {/* ★★★ 第378便（カッキーさん・2026-09-15）: ここにあった2行を消した。
+          ★ 前 … 「いますぐ使える枠は5つです…」＋「9/6 15:46 に駅ちかを確認しました／今日はここまで◯本」
+          ★ 後 … **自動投稿が動く条件**だけを置く。★ 枠の状態は、下のタブと節の中で枠ごとに見える。
+          ★★ 消した2行のうち【読み直す】は、枠の状態バッジの脇へ移した（★ 入口は失わせない）。
+             ★ 「この状態はいつのものか」を直すボタンなので、状態のすぐ隣がいちばん意味が通る。
+          ★ board.summary / board.postedToday は受け口に残してある（★ 戻すならここに1行） */}
+      <p className="text-[14px] text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-2.5 leading-relaxed">
+        「フクエスから反映」の時のみ自動投稿できます。
+      </p>
 
       {/* ───────── ① 写真（第373便・店舗に1つ／第374便でアコーディオン） ───────── */}
       <section className="bg-white border border-slate-200">
@@ -354,7 +348,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
           <div className="min-w-0">
             <h2 className="text-[15px] font-black text-slate-800">写真</h2>
             <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">
-              ここで選んだ写真の中から1枚がランダムで入ります。最大{ARTICLE_PHOTO_MAX}枚。
+              選んだ1枚がランダムで表示されます。
             </p>
           </div>
           <span className="flex items-center gap-2 flex-none pt-0.5">
@@ -468,6 +462,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             rows={rows}
             photoNote={photoNote}
             busy={busy !== ''}
+            onRead={onRead}
             open={open}
             drafts={drafts}
             newOpen={open.has(newKey)}
@@ -555,7 +550,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
  *   ・文章カード … 閉じているときはバー、開くと編集と操作
  */
 function SlotSection({
-  advice, auto, perSlotMax, rows, photoNote, busy,
+  advice, auto, perSlotMax, rows, photoNote, busy, onRead,
   open, drafts, newOpen, onToggleNew, onCancelNew, onCreate,
   onToggleRow, onCancelRow, onUpdate, onToggleActive, setDraft,
   confirmDelete, onAskDelete, onDelete,
@@ -567,6 +562,8 @@ function SlotSection({
   rows: ArticleTemplateRow[];
   photoNote: string;
   busy: boolean;
+  /** ★ 第378便: 枠の状態を読み直す（★ 上のブロックから移してきた） */
+  onRead: () => void;
   open: Set<string>;
   drafts: Record<string, Draft>;
   newOpen: boolean;
@@ -598,6 +595,16 @@ function SlotSection({
         <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-[15px] font-black text-slate-800">{advice.label}</h2>
           <span className={'text-[12.5px] font-bold px-1.5 py-0.5 border ' + chip}>{advice.short}</span>
+          {/* ★★ 第378便: 上から移してきた「読み直す」。★ 状態バッジのすぐ隣（★ 直す対象の隣に置く）。
+              ★ 普段は押さない操作なので、小さく・下線だけ */}
+          <button
+            type="button"
+            onClick={onRead}
+            disabled={busy}
+            className="text-[12.5px] text-slate-400 underline underline-offset-2 hover:text-slate-600 disabled:opacity-40"
+          >
+            読み直す
+          </button>
         </div>
         {/* ★★ 自動投稿の1行。★ 文言は articleRotation が作る（★ 画面で作らない） */}
         <p className="text-[13px] font-bold text-slate-500 mt-1.5">自動投稿（1日1回・順番で投稿）</p>
