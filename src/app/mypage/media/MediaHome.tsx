@@ -8,6 +8,7 @@ import {
   isWritingElsewhere, writingElsewhereLabels, readBlockedNote, doubleWriteNote,
   sendOnlyChoiceNote, canReadProvider,
   bulkPlan, bulkAskText, bulkDoneText, bulkLabel, readLinkLabel,
+  autoOffWorkSites, autoOffNoticeText,
   type SiteDirection, type SwitchChoice, type BulkTarget,
 } from '@/lib/mediaOverview';
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
@@ -188,6 +189,8 @@ export function MediaHome({ salonId, onToast }: {
   const sites = data?.sites ?? [];
   // ★★★ 同意の取り直しが要る枠（第89便）。★ 入口のいちばん上に出す
   const recheck = sites.filter((s) => s.needsConsent);
+  // ★★★★ 第393便: 反映する向きなのに、出勤がまだ自動更新でない枠。★ 判定は mediaOverview（純粋関数）
+  const autoOffWork = autoOffWorkSites(sites);
   const reading = sites.find((s) => s.direction === 'read') ?? null;
   const writing = sites.filter((s) => s.direction === 'write');
   // ★ 自分で「送らない」を選んでいる枠。★ 未設定と混ぜて書かない（§223）
@@ -216,6 +219,29 @@ export function MediaHome({ salonId, onToast }: {
             className="inline-block mt-2.5 px-3 py-1.5 border border-amber-400 bg-white text-[13.5px] font-bold text-amber-900 hover:bg-amber-100"
           >
             同意する場所を開く
+          </Link>
+        </div>
+      )}
+
+      {/* ── ★★★★ 出勤の自動更新が未設定（第393便・2026-09-16・カッキーさんの指示）──────
+          ★★ 「フクエスから反映」にした時点で出勤も自動になる、と思って止まっている店舗様が居る。
+            ★ 押すときの赤字（一括の問い）は【そのとき】しか出ない。★ 読み飛ばすと二度と出てこない。
+          ★ ここは【いまその状態である】ことを出す場所。★ 直したら消える（残り続けない）。
+          ★ 判定は autoOffWorkSites（純粋関数）。★ この画面では数えない・決めない。
+          ★ 同意の取り直し（上）と同じ形。★ あちらは琥珀、こちらは赤（★ 出勤が止まっているため）。 */}
+      {!loading && !error && autoOffWork.length > 0 && (
+        <div className="border-2 border-rose-300 bg-rose-50 p-4">
+          <p className="text-[15.5px] font-black text-rose-700">
+            {autoOffNoticeText(autoOffWork.map((s) => s.label)).title}
+          </p>
+          <p className="mt-1 text-[14px] text-rose-900/80 leading-relaxed">
+            {autoOffNoticeText(autoOffWork.map((s) => s.label)).body}
+          </p>
+          <Link
+            href="/mypage/media/work"
+            className="inline-block mt-2.5 px-3 py-1.5 border border-rose-400 bg-white text-[13.5px] font-bold text-rose-700 hover:bg-rose-100"
+          >
+            出勤の自動更新設定を開く
           </Link>
         </div>
       )}

@@ -12,6 +12,8 @@
 //   （mediaLinkStall / importStall / mediaVisibility と同じ作法・引き継ぎメモ 3-1）。
 
 import { isWriteDirection } from './mediaLinkMode';
+// ★ 第393便: 「その媒体は出勤を送れるのか」を見るため（★ 送れない媒体を未設定と鳴らさない）
+import { findMediaSite, sendableCapabilities } from './mediaSites';
 
 /**
  * 【向こうを読める】媒体。★ ここに無い媒体は書くことしかできない。
@@ -695,6 +697,46 @@ export function bulkAskText(plan: BulkPlan): { title: string; body: string; note
       + (fromRead.length > 0 ? `${fromRead}からの取り込みも止まります。` : 'どのサイトからも取り込みません。')
       + '写メ日記もフクエスの中だけになります。'
       + skipNote,
+  };
+}
+
+// ───────────────── 出勤の自動更新がまだの枠（第393便・2026-09-16） ─────────────────
+
+/**
+ * ★★★★ 【第393便】（カッキーさんの指示）フクエスから反映する設定にしただけで、
+ *   出勤も自動更新になると思う方が居る。★ 実際は【押しただけでは自動にならない】。
+ *   ★ 一括の問いの赤字（WORK_FIRST_APPROVAL_NOTE）は押すときにしか出ない。
+ *     ★★ 読み飛ばした方は、そのあと**どこにも出てこない**まま止まる。
+ *   → ホームに【いまその状態である】ことを出す。★ 押すときの注意ではなく、続いている状態の表示。
+ *
+ * ★ 出すのは次の3つが揃った枠だけ:
+ *   ① フクエスから反映する向き（write / write_auto）
+ *   ② まだ自動更新ではない（autoOn が false）
+ *   ③ その媒体に【出勤を送れる】（★ 写メ日記だけの媒体を未設定と鳴らさない）
+ * ★ 知らない媒体は鳴らさない（★ 分からないときは黙る側・mediaLinkStall と同じ倒し方）。
+ */
+export function autoOffWorkSites<T extends {
+  provider: string; slot: number; label: string; direction: string; autoOn: boolean;
+}>(sites: readonly T[]): T[] {
+  return (Array.isArray(sites) ? sites : []).filter((s) => {
+    if (!isWriteDirection(s.direction)) return false;
+    if (s.autoOn === true) return false;
+    const site = findMediaSite(s.provider);
+    if (!site) return false;
+    return sendableCapabilities(site).includes('work');
+  });
+}
+
+/**
+ * ★★ ホームに出す文。★ 見出しは【状態】、本文は【このままだとどうなるか】。
+ *   ★ 「押してください」は行き先のボタン（リンク）が言う。★ 文で二度言わない。
+ */
+export function autoOffNoticeText(labels: readonly string[]): { title: string; body: string } {
+  const names = joinNames([...(labels ?? [])]);
+  return {
+    title: '出勤の自動更新が未設定です',
+    body: `${names}へフクエスから反映する設定になっていますが、出勤は自動更新になっていません。`
+      + `このままでは、フクエスで出勤を変えても${names}に反映されません。`,
   };
 }
 

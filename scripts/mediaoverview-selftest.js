@@ -792,6 +792,26 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★ 駅ちかが read でなければ「取り込みは止まります」と書かない（止まらないものを止めると書かない）',
      v.bulkAskText(pW2).body.includes('取り込み'), false);
 
+  // ───── ★★★★ 第393便: 出勤の自動更新が未設定の枠（ホームの赤い帯）─────
+  const W = (o) => Object.assign({ provider: 'ekichika', slot: 1, label: '駅ちか', direction: 'write', autoOn: false }, o || {});
+  eq('★★★ 反映する向き＋自動でない＋出勤を送れる → 出す', v.autoOffWorkSites([W({})]).length, 1);
+  eq('★★ もう自動の枠は出さない', v.autoOffWorkSites([W({ autoOn: true })]).length, 0);
+  eq('★★ 取り込み中（read）の枠は関係ない', v.autoOffWorkSites([W({ direction: 'read' })]).length, 0);
+  eq('★ 反映しない（off）の枠も関係ない', v.autoOffWorkSites([W({ direction: 'off' })]).length, 0);
+  eq('★ まだ向きが決まっていない枠も出さない', v.autoOffWorkSites([W({ direction: 'unset' })]).length, 0);
+  eq('★★★ 出勤を送れない媒体は鳴らさない（エステラブは写メ日記だけ）',
+     v.autoOffWorkSites([W({ provider: 'esulove', label: 'エステラブ' })]).length, 0);
+  eq('★★ 知らない媒体は鳴らさない（分からないときは黙る）',
+     v.autoOffWorkSites([W({ provider: 'なにか', label: 'なにか' })]).length, 0);
+  eq('★ 空でも落ちない', v.autoOffWorkSites([]).length, 0);
+  eq('★★ 複数の枠を順のまま返す',
+     v.autoOffWorkSites([W({}), W({ provider: 'esutama', label: 'エステ魂' })]).map((x) => x.label), ['駅ちか', 'エステ魂']);
+  eq('★★★ 見出しは【状態】を言う', v.autoOffNoticeText(['駅ちか']).title, '出勤の自動更新が未設定です');
+  eq('★★ 本文はサイト名を列挙する', v.autoOffNoticeText(['駅ちか', 'エステ魂']).body.includes('駅ちか・エステ魂'), true);
+  eq('★★ 本文は【このままだとどうなるか】を言う',
+     /反映されません/.test(v.autoOffNoticeText(['駅ちか']).body), true);
+  eq('★ 同じ名前は1つにまとめる', v.autoOffNoticeText(['駅ちか', '駅ちか']).body.includes('駅ちか・駅ちか'), false);
+
   const pN = v.bulkPlan([EK({ direction: 'read' }), S({ direction: 'write' })], 'none');
   eq('★★★ none の問いの見出しはボタンの文字で始まる', v.bulkAskText(pN).title.startsWith(v.bulkLabel('none').label), true);
   eq('★★★ none の本文: 更新しなくなる枠の名前', v.bulkAskText(pN).body.includes('駅ちか・エステ魂は更新しなくなります'), true);
