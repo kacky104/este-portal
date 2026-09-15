@@ -131,7 +131,7 @@ export type ArticleSlotAuto = {
   timeLabel: string | null;
   /** ★ 見出しの下に出す1行。★ 材料が読めていなければ null */
   note: string | null;
-  /** ★ まだ文章を足せるか（★ 1枠5本まで） */
+  /** ★ まだ文章を足せるか（★ 1枠 ARTICLE_TEMPLATES_PER_SLOT_MAX 本まで＝第384便から10本） */
   canAdd: boolean;
 };
 
@@ -356,7 +356,8 @@ export async function readArticleSlots(input: { salonId: string | number; slot?:
  * ★★★ 枠は必ず選ばせる。★ 既定値を作らない（★ うっかり速報NEWSを上書きする道を残さない）。
  *   ★ 第376便からは画面が【枠ごとに分かれている】ので、枠は画面が渡す（★ 店舗様は選ばない）。
  * ★★ タイトル・本文はここで弾く。★ 駅ちかへ送ってから断られるのは無駄。
- * ★★★ 第376便: **1つの枠に5本まで。** ★ 6本目は断る（★ 黙って落とさない）。
+ * ★★★ 第376便: **1つの枠に上限あり。** ★ 上限を超えたら断る（★ 黙って落とさない）。
+ *   ★★ 第384便: 上限は 5本 → **10本**（ARTICLE_TEMPLATES_PER_SLOT_MAX）。★ ここに数字を書かない。
  */
 export async function saveArticleTemplate(input: {
   salonId: string | number;
