@@ -12,7 +12,7 @@ import {
   startMediaWorkPush,
   type WorkPlanView,
 } from '@/app/actions/mediaCredentials';
-import { pushAvailability, pushButtonLabel, bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
+import { bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { siteMark } from '@/lib/mediaSites';
 import { AUTO_PUSH_INTERVAL_MIN } from '@/lib/mediaLinkMode';
 
@@ -95,7 +95,6 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirmPush, setConfirmPush] = useState<string | null>(null);
   /**
    * ★★ 自動にしてよい枠（1回は人が承認した枠）。
    *   ★ 承認が1回も無いうちは、自動のボタンそのものを出さない（設計メモ §32 の作法）。
@@ -110,6 +109,20 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   const [tick, setTick] = useState(0);
   /** ★ 第207便: 10分待っても届かなかった枠。★ 黙って「まだ確かめていません」に戻さず、「いま見る」を出す */
   const [gaveUp, setGaveUp] = useState<Set<string>>(new Set());
+  /**
+   * ★★★★ 第393便（2026-09-15・カッキーさんの指示）: 確認が届いたあと、続けて何をするか。
+   *   'make_auto' … 「出勤を自動更新にする」から。★ 変わるところが0件なら、そのまま自動にする
+   *   'push_now'  … 自動更新中の「いますぐ更新する」から。★ 変わるところがあれば、その場で送る
+   * ★ 画面に出す値ではないので state にしない（★ 待っている最中の描き直しを増やさない）。
+   *   ★ 待ちの文言は s.autoOn で分かる（自動更新中＝いますぐ更新／それ以外＝自動更新の準備）。
+   */
+  const afterCheck = useRef<Record<string, 'make_auto' | 'push_now'>>({});
+  /**
+   * ★★★ 送ったあと、自動に切り替わるのを待っている枠（第393便）。
+   *   ★★ 送った直後には write_auto にできない。★ 条件は「1回でも反映が成功していること」（§54）で、
+   *     反映は中継が動き終わってから成立する。★ だから【終わったのを見てから】切り替える。
+   */
+  const [autoWaiting, setAutoWaiting] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (salonId == null) return;
@@ -152,21 +165,43 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
    * ★ write_auto から read へは直接戻さない（まず自動をやめてもらう）。
    *   ★ 一度に2つ変えると「どちらのつもりで押したのか」が分からなくなる。
    */
-  const onSwitchAuto = async (site: Site, toAuto: boolean) => {
+  const setAuto = useCallback(async (provider: string, slot: number, toAuto: boolean) => {
     if (salonId == null) return;
-    const k = keyOf(site.provider, site.slot);
+    const k = keyOf(provider, slot);
     setSwitching(k);
-    const res = await setMediaLinkMode({
-      salonId, provider: site.provider, slot: site.slot,
-      mode: toAuto ? 'write_auto' : 'write',
-    });
+    const res = await setMediaLinkMode({ salonId, provider, slot, mode: toAuto ? 'write_auto' : 'write' });
     setSwitching(null);
     if (!res.ok) { onToast(res.error); return; }
     await load();
+    // ★ 第393便: ボタンの名前と同じ言葉で返す（★ 押したものと起きたことを同じ名前にする）
     onToast(toAuto
-      ? '自動にしました。30分ごとに、変わったところだけを更新します'
-      : '自動をやめました。これからは毎回この画面で更新します');
-  };
+      ? '自動更新になりました'
+      : '自動更新をやめました。これからはこの画面で更新します');
+  }, [salonId, load, onToast]);
+
+  /**
+   * 送り先を書き換える唯一の場所（★ ここだけが実際に媒体へ書く）。
+   * ★ thenAuto … 送り終わったら自動更新に切り替える（第393便の「更新して自動にする」）。
+   *   ★★ その場では切り替えない。★ 送り終わるのを待ってから（autoWaiting）。
+   */
+  const doPush = useCallback(async (provider: string, slot: number, fingerprint: string, thenAuto: boolean) => {
+    if (salonId == null) return;
+    const k = keyOf(provider, slot);
+    setBusy(k);
+    try {
+      const res = await startMediaWorkPush({ salonId, provider, slot, fingerprint });
+      if (!res.ok) { onToast(res.error); return; }
+      if (thenAuto) {
+        setAutoWaiting((w) => new Set([...w, k]));
+        onToast('更新を送りました。終わりしだい自動更新にします');
+      } else {
+        onToast('更新しました。結果は「連携の記録」に出ます');
+      }
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  }, [salonId, load, onToast]);
 
   /**
    * ★★★ その場でフクエスに変える（第86便その2・カッキーさん）。
@@ -208,9 +243,34 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           const res = await getMediaWorkPlan({ salonId, provider, slot: Number(slotStr) });
           if (!res.ok || !res.data) continue;
           if (res.data.createdAt === waiting[k]) continue;   // ★ まだ前の計画のまま
-          setPlans((p) => ({ ...p, [k]: res.data }));
+          const got = res.data;
+          setPlans((p) => ({ ...p, [k]: got }));
           setWaiting((w) => { const n = { ...w }; delete n[k]; return n; });
-          onToast('内容ができました。更新の前にご確認ください（まだ更新していません）');
+
+          // ★★★★ 第393便: 届いたら【押したボタンの続き】をここでやる。
+          //   ★ 「確かめる」で終わらせない。★ 店舗様が押したのは「自動更新にする」なので、
+          //     0件ならそのまま自動まで行く。★ 差分があるときだけ、もう一度だけ手を借りる。
+          const act = afterCheck.current[k];
+          delete afterCheck.current[k];
+          if (act === 'make_auto') {
+            if (got.sendable !== true) {
+              onToast('自動更新にできませんでした。止めた理由をご確認ください');
+            } else if (got.changeCount === 0) {
+              await setAuto(provider, Number(slotStr), true);   // ★ ここで「自動更新になりました」が出る
+            } else {
+              onToast(`${got.changeCount}件変わります。内容をご確認のうえ「更新して自動にする」を押してください`);
+            }
+          } else if (act === 'push_now') {
+            if (got.sendable !== true) {
+              onToast('いまは更新できません。止めた理由をご確認ください');
+            } else if (got.changeCount > 0) {
+              await doPush(provider, Number(slotStr), got.fingerprint, false);
+            } else {
+              onToast('変わるところはありませんでした');
+            }
+          } else {
+            onToast('内容ができました（まだ更新していません）');
+          }
         }
       })();
       if (pollCount.current >= POLL_MAX) {
@@ -221,42 +281,71 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [waiting, salonId, onToast]);
+  }, [waiting, salonId, onToast, setAuto, doPush]);
 
-  const onDryRun = async (s: Site) => {
+  /**
+   * ★★★ 送り終わるのを待って自動に切り替える（第393便）。
+   *   ★ 見に行くのは「自動にしてよいか」（getMediaAutoEligible）。★ これが立つ＝1回目の反映が成功した。
+   *   ★ 10分待っても立たなければ待つのをやめる。★ 黙って回し続けない（第207便と同じ作法）。
+   *   ★★ ここで「自動にしました」とは言わない。★ 言うのは setAuto（★ 2か所で言い方をずらさない）。
+   */
+  useEffect(() => {
+    if (autoWaiting.size === 0 || salonId == null) return;
+    let n = 0;
+    const timer = setInterval(() => {
+      n += 1;
+      (async () => {
+        const el = await getMediaAutoEligible({ salonId });
+        if (!el.ok) return;
+        const okSet = new Set(el.data.filter((r) => r.eligible).map((r) => keyOf(r.provider, r.slot)));
+        for (const k of Array.from(autoWaiting)) {
+          if (!okSet.has(k)) continue;
+          const [provider, slotStr] = k.split('#');
+          setAutoWaiting((w) => { const next = new Set(w); next.delete(k); return next; });
+          await setAuto(provider, Number(slotStr), true);
+        }
+      })();
+      if (n >= POLL_MAX) {
+        setAutoWaiting(new Set());
+        onToast('更新は送りましたが、終わったことをまだ確かめられていません。結果は「連携の記録」に出ます');
+      }
+    }, POLL_MS);
+    return () => clearInterval(timer);
+  }, [autoWaiting, salonId, onToast, setAuto]);
+
+  const onCheck = async (s: Site, act: 'make_auto' | 'push_now') => {
     if (salonId == null) return;
     const k = keyOf(s.provider, s.slot);
     setBusy(k);
     try {
       const res = await startMediaWorkDryRun({ salonId, provider: s.provider, slot: s.slot });
       if (!res.ok) { onToast(res.error); return; }
+      afterCheck.current[k] = act;   // ★ 届いたときの続きを覚えておく（第393便）
       // ★ 押した時点の作成時刻を覚える。★ 計画そのものが無いときは空文字（できたら必ず変わる）
       setWaiting((w) => ({ ...w, [k]: plans[k]?.createdAt ?? '' }));
       setGaveUp((g) => { const n = new Set(g); n.delete(k); return n; });
       setTick(0);   // ★ 経過時間は押した瞬間から（effect の中で触らない・lint の作法）
-      onToast('内容を確かめています。できあがるとこの画面に出ます（まだ更新していません）');
+      onToast(act === 'make_auto'
+        ? '自動更新の準備をしています。この画面のままお待ちください'
+        : 'いまの内容を確かめています。この画面のままお待ちください');
     } finally {
       setBusy(null);
     }
   };
 
-  const onPush = async (s: Site) => {
-    if (salonId == null) return;
+  /**
+   * ★★★ 「出勤を自動更新にする」（第393便）。
+   *   ★ すでに1回確かめてあって、いまの内容と一致しているなら、待たせずそのまま自動にする。
+   *   ★ それ以外は、まず確かめに行く（★ 続きは afterCheck が持つ）。
+   */
+  const onMakeAuto = (s: Site) => {
     const k = keyOf(s.provider, s.slot);
     const plan = plans[k];
-    if (!plan) return;
-    setBusy(k);
-    try {
-      const res = await startMediaWorkPush({
-        salonId, provider: s.provider, slot: s.slot, fingerprint: plan.fingerprint,
-      });
-      if (!res.ok) { onToast(res.error); return; }
-      onToast('更新しました。結果は「連携の記録」に出ます');
-      setConfirmPush(null);
-      await load();
-    } finally {
-      setBusy(null);
+    if (autoEligible.has(k) && plan && plan.sendable === true && plan.changeCount === 0) {
+      void setAuto(s.provider, s.slot, true);
+      return;
     }
+    void onCheck(s, 'make_auto');
   };
 
   if (salonId == null) return null;
@@ -395,36 +484,34 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
         return (
           <div key={k} className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
+            {/* ★★★★ 第393便（2026-09-15・カッキーさんの指示）: 見出しが【いまの状態】を言う。
+                ★ 自動更新中なら「出勤 自動更新中」（キラリ）。★ まだなら、これから何をするかを見出しにする。
+                ★ 第342便で下の別枠に出していた「出勤 自動更新中」を、ここへ引き上げた（★ 見出しは1枚に1つ）。 */}
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
-              <h3 className="text-[16px] font-bold text-slate-700">{s.label}を更新する内容</h3>
-              {plan && <span className="text-[13px] text-slate-400">{fmt(plan.createdAt)} に確認</span>}
+              <h3 className={'text-[16px] font-bold ' + (s.autoOn ? 'link-live-kirari' : 'text-slate-700')}>
+                {s.autoOn ? '出勤 自動更新中' : `${s.label}の出勤を自動更新にする`}
+              </h3>
+              {plan && !isWaiting && !gaveUp.has(k) && (
+                <span className="text-[13px] text-slate-400">{fmt(plan.createdAt)} に確認</span>
+              )}
             </div>
-
-            {/* ★★ この画面でいちばん誤解が起きやすい場所。**まだ更新していない**を繰り返し書く。
-                ★ 第210便: 出すのは【確かめた内容がある】ときだけ。★ 確かめる前・待っている最中は、
-                  下の文が同じことを言うので二度言わない（カッキーさんの添削・2026-09-07）
-                ★★★★ 第341便（2026-09-13・カッキーさん）: 【変わるところがあるときだけ】出す。
-                  ★ 0件のときは更新するものが1つも無いので、「更新するとこうなる」を青字で強調する意味がない。
-                  ★ 0件のときに要るのは「一致しています」だけ。 */}
-            {plan && !isWaiting && !gaveUp.has(k) && plan.changeCount > 0 && (
-              <p className="text-[13px] font-bold text-indigo-600">
-                これは「更新するとこうなる」という内容です。まだ更新していません。
-              </p>
-            )}
 
             {isWaiting ? (
               /* ★★★ 第207便（2026-09-07・カッキーさん）: 待っている最中を【動いて見える】形に。
                   ★ 文字だけだと、自動で見に行っていること（15秒ごと）が伝わらず、リロードされていた。
-                  ★ ホームの「反映中」と同じゆっくりした点滅＋経過時間。★ 「この画面のまま」と言い切る */
+                  ★ ホームの「反映中」と同じゆっくりした点滅＋経過時間。★ 「この画面のまま」と言い切る
+                  ★★ 第393便: 文言を【何のために待っているか】に変えた（「内容を確かめています」→ 準備）。 */
               <div className="border border-indigo-200 bg-indigo-50 px-4 py-3">
                 <p
                   className="text-[15px] font-bold text-indigo-700 animate-pulse"
                   style={WAIT_BLINK_STYLE}
                 >
-                  内容を確かめています。しばらくお待ちください…
+                  {s.autoOn
+                    ? 'いまの内容を確かめています。しばらくお待ちください…'
+                    : '自動更新の準備をしています。しばらくお待ちください…'}
                 </p>
                 <p className="mt-1 text-[13px] text-indigo-900/70 leading-relaxed">
-                  できあがると、この画面のまま自動でここに出ます（ふつう1〜3分）。
+                  できあがると、この画面のまま自動で続きます（ふつう1〜3分）。
                   {tick > 0 && `　待ち時間 ${Math.floor((tick * POLL_MS) / 60000)}分${Math.floor(((tick * POLL_MS) % 60000) / 1000)}秒`}
                 </p>
               </div>
@@ -443,59 +530,38 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   いま見る
                 </button>
               </div>
-            ) : !plan ? (
-              <>
-                {/* ★ 第210便: 1文に。★ 「まだ送りません」はここで言う（上の藍色の1行は確かめたあとにだけ出る） */}
-                <p className="text-[14px] text-slate-500">
-                  「内容を確かめる」を押すと、更新するとどうなるかをここに出します（まだ更新しません）。
-                </p>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => onDryRun(s)}
-                    disabled={isBusy}
-                    className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
-                  >
-                    内容を確かめる
-                  </button>
-                </div>
-              </>
             ) : (
               <>
+                {/* ★ 自動更新中の枠。★ 第210便の文言のまま（周期は AUTO_PUSH_INTERVAL_MIN から出す） */}
+                {s.autoOn && (
+                  <p className="text-[13px] text-slate-400 leading-relaxed">
+                    変わったところだけを、{AUTO_PUSH_INTERVAL_MIN}分以内に承認なしで{s.label}を更新します。更新できないときは止めて、ここに出します。
+                  </p>
+                )}
+
+                {/* ★★★ 第393便: まだ一度も確かめていない枠。
+                    ★★ 画面のいちばん上の帯（WORK_FIRST_APPROVAL_NOTE）が「押すと確かめてから自動になる」を
+                      もう言っている。★ ここでは【言っていないこと】だけを足す（★ 二度言わない・第341便）。 */}
+                {!s.autoOn && !plan && (
+                  <p className="text-[14px] text-slate-500 leading-relaxed">
+                    変わるところがあるときだけ、更新の前に一度おたずねします。
+                  </p>
+                )}
+
                 {/* ★ 突き合わせ0人は「一致」ではない。ここを最初に出す（第43便-b §26） */}
-                {plan.targets === 0 ? (
+                {plan && plan.targets === 0 && (
                   <p className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
                     {s.label}の出勤表と結びつく方が1人も見つかりませんでした。内容を比べられていません。
                   </p>
-                ) : (
-                  <>
-                    <dl className="grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
-                      <div className="bg-white px-3 py-2.5">
-                        {/* ★ 第341便: 「更新する人」→「更新できる人」。★ 下の「◯名は更新できません」と噛み合わせる */}
-                        <dt className="text-[12px] font-bold text-slate-400">更新できる人</dt>
-                        <dd className="text-[20px] font-black text-slate-800 tabular-nums">
-                          {plan.targets}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
-                        </dd>
-                      </div>
-                      <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[12px] font-bold text-slate-400">更新する範囲</dt>
-                        <dd className="text-[20px] font-black text-slate-800 tabular-nums">
-                          {plan.dateLabels.length || 7}<span className="text-[13px] font-bold text-slate-400 ml-0.5">日ぶん</span>
-                        </dd>
-                      </div>
-                      <div className="bg-white px-3 py-2.5">
-                        <dt className="text-[12px] font-bold text-slate-400">変わるところ</dt>
-                        <dd className="text-[20px] font-black text-slate-800 tabular-nums">
-                          {plan.changeCount}<span className="text-[13px] font-bold text-slate-400 ml-0.5">件</span>
-                        </dd>
-                      </div>
-                    </dl>
-                    {/* ★★★★ 第339便（2026-09-13・カッキーさん）: 「フクエスの出勤がそのまま載ります…」を消した。
-                        ★ 当たり前のことなので、書いてあるほうが「何か例外があるのか」と読ませてしまう。 */}
-                  </>
                 )}
 
-                {/* 止めた理由 → 伝えること → 差分の表 の順。★ 差分を先に出すと理由が読まれない */}
-                {plan.blockers.length > 0 && (
+                {/* ★★★★ 第393便: 「更新できる人／更新する範囲／変わるところ」の3つの数字カードを消した。
+                    ★ この画面は【誰の・いつの分を選ばせない】のが取り柄（駅ちかは全員×7日の一発送信）。
+                      ★ 選べないのに数字が3つ並んでも、店舗様は何も決められない（カッキーさん）。
+                    ★ 消したのは【表示】だけ。★ 計画（plan）の中身も送る仕組みも変えていない。 */}
+
+                {/* 止めた理由 → 伝えること の順。★ 「◯名は連携していないため更新できません」はここ（残す） */}
+                {plan && plan.blockers.length > 0 && (
                   <ul className="space-y-1.5">
                     {plan.blockers.map((b, i) => (
                       <li key={`b-${i}`} className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
@@ -505,7 +571,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   </ul>
                 )}
 
-                {plan.notes.length > 0 && (
+                {plan && plan.notes.length > 0 && (
                   <ul className="space-y-1.5">
                     {plan.notes.map((n, i) => (
                       <li key={`n-${i}`} className="text-[14px] text-slate-500 bg-slate-50 px-3 py-2 leading-relaxed">
@@ -515,147 +581,105 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   </ul>
                 )}
 
-                {/* ★★★★ 第341便（2026-09-13・カッキーさん）: 0件のときの
-                    「いまの◯◯の内容と一致しています。変えるところはありません。」を消した。
-                    ★ すぐ下のボタンの隣に「一致しています」と出るので、二度言っていた。
-                    ★ 状態は【行動のすぐ隣】にあるほうが読まれる（第340便で文字にしたのがそれ）。 */}
-                {plan.changeCount === 0 ? null : (
-                  <div className="space-y-2">
-                    <p className="text-[14px] font-bold text-slate-700">変わるところ（{plan.changeCount}件）</p>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-[14px]">
-                        <thead>
-                          <tr className="text-slate-400 text-left">
-                            <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
-                            <th className="font-medium py-1 pr-3 whitespace-nowrap">日付</th>
-                            <th className="font-medium py-1 pr-3 whitespace-nowrap">いまの{s.label}</th>
-                            <th className="font-medium py-1 whitespace-nowrap">更新後</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {plan.diff.map((d, i) => (
-                            <tr key={`d-${i}`} className="border-t border-slate-100 align-top">
-                              <td className="py-1.5 pr-3 text-slate-700 break-words">{d.name || d.girlId}</td>
-                              <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
-                                {plan.dateLabels[d.dayIndex] ?? `日${d.dayIndex}`}
-                              </td>
-                              <td className="py-1.5 pr-3 text-slate-400 whitespace-nowrap">{d.before}</td>
-                              <td className="py-1.5 text-indigo-700 font-bold whitespace-nowrap">{d.after}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <p className="text-[13px] text-slate-400">
-                      同じ内容の行は出していません。{plan.dateLabels.length || 7}日ぶんのうち、変わる{plan.changeCount}件だけです。
+                {/* ★★★ 第393便: 差分があるときだけ出る一段。★ ここが「更新して自動にする」を押す場面。
+                    ★ 表は畳んでおく。★ 読みたい人だけ開く（★ 選ばせないので、ふだんは読む必要がない）。 */}
+                {!s.autoOn && plan && plan.sendable === true && plan.changeCount > 0 && (
+                  <>
+                    <p className="text-[15px] font-bold text-indigo-700 leading-relaxed">
+                      {s.label}の出勤が{plan.changeCount}件変わります。更新してから自動更新にします。
                     </p>
-                  </div>
+                    <details className="border border-slate-200">
+                      <summary className="cursor-pointer select-none px-3 py-2 text-[13.5px] font-bold text-slate-500">
+                        変わるところを見る（{plan.changeCount}件）
+                      </summary>
+                      <div className="px-3 pb-3 space-y-2">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-[14px]">
+                            <thead>
+                              <tr className="text-slate-400 text-left">
+                                <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
+                                <th className="font-medium py-1 pr-3 whitespace-nowrap">日付</th>
+                                <th className="font-medium py-1 pr-3 whitespace-nowrap">いまの{s.label}</th>
+                                <th className="font-medium py-1 whitespace-nowrap">更新後</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {plan.diff.map((d, i) => (
+                                <tr key={`d-${i}`} className="border-t border-slate-100 align-top">
+                                  <td className="py-1.5 pr-3 text-slate-700 break-words">{d.name || d.girlId}</td>
+                                  <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap">
+                                    {plan.dateLabels[d.dayIndex] ?? `日${d.dayIndex}`}
+                                  </td>
+                                  <td className="py-1.5 pr-3 text-slate-400 whitespace-nowrap">{d.before}</td>
+                                  <td className="py-1.5 text-indigo-700 font-bold whitespace-nowrap">{d.after}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="text-[13px] text-slate-400">
+                          同じ内容の行は出していません。{plan.dateLabels.length || 7}日ぶんのうち、変わる{plan.changeCount}件だけです。
+                        </p>
+                      </div>
+                    </details>
+                  </>
                 )}
 
+                {/* ── ボタン ──────────────────────────────────────
+                    ★★★★ 第393便: この枠のボタンは【いつでも1つの道】になるようにした。
+                      ・自動更新中        … いますぐ更新する ／ 自動をやめる
+                      ・差分あり          … 更新して自動にする（★ 1回で終わり。確認をもう一段はさまない）
+                      ・それ以外          … 出勤を自動更新にする
+                    ★ 「一致しています」（押せないボタンの跡地）は消した。★ 押せない文字を置かない。 */}
                 <div className="flex flex-wrap gap-2 justify-end pt-1">
-                  <button
-                    onClick={() => onDryRun(s)}
-                    disabled={isBusy}
-                    className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
-                  >
-                    内容を確かめ直す
-                  </button>
-
-                  {/* ★★★ ここが送り先を書き換える唯一の場所。★ 確認を一段はさむ */}
-                  {confirmPush === k ? (
+                  {autoWaiting.has(k) ? (
+                    /* ★★ 送ってから自動になるまでの間（★ 送り終わるまで write_auto にできない・§54） */
+                    <span
+                      className="px-2 py-2 text-[14px] font-bold text-indigo-600 self-center animate-pulse"
+                      style={WAIT_BLINK_STYLE}
+                    >
+                      更新しています。終わりしだい自動更新にします…
+                    </span>
+                  ) : s.autoOn ? (
                     <>
+                      {/* ★★★ 第393便: 「内容を確かめ直す」→「いますぐ更新する」。
+                          ★ 自動更新中の店舗が手で押したい場面は「いますぐ反映させたい」だけ。
+                          ★ 押すと、確かめてから【変わるところがあればその場で送る】（★ 名前どおりに動く）。 */}
                       <button
-                        onClick={() => setConfirmPush(null)}
-                        className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-500"
+                        onClick={() => void onCheck(s, 'push_now')}
+                        disabled={isBusy}
+                        className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
                       >
-                        やめる
+                        いますぐ更新する
                       </button>
                       <button
-                        onClick={() => onPush(s)}
-                        disabled={isBusy}
-                        className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                        onClick={() => void setAuto(s.provider, s.slot, false)}
+                        disabled={switching === k}
+                        className="px-3 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                       >
-                        {isBusy ? '更新しています…' : 'この内容で更新（確定）'}
+                        {switching === k ? '切り替えています…' : '自動をやめる'}
                       </button>
                     </>
-                  ) : (() => {
-                    // ★★ 押せないときは、その理由を書く（第58便・設計メモ §173）。
-                    //   ★ 灰色にして終わりにしない。★ 「押せない」としか言わないと、なぜ押せないかは伝わらない。
-                    // ★★★★ 第340便（2026-09-13・カッキーさん）: 押せないときは【ボタンの形をやめて文字にする】。
-                    //   ★ 押せないボタンが2つ並ぶと、どちらを押せばよいのか分からない。
-                    //   ★ 理由（文言）は今までどおり pushButtonLabel から出す。★ 消したのは【ボタンの見た目】だけ。
-                    const av = pushAvailability({
-                      hasPlan: true,
-                      sendable: plan.sendable,
-                      changeCount: plan.changeCount,
-                      fingerprint: plan.fingerprint,
-                    });
-                    if (av !== 'ready') {
-                      return (
-                        <span className="px-2 py-2 text-[14px] font-bold text-slate-400 self-center">
-                          {pushButtonLabel(av)}
-                        </span>
-                      );
-                    }
-                    return (
-                      <button
-                        onClick={() => setConfirmPush(k)}
-                        className="px-4 py-2 text-[14px] font-bold shadow-sm bg-gradient-to-r from-indigo-500 to-indigo-700 text-white"
-                      >
-                        {pushButtonLabel(av)}
-                      </button>
-                    );
-                  })()}
+                  ) : plan && plan.sendable === true && plan.changeCount > 0 ? (
+                    <button
+                      onClick={() => void doPush(s.provider, s.slot, plan.fingerprint, true)}
+                      disabled={isBusy}
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                    >
+                      {isBusy ? '更新しています…' : '更新して自動にする'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onMakeAuto(s)}
+                      disabled={isBusy || switching === k}
+                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                    >
+                      {switching === k ? '切り替えています…' : '出勤を自動更新にする'}
+                    </button>
+                  )}
                 </div>
-
-                {/* ★★★★ 第339便（2026-09-13・カッキーさん）: 「更新の直前にもう一度確かめ…」を消した。
-                    ★ すぐ隣に「内容を確かめ直す」ボタンがあるので、二重の説明になって混乱の元だった。
-                    ★★ 仕組み（指紋の突き合わせ・第46便）は【消していない】。★ 消したのは説明文だけ。 */}
               </>
             )}
-
-            {/* ── 毎回の承認をやめる ──────────────────────
-                ★★★ 承認の話なので、置き場はこの画面（第65便・㉞ その7）。
-                  第64便まで /mypage/media/all にあったものを移した。
-                ★ 1回も承認していない枠には、ボタンそのものを出さない（設計メモ §32）。
-                  ★ 押せないボタンを灰色で置くのは「立てられない状態を作ってから禁じる」形。 */}
-            {s.autoOn ? (
-              <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                {/* ★★★★ 第342便（2026-09-13・カッキーさん）: 【いま自動で動いている】ことを一目で分かるようにした。
-                    ★ 即ヒメのカードと同じ形（16px 太字＋キラリ・.link-live-kirari）。★ 状態そのものを見出しにする。
-                    ★★ 「出勤」と付けるのは、同じ画面に「即ヒメ自動設定中」が並ぶため。★ どちらの自動かを取り違えさせない。
-                    ★ 第210便: 「◯分ごと・変わったところだけ」を言う（周期は media-auto-push の crontab・§57）。
-                      ★ 分数は AUTO_PUSH_INTERVAL_MIN から出す（★ 周を変えたときに文言だけ古くならない）。 */}
-                <h3 className="text-[16px] font-bold link-live-kirari">出勤 自動更新中</h3>
-                <p className="text-[13px] text-slate-400 leading-relaxed">
-                  変わったところだけを、{AUTO_PUSH_INTERVAL_MIN}分以内に承認なしで{s.label}を更新します。更新できないときは止めて、ここに出します。
-                </p>
-                <button
-                  onClick={() => onSwitchAuto(s, false)}
-                  disabled={switching === k}
-                  className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  {/* ★ ホームの行のリンクと同じ言葉（「自動をやめる」） */}
-                  {switching === k ? '切り替えています…' : '自動をやめる'}
-                </button>
-              </div>
-            ) : autoEligible.has(k) ? (
-              <div className="border-t border-slate-100 pt-3 space-y-1.5">
-                {/* ★ 第210便で短く。★ WORK_FIRST_APPROVAL_NOTE の続き。
-                    ★★ 第332便: 「1回送ったので」を落とした。★ 第331便で【一致を確かめただけ】でもここに来る。
-                    ★ 分数は AUTO_PUSH_INTERVAL_MIN から出す（★ 周を変えたときに文言だけ古くならない）。 */}
-                <p className="text-[13px] text-slate-400 leading-relaxed">
-                  これで自動にできます。変わったところを{AUTO_PUSH_INTERVAL_MIN}分以内に反映します。
-                </p>
-                <button
-                  onClick={() => onSwitchAuto(s, true)}
-                  disabled={switching === k}
-                  className="px-3 py-1.5 border border-slate-300 bg-white text-[13.5px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  {switching === k ? '切り替えています…' : '自動にする'}
-                </button>
-              </div>
-            ) : null}
           </div>
         );
       })}

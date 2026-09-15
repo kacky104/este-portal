@@ -779,7 +779,8 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★★ 第208便: write の本文は「最初の1回は確かめてから送る／そのあと自動にできる」と言う', v.bulkAskText(pW).body.includes(v.WORK_FIRST_APPROVAL_NOTE), true);
   // ★★★ 第337便: 画面の名前（「出勤を更新」）は書かない。★ 押すボタンの名前（「内容を確かめる」）を書く。
   //   ★ 画面の名前を書くと、店舗様はその名前のボタンを画面から探す（カッキーさんの指摘）。
-  eq('★ 第337便: その文は「内容を確かめる」（ボタンの名前）と「自動」を含む', /内容を確かめる/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
+  // ★ 第393便: ボタンの名前が「内容を確かめる」→「出勤を自動更新にする」に変わった
+  eq('★ 第393便: その文は「出勤を自動更新にする」（ボタンの名前）と「自動」を含む', /出勤を自動更新にする/.test(v.WORK_FIRST_APPROVAL_NOTE) && /自動/.test(v.WORK_FIRST_APPROVAL_NOTE), true);
   eq('★★ 第337便: 画面の名前「出勤を更新」は書かない（ボタンだと思わせない）', /出勤を更新/.test(v.WORK_FIRST_APPROVAL_NOTE), false);
   const pW2 = v.bulkPlan([EK({ direction: 'off' }), S({ direction: 'off' })], 'write');
   eq('★ 駅ちかが read でなければ「取り込みは止まります」と書かない（止まらないものを止めると書かない）',
