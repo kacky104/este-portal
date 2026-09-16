@@ -23,10 +23,12 @@ import type { MediaPageDecision } from '@/lib/mediaVisibility';
 
 // ★ 'all'（全部入り）は第65便で畳んだ。★ 型からも外して、行き先を作れなくする
 // ★ 'matrix'（反映の早見表）は第299便で追加（ホームの折りたたみから独立）
-export type MediaNavKey = 'home' | 'work' | 'diary' | 'news' | 'roster' | 'login' | 'log' | 'matrix';
+export type MediaNavKey = 'home' | 'guide' | 'work' | 'diary' | 'news' | 'roster' | 'login' | 'log' | 'matrix';
 
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },
+  // ★ 第394便（2026-09-16・カッキーさん）: 初めて開いた店舗様向けの使い方・Q&A。★ 最初に探されるのでホームのすぐ下
+  { key: 'guide',  label: 'はじめての方へ（使い方・Q&A）', href: '/mypage/media/guide' },
   // ★★ ログイン情報はホームの次（カッキーさん・2026-09-03）。
   //   ★ ここが埋まらないと他の画面が何もできない＝【最初にやること】なので、いちばん近くに置く。
   //   ★ 以前は下の「設定・記録」に入れていたが、始めるときにいちばん探されるのがここだった。
@@ -78,6 +80,8 @@ function NavIcon({ k }: { k: MediaNavKey }) {
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       </svg>
     );
+    // ★ 丸の中に「?」（第394便）
+    case 'guide':  return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14" /><path d="M12 17h.01" /></svg>);
     case 'login':  return (<svg {...p}><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>);
     // ★ 吹き出し（お知らせ）。★ 写メ日記の封筒とも、出勤の矢印とも見分けがつく形
     case 'news':   return (<svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>);
