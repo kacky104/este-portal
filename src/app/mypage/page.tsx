@@ -1954,6 +1954,8 @@ export default function MyPage() {
   };
 
   const handleScheduleSave = async (therapistId: string) => {
+    // ★ 第399便（案B）: コネックエフに切り替えた店は、出勤をコネックエフで保存する
+    if (conecfOn) { showToast('出勤はコネックエフの週間スケジュールで編集します'); return; }
     setSavingSchedule(therapistId);
     // ★★ 保存の前に30分刻みへ内側に寄せる（第75便）。
     //   ★ 手打ちの欄からは 12:15 のような時刻を入れられるので、ピッカーだけでは揃わない。
@@ -4240,6 +4242,15 @@ export default function MyPage() {
 
         {/* ── タブ2: 出勤設定 ── */}
         <div className={`space-y-3 ${activeTab === 'schedule' ? '' : 'hidden'}`}>
+          {/* ★ 第399便（コネックエフ 1d・案B）: 切り替えた店は、出勤をコネックエフで編集する */}
+          {conecfOn && (
+            <div className="bg-indigo-50 rounded-none border border-indigo-200 p-4 space-y-1.5">
+              <p className="text-xs font-black text-indigo-700">出勤はコネックエフで編集します（この画面では保存できません）</p>
+              <a href="https://conecf.com/schedule" target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-bold text-indigo-600 underline">
+                コネックエフの週間スケジュールを開く ›
+              </a>
+            </div>
+          )}
           {/* ★ 名前でしぼり込む（2026-09-06・カッキーさんの指示）。★ 人数が増えても探せるように。 */}
           {therapists.length > 0 && (
             <div className="bg-white rounded-none border border-slate-100 shadow-sm p-3">
@@ -4405,7 +4416,7 @@ export default function MyPage() {
                       <button
                         className={saveBtn}
                         onClick={() => handleScheduleSave(t.id)}
-                        disabled={savingSchedule === t.id}
+                        disabled={savingSchedule === t.id || conecfOn}
                       >
                         {savingSchedule === t.id ? '保存中...' : 'スケジュールを保存'}
                       </button>

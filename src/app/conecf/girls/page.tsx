@@ -14,7 +14,7 @@ import { revalidateSalon } from '@/app/lib/revalidateTop';
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 
-function GirlsBody({ onToast }: { onToast: (m: string) => void }) {
+function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [rows, setRows] = useState<ConecfGirlRow[] | null>(null);
   const [salonId, setSalonId] = useState<number | null>(null);
@@ -52,7 +52,7 @@ function GirlsBody({ onToast }: { onToast: (m: string) => void }) {
       <div className={`${CARD} p-4 flex flex-wrap items-center gap-3`}>
         <button
           type="button"
-          onClick={() => setAdding((x) => !x)}
+          onClick={() => (enabled ? setAdding((x) => !x) : onToast('登録するには、ホームで「コネックエフに切り替える」を押してください'))}
           className="px-4 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[14px] font-bold"
         >
           ＋ 新規登録
@@ -136,7 +136,7 @@ export default function ConecfGirlsPage() {
   const { toast, showToast } = useToast();
   return (
     <ConecfShell current="girls" title="女性一覧" toast={toast}>
-      {() => <GirlsBody onToast={showToast} />}
+      {(a) => <GirlsBody enabled={!!a.enabledAt} onToast={showToast} />}
     </ConecfShell>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useMediaBrand } from './mediaBrand';
 import {
   getMediaOverview,
   getMediaAutoEligible,
@@ -82,6 +83,7 @@ const POLL_MAX = 40;
 const WAIT_BLINK_STYLE = { animationDuration: '2.5s' } as const;
 
 export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
+  const brand = useMediaBrand();
   const [sites, setSites] = useState<Site[]>([]);
   const [plans, setPlans] = useState<Record<string, WorkPlanView | null>>({});
   /**
@@ -377,7 +379,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             <b className="font-bold text-sky-700">更新できるサイトがありません。</b>{' '}
             ログイン情報を登録すると始められます。
           </p>
-          <Link href="/mypage/media/login" className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
+          <Link href={brand.link('login')} className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
             ログイン情報へ
           </Link>
         </div>
@@ -426,12 +428,12 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             <b className="font-bold text-sky-700">{site.label}は、いま更新できません。</b>{' '}
             {site.direction === 'read'
               // ★ 第319便: 「変えると◯◯からの反映は止まります。」は書かない（押したときの問いが言う）
-              ? `いまは${site.label}から反映しています。更新するには「フクエスから反映」に変えてください。`
+              ? brand.text(`いまは${site.label}から反映しています。更新するには「フクエスから反映」に変えてください。`)
               : site.direction === 'off'
-                ? '「反映しない」を選んでいます。更新するには「フクエスから反映」に変えてください。'
+                ? (brand.isConecf ? 'いまはこのサイトを更新していません。更新するには、ホームでこのサイトの「更新する」を押してください。' : '「反映しない」を選んでいます。更新するには「フクエスから反映」に変えてください。')
                 // ★ 鍵はあるが向きが決まっていない枠と、鍵がまだ無い枠を書き分ける（第87便・§223 の作法）
                 : site.hasCredential
-                  ? 'まだ反映の向きが決まっていません。「フクエスから反映」にすると更新できます。'
+                  ? brand.text('まだ反映の向きが決まっていません。「フクエスから反映」にすると更新できます。')
                   : 'ログイン情報を登録すると始められます。'}
           </p>
           {site.hasCredential ? (
@@ -441,11 +443,11 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               disabled={switching !== null}
               className="mt-2 px-3 py-1.5 border border-sky-300 bg-white text-[14px] font-bold text-sky-700 hover:bg-sky-100 disabled:opacity-40"
             >
-              {switching === BULK_KEY ? '変えています…' : 'フクエスに変える'}
+              {switching === BULK_KEY ? '変えています…' : brand.isConecf ? '更新する' : 'フクエスに変える'}
             </button>
           ) : (
             <Link
-              href="/mypage/media/login"
+              href={brand.link('login')}
               className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline"
             >
               ログイン情報へ
@@ -454,7 +456,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           {/* ★ 押すと全サイトが変わる（第320便）。★ 押す前に、それが分かるようにしておく */}
           {site.hasCredential && readSite && (
             <p className="mt-2 text-[12.5px] text-slate-400 leading-relaxed">
-              登録済みのサイトがまとめて「フクエスから反映」になります。
+              {brand.text('登録済みのサイトがまとめて「フクエスから反映」になります。')}
             </p>
           )}
         </div>

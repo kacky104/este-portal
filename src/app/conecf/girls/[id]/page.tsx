@@ -42,7 +42,7 @@ function Field({ label, badge, children }: { label: string; badge?: '必須' | '
   );
 }
 
-function EditBody({ id, onToast }: { id: number; onToast: (m: string) => void }) {
+function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [d, setD] = useState<ConecfGirlDetail | null>(null);
   const [error, setError] = useState('');
@@ -149,8 +149,9 @@ function EditBody({ id, onToast }: { id: number; onToast: (m: string) => void })
 
   const TABS: Array<[Tab, string]> = [['basic', '基本情報'], ['images', '画像'], ['sites', '送り先サイト']];
   const saveBtn = (onClick: () => void, label = '保存する') => (
-    <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex justify-end">
-      <button type="button" disabled={saving} onClick={onClick}
+    <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex items-center justify-end gap-3">
+      {!enabled && <span className="text-[12.5px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
+      <button type="button" disabled={saving || !enabled} onClick={onClick}
         className="px-8 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold disabled:opacity-50">
         {saving ? '保存しています…' : label}
       </button>
@@ -161,7 +162,7 @@ function EditBody({ id, onToast }: { id: number; onToast: (m: string) => void })
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <Link href={href('/girls')} className="text-[14px] font-bold text-slate-500 hover:text-indigo-600">‹ 女性一覧へ</Link>
-        <button type="button" disabled={saving} onClick={() => void onToggleActive()}
+        <button type="button" disabled={saving || !enabled} onClick={() => void onToggleActive()}
           className={`px-3 py-1.5 text-[13px] font-bold border ${form.isActive ? 'text-indigo-700 border-indigo-300 bg-indigo-50' : 'text-slate-500 border-slate-300 bg-white'} disabled:opacity-50`}>
           {form.isActive ? '公開中（押すと非公開）' : '非公開（押すと公開）'}
         </button>
@@ -325,7 +326,7 @@ export default function ConecfGirlEditPage() {
   const { toast, showToast } = useToast();
   return (
     <ConecfShell current="girls" title="女性プロフィール編集" toast={toast}>
-      {() => (Number.isInteger(id) && id > 0 ? <EditBody id={id} onToast={showToast} /> : <p className="text-slate-500">女性の指定が正しくありません。</p>)}
+      {(a) => (Number.isInteger(id) && id > 0 ? <EditBody id={id} enabled={!!a.enabledAt} onToast={showToast} /> : <p className="text-slate-500">女性の指定が正しくありません。</p>)}
     </ConecfShell>
   );
 }

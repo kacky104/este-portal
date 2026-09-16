@@ -21,20 +21,22 @@ import { parseBodyType } from '@/lib/bodyType';
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 type Svc = ReturnType<typeof createServiceClient>;
 
-async function resolveSalon(): Promise<Result<{ svc: Svc; salonId: number; area: string | null }>> {
+async function resolveSalon(opts: { write?: boolean } = {}): Promise<Result<{ svc: Svc; salonId: number; area: string | null }>> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'ログインが必要です' };
   const svc = createServiceClient();
   const { data: salon } = await svc
     .from('salons')
-    .select('id, area')
+    .select('id, area, conecf_enabled_at')
     .eq('owner_id', user.id)
     .order('is_hidden', { ascending: true })
     .order('id', { ascending: true })
     .limit(1)
     .maybeSingle();
   if (!salon) return { ok: false, error: '店舗情報が見つかりません' };
+  // ★ 第399便: 書き込みは「コネックエフに切り替え済み」の店だけ（★ 切り替え前は見るだけ）
+  if (opts.write && !salon.conecf_enabled_at) return { ok: false, error: '保存するには、ホームで「コネックエフに切り替える」を押してください' };
   return { ok: true, data: { svc, salonId: Number(salon.id), area: (salon.area as string | null) ?? null } };
 }
 
@@ -89,7 +91,7 @@ export async function listConecfGirls(): Promise<Result<{ salonId: number; girls
 }
 
 export async function createConecfGirl(input: { name: string; isNewFace: boolean }): Promise<Result<{ id: number }>> {
-  const r = await resolveSalon();
+  const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId, area } = r.data;
   const name = String(input.name ?? '').trim();
@@ -173,7 +175,7 @@ export async function getConecfGirl(input: { id: number }): Promise<Result<Conec
 }
 
 export async function saveConecfGirl(input: { id: number; values: ConecfGirlInput }): Promise<Result<{ age: string | null; bodyType: string }>> {
-  const r = await resolveSalon();
+  const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId } = r.data;
   const t = await ownTherapist(svc, salonId, Number(input.id));
@@ -212,7 +214,7 @@ export async function saveConecfGirl(input: { id: number; values: ConecfGirlInpu
 }
 
 export async function saveConecfGirlImages(input: { id: number; images: string[] }): Promise<Result<{ images: string[] }>> {
-  const r = await resolveSalon();
+  const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId } = r.data;
   const t = await ownTherapist(svc, salonId, Number(input.id));
@@ -231,7 +233,7 @@ export async function saveConecfGirlImages(input: { id: number; images: string[]
 export async function saveConecfGirlTargets(input: {
   id: number; targets: Array<{ provider: string; slot: number; enabled: boolean }>;
 }): Promise<Result<{ saved: number }>> {
-  const r = await resolveSalon();
+  const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId } = r.data;
   const t = await ownTherapist(svc, salonId, Number(input.id));
