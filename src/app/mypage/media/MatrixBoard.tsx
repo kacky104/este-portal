@@ -14,8 +14,14 @@
 
 import { MEDIA_MATRIX, MATRIX_SITES, MATRIX_ROWS, MATRIX_FOOTNOTES, NO as MATRIX_NO, NA as MATRIX_NA, SEE as MATRIX_SEE, OK as MATRIX_OK, MAYBE as MATRIX_MAYBE } from '@/lib/mediaMatrix';
 import { THERAPIST_TABLES } from '@/lib/mediaMatrix';
+import { useMediaBrand } from './mediaBrand';
 
 export function MatrixBoard() {
+  // ★ 第396便（コネックエフ）: 入力する場所はコネックエフだけ（駅ちかから取り込まない）。
+  //   ★ 「駅ちかから反映」の表は出さず、名前を差し替え、フクエスへは入力した時点で反映されることを1行足す。
+  const brand = useMediaBrand();
+  const sections = brand.isConecf ? MEDIA_MATRIX.filter((x) => x.key === 'write') : MEDIA_MATRIX;
+  const therapistTables = brand.isConecf ? THERAPIST_TABLES.filter((t) => t.key === 'write') : THERAPIST_TABLES;
   return (
     <div className="space-y-3">
 
@@ -28,10 +34,10 @@ export function MatrixBoard() {
         <p className="text-[15px] font-bold text-slate-700">
           反映の早見表 <span className="text-[13px] font-medium text-slate-400 ml-1">— 各項目設定をした場合</span>
         </p>
-        {MEDIA_MATRIX.map((sec) => (
+        {sections.map((sec) => (
           <div key={sec.key}>
             {/* ★ 第215便（2026-09-08・カッキーさん）: 見出しの下の但し書きは消した。★ 表と補足だけで足りる */}
-            <p className="text-[14.5px] font-black text-slate-800 mb-2">{sec.title}</p>
+            <p className="text-[14.5px] font-black text-slate-800 mb-2">{brand.text(sec.title)}</p>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[460px] text-[13.5px] border border-slate-200">
                 <thead>
@@ -64,6 +70,9 @@ export function MatrixBoard() {
             </div>
             {/* ★ 表のすぐ下の注（※ のマスの説明・第215便）。★ 無ければ出さない */}
             {sec.remark && <p className="mt-1.5 text-[12.5px] text-slate-400 leading-relaxed">{sec.remark}</p>}
+            {brand.isConecf && sec.key === 'write' && (
+              <p className="mt-1 text-[12.5px] text-slate-400 leading-relaxed">※ フクエスへは、コネックエフで入力した時点で反映されます。</p>
+            )}
           </div>
         ))}
         {/* ★ 早見表の下の補足5行は第298便で外した（カッキーさんの添削）。★ 空なら何も出さない */}
@@ -79,11 +88,11 @@ export function MatrixBoard() {
           ★ 第297便の「登録を押す／1枚／読み直す」は、何が流れるのかが読めなかったので捨てた。
           ★ 値は mediaMatrix.ts（番人あり）。★ マスは長い文なので折り返す（上の表と違い nowrap にしない）。 */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-5">
-        {THERAPIST_TABLES.map((t, ti) => (
+        {therapistTables.map((t, ti) => (
           <div key={t.key} className={ti > 0 ? 'pt-4 border-t border-slate-200' : ''}>
-            <p className="text-[14.5px] font-black text-slate-800">{t.title}</p>
+            <p className="text-[14.5px] font-black text-slate-800">{brand.text(t.title)}</p>
             {/* ★ 1行目を持たない表もある（エステラブ・エスランの現状・第298便） */}
-            {t.lead ? <p className="mt-1 mb-2 text-[12.5px] text-slate-500 leading-relaxed">{t.lead}</p> : <div className="mb-2" />}
+            {t.lead ? <p className="mt-1 mb-2 text-[12.5px] text-slate-500 leading-relaxed">{brand.text(t.lead)}</p> : <div className="mb-2" />}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-[13px] border border-slate-200">
                 <thead>

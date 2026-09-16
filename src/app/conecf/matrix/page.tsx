@@ -1,13 +1,14 @@
 'use client';
 
-import { ConecfShell, ConecfComingSoon } from '../ConecfShell';
+import { ConecfShell } from '../ConecfShell';
+import { MatrixBoard } from '@/app/mypage/media/MatrixBoard';
 
-// コネックエフ「反映の早見表」（第395便・1a：外枠だけ。中身は準備中）
+// コネックエフ「反映の早見表」（第396便・1b）。★ 部品はフクエスリンクと同じ（コネックエフでは「駅ちかから反映」の表を出さない）。
 
 export default function ConecfMatrixPage() {
   return (
     <ConecfShell current="matrix" title="反映の早見表">
-      {() => <ConecfComingSoon />}
+      {() => <MatrixBoard />}
     </ConecfShell>
   );
 }

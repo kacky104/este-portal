@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getConecfAccess, type ConecfAccess } from '@/app/actions/conecf';
+import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
+import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
+import { MediaBrandProvider, brandText, type MediaBrandValue } from '@/app/mypage/media/mediaBrand';
 import { signOut } from '@/lib/auth';
 import { useConecfHref } from './ConecfBase';
 import { CONECF_NAV, type ConecfNavKey } from './conecfNav';
@@ -54,10 +57,12 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
 }
 
 export function ConecfShell({
-  current, title, children,
+  current, title, toast, children,
 }: {
   current: ConecfNavKey;
   title: string;
+  /** ★ 画面の上に一時的に出す一言（useToast） */
+  toast?: string;
   /** ★ 権限が確かめられてから描く（★ 店舗が無い人に中身を一瞬でも見せない） */
   children: (access: Extract<ConecfAccess, { ok: true }>) => React.ReactNode;
 }) {
@@ -65,6 +70,26 @@ export function ConecfShell({
   const [access, setAccess] = useState<ConecfAccess | null>(null);
   const [error, setError] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [alerts, setAlerts] = useState<MediaLinkAlert[]>([]);
+
+  // ★ 第396便（1b）: フクエスリンクの画面を中で使うので、行き先と名前をコネックエフに差し替える
+  const brand: MediaBrandValue = {
+    name: 'コネックエフ',
+    links: {
+      home: href('/'), login: href('/sites'), roster: href('/girls/sync'), work: href('/schedule/sync'),
+      schedule: href('/schedule'), diary: href('/diary'), news: href('/news'), log: href('/log'),
+      matrix: href('/matrix'), qa: href('/qa'), guide: href('/guide'),
+    },
+  };
+
+  // ★ 止まっている連携の赤帯（MediaShell と同じ）。★ 失敗しても画面は止めない
+  const salonIdForAlerts = access && access.ok ? access.salonId : null;
+  useEffect(() => {
+    if (salonIdForAlerts == null) { setAlerts([]); return; }
+    let alive = true;
+    getMediaLinkAlerts({ salonId: salonIdForAlerts }).then((res) => { if (alive && res.ok) setAlerts(res.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, [salonIdForAlerts]);
 
   useEffect(() => {
     let alive = true;
@@ -171,7 +196,13 @@ export function ConecfShell({
   );
 
   return (
+    <MediaBrandProvider value={brand}>
     <div className="min-h-screen md:flex">
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg px-6 py-3 text-[16px] font-bold text-indigo-700">
+          {toast}
+        </div>
+      )}
       {/* ── 左サイドバー（PC）── */}
       <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[288px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
         <Link href={href('/')} className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
@@ -217,6 +248,18 @@ export function ConecfShell({
             </button>
             <h1 className="text-[17px] font-black text-slate-800 truncate">{title}</h1>
           </div>
+          {alerts.length > 0 && (
+            <div className="px-4 md:px-6 pb-2.5">
+              {alerts.map((a) => (
+                <div key={a.watch + ':' + a.reason + ':' + a.provider + '#' + a.slot} className="mb-2 border border-rose-300 bg-rose-50 px-3 py-2.5">
+                  <p className="text-[14px] font-bold text-rose-700">
+                    {a.watch === 'import' ? '駅ちかからの取り込みが止まっています' : '連携が止まっています'}
+                  </p>
+                  <p className="mt-1 text-[14px] leading-relaxed text-rose-900">{brandText('コネックエフ', a.message)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </header>
 
         <main className="link-zoom px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full">{children(access)}</main>
@@ -254,6 +297,7 @@ export function ConecfShell({
         </div>
       )}
     </div>
+    </MediaBrandProvider>
   );
 }
 

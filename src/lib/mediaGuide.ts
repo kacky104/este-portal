@@ -9,11 +9,13 @@
 
 import { WORK_FIRST_APPROVAL_NOTE } from './mediaOverview';
 
-export type GuideLinkKey = 'qa' | 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix';
+export type GuideLinkKey = 'qa' | 'schedule' | 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix';
 
 export const GUIDE_HREF: Record<GuideLinkKey, string> = {
   home: '/mypage/media',
   qa: '/mypage/media/qa',
+  // ★ 第396便: コネックエフの週間スケジュール用。★ フクエスリンクでは出勤はマイページで入れる
+  schedule: '/mypage',
   login: '/mypage/media/login',
   roster: '/mypage/media/therapists',
   work: '/mypage/media/work',
@@ -278,3 +280,39 @@ export const GUIDE_QA: ReadonlyArray<{ group: string; items: readonly GuideQa[] 
     ],
   },
 ];
+
+// ────────────────────────────────────────────────
+// ★★ まとめ（第396便・1b）。★ 同じ画面の部品を、フクエスリンクとコネックエフで中身だけ替えて使う。
+
+export type GuideFlowBox = { caption: string; name: string };
+
+export type GuideContent = {
+  intro: { title: string; lead: string; points: readonly string[] };
+  /** 流れの図（左 → 中 → 右） */
+  flow: readonly [GuideFlowBox, GuideFlowBox, GuideFlowBox];
+  sites: typeof GUIDE_SITES;
+  /** 更新の向きの説明。★ 空なら節ごと出さない */
+  modes: typeof GUIDE_MODES;
+  steps: typeof GUIDE_STEPS;
+  optional: typeof GUIDE_OPTIONAL;
+  serviceNote: string;
+  qa: typeof GUIDE_QA;
+  /** Q&A から使い方へ戻るリンクの文字 */
+  guideLinkLabel: string;
+};
+
+export const FUKUES_LINK_GUIDE: GuideContent = {
+  intro: GUIDE_INTRO,
+  flow: [
+    { caption: '入力するのは', name: 'フクエス' },
+    { caption: '自動で更新', name: 'フクエスリンク' },
+    { caption: '反映先', name: '駅ちか・エステ魂 など' },
+  ],
+  sites: GUIDE_SITES,
+  modes: GUIDE_MODES,
+  steps: GUIDE_STEPS,
+  optional: GUIDE_OPTIONAL,
+  serviceNote: GUIDE_SERVICE_NOTE,
+  qa: GUIDE_QA,
+  guideLinkLabel: 'はじめての方へ（使い方）を見る',
+};

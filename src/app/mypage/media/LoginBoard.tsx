@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useMediaBrand } from './mediaBrand';
 import {
   MEDIA_SITES,
   capabilityLabel,
@@ -106,6 +107,7 @@ export function LoginBoard({
   salonId: number | null;
   onToast: (m: string) => void;
 }) {
+  const brand = useMediaBrand();
   const [rows, setRows] = useState<CredRow[]>([]);
   /** ★ 読み込めたか。★ false のあいだ「未登録」と言い切らない（mediaSites の known） */
   const [known, setKnown] = useState(false);
@@ -477,7 +479,7 @@ export function LoginBoard({
                     <div className="border border-sky-200 bg-sky-50 px-3 py-2.5">
                       <p className="text-[14px] leading-relaxed text-slate-600">
                         {site.name}へは写メ日記の転送のみ可能です。転送するには設定が必要になります。{' '}
-                        <Link href="/mypage/media/diary" className="font-bold text-sky-700 underline">
+                        <Link href={brand.link('diary')} className="font-bold text-sky-700 underline">
                           ⇨ 写メ日記の投稿先を開く
                         </Link>
                       </p>
@@ -487,7 +489,7 @@ export function LoginBoard({
                     <p className="text-[14.5px] font-bold text-amber-800">
                       {site.name}のログイン情報は、まだお預かりしていません
                     </p>
-                    <p className="text-[13.5px] text-amber-900/80 leading-relaxed mt-0.5">{site.notYet}</p>
+                    <p className="text-[13.5px] text-amber-900/80 leading-relaxed mt-0.5">{brand.text(site.notYet)}</p>
                   </div>
                   )
                 ) : (
@@ -696,7 +698,7 @@ export function LoginBoard({
                           ★ 残った設定を見張りが読んで、止まりとして毎日届けることになる（第87便） */}
                       <p className="text-[13px] text-slate-400 leading-relaxed">
                         {CREDENTIAL_PAUSE_NOT_FOR_STOPPING}{' '}
-                        <Link href="/mypage/media" className="font-bold underline">
+                        <Link href={brand.link('home')} className="font-bold underline">
                           媒体連携のホームを開く
                         </Link>
                       </p>

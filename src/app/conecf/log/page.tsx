@@ -1,13 +1,14 @@
 'use client';
 
-import { ConecfShell, ConecfComingSoon } from '../ConecfShell';
+import { ConecfShell } from '../ConecfShell';
+import { LogBoard } from '@/app/mypage/media/LogBoard';
 
-// コネックエフ「更新結果」（第395便・1a：外枠だけ。中身は準備中）
+// コネックエフ「更新結果」（第396便・1b）。★ 中身はフクエスリンクの「連携の記録」と同じ部品。
 
 export default function ConecfLogPage() {
   return (
     <ConecfShell current="log" title="更新結果">
-      {() => <ConecfComingSoon />}
+      {(a) => <LogBoard salonId={a.salonId} />}
     </ConecfShell>
   );
 }

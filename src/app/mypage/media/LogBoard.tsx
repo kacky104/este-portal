@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MEDIA_SITES } from '@/lib/mediaSites';
+import { useMediaBrand } from './mediaBrand';
 import { providerLabel } from '@/lib/mediaAudit';
 import {
   sortLogRows,
@@ -94,6 +95,7 @@ function Pills({
 }
 
 export function LogBoard({ salonId }: { salonId: number | null }) {
+  const brand = useMediaBrand();
   const [rows, setRows] = useState<MediaLogRow[]>([]);
   /** ★ 読めたか。★ false のあいだ「記録がありません」と書かない */
   const [known, setKnown] = useState(false);
@@ -157,7 +159,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       <div className={`${CARD} p-4`}>
         {/* ★ 第211便（2026-09-07・カッキーさん）: 76字 → 1文。★ 「新しい順・失敗も残す」は一覧を見れば分かるので言わない */}
         <p className="text-[14.5px] text-slate-500 leading-relaxed">
-          フクエスが各サイトへ行ったことの記録です（<b className="text-slate-700">書き換えできません</b>）。
+          {brand.name}が各サイトへ行ったことの記録です（<b className="text-slate-700">書き換えできません</b>）。
         </p>
       </div>
 
@@ -281,7 +283,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
             {detailToggleLabel(hidden, showDetail)}
           </button>
           <p className="text-[13.5px] text-slate-400 leading-relaxed mt-1">
-            {detailToggleNote(hidden)}
+            {brand.text(detailToggleNote(hidden))}
           </p>
         </div>
       )}

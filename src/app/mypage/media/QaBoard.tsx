@@ -1,17 +1,19 @@
 'use client';
 
-import { GUIDE_HREF, GUIDE_QA } from '@/lib/mediaGuide';
+import { FUKUES_LINK_GUIDE, type GuideContent } from '@/lib/mediaGuide';
+import { useMediaBrand } from './mediaBrand';
 import { guideCard, SectionTitle, GoLink } from './GuideBoard';
 
 // よくあるご質問（Q&A）（第394便b・2026-09-16・カッキーさん）。★ 使い方のページから分けた。
 // ★ <details> で畳む（★ 知りたい問いだけ開ける。JS の状態を持たない）。★ 文言は lib/mediaGuide.ts。
 
-export function QaBoard() {
+export function QaBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideContent } = {}) {
+  const { link } = useMediaBrand();
   return (
     <div className="space-y-4">
       <section className={`${guideCard} space-y-4`}>
         <SectionTitle>よくあるご質問</SectionTitle>
-        {GUIDE_QA.map((g) => (
+        {content.qa.map((g) => (
           <div key={g.group}>
             <p className="text-[13px] font-bold text-slate-400 tracking-wider mb-1.5">{g.group}</p>
             <div className="border-t border-slate-200">
@@ -30,7 +32,7 @@ export function QaBoard() {
                       {qa.a.map((line) => (
                         <p key={line} className="text-[14px] text-slate-600 leading-relaxed">{line}</p>
                       ))}
-                      {qa.link && qa.linkLabel && <GoLink href={GUIDE_HREF[qa.link]}>{qa.linkLabel}</GoLink>}
+                      {qa.link && qa.linkLabel && <GoLink href={link(qa.link)}>{qa.linkLabel}</GoLink>}
                     </div>
                   </div>
                 </details>
@@ -39,7 +41,7 @@ export function QaBoard() {
           </div>
         ))}
       </section>
-      <p className="text-center"><GoLink href="/mypage/media/guide">はじめての方へ（使い方）を見る</GoLink></p>
+      <p className="text-center"><GoLink href={link('guide')}>{content.guideLinkLabel}</GoLink></p>
     </div>
   );
 }

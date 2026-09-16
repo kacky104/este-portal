@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  GUIDE_HREF, GUIDE_INTRO, GUIDE_SITES, GUIDE_MODES, GUIDE_STEPS, GUIDE_OPTIONAL, GUIDE_SERVICE_NOTE,
-} from '@/lib/mediaGuide';
+import { FUKUES_LINK_GUIDE, type GuideContent } from '@/lib/mediaGuide';
+import { useMediaBrand } from './mediaBrand';
 
 // はじめての方へ（使い方・Q&A）の本文（第394便・2026-09-16・カッキーさん）。
 // ★ 読む順: フクエスリンクとは → できること → 3つの設定 → はじめの4ステップ → 注意。
@@ -37,33 +36,30 @@ const STATUS_BADGE = {
 
 export { card as guideCard, SectionTitle, GoLink };
 
-export function GuideBoard() {
+export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideContent } = {}) {
+  const { link } = useMediaBrand();
+  const c = content;
   return (
     <div className="space-y-4">
 
       {/* ── フクエスリンクとは ── */}
       <section className={`${card} space-y-3`}>
-        <SectionTitle>{GUIDE_INTRO.title}</SectionTitle>
-        <p className="text-[15.5px] font-bold text-slate-700 leading-relaxed">{GUIDE_INTRO.lead}</p>
+        <SectionTitle>{c.intro.title}</SectionTitle>
+        <p className="text-[15.5px] font-bold text-slate-700 leading-relaxed">{c.intro.lead}</p>
         {/* ★ 流れを1本の絵で見せる（入力はフクエス1か所 → 各サイト） */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-center">
-          <div className="flex-1 border border-indigo-200 bg-indigo-50 px-3 py-2.5">
-            <div className="text-[12px] font-bold text-indigo-500">入力するのは</div>
-            <div className="text-[16px] font-black text-indigo-800">フクエス</div>
-          </div>
-          <div className="text-indigo-400 font-black text-[18px] rotate-90 sm:rotate-0" aria-hidden>→</div>
-          <div className="flex-1 border border-indigo-200 bg-indigo-50 px-3 py-2.5">
-            <div className="text-[12px] font-bold text-indigo-500">自動で更新</div>
-            <div className="text-[16px] font-black text-indigo-800">フクエスリンク</div>
-          </div>
-          <div className="text-indigo-400 font-black text-[18px] rotate-90 sm:rotate-0" aria-hidden>→</div>
-          <div className="flex-1 border border-slate-200 bg-slate-50 px-3 py-2.5">
-            <div className="text-[12px] font-bold text-slate-400">反映先</div>
-            <div className="text-[14.5px] font-black text-slate-700">駅ちか・エステ魂 など</div>
-          </div>
+          {c.flow.map((f, i) => (
+            <div key={f.name} className="contents">
+              {i > 0 && <div className="text-indigo-400 font-black text-[18px] rotate-90 sm:rotate-0" aria-hidden>→</div>}
+              <div className={`flex-1 border px-3 py-2.5 ${i < 2 ? 'border-indigo-200 bg-indigo-50' : 'border-slate-200 bg-slate-50'}`}>
+                <div className={`text-[12px] font-bold ${i < 2 ? 'text-indigo-500' : 'text-slate-400'}`}>{f.caption}</div>
+                <div className={i < 2 ? 'text-[16px] font-black text-indigo-800' : 'text-[14.5px] font-black text-slate-700'}>{f.name}</div>
+              </div>
+            </div>
+          ))}
         </div>
         <ul className="space-y-1.5">
-          {GUIDE_INTRO.points.map((p) => (
+          {c.intro.points.map((p) => (
             <li key={p} className="flex gap-2 text-[14.5px] text-slate-600 leading-relaxed">
               <span className="text-emerald-600 font-black flex-none">✓</span>{p}
             </li>
@@ -75,7 +71,7 @@ export function GuideBoard() {
       <section className={`${card} space-y-3`}>
         <SectionTitle>連携できるサイトと、できること</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {GUIDE_SITES.map((s) => (
+          {c.sites.map((s) => (
             <div key={s.name} className="border border-slate-200 p-3.5">
               <div className="flex items-center justify-between gap-2">
                 <b className="text-[15.5px] font-black text-slate-800">{s.name}</b>
@@ -94,15 +90,15 @@ export function GuideBoard() {
             </div>
           ))}
         </div>
-        <GoLink href={GUIDE_HREF.matrix}>反映の早見表（何が・どれくらいで反映されるか）</GoLink>
+        <GoLink href={link('matrix')}>反映の早見表（何が・どれくらいで反映されるか）</GoLink>
       </section>
 
-      {/* ── 3つの設定 ── */}
-      <section className={`${card} space-y-3`}>
+      {/* ── 3つの設定 ── ★ 第396便: 中身が空なら節ごと出さない（コネックエフには向きの選択が無い） */}
+      {c.modes.length > 0 && <section className={`${card} space-y-3`}>
         <SectionTitle>更新の向きは3つから選びます</SectionTitle>
         <p className="text-[14px] text-slate-500 leading-relaxed">ホームで選びます。あとからいつでも変えられます。</p>
         <div className="space-y-2">
-          {GUIDE_MODES.map((m) => (
+          {c.modes.map((m) => (
             <div
               key={m.label}
               className={`border px-3.5 py-3 ${m.recommended ? 'border-indigo-300 bg-indigo-50/60' : 'border-slate-200'}`}
@@ -117,13 +113,13 @@ export function GuideBoard() {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
 
       {/* ── はじめの4ステップ ── */}
       <section className={`${card} space-y-4`}>
-        <SectionTitle>はじめの{GUIDE_STEPS.length}ステップ</SectionTitle>
+        <SectionTitle>はじめの{c.steps.length}ステップ</SectionTitle>
         <ol className="space-y-4">
-          {GUIDE_STEPS.map((st, i) => (
+          {c.steps.map((st, i) => (
             <li key={st.title} className="flex gap-3">
               <span className="flex-none w-8 h-8 grid place-items-center bg-gradient-to-br from-indigo-700 to-indigo-500 text-white text-[15px] font-black">
                 {i + 1}
@@ -136,7 +132,7 @@ export function GuideBoard() {
                     {st.warn}
                   </p>
                 )}
-                <GoLink href={GUIDE_HREF[st.link]}>{st.linkLabel}</GoLink>
+                <GoLink href={link(st.link)}>{st.linkLabel}</GoLink>
               </div>
             </li>
           ))}
@@ -145,11 +141,11 @@ export function GuideBoard() {
         <div className="pt-3 border-t border-slate-100">
           <p className="text-[14.5px] font-black text-slate-700">必要に応じて</p>
           <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {GUIDE_OPTIONAL.map((o) => (
+            {c.optional.map((o) => (
               <div key={o.title} className="border border-slate-200 p-3.5 space-y-1.5">
                 <b className="text-[14.5px] font-black text-slate-800">{o.title}</b>
                 <p className="text-[13.5px] text-slate-600 leading-relaxed">{o.body}</p>
-                <GoLink href={GUIDE_HREF[o.link]}>{o.linkLabel}</GoLink>
+                <GoLink href={link(o.link)}>{o.linkLabel}</GoLink>
               </div>
             ))}
           </div>
@@ -158,8 +154,8 @@ export function GuideBoard() {
 
       {/* ── 注意（相手先の事情）と Q&A への入口（第394便b） ── */}
       <section className={`${card} space-y-3`}>
-        <p className="text-[13.5px] text-slate-500 leading-relaxed">※ {GUIDE_SERVICE_NOTE}</p>
-        <GoLink href={GUIDE_HREF.qa}>よくあるご質問（Q&A）を見る</GoLink>
+        <p className="text-[13.5px] text-slate-500 leading-relaxed">※ {c.serviceNote}</p>
+        <GoLink href={link('qa')}>よくあるご質問（Q&A）を見る</GoLink>
       </section>
     </div>
   );
