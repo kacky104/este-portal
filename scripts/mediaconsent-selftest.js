@@ -30,6 +30,7 @@ console.log('\n── 2. ★★★ 言い方を直しただけの版は、取り
 // ★ 第397便（v4）: 預ける先・対象・使い道が変わったので一覧は空（全員取り直し）。★ 空でもよい、に変えた
 eq('★ 一覧は配列', Array.isArray(v.MEDIA_CONSENT_WORDING_ONLY), true);
 eq('★★ v4: 古い版（v3）に同意していても取り直す', v.needsConsent('v3-2026-09-01'), true);
+eq('★★ v5: v4 に同意していても取り直す（使い道が増えた）', v.needsConsent('v4-2026-09-17'), true);
 eq('★★ 一覧の版はすべて取り直し不要',
    v.MEDIA_CONSENT_WORDING_ONLY.every((x) => v.needsConsent(x) === false), true);
 // ★★★ いまの版を一覧に入れない（入れると意味が壊れる・自己参照になる）
