@@ -901,6 +901,8 @@ export default function MyPage() {
   const [supportUnread, setSupportUnread] = useState(0);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
+  // ★ 第398便（コネックエフ 1c・案B）: コネックエフを使う店は、セラピストの追加をコネックエフで行う
+  const [conecfOn, setConecfOn] = useState(false);
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
   const [addingTherapist, setAddingTherapist] = useState(false);
   const [addError, setAddError] = useState('');
@@ -1167,6 +1169,13 @@ export default function MyPage() {
       setSavedSalonSnapshot(JSON.stringify({ f: salonData, c: parseBookingCourses(salonData.booking_courses) }));
       // ポップアップ画像の設定を初期化（最大3枚・各リンク）
       // ★ 既定画像（第217便）。★ 失敗しても黙って null（★ 列が無い環境でも落とさない）。
+      // ★ コネックエフを使っている店か（第398便）。★ 読めなければ false（今までどおり）
+      supabase
+        .from('salons')
+        .select('conecf_enabled_at')
+        .eq('id', salonData.id)
+        .maybeSingle()
+        .then(({ data }) => setConecfOn(!!((data as { conecf_enabled_at?: string | null } | null)?.conecf_enabled_at)));
       supabase
         .from('salons')
         .select('therapist_placeholder_url')
@@ -4601,8 +4610,17 @@ export default function MyPage() {
             </div>
           )}
 
+          {/* ★ 第398便: コネックエフを使う店は、追加も写真・年齢・サイズもコネックエフで（案B） */}
+          {conecfOn && (
+            <div className="bg-indigo-50 rounded-none border border-indigo-200 p-4 space-y-1.5">
+              <p className="text-xs font-black text-indigo-700">セラピストの追加・写真・年齢・サイズ・公開はコネックエフで編集します</p>
+              <a href="https://conecf.com/girls" target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-bold text-indigo-600 underline">
+                コネックエフの女性一覧を開く ›
+              </a>
+            </div>
+          )}
           {/* 新規セラピスト追加フォーム */}
-          <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
+          {!conecfOn && <div className="bg-white rounded-none border border-pink-100 shadow-sm p-5 space-y-3">
             {/* ★ 「名前」は見出しの【右隣】に置く（2026-09-11・カッキーさんの指示）。
                 ★ 入力バーはその下のまま。★ 1行ぶん詰まる。 */}
             <div className="flex items-baseline gap-2 min-w-0">
@@ -4657,7 +4675,7 @@ export default function MyPage() {
               </p>
             )}
             {/* ★ 追加ボタンは新人マークの行の右端へ移した（2026-09-11）。★ ここには置かない。 */}
-          </div>
+          </div>}
 
           {therapists.length === 0 && (
             <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5">

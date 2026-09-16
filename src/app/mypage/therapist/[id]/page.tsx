@@ -138,6 +138,8 @@ export default function TherapistEditPage() {
     return () => { cancelled = true; };
   }, [therapistId]);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  // ★ 第398便: コネックエフを使う店か。★ true なら写真・年齢・サイズ・公開はここで変えない（保存にも含めない）
+  const [conecfOn, setConecfOn] = useState(false);
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
 
@@ -163,7 +165,7 @@ export default function TherapistEditPage() {
       // 自分のサロンのセラピストか確認
       const { data: salonData } = await supabase
         .from('salons')
-        .select('id')
+        .select('id, conecf_enabled_at')
         .eq('id', tData.salon_id)
         .eq('owner_id', user.id)
         // 0 件（他店のセラピスト）は想定内の分岐なので maybeSingle。single だと 0 件でもエラーを吐く。
@@ -174,6 +176,8 @@ export default function TherapistEditPage() {
         return;
       }
 
+      // ★ 第398便（コネックエフ 1c・案B）: 写真・年齢・サイズ・公開はコネックエフで編集する店
+      setConecfOn(!!(salonData as { conecf_enabled_at?: string | null }).conecf_enabled_at);
       setTherapist(tData);
       setForm(tData);
       // 複数画像：profile_images を優先、無ければ既存の単一画像を1枚目として扱う（互換性）
@@ -401,11 +405,14 @@ export default function TherapistEditPage() {
     const { error } = await supabase
       .from('therapists')
       .update({
-        // profile_image_url は1枚目を保存して既存表示との互換性を維持
-        profile_image_url: images[0] ?? null,
-        profile_images:    images,
-        age:               form.age ?? null,
-        body_type:         form.body_type ?? null,
+        // ★ 第398便: コネックエフを使う店では、写真・年齢・サイズを書かない（★ コネックエフの値を上書きしない）
+        ...(conecfOn ? {} : {
+          // profile_image_url は1枚目を保存して既存表示との互換性を維持
+          profile_image_url: images[0] ?? null,
+          profile_images:    images,
+          age:               form.age ?? null,
+          body_type:         form.body_type ?? null,
+        }),
         profile_text:      form.profile_text ?? null,
         catchphrase:       (form.catchphrase ?? '').trim().slice(0, 16) || null,
         // 念のため保存前に正規化（既知バッジのみ・カテゴリ順に並べ替え・最大 MAX_BADGES 件）
@@ -587,8 +594,18 @@ export default function TherapistEditPage() {
 
       <main className="max-w-2xl mx-auto px-4 pt-6 pb-24 space-y-5">
 
+        {conecfOn && (
+          <div className="bg-indigo-50 rounded-3xl border border-indigo-200 p-4 space-y-1">
+            <p className="text-xs font-black text-indigo-700">写真・年齢・サイズ・公開は、コネックエフで編集します</p>
+            <p className="text-[11px] text-indigo-900/70">この画面では、キャッチ・紹介文・特徴バッジだけ変えられます。</p>
+            <a href={`https://conecf.com/girls/${therapistId}`} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-bold text-indigo-600 underline">
+              コネックエフで開く ›
+            </a>
+          </div>
+        )}
+
         {/* プロフィール画像（最大5枚） */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3 ${conecfOn ? 'pointer-events-none opacity-50' : ''}`} aria-disabled={conecfOn}>
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-slate-700">プロフィール画像</h2>
             <span className="text-[10px] text-slate-400">{images.length} / {MAX_IMAGES}枚</span>
@@ -665,7 +682,7 @@ export default function TherapistEditPage() {
         {/* ★ 年齢とスタイルを1つの箱にした（2026-09-06・カッキーさんの指示）。
             ★ 年齢の箱を無くし、スタイルの並びの先頭に年齢を入れただけ。
             ★ 保存の中身は今までと同じ（年齢＝age、T/B/CUP/W/H＝body_type）。 */}
-        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3">
+        <div className={`bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-3 ${conecfOn ? 'pointer-events-none opacity-50' : ''}`} aria-disabled={conecfOn}>
           {/* ★ 保存値は見出しの右横に（2026-09-08 昼・カッキーさんの指示）。★ 下に置いていた1行を移しただけ。 */}
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-black text-slate-700">年齢・スタイル</h2>
@@ -1047,7 +1064,7 @@ export default function TherapistEditPage() {
             <button
               type="button"
               onClick={handleToggleActive}
-              disabled={activeSaving}
+              disabled={activeSaving || conecfOn}
               className={`ml-auto px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm disabled:opacity-50 transition-colors ${
                 therapist.is_active === false
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'

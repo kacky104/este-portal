@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useMediaBrand } from './mediaBrand';
 import {
   getSalonTherapists,
   getMediaRoster,
@@ -163,6 +164,7 @@ export function TherapistBoard({ salonId, onToast }: {
   salonId: number | null;
   onToast: (m: string) => void;
 }) {
+  const brand = useMediaBrand();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [roster, setRoster] = useState<RosterResult[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
@@ -379,7 +381,7 @@ export function TherapistBoard({ salonId, onToast }: {
         ) : (
           <>
             <p className="text-[19px] font-black text-slate-800">
-              フクエスのセラピスト {therapists.length}名
+              {brand.name}のセラピスト {therapists.length}名
             </p>
             {/* ★ 第300便（カッキーさん）: 2文を1文に。★ 「登録してください」で終わらせず、その場から行ける道を置く。
                 ★ 別ウインドウで開く（★ 設定の途中でこの画面を閉じさせない） */}
@@ -387,9 +389,9 @@ export function TherapistBoard({ salonId, onToast }: {
               {/* ★★ 第307便（2026-09-12・カッキーさん）: 「登録した子だけ」→「登録している子のみ」。
                   ★ 駅ちかの取り込みから始めた店舗様は、フクエスで【登録した】覚えが無い。
                   ★ 取り込みで入った子も、いまフクエスに居れば設定できる。★ そこを誤解させない言い方にした。 */}
-              フクエスで登録している子のみ設定できます。{' '}
+              {brand.name}で登録している子のみ設定できます。{' '}
               <Link
-                href="/mypage?tab=profile"
+                href={brand.link('girls')}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-bold text-indigo-600 underline"
@@ -477,7 +479,7 @@ export function TherapistBoard({ salonId, onToast }: {
           {site.direction === 'off' && (
             <p className="mb-3 text-[13px] text-slate-400 leading-relaxed">
               現在「反映しない」設定のため、名簿の更新不可。
-              更新するには、ホームで「フクエスから反映」にしてください。
+              {brand.isConecf ? '更新するには、ホームでこのサイトの「更新する」を押してください。' : '更新するには、ホームで「フクエスから反映」にしてください。'}
             </p>
           )}
 
@@ -727,7 +729,7 @@ export function TherapistBoard({ salonId, onToast }: {
                                 {summarizeCreatePlan(view.plan).map((r) => (
                                   <div key={r.k} className="flex gap-3 px-3 py-1.5 text-[14px]">
                                     <dt className="w-[52px] flex-none font-bold text-slate-400">{r.k}</dt>
-                                    <dd className="min-w-0 text-slate-700 break-words">{r.v}</dd>
+                                    <dd className="min-w-0 text-slate-700 break-words">{brand.text(r.v)}</dd>
                                   </div>
                                 ))}
                               </dl>
@@ -836,7 +838,7 @@ export function TherapistBoard({ salonId, onToast }: {
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
           <div className="flex items-center justify-between gap-2 mb-3">
             <h3 className="text-[15.5px] font-bold text-slate-700">
-              フクエスにいないのに、{site.label}に残っている方
+              {brand.name}にいないのに、{site.label}に残っている方
             </h3>
             <span className="text-[13px] font-bold px-2.5 py-0.5 border bg-white text-slate-400 border-slate-200 tabular-nums">
               {onlyKnown ? `${onlyOnMedia.length}名` : '—'}
@@ -857,8 +859,7 @@ export function TherapistBoard({ salonId, onToast }: {
                 ))}
               </ul>
               <p className="mt-3 text-[13.5px] text-slate-400 leading-relaxed">
-                フクエスを辞めた方が、{site.label}側に残っていることがあります。
-                フクエスにいない方なので上の一覧には出ません。ここだけ別に出しています。
+                {brand.text(`フクエスを辞めた方が、${site.label}側に残っていることがあります。フクエスにいない方なので上の一覧には出ません。ここだけ別に出しています。`)}
               </p>
             </>
           )}
@@ -871,7 +872,7 @@ export function TherapistBoard({ salonId, onToast }: {
             <b className="font-bold text-sky-700">向こうの名簿を読めるサイトがありません。</b>{' '}
             ログイン情報を登録するか、駅ちかから反映するようにすると、だれがどのサイトに出ているかを確かめられます。
           </p>
-          <Link href="/mypage/media" className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
+          <Link href={brand.link('home')} className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
             ホームで確かめる
           </Link>
         </div>

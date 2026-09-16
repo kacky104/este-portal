@@ -11,7 +11,7 @@ import type { GuideLinkKey } from '@/lib/mediaGuide';
 //   ・名前         … 画面に出す「フクエス」を「コネックエフ」に（★ text() を通した文字だけ）
 // ★★ 同意文（mediaConsent）は text() を【通さない】。★ 文言を変えると同意の取り直しになるため（版を上げないと嘘になる）。
 
-export type MediaLinkKey = GuideLinkKey | 'guide';
+export type MediaLinkKey = GuideLinkKey | 'guide' | 'girls';
 
 export const MEDIA_LINKS_DEFAULT: Record<MediaLinkKey, string> = {
   home: '/mypage/media',
@@ -25,6 +25,8 @@ export const MEDIA_LINKS_DEFAULT: Record<MediaLinkKey, string> = {
   qa: '/mypage/media/qa',
   schedule: '/mypage',
   guide: '/mypage/media/guide',
+  // ★ 第398便: セラピストを登録する場所（フクエスリンクではマイページのプロフィールタブ）
+  girls: '/mypage?tab=profile',
 };
 
 export type MediaBrandValue = {

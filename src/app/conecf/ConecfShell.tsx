@@ -78,7 +78,7 @@ export function ConecfShell({
     links: {
       home: href('/'), login: href('/sites'), roster: href('/girls/sync'), work: href('/schedule/sync'),
       schedule: href('/schedule'), diary: href('/diary'), news: href('/news'), log: href('/log'),
-      matrix: href('/matrix'), qa: href('/qa'), guide: href('/guide'),
+      matrix: href('/matrix'), qa: href('/qa'), guide: href('/guide'), girls: href('/girls'),
     },
   };
 
