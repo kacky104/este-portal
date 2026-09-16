@@ -9,10 +9,11 @@
 
 import { WORK_FIRST_APPROVAL_NOTE } from './mediaOverview';
 
-export type GuideLinkKey = 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix';
+export type GuideLinkKey = 'qa' | 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix';
 
 export const GUIDE_HREF: Record<GuideLinkKey, string> = {
   home: '/mypage/media',
+  qa: '/mypage/media/qa',
   login: '/mypage/media/login',
   roster: '/mypage/media/therapists',
   work: '/mypage/media/work',
@@ -23,6 +24,10 @@ export const GUIDE_HREF: Record<GuideLinkKey, string> = {
 };
 
 /** いちばん上の「フクエスリンクとは」 */
+/** ★ 第394便b（カッキーさん）: 相手先の事情で提供できなくなることがある、を必ず言う（ガイドの下と Q&A の2か所） */
+export const GUIDE_SERVICE_NOTE =
+  '連携先サイトの仕様変更・方針・障害など、相手先の事情により、一部または全部のサービスを提供できなくなることがあります。';
+
 export const GUIDE_INTRO = {
   title: 'フクエスリンクとは',
   lead:
@@ -31,6 +36,7 @@ export const GUIDE_INTRO = {
     'サイトごとに管理画面を開いて、同じ出勤を入れ直す手間が減ります',
     '入力はフクエス1か所。更新はフクエスリンクが行います',
     'いつ・何を更新したかは「連携の記録」で確認できます',
+    'フクエス契約店舗様は無料でお使いいただけます',
   ],
 } as const;
 
@@ -139,6 +145,10 @@ export const GUIDE_QA: ReadonlyArray<{ group: string; items: readonly GuideQa[] 
   {
     group: 'はじめる前に',
     items: [
+      {
+        q: '使用料金はかかりますか？',
+        a: ['フクエス契約店舗様は無料です。'],
+      },
       {
         q: '「フクエスから反映」にすれば、出勤も自動で更新されますか？',
         a: [
@@ -254,6 +264,10 @@ export const GUIDE_QA: ReadonlyArray<{ group: string; items: readonly GuideQa[] 
         ],
         link: 'home',
         linkLabel: 'ホームを開く',
+      },
+      {
+        q: 'この先もずっと使えますか？',
+        a: [GUIDE_SERVICE_NOTE],
       },
       {
         q: 'エステラブで出勤を更新できないのはなぜですか？',

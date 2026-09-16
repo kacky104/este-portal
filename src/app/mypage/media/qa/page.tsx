@@ -2,14 +2,14 @@
 
 import { useMediaGate } from '../useMediaGate';
 import { MediaShell } from '../MediaShell';
-import { GuideBoard } from '../GuideBoard';
+import { QaBoard } from '../QaBoard';
 import { useToast } from '@/app/components/useToast';
 
-// はじめての方へ（使い方）（第394便・2026-09-16・カッキーさん）。
+// よくあるご質問（Q&A）（第394便b・2026-09-16・カッキーさん）。★ 使い方のページから分けた。
 // ★ フクエスリンクを初めて開いた店舗オーナー様向け。★ 読むだけの画面（操作は各画面へのリンクだけ）。
-// ★ 中身は lib/mediaGuide.ts（★ 文言の正は1か所）。
+// ★ 中身は lib/mediaGuide.ts の GUIDE_QA。
 
-export default function MediaGuidePage() {
+export default function MediaQaPage() {
   const { decision, salon, loadError } = useMediaGate();
   const { toast } = useToast();
 
@@ -19,11 +19,11 @@ export default function MediaGuidePage() {
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
       salonName={salon?.name ?? null}
-      title="はじめての方へ（使い方）"
-      current="guide"
+      title="よくあるご質問（Q&A）"
+      current="qa"
       toast={toast}
     >
-      <GuideBoard />
+      <QaBoard />
     </MediaShell>
   );
 }

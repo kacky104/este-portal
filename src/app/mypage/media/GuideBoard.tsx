@@ -2,13 +2,13 @@
 
 import Link from 'next/link';
 import {
-  GUIDE_HREF, GUIDE_INTRO, GUIDE_SITES, GUIDE_MODES, GUIDE_STEPS, GUIDE_OPTIONAL, GUIDE_QA,
+  GUIDE_HREF, GUIDE_INTRO, GUIDE_SITES, GUIDE_MODES, GUIDE_STEPS, GUIDE_OPTIONAL, GUIDE_SERVICE_NOTE,
 } from '@/lib/mediaGuide';
 
 // はじめての方へ（使い方・Q&A）の本文（第394便・2026-09-16・カッキーさん）。
-// ★ 読む順: フクエスリンクとは → できること → 3つの設定 → はじめの4ステップ → Q&A。
+// ★ 読む順: フクエスリンクとは → できること → 3つの設定 → はじめの4ステップ → 注意。
+// ★ 第394便b（カッキーさん）: Q&A は別ページ（QaBoard・/mypage/media/qa）に分けた。
 // ★ 見た目は反映の早見表（MatrixBoard）と同じカード。★ 角丸なし・紺。
-// ★ Q&A は <details> で畳む（★ 知りたい問いだけ開ける。JS の状態を持たない）。
 
 const card = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5';
 
@@ -34,6 +34,8 @@ const STATUS_BADGE = {
   limited:   { label: '一部のみ',     cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   preparing: { label: '準備中',       cls: 'bg-slate-50 text-slate-500 border-slate-200' },
 } as const;
+
+export { card as guideCard, SectionTitle, GoLink };
 
 export function GuideBoard() {
   return (
@@ -154,36 +156,10 @@ export function GuideBoard() {
         </div>
       </section>
 
-      {/* ── Q&A ── */}
-      <section className={`${card} space-y-4`}>
-        <SectionTitle>よくあるご質問</SectionTitle>
-        {GUIDE_QA.map((g) => (
-          <div key={g.group}>
-            <p className="text-[13px] font-bold text-slate-400 tracking-wider mb-1.5">{g.group}</p>
-            <div className="border-t border-slate-200">
-              {g.items.map((qa) => (
-                <details key={qa.q} className="group border-b border-slate-200">
-                  <summary className="flex items-start gap-2.5 cursor-pointer list-none py-3 pr-1 [&::-webkit-details-marker]:hidden">
-                    <span className="flex-none text-[15px] font-black text-indigo-600">Q</span>
-                    <span className="flex-1 text-[15px] font-bold text-slate-800 leading-snug">{qa.q}</span>
-                    <span className="flex-none text-slate-400 transition-transform group-open:rotate-180" aria-hidden>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-                    </span>
-                  </summary>
-                  <div className="flex gap-2.5 pb-3.5">
-                    <span className="flex-none text-[15px] font-black text-rose-500">A</span>
-                    <div className="flex-1 space-y-1.5">
-                      {qa.a.map((line) => (
-                        <p key={line} className="text-[14px] text-slate-600 leading-relaxed">{line}</p>
-                      ))}
-                      {qa.link && qa.linkLabel && <GoLink href={GUIDE_HREF[qa.link]}>{qa.linkLabel}</GoLink>}
-                    </div>
-                  </div>
-                </details>
-              ))}
-            </div>
-          </div>
-        ))}
+      {/* ── 注意（相手先の事情）と Q&A への入口（第394便b） ── */}
+      <section className={`${card} space-y-3`}>
+        <p className="text-[13.5px] text-slate-500 leading-relaxed">※ {GUIDE_SERVICE_NOTE}</p>
+        <GoLink href={GUIDE_HREF.qa}>よくあるご質問（Q&A）を見る</GoLink>
       </section>
     </div>
   );
