@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
+import { isConecfHost } from '@/lib/conecfHost';
 
 // サイト全体に肉球壁紙（body.paw-bg）を敷くトグル。テーマ色／着せ替えで背景が変わるページは除外する。
 // 除外（プレフィックス）: /salon/*・/therapist/*（公開テーマページ）／/diary/[id]（個別＝サロンのテーマ背景）／
@@ -12,13 +13,15 @@ import { useEffect } from 'react';
 // ※ /diary（一覧）は赤テーマ背景を敷くため除外に追加。/cast/login など認証ページはテーマ背景ではないため除外しない（壁紙を出す）。
 // /embed/ は外部サイトに iframe で貼る埋め込みウィジェット＝白背景固定のため壁紙を出さない。
 // /hp/ は掲載店舗の公式ホームページ＝フクエスの壁紙を出さない（ひな形が自分で背景を塗る）。
-const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/', '/embed/', '/hp/'];
+const EXCLUDED_PREFIXES = ['/salon/', '/therapist/', '/diary/', '/x/', '/jobs/', '/embed/', '/hp/', '/conecf'];
 const EXCLUDED_EXACT = ['/cast', '/x', '/jobs', '/ranking', '/therapists', '/diary', '/reviews', '/x-shops'];
 
 export default function Wallpaper() {
   const pathname = usePathname() || '';
   useEffect(() => {
+    // ★ コネックエフ（conecf.com・第395便）はフクエスの肉球の地を敷かない（★ 表向き別サイト）
     const excluded =
+      isConecfHost(window.location.hostname) ||
       EXCLUDED_EXACT.includes(pathname) ||
       EXCLUDED_PREFIXES.some((p) => pathname.startsWith(p));
     const body = document.body;

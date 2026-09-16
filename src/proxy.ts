@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { decideConecfRoute, isConecfHost } from "@/lib/conecfHost";
 
 // ── 掲載店舗の独自ドメイン（公式HP事業・2026-08-09 段階3） ───────────────
 //
@@ -46,9 +47,10 @@ export async function proxy(request: NextRequest) {
   // 店舗の独自ドメインなら /hp/{ホスト名}/favicon.ico（店舗のアイコンを返すルート）へ、
   // 本体ホストなら従来どおり静的な public/favicon.ico へ。
   if (request.nextUrl.pathname === "/favicon.ico") {
-    const favHost = normalizeHost(
-      request.headers.get("x-forwarded-host") ?? request.headers.get("host")
-    );
+    const favRaw = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+    const favHost = normalizeHost(favRaw);
+    // ★ コネックエフ（第395便）は店舗ドメインではない。★ 店舗のアイコンを探しに行かない
+    if (isConecfHost(favRaw)) return NextResponse.next();
     if (!isAppHost(favHost)) {
       const url = request.nextUrl.clone();
       url.pathname = `/hp/${favHost}/favicon.ico`;
@@ -94,6 +96,29 @@ export async function proxy(request: NextRequest) {
 
   // 注: /owner/login はオーナー判定（自店舗の有無）でページ側が /mypage へ振り分けるため、
   // ミドルウェアでの一律リダイレクトは行わない。
+
+  // ── コネックエフ（conecf.com・第395便 1a・2026-09-17）──
+  //   ★ 店舗の独自ドメインより【先に】見る（★ conecf.com は isAppHost ではないので、後だと /hp/conecf.com へ行ってしまう）。
+  //   ★ 判定は lib/conecfHost.ts（番人: npm run check:conecfhost）。
+  const conecf = decideConecfRoute(
+    request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+    path,
+    request.nextUrl.search,
+  );
+  if (conecf.kind === "redirect") {
+    return NextResponse.redirect(conecf.url, 308);
+  }
+  if (conecf.kind === "rewrite") {
+    const url = request.nextUrl.clone();
+    url.pathname = conecf.pathname;
+    const rewritten = NextResponse.rewrite(url, { request });
+    supabaseResponse.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
+    return rewritten;
+  }
+  if (isConecfHost(request.headers.get("x-forwarded-host") ?? request.headers.get("host"))) {
+    // ★ /_next /api /auth はフクエス本体のまま動かす（店舗ドメインの rewrite にも入れない）
+    return supabaseResponse;
+  }
 
   // 店舗の独自ドメイン → /hp/{ホスト名} 配下へ rewrite（公式HP・段階3）
   const host = normalizeHost(
