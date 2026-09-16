@@ -195,8 +195,8 @@ export function MediaShell({
       )}
 
       {/* ── 左サイドバー（★ PCだけ。スマホは三本線→ドロワー・第296便）───────── */}
-      {/* ★ 第394便c（2026-09-16・カッキーさん）: 並びが増えて下が切れるので、縦は画面いっぱい＋中でスクロール、下に余白。 */}
-      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[288px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain md:sticky md:top-0 md:self-start md:pb-12">
+      {/* ★ 第394便c（2026-09-16・カッキーさん）: 並びが増えて下が切れるので、縦は画面いっぱい＋中でスクロール、下に余白。★ スクロールバーは出さない（scrollbar-none）。 */}
+      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[288px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
         <div className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
           <span className="w-9 h-9 flex-none grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
