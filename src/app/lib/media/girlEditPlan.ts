@@ -84,7 +84,7 @@ function imagesOf(t: { profile_images?: unknown; profile_image_url?: unknown }):
  * ★★★ 第421便: 駅ちかの画像の枠へ合わせる手を作る（★ 変わった枠だけ）。
  *   ・N枚目の写真 → 枠N（★ 詰めない・ずらさない）
  *   ・前に送った写真（conecf_photo_pushes）と違えば put（★ 駅ちかにある写真は上書き＝コネックエフが正）
- *   ・写真が無くなった枠は、★ こちらが送った記録がある枠だけ remove（★ 記録の無い写真には触らない）
+ *   ・写真の無い枠は remove（★ 第424便: 記録が無くても消す＝コネックエフが正本。★ 画像1と、写真0枚の人は除く）
  *   ★ 記録の表がまだ無い（SQL 前）ときは、写真は何もしない
  */
 export async function buildGirlEditPhotos(
@@ -107,7 +107,9 @@ export async function buildGirlEditPhotos(
       const { bucket, path, filename, contentType, width, height } = f.file;
       return { slot: n, action: 'put', sourceUrl: want, file: { bucket, path, filename, contentType, width, height } };
     }
-    if (!want && before) return { slot: n, action: 'remove', sourceUrl: null };
+    // ★★ 第424便: コネックエフが正本。★ 写真の無い枠は、記録が無くても駅ちかから消す（空ならフローが何もしない）
+    //   ★ 例外: 画像1（駅ちかで消せない）は記録があるときだけ／写真が1枚も無い人は消さない（取り込み漏れで全消ししない）
+    if (!want && (before || (n >= 2 && input.images.length > 0))) return { slot: n, action: 'remove', sourceUrl: null };
     return null;
   }));
   for (const x of results) {
