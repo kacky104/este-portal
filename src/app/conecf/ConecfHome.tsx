@@ -128,6 +128,8 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
             const k = s.provider + '#' + s.slot;
             let status: { text: string; tone: string };
             let action: React.ReactNode = null;
+            /** ★ 第437便: 状態の下に出す1行（★ 直し方まで書く） */
+            let note: { text: string; tone: string; link: { href: string; label: string } | null } | null = null;
 
             if (s.needsConsent) {
               status = { text: '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
@@ -136,13 +138,20 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
               status = { text: 'ID・PASS未登録', tone: 'text-slate-400' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">登録する</Link>;
             } else if (s.direction === 'write') {
-              status = { text: s.autoOn ? '更新中（出勤は自動）' : '更新中（出勤の自動更新は未設定）', tone: s.autoOn ? 'text-emerald-700' : 'text-rose-700' };
+              // ★★ 第437便（カッキーさん）: 「更新中（出勤の自動更新は未設定）」＋「更新しない」は、
+              //   ★ いまの状態なのか、押すと何が起きるのかが読み取れない（★ 実際に迷った）。
+              //   → 状態は【コネックエフから更新中】の1つだけ。出勤の自動更新は【別の行】で直し方まで出す。
+              //   → ボタンは押したあとの結果が分かる言葉（★ 「更新を止める」）にする。
+              status = { text: 'コネックエフから更新中', tone: 'text-emerald-700' };
               action = (
                 <button type="button" disabled={busy !== ''} onClick={() => void onSet(s, 'none')}
                   className="px-3 py-1.5 border border-slate-300 bg-white text-[13px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">
-                  {busy === k ? '変えています…' : '更新しない'}
+                  {busy === k ? '変えています…' : '更新を止める'}
                 </button>
               );
+              note = s.autoOn
+                ? { text: '出勤は自動で更新しています', tone: 'text-slate-500', link: null }
+                : { text: '出勤の自動更新が未設定です', tone: 'text-rose-700', link: { href: href('/schedule/sync'), label: '設定する' } };
             } else if (s.direction === 'read') {
               status = { text: `${s.label}から取り込み中（コネックエフからは更新していません）`, tone: 'text-amber-700' };
               action = (
@@ -169,6 +178,14 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
                 )}
                 <span className={`ml-auto text-[13.5px] font-bold ${status.tone}`}>{status.text}</span>
                 {action}
+                {note && (
+                  <span className={`basis-full text-[12.5px] font-bold ${note.tone}`}>
+                    {note.text}
+                    {note.link && (
+                      <Link href={note.link.href} className="ml-2 font-bold text-indigo-600 underline underline-offset-4">{note.link.label} ›</Link>
+                    )}
+                  </span>
+                )}
               </li>
             );
           })}
