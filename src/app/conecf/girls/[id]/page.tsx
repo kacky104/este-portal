@@ -14,6 +14,7 @@ import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import { GirlExtraTab } from './GirlExtraTabs';
 import { EkichikaEditPanel } from './EkichikaEditPanel';
 import { EsutamaEditPanel } from './EsutamaEditPanel';
+import { DeleteGirlPanel } from './DeleteGirlPanel';
 import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
@@ -332,6 +333,9 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
           {sites.length > 0 && saveBtn(() => void onSaveSites(), '送り先を保存する')}
         </div>
       )}
+
+      {/* ★★ 第432便: 退店した女性の削除 */}
+      <DeleteGirlPanel id={id} enabled={enabled} onToast={onToast} />
     </div>
   );
 }

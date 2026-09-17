@@ -10,6 +10,7 @@ import {
   bodyTypeFromSizes, normalizeConecfGirl, CONECF_MAX_IMAGES, type ConecfGirlInput,
 } from '@/lib/conecfGirl';
 import { parseBodyType } from '@/lib/bodyType';
+import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
 import { isSavableTarget } from '@/lib/conecfTargets';
 import {
   normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
@@ -378,4 +379,35 @@ export async function saveConecfGirlSiteFields(input: {
   }, { onConflict: 'therapist_id,provider,slot' });
   if (error) return { ok: false, error: `保存に失敗しました（SQL がまだの可能性があります）: ${error.message}` };
   return { ok: true, data: { fields } };
+}
+
+// ── ★★★ 第432便: 女性の削除（退店）──────────────────────────
+//   ★ 中身はマイページと同じ deleteTherapistWithCleanup（出勤 → 写メ日記 → 本人 → 写真の掃除）。★ 2か所に書かない。
+//   ★ 駅ちか・エステ魂などサイト側の登録は消えない → 押す前に「連携しているサイト」を見せる（★ 先に各サイトで削除・非表示を）。
+//   ★ 取り消せない（★ 写真ファイルも消える）。
+
+export type ConecfGirlDeleteInfo = { name: string; linked: Array<{ provider: string; label: string; slot: number }> };
+
+export async function getConecfGirlDeleteInfo(input: { id: number }): Promise<Result<ConecfGirlDeleteInfo>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: '女性が見つかりません' };
+  const { data: links } = await svc.from('therapist_media_ids').select('provider, slot').eq('therapist_id', Number(t.id));
+  const linked = ((links ?? []) as Array<{ provider: string; slot: number }>)
+    .map((l) => ({ provider: String(l.provider), slot: Number(l.slot ?? 1), label: providerLabel(String(l.provider)) }))
+    .sort((a, b) => a.provider.localeCompare(b.provider) || a.slot - b.slot);
+  return { ok: true, data: { name: String(t.name ?? ''), linked } };
+}
+
+export async function deleteConecfGirl(input: { id: number }): Promise<Result<{ salonId: number; name: string }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: '女性が見つかりません（すでに削除されている可能性があります）' };
+  const res = await deleteTherapistWithCleanup({ therapistId: String(t.id), salonId });
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, data: { salonId, name: String(t.name ?? '') } };
 }
