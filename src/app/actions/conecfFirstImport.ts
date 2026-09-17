@@ -113,6 +113,8 @@ export type PhotoImportStatus = {
   firstImportBusy: boolean;
   /** 写真のない女性の人数（★ ボタンを出すかの目安） */
   noPhotoCount: number;
+  /** 取り込み完了の時刻（★ 第435便: 完了の知らせは24時間だけ出す） */
+  doneAt: string | null;
   /** 取り込んだ人数・枚数（started 以降の記録から） */
   summary: { people: number; photos: number } | null;
 };
@@ -164,6 +166,7 @@ export async function getConecfPhotoImport(): Promise<Result<PhotoImportStatus>>
       hasEkichika: (srcCount ?? 0) > 0,
       firstImportBusy: !!salon.conecf_import_requested_at && !salon.conecf_import_done_at,
       noPhotoCount,
+      doneAt: (salon.conecf_photo_import_done_at as string | null) ?? null,
       summary,
     },
   };

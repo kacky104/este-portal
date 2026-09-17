@@ -342,8 +342,8 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       {pst && (pst.phase === 'waiting' || pst.phase === 'running') && (
         <p className="bg-white border border-slate-200 px-4 py-2.5 text-[13px] text-[#1558d6]">駅ちかから写真を取り込んでいます…（20分ほどで反映されます）</p>
       )}
-      {pst && pst.phase === 'done' && pst.summary && (
-        <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-slate-500">駅ちかから写真を取り込みました（{pst.summary.people}名・{pst.summary.photos}枚）</p>
+      {pst && pst.phase === 'done' && pst.summary && pst.doneAt && Date.now() - Date.parse(pst.doneAt) < 24 * 60 * 60 * 1000 && (
+        <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-slate-500">駅ちかから写真を取り込みました（{pst.summary.people}名）</p>
       )}
       {st && (st.phase === 'waiting' || st.phase === 'running') && (
         <p className="bg-white border border-slate-200 px-4 py-2.5 text-[13px] text-[#1558d6]">駅ちかから取り込んでいます…（20分ほどで反映されます）</p>
