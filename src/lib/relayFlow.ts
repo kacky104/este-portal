@@ -4356,7 +4356,7 @@ function afterGirlEditForm(
   if (plan.changes.length === 0) {
     return {
       kind: 'done',
-      audits: [{ event: 'edit_girl', outcome: 'stopped', summary: who + 'さんの駅ちかのプロフィールは、変わるところがありませんでした' + skippedNote.slice(0, 100), detail: { castId, changes: 0, skipped: plan.skipped.length, flowId } }],
+      audits: [{ event: 'edit_girl', outcome: 'ok', summary: who + 'さんの駅ちかのプロフィールは、変わるところがありませんでした（そのままです）' + skippedNote.slice(0, 100), detail: { castId, changes: 0, skipped: plan.skipped.length, flowId } }],
       note: '変わる欄が無い' + skippedNote,
     };
   }
