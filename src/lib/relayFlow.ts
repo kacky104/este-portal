@@ -644,6 +644,8 @@ export type RelayFlowContext = {
   photoSyncCur?: PhotoSyncOp;
   /** ★ この人で消した枠（★ まとめの記録のため） */
   photoRemoved?: number[];
+  /** ★★ 第426便: 駅ちかにしか無い写真のため触らなかった枠（★ まとめの記録のため） */
+  photoKept?: number[];
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -1288,7 +1290,7 @@ export function advanceFlow(input: {
       const syncCtx: RelayFlowContext = {
         ...ctx, cookie,
         editPhotos: undefined, editPhotoSkipped: undefined,
-        photoSync: true, photoSyncOps: ops, photoSyncCur: undefined, photoRemoved: [], photoPut: [],
+        photoSync: true, photoSyncOps: ops, photoSyncCur: undefined, photoRemoved: [], photoPut: [], photoKept: [],
         photoGirlId: castId, photoStage: 'sync',
         photoSlot: undefined, photoFile: undefined, photoSrc: undefined, photoSlotsBefore: undefined,
         photoMainRect: undefined, photoThumbRect: undefined,
@@ -1335,7 +1337,7 @@ function advanceQueueOrEnd(
             editStage: undefined, editPlan: undefined, editQueue: rest,
             // ★★ 第421便: 前の人の写真の道を持ち越さない
             editTherapistId: head.therapistId, editPhotos: head.photos, editPhotoSkipped: head.photoSkipped,
-            photoSync: undefined, photoSyncOps: undefined, photoSyncCur: undefined, photoRemoved: undefined, photoPut: undefined,
+            photoSync: undefined, photoSyncOps: undefined, photoSyncCur: undefined, photoRemoved: undefined, photoPut: undefined, photoKept: undefined,
             photoGirlId: undefined, photoStage: undefined, photoSlot: undefined, photoFile: undefined, photoSrc: undefined,
             photoSlotsBefore: undefined, photoMainRect: undefined, photoThumbRect: undefined,
           },
@@ -4122,6 +4124,12 @@ function photoSyncLoop(c: RelayFlowContext, page: PhotoPage, audits: FlowAudit[]
     const cc: RelayFlowContext = { ...c, photoSyncOps: ops, photoSyncCur: op };
     // ★★★ 第422便: 写真のある枠へ入れるときは【消さずに上書き】（★ 駅ちかの画像1には削除が無く、delete.json が 500 だった）。
     //   ★ 照合は verifyPhotoReplaced（その枠が変わり、ほかは変わっていない）
+    // ★★★ 第426便: 記録の無い枠に駅ちかの写真が入っていたら【触らない】（★ 駅ちかにしか無い写真を守る）
+    //   ★ 毎回の更新で出るので「うまくいかなかった」には数えない（★ 最後のまとめに「残した枠」として書く）
+    if (t.hasImage && op.recorded !== true) {
+      c = { ...c, photoSyncOps: ops, photoKept: [...(c.photoKept ?? []), op.slot] };
+      continue;
+    }
     if (t.hasImage && op.action === 'put') {
       return photoSyncUpload(cc, op, page, audits, synced);
     }
@@ -4163,14 +4171,19 @@ function photoSyncLoop(c: RelayFlowContext, page: PhotoPage, audits: FlowAudit[]
 
   const put = c.photoPut ?? [];
   const removed = c.photoRemoved ?? [];
-  const parts = [put.length > 0 ? '入れた枠 ' + put.join('・') : '', removed.length > 0 ? '消した枠 ' + removed.join('・') : ''].filter(Boolean);
+  const kept = c.photoKept ?? [];
+  const parts = [
+    put.length > 0 ? '入れた枠 ' + put.join('・') : '',
+    removed.length > 0 ? '消した枠 ' + removed.join('・') : '',
+    kept.length > 0 ? '駅ちかの写真を残した枠 ' + kept.join('・') : '',
+  ].filter(Boolean);
   const after = describePhotoSlots(page.slots);
   return {
     kind: 'done',
     audits: [...audits, {
       event: 'push_photo', outcome: 'ok',
       summary: photoSyncWho(c) + 'さんの駅ちかの写真を合わせました（' + (parts.join('／') || '変わるところなし') + '）',
-      detail: { girlId, put: put.join(',') || null, removed: removed.join(',') || null, after, stage: 'sync', flowId: c.flowId },
+      detail: { girlId, put: put.join(',') || null, removed: removed.join(',') || null, kept: kept.join(',') || null, after, stage: 'sync', flowId: c.flowId },
     }],
     note: '写真を合わせ終えた（' + (parts.join('／') || '変化なし') + '・後 ' + after + '）',
     ...(synced.length > 0 ? { photoSynced: synced } : {}),

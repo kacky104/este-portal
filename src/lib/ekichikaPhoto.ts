@@ -398,5 +398,11 @@ export type PhotoSyncOp = {
   action: 'put' | 'remove';
   /** ★ 送った記録に書く元の URL（remove は null） */
   sourceUrl: string | null;
+  /**
+   * ★★ 第426便: その枠に【コネックエフから送った記録】があるか。
+   *   ★ 記録の無い枠に駅ちかの写真が入っていたら、上書きも削除もしない（★ 駅ちかにしか無い写真を守る）。
+   *   ★ 無い／false は「記録なし」扱い（★ 古い版の手が残っていても触らない側に倒れる）
+   */
+  recorded?: boolean;
   file?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
 };

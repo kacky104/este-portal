@@ -49,12 +49,12 @@ eq('★★ ほかの枠も変わった', p.verifyPhotoDeleted(pg([1, 2, 3]), pg(
 
 console.log('── 3. プロフィールのあと写真へ ──');
 const ops = [
-  { slot: 1, action: 'put', sourceUrl: 'https://x/1.jpg', file: FILE(1) },
-  { slot: 2, action: 'put', sourceUrl: 'https://x/2.jpg', file: FILE(2) },
-  { slot: 5, action: 'remove', sourceUrl: null },
-  { slot: 6, action: 'remove', sourceUrl: null },
+  { slot: 1, action: 'put', sourceUrl: 'https://x/1.jpg', recorded: true, file: FILE(1) },
+  { slot: 2, action: 'put', sourceUrl: 'https://x/2.jpg', recorded: true, file: FILE(2) },
+  { slot: 5, action: 'remove', sourceUrl: null, recorded: true },
+  { slot: 6, action: 'remove', sourceUrl: null, recorded: true },
 ];
-const q2 = { castId: '999', name: 'さら', values: {}, therapistId: 26, photos: [{ slot: 1, action: 'put', sourceUrl: 'https://x/s.jpg', file: FILE(9) }] };
+const q2 = { castId: '999', name: 'さら', values: {}, therapistId: 26, photos: [{ slot: 1, action: 'put', sourceUrl: 'https://x/s.jpg', recorded: true, file: FILE(9) }] };
 const r0 = run('girl_edit_form', base({ editPhotos: ops, editQueue: [q2] }), { status: 500 });
 eq('★ プロフィールが止まっても写真へ進む', [r0.kind, r0.next && r0.next.purpose, r0.next && r0.next.context.photoStage], ['next', 'read_photo_page', 'sync']);
 eq('記録にプロフィールの止まりも残る', r0.audits[0].event, 'edit_girl');
@@ -95,7 +95,7 @@ eq('★ 記録（5 と 6 を消す）', r6.photoSynced, [{ therapistId: 25, imag
 eq('★ まとめの1行', r6.audits.map((a) => a.summary).pop(), 'るうさんの駅ちかの写真を合わせました（入れた枠 1・2／消した枠 5）');
 const n = r6.next.context;
 eq('★★ 次の人に写真の道を持ち越さない', [n.editCastId, n.photoSync, n.photoSyncOps, n.photoGirlId, n.photoPut, n.editTherapistId, n.editPhotos.length], ['999', undefined, undefined, undefined, undefined, 26, 1]);
-const top = run('read_photo_page', base({ photoSync: true, photoGirlId: GIRL, photoStage: 'sync', photoSyncOps: [{ slot: 1, action: 'remove', sourceUrl: null }] }), { body: editPage({ occupied: [1] }) });
+const top = run('read_photo_page', base({ photoSync: true, photoGirlId: GIRL, photoStage: 'sync', photoSyncOps: [{ slot: 1, action: 'remove', sourceUrl: null, recorded: true }] }), { body: editPage({ occupied: [1] }) });
 eq('★★ 画像1は消さない（記録だけ外す）', [top.kind, top.audits[0].detail.reason, top.photoSynced], ['done', 'top_no_delete', [{ therapistId: 25, imageSlot: 1, sourceUrl: null }]]);
 
 console.log('── 6. 次の人のプロフィールのあと、また写真へ ──');
@@ -105,6 +105,19 @@ eq('★ さらさんの写真へ', [r7.next.purpose, r7.next.context.photoGirlId
 console.log('── 7. 送れない写真の理由だけ ──');
 const r8 = run('girl_edit_form', base({ editPhotoSkipped: ['枠3：小さい'] }), { status: 500 });
 eq('★ 写真なしでも理由を残して終わる', [r8.kind, r8.audits[r8.audits.length - 1].detail.reason], ['stop', 'not_ready']);
+
+console.log('── 8. ★★ 第426便: 駅ちかにしか無い写真は触らない ──');
+const keep = run('read_photo_page', base({ photoSync: true, photoGirlId: GIRL, photoStage: 'sync', photoRemoved: [], photoPut: [], photoKept: [], editQueue: [], photoSyncOps: [
+  { slot: 2, action: 'put', sourceUrl: 'https://x/2.jpg', file: FILE(2) },
+  { slot: 3, action: 'put', sourceUrl: 'https://x/3.jpg', recorded: false, file: FILE(3) },
+  { slot: 4, action: 'remove', sourceUrl: null },
+] }), { body: editPage({ occupied: [1, 2, 3, 4] }) });
+eq('★★ 記録の無い埋まった枠は上書きも削除もしない', [keep.kind, keep.next && keep.next.purpose, keep.photoSynced], ['done', undefined, undefined]);
+eq('★ まとめに「残した枠」', keep.audits.map((a) => [a.outcome, a.summary]).pop(), ['ok', 'るうさんの駅ちかの写真を合わせました（駅ちかの写真を残した枠 2・3・4）']);
+const empty = run('read_photo_page', base({ photoSync: true, photoGirlId: GIRL, photoStage: 'sync', photoRemoved: [], photoPut: [], photoKept: [], editQueue: [], photoSyncOps: [
+  { slot: 3, action: 'put', sourceUrl: 'https://x/3.jpg', file: FILE(3) },
+] }), { body: editPage({ occupied: [1, 2] }) });
+eq('★ 記録が無くても空いた枠には入れる', [empty.kind, empty.next && empty.next.purpose], ['next', 'upload_photo']);
 
 if (fail) { console.log('\n★ ' + fail + ' 件 NG'); process.exit(1); }
 console.log('\nすべて ok');
