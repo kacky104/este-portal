@@ -41,6 +41,7 @@ eq('★ image_id は 1・枠は image_set_id', p.buildDeleteFields({ girlId: GIR
   [['image_set_id', '3'], ['shopid', SHOP], ['id', GIRL], ['fuel_csrf_token', 't'], ['image_id', '1'], ['girl_id', GIRL]]);
 
 console.log('── 2. 消したあとの照合 ──');
+eq('★ 壊れた枠を見分ける', [p.slotLooksBroken(S3 + '2_.jpg'), p.slotLooksBroken(S3 + '2s_.jpg?1'), p.slotLooksBroken(S3 + '2_20260917.jpg')], [true, true, false]);
 const pg = (occ) => p.parsePhotoPage(editPage({ occupied: occ }), GIRL).slots;
 eq('★ その枠だけ空けば ok', p.verifyPhotoDeleted(pg([1, 2, 3]), pg([1, 2]), 3), null);
 eq('★ 消えていない', p.verifyPhotoDeleted(pg([1, 2, 3]), pg([1, 2, 3]), 3).reason, 'not_deleted');
@@ -82,6 +83,9 @@ c = Object.assign({}, r4.next.context, { photoStage: 'verify', photoSrc: 'https:
 const r5 = run('read_photo_page', c, { body: editPage({ occupied: [1, 2, 3, 5] }).replace(S3 + '1_20260809230626.jpg', S3X(1)) });
 eq('★ 枠2の記録', r5.photoSynced, [{ therapistId: 25, imageSlot: 2, sourceUrl: 'https://x/2.jpg' }]);
 eq('★ 枠5は減った → 消す', [r5.next.purpose, r5.next.context.photoSyncCur.slot], ['delete_photo', 5]);
+eq('★★ 削除はブラウザと同じ multipart（ファイル無し）', [r5.next.body, r5.next.multipart.files.length, r5.next.multipart.fields.image_set_id, r5.next.multipart.fields.image_id, !!r5.next.headers['content-type']], ['', 0, '5', '1', false]);
+const brk = run('read_photo_page', Object.assign({}, r5.next.context, { photoStage: 'sync_deleted', editQueue: [] }), { body: editPage({ occupied: [1, 2, 3, 5] }).replace(S3 + '1_20260809230626.jpg', S3X(1)).replace(S3 + '5_20260809230626.jpg', S3 + '5_.jpg') });
+eq('★★★ 名前だけ空の imgN_.jpg は成功にしない', [brk.kind, brk.audits[0].detail.reason], ['stop', 'broken']);
 c = r5.next.context;
 const d500 = run('delete_photo', c, { status: 500, body: 'err' });
 eq('★ 500 でも読み直して照合に任せる', [d500.kind, d500.next.purpose], ['next', 'read_photo_page']);

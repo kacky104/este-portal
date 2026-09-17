@@ -74,7 +74,7 @@ export function assertRelayMultipart(input: unknown): RelayMultipart {
 
   // ── ファイル ──
   if (!Array.isArray(m.files)) fail('files が無い');
-  if (m.files.length < 1) fail('files が空（ファイル無しなら multipart にしない）');
+  // ★ 第423便: ファイル無しの multipart も通す（駅ちかの写真の削除はブラウザが FormData で送る。★ relay.sh は --form-string だけで送れる）
   if (m.files.length > RELAY_FILE_MAX_COUNT) fail('files が多すぎる: ' + m.files.length);
   const files: RelayFile[] = [];
   for (const f of m.files as unknown[]) {

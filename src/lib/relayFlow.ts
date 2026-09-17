@@ -77,6 +77,7 @@ import {
   buildDeleteFields,         // ★ 第421便: コネックエフの写真に合わせて消す
   verifyPhotoDeleted,
   verifyPhotoReplaced,
+  slotLooksBroken,
   EKICHIKA_PHOTO_DELETE_URL,
   type PhotoSyncOp,
   type PhotoPage,
@@ -4083,7 +4084,9 @@ function photoSyncFromPage(
   if (bad) {
     const summary = bad.reason === 'other_changed'
       ? '駅ちかの枠' + cur.slot + 'の写真を消したところ、ほかの枠（' + bad.changed.join('・') + '）も変わっていました（★ 画面をご確認ください）'
-      : photoSyncWho(ctx) + 'さんの駅ちかの枠' + cur.slot + 'の写真を消せませんでした（★ 残りの写真は送っていません）';
+      : bad.reason === 'broken'
+        ? photoSyncWho(ctx) + 'さんの駅ちかの画像' + cur.slot + 'が読めない画像になりました（★ 駅ちかの画面で画像を一度入れてから削除してください）'
+        : photoSyncWho(ctx) + 'さんの駅ちかの枠' + cur.slot + 'の写真を消せませんでした（★ 残りの写真は送っていません）';
     return stop(
       [{ event: 'push_photo', outcome: 'failed', summary, detail: { girlId: ctx.photoGirlId ?? null, slot: cur.slot, stage: 'delete', reason: bad.reason, changed: bad.changed.join(',') || null, ...shape, flowId: ctx.flowId } }],
       '消したあとの照合で外れた（' + bad.reason + '・前 ' + shape.before + ' → 後 ' + shape.after + '）',
@@ -4122,6 +4125,10 @@ function photoSyncLoop(c: RelayFlowContext, page: PhotoPage, audits: FlowAudit[]
     if (t.hasImage && op.action === 'put') {
       return photoSyncUpload(cc, op, page, audits, synced);
     }
+    if (t.hasImage && op.action === 'remove' && slotLooksBroken(t.image)) {
+      audits.push({ event: 'push_photo', outcome: 'stopped', summary: '駅ちかの画像' + op.slot + 'は読めない画像のため消していません（★ 駅ちかの画面で画像を一度入れてから削除してください）', detail: { girlId, slot: op.slot, reason: 'broken', flowId: c.flowId } });
+      continue;
+    }
     if (t.hasImage && op.slot === 1) {
       // ★ 画像1（トップ画像）は駅ちかで消せない。★ 記録だけ外して、写真は駅ちかに残す
       audits.push({ event: 'push_photo', outcome: 'stopped', summary: '駅ちかの画像1（トップ画像）は消せないため、そのまま残しました', detail: { girlId, slot: 1, reason: 'top_no_delete', flowId: c.flowId } });
@@ -4142,7 +4149,8 @@ function photoSyncLoop(c: RelayFlowContext, page: PhotoPage, audits: FlowAudit[]
         audits,
         note: '枠 ' + op.slot + ' の写真を消します（' + (op.action === 'put' ? '入れ替えのため' : 'コネックエフで減ったため') + '）',
         ...withSynced,
-        next: { purpose: 'delete_photo', method: 'POST', url: EKICHIKA_PHOTO_DELETE_URL, headers: photoHeadersPost(nctx, true), body: encodePayload(fields), context: nctx },
+        // ★★ 第423便: ブラウザと同じ FormData（multipart・ファイル無し）で送る。★ urlencoded では枠が壊れた（img2_.jpg）
+        next: { purpose: 'delete_photo', method: 'POST', url: EKICHIKA_PHOTO_DELETE_URL, headers: photoHeadersPost(nctx, false), body: '', multipart: { fields: Object.fromEntries(fields), files: [] }, context: nctx },
       };
     }
     if (op.action === 'remove') {

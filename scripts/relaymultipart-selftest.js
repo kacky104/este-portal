@@ -70,7 +70,7 @@ eq('★ 値が長すぎれば断る', /長すぎる/.test(throws(() => s.assertR
   eq('★ 項目が多すぎれば断る（31）', /多すぎる/.test(throws(() => s.assertRelayMultipart(good({ fields: many })))), true);
 }
 eq('★ fields が無ければ断る', /fields が無い/.test(throws(() => s.assertRelayMultipart({ files: [] }))), true);
-eq('★ files が空なら断る（ファイル無しなら multipart にしない）', /files が空/.test(throws(() => s.assertRelayMultipart(good({ files: [] })))), true);
+eq('★ 第423便: ファイル無しの multipart も通す（駅ちかの削除）', s.assertRelayMultipart(good({ files: [] })).files.length, 0);
 eq('★ files が2つなら断る（1枠1枚）', /多すぎる/.test(throws(() => s.assertRelayMultipart(good({ files: [good().files[0], good().files[0]] })))), true);
 eq('★ オブジェクトでなければ断る', /オブジェクトではない/.test(throws(() => s.assertRelayMultipart('x'))), true);
 eq('★ 上限の数はそのまま（1枚・30項目）', [s.RELAY_FILE_MAX_COUNT, s.RELAY_FIELD_MAX_COUNT], [1, 30]);

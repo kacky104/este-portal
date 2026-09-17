@@ -72,6 +72,15 @@ export type PhotoPage = {
  *   ★ 最初の実装は「image が空なら空き」だったので、23人全員が「8枠すべてあり」に見えた。
  *   → 空き ＝ 空文字 か noimage の仮画像。★ それ以外（知らない形も）は「あり」＝送らない側に倒す。
  */
+/**
+ * ★★★ 第423便: 壊れた枠（ファイル名の日時が空の `imgN_.jpg`）。
+ *   ★ 2026-09-17 るうさん枠2: 削除のあと「写真あり」のまま名前だけ空になり、画面に読めない画像が出た。
+ *   ★ ブラウザで削除しても戻らない。★ 成功扱いにしない
+ */
+export function slotLooksBroken(imageValue: string): boolean {
+  return /\/img\d+s?_\.(jpe?g|png|gif)(\?.*)?$/i.test(String(imageValue ?? '').trim());
+}
+
 export function slotHasPhoto(imageValue: string): boolean {
   const v = String(imageValue ?? '').trim();
   if (v === '') return false;
@@ -345,7 +354,7 @@ export function buildDeleteFields(ids: PhotoIds): Array<[string, string]> {
  *   ・消した枠が空きになっている
  *   ・★ ほかの枠は1つも変わっていない（写真のある枠は生の値まで同じ）
  */
-export function verifyPhotoDeleted(before: PhotoSlotState[], after: PhotoSlotState[], slot: number): { reason: 'slot_missing' | 'not_deleted' | 'other_changed'; changed: number[] } | null {
+export function verifyPhotoDeleted(before: PhotoSlotState[], after: PhotoSlotState[], slot: number): { reason: 'slot_missing' | 'not_deleted' | 'other_changed' | 'broken'; changed: number[] } | null {
   const at = (list: PhotoSlotState[], n: number) => list.find((s) => s.slot === n) ?? null;
   const a = at(after, slot);
   if (!a || !at(before, slot)) return { reason: 'slot_missing', changed: [] };
@@ -354,6 +363,7 @@ export function verifyPhotoDeleted(before: PhotoSlotState[], after: PhotoSlotSta
     .filter((b) => { const now = at(after, b.slot); return !now || now.hasImage !== b.hasImage || (b.hasImage && now.image !== b.image); })
     .map((b) => b.slot);
   if (changed.length > 0) return { reason: 'other_changed', changed };
+  if (slotLooksBroken(a.image)) return { reason: 'broken', changed: [] };
   if (a.hasImage) return { reason: 'not_deleted', changed: [] };
   return null;
 }
@@ -374,7 +384,7 @@ export function verifyPhotoReplaced(before: PhotoSlotState[], after: PhotoSlotSt
     .filter((x) => { const now = at(after, x.slot); return !now || now.hasImage !== x.hasImage || (x.hasImage && now.image !== x.image); })
     .map((x) => x.slot);
   if (changed.length > 0) return { reason: 'other_changed', changed };
-  if (!a.hasImage || a.image === b.image) return { reason: 'not_replaced', changed: [] };
+  if (!a.hasImage || a.image === b.image || slotLooksBroken(a.image)) return { reason: 'not_replaced', changed: [] };
   return null;
 }
 
