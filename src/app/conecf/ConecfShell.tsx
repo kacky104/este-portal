@@ -57,10 +57,12 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
 }
 
 export function ConecfShell({
-  current, title, toast, children,
+  current, title, toast, wide, children,
 }: {
   current: ConecfNavKey;
   title: string;
+  /** ★ 第438便: 画面の横幅をいっぱいに使う（★ 週間スケジュールのような表の画面だけ） */
+  wide?: boolean;
   /** ★ 画面の上に一時的に出す一言（useToast） */
   toast?: string;
   /** ★ 権限が確かめられてから描く（★ 店舗が無い人に中身を一瞬でも見せない） */
@@ -262,7 +264,7 @@ export function ConecfShell({
           )}
         </header>
 
-        <main className="px-4 md:px-6 py-4 md:py-5 max-w-5xl w-full">{children(access)}</main>
+        <main className={`px-4 md:px-6 py-4 md:py-5 w-full ${wide ? '' : 'max-w-5xl'}`}>{children(access)}</main>
       </div>
 
       {/* ── スマホの左ドロワー ── */}

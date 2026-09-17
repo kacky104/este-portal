@@ -105,14 +105,15 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       </div>
 
       <div className={`${CARD} overflow-x-auto`}>
-        <table className="w-full min-w-[720px] border-collapse text-[13px]">
+        {/* ★★ 第438便（カッキーさん）: 日付のマスは【いつも同じ幅】。★ table-fixed で中身の文字数に引っぱられない */}
+        <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]">
           <thead>
             <tr className="bg-slate-50">
-              <th className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 border-b border-slate-200 w-[130px] text-[12px] text-slate-400">女性</th>
+              <th className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 border-b border-slate-200 w-[150px] text-[12px] text-slate-400">女性</th>
               {dates.map((d, i) => {
                 const h = dateHead(d, i);
                 return (
-                  <th key={d} className={`px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
+                  <th key={d} className={`w-[calc((100%-150px)/7)] px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
                     <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
                     <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
                   </th>
@@ -124,7 +125,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
             {shown.map((r) => (
               <tr key={r.id} className={`border-t border-slate-100 ${r.isActive ? '' : 'opacity-50'}`}>
                 <th className="sticky left-0 z-10 bg-white text-left px-3 py-2 font-bold text-slate-700 whitespace-nowrap">
-                  <span className="block truncate max-w-[110px]">{r.name || '（名前なし）'}</span>
+                  <span className="block truncate max-w-[130px]">{r.name || '（名前なし）'}</span>
                   {!r.isActive && <span className="text-[10.5px] font-bold text-slate-400">非公開</span>}
                 </th>
                 {dates.map((d, i) => {
@@ -213,7 +214,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 export default function ConecfSchedulePage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="schedule" title="週間スケジュール" toast={toast}>
+    <ConecfShell current="schedule" title="週間スケジュール" toast={toast} wide>
       {(a) => <Body enabled={!!a.enabledAt} onToast={showToast} />}
     </ConecfShell>
   );
