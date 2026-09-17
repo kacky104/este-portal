@@ -4,6 +4,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { parseEkichikaCast, normalizeName } from '@/lib/ekichikaParse';
 import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
 import { acceptsFirstImport, pickFirstImportSchedule, fillEmptyProfile } from '@/lib/conecfFirstImport';
+import { extractCastPhotos } from '@/lib/ekichikaCastPhotos';
+import { importEkichikaCastPhotos } from '@/app/lib/media/ekichikaCastPhotoImport';
 
 // ── 外部媒体取り込み: 個人ページHTMLを受けて解析・照合・反映（第28便）──────
 // 中継役VPSが集めた個人ページの生HTMLを受け取り、
@@ -88,14 +90,14 @@ export async function POST(req: Request) {
   // 1. 取り込み設定を読む
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, provider, slot, link_mode, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area, conecf_enabled_at, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at)')
+    .select('id, salon_id, is_enabled, provider, slot, link_mode, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area, conecf_enabled_at, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at, conecf_photo_import_requested_at, conecf_photo_import_started_at, conecf_photo_import_done_at)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
   // ★★ 第406便: コネックエフ「駅ちかから最初に1回だけ取り込む」の最中か。
   //   ★ 切り替え済み・targets が渡した・まだ done でない・駅ちか のときだけ true（src/lib/conecfFirstImport.ts）。
   //   ★ この間だけ、下の「有効でない／read でない／切り替え済み」の門を通す。★ それ以外は従来どおり。
-  type ConecfRel = { conecf_enabled_at?: string | null; conecf_import_requested_at?: string | null; conecf_import_started_at?: string | null; conecf_import_done_at?: string | null };
+  type ConecfRel = { conecf_enabled_at?: string | null; conecf_import_requested_at?: string | null; conecf_import_started_at?: string | null; conecf_import_done_at?: string | null; conecf_photo_import_requested_at?: string | null; conecf_photo_import_started_at?: string | null; conecf_photo_import_done_at?: string | null };
   const rel0 = (source as unknown as { salons?: ConecfRel | ConecfRel[] | null }).salons;
   const s0 = Array.isArray(rel0) ? rel0[0] : rel0;
   const firstImport = acceptsFirstImport({
@@ -105,7 +107,15 @@ export async function POST(req: Request) {
     doneAt: s0?.conecf_import_done_at ?? null,
     provider: String((source as unknown as { provider?: string | null }).provider ?? 'ekichika'),
   });
-  if (!firstImport) {
+  // ★★ 第427便: 「写真だけ取り込む（1回）」の最中か（★ 最初の1回と同じ判定を写真の3列で）。★ 最初の1回の最中ならそちらが優先（写真も入る）
+  const photoOnly = !firstImport && acceptsFirstImport({
+    enabledAt: s0?.conecf_enabled_at ?? null,
+    requestedAt: s0?.conecf_photo_import_requested_at ?? null,
+    startedAt: s0?.conecf_photo_import_started_at ?? null,
+    doneAt: s0?.conecf_photo_import_done_at ?? null,
+    provider: String((source as unknown as { provider?: string | null }).provider ?? 'ekichika'),
+  });
+  if (!firstImport && !photoOnly) {
     if (!source.is_enabled) return NextResponse.json({ ok: true, skipped: 'disabled' });
     // ★★ 向きが 'read' でない店は取り込まない（第45便・ingest-list と同じ二重の安全弁）。
     if ((source as unknown as { link_mode?: string }).link_mode !== 'read')
@@ -203,6 +213,23 @@ export async function POST(req: Request) {
   let schedulesUpserted = 0;
   let profilesUpdated = 0;
   let castIdFilled = 0;
+  // ★★ 第427便: 駅ちかの写真の取り込み（最初の1回・写真だけ）。★ 60秒の上限に近づいたら残りの人の写真は取らない（名前を残す）
+  const startedMs = Date.now();
+  const PHOTO_BUDGET_MS = 40_000;
+  let photoPeople = 0;
+  let photoSaved = 0;
+  const photoNotes: string[] = [];
+  const takePhotos = async (therapistId: number, html: string, castId: string | undefined, name: string) => {
+    if (Date.now() - startedMs > PHOTO_BUDGET_MS) { photoNotes.push(name + '（時間切れ・もう一度「写真を取り込む」で入ります）'); return; }
+    const r = await importEkichikaCastPhotos(supabase, { therapistId, provider, slot, photos: extractCastPhotos(html, castId ?? null) });
+    if (r.kind === 'saved') {
+      photoPeople++; photoSaved += r.saved;
+      if (r.failed.length > 0) photoNotes.push(name + '（枠' + r.failed.join('・') + 'は取れませんでした）');
+      if (r.recordError) photoNotes.push(name + '（送った記録を書けませんでした: ' + r.recordError.slice(0, 60) + '）');
+    } else if (r.kind === 'failed') {
+      photoNotes.push(name + '（' + r.error.slice(0, 60) + '）');
+    }
+  };
 
   // 4. 個人ページごとに解析・照合・反映
   for (const c of casts) {
@@ -229,7 +256,7 @@ export async function POST(req: Request) {
     //   ★ 第227便から【公開＋NEW】で作る。★ 決めごとは1か所（このファイル冒頭のコメント）。
     let isNew = false;
     if (therapistId === undefined) {
-      if (!source.create_missing && !firstImport) { unmatched.push(cast.name); continue; }
+      if ((!source.create_missing && !firstImport) || photoOnly) { unmatched.push(cast.name); continue; }
       if (!isCreatableName(cast.name)) {
         unmatched.push(`${cast.name}（伏字・記号のみ・作成せず）`);
         continue;
@@ -283,6 +310,12 @@ export async function POST(req: Request) {
       }
     }
 
+    // ★★ 第427便: 写真だけ取り込む（★ 出勤・年齢サイズ・作成には触らない）
+    if (photoOnly) {
+      await takePhotos(therapistId, c.html, c.castId, cast.name.trim());
+      continue;
+    }
+
     // ★★ 第406便: 最初の1回は別の道（入力済みの日は残す・非公開には出勤を入れない・年齢サイズは空だけ埋める）
     if (firstImport) {
       if (cast.schedule.length > 0) {
@@ -315,6 +348,8 @@ export async function POST(req: Request) {
           if (!error) profilesUpdated++;
         }
       }
+      // ★★ 第427便: 最初の1回でも写真を取り込む（★ コネックエフの写真が0枚の人だけ）
+      await takePhotos(therapistId, c.html, c.castId, cast.name.trim());
       continue;
     }
 
@@ -374,7 +409,8 @@ export async function POST(req: Request) {
     }).eq('id', runId);
   }
   // ★ 第406便: 最初の1回は last_run_at を動かさない（★ ふだんの周の間隔判定・見張りに混ぜない）
-  if (!firstImport) await supabase.from('salon_import_sources').update({
+  if (photoNotes.length > 0) console.warn('[ingest] 写真の取り込みで気になったこと:', photoNotes.slice(0, 5).join(' / '));
+  if (!firstImport && !photoOnly) await supabase.from('salon_import_sources').update({
     last_run_at: finishedAt,
     last_status: 'ok',
     last_error: null,
@@ -391,6 +427,10 @@ export async function POST(req: Request) {
     profilesUpdated,
     castIdFilled,
     firstImport,
+    photoOnly,
+    photoPeople,
+    photoSaved,
+    photoNotes: photoNotes.slice(0, 30),
     schedulesKept,
     created: createdNames.length,
     createdNames,

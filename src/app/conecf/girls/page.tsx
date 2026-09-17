@@ -8,7 +8,7 @@ import { useToast } from '@/app/components/useToast';
 import { listConecfGirls, createConecfGirl, type ConecfGirlRow } from '@/app/actions/conecfGirls';
 import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
-import { getConecfFirstImport, requestConecfFirstImport, type FirstImportStatus } from '@/app/actions/conecfFirstImport';
+import { getConecfFirstImport, requestConecfFirstImport, getConecfPhotoImport, requestConecfPhotoImport, type FirstImportStatus, type PhotoImportStatus } from '@/app/actions/conecfFirstImport';
 import { parseBodyType } from '@/lib/bodyType';
 import { startConecfEkichikaBulkEdit } from '@/app/actions/conecfGirlEdit';
 
@@ -59,6 +59,28 @@ function useFirstImport(onDone: () => void) {
   return { st, load };
 }
 
+// ★★ 第427便: 駅ちかの写真だけ取り込む（1回）。★ 仕組みは最初の1回と同じ（VPS の周）。★ 写真が0枚の女性だけ
+function usePhotoImport(onDone: () => void) {
+  const [st, setSt] = useState<PhotoImportStatus | null>(null);
+  const load = useCallback(async () => {
+    const res = await getConecfPhotoImport();
+    if (res.ok) setSt(res.data);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  const phase = st?.phase;
+  useEffect(() => {
+    if (phase !== 'waiting' && phase !== 'running') return;
+    const id = window.setInterval(async () => {
+      const res = await getConecfPhotoImport();
+      if (!res.ok) return;
+      setSt(res.data);
+      if (res.data.phase === 'done') onDone();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [phase, onDone]);
+  return { st, load };
+}
+
 function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [rows, setRows] = useState<ConecfGirlRow[] | null>(null);
@@ -90,6 +112,9 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     if (salonId != null) void revalidateSalon(salonId);
   }, [load, salonId]);
   const imp = useFirstImport(onImportDone);
+  const photoImp = usePhotoImport(onImportDone);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const needEnabled = (m: string) => { onToast(m); };
 
@@ -140,12 +165,24 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     void imp.load();
   };
 
+  const onPhotoImport = async () => {
+    setPhotoBusy(true);
+    const res = await requestConecfPhotoImport();
+    setPhotoBusy(false);
+    if (!res.ok) { onToast(res.error); return; }
+    setPhotoOpen(false);
+    onToast('受け付けました。20分ほどで反映されます');
+    void photoImp.load();
+  };
+
   if (error) return <div className="bg-white border border-slate-200 p-5 text-[14px] text-slate-500">読み込めませんでした（{error}）</div>;
 
   const shown = (rows ?? []).filter((r) => q.trim() === '' || r.name.includes(q.trim()));
   const total = rows?.length ?? 0;
   const st = imp.st;
   const canImport = !!st && st.hasEkichika && st.phase === 'none';
+  const pst = photoImp.st;
+  const canPhotoImport = !!pst && pst.hasEkichika && pst.phase === 'none' && !pst.firstImportBusy && pst.noPhotoCount > 0 && !canImport;
 
   return (
     <div className="space-y-4 text-[14px] text-[#212121]">
@@ -165,6 +202,15 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             className={GREEN_PILL}
           >
             <span className="text-[16px] leading-none">⤓</span>女性取り込み
+          </button>
+        )}
+        {canPhotoImport && (
+          <button
+            type="button"
+            onClick={() => (enabled ? setPhotoOpen((x) => !x) : needEnabled('取り込むには、ホームで「コネックエフに切り替える」を押してください'))}
+            className={GREEN_PILL}
+          >
+            <span className="text-[16px] leading-none">⤓</span>写真取り込み
           </button>
         )}
         <button
@@ -214,6 +260,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             <li>駅ちかに載っている女性・年齢・サイズ・1週間の出勤を、まとめて取り込みます</li>
             <li>まだ居ない女性は公開で追加します（新人マークは付けません）</li>
             <li>入力済みの出勤の日はそのまま残します／年齢・サイズは空欄だけ埋めます</li>
+            <li>写真がまだ無い女性は、駅ちかの写真も取り込みます（写真を入れてある女性はそのまま）</li>
             <li>1回だけ押せます</li>
           </ul>
           <div className="flex gap-2">
@@ -223,6 +270,31 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             </button>
           </div>
         </div>
+      )}
+      {/* ── 写真取り込み（駅ちかから1回だけ・第427便）── */}
+      {photoOpen && canPhotoImport && (
+        <div className="bg-white border border-slate-200 p-4 space-y-3">
+          <p className="font-bold">駅ちかから写真を取り込む（1回だけ）</p>
+          <ul className="text-[13px] text-slate-600 leading-relaxed list-disc pl-5">
+            <li>写真がまだ無い女性（{pst?.noPhotoCount ?? 0}名）に、駅ちかに載っている写真を取り込みます</li>
+            <li>写真を入れてある女性はそのままです</li>
+            <li>駅ちかで写真の枠が空いている場合は、詰めて並べます（次に「駅ちかへ更新」したとき、駅ちか側も詰まります）</li>
+            <li>取り込んだあとは、コネックエフで写真を消すと駅ちかからも消えます</li>
+            <li>1回だけ押せます</li>
+          </ul>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setPhotoOpen(false)} disabled={photoBusy} className="h-8 px-4 rounded bg-black/[0.07] text-[12px]">キャンセル</button>
+            <button type="button" onClick={() => void onPhotoImport()} disabled={photoBusy} className="h-8 px-4 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40">
+              {photoBusy ? '受け付けています…' : '取り込む'}
+            </button>
+          </div>
+        </div>
+      )}
+      {pst && (pst.phase === 'waiting' || pst.phase === 'running') && (
+        <p className="bg-white border border-slate-200 px-4 py-2.5 text-[13px] text-[#1558d6]">駅ちかから写真を取り込んでいます…（20分ほどで反映されます）</p>
+      )}
+      {pst && pst.phase === 'done' && pst.summary && (
+        <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-slate-500">駅ちかから写真を取り込みました（{pst.summary.people}名・{pst.summary.photos}枚）</p>
       )}
       {st && (st.phase === 'waiting' || st.phase === 'running') && (
         <p className="bg-white border border-slate-200 px-4 py-2.5 text-[13px] text-[#1558d6]">駅ちかから取り込んでいます…（20分ほどで反映されます）</p>

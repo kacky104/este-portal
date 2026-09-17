@@ -229,9 +229,11 @@ export async function GET(req: Request) {
   //   ★ listMode=false で返す → import.sh は個人ページ（週間予定）を取って /api/import/ingest へ送る（★ VPS は変えない）。
   //   ★ 間隔（import_interval_min）も mode も見ない。★ 押されたら次の周で1回だけ。
   const first = await collectFirstImport(supabase);
-  const allTargets = [...targets, ...first.targets];
+  // ★★ 第427便: 写真だけ取り込む（1回）。★ 同じ店を2回渡さない（最初の1回が渡された店は除く）
+  const photo = await collectFirstImport(supabase, 'photo', new Set(first.targets.map((t) => t.salonId)));
+  const allTargets = [...targets, ...first.targets, ...photo.targets];
 
-  return NextResponse.json({ ok: true, mode, count: allTargets.length, targets: allTargets, skippedByInterval, sweep, firstImport: first.log }, {
+  return NextResponse.json({ ok: true, mode, count: allTargets.length, targets: allTargets, skippedByInterval, sweep, firstImport: first.log, photoImport: photo.log }, {
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 }
@@ -249,32 +251,44 @@ type FirstTarget = {
  *   ・取り込み中（started あり・done が空）→ done を入れる（★ import.sh は flock があるので、ここが呼ばれた時点で前の周は終わっている）
  * ★ 失敗してもふだんの取り込みは止めない（log に残すだけ）。
  */
-async function collectFirstImport(supabase: Svc): Promise<{ targets: FirstTarget[]; log: Array<Record<string, unknown>> }> {
+async function collectFirstImport(
+  supabase: Svc, kind: 'first' | 'photo' = 'first', busy: Set<number> = new Set(),
+): Promise<{ targets: FirstTarget[]; log: Array<Record<string, unknown>> }> {
   const log: Array<Record<string, unknown>> = [];
-  const { data: salons, error } = await supabase
+  // ★★ 第427便: 「写真だけ取り込む」も同じ3列の形（conecf_photo_import_*）。★ 列名だけ差し替える
+  const col = kind === 'photo'
+    ? { req: 'conecf_photo_import_requested_at', start: 'conecf_photo_import_started_at', done: 'conecf_photo_import_done_at' } as const
+    : { req: 'conecf_import_requested_at', start: 'conecf_import_started_at', done: 'conecf_import_done_at' } as const;
+  const { data: salonsRaw, error } = await supabase
     .from('salons')
-    .select('id, conecf_enabled_at, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at')
+    .select('id, conecf_enabled_at, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at, ' + col.req + ', ' + col.start + ', ' + col.done)
     .eq('is_hidden', false)
     .not('conecf_enabled_at', 'is', null)
-    .not('conecf_import_requested_at', 'is', null)
-    .is('conecf_import_done_at', null);
+    .not(col.req, 'is', null)
+    .is(col.done, null);
   if (error) { log.push({ error: error.message }); return { targets: [], log }; }
+  const salons = (salonsRaw ?? []) as unknown as Array<Record<string, unknown>>;
 
   const targets: FirstTarget[] = [];
   const now = new Date().toISOString();
-  for (const s of salons ?? []) {
+  for (const s of salons) {
     const salonId = Number(s.id);
     const step = targetsStep(firstImportPhase({
-      requestedAt: (s.conecf_import_requested_at as string | null) ?? null,
-      startedAt: (s.conecf_import_started_at as string | null) ?? null,
-      doneAt: (s.conecf_import_done_at as string | null) ?? null,
+      requestedAt: (s[col.req] as string | null) ?? null,
+      startedAt: (s[col.start] as string | null) ?? null,
+      doneAt: (s[col.done] as string | null) ?? null,
     }));
     if (step === 'finish') {
-      await supabase.from('salons').update({ conecf_import_done_at: now }).eq('id', salonId).is('conecf_import_done_at', null);
+      await supabase.from('salons').update({ [col.done]: now }).eq('id', salonId).is(col.done, null);
       log.push({ salonId, step: 'done' });
       continue;
     }
     if (step !== 'hand') continue;
+    // ★ 写真だけ: 最初の1回が押されて終わっていない店は待つ（★ 同じ周で2回渡さない・最初の1回でも写真は入る）
+    if (kind === 'photo' && (busy.has(salonId) || (s.conecf_import_requested_at && !s.conecf_import_done_at))) {
+      log.push({ salonId, step: 'wait', note: '最初の取り込みが終わるのを待つ' });
+      continue;
+    }
 
     const { data: srcs } = await supabase
       .from('salon_import_sources')
@@ -288,9 +302,9 @@ async function collectFirstImport(supabase: Svc): Promise<{ targets: FirstTarget
     // ★ started を先に入れる（★ 入れられなかったら渡さない＝ingest が受けないので空振りになるため）
     const { data: upd, error: upErr } = await supabase
       .from('salons')
-      .update(list.length > 0 ? { conecf_import_started_at: now } : { conecf_import_started_at: now, conecf_import_done_at: now })
+      .update(list.length > 0 ? { [col.start]: now } : { [col.start]: now, [col.done]: now })
       .eq('id', salonId)
-      .is('conecf_import_started_at', null)
+      .is(col.start, null)
       .select('id');
     if (upErr || !upd || upd.length === 0) { log.push({ salonId, step: 'skip', error: upErr?.message ?? 'already started' }); continue; }
     if (list.length === 0) { log.push({ salonId, step: 'done', note: '駅ちかの店舗ページが登録されていない' }); continue; }
