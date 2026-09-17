@@ -4050,7 +4050,7 @@ function afterGirlEditForm(
   if (ctx.editApply !== true) {
     return {
       kind: 'done',
-      audits: [{ event: 'edit_girl', outcome: 'stopped', summary: '【試し打ち】' + who + 'さん：' + plan.changes.length + '欄が変わります（' + plan.changes.map((c) => c.label).join('・').slice(0, 80) + '）', detail: { castId, changes: plan.changes.length, skipped: plan.skipped.length, dryRun: true, flowId } }],
+      audits: [{ event: 'edit_girl', outcome: 'stopped', summary: '【試し打ち】' + who + 'さん：' + plan.changes.length + '欄が変わります（' + plan.changes.map((c) => c.label).join('・').slice(0, 80) + '）', detail: { castId, changes: plan.changes.length, skipped: plan.skipped.length, dryRun: true, labels: plan.changes.map((c) => c.label).join('・').slice(0, 110), skippedLabels: plan.skipped.join('・').slice(0, 110), flowId } }],
       note: '試し打ち（送っていない）: ' + list + skippedNote,
     };
   }

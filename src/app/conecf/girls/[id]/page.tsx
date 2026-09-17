@@ -12,6 +12,7 @@ import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
 import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import { GirlExtraTab } from './GirlExtraTabs';
+import { EkichikaEditPanel } from './EkichikaEditPanel';
 import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
@@ -170,6 +171,9 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
           {form.isActive ? '公開中（押すと非公開）' : '非公開（押すと公開）'}
         </button>
       </div>
+
+      {/* ★ 第418便: 駅ちかへ反映（確かめてから送る） */}
+      <EkichikaEditPanel id={id} enabled={enabled} onToast={onToast} />
 
       <div className="flex flex-wrap border-b border-slate-200">
         {TABS.map(([k, label]) => (
