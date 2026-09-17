@@ -58,7 +58,7 @@ function stop(audits: FlowAudit[], note: string): FlowOutcome {
 }
 
 /** ★ ログイン画面へ戻されたか。★ 判定はゆるく、止めるためだけに使う */
-function backToLogin(input: Input): boolean {
+export function backToLogin(input: Input): boolean {
   const loc = String(input.headers['location'] ?? '');
   if (loc.includes('/login')) return true;
   const b = String(input.body ?? '');
@@ -69,7 +69,7 @@ function backToLogin(input: Input): boolean {
  * ★★ URL からパスとクエリだけ取る（★ 監査の見張りは値が `http(s)://` で始まると落とす・第236便）。
  *   ★ ここは relayFlow から借りない（★ 借りると読み込みが循環する）。
  */
-function pathOf(url: string): string | null {
+export function pathOf(url: string): string | null {
   const u = String(url ?? '').trim();
   if (!u) return null;
   const m = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#]+(\/[^\s]*)?$/.exec(u);
@@ -77,7 +77,7 @@ function pathOf(url: string): string | null {
 }
 
 /** ★ 相対の行き先を絶対へ（★ 分からない形はそのまま返す） */
-function absOf(base: string, loc: string): string {
+export function absOf(base: string, loc: string): string {
   const l = String(loc ?? '').trim();
   if (!l) return '';
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(l)) return l;
@@ -87,7 +87,7 @@ function absOf(base: string, loc: string): string {
 }
 
 /** ★ 行き先がエステ魂か */
-function isEsutamaHost(url: string): boolean {
+export function isEsutamaHost(url: string): boolean {
   const h = /^https?:\/\/([^/?#]+)/.exec(String(url ?? ''))?.[1]?.toLowerCase() ?? null;
   return h === 'estama.jp' || h === 'www.estama.jp';
 }
@@ -98,7 +98,7 @@ function isEsutamaHost(url: string): boolean {
  *     （★ ブラウザでは `?disabled=true` が付いた URL になっていた）。
  *   ★★ 飛び先を決め打ちせず**追う**。★ ただし **同じ人の編集ページのときだけ**・2回まで。
  */
-const MAX_PHOTO_REDIRECTS = 2;
+export const MAX_PHOTO_REDIRECTS = 2;
 
 /**
  * ★★★★★ 「この URL は **その人の編集ページ** だと言い切れるか」。
@@ -111,10 +111,10 @@ const MAX_PHOTO_REDIRECTS = 2;
  *   ★ これが無いと `/admin/cast_edit/` の入口へ突き返される（＝ 番号が落ちた 307）。
  *   ★ ブラウザが実際に開けていたのは `.../cast_edit/<castId>/?disabled=true`。
  */
-const DISABLED_MARK = '?disabled=true';
+export const DISABLED_MARK = '?disabled=true';
 
 /** ★ その住所は既に「非表示の見え方」か */
-function hasDisabledMark(url: string): boolean {
+export function hasDisabledMark(url: string): boolean {
   return /[?&]disabled=true(?:&|$)/.test(String(url ?? ''));
 }
 
@@ -122,13 +122,13 @@ function hasDisabledMark(url: string): boolean {
  * ★★★★ 「cast_edit の入口へ突き返された」か（★ 番号が落ちている飛び先）。
  *   ★ これが出たら、その人が **非表示**だという合図。★ 別の場所へ飛ばされたのとは分けて扱う。
  */
-function bouncedToEntrance(url: string): boolean {
+export function bouncedToEntrance(url: string): boolean {
   if (!isEsutamaHost(url)) return false;
   const p = (pathOf(url) ?? '').split('?')[0];
   return p === '/admin/cast_edit/' || p === '/admin/cast_edit';
 }
 
-function safeCastEditUrl(url: string | null | undefined, castId: string): string | null {
+export function safeCastEditUrl(url: string | null | undefined, castId: string): string | null {
   const u = String(url ?? '').trim();
   if (!u || !castId) return null;
   if (!isEsutamaHost(u)) return null;

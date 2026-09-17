@@ -136,3 +136,72 @@ export async function planPhotoRemovalSlots(
   for (let n = 2; n <= PHOTO_SLOT_MAX; n++) if (!input.images[n - 1] && had.has(n)) out.push(n);
   return out;
 }
+
+// ── ★★★ 第430便: エステ魂のプロフィール更新に送る材料 ──────────────────
+export type CastEditBuilt =
+  | { ok: true; data: { castId: string; name: string; values: import('@/lib/esutamaCastEdit').EsutamaCastEditValues; therapistId: number } }
+  | { ok: false; status: number; error: string };
+
+/**
+ * ★ 読むもの: therapists（年齢・サイズ・お店コメント）／conecf_therapist_profiles（数字のサイズ・血液型・女の子コメント）
+ *            ／conecf_therapist_site_fields（エステ魂：特徴・エステ歴・資格・体型・質問6つ・SNS）
+ * ★ 決めごと（空は触らない等）は src/lib/esutamaCastEdit.ts が持つ。★ ここは集めるだけ。
+ */
+export async function buildCastEditValues(
+  svc: SupabaseClient, input: { salonId: number; therapistId: number; slot: number },
+): Promise<CastEditBuilt> {
+  const { salonId, therapistId, slot } = input;
+  const { data: th, error } = await svc
+    .from('therapists')
+    .select('id, salon_id, name, age, body_type, profile_text, import_cast_id')
+    .eq('id', therapistId).maybeSingle();
+  if (error) return { ok: false, status: 500, error: error.message };
+  if (!th) return { ok: false, status: 404, error: 'セラピストが見つからない' };
+  if (Number(th.salon_id) !== salonId) return { ok: false, status: 400, error: 'そのセラピストはこの店舗の在籍ではありません' };
+
+  const blocked = await conecfTargetBlock(svc, { salonId, therapistId, provider: 'esutama', slot });
+  if (blocked) return { ok: false, status: 400, error: blocked };
+
+  const { maps, error: castErr } = await loadCastIds(svc, {
+    therapists: [{ id: therapistId, import_cast_id: null }], provider: 'esutama', slot,
+  });
+  if (castErr) return { ok: false, status: 500, error: castErr };
+  const castId = maps.castIdOf.get(therapistId) ?? null;
+  if (!castId) return { ok: false, status: 400, error: 'この方はエステ魂と連携していません（「女性をサイトへ登録」で連携してください）' };
+
+  const { data: p } = await svc.from('conecf_therapist_profiles').select('*').eq('therapist_id', therapistId).maybeSingle();
+  const prof = (p ?? {}) as Record<string, unknown>;
+  const { data: sf } = await svc.from('conecf_therapist_site_fields').select('fields')
+    .eq('therapist_id', therapistId).eq('provider', 'esutama').eq('slot', slot).maybeSingle();
+  const f = ((sf?.fields ?? {}) as Record<string, unknown>);
+  const body = parseBodyType((th.body_type as string | null) ?? null);
+  const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+  const rec = (v: unknown): Record<string, string> => {
+    const o: Record<string, string> = {};
+    if (v && typeof v === 'object') for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (typeof x === 'string') o[k] = x;
+    return o;
+  };
+  return {
+    ok: true,
+    data: {
+      castId, name: str(th.name), therapistId,
+      values: {
+        age: str(th.age),
+        tall: str(prof.height ?? body?.height),
+        bust: str(prof.bust ?? body?.bust),
+        waist: str(prof.waist ?? body?.waist),
+        hip: str(prof.hip ?? body?.hip),
+        cup: str(prof.cup ?? body?.cup),
+        blood: str(prof.blood_type),
+        description: str(th.profile_text),
+        castPr: str(prof.girl_comment),
+        types: Array.isArray(f.types) ? (f.types as unknown[]).filter((x): x is string => typeof x === 'string') : [],
+        experience: str(f.experience),
+        qualified: str(f.qualified),
+        bodyStyle: str(f.bodyStyle),
+        answers: rec(f.answers),
+        sns: rec(f.sns),
+      },
+    },
+  };
+}

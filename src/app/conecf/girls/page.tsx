@@ -10,7 +10,7 @@ import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getConecfFirstImport, requestConecfFirstImport, getConecfPhotoImport, requestConecfPhotoImport, type FirstImportStatus, type PhotoImportStatus } from '@/app/actions/conecfFirstImport';
 import { parseBodyType } from '@/lib/bodyType';
-import { startConecfEkichikaBulkEdit, previewConecfEkichikaPhotoRemovals } from '@/app/actions/conecfGirlEdit';
+import { startConecfEkichikaBulkEdit, previewConecfEkichikaPhotoRemovals, startConecfEsutamaBulkEdit } from '@/app/actions/conecfGirlEdit';
 import { PhotoRemoveConfirm, type PhotoRemoval } from './PhotoRemoveConfirm';
 
 // コネックエフ「女性一覧」（第398便・1c → 第413便でベンリー型に）。
@@ -132,6 +132,19 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     await sendBulk(false);
   };
 
+  // ★★ 第430便: エステ魂へまとめて更新（プロフィールだけ・写真は送らない）
+  const onBulkEsutama = async () => {
+    if (!enabled) { needEnabled('更新するには、ホームで「コネックエフに切り替える」を押してください'); return; }
+    if (picked.size === 0) { onToast('更新する女性にチェックを入れてください'); return; }
+    setBulkBusy(true); setBulkNote('');
+    const r = await startConecfEsutamaBulkEdit({ ids: [...picked] });
+    setBulkBusy(false);
+    if (!r.ok) { onToast(r.error); return; }
+    if (r.data.queued > 0) { onToast(`${r.data.queued}名のエステ魂への更新を受け付けました。結果は「更新結果」に出ます`); setPicked(new Set()); }
+    else onToast('更新できる女性がいませんでした');
+    setBulkNote(r.data.skipped.length > 0 ? `エステ魂へ更新しなかった方：${r.data.skipped.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '');
+  };
+
   const sendBulk = async (allowRemove: boolean) => {
     setBulkBusy(true);
     const r = await startConecfEkichikaBulkEdit({ ids: [...picked], allowRemove });
@@ -233,6 +246,14 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           className="inline-flex items-center h-8 px-3 rounded border border-[#218925] bg-[#fefdfd] text-[#218925] text-[12px] disabled:opacity-40"
         >
           {bulkBusy ? '受け付けています…' : `駅ちかへまとめて更新${picked.size > 0 ? `（${picked.size}名）` : ''}`}
+        </button>
+        <button
+          type="button"
+          disabled={bulkBusy}
+          onClick={() => void onBulkEsutama()}
+          className="inline-flex items-center h-8 px-3 rounded border border-[#218925] bg-[#fefdfd] text-[#218925] text-[12px] disabled:opacity-40"
+        >
+          {bulkBusy ? '受け付けています…' : `エステ魂へまとめて更新${picked.size > 0 ? `（${picked.size}名）` : ''}`}
         </button>
         <Link href={href('/girls/sync')} className="inline-flex items-center h-8 px-3 rounded border border-slate-300 bg-[#fefdfd] text-[12px]">
           サイトへ登録

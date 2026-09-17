@@ -13,6 +13,7 @@ import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therap
 import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import { GirlExtraTab } from './GirlExtraTabs';
 import { EkichikaEditPanel } from './EkichikaEditPanel';
+import { EsutamaEditPanel } from './EsutamaEditPanel';
 import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
@@ -174,6 +175,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
 
       {/* ★ 第418便: 駅ちかへ反映（確かめてから送る） */}
       <EkichikaEditPanel id={id} enabled={enabled} onToast={onToast} />
+      <EsutamaEditPanel id={id} enabled={enabled} onToast={onToast} />
 
       <div className="flex flex-wrap border-b border-slate-200">
         {TABS.map(([k, label]) => (

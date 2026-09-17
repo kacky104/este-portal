@@ -13,6 +13,7 @@
 // ★★★ パスワードは文脈に入れない。ログイン POST を組むのは DB 側（startRelayFlow と同じ場所で復号する）。
 // ★★★ ここは純粋関数。DBもネットワークも触らない＝自己点検で固定できる（scripts/esutamaflow-selftest.js）。
 
+import { buildEsutamaCastEditReadStep } from './esutamaCastEditFlow';
 import type { FlowAudit, FlowOutcome, RelayFlowContext, EsutamaDiffRow, EsutamaPlanSummary } from './relayFlow';
 import { mergeCookies } from './relayJob';
 // ★ 写真の段（第243便）。★ ログイン後の道分けで1回だけ使う
@@ -179,6 +180,15 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
 
   // ★★★ 写真（第243便）は【出勤名簿もセラピスト設定も読まない】。
   //   ★ 要るのは **その人の編集ページ**だけ（枠の状態と ctk）。★ 用の無いページを相手に読みに行かない。
+  // ★★★ プロフィール更新（第430便）も【その人の編集ページだけ】を読む
+  if (ctx.intent === 'cast_edit') {
+    return {
+      kind: 'next',
+      audits: [],
+      note: 'エステ魂にログインできた。編集ページを読みます（★ まだ1文字も送っていない）',
+      next: buildEsutamaCastEditReadStep(cookie, { ...ctx, esutamaCsrf: undefined }),
+    };
+  }
   if (ctx.intent === 'cast_photo') {
     return {
       kind: 'next',

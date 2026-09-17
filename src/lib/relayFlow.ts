@@ -24,6 +24,8 @@
 //   ログイン失敗の再送ではない。ID/PWが違うまま3回投げると相手のアカウントが凍る（設計メモ §17-1）。
 //   → ここが 'stop' を返したら、そのフローは終わり。人が直すまで再開しない。
 
+import type { EsutamaCastEditValues, EsutamaEditPlan } from './esutamaCastEdit';
+import { afterEsutamaEditForm, afterEsutamaEditSave } from './esutamaCastEditFlow';
 import {
   parseWorkPage,
   checkWorkPage,
@@ -400,7 +402,13 @@ export type RelayFlowIntent =
    *   ★ apply が無ければ【読んで「何が変わるか」を記録するだけ】（★ 1文字も送らない）
    *   ★ 決めごとは src/lib/ekichikaGirlEdit.ts（空の欄は触らない・上限超えは送らない・名前は送らない）
    */
-  | 'girl_edit';
+  | 'girl_edit'
+  /**
+   * ★★★ エステ魂のセラピストのプロフィールを更新する（第430便・2026-09-17）。
+   *   login → esutama_edit_form → [apply のときだけ] esutama_edit_save → esutama_edit_form（照合）→ まとめてなら次の人
+   *   ★ 決めごとは src/lib/esutamaCastEdit.ts（空の欄は触らない・上限超えは送らない・名前と上位表示は送らない）
+   */
+  | 'cast_edit';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -646,6 +654,24 @@ export type RelayFlowContext = {
   photoRemoved?: number[];
   /** ★★ 第426便: 駅ちかにしか無い写真のため触らなかった枠（★ まとめの記録のため） */
   photoKept?: number[];
+
+  // ── ここから下は intent='cast_edit' のときだけ入る（第430便）──
+  /** ★★★ 更新する相手（エステ魂の cast_id）。★ 1人だけ */
+  castEditCastId?: string;
+  castEditName?: string;
+  castEditTherapistId?: number;
+  castEditValues?: EsutamaCastEditValues;
+  /** ★ true のときだけ送る。★ 無ければ試し打ち */
+  castEditApply?: boolean;
+  castEditStage?: 'verify';
+  castEditPlan?: EsutamaEditPlan;
+  /** ★ 飛ばされた先（★ 同じ方の編集ページだと言い切れるときだけ使う） */
+  castEditPageUrl?: string;
+  castEditHops?: number;
+  castEditOpenedAs?: 'normal' | 'disabled' | 'followed';
+  castEditSaveStatus?: number;
+  /** ★ まとめて更新の残り */
+  castEditQueue?: Array<{ castId: string; name: string; values: EsutamaCastEditValues; therapistId?: number }>;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -912,6 +938,8 @@ export type FlowNextRequest = {
     | 'girl_create_msg'
     // ★★★ 駅ちかの女の子プロフィールを更新する（第415便）。★ girl_edit だけが書き換える
     | 'girl_edit_form' | 'girl_edit'
+    // ★★★ エステ魂のプロフィール更新（第430便）。★ esutama_edit_save だけが書き換える
+    | 'esutama_edit_form' | 'esutama_edit_save'
     // ★ 即ヒメを押す／消す（第214便）。★ ajax 3本
     | 'sokuhime_check' | 'sokuhime_set' | 'sokuhime_del'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
@@ -1404,6 +1432,11 @@ function advanceFlowStep(
     // ── 駅ちかの女の子プロフィール更新（第415便）★ 段名で分けている ──
     case 'girl_edit_form':
       return afterGirlEditForm(input, ctx);
+    // ── エステ魂のプロフィール更新（第430便）──
+    case 'esutama_edit_form':
+      return afterEsutamaEditForm(input, ctx);
+    case 'esutama_edit_save':
+      return afterEsutamaEditSave(input, ctx);
     case 'girl_edit':
       return afterGirlEdit(input, ctx);
     case 'sokuhime_check':
@@ -2998,6 +3031,9 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       // ★ ここへは来ない（エステ魂の登録は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第232便）
       //   ★★★ 相手の媒体が違う。★ 人を増やす前に必ず止める
       return stop(audits, 'エステ魂の登録は駅ちかの出勤ページを使わない（ここへは来ないはず）');
+    case 'cast_edit':
+      // ★ ここへは来ない（エステ魂のプロフィール更新は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第430便）
+      return stop(audits, 'エステ魂のプロフィール更新は駅ちかの出勤ページを使わない（ここへは来ないはず）');
     case 'cast_photo':
       // ★ ここへは来ない（エステ魂の写真は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第243便）
       //   ★★★ 相手の媒体が違う。★ 1枚も送る前に必ず止める

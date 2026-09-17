@@ -11,6 +11,7 @@
 //   ログイン失敗を投げ直すと相手のアカウントが凍る（設計メモ §17-1）。
 //   'stop' が返ったらそこで終わり。人が直すまで再開しない。
 
+import type { EsutamaCastEditValues } from '@/lib/esutamaCastEdit';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
@@ -306,6 +307,12 @@ export async function startRelayFlow(params: {
    * ★★ 写真そのものはここを通さない（第106便・案B）。★ 在処だけ渡す。
    * ★★★ castId が入っていなければ、何もせず終わる。★ それが安全装置。
    */
+  /**
+   * intent='cast_edit' のときだけ（第430便）。★ エステ魂のセラピスト1人（＋まとめての残り）のプロフィールを更新する。
+   * ★★ apply が true でなければ、編集ページを読んで「何が変わるか」を記録するだけ。
+   */
+  castEdit?: { castId: string; name: string; values: EsutamaCastEditValues; apply: boolean; therapistId?: number;
+    queue?: Array<{ castId: string; name: string; values: EsutamaCastEditValues; therapistId?: number }> };
   castPhoto?: {
     /** フクエス側のセラピストID（★ 記録のためだけ） */
     therapistId: number;
@@ -436,6 +443,17 @@ export async function startRelayFlow(params: {
           castPhotoFile: params.castPhoto.file,
           ...(params.castPhoto.photoSlot ? { castPhotoSlotWanted: Number(params.castPhoto.photoSlot) } : {}),
           ...(params.castPhoto.replace === true ? { castPhotoReplace: true } : {}),
+        }
+      : {}),
+    // ★★★ エステ魂のプロフィール更新（第430便）。★ 渡されたときだけ入れる
+    ...(params.castEdit
+      ? {
+          castEditCastId: String(params.castEdit.castId),
+          castEditName: String(params.castEdit.name ?? ''),
+          castEditValues: params.castEdit.values,
+          ...(params.castEdit.apply === true ? { castEditApply: true } : {}),
+          ...(typeof params.castEdit.therapistId === 'number' ? { castEditTherapistId: params.castEdit.therapistId } : {}),
+          ...(params.castEdit.queue && params.castEdit.queue.length > 0 ? { castEditQueue: params.castEdit.queue } : {}),
         }
       : {}),
     // ★★★ 駅ちかのプロフィール更新（第415便）。★ 渡されたときだけ入れる

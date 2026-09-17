@@ -86,6 +86,9 @@ export type RelayPurpose =
   | 'esutama_photo_form'
   | 'esutama_photo_tmp'
   | 'esutama_photo_save'
+  // ★★ エステ魂のプロフィール更新（第430便）。★ esutama_edit_save だけが書き換える
+  | 'esutama_edit_form'
+  | 'esutama_edit_save'
   | 'esutama_work_read'
   | 'esutama_work_save'
   | 'esutama_work_verify'
