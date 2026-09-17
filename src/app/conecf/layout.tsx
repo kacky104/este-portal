@@ -53,7 +53,7 @@ export default async function ConecfLayout({ children }: { children: React.React
 
   return (
     <ConecfBaseProvider base={base}>
-      <div className="min-h-screen" style={bgStyle}>{children}</div>
+      <div className="conecf-venrey min-h-screen" style={bgStyle}>{children}</div>
     </ConecfBaseProvider>
   );
 }

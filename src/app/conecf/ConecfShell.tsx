@@ -164,14 +164,14 @@ export function ConecfShell({
       return (
         <div key={n.key} className="contents">
           {n.group && (
-            <div className="px-4 pt-3.5 pb-1 text-[13px] font-bold text-slate-400 tracking-wider">{n.group}</div>
+            <div className="px-4 pt-3 pb-1 text-[12px] font-normal text-slate-400">{n.group}</div>
           )}
           <Link
             href={href(n.href)}
             onClick={onPick}
             aria-current={on ? 'true' : undefined}
-            className={`relative flex items-center gap-2.5 whitespace-nowrap px-4 py-3 text-[15px] md:text-[16px] font-bold transition-colors ${
-              on ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white' : 'text-slate-600 hover:bg-indigo-50'
+            className={`relative flex items-center gap-2.5 whitespace-nowrap px-4 py-2.5 text-[14px] font-normal transition-colors ${
+              on ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white' : 'text-[#212121] hover:bg-indigo-50'
             }`}
           >
             <span className={on ? 'text-white' : 'text-indigo-500'}><NavIcon k={n.key} /></span>
@@ -186,10 +186,10 @@ export function ConecfShell({
 
   const shopBox = (small: boolean) => (
     <div className={`px-4 ${small ? 'py-2.5' : 'py-3'} border-b border-slate-100`}>
-      <div className={`${small ? 'text-[12px]' : 'text-[12.5px]'} font-bold text-slate-400 tracking-wider`}>
+      <div className={`text-[12px] font-normal text-slate-400`}>
         {access.role === 'operator' ? '運営' : '店舗'}
       </div>
-      <div className={`${small ? 'text-[14.5px]' : 'text-[15.5px]'} font-bold text-slate-600 mt-0.5 leading-snug break-words`}>
+      <div className={`text-[14px] font-bold text-[#212121] mt-0.5 leading-snug break-words`}>
         {access.salonName || access.email}
       </div>
     </div>
@@ -204,10 +204,10 @@ export function ConecfShell({
         </div>
       )}
       {/* ── 左サイドバー（PC）── */}
-      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[288px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
+      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[232px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
         <Link href={href('/')} className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
           <ConecfLogo />
-          <b className="text-[18px] font-black text-slate-800 tracking-tight">コネックエフ</b>
+          <b className="text-[18px] font-bold text-[#212121]">コネックエフ</b>
         </Link>
         {shopBox(false)}
         <nav aria-label="画面" className="flex flex-col py-2">{navList()}</nav>
@@ -246,7 +246,7 @@ export function ConecfShell({
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
-            <h1 className="text-[17px] font-black text-slate-800 truncate">{title}</h1>
+            <h1 className="text-[16px] font-normal text-[#212121] truncate">{title}</h1>
           </div>
           {alerts.length > 0 && (
             <div className="px-4 md:px-6 pb-2.5">
@@ -262,7 +262,7 @@ export function ConecfShell({
           )}
         </header>
 
-        <main className="link-zoom px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full">{children(access)}</main>
+        <main className="px-4 md:px-6 py-4 md:py-5 max-w-5xl w-full">{children(access)}</main>
       </div>
 
       {/* ── スマホの左ドロワー ── */}

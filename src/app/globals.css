@@ -576,3 +576,15 @@ body.paw-bg {
   flex-shrink: 0;
   background: url('/icons/heading-star.webp') center / contain no-repeat;
 }
+
+/* ── コネックエフの文字（第410便・2026-09-17・カッキーさん）──
+   ★ ベンリーから移る店舗様が迷わないよう、ベンリー（mrvenrey.jp）と同じフォント・色・太さに寄せる。
+   ★ フォントはベンリーの body と同じ並び（実物で確認）。★ 基本 14px・#212121。
+   ★ /conecf 配下（layout.tsx の .conecf-venrey）だけ。★ フクエス・フクエスリンクは変わらない。
+   ★ font-black（900）はベンリーに無い太さなので 700 に落とす。 */
+.conecf-venrey {
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif;
+  color: #212121;
+  font-size: 14px;
+}
+.conecf-venrey .font-black { font-weight: 700; }
