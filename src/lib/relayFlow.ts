@@ -114,6 +114,10 @@ import {
 import type { EsutamaPerson } from './esutamaPlan';
 import type { EsutamaRosterRow } from './esutamaParse';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
+import {
+  planEkichikaGirlEdit, buildEkichikaGirlEditFormRequest, buildEkichikaGirlEditRequest, parseEkichikaGirlEditForm,
+  verifyEkichikaGirlEdit, type EkichikaGirlEditValues, type EditPlan,
+} from './ekichikaGirlEdit';
 
 /** 駅ちかのログインフォーム（設計メモ §17-9・2026-08-27 実測）。 */
 export const EKICHIKA_LOGIN_URL = 'https://ranking-deli.jp/admin/login';
@@ -381,7 +385,15 @@ export type RelayFlowIntent =
    *   ★★ **空き枠にだけ送る**（駅ちか第107便と同じ）。★ 店舗様の写真を上書きしない
    *   ★ 入口は運営だけの口（/api/admin/esutama-photo-push）。★ 店舗様の画面にボタンは置かない。
    */
-  | 'cast_photo';
+  | 'cast_photo'
+  /**
+   * ★★★ 駅ちかの女の子プロフィールを更新する（第415便・2026-09-17）。
+   *   login → girl_edit_form（編集ページを読む）→ [apply のときだけ] girl_edit（POST）
+   *        → girl_edit_form（読み直して照合）→ 終わり
+   *   ★ apply が無ければ【読んで「何が変わるか」を記録するだけ】（★ 1文字も送らない）
+   *   ★ 決めごとは src/lib/ekichikaGirlEdit.ts（空の欄は触らない・上限超えは送らない・名前は送らない）
+   */
+  | 'girl_edit';
 
 /**
  * 段と段のあいだで持ち回す状態。
@@ -592,6 +604,20 @@ export type RelayFlowContext = {
    *     そこから先が推測になったので足した。
    */
   createDiag?: string;
+
+  // ── ここから下は intent='girl_edit' のときだけ入る（第415便）──
+  /** ★★★ 更新する相手（駅ちかの castId）。★ **1人だけ。** ★ 空なら何もせず終わる */
+  editCastId?: string;
+  /** 記録に出す名前（フクエス側） */
+  editName?: string;
+  /** ★ 送る内容（呼び出し側が DB から作る） */
+  editValues?: EkichikaGirlEditValues;
+  /** ★ true のときだけ送る。★ 無ければ試し打ち */
+  editApply?: boolean;
+  /** 段。undefined＝これから読む ／ 'verify'＝送ったあとの読み直し */
+  editStage?: 'verify';
+  /** ★ 送った組と変わる欄（★ 照合に使う） */
+  editPlan?: EditPlan;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -853,6 +879,8 @@ export type FlowNextRequest = {
     | 'girl_create_form' | 'girl_create'
     // ★★★★ 突き返された先を読んで、赤字をそのまま記録に残す段（第234便の修正5）
     | 'girl_create_msg'
+    // ★★★ 駅ちかの女の子プロフィールを更新する（第415便）。★ girl_edit だけが書き換える
+    | 'girl_edit_form' | 'girl_edit'
     // ★ 即ヒメを押す／消す（第214便）。★ ajax 3本
     | 'sokuhime_check' | 'sokuhime_set' | 'sokuhime_del'
     // ★ 駅ちかの新着情報（第155便）。★ 名前を分けることで、既存の段の判定に一切触らない
@@ -1259,6 +1287,11 @@ function advanceFlowStep(
       return afterGirlCreate(input, ctx);
     case 'girl_create_msg':
       return afterGirlCreateMsg(input, ctx);
+    // ── 駅ちかの女の子プロフィール更新（第415便）★ 段名で分けている ──
+    case 'girl_edit_form':
+      return afterGirlEditForm(input, ctx);
+    case 'girl_edit':
+      return afterGirlEdit(input, ctx);
     case 'sokuhime_check':
       return afterSokuhimeCheck(input, ctx);
     case 'sokuhime_set':
@@ -1466,6 +1499,21 @@ function afterLogin(
       },
       audits: [],
       note: 'ログインの応答を受け取った。★ 成否は即ヒメ設定画面が読めるかどうかで判定する',
+    };
+  }
+
+  if (ctx.intent === 'girl_edit') {
+    // ★★★ 第415便: 相手は1人だけ。★ 番号が無ければ何もせず終わる
+    const castId = String(ctx.editCastId ?? '');
+    if (!/^\d{1,12}$/.test(castId)) {
+      return stop([{ event: 'edit_girl', outcome: 'stopped', summary: '更新する方の駅ちかの番号が無いため、何もしませんでした', detail: { reason: 'no_cast_id', flowId: ctx.flowId } }], '更新する相手の番号が無い');
+    }
+    const req = buildEkichikaGirlEditFormRequest(cookie, castId);
+    return {
+      kind: 'next',
+      next: { purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '', context: { ...ctx, cookie } },
+      audits: [],
+      note: 'ログインの応答を受け取った。★ まだ1文字も送っていない（先に編集ページを読む）',
     };
   }
 
@@ -2827,6 +2875,9 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
       //   ★★★ ここへ来たということは、登録の流れが出勤ページへ迷い込んだということ。
       //     ★ 人を増やす前に必ず止める
       return stop(audits, '駅ちかの登録は出勤ページを使わない（ここへは来ないはず）');
+    case 'girl_edit':
+      // ★ ここへは来ない（プロフィール更新は編集ページしか使わない）。★ 網羅は外さない（第415便）
+      return stop(audits, '駅ちかのプロフィール更新は出勤ページを使わない（ここへは来ないはず）');
     case 'cast_create':
       // ★ ここへは来ない（エステ魂の登録は駅ちかの出勤ページを使わない）。★ 網羅は外さない（第232便）
       //   ★★★ 相手の媒体が違う。★ 人を増やす前に必ず止める
@@ -3940,4 +3991,109 @@ function afterCropPhoto(
     };
   }
   return photoStop(ctx, 'stage_unknown', '写真の送信の段が分からなくなったため止めました', 'photoStage が想定外: ' + String(stage));
+}
+
+
+// ───────── ★★★ 駅ちかの女の子プロフィール更新（第415便・2026-09-17）─────────
+//   login → girl_edit_form → [apply] girl_edit → girl_edit_form（verify）
+//   ★ 成否は応答ではなく、編集ページを読み直して決める（第46便 §35）
+
+function afterGirlEditForm(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const castId = String(ctx.editCastId ?? '');
+  const who = String(ctx.editName ?? '').trim() || 'castId ' + castId;
+  const location = String(input.headers['location'] ?? '');
+  if (location.includes('/admin/login')) {
+    return stop([{ event: 'login', outcome: 'failed', summary: '駅ちかのセッションが切れました（プロフィールは送っていません）', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }], '編集ページがログイン画面へ戻された');
+  }
+  if (input.status !== 200) {
+    return stop([{ event: 'edit_girl', outcome: 'failed', summary: who + 'さんの駅ちかの編集ページを開けませんでした', detail: { castId, httpStatus: input.status, reason: 'http_error', flowId } }], '編集ページの応答が ' + input.status + ' だった');
+  }
+  const form = parseEkichikaGirlEditForm(input.body, castId);
+  if (form.fields.length === 0 || form.warnings.length > 0) {
+    return stop([{ event: 'edit_girl', outcome: 'failed', summary: who + 'さんの駅ちかの編集ページを読み取れませんでした（画面の作りが変わった可能性があります）', detail: { castId, reason: 'parse_failed', note: form.warnings[0] ?? null, flowId } }], '編集ページを読めなかった: ' + (form.warnings[0] ?? '欄が1つも無い'));
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+
+  // ── 送ったあとの読み直し ──
+  if (ctx.editStage === 'verify') {
+    const plan = ctx.editPlan;
+    if (!plan) return stop([{ event: 'edit_girl', outcome: 'failed', summary: '照合に使う内容が無くなっていました', detail: { castId, reason: 'no_plan', flowId } }], '照合用の計画が文脈に無い');
+    const v = verifyEkichikaGirlEdit(form, plan);
+    if (v.ng.length === 0) {
+      return {
+        kind: 'done',
+        audits: [{ event: 'edit_girl', outcome: 'ok', summary: who + 'さんの駅ちかのプロフィールを更新しました（' + plan.changes.map((c) => c.label).join('・').slice(0, 80) + '）', detail: { castId, changed: v.ok, flowId } }],
+        note: '読み直して ' + v.ok + ' 欄とも変わっていた',
+      };
+    }
+    return stop([{ event: 'edit_girl', outcome: 'failed', summary: who + 'さんの駅ちかのプロフィールで、変わっていない欄がありました（' + v.ng.join('・').slice(0, 80) + '）', detail: { castId, ok: v.ok, ng: v.ng.length, flowId } }], '読み直したら変わっていない欄があった: ' + v.ng.join('・'));
+  }
+
+  // ── 1回目：何が変わるかを組み立てる ──
+  const values = ctx.editValues;
+  if (!values) return stop([{ event: 'edit_girl', outcome: 'stopped', summary: '送る内容が無いため、何もしませんでした', detail: { castId, reason: 'no_values', flowId } }], '送る内容が文脈に無い');
+  const plan = planEkichikaGirlEdit(form, values);
+  const list = plan.changes.map((c) => c.label + '：' + (c.before || '（空）').slice(0, 20) + ' → ' + c.after.slice(0, 20)).join(' ／ ');
+  const skippedNote = plan.skipped.length > 0 ? '。送らない欄: ' + plan.skipped.join('・') : '';
+
+  if (plan.changes.length === 0) {
+    return {
+      kind: 'done',
+      audits: [{ event: 'edit_girl', outcome: 'stopped', summary: who + 'さんの駅ちかのプロフィールは、変わるところがありませんでした' + skippedNote.slice(0, 100), detail: { castId, changes: 0, skipped: plan.skipped.length, flowId } }],
+      note: '変わる欄が無い' + skippedNote,
+    };
+  }
+  if (ctx.editApply !== true) {
+    return {
+      kind: 'done',
+      audits: [{ event: 'edit_girl', outcome: 'stopped', summary: '【試し打ち】' + who + 'さん：' + plan.changes.length + '欄が変わります（' + plan.changes.map((c) => c.label).join('・').slice(0, 80) + '）', detail: { castId, changes: plan.changes.length, skipped: plan.skipped.length, dryRun: true, flowId } }],
+      note: '試し打ち（送っていない）: ' + list + skippedNote,
+    };
+  }
+  let req;
+  try {
+    req = buildEkichikaGirlEditRequest(cookie, castId, form, plan);
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e);
+    return stop([{ event: 'edit_girl', outcome: 'stopped', summary: who + 'さんのプロフィール更新を止めました（' + why.slice(0, 60) + '）', detail: { castId, reason: 'blocked', note: why.slice(0, 100), flowId } }], '組み立てが止めた: ' + why);
+  }
+  return {
+    kind: 'next',
+    audits: [],
+    note: who + 'さんの駅ちかのプロフィールを送ります: ' + list + skippedNote,
+    next: {
+      purpose: 'girl_edit',
+      method: req.method, url: req.url, headers: req.headers, body: req.body ?? '',
+      // ★ 照合に要るのは changes と pairs（★ 本文は持ち回さない）
+      context: { ...ctx, cookie, editStage: 'verify', editPlan: { pairs: plan.pairs, changes: plan.changes, skipped: plan.skipped, csrfToken: null, action: plan.action } },
+    },
+  };
+}
+
+function afterGirlEdit(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const castId = String(ctx.editCastId ?? '');
+  const location = String(input.headers['location'] ?? '');
+  if (location.includes('/admin/login')) {
+    return stop([{ event: 'login', outcome: 'failed', summary: '駅ちかのセッションが切れました（更新できたか分かりません）', detail: { castId, httpStatus: input.status, reason: 'back_to_login', flowId } }], '更新の応答がログイン画面へ戻された');
+  }
+  if (input.status >= 400) {
+    return stop([{ event: 'edit_girl', outcome: 'failed', summary: '駅ちかのプロフィール更新で想定外の応答がありました', detail: { castId, httpStatus: input.status, reason: 'http_error', flowId } }], '更新の応答が ' + input.status + ' だった');
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const message = readEkichikaMessage(input.body);
+  const req = buildEkichikaGirlEditFormRequest(cookie, castId);
+  return {
+    kind: 'next',
+    audits: [],
+    note: 'プロフィールを送った。★ 成否は編集ページを読み直して確かめる' + (message ? '（画面のことば: ' + message + '）' : ''),
+    next: { purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '', context: { ...ctx, cookie, editStage: 'verify' } },
+  };
 }

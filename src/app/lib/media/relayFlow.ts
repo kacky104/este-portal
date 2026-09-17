@@ -56,6 +56,7 @@ import { buildEsuloveLoginRequest } from '@/lib/esuloveRequests';
 import { buildEsutamaLoginPageRequest, buildEsutamaLoginRequest, buildEsutamaWorkReadRequest } from '@/lib/esutamaRequests';
 import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
 import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
+import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
 import { planEsutamaWork } from '@/lib/esutamaPlan';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
 // ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
@@ -291,6 +292,11 @@ export async function startRelayFlow(params: {
     photoSkip?: string;
   };
   /**
+   * intent='girl_edit' のときだけ（第415便）。★ **駅ちかの女の子1人のプロフィールを更新する。**
+   * ★★ apply が true でなければ、編集ページを読んで「何が変わるか」を記録するだけ（★ 1文字も送らない）。
+   */
+  girlEdit?: { castId: string; name: string; values: EkichikaGirlEditValues; apply: boolean };
+  /**
    * intent='cast_photo' のときだけ（第243便）。★ **エステ魂のセラピストに写真を1枚送る。**
    * ★★ 写真そのものはここを通さない（第106便・案B）。★ 在処だけ渡す。
    * ★★★ castId が入っていなければ、何もせず終わる。★ それが安全装置。
@@ -425,6 +431,15 @@ export async function startRelayFlow(params: {
           castPhotoFile: params.castPhoto.file,
           ...(params.castPhoto.photoSlot ? { castPhotoSlotWanted: Number(params.castPhoto.photoSlot) } : {}),
           ...(params.castPhoto.replace === true ? { castPhotoReplace: true } : {}),
+        }
+      : {}),
+    // ★★★ 駅ちかのプロフィール更新（第415便）。★ 渡されたときだけ入れる
+    ...(params.girlEdit
+      ? {
+          editCastId: String(params.girlEdit.castId),
+          editName: String(params.girlEdit.name ?? ''),
+          editValues: params.girlEdit.values,
+          ...(params.girlEdit.apply === true ? { editApply: true } : {}),
         }
       : {}),
     ...(params.girlCreate

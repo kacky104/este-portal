@@ -45,6 +45,9 @@ export type RelayPurpose =
   | 'girl_create'
   // ★★ 突き返された先を読む（第234便の修正5）。★ 読むだけ
   | 'girl_create_msg'
+  // ★★★ 駅ちかの女の子プロフィール更新（第415便）。★ girl_edit だけが書き換える
+  | 'girl_edit_form'
+  | 'girl_edit'
   // ★ 駅ちかの新着情報の段（第155便）。★ 段名で分けているので既存の段に触らない
   //   ★★ article_save だけが相手を書き換える。★ 5枠のうち【1枠だけ】
   | 'article_list'
