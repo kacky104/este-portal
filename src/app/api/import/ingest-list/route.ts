@@ -98,7 +98,7 @@ export async function POST(req: Request) {
   // 1. 取り込み設定
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, provider, slot, link_mode, external_id, import_schedule, import_profile, import_imasugu, create_missing, salons!inner(is_hidden, area)')
+    .select('id, salon_id, is_enabled, provider, slot, link_mode, external_id, import_schedule, import_profile, import_imasugu, create_missing, salons!inner(is_hidden, area, conecf_enabled_at)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
@@ -108,6 +108,12 @@ export async function POST(req: Request) {
   //   （第31便の is_hidden と同じ、二重の安全弁）。
   if ((source as unknown as { link_mode?: string }).link_mode !== 'read')
     return NextResponse.json({ ok: true, skipped: 'not-read-mode' });
+  // ★ 第400便: コネックエフに切り替えた店は取り込まない（targets でも除外。★ 受け口でも二重に止める）
+  {
+    const rel0 = (source as unknown as { salons?: { conecf_enabled_at?: string | null } | Array<{ conecf_enabled_at?: string | null }> | null }).salons;
+    const s0 = Array.isArray(rel0) ? rel0[0] : rel0;
+    if (s0?.conecf_enabled_at) return NextResponse.json({ ok: true, skipped: 'conecf-enabled' });
+  }
 
   type SalonRel = { is_hidden?: boolean; area?: string | null };
   const rel = (source as unknown as { salons?: SalonRel | SalonRel[] | null }).salons;

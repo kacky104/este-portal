@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   // 1. 取り込み設定を読む
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, provider, slot, link_mode, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area)')
+    .select('id, salon_id, is_enabled, provider, slot, link_mode, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area, conecf_enabled_at)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
@@ -95,6 +95,12 @@ export async function POST(req: Request) {
   // ★★ 向きが 'read' でない店は取り込まない（第45便・ingest-list と同じ二重の安全弁）。
   if ((source as unknown as { link_mode?: string }).link_mode !== 'read')
     return NextResponse.json({ ok: true, skipped: 'not-read-mode' });
+  // ★ 第400便: コネックエフに切り替えた店は取り込まない（targets でも除外。★ 受け口でも二重に止める）
+  {
+    const rel0 = (source as unknown as { salons?: { conecf_enabled_at?: string | null } | Array<{ conecf_enabled_at?: string | null }> | null }).salons;
+    const s0 = Array.isArray(rel0) ? rel0[0] : rel0;
+    if (s0?.conecf_enabled_at) return NextResponse.json({ ok: true, skipped: 'conecf-enabled' });
+  }
 
   // ★ 非表示店（salons.is_hidden=true）は取り込まない（第31便）。
   //   targets 側でも除外しているが、VPSが古いリストを持っていた場合や

@@ -64,7 +64,7 @@ export async function GET(req: Request) {
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, provider, slot, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, import_interval_min, last_run_at, salons!inner(is_hidden)')
+    .select('id, salon_id, provider, slot, external_id, shop_url, import_schedule, import_profile, create_missing, list_mode, import_interval_min, last_run_at, salons!inner(is_hidden, conecf_enabled_at)')
     .eq('is_enabled', true)
     // ★★★ 向きが 'read' の店だけ読みに行く（第45便・設計メモ §11-2）。
     //   'write' の店を読むと【自分が書いたものを読み戻す輪】ができる。
@@ -72,6 +72,8 @@ export async function GET(req: Request) {
     //     そもそも read と write が同時に立たない。ここはその1列を素直に見ているだけ。
     .eq('link_mode', 'read')
     .eq('salons.is_hidden', false)
+    // ★ 第400便: コネックエフに切り替えた店は取り込まない（★ コネックエフで入れた出勤を上書きしないため）
+    .is('salons.conecf_enabled_at', null)
     .order('id');
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

@@ -3,6 +3,8 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { setMediaLinkMode } from '@/app/actions/mediaCredentials';
+import { providerLabel } from '@/lib/mediaAudit';
 
 // コネックエフ（conecf.com）の入口の権限（第395便・1a・2026-09-17）。
 //
@@ -59,12 +61,35 @@ export async function getConecfAccess(): Promise<ConecfAccess> {
  * ★ 戻すのは運営だけ（★ 行ったり来たりの事故を避ける）。★ ここでは戻す口を作らない。
  * ★ すでに入っていれば何もしない（★ 日付を上書きしない）。
  */
-export async function enableConecf(): Promise<{ ok: true; enabledAt: string } | { ok: false; error: string }> {
+export async function enableConecf(input: { stopRead?: boolean } = {}): Promise<
+  | { ok: true; enabledAt: string }
+  | { ok: false; error: string; readingSites?: string[] }
+> {
   const a = await getConecfAccess();
   if (!a.ok) return { ok: false, error: 'ログインが必要です' };
   if (a.salonId == null) return { ok: false, error: '店舗が選ばれていません' };
   if (a.enabledAt) return { ok: true, enabledAt: a.enabledAt };
   const svc = createServiceClient();
+
+  // ★★ 第400便: 「駅ちかから反映」が残っていたら、先に止める（★ 取り込みがコネックエフの出勤を上書きするため）。
+  //   ★ 黙って止めない。★ 画面に聞いてから（stopRead: true）止める。★ 止めるのは向きを 'none' にするだけ（ID・PASSは残る）。
+  const { data: reading, error: rErr } = await svc
+    .from('salon_import_sources')
+    .select('provider, slot')
+    .eq('salon_id', a.salonId)
+    .eq('link_mode', 'read');
+  if (rErr) return { ok: false, error: rErr.message };
+  if ((reading ?? []).length > 0) {
+    const names = [...new Set((reading ?? []).map((r) => providerLabel(String(r.provider))))];
+    if (input.stopRead !== true) {
+      return { ok: false, error: `いま ${names.join('・')} から反映しています`, readingSites: names };
+    }
+    for (const r of reading ?? []) {
+      const res = await setMediaLinkMode({ salonId: a.salonId, provider: String(r.provider), slot: Number(r.slot ?? 1), mode: 'none' });
+      if (!res.ok) return { ok: false, error: `${providerLabel(String(r.provider))}からの反映を止められませんでした: ${res.error}` };
+    }
+  }
+
   const now = new Date().toISOString();
   const { data, error } = await svc
     .from('salons')

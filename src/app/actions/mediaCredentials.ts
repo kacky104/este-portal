@@ -694,6 +694,19 @@ async function applyLinkMode(input: {
     return { ok: false, error: 'このサイトからフクエスへ反映することはできません' };
   }
 
+  // ★★★ コネックエフに切り替えた店は 'read' にできない（第400便・2026-09-17・カッキーさんの OK）。
+  //   ★ 駅ちかからの取り込みが、コネックエフで入れた出勤・年齢・サイズを上書きするため。
+  //   ★ 画面だけで守らない（第38便 §17-16）。★ 取り込みの周（import/*）でも同じ店を飛ばしている。
+  if (input.mode === 'read') {
+    const { data: sal } = await svc.from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle();
+    if (sal?.conecf_enabled_at) {
+      return {
+        ok: false,
+        error: 'この店舗はコネックエフに切り替え済みのため、駅ちかから反映にはできません。出勤はコネックエフの週間スケジュールで入力してください',
+      };
+    }
+  }
+
   // ★★★ ほかの媒体が【正本】のあいだは write にできない（第127便・2026-09-04）。
   //
   // ★★★ 実際に起きていた（ラビリンス様）: 駅ちかが read（＝正本）なのにエステ魂が write。

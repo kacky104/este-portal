@@ -15,6 +15,8 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(enabledAt);
+  // ★ 第400便: 駅ちかから反映が残っているとき、止めてよいかを聞く
+  const [reading, setReading] = useState<string[] | null>(null);
 
   if (done) {
     const d = new Date(done);
@@ -29,11 +31,14 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
     );
   }
 
-  const onGo = async () => {
+  const onGo = async (stopRead = false) => {
     setBusy(true);
-    const res = await enableConecf();
+    const res = await enableConecf({ stopRead });
     setBusy(false);
-    if (!res.ok) { onToast(res.error); return; }
+    if (!res.ok) {
+      if (res.readingSites && res.readingSites.length > 0) { setReading(res.readingSites); return; }
+      onToast(res.error); return;
+    }
     setDone(res.enabledAt); setAsk(false);
     onToast('コネックエフに切り替えました');
     window.location.reload();
@@ -57,10 +62,16 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
             <li>キャッチ・紹介文・特徴バッジ、写メ日記・クーポン・ネット予約などは、これまでどおりマイページで編集します。</li>
             <li>元に戻したいときは、運営までご連絡ください。</li>
           </ul>
+          {reading && (
+            <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 text-[13.5px] text-rose-800 leading-relaxed">
+              いま <b>{reading.join('・')}</b> から出勤などを取り込んでいます。このままだとコネックエフで入れた出勤が上書きされるため、
+              <b>取り込みを止めてから</b>切り替えます（ID・PASSはそのまま残ります）。
+            </div>
+          )}
           <div className="flex gap-2">
-            <button type="button" onClick={() => setAsk(false)} disabled={busy} className="px-4 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600">やめる</button>
-            <button type="button" onClick={() => void onGo()} disabled={busy} className="px-5 py-2 bg-indigo-600 text-white text-[14px] font-bold disabled:opacity-50">
-              {busy ? '切り替えています…' : '切り替える'}
+            <button type="button" onClick={() => { setAsk(false); setReading(null); }} disabled={busy} className="px-4 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600">やめる</button>
+            <button type="button" onClick={() => void onGo(reading !== null)} disabled={busy} className="px-5 py-2 bg-indigo-600 text-white text-[14px] font-bold disabled:opacity-50">
+              {busy ? '切り替えています…' : reading ? '取り込みを止めて切り替える' : '切り替える'}
             </button>
           </div>
         </div>
