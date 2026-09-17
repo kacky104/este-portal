@@ -359,6 +359,26 @@ export function verifyPhotoDeleted(before: PhotoSlotState[], after: PhotoSlotSta
 }
 
 /**
+ * ★★★ 入れ替え（写真のある枠へ上書きで入れた）のあとの照合（第422便）。★ null ＝ ok。
+ *   ・その枠に写真があり、前と【生の値が変わった】
+ *   ・★ ほかの枠は1つも変わっていない
+ *   ★ 2026-09-17: 駅ちかの画像1には「削除」ボタンが無く、delete.json は 500 を返した → 枠1は上書きで入れ替える
+ */
+export function verifyPhotoReplaced(before: PhotoSlotState[], after: PhotoSlotState[], slot: number): { reason: 'slot_missing' | 'not_replaced' | 'other_changed'; changed: number[] } | null {
+  const at = (list: PhotoSlotState[], n: number) => list.find((s) => s.slot === n) ?? null;
+  const a = at(after, slot);
+  const b = at(before, slot);
+  if (!a || !b) return { reason: 'slot_missing', changed: [] };
+  const changed = before
+    .filter((x) => x.slot !== slot)
+    .filter((x) => { const now = at(after, x.slot); return !now || now.hasImage !== x.hasImage || (x.hasImage && now.image !== x.image); })
+    .map((x) => x.slot);
+  if (changed.length > 0) return { reason: 'other_changed', changed };
+  if (!a.hasImage || a.image === b.image) return { reason: 'not_replaced', changed: [] };
+  return null;
+}
+
+/**
  * ★★★ コネックエフの写真を枠ごとに合わせる1手（第421便）。
  *   put    … その枠へ file を入れる（★ 埋まっていれば先に消してから入れる＝コネックエフが正）
  *   remove … その枠を消す（★ 呼び出し側は【こちらが前に送った記録のある枠】だけを remove にする）

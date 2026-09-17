@@ -76,6 +76,7 @@ import {
   describePhotoSlots,        // ★ 第246便: 枠の形を1本の文字にして記録に残す
   buildDeleteFields,         // ★ 第421便: コネックエフの写真に合わせて消す
   verifyPhotoDeleted,
+  verifyPhotoReplaced,
   EKICHIKA_PHOTO_DELETE_URL,
   type PhotoSyncOp,
   type PhotoPage,
@@ -3805,7 +3806,12 @@ function afterReadPhotoPage(
     if (!before || before.length === 0) {
       return photoStop(ctx, 'context_missing', '照合に要る「送る前の枠の形」が文脈にありませんでした', 'photoSlotsBefore が無い');
     }
-    const v = verifyPhotoSlots(before, page.slots, slot);
+    // ★★★ 第422便: 写真を合わせる道で、もとから写真のあった枠へ上書きしたときは「入れ替わったか」で照合する
+    const replacing = ctx.photoSync === true && !!before.find((x) => x.slot === slot && x.hasImage);
+    const rv = replacing ? verifyPhotoReplaced(before, page.slots, slot) : null;
+    const v: ReturnType<typeof verifyPhotoSlots> = replacing
+      ? (rv ? { ok: false, reason: rv.reason === 'other_changed' ? 'slot_extra' : 'not_saved', slot, gotSlot: rv.changed[0] ?? null, changed: rv.changed } : { ok: true, slot, gotSlot: null, changed: [] })
+      : verifyPhotoSlots(before, page.slots, slot);
     const shape = { before: describePhotoSlots(before), after: describePhotoSlots(page.slots) };
     if (!v.ok) {
       // ★★★★★★ 【第253便】照合が外れたら **残りは送らない**（設計メモ §4 ⑤）。
@@ -3829,8 +3835,8 @@ function afterReadPhotoPage(
 
     const putAudit: FlowAudit = {
       event: 'push_photo', outcome: 'ok',
-      summary: '駅ちかの画像の枠 ' + slot + ' に写真を1枚登録しました（★ 読み直して確かめました）',
-      detail: { girlId, slot, ...shape, flowId: ctx.flowId },
+      summary: '駅ちかの画像の枠 ' + slot + (replacing ? ' の写真を入れ替えました' : ' に写真を1枚登録しました') + '（★ 読み直して確かめました）',
+      detail: { girlId, slot, ...shape, ...(replacing ? { replaced: true } : {}), flowId: ctx.flowId },
     };
     const put = [...(ctx.photoPut ?? []), slot];
 
@@ -4111,6 +4117,17 @@ function photoSyncLoop(c: RelayFlowContext, page: PhotoPage, audits: FlowAudit[]
       continue;
     }
     const cc: RelayFlowContext = { ...c, photoSyncOps: ops, photoSyncCur: op };
+    // ★★★ 第422便: 写真のある枠へ入れるときは【消さずに上書き】（★ 駅ちかの画像1には削除が無く、delete.json が 500 だった）。
+    //   ★ 照合は verifyPhotoReplaced（その枠が変わり、ほかは変わっていない）
+    if (t.hasImage && op.action === 'put') {
+      return photoSyncUpload(cc, op, page, audits, synced);
+    }
+    if (t.hasImage && op.slot === 1) {
+      // ★ 画像1（トップ画像）は駅ちかで消せない。★ 記録だけ外して、写真は駅ちかに残す
+      audits.push({ event: 'push_photo', outcome: 'stopped', summary: '駅ちかの画像1（トップ画像）は消せないため、そのまま残しました', detail: { girlId, slot: 1, reason: 'top_no_delete', flowId: c.flowId } });
+      if (typeof c.editTherapistId === 'number') synced.push({ therapistId: c.editTherapistId, imageSlot: 1, sourceUrl: null });
+      continue;
+    }
     if (t.hasImage) {
       let fields: Array<[string, string]>;
       try {
@@ -4191,7 +4208,8 @@ function afterDeletePhoto(
 ): FlowOutcome {
   const lost = diaryLoginLost(input, ctx, '写真の削除の応答');
   if (lost) return lost;
-  if (input.status >= 400) {
+  // ★ 第422便: 4xx は止める。★ 5xx は消えていることがあるので、読み直して照合に任せる
+  if (input.status >= 400 && input.status < 500) {
     return photoStop(ctx, 'delete_http_' + input.status, '駅ちかで写真を消す操作に想定外の応答がありました（' + input.status + '）', '削除の応答が ' + input.status, responseClue(input));
   }
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
