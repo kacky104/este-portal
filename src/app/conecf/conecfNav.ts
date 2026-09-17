@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync'
   | 'schedule' | 'scheduleSync'
   | 'now'
-  | 'diary' | 'news'
+  | 'diary' | 'news' | 'cocoa'
   | 'log' | 'matrix'
   | 'guide' | 'qa';
 
@@ -23,6 +23,7 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'now',          label: '今すぐ一括',             href: '/now',           group: '今すぐ' },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
+  { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
   { key: 'log',          label: '更新結果',               href: '/log',           group: '記録' },
   { key: 'matrix',       label: '反映の早見表',           href: '/matrix' },
   { key: 'guide',        label: 'はじめての方へ',         href: '/guide',         group: 'ご案内' },

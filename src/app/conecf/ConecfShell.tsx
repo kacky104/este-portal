@@ -48,6 +48,7 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
     case 'now':          return (<svg {...p}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>);
     case 'diary':        return (<svg {...p}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>);
     case 'news':         return (<svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>);
+    case 'cocoa':        return (<svg {...p}><path d="M4 8h13a3 3 0 0 1 0 6h-1" /><path d="M4 8v7a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V8z" /><path d="M8 2v2M12 2v2" /></svg>);
     case 'log':          return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
     case 'matrix':       return (<svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></svg>);
     case 'guide':        return (<svg {...p}><path d="M2 5h7a3 3 0 0 1 3 3v12a2 2 0 0 0-2-2H2z" /><path d="M22 5h-7a3 3 0 0 0-3 3v12a2 2 0 0 1 2-2h8z" /></svg>);
