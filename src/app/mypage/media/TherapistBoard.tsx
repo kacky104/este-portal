@@ -554,7 +554,8 @@ export function TherapistBoard({ salonId, onToast }: {
                 {site.label}と連携できている方は、まだいません。
               </p>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+              // ★★ 第440便（カッキーさん）: 連携済みの写真は【半分の大きさ】に（★ 1行に並ぶ人数を倍にする）
+              <div className="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-10 gap-2">
                 {shown.map((t) => (
                   <div key={t.id} className="min-w-0">
                     <div className="w-full aspect-[3/4] border border-slate-200 bg-slate-100 overflow-hidden">
@@ -563,18 +564,18 @@ export function TherapistBoard({ salonId, onToast }: {
                         <img src={t.imageUrl} alt={t.name} loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         // ★ 空白にしない。★ 写真が無いのか読み込めていないのか、空白では分からない
-                        <span className="w-full h-full grid place-items-center text-[12px] font-bold text-slate-400">
+                        <span className="w-full h-full grid place-items-center text-[10.5px] font-bold text-slate-400">
                           写真なし
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-[13.5px] font-bold text-slate-700 leading-snug break-words text-center">
+                    <p className="mt-1 text-[12px] font-bold text-slate-700 leading-snug break-words text-center">
                       {t.name || '（名前なし）'}
                     </p>
                     {/* ★ 非公開の方は出勤を送る相手ではない。★ 顔だけ並ぶ画面でも、そこは黙らない */}
                     {!t.isActive && (
                       <p className="text-center">
-                        <span className="inline-block text-[11.5px] font-bold px-1.5 py-px border border-slate-200 bg-slate-50 text-slate-400">
+                        <span className="inline-block text-[10.5px] font-bold px-1 py-px border border-slate-200 bg-slate-50 text-slate-400">
                           非公開
                         </span>
                       </p>
@@ -593,10 +594,10 @@ export function TherapistBoard({ salonId, onToast }: {
                   >
                     <span className="w-full aspect-[3/4] border border-dashed border-indigo-300 bg-indigo-50 grid place-items-center text-center px-2 group-hover:bg-indigo-100 transition-colors">
                       <span>
-                        <span className="block text-[22px] font-black text-indigo-700 tabular-nums leading-none">
+                        <span className="block text-[18px] font-black text-indigo-700 tabular-nums leading-none">
                           ＋{filtered.length - shown.length}
                         </span>
-                        <span className="block mt-1.5 text-[12.5px] font-bold text-indigo-600 leading-snug">
+                        <span className="block mt-1 text-[11px] font-bold text-indigo-600 leading-snug">
                           残りの方も<br />見る
                         </span>
                       </span>
