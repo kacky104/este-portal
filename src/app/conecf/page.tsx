@@ -1,9 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { ConecfShell } from './ConecfShell';
 import { ConecfHome } from './ConecfHome';
-import { useConecfHref } from './ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { useState } from 'react';
 import { enableConecf } from '@/app/actions/conecf';
@@ -18,18 +16,8 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
   // ★ 第400便: 駅ちかから反映が残っているとき、止めてよいかを聞く
   const [reading, setReading] = useState<string[] | null>(null);
 
-  if (done) {
-    const d = new Date(done);
-    const label = Number.isFinite(d.getTime())
-      ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Tokyo' }).format(d)
-      : '';
-    return (
-      <div className="bg-white border border-emerald-200 px-5 py-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="text-[12.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5">コネックエフに切り替え済み{label ? `（${label}）` : ''}</span>
-        <span className="text-[13px] text-slate-500">セラピストと出勤は、コネックエフで編集します。</span>
-      </div>
-    );
-  }
+  // ★ 第411便（カッキーさん）: 切り替え済みの帯は出さない（★ ベンリーに寄せて上をすっきり）。★ 切り替え前の案内だけ残す
+  if (done) return null;
 
   const onGo = async (stopRead = false) => {
     setBusy(true);
@@ -81,16 +69,12 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
 }
 
 export default function ConecfHomePage() {
-  const href = useConecfHref();
   const { toast, showToast } = useToast();
   return (
     <ConecfShell current="home" title="ホーム" toast={toast}>
       {(access) => (
         <div className="space-y-3">
-          <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] px-5 py-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="text-[17px] font-black text-slate-800 break-words">{access.salonName || access.email} 様</p>
-            <Link href={href('/guide')} className="ml-auto text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">はじめての方へ ›</Link>
-          </div>
+          {/* ★ 第411便: 「◯◯ 様」の帯は外した（★ 店舗名はサイドバーに出ている。★ はじめての方へはサイドバーから） */}
           <SwitchCard enabledAt={access.enabledAt} onToast={showToast} />
           <ConecfHome salonId={access.salonId} onToast={showToast} />
         </div>
