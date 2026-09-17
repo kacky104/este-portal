@@ -2171,6 +2171,8 @@ export default function MyPage() {
   };
 
   const handleAvailableNowSave = async () => {
+    // ★ 第401便（案B）: コネックエフに切り替えた店は、今すぐをコネックエフの「今すぐ一括」で扱う
+    if (conecfOn) { showToast('今すぐはコネックエフの「今すぐ一括」で編集します'); return; }
     setSavingAvailable(true);
     // 「今すぐ」を付けられるのは「本日出勤中」かつ「チェック済み」のセラピストのみ。
     // ★ 人数の上限は imasuguMax（第390便: 5名／フクエスワーク掲載店は10名）。★ ここに数字を書かない。
@@ -2970,7 +2972,7 @@ export default function MyPage() {
       </button>
       <button
         onClick={handleAvailableNowSave}
-        disabled={savingAvailable}
+        disabled={savingAvailable || conecfOn}
         className={saveBtn}
       >
         {savingAvailable ? '保存中...' : '保存する'}
@@ -4430,6 +4432,15 @@ export default function MyPage() {
 
         {/* ── タブ3: 今すぐ ── */}
         <div className={`${activeTab === 'available' ? '' : 'hidden'}`}>
+          {/* ★ 第401便（コネックエフ 1e・案B） */}
+          {conecfOn && (
+            <div className="mb-3 bg-indigo-50 rounded-none border border-indigo-200 p-4 space-y-1.5">
+              <p className="text-xs font-black text-indigo-700">今すぐはコネックエフの「今すぐ一括」で編集します（この画面では保存できません）</p>
+              <a href="https://conecf.com/now" target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-bold text-indigo-600 underline">
+                コネックエフの今すぐ一括を開く ›
+              </a>
+            </div>
+          )}
           <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
             {/* ★★ 見出しと説明文は【幅いっぱい】（2026-09-06 第185便・カッキーさんの指示）。
                 ★ 前は右にボタン2つ（約185px）を並べていたため、スマホ（430px）で見出しに使える幅が
