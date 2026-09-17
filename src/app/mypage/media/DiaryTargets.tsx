@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useMediaBrand } from './mediaBrand';
 import {
   getSalonDiaryForwards,
   getMediaOverview,
@@ -64,6 +65,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
    */
   consentVersion?: number;
 }) {
+  const brand = useMediaBrand();
   const [data, setData] = useState<Data | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   // ★ 第370便: エステ魂のタブに出す人数の【分子】＝了承ありが何名か。
@@ -245,8 +247,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                 ★ もとは「投稿先を登録しても…送りません（同じ日記が二重に載らないようにするためです）」と長く、
                   この幅で2行になっていた。★ 二重投稿を防ぐという理由は、この帯からは外した。
                 ★ 引用符は画面の他と揃えて「」（カッキーさんの原文は『』）。 */}
-            <b className="font-bold text-rose-700">現在、フクエスから転送不可。</b>{' '}
-            ホームで「フクエスから反映」にすると転送します。
+            <b className="font-bold text-rose-700">{brand.text('現在、フクエスから転送不可。')}</b>{' '}
+            {brand.isConecf ? 'ホームでこのサイトの「更新する」を押すと転送します。' : 'ホームで「フクエスから反映」にすると転送します。'}
           </p>
         </div>
       )}
@@ -336,7 +338,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
             ログイン情報を登録すると、{site.label}が発行している投稿用アドレスを読み取れます。
           </p>
           <Link
-            href="/mypage/media/login"
+            href={brand.link('login')}
             className="mt-3 inline-block text-[14px] font-bold px-3 py-1.5 border border-slate-200 text-slate-600"
           >
             ログイン情報を登録する

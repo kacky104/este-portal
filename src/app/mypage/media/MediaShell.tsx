@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
+import { createClient } from '@/app/lib/supabase/client';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import type { MediaPageDecision } from '@/lib/mediaVisibility';
 
@@ -109,6 +110,15 @@ export function MediaShell({
 }) {
   const [alerts, setAlerts] = useState<MediaLinkAlert[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // ★ 第402便（コネックエフ 1f）: コネックエフに切り替えた店には、案内だけを出す（★ 読めなければ今までどおり）
+  const [conecfAt, setConecfAt] = useState<string | null>(null);
+  useEffect(() => {
+    if (salonId == null) return;
+    let alive = true;
+    createClient().from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle()
+      .then(({ data }) => { if (alive) setConecfAt(((data as { conecf_enabled_at?: string | null } | null)?.conecf_enabled_at) ?? null); });
+    return () => { alive = false; };
+  }, [salonId]);
 
   // ★ 出す相手にしか取りに行かない（取りに行くこと自体が媒体連携の存在を明かすため）。
   //   ★ 失敗しても画面は止めない。警告が出せないことを「異常なし」と見せないだけ。
@@ -149,6 +159,23 @@ export function MediaShell({
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-400 text-[16px]">読み込み中...</p>
+      </div>
+    );
+  }
+
+  if (conecfAt) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md bg-white border border-slate-200 shadow-sm p-7 text-center space-y-4">
+          <p className="text-[18px] font-black text-slate-800">フクエスリンクはコネックエフへ移りました</p>
+          <p className="text-[14px] text-slate-500 leading-relaxed">
+            この店舗はコネックエフに切り替え済みです。ID・PASS、女性、出勤、今すぐ、写メ日記の転送、駅ちか新着情報は、コネックエフで設定します。
+          </p>
+          <a href="https://conecf.com/" className="inline-block w-full py-3 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
+            コネックエフを開く
+          </a>
+          <Link href="/mypage" className="block text-[13.5px] font-bold text-slate-400 hover:text-indigo-600">マイページへ戻る</Link>
+        </div>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMediaBrand } from './mediaBrand';
 import {
   getArticleBoard,
   readArticleSlots,
@@ -77,6 +78,7 @@ function sameIds(a: readonly number[], b: readonly number[]): boolean {
 }
 
 export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
+  const brand = useMediaBrand();
   const [board, setBoard] = useState<ArticleBoard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -324,7 +326,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
              ★ 「この状態はいつのものか」を直すボタンなので、状態のすぐ隣がいちばん意味が通る。
           ★ board.summary / board.postedToday は受け口に残してある（★ 戻すならここに1行） */}
       <p className="text-[14px] text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-2.5 leading-relaxed">
-        「フクエスから反映」の時のみ自動投稿できます。
+        {brand.isConecf ? 'ホームで駅ちかを「更新中」にしている時のみ自動投稿できます。' : '「フクエスから反映」の時のみ自動投稿できます。'}
       </p>
 
       {/* ───────── ① 写真（第373便・店舗に1つ／第374便でアコーディオン） ───────── */}
@@ -354,7 +356,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
           <div className="px-3.5 py-3.5 border-t border-slate-200">
             {board.therapists.length === 0 ? (
               <p className="text-[13.5px] text-slate-500 leading-relaxed">
-                フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
+                {brand.text('フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。')}
                 それまでは、駅ちかに入っている写真がそのまま残ります。
               </p>
             ) : (
@@ -818,6 +820,7 @@ function Editor({
   /** ★ 店舗の箱に入っている枚数。★ 「ふだんは何から選ばれるか」を言うため */
   poolCount: number;
 }) {
+  const brand = useMediaBrand();
   const width = titleWidth(draft.title);
   const over = width > ARTICLE_TITLE_MAX_WIDTH;
   /** ★ 固定する方を選ぶ並びを開いているか。★ 普段は閉じておく（★ 40人ぶんのタイルは重い） */
@@ -925,7 +928,7 @@ function Editor({
         {pickOpen && (
           therapists.length === 0 ? (
             <p className="text-[13.5px] text-slate-500 leading-relaxed mt-2">
-              フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。
+              {brand.text('フクエスに写真が登録されている方がまだいません。セラピストの登録で写真を入れると、ここから選べるようになります。')}
             </p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mt-2">
