@@ -82,9 +82,20 @@ throws('★ 別の人の編集ページへは送らない', () => E.buildEkichik
 console.log('── 6. 照合 ──');
 const after = E.parseEkichikaGirlEditForm(page({ catch: '笑顔が素敵', checked: ['22', '49', '1'], p: ['8', '17', '59'], rookie: '1' }), '5232208');
 const v = E.verifyEkichikaGirlEdit(after, E.planEkichikaGirlEdit(form, { catchcopy: '笑顔が素敵', genres: ['癒し系', '清楚', 'no1'], pGenres: ['お姉さん系', 'スレンダー', '顔出し'], rookie: '1' }));
-eq('★ 変えた欄が全部そろっている', v, { ok: 4, ng: [] });
+eq('★ 変えた欄が全部そろっている', { ok: v.ok, ng: v.ng }, { ok: 4, ng: [] });
 const v2 = E.verifyEkichikaGirlEdit(form, p1);
 eq('★ 変わっていなければ ng に出る', v2.ng.includes('キャッチコピー'), true);
+
+console.log('── 6b. 改行・参照のちがい（第416便）──');
+eq('★ \r\n と \n は同じ', E.sameText('あ\r\nい', 'あ\nい'), true);
+eq('★ 数値参照は同じ', E.sameText('&#12316;です', '〜です'), true);
+eq('★ 行末の空白は同じ', E.sameText('あ  \nい', 'あ\nい'), true);
+eq('★ 中身が違えば違う', E.sameText('あ', 'い'), false);
+const crlfForm = E.parseEkichikaGirlEditForm(page({ comments: '一行目\r\n二行目' }), '5232208');
+eq('★ 駅ちかが \r\n で持っていても「変わる欄」にしない', E.planEkichikaGirlEdit(crlfForm, { comments: '一行目\n二行目' }).changes.length, 0);
+const sentP = E.planEkichikaGirlEdit(form, { comments: '一行目\n二行目' });
+eq('★ 読み直しで \r\n が返っても照合は通る', E.verifyEkichikaGirlEdit(crlfForm, sentP).ng, []);
+eq('手がかりに位置が出る', E.diffHint('あいう', 'あいえ').includes('2字目'), true);
 
 console.log('── 7. 番号表 ──');
 eq('★ 番号表は61', Object.keys(E.EKICHIKA_GENRE_ID).length, 61);

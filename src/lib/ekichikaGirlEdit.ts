@@ -79,6 +79,33 @@ export type EditPlan = {
 };
 
 const len = (s: string) => [...s].length;
+
+/**
+ * ★★★ 比べるときの形をそろえる（第416便・2026-09-17 の実弾で踏んだ）。
+ *   ★ お店コメント（textarea）が、送ったのに「変わっていない」と3回出た。
+ *   ★ 駅ちかは改行を \r\n で持ち、数値の実体参照（&#12316; など）で返すことがある。★ 中身は同じでも文字列は違う。
+ *   → 改行・数値参照・行末の空白・前後の空白をそろえてから比べる。★ 送る値そのものは変えない。
+ */
+export function sameText(a: string, b: string): boolean {
+  return normText(a) === normText(b);
+}
+export function normText(v: string): string {
+  return String(v ?? '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t　]+\n/g, '\n')
+    .replace(/ /g, ' ')
+    .trim();
+}
+/** ★ 食い違いの手がかり（記録用）：長さと最初に違う位置 */
+export function diffHint(sent: string, got: string): string {
+  const a = normText(sent), b = normText(got);
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const cp = (x: string) => (x ? 'U+' + x.codePointAt(0)!.toString(16).toUpperCase() : 'なし');
+  return '送った' + a.length + '字/読んだ' + b.length + '字・' + i + '字目から違う（送った ' + cp(a.slice(i, i + 1)) + ' / 読んだ ' + cp(b.slice(i, i + 1)) + '）';
+}
 const firstValue = (form: EkichikaGirlFormParse, name: string): string => form.fields.find((f) => f.name === name)?.value ?? '';
 const labelOfValue = (form: EkichikaGirlFormParse, name: string, value: string): string =>
   form.selectOptions[name]?.find((o) => o.value === value)?.label ?? value;
@@ -112,7 +139,7 @@ export function planEkichikaGirlEdit(form: EkichikaGirlFormParse, v: EkichikaGir
     const lim = limitOf(name, max);
     if (len(val) > lim) { skipped.push(label + '（' + lim + '文字を超えている・' + len(val) + '文字）'); return; }
     const before = firstValue(form, name);
-    if (before === val) return;
+    if (sameText(before, val)) return;
     ov[name] = val;
     changes.push({ field: name, label, before, after: val });
   };
@@ -169,7 +196,7 @@ export function planEkichikaGirlEdit(form: EkichikaGirlFormParse, v: EkichikaGir
     else {
       let changed = 0;
       for (const [k, val] of Object.entries(next)) {
-        if (firstValue(form, k) !== val) changed++;
+        if (!sameText(firstValue(form, k), val)) changed++;
         ov[k] = val;
       }
       if (changed > 0) changes.push({ field: 'questions', label: '女の子へ質問', before: '', after: qa.filter((x) => x.q || x.a).length + '問（' + changed + '欄が変わる）' });
@@ -309,11 +336,12 @@ export function parseEkichikaGirlEditForm(html: string, castId: string): Ekichik
  * ★★★ 送ったあと、編集ページを読み直して**変えたはずの欄が変わったか**を数える。
  *   ★ 成否は応答ではなくここで決める（第46便 §35）。
  */
-export function verifyEkichikaGirlEdit(after: EkichikaGirlFormParse, plan: EditPlan): { ok: number; ng: string[] } {
+export function verifyEkichikaGirlEdit(after: EkichikaGirlFormParse, plan: EditPlan): { ok: number; ng: string[]; hints: string[] } {
   const sent = new Map<string, string>();
   for (const [k, v] of plan.pairs) if (!sent.has(k)) sent.set(k, v);
   let ok = 0;
   const ng: string[] = [];
+  const hints: string[] = [];
   for (const c of plan.changes) {
     if (c.field === 'genre' || c.field === 'p_genre') {
       const prefix = c.field as 'genre' | 'p_genre';
@@ -323,12 +351,14 @@ export function verifyEkichikaGirlEdit(after: EkichikaGirlFormParse, plan: EditP
       continue;
     }
     if (c.field === 'questions') {
-      const allSame = [...sent.entries()].filter(([k]) => /^(questions|answers)\[\d+\]$/.test(k)).every(([k, v]) => firstValue(after, k) === v);
+      const allSame = [...sent.entries()].filter(([k]) => /^(questions|answers)\[\d+\]$/.test(k)).every(([k, v]) => sameText(firstValue(after, k), v));
       if (allSame) ok++; else ng.push(c.label);
       continue;
     }
     const want = sent.get(c.field) ?? '';
-    if (firstValue(after, c.field) === want) ok++; else ng.push(c.label);
+    const got = firstValue(after, c.field);
+    if (sameText(got, want)) ok++;
+    else { ng.push(c.label); hints.push(c.label + '：' + diffHint(want, got)); }
   }
-  return { ok, ng };
+  return { ok, ng, hints };
 }

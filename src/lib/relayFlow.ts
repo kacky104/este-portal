@@ -4030,7 +4030,7 @@ function afterGirlEditForm(
         note: '読み直して ' + v.ok + ' 欄とも変わっていた',
       };
     }
-    return stop([{ event: 'edit_girl', outcome: 'failed', summary: who + 'さんの駅ちかのプロフィールで、変わっていない欄がありました（' + v.ng.join('・').slice(0, 80) + '）', detail: { castId, ok: v.ok, ng: v.ng.length, flowId } }], '読み直したら変わっていない欄があった: ' + v.ng.join('・'));
+    return stop([{ event: 'edit_girl', outcome: 'failed', summary: who + 'さんの駅ちかのプロフィールで、変わっていない欄がありました（' + v.ng.join('・').slice(0, 80) + '）', detail: { castId, ok: v.ok, ng: v.ng.length, hint: (v.hints[0] ?? '').slice(0, 110), flowId } }], '読み直したら変わっていない欄があった: ' + v.hints.join(' ／ '));
   }
 
   // ── 1回目：何が変わるかを組み立てる ──
