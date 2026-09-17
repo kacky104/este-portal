@@ -21,8 +21,35 @@ const ENTITIES: Record<string, string> = {
   '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&nbsp;': ' ',
 };
 
+/**
+ * ★★★ 第417便（2026-09-17 の実弾で踏んだ）: 名前つきの実体参照を広げた。
+ *   ★ 駅ちかは「…」を `&hellip;` で返す。★ 以前は6種しか戻さず、`&hellip;` がそのまま残った。
+ *   ★★ 困るのは照合だけではない。★ 読んだ値を**そのまま送り返す**欄（今回触らない textarea など）に
+ *     `&hellip;` という文字列が入って、相手の画面に「&hellip;」と出てしまう。
+ *   → よく使う名前つき参照と、数値参照（&#12316; / &#x2026;）を戻す。★ 知らない名前はそのまま残す。
+ */
+const NAMED: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0',
+  hellip: '…', mdash: '—', ndash: '–', middot: '·', bull: '•', times: '×', divide: '÷',
+  laquo: '«', raquo: '»', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  yen: '¥', copy: '©', reg: '®', trade: '™', deg: '°', plusmn: '±',
+  larr: '←', rarr: '→', uarr: '↑', darr: '↓', hearts: '♥', spades: '♠', clubs: '♣', diams: '♦',
+  star: '☆', sect: '§', para: '¶', micro: 'µ', frac12: '½', frac14: '¼', frac34: '¾', sup2: '²', sup3: '³',
+};
+
 function unescape(src: string): string {
-  return String(src ?? '').replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (x) => ENTITIES[x] ?? x);
+  return String(src ?? '').replace(/&(#x[0-9a-fA-F]+|#\d+|[A-Za-z][A-Za-z0-9]*);/g, (all, body: string) => {
+    if (body[0] === '#') {
+      const cp = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : Number(body.slice(1));
+      if (Number.isFinite(cp) && cp > 0 && cp <= 0x10ffff) {
+        // ★ 以前の見た目（&#39; → '）はそのまま。★ &nbsp; だけは以前どおり普通の空白にしておく（下の置き換え）
+        return String.fromCodePoint(cp);
+      }
+      return all;
+    }
+    if (body === 'nbsp') return ' ';
+    return Object.prototype.hasOwnProperty.call(NAMED, body) ? NAMED[body] : all;
+  });
 }
 
 /** タグを落として実体参照を戻す */

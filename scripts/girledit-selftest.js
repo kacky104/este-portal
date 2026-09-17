@@ -97,6 +97,13 @@ const sentP = E.planEkichikaGirlEdit(form, { comments: '一行目\n二行目' })
 eq('★ 読み直しで \r\n が返っても照合は通る', E.verifyEkichikaGirlEdit(crlfForm, sentP).ng, []);
 eq('手がかりに位置が出る', E.diffHint('あいう', 'あいえ').includes('2字目'), true);
 
+console.log('── 6c. &hellip;（第417便・実物）──');
+const hel = E.parseEkichikaGirlEditForm(page({ comments: '贅沢な時間を&hellip;\r\n\r\nお客様の声' }), '5232208');
+eq('★ 読んだ値は … に戻る', hel.fields.find((f) => f.name === 'comments').value, '贅沢な時間を…\r\n\r\nお客様の声');
+eq('★ 送った値と同じなら変わる欄にしない', E.planEkichikaGirlEdit(hel, { comments: '贅沢な時間を…\n\nお客様の声' }).changes.length, 0);
+eq('★ 数値参照も戻る', E.parseEkichikaGirlEditForm(page({ comments: '&#12316;&#x2026;' }), '5232208').fields.find((f) => f.name === 'comments').value, '〜…');
+eq('★ 知らない名前は残す', E.parseEkichikaGirlEditForm(page({ comments: '&zzz;' }), '5232208').fields.find((f) => f.name === 'comments').value, '&zzz;');
+
 console.log('── 7. 番号表 ──');
 eq('★ 番号表は61', Object.keys(E.EKICHIKA_GENRE_ID).length, 61);
 

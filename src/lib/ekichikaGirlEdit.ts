@@ -91,6 +91,7 @@ export function sameText(a: string, b: string): boolean {
 }
 export function normText(v: string): string {
   return String(v ?? '')
+    .replace(/&hellip;/g, '…').replace(/&amp;/g, '&')
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
     .replace(/\r\n?/g, '\n')
