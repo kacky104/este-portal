@@ -248,3 +248,23 @@ export async function saveConecfGirlTargets(input: {
   if (error) return { ok: false, error: `保存に失敗しました: ${error.message}` };
   return { ok: true, data: { saved: rows.length } };
 }
+
+/**
+ * ★ 第409便: 「送り先サイト」で送らない組（therapistId#provider#slot）。★ 「女性をサイトへ登録」で登録ボタンを隠すため。
+ * ★ 切り替え前の店は空（★ フクエスリンクの画面は変わらない）。★ 読めなければ空（★ 受け口の buildGirlCreatePlan 等が断る）
+ */
+export async function listConecfTargetOffs(): Promise<Result<{ offs: string[] }>> {
+  const r = await resolveSalon();
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const { data: salon } = await svc.from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle();
+  if (!salon?.conecf_enabled_at) return { ok: true, data: { offs: [] } };
+  const { data: ths } = await svc.from('therapists').select('id').eq('salon_id', salonId);
+  const ids = (ths ?? []).map((t) => Number(t.id));
+  if (ids.length === 0) return { ok: true, data: { offs: [] } };
+  const { data, error } = await svc
+    .from('conecf_therapist_targets').select('therapist_id, provider, slot')
+    .in('therapist_id', ids).eq('enabled', false);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: { offs: (data ?? []).map((x) => `${x.therapist_id}#${x.provider}#${x.slot}`) } };
+}

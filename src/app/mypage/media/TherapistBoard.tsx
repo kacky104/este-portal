@@ -14,6 +14,8 @@ import {
   startMediaTherapistCreate,
   startMediaTherapistCreatePush,
 } from '@/app/actions/mediaCredentials';
+// ★ 第409便: コネックエフ「送り先サイト」で送らない人には登録ボタンを出さない
+import { listConecfTargetOffs } from '@/app/actions/conecfGirls';
 import type { RosterResult } from '@/lib/mediaRoster';
 import { therapistSiteState, therapistSiteLabel, type TherapistSiteState } from '@/lib/mediaOverview';
 import { findDuplicateNames, duplicateNotice } from '@/lib/therapistDuplicates';
@@ -186,14 +188,18 @@ export function TherapistBoard({ salonId, onToast }: {
   const [pick, setPick] = useState<Record<string, string>>({});
   const [linkBusy, setLinkBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // ★ 第409便: 送り先サイトで送らない組（therapistId#provider#slot）。★ コネックエフのときだけ読む
+  const [targetOffs, setTargetOffs] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (salonId == null) return;
-    const [t, r, ov] = await Promise.all([
+    const [t, r, ov, offs] = await Promise.all([
       getSalonTherapists({ salonId }),
       getMediaRoster({ salonId }),
       getMediaOverview({ salonId }),
+      brand.isConecf ? listConecfTargetOffs() : Promise.resolve(null),
     ]);
+    setTargetOffs(new Set(offs && offs.ok ? offs.data.offs : []));
     if (!t.ok) { setError(t.error); setLoading(false); return; }
     setTherapists(t.data);
     // ★ 名簿が取れなかったら黙って空にする。★ ここで「0人」と出すと揃っているように見える
@@ -204,7 +210,7 @@ export function TherapistBoard({ salonId, onToast }: {
     const c = pickCols(list);
     setSite((prev) => prev ?? c[0] ?? null);
     setLoading(false);
-  }, [salonId]);
+  }, [salonId, brand.isConecf]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -603,7 +609,8 @@ export function TherapistBoard({ salonId, onToast }: {
                   // ★★★ 「登録」を出す条件（設計メモ §3・§4 D）。★ 「確かめられません」（番号が無い＝新しい方）だけ。
                   //   ★ 「います」（もう居る）と「まだ読んでいません」（読んでいないのに送らない）には出さない。
                   //   ★★★ 【第262便】「いません」にも出さない。★ 材料づくりが「結びついていれば積まない」ので必ず止まる。
-                  const canCreate = CREATE_PROVIDERS.includes(site.provider) && site.hasCredential && st === 'unlinked';
+                  const targetOff = targetOffs.has(`${t.id}#${site.provider}#${site.slot}`);
+                  const canCreate = CREATE_PROVIDERS.includes(site.provider) && site.hasCredential && st === 'unlinked' && !targetOff;
                   const view = createView && createView.tid === t.id ? createView : null;
                   return (
                     <Fragment key={t.id}>
@@ -684,6 +691,9 @@ export function TherapistBoard({ salonId, onToast }: {
                                 連携する
                               </button>
                               </>
+                              )}
+                              {targetOff && CREATE_PROVIDERS.includes(site.provider) && st === 'unlinked' && (
+                                <span className="text-[12.5px] text-slate-400">送り先サイトで「送らない」にしています</span>
                               )}
                               {canCreate && (
                                 <button
