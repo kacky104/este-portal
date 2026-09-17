@@ -7,12 +7,105 @@ import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { listConecfGirls, createConecfGirl, type ConecfGirlRow } from '@/app/actions/conecfGirls';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
+import { getConecfFirstImport, requestConecfFirstImport, type FirstImportStatus } from '@/app/actions/conecfFirstImport';
 
 // コネックエフ「女性一覧」（第398便・1c・2026-09-17）。
 // ★ ベンリーの女性一覧と同じ並び：写真・名前・年齢・新人・サイズ・入店日・公開。★ 行を押すと編集へ。
 // ★ 親データはフクエスの therapists（★ ここに出る人＝フクエスに居る人）。
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
+
+// ★★ 第406便: 駅ちかから最初に1回だけ取り込む（女性・年齢サイズ・週間の出勤）。
+//   ★ 実際に読むのは VPS の周（15分ごと）なので、押してから数分〜20分ほどかかる。★ 1店舗1回だけ。
+function FirstImportCard({ enabled, onToast, onDone }: { enabled: boolean; onToast: (m: string) => void; onDone: () => void }) {
+  const [st, setSt] = useState<FirstImportStatus | null>(null);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const res = await getConecfFirstImport();
+    if (res.ok) setSt(res.data);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  // ★ 待ち・取り込み中は1分ごとに見に行く。★ 完了したら一覧を読み直す
+  const phase = st?.phase;
+  useEffect(() => {
+    if (phase !== 'waiting' && phase !== 'running') return;
+    const id = window.setInterval(async () => {
+      const res = await getConecfFirstImport();
+      if (!res.ok) return;
+      setSt(res.data);
+      if (res.data.phase === 'done') onDone();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [phase, onDone]);
+
+  if (!st || !st.hasEkichika) return null;
+
+  const onRequest = async () => {
+    setBusy(true);
+    const res = await requestConecfFirstImport();
+    setBusy(false);
+    setConfirm(false);
+    if (!res.ok) { onToast(res.error); return; }
+    onToast('受け付けました。20分ほどで反映されます');
+    void load();
+  };
+
+  if (st.phase === 'done') {
+    const s = st.summary;
+    return (
+      <div className={`${CARD} p-4 text-[13.5px] text-slate-600 space-y-1`}>
+        <p><b className="text-slate-800">駅ちかからの取り込み：完了</b>{st.doneAt ? `（${new Date(st.doneAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}）` : ''}</p>
+        {s && <p>新しく登録 {s.created}人・登録済みと一致 {s.matched}人・出勤 {s.schedules}日ぶん{s.errors > 0 ? `・★ 失敗 ${s.errors}回` : ''}</p>}
+        {s && s.unmatched.length > 0 && <p className="text-[12.5px] text-slate-500">取り込めなかった女性：{s.unmatched.join('、')}（お手数ですが「＋ 新規登録」から登録してください）</p>}
+      </div>
+    );
+  }
+
+  if (st.phase === 'waiting' || st.phase === 'running') {
+    return (
+      <div className={`${CARD} p-4 text-[14px] text-indigo-800 bg-indigo-50/60`}>
+        <b>駅ちかから取り込んでいます…</b>
+        <span className="block text-[12.5px] text-slate-500 mt-0.5">20分ほどで反映されます。この画面は開いたままでも閉じても大丈夫です。</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${CARD} p-4 space-y-3`}>
+      <div>
+        <p className="text-[15px] font-black text-slate-800">駅ちかから女性と出勤を取り込む（最初の1回だけ）</p>
+        <p className="text-[13px] text-slate-500 mt-1 leading-relaxed">
+          駅ちかに載っている女性・年齢・サイズ・1週間の出勤を、コネックエフへまとめて取り込みます。<br />
+          ・まだ居ない女性は<b>公開</b>で追加します（新人マークは付けません）<br />
+          ・コネックエフで<b>入力済みの出勤の日はそのまま</b>残します／年齢・サイズは空欄だけ埋めます<br />
+          ・<b>1回だけ</b>押せます。取り込み後は、出勤などはコネックエフで入力してください
+        </p>
+      </div>
+      {!confirm ? (
+        <button
+          type="button"
+          onClick={() => (enabled ? setConfirm(true) : onToast('取り込むには、ホームで「コネックエフに切り替える」を押してください'))}
+          className="px-4 py-2.5 bg-indigo-600 text-white text-[14px] font-bold"
+        >
+          駅ちかから取り込む
+        </button>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[14px] font-bold text-slate-700">1回だけです。取り込みますか？</span>
+          <button type="button" disabled={busy} onClick={() => void onRequest()} className="px-4 py-2 bg-indigo-600 text-white text-[14px] font-bold disabled:opacity-40">
+            {busy ? '受け付けています…' : '取り込む'}
+          </button>
+          <button type="button" disabled={busy} onClick={() => setConfirm(false)} className="px-4 py-2 border border-slate-300 text-slate-600 text-[14px] font-bold">
+            やめる
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
@@ -33,6 +126,11 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
 
   useEffect(() => { void load(); }, [load]);
 
+  const onImportDone = useCallback(() => {
+    void load();
+    if (salonId != null) void revalidateSalon(salonId);
+  }, [load, salonId]);
+
   const onAdd = async () => {
     setBusy(true);
     const res = await createConecfGirl({ name: newName, isNewFace: newIsNew });
@@ -49,6 +147,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
 
   return (
     <div className="space-y-3">
+      <FirstImportCard enabled={enabled} onToast={onToast} onDone={onImportDone} />
       <div className={`${CARD} p-4 flex flex-wrap items-center gap-3`}>
         <button
           type="button"

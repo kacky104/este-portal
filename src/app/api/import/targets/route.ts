@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
+import { firstImportPhase, targetsStep } from '@/lib/conecfFirstImport';
 
 // ── 外部媒体取り込み: 取得対象の一覧を返す＋前周ぶんの掃除（第28便／掃除は第34便）──────
 // 中継役VPS（住宅系IPで駅ちかに到達できる）が毎時これを叩き、
@@ -223,7 +224,86 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, mode, count: targets.length, targets, skippedByInterval, sweep }, {
+  // ── ★★ 第406便: コネックエフ「駅ちかから最初に1回だけ取り込む」──────────────
+  //   ★ 掃除（上）が終わってから足す。★ この店は掃除の対象にしない（1回きりの周で「消えた子」を判定しない）。
+  //   ★ listMode=false で返す → import.sh は個人ページ（週間予定）を取って /api/import/ingest へ送る（★ VPS は変えない）。
+  //   ★ 間隔（import_interval_min）も mode も見ない。★ 押されたら次の周で1回だけ。
+  const first = await collectFirstImport(supabase);
+  const allTargets = [...targets, ...first.targets];
+
+  return NextResponse.json({ ok: true, mode, count: allTargets.length, targets: allTargets, skippedByInterval, sweep, firstImport: first.log }, {
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
+}
+
+type Svc = ReturnType<typeof createServiceClient>;
+type FirstTarget = {
+  sourceId: number; salonId: number; provider: string; slot: number; externalId: string; shopUrl: string;
+  importSchedule: boolean; importProfile: boolean; createMissing: boolean; listMode: false;
+  intervalMin: number; lastRunAt: string | null; firstImport: true;
+};
+
+/**
+ * ★★ 第406便: 「駅ちかから最初に1回だけ取り込む」の店を集める。
+ *   ・順番待ち（started が空）→ started を入れて、その店の駅ちか枠を返す
+ *   ・取り込み中（started あり・done が空）→ done を入れる（★ import.sh は flock があるので、ここが呼ばれた時点で前の周は終わっている）
+ * ★ 失敗してもふだんの取り込みは止めない（log に残すだけ）。
+ */
+async function collectFirstImport(supabase: Svc): Promise<{ targets: FirstTarget[]; log: Array<Record<string, unknown>> }> {
+  const log: Array<Record<string, unknown>> = [];
+  const { data: salons, error } = await supabase
+    .from('salons')
+    .select('id, conecf_enabled_at, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at')
+    .eq('is_hidden', false)
+    .not('conecf_enabled_at', 'is', null)
+    .not('conecf_import_requested_at', 'is', null)
+    .is('conecf_import_done_at', null);
+  if (error) { log.push({ error: error.message }); return { targets: [], log }; }
+
+  const targets: FirstTarget[] = [];
+  const now = new Date().toISOString();
+  for (const s of salons ?? []) {
+    const salonId = Number(s.id);
+    const step = targetsStep(firstImportPhase({
+      requestedAt: (s.conecf_import_requested_at as string | null) ?? null,
+      startedAt: (s.conecf_import_started_at as string | null) ?? null,
+      doneAt: (s.conecf_import_done_at as string | null) ?? null,
+    }));
+    if (step === 'finish') {
+      await supabase.from('salons').update({ conecf_import_done_at: now }).eq('id', salonId).is('conecf_import_done_at', null);
+      log.push({ salonId, step: 'done' });
+      continue;
+    }
+    if (step !== 'hand') continue;
+
+    const { data: srcs } = await supabase
+      .from('salon_import_sources')
+      .select('id, salon_id, provider, slot, external_id, shop_url, last_run_at')
+      .eq('salon_id', salonId)
+      .eq('provider', 'ekichika')
+      .not('shop_url', 'is', null)
+      .not('external_id', 'is', null)
+      .order('slot');
+    const list = srcs ?? [];
+    // ★ started を先に入れる（★ 入れられなかったら渡さない＝ingest が受けないので空振りになるため）
+    const { data: upd, error: upErr } = await supabase
+      .from('salons')
+      .update(list.length > 0 ? { conecf_import_started_at: now } : { conecf_import_started_at: now, conecf_import_done_at: now })
+      .eq('id', salonId)
+      .is('conecf_import_started_at', null)
+      .select('id');
+    if (upErr || !upd || upd.length === 0) { log.push({ salonId, step: 'skip', error: upErr?.message ?? 'already started' }); continue; }
+    if (list.length === 0) { log.push({ salonId, step: 'done', note: '駅ちかの店舗ページが登録されていない' }); continue; }
+
+    for (const t of list) {
+      targets.push({
+        sourceId: Number(t.id), salonId, provider: 'ekichika', slot: Number(t.slot ?? 1),
+        externalId: String(t.external_id), shopUrl: String(t.shop_url),
+        importSchedule: true, importProfile: true, createMissing: true, listMode: false,
+        intervalMin: 60, lastRunAt: (t.last_run_at as string | null) ?? null, firstImport: true,
+      });
+    }
+    log.push({ salonId, step: 'hand', sources: list.map((t) => Number(t.id)) });
+  }
+  return { targets, log };
 }

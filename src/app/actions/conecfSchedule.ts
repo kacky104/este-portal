@@ -98,6 +98,8 @@ export async function saveConecfSchedule(input: {
     }
     n.shifts.forEach((s) => rows.push({
       therapist_id: id, schedule_date: s.date, is_active: s.isActive, start_time: s.start, end_time: s.end,
+      // ★ 第406便: 人が入れた行の印（imported_at = null）。★ 「駅ちかから最初に1回だけ取り込む」がこの日を残すため
+      imported_at: null,
     }));
   }
   const { error } = await r.svc.from('therapist_schedules').upsert(rows, { onConflict: 'therapist_id,schedule_date' });

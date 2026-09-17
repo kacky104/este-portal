@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { parseEkichikaCast, normalizeName } from '@/lib/ekichikaParse';
 import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
+import { acceptsFirstImport, pickFirstImportSchedule, fillEmptyProfile } from '@/lib/conecfFirstImport';
 
 // ── 外部媒体取り込み: 個人ページHTMLを受けて解析・照合・反映（第28便）──────
 // 中継役VPSが集めた個人ページの生HTMLを受け取り、
@@ -87,18 +88,29 @@ export async function POST(req: Request) {
   // 1. 取り込み設定を読む
   const { data: source, error: srcErr } = await supabase
     .from('salon_import_sources')
-    .select('id, salon_id, is_enabled, provider, slot, link_mode, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area, conecf_enabled_at)')
+    .select('id, salon_id, is_enabled, provider, slot, link_mode, import_schedule, import_profile, create_missing, salons!inner(is_hidden, area, conecf_enabled_at, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at)')
     .eq('id', sourceId)
     .single();
   if (srcErr || !source) return NextResponse.json({ ok: false, error: 'source not found' }, { status: 404 });
-  if (!source.is_enabled) return NextResponse.json({ ok: true, skipped: 'disabled' });
-  // ★★ 向きが 'read' でない店は取り込まない（第45便・ingest-list と同じ二重の安全弁）。
-  if ((source as unknown as { link_mode?: string }).link_mode !== 'read')
-    return NextResponse.json({ ok: true, skipped: 'not-read-mode' });
-  // ★ 第400便: コネックエフに切り替えた店は取り込まない（targets でも除外。★ 受け口でも二重に止める）
-  {
-    const rel0 = (source as unknown as { salons?: { conecf_enabled_at?: string | null } | Array<{ conecf_enabled_at?: string | null }> | null }).salons;
-    const s0 = Array.isArray(rel0) ? rel0[0] : rel0;
+  // ★★ 第406便: コネックエフ「駅ちかから最初に1回だけ取り込む」の最中か。
+  //   ★ 切り替え済み・targets が渡した・まだ done でない・駅ちか のときだけ true（src/lib/conecfFirstImport.ts）。
+  //   ★ この間だけ、下の「有効でない／read でない／切り替え済み」の門を通す。★ それ以外は従来どおり。
+  type ConecfRel = { conecf_enabled_at?: string | null; conecf_import_requested_at?: string | null; conecf_import_started_at?: string | null; conecf_import_done_at?: string | null };
+  const rel0 = (source as unknown as { salons?: ConecfRel | ConecfRel[] | null }).salons;
+  const s0 = Array.isArray(rel0) ? rel0[0] : rel0;
+  const firstImport = acceptsFirstImport({
+    enabledAt: s0?.conecf_enabled_at ?? null,
+    requestedAt: s0?.conecf_import_requested_at ?? null,
+    startedAt: s0?.conecf_import_started_at ?? null,
+    doneAt: s0?.conecf_import_done_at ?? null,
+    provider: String((source as unknown as { provider?: string | null }).provider ?? 'ekichika'),
+  });
+  if (!firstImport) {
+    if (!source.is_enabled) return NextResponse.json({ ok: true, skipped: 'disabled' });
+    // ★★ 向きが 'read' でない店は取り込まない（第45便・ingest-list と同じ二重の安全弁）。
+    if ((source as unknown as { link_mode?: string }).link_mode !== 'read')
+      return NextResponse.json({ ok: true, skipped: 'not-read-mode' });
+    // ★ 第400便: コネックエフに切り替えた店は取り込まない（targets でも除外。★ 受け口でも二重に止める）
     if (s0?.conecf_enabled_at) return NextResponse.json({ ok: true, skipped: 'conecf-enabled' });
   }
 
@@ -128,12 +140,22 @@ export async function POST(req: Request) {
   //    駅ちか側だけ表記が違う子（例: 駅ちか「愛」⇔フクエス「アイ」）を名前を変えずに結びつける。
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
-    .select('id, name, import_aliases, import_cast_id')
+    .select('id, name, import_aliases, import_cast_id, age, body_type, is_active')
     .eq('salon_id', source.salon_id);
   if (thErr) {
     if (runId) await supabase.from('salon_import_runs').update({ status: 'error', error: thErr.message, finished_at: new Date().toISOString() }).eq('id', runId);
     return NextResponse.json({ ok: false, error: thErr.message }, { status: 500 });
   }
+  // ★ 第406便: 最初の1回で「空のときだけ埋める」「非公開には出勤を入れない」に使う
+  const current = new Map<number, { age: string | null; bodyType: string | null; isActive: boolean }>();
+  for (const t of therapists ?? []) {
+    current.set(t.id as number, {
+      age: t.age != null ? String(t.age) : null,
+      bodyType: (t.body_type as string | null) ?? null,
+      isActive: t.is_active !== false,
+    });
+  }
+  let schedulesKept = 0;
   const byName = new Map<string, number>();      // 正規化名 → therapist_id
   const dupNames = new Set<string>();            // フクエス側で重複する正規化名
   for (const t of therapists ?? []) {
@@ -207,7 +229,7 @@ export async function POST(req: Request) {
     //   ★ 第227便から【公開＋NEW】で作る。★ 決めごとは1か所（このファイル冒頭のコメント）。
     let isNew = false;
     if (therapistId === undefined) {
-      if (!source.create_missing) { unmatched.push(cast.name); continue; }
+      if (!source.create_missing && !firstImport) { unmatched.push(cast.name); continue; }
       if (!isCreatableName(cast.name)) {
         unmatched.push(`${cast.name}（伏字・記号のみ・作成せず）`);
         continue;
@@ -219,10 +241,11 @@ export async function POST(req: Request) {
           name: cast.name.trim(),
           area: salonArea,
           is_active: true,                  // ★ 公開で作る（第227便）。★ 写真は既定画像で出る（第217便）。
-          is_new_face: true,                // ★ NEW を付ける（第227便）
-          new_face_since: importedAt,       // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
-          age: source.import_profile ? cast.age : null,
-          body_type: source.import_profile ? cast.bodyType : null,
+          // ★ NEW を付ける（第227便）。★ 第406便: 最初の1回は付けない（★ すでに在籍している子なので・カッキーさんの決定）
+          is_new_face: !firstImport,
+          new_face_since: firstImport ? null : importedAt,   // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
+          age: source.import_profile || firstImport ? cast.age : null,
+          body_type: source.import_profile || firstImport ? cast.bodyType : null,
         })
         .select('id')
         .single();
@@ -240,6 +263,7 @@ export async function POST(req: Request) {
       byName.set(key, therapistId);
       if (c.castId) byCastId.set(c.castId, therapistId);
       createdNames.push(cast.name.trim());
+      current.set(therapistId, { age: cast.age ?? null, bodyType: cast.bodyType ?? null, isActive: true });
       isNew = true;
     }
 
@@ -257,6 +281,41 @@ export async function POST(req: Request) {
         byCastId.set(c.castId, therapistId);
         castIdFilled++;
       }
+    }
+
+    // ★★ 第406便: 最初の1回は別の道（入力済みの日は残す・非公開には出勤を入れない・年齢サイズは空だけ埋める）
+    if (firstImport) {
+      if (cast.schedule.length > 0) {
+        const { data: ex } = await supabase
+          .from('therapist_schedules')
+          .select('schedule_date, imported_at')
+          .eq('therapist_id', therapistId)
+          .in('schedule_date', cast.schedule.map((d) => d.date));
+        const cur = current.get(therapistId);
+        const picked = pickFirstImportSchedule({
+          incoming: cast.schedule.map((d) => ({ date: d.date, status: d.status === 'work' ? 'work' : 'off', start: d.start ?? null, end: d.end ?? null })),
+          existing: (ex ?? []).map((e) => ({ date: String(e.schedule_date), importedAt: (e.imported_at as string | null) ?? null })),
+          therapistActive: cur?.isActive !== false,
+        });
+        schedulesKept += picked.kept;
+        if (picked.rows.length > 0) {
+          const rows = picked.rows.map((d) => ({
+            therapist_id: therapistId, schedule_date: d.date, is_active: d.isActive,
+            start_time: d.start, end_time: d.end, imported_at: importedAt,
+          }));
+          const { error } = await supabase.from('therapist_schedules').upsert(rows, { onConflict: 'therapist_id,schedule_date' });
+          if (!error) schedulesUpserted += rows.length;
+        }
+      }
+      if (!isNew) {
+        const cur = current.get(therapistId) ?? { age: null, bodyType: null, isActive: true };
+        const patch = fillEmptyProfile(cur, { age: cast.age ?? null, bodyType: cast.bodyType ?? null });
+        if (Object.keys(patch).length > 0) {
+          const { error } = await supabase.from('therapists').update(patch).eq('id', therapistId);
+          if (!error) profilesUpdated++;
+        }
+      }
+      continue;
     }
 
     // 4a. 出勤（設定ON かつ 出勤/休みの行があるときだけ）
@@ -314,7 +373,8 @@ export async function POST(req: Request) {
       created_names: createdNames,
     }).eq('id', runId);
   }
-  await supabase.from('salon_import_sources').update({
+  // ★ 第406便: 最初の1回は last_run_at を動かさない（★ ふだんの周の間隔判定・見張りに混ぜない）
+  if (!firstImport) await supabase.from('salon_import_sources').update({
     last_run_at: finishedAt,
     last_status: 'ok',
     last_error: null,
@@ -330,6 +390,8 @@ export async function POST(req: Request) {
     schedulesUpserted,
     profilesUpdated,
     castIdFilled,
+    firstImport,
+    schedulesKept,
     created: createdNames.length,
     createdNames,
   }, {
