@@ -21,7 +21,7 @@ export type ExtraTab = 'comments' | 'siteFields' | 'qa';
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-300 rounded bg-white px-2 py-1.5 text-[14px] focus:outline-none focus:border-[#1e88e5]';
-const NOTE_SEND = '保存したあと、上の「駅ちかへ反映」で駅ちかへ送れます（エステ魂へは準備中です）。';
+const NOTE_SEND = '保存したあと、上の駅ちかの「更新する」で駅ちかへ送れます（エステ魂へは準備中です）。';
 
 function Row({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
