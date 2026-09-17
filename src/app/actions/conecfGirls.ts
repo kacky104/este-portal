@@ -11,6 +11,7 @@ import {
 } from '@/lib/conecfGirl';
 import { parseBodyType } from '@/lib/bodyType';
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
+import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { isSavableTarget } from '@/lib/conecfTargets';
 import {
   normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
@@ -383,10 +384,45 @@ export async function saveConecfGirlSiteFields(input: {
 
 // ── ★★★ 第432便: 女性の削除（退店）──────────────────────────
 //   ★ 中身はマイページと同じ deleteTherapistWithCleanup（出勤 → 写メ日記 → 本人 → 写真の掃除）。★ 2か所に書かない。
-//   ★ 駅ちか・エステ魂などサイト側の登録は消えない → 押す前に「連携しているサイト」を見せる（★ 先に各サイトで削除・非表示を）。
 //   ★ 取り消せない（★ 写真ファイルも消える）。
+// ── ★★★ 第433便: 連携しているサイトからも一緒に ────────────────────
+//   ★ 駅ちか … 削除（girl_delete・第228便・実弾で何度も通っている。★ 写真も一緒に消える）
+//   ★ エステ魂 … 非表示（cast_hide・第229便。★ 公開ページは404・エステ魂の画面から戻せる）
+//   ★ それ以外のサイトは自動では消せない（★ 画面に出して、各サイトで消してもらう）
+//   ★★ 順番: 先にサイトへの依頼を積む → 全部積めたときだけコネックエフから消す。
+//     ★ 1つでも積めなければ（別の更新が動いている等）コネックエフは消さずに止める。
+//     ★ 積めたサイトは中継が消しに行く。★ もう一度押すと、そのサイトは「もう居ない」で何もせず終わる（二重に困らない）。
 
-export type ConecfGirlDeleteInfo = { name: string; linked: Array<{ provider: string; label: string; slot: number }> };
+type DeleteSite = { provider: string; slot: number; castId: string; label: string; auto: 'delete' | 'hide' | null };
+export type ConecfGirlDeleteInfo = { name: string; linked: Array<{ provider: string; label: string; slot: number; auto: 'delete' | 'hide' | null }> };
+
+/** ★ そのサイトへ中継を積めるか（★ startRelayFlow と同じ条件：ログイン情報あり・停止中でない・「反映しない」でない） */
+async function siteReady(svc: Svc, salonId: number, provider: string, slot: number): Promise<boolean> {
+  const { data: cred } = await svc.from('salon_media_credentials').select('is_enabled').eq('salon_id', salonId).eq('provider', provider).eq('slot', slot).maybeSingle();
+  if (!cred || cred.is_enabled !== true) return false;
+  const { data: src } = await svc.from('salon_import_sources').select('link_mode').eq('salon_id', salonId).eq('provider', provider).eq('slot', slot).maybeSingle();
+  return !(src && String((src as { link_mode?: string }).link_mode) === 'none');
+}
+
+async function linkedSites(svc: Svc, salonId: number, therapistId: number, legacyCastId: string | null): Promise<DeleteSite[]> {
+  const { data: links } = await svc.from('therapist_media_ids').select('provider, slot, external_cast_id').eq('therapist_id', therapistId);
+  const out: DeleteSite[] = ((links ?? []) as Array<{ provider: string; slot: number; external_cast_id: string }>).map((l) => {
+    const provider = String(l.provider);
+    return {
+      provider, slot: Number(l.slot ?? 1), castId: String(l.external_cast_id ?? ''), label: providerLabel(provider),
+      auto: provider === 'ekichika' ? 'delete' as const : provider === 'esutama' ? 'hide' as const : null,
+    };
+  });
+  // ★ 駅ちかの枠1は、古い結びつき（therapists.import_cast_id）だけの人がいる
+  if (legacyCastId && !out.some((x) => x.provider === 'ekichika' && x.slot === 1)) {
+    out.push({ provider: 'ekichika', slot: 1, castId: legacyCastId, label: providerLabel('ekichika'), auto: 'delete' });
+  }
+  // ★ 積めないサイト（「反映しない」・停止中・ログイン情報なし）は自動で消さない側へ
+  for (const x of out) {
+    if (x.auto && !(await siteReady(svc, salonId, x.provider, x.slot))) x.auto = null;
+  }
+  return out.sort((a, b) => a.provider.localeCompare(b.provider) || a.slot - b.slot);
+}
 
 export async function getConecfGirlDeleteInfo(input: { id: number }): Promise<Result<ConecfGirlDeleteInfo>> {
   const r = await resolveSalon({ write: true });
@@ -394,20 +430,48 @@ export async function getConecfGirlDeleteInfo(input: { id: number }): Promise<Re
   const { svc, salonId } = r.data;
   const t = await ownTherapist(svc, salonId, Number(input.id));
   if (!t) return { ok: false, error: '女性が見つかりません' };
-  const { data: links } = await svc.from('therapist_media_ids').select('provider, slot').eq('therapist_id', Number(t.id));
-  const linked = ((links ?? []) as Array<{ provider: string; slot: number }>)
-    .map((l) => ({ provider: String(l.provider), slot: Number(l.slot ?? 1), label: providerLabel(String(l.provider)) }))
-    .sort((a, b) => a.provider.localeCompare(b.provider) || a.slot - b.slot);
-  return { ok: true, data: { name: String(t.name ?? ''), linked } };
+  const { data: legacy } = await svc.from('therapists').select('import_cast_id').eq('id', Number(t.id)).maybeSingle();
+  const sites = await linkedSites(svc, salonId, Number(t.id), (legacy?.import_cast_id as string | null) ?? null);
+  return { ok: true, data: { name: String(t.name ?? ''), linked: sites.map(({ provider, label, slot, auto }) => ({ provider, label, slot, auto })) } };
 }
 
-export async function deleteConecfGirl(input: { id: number }): Promise<Result<{ salonId: number; name: string }>> {
+/**
+ * @param alsoSites サイトからも消すなら true（★ 駅ちかは削除・エステ魂は非表示）。false ならコネックエフだけ
+ */
+export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }): Promise<Result<{ salonId: number; name: string; queued: string[]; manual: string[] }>> {
   const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId } = r.data;
   const t = await ownTherapist(svc, salonId, Number(input.id));
   if (!t) return { ok: false, error: '女性が見つかりません（すでに削除されている可能性があります）' };
+  const name = String(t.name ?? '');
+
+  const queued: string[] = [];
+  const manual: string[] = [];
+  if (input.alsoSites === true) {
+    const { data: legacy } = await svc.from('therapists').select('import_cast_id').eq('id', Number(t.id)).maybeSingle();
+    const sites = await linkedSites(svc, salonId, Number(t.id), (legacy?.import_cast_id as string | null) ?? null);
+    for (const site of sites) {
+      if (!site.auto || !/^\d{1,12}$/.test(site.castId)) { manual.push(site.label); continue; }
+      let f;
+      try {
+        f = site.auto === 'delete'
+          ? await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'girl_delete', actor: 'conecf:girl-delete', girlDelete: { castId: site.castId } })
+          : await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'cast_hide', actor: 'conecf:girl-delete', castHide: { castId: site.castId } });
+      } catch (e) {
+        console.error('[conecf] 退店のサイト依頼を積めなかった', (e as Error).message);
+        f = { ok: false as const, note: '開始できませんでした' };
+      }
+      if (!f.ok) {
+        const why = 'reason' in f && f.reason === 'busy' ? 'いま' + site.label + 'で別の更新が動いています' : (f.note || '開始できませんでした');
+        return { ok: false, error: site.label + 'への依頼を受け付けられなかったため、削除を止めました（' + why + '）。'
+          + (queued.length > 0 ? queued.join('・') + 'には依頼済みです。' : '') + '少し待ってからもう一度お試しください' };
+      }
+      queued.push(site.label + (site.auto === 'delete' ? '（削除）' : '（非表示）'));
+    }
+  }
+
   const res = await deleteTherapistWithCleanup({ therapistId: String(t.id), salonId });
-  if (!res.ok) return { ok: false, error: res.error };
-  return { ok: true, data: { salonId, name: String(t.name ?? '') } };
+  if (!res.ok) return { ok: false, error: res.error + (queued.length > 0 ? '（' + queued.join('・') + 'には依頼済みです）' : '') };
+  return { ok: true, data: { salonId, name, queued, manual } };
 }
