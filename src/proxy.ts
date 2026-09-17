@@ -50,7 +50,12 @@ export async function proxy(request: NextRequest) {
     const favRaw = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
     const favHost = normalizeHost(favRaw);
     // ★ コネックエフ（第395便）は店舗ドメインではない。★ 店舗のアイコンを探しに行かない
-    if (isConecfHost(favRaw)) return NextResponse.next();
+    if (isConecfHost(favRaw)) {
+      // ★ コネックエフ（第405便）は独自ドメイン。★ 本体の肉球ではなく専用ファビコンを返す。
+      const url = request.nextUrl.clone();
+      url.pathname = "/favicon-conecf.ico";
+      return NextResponse.rewrite(url);
+    }
     if (!isAppHost(favHost)) {
       const url = request.nextUrl.clone();
       url.pathname = `/hp/${favHost}/favicon.ico`;

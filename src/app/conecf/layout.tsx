@@ -16,6 +16,15 @@ export const metadata: Metadata = {
   title: { default: 'コネックエフ', template: '%s｜コネックエフ' },
   description: 'メンズエステ店舗向けの媒体一括更新ツール',
   robots: { index: false, follow: false },
+  // ★ コネックエフ専用ファビコン（第405便・青いF）。ネストmetadataは最も近い定義が優先 → /conecf 配下だけ差し替わる。
+  icons: {
+    icon: [
+      { url: '/favicon-conecf.ico', sizes: 'any' },
+      { url: '/favicon-conecf-32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-conecf-16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    apple: [{ url: '/apple-touch-icon-conecf.png', sizes: '180x180' }],
+  },
   alternates: {},
   openGraph: { title: 'コネックエフ', siteName: 'コネックエフ', description: 'メンズエステ店舗向けの媒体一括更新ツール', images: [] },
   twitter: { card: 'summary', title: 'コネックエフ', images: [] },

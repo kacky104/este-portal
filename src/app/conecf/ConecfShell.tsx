@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { getConecfAccess, type ConecfAccess } from '@/app/actions/conecf';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
@@ -16,20 +17,18 @@ import { CONECF_NAV, type ConecfNavKey } from './conecfNav';
 // ★ 権限はサーバー（getConecfAccess）で決める。★ ログインしていなければログイン画面へ。
 
 export function ConecfLogo({ size = 36 }: { size?: number }) {
+  // ★ コネックエフの新ロゴ（青いF・透過）。第405便・2026-09-17・カッキーさん。
+  // ★ public/conecf-mark.png（余白入り透過PNG）を next/image で表示する（fukuX の /fukux-mark.png と同じ作り）。
   return (
-    <span
-      className="flex-none grid place-items-center text-white bg-gradient-to-br from-indigo-700 to-indigo-500"
+    <Image
+      src="/conecf-mark.png"
+      alt="コネックエフ"
+      width={size}
+      height={size}
+      priority
+      className="flex-none object-contain"
       style={{ width: size, height: size }}
-      aria-hidden
-    >
-      {/* ★ 仮のマーク（点と点をつなぐ）。★ ロゴが決まったら差し替える */}
-      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="6" cy="12" r="3" />
-        <circle cx="18" cy="6" r="3" />
-        <circle cx="18" cy="18" r="3" />
-        <path d="M8.6 10.5l6.8-3.2M8.6 13.5l6.8 3.2" />
-      </svg>
-    </span>
+    />
   );
 }
 
