@@ -3,6 +3,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { centeredMainCrop, isPhotoSlot, isValidThumbRect, THUMB_DEFAULT_RECT, PHOTO_SLOT_MAX } from '@/lib/ekichikaPhoto';
 import { resolveTherapistPhotoFile, type TherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
+import { conecfTargetBlock } from '@/app/lib/conecf/targets';
 
 // ── 駅ちかへ写真を1枚送る（第107便・運営だけの口）─────────────────────────
 //   POST /api/admin/photo-push  (Authorization: Bearer <CRON_SECRET>)
@@ -136,6 +137,11 @@ export async function POST(req: Request) {
   if (!th) return NextResponse.json({ ok: false, error: 'セラピストが見つからない' }, { status: 404 });
   if (Number((th as { salon_id: number }).salon_id) !== salonId) {
     return NextResponse.json({ ok: false, error: 'そのセラピストは指定した店舗の子ではない' }, { status: 400 });
+  }
+  // ★ 第408便: コネックエフ「送り先サイト」で駅ちかに送らない人の写真は送らない
+  {
+    const blocked = await conecfTargetBlock(svc, { salonId, therapistId, provider: 'ekichika', slot });
+    if (blocked) return NextResponse.json({ ok: false, error: blocked }, { status: 400 });
   }
 
   // ── 駅ちかの girl_id（castId） ──

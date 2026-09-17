@@ -10,6 +10,7 @@ import {
   bodyTypeFromSizes, normalizeConecfGirl, CONECF_MAX_IMAGES, type ConecfGirlInput,
 } from '@/lib/conecfGirl';
 import { parseBodyType } from '@/lib/bodyType';
+import { isSavableTarget } from '@/lib/conecfTargets';
 
 // コネックエフ「女性一覧・女性の編集」の受け口（第398便・1c・2026-09-17）。
 //
@@ -239,7 +240,8 @@ export async function saveConecfGirlTargets(input: {
   const t = await ownTherapist(svc, salonId, Number(input.id));
   if (!t) return { ok: false, error: 'この女性は見つかりません' };
   const rows = (Array.isArray(input.targets) ? input.targets : [])
-    .filter((x) => findMediaSite(String(x.provider)) && Number.isInteger(Number(x.slot)) && Number(x.slot) >= 1 && Number(x.slot) <= 20)
+    // ★ 第408便: フクエスは外せない（保存しない）
+    .filter((x) => isSavableTarget(String(x.provider)) && findMediaSite(String(x.provider)) && Number.isInteger(Number(x.slot)) && Number(x.slot) >= 1 && Number(x.slot) <= 20)
     .map((x) => ({ therapist_id: t.id, provider: String(x.provider), slot: Number(x.slot), enabled: x.enabled === true, updated_at: new Date().toISOString() }));
   if (rows.length === 0) return { ok: true, data: { saved: 0 } };
   const { error } = await svc.from('conecf_therapist_targets').upsert(rows, { onConflict: 'therapist_id,provider,slot' });

@@ -43,6 +43,8 @@ import {
   type KnownDiary,
 } from '@/lib/ekichikaDiaryParse';
 import { loadCastIds, rememberCastId, forgetCastId } from '@/lib/mediaCastIds';
+// ★ 第408便: コネックエフ「送り先サイト」で送らない人を外す（★ 切り替え前の店は常に空＝全員）
+import { loadConecfOff } from '@/app/lib/conecf/targets';
 import { addDaysISO, buildWorkPlan, planFingerprint, summarizePlan, type FukuesShift } from '@/lib/workPlan';
 import { WORK_DAYS, encodeGirlWork, type WorkPage } from '@/lib/ekichikaWorkParse';
 import type { EkichikaGirlsPage } from '@/lib/ekichikaGirlsParse';
@@ -1253,7 +1255,12 @@ async function planEsutama(
   if (thErr) {
     return { audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステ魂へ送る内容を組み立てられませんでした（フクエス側の読み取りに失敗）', detail: { reason: 'therapists_read_failed', flowId } }], note: 'セラピストを読めなかった: ' + thErr.message };
   }
-  const rows = (therapists ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null }>;
+  // ★ 第408便: 送り先サイトで「送らない」の人は外す（★ 名簿の側は触らない＝エステ魂の出勤は今のまま残る）
+  const conecfOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (conecfOff.error) {
+    return { audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステ魂へ送る内容を組み立てられませんでした（送り先サイトの設定を読めませんでした）', detail: { reason: 'conecf_targets_read_failed', flowId } }], note: '送り先サイトを読めなかった: ' + conecfOff.error };
+  }
+  const rows = ((therapists ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null }>).filter((t) => !conecfOff.off.has(Number(t.id)));
   const people = rows.map((t) => ({ therapistId: t.id, name: String(t.name ?? '') })).filter((t) => t.name.length > 0);
 
   // ★ 名簿画面で結んだ番号（therapist_media_ids）。あれば名前で探さない
@@ -1583,6 +1590,8 @@ async function advanceSokuhime(
     provider: params.provider, slot: params.slot,
   });
   if (castErr) return fail('cast_ids_read_failed', '名簿の結びを読めなかった: ' + castErr);
+  const sokuOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (sokuOff.error) return fail('conecf_targets_read_failed', '送り先サイトを読めなかった: ' + sokuOff.error);
   const { data: pushedRows, error: pErr } = await supabase
     .from('media_sokuhime_pushes').select('cast_id')
     .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
@@ -1597,7 +1606,8 @@ async function advanceSokuhime(
     .map((t) => {
       const row = t as unknown as ImasuguRow;
       // ★★★ 書く元はオーナー枠＋キャスト枠だけ。★ 取り込み枠は書き戻さない（エコーバック）
-      const byFukues = isOwnerLiveRow(row, now) || isCastLiveRow(row, now);
+      // ★ 第408便: 送り先サイトで「送らない」の人は、今すぐでも上げない（★ 期限切れと同じ扱い＝こちらが上げた枠は通常どおり降ろす）
+      const byFukues = !sokuOff.off.has(Number(t['id'])) && (isOwnerLiveRow(row, now) || isCastLiveRow(row, now));
       const untils = [row.available_until, row.available_until_cast]
         .filter((u): u is string => typeof u === 'string' && u.length > 0)
         .map((u) => Math.floor(new Date(u).getTime() / 1000))
@@ -1753,7 +1763,16 @@ async function planEsulove(
     };
   }
 
+  // ★ 第408便: 送り先サイトで「送らない」の人は外す
+  const conecfOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (conecfOff.error) {
+    return {
+      audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステラブへ送る内容を組み立てられませんでした（送り先サイトの設定を読めませんでした）', detail: { reason: 'conecf_targets_read_failed', flowId } }],
+      note: '送り先サイトを読めなかった: ' + conecfOff.error,
+    };
+  }
   const people = ((therapists ?? []) as Array<{ id: number; name: string | null }>)
+    .filter((t) => !conecfOff.off.has(Number(t.id)))
     .map((t) => ({ therapistId: t.id, name: String(t.name ?? '') }))
     .filter((t) => t.name.length > 0);
 
@@ -1880,6 +1899,22 @@ async function planWork(
   const castIdOf = new Map<number, string>();
   for (const [tid, cid] of maps.castIdOf) if (cid) castIdOf.set(tid, cid);
 
+  // ★★ 第408便: コネックエフ「送り先サイト」で送らない人は、この枠の対象から外す。
+  //   ★ castIdOf から消す＝駅ちかの出勤表のその子は【読んだまま返す】（buildWorkPlan・現在値を保つ）＝決定 A（何もしない）
+  const conecfOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (conecfOff.error) {
+    return {
+      audits: [{
+        event: 'plan_work',
+        outcome: 'failed',
+        summary: '反映する内容を組み立てられませんでした（送り先サイトの設定を読めませんでした）',
+        detail: { reason: 'conecf_targets_read_failed' },
+      }],
+      note: '送り先サイトを読めなかった: ' + conecfOff.error,
+    };
+  }
+  for (const tid of conecfOff.off) castIdOf.delete(tid);
+
   const ids = rows.map((t) => t.id);
   const lastISO = addDaysISO(todayISO, WORK_DAYS - 1);
   const { data: sched, error: schErr } = ids.length
@@ -1902,7 +1937,9 @@ async function planWork(
     };
   }
 
-  const shifts: FukuesShift[] = ((sched ?? []) as Array<Record<string, unknown>>).map((r) => ({
+  const shifts: FukuesShift[] = ((sched ?? []) as Array<Record<string, unknown>>)
+    .filter((r) => !conecfOff.off.has(Number(r['therapist_id'])))
+    .map((r) => ({
     therapistId: r['therapist_id'] as number,
     dateISO: String(r['schedule_date']),
     active: r['is_active'] === true,
@@ -1911,6 +1948,12 @@ async function planWork(
   }));
 
   const plan = buildWorkPlan({ page, todayISO, shifts, castIdOf, unattended });
+  if (conecfOff.off.size > 0) {
+    plan.notes.push({
+      kind: 'unmapped_therapist',
+      detail: conecfOff.off.size + '名は送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）',
+    });
+  }
   const s = summarizePlan(plan);
 
   // ★★★ 計画そのものを保存する（第44便）。件数だけでは人は承認できない。
@@ -3075,6 +3118,10 @@ async function planEsutamaSokusera(
   });
   if (castErr) return fail('cast_ids_read_failed', '名簿の結びを読めなかった: ' + castErr);
 
+  // ②' ★ 第408便: コネックエフ「送り先サイト」
+  const seraOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (seraOff.error) return fail('conecf_targets_read_failed', '送り先サイトを読めなかった: ' + seraOff.error);
+
   // ③ 了承（★ 写メ日記の了承を共用する・カッキーさんの判断 2026-09-04）
   const consentOf = new Map<number, string>();
   if (ids.length > 0) {
@@ -3121,7 +3168,8 @@ async function planEsutamaSokusera(
         account: esutamaAccountState(castId, activeCastIds, true),
         castId,
         // ★ 3枠の和集合。★ 既存の判定をそのまま使う（★ 別に書かない）
-        imasuguLive: isImasuguLiveRow(t as unknown as ImasuguRow, now),
+        // ★ 第408便: 送り先サイトで「送らない」の人は今すぐ扱いにしない
+        imasuguLive: !seraOff.off.has(id) && isImasuguLiveRow(t as unknown as ImasuguRow, now),
         lastStartedAt: castId ? (lastOf.get(String(castId).trim()) ?? null) : null,
       },
     };

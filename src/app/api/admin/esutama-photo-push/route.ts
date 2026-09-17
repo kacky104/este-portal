@@ -5,6 +5,7 @@ import { ESUTAMA_PHOTO_FIT } from '@/lib/esutamaPhoto';
 // ★★★★★★ 【第267便】写真の検査は therapistPhotoFile.ts に寄せた（★ 登録の流れ castCreatePlan.ts と同じ1か所）。
 //   ★ 振る舞いは同じ（在処・形・実在・空・20MB）。★ 2か所に書くと片方だけ緩む（第255便(2)）。
 import { resolveEsutamaPhotoFile, THERAPIST_PHOTO_BUCKET } from '@/app/lib/media/therapistPhotoFile';
+import { conecfTargetBlock } from '@/app/lib/conecf/targets';
 
 // ── エステ魂のセラピストに写真を1枚 送る（第243便・運営だけの口）────────────────
 //   POST /api/admin/esutama-photo-push  (Authorization: Bearer <CRON_SECRET>)
@@ -100,6 +101,11 @@ export async function POST(req: Request) {
   if (!th) return NextResponse.json({ ok: false, error: 'セラピストが見つからない' }, { status: 404 });
   if (Number((th as { salon_id?: number }).salon_id) !== salonId)
     return NextResponse.json({ ok: false, error: 'そのセラピストはこの店舗の在籍ではありません' }, { status: 400 });
+  // ★ 第408便: コネックエフ「送り先サイト」でエステ魂に送らない人の写真は送らない
+  {
+    const blocked = await conecfTargetBlock(svc, { salonId, therapistId, provider: 'esutama', slot });
+    if (blocked) return NextResponse.json({ ok: false, error: blocked }, { status: 400 });
+  }
 
   // ── エステ魂の cast_id（★ 先に登録されていること） ──
   const { data: mid } = await svc

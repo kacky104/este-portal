@@ -6,6 +6,7 @@ import { parseBodyType } from '@/lib/bodyType';
 import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
 // ★★★★★★ 【第267便】登録のあとに送る写真。★ 検査は esutama-photo-push と同じ1か所（therapistPhotoFile.ts）
 import { resolveEsutamaPhotoFile, type EsutamaPhotoFile } from '@/app/lib/media/therapistPhotoFile';
+import { conecfTargetBlock } from '@/app/lib/conecf/targets';
 
 // ── エステ魂へ「1人を登録する」ための材料を作る（第263便で1か所に寄せた）───────────
 //
@@ -90,6 +91,12 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
   // ★★★ 他店の人を送らない。★ ここを外すと、店舗を取り違えて登録する事故になる
   if (Number((th as { salon_id?: number }).salon_id) !== salonId)
     return { ok: false, status: 400, error: 'そのセラピストはこの店舗の在籍ではありません' };
+
+  // ★ 第408便: コネックエフ「送り先サイト」でエステ魂に送らない人は登録しない
+  {
+    const blocked = await conecfTargetBlock(svc, { salonId, therapistId, provider: 'esutama', slot });
+    if (blocked) return { ok: false, status: 400, error: blocked };
+  }
 
   // ★★★ すでに番号が結びついていたら積まない（★ 二重掲載を自分で作らない）
   const { data: link } = await svc

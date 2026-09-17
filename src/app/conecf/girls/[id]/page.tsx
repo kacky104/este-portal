@@ -10,6 +10,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
+import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
@@ -291,13 +292,16 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
         <div className={CARD}>
           <div className="p-4 space-y-3">
             <p className="text-[14px] text-slate-500 leading-relaxed">
-              この方の出勤などを送るサイトを選びます。フクエスには常に反映されます。
+              この方の出勤・今すぐ・写真・新規登録を送るサイトを選びます。
+              <span className="block text-[13px] text-slate-400 mt-1">
+                ※ オフにすると、そのサイトへ新しく送らなくなります。すでにそのサイトに載っている出勤などはそのまま残るので、必要ならそのサイトで消してください。写メ日記はこの設定とは別です。
+              </span>
             </p>
             <ul className="border border-slate-200 divide-y divide-slate-100">
               <li className="flex items-center gap-3 px-3 py-2.5">
                 <input type="checkbox" checked disabled className="accent-indigo-600" />
                 <b className="text-[15px] font-bold text-slate-700">フクエス</b>
-                <span className="text-[12.5px] text-slate-400">常に反映</span>
+                <span className="text-[12.5px] text-slate-400">{FUKUES_TARGET_NOTE}</span>
               </li>
               {sites.map((s, i) => (
                 <li key={s.provider + '#' + s.slot} className="flex items-center gap-3 px-3 py-2.5">

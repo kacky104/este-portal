@@ -8,6 +8,7 @@ import { parseBodyType } from '@/lib/bodyType';
 //   ★ 最初 `Record<string, unknown>` にしたら、`startRelayFlow` に渡すところで型が落ちた。
 //   ★★ **型が捕まえてくれた。** ★ 緩めていたら実行時まで分からなかった。
 import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
+import { conecfTargetBlock } from '@/app/lib/conecf/targets';
 
 // ── 駅ちかへ「1人を登録する」ための材料を作る（第257便で1か所に寄せた）───────────
 //
@@ -107,6 +108,12 @@ export async function buildGirlCreatePlan(svc: SupabaseClient, input: GirlCreate
   // ★★★ 他店の人を送らない
   if (Number((th as { salon_id?: number }).salon_id) !== salonId)
     return { ok: false, status: 400, error: 'そのセラピストはこの店舗の在籍ではありません' };
+
+  // ★ 第408便: コネックエフ「送り先サイト」で駅ちかに送らない人は登録しない（★ 運営の口・店舗様の画面の両方がここを通る）
+  {
+    const blocked = await conecfTargetBlock(svc, { salonId, therapistId, provider: 'ekichika', slot });
+    if (blocked) return { ok: false, status: 400, error: blocked };
+  }
 
   // ★★★ すでに番号が結びついていたら積まない（★ 二重掲載を自分で作らない）
   const { data: link } = await svc
