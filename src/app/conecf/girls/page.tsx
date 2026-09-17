@@ -10,6 +10,7 @@ import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getConecfFirstImport, requestConecfFirstImport, type FirstImportStatus } from '@/app/actions/conecfFirstImport';
 import { parseBodyType } from '@/lib/bodyType';
+import { startConecfEkichikaBulkEdit } from '@/app/actions/conecfGirlEdit';
 
 // コネックエフ「女性一覧」（第398便・1c → 第413便でベンリー型に）。
 // ★★ ベンリー（mrvenrey.jp の女性一覧）の形に寄せた（★ ベンリーから移る店舗様が迷わないため）。
@@ -20,7 +21,7 @@ import { parseBodyType } from '@/lib/bodyType';
 // ★ 親データはフクエスの therapists（★ ここに出る人＝フクエスに居る人）。
 
 const GREEN_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg-[#218925] text-white text-[12px] shadow-sm disabled:opacity-40';
-const COLS = 'grid grid-cols-[64px_68px_1fr_48px_72px] md:grid-cols-[80px_76px_1fr_64px_72px_190px_110px_110px]';
+const COLS = 'grid grid-cols-[84px_68px_1fr_48px_72px] md:grid-cols-[96px_76px_1fr_64px_72px_190px_110px_110px]';
 
 function sizeLines(raw: string | null): [string, string] {
   const b = parseBodyType(raw);
@@ -71,6 +72,10 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const [toggling, setToggling] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
+  // ★ 第420便: 駅ちかへまとめて更新（チェックした人）
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkNote, setBulkNote] = useState('');
 
   const load = useCallback(async () => {
     const res = await listConecfGirls();
@@ -87,6 +92,21 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const imp = useFirstImport(onImportDone);
 
   const needEnabled = (m: string) => { onToast(m); };
+
+  const onBulk = async () => {
+    if (!enabled) { needEnabled('更新するには、ホームで「コネックエフに切り替える」を押してください'); return; }
+    if (picked.size === 0) { onToast('更新する女性にチェックを入れてください'); return; }
+    setBulkBusy(true); setBulkNote('');
+    const r = await startConecfEkichikaBulkEdit({ ids: [...picked] });
+    setBulkBusy(false);
+    if (!r.ok) { onToast(r.error); return; }
+    const sk = r.data.skipped;
+    if (r.data.queued > 0) {
+      onToast(`${r.data.queued}名の駅ちかへの更新を受け付けました。結果は「更新結果」に出ます`);
+      setPicked(new Set());
+    } else onToast('更新できる女性がいませんでした');
+    setBulkNote(sk.length > 0 ? `更新しなかった方：${sk.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '');
+  };
 
   const onAdd = async () => {
     setBusy(true);
@@ -147,10 +167,20 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             <span className="text-[16px] leading-none">⤓</span>女性取り込み
           </button>
         )}
+        <button
+          type="button"
+          disabled={bulkBusy}
+          onClick={() => void onBulk()}
+          className="inline-flex items-center h-8 px-3 rounded border border-[#218925] bg-[#fefdfd] text-[#218925] text-[12px] disabled:opacity-40"
+        >
+          {bulkBusy ? '受け付けています…' : `駅ちかへまとめて更新${picked.size > 0 ? `（${picked.size}名）` : ''}`}
+        </button>
         <Link href={href('/girls/sync')} className="inline-flex items-center h-8 px-3 rounded border border-slate-300 bg-[#fefdfd] text-[12px]">
           サイトへ登録
         </Link>
       </div>
+
+      {bulkNote && <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-amber-700">{bulkNote}</p>}
 
       {/* ── 新規登録 ── */}
       {adding && (
@@ -219,7 +249,16 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         </div>
 
         <div className={`${COLS} items-center px-2 h-9 border-b border-slate-200 text-[12px] font-bold text-black/50`}>
-          <span />
+          <label className="pl-2 flex items-center gap-1 font-normal cursor-pointer">
+            <input
+              type="checkbox"
+              checked={shown.length > 0 && shown.every((g) => picked.has(g.id))}
+              onChange={(e) => setPicked(e.target.checked ? new Set(shown.map((g) => g.id)) : new Set())}
+              className="accent-[#1e88e5]"
+              aria-label="すべて選ぶ"
+            />
+            全
+          </label>
           <span />
           <span>名前</span>
           <span className="text-center">年齢</span>
@@ -236,7 +275,14 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             const [t, bwh] = sizeLines(g.bodyType);
             return (
               <li key={g.id} className={`${COLS} items-center px-2 py-2.5 border-b border-slate-100 hover:bg-black/[0.03]`}>
-                <span className="pl-2">
+                <span className="pl-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={picked.has(g.id)}
+                    onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(g.id); else n.delete(g.id); return n; })}
+                    className="accent-[#1e88e5]"
+                    aria-label={`${g.name}を選ぶ`}
+                  />
                   <Link href={href(`/girls/${g.id}`)} className="inline-flex items-center gap-1 text-[12px] text-[#1558d6] underline underline-offset-2">
                     <span aria-hidden>✎</span>編集
                   </Link>

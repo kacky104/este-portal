@@ -83,3 +83,43 @@ export async function getConecfEkichikaEditStatus(input: { flowId: string }): Pr
     },
   };
 }
+
+/** ★ 1回のまとめて更新で回す上限（★ 1人1〜2分。★ 50人で約1時間） */
+const BULK_MAX = 50;
+
+/**
+ * ★★ 第420便: 駅ちかへまとめて更新。★ 1回のログインで、選んだ人を順に更新する。
+ *   ★ 送れない人（駅ちかと未連携・送り先で送らない 等）は外して、名前と理由を返す。
+ *   ★ 結果は1人ずつ「更新結果」に出る。
+ */
+export async function startConecfEkichikaBulkEdit(input: { ids: number[] }): Promise<Result<{ queued: number; skipped: Array<{ name: string; reason: string }> }>> {
+  const r = await resolve();
+  if (!r.ok) return r;
+  const ids = [...new Set((Array.isArray(input.ids) ? input.ids : []).map(Number).filter((x) => Number.isFinite(x) && x > 0))];
+  if (ids.length === 0) return { ok: false, error: '女性を選んでください' };
+  if (ids.length > BULK_MAX) return { ok: false, error: `一度に更新できるのは${BULK_MAX}名までです` };
+  const { data: names } = await r.svc.from('therapists').select('id, name').eq('salon_id', r.salonId).in('id', ids);
+  const nameOf = new Map((names ?? []).map((t) => [Number(t.id), String(t.name ?? '')]));
+  const items: Array<{ castId: string; name: string; values: import('@/lib/ekichikaGirlEdit').EkichikaGirlEditValues }> = [];
+  const skipped: Array<{ name: string; reason: string }> = [];
+  for (const id of ids) {
+    const b = await buildGirlEditValues(r.svc, { salonId: r.salonId, therapistId: id, slot: 1 });
+    if (b.ok) items.push(b.data);
+    else skipped.push({ name: nameOf.get(id) || '#' + id, reason: b.error });
+  }
+  if (items.length === 0) return { ok: true, data: { queued: 0, skipped } };
+  const [first, ...rest] = items;
+  try {
+    const f = await startRelayFlow({
+      salonId: r.salonId, provider: 'ekichika', slot: 1,
+      intent: 'girl_edit',
+      actor: 'shop:' + r.userId,
+      girlEdit: { castId: first.castId, name: first.name, values: first.values, apply: true, queue: rest },
+    });
+    if (!f.ok) return { ok: false, error: f.reason === 'busy' ? 'いま駅ちかで別の更新が動いています。少し待ってからお試しください' : f.note };
+    return { ok: true, data: { queued: items.length, skipped } };
+  } catch (e) {
+    console.error('[conecf] まとめて更新を始められなかった', (e as Error).message);
+    return { ok: false, error: '更新を開始できませんでした。時間をおいてお試しください' };
+  }
+}

@@ -618,6 +618,11 @@ export type RelayFlowContext = {
   editStage?: 'verify';
   /** ★ 送った組と変わる欄（★ 照合に使う） */
   editPlan?: EditPlan;
+  /**
+   * ★★ 第420便: まとめて更新の残り（★ 1回のログインで順に回す）。★ 1人終わるたびに先頭を取り出す
+   *   ★ 1人が止まっても次の人へ進む。★ ログイン・セッション切れは全体を止める
+   */
+  editQueue?: Array<{ castId: string; name: string; values: EkichikaGirlEditValues }>;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -1233,6 +1238,34 @@ export function advanceFlow(input: {
   //     ・まだ読み直していない（createRosterRefresh が無い）
   //   ★ `mediaCreated` はそのまま持ち上げる（★ 番号は先に表に書く・第249便 §2）。
   //   ★ エステ魂（cast_create）は第270便で各 return に書いてある（★ 終わり方が2つだけ）。★ ここでは触らない。
+  // ★★ 第420便: まとめて更新（girl_edit ＋ editQueue）。★ 1人ぶんが終わったら（done/stop）次の人の編集ページを読みに行く
+  if (
+    ctx.intent === 'girl_edit'
+    && (out.kind === 'done' || out.kind === 'stop')
+    && Array.isArray(ctx.editQueue) && ctx.editQueue.length > 0
+    && !out.audits.some((a) => a.event === 'login' && a.outcome === 'failed')
+  ) {
+    const [head, ...rest] = ctx.editQueue;
+    const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+    try {
+      const req = buildEkichikaGirlEditFormRequest(cookie, String(head.castId));
+      return {
+        kind: 'next',
+        audits: out.audits,
+        note: out.note + '。★ 続けて ' + head.name + 'さん（残り' + rest.length + '名）',
+        next: {
+          purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '',
+          context: {
+            ...ctx, cookie,
+            editCastId: String(head.castId), editName: head.name, editValues: head.values,
+            editStage: undefined, editPlan: undefined, editQueue: rest,
+          },
+        },
+      };
+    } catch {
+      return { ...out, note: out.note + '。★ 次の人の番号が不正なため、まとめて更新をここで終えます' };
+    }
+  }
   if (
     out.kind === 'done'
     && ctx.intent === 'girl_create'

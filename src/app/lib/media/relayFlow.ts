@@ -295,7 +295,9 @@ export async function startRelayFlow(params: {
    * intent='girl_edit' のときだけ（第415便）。★ **駅ちかの女の子1人のプロフィールを更新する。**
    * ★★ apply が true でなければ、編集ページを読んで「何が変わるか」を記録するだけ（★ 1文字も送らない）。
    */
-  girlEdit?: { castId: string; name: string; values: EkichikaGirlEditValues; apply: boolean };
+  girlEdit?: { castId: string; name: string; values: EkichikaGirlEditValues; apply: boolean;
+    /** ★ 第420便: まとめて更新の2人目以降 */
+    queue?: Array<{ castId: string; name: string; values: EkichikaGirlEditValues }> };
   /**
    * intent='cast_photo' のときだけ（第243便）。★ **エステ魂のセラピストに写真を1枚送る。**
    * ★★ 写真そのものはここを通さない（第106便・案B）。★ 在処だけ渡す。
@@ -440,6 +442,7 @@ export async function startRelayFlow(params: {
           editName: String(params.girlEdit.name ?? ''),
           editValues: params.girlEdit.values,
           ...(params.girlEdit.apply === true ? { editApply: true } : {}),
+          ...(params.girlEdit.queue && params.girlEdit.queue.length > 0 ? { editQueue: params.girlEdit.queue } : {}),
         }
       : {}),
     ...(params.girlCreate
