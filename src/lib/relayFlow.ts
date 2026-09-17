@@ -74,6 +74,11 @@ import {
   EKICHIKA_PHOTO_CROP_URL,
   verifyPhotoSlots,          // ★ 第246便: 読み直しての照合
   describePhotoSlots,        // ★ 第246便: 枠の形を1本の文字にして記録に残す
+  buildDeleteFields,         // ★ 第421便: コネックエフの写真に合わせて消す
+  verifyPhotoDeleted,
+  EKICHIKA_PHOTO_DELETE_URL,
+  type PhotoSyncOp,
+  type PhotoPage,
   type Rect,
   type PhotoSlotState,
 } from './ekichikaPhoto';
@@ -622,7 +627,21 @@ export type RelayFlowContext = {
    * ★★ 第420便: まとめて更新の残り（★ 1回のログインで順に回す）。★ 1人終わるたびに先頭を取り出す
    *   ★ 1人が止まっても次の人へ進む。★ ログイン・セッション切れは全体を止める
    */
-  editQueue?: Array<{ castId: string; name: string; values: EkichikaGirlEditValues }>;
+  editQueue?: Array<{ castId: string; name: string; values: EkichikaGirlEditValues; therapistId?: number; photos?: PhotoSyncOp[]; photoSkipped?: string[] }>;
+  /** ★ 第421便: フクエス側の番号（★ 写真を送った記録に使う） */
+  editTherapistId?: number;
+  /** ★★ 第421便: プロフィールのあとに合わせる写真の枠（★ 変わった枠だけ・呼び出し側が記録と比べて作る） */
+  editPhotos?: PhotoSyncOp[];
+  /** ★ 第421便: 用意できず送らない写真の理由（★ 黙って落とさない） */
+  editPhotoSkipped?: string[];
+  /** ★★ 第421便: いま写真を合わせている最中（★ read_photo_page の段を photoSync の道へ回す） */
+  photoSync?: boolean;
+  /** ★ まだ合わせていない枠 */
+  photoSyncOps?: PhotoSyncOp[];
+  /** ★ いま合わせている枠 */
+  photoSyncCur?: PhotoSyncOp;
+  /** ★ この人で消した枠（★ まとめの記録のため） */
+  photoRemoved?: number[];
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -681,7 +700,7 @@ export type RelayFlowContext = {
   /** ③サムネイルの正方形（300×400 の空間）。無ければ駅ちかの既定（中央 180×180） */
   photoThumbRect?: Rect;
   /** いまどの段のために編集ページを読みに行っているか。★ 'verify' は第246便・'probe' は第248便で足した */
-  photoStage?: 'probe' | 'upload' | 'crop_main' | 'crop_thumb' | 'verify';
+  photoStage?: 'probe' | 'upload' | 'crop_main' | 'crop_thumb' | 'verify' | 'sync' | 'sync_deleted';
   /**
    * ★★★★★★ 【第248便】**枠1（トップ画像）へ入れてよい**という明示。
    *   ★ 既定は無し ＝ 今までどおり枠1へは入れない（★ 何も書かなければ振る舞いは1つも変わらない）。
@@ -873,6 +892,9 @@ export type FlowAudit = {
   detail?: AuditDetail;
 };
 
+/** ★ 第421便: 駅ちかの画像の枠へ合わせ終えた1件 */
+export type PhotoSynced = { therapistId: number; imageSlot: number; sourceUrl: string | null };
+
 export type FlowNextRequest = {
   purpose:
     | 'read_work' | 'write_work' | 'verify_work' | 'read_girls' | 'read_maillist'
@@ -896,6 +918,8 @@ export type FlowNextRequest = {
     | 'esulove_therapists'
     // ★ 写真の段（第107便）。★ upload_photo だけがファイル付き
     | 'read_photo_page' | 'upload_photo' | 'crop_photo'
+    // ★★ 第421便: コネックエフの写真に合わせて1枠消す。★ girl_edit の写真の道からだけ
+    | 'delete_photo'
     // ★ 新着情報の画像（第162便）★ ①上げる → ②切る
     | 'article_image' | 'article_crop'
     // ★ エステ魂の段（第109便）。★ 名前を分けることで、駅ちか・エステラブの段の判定に一切触れない
@@ -932,9 +956,12 @@ export type FlowOutcome =
        *   ★ 呼び出し側は 'done' と同じ扱いで書く（★ 書き方は1か所のまま）。
        */
       mediaCreated?: { therapistId: number; castId: string; name: string };
+      /** ★★ 第421便: 写真を合わせ終えた枠（★ 記録の表に書くのは呼び出し側。sourceUrl=null は行を消す） */
+      photoSynced?: PhotoSynced[];
     }
   | {
       kind: 'done'; audits: FlowAudit[]; note: string;
+      photoSynced?: PhotoSynced[];
       /** ★ エステ魂の流れの終わりだけ（第110便） */
       esutamaPlan?: EsutamaPlanSummary;
       /**
@@ -956,7 +983,7 @@ export type FlowOutcome =
        */
       mediaRemoved?: { castId: string; name: string | null; reason: 'deleted' | 'not_listed' };
     }
-  | { kind: 'stop'; audits: FlowAudit[]; note: string }
+  | { kind: 'stop'; audits: FlowAudit[]; note: string; photoSynced?: PhotoSynced[] }
   /**
    * ★★★ 読めた。ここから先は【DBを読まないと決められない】（第43便）。
    *   フクエスの出勤は DB にあり、このファイルは DB を触らない約束なので、
@@ -1238,6 +1265,50 @@ export function advanceFlow(input: {
   //     ・まだ読み直していない（createRosterRefresh が無い）
   //   ★ `mediaCreated` はそのまま持ち上げる（★ 番号は先に表に書く・第249便 §2）。
   //   ★ エステ魂（cast_create）は第270便で各 return に書いてある（★ 終わり方が2つだけ）。★ ここでは触らない。
+  // ★★★ 第421便: プロフィールの段が終わったら（done/stop）、同じ人の写真を合わせに行く。
+  //   ★ 送る（apply）ときだけ。★ ログインが切れていたら行かない。★ 写真の道の終わり（photoSync）ではもう入らない
+  if (
+    ctx.intent === 'girl_edit'
+    && ctx.editApply === true
+    && ctx.photoSync !== true
+    && (out.kind === 'done' || out.kind === 'stop')
+    && !out.audits.some((a) => a.event === 'login' && a.outcome === 'failed')
+    && ((ctx.editPhotos?.length ?? 0) > 0 || (ctx.editPhotoSkipped?.length ?? 0) > 0)
+  ) {
+    const castId = String(ctx.editCastId ?? '');
+    const who = String(ctx.editName ?? '').trim() || 'castId ' + castId;
+    const skippedAudits: FlowAudit[] = (ctx.editPhotoSkipped ?? []).length > 0
+      ? [{ event: 'push_photo', outcome: 'stopped', summary: who + 'さんの写真で送れないものがありました（' + (ctx.editPhotoSkipped ?? []).join('・').slice(0, 90) + '）', detail: { castId, reason: 'not_ready', count: (ctx.editPhotoSkipped ?? []).length, flowId: ctx.flowId } }]
+      : [];
+    const ops = ctx.editPhotos ?? [];
+    if (ops.length > 0 && /^\d{1,12}$/.test(castId)) {
+      const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+      const syncCtx: RelayFlowContext = {
+        ...ctx, cookie,
+        editPhotos: undefined, editPhotoSkipped: undefined,
+        photoSync: true, photoSyncOps: ops, photoSyncCur: undefined, photoRemoved: [], photoPut: [],
+        photoGirlId: castId, photoStage: 'sync',
+        photoSlot: undefined, photoFile: undefined, photoSrc: undefined, photoSlotsBefore: undefined,
+        photoMainRect: undefined, photoThumbRect: undefined,
+      };
+      return {
+        kind: 'next',
+        audits: [...out.audits, ...skippedAudits],
+        note: out.note + '。★ 続けて写真（' + ops.map((o) => '枠' + o.slot + (o.action === 'put' ? '入れる' : '消す')).join('・') + '）',
+        next: buildReadPhotoPageRequest(syncCtx),
+      };
+    }
+    // ★ 送れる写真が無い（理由だけ残す）。★ 次の人へは下の段が進める
+    return advanceQueueOrEnd(input, { ...ctx, editPhotoSkipped: undefined, editPhotos: undefined }, { ...out, audits: [...out.audits, ...skippedAudits] });
+  }
+  return advanceQueueOrEnd(input, ctx, out);
+}
+
+function advanceQueueOrEnd(
+  input: { headers: Record<string, string | string[]> },
+  ctx: RelayFlowContext,
+  out: FlowOutcome,
+): FlowOutcome {
   // ★★ 第420便: まとめて更新（girl_edit ＋ editQueue）。★ 1人ぶんが終わったら（done/stop）次の人の編集ページを読みに行く
   if (
     ctx.intent === 'girl_edit'
@@ -1253,12 +1324,18 @@ export function advanceFlow(input: {
         kind: 'next',
         audits: out.audits,
         note: out.note + '。★ 続けて ' + head.name + 'さん（残り' + rest.length + '名）',
+        ...(out.photoSynced && out.photoSynced.length > 0 ? { photoSynced: out.photoSynced } : {}),
         next: {
           purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '',
           context: {
             ...ctx, cookie,
             editCastId: String(head.castId), editName: head.name, editValues: head.values,
             editStage: undefined, editPlan: undefined, editQueue: rest,
+            // ★★ 第421便: 前の人の写真の道を持ち越さない
+            editTherapistId: head.therapistId, editPhotos: head.photos, editPhotoSkipped: head.photoSkipped,
+            photoSync: undefined, photoSyncOps: undefined, photoSyncCur: undefined, photoRemoved: undefined, photoPut: undefined,
+            photoGirlId: undefined, photoStage: undefined, photoSlot: undefined, photoFile: undefined, photoSrc: undefined,
+            photoSlotsBefore: undefined, photoMainRect: undefined, photoThumbRect: undefined,
           },
         },
       };
@@ -1368,6 +1445,8 @@ function advanceFlowStep(
       return afterUploadPhoto(input, ctx);
     case 'crop_photo':
       return afterCropPhoto(input, ctx);
+    case 'delete_photo':
+      return afterDeletePhoto(input, ctx);
     // ── エステ魂（第109便）★ 段名で分けている。既存の case には触れていない ──
     case 'esutama_login_page':
       return afterEsutamaLoginPage(input, ctx);
@@ -3691,6 +3770,11 @@ function afterReadPhotoPage(
     );
   }
 
+  // ────────── ★★★ 第421便: コネックエフの写真に合わせる道（girl_edit のあと） ──────────
+  if (ctx.photoSync === true && (stage === 'sync' || stage === 'sync_deleted')) {
+    return photoSyncFromPage(input, ctx, page);
+  }
+
   // ────────── ⓪ 読むだけ（★ 第248便。★ POST を1本も組まない） ──────────
   //   ★★★ なぜ要るか … 設計メモ §8 ④「**新規登録した直後の子にも、同じ画像枠が使えるか**」が未測のまま。
   //     ★ `apply=false` は中継ジョブを積まないので、**ページを読みにも行かない**。★ 測る道具が無かった。
@@ -3749,6 +3833,23 @@ function afterReadPhotoPage(
       detail: { girlId, slot, ...shape, flowId: ctx.flowId },
     };
     const put = [...(ctx.photoPut ?? []), slot];
+
+    // ★★★ 第421便: 写真を合わせる道なら、記録を返して次の枠へ（★ 同じ読み直しのページで続ける）
+    if (ctx.photoSync === true) {
+      const cur = ctx.photoSyncCur;
+      const synced: PhotoSynced[] = cur && cur.slot === slot && cur.sourceUrl && typeof ctx.editTherapistId === 'number'
+        ? [{ therapistId: ctx.editTherapistId, imageSlot: slot, sourceUrl: cur.sourceUrl }]
+        : [];
+      const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+      return photoSyncLoop(
+        {
+          ...ctx, cookie, photoPut: put, photoSyncCur: undefined, photoStage: 'sync',
+          photoSlot: undefined, photoFile: undefined, photoSrc: undefined, photoSlotsBefore: undefined,
+          photoMainRect: undefined, photoThumbRect: undefined,
+        },
+        page, [putAudit], synced,
+      );
+    }
 
     // ★★★★★★ 【第253便】次の1枚があれば、もう一周する（★ 1枚ごとに読み直して照合するのは変えない）。
     //   ★ 列が空なら今までどおりここで終わり（★ `photoQueue` が無ければ1文字も変わらない）。
@@ -3946,6 +4047,159 @@ function afterReadPhotoPage(
     },
     audits: [],
     note: '編集ページを読み直した。★ 次はサムネイルを正方形に切る（' + rect.w + '×' + rect.h + ' @ 300×400）',
+  };
+}
+
+// ───────── ★★★ 第421便: コネックエフの写真に駅ちかを合わせる（girl_edit のあと）─────────
+//   枠ごとに: 埋まっていれば 消す（delete_photo）→ 読み直して「その枠だけ空いた」を照合 → put なら入れる（upload → crop → 照合）
+//   ★ 1手ごとに読み直す。★ 照合が外れたら残りは送らない（傷を広げない）
+
+function photoSyncWho(ctx: RelayFlowContext): string {
+  return String(ctx.editName ?? '').trim() || 'castId ' + String(ctx.photoGirlId ?? '');
+}
+
+function photoSyncFromPage(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+  page: PhotoPage,
+): FlowOutcome {
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+  const c: RelayFlowContext = { ...ctx, cookie };
+  if (ctx.photoStage !== 'sync_deleted') return photoSyncLoop(c, page, [], []);
+
+  const cur = ctx.photoSyncCur;
+  const before = ctx.photoSlotsBefore;
+  if (!cur || !before || before.length === 0) {
+    return photoStop(ctx, 'context_missing', '写真を消したあとの照合に要る情報がありませんでした', 'photoSyncCur / photoSlotsBefore が無い');
+  }
+  const shape = { before: describePhotoSlots(before), after: describePhotoSlots(page.slots) };
+  const bad = verifyPhotoDeleted(before, page.slots, cur.slot);
+  if (bad) {
+    const summary = bad.reason === 'other_changed'
+      ? '駅ちかの枠' + cur.slot + 'の写真を消したところ、ほかの枠（' + bad.changed.join('・') + '）も変わっていました（★ 画面をご確認ください）'
+      : photoSyncWho(ctx) + 'さんの駅ちかの枠' + cur.slot + 'の写真を消せませんでした（★ 残りの写真は送っていません）';
+    return stop(
+      [{ event: 'push_photo', outcome: 'failed', summary, detail: { girlId: ctx.photoGirlId ?? null, slot: cur.slot, stage: 'delete', reason: bad.reason, changed: bad.changed.join(',') || null, ...shape, flowId: ctx.flowId } }],
+      '消したあとの照合で外れた（' + bad.reason + '・前 ' + shape.before + ' → 後 ' + shape.after + '）',
+    );
+  }
+  const delAudit: FlowAudit = {
+    event: 'push_photo', outcome: 'ok',
+    summary: '駅ちかの枠 ' + cur.slot + ' の写真を消しました（' + (cur.action === 'put' ? '入れ替えのため' : 'コネックエフで減ったため') + '・読み直して確かめました）',
+    detail: { girlId: ctx.photoGirlId ?? null, slot: cur.slot, stage: 'delete', ...shape, flowId: ctx.flowId },
+  };
+  if (cur.action === 'remove') {
+    const synced: PhotoSynced[] = typeof ctx.editTherapistId === 'number' ? [{ therapistId: ctx.editTherapistId, imageSlot: cur.slot, sourceUrl: null }] : [];
+    return photoSyncLoop(
+      { ...c, photoRemoved: [...(ctx.photoRemoved ?? []), cur.slot], photoSyncCur: undefined, photoSlotsBefore: undefined, photoStage: 'sync' },
+      page, [delAudit], synced,
+    );
+  }
+  return photoSyncUpload(c, cur, page, [delAudit], []);
+}
+
+/** ★ 残りの枠を、手元のページ（読み直したばかり）で順に見る。★ 通信が要る手に当たったらそこで返す */
+function photoSyncLoop(c: RelayFlowContext, page: PhotoPage, audits: FlowAudit[], synced: PhotoSynced[]): FlowOutcome {
+  const girlId = String(c.photoGirlId ?? '');
+  const ops = [...(c.photoSyncOps ?? [])];
+  const withSynced = synced.length > 0 ? { photoSynced: synced } : {};
+  while (ops.length > 0) {
+    const op = ops.shift() as PhotoSyncOp;
+    const t = isPhotoSlot(op.slot) ? page.slots.find((x) => x.slot === op.slot) : undefined;
+    if (!t) {
+      audits.push({ event: 'push_photo', outcome: 'stopped', summary: '駅ちかの画像の枠 ' + String(op.slot) + ' が見つからないため、その枠は送りませんでした', detail: { girlId, slot: Number(op.slot) || null, reason: 'slot_missing', flowId: c.flowId } });
+      continue;
+    }
+    const cc: RelayFlowContext = { ...c, photoSyncOps: ops, photoSyncCur: op };
+    if (t.hasImage) {
+      let fields: Array<[string, string]>;
+      try {
+        fields = buildDeleteFields({ girlId, shopId: page.shopId, slot: op.slot, csrfToken: page.csrfToken });
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        return { kind: 'stop', audits: [...audits, { event: 'push_photo', outcome: 'stopped', summary: '写真を消す操作を組み立てられなかったため止めました', detail: { girlId, slot: op.slot, reason: 'blocked', note: why.slice(0, 100), flowId: c.flowId } }], note: '削除を組めない: ' + why, ...withSynced };
+      }
+      const nctx: RelayFlowContext = { ...cc, photoStage: 'sync_deleted', photoSlotsBefore: page.slots, photoSlot: op.slot };
+      return {
+        kind: 'next',
+        audits,
+        note: '枠 ' + op.slot + ' の写真を消します（' + (op.action === 'put' ? '入れ替えのため' : 'コネックエフで減ったため') + '）',
+        ...withSynced,
+        next: { purpose: 'delete_photo', method: 'POST', url: EKICHIKA_PHOTO_DELETE_URL, headers: photoHeadersPost(nctx, true), body: encodePayload(fields), context: nctx },
+      };
+    }
+    if (op.action === 'remove') {
+      // ★ もう空いていた。★ 記録だけ消す
+      if (typeof c.editTherapistId === 'number') synced.push({ therapistId: c.editTherapistId, imageSlot: op.slot, sourceUrl: null });
+      continue;
+    }
+    return photoSyncUpload(cc, op, page, audits, synced);
+  }
+
+  const put = c.photoPut ?? [];
+  const removed = c.photoRemoved ?? [];
+  const parts = [put.length > 0 ? '入れた枠 ' + put.join('・') : '', removed.length > 0 ? '消した枠 ' + removed.join('・') : ''].filter(Boolean);
+  const after = describePhotoSlots(page.slots);
+  return {
+    kind: 'done',
+    audits: [...audits, {
+      event: 'push_photo', outcome: 'ok',
+      summary: photoSyncWho(c) + 'さんの駅ちかの写真を合わせました（' + (parts.join('／') || '変わるところなし') + '）',
+      detail: { girlId, put: put.join(',') || null, removed: removed.join(',') || null, after, stage: 'sync', flowId: c.flowId },
+    }],
+    note: '写真を合わせ終えた（' + (parts.join('／') || '変化なし') + '・後 ' + after + '）',
+    ...(synced.length > 0 ? { photoSynced: synced } : {}),
+  };
+}
+
+/** ★ 空いている枠へ1枚入れる（★ 枠1の止め〈slot1_empty〉は通らない＝コネックエフが正。★ 照合はいつもどおり） */
+function photoSyncUpload(c: RelayFlowContext, op: PhotoSyncOp, page: PhotoPage, audits: FlowAudit[], synced: PhotoSynced[]): FlowOutcome {
+  const girlId = String(c.photoGirlId ?? '');
+  const file = op.file;
+  if (!file) {
+    audits.push({ event: 'push_photo', outcome: 'stopped', summary: '枠 ' + op.slot + ' に入れる写真が用意できていないため送りませんでした', detail: { girlId, slot: op.slot, reason: 'no_file', flowId: c.flowId } });
+    return photoSyncLoop({ ...c, photoSyncCur: undefined, photoStage: 'sync', photoSlotsBefore: undefined }, page, audits, synced);
+  }
+  let fields: Record<string, string>;
+  try {
+    fields = buildUploadFields({ girlId, shopId: page.shopId, slot: op.slot, csrfToken: page.csrfToken });
+  } catch (e) {
+    const why = e instanceof Error ? e.message : String(e);
+    return { kind: 'stop', audits: [...audits, { event: 'push_photo', outcome: 'stopped', summary: '写真を送る操作を組み立てられなかったため止めました', detail: { girlId, slot: op.slot, reason: 'blocked', note: why.slice(0, 100), flowId: c.flowId } }], note: 'アップロードを組めない: ' + why, ...(synced.length > 0 ? { photoSynced: synced } : {}) };
+  }
+  const upCtx: RelayFlowContext = {
+    ...c, photoSyncCur: op, photoSlot: op.slot, photoFile: file, photoSrc: undefined,
+    photoMainRect: undefined, photoThumbRect: undefined, photoStage: 'upload', photoSlotsBefore: page.slots,
+  };
+  const multipart: RelayMultipart = {
+    fields,
+    files: [{ field: 'upfile', url: relayFileUrl(file.bucket, file.path), filename: file.filename, contentType: file.contentType }],
+  };
+  return {
+    kind: 'next',
+    audits,
+    note: '枠 ' + op.slot + ' へ写真を入れます（前 ' + describePhotoSlots(page.slots) + '）',
+    ...(synced.length > 0 ? { photoSynced: synced } : {}),
+    next: { purpose: 'upload_photo', method: 'POST', url: EKICHIKA_PHOTO_UPLOAD_URL, headers: photoHeadersPost(upCtx, false), body: '', multipart, context: upCtx },
+  };
+}
+
+/** ★ 削除の応答。★ 成否は名乗らない（読み直して照合する） */
+function afterDeletePhoto(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const lost = diaryLoginLost(input, ctx, '写真の削除の応答');
+  if (lost) return lost;
+  if (input.status >= 400) {
+    return photoStop(ctx, 'delete_http_' + input.status, '駅ちかで写真を消す操作に想定外の応答がありました（' + input.status + '）', '削除の応答が ' + input.status, responseClue(input));
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+  return {
+    kind: 'next',
+    next: buildReadPhotoPageRequest({ ...ctx, cookie, photoStage: 'sync_deleted' }),
+    audits: [],
+    note: '削除を送った（応答 ' + input.status + '）。★ 成否は編集ページを読み直して確かめる',
   };
 }
 

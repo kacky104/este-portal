@@ -326,11 +326,47 @@ export function buildThumbCropFields(ids: PhotoIds, imageSrc: string, rect: Rect
   ];
 }
 
-/** 削除。★ 第107便では使わない（初回の実弾は人が画面で消す）。★ 形だけ置いておく。 */
+/**
+ * 削除（第421便で使い始めた）。★ 項目はブラウザが送ったものと同じ並び。
+ *   ★★ 2026-09-17 の実験（るうさん・枠3）: ブラウザは image_id を【どの枠でも "1"】で送る（画面に #image_id が重複しているため）。
+ *     ★ それでも消えたのは枠3だけ ＝ 駅ちかは image_set_id で枠を決めている。★ 同じ形（image_id=1）で送る。
+ *   ★★★ 成否は応答では決めない。★ 読み直して「その枠だけ空いた」ことを verifyPhotoDeleted で確かめる。
+ */
 export function buildDeleteFields(ids: PhotoIds): Array<[string, string]> {
   assertIds(ids);
   return [
     ['image_set_id', String(ids.slot)], ['shopid', ids.shopId], ['id', ids.girlId],
-    ['fuel_csrf_token', ids.csrfToken], ['image_id', String(ids.slot)], ['girl_id', ids.girlId],
+    ['fuel_csrf_token', ids.csrfToken], ['image_id', '1'], ['girl_id', ids.girlId],
   ];
 }
+
+/**
+ * ★★★ 消したあとの照合（第421便）。★ null ＝ ok。
+ *   ・消した枠が空きになっている
+ *   ・★ ほかの枠は1つも変わっていない（写真のある枠は生の値まで同じ）
+ */
+export function verifyPhotoDeleted(before: PhotoSlotState[], after: PhotoSlotState[], slot: number): { reason: 'slot_missing' | 'not_deleted' | 'other_changed'; changed: number[] } | null {
+  const at = (list: PhotoSlotState[], n: number) => list.find((s) => s.slot === n) ?? null;
+  const a = at(after, slot);
+  if (!a || !at(before, slot)) return { reason: 'slot_missing', changed: [] };
+  const changed = before
+    .filter((b) => b.slot !== slot)
+    .filter((b) => { const now = at(after, b.slot); return !now || now.hasImage !== b.hasImage || (b.hasImage && now.image !== b.image); })
+    .map((b) => b.slot);
+  if (changed.length > 0) return { reason: 'other_changed', changed };
+  if (a.hasImage) return { reason: 'not_deleted', changed: [] };
+  return null;
+}
+
+/**
+ * ★★★ コネックエフの写真を枠ごとに合わせる1手（第421便）。
+ *   put    … その枠へ file を入れる（★ 埋まっていれば先に消してから入れる＝コネックエフが正）
+ *   remove … その枠を消す（★ 呼び出し側は【こちらが前に送った記録のある枠】だけを remove にする）
+ */
+export type PhotoSyncOp = {
+  slot: number;
+  action: 'put' | 'remove';
+  /** ★ 送った記録に書く元の URL（remove は null） */
+  sourceUrl: string | null;
+  file?: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number };
+};

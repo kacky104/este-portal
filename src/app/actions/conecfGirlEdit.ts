@@ -36,7 +36,10 @@ export async function startConecfEkichikaEdit(input: { id: number; apply: boolea
       salonId: r.salonId, provider: 'ekichika', slot: 1,
       intent: 'girl_edit',
       actor: 'shop:' + r.userId,
-      girlEdit: { castId: built.data.castId, name: built.data.name, values: built.data.values, apply: input.apply === true },
+      girlEdit: {
+        castId: built.data.castId, name: built.data.name, values: built.data.values, apply: input.apply === true,
+        therapistId: built.data.therapistId, photos: built.data.photos, photoSkipped: built.data.photoSkipped,
+      },
     });
     if (!f.ok) return { ok: false, error: f.reason === 'busy' ? 'いま駅ちかで別の更新が動いています。少し待ってからお試しください' : f.note };
     return { ok: true, data: { flowId: f.flowId } };
@@ -100,7 +103,7 @@ export async function startConecfEkichikaBulkEdit(input: { ids: number[] }): Pro
   if (ids.length > BULK_MAX) return { ok: false, error: `一度に更新できるのは${BULK_MAX}名までです` };
   const { data: names } = await r.svc.from('therapists').select('id, name').eq('salon_id', r.salonId).in('id', ids);
   const nameOf = new Map((names ?? []).map((t) => [Number(t.id), String(t.name ?? '')]));
-  const items: Array<{ castId: string; name: string; values: import('@/lib/ekichikaGirlEdit').EkichikaGirlEditValues }> = [];
+  const items: Array<{ castId: string; name: string; values: import('@/lib/ekichikaGirlEdit').EkichikaGirlEditValues; therapistId: number; photos: import('@/lib/ekichikaPhoto').PhotoSyncOp[]; photoSkipped: string[] }> = [];
   const skipped: Array<{ name: string; reason: string }> = [];
   for (const id of ids) {
     const b = await buildGirlEditValues(r.svc, { salonId: r.salonId, therapistId: id, slot: 1 });
@@ -114,7 +117,10 @@ export async function startConecfEkichikaBulkEdit(input: { ids: number[] }): Pro
       salonId: r.salonId, provider: 'ekichika', slot: 1,
       intent: 'girl_edit',
       actor: 'shop:' + r.userId,
-      girlEdit: { castId: first.castId, name: first.name, values: first.values, apply: true, queue: rest },
+      girlEdit: {
+        castId: first.castId, name: first.name, values: first.values, apply: true,
+        therapistId: first.therapistId, photos: first.photos, photoSkipped: first.photoSkipped, queue: rest,
+      },
     });
     if (!f.ok) return { ok: false, error: f.reason === 'busy' ? 'いま駅ちかで別の更新が動いています。少し待ってからお試しください' : f.note };
     return { ok: true, data: { queued: items.length, skipped } };

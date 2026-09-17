@@ -62,7 +62,8 @@ import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/
 // ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import type { EsutamaRosterRow } from '@/lib/esutamaParse';
-import type { EsutamaPlanSummary } from '@/lib/relayFlow';
+import type { EsutamaPlanSummary, PhotoSynced } from '@/lib/relayFlow';
+import type { PhotoSyncOp } from '@/lib/ekichikaPhoto';
 import { planEsuloveWork } from '@/lib/esulovePlan';
 // ★ エステ魂の写メ日記（第133便）。★ 判断は純粋関数側。ここは DB から材料を集めて渡すだけ
 import {
@@ -296,8 +297,10 @@ export async function startRelayFlow(params: {
    * ★★ apply が true でなければ、編集ページを読んで「何が変わるか」を記録するだけ（★ 1文字も送らない）。
    */
   girlEdit?: { castId: string; name: string; values: EkichikaGirlEditValues; apply: boolean;
+    /** ★ 第421便: フクエス側の番号と、合わせる写真の枠（★ 変わった枠だけ） */
+    therapistId?: number; photos?: PhotoSyncOp[]; photoSkipped?: string[];
     /** ★ 第420便: まとめて更新の2人目以降 */
-    queue?: Array<{ castId: string; name: string; values: EkichikaGirlEditValues }> };
+    queue?: Array<{ castId: string; name: string; values: EkichikaGirlEditValues; therapistId?: number; photos?: PhotoSyncOp[]; photoSkipped?: string[] }> };
   /**
    * intent='cast_photo' のときだけ（第243便）。★ **エステ魂のセラピストに写真を1枚送る。**
    * ★★ 写真そのものはここを通さない（第106便・案B）。★ 在処だけ渡す。
@@ -442,6 +445,9 @@ export async function startRelayFlow(params: {
           editName: String(params.girlEdit.name ?? ''),
           editValues: params.girlEdit.values,
           ...(params.girlEdit.apply === true ? { editApply: true } : {}),
+          ...(typeof params.girlEdit.therapistId === 'number' ? { editTherapistId: params.girlEdit.therapistId } : {}),
+          ...(params.girlEdit.photos && params.girlEdit.photos.length > 0 ? { editPhotos: params.girlEdit.photos } : {}),
+          ...(params.girlEdit.photoSkipped && params.girlEdit.photoSkipped.length > 0 ? { editPhotoSkipped: params.girlEdit.photoSkipped } : {}),
           ...(params.girlEdit.queue && params.girlEdit.queue.length > 0 ? { editQueue: params.girlEdit.queue } : {}),
         }
       : {}),
@@ -724,6 +730,14 @@ export async function advanceRelayFlow(params: {
         note = note + ' → ★ 番号の結びつけに失敗: ' + (r.error ?? '理由不明');
       }
     }
+  }
+
+  // ★★★ 第421便: 写真を枠へ合わせ終えた記録（★ 変わった枠だけ送る・減った枠を消すのに使う）。
+  //   ★ 書けなくても流れは止めない（★ 次は同じ枠をもう一度送るだけ＝壊れない側）。★ ただし黙らない
+  const synced = 'photoSynced' in outcome ? outcome.photoSynced : undefined;
+  if (synced && synced.length > 0) {
+    const r = await savePhotoSynced(createServiceClient(), params.provider, params.slot, synced);
+    note = note + ' → 写真の記録 ' + r.note;
   }
 
   // ★★★★★ 媒体からその人が居なくなった（第239便・2026-09-10）。★ **結びつきも外す。**
@@ -3250,4 +3264,28 @@ async function planEsutamaSokusera(
     note: summary + ' → ' + picked.name + 'さんの即セラをONにします',
     next: { purpose: step.purpose, method: step.method, url: step.url, headers: step.headers, body: step.body, context: nextCtx },
   };
+}
+
+
+/** ★ 第421便: conecf_photo_pushes に書く（sourceUrl=null は行を消す） */
+async function savePhotoSynced(
+  svc: ReturnType<typeof createServiceClient>, provider: string, slot: number, rows: PhotoSynced[],
+): Promise<{ note: string }> {
+  const errs: string[] = [];
+  for (const x of rows) {
+    if (!(x.therapistId > 0) || !(x.imageSlot >= 1 && x.imageSlot <= 8)) continue;
+    if (x.sourceUrl) {
+      const { error } = await svc.from('conecf_photo_pushes').upsert(
+        { therapist_id: x.therapistId, provider, slot, image_slot: x.imageSlot, source_url: x.sourceUrl, pushed_at: new Date().toISOString() },
+        { onConflict: 'therapist_id,provider,slot,image_slot' },
+      );
+      if (error) errs.push(error.message);
+    } else {
+      const { error } = await svc.from('conecf_photo_pushes').delete()
+        .eq('therapist_id', x.therapistId).eq('provider', provider).eq('slot', slot).eq('image_slot', x.imageSlot);
+      if (error) errs.push(error.message);
+    }
+  }
+  if (errs.length > 0) console.error('[relayFlow] 写真の記録を書けなかった', errs[0]);
+  return { note: errs.length > 0 ? '★ 書けなかった: ' + errs[0] : rows.length + '件' };
 }

@@ -4,7 +4,7 @@
 //   保存するとき、フクエスが表示に使う therapists.age / body_type も【ここで作った文字】で同時に書く。
 //   ★ body_type の形は /mypage と同じ「T160 B89(F) W56 H85」（lib/bodyType.ts の parseBodyType で読める形）。
 
-export const CONECF_MAX_IMAGES = 5;
+export const CONECF_MAX_IMAGES = 8; // ★ 第421便: 駅ちかの画像の枠と同じ8枚（N枚目 → 枠N）
 export const CONECF_NAME_MAX = 10;
 
 export const CONECF_CUPS: readonly string[] = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');

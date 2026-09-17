@@ -69,6 +69,8 @@ export type RelayPurpose =
   | 'read_photo_page'
   | 'upload_photo'
   | 'crop_photo'
+  // ★★ 第421便: コネックエフの写真に合わせて1枠消す（読み直して照合）
+  | 'delete_photo'
   // ★ エステ魂の段（第109便）。★ 駅ちか・エステラブの段名と分けている
   | 'esutama_login_page'
   | 'esutama_login'
