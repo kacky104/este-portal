@@ -328,12 +328,34 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
     // ★★★★★ 【第270便】登録の流れ（cast_create・第267便）から来ていれば、ここで終わらずに**名簿を読み直す**。
     //   ★ 画面が見ている写しは「作る前」のまま（2026-09-11 16:15 に「いません」に見えた）。
     //   ★ 運営の口（cast_photo・第243便）は今までどおりここで終わり（★ 登録していないので名簿は変わっていない）。
+    // ★★ 第434便: 送った写真を記録に残す（★ あとからコネックエフに合わせるとき「こちらが送った写真」と分かるように）
+    const tidForRecord = ctx.intent === 'cast_edit' ? Number(ctx.castEditTherapistId ?? 0)
+      : ctx.intent === 'cast_create' ? Number(ctx.createTherapistId ?? ctx.castPhotoTherapistId ?? 0) : 0;
+    const synced = tidForRecord > 0 && ctx.castPhotoFile
+      ? { photoSynced: [{ therapistId: tidForRecord, imageSlot: slot, sourceUrl: ctx.castPhotoFile.bucket + '/' + ctx.castPhotoFile.path }] }
+      : {};
+    // ★★ 第434便: プロフィール更新のあとの写真合わせ（cast_edit）。★ 残りがあれば次の1枚・無ければ終わり（★ 次の人へは relayFlow が進める）
+    if (ctx.intent === 'cast_edit') {
+      if (Array.isArray(ctx.castPhotoQueue) && ctx.castPhotoQueue.length > 0) {
+        const [head, ...rest] = ctx.castPhotoQueue;
+        return {
+          kind: 'next', audits: [okAudit], ...synced,
+          note: '写真を確認した（枠 ' + slot + '）。★ 続けて次の写真（残り' + ctx.castPhotoQueue.length + '枚）',
+          next: buildEsutamaPhotoReadStep(cookie, {
+            ...ctx, castPhotoFile: head, castPhotoQueue: rest,
+            castPhotoStage: undefined, castPhotoTmp: undefined, castPhotoSlot: undefined, castPhotoNote: undefined,
+            castPhotoSaveStatus: undefined, castPhotoSaveTo: undefined,
+          }),
+        };
+      }
+      return { kind: 'done', audits: [okAudit], note: '写真を合わせ終えた（最後は枠 ' + slot + '）', ...synced };
+    }
     // ★★★ 第431便: 登録の流れで2枚目以降が残っていれば、同じ5段をもう一度（★ いちばん小さい空き枠へ詰めて入る）
     if (ctx.intent === 'cast_create' && Array.isArray(ctx.castPhotoQueue) && ctx.castPhotoQueue.length > 0) {
       const [head, ...rest] = ctx.castPhotoQueue;
       return {
         kind: 'next',
-        audits: [okAudit],
+        audits: [okAudit], ...synced,
         note: '写真を確認した（枠 ' + slot + '）。★ 続けて次の写真（残り' + ctx.castPhotoQueue.length + '枚）',
         next: buildEsutamaPhotoReadStep(cookie, {
           ...ctx, castPhotoFile: head, castPhotoQueue: rest,
@@ -345,7 +367,7 @@ export function afterEsutamaPhotoForm(input: Input, ctx: RelayFlowContext): Flow
     if (ctx.intent === 'cast_create') {
       return {
         kind: 'next',
-        audits: [okAudit],
+        audits: [okAudit], ...synced,
         note: '写真を確認した（castId ' + castId + '・枠 ' + slot + '）。★ 続けて名簿を読み直します',
         next: buildEsutamaRosterRefreshStep(cookie, ctx),
       };

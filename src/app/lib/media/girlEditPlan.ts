@@ -5,6 +5,8 @@ import { parseBodyType } from '@/lib/bodyType';
 import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
 import { PHOTO_SLOT_MAX, type PhotoSyncOp } from '@/lib/ekichikaPhoto';
 import { resolveTherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
+import { photoKey, esutamaRemovalSlots, ESUTAMA_SYNC_MAX } from '@/lib/esutamaPhotoSync';
+import type { EsutamaEditPhotos } from '@/lib/relayFlow';
 
 // ★★★ 駅ちかのプロフィール更新に送る材料を DB から作る（第415便・2026-09-17）。
 //   ★ 運営の口（/api/admin/media-girl-edit）と、あとで作る店舗様の画面の両方がここを通る（★ 2か所に書かない）。
@@ -102,7 +104,8 @@ export async function buildGirlEditPhotos(
     const n = i + 1;
     const want = input.images[i] ?? null;
     const before = had.get(n) ?? null;
-    if (want && want !== before) {
+    // ★ 第434便: 比べるのは therapist-photos/<path>（★ 登録のときの記録は URL ではなく bucket/path で残る）
+    if (want && photoKey(want) !== photoKey(before)) {
       const f = await resolveTherapistPhotoFile(svc, { therapistId: input.therapistId, imageSetId: n, profileImageUrl: want });
       if (!f.ok) return '枠' + n + '：' + f.error.slice(0, 40);
       const { bucket, path, filename, contentType, width, height } = f.file;
@@ -139,7 +142,7 @@ export async function planPhotoRemovalSlots(
 
 // ── ★★★ 第430便: エステ魂のプロフィール更新に送る材料 ──────────────────
 export type CastEditBuilt =
-  | { ok: true; data: { castId: string; name: string; values: import('@/lib/esutamaCastEdit').EsutamaCastEditValues; therapistId: number } }
+  | { ok: true; data: { castId: string; name: string; values: import('@/lib/esutamaCastEdit').EsutamaCastEditValues; therapistId: number; photos: EsutamaEditPhotos; removals: number[] } }
   | { ok: false; status: number; error: string };
 
 /**
@@ -153,7 +156,7 @@ export async function buildCastEditValues(
   const { salonId, therapistId, slot } = input;
   const { data: th, error } = await svc
     .from('therapists')
-    .select('id, salon_id, name, age, body_type, profile_text, import_cast_id')
+    .select('id, salon_id, name, age, body_type, profile_text, import_cast_id, profile_image_url, profile_images')
     .eq('id', therapistId).maybeSingle();
   if (error) return { ok: false, status: 500, error: error.message };
   if (!th) return { ok: false, status: 404, error: 'セラピストが見つからない' };
@@ -185,6 +188,7 @@ export async function buildCastEditValues(
     ok: true,
     data: {
       castId, name: str(th.name), therapistId,
+      ...(await buildEsutamaEditPhotos(svc, { therapistId, slot, images: imagesOf(th as { profile_images?: unknown; profile_image_url?: unknown }) })),
       values: {
         age: str(th.age),
         tall: str(prof.height ?? body?.height),
@@ -204,4 +208,28 @@ export async function buildCastEditValues(
       },
     },
   };
+}
+
+/**
+ * ★★★ 第434便: エステ魂の写真を合わせる材料。★ 通信しない（★ 実物は中継が取りに来る口で読む）
+ *   want … コネックエフの写真の並び（最大6・therapist-photos の中だけ。★ 形が違う写真が出たら、そこから後ろは合わせない）
+ *   had  … 送った記録（枠 → therapist-photos/<path>）
+ *   allowRemove は呼び出し側（押す前の確認）が決める。★ ここでは false
+ */
+export async function buildEsutamaEditPhotos(
+  svc: SupabaseClient, input: { therapistId: number; slot: number; images: string[] },
+): Promise<{ photos: EsutamaEditPhotos; removals: number[] }> {
+  const want: Array<{ bucket: string; path: string }> = [];
+  for (const u of input.images.slice(0, ESUTAMA_SYNC_MAX)) {
+    const key = photoKey(u);
+    const path = key.startsWith('therapist-photos/') ? key.slice('therapist-photos/'.length) : '';
+    if (!path || !/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) break;
+    want.push({ bucket: 'therapist-photos', path });
+  }
+  const { data } = await svc.from('conecf_photo_pushes').select('image_slot, source_url')
+    .eq('therapist_id', input.therapistId).eq('provider', 'esutama').eq('slot', input.slot);
+  const had: Record<number, string> = {};
+  for (const r of (data ?? []) as Array<{ image_slot: number; source_url: string }>) had[Number(r.image_slot)] = String(r.source_url);
+  const removals = esutamaRemovalSlots(want.map((f) => f.bucket + '/' + f.path), had);
+  return { photos: { want, had, allowRemove: false }, removals };
 }

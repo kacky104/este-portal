@@ -314,7 +314,9 @@ export async function startRelayFlow(params: {
    * ★★ apply が true でなければ、編集ページを読んで「何が変わるか」を記録するだけ。
    */
   castEdit?: { castId: string; name: string; values: EsutamaCastEditValues; apply: boolean; therapistId?: number;
-    queue?: Array<{ castId: string; name: string; values: EsutamaCastEditValues; therapistId?: number }> };
+    /** ★ 第434便: 写真を合わせる材料（★ apply のときだけ使われる） */
+    photos?: import('@/lib/relayFlow').EsutamaEditPhotos;
+    queue?: Array<{ castId: string; name: string; values: EsutamaCastEditValues; therapistId?: number; photos?: import('@/lib/relayFlow').EsutamaEditPhotos }> };
   castPhoto?: {
     /** フクエス側のセラピストID（★ 記録のためだけ） */
     therapistId: number;
@@ -457,6 +459,7 @@ export async function startRelayFlow(params: {
           ...(params.castEdit.apply === true ? { castEditApply: true } : {}),
           ...(typeof params.castEdit.therapistId === 'number' ? { castEditTherapistId: params.castEdit.therapistId } : {}),
           ...(params.castEdit.queue && params.castEdit.queue.length > 0 ? { castEditQueue: params.castEdit.queue } : {}),
+          ...(params.castEdit.photos ? { castEditPhotos: params.castEdit.photos } : {}),
         }
       : {}),
     // ★★★ 駅ちかのプロフィール更新（第415便）。★ 渡されたときだけ入れる

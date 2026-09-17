@@ -3,7 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { buildGirlEditValues, buildCastEditValues, planPhotoRemovalSlots, imagesOf } from '@/app/lib/media/girlEditPlan';
+import { buildGirlEditValues, buildCastEditValues, buildEsutamaEditPhotos, planPhotoRemovalSlots, imagesOf } from '@/app/lib/media/girlEditPlan';
 import type { PhotoSyncOp } from '@/lib/ekichikaPhoto';
 
 /** ★★ 第428便: 「消さずに更新」のときは消す手を外す（★ 既定は外す＝押す前に確認していない呼び出しでは消さない） */
@@ -158,7 +158,7 @@ export async function previewConecfEkichikaPhotoRemovals(input: { ids: number[] 
 //   ★ 写真は送らない（★ エステ魂は枠を詰める・差し替え不可・削除は未実測。★ 写真は別の便）。
 //   ★ apply=false は【確かめるだけ】（編集ページを読んで「何欄変わるか」を記録。1文字も送らない）。
 
-export async function startConecfEsutamaEdit(input: { id: number; apply: boolean }): Promise<Result<{ flowId: string }>> {
+export async function startConecfEsutamaEdit(input: { id: number; apply: boolean; allowRemove?: boolean }): Promise<Result<{ flowId: string }>> {
   const r = await resolve();
   if (!r.ok) return r;
   const therapistId = Number(input.id);
@@ -170,7 +170,8 @@ export async function startConecfEsutamaEdit(input: { id: number; apply: boolean
       salonId: r.salonId, provider: 'esutama', slot: 1,
       intent: 'cast_edit',
       actor: 'shop:' + r.userId,
-      castEdit: { castId: built.data.castId, name: built.data.name, values: built.data.values, apply: input.apply === true, therapistId: built.data.therapistId },
+      castEdit: { castId: built.data.castId, name: built.data.name, values: built.data.values, apply: input.apply === true, therapistId: built.data.therapistId,
+        photos: { ...built.data.photos, allowRemove: input.allowRemove === true } },
     });
     if (!f.ok) return { ok: false, error: f.reason === 'busy' ? 'いまエステ魂で別の更新が動いています。少し待ってからお試しください' : f.note };
     return { ok: true, data: { flowId: f.flowId } };
@@ -180,7 +181,7 @@ export async function startConecfEsutamaEdit(input: { id: number; apply: boolean
   }
 }
 
-export async function startConecfEsutamaBulkEdit(input: { ids: number[] }): Promise<Result<{ queued: number; skipped: Array<{ name: string; reason: string }> }>> {
+export async function startConecfEsutamaBulkEdit(input: { ids: number[]; allowRemove?: boolean }): Promise<Result<{ queued: number; skipped: Array<{ name: string; reason: string }> }>> {
   const r = await resolve();
   if (!r.ok) return r;
   const ids = [...new Set((Array.isArray(input.ids) ? input.ids : []).map(Number).filter((x) => Number.isFinite(x) && x > 0))];
@@ -188,11 +189,11 @@ export async function startConecfEsutamaBulkEdit(input: { ids: number[] }): Prom
   if (ids.length > BULK_MAX) return { ok: false, error: `一度に更新できるのは${BULK_MAX}名までです` };
   const { data: names } = await r.svc.from('therapists').select('id, name').eq('salon_id', r.salonId).in('id', ids);
   const nameOf = new Map((names ?? []).map((t) => [Number(t.id), String(t.name ?? '')]));
-  const items: Array<{ castId: string; name: string; values: import('@/lib/esutamaCastEdit').EsutamaCastEditValues; therapistId: number }> = [];
+  const items: Array<{ castId: string; name: string; values: import('@/lib/esutamaCastEdit').EsutamaCastEditValues; therapistId: number; photos: import('@/lib/relayFlow').EsutamaEditPhotos }> = [];
   const skipped: Array<{ name: string; reason: string }> = [];
   for (const id of ids) {
     const b = await buildCastEditValues(r.svc, { salonId: r.salonId, therapistId: id, slot: 1 });
-    if (b.ok) items.push(b.data);
+    if (b.ok) items.push({ castId: b.data.castId, name: b.data.name, values: b.data.values, therapistId: b.data.therapistId, photos: { ...b.data.photos, allowRemove: input.allowRemove === true } });
     else skipped.push({ name: nameOf.get(id) || '#' + id, reason: b.error });
   }
   if (items.length === 0) return { ok: true, data: { queued: 0, skipped } };
@@ -202,7 +203,7 @@ export async function startConecfEsutamaBulkEdit(input: { ids: number[] }): Prom
       salonId: r.salonId, provider: 'esutama', slot: 1,
       intent: 'cast_edit',
       actor: 'shop:' + r.userId,
-      castEdit: { castId: first.castId, name: first.name, values: first.values, apply: true, therapistId: first.therapistId, queue: rest },
+      castEdit: { castId: first.castId, name: first.name, values: first.values, apply: true, therapistId: first.therapistId, photos: first.photos, queue: rest },
     });
     if (!f.ok) return { ok: false, error: f.reason === 'busy' ? 'いまエステ魂で別の更新が動いています。少し待ってからお試しください' : f.note };
     return { ok: true, data: { queued: items.length, skipped } };
@@ -210,4 +211,19 @@ export async function startConecfEsutamaBulkEdit(input: { ids: number[] }): Prom
     console.error('[conecf] エステ魂へのまとめて更新を始められなかった', (e as Error).message);
     return { ok: false, error: '更新を開始できませんでした。時間をおいてお試しください' };
   }
+}
+
+/** ★★ 第434便: 押す前の確認。「エステ魂へ更新」でエステ魂から消える写真（★ 送った記録があり、コネックエフに無い写真） */
+export async function previewConecfEsutamaPhotoRemovals(input: { ids: number[] }): Promise<Result<Array<{ id: number; name: string; slots: number[] }>>> {
+  const r = await resolve();
+  if (!r.ok) return r;
+  const ids = [...new Set((Array.isArray(input.ids) ? input.ids : []).map(Number).filter((x) => Number.isFinite(x) && x > 0))].slice(0, BULK_MAX);
+  if (ids.length === 0) return { ok: true, data: [] };
+  const { data: ths } = await r.svc.from('therapists').select('id, name, profile_image_url, profile_images').eq('salon_id', r.salonId).in('id', ids);
+  const out: Array<{ id: number; name: string; slots: number[] }> = [];
+  for (const t of (ths ?? []) as Array<{ id: number; name: string | null; profile_image_url: string | null; profile_images: string[] | null }>) {
+    const { removals } = await buildEsutamaEditPhotos(r.svc, { therapistId: Number(t.id), slot: 1, images: imagesOf(t) });
+    if (removals.length > 0) out.push({ id: Number(t.id), name: String(t.name ?? ''), slots: removals });
+  }
+  return { ok: true, data: out };
 }

@@ -8,13 +8,15 @@
 //
 // ★ このファイルは通信も DB も触らない。
 
-import type { RelayFlowContext, FlowOutcome, FlowAudit, FlowNextRequest } from './relayFlow';
+import type { RelayFlowContext, FlowOutcome, FlowAudit, FlowNextRequest, PhotoSynced } from './relayFlow';
 import { mergeCookies } from './relayJob';
-import { buildEsutamaCastEditFormRequest, esutamaCastEditUrl } from './esutamaPhoto';
+import { buildEsutamaCastEditFormRequest, esutamaCastEditUrl, parseEsutamaPhotoSlots } from './esutamaPhoto';
 import {
   backToLogin, pathOf, absOf, isEsutamaHost, MAX_PHOTO_REDIRECTS, DISABLED_MARK, hasDisabledMark, bouncedToEntrance, safeCastEditUrl,
+  buildEsutamaPhotoReadStep,
 } from './esutamaPhotoFlow';
-import { parseEsutamaCastEditForm, planEsutamaCastEdit, buildEsutamaCastEditBody, verifyEsutamaCastEdit } from './esutamaCastEdit';
+import { parseEsutamaCastEditForm, planEsutamaCastEdit, buildEsutamaCastEditBody, verifyEsutamaCastEdit, buildEsutamaPhotoDeleteBody } from './esutamaCastEdit';
+import { planEsutamaPhotoSync, readEsutamaDeleteCols, ESUTAMA_SYNC_MAX } from './esutamaPhotoSync';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
@@ -31,8 +33,22 @@ export function buildEsutamaCastEditReadStep(cookie: string, ctx: RelayFlowConte
   return { purpose: 'esutama_edit_form', method: 'GET', url: landed ?? req.url, headers: req.headers, body: '', context: { ...ctx, cookie, castEditHops: 0 } };
 }
 
-/** ★ 1人ぶん終わったら（done/stop）、まとめて更新の次の人へ。★ ログイン切れは全体を止める */
+/**
+ * ★ 1人ぶんのプロフィールが終わったら（done/stop）:
+ *   ① 送る（apply）とき・写真の材料があるとき → 写真を合わせる段へ（★ 第434便）
+ *   ② それ以外 → まとめて更新の次の人へ
+ */
 function finish(ctx: RelayFlowContext, cookie: string, out: FlowOutcome): FlowOutcome {
+  if ((out.kind === 'done' || out.kind === 'stop') && ctx.castEditInPhoto !== true && ctx.castEditApply === true && ctx.castEditPhotos
+    && !out.audits.some((a) => a.event === 'login' && a.outcome === 'failed')) {
+    const nctx: RelayFlowContext = { ...ctx, cookie, castEditInPhoto: true, castEditStage: 'photo', castEditPlan: undefined };
+    return { kind: 'next', audits: out.audits, note: out.note + '。★ 続けて写真を確かめます', next: buildEsutamaCastEditReadStep(cookie, nctx) };
+  }
+  return continueCastEditQueue(ctx, cookie, out);
+}
+
+/** ★ まとめて更新の次の人へ（★ ログイン切れは全体を止める）。★ 写真の段の終わりからも呼ばれる（relayFlow.advanceFlow） */
+export function continueCastEditQueue(ctx: RelayFlowContext, cookie: string, out: FlowOutcome): FlowOutcome {
   const queue = ctx.castEditQueue ?? [];
   if ((out.kind !== 'done' && out.kind !== 'stop') || queue.length === 0) return out;
   if (out.audits.some((a) => a.event === 'login' && a.outcome === 'failed')) return out;
@@ -41,9 +57,31 @@ function finish(ctx: RelayFlowContext, cookie: string, out: FlowOutcome): FlowOu
   const nctx: RelayFlowContext = {
     ...ctx, cookie,
     castEditCastId: String(head.castId), castEditName: head.name, castEditValues: head.values, castEditTherapistId: head.therapistId,
+    castEditPhotos: head.photos, castEditInPhoto: undefined, castEditPhotoPlan: undefined,
     castEditQueue: rest, castEditStage: undefined, castEditPlan: undefined, castEditPageUrl: undefined, castEditHops: 0, castEditOpenedAs: undefined,
+    castPhotoCastId: undefined, castPhotoTherapistId: undefined, castPhotoFile: undefined, castPhotoQueue: undefined, castPhotoStage: undefined,
+    castPhotoSlot: undefined, castPhotoTmp: undefined, castPhotoPageUrl: undefined, castPhotoHops: undefined, castPhotoOpenedAs: undefined,
   };
-  return { kind: 'next', audits: out.audits, note: out.note + '。★ 続けて ' + head.name + 'さん（残り' + rest.length + '名）', next: buildEsutamaCastEditReadStep(cookie, nctx) };
+  const synced = 'photoSynced' in out && out.photoSynced && out.photoSynced.length > 0 ? { photoSynced: out.photoSynced } : {};
+  return { kind: 'next', audits: out.audits, note: out.note + '。★ 続けて ' + head.name + 'さん（残り' + rest.length + '名）', next: buildEsutamaCastEditReadStep(cookie, nctx), ...synced };
+}
+
+/** ★★ 第434便: 写真を足す段へ（★ 第243便の5段を1枚ずつ。★ 照合が通るたびに記録を返す・esutamaPhotoFlow） */
+function startEsutamaAdds(ctx: RelayFlowContext, cookie: string, addFrom: number, audits: FlowAudit[], synced: PhotoSynced[]): FlowOutcome {
+  const files = (ctx.castEditPhotos?.want ?? []).slice(addFrom, ESUTAMA_SYNC_MAX);
+  const withSynced = synced.length > 0 ? { photoSynced: synced } : {};
+  if (files.length === 0) {
+    return { kind: 'done', audits, note: '写真を合わせ終えた（足す写真なし）', ...withSynced };
+  }
+  const [head, ...rest] = files;
+  const pctx: RelayFlowContext = {
+    ...ctx, cookie,
+    castPhotoCastId: castIdOf(ctx), castPhotoTherapistId: ctx.castEditTherapistId,
+    castPhotoFile: head, castPhotoQueue: rest,
+    castPhotoStage: undefined, castPhotoSlot: undefined, castPhotoTmp: undefined,
+    castPhotoPageUrl: ctx.castEditPageUrl, castPhotoOpenedAs: ctx.castEditOpenedAs,
+  };
+  return { kind: 'next', audits, note: '写真を' + files.length + '枚足します', next: buildEsutamaPhotoReadStep(cookie, pctx), ...withSynced };
 }
 
 export function afterEsutamaEditForm(input: Input, ctx: RelayFlowContext): FlowOutcome {
@@ -84,6 +122,63 @@ export function afterEsutamaEditForm(input: Input, ctx: RelayFlowContext): FlowO
   }
   if (String(form.castIdHidden ?? '') !== castId) {
     return finish(ctx, cookie, stop([{ event: 'edit_girl', outcome: 'stopped', summary: who + 'さんのエステ魂の編集ページが別の方のものだったため、止めました', detail: { castId, got: form.castIdHidden, reason: 'cast_mismatch', flowId } }], '読んだ cast_id が違う'));
+  }
+
+  // ── ★★ 第434便: 写真を合わせる ──
+  if (stage === 'photo' || stage === 'photo_deleted') {
+    const photos = ctx.castEditPhotos;
+    const tid = Number(ctx.castEditTherapistId ?? 0);
+    if (!photos || !(tid > 0)) return { kind: 'done', audits: [], note: '写真の材料が無い' };
+    const page = parseEsutamaPhotoSlots(input.body, pageUrl);
+    if (page.warnings.length > 0) {
+      return stop([{ event: 'push_photo', outcome: 'failed', summary: who + 'さんのエステ魂の写真の枠を読み取れませんでした', detail: { castId, reason: 'parse_failed', note: page.warnings[0].slice(0, 100), flowId } }], '写真の枠を読めなかった');
+    }
+    const want = photos.want.map((f) => f.bucket + '/' + f.path);
+    if (stage === 'photo_deleted') {
+      const plan0 = ctx.castEditPhotoPlan;
+      const filled = page.slots.filter((x) => x.state === 'saved').map((x) => x.slot).sort((a, b) => a - b);
+      if (!plan0 || filled.length !== plan0.keep || filled.some((n, i) => n !== i + 1)) {
+        return stop([{ event: 'push_photo', outcome: 'failed', summary: who + 'さんのエステ魂の写真を消したあと、枠が思った形になっていませんでした（残りの写真は送っていません）', detail: { castId, reason: 'delete_mismatch', keep: plan0?.keep ?? null, after: filled.join(',') || null, flowId } }], '消したあとの照合で外れた');
+      }
+      const removed: PhotoSynced[] = plan0.deleteSlots.map((n) => ({ therapistId: tid, imageSlot: n, sourceUrl: null }));
+      const delAudit: FlowAudit = { event: 'push_photo', outcome: 'ok', summary: who + 'さんのエステ魂の画像' + plan0.deleteSlots.join('・') + 'を消しました（★ 読み直して確かめました）', detail: { castId, removed: plan0.deleteSlots.join(','), flowId } };
+      return startEsutamaAdds({ ...ctx, castEditPhotoPlan: undefined }, cookie, plan0.addFrom, [delAudit], removed);
+    }
+    const sp = planEsutamaPhotoSync({ slots: page.slots, want, had: photos.had, allowRemove: photos.allowRemove });
+    if (sp.kind === 'noop') return { kind: 'done', audits: [], note: '写真は変わるところなし' };
+    if (sp.kind === 'kept') {
+      return { kind: 'done', audits: [{ event: 'push_photo', outcome: 'ok', summary: who + 'さんのエステ魂の画像' + sp.slots.join('・') + 'はコネックエフから送っていない写真のため、写真は合わせませんでした（エステ魂の画面で消すと、次の更新で合わせます）', detail: { castId, reason: 'not_ours', slots: sp.slots.join(','), flowId } }], note: '記録の無い写真があるので触らない' };
+    }
+    if (sp.kind === 'blocked_remove') {
+      return { kind: 'done', audits: [{ event: 'push_photo', outcome: 'ok', summary: who + 'さんのエステ魂の写真は消さずに残しました（画像' + sp.slots.join('・') + '）', detail: { castId, reason: 'remove_not_allowed', slots: sp.slots.join(','), flowId } }], note: '消す許可が無い' };
+    }
+    if (sp.kind === 'not_packed') {
+      return stop([{ event: 'push_photo', outcome: 'stopped', summary: who + 'さんのエステ魂の写真が想定と違う並びだったため、写真は合わせませんでした', detail: { castId, reason: 'not_packed', note: sp.detail.slice(0, 100), flowId } }], sp.detail);
+    }
+    if (sp.deleteSlots.length > 0) {
+      const colsMap = readEsutamaDeleteCols(input.body);
+      const cols = sp.deleteSlots.map((n) => colsMap[n]);
+      let body: string;
+      try {
+        if (cols.some((c) => !c)) throw new Error('消すボタンが画面に見つからない枠がある（' + sp.deleteSlots.filter((n) => !colsMap[n]).join(',') + '）');
+        body = buildEsutamaPhotoDeleteBody(form, castId, cols as string[]);
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        return stop([{ event: 'push_photo', outcome: 'stopped', summary: who + 'さんのエステ魂の写真を消す操作を止めました（' + why.slice(0, 60) + '）', detail: { castId, reason: 'blocked', note: why.slice(0, 100), flowId } }], '組み立てが止めた: ' + why);
+      }
+      const saveUrl = safeCastEditUrl(ctx.castEditPageUrl, castId) ?? esutamaCastEditUrl(castId);
+      return {
+        kind: 'next', audits: [],
+        note: '画像' + sp.deleteSlots.join('・') + 'を消します（そのあと' + sp.addCount + '枚を足す）',
+        next: {
+          purpose: 'esutama_edit_save', method: 'POST', url: saveUrl,
+          headers: { 'user-agent': RELAY_USER_AGENT, accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'accept-language': 'ja,en-US;q=0.9,en;q=0.8', 'content-type': 'application/x-www-form-urlencoded', origin: 'https://estama.jp', referer: saveUrl, cookie },
+          body,
+          context: { ...ctx, cookie, castEditStage: 'photo_deleted', castEditPhotoPlan: { keep: sp.keep, deleteSlots: sp.deleteSlots, addFrom: sp.addFrom } },
+        },
+      };
+    }
+    return startEsutamaAdds(ctx, cookie, sp.addFrom, [], []);
   }
 
   // ── 照合 ──

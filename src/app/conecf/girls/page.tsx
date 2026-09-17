@@ -10,7 +10,7 @@ import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getConecfFirstImport, requestConecfFirstImport, getConecfPhotoImport, requestConecfPhotoImport, type FirstImportStatus, type PhotoImportStatus } from '@/app/actions/conecfFirstImport';
 import { parseBodyType } from '@/lib/bodyType';
-import { startConecfEkichikaBulkEdit, previewConecfEkichikaPhotoRemovals, startConecfEsutamaBulkEdit } from '@/app/actions/conecfGirlEdit';
+import { startConecfEkichikaBulkEdit, previewConecfEkichikaPhotoRemovals, startConecfEsutamaBulkEdit, previewConecfEsutamaPhotoRemovals } from '@/app/actions/conecfGirlEdit';
 import { PhotoRemoveConfirm, type PhotoRemoval } from './PhotoRemoveConfirm';
 
 // コネックエフ「女性一覧」（第398便・1c → 第413便でベンリー型に）。
@@ -133,12 +133,19 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   };
 
   // ★★ 第430便: エステ魂へまとめて更新（プロフィールだけ・写真は送らない）
-  const onBulkEsutama = async () => {
+  const [esuRemovals, setEsuRemovals] = useState<PhotoRemoval[] | null>(null);
+  const onBulkEsutama = async (allowRemove?: boolean) => {
     if (!enabled) { needEnabled('更新するには、ホームで「コネックエフに切り替える」を押してください'); return; }
     if (picked.size === 0) { onToast('更新する女性にチェックを入れてください'); return; }
     setBulkBusy(true); setBulkNote('');
-    const r = await startConecfEsutamaBulkEdit({ ids: [...picked] });
+    if (allowRemove === undefined) {
+      const p = await previewConecfEsutamaPhotoRemovals({ ids: [...picked] });
+      if (!p.ok) { setBulkBusy(false); onToast(p.error); return; }
+      if (p.data.length > 0) { setBulkBusy(false); setEsuRemovals(p.data); return; }
+    }
+    const r = await startConecfEsutamaBulkEdit({ ids: [...picked], allowRemove: allowRemove === true });
     setBulkBusy(false);
+    setEsuRemovals(null);
     if (!r.ok) { onToast(r.error); return; }
     if (r.data.queued > 0) { onToast(`${r.data.queued}名のエステ魂への更新を受け付けました。結果は「更新結果」に出ます`); setPicked(new Set()); }
     else onToast('更新できる女性がいませんでした');
@@ -260,6 +267,10 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         </Link>
       </div>
 
+      {esuRemovals && (
+        <PhotoRemoveConfirm site="エステ魂" items={esuRemovals} busy={bulkBusy}
+          onRemove={() => void onBulkEsutama(true)} onKeep={() => void onBulkEsutama(false)} onCancel={() => setEsuRemovals(null)} />
+      )}
       {bulkRemovals && (
         <PhotoRemoveConfirm items={bulkRemovals} busy={bulkBusy}
           onRemove={() => void sendBulk(true)} onKeep={() => void sendBulk(false)} onCancel={() => setBulkRemovals(null)} />

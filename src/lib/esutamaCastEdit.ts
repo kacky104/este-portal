@@ -299,3 +299,24 @@ export function verifyEsutamaCastEdit(after: EsutamaCastEditForm, plan: EsutamaE
   }
   return { ok, ng, hints };
 }
+
+/**
+ * ★★★ 第434便: 写真を消す保存の本文（★ 読んだ65部品をそのまま返し、delete_photo[photoN]=1 を足すだけ）。
+ *   ★ 止める: ctk なし／cast_id が違う・0／set_up_limit が混じる／送信ボタンが2つ以上／消す名前が画面に無い
+ */
+export function buildEsutamaPhotoDeleteBody(form: EsutamaCastEditForm, castId: string, cols: string[]): string {
+  const id = String(castId ?? '').trim();
+  if (!/^\d{1,12}$/.test(id)) throw new Error('castId の形が不正です');
+  if (cols.length === 0) throw new Error('消す写真がありません');
+  if (!form.ctk) throw new Error('ctk が無いまま保存しない');
+  const hidden = String(form.castIdHidden ?? '').trim();
+  if (hidden === '0' || hidden !== id) throw new Error('読んだフォームの cast_id（' + (hidden || '無し') + '）が相手（' + id + '）と違います。★ 保存しません');
+  if (form.fields.some((f) => f.name === 'set_up_limit')) throw new Error('set_up_limit が混じっています。★ 送りません');
+  if (form.submits.length > 1) throw new Error('送信ボタンが2つ以上あるので送らない');
+  for (const c of cols) if (!/^photo[1-6]$/.test(c)) throw new Error('消す名前の形が違います（' + c + '）');
+  if (!form.fields.some((f) => f.name === 'type[]')) throw new Error('特徴（必須）が0個なので送らない');
+  const pairs: Array<[string, string]> = form.fields.map((f) => [f.name, f.value]);
+  for (const c of cols) pairs.push(['delete_photo[' + c + ']', '1']);
+  if (form.submits.length === 1) pairs.push([form.submits[0].name, form.submits[0].value]);
+  return pairs.map(([k, val]) => formEncode(k) + '=' + formEncode(val)).join('&');
+}

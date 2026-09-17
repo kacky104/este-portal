@@ -25,7 +25,7 @@
 //   → ここが 'stop' を返したら、そのフローは終わり。人が直すまで再開しない。
 
 import type { EsutamaCastEditValues, EsutamaEditPlan } from './esutamaCastEdit';
-import { afterEsutamaEditForm, afterEsutamaEditSave } from './esutamaCastEditFlow';
+import { afterEsutamaEditForm, afterEsutamaEditSave, continueCastEditQueue } from './esutamaCastEditFlow';
 import {
   parseWorkPage,
   checkWorkPage,
@@ -665,7 +665,13 @@ export type RelayFlowContext = {
   castEditValues?: EsutamaCastEditValues;
   /** ★ true のときだけ送る。★ 無ければ試し打ち */
   castEditApply?: boolean;
-  castEditStage?: 'verify';
+  /** ★ 第434便: 'photo'＝写真を合わせるために読む／'photo_deleted'＝消したあとの読み直し */
+  castEditStage?: 'verify' | 'photo' | 'photo_deleted';
+  /** ★★ 第434便: 写真を合わせる材料（★ コネックエフの並び・送った記録・消す許可） */
+  castEditPhotos?: EsutamaEditPhotos;
+  /** ★ 第434便: いま写真の段にいる（★ プロフィールの段へ戻らない） */
+  castEditInPhoto?: boolean;
+  castEditPhotoPlan?: { keep: number; deleteSlots: number[]; addFrom: number };
   castEditPlan?: EsutamaEditPlan;
   /** ★ 飛ばされた先（★ 同じ方の編集ページだと言い切れるときだけ使う） */
   castEditPageUrl?: string;
@@ -673,7 +679,7 @@ export type RelayFlowContext = {
   castEditOpenedAs?: 'normal' | 'disabled' | 'followed';
   castEditSaveStatus?: number;
   /** ★ まとめて更新の残り */
-  castEditQueue?: Array<{ castId: string; name: string; values: EsutamaCastEditValues; therapistId?: number }>;
+  castEditQueue?: Array<{ castId: string; name: string; values: EsutamaCastEditValues; therapistId?: number; photos?: EsutamaEditPhotos }>;
   articleShopId?: string;
   /** ★ ①article_image.json が返した識別子 */
   articleImgB?: string;
@@ -926,6 +932,8 @@ export type FlowAudit = {
 
 /** ★ 第421便: 駅ちかの画像の枠へ合わせ終えた1件 */
 export type PhotoSynced = { therapistId: number; imageSlot: number; sourceUrl: string | null };
+/** ★★ 第434便: エステ魂の写真を合わせる材料（★ want はコネックエフの並び・had は 枠→送った写真） */
+export type EsutamaEditPhotos = { want: Array<{ bucket: string; path: string }>; had: Record<number, string>; allowRemove: boolean };
 
 export type FlowNextRequest = {
   purpose:
@@ -1397,7 +1405,12 @@ function advanceQueueOrEnd(
         context: { ...ctx, cookie, createRosterRefresh: true },
       },
       ...(out.mediaCreated ? { mediaCreated: out.mediaCreated } : {}),
+      ...(out.photoSynced && out.photoSynced.length > 0 ? { photoSynced: out.photoSynced } : {}),
     };
+  }
+  // ★★ 第434便: エステ魂の写真の段（esutamaPhotoFlow）が終わったら、まとめて更新の次の人へ
+  if (ctx.intent === 'cast_edit' && ctx.castEditInPhoto === true && (out.kind === 'done' || out.kind === 'stop')) {
+    return continueCastEditQueue(ctx, ctx.cookie ?? '', out);
   }
   return out;
 }
@@ -3898,6 +3911,11 @@ function afterReadPhotoPage(
       );
     }
 
+    // ★★ 第434便: 登録の流れ（girl_create）で入れた写真も記録に残す（★ あとから「更新する」でコネックエフに合わせられるように）
+    const createSynced = ctx.intent === 'girl_create' && Number(ctx.createTherapistId ?? 0) > 0 && ctx.photoFile
+      ? { photoSynced: [{ therapistId: Number(ctx.createTherapistId), imageSlot: slot, sourceUrl: ctx.photoFile.bucket + '/' + ctx.photoFile.path }] as PhotoSynced[] }
+      : {};
+
     // ★★★★★★ 【第253便】次の1枚があれば、もう一周する（★ 1枚ごとに読み直して照合するのは変えない）。
     //   ★ 列が空なら今までどおりここで終わり（★ `photoQueue` が無ければ1文字も変わらない）。
     if (ctx.photoQueue && ctx.photoQueue.length > 0) {
@@ -3925,6 +3943,7 @@ function afterReadPhotoPage(
         kind: 'next',
         next: buildReadPhotoPageRequest(nextCtx),
         audits: [putAudit],
+        ...createSynced,
         note: '枠 ' + slot + ' に入れた（' + shape.before + ' → ' + shape.after + '）。★ 次は枠 ' + head.slot,
       };
     }
@@ -3932,6 +3951,7 @@ function afterReadPhotoPage(
     return {
       kind: 'done',
       audits: ctx.photoMulti === true ? [putAudit, photoSummaryAudit(ctx, put, shape.after)] : [putAudit],
+      ...createSynced,
       note: '読み直して枠 ' + slot + ' に入っていることを確かめた（前 ' + shape.before + ' → 後 ' + shape.after + '）',
     };
   }
