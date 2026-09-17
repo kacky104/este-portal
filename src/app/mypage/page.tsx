@@ -23,6 +23,7 @@ import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { snapClockPair } from '@/lib/timeSnap';
+import { conecfLockMessage } from '@/lib/conecfLock';
 import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow, imasuguUntilISO, IMASUGU_WINDOW_MIN, imasuguMax, imasuguLimitNote } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
@@ -2007,7 +2008,7 @@ export default function MyPage() {
       });
     }
     // ★★ 起きたことを必ず言葉にする（§14-3）。黙って時刻を書き換えない
-    if (error) showToast('保存に失敗しました');
+    if (error) showToast(conecfLockMessage(error) ?? '保存に失敗しました');
     else if (keptAsIs.length > 0)
       showToast('スケジュールを保存しました（' + keptAsIs.join('・') + ' は30分単位にできないため、そのままです）');
     else if (snappedCount > 0)
@@ -2035,6 +2036,8 @@ export default function MyPage() {
     });
 
     if (error) {
+      const lockedMsg = conecfLockMessage(error);
+      if (lockedMsg) { setAddError(lockedMsg); setAddingTherapist(false); return; }
       setAddError(
         error.code === '42501'
           ? 'RLSポリシーにより追加が拒否されました。Supabase ダッシュボードで therapists テーブルへの INSERT ポリシーを確認してください。'
@@ -2200,13 +2203,16 @@ export default function MyPage() {
       const until = isLive
         ? (isOwnerLiveRow(t) && t.available_until ? t.available_until : availableUntil)
         : null;
-      await supabase
+      const { error: upErr } = await supabase
         .from('therapists')
         .update({
           is_available_now: isLive,
           available_until: until,
         })
         .eq('id', t.id);
+      // ★ 第407便: コネックエフの DB ロックで断られたら、そこで止めて理由を出す（古いタブ）
+      const locked = conecfLockMessage(upErr);
+      if (locked) { setSavingAvailable(false); showToast(locked); return; }
     }
     if (salon) {
       const refreshed = await fetchTherapistList(String(salon.id));

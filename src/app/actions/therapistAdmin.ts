@@ -222,6 +222,8 @@ export async function setTherapistActive(input: {
   therapistId: string | number;
   salonId: number;
   isActive: boolean;
+  /** ★ 第407便: コネックエフの画面から呼ぶときだけ 'conecf'。★ 切り替え済みの店は /mypage（古いタブ）からは断る */
+  via?: 'conecf';
 }): Promise<SetActiveResult> {
   const therapistId = String(input.therapistId ?? '').trim();
   const salonId = Number(input.salonId);
@@ -232,6 +234,14 @@ export async function setTherapistActive(input: {
   if ('error' in auth) return { ok: false, error: auth.error };
 
   const svc = createServiceClient();
+
+  // ★★ 第407便: コネックエフに切り替えた店の「公開」はコネックエフで（★ service_role なので DB のトリガーでは止まらない → ここで止める）
+  if (input.via !== 'conecf') {
+    const { data: sal } = await svc.from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle();
+    if (sal?.conecf_enabled_at) {
+      return { ok: false, error: '公開・非公開はコネックエフで切り替えてください（画面が古い場合は再読み込みしてください）' };
+    }
+  }
 
   // ★ 対象が当該サロン所属か（★ 権限は上で見ているが、他店の id を渡された場合をここで落とす）
   const { data: t, error: tErr } = await svc

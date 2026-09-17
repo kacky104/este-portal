@@ -91,7 +91,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
   const onToggleActive = async () => {
     const next = !form.isActive;
     setSaving(true);
-    const res = await setTherapistActive({ therapistId: id, salonId: d.salonId, isActive: next });
+    const res = await setTherapistActive({ therapistId: id, salonId: d.salonId, isActive: next, via: 'conecf' });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
     set('isActive', next);

@@ -15,6 +15,7 @@ import {
 } from '@/lib/therapistBadges';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
+import { conecfLockMessage } from '@/lib/conecfLock';
 import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { getOrCreateDiaryMailAddress } from '@/app/actions/diaryMail';
 import { getDiaryForwards, saveDiaryForward } from '@/app/actions/diaryForward';
@@ -465,7 +466,7 @@ export default function TherapistEditPage() {
       }));
     }
     showToast(
-      error ? '保存に失敗しました'
+      error ? (conecfLockMessage(error) ?? '保存に失敗しました')
         : fwdErr ? `保存しました（転送先だけ失敗: ${fwdErr}）`
         : '保存しました',
     );
