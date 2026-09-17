@@ -1,3 +1,4 @@
+import { ESUTAMA_PHOTO_SLOT_MAX } from '@/lib/esutamaPhoto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { toEsutamaTypeIds, explainBadgeMapping } from '@/lib/mediaBadgeMap';
@@ -56,6 +57,8 @@ export type CastCreatePlan = {
       values: EsutamaCastCreateValues;
       /** ★★★ 第267便: 在処だけ（★ 画像そのものは載せない・第106便 案B）。★ 無ければ登録だけ */
       photo?: { bucket: string; path: string };
+      /** ★★ 第431便: 2枚目以降（★ 1枚ずつ、いちばん小さい空き枠へ詰めて入る） */
+      photoQueue?: Array<{ bucket: string; path: string }>;
       photoSkip?: string;
     };
   };
@@ -83,7 +86,7 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
   const { data: th, error: tErr } = await svc
     .from('therapists')
     // ★★★★★★ 第267便: `profile_image_url` を足した（★ 読んでいないものは、無いのと同じ・第255便(2)）
-    .select('id, salon_id, name, age, body_type, feature_badges, is_active, profile_image_url')
+    .select('id, salon_id, name, age, body_type, feature_badges, is_active, profile_image_url, profile_images')
     .eq('id', therapistId).maybeSingle();
   if (tErr) return { ok: false, status: 500, error: tErr.message };
   if (!th) return { ok: false, status: 404, error: 'セラピストが見つからない' };
@@ -165,9 +168,25 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
       photo = got.file;
     }
   }
+  // ★★★ 第431便: 2枚目以降（★ コネックエフの写真の並び。★ エステ魂の枠は6つ）。★ 用意できない写真は飛ばして理由を残す
+  const photoQueue: Array<{ bucket: string; path: string }> = [];
+  const queueSkipped: string[] = [];
+  if (photo) {
+    const imgs = Array.isArray((th as { profile_images?: unknown }).profile_images)
+      ? ((th as { profile_images: unknown[] }).profile_images).filter((x): x is string => typeof x === 'string' && x !== '')
+      : [];
+    const first = String((th as { profile_image_url?: string | null }).profile_image_url ?? '');
+    const rest = imgs.filter((u) => u !== first).slice(0, ESUTAMA_PHOTO_SLOT_MAX - 1);
+    for (let i = 0; i < rest.length; i++) {
+      const got = await resolveEsutamaPhotoFile(svc, { profileImageUrl: rest[i] });
+      if (got.ok) photoQueue.push({ bucket: got.file.bucket, path: got.file.path });
+      else queueSkipped.push((i + 2) + '枚目（' + got.error.slice(0, 40) + '）');
+    }
+  }
 
   const warnings: string[] = [];
   if (photoSkip) warnings.push('★★ 写真は送りません（' + photoSkip + '）。★ 登録だけします');
+  if (queueSkipped.length > 0) warnings.push('★ 送れない写真があります: ' + queueSkipped.join('・'));
   // ★★★ 相手の画面の注記:「※3サイズのB(バスト)が未入力の場合、表示されません」（2026-09-09 実測）
   // ★★ 第298便（2026-09-12・カッキーさんの確認）: バストは【いまは必須ではない】（空でも公開された）。
   //   ★ ただしエステ魂の画面には必須と書いてあり、いつ戻るか分からない。★ 断定せずに注意だけ残す。
@@ -203,6 +222,8 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
           // ★★★★★★ 第267便: 登録のあと、そのまま写真を1枚
           photo: {
             file: photo,
+            // ★★ 第431便: 送る枚数（1枚目＋2枚目以降）
+            count: 1 + photoQueue.length,
             photoSlot: '（指名できません：エステ魂がいちばん小さい空き枠へ詰めます。★ 登録直後は全枠空きなので枠1＝トップ画像）',
             guards: [
               '★★ 空き枠にだけ送ります（★ 登録直後は全枠空き）',
@@ -225,6 +246,7 @@ export async function buildCastCreatePlan(svc: SupabaseClient, input: CastCreate
         castCreate: {
           therapistId, values,
           ...(photo ? { photo: { bucket: photo.bucket, path: photo.path } } : {}),
+          ...(photoQueue.length > 0 ? { photoQueue } : {}),
           ...(photoSkip ? { photoSkip } : {}),
         },
       },

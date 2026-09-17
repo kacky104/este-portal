@@ -546,6 +546,8 @@ export type RelayFlowContext = {
    *   ★ VPS が fukues.com の取り出し口から取りに行く。★ 寸法もその口で合わせる（第241便）
    */
   castPhotoFile?: { bucket: string; path: string };
+  /** ★★ 第431便: 登録の流れ（cast_create）で2枚目以降。★ 1枚照合が通るたびに先頭を取り出す */
+  castPhotoQueue?: Array<{ bucket: string; path: string }>;
   /**
    * ★★★★★★ 【第245便】枠の指名は **もう効かない**（2026-09-10 実弾3発で確定）。
    *   ★ エステ魂は `cast_icon_<枠>-imgupload` の枠番号を見ておらず、**いちばん小さい空き枠へ詰める**。

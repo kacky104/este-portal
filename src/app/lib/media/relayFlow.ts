@@ -270,6 +270,8 @@ export async function startRelayFlow(params: {
      *   ★★ 枠は渡さない・渡せない（★ エステ魂が空き枠へ詰める・第245便）。
      */
     photo?: { bucket: string; path: string };
+    /** ★★ 第431便: 2枚目以降（★ 1枚目のあと、1枚ずつ同じ5段を繰り返す） */
+    photoQueue?: Array<{ bucket: string; path: string }>;
     /** ★ 写真を送らないときの理由（★ 記録のためだけ・駅ちかの第250便と同じ） */
     photoSkip?: string;
   };
@@ -432,6 +434,7 @@ export async function startRelayFlow(params: {
           createValues: params.castCreate.values,
           // ★★★★★★ 第267便: 登録のあと写真を1枚。★ 渡されたときだけ入れる（★ cast_id は中継が登録後に入れる）
           ...(params.castCreate.photo ? { castPhotoFile: params.castCreate.photo } : {}),
+          ...(params.castCreate.photo && params.castCreate.photoQueue && params.castCreate.photoQueue.length > 0 ? { castPhotoQueue: params.castCreate.photoQueue } : {}),
           ...(params.castCreate.photoSkip ? { createPhotoSkip: params.castCreate.photoSkip } : {}),
         }
       : {}),

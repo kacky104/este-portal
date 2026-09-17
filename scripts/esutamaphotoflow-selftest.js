@@ -216,6 +216,15 @@ console.log('\n── ④ 照合（★ ここで初めて成否が決まる） �
   eq('★★ 読み直しの印が付く', chained.next.context.createRosterRefresh, true);
   eq('★★ 運営の口（cast_photo）は今までどおり done', ok.kind, 'done');
   // ★ 照合で外れたときは、登録の流れでも止まる（★ 名簿の読み直しへは行かない・★ 番号は登録の段で書かれている）
+  // ★★★ 第431便: 2枚目以降が残っていれば、名簿へ行かずに次の写真の読み直しへ
+  const FILE2 = { bucket: 'therapist-photos', path: 'c/2.jpg' }, FILE3 = { bucket: 'therapist-photos', path: 'c/3.jpg' };
+  const vq = Object.assign({}, vc, { castPhotoQueue: [FILE2, FILE3] });
+  const q1 = go('esutama_photo_form', 200, {}, editPage(['empty', 'empty', 'saved', 'empty', 'empty', 'empty']), vq);
+  eq('★★★ 第431便: 残りがあれば次の写真へ（段を持ち越さない）',
+     [q1.kind, q1.next.purpose, q1.next.context.castPhotoFile.path, q1.next.context.castPhotoQueue.length, q1.next.context.castPhotoStage, q1.next.context.castPhotoTmp, q1.audits[0].outcome],
+     ['next', 'esutama_photo_form', 'c/2.jpg', 1, undefined, undefined, 'ok']);
+  const q2 = go('esutama_photo_form', 200, {}, editPage(['saved', 'empty', 'empty', 'empty', 'empty', 'empty']), q1.next.context);
+  eq('★★★ 第431便: 次の写真はいちばん小さい空き枠（枠2）へ', [q2.next.purpose, q2.next.context.castPhotoSlot], ['esutama_photo_tmp', 2]);
   const chainedNg = go('esutama_photo_form', 200, {}, editPage(), vc);
   eq('★★ 登録の流れでも、照合で外れたら止まる', [chainedNg.kind, chainedNg.audits[0].detail.reason], ['stop', 'not_saved']);
 }

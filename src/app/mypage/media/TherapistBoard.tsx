@@ -114,7 +114,10 @@ function summarizeCreatePlan(plan: Record<string, unknown>): Array<{ k: string; 
   // ★ 写真は「送るか」だけ。★ 在処（bucket/path）は店舗様に意味が無い
   const hasPhoto = !!(plan.photo && typeof plan.photo === 'object');
   const photoNote = '送りません' + (s(plan.photoSkipped) ? `（${s(plan.photoSkipped)}）` : '');
-  rows.push({ k: '写真', v: hasPhoto ? '1枚送ります（フクエスの1枚目・トップ画像になります）' : photoNote });
+  // ★ 第431便: エステ魂は count／駅ちかは alsoSlots（2枚目以降）で枚数を出す
+  const ph = (hasPhoto ? plan.photo : {}) as { count?: unknown; alsoSlots?: unknown };
+  const photoCount = !hasPhoto ? 0 : Number(ph.count) > 0 ? Number(ph.count) : 1 + (Array.isArray(ph.alsoSlots) ? ph.alsoSlots.length : 0);
+  rows.push({ k: '写真', v: hasPhoto ? `${photoCount}枚送ります（1枚目がトップ画像になります）` : photoNote });
   return rows;
 }
 
