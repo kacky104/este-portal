@@ -11,6 +11,9 @@ import {
 } from '@/lib/conecfGirl';
 import { parseBodyType } from '@/lib/bodyType';
 import { isSavableTarget } from '@/lib/conecfTargets';
+import {
+  normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
+} from '@/lib/conecfSiteFields';
 
 // コネックエフ「女性一覧・女性の編集」の受け口（第398便・1c・2026-09-17）。
 //
@@ -267,4 +270,112 @@ export async function listConecfTargetOffs(): Promise<Result<{ offs: string[] }>
     .in('therapist_id', ids).eq('enabled', false);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: { offs: (data ?? []).map((x) => `${x.therapist_id}#${x.provider}#${x.slot}`) } };
+}
+
+// ────────────────────────────────────────────────
+// ★★ 第414便: コメント・Q&A・各サイト項目（ベンリーの「コメント／各サイト項目／Q&A」）。
+//   ★ 決めごとは src/lib/conecfSiteFields.ts。★ この便は保存まで（★ サイトへ送るのは次の便）。
+//   ★ SQL（20260917_conecf_girl_site_fields.sql）がまだの間は、読むときは空で出し、保存は断る。
+
+export type ConecfGirlExtras = {
+  comments: { catchphrase: string; profileText: string; shopTitle: string; girlComment: string };
+  qa: QaItem[];
+  siteFields: Array<{ provider: string; slot: number; label: string; fields: Record<string, unknown> }>;
+  ready: boolean;
+};
+
+export async function getConecfGirlExtras(input: { id: number }): Promise<Result<ConecfGirlExtras>> {
+  const r = await resolveSalon();
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: 'この女性は見つかりません' };
+  const { data: th } = await svc.from('therapists').select('catchphrase, profile_text').eq('id', t.id).maybeSingle();
+  const { data: p } = await svc.from('conecf_therapist_profiles').select('*').eq('therapist_id', t.id).maybeSingle();
+  const prof = (p ?? {}) as Record<string, unknown>;
+  const { data: sf, error: sfErr } = await svc.from('conecf_therapist_site_fields').select('provider, slot, fields').eq('therapist_id', t.id);
+  const { data: creds } = await svc.from('salon_media_credentials').select('provider, slot').eq('salon_id', salonId);
+  const got = new Map((sf ?? []).map((x) => [`${x.provider}#${x.slot}`, (x.fields ?? {}) as Record<string, unknown>]));
+  const siteFields = (creds ?? [])
+    .filter((c) => SITE_FIELD_PROVIDERS.includes(String(c.provider)))
+    .map((c) => {
+      const slot = Number(c.slot);
+      return {
+        provider: String(c.provider), slot,
+        label: providerLabel(String(c.provider)) + (slot > 1 ? `（枠${slot}）` : ''),
+        fields: got.get(`${c.provider}#${slot}`) ?? {},
+      };
+    })
+    .sort((a, b) => SITE_FIELD_PROVIDERS.indexOf(a.provider) - SITE_FIELD_PROVIDERS.indexOf(b.provider) || a.slot - b.slot);
+  const s = (v: unknown) => (typeof v === 'string' ? v : '');
+  return {
+    ok: true,
+    data: {
+      comments: {
+        catchphrase: s(th?.catchphrase), profileText: s(th?.profile_text),
+        shopTitle: s(prof.shop_title), girlComment: s(prof.girl_comment),
+      },
+      qa: Array.isArray(prof.qa) ? (prof.qa as QaItem[]) : [],
+      siteFields,
+      // ★ SQL がまだなら site_fields が読めない（★ 画面で「準備中」と出す）
+      ready: !sfErr,
+    },
+  };
+}
+
+export async function saveConecfGirlComments(input: { id: number; comments: Record<string, unknown> }): Promise<Result<{ saved: true }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: 'この女性は見つかりません' };
+  const n = normalizeComments(input.comments ?? {});
+  if (!n.ok) return n;
+  const v = n.value;
+  // ★ キャッチ・お店コメントはフクエスの表示と同じ列（★ フクエスにもそのまま出る）
+  const { error: tErr } = await svc.from('therapists')
+    .update({ catchphrase: v.catchphrase || null, profile_text: v.profileText || null })
+    .eq('id', t.id).eq('salon_id', salonId);
+  if (tErr) return { ok: false, error: `保存に失敗しました: ${tErr.message}` };
+  const { error: pErr } = await svc.from('conecf_therapist_profiles').upsert({
+    therapist_id: t.id, shop_title: v.shopTitle || null, girl_comment: v.girlComment || null, updated_at: new Date().toISOString(),
+  }, { onConflict: 'therapist_id' });
+  if (pErr) return { ok: false, error: `保存に失敗しました（SQL がまだの可能性があります）: ${pErr.message}` };
+  return { ok: true, data: { saved: true } };
+}
+
+export async function saveConecfGirlQa(input: { id: number; qa: unknown }): Promise<Result<{ count: number }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: 'この女性は見つかりません' };
+  const n = normalizeQa(input.qa);
+  if (!n.ok) return n;
+  const { error } = await svc.from('conecf_therapist_profiles').upsert({
+    therapist_id: t.id, qa: n.value, updated_at: new Date().toISOString(),
+  }, { onConflict: 'therapist_id' });
+  if (error) return { ok: false, error: `保存に失敗しました（SQL がまだの可能性があります）: ${error.message}` };
+  return { ok: true, data: { count: n.value.length } };
+}
+
+export async function saveConecfGirlSiteFields(input: {
+  id: number; provider: string; slot: number; fields: Record<string, unknown>;
+}): Promise<Result<{ fields: Record<string, unknown> }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: 'この女性は見つかりません' };
+  const provider = String(input.provider ?? '');
+  const slot = Math.trunc(Number(input.slot));
+  if (!SITE_FIELD_PROVIDERS.includes(provider) || !(slot >= 1 && slot <= 20)) return { ok: false, error: 'サイトの指定が不正です' };
+  const n = normalizeSiteFields(provider, input.fields ?? {});
+  if (!n.ok) return n;
+  const fields = n.value as unknown as Record<string, unknown>;
+  const { error } = await svc.from('conecf_therapist_site_fields').upsert({
+    therapist_id: t.id, provider, slot, fields, updated_at: new Date().toISOString(),
+  }, { onConflict: 'therapist_id,provider,slot' });
+  if (error) return { ok: false, error: `保存に失敗しました（SQL がまだの可能性があります）: ${error.message}` };
+  return { ok: true, data: { fields } };
 }

@@ -11,6 +11,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
 import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
+import { GirlExtraTab } from './GirlExtraTabs';
 import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
@@ -26,7 +27,7 @@ const supabase = createClient();
 const BUCKET = 'therapist-photos';
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-200 bg-white px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200';
-type Tab = 'basic' | 'images' | 'sites';
+type Tab = 'basic' | 'comments' | 'siteFields' | 'qa' | 'images' | 'sites';
 type Form = ConecfGirlDetail['form'];
 
 function Field({ label, badge, children }: { label: string; badge?: '必須' | '推奨'; children: React.ReactNode }) {
@@ -148,7 +149,8 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
     onToast(res.ok ? '送り先を保存しました' : res.error);
   };
 
-  const TABS: Array<[Tab, string]> = [['basic', '基本情報'], ['images', '画像'], ['sites', '送り先サイト']];
+  // ★ 第414便: ベンリーと同じ並び（基本情報／コメント／各サイト項目／Q&A項目／画像）＋送り先サイト
+  const TABS: Array<[Tab, string]> = [['basic', '基本情報'], ['comments', 'コメント'], ['siteFields', '各サイト項目'], ['qa', 'Q&A項目'], ['images', '画像'], ['sites', '送り先サイト']];
   const saveBtn = (onClick: () => void, label = '保存する') => (
     <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex items-center justify-end gap-3">
       {!enabled && <span className="text-[12.5px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
@@ -169,7 +171,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
         </button>
       </div>
 
-      <div className="flex border-b border-slate-200">
+      <div className="flex flex-wrap border-b border-slate-200">
         {TABS.map(([k, label]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
             className={`px-4 py-2.5 text-[14.5px] font-bold border-b-2 -mb-px ${tab === k ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
@@ -177,6 +179,10 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
           </button>
         ))}
       </div>
+
+      {(tab === 'comments' || tab === 'siteFields' || tab === 'qa') && (
+        <GirlExtraTab key={tab} tab={tab} id={id} salonId={d.salonId} enabled={enabled} onToast={onToast} />
+      )}
 
       {tab === 'basic' && (
         <div className={CARD}>
