@@ -10,7 +10,8 @@ import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getConecfFirstImport, requestConecfFirstImport, getConecfPhotoImport, requestConecfPhotoImport, type FirstImportStatus, type PhotoImportStatus } from '@/app/actions/conecfFirstImport';
 import { parseBodyType } from '@/lib/bodyType';
-import { startConecfEkichikaBulkEdit } from '@/app/actions/conecfGirlEdit';
+import { startConecfEkichikaBulkEdit, previewConecfEkichikaPhotoRemovals } from '@/app/actions/conecfGirlEdit';
+import { PhotoRemoveConfirm, type PhotoRemoval } from './PhotoRemoveConfirm';
 
 // コネックエフ「女性一覧」（第398便・1c → 第413便でベンリー型に）。
 // ★★ ベンリー（mrvenrey.jp の女性一覧）の形に寄せた（★ ベンリーから移る店舗様が迷わないため）。
@@ -98,6 +99,8 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkNote, setBulkNote] = useState('');
+  // ★★ 第428便: 駅ちかから写真が消える人がいるときの確認
+  const [bulkRemovals, setBulkRemovals] = useState<PhotoRemoval[] | null>(null);
 
   const load = useCallback(async () => {
     const res = await listConecfGirls();
@@ -122,8 +125,18 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     if (!enabled) { needEnabled('更新するには、ホームで「コネックエフに切り替える」を押してください'); return; }
     if (picked.size === 0) { onToast('更新する女性にチェックを入れてください'); return; }
     setBulkBusy(true); setBulkNote('');
-    const r = await startConecfEkichikaBulkEdit({ ids: [...picked] });
+    const p = await previewConecfEkichikaPhotoRemovals({ ids: [...picked] });
     setBulkBusy(false);
+    if (!p.ok) { onToast(p.error); return; }
+    if (p.data.length > 0) { setBulkRemovals(p.data); return; }
+    await sendBulk(false);
+  };
+
+  const sendBulk = async (allowRemove: boolean) => {
+    setBulkBusy(true);
+    const r = await startConecfEkichikaBulkEdit({ ids: [...picked], allowRemove });
+    setBulkBusy(false);
+    setBulkRemovals(null);
     if (!r.ok) { onToast(r.error); return; }
     const sk = r.data.skipped;
     if (r.data.queued > 0) {
@@ -226,6 +239,10 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         </Link>
       </div>
 
+      {bulkRemovals && (
+        <PhotoRemoveConfirm items={bulkRemovals} busy={bulkBusy}
+          onRemove={() => void sendBulk(true)} onKeep={() => void sendBulk(false)} onCancel={() => setBulkRemovals(null)} />
+      )}
       {bulkNote && <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-amber-700">{bulkNote}</p>}
 
       {/* ── 新規登録 ── */}

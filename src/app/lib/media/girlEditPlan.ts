@@ -74,7 +74,7 @@ export async function buildGirlEditValues(
 }
 
 /** ★ コネックエフの女性の写真（★ conecfGirls.ts の imagesOf と同じ読み方） */
-function imagesOf(t: { profile_images?: unknown; profile_image_url?: unknown }): string[] {
+export function imagesOf(t: { profile_images?: unknown; profile_image_url?: unknown }): string[] {
   const arr = Array.isArray(t.profile_images) ? (t.profile_images as unknown[]).filter((x): x is string => typeof x === 'string' && x !== '') : [];
   if (arr.length > 0) return arr.slice(0, PHOTO_SLOT_MAX);
   return typeof t.profile_image_url === 'string' && t.profile_image_url ? [t.profile_image_url] : [];
@@ -118,4 +118,21 @@ export async function buildGirlEditPhotos(
     else if (x) photos.push(x);
   }
   return { photos, skipped };
+}
+
+/**
+ * ★★ 第428便: 「更新する」で駅ちかから【消える枠】を先に数える（★ 押す前の確認に使う・通信なし）。
+ *   ★ buildGirlEditPhotos の remove と同じ決め方（送った記録があり、コネックエフの写真が無い枠）。
+ *   ★ 画像1は駅ちかで消せない（残る）ので数えない。
+ */
+export async function planPhotoRemovalSlots(
+  svc: SupabaseClient, input: { therapistId: number; slot: number; images: string[] },
+): Promise<number[]> {
+  const { data, error } = await svc.from('conecf_photo_pushes').select('image_slot')
+    .eq('therapist_id', input.therapistId).eq('provider', 'ekichika').eq('slot', input.slot);
+  if (error) return [];
+  const had = new Set(((data ?? []) as Array<{ image_slot: number }>).map((r) => Number(r.image_slot)));
+  const out: number[] = [];
+  for (let n = 2; n <= PHOTO_SLOT_MAX; n++) if (!input.images[n - 1] && had.has(n)) out.push(n);
+  return out;
 }

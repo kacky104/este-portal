@@ -3,7 +3,13 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { buildGirlEditValues } from '@/app/lib/media/girlEditPlan';
+import { buildGirlEditValues, planPhotoRemovalSlots, imagesOf } from '@/app/lib/media/girlEditPlan';
+import type { PhotoSyncOp } from '@/lib/ekichikaPhoto';
+
+/** ★★ 第428便: 「消さずに更新」のときは消す手を外す（★ 既定は外す＝押す前に確認していない呼び出しでは消さない） */
+function keepRemoves(photos: PhotoSyncOp[], allowRemove: boolean | undefined): PhotoSyncOp[] {
+  return allowRemove === true ? photos : photos.filter((p) => p.action !== 'remove');
+}
 
 // コネックエフ「女性の編集」→「駅ちかへ反映」（第418便・2026-09-17）。
 // ★ 流れ: ①確かめる（試し打ち＝駅ちかの編集ページを読むだけ）→ ②結果「◯欄が変わります」を見る → ③送る（読み直して照合）
@@ -24,7 +30,7 @@ async function resolve() {
   return { ok: true as const, svc, salonId: Number(salon.id), userId: user.id };
 }
 
-export async function startConecfEkichikaEdit(input: { id: number; apply: boolean }): Promise<Result<{ flowId: string }>> {
+export async function startConecfEkichikaEdit(input: { id: number; apply: boolean; allowRemove?: boolean }): Promise<Result<{ flowId: string }>> {
   const r = await resolve();
   if (!r.ok) return r;
   const therapistId = Number(input.id);
@@ -38,7 +44,7 @@ export async function startConecfEkichikaEdit(input: { id: number; apply: boolea
       actor: 'shop:' + r.userId,
       girlEdit: {
         castId: built.data.castId, name: built.data.name, values: built.data.values, apply: input.apply === true,
-        therapistId: built.data.therapistId, photos: built.data.photos, photoSkipped: built.data.photoSkipped,
+        therapistId: built.data.therapistId, photos: keepRemoves(built.data.photos, input.allowRemove), photoSkipped: built.data.photoSkipped,
       },
     });
     if (!f.ok) return { ok: false, error: f.reason === 'busy' ? 'いま駅ちかで別の更新が動いています。少し待ってからお試しください' : f.note };
@@ -95,7 +101,7 @@ const BULK_MAX = 50;
  *   ★ 送れない人（駅ちかと未連携・送り先で送らない 等）は外して、名前と理由を返す。
  *   ★ 結果は1人ずつ「更新結果」に出る。
  */
-export async function startConecfEkichikaBulkEdit(input: { ids: number[] }): Promise<Result<{ queued: number; skipped: Array<{ name: string; reason: string }> }>> {
+export async function startConecfEkichikaBulkEdit(input: { ids: number[]; allowRemove?: boolean }): Promise<Result<{ queued: number; skipped: Array<{ name: string; reason: string }> }>> {
   const r = await resolve();
   if (!r.ok) return r;
   const ids = [...new Set((Array.isArray(input.ids) ? input.ids : []).map(Number).filter((x) => Number.isFinite(x) && x > 0))];
@@ -107,7 +113,7 @@ export async function startConecfEkichikaBulkEdit(input: { ids: number[] }): Pro
   const skipped: Array<{ name: string; reason: string }> = [];
   for (const id of ids) {
     const b = await buildGirlEditValues(r.svc, { salonId: r.salonId, therapistId: id, slot: 1 });
-    if (b.ok) items.push(b.data);
+    if (b.ok) items.push({ ...b.data, photos: keepRemoves(b.data.photos, input.allowRemove) });
     else skipped.push({ name: nameOf.get(id) || '#' + id, reason: b.error });
   }
   if (items.length === 0) return { ok: true, data: { queued: 0, skipped } };
@@ -128,4 +134,22 @@ export async function startConecfEkichikaBulkEdit(input: { ids: number[] }): Pro
     console.error('[conecf] まとめて更新を始められなかった', (e as Error).message);
     return { ok: false, error: '更新を開始できませんでした。時間をおいてお試しください' };
   }
+}
+
+/**
+ * ★★ 第428便: 押す前の確認。「更新する」で駅ちかから写真が消える人と枠を返す（★ 通信なし・DB を読むだけ）。
+ *   ★ 消える枠が無ければ空配列 → 画面はそのまま送る。
+ */
+export async function previewConecfEkichikaPhotoRemovals(input: { ids: number[] }): Promise<Result<Array<{ id: number; name: string; slots: number[] }>>> {
+  const r = await resolve();
+  if (!r.ok) return r;
+  const ids = [...new Set((Array.isArray(input.ids) ? input.ids : []).map(Number).filter((x) => Number.isFinite(x) && x > 0))].slice(0, BULK_MAX);
+  if (ids.length === 0) return { ok: true, data: [] };
+  const { data: ths } = await r.svc.from('therapists').select('id, name, profile_image_url, profile_images').eq('salon_id', r.salonId).in('id', ids);
+  const out: Array<{ id: number; name: string; slots: number[] }> = [];
+  for (const t of (ths ?? []) as Array<{ id: number; name: string | null; profile_image_url: string | null; profile_images: string[] | null }>) {
+    const slots = await planPhotoRemovalSlots(r.svc, { therapistId: Number(t.id), slot: 1, images: imagesOf(t) });
+    if (slots.length > 0) out.push({ id: Number(t.id), name: String(t.name ?? ''), slots });
+  }
+  return { ok: true, data: out };
 }
