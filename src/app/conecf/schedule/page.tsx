@@ -124,9 +124,17 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           <tbody>
             {shown.map((r) => (
               <tr key={r.id} className={`border-t border-slate-100 ${r.isActive ? '' : 'opacity-50'}`}>
+                {/* ★★ 第439便（カッキーさん）: 名前の左にその子の写真（★ 40×54・1枚目）。★ 写真が無い子は枠だけ */}
                 <th className="sticky left-0 z-10 bg-white text-left px-3 py-2 font-bold text-slate-700 whitespace-nowrap">
-                  <span className="block truncate max-w-[130px]">{r.name || '（名前なし）'}</span>
-                  {!r.isActive && <span className="text-[10.5px] font-bold text-slate-400">非公開</span>}
+                  <span className="flex items-center gap-2">
+                    {r.imageUrl
+                      ? <img src={r.imageUrl} alt="" width={40} height={54} className="w-10 h-[54px] object-cover border border-slate-200 bg-slate-100 shrink-0" loading="lazy" />
+                      : <span className="w-10 h-[54px] border border-slate-200 bg-slate-50 shrink-0" aria-hidden />}
+                    <span className="min-w-0">
+                      <span className="block truncate max-w-[92px]">{r.name || '（名前なし）'}</span>
+                      {!r.isActive && <span className="block text-[10.5px] font-bold text-slate-400">非公開</span>}
+                    </span>
+                  </span>
                 </th>
                 {dates.map((d, i) => {
                   const c = cellOf(r, d);
