@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMediaBrand } from './mediaBrand';
 import {
@@ -165,6 +165,9 @@ function Photo({ url, name }: { url: string | null; name: string }) {
   );
 }
 
+/** ★ 第436便: 名簿の写しがこれより古ければ、開いたときに自動で読み直す（30分） */
+const ROSTER_STALE_MS = 30 * 60 * 1000;
+
 export function TherapistBoard({ salonId, onToast }: {
   salonId: number | null;
   onToast: (m: string) => void;
@@ -188,6 +191,8 @@ export function TherapistBoard({ salonId, onToast }: {
   // ★★ 第302便: 結び（旧 RosterLinkBoard の中身）。★ いま開いているサイトのぶんだけ持つ
   const [pairs, setPairs] = useState<LinkPairs | null>(null);
   const [readAt, setReadAt] = useState<string | null>(null);
+  // ★ 第436便: この表示で自動の読み直しを頼んだサイト（★ 何度も頼まない）
+  const autoRead = useRef<Set<string>>(new Set());
   const [pick, setPick] = useState<Record<string, string>>({});
   const [linkBusy, setLinkBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -229,6 +234,14 @@ export function TherapistBoard({ salonId, onToast }: {
       setPairs(r.data.pairs);
       setReadAt(r.data.readAtISO);
       setPick({});
+      // ★★ 第436便: 名簿の写しが古ければ、開いたときに黙って読み直す（★ 「名簿を更新する」を押さなくていいように）。
+      //   ★ 1回の表示で1つのサイトにつき1回だけ。★ 押したときと同じ口（中継の周で数分後に反映）
+      const stale = !r.data.readAtISO || Date.now() - Date.parse(r.data.readAtISO) > ROSTER_STALE_MS;
+      const key = site.provider + '#' + site.slot;
+      if (stale && !autoRead.current.has(key)) {
+        autoRead.current.add(key);
+        void startMediaRosterRead({ salonId, provider: site.provider, slot: site.slot });
+      }
     })();
     return () => { live = false; };
   }, [salonId, site, reloadKey]);

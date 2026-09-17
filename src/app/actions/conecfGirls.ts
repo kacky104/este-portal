@@ -448,6 +448,8 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
 
   const queued: string[] = [];
   const manual: string[] = [];
+  /** ★ 第436便: 名簿の写しから外す番号（provider/slot/castId） */
+  const pruned: Array<{ provider: string; slot: number; castId: string }> = [];
   if (input.alsoSites === true) {
     const { data: legacy } = await svc.from('therapists').select('import_cast_id').eq('id', Number(t.id)).maybeSingle();
     const sites = await linkedSites(svc, salonId, Number(t.id), (legacy?.import_cast_id as string | null) ?? null);
@@ -468,10 +470,35 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
           + (queued.length > 0 ? queued.join('・') + 'には依頼済みです。' : '') + '少し待ってからもう一度お試しください' };
       }
       queued.push(site.label + (site.auto === 'delete' ? '（削除）' : '（非表示）'));
+      pruned.push({ provider: site.provider, slot: site.slot, castId: site.castId });
     }
   }
 
   const res = await deleteTherapistWithCleanup({ therapistId: String(t.id), salonId });
   if (!res.ok) return { ok: false, error: res.error + (queued.length > 0 ? '（' + queued.join('・') + 'には依頼済みです）' : '') };
+  // ★★ 第436便: 消した人を【名簿の写し】からも外す（★ 外さないと「名前が同じ」の候補に出続け、
+  //   ★ 次に同じ名前の子を作ったとき、もう居ない相手に結びついてしまう・2026-09-18 00:08 に踏んだ）
+  await pruneRosterSnapshots(svc, salonId, pruned);
   return { ok: true, data: { salonId, name, queued, manual } };
+}
+
+/**
+ * ★★ 第436便: 名簿の写し（media_roster_snapshots）から、消した／非表示にした番号を外す。
+ *   ★ 写しは「相手の画面をこの時刻に読んだ結果」なので、書き換えるのは本当は読み直しの役目。
+ *     ★ でも読み直しは中継の周を待つ（数分）。★ その間に「名前が同じ」の候補として出てしまう。
+ *   → ★ こちらが消した番号だけを、その場で抜く（★ ほかの行は触らない）。★ 次の読み直しで写しは正しくなる
+ */
+async function pruneRosterSnapshots(svc: Svc, salonId: number, rows: Array<{ provider: string; slot: number; castId: string }>): Promise<void> {
+  for (const r of rows) {
+    const { data } = await svc.from('media_roster_snapshots').select('entries, total')
+      .eq('salon_id', salonId).eq('provider', r.provider).eq('slot', r.slot).maybeSingle();
+    const entries = (data?.entries as Array<{ castId?: unknown }> | null) ?? null;
+    if (!Array.isArray(entries)) continue;
+    const next = entries.filter((e) => String(e?.castId ?? '') !== r.castId);
+    if (next.length === entries.length) continue;
+    const { error } = await svc.from('media_roster_snapshots')
+      .update({ entries: next, total: next.length })
+      .eq('salon_id', salonId).eq('provider', r.provider).eq('slot', r.slot);
+    if (error) console.error('[conecf] 名簿の写しから外せなかった', r.provider, error.message);
+  }
 }
