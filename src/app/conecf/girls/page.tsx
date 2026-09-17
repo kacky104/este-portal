@@ -195,7 +195,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const st = imp.st;
   const canImport = !!st && st.hasEkichika && st.phase === 'none';
   const pst = photoImp.st;
-  const canPhotoImport = !!pst && pst.hasEkichika && pst.phase === 'none' && !pst.firstImportBusy && pst.noPhotoCount > 0 && !canImport;
+  const canPhotoImport = !!pst && pst.hasEkichika && pst.phase === 'none' && !pst.firstImportBusy && pst.noPhotoCount > 0;   // ★ 第429便: 最初の取り込みを押していない店（ラビリンス様）でも出す
 
   return (
     <div className="space-y-4 text-[14px] text-[#212121]">
