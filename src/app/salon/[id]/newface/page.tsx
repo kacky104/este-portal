@@ -1,0 +1,136 @@
+import Link from "next/link";
+import { Logo } from '@/app/components/Logo';
+import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { AccountMenu } from '@/app/components/AccountMenu';
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { notFound } from "next/navigation";
+import { createPublicClient } from "@/app/lib/supabase/public";
+import { notFoundIfFreeListing } from "../freeListingGuard";
+import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
+import { SalonNewFaceTherapists } from "@/components/SalonTherapists";
+import type { Metadata } from "next";
+import { buildSalonSubpageMetadata } from "../subpageMetadata";
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { SalonMobileNav } from '../SalonMobileNav';
+import { fetchSalonNavItems } from '../salonNavItems';
+
+// 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  return buildSalonSubpageMetadata(id, "newface", "新人紹介");
+}
+
+// ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
+export const revalidate = 600;
+
+// 事前生成はせず、初回アクセス時にその場生成→以降キャッシュ（ランタイムISR）。
+// Next 16 では revalidate を効かせるため generateStaticParams（空配列）が必須。dynamicParams は既定 true。
+export async function generateStaticParams() {
+  return [];
+}
+
+// ★ 第499便: 店舗ページ「新人紹介」の「すべて見る」の行き先（新人だけの一覧）。
+// ★ 新人の判定・並びは SalonNewFaceTherapists と同じ（is_new_face かつ入店から60日以内・入店が新しい順）。
+export default async function SalonNewFacePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = createPublicClient();
+  await notFoundIfFreeListing(supabase, Number(id));
+
+  const { data: salonRow, error } = await supabase
+    .from('salons')
+    .select('id, name, theme')
+    .eq('id', Number(id))
+    .single();
+
+  if (error || !salonRow) notFound();
+
+  const theme = getTheme(salonRow.theme as string | null);
+
+  const { data: wallpaperRow } = await supabase
+    .from('theme_wallpapers')
+    .select('image_url')
+    .eq('theme_key', theme.key)
+    .maybeSingle();
+  const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
+
+  // 個別サロンページと同じ背景レイヤー（壁紙＋テーマ色オーバーレイ、モバイル対応の固定配置）
+  const bgLayerStyle: React.CSSProperties = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : {}),
+  };
+
+  const salonName = (salonRow.name as string) ?? '';
+
+  // ★ スマホ右ドロワーの中身（第219便）。★ 数字は店舗トップと同じ数え方（salonNavItems.ts）。
+  const salonNavItems = await fetchSalonNavItems(Number(id));
+
+  return (
+    <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
+
+      {/* 背景レイヤー（個別サロンページと同じテーマ壁紙） */}
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
+
+      {/* ─── Header ─────────────────────────────────────────── */}
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
+        <div className="max-w-4xl mx-auto px-2 h-14 flex items-center justify-between">
+          <Logo />
+          <div className="flex items-center gap-2"><SavedSalonsMenu /><VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu /></div>
+        </div>
+      </header>
+      <SiteNoticeBanner />
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* ─── パンくずリスト：トップ › サロン名 › 新人紹介（他ページと同形式） ─── */}
+        {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: salonName || '店舗', path: `/salon/${id}` },
+          { name: '新人紹介', path: `/salon/${id}/newface` },
+        ])) }} />
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
+          <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
+            トップ
+          </Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <Link href={`/salon/${id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[45%] truncate align-middle" style={{ color: '#ec4899' }}>
+            {salonName || '店舗'}
+          </Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>新人紹介</span>
+        </nav>
+
+        {/* タイトル */}
+        {/* タイトル（店名＋ページ名）。★ 第219便: スマホは右に三本線・スクロールで店名バー・右ドロワー（SalonMobileNav）。
+            ★ h1 の見た目は今までと同じ（部品の中で描いている）。 */}
+        <SalonMobileNav
+          mode="subpage"
+          salonName={salonName}
+          pageLabel="新人紹介"
+          items={salonNavItems}
+          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
+        />
+
+        {/* 新人だけの一覧（全件・「すべて見る」なし）。★ 0人のときは案内と在籍一覧への入口を出す */}
+        <SalonNewFaceTherapists salonId={Number(id)} theme={theme} maxItems={null} from="newface" showSaveButton emptyMessage="いま新人紹介中のセラピストはいません。" />
+      </main>
+    </div>
+  );
+}

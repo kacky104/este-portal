@@ -13,7 +13,9 @@ export function FromCrumb({ salonId }: { salonId: number }) {
       ? { label: '出勤情報', href: `/salon/${salonId}/schedule` }
       : from === 'therapists'
         ? { label: 'セラピスト一覧', href: `/salon/${salonId}/therapists` }
-        : null;
+        : from === 'newface'
+          ? { label: '新人紹介', href: `/salon/${salonId}/newface` }
+          : null;
   if (!crumb) return null;
   return (
     <>

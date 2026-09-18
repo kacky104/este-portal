@@ -991,9 +991,11 @@ export function SalonNewFaceTherapists({
   maxItems = 4,
   from,
   showSaveButton = false,
+  emptyMessage,
 }: {
   salonId: number;
   theme: SalonTheme;
+  emptyMessage?: string;     // ★ 第499便: 指定時は該当0人でも枠を出してこの文を表示（/salon/[id]/newface 用）
   header?: 'card' | 'bar';   // 'card': テーマ背景ブロック+見出し / 'bar': 緑色のタイトルバー
   maxItems?: number | null;  // number: その人数まで表示し超過時「すべて見る」/ null: 全件表示・ボタンなし
   from?: string;             // パンくず用 ?from= パラメータ
@@ -1062,7 +1064,16 @@ export function SalonNewFaceTherapists({
   }, [salonId]);
 
   // 該当0人（または取得前）はセクション自体を非表示
-  if (!list || list.length === 0) return null;
+  if (!list) return null;
+  if (list.length === 0) {
+    if (!emptyMessage) return null;
+    return (
+      <div className="mt-8 rounded-3xl p-6 border shadow-sm text-center space-y-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+        <p className="text-sm" style={{ color: theme.body }}>{emptyMessage}</p>
+        <Link href={`/salon/${salonId}/therapists`} className="inline-block text-sm font-bold" style={{ color: '#ec4899' }}>在籍セラピスト一覧を見る ›</Link>
+      </div>
+    );
+  }
 
   const shown = maxItems != null ? list.slice(0, maxItems) : list;
   const showAllButton = maxItems != null && list.length > maxItems;
@@ -1079,7 +1090,7 @@ export function SalonNewFaceTherapists({
   const allButton = showAllButton && (
     <div className="mt-4 text-center">
       <Link
-        href={`/salon/${salonId}/therapists`}
+        href={`/salon/${salonId}/newface`} // ★ 第499便: 新人だけの一覧へ（前はセラピスト一覧だった）
         className="inline-flex items-center justify-center text-white shadow-sm hover:opacity-90 transition-opacity"
         style={{
           background: 'linear-gradient(to right, #ec4899, #f97316)',
