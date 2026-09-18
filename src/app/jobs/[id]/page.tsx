@@ -469,11 +469,8 @@ function JobSalonSaveBlock({ salonId, salonName }: { salonId: number; salonName:
         kind="job_salon"
         item={{ id: salonId, name: salonName }}
         variant="paw"
-        imageSrc="/logo-fukuwork.png"
-        imageSavedSrc="/logo-fukuwork-saved.png"
+        // ★ 第486便（カッキーさん）: ロゴではなくフクエスと同じ星（未保存＝うすい星・保存済み＝濃い星）。★ 粒は緑のまま
         burstColor="#10B981"
-        savedBg="#FFFFFF"
-        shadow
       />
     </div>
   );

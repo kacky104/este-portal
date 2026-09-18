@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { STAR_SRC, STAR_SAVED_FILTER } from '@/app/components/SaveButton';
 import Image from 'next/image';
 import { getJobSavedCount, SAVED_JOB_SALONS_EVENT } from '@/lib/savedJobSalons';
 
@@ -35,13 +36,15 @@ export function JobsSavedMenu() {
       className="relative inline-flex items-center justify-center w-9 h-9 rounded-full transition-colors hover:bg-emerald-50 flex-shrink-0"
     >
       <Image
-        src="/logo-fukuwork.png"
+        // ★ 第486便（カッキーさん）: 保存した求人の入口はロゴではなく星（保存ボタンと同じ絵・保存済みの濃い色）
+        src={STAR_SRC}
         alt=""
         aria-hidden="true"
         width={24}
         height={24}
         draggable={false}
         className="w-6 h-6 object-contain pointer-events-none select-none"
+        style={{ filter: `${STAR_SAVED_FILTER} drop-shadow(0 1px 1.5px rgba(0,0,0,0.18))` }}
       />
       {n > 0 && (
         <span
