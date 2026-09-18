@@ -6,6 +6,8 @@ category: sejutsu
 summary: 施術の前後に体を流すための設備。オイルを使う施術のあと、肌に残ったオイルを落とすために使う。「シャワー完備」はその設備があること。
 description: メンズエステのシャワーとは、施術の前後に体を流すための設備のこと。施術前と施術後それぞれの意味、「シャワー完備」の見方、シャワーのないお店での過ごし方、予約前に確かめておくことを解説します。
 publishedAt: 2026-09-18
+heroImage: /glossary/shower/hero.webp
+heroAlt: 白いタイルのパウダールームの洗面台と、奥に見えるガラス扉のシャワーブース
 related: [aroma-oil-treatment, oil, course-jikan, kami-pants, towel-work, seiketsu, counseling]
 areas: [nakasu-tenjin, hakata-eki, dispatch]
 faq:
