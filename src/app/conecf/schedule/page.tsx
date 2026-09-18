@@ -88,6 +88,9 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   const openRow = open ? rows.find((r) => r.id === open.id) ?? null : null;
   const openCell = open && openRow ? cellOf(openRow, open.date) : null;
   const todayCount = rows.filter((r) => dates[0] && cellOf(r, dates[0]).isActive).length;
+  // ★★ 第441便（カッキーさん）: 日付の下に、その日の出勤人数を出す（★ 直した内容もすぐ数に出る）。
+  //   ★ 公開の方だけ数える（★ 非公開の方は出勤を送らない）。★ 検索で絞っているときは、出ている方のぶんだけ数える
+  const countOf = (d: string) => shown.filter((r) => r.isActive && cellOf(r, d).isActive).length;
 
   return (
     <div className="space-y-3 pb-20">
@@ -116,6 +119,13 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                   <th key={d} className={`w-[calc((100%-150px)/7)] px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
                     <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
                     <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
+                    <div className="mt-0.5">
+                      <span className={`inline-block min-w-[34px] px-1.5 py-px text-[11px] font-black tabular-nums ${
+                        countOf(d) > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        {countOf(d)}名
+                      </span>
+                    </div>
                   </th>
                 );
               })}
