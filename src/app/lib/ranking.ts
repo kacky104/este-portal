@@ -96,7 +96,7 @@ export type PrevRankMaps = {
 export async function fetchPreviousRankMaps(): Promise<PrevRankMaps> {
   const week = previousWeekStartJST();
   const [overall, salon, therapist] = await Promise.all([
-    fetchOverallWeeklyRanking(9999, week),
+    fetchRecommendWeeklyRanking(9999, week), // ★ 第500便: 「おすすめ」タブの前週順位
     fetchSalonWeeklyRanking(9999, week),
     fetchTherapistWeeklyRanking(9999, week),
   ]);
@@ -305,6 +305,18 @@ export async function fetchRankingHero(): Promise<string | null> {
 // スコア = 店舗(実アクセス+下駄) + Σ 所属セラピスト(実アクセス+下駄)。非表示店舗・退店セラピストは除外。合計0は非表示。
 // 表示形状は店舗ランキングと同じ SalonRankItem。
 export async function fetchOverallWeeklyRanking(limit = 10, week: string = currentWeekStartJST()): Promise<SalonRankItem[]> {
+  const scored = await computeOverallScores(week);
+  return scored
+    .filter((x) => x._score > 0)
+    .sort((a, b) => b._score - a._score || a.id - b.id)
+    .slice(0, limit)
+    .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2, dispatchType: x.dispatchType }));
+}
+
+type ScoredSalon = { id: number; name: string; area: string | null; area2: string | null; dispatchType: 'none' | 'available' | 'only'; _score: number };
+
+// ★ 第500便: 総合（アクセス）の点数を全店ぶん出す。★ おすすめランキングの同点の並べ替えにも使う
+async function computeOverallScores(week: string): Promise<ScoredSalon[]> {
   const supabase = createPublicClient();
 
   // 店舗の週間アクセス
@@ -359,9 +371,31 @@ export async function fetchOverallWeeklyRanking(limit = 10, week: string = curre
       const score =
         (salonViews.get(id) ?? 0) + Number(s.ranking_bonus ?? 0) + (therapistContribBySalon.get(id) ?? 0);
       return { id, name: s.name ?? '', area: s.area ?? null, area2: s.area2 ?? null, dispatchType: (s.dispatch_type ?? 'none') as 'none' | 'available' | 'only', _score: score };
-    })
-    .filter((x) => x._score > 0)
-    .sort((a, b) => b._score - a._score || a.id - b.id)
+    });
+}
+
+// ★ 第500便（カッキーさん）: おすすめランキング（店舗ベース）。
+// 点数 ＝ 手動の上位表示×1 ＋ 手動のお知らせ×5 ＋ 店舗アカウントの fukuX 投稿（1日10点まで）。★ 計算は DB の salon_recommend_scores が正本。
+// 週は月曜0時（JST）から7日。★ 同点は総合（週間アクセス）の多い順、それも同じなら id 順。0点の店は出さない。
+// ★ SQL（20260918_salon_recommend_ranking.sql）が当たる前・読めないときは、総合（アクセス）の並びで出す（ページを空にしない）。
+export async function fetchRecommendWeeklyRanking(limit = 10, week: string = currentWeekStartJST()): Promise<SalonRankItem[]> {
+  const supabase = createPublicClient();
+  const from = new Date(`${week}T00:00:00+09:00`);
+  const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const [{ data, error }, scored] = await Promise.all([
+    supabase.rpc('salon_recommend_scores', { p_from: from.toISOString(), p_to: to.toISOString() }),
+    computeOverallScores(week),
+  ]);
+  if (error || !Array.isArray(data)) {
+    console.error('[ranking] おすすめの点数を読めませんでした（総合の並びで出します）:', error?.message);
+    return fetchOverallWeeklyRanking(limit, week);
+  }
+  const points = new Map<number, number>();
+  for (const r of data as Array<{ salon_id: number; points: number }>) points.set(Number(r.salon_id), Number(r.points) || 0);
+  return scored
+    .map((x) => ({ ...x, _points: points.get(x.id) ?? 0 }))
+    .filter((x) => x._points > 0)
+    .sort((a, b) => b._points - a._points || b._score - a._score || a.id - b.id)
     .slice(0, limit)
     .map((x, i) => ({ rank: i + 1, id: x.id, name: x.name, area: x.area, area2: x.area2, dispatchType: x.dispatchType }));
 }

@@ -184,7 +184,7 @@ export default function RankingTabs({
           <div className="flex sm:justify-center mb-5">
             <div className="flex w-full sm:w-auto">
               {([
-                ['overall', '総合'],
+                ['overall', 'おすすめ'], // ★ 第500便: 総合→おすすめ（中身の key は overall のまま）
                 ['salon', '店舗'],
                 ['therapist', 'セラピスト'],
               ] as const).map(([key, label], i) => {
@@ -218,8 +218,8 @@ export default function RankingTabs({
           <div className={tab === 'overall' ? '' : 'hidden'}>
             <>
               <RankingHeading
-                title="総合ランキング TOP10"
-                description={<>店舗と所属セラピスト全員の週間アクセスを合算した<br className="sm:hidden" />福岡のメンズエステ総合の人気ランキングです</>}
+                title="おすすめランキング TOP10"
+                description={<>お客様への情報発信や満足度で決まる<br className="sm:hidden" />おすすめのお店</>}
                 bodyColor={theme.body}
               />
               {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}

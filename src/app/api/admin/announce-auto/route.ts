@@ -103,6 +103,17 @@ export async function POST(req: Request) {
     });
 
     if (!judged.post) { skipped.push({ salonId, why: judged.reason }); continue; }
+    // ★ 第500便: お知らせは 1日5回まで（朝6時区切り・自動も1回）。★ 読めないとき（SQL 前）は止めない
+    {
+      const dayStart = new Date(new Date(now.getTime() + 3 * 3600_000).toISOString().slice(0, 10) + 'T06:00:00+09:00');
+      const { count: usedToday, error: usedErr } = await svc
+        .from('salon_rank_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('salon_id', salonId)
+        .in('kind', ['announce_manual', 'announce_auto'])
+        .gte('created_at', dayStart.toISOString());
+      if (!usedErr && (usedToday ?? 0) >= 5) { skipped.push({ salonId, why: '本日のお知らせ5回に達しています' }); continue; }
+    }
     if (!apply) { posted.push(`${salonId}#${judged.index}`); continue; }
 
     // ★★ 順番の位置の1本だけを取り出す（全件は読まない）。
@@ -146,6 +157,12 @@ export async function POST(req: Request) {
     // ★★★ ここで失敗したら、次の周でもう一度出てしまう（1日1回が破れる）。
     //   ★ 黙らない。失敗として数える
     if (stateErr) { failed.push({ salonId, why: '出しましたが記録に失敗: ' + stateErr.message.slice(0, 150) }); continue; }
+
+    // ★ 第500便: 1日5回の材料（★ 自動は点数には入れない＝kind を分ける）
+    {
+      const { error: evErr } = await svc.from('salon_rank_events').insert({ salon_id: salonId, kind: 'announce_auto' });
+      if (evErr) console.error('[announce-auto] 回数の記録に失敗:', evErr.message);
+    }
 
     posted.push(`${salonId}#${judged.index}`);
   }

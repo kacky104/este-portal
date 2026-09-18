@@ -36,7 +36,7 @@ type Announcement = {
   published_at: string; image_url: string | null; auto_rotate: boolean;
 };
 type Form = { title: string; content: string; is_published: boolean; image_url: string | null };
-type AutoState = { message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null };
+type AutoState = { message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null; remainingToday: number | null };
 
 function fmt(iso: string): string {
   const d = new Date(iso);
@@ -363,6 +363,10 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
           <>
             <p className="text-[13.5px] text-slate-600 leading-relaxed">{autoState.message}</p>
             {autoState.cycleMessage && <p className="text-[12.5px] text-slate-400">{autoState.cycleMessage}</p>}
+            {/* ★ 第500便: お知らせは1日5回まで（自動も含む・朝6時リセット） */}
+            {autoState.remainingToday != null && (
+              <p className="text-[13.5px] text-slate-600">今日のお知らせ投稿：あと<span className="font-black text-pink-600">{autoState.remainingToday}</span>回（1日5回まで・自動投稿も含む・毎朝6時リセット）</p>
+            )}
           </>
         ) : (
           <p className="text-[13px] text-slate-400">自動投稿の状態を読み込み中です…</p>

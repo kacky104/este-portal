@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import {
-  fetchOverallWeeklyRanking,
+  fetchRecommendWeeklyRanking,
   fetchSalonWeeklyRanking,
   fetchTherapistWeeklyRanking,
   fetchRankingHeroes,
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 // 切り替えるためクライアント部品 RankingTabs 側に集約。ここではデータ取得とメタのみ担う。
 export default async function RankingPage() {
   const [overallRanking, salonRanking, therapistRanking, heroes, wallpapers, prevRanks, adBanners] = await Promise.all([
-    fetchOverallWeeklyRanking(10),  // 総合（店舗＋所属セラピスト）トップ10
+    fetchRecommendWeeklyRanking(10), // ★ 第500便: おすすめ（上位表示・お知らせ・fukuX の点数）トップ10。変数名は overall のまま
     fetchSalonWeeklyRanking(10),    // 店舗はトップ10まで
     fetchTherapistWeeklyRanking(50),
     fetchRankingHeroes(),

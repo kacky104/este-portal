@@ -32,6 +32,31 @@ import {
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
+// ★ 第500便（カッキーさん）: お知らせは 1日5回まで（朝6時区切り・★ 自動配信も1回に数える）。
+//   数えるのは salon_rank_events の announce_manual / announce_auto（フクエスTOPが動いた回）。
+//   ★ 新規（画面から直に INSERT）は DB のトリガ announcements_daily_limit_guard が止める。★ 再投稿はここで止める。
+//   ★ 表がまだ無い（SQL 前）・読めないときは null ＝ 止めない（今までどおり動かす）。
+const ANNOUNCE_DAILY_LIMIT = 5;
+const ANNOUNCE_LIMIT_MESSAGE = '本日のお知らせ投稿は5回までです（毎朝6時にリセットされます）';
+
+/** 朝6時区切りの「今日」のはじまり（ISO）。★ salon_bump の bump_day と同じ切り方 */
+function announceDayStartISO(now: Date): string {
+  const jst = new Date(now.getTime() + 9 * 3600_000 - 6 * 3600_000); // JST から6時間引いた日付が「今日」
+  const ymd = jst.toISOString().slice(0, 10);
+  return new Date(`${ymd}T06:00:00+09:00`).toISOString();
+}
+
+async function countAnnounceToday(svc: ReturnType<typeof createServiceClient>, salonId: number, now: Date): Promise<number | null> {
+  const { count, error } = await svc
+    .from('salon_rank_events')
+    .select('id', { count: 'exact', head: true })
+    .eq('salon_id', salonId)
+    .in('kind', ['announce_manual', 'announce_auto'])
+    .gte('created_at', announceDayStartISO(now));
+  if (error) return null;
+  return count ?? 0;
+}
+
 /** その店舗を操作してよいか（オーナー本人・運営）。★ mediaCredentials.ts と同型。 */
 async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string }>> {
   const supabase = await createClient();
@@ -103,6 +128,12 @@ export async function postAnnouncementManually(input: {
         lastBumpAt: (state?.last_bump_at as string | null) ?? null,
       });
 
+  // ★ 第500便: 1日5回まで。★ 再投稿で並びが動くときだけ見る（止められる回・新規は数え直さない）
+  if (judged.bumpFukues && input.kind === 'repost') {
+    const used = await countAnnounceToday(svc, salonId, now);
+    if (used != null && used >= ANNOUNCE_DAILY_LIMIT) return { ok: false, error: ANNOUNCE_LIMIT_MESSAGE };
+  }
+
   // ★ 並びを動かすときだけ published_at を進める（トリガは service role を通す）
   if (judged.bumpFukues && input.kind === 'repost') {
     const { error } = await svc
@@ -131,6 +162,12 @@ export async function postAnnouncementManually(input: {
   // ★ 記録に失敗しても、出たものは出た。嘘をつかないため、ここでは失敗にしない。
   //   ただし黙らない（次の周で「手動があった日」を取りこぼす可能性がある）。
   if (upErr) console.error('[announce] 手動配信の記録に失敗:', upErr.message);
+
+  // ★ 第500便: おすすめランキング（1回5点）と 1日5回の材料。★ フクエスTOPが動いた回だけ残す
+  if (judged.bumpFukues) {
+    const { error: evErr } = await svc.from('salon_rank_events').insert({ salon_id: salonId, kind: 'announce_manual' });
+    if (evErr) console.error('[announce] ランキング用の記録に失敗:', evErr.message);
+  }
 
   return {
     ok: true,
@@ -164,6 +201,8 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
     message: string;
     /** 「5本あるので、1本が出るのは 5日に1回です」。0本のときは null */
     cycleMessage: string | null;
+    /** ★ 第500便: 今日あと何回お知らせを出せるか（朝6時区切り・自動も含む）。読めないときは null */
+    remainingToday: number | null;
   }>
 > {
   const salonId = Number(input.salonId);
@@ -201,6 +240,7 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
   });
 
   const timeLabel = autoPostTimeLabel(salonId);
+  const usedToday = await countAnnounceToday(svc, salonId, new Date());
   return {
     ok: true,
     data: {
@@ -210,6 +250,7 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
       message: autoStateMessage(judged, timeLabel, targetCount),
       // ★ 本数の上限は決めていない。代わりに周期を数字で出す（第70便）
       cycleMessage: targetCount === null ? null : rotationCycleMessage(targetCount),
+      remainingToday: usedToday == null ? null : Math.max(0, ANNOUNCE_DAILY_LIMIT - usedToday),
     },
   };
 }

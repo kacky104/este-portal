@@ -988,7 +988,7 @@ export default function MyPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   // お知らせ：自動配信の状態（第69便）。★ 周（/api/admin/announce-auto）と同じ判定から来る1行。
   //   ★ 読めなければ null のまま。読めていないことを「お休みです」と書き替えない
-  const [announceState, setAnnounceState] = useState<{ message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null } | null>(null);
+  const [announceState, setAnnounceState] = useState<{ message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null; remainingToday: number | null } | null>(null);
   const refreshAnnounceState = async () => {
     if (!salon) return;
     const r = await getAnnounceState({ salonId: Number(salon.id) });
@@ -5509,6 +5509,10 @@ export default function MyPage() {
             {announceState ? (
               <>
                 <p className="text-[11px] text-slate-600 leading-relaxed">{announceState.message}</p>
+                {/* ★ 第500便: お知らせは1日5回まで（自動も含む・朝6時リセット） */}
+                {announceState.remainingToday != null && (
+                  <p className="text-[11px] text-slate-600 leading-relaxed">今日のお知らせ投稿：あと<span className="font-black text-pink-600">{announceState.remainingToday}</span>回（1日5回まで・自動投稿も含む・毎朝6時リセット）</p>
+                )}
                 {/* ★★ 周期の1行と、仕組みの説明は消した（2026-09-06・カッキーさんの指示）。
                     ★ 見出しの「（1日1投稿）」と、上の1行（自動配信設定◯件）で足りる、という判断。
                     ★ cycleMessage は作る側（announceAuto.ts）に残してある。★ 戻すならここに1行。 */}
