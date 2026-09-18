@@ -57,11 +57,13 @@ export default async function JobsPage() {
   const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8">
+    <>
+      {/* ★ 第483便（2026-09-18・カッキーさん）: ヒーロー画像は PC/SP とも【画面の横幅いっぱい】・角は直角。
+          ★ そのため <main>（max-w-3xl）の外に出した。 */}
       {/* ヒーロー画像（PC／SP 出し分け）。旧ウェルカム画面のENTERゲートは廃止し、TOP最上部に直接表示。
           server component 内での描画のため localStorage/state は使わず、SSRとクライアントで一致（ハイドレーション不整合なし）。
           .hero-shine-loop：斜めの白帯が画像上を4秒に1回横切る（純CSS・reduced-motionで無効）。 */}
-      <div className="mb-8 -mt-2 rounded-2xl hero-shine-loop">
+      <div className="hero-shine-loop">
         {/* PC */}
         <Image
           src={heroPc}
@@ -69,7 +71,8 @@ export default async function JobsPage() {
           width={1920}
           height={1080}
           priority
-          className="hidden md:block w-full h-auto rounded-2xl"
+          sizes="100vw"
+          className="hidden md:block w-full h-auto"
         />
         {/* SP */}
         <Image
@@ -78,9 +81,12 @@ export default async function JobsPage() {
           width={1080}
           height={1920}
           priority
-          className="md:hidden w-full h-auto rounded-2xl"
+          sizes="100vw"
+          className="md:hidden w-full h-auto"
         />
       </div>
+
+    <main className="max-w-3xl mx-auto px-4 py-8">
 
       {/* お仕事マッチングへの導線（/jobs/matching）。希望を入力→運営が合うお店を無料で紹介・斡旋する入口。
           ★ 第351便（2026-09-13・カッキーさんの指示）: コードで組んだグラデのカードをやめ、
@@ -211,5 +217,6 @@ export default async function JobsPage() {
         )}
       </div>
     </main>
+    </>
   );
 }
