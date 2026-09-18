@@ -46,7 +46,8 @@ export default async function JobsPage() {
     // ★ 第482便: トップのヒーロー画像（管理画面「エリアバナー設定」の TOP 行）。★ 無ければ今までの固定画像
     fetchAreaHeroBanner(JOBS_TOP_BANNER_AREA).catch(() => null),
   ]);
-  const heroPc = topBanner?.pc ?? '/hero-fukuwork-pc.png';
+  // ★ 第484便（カッキーさん）: PC は横長（2109×746・約2.8:1）の新しい画像。★ 管理画面で PC を入れていればそちらが優先
+  const heroPc = topBanner?.pc ?? '/hero-fukuwork-pc-wide.jpg';
   const heroSp = topBanner?.sp ?? '/hero-fukuwork-sp.png';
 
   // バナーカード：jobs（このページの条件＝全公開求人）からバナー画像ありを抽出し30分バケットでシャッフル（別クエリ無し）。
@@ -68,8 +69,8 @@ export default async function JobsPage() {
         <Image
           src={heroPc}
           alt="フクエスワーク｜福岡メンズエステのセラピスト求人サイト"
-          width={1920}
-          height={1080}
+          width={2109}
+          height={746}
           priority
           sizes="100vw"
           className="hidden md:block w-full h-auto"

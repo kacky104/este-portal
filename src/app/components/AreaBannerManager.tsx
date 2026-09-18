@@ -157,7 +157,7 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[10px] text-slate-400">推奨: SP 750×900（縦5:6）／ PC 1536×512（横3:1）　※TOP（/jobs）の PC は 1280×720（横16:9）</span>
+        <span className="text-[10px] text-slate-400">推奨: SP 750×900（縦5:6）／ PC 1536×512（横3:1）　※TOP（/jobs）の PC は 2109×746 前後（横長・約2.8:1）</span>
       </div>
       <p className="text-[11px] text-slate-400 mb-4">
         各エリアページ（/jobs/area/&lt;エリア&gt;）の見出し直下に表示されるヒーローバナーです。SP・PC は個別に設定できます。
@@ -193,7 +193,7 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
                     const url = kind === 'sp' ? row?.spUrl ?? null : row?.pcUrl ?? null;
                     // 高さ固定 h-40（160px）＋aspectで幅が決まる：SP=5/6(約133px)／PC=3/1(約480px)。
                     // 未設定プレースホルダーも同じ h-40・同aspectにして5エリアの行高を揃える。
-                    const aspect = kind === 'sp' ? 'aspect-[5/6]' : top ? 'aspect-[16/9]' : 'aspect-[3/1]';
+                    const aspect = kind === 'sp' ? 'aspect-[5/6]' : top ? 'aspect-[2109/746]' : 'aspect-[3/1]';
                     return (
                       <div key={kind} className="flex flex-col gap-1">
                         <span className="text-[10px] font-bold text-slate-400">{kind.toUpperCase()}</span>
