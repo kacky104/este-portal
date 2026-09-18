@@ -9,7 +9,7 @@
 import type { ThemeKey } from '@/app/lib/themes';
 
 export type CastThemeKey =
-  | 'default' | 'black' | 'pink' | 'yellow' | 'blue' | 'red' | 'purple' | 'gold' | 'gradient';
+  | 'default' | 'black' | 'pink' | 'yellow' | 'blue' | 'red' | 'purple' | 'green' | 'gold' | 'gradient';
 
 export type CastTheme = {
   key: CastThemeKey;
@@ -41,6 +41,8 @@ export const CAST_THEMES: CastTheme[] = [
   { key: 'blue',     label: '青',          wrapperClass: 'bg-sky-100 text-slate-800',       swatchClass: 'bg-sky-300',     wallpaperKey: 'blue' },
   { key: 'red',      label: '赤',          wrapperClass: 'bg-rose-100 text-slate-800',      swatchClass: 'bg-rose-300',    wallpaperKey: 'red' },
   { key: 'purple',   label: '紫',          wrapperClass: 'bg-purple-100 text-slate-800',    swatchClass: 'bg-purple-300',  wallpaperKey: 'purple' },
+  // ★ 第494便（カッキーさん）: グリーンを足した（店舗テーマのグリーンの壁紙）
+  { key: 'green',    label: 'グリーン',    wrapperClass: 'bg-emerald-50 text-slate-800',    swatchClass: 'bg-emerald-300', wallpaperKey: 'green' },
   { key: 'gold',     label: 'ゴールド',    wrapperClass: 'bg-[#f4ecd0] text-slate-800',     swatchStyle: { background: GOLD_SWATCH }, wallpaperKey: 'gold' },
   { key: 'gradient', label: 'シルバー',    wrapperClass: 'bg-[#f6f7f9] text-slate-800',     swatchStyle: { background: SILVER_SWATCH }, wallpaperKey: 'silver' },
 ];
