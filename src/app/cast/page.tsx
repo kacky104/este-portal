@@ -68,8 +68,17 @@ export default async function CastHomePage() {
     }
   }
 
+  // ★ 第493便: 着せ替えに使う店舗テーマの壁紙（管理画面で登録・誰でも読める表）。★ 読めなければ地の色だけ
+  const { data: wpRows } = await supabase.from('theme_wallpapers').select('theme_key, image_url');
+  const wallpapers: Record<string, string> = {};
+  for (const r of wpRows ?? []) {
+    const k = String((r as { theme_key?: unknown }).theme_key ?? '');
+    const u = String((r as { image_url?: unknown }).image_url ?? '');
+    if (k && u) wallpapers[k] = u;
+  }
+
   return (
-    <CastThemeProvider initialTheme={(therapist?.cast_theme as string | null) ?? null}>
+    <CastThemeProvider initialTheme={(therapist?.cast_theme as string | null) ?? null} wallpapers={wallpapers}>
       <header className="bg-white border-b border-slate-100">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <span className="flex items-baseline gap-1">
