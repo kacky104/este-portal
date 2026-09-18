@@ -100,7 +100,18 @@ export default async function CastHomePage() {
       </header>
       <SiteNoticeBanner />
 
-      <main className="max-w-2xl mx-auto px-4 py-8">
+      <main className="relative max-w-2xl mx-auto px-4 py-8">
+        {/* ★ 第495便（カッキーさん）: fukuX のバナー（PC）。★ 本文の右横・上の空いた所に置く（xl 以上＝右に余白がある幅だけ）。
+            ★ 遷移先は fukuX（/x）。 */}
+        {therapist && (
+          <Link
+            href="/x"
+            aria-label="fukuX（フクエックス）メンズエステ専用SNS"
+            className="hidden xl:block absolute top-8 left-full ml-6 w-[280px] rounded-2xl overflow-hidden shadow-md ring-1 ring-black/5 transition-transform hover:-translate-y-0.5"
+          >
+            <Image src="/fukux-cast-banner.webp" alt="fukuX（フクエックス）メンズエステ専用SNS" width={1200} height={630} sizes="280px" className="block w-full h-auto" />
+          </Link>
+        )}
         {therapist ? (
           <div className="space-y-5">
             <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-6 space-y-2 text-center">
@@ -143,6 +154,15 @@ export default async function CastHomePage() {
               importImasuguUntil={(therapist.available_until_import as string | null) ?? null}
               today={today}
             />
+
+            {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}
+            <Link
+              href="/x"
+              aria-label="fukuX（フクエックス）メンズエステ専用SNS"
+              className="xl:hidden block mt-8 rounded-2xl overflow-hidden shadow-md ring-1 ring-black/5"
+            >
+              <Image src="/fukux-cast-banner.webp" alt="fukuX（フクエックス）メンズエステ専用SNS" width={1200} height={630} sizes="(max-width: 672px) 100vw, 640px" className="block w-full h-auto" />
+            </Link>
           </div>
         ) : (
           // ログインはできたが紐づくキャストが無い別種アカウント
