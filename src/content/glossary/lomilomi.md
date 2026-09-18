@@ -7,7 +7,7 @@ summary: ハワイに伝わるオイルの施術。手のひらだけでなく�
 description: ロミロミとは、ハワイに伝わるオイルの施術のこと。前腕を使った大きなストロークの特徴、アロマオイルトリートメントとの違い、どんな人に向くか、予約前に確かめておくことを解説します。
 publishedAt: 2026-09-19
 heroImage: /glossary/lomilomi/hero.webp
-heroAlt: 朝の光が入る無人の施術室で、ベッドの足もとに掛けられたハワイアンキルト柄のブランケット
+heroAlt: 海の見える窓辺の施術室で、ベッドの足もとに掛けられたハワイアンキルト柄のブランケット
 related: [aroma-oil-treatment, micchaku, oil, atsu-no-tsuyosa, shiatsu, kami-pants]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
