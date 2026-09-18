@@ -256,7 +256,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
       {tab === 'images' && (
         <div className={CARD}>
           <div className="p-4 space-y-3">
-            <p className="text-[14px] text-slate-500">最大{CONECF_MAX_IMAGES}枚。1枚目がトップ画像です。「駅ちかへ更新」で、N枚目が駅ちかの画像N（変わった枚だけ）に入ります。</p>
+            <p className="text-[14px] text-slate-500">最大{CONECF_MAX_IMAGES}枚。1枚目がトップ画像です。</p>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {Array.from({ length: Math.min(images.length + 1, CONECF_MAX_IMAGES) }).map((_, i) => {
                 const url = images[i];

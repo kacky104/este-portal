@@ -23,6 +23,8 @@ const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0
 const INPUT = 'w-full border border-slate-300 rounded bg-white px-2 py-1.5 text-[14px] focus:outline-none focus:border-[#1e88e5]';
 // ★ 第447便: エステ魂へも送れるようになった（第430便）。★ 「準備中」のままだった案内を直す
 const NOTE_SEND = '保存後、上の「駅ちか」「エステ魂」は【更新する】を押してください。';
+// ★ 第457便（カッキーさん）: すぐ前でサイト名を言っているところ用（★ 同じサイト名を2度言わない）
+const NOTE_SEND_SHORT = '保存後、上の【更新する】を押してください。';
 
 // ★ 第448便: warn を渡すと、注意として赤字で出す（★ 見落とすと更新できない決まりごと用）
 function Row({ label, children, hint, warn }: { label: string; children: React.ReactNode; hint?: string; warn?: string }) {
@@ -167,7 +169,7 @@ export function GirlExtraTab({
     return (
       <div className={CARD}>
         <div className="px-4 py-2">
-          <p className="text-[12px] text-slate-500 py-2">駅ちか「女の子へ質問」（10問・各{QA_TEXT_MAX}文字まで）に使います。{NOTE_SEND}</p>
+          <p className="text-[12px] text-slate-500 py-2">駅ちか「女の子へ質問」（10問・各{QA_TEXT_MAX}文字まで）に使います。{NOTE_SEND_SHORT}</p>
           {qa.map((item, i) => (
             <Row key={i} label={`質問${i + 1}`}>
               <input className={INPUT} placeholder="質問" value={item.q} onChange={(e) => setQa(i, 'q', e.target.value)} />
