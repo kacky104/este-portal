@@ -184,6 +184,10 @@ export function TherapistBoard({ salonId, onToast }: {
   const [showAll, setShowAll] = useState(false);
   // ★★★ 第302便: タブは【サイト】。★ 'list' / 'link' の2枚は畳んだ
   const [site, setSite] = useState<Site | null>(null);
+  // ★★ 第453便（カッキーさん）: フクエスのタブ（★ コネックエフのときだけ）。
+  //   ★ コネックエフから見ると、フクエスも【出先のひとつ】。★ 並びに無いと、どこへ出ているのか分からない。
+  //   ★ 中身は結び付けも名簿も要らない（★ 同じ仕組みの中にいるので、登録した子はそのまま出る）。
+  const [fukues, setFukues] = useState(false);
   // ★ 第260便: 開いている「この内容で登録します」（★ 1度に1人だけ。★ まとめて登録は作らない）
   const [createView, setCreateView] = useState<CreateView | null>(null);
   // ★ 第260便: 試し打ち中／送信中の行（therapistId）。★ 空なら何もしていない
@@ -438,15 +442,15 @@ export function TherapistBoard({ salonId, onToast }: {
 
       {/* ── ★★★ サイトのタブ（第302便・カッキーさん）───────────────
           ★ 1つのタブには、そのサイトの話だけを出す。★ 印（駅・魂）はこちらで作った1文字（相手のロゴは使わない）。 */}
-      {!loading && !error && cols.length > 0 && (
+      {!loading && !error && (cols.length > 0 || brand.isConecf) && (
         <div className="flex flex-wrap gap-2">
           {cols.map((c) => {
-            const on = site != null && key(site) === key(c);
+            const on = !fukues && site != null && key(site) === key(c);
             return (
               <button
                 key={key(c)}
                 type="button"
-                onClick={() => { setSite(c); setFilter('done'); setShowAll(false); setCreateView(null); }}
+                onClick={() => { setFukues(false); setSite(c); setFilter('done'); setShowAll(false); setCreateView(null); }}
                 aria-pressed={on}
                 className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
                   on
@@ -466,11 +470,87 @@ export function TherapistBoard({ salonId, onToast }: {
               </button>
             );
           })}
+          {/* ★★ 第453便: フクエスのタブ（見た目だけ。★ 押すと「全員が更新中」の一覧を出す） */}
+          {brand.isConecf && (
+            <button
+              type="button"
+              onClick={() => { setFukues(true); setShowAll(false); setCreateView(null); }}
+              aria-pressed={fukues}
+              className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
+                fukues ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`w-6 h-6 flex-none grid place-items-center text-[13px] font-black ${
+                  fukues ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                }`}
+              >
+                フ
+              </span>
+              フクエス
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── ★★ 第453便: フクエスの一覧（結び付けも名簿の更新も無い）──────── */}
+      {!loading && !error && fukues && (
+        <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
+          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+            <span className="text-[13.5px] font-bold text-emerald-700">全員が更新中です（結び付けは要りません）</span>
+            <span className="text-[13px] text-slate-400 tabular-nums">フクエスの登録 {therapists.length}件</span>
+          </div>
+          <p className="mb-3 text-[13.5px] text-slate-500 leading-relaxed">
+            コネックエフで登録した子は、そのままフクエスに出ます。名簿の更新や、ID・PASSの登録は要りません。
+          </p>
+          {therapists.length === 0 ? (
+            <p className="text-[14px] text-slate-500">まだ登録している子がいません。</p>
+          ) : (
+            <div className="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-10 gap-2">
+              {(showAll ? therapists : therapists.slice(0, 24)).map((t) => (
+                <div key={t.id} className="min-w-0">
+                  <div className="w-full aspect-[3/4] border border-slate-200 bg-slate-100 overflow-hidden">
+                    {t.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={t.imageUrl} alt={t.name} loading="lazy" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="w-full h-full grid place-items-center text-[10.5px] font-bold text-slate-400">写真なし</span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[12px] font-bold text-slate-700 leading-snug break-words text-center">
+                    {t.name || '（名前なし）'}
+                  </p>
+                  {!t.isActive && (
+                    <p className="text-center">
+                      <span className="inline-block text-[10.5px] font-bold px-1 py-px border border-slate-200 bg-slate-50 text-slate-400">
+                        非公開
+                      </span>
+                    </p>
+                  )}
+                </div>
+              ))}
+              {!showAll && therapists.length > 24 && (
+                <button type="button" onClick={() => setShowAll(true)} className="min-w-0 text-left group">
+                  <span className="w-full aspect-[3/4] border border-dashed border-indigo-300 bg-indigo-50 grid place-items-center text-center px-2 group-hover:bg-indigo-100 transition-colors">
+                    <span>
+                      <span className="block text-[18px] font-black text-indigo-700 tabular-nums leading-none">
+                        ＋{therapists.length - 24}
+                      </span>
+                      <span className="block mt-1 text-[11px] font-bold text-indigo-600 leading-snug">
+                        残りの方も<br />見る
+                      </span>
+                    </span>
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* ── 一覧（開いているサイトのぶんだけ）─────────────────── */}
-      {!loading && !error && site && (
+      {!loading && !error && site && !fukues && (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
           {/* ★ いつ時点の話かを、読み直すボタンの隣に置く（★ 押す意味がここで分かる） */}
           <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
