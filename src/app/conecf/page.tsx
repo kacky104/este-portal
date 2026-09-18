@@ -47,7 +47,9 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
           <p className="text-[14px] font-bold text-amber-900">切り替えますか？</p>
           <ul className="text-[13.5px] text-amber-900/90 leading-relaxed list-disc pl-5 space-y-0.5">
             <li>セラピストの追加・写真・年齢・サイズ・公開と出勤は、フクエスのマイページではなくコネックエフで編集するようになります。</li>
-            <li>キャッチ・紹介文・特徴バッジ、写メ日記・クーポン・ネット予約などは、これまでどおりマイページで編集します。</li>
+            {/* ★ 第470便: キャッチ・紹介文はコネックエフの「コメント」タブでも編集できる（★ フクエスと同じ列・駅ちか・エステ魂へも送れる） */}
+            <li>キャッチ・紹介文は、マイページとコネックエフのどちらでも編集できます（同じ内容です）。</li>
+            <li>特徴バッジ、写メ日記・クーポン・ネット予約などは、これまでどおりマイページで編集します。</li>
             <li>元に戻したいときは、運営までご連絡ください。</li>
           </ul>
           {reading && (
