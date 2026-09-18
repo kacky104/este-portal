@@ -170,6 +170,12 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           <div>
             <p className="text-[16px] font-black text-slate-800">自動投稿</p>
             <p className="text-[12.5px] text-slate-500">1日1回・{data.timeLabel ?? '—'}ごろに、テンプレを順番に投稿します。</p>
+            {/* ★ 第474便: 駅ちかのID・PASSが無いと投稿しない（★ 解除・一時停止したとき） */}
+            {!data.hasEkichika && (
+              <p className="mt-1 text-[12.5px] font-bold text-rose-700">
+                駅ちかのID・PASSが登録されていない（または一時停止中の）ため、いまは投稿しません。
+              </p>
+            )}
           </div>
           <button type="button" disabled={busy !== ''} onClick={() => void saveSettings({ enabled: !data.enabled, postEmail })}
             className={`px-4 py-2 text-[14px] font-bold border ${data.enabled ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-300'}`}>

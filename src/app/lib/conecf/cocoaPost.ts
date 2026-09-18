@@ -45,10 +45,22 @@ async function attachmentOf(imageUrl: string | null): Promise<Array<{ filename: 
  * @param apply false なら送らず「出す予定のもの」を返す（試し）
  * @param markAuto true なら自動投稿として last_auto_day を更新（1日1回の判定に使う）
  */
+/**
+ * ★ 第474便（カッキーさん）: ココアは駅ちかと同じID/PWの求人サイト。★ 駅ちかのID・PASSが登録されていて
+ *   一時停止していない店だけ投稿する（★ 解除・一時停止したら投稿も止まる）。★ 投稿そのものはメールなので鍵は使わない。
+ */
+export async function hasEkichikaLogin(svc: Svc, salonId: number): Promise<boolean> {
+  const { data } = await svc.from('salon_media_credentials').select('is_enabled, password_enc')
+    .eq('salon_id', salonId).eq('provider', 'ekichika');
+  return (data ?? []).some((c) => c.is_enabled !== false && Boolean(c.password_enc));
+}
+
 export async function postCocoaForSalon(svc: Svc, salonId: number, apply: boolean, markAuto: boolean, now = new Date()): Promise<CocoaPostResult> {
   const { data: salon } = await svc.from('salons').select('id, is_hidden, conecf_enabled_at').eq('id', salonId).maybeSingle();
   if (!salon || salon.is_hidden) return { salonId, posted: false, skipped: 'salon-hidden' };
   if (!salon.conecf_enabled_at) return { salonId, posted: false, skipped: 'conecf-not-enabled' };
+  // ★ 第474便: 駅ちかのID・PASSが無い（解除・一時停止）なら投稿しない
+  if (!(await hasEkichikaLogin(svc, salonId))) return { salonId, posted: false, skipped: 'no-ekichika-login' };
 
   const { data: st } = await svc.from('conecf_cocoa_settings').select('*').eq('salon_id', salonId).maybeSingle();
   const to = (st?.post_email as string | null)?.trim() ?? '';

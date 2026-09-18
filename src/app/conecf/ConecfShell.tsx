@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { getConecfAccess, type ConecfAccess } from '@/app/actions/conecf';
 import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
+import { getConecfCocoaNavVisible } from '@/app/actions/conecfCocoa';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { MediaBrandProvider, brandText, type MediaBrandValue } from '@/app/mypage/media/mediaBrand';
 import { signOut } from '@/lib/auth';
@@ -73,6 +74,8 @@ export function ConecfShell({
   const [error, setError] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [alerts, setAlerts] = useState<MediaLinkAlert[]>([]);
+  // ★ 第474便: 「ココア店長ブログ」を出すか（駅ちかのID・PASSがある店＋自動投稿がオンの店）。★ 分かるまでは出さない
+  const [cocoaNav, setCocoaNav] = useState(false);
 
   // ★ 第396便（1b）: フクエスリンクの画面を中で使うので、行き先と名前をコネックエフに差し替える
   const brand: MediaBrandValue = {
@@ -90,6 +93,13 @@ export function ConecfShell({
     if (salonIdForAlerts == null) { setAlerts([]); return; }
     let alive = true;
     getMediaLinkAlerts({ salonId: salonIdForAlerts }).then((res) => { if (alive && res.ok) setAlerts(res.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, [salonIdForAlerts]);
+
+  useEffect(() => {
+    if (salonIdForAlerts == null) return;
+    let alive = true;
+    getConecfCocoaNavVisible().then((v) => { if (alive) setCocoaNav(v); }).catch(() => { if (alive) setCocoaNav(true); });
     return () => { alive = false; };
   }, [salonIdForAlerts]);
 
@@ -161,7 +171,7 @@ export function ConecfShell({
   }
 
   const navList = (onPick?: () => void) =>
-    CONECF_NAV.map((n) => {
+    CONECF_NAV.filter((n) => n.key !== 'cocoa' || cocoaNav || current === 'cocoa').map((n) => {
       const on = n.key === current;
       return (
         <div key={n.key} className="contents">

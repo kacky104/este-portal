@@ -4,7 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { autoPostTimeLabel } from '@/lib/announceAuto';
 import { COCOA_TEMPLATES_MAX, COCOA_TITLE_MAX, COCOA_BODY_MAX, titleTooLong, bodyTooLong } from '@/lib/conecfCocoa';
-import { postCocoaForSalon } from '@/app/lib/conecf/cocoaPost';
+import { postCocoaForSalon, hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
 
 // コネックエフ「ココア店長ブログ」の受け口（第404便・2026-09-17）。
 // ★ 書き込みは「コネックエフに切り替え済み」の自店だけ（service_role）。
@@ -27,6 +27,8 @@ export type CocoaTemplateRow = { id: number; title: string; body: string; imageU
 export type CocoaData = {
   salonId: number; enabled: boolean; postEmail: string; lastPostedAt: string | null; lastResult: string | null;
   timeLabel: string | null; max: number; titleMax: number; bodyMax: number; templates: CocoaTemplateRow[];
+  /** ★ 第474便: 駅ちかのID・PASSがあるか（★ 無ければ自動投稿は止まっている） */
+  hasEkichika: boolean;
 };
 
 export async function getConecfCocoa(): Promise<Result<CocoaData>> {
@@ -44,6 +46,7 @@ export async function getConecfCocoa(): Promise<Result<CocoaData>> {
       lastResult: (st?.last_result as string | null) ?? null,
       timeLabel: autoPostTimeLabel(r.salonId),
       max: COCOA_TEMPLATES_MAX, titleMax: COCOA_TITLE_MAX, bodyMax: COCOA_BODY_MAX,
+      hasEkichika: await hasEkichikaLogin(r.svc, r.salonId),
       templates: (temps ?? []).map((t) => ({
         id: Number(t.id), title: String(t.title ?? ''), body: String(t.body ?? ''),
         imageUrl: (t.image_url as string | null) ?? null, isActive: t.is_active !== false,
@@ -112,5 +115,23 @@ export async function postConecfCocoaNow(): Promise<Result<{ title: string }>> {
   if (!r.ok) return r;
   const res = await postCocoaForSalon(r.svc, r.salonId, true, false);
   if (res.posted) return { ok: true, data: { title: res.title ?? '' } };
+  if (res.skipped === 'no-ekichika-login') return { ok: false, error: '駅ちかのID・PASSが登録されていない（または一時停止中の）ため投稿できません' };
   return { ok: false, error: res.error ?? '投稿できませんでした（' + (res.skipped ?? '') + '）' };
+}
+
+/**
+ * ★ 第474便: サイドバーに「ココア店長ブログ」を出すか。
+ *   ★ 駅ちかのID・PASSがある店 ＋ 自動投稿がオンのままの店（★ ID・PASSを外しても止める画面を残す）。
+ *   ★ 読めなければ出す（★ 止める道を隠さない）。
+ */
+export async function getConecfCocoaNavVisible(): Promise<boolean> {
+  try {
+    const r = await resolve(false);
+    if (!r.ok) return true;   // ★ 店が決められないときは今までどおり出す
+    if (await hasEkichikaLogin(r.svc, r.salonId)) return true;
+    const { data: st } = await r.svc.from('conecf_cocoa_settings').select('enabled').eq('salon_id', r.salonId).maybeSingle();
+    return st?.enabled === true;
+  } catch {
+    return true;
+  }
 }
