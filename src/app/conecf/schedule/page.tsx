@@ -78,7 +78,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     if (!res.ok) { onToast(res.error); return; }
     if (salonId != null) void revalidateSalon(salonId);
     dirtyIds.forEach((id) => void revalidateTherapist(id));
-    onToast(`${res.data.therapists}人の出勤を保存しました（フクエスに反映しました）`);
+    onToast(`${res.data.therapists}人の出勤を保存しました（サイトによりタイムラグあり）`);
     await load();
   };
 
