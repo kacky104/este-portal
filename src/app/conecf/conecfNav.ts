@@ -11,7 +11,8 @@ export type ConecfNavKey =
   | 'log' | 'matrix'
   | 'guide' | 'qa';
 
-export type ConecfNavItem = { key: ConecfNavKey; label: string; href: string; group?: string };
+// ★★ 第462便（カッキーさん）: dense＝名前が長い項目（★ サイドバーで1行に収める。★ 折り返すと読みにくい）
+export type ConecfNavItem = { key: ConecfNavKey; label: string; href: string; group?: string; dense?: boolean };
 
 export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'home',         label: 'ホーム',               href: '/' },
@@ -20,7 +21,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'girlsSync',    label: '女性をサイトへ登録',     href: '/girls/sync' },
   { key: 'schedule',     label: '週間スケジュール',       href: '/schedule',      group: '出勤' },
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
-  { key: 'now',          label: '今すぐ・即ヒメ・即セラ自動設定', href: '/now',           group: '今すぐ' },
+  // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
+  { key: 'now',          label: '今すぐ・即ヒメ・即セラ自動設定', href: '/now',           dense: true },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
