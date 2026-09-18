@@ -24,12 +24,16 @@ const INPUT = 'w-full border border-slate-300 rounded bg-white px-2 py-1.5 text-
 // ★ 第447便: エステ魂へも送れるようになった（第430便）。★ 「準備中」のままだった案内を直す
 const NOTE_SEND = '保存したあと、上の「駅ちか」「エステ魂」の【更新する】で、それぞれのサイトへ送れます。';
 
-function Row({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+// ★ 第448便: warn を渡すと、注意として赤字で出す（★ 見落とすと更新できない決まりごと用）
+function Row({ label, children, hint, warn }: { label: string; children: React.ReactNode; hint?: string; warn?: string }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[170px_1fr] gap-1.5 sm:gap-3 items-start py-3 border-b border-slate-100 last:border-b-0">
       <div className="pt-1.5 text-[14px]">{label}</div>
       <div className="space-y-1">
         {children}
+        {warn && (
+          <p className="text-[12.5px] font-bold text-rose-700 border border-rose-200 bg-rose-50 px-2 py-1.5 leading-relaxed">{warn}</p>
+        )}
         {hint && <p className="text-[12px] text-slate-500">{hint}</p>}
       </div>
     </div>
@@ -251,7 +255,14 @@ export function GirlExtraTab({
           const up = (k: keyof Es, v: unknown) => setFields({ ...f, [k]: v });
           return (
             <>
-              <Row label={`セラピストの特徴（${f.types.length}/${ESUTAMA_TYPE_MAX}）`} hint="エステ魂では必須です。4つまで。">
+              {/* ★★ 第448便（カッキーさん）: 特徴が0個だとエステ魂へ更新できない。★ 見落とさないよう赤字で出す */}
+              <Row
+                label={`セラピストの特徴（${f.types.length}/${ESUTAMA_TYPE_MAX}）`}
+                warn={f.types.length === 0
+                  ? '★ 必ず1つ以上えらんでください。0個のままだと、エステ魂へ更新できません（4つまで）'
+                  : undefined}
+                hint={f.types.length > 0 ? 'エステ魂では必須です。4つまで。' : undefined}
+              >
                 <Chips all={ESUTAMA_TYPES} picked={f.types} max={ESUTAMA_TYPE_MAX} onChange={(v) => up('types', v)} />
               </Row>
               <Row label="エステ歴">
