@@ -13,13 +13,15 @@ import Image from 'next/image';
 import { CastDiary } from './CastDiary';
 import { CastThemePicker } from './CastTheme';
 import { CastImasugu } from './CastImasugu';
+import { CastCustomers } from './CastCustomers';
 
-type CastTab = 'diary' | 'theme' | 'now';
+type CastTab = 'diary' | 'theme' | 'now' | 'customers';
 
 const TABS: ReadonlyArray<readonly [CastTab, string]> = [
   ['diary', '写メ日記'],
   ['now', '今すぐ'],
   ['theme', '着せ替え'],
+  ['customers', 'お客様'], // ★ 第496便: お客様記録帳
 ];
 
 export function CastTabs({
@@ -94,6 +96,8 @@ export function CastTabs({
       )}
 
       {activeTab === 'theme' && <CastThemePicker />}
+
+      {activeTab === 'customers' && <CastCustomers />}
 
       {activeTab === 'now' && (
         <CastImasugu
