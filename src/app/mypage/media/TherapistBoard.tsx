@@ -497,13 +497,20 @@ export function TherapistBoard({ salonId, onToast }: {
       {/* ── ★★ 第453便: フクエスの一覧（結び付けも名簿の更新も無い）──────── */}
       {!loading && !error && fukues && (
         <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-4">
-          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-            <span className="text-[13.5px] font-bold text-emerald-700">全員が更新中です（結び付けは要りません）</span>
+          <div className="flex items-center justify-end gap-2 mb-3 flex-wrap">
             <span className="text-[13px] text-slate-400 tabular-nums">フクエスの登録 {therapists.length}件</span>
           </div>
-          <p className="mb-3 text-[13.5px] text-slate-500 leading-relaxed">
-            コネックエフで登録した子は、そのままフクエスに出ます。名簿の更新や、ID・PASSの登録は要りません。
-          </p>
+
+          {/* ★ 第455便（カッキーさん）: 駅ちか・エステ魂と同じ並び（★ 別サイトとして同じ形で見せる）。
+              ★ フクエスは全員が連携済みなので、札は「連携済み」だけ。 */}
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="text-[13px] font-bold text-slate-400 tabular-nums mr-1">
+              {therapists.length} / {therapists.length}名中
+            </span>
+            <span className="inline-flex items-center px-3 py-1.5 border text-[14px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+              連携済み
+            </span>
+          </div>
           {therapists.length === 0 ? (
             <p className="text-[14px] text-slate-500">まだ登録している子がいません。</p>
           ) : (
