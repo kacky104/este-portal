@@ -257,6 +257,12 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
         <div className={CARD}>
           <div className="p-4 space-y-3">
             <p className="text-[14px] text-slate-500">最大{CONECF_MAX_IMAGES}枚。1枚目がトップ画像です。</p>
+            {/* ★★ 第458便（カッキーさん）: サイトごとに入り方が違う（★ ここで先に言っておかないと、順番が揃わない理由が分からない） */}
+            <ul className="mt-1 text-[13px] text-slate-500 leading-relaxed">
+              <li>「フクエス」そのままの並びで出ます（1枚目がトップ画像）。</li>
+              <li>「駅ちか」N枚目が駅ちかの画像Nに入ります（変わった枚だけ）。</li>
+              <li>「エステ魂」空いている写真枠に入ります（枠は選べません）。</li>
+            </ul>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {Array.from({ length: Math.min(images.length + 1, CONECF_MAX_IMAGES) }).map((_, i) => {
                 const url = images[i];
