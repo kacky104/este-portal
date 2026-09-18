@@ -122,6 +122,9 @@ const VARIANTS = {
 //   ★ 画像を指定して呼ぶ所（フクエスワークの job_salon）は今までどおりのロゴ。
 const STAR_SRC = '/save-star.png';
 const STAR_UNSAVED_OPACITY = 0.35;
+// ★ 第478便（カッキーさん）: 保存済みの星をもっと濃く（★ 色味を強め・少し暗く）。★ 数字を変えれば濃さが変わる
+const STAR_SAVED_FILTER = 'saturate(1.8) brightness(0.9) contrast(1.1)';
+const STAR_SHADOW = 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.18))';
 
 const FX_DURATION_MS = 740; // 粒の生存時間（アニメ最長0.72s＋余白）。これを過ぎたら必ず除去。
 
@@ -286,8 +289,8 @@ export function SaveButton({
             style={{
               width: size, height: size, objectFit: 'contain',
               opacity: isSavedNow ? 1 : STAR_UNSAVED_OPACITY,
-              filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.18))',
-              transition: 'opacity 0.2s ease',
+              filter: isSavedNow ? `${STAR_SAVED_FILTER} ${STAR_SHADOW}` : STAR_SHADOW,
+              transition: 'opacity 0.2s ease, filter 0.2s ease',
             }}
           />
         ) : (
