@@ -13,7 +13,7 @@ const supabase = createClient();
 
 const HERO_BUCKET = 'header-slider';
 type HeroSel = 'overall' | 'salon' | 'therapist';
-const HERO_LABELS: Record<HeroSel, string> = { overall: '総合', salon: '店舗', therapist: 'セラピスト' };
+const HERO_LABELS: Record<HeroSel, string> = { overall: 'おすすめ', salon: '店舗', therapist: 'セラピスト' }; // ★ 第501便: 総合→おすすめ（/ranking のタブ名に合わせる。保存先は hero_overall のまま）
 
 type SalonRow = { id: number; name: string; area: string | null; bonus: number };
 type TherapistRow = { id: number; name: string; salonId: number | null; salonName: string; bonus: number };
@@ -269,7 +269,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
       {tab === 'hero' ? (
         <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
           週間ランキングページ最上部の<strong className="text-slate-700">ヘッダー画像</strong>を、
-          <strong className="text-slate-700">総合／店舗／セラピストのタブごと</strong>に設定できます。
+          <strong className="text-slate-700">おすすめ／店舗／セラピストのタブごと</strong>に設定できます。
           JPEG / PNG / WebP・5MBまで。未設定のタブは非表示。横長のバナー画像がおすすめです。
         </p>
       ) : (
