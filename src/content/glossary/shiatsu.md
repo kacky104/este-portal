@@ -7,7 +7,7 @@ summary: 親指や手のひらの付け根で、筋肉を「点」で押して�
 description: 指圧とは、親指や手のひらの付け根で筋肉を「点」で押していく手技のこと。オイルで流す施術との違い、メンズエステでの組み合わせ方、「指圧」という言葉と資格の関係、圧の好みの伝え方を解説します。
 publishedAt: 2026-09-19
 heroImage: /glossary/shiatsu/hero.webp
-heroAlt: 施術着を着たお客様の肩に、セラピストが親指を当てているところを真上から見た様子
+heroAlt: うつ伏せになった施術着のお客様の背中を、制服のセラピストが両手で押しているところ
 related: [atsu-no-tsuyosa, micchaku, momihogushi, thai-koshiki, aroma-oil-treatment, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
