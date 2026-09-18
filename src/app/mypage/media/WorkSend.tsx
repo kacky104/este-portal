@@ -359,7 +359,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
   // ★ 第471便: 画面に出すサイト（★ フクエスのタブを選んでいるときは無し）
   const view = fukuesSelected ? null : site;
   // ★ 第471便: フクエスのタブ（コネックエフだけ）。★ フクエスへはコネックエフで入れた時点で入るので、設定は無い
-  //   ★ 第472便（カッキーさん）: 印（フ）は付けず「フクエス」だけ
+  //   ★ 第473便（カッキーさん）: 駅ちか（駅）・エステ魂（魂）と同じく「フ」の印を付ける
   const fukuesTab = brand.isConecf ? (
     <button
       type="button"
@@ -371,6 +371,14 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
       }`}
     >
+      <span
+        aria-hidden
+        className={`w-6 h-6 flex-none grid place-items-center text-[13px] font-black ${
+          fukuesSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+        }`}
+      >
+        フ
+      </span>
       フクエス
     </button>
   ) : null;
