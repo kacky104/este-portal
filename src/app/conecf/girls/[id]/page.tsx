@@ -19,7 +19,7 @@ import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
 import {
-  CONECF_CUPS, CONECF_BLOOD_TYPES, CONECF_STYLES, CONECF_LOOK_TYPES, CONECF_MAX_IMAGES, CONECF_NAME_MAX,
+  CONECF_CUPS, CONECF_BLOOD_TYPES, CONECF_MAX_IMAGES, CONECF_NAME_MAX,
 } from '@/lib/conecfGirl';
 
 // コネックエフ「女性プロフィール編集」（第398便・1c・2026-09-17）。
@@ -33,12 +33,13 @@ const INPUT = 'w-full border border-slate-200 bg-white px-3 py-2 text-[15px] foc
 type Tab = 'basic' | 'comments' | 'siteFields' | 'qa' | 'images' | 'sites';
 type Form = ConecfGirlDetail['form'];
 
-function Field({ label, badge, children }: { label: string; badge?: '必須' | '推奨'; children: React.ReactNode }) {
+// ★ 第446便: 「推奨」の札はやめた（★ 残すのは「必須」だけ）
+function Field({ label, badge, children }: { label: string; badge?: '必須'; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-1.5 sm:gap-3 items-start py-2.5 border-b border-slate-100 last:border-b-0">
       <div className="flex items-center gap-1.5 pt-2">
         {badge && (
-          <span className={`text-[11px] font-bold px-1.5 py-0.5 ${badge === '必須' ? 'text-rose-600 bg-rose-50' : 'text-amber-600 bg-amber-50'}`}>{badge}</span>
+          <span className="text-[11px] font-bold px-1.5 py-0.5 text-rose-600 bg-rose-50">{badge}</span>
         )}
         <span className="text-[14px] font-bold text-slate-600">{label}</span>
       </div>
@@ -198,7 +199,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
             </Field>
             {/* ★★ 第444便（カッキーさん）: カタカナ・ひらがな・ローマ字の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
                 ★ 入っている値は消していない（★ 保存でも触らない）。★ 使うときが来たら戻す */}
-            <Field label="入店日" badge="推奨">
+            <Field label="入店日">
               <div className="flex flex-wrap items-center gap-3">
                 <input type="date" className={`${INPUT} max-w-[200px]`} value={form.joinedOn} onChange={(e) => set('joinedOn', e.target.value)} />
                 <label className="flex items-center gap-1.5 text-[14px] text-slate-600">
@@ -209,13 +210,13 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
             </Field>
             {/* ★★ 第445便（カッキーさん）: 生年月日・体重の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
                 ★ 「生年月日と連動させる」も一緒に外した（★ 生年月日が無いと動かないため）。★ 入っている値は消していない */}
-            <Field label="年齢" badge="推奨">
+            <Field label="年齢">
               <div className="flex flex-wrap items-center gap-3">
                 <input inputMode="numeric" className={`${INPUT} max-w-[100px]`} value={form.age} onChange={(e) => set('age', e.target.value)} />
                 <span className="text-[14px] text-slate-500">歳</span>
               </div>
             </Field>
-            <Field label="3サイズ" badge="推奨">
+            <Field label="3サイズ">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {([['bust', 'B'], ['waist', 'W'], ['hip', 'H'], ['height', 'T']] as const).map(([k, l]) => (
                   <label key={k} className="flex items-center gap-1.5">
@@ -237,18 +238,8 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
                 {CONECF_BLOOD_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="スタイル">
-              <select className={`${INPUT} max-w-[220px]`} value={form.style} onChange={(e) => set('style', e.target.value)}>
-                <option value="">未選択</option>
-                {CONECF_STYLES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-            <Field label="タイプ">
-              <select className={`${INPUT} max-w-[220px]`} value={form.lookType} onChange={(e) => set('lookType', e.target.value)}>
-                <option value="">未選択</option>
-                {CONECF_LOOK_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
+            {/* ★★ 第446便（カッキーさん）: スタイル・タイプの欄はやめた（★ どこにも送っておらず、
+                ★ 同じ役目のものが「各サイト項目」にサイトごとに在る）。★ 入っている値は消していない */}
           </div>
           {saveBtn(() => void onSaveBasic())}
         </div>

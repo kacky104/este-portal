@@ -212,7 +212,8 @@ export async function saveConecfGirl(input: { id: number; values: ConecfGirlInpu
     joined_on: v.joinedOn,
     // ★ 第445便: 生年月日・体重は画面から外した。★ 空で上書きしないよう、保存では触らない
     height: v.height, bust: v.bust, cup: v.cup, waist: v.waist, hip: v.hip,
-    blood_type: v.bloodType, style: v.style, look_type: v.lookType,
+    // ★ 第446便: スタイル・タイプは画面から外した。★ 空で上書きしないよう、保存では触らない
+    blood_type: v.bloodType,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'therapist_id' });
   if (pErr) return { ok: false, error: `保存に失敗しました（追加の項目）: ${pErr.message}` };
