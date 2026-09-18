@@ -18,6 +18,7 @@ import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchLatestWorkNews, WORK_NEWS_FEED_TOP } from '@/app/lib/workNewsFeed';
 import { WorkNewsFeedList } from './WorkNewsFeedList';
+import { fetchAreaHeroBanner, JOBS_TOP_BANNER_AREA } from '@/app/lib/areaBanners';
 
 // ISR：10分ごとに再生成（SEO目的。求人は頻繁に変わらないためキャッシュで十分）。
 export const revalidate = 600;
@@ -35,14 +36,18 @@ export const metadata: Metadata = {
 };
 
 export default async function JobsPage() {
-  const [jobs, pickupJobs, columnArticles, workNews] = await Promise.all([
+  const [jobs, pickupJobs, columnArticles, workNews, topBanner] = await Promise.all([
     fetchActiveJobs(),
     getFeaturedJobs(),
     fetchPublishedArticles(3),
     // ★ 店舗新着情報（第275便・2026-09-11・カッキーさんの指示）。
     //   ★ トップは【1店舗1件】に間引く（第3引数 true）。★ 間引かないと自動配信で1店に埋まる。
     fetchLatestWorkNews(createPublicClient(), WORK_NEWS_FEED_TOP, true),
+    // ★ 第482便: トップのヒーロー画像（管理画面「エリアバナー設定」の TOP 行）。★ 無ければ今までの固定画像
+    fetchAreaHeroBanner(JOBS_TOP_BANNER_AREA).catch(() => null),
   ]);
+  const heroPc = topBanner?.pc ?? '/hero-fukuwork-pc.png';
+  const heroSp = topBanner?.sp ?? '/hero-fukuwork-sp.png';
 
   // バナーカード：jobs（このページの条件＝全公開求人）からバナー画像ありを抽出し30分バケットでシャッフル（別クエリ無し）。
   const heroBanners = deriveHeroBanners(jobs);
@@ -59,7 +64,7 @@ export default async function JobsPage() {
       <div className="mb-8 -mt-2 rounded-2xl hero-shine-loop">
         {/* PC */}
         <Image
-          src="/hero-fukuwork-pc.png"
+          src={heroPc}
           alt="フクエスワーク｜福岡メンズエステのセラピスト求人サイト"
           width={1920}
           height={1080}
@@ -68,7 +73,7 @@ export default async function JobsPage() {
         />
         {/* SP */}
         <Image
-          src="/hero-fukuwork-sp.png"
+          src={heroSp}
           alt="フクエスワーク｜福岡メンズエステのセラピスト求人サイト"
           width={1080}
           height={1920}

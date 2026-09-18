@@ -5,6 +5,9 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 // URL は相対パス（/jobs/area/…・移行期の初期データ）と Storage 絶対URLの両方があり得る（表示側は両対応）。
 export type AreaHeroBannerUrls = { sp: string | null; pc: string | null };
 
+/** ★ 第482便: フクエスワークのトップ（/jobs）のヒーロー画像の行（area_hero_banners.area）。★ エリアバナー設定のいちばん上で変える */
+export const JOBS_TOP_BANNER_AREA = 'top';
+
 export async function fetchAreaHeroBanner(area: string): Promise<AreaHeroBannerUrls | null> {
   const supabase = createPublicClient();
   const { data } = await supabase

@@ -6,6 +6,7 @@ import { revalidateFeaturedJobs } from '@/app/actions/jobs';
 import { AREA_SLUGS_LIST, areaFromSlug } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { JOBS_TOP_BANNER_AREA } from '@/app/lib/areaBanners';
 
 // エリア別ヒーローバナー（area_hero_banners）管理。FeaturedJobsManager と同方式で authenticated クライアント直
 // （RLSで admin UUID のみ許可）。sp/pc それぞれ独立にアップロード／削除（URLをnullに）できる。
@@ -18,10 +19,15 @@ const BUCKET = 'area-banners';
 // 通常5エリア＋出張専門（計6行）。slug=Storageパス/命名用、area=DB値（area_hero_banners.area のキー・例 '博多・住吉'）。
 // 出張は slug='dispatch' / area='出張'（Storageパスは既存規約どおり dispatch/{timestamp}.{ext} になる）。
 // label は行の表示名。出張は areaLabel('出張')='出張' ではなく「出張専門」を固定文字列で特別扱いし /jobs/dispatch と揃える。
-const AREA_ROWS = AREA_SLUGS_LIST.map((slug) => {
-  const area = areaFromSlug(slug) as string;
-  return { slug, area, label: slug === 'dispatch' ? '出張専門' : areaLabel(area) };
-});
+// ★ 第482便（2026-09-18・カッキーさん）: いちばん上に「TOP（/jobs）」の行。★ area='top'・Storage は top/{timestamp}.{ext}
+//   ★ TOP はエリアと形が違う（PC 16:9・1280×720／SP 750×900）。★ 未設定なら /jobs は今までの固定画像を出す
+const AREA_ROWS: Array<{ slug: string; area: string; label: string; top?: boolean }> = [
+  { slug: 'top', area: JOBS_TOP_BANNER_AREA, label: 'TOP（/jobs）', top: true },
+  ...AREA_SLUGS_LIST.map((slug) => {
+    const area = areaFromSlug(slug) as string;
+    return { slug, area, label: slug === 'dispatch' ? '出張専門' : areaLabel(area) };
+  }),
+];
 
 type BannerRow = { spUrl: string | null; pcUrl: string | null };
 
@@ -151,10 +157,11 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
       <div className="flex items-center justify-between mb-5">
-        <span className="text-[10px] text-slate-400">推奨: SP 750×900（縦5:6）／ PC 1536×512（横3:1）</span>
+        <span className="text-[10px] text-slate-400">推奨: SP 750×900（縦5:6）／ PC 1536×512（横3:1）　※TOP（/jobs）の PC は 1280×720（横16:9）</span>
       </div>
       <p className="text-[11px] text-slate-400 mb-4">
         各エリアページ（/jobs/area/&lt;エリア&gt;）の見出し直下に表示されるヒーローバナーです。SP・PC は個別に設定できます。
+        TOP（/jobs）はトップページ最上部のヒーロー画像です（未設定のときは今までの画像を表示します）。
       </p>
 
       {/* hidden file input（sp/pc 共用・uploadTarget で識別） */}
@@ -174,7 +181,7 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
         </div>
       ) : (
         <div className="space-y-2">
-          {AREA_ROWS.map(({ area, slug, label }) => {
+          {AREA_ROWS.map(({ area, slug, label, top }) => {
             const row = rows[area];
             return (
               <div key={slug} className="bg-emerald-50/40 rounded-2xl px-4 py-3 border border-emerald-100/70">
@@ -186,7 +193,7 @@ export default function AreaBannerManager({ onToast }: { onToast: (msg: string) 
                     const url = kind === 'sp' ? row?.spUrl ?? null : row?.pcUrl ?? null;
                     // 高さ固定 h-40（160px）＋aspectで幅が決まる：SP=5/6(約133px)／PC=3/1(約480px)。
                     // 未設定プレースホルダーも同じ h-40・同aspectにして5エリアの行高を揃える。
-                    const aspect = kind === 'sp' ? 'aspect-[5/6]' : 'aspect-[3/1]';
+                    const aspect = kind === 'sp' ? 'aspect-[5/6]' : top ? 'aspect-[16/9]' : 'aspect-[3/1]';
                     return (
                       <div key={kind} className="flex flex-col gap-1">
                         <span className="text-[10px] font-bold text-slate-400">{kind.toUpperCase()}</span>
