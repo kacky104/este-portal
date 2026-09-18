@@ -23,6 +23,7 @@ export default function ConecfDiaryPage() {
             salonId={a.salonId}
             onToast={showToast}
             consentVersion={consentVersion}
+            therapistEditOrigin="https://fukues.com"
             esutamaPanel={<DiaryConsent salonId={a.salonId} onToast={showToast} onChanged={() => setConsentVersion((v) => v + 1)} />}
           />
         </div>

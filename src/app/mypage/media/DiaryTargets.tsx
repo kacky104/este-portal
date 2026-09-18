@@ -54,8 +54,14 @@ type Data = {
 // ★ 第371便: 日時を整える fmt() は消した（「◯名ぶん 登録済み」のブロックでしか使っていなかった）。
 //   ★ 読み取った日時は【連携の記録】が出す。★ Data.lastRead は受け口の戻り値の形なので型には残してある
 
-export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0 }: {
+export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '' }: {
   salonId: number | null;
+  /**
+   * ★ 第465便: 「入力する／変える」の飛び先（フクエスのセラピスト編集ページ）の頭。
+   *   フクエスの /mypage では ''（同じサイト内）。コネックエフ（conecf.com）では 'https://fukues.com'
+   *   （★ 相対だと conecf.com/mypage/therapist/N になり 404 だった）。
+   */
+  therapistEditOrigin?: string;
   onToast: (m: string) => void;
   /** ★ 「エステ魂」を選んだときに、投稿先の一覧の代わりに出すもの（送信状況・了承）。★ 第201便 */
   esutamaPanel?: React.ReactNode;
@@ -279,7 +285,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
               ★ 表の「未登録」と「入力する」を見れば、手で入れるものだと分かる。 */}
           <div>
             <p className="text-[14px] text-slate-500 leading-relaxed">
-              入力は、セラピスト編集ページの「写メ日記の転送先」で行ってください。
+              入力は、フクエスのセラピスト編集ページ下部にある「写メ日記の転送先」で行ってください。
             </p>
           </div>
 
@@ -316,12 +322,21 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                           )}
                         </td>
                         <td className="py-1.5 whitespace-nowrap">
-                          <Link
-                            href={`/mypage/therapist/${t.id}`}
-                            className="text-[13.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"
-                          >
-                            {f && f.addressMask.length > 0 ? '変える' : '入力する'}
-                          </Link>
+                          {therapistEditOrigin ? (
+                            <a
+                              href={`${therapistEditOrigin}/mypage/therapist/${t.id}`}
+                              className="text-[13.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"
+                            >
+                              {f && f.addressMask.length > 0 ? '変える' : '入力する'}
+                            </a>
+                          ) : (
+                            <Link
+                              href={`/mypage/therapist/${t.id}`}
+                              className="text-[13.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"
+                            >
+                              {f && f.addressMask.length > 0 ? '変える' : '入力する'}
+                            </Link>
+                          )}
                         </td>
                       </tr>
                     );
