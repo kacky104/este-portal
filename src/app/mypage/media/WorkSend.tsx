@@ -354,8 +354,26 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
   if (salonId == null) return null;
 
+  // ★ 第472便: ID・PASSが1つも無い店でも、フクエスのタブは出す（★ そのときはフクエスを選んだ状態）
+  const fukuesSelected = brand.isConecf && (fukuesOn || sites.length === 0);
   // ★ 第471便: 画面に出すサイト（★ フクエスのタブを選んでいるときは無し）
-  const view = fukuesOn ? null : site;
+  const view = fukuesSelected ? null : site;
+  // ★ 第471便: フクエスのタブ（コネックエフだけ）。★ フクエスへはコネックエフで入れた時点で入るので、設定は無い
+  //   ★ 第472便（カッキーさん）: 印（フ）は付けず「フクエス」だけ
+  const fukuesTab = brand.isConecf ? (
+    <button
+      type="button"
+      onClick={() => setFukuesOn(true)}
+      aria-pressed={fukuesSelected}
+      className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
+        fukuesSelected
+          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+          : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+      }`}
+    >
+      フクエス
+    </button>
+  ) : null;
 
   // ★ いま読み取りに使っているサイト。★ 居なければ「変える」ボタンを出さない
   const readSite = sites.find((s) => s.direction === 'read') ?? null;
@@ -378,21 +396,28 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           </p>
         </div>
       ) : sites.length === 0 ? (
-        /* ★ 枠が1つも無い＝ログイン情報がまだ無い。★ ホームと同じ言い方（第119便） */
-        <div className="border border-sky-200 bg-sky-50 px-4 py-3">
-          <p className="text-[14px] leading-relaxed text-slate-600">
-            <b className="font-bold text-sky-700">更新できるサイトがありません。</b>{' '}
-            ログイン情報を登録すると始められます。
-          </p>
-          <Link href={brand.link('login')} className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
-            ログイン情報へ
-          </Link>
+        /* ★ 枠が1つも無い＝ログイン情報がまだ無い。★ ホームと同じ言い方（第119便）
+           ★ 第472便: コネックエフでは、フクエスのタブを出したうえで、ほかのサイトの始め方を言う */
+        <div className="space-y-3">
+          {fukuesTab && <div className="flex flex-wrap gap-2">{fukuesTab}</div>}
+          <div className="border border-sky-200 bg-sky-50 px-4 py-3">
+            <p className="text-[14px] leading-relaxed text-slate-600">
+              {brand.isConecf ? (
+                <>駅ちか・エステ魂などは、ID・PASSを登録すると始められます。</>
+              ) : (
+                <><b className="font-bold text-sky-700">更新できるサイトがありません。</b>{' '}ログイン情報を登録すると始められます。</>
+              )}
+            </p>
+            <Link href={brand.link('login')} className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
+              {brand.isConecf ? 'ID・PASS登録へ' : 'ログイン情報へ'}
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
           {sites.map((x) => {
             const k = keyOf(x.provider, x.slot);
-            const on = !fukuesOn && site != null && keyOf(site.provider, site.slot) === k;
+            const on = !fukuesSelected && site != null && keyOf(site.provider, site.slot) === k;
             return (
               <button
                 key={k}
@@ -423,34 +448,12 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               </button>
             );
           })}
-          {/* ★ 第471便: フクエスのタブ（コネックエフだけ）。★ フクエスへはコネックエフで入れた時点で入るので、設定は無い */}
-          {brand.isConecf && (
-            <button
-              type="button"
-              onClick={() => setFukuesOn(true)}
-              aria-pressed={fukuesOn}
-              className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
-                fukuesOn
-                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                  : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <span
-                aria-hidden
-                className={`w-6 h-6 flex-none grid place-items-center text-[13px] font-black ${
-                  fukuesOn ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
-                }`}
-              >
-                フ
-              </span>
-              フクエス
-            </button>
-          )}
+          {fukuesTab}
         </div>
       )}
 
       {/* ★ 第471便: フクエスのタブの中身（★ 見出しだけ。駅ちか・エステ魂と同じ形の2枚） */}
-      {!loading && !error && brand.isConecf && fukuesOn && (
+      {!loading && !error && fukuesSelected && (
         <>
           <AutoNote title="出勤 自動更新中" kirari />
           <AutoNote title="今すぐ自動設定中" kirari />
