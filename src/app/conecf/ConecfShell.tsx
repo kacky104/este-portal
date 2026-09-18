@@ -48,6 +48,7 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
     case 'now':          return (<svg {...p}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>);
     case 'diary':        return (<svg {...p}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>);
     case 'news':         return (<svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>);
+    case 'announce':     return (<svg {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>);
     case 'cocoa':        return (<svg {...p}><path d="M4 8h13a3 3 0 0 1 0 6h-1" /><path d="M4 8v7a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V8z" /><path d="M8 2v2M12 2v2" /></svg>);
     case 'log':          return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
     case 'matrix':       return (<svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></svg>);
@@ -83,7 +84,7 @@ export function ConecfShell({
     links: {
       home: href('/'), login: href('/sites'), roster: href('/girls/sync'), work: href('/schedule/sync'),
       schedule: href('/schedule'), diary: href('/diary'), news: href('/news'), log: href('/log'),
-      matrix: href('/matrix'), qa: href('/qa'), guide: href('/guide'), girls: href('/girls'),
+      matrix: href('/matrix'), qa: href('/qa'), guide: href('/guide'), girls: href('/girls'), announce: href('/announce'),
     },
   };
 

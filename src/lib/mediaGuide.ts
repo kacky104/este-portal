@@ -9,7 +9,7 @@
 
 import { WORK_FIRST_APPROVAL_NOTE } from './mediaOverview';
 
-export type GuideLinkKey = 'qa' | 'schedule' | 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix' | 'girls';   // ★ 第469便: 'girls'（女性一覧）
+export type GuideLinkKey = 'qa' | 'schedule' | 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix' | 'girls' | 'announce';   // ★ 第469便: 'girls'（女性一覧）／第475便: 'announce'（フクエスお知らせ）
 
 export const GUIDE_HREF: Record<GuideLinkKey, string> = {
   home: '/mypage/media',
@@ -25,6 +25,8 @@ export const GUIDE_HREF: Record<GuideLinkKey, string> = {
   matrix: '/mypage/media/matrix',
   // ★ 第469便: コネックエフの Q&A 用（女性一覧）。★ フクエスリンクではマイページのセラピスト
   girls: '/mypage?tab=profile',
+  // ★ 第475便: フクエスリンクではマイページのお知らせタブ
+  announce: '/mypage?tab=news',
 };
 
 /** いちばん上の「フクエスリンクとは」 */

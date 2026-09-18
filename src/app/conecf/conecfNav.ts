@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync'
   | 'schedule' | 'scheduleSync'
   | 'now'
-  | 'diary' | 'news' | 'cocoa'
+  | 'diary' | 'news' | 'announce' | 'cocoa'
   | 'log' | 'matrix'
   | 'guide' | 'qa';
 
@@ -25,6 +25,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
+  // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）
+  { key: 'announce',     label: 'フクエスお知らせ',       href: '/announce' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
   { key: 'log',          label: '更新結果',               href: '/log',           group: '記録' },
   { key: 'matrix',       label: '反映の早見表',           href: '/matrix' },
