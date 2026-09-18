@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
-import { autoOffWorkSites, autoOffNoticeText } from '@/lib/mediaOverview';
 import { consentRecheckNotice } from '@/lib/mediaConsent';
 import { useConecfHref } from './ConecfBase';
 
@@ -73,7 +72,6 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
 
   const sites = data?.sites ?? [];
   const recheck = sites.filter((s) => s.needsConsent);
-  const autoOff = autoOffWorkSites(sites);
   const updating = sites.filter((s) => s.direction === 'write' && !s.needsConsent);
 
   return (
@@ -87,14 +85,8 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
         </div>
       )}
 
-      {/* ── 出勤の自動更新が未設定（赤）── */}
-      {autoOff.length > 0 && (
-        <div className="border border-rose-300 bg-rose-50 px-4 py-3">
-          <p className="text-[15px] font-bold text-rose-700">{autoOffNoticeText(autoOff.map((x) => x.label)).title}</p>
-          <p className="mt-1 text-[14px] text-rose-900 leading-relaxed">{autoOffNoticeText(autoOff.map((x) => x.label)).body}</p>
-          <Link href={href('/schedule/sync')} className="inline-block mt-2 text-[14px] font-bold text-rose-700 underline underline-offset-4">出勤をサイトへを開く ›</Link>
-        </div>
-      )}
+      {/* ★★ 第442便（カッキーさん）: 出勤の自動更新の赤い帯はやめた。
+          ★ 同じことを、下の【そのサイトの行】に1行で出している（第437便）。★ 二重に出さない。 */}
 
       {/* ── 数 ── */}
       <div className={`${CARD} grid grid-cols-2`}>
@@ -142,7 +134,7 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
               //   ★ いまの状態なのか、押すと何が起きるのかが読み取れない（★ 実際に迷った）。
               //   → 状態は【コネックエフから更新中】の1つだけ。出勤の自動更新は【別の行】で直し方まで出す。
               //   → ボタンは押したあとの結果が分かる言葉（★ 「更新を止める」）にする。
-              status = { text: 'コネックエフから更新中', tone: 'text-emerald-700' };
+              status = { text: '更新中', tone: 'text-emerald-700' };
               action = (
                 <button type="button" disabled={busy !== ''} onClick={() => void onSet(s, 'none')}
                   className="px-3 py-1.5 border border-slate-300 bg-white text-[13px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">
