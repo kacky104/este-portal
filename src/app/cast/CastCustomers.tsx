@@ -35,12 +35,13 @@ const emptyForm = (): Form => ({ servedAt: nowJstLocal(), name: '', visitCount: 
 function LogFields({ form, setForm, names }: { form: Form; setForm: (f: Form) => void; names: string[] }) {
   return (
     <div className="space-y-2.5">
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_7rem] gap-2.5">
-        <label className="block">
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem] gap-2.5">
+        {/* ★ 第497便: iPhone の Safari は日時の入力欄に最小幅を持つので、枠からはみ出さないよう min-w-0＋appearance-none で縮める */}
+        <label className="block min-w-0">
           <span className="block text-[11px] font-bold text-slate-500 mb-1">日時</span>
-          <input type="datetime-local" className={INPUT} value={form.servedAt} onChange={(e) => setForm({ ...form, servedAt: e.target.value })} />
+          <input type="datetime-local" className={`${INPUT} block min-w-0 max-w-full appearance-none h-[38px] text-left [&::-webkit-date-and-time-value]:text-left`} value={form.servedAt} onChange={(e) => setForm({ ...form, servedAt: e.target.value })} />
         </label>
-        <label className="block">
+        <label className="block min-w-0">
           <span className="block text-[11px] font-bold text-slate-500 mb-1">回数（空欄＝自動）</span>
           <input inputMode="numeric" className={INPUT} placeholder="自動" maxLength={4} value={form.visitCount} onChange={(e) => setForm({ ...form, visitCount: e.target.value })} />
         </label>
