@@ -35,7 +35,6 @@ export function EkichikaEditPanel({ id, enabled, onToast }: { id: number; enable
     <div className="space-y-2">
       <div className="bg-white border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3 text-[14px] text-[#212121]">
         <span className="font-bold">駅ちか</span>
-        <span className="text-[12px] text-slate-500">保存した内容を駅ちかへ送ります（名前は送りません／空の欄は駅ちかのまま）</span>
         <button type="button" disabled={busy || removals !== null} onClick={() => void onUpdate()}
           className="ml-auto h-8 px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40">
           {busy ? '受け付けています…' : '更新する'}

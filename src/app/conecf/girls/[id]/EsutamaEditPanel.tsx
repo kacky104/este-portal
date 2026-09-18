@@ -33,7 +33,6 @@ export function EsutamaEditPanel({ id, enabled, onToast }: { id: number; enabled
   return (
     <div className="bg-white border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3 text-[14px] text-[#212121]">
       <span className="font-bold">エステ魂</span>
-      <span className="text-[12px] text-slate-500">保存した内容と写真をエステ魂へ送ります（名前は送りません／空の欄はエステ魂のまま）</span>
       <button type="button" disabled={busy || removals !== null} onClick={() => void onUpdate()}
         className="ml-auto h-8 px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40">
         {busy ? '受け付けています…' : '更新する'}
