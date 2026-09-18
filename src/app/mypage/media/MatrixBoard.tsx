@@ -13,7 +13,7 @@
 //   ★ 上の箱＝出勤・写メ日記などの3表（自動で回るもの）。★ 下の箱＝セラピストの2表（向きごとに1枚）。
 
 import { MEDIA_MATRIX, MATRIX_SITES, MATRIX_ROWS, MATRIX_FOOTNOTES, NO as MATRIX_NO, NA as MATRIX_NA, SEE as MATRIX_SEE, OK as MATRIX_OK, MAYBE as MATRIX_MAYBE } from '@/lib/mediaMatrix';
-import { THERAPIST_TABLES } from '@/lib/mediaMatrix';
+import { THERAPIST_TABLES, CONECF_FUKUES_HEADER, CONECF_FUKUES_COLUMN } from '@/lib/mediaMatrix';
 import { useMediaBrand } from './mediaBrand';
 
 export function MatrixBoard() {
@@ -21,7 +21,10 @@ export function MatrixBoard() {
   //   ★ 「駅ちかから反映」の表は出さず、名前を差し替え、フクエスへは入力した時点で反映されることを1行足す。
   const brand = useMediaBrand();
   const sections = brand.isConecf ? MEDIA_MATRIX.filter((x) => x.key === 'write') : MEDIA_MATRIX;
-  const therapistTables = brand.isConecf ? THERAPIST_TABLES.filter((t) => t.key === 'write') : THERAPIST_TABLES;
+  // ★ 第467便（カッキーさん）: コネックエフでは「セラピスト」の表（下の箱）を出さない
+  const therapistTables = brand.isConecf ? [] : THERAPIST_TABLES;
+  // ★ 第467便: コネックエフでは駅ちかの左に「フクエス」の列を足す（値は mediaMatrix.ts の CONECF_FUKUES_COLUMN）
+  const withFukues = brand.isConecf;
   return (
     <div className="space-y-3">
 
@@ -39,12 +42,12 @@ export function MatrixBoard() {
             {/* ★ 第215便（2026-09-08・カッキーさん）: 見出しの下の但し書きは消した。★ 表と補足だけで足りる */}
             <p className="text-[14.5px] font-black text-slate-800 mb-2">{brand.text(sec.title)}</p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[460px] text-[13.5px] border border-slate-200">
+              <table className={`w-full ${withFukues ? 'min-w-[560px]' : 'min-w-[460px]'} text-[13.5px] border border-slate-200`}>
                 <thead>
                   <tr className="bg-slate-50">
                     <th className="text-left font-bold text-[12px] text-slate-400 px-3 py-2 border-b border-slate-200 w-[120px]"></th>
                     {/* ★ 見出しは区画ごとに差し替えられる（「駅ちかから反映」の1列目は行き先の「フクエス」・第215便） */}
-                    {(sec.headers ?? MATRIX_SITES).map((site) => (
+                    {[...(withFukues ? [CONECF_FUKUES_HEADER] : []), ...(sec.headers ?? MATRIX_SITES)].map((site) => (
                       <th key={site} className="text-center font-bold text-[12.5px] text-slate-600 px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap">{site}</th>
                     ))}
                   </tr>
@@ -53,7 +56,7 @@ export function MatrixBoard() {
                   {MATRIX_ROWS.map((row) => (
                     <tr key={row} className="border-t border-slate-100">
                       <th className="text-left font-bold text-slate-700 px-3 py-2 whitespace-nowrap bg-slate-50/60">{row}</th>
-                      {sec.cells[row].map((cell, i) => (
+                      {[...(withFukues ? [CONECF_FUKUES_COLUMN[row]] : []), ...sec.cells[row]].map((cell, i) => (
                         <td
                           key={i}
                           className={`text-center px-2 py-2 border-l border-slate-100 whitespace-nowrap tabular-nums ${
@@ -87,6 +90,7 @@ export function MatrixBoard() {
           ★ 上の3表とは【別の箱】。★ 向きごとに1枚ずつ、【項目 × 何が起きるか】を文で書く（第三者が読む）。
           ★ 第297便の「登録を押す／1枚／読み直す」は、何が流れるのかが読めなかったので捨てた。
           ★ 値は mediaMatrix.ts（番人あり）。★ マスは長い文なので折り返す（上の表と違い nowrap にしない）。 */}
+      {therapistTables.length > 0 && (
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-5">
         {therapistTables.map((t, ti) => (
           <div key={t.key} className={ti > 0 ? 'pt-4 border-t border-slate-200' : ''}>
@@ -160,6 +164,7 @@ export function MatrixBoard() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
