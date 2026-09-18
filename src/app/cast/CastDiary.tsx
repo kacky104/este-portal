@@ -333,9 +333,14 @@ export function CastDiary({
 
   return (
     <div className="space-y-5">
-      {/* ── 投稿フォーム ── */}
-      <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
-        <p className="text-[11px] font-bold text-slate-400">写メ日記を投稿（{therapistName}）</p>
+      {/* ── 投稿フォーム ──
+          ★ 第492便（カッキーさん）: アコーディオン（<details>）。★ 見出しを押すと開閉。既定は閉じる */}
+      <details className="group bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+        <summary className="flex items-center gap-2 cursor-pointer list-none px-5 py-4 [&::-webkit-details-marker]:hidden">
+          <span className="text-[11px] font-bold text-slate-400">写メ日記を投稿（{therapistName}）</span>
+          <span className="ml-auto"><svg className="w-4 h-4 text-pink-400 transition-transform duration-200 group-open:rotate-180 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg></span>
+        </summary>
+        <div className="px-5 pb-5 space-y-3">
 
         {/* 画像（1枚） */}
         <div>
@@ -445,13 +450,18 @@ export function CastDiary({
             {diaryPosting ? '投稿中...' : '投稿する'}
           </button>
         </div>
-      </div>
+        </div>
+      </details>
 
-      {/* ── 投稿済み日記一覧（自分の分のみ） ── */}
-      <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5">
-        <p className="text-[11px] font-bold text-slate-400">投稿済み日記（{total}件）</p>
+      {/* ── 投稿済み日記一覧（自分の分のみ）。★ 第492便: アコーディオン（既定は閉じる） ── */}
+      <details className="group bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+        <summary className="flex items-center gap-2 cursor-pointer list-none px-5 py-4 [&::-webkit-details-marker]:hidden">
+          <span className="text-[11px] font-bold text-slate-400">投稿済み日記（{total}件）</span>
+          <span className="ml-auto"><svg className="w-4 h-4 text-pink-400 transition-transform duration-200 group-open:rotate-180 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg></span>
+        </summary>
+        <div className="px-5 pb-5">
 
-        <div className="mt-3 space-y-3">
+        <div className="space-y-3">
           {total === 0 ? (
             <p className="text-xs text-slate-400 text-center py-6">まだ投稿がありません</p>
           ) : (
@@ -590,7 +600,8 @@ export function CastDiary({
             </div>
           )}
         </div>
-      </div>
+        </div>
+      </details>
 
       {/* ── トースト ── */}
       {toast && (
