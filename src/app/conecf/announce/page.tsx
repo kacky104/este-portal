@@ -104,7 +104,8 @@ function ImagePicker({ url, uploading, onPick, onClear }: {
       <label className={LABEL}>画像（任意・1枚）</label>
       <p className="text-[12px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
       <div className="flex items-center gap-3">
-        <div className="w-32 h-[72px] flex-none bg-slate-100 border border-slate-200 overflow-hidden">
+        {/* ★ 第476便（カッキーさん）: マイページと同じ見た目の大きさ（正方形・154px＝マイページの w-32 h-32 × PC の拡大1.2） */}
+        <div className="w-[154px] h-[154px] flex-none bg-slate-100 border border-slate-200 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {url && <img src={url} alt="" className="w-full h-full object-cover" />}
         </div>
