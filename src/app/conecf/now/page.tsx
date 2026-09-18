@@ -118,7 +118,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       </span>
       <span className="text-[12.5px] font-bold">
         {r.castLive ? <span className="text-emerald-700">本人が今すぐ中</span>
-          : r.ownerLive ? <span className="text-rose-600">今すぐ中（〜{hm(r.ownerUntil)}）</span>
+          : r.ownerLive ? <span className="text-rose-600">設定中（〜{hm(r.ownerUntil)}）</span>
           : r.importLive ? <span className="text-sky-700">駅ちかの即ヒメ中</span>
           : <span className="text-slate-400">待機</span>}
       </span>
@@ -145,7 +145,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-[16px] font-black text-slate-800">自動更新</p>
-            <p className="text-[12.5px] text-slate-500">10分ごとに、出勤中の方から順番に今すぐにします（{IMASUGU_WINDOW_MIN}分・最大{data.max}名）。</p>
+            <p className="text-[12.5px] text-slate-500">10分ごとに、出勤中の方から順番に設定します（1回{IMASUGU_WINDOW_MIN}分・最大{data.max}名）。</p>
           </div>
           <button type="button" disabled={busy !== ''} onClick={() => void saveSettings({ ...st, enabled: !st.enabled })}
             className={`px-4 py-2 text-[14px] font-bold border ${st.enabled ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-300'}`}>
@@ -173,7 +173,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           </button>
         </div>
         <p className="text-[12px] text-slate-400">
-          いま今すぐ中 {liveCount}/{data.max}名{st.lastRunAt ? `　／　最後の自動更新 ${hm(st.lastRunAt)}` : ''}。駅ちかの即ヒメ・エステ魂の即セラへは数分以内に反映されます。
+          設定中 {liveCount}/{data.max}名{st.lastRunAt ? `　／　最後の自動更新 ${hm(st.lastRunAt)}` : ''}。今すぐ・即ヒメ・即セラへ数分以内に反映されます。
         </p>
       </div>
 
@@ -205,7 +205,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 export default function ConecfNowPage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="now" title="今すぐ一括" toast={toast}>
+    <ConecfShell current="now" title="今すぐ・即ヒメ・即セラ自動設定" toast={toast}>
       {(a) => <Body enabled={!!a.enabledAt} onToast={showToast} />}
     </ConecfShell>
   );

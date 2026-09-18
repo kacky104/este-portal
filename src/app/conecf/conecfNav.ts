@@ -20,7 +20,7 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'girlsSync',    label: '女性をサイトへ登録',     href: '/girls/sync' },
   { key: 'schedule',     label: '週間スケジュール',       href: '/schedule',      group: '出勤' },
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
-  { key: 'now',          label: '今すぐ一括',             href: '/now',           group: '今すぐ' },
+  { key: 'now',          label: '今すぐ・即ヒメ・即セラ自動設定', href: '/now',           group: '今すぐ' },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
