@@ -90,6 +90,12 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   const todayCount = rows.filter((r) => dates[0] && cellOf(r, dates[0]).isActive).length;
   // ★★ 第441便（カッキーさん）: 日付の下に、その日の出勤人数を出す（★ 直した内容もすぐ数に出る）。
   //   ★ 公開の方だけ数える（★ 非公開の方は出勤を送らない）。★ 検索で絞っているときは、出ている方のぶんだけ数える
+  /** ★ 第443便: 終了時刻（★ 日をまたぐときは「翌」を頭に付ける。★ 表示は shiftLabel と同じ決め方） */
+  const endLabel = (c: ConecfShift) => {
+    const l = shiftLabel(c);
+    const i = l.indexOf('〜');
+    return i >= 0 ? l.slice(i + 1) : l;
+  };
   const countOf = (d: string) => shown.filter((r) => r.isActive && cellOf(r, d).isActive).length;
 
   return (
@@ -112,11 +118,11 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]">
           <thead>
             <tr className="bg-slate-50">
-              <th className="sticky left-0 z-10 bg-slate-50 text-left px-3 py-2 border-b border-slate-200 w-[150px] text-[12px] text-slate-400">女性</th>
+              <th className="sticky left-0 z-10 bg-slate-50 text-left px-1.5 sm:px-3 py-2 border-b border-slate-200 w-[64px] sm:w-[150px] text-[12px] text-slate-400">女性</th>
               {dates.map((d, i) => {
                 const h = dateHead(d, i);
                 return (
-                  <th key={d} className={`w-[calc((100%-150px)/7)] px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
+                  <th key={d} className={`w-[calc((100%-64px)/7)] sm:w-[calc((100%-150px)/7)] px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
                     <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
                     <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
                     <div className="mt-0.5">
@@ -135,14 +141,15 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
             {shown.map((r) => (
               <tr key={r.id} className={`border-t border-slate-100 ${r.isActive ? '' : 'opacity-50'}`}>
                 {/* ★★ 第439便（カッキーさん）: 名前の左にその子の写真（★ 40×54・1枚目）。★ 写真が無い子は枠だけ */}
-                <th className="sticky left-0 z-10 bg-white text-left px-3 py-2 font-bold text-slate-700 whitespace-nowrap">
-                  <span className="flex items-center gap-2">
+                {/* ★★ 第443便（カッキーさん）: スマホは【写真の下に名前】。★ 列を細くして、出勤のマスを広く使う */}
+                <th className="sticky left-0 z-10 bg-white text-left px-1.5 sm:px-3 py-2 font-bold text-slate-700">
+                  <span className="flex flex-col items-center gap-1 sm:flex-row sm:items-center sm:gap-2">
                     {r.imageUrl
-                      ? <img src={r.imageUrl} alt="" width={40} height={54} className="w-10 h-[54px] object-cover border border-slate-200 bg-slate-100 shrink-0" loading="lazy" />
-                      : <span className="w-10 h-[54px] border border-slate-200 bg-slate-50 shrink-0" aria-hidden />}
-                    <span className="min-w-0">
-                      <span className="block truncate max-w-[92px]">{r.name || '（名前なし）'}</span>
-                      {!r.isActive && <span className="block text-[10.5px] font-bold text-slate-400">非公開</span>}
+                      ? <img src={r.imageUrl} alt="" width={40} height={54} className="w-9 h-12 sm:w-10 sm:h-[54px] object-cover border border-slate-200 bg-slate-100 shrink-0" loading="lazy" />
+                      : <span className="w-9 h-12 sm:w-10 sm:h-[54px] border border-slate-200 bg-slate-50 shrink-0" aria-hidden />}
+                    <span className="min-w-0 w-full sm:w-auto text-center sm:text-left">
+                      <span className="block truncate text-[11px] sm:text-[13px] max-w-full sm:max-w-[92px] leading-tight">{r.name || '（名前なし）'}</span>
+                      {!r.isActive && <span className="block text-[10px] sm:text-[10.5px] font-bold text-slate-400">非公開</span>}
                     </span>
                   </span>
                 </th>
@@ -160,8 +167,21 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                           dirty ? 'border-amber-400 bg-amber-50' : c.isActive ? 'border-indigo-200 bg-indigo-50' : 'border-transparent hover:border-slate-200'
                         } disabled:cursor-not-allowed`}
                       >
+                        {/* ★★ 第443便: 出勤・開始・終了の3段（★ 終了時刻が2段にまたがって読みにくかった） */}
                         {c.isActive
-                          ? <><span className="block text-[11px] font-bold text-indigo-600">出勤</span><span className="block text-[12px] font-bold text-slate-700 tabular-nums">{label.replace('〜', '〜​')}</span></>
+                          ? (
+                            <>
+                              <span className="block text-[11px] font-bold text-indigo-600">出勤</span>
+                              {c.start && c.end
+                                ? (
+                                  <>
+                                    <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{c.start}</span>
+                                    <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{endLabel(c)}</span>
+                                  </>
+                                )
+                                : <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{label}</span>}
+                            </>
+                          )
                           : <span className="text-[12px] text-slate-300">未設定</span>}
                       </button>
                     </td>
