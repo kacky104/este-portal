@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { JobsLogo } from '@/components/JobsLogo';
 import { JobsSavedMenu } from '@/components/JobsSavedMenu';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { getTheme } from '@/app/lib/themes';
+import { fetchThemeWallpapers } from '@/app/lib/ranking';
 
 // フクエスワーク（求人サイト）専用シェル。
 // root layout にはサイト共通ヘッダーが無く（各ページが自前でヘッダーを描画する構造）、
@@ -44,10 +46,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default function JobsLayout({ children }: { children: React.ReactNode }) {
+export default async function JobsLayout({ children }: { children: React.ReactNode }) {
+  // ★ 第502便（カッキーさん）: 背景を テーマ壁紙の green（/admin「テーマ壁紙設定」）に。
+  //   ★ 店舗ページと同じ敷き方（壁紙の上に theme.bg を85%重ねて文字を読みやすく・画面に固定）。
+  //   ★ 壁紙が未設定・読めないときは今までの白〜薄いグリーンの無地。
+  const theme = getTheme('green');
+  const wallpapers = await fetchThemeWallpapers();
+  const wallpaperUrl = wallpapers[theme.key] ?? null;
+  const bgLayerStyle: React.CSSProperties = wallpaperUrl
+    ? {
+        backgroundColor: theme.bg,
+        backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : { background: 'linear-gradient(#ffffff,#F1FAF4)' };
   return (
-    // 別サイト感を出すため肉球壁紙は使わず、白〜ごく薄いグリーンの無地背景。
-    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(#ffffff,#F1FAF4)' }}>
+    <div className="relative min-h-screen flex flex-col">
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
       {/* ─── フクエスワーク専用ヘッダー（左=ロゴ→/jobs、右=本体TOPへのテキストリンク） ─── */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b" style={{ borderColor: '#D6EFE0' }}>
         {/* 左＝ロゴ／右＝保存メニュー（緑肉球＋件数バッジ→/jobs/saved）。「フクエスTOPへ」はフッターに存置。 */}
