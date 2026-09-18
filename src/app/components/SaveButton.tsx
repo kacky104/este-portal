@@ -304,7 +304,11 @@ export function SaveButton({
           height={size}
           draggable={false}
           className="block select-none pointer-events-none"
-          style={{ width: size, height: size, objectFit: 'contain' }}
+          style={{
+            width: size, height: size, objectFit: 'contain',
+            // ★ 第480便: フクエスワークの新ロゴ（F+ES WORK）は保存前後で絵が同じ。★ 星と同じく未保存はうすく透かす
+            ...(kind === 'job_salon' ? { opacity: isSavedNow ? 1 : STAR_UNSAVED_OPACITY, transition: 'opacity 0.2s ease' } : {}),
+          }}
         />
         )}
       </button>
