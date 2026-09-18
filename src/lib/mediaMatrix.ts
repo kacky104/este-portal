@@ -60,7 +60,8 @@ export const MEDIA_MATRIX: readonly MatrixSection[] = [
       '出勤':          ['30分以内', '30分以内', NO, '準備中'],
       // ★ 出勤の送信は常に7日ぶん（workPlan WORK_DAYS・esutamaPlan days）。★ 当日と同じ周で送る
       '週間出勤（7日分）': ['30分以内', '30分以内', NO, '準備中'],
-      '写メ日記':      ['即時', '数分後', '即時', NA],
+      // ★ 第468便（カッキーさん）: エステ魂は「数分後」→「数分以内」（5分ごとの周＝最長で数分）
+      '写メ日記':      ['即時', '数分以内', '即時', NA],
       // ★★★ 第330便（2026-09-13・カッキーさんの添削）: 分数を書かず「数分以内」にした。
       //   ★ 周は駅ちか10分・エステ魂5分だが、**枠が空いていなければ1周飛ばす**ので、
       //     書いた分数を必ず超える回がある。★ 守れない約束を表に書かない。
@@ -112,6 +113,17 @@ export const CONECF_FUKUES_COLUMN: Record<(typeof MATRIX_ROWS)[number], string> 
   '即ヒメ／即セラ': '即時',
   '新着情報': '設定の時刻',
 };
+
+/**
+ * ★ 第468便（2026-09-18・カッキーさん）: コネックエフの早見表だけ、いちばん下に「新人の反映」の行を足す。
+ *   ★ 並びは フクエス・駅ちか・エステ魂・エステラブ・エステランキング（★ フクエスの列を含む5つ）。
+ */
+export const CONECF_EXTRA_ROWS: ReadonlyArray<{ label: string; cells: readonly [string, string, string, string, string] }> = [
+  { label: '新人の反映', cells: ['即時', '30分以内', '30分以内', NO, NA] },
+];
+
+/** ★ 第468便: コネックエフの早見表では「エスラン」を「エステランキング」と書く（★ 列の見出しは少し小さい字） */
+export const CONECF_SITE_LABELS: Readonly<Record<string, string>> = { 'エスラン': 'エステランキング' };
 
 /**
  * ★ 早見表の下に置く1行ずつの補足（短く）。

@@ -13,7 +13,7 @@
 //   ★ 上の箱＝出勤・写メ日記などの3表（自動で回るもの）。★ 下の箱＝セラピストの2表（向きごとに1枚）。
 
 import { MEDIA_MATRIX, MATRIX_SITES, MATRIX_ROWS, MATRIX_FOOTNOTES, NO as MATRIX_NO, NA as MATRIX_NA, SEE as MATRIX_SEE, OK as MATRIX_OK, MAYBE as MATRIX_MAYBE } from '@/lib/mediaMatrix';
-import { THERAPIST_TABLES, CONECF_FUKUES_HEADER, CONECF_FUKUES_COLUMN } from '@/lib/mediaMatrix';
+import { THERAPIST_TABLES, CONECF_FUKUES_HEADER, CONECF_FUKUES_COLUMN, CONECF_EXTRA_ROWS, CONECF_SITE_LABELS } from '@/lib/mediaMatrix';
 import { useMediaBrand } from './mediaBrand';
 
 export function MatrixBoard() {
@@ -47,16 +47,24 @@ export function MatrixBoard() {
                   <tr className="bg-slate-50">
                     <th className="text-left font-bold text-[12px] text-slate-400 px-3 py-2 border-b border-slate-200 w-[120px]"></th>
                     {/* ★ 見出しは区画ごとに差し替えられる（「駅ちかから反映」の1列目は行き先の「フクエス」・第215便） */}
-                    {[...(withFukues ? [CONECF_FUKUES_HEADER] : []), ...(sec.headers ?? MATRIX_SITES)].map((site) => (
-                      <th key={site} className="text-center font-bold text-[12.5px] text-slate-600 px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap">{site}</th>
-                    ))}
+                    {[...(withFukues ? [CONECF_FUKUES_HEADER] : []), ...(sec.headers ?? MATRIX_SITES)].map((site) => {
+                      // ★ 第468便: コネックエフでは「エスラン」→「エステランキング」（長いので字を少し小さく）
+                      const label = withFukues ? (CONECF_SITE_LABELS[site] ?? site) : site;
+                      return (
+                        <th key={site} className={`text-center font-bold ${label !== site ? 'text-[11px]' : 'text-[12.5px]'} text-slate-600 px-2 py-2 border-b border-l border-slate-200 whitespace-nowrap`}>{label}</th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {MATRIX_ROWS.map((row) => (
+                  {[
+                    ...MATRIX_ROWS.map((row) => ({ label: row as string, cells: [...(withFukues ? [CONECF_FUKUES_COLUMN[row]] : []), ...sec.cells[row]] })),
+                    // ★ 第468便: コネックエフだけ、いちばん下に「新人の反映」
+                    ...(withFukues ? CONECF_EXTRA_ROWS.map((r) => ({ label: r.label, cells: [...r.cells] })) : []),
+                  ].map(({ label: row, cells }) => (
                     <tr key={row} className="border-t border-slate-100">
                       <th className="text-left font-bold text-slate-700 px-3 py-2 whitespace-nowrap bg-slate-50/60">{row}</th>
-                      {[...(withFukues ? [CONECF_FUKUES_COLUMN[row]] : []), ...sec.cells[row]].map((cell, i) => (
+                      {cells.map((cell, i) => (
                         <td
                           key={i}
                           className={`text-center px-2 py-2 border-l border-slate-100 whitespace-nowrap tabular-nums ${
@@ -73,9 +81,7 @@ export function MatrixBoard() {
             </div>
             {/* ★ 表のすぐ下の注（※ のマスの説明・第215便）。★ 無ければ出さない */}
             {sec.remark && <p className="mt-1.5 text-[12.5px] text-slate-400 leading-relaxed">{sec.remark}</p>}
-            {brand.isConecf && sec.key === 'write' && (
-              <p className="mt-1 text-[12.5px] text-slate-400 leading-relaxed">※ フクエスへは、コネックエフで入力した時点で反映されます。</p>
-            )}
+            {/* ★ 第468便: 「※ フクエスへは、コネックエフで入力した時点で反映されます。」は外した（フクエスの列で分かる） */}
           </div>
         ))}
         {/* ★ 早見表の下の補足5行は第298便で外した（カッキーさんの添削）。★ 空なら何も出さない */}
