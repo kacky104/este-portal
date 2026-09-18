@@ -6,6 +6,8 @@ category: sejutsu
 summary: オイルを使う施術のときにはく、不織布でできた使い捨ての下着。自分の下着をオイルで汚さないためのもの。
 description: 紙パンツとは、オイルを使う施術のときにはく使い捨ての下着のこと。何のために使うのか、いつどこで着替えるのか、施術のあとの扱い、初めての方が気になりやすい点を解説します。
 publishedAt: 2026-09-18
+heroImage: /glossary/kami-pants/hero.webp
+heroAlt: 着替えスペースの壁のフックにかかったガウンと、足もとに置かれた籐のかご
 related: [aroma-oil-treatment, towel-work, shower, oil, counseling, sejutsu-hani]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
