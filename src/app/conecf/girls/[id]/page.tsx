@@ -198,9 +198,8 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
               <input className={INPUT} value={form.name} maxLength={CONECF_NAME_MAX} onChange={(e) => set('name', e.target.value)} />
               <p className="text-[12px] text-slate-400 mt-1">{[...form.name].length}/{CONECF_NAME_MAX}文字。★ 変えても駅ちか・エステ魂の登録名は変わりません。</p>
             </Field>
-            <Field label="カタカナ"><input className={INPUT} value={form.nameKana} onChange={(e) => set('nameKana', e.target.value)} /></Field>
-            <Field label="ひらがな"><input className={INPUT} value={form.nameHira} onChange={(e) => set('nameHira', e.target.value)} /></Field>
-            <Field label="ローマ字"><input className={INPUT} value={form.nameRomaji} onChange={(e) => set('nameRomaji', e.target.value)} /></Field>
+            {/* ★★ 第444便（カッキーさん）: カタカナ・ひらがな・ローマ字の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
+                ★ 入っている値は消していない（★ 保存でも触らない）。★ 使うときが来たら戻す */}
             <Field label="入店日" badge="推奨">
               <div className="flex flex-wrap items-center gap-3">
                 <input type="date" className={`${INPUT} max-w-[200px]`} value={form.joinedOn} onChange={(e) => set('joinedOn', e.target.value)} />

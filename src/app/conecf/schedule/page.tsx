@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
+import { matchesSearch } from '@/lib/searchNormalize';
 import { getConecfSchedule, saveConecfSchedule, type ConecfScheduleRow } from '@/app/actions/conecfSchedule';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { startTimeOptions, endTimeOptions, shiftLabel, type ConecfShift } from '@/lib/conecfSchedule';
@@ -84,7 +85,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   if (error) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>;
   if (!rows) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
 
-  const shown = rows.filter((r) => q.trim() === '' || r.name.includes(q.trim()));
+  const shown = rows.filter((r) => matchesSearch(r.name, q));   // ★ 第444便: ひらがな・カタカナ・大小文字の違いを気にせず絞り込む（フクエスと同じ規則）
   const openRow = open ? rows.find((r) => r.id === open.id) ?? null : null;
   const openCell = open && openRow ? cellOf(openRow, open.date) : null;
   const todayCount = rows.filter((r) => dates[0] && cellOf(r, dates[0]).isActive).length;

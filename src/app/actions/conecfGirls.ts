@@ -208,7 +208,7 @@ export async function saveConecfGirl(input: { id: number; values: ConecfGirlInpu
 
   const { error: pErr } = await svc.from('conecf_therapist_profiles').upsert({
     therapist_id: t.id,
-    name_kana: v.nameKana, name_hira: v.nameHira, name_romaji: v.nameRomaji,
+    // ★ 第444便: カタカナ・ひらがな・ローマ字は画面から外した。★ 空で上書きしないよう、保存では触らない
     joined_on: v.joinedOn, birth_date: v.birthDate,
     height: v.height, bust: v.bust, cup: v.cup, waist: v.waist, hip: v.hip, weight: v.weight,
     blood_type: v.bloodType, style: v.style, look_type: v.lookType,

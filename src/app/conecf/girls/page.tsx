@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
+import { matchesSearch } from '@/lib/searchNormalize';
 import { listConecfGirls, createConecfGirl, type ConecfGirlRow } from '@/app/actions/conecfGirls';
 import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
@@ -210,7 +211,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
 
   if (error) return <div className="bg-white border border-slate-200 p-5 text-[14px] text-slate-500">読み込めませんでした（{error}）</div>;
 
-  const shown = (rows ?? []).filter((r) => q.trim() === '' || r.name.includes(q.trim()));
+  const shown = (rows ?? []).filter((r) => matchesSearch(r.name, q));   // ★ 第444便: ひらがな・カタカナ・大小文字の違いを気にせず絞り込む（フクエスと同じ規則）
   const total = rows?.length ?? 0;
   const st = imp.st;
   const canImport = !!st && st.hasEkichika && st.phase === 'none';
