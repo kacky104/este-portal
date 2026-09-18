@@ -14,14 +14,16 @@ import { CastDiary } from './CastDiary';
 import { CastThemePicker } from './CastTheme';
 import { CastImasugu } from './CastImasugu';
 import { CastCustomers } from './CastCustomers';
+import { CastEarnings } from './CastEarnings';
 
-type CastTab = 'diary' | 'theme' | 'now' | 'customers';
+type CastTab = 'diary' | 'theme' | 'now' | 'customers' | 'earnings';
 
 const TABS: ReadonlyArray<readonly [CastTab, string]> = [
   ['diary', '写メ日記'],
   ['now', '今すぐ'],
   ['theme', '着せ替え'],
   ['customers', 'お客様'], // ★ 第496便: お客様記録帳
+  ['earnings', '報酬'], // ★ 第498便: 報酬帳
 ];
 
 export function CastTabs({
@@ -37,6 +39,7 @@ export function CastTabs({
   importImasuguOn,
   importImasuguUntil,
   today,
+  businessDate,
 }: {
   therapistId: string;
   therapistName: string;
@@ -51,6 +54,7 @@ export function CastTabs({
   importImasuguOn: boolean;
   importImasuguUntil: string | null;
   today: { is_active: boolean; start_time: string | null; end_time: string | null };
+  businessDate: string; // ★ 第498便: 報酬帳の「今日」（営業日・YYYY-MM-DD）
 }) {
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
 
@@ -98,6 +102,8 @@ export function CastTabs({
       {activeTab === 'theme' && <CastThemePicker />}
 
       {activeTab === 'customers' && <CastCustomers />}
+
+      {activeTab === 'earnings' && <CastEarnings today={businessDate} />}
 
       {activeTab === 'now' && (
         <CastImasugu

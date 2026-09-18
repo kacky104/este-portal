@@ -153,6 +153,7 @@ export default async function CastHomePage() {
               importImasuguOn={Boolean(therapist.is_available_now_import)}
               importImasuguUntil={(therapist.available_until_import as string | null) ?? null}
               today={today}
+              businessDate={getBusinessDateJST()}
             />
 
             {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}
