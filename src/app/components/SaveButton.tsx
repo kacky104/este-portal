@@ -117,6 +117,12 @@ const VARIANTS = {
   },
 } as const;
 
+// ★ 第477便（2026-09-18・カッキーさん）: フクエスの店舗・セラピストの保存ボタンは【星】の画像にする。
+//   ★ 未保存＝うすく透けた星／保存済み＝色のついた星。★ 押したときの演出（ポップ＋粒）はそのまま。
+//   ★ 画像を指定して呼ぶ所（フクエスワークの job_salon）は今までどおりのロゴ。
+const STAR_SRC = '/save-star.png';
+const STAR_UNSAVED_OPACITY = 0.35;
+
 const FX_DURATION_MS = 740; // 粒の生存時間（アニメ最長0.72s＋余白）。これを過ぎたら必ず除去。
 
 export type SaveItem = { id: number; name: string; salonId?: number };
@@ -216,6 +222,8 @@ export function SaveButton({
   const savedImg = imageSavedSrc ?? cfg.images.saved;
   const particleColor = burstColor ?? cfg.particleColor;
   const savedBackground = savedBg ?? c.saved.bg;
+  // ★ 第477便: 星にするか（★ 画像を渡されていない店舗・セラピストだけ）
+  const star = kind !== 'job_salon' && !imageSrc && !imageSavedSrc;
 
   return (
     // ラッパ：演出をボタンの周囲に出すため relative + overflow:visible。
@@ -259,14 +267,32 @@ export function SaveButton({
           // ボタン自体を「背後の円」として使う：未保存＝白／保存済み＝各バリアントのブランドグラデ。
           // その上に実ロゴ画像（内側透過：リング＋肉球のみ不透明）を重ねるため、保存済みは内側の
           // 透過部にグラデが透けて「内側が塗られた＝保存済み」に見える。リングが輪郭を担うので枠線なし。
-          background: isSavedNow ? savedBackground : c.unsaved.bg,
+          // ★ 第477便: 星のときは背後の円を出さない（★ 星そのものが保存の印）
+          background: star ? 'transparent' : isSavedNow ? savedBackground : c.unsaved.bg,
           border: 'none',
-          boxShadow: shadow ? '0 1px 3px rgba(0,0,0,0.15)' : undefined,
-          overflow: 'hidden', // 背後円を円形にクリップ
+          boxShadow: !star && shadow ? '0 1px 3px rgba(0,0,0,0.15)' : undefined,
+          overflow: star ? 'visible' : 'hidden', // 背後円を円形にクリップ
         }}
       >
-        {/* 実ロゴ画像（リング＋肉球・内側透過）。未保存＝グラデ肉球／保存済み＝白抜き肉球に差し替え。
-            paw=オレンジ→マゼンタ、sakura=ピンク→パープル。各バリアントの画像ペアを使う。 */}
+        {star ? (
+          <Image
+            src={STAR_SRC}
+            alt=""
+            aria-hidden="true"
+            width={size}
+            height={size}
+            draggable={false}
+            className="block select-none pointer-events-none"
+            style={{
+              width: size, height: size, objectFit: 'contain',
+              opacity: isSavedNow ? 1 : STAR_UNSAVED_OPACITY,
+              filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.18))',
+              transition: 'opacity 0.2s ease',
+            }}
+          />
+        ) : (
+        // 実ロゴ画像（リング＋肉球・内側透過）。未保存＝グラデ肉球／保存済み＝白抜き肉球に差し替え。
+        // paw=オレンジ→マゼンタ、sakura=ピンク→パープル。各バリアントの画像ペアを使う。
         <Image
           src={isSavedNow ? savedImg : unsavedImg}
           alt=""
@@ -277,6 +303,7 @@ export function SaveButton({
           className="block select-none pointer-events-none"
           style={{ width: size, height: size, objectFit: 'contain' }}
         />
+        )}
       </button>
     </span>
   );
