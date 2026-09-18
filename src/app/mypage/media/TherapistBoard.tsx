@@ -380,6 +380,8 @@ export function TherapistBoard({ salonId, onToast }: {
    *   ★ することがある画面（確かめられていない方・新人）は、いままでどおり表のまま。
    *     ★ 行ごとにボタンが要るので、写真の一覧では収まらない。
    */
+  // ★★ 第456便: フクエスのタブの中身（★ 全員が連携済みなので、絞りは「新人」だけ）
+  const fukuesShown = filter === 'new' ? therapists.filter((t) => t.isNewFace) : therapists;
   const asPhotos = filter === 'done';
   const shown = showAll ? filtered : filtered.slice(0, asPhotos ? 24 : 10);
 
@@ -474,7 +476,7 @@ export function TherapistBoard({ salonId, onToast }: {
           {brand.isConecf && (
             <button
               type="button"
-              onClick={() => { setFukues(true); setShowAll(false); setCreateView(null); }}
+              onClick={() => { setFukues(true); setFilter('done'); setShowAll(false); setCreateView(null); }}
               aria-pressed={fukues}
               className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
                 fukues ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
@@ -502,20 +504,32 @@ export function TherapistBoard({ salonId, onToast }: {
           </div>
 
           {/* ★ 第455便（カッキーさん）: 駅ちか・エステ魂と同じ並び（★ 別サイトとして同じ形で見せる）。
-              ★ フクエスは全員が連携済みなので、札は「連携済み」だけ。 */}
+              ★ フクエスは全員が連携済みなので「確かめられていない方」は無い。★★ 第456便: 「新人」だけ足した。 */}
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className="text-[13px] font-bold text-slate-400 tabular-nums mr-1">
-              {therapists.length} / {therapists.length}名中
+              {fukuesShown.length} / {therapists.length}名中
             </span>
-            <span className="inline-flex items-center px-3 py-1.5 border text-[14px] font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
-              連携済み
-            </span>
+            {([['done', '連携済み'], ['new', '新人']] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => { setFilter(k); setShowAll(false); }}
+                aria-pressed={filter === k}
+                className={`inline-flex items-center px-3 py-1.5 border text-[14px] font-bold transition-colors ${
+                  filter === k ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-400 border-slate-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          {therapists.length === 0 ? (
-            <p className="text-[14px] text-slate-500">まだ登録している子がいません。</p>
+          {fukuesShown.length === 0 ? (
+            <p className="text-[14px] text-slate-500">
+              {filter === 'new' ? '新人の方はいません。' : 'まだ登録している子がいません。'}
+            </p>
           ) : (
             <div className="grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-10 gap-2">
-              {(showAll ? therapists : therapists.slice(0, 24)).map((t) => (
+              {(showAll ? fukuesShown : fukuesShown.slice(0, 24)).map((t) => (
                 <div key={t.id} className="min-w-0">
                   <div className="w-full aspect-[3/4] border border-slate-200 bg-slate-100 overflow-hidden">
                     {t.imageUrl ? (
@@ -537,12 +551,12 @@ export function TherapistBoard({ salonId, onToast }: {
                   )}
                 </div>
               ))}
-              {!showAll && therapists.length > 24 && (
+              {!showAll && fukuesShown.length > 24 && (
                 <button type="button" onClick={() => setShowAll(true)} className="min-w-0 text-left group">
                   <span className="w-full aspect-[3/4] border border-dashed border-indigo-300 bg-indigo-50 grid place-items-center text-center px-2 group-hover:bg-indigo-100 transition-colors">
                     <span>
                       <span className="block text-[18px] font-black text-indigo-700 tabular-nums leading-none">
-                        ＋{therapists.length - 24}
+                        ＋{fukuesShown.length - 24}
                       </span>
                       <span className="block mt-1 text-[11px] font-bold text-indigo-600 leading-snug">
                         残りの方も<br />見る
