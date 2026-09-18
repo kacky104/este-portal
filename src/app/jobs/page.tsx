@@ -93,7 +93,7 @@ export default async function JobsPage() {
           ★ 第351便（2026-09-13・カッキーさんの指示）: コードで組んだグラデのカードをやめ、
             画像バナー（PC／SP 出し分け）に差し替えた。文言（公式マッチング・相談無料・未経験OK・
             条件から探せる・無料で相談）は画像の中にあるので、alt に同じ言葉を入れて読み上げと検索に残す。
-          ★ 画像は角丸を透明にした WebP（public/matching-banner-pc.webp・-sp.webp）。
+          ★ 画像は WebP（public/matching-banner-pc-v2.webp・-sp-v2.webp・第485便で新デザインに差し替え）。角は親の rounded-3xl で丸める。
             角の外側が透けるので、背景色が変わっても白い角が浮かない。
           ★ .hero-shine-loop（白帯スイープ）は残す。直上のヒーローと同時に光らないよう周期は 6s のまま。
           ★ 出し分けの境目は md（ヒーローと同じ）。 */}
@@ -104,7 +104,7 @@ export default async function JobsPage() {
       >
         {/* PC */}
         <Image
-          src="/matching-banner-pc.webp"
+          src="/matching-banner-pc-v2.webp"
           alt="フクエスワーク公式マッチング｜あなたとお店をマッチング！希望のエリアや条件から、あなたにぴったりのお店探しをお手伝いします。相談無料・未経験OK・条件から探せる。無料で相談"
           width={2172}
           height={724}
@@ -113,7 +113,7 @@ export default async function JobsPage() {
         />
         {/* SP */}
         <Image
-          src="/matching-banner-sp.webp"
+          src="/matching-banner-sp-v2.webp"
           alt="フクエスワーク公式マッチング｜あなたとお店をマッチング！希望のエリアや条件から、あなたにぴったりのお店探しをお手伝いします。相談無料・未経験OK・条件から探せる。無料で相談"
           width={1495}
           height={1052}
