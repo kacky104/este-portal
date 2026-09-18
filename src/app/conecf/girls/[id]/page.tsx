@@ -19,7 +19,7 @@ import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
 import {
-  CONECF_CUPS, CONECF_BLOOD_TYPES, CONECF_STYLES, CONECF_LOOK_TYPES, CONECF_MAX_IMAGES, CONECF_NAME_MAX, ageFromBirthDate,
+  CONECF_CUPS, CONECF_BLOOD_TYPES, CONECF_STYLES, CONECF_LOOK_TYPES, CONECF_MAX_IMAGES, CONECF_NAME_MAX,
 } from '@/lib/conecfGirl';
 
 // コネックエフ「女性プロフィール編集」（第398便・1c・2026-09-17）。
@@ -53,7 +53,6 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('basic');
   const [form, setForm] = useState<Form | null>(null);
-  const [ageFromBirth, setAgeFromBirth] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [sites, setSites] = useState<ConecfGirlDetail['sites']>([]);
   const [saving, setSaving] = useState(false);
@@ -81,11 +80,10 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
   if (!d || !form) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
 
   const set = (k: keyof Form, v: string | boolean) => setForm((f) => (f ? { ...f, [k]: v } : f));
-  const autoAge = ageFromBirth ? ageFromBirthDate(form.birthDate, new Date()) : null;
 
   const onSaveBasic = async () => {
     setSaving(true);
-    const res = await saveConecfGirl({ id, values: { ...form, ageFromBirth } });
+    const res = await saveConecfGirl({ id, values: { ...form, ageFromBirth: false } });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
     setForm((f) => (f ? { ...f, age: res.data.age ?? '' } : f));
@@ -209,20 +207,13 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
                 </label>
               </div>
             </Field>
+            {/* ★★ 第445便（カッキーさん）: 生年月日・体重の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
+                ★ 「生年月日と連動させる」も一緒に外した（★ 生年月日が無いと動かないため）。★ 入っている値は消していない */}
             <Field label="年齢" badge="推奨">
               <div className="flex flex-wrap items-center gap-3">
-                <input inputMode="numeric" className={`${INPUT} max-w-[100px]`} disabled={ageFromBirth}
-                  value={ageFromBirth ? (autoAge ?? '') : form.age} onChange={(e) => set('age', e.target.value)} />
+                <input inputMode="numeric" className={`${INPUT} max-w-[100px]`} value={form.age} onChange={(e) => set('age', e.target.value)} />
                 <span className="text-[14px] text-slate-500">歳</span>
-                <label className="flex items-center gap-1.5 text-[14px] text-slate-600">
-                  <input type="checkbox" checked={ageFromBirth} onChange={(e) => setAgeFromBirth(e.target.checked)} className="accent-indigo-600" />
-                  生年月日と連動させる
-                </label>
               </div>
-            </Field>
-            <Field label="生年月日">
-              <input type="date" className={`${INPUT} max-w-[200px]`} value={form.birthDate} onChange={(e) => set('birthDate', e.target.value)} />
-              <p className="text-[12px] text-slate-400 mt-1">公開ページには出しません。</p>
             </Field>
             <Field label="3サイズ" badge="推奨">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -240,7 +231,6 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
                 {CONECF_CUPS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="体重"><input inputMode="numeric" className={`${INPUT} max-w-[100px]`} value={form.weight} onChange={(e) => set('weight', e.target.value)} /></Field>
             <Field label="血液型">
               <select className={`${INPUT} max-w-[140px]`} value={form.bloodType} onChange={(e) => set('bloodType', e.target.value)}>
                 <option value="">未選択</option>
