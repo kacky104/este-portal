@@ -174,7 +174,7 @@ export function ConecfShell({
             aria-current={on ? 'true' : undefined}
             className={`relative flex items-center gap-2.5 whitespace-nowrap px-4 py-2.5 font-normal transition-colors ${
               // ★★ 第462便: 名前の長い項目だけ小さめ（★ 232pxのサイドバーでも1行に収める）
-              n.dense ? 'text-[11.5px] tracking-tight' : 'text-[14px]'
+              n.dense ? 'text-[12.5px] tracking-tight' : 'text-[14px]'
             } ${
               on ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white' : 'text-[#212121] hover:bg-indigo-50'
             }`}

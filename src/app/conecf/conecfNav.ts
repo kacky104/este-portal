@@ -22,7 +22,7 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'schedule',     label: '週間スケジュール',       href: '/schedule',      group: '出勤' },
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
   // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
-  { key: 'now',          label: '今すぐ・即ヒメ・即セラ自動設定', href: '/now',           dense: true },
+  { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
