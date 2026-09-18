@@ -63,7 +63,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     void revalidateSalon(data.salonId);
-    onToast(res.data.on ? `${r.name}さんを今すぐにしました（${IMASUGU_WINDOW_MIN}分）` : `${r.name}さんの今すぐを外しました`);
+    onToast(res.data.on ? `${r.name}さんを設定しました（${IMASUGU_WINDOW_MIN}分）` : `${r.name}さんの設定を外しました`);
     await load();
   };
 
@@ -90,7 +90,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     void revalidateSalon(data.salonId);
-    onToast(res.data.on.length > 0 ? `${res.data.on.join('・')}さんを今すぐにしました` : '今すぐにできる出勤中の方がいませんでした');
+    onToast(res.data.on.length > 0 ? `${res.data.on.join('・')}さんを設定しました` : '設定できる出勤中の方がいませんでした');
     await load();
   };
 
