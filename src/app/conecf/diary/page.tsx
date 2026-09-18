@@ -17,7 +17,7 @@ export default function ConecfDiaryPage() {
       {(a) => (
         <div className="space-y-3">
           <p className="text-[13.5px] text-slate-500 bg-white border border-slate-200 px-4 py-2.5">
-            写メ日記は、これまでどおりフクエス（マイページ・セラピストさん本人）で書きます。書いた日記を、ここで決めたサイトへ転送します。
+            写メ日記は、フクエス（マイページ・セラピストさん本人）で書いてください。それを、ここで決めたサイトへ転送します。
           </p>
           <DiaryTargets
             salonId={a.salonId}
