@@ -49,7 +49,7 @@ const keyOf = (p: string, s: number) => p + '#' + s;
  *   ★ 即ヒメ（駅ちか）と即セラ（エステ魂）は、どちらも【フクエスから反映なら自動】。★ 同じ形で並べる。
  *   ★ ボタンは持たない。★ ここに設定は無い、と分かることがこのカードの仕事。
  */
-function AutoNote({ title, kirari, children }: { title: string; kirari?: boolean; children: React.ReactNode }) {
+function AutoNote({ title, kirari, children }: { title: string; kirari?: boolean; children?: React.ReactNode }) {
   return (
     <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-1.5">
       {/* ★★★ 第336便（2026-09-13・カッキーさん）: 「いま動いている」ものは見出しをキラリと光らせる。
@@ -94,6 +94,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
    *   ★ タブなら【いま見ているのは1サイト】がはっきりする。★ 送れないサイトも、その中で理由を言える。
    */
   const [site, setSite] = useState<Site | null>(null);
+  // ★ 第471便（カッキーさん）: コネックエフだけ、エステ魂の右に「フクエス」のタブ。★ 選ぶとサイトの枠の代わりにフクエスの2枚を出す
+  const [fukuesOn, setFukuesOn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
@@ -352,6 +354,9 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
 
   if (salonId == null) return null;
 
+  // ★ 第471便: 画面に出すサイト（★ フクエスのタブを選んでいるときは無し）
+  const view = fukuesOn ? null : site;
+
   // ★ いま読み取りに使っているサイト。★ 居なければ「変える」ボタンを出さない
   const readSite = sites.find((s) => s.direction === 'read') ?? null;
 
@@ -387,12 +392,12 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         <div className="flex flex-wrap gap-2">
           {sites.map((x) => {
             const k = keyOf(x.provider, x.slot);
-            const on = site != null && keyOf(site.provider, site.slot) === k;
+            const on = !fukuesOn && site != null && keyOf(site.provider, site.slot) === k;
             return (
               <button
                 key={k}
                 type="button"
-                onClick={() => setSite(x)}
+                onClick={() => { setSite(x); setFukuesOn(false); }}
                 aria-pressed={on}
                 className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
                   on
@@ -418,25 +423,56 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               </button>
             );
           })}
+          {/* ★ 第471便: フクエスのタブ（コネックエフだけ）。★ フクエスへはコネックエフで入れた時点で入るので、設定は無い */}
+          {brand.isConecf && (
+            <button
+              type="button"
+              onClick={() => setFukuesOn(true)}
+              aria-pressed={fukuesOn}
+              className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
+                fukuesOn
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                  : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`w-6 h-6 flex-none grid place-items-center text-[13px] font-black ${
+                  fukuesOn ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                }`}
+              >
+                フ
+              </span>
+              フクエス
+            </button>
+          )}
         </div>
       )}
 
+      {/* ★ 第471便: フクエスのタブの中身（★ 見出しだけ。駅ちか・エステ魂と同じ形の2枚） */}
+      {!loading && !error && brand.isConecf && fukuesOn && (
+        <>
+          <AutoNote title="出勤 自動更新中" kirari />
+          <AutoNote title="今すぐ自動設定中" kirari />
+        </>
+      )}
+
       {/* ── ★ 送れないサイトのタブ（第322便）。★ 理由と、そこからできることを1枚で ── */}
-      {!loading && !error && site && site.direction !== 'write' && (
+      {!loading && !error && view && view.direction !== 'write' && (
         <div className="border border-sky-200 bg-sky-50 px-4 py-3">
           <p className="text-[14px] leading-relaxed text-slate-600">
-            <b className="font-bold text-sky-700">{site.label}は、いま更新できません。</b>{' '}
-            {site.direction === 'read'
+            <b className="font-bold text-sky-700">{view.label}は、いま更新できません。</b>{' '}
+            {view.direction === 'read'
               // ★ 第319便: 「変えると◯◯からの反映は止まります。」は書かない（押したときの問いが言う）
-              ? brand.text(`いまは${site.label}から反映しています。更新するには「フクエスから反映」に変えてください。`)
-              : site.direction === 'off'
+              ? brand.text(`いまは${view.label}から反映しています。更新するには「フクエスから反映」に変えてください。`)
+              : view.direction === 'off'
                 ? (brand.isConecf ? 'いまはこのサイトを更新していません。更新するには、ホームでこのサイトの「更新する」を押してください。' : '「反映しない」を選んでいます。更新するには「フクエスから反映」に変えてください。')
                 // ★ 鍵はあるが向きが決まっていない枠と、鍵がまだ無い枠を書き分ける（第87便・§223 の作法）
-                : site.hasCredential
+                : view.hasCredential
                   ? brand.text('まだ反映の向きが決まっていません。「フクエスから反映」にすると更新できます。')
                   : 'ログイン情報を登録すると始められます。'}
           </p>
-          {site.hasCredential ? (
+          {view.hasCredential ? (
             <button
               type="button"
               onClick={() => void onSwitchToWrite()}
@@ -454,7 +490,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             </Link>
           )}
           {/* ★ 押すと全サイトが変わる（第320便）。★ 押す前に、それが分かるようにしておく */}
-          {site.hasCredential && readSite && (
+          {view.hasCredential && readSite && (
             <p className="mt-2 text-[12.5px] text-slate-400 leading-relaxed">
               {brand.text('登録済みのサイトがまとめて「フクエスから反映」になります。')}
             </p>
@@ -468,8 +504,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           ★★★★ 第332便（2026-09-13・カッキーさん）: **まだ自動にできない枠にだけ**出す。
             ★ もう自動にできる枠にも出し続けていて、読む必要のない文が画面のいちばん上を占めていた。
             ★ 帯が出ている＝「まだやることがある」の合図にする。★ そのほうが読まれる。 */}
-      {!loading && !error && site && site.direction === 'write' && !site.autoOn
-        && !autoEligible.has(keyOf(site.provider, site.slot)) && (
+      {!loading && !error && view && view.direction === 'write' && !view.autoOn
+        && !autoEligible.has(keyOf(view.provider, view.slot)) && (
         <p className="text-[13.5px] text-slate-500 leading-relaxed border border-slate-200 bg-slate-50 px-3 py-2">
           {WORK_FIRST_APPROVAL_NOTE}
         </p>
@@ -478,7 +514,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       {/* ── 開いているサイトの内容（第322便）──────────────────────────
           ★ 中身は今までのまま。★ 1つの枠だけを描くために、1件の並びとして回す
             （★ 中の書き方を変えずにタブへ移すため）。 */}
-      {(!loading && !error && site && site.direction === 'write' ? [site] : []).map((s) => {
+      {(!loading && !error && view && view.direction === 'write' ? [view] : []).map((s) => {
         const k = keyOf(s.provider, s.slot);
         const plan = plans[k];
         const isWaiting = k in waiting;
@@ -705,7 +741,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               ★ だからこの説明には【枠の数を書かない】。
           ★ 見えなくなったもの: 枠の空き具合と、1人ずつ押す道。★ 枠は駅ちかの管理画面で見られる。
           ★ SokuhimeSlots.tsx は第324便で消した。 */}
-      {!loading && !error && site && site.provider === 'ekichika' && site.direction === 'write' && (
+      {!loading && !error && view && view.provider === 'ekichika' && view.direction === 'write' && (
         // ★★★ 第336便: 見出し「駅ちかの即ヒメ」を消し、状態そのもの（即ヒメ自動設定中）を見出しにした。
         //   ★ 見出しが【いま何が起きているか】を言う。★ 場所の名前（駅ちかの…）はタブで分かる。
         <AutoNote title="即ヒメ自動設定中" kirari>
@@ -713,9 +749,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               ★ 「長いので店舗様は読まない」。★ 読まれない正確さより、読まれる1行を選ぶ。
               ★★ 「10分ごと」と書かない。★ 「今すぐを押しても10分待たされる」と読まれる
                 （実際は周が10分ごとに回るだけで、押した直後の周で上がる）。★ だから「数分以内」。 */}
-          <p className="text-[13.5px] text-slate-500 leading-relaxed">
-            「今すぐ」のセラピストを数分以内に即ヒメにします。
-          </p>
+          {/* ★ 第471便（カッキーさん）: 説明の1行「『今すぐ』のセラピストを数分以内に即ヒメにします。」は外した（見出しだけ） */}
         </AutoNote>
       )}
 
@@ -726,13 +760,11 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             **違うほうを書いておく**（★ カッキーさんが実際に取り違えた）。
           ★ ONだけ打ってOFFは打たない（★ 60分で向こうが切る）。★ 1周で1人だけ。
           ★ 駅ちかの即ヒメは第327便で【10分ごと・1周6人まとめて】になったが、即セラは5分ごと1人のまま。 */}
-      {!loading && !error && site && site.provider === 'esutama' && site.direction === 'write' && (
+      {!loading && !error && view && view.provider === 'esutama' && view.direction === 'write' && (
         // ★ 第336便: 即ヒメと同じ形に揃えた（見出し＝状態・キラリ）
         <AutoNote title="即セラ自動設定中" kirari>
           {/* ★ 第330便: 駅ちかの即ヒメと同じ1行に揃えた（カッキーさん）。★ 周の分数は書かない */}
-          <p className="text-[13.5px] text-slate-500 leading-relaxed">
-            「今すぐ」のセラピストを数分以内に即セラにします。
-          </p>
+          {/* ★ 第471便: 説明の1行は外した（即ヒメと同じ） */}
         </AutoNote>
       )}
     </div>
