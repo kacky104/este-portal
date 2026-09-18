@@ -101,11 +101,8 @@ export function SavedJobsList() {
               item={{ id: job.salon.id, name: job.salon.name }}
               variant="paw"
               size={28}
-              imageSrc="/logo-fukuwork.png"
-              imageSavedSrc="/logo-fukuwork-saved.png"
+              // ★ 第487便（カッキーさん）: ロゴではなく星（求人詳細の保存ボタンと同じ）。★ 粒は緑のまま
               burstColor="#10B981"
-              savedBg="#FFFFFF"
-              shadow
             />
           </div>
         </li>
