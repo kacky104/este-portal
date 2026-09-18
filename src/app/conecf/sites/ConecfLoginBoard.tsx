@@ -186,7 +186,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
     if (siteRows.length === 0) return { text: '', tone: '' };
     const slots = mediaSiteSlots(site).length > 1 ? siteRows.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : '';
     if (st === 'disabled') return { text: `${slots}一時停止中`, tone: 'text-slate-500' };
-    return { text: `${slots}連携中 ／ 最終確認 ${fmtDay(siteRows[0]?.lastVerifiedAt ?? null)}`, tone: 'text-[#212121]' };
+    return { text: `${slots}連携中`, tone: 'text-[#212121]' };
   };
 
   const row = edit ? rowAt(edit.provider, slot) : null;

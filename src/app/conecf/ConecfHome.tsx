@@ -12,7 +12,7 @@ import { useConecfHref } from './ConecfBase';
 //   ★ コネックエフは入力する場所がコネックエフだけ（設計メモ §1）。★ 「駅ちかから反映／フクエスから反映」の選択を置かない。
 //   ★ サイトごとに「更新する／更新しない」だけ。★ 裏の仕組み（link_mode）は同じ（write / none）。
 // ★ 状態の出どころは getMediaOverview（MediaHome と同じ）。★ ここで数えない・決めない。
-// ★ フクエスは同じ仕組みの中にあるので、常に「自動で連携済み」。
+// ★ フクエスは同じ仕組みの中にあるので、常に「更新中」（★ 第452便で言い方を揃えた）。
 
 type Site = {
   provider: string;
@@ -111,7 +111,7 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
           <li className="px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <b className="text-[15.5px] font-black text-slate-800">フクエス</b>
             <span className="text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・今すぐ・セラピスト</span>
-            <span className="ml-auto text-[13.5px] font-bold text-emerald-700">自動で連携済み</span>
+            <span className="ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
           </li>
 
           {!data && <li className="px-4 py-3 text-[14px] text-slate-400">読み込み中…</li>}
