@@ -117,14 +117,14 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
         </span>
       </span>
       <span className="text-[12.5px] font-bold">
-        {r.castLive ? <span className="text-emerald-700">本人が今すぐ中</span>
+        {r.castLive ? <span className="text-emerald-700">本人が設定中</span>
           : r.ownerLive ? <span className="text-rose-600">設定中（〜{hm(r.ownerUntil)}）</span>
           : r.importLive ? <span className="text-sky-700">駅ちかの即ヒメ中</span>
           : <span className="text-slate-400">待機</span>}
       </span>
       <button type="button" disabled={busy !== '' || r.castLive || (!r.ownerLive && !r.onDuty)} onClick={() => void toggleOne(r)}
         className={`px-3 py-1.5 text-[13px] font-bold border disabled:opacity-40 ${r.ownerLive ? 'border-slate-300 bg-white text-slate-600' : 'border-rose-400 bg-rose-500 text-white'}`}>
-        {busy === 'one' + r.id ? '…' : r.ownerLive ? '外す' : '今すぐにする'}
+        {busy === 'one' + r.id ? '…' : r.ownerLive ? '外す' : '設定する'}
       </button>
       <button type="button" onClick={() => setExcluded(r.id, list === 'target')} className="text-[12.5px] font-bold text-slate-500 underline underline-offset-2">
         {list === 'target' ? '除外へ' : '対象へ戻す'}
@@ -195,7 +195,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       {/* ── 除外 ── */}
       <div className={CARD}>
         <p className="px-4 pt-3.5 pb-1 text-[15px] font-black text-slate-800">更新除外 {excluded.length}名</p>
-        <p className="px-4 pb-2 text-[12.5px] text-slate-400">ここの方は自動更新の対象になりません（手で今すぐにはできます）。</p>
+        <p className="px-4 pb-2 text-[12.5px] text-slate-400">ここの方は自動更新の対象になりません（手で設定はできます）。</p>
         {excluded.length > 0 && <ul className="divide-y divide-slate-100 border-t border-slate-100">{excluded.map((r, i) => rowView(r, i, 'excluded'))}</ul>}
       </div>
     </div>
