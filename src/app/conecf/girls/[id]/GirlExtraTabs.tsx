@@ -22,7 +22,7 @@ export type ExtraTab = 'comments' | 'siteFields' | 'qa';
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-300 rounded bg-white px-2 py-1.5 text-[14px] focus:outline-none focus:border-[#1e88e5]';
 // ★ 第447便: エステ魂へも送れるようになった（第430便）。★ 「準備中」のままだった案内を直す
-const NOTE_SEND = '保存したあと、上の「駅ちか」「エステ魂」の【更新する】で、それぞれのサイトへ送れます。';
+const NOTE_SEND = '保存後、上の「駅ちか」「エステ魂」は【更新する】を押してください。';
 
 // ★ 第448便: warn を渡すと、注意として赤字で出す（★ 見落とすと更新できない決まりごと用）
 function Row({ label, children, hint, warn }: { label: string; children: React.ReactNode; hint?: string; warn?: string }) {
@@ -131,7 +131,7 @@ export function GirlExtraTab({
             <input className={INPUT} value={c.catchphrase} onChange={(e) => setC('catchphrase', e.target.value)} />
             <Counter text={c.catchphrase} max={CATCH_MAX} limits={COMMENT_SITE_LIMITS.catch} />
           </Row>
-          <Row label="お店コメント" hint="フクエスの紹介文と同じです。駅ちか「お店からのメッセージ」・エステ魂「ショップコメント」に使います。">
+          <Row label="お店コメント" hint="フクエス「紹介文」　駅ちか「お店からのメッセージ」　エステ魂「ショップコメント」">
             <textarea rows={8} className={INPUT} value={c.profileText} onChange={(e) => setC('profileText', e.target.value)} />
             <Counter text={c.profileText} max={SHOP_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.shopComment} />
           </Row>

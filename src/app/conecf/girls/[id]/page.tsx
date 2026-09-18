@@ -173,6 +173,13 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
         </button>
       </div>
 
+      {/* ★★ 第449便（カッキーさん）: フクエスも1ブロックで並べる（★ 第三者が見て「どこへ行くのか」が分かるように） */}
+      <div className="bg-white border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3 text-[14px] text-[#212121]">
+        <span className="font-bold">フクエス</span>
+        <span className="text-[12px] text-slate-500">保存すると、そのままフクエスに出ます（送るボタンは要りません）</span>
+        <span className="ml-auto h-8 px-5 inline-flex items-center rounded border border-slate-300 bg-slate-50 text-slate-500 text-[12px]">自動更新</span>
+      </div>
+
       {/* ★ 第418便: 駅ちかへ反映（確かめてから送る） */}
       <EkichikaEditPanel id={id} enabled={enabled} onToast={onToast} />
       <EsutamaEditPanel id={id} enabled={enabled} onToast={onToast} />
