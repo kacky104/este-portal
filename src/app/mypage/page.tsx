@@ -2940,22 +2940,24 @@ export default function MyPage() {
     </Link>
   );
 
-  // ★★ フクエスCRM（準備中）（2026-09-06・カッキーさんの指示）。
-  //   ★ まだ行き先が無いので、リンクにしない（★ 押せると誤解させるものは置かない）。
-  //   ★ 灰色のまま・触っても何も起きない。★ 出来たらここを renderFukuxLink と同じ形にする。
+  // ★★ フクエスCRM（有料）（2026-09-19・カッキーさんの指示で「準備中」から本物のリンクへ）。
+  //   ★ 専用画面 /mypage/crm への入口（★ フクエスリンク・フクエスワークと同じく新しいタブ）。
+  //   ★ 全店舗に出す。★ 未契約の店には /mypage/crm 側で「有料機能のご案内」を出す（★ 中身は見せない）。
+  //   ★ 関数名は差し替えの手間を減らすため renderCrmSoon のまま。
   const renderCrmSoon = (pc: boolean) => (
-    <div
-      aria-disabled
+    <Link
+      href="/mypage/crm"
+      target="_blank"
+      rel="noopener noreferrer"
       className={
         pc
-          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-300 cursor-default select-none'
-          // ★ スマホは「その他」の中の項目と同じ形（★ 押せないので文字は薄いまま）。
-          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-300 cursor-default select-none'
+          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
+          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
       }
     >
       {tabIcon('crm')}
-      フクエスCRM（準備中）
-    </div>
+      フクエスCRM（顧客台帳）
+    </Link>
   );
 
   // ★★ 「今すぐ」のリロード・保存（2026-09-06 第185便・カッキーさんの指示）。
