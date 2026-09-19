@@ -729,8 +729,10 @@ function BookingForm({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
-      <aside className="fixed right-0 top-0 bottom-0 z-50 flex w-full max-w-[440px] flex-col bg-white shadow-xl">
+      {/* ★ 受付フォームは画面の中央に出す（2026-09-19・カッキーさんの指示）。詳細パネルは右のまま。 */}
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
+      <aside className="pointer-events-auto flex max-h-[92vh] w-full max-w-[560px] flex-col bg-white shadow-2xl">
         <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
           <span className="text-[15px] font-black">{f.mode === 'new' ? '予約を受け付ける' : '予約を変更する'}</span>
           <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
@@ -858,6 +860,7 @@ function BookingForm({
           </div>
         </div>
       </aside>
+      </div>
     </>
   );
 }
