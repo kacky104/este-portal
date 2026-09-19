@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   closeCrmDay,
   confirmCrmPay,
@@ -56,7 +56,6 @@ import { CrmShell, useCrmAccess } from './CrmShell';
 const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
 const MEMO_W = 180;             // 女子メモの列（2026-09-19）
-const LEFT_W = NAME_W + MEMO_W; // 左に固定する幅（名前＋女子メモ）
 const ROW_H = 66;
 const DAY_START_MIN = 6 * 60;  // 営業日の始まり（6:00）
 const WINDOW_END_MIN = 31 * 60; // 予約ボードの窓の終わり（翌7:00）
@@ -93,6 +92,20 @@ function hourLabel(h: number): string {
 }
 function hm(iso: string): string {
   return JST_HM.format(new Date(iso));
+}
+
+// ★ スマホ（md 未満）かどうか（第541便）。★ サーバーでは false（PC の形）。
+function subscribeNarrow(cb: () => void) {
+  const mq = window.matchMedia('(max-width: 767px)');
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+}
+function useNarrow(): boolean {
+  return useSyncExternalStore(
+    subscribeNarrow,
+    () => window.matchMedia('(max-width: 767px)').matches,
+    () => false,
+  );
 }
 
 type Row = { key: string; therapist: CrmScheduleTherapist | null; bookings: CrmScheduleBooking[] };
@@ -377,24 +390,30 @@ function Grid({
   /** 空いているところを押した（therapistId: null＝フリー・min: その日0:00からの分） */
   onEmpty: (therapistId: number | null, min: number) => void;
 }) {
-  const width = (endMin - startMin) * PX_PER_MIN;
+  // ★ スマホは名前の列を細く・女子メモの列を出さない（名前の下の「メモ」から開く）・時間軸を詰める（第541便）
+  const narrow = useNarrow();
+  const nameW = narrow ? 108 : NAME_W;
+  const memoW = narrow ? 0 : MEMO_W;
+  const leftW = nameW + memoW;
+  const ppm = narrow ? 1.2 : PX_PER_MIN;
+  const width = (endMin - startMin) * ppm;
   const hours: number[] = [];
   for (let m = startMin; m < endMin; m += 60) hours.push(m / 60);
-  const x = (min: number) => (Math.min(Math.max(min, startMin), endMin) - startMin) * PX_PER_MIN;
+  const x = (min: number) => (Math.min(Math.max(min, startMin), endMin) - startMin) * ppm;
   const nowMin = nowMs != null ? Math.round((nowMs - baseMs) / 60000) : null;
   const showNow = nowMin != null && nowMin >= startMin && nowMin <= endMin;
 
   return (
     <div className="max-h-[calc(100vh-170px)] overflow-auto border border-slate-300 bg-white">
-      <div className="relative" style={{ width: LEFT_W + width }}>
+      <div className="relative" style={{ width: leftW + width }}>
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
-          <div className="sticky left-0 z-10 flex flex-none border-r border-slate-300 bg-slate-100 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: LEFT_W }}>
-            <span className="px-2" style={{ width: NAME_W }}>セラピスト</span>
-            <span className="border-l border-slate-300 px-2" style={{ width: MEMO_W }}>女子メモ</span>
+          <div className="sticky left-0 z-10 flex flex-none border-r border-slate-300 bg-slate-100 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: leftW }}>
+            <span className="px-2" style={{ width: nameW }}>セラピスト</span>
+            {!narrow && <span className="border-l border-slate-300 px-2" style={{ width: memoW }}>女子メモ</span>}
           </div>
           {hours.map((h) => (
-            <div key={h} className="flex-none border-r border-slate-200 pl-1.5 text-[13px] font-bold leading-[30px] text-slate-600" style={{ width: 60 * PX_PER_MIN }}>
+            <div key={h} className="flex-none border-r border-slate-200 pl-1.5 text-[13px] font-bold leading-[30px] text-slate-600" style={{ width: 60 * ppm }}>
               {hourLabel(h)}
             </div>
           ))}
@@ -403,11 +422,22 @@ function Grid({
         {rows.map((r) => (
           <div key={r.key} className="relative flex border-b border-slate-200" style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
-            <div className="sticky left-0 z-20 flex flex-none border-r border-slate-300 bg-white" style={{ width: LEFT_W }}>
-            <div className="flex-none px-2 py-1.5" style={{ width: NAME_W }}>
+            <div className="sticky left-0 z-20 flex flex-none border-r border-slate-300 bg-white" style={{ width: leftW }}>
+            <div className="flex-none px-2 py-1.5" style={{ width: nameW }}>
               {r.therapist ? (
                 <>
-                  <p className="truncate text-[15px] font-black text-[#3f51b5]">{r.therapist.name}</p>
+                  <p className="flex items-center gap-1">
+                    <span className="truncate text-[15px] font-black text-[#3f51b5]">{r.therapist.name}</span>
+                    {narrow && (
+                      <button
+                        type="button"
+                        onClick={() => onMemo(r.therapist!)}
+                        className={`flex-none px-1 text-[10px] font-bold ${r.therapist.memo ? 'bg-amber-400 text-white' : 'border border-dashed border-amber-400 text-amber-700'}`}
+                      >
+                        メモ
+                      </button>
+                    )}
+                  </p>
                   <p className="text-[12px] font-bold text-slate-600">
                     {r.therapist.schedules.length > 0
                       ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
@@ -449,13 +479,13 @@ function Grid({
               )}
             </div>
             {/* 女子メモ（押すと書ける・お店の内部メモ） */}
-            {r.therapist ? (
+            {narrow ? null : r.therapist ? (
               <button
                 type="button"
                 onClick={() => onMemo(r.therapist!)}
                 title={r.therapist.memo || '女子メモを書く'}
                 className="flex-none overflow-hidden border-l border-slate-200 bg-amber-50/40 px-2 py-1 text-left hover:bg-amber-100"
-                style={{ width: MEMO_W }}
+                style={{ width: memoW }}
               >
                 {r.therapist.memo ? (
                   <p className="line-clamp-4 whitespace-pre-line text-[12px] leading-[1.3] text-slate-700">{r.therapist.memo}</p>
@@ -465,7 +495,7 @@ function Grid({
                 )}
               </button>
             ) : (
-              <div className="flex-none border-l border-slate-200 bg-slate-50" style={{ width: MEMO_W }} />
+              <div className="flex-none border-l border-slate-200 bg-slate-50" style={{ width: memoW }} />
             )}
             </div>
 
@@ -475,14 +505,14 @@ function Grid({
               style={{ width }}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                const min = startMin + (e.clientX - rect.left) / PX_PER_MIN;
+                const min = startMin + (e.clientX - rect.left) / ppm;
                 const snapped = Math.floor(min / CLICK_STEP_MIN) * CLICK_STEP_MIN;
                 onEmpty(r.therapist ? r.therapist.id : null, Math.max(DAY_START_MIN, Math.min(snapped, WINDOW_END_MIN - CLICK_STEP_MIN)));
               }}
             >
               {/* 1時間ごとの線 */}
               {hours.map((h) => (
-                <div key={h} className="pointer-events-none absolute top-0 bottom-0 border-r border-slate-100" style={{ left: (h * 60 - startMin + 60) * PX_PER_MIN - 1 }} />
+                <div key={h} className="pointer-events-none absolute top-0 bottom-0 border-r border-slate-100" style={{ left: (h * 60 - startMin + 60) * ppm - 1 }} />
               ))}
               {/* 出勤の帯 */}
               {r.therapist?.schedules.map((w, i) => {
@@ -518,7 +548,7 @@ function Grid({
         {showNow && (
           <div
             className="pointer-events-none absolute bottom-0 z-[15] w-0.5 bg-red-500"
-            style={{ left: LEFT_W + (nowMin! - startMin) * PX_PER_MIN, top: 30 }}
+            style={{ left: leftW + (nowMin! - startMin) * ppm, top: 30 }}
           />
         )}
       </div>

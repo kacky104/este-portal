@@ -94,12 +94,13 @@ export function CrmShell({
           </span>
         </div>
         {access.active ? (
-          <nav className="mt-2 flex gap-1 px-3">
+          <nav className="mt-2 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none]">
+            {/* ★ スマホでタブが収まらないときは横にすべらせる（第541便） */}
             {NAV.map((n) => (
               <Link
                 key={n.key}
                 href={n.href + adminSalonQuery}
-                className={`px-4 py-2 text-[14px] font-bold ${
+                className={`flex-none whitespace-nowrap px-3 py-2 text-[14px] font-bold md:px-4 ${
                   current === n.key ? 'bg-[#eef1f8] text-[#1e2a5a]' : 'text-indigo-200 hover:text-white'
                 }`}
               >
