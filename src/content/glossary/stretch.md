@@ -7,7 +7,7 @@ summary: セラピストがお客様の腕や脚を持ち、筋肉をゆっく�
 description: ストレッチとは、セラピストがお客様の腕や脚を持ち、筋肉をゆっくり伸ばしていく施術のこと。自分でするストレッチとの違い、もみほぐしやタイ古式との関係、向いている人、伝えておくことを解説します。
 publishedAt: 2026-09-19
 heroImage: /glossary/stretch/hero.webp
-heroAlt: 施術ベッドに仰向けになったお客様の膝を、セラピストが胸のほうへゆっくり曲げて伸ばしているところ
+heroAlt: 施術ベッドに仰向けになったお客様の膝とかかとに手を添えて、セラピストが脚を曲げて伸ばしているところ
 related: [thai-koshiki, momihogushi, shiatsu, atsu-no-tsuyosa, counseling, course-jikan]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
