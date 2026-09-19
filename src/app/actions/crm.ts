@@ -24,6 +24,11 @@ import {
   type CrmCustomerRow,
   type CrmScheduleData,
   type CrmScheduleCustomer,
+  type CrmBookingItem,
+  type CrmPriceItem,
+  type CrmPriceKind,
+  CRM_PRICE_KINDS,
+  sumCrmItems,
   type CrmStats,
   type CrmTherapist,
 } from '@/app/lib/crm/types';
@@ -442,11 +447,16 @@ export async function getCrmSchedule(
 
   // 予約 → 顧客のひも付けと悪質・入り口（ボードの返り値には無い列）
   const bookingIds = bookings.map((b) => b.id);
-  const extra = new Map<string, { customerId: number | null; cancelBad: boolean; source: string }>();
+  type Extra = {
+    customerId: number | null; cancelBad: boolean; source: string;
+    items: CrmBookingItem[]; priceAdjust: number; payAdjust: number;
+    priceTotal: number | null; payTotal: number | null; paymentMethod: string;
+  };
+  const extra = new Map<string, Extra>();
   if (bookingIds.length > 0) {
     const { data } = await svc
       .from('salon_bookings')
-      .select('id, customer_id, cancel_bad, source')
+      .select('id, customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method')
       .eq('salon_id', salonId)
       .in('id', bookingIds);
     for (const r of data ?? []) {
@@ -454,6 +464,12 @@ export async function getCrmSchedule(
         customerId: r.customer_id == null ? null : Number(r.customer_id),
         cancelBad: Boolean(r.cancel_bad),
         source: String(r.source ?? ''),
+        items: parseItems(r.crm_items),
+        priceAdjust: Number(r.price_adjust) || 0,
+        payAdjust: Number(r.pay_adjust) || 0,
+        priceTotal: r.price_total == null ? null : Number(r.price_total),
+        payTotal: r.pay_total == null ? null : Number(r.pay_total),
+        paymentMethod: String(r.payment_method ?? ''),
       });
     }
   }
@@ -497,6 +513,7 @@ export async function getCrmSchedule(
     data: {
       date: dateISO,
       courses: board.data.courses,
+      priceItems: (await readPriceItems(svc, salonId)).filter((p) => p.isActive),
       defaultIntervalMin: board.data.defaultIntervalMin,
       therapists: therapists.map((t) => ({
         id: t.id,
@@ -521,6 +538,12 @@ export async function getCrmSchedule(
           cancelBad: e?.cancelBad ?? false,
           source: e?.source ?? '',
           customer: e?.customerId != null ? customers.get(e.customerId) ?? null : null,
+          items: e?.items ?? [],
+          priceAdjust: e?.priceAdjust ?? 0,
+          payAdjust: e?.payAdjust ?? 0,
+          priceTotal: e?.priceTotal ?? null,
+          payTotal: e?.payTotal ?? null,
+          paymentMethod: e?.paymentMethod ?? '',
         };
       }),
     },
@@ -594,4 +617,227 @@ export async function saveCrmTherapistMemo(
     .upsert({ therapist_id: therapistId, salon_id: salonId, memo: text, updated_at: new Date().toISOString() });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+// ── 料金と報酬（第2段階・第536便）──────────────────────
+
+function toKind(v: unknown): CrmPriceKind | null {
+  return (CRM_PRICE_KINDS as readonly string[]).includes(String(v)) ? (v as CrmPriceKind) : null;
+}
+
+/** 予約の crm_items（jsonb）→ 型付き配列（おかしな要素は捨てる） */
+function parseItems(raw: unknown): CrmBookingItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CrmBookingItem[] = [];
+  for (const r of raw as Record<string, unknown>[]) {
+    const kind = toKind(r?.kind);
+    const name = String(r?.name ?? '').trim();
+    if (!kind || !name) continue;
+    out.push({
+      kind,
+      name,
+      minutes: Math.max(0, Number(r?.minutes) || 0),
+      price: Math.max(0, Number(r?.price) || 0),
+      pay: Math.max(0, Number(r?.pay) || 0),
+      ...(r?.priceItemId != null ? { priceItemId: Number(r.priceItemId) } : {}),
+    });
+  }
+  return out;
+}
+
+async function readPriceItems(svc: Svc, salonId: number): Promise<CrmPriceItem[]> {
+  const { data } = await svc
+    .from('crm_price_items')
+    .select('id, kind, name, minutes, price, pay, sort, is_active')
+    .eq('salon_id', salonId)
+    .order('kind', { ascending: true })
+    .order('sort', { ascending: true })
+    .order('id', { ascending: true });
+  const out: CrmPriceItem[] = [];
+  for (const r of data ?? []) {
+    const kind = toKind(r.kind);
+    if (!kind) continue;
+    out.push({
+      id: Number(r.id), kind, name: String(r.name ?? ''),
+      minutes: Number(r.minutes) || 0, price: Number(r.price) || 0, pay: Number(r.pay) || 0,
+      sort: Number(r.sort) || 0, isActive: Boolean(r.is_active),
+    });
+  }
+  // 種類の並び（コース→指名→延長→オプション→割引）
+  const order = new Map(CRM_PRICE_KINDS.map((k, i) => [k, i]));
+  return out.sort((a, b) => (order.get(a.kind)! - order.get(b.kind)!) || a.sort - b.sort || a.id - b.id);
+}
+
+/** 料金表を全部（使っていないものも）返す（料金設定の画面用） */
+export async function listCrmPriceItems(
+  salonId: number,
+): Promise<{ ok: true; items: CrmPriceItem[] } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  return { ok: true, items: await readPriceItems(auth.svc, salonId) };
+}
+
+export type CrmPriceItemInput = {
+  salonId: number;
+  id: number | null; // null＝追加
+  kind: string;
+  name: string;
+  minutes: number;
+  price: number;
+  pay: number;
+  sort: number;
+  isActive: boolean;
+};
+
+export async function saveCrmPriceItem(
+  input: CrmPriceItemInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const salonId = Number(input.salonId);
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const kind = toKind(input.kind);
+  const name = String(input.name ?? '').trim();
+  const num = (v: unknown) => Math.round(Number(v) || 0);
+  const minutes = num(input.minutes);
+  const price = num(input.price);
+  const pay = num(input.pay);
+  if (!kind) return { ok: false, error: '種類が不正です' };
+  if (!name || name.length > 40) return { ok: false, error: '名前は1〜40文字で入れてください' };
+  if (minutes < 0 || minutes > 720) return { ok: false, error: '分数は0〜720で入れてください' };
+  if (price < 0 || price > 1000000 || pay < 0 || pay > 1000000) return { ok: false, error: '金額は0〜1,000,000で入れてください' };
+  const row = {
+    kind, name, minutes, price, pay,
+    sort: num(input.sort),
+    is_active: Boolean(input.isActive),
+    updated_at: new Date().toISOString(),
+  };
+  if (input.id) {
+    const { data, error } = await auth.svc
+      .from('crm_price_items').update(row).eq('salon_id', salonId).eq('id', input.id).select('id');
+    if (error) return { ok: false, error: error.message };
+    if (!data || data.length === 0) return { ok: false, error: '項目が見つかりません' };
+  } else {
+    const { error } = await auth.svc.from('crm_price_items').insert({ salon_id: salonId, ...row });
+    if (error) return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
+export async function deleteCrmPriceItem(
+  salonId: number,
+  id: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  // ★ 予約は項目を写して持っているので、消しても過去の予約の金額は変わらない
+  const { error } = await auth.svc.from('crm_price_items').delete().eq('salon_id', salonId).eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * 公開のコースメニュー（salons.booking_courses）から、コースの名前・分数・料金を取り込む。
+ * ★ 報酬は 0 で入る（あとで店が入れる）。★ 同じ名前・分数のコースがすでにあれば足さない。
+ */
+export async function importCrmCoursesFromMenu(
+  salonId: number,
+): Promise<{ ok: true; added: number } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const { data: salon } = await svc.from('salons').select('booking_courses').eq('id', salonId).maybeSingle();
+  const raw = Array.isArray(salon?.booking_courses) ? (salon!.booking_courses as Record<string, unknown>[]) : [];
+  const existing = await readPriceItems(svc, salonId);
+  const have = new Set(existing.filter((e) => e.kind === 'course').map((e) => `${e.name}|${e.minutes}`));
+  const rows: Array<Record<string, unknown>> = [];
+  let sort = existing.filter((e) => e.kind === 'course').length;
+  for (const c of raw) {
+    const name = String(c?.name ?? '').trim().slice(0, 40);
+    const minutes = Number(c?.duration_min) || 0;
+    const price = parseInt(String(c?.price ?? '').replace(/[^0-9]/g, ''), 10) || 0;
+    if (!name || have.has(`${name}|${minutes}`)) continue;
+    have.add(`${name}|${minutes}`);
+    rows.push({ salon_id: salonId, kind: 'course', name, minutes, price: Math.min(price, 1000000), pay: 0, sort: sort++, is_active: true });
+  }
+  if (rows.length > 0) {
+    const { error } = await svc.from('crm_price_items').insert(rows);
+    if (error) return { ok: false, error: error.message };
+  }
+  return { ok: true, added: rows.length };
+}
+
+export type CrmBookingPricingInput = {
+  salonId: number;
+  bookingId: string;
+  /** 料金表から選んだ項目の id（いまの料金表の金額で写す） */
+  priceItemIds: number[];
+  /** もう料金表に無い（消した・直した）けれど、この予約に残しておく項目（今の予約の中身と同じものだけ受け付ける） */
+  keepItems: CrmBookingItem[];
+  priceAdjust: number;
+  payAdjust: number;
+  paymentMethod: string;
+};
+
+/**
+ * 予約の料金・報酬を保存する。★ 合計はサーバーで計算する（画面の数字は信用しない）。
+ */
+export async function setCrmBookingPricing(
+  input: CrmBookingPricingInput,
+): Promise<{ ok: true; priceTotal: number; payTotal: number } | { ok: false; error: string }> {
+  const salonId = Number(input.salonId);
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+
+  const { data: b } = await svc
+    .from('salon_bookings').select('id, crm_items').eq('salon_id', salonId).eq('id', input.bookingId).maybeSingle();
+  if (!b) return { ok: false, error: '予約が見つかりません' };
+
+  const priceItems = await readPriceItems(svc, salonId);
+  const byId = new Map(priceItems.map((p) => [p.id, p]));
+  const items: CrmBookingItem[] = [];
+  for (const id of input.priceItemIds ?? []) {
+    const p = byId.get(Number(id));
+    if (!p) return { ok: false, error: '料金表の項目が見つかりません（画面を読み直してください）' };
+    items.push({ kind: p.kind, name: p.name, minutes: p.minutes, price: p.price, pay: p.pay, priceItemId: p.id });
+  }
+  // 残す項目は、今の予約に入っているものと同じときだけ（勝手な金額は入れさせない）
+  const current = parseItems(b.crm_items);
+  const key = (i: CrmBookingItem) => `${i.kind}|${i.name}|${i.minutes}|${i.price}|${i.pay}`;
+  const pool = current.map(key);
+  for (const k of input.keepItems ?? []) {
+    const idx = pool.indexOf(key(k));
+    if (idx < 0) continue;
+    pool.splice(idx, 1);
+    items.push(current.find((c) => key(c) === key(k))!);
+  }
+  // コース・指名は1つまで
+  for (const kind of ['course', 'nomination'] as const) {
+    if (items.filter((i) => i.kind === kind).length > 1) {
+      return { ok: false, error: kind === 'course' ? 'コースは1つだけ選んでください' : '指名は1つだけ選んでください' };
+    }
+  }
+  const clamp = (v: unknown) => Math.max(-1000000, Math.min(1000000, Math.round(Number(v) || 0)));
+  const priceAdjust = clamp(input.priceAdjust);
+  const payAdjust = clamp(input.payAdjust);
+  const paymentMethod = String(input.paymentMethod ?? '').trim().slice(0, 20);
+  const sum = sumCrmItems(items);
+  const hasAny = items.length > 0 || priceAdjust !== 0 || payAdjust !== 0;
+  const priceTotal = hasAny ? sum.price + priceAdjust : null;
+  const payTotal = hasAny ? sum.pay + payAdjust : null;
+
+  const { error } = await svc
+    .from('salon_bookings')
+    .update({
+      crm_items: items,
+      price_adjust: priceAdjust,
+      pay_adjust: payAdjust,
+      price_total: priceTotal,
+      pay_total: payTotal,
+      payment_method: paymentMethod,
+    })
+    .eq('salon_id', salonId)
+    .eq('id', input.bookingId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, priceTotal: priceTotal ?? 0, payTotal: payTotal ?? 0 };
 }

@@ -874,7 +874,7 @@ const INTERVAL_OPTIONS_MIN = [0, 15, 30, 45, 60] as const;
  * ネット予約と違い、直前ガード（LEAD_TIME）や tel レートリミットは掛けない
  * （店側の操作であり、過去時刻の記録入力も許容する）。
  */
-export async function createManualBooking(input: ManualBookingInput): Promise<{ ok: boolean; error?: string }> {
+export async function createManualBooking(input: ManualBookingInput): Promise<{ ok: boolean; error?: string; bookingId?: string }> {
   const salonId = Number(input.salonId);
   // null＝フリー客（担当未定）。それ以外は数値のセラピストID。
   const therapistId = input.therapistId === null ? null : Number(input.therapistId);
@@ -964,7 +964,7 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
 
   // ★ フクエスCRM：電話番号で顧客台帳へ名寄せ（失敗しても予約は止めない）。
   const customerId = await linkBookingCustomer(svc, salonId, customerTel, customerName);
-  const { error: insErr } = await svc.from('salon_bookings').insert({
+  const { data: inserted, error: insErr } = await svc.from('salon_bookings').insert({
     salon_id: salonId,
     customer_id: customerId,
     therapist_id: therapistId,
@@ -980,12 +980,13 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
     // ★ 予約ボードへの手入力。これが 'manual' なので、ネット予約タブの一覧には出ない（2026-08-16）。
     //   予約ボードには従来どおり出る（getBookingBoard は source で絞っていない）。
     source: BOOKING_SOURCE_MANUAL,
-  });
+  }).select('id').single();
   if (insErr) {
     if (isSlotConflictError(insErr.code)) return { ok: false, error: 'その時間帯は既に予約が入っています' };
     return { ok: false, error: insErr.message };
   }
-  return { ok: true };
+  // ★ bookingId はフクエスCRM（料金・報酬を続けて保存する）で使う（第536便）。予約ボードは使っていない。
+  return { ok: true, bookingId: inserted ? String(inserted.id) : undefined };
 }
 
 /**

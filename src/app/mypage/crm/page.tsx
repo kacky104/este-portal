@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getCrmSchedule, lookupCrmCustomerByPhone, saveCrmTherapistMemo, setCrmCancelBad } from '@/app/actions/crm';
+import { getCrmSchedule, lookupCrmCustomerByPhone, saveCrmTherapistMemo, setCrmBookingPricing, setCrmCancelBad } from '@/app/actions/crm';
 import {
   createManualBooking,
   deleteBooking,
@@ -13,6 +13,14 @@ import {
 import {
   CRM_CATEGORY_CLASS,
   CRM_CATEGORY_LABEL,
+  CRM_PAYMENT_METHODS,
+  CRM_PRICE_KINDS,
+  CRM_PRICE_KIND_LABEL,
+  CRM_PRICE_SINGLE,
+  sumCrmItems,
+  yen,
+  type CrmBookingItem,
+  type CrmPriceItem,
   type CrmScheduleBooking,
   type CrmScheduleCustomer,
   type CrmScheduleData,
@@ -159,8 +167,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     const startMin = Math.floor(minStart / 60) * 60;
     const endMin = Math.ceil(maxEnd / 60) * 60;
     const activeCount = visibleBookings.filter((b) => b.status !== 'cancelled').length;
+    const sales = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.priceTotal ?? 0), 0);
+    const payAll = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.payTotal ?? 0), 0);
     const workingCount = therapistRows.filter((r) => (r.therapist?.schedules.length ?? 0) > 0).length;
-    return { rows, startMin, endMin, activeCount, workingCount };
+    return { rows, startMin, endMin, activeCount, workingCount, sales, payAll };
   }, [data, baseMs]);
 
   const isToday = date === businessTodayJST();
@@ -184,6 +194,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         {view && (
           <span className="text-[14px] font-bold text-slate-700 md:ml-2">
             予約数 <span className="text-[#3f51b5]">{view.activeCount}</span>本 ／ 出勤数 <span className="text-[#3f51b5]">{view.workingCount}</span>人
+            {' '}／ 売上 <span className="text-[#3f51b5]">{yen(view.sales)}</span> ／ 報酬 <span className="text-[#3f51b5]">{yen(view.payAll)}</span>
           </span>
         )}
         <span className="ml-auto text-[12px] text-slate-500">空いているところを押すと受付できます</span>
@@ -215,6 +226,11 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               customerName: '',
               customerTel: '',
               note: '',
+              selIds: [],
+              keepItems: [],
+              priceAdjust: '',
+              payAdjust: '',
+              paymentMethod: '',
             });
           }}
         />
@@ -249,6 +265,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               customerName: b.customerName,
               customerTel: b.customerTel,
               note: b.note,
+              ...splitItems(b.items, data?.priceItems ?? []),
+              priceAdjust: b.priceAdjust ? String(b.priceAdjust) : '',
+              payAdjust: b.payAdjust ? String(b.payAdjust) : '',
+              paymentMethod: b.paymentMethod,
             });
             setPicked(null);
           }}
@@ -273,6 +293,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           baseMs={baseMs}
           therapists={data.therapists}
           courses={data.courses}
+          priceItems={data.priceItems}
           dayBookings={data.bookings}
           onClose={() => setForm(null)}
           onSaved={() => { setForm(null); reload(); }}
@@ -333,7 +354,12 @@ function Grid({
                       ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
                       : '出勤なし'}
                   </p>
-                  <p className="text-[11px] text-slate-400">{r.bookings.filter((b) => b.status !== 'cancelled').length}本</p>
+                  <p className="text-[11px] text-slate-500">
+                    {r.bookings.filter((b) => b.status !== 'cancelled').length}本
+                    <span className="ml-1 bg-cyan-50 px-1 font-bold text-slate-700">
+                      報酬 {yen(r.bookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.payTotal ?? 0), 0))}
+                    </span>
+                  </p>
                 </>
               ) : (
                 <>
@@ -460,6 +486,7 @@ function BookingCard({
       <p className="flex items-center gap-1 truncate text-[11px]">
         {ng && !cancelled && <span className="bg-rose-600 px-1 font-bold text-white">女子NG</span>}
         {c?.cautionMemo && <span className="bg-rose-100 px-1 font-bold text-rose-700">要注意</span>}
+        {b.priceTotal != null && <span className="font-bold text-slate-700">{yen(b.priceTotal)}</span>}
         {c && <span className="text-slate-500">利用{c.stats.visits}</span>}
         <span className="truncate text-slate-500">{b.courseName}</span>
       </p>
@@ -570,6 +597,26 @@ function DetailPanel({
             <dd className={ng ? 'font-bold text-rose-600' : 'text-slate-800'}>{therapistName}</dd>
             <dt className="font-bold text-slate-400">コース</dt>
             <dd className="text-slate-800">{b.courseName || '—'}{b.courseMin ? `（${b.courseMin}分）` : ''}</dd>
+            <dt className="font-bold text-slate-400">料金</dt>
+            <dd className="font-bold text-slate-800">
+              {yen(b.priceTotal)}{b.paymentMethod ? <span className="ml-1 text-[12px] font-normal text-slate-500">（{b.paymentMethod}）</span> : null}
+            </dd>
+            <dt className="font-bold text-slate-400">女子報酬</dt>
+            <dd className="font-bold text-slate-800">{yen(b.payTotal)}</dd>
+            {b.items.length > 0 && (
+              <>
+                <dt className="font-bold text-slate-400">内訳</dt>
+                <dd className="text-[12px] text-slate-600">
+                  {b.items.map((it, i) => (
+                    <span key={i} className="mr-2 inline-block">
+                      {it.name}{it.kind === 'discount' ? `（-${it.price.toLocaleString()}）` : `（${it.price.toLocaleString()}）`}
+                    </span>
+                  ))}
+                  {b.priceAdjust !== 0 && <span className="mr-2 inline-block">料金補正 {b.priceAdjust > 0 ? '+' : ''}{b.priceAdjust.toLocaleString()}</span>}
+                  {b.payAdjust !== 0 && <span className="mr-2 inline-block">報酬補正 {b.payAdjust > 0 ? '+' : ''}{b.payAdjust.toLocaleString()}</span>}
+                </dd>
+              </>
+            )}
             <dt className="font-bold text-slate-400">電話</dt>
             <dd className="text-slate-800">{b.customerTel || '—'}</dd>
             <dt className="font-bold text-slate-400">状態</dt>
@@ -650,19 +697,38 @@ type BookingFormState = {
   customerName: string;
   customerTel: string;
   note: string;
+  // 料金と報酬（第536便）
+  selIds: number[];               // 料金表から選んだ項目
+  keepItems: CrmBookingItem[];    // 料金表にもう無いが、この予約に残っている項目
+  priceAdjust: string;
+  payAdjust: string;
+  paymentMethod: string;
 };
+
+/** 予約の項目 → 今の料金表と同じもの（選択）と、表に無いもの（残す）に分ける */
+function splitItems(items: CrmBookingItem[], priceItems: CrmPriceItem[]): { selIds: number[]; keepItems: CrmBookingItem[] } {
+  const selIds: number[] = [];
+  const keepItems: CrmBookingItem[] = [];
+  for (const it of items) {
+    const p = priceItems.find((x) => x.id === it.priceItemId && x.kind === it.kind && x.name === it.name && x.minutes === it.minutes && x.price === it.price && x.pay === it.pay);
+    if (p && !selIds.includes(p.id)) selIds.push(p.id);
+    else keepItems.push(it);
+  }
+  return { selIds, keepItems };
+}
 
 const fieldCls = 'w-full border border-slate-300 bg-white px-2.5 py-2 text-[14px] focus:border-indigo-400 focus:outline-none';
 const labCls = 'mb-1 block text-[12px] font-bold text-slate-500';
 
 function BookingForm({
-  initial, salonId, baseMs, therapists, courses, dayBookings, onClose, onSaved,
+  initial, salonId, baseMs, therapists, courses, priceItems, dayBookings, onClose, onSaved,
 }: {
   initial: BookingFormState;
   salonId: number;
   baseMs: number;
   therapists: CrmScheduleTherapist[];
   courses: CrmScheduleData['courses'];
+  priceItems: CrmPriceItem[];
   /** この日の予約（同じお客様の二重受付に気づけるように） */
   dayBookings: CrmScheduleBooking[];
   onClose: () => void;
@@ -710,6 +776,43 @@ function BookingForm({
   const tid = f.therapistKey === 'free' ? null : Number(f.therapistKey);
   const ng = tid != null && (customer?.ngTherapistIds.includes(tid) ?? false);
 
+  // ── 料金と報酬 ──
+  const selItems: CrmBookingItem[] = f.selIds
+    .map((id) => priceItems.find((p) => p.id === id))
+    .filter((p): p is CrmPriceItem => !!p)
+    .map((p) => ({ kind: p.kind, name: p.name, minutes: p.minutes, price: p.price, pay: p.pay, priceItemId: p.id }));
+  const allItems = [...selItems, ...f.keepItems];
+  const sums = sumCrmItems(allItems);
+  const priceAdj = Math.round(Number(f.priceAdjust) || 0);
+  const payAdj = Math.round(Number(f.payAdjust) || 0);
+  const hasPricing = allItems.length > 0 || priceAdj !== 0 || payAdj !== 0;
+
+  /** 項目を押した：コース・指名は入れ替え、他は付け外し。コース・延長を選んだら時間とコース名も合わせる */
+  const togglePrice = (p: CrmPriceItem) => {
+    setF((prev) => {
+      let ids = prev.selIds;
+      let keep = prev.keepItems;
+      if (CRM_PRICE_SINGLE[p.kind]) {
+        const others = priceItems.filter((x) => x.kind === p.kind).map((x) => x.id);
+        const on = ids.includes(p.id);
+        ids = ids.filter((id) => !others.includes(id));
+        keep = keep.filter((k) => k.kind !== p.kind);
+        if (!on) ids = [...ids, p.id];
+      } else {
+        ids = ids.includes(p.id) ? ids.filter((id) => id !== p.id) : [...ids, p.id];
+      }
+      const next = { ...prev, selIds: ids, keepItems: keep };
+      const course = priceItems.find((x) => x.kind === 'course' && ids.includes(x.id));
+      if (course) {
+        const ext = priceItems.filter((x) => x.kind === 'extension' && ids.includes(x.id)).reduce((a, x) => a + x.minutes, 0)
+          + keep.filter((k) => k.kind === 'extension').reduce((a, k) => a + k.minutes, 0);
+        if (course.minutes > 0) next.courseMin = course.minutes + ext;
+        next.courseName = course.name;
+      }
+      return next;
+    });
+  };
+
   // 開始時刻の候補（6:00〜翌6:55）
   const hourOptions: number[] = [];
   for (let h = 6; h <= 30; h++) hourOptions.push(h);
@@ -725,6 +828,17 @@ function BookingForm({
     const h = Math.floor(e / 60);
     return `${h >= 24 ? `翌${h - 24}` : h}:${String(e % 60).padStart(2, '0')}`;
   })();
+
+  const savePricing = (bookingId: string) =>
+    setCrmBookingPricing({
+      salonId,
+      bookingId,
+      priceItemIds: f.selIds,
+      keepItems: f.keepItems,
+      priceAdjust: priceAdj,
+      payAdjust: payAdj,
+      paymentMethod: f.paymentMethod,
+    });
 
   const submit = async () => {
     setBusy(true);
@@ -742,8 +856,13 @@ function BookingForm({
         customerTel: f.customerTel,
         note: f.note,
       });
+      if (!res.ok) { setBusy(false); setErr(res.error ?? '保存できませんでした'); return; }
+      if (hasPricing || f.paymentMethod) {
+        if (!res.bookingId) { setBusy(false); setErr('予約は入りましたが、料金を保存できませんでした（カードを押して「変更する」から入れてください）'); return; }
+        const pr = await savePricing(res.bookingId);
+        if (!pr.ok) { setBusy(false); setErr(`予約は入りましたが、料金を保存できませんでした：${pr.error}`); return; }
+      }
       setBusy(false);
-      if (!res.ok) { setErr(res.error ?? '保存できませんでした'); return; }
       onSaved();
       return;
     }
@@ -761,8 +880,10 @@ function BookingForm({
       customerTel: f.customerTel,
       note: f.note,
     });
+    if (!up.ok) { setBusy(false); setErr(up.error ?? '保存できませんでした'); return; }
+    const pr = await savePricing(f.bookingId!);
     setBusy(false);
-    if (!up.ok) { setErr(up.error ?? '保存できませんでした'); return; }
+    if (!pr.ok) { setErr(`料金を保存できませんでした：${pr.error}`); return; }
     onSaved();
   };
 
@@ -850,10 +971,79 @@ function BookingForm({
             </div>
           </div>
 
+          {/* 料金と報酬（料金表から選ぶ） */}
+          {priceItems.length > 0 ? (
+            <div className="border border-indigo-200 bg-indigo-50/40 p-3">
+              <p className="mb-2 text-[13px] font-black text-slate-700">料金（押して選ぶ）</p>
+              {CRM_PRICE_KINDS.map((kind) => {
+                const list = priceItems.filter((p) => p.kind === kind);
+                const kept = f.keepItems.filter((k) => k.kind === kind);
+                if (list.length === 0 && kept.length === 0) return null;
+                return (
+                  <div key={kind} className="mb-2">
+                    <p className="mb-1 text-[11px] font-bold text-slate-500">{CRM_PRICE_KIND_LABEL[kind]}{CRM_PRICE_SINGLE[kind] ? '（1つ）' : ''}</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {list.map((p) => {
+                        const on = f.selIds.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => togglePrice(p)}
+                            className={`border px-2 py-1 text-[12px] font-bold ${on ? 'border-[#3f51b5] bg-[#3f51b5] text-white' : 'border-slate-300 bg-white text-slate-700'}`}
+                          >
+                            {p.name}{p.minutes && kind !== 'discount' ? ` ${p.minutes}分` : ''}
+                            <span className={on ? 'text-indigo-100' : 'text-slate-400'}> {kind === 'discount' ? '-' : ''}{p.price.toLocaleString()}</span>
+                          </button>
+                        );
+                      })}
+                      {kept.map((k, i) => (
+                        <button
+                          key={`keep-${i}`}
+                          type="button"
+                          title="料金表にもう無い項目です（押すと外します）"
+                          onClick={() => setF((prev) => ({ ...prev, keepItems: prev.keepItems.filter((x) => x !== k) }))}
+                          className="border border-amber-400 bg-amber-50 px-2 py-1 text-[12px] font-bold text-amber-800"
+                        >
+                          {k.name} {k.kind === 'discount' ? '-' : ''}{k.price.toLocaleString()} ×
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <div>
+                  <label className={labCls}>料金補正（±円）</label>
+                  <input className={fieldCls} inputMode="numeric" value={f.priceAdjust} onChange={(e) => set('priceAdjust', e.target.value.replace(/[^0-9-]/g, ''))} placeholder="0" />
+                </div>
+                <div>
+                  <label className={labCls}>報酬補正（±円）</label>
+                  <input className={fieldCls} inputMode="numeric" value={f.payAdjust} onChange={(e) => set('payAdjust', e.target.value.replace(/[^0-9-]/g, ''))} placeholder="0" />
+                </div>
+                <div>
+                  <label className={labCls}>支払い</label>
+                  <select className={fieldCls} value={f.paymentMethod} onChange={(e) => set('paymentMethod', e.target.value)}>
+                    <option value="">—</option>
+                    {CRM_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-4 border-t border-indigo-200 pt-2 text-[15px] font-black">
+                <span className="text-slate-800">料金 {hasPricing ? yen(sums.price + priceAdj) : '—'}</span>
+                <span className="text-[#3f51b5]">女子報酬 {hasPricing ? yen(sums.pay + payAdj) : '—'}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="border border-dashed border-slate-300 px-3 py-2 text-[12px] text-slate-500">
+              料金表がまだありません。上の「料金設定」で作ると、ここで料金と女子報酬を選べるようになります。
+            </p>
+          )}
+
           {/* コース */}
           <div>
             <label className={labCls}>コース</label>
-            {courses.length > 0 && (
+            {courses.length > 0 && !priceItems.some((p) => p.kind === 'course') && (
               <div className="mb-2 flex flex-wrap gap-1.5">
                 {courses.map((c) => (
                   <button

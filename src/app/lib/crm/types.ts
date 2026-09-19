@@ -96,6 +96,13 @@ export type CrmScheduleBooking = {
   cancelBad: boolean;
   source: string;               // web / manual
   customer: CrmScheduleCustomer | null;
+  // 料金と報酬（第2段階）
+  items: CrmBookingItem[];
+  priceAdjust: number;
+  payAdjust: number;
+  priceTotal: number | null;    // null＝まだ料金を入れていない
+  payTotal: number | null;
+  paymentMethod: string;
 };
 
 export type CrmScheduleTherapist = {
@@ -116,4 +123,61 @@ export type CrmScheduleData = {
   courses: Array<{ name: string; durationMin: number; price: string }>;
   /** 施術後インターバルの店舗設定（受付フォームの初期値） */
   defaultIntervalMin: number;
+  /** 料金表（使うものだけ・並び順） */
+  priceItems: CrmPriceItem[];
 };
+
+// ── 料金と報酬（第2段階・2026-09-19）────────────────────
+export const CRM_PRICE_KINDS = ['course', 'nomination', 'extension', 'option', 'discount'] as const;
+export type CrmPriceKind = (typeof CRM_PRICE_KINDS)[number];
+export const CRM_PRICE_KIND_LABEL: Record<CrmPriceKind, string> = {
+  course: 'コース',
+  nomination: '指名',
+  extension: '延長',
+  option: 'オプション',
+  discount: '割引',
+};
+/** コース・指名は1つだけ選ぶ。延長・オプション・割引はいくつでも */
+export const CRM_PRICE_SINGLE: Record<CrmPriceKind, boolean> = {
+  course: true, nomination: true, extension: false, option: false, discount: false,
+};
+
+export type CrmPriceItem = {
+  id: number;
+  kind: CrmPriceKind;
+  name: string;
+  minutes: number;
+  price: number;  // 割引は「引く額」（正の数）
+  pay: number;    // 割引は「報酬から引く額」
+  sort: number;
+  isActive: boolean;
+};
+
+/** 予約に写して持つ項目（料金表を直しても過去の予約は変わらない） */
+export type CrmBookingItem = {
+  kind: CrmPriceKind;
+  name: string;
+  minutes: number;
+  price: number;
+  pay: number;
+  priceItemId?: number;
+};
+
+export const CRM_PAYMENT_METHODS = ['現金', 'カード', 'PayPay', 'その他'] as const;
+
+/** 項目の合計（割引は引く）。補正は別に足す */
+export function sumCrmItems(items: CrmBookingItem[]): { price: number; pay: number } {
+  let price = 0;
+  let pay = 0;
+  for (const it of items) {
+    const sign = it.kind === 'discount' ? -1 : 1;
+    price += sign * (Number(it.price) || 0);
+    pay += sign * (Number(it.pay) || 0);
+  }
+  return { price, pay };
+}
+
+export function yen(n: number | null | undefined): string {
+  if (n == null) return '—';
+  return `¥${Number(n).toLocaleString('ja-JP')}`;
+}
