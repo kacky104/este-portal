@@ -11,12 +11,13 @@ import type { CrmAccess } from '@/app/lib/crm/types';
 //   ・契約中 → 上の帯（スケジュール／顧客台帳）＋中身
 // ★ 運営（ADMIN）は ?salon=店舗ID で、その店を確認できる（タブを移っても ?salon を引き継ぐ）。
 
-export type CrmNavKey = 'schedule' | 'customers' | 'reports' | 'prices';
+export type CrmNavKey = 'schedule' | 'customers' | 'reports' | 'stats' | 'prices';
 
 const NAV: Array<{ key: CrmNavKey; label: string; href: string }> = [
   { key: 'schedule', label: 'スケジュール', href: '/mypage/crm' },
   { key: 'customers', label: '顧客台帳', href: '/mypage/crm/customers' },
   { key: 'reports', label: '日報', href: '/mypage/crm/reports' },
+  { key: 'stats', label: 'レポート', href: '/mypage/crm/stats' },
   { key: 'prices', label: '料金設定', href: '/mypage/crm/prices' },
 ];
 

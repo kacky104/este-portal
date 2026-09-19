@@ -228,3 +228,15 @@ export type CrmDaySummary = {
 export function inBusinessDay(startMinOfDay: number): boolean {
   return startMinOfDay >= 6 * 60 && startMinOfDay < 30 * 60;
 }
+
+// ── レポート（第540便）────────────────────────────────
+export type CrmStatRow = { key: string; label: string; count: number; cancels: number; sales: number; pay: number };
+export type CrmMonthStats = {
+  ym: string;
+  total: { count: number; cancels: number; badCancels: number; sales: number; pay: number; allowance: number; unpriced: number };
+  customers: { people: number; newPeople: number; repeatPeople: number; noTel: number };
+  byDay: CrmStatRow[];        // key=YYYY-MM-DD
+  byTherapist: CrmStatRow[];  // key=therapistId か 'free'
+  bySource: CrmStatRow[];     // key=web / manual
+  byHour: CrmStatRow[];       // key=開始の時（6〜29）
+};
