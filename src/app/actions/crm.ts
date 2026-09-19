@@ -27,6 +27,9 @@ import {
   type CrmBookingItem,
   type CrmPriceItem,
   type CrmPriceKind,
+  type CrmPayConfirm,
+  type CrmDailyReport,
+  type CrmDaySummary,
   CRM_PRICE_KINDS,
   sumCrmItems,
   type CrmStats,
@@ -77,7 +80,7 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
 }
 
 /** 有料CRMを使ってよいか確かめてから service_role を返す */
-async function assertCrm(salonId: number): Promise<{ ok: true; svc: Svc } | { ok: false; error: string }> {
+async function assertCrm(salonId: number): Promise<{ ok: true; svc: Svc; userId: string } | { ok: false; error: string }> {
   if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗が不正です' };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -96,7 +99,7 @@ async function assertCrm(salonId: number): Promise<{ ok: true; svc: Svc } | { ok
   if (!isAdmin && !isCrmActive((salon.crm_until as string | null) ?? null)) {
     return { ok: false, error: 'フクエスCRMのご契約期間外です' };
   }
-  return { ok: true, svc };
+  return { ok: true, svc, userId: user.id };
 }
 
 function emptyStats(): CrmStats {
@@ -514,6 +517,8 @@ export async function getCrmSchedule(
       date: dateISO,
       courses: board.data.courses,
       priceItems: (await readPriceItems(svc, salonId)).filter((p) => p.isActive),
+      confirms: await readConfirms(svc, salonId, dateISO),
+      report: await readReport(svc, salonId, dateISO),
       defaultIntervalMin: board.data.defaultIntervalMin,
       therapists: therapists.map((t) => ({
         id: t.id,
@@ -840,4 +845,250 @@ export async function setCrmBookingPricing(
     .eq('id', input.bookingId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, priceTotal: priceTotal ?? 0, payTotal: payTotal ?? 0 };
+}
+
+// ── 報酬確定と締め（第538便）──────────────────────────
+// ★ 営業日＝朝6時区切り。その日 6:00〜翌 6:00（JST）に【始まる】予約をその日の分として数える。
+
+function businessWindow(dateISO: string): { startISO: string; endISO: string } {
+  const start = new Date(`${dateISO}T06:00:00+09:00`);
+  const end = new Date(start.getTime() + 24 * 3600_000);
+  return { startISO: start.toISOString(), endISO: end.toISOString() };
+}
+
+function validDate(dateISO: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateISO) && !Number.isNaN(new Date(`${dateISO}T00:00:00Z`).getTime());
+}
+
+type DayBooking = { therapistId: number | null; status: string; priceTotal: number; payTotal: number; paymentMethod: string };
+
+async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Promise<DayBooking[]> {
+  const { startISO, endISO } = businessWindow(dateISO);
+  const { data } = await svc
+    .from('salon_bookings')
+    .select('therapist_id, status, price_total, pay_total, payment_method')
+    .eq('salon_id', salonId)
+    .gte('slot_start', startISO)
+    .lt('slot_start', endISO)
+    .limit(2000);
+  return (data ?? []).map((r) => ({
+    therapistId: r.therapist_id == null ? null : Number(r.therapist_id),
+    status: String(r.status),
+    priceTotal: Number(r.price_total) || 0,
+    payTotal: Number(r.pay_total) || 0,
+    paymentMethod: String(r.payment_method ?? ''),
+  }));
+}
+
+async function readConfirms(svc: Svc, salonId: number, dateISO: string): Promise<CrmPayConfirm[]> {
+  if (!validDate(dateISO)) return [];
+  const { data } = await svc
+    .from('crm_pay_confirms')
+    .select('therapist_id, booking_count, pay_total, allowance, note, confirmed_at')
+    .eq('salon_id', salonId)
+    .eq('business_date', dateISO);
+  return (data ?? []).map((r) => ({
+    therapistId: Number(r.therapist_id),
+    bookingCount: Number(r.booking_count) || 0,
+    payTotal: Number(r.pay_total) || 0,
+    allowance: Number(r.allowance) || 0,
+    note: String(r.note ?? ''),
+    confirmedAt: String(r.confirmed_at),
+  }));
+}
+
+function toReport(r: Record<string, unknown>): CrmDailyReport {
+  return {
+    date: String(r.business_date),
+    bookingCount: Number(r.booking_count) || 0,
+    cancelCount: Number(r.cancel_count) || 0,
+    workingCount: Number(r.working_count) || 0,
+    sales: Number(r.sales) || 0,
+    cashSales: Number(r.cash_sales) || 0,
+    pay: Number(r.pay) || 0,
+    expense: Number(r.expense) || 0,
+    profit: Number(r.profit) || 0,
+    memo: String(r.memo ?? ''),
+    closedAt: String(r.closed_at),
+  };
+}
+
+async function readReport(svc: Svc, salonId: number, dateISO: string): Promise<CrmDailyReport | null> {
+  if (!validDate(dateISO)) return null;
+  const { data } = await svc
+    .from('crm_daily_reports').select('*').eq('salon_id', salonId).eq('business_date', dateISO).maybeSingle();
+  return data ? toReport(data as Record<string, unknown>) : null;
+}
+
+/** その日に出勤しているセラピスト（在籍・その店） */
+async function readWorking(svc: Svc, salonId: number, dateISO: string): Promise<Array<{ id: number; name: string }>> {
+  const { data: ths } = await svc.from('therapists').select('id, name').eq('salon_id', salonId);
+  const all = (ths ?? []).map((t) => ({ id: Number(t.id), name: String(t.name ?? '') }));
+  if (all.length === 0) return [];
+  const { data: sch } = await svc
+    .from('therapist_schedules')
+    .select('therapist_id')
+    .in('therapist_id', all.map((t) => t.id))
+    .eq('schedule_date', dateISO)
+    .eq('is_active', true);
+  const ids = new Set((sch ?? []).map((r) => Number(r.therapist_id)));
+  return all.filter((t) => ids.has(t.id));
+}
+
+/** 報酬を確定する（その日のそのセラピストの予約の報酬を写す＋手当） */
+export async function confirmCrmPay(
+  salonId: number,
+  therapistId: number,
+  dateISO: string,
+  allowance: number,
+  note: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
+  const svc = auth.svc;
+  const { data: t } = await svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+  const al = Math.round(Number(allowance) || 0);
+  if (al < -1000000 || al > 1000000) return { ok: false, error: '手当の金額が大きすぎます' };
+  const mine = (await readDayBookings(svc, salonId, dateISO)).filter((b) => b.therapistId === therapistId && b.status !== 'cancelled');
+  const { error } = await svc.from('crm_pay_confirms').upsert({
+    salon_id: salonId,
+    therapist_id: therapistId,
+    business_date: dateISO,
+    booking_count: mine.length,
+    pay_total: mine.reduce((a, b) => a + b.payTotal, 0),
+    allowance: al,
+    note: String(note ?? '').trim().slice(0, 200),
+    confirmed_at: new Date().toISOString(),
+    confirmed_by: auth.userId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function unconfirmCrmPay(
+  salonId: number,
+  therapistId: number,
+  dateISO: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
+  const { error } = await auth.svc
+    .from('crm_pay_confirms').delete()
+    .eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<CrmDaySummary> {
+  const [bookings, confirms, working, report] = await Promise.all([
+    readDayBookings(svc, salonId, dateISO),
+    readConfirms(svc, salonId, dateISO),
+    readWorking(svc, salonId, dateISO),
+    readReport(svc, salonId, dateISO),
+  ]);
+  const active = bookings.filter((b) => b.status !== 'cancelled');
+  const sales = active.reduce((a, b) => a + b.priceTotal, 0);
+  const cashSales = active.filter((b) => b.paymentMethod === '現金').reduce((a, b) => a + b.priceTotal, 0);
+  const allowance = confirms.reduce((a, c) => a + c.allowance, 0);
+  const pay = active.reduce((a, b) => a + b.payTotal, 0) + allowance;
+  const confirmed = new Set(confirms.map((c) => c.therapistId));
+  // まだ確定していない人：その日に出勤しているか、予約がある人
+  const withBooking = new Set(active.map((b) => b.therapistId).filter((v): v is number => v != null));
+  const names = new Map(working.map((w) => [w.id, w.name]));
+  const needIds = [...new Set([...working.map((w) => w.id), ...withBooking])].filter((id) => !confirmed.has(id));
+  if (needIds.some((id) => !names.has(id))) {
+    const { data } = await svc.from('therapists').select('id, name').in('id', needIds);
+    (data ?? []).forEach((t) => names.set(Number(t.id), String(t.name ?? '')));
+  }
+  return {
+    date: dateISO,
+    bookingCount: active.length,
+    cancelCount: bookings.length - active.length,
+    workingCount: working.length,
+    sales,
+    cashSales,
+    pay,
+    allowance,
+    freeUnassigned: active.filter((b) => b.therapistId == null).length,
+    unconfirmed: needIds.map((id) => names.get(id) ?? '(不明)'),
+    report,
+  };
+}
+
+/** 締めの画面用：いまの数字（と、締め済みならその日報） */
+export async function getCrmDaySummary(
+  salonId: number,
+  dateISO: string,
+): Promise<{ ok: true; summary: CrmDaySummary } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
+  return { ok: true, summary: await computeDay(auth.svc, salonId, dateISO) };
+}
+
+/** 締める（日報を作る・もう締めてあれば今の数字で作り直す） */
+export async function closeCrmDay(
+  salonId: number,
+  dateISO: string,
+  expense: number,
+  memo: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
+  const ex = Math.round(Number(expense) || 0);
+  if (ex < 0 || ex > 100000000) return { ok: false, error: '経費の金額が不正です' };
+  const d = await computeDay(auth.svc, salonId, dateISO);
+  const { error } = await auth.svc.from('crm_daily_reports').upsert({
+    salon_id: salonId,
+    business_date: dateISO,
+    booking_count: d.bookingCount,
+    cancel_count: d.cancelCount,
+    working_count: d.workingCount,
+    sales: d.sales,
+    cash_sales: d.cashSales,
+    pay: d.pay,
+    expense: ex,
+    profit: d.sales - d.pay - ex,
+    memo: String(memo ?? '').trim().slice(0, 1000),
+    closed_at: new Date().toISOString(),
+    closed_by: auth.userId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function reopenCrmDay(
+  salonId: number,
+  dateISO: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
+  const { error } = await auth.svc.from('crm_daily_reports').delete().eq('salon_id', salonId).eq('business_date', dateISO);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** 日報の一覧（月ごと・ym は YYYY-MM） */
+export async function listCrmReports(
+  salonId: number,
+  ym: string,
+): Promise<{ ok: true; reports: CrmDailyReport[] } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!/^\d{4}-\d{2}$/.test(ym)) return { ok: false, error: '月が不正です' };
+  const [y, m] = ym.split('-').map(Number);
+  const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  const { data, error } = await auth.svc
+    .from('crm_daily_reports').select('*')
+    .eq('salon_id', salonId)
+    .gte('business_date', `${ym}-01`)
+    .lt('business_date', `${next}-01`)
+    .order('business_date', { ascending: true });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, reports: (data ?? []).map((r) => toReport(r as Record<string, unknown>)) };
 }

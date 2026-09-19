@@ -125,6 +125,10 @@ export type CrmScheduleData = {
   defaultIntervalMin: number;
   /** 料金表（使うものだけ・並び順） */
   priceItems: CrmPriceItem[];
+  /** 報酬確定（この営業日） */
+  confirms: CrmPayConfirm[];
+  /** 日報（締め済みなら） */
+  report: CrmDailyReport | null;
 };
 
 // ── 料金と報酬（第2段階・2026-09-19）────────────────────
@@ -180,4 +184,47 @@ export function sumCrmItems(items: CrmBookingItem[]): { price: number; pay: numb
 export function yen(n: number | null | undefined): string {
   if (n == null) return '—';
   return `¥${Number(n).toLocaleString('ja-JP')}`;
+}
+
+// ── 報酬確定と締め（第538便）────────────────────────
+export type CrmPayConfirm = {
+  therapistId: number;
+  bookingCount: number;
+  payTotal: number;     // 確定したときの予約の報酬合計
+  allowance: number;    // 手当・交通費など（±）
+  note: string;
+  confirmedAt: string;
+};
+
+export type CrmDailyReport = {
+  date: string;
+  bookingCount: number;
+  cancelCount: number;
+  workingCount: number;
+  sales: number;
+  cashSales: number;
+  pay: number;
+  expense: number;
+  profit: number;
+  memo: string;
+  closedAt: string;
+};
+
+export type CrmDaySummary = {
+  date: string;
+  bookingCount: number;
+  cancelCount: number;
+  workingCount: number;
+  sales: number;
+  cashSales: number;
+  pay: number;          // 予約の報酬＋確定の手当
+  allowance: number;
+  freeUnassigned: number; // 担当未定のままの予約
+  unconfirmed: string[];  // まだ報酬を確定していない人の名前
+  report: CrmDailyReport | null;
+};
+
+/** 営業日（朝6時区切り）の予約か：その日 0:00 からの分で 6:00〜翌6:00 に始まる */
+export function inBusinessDay(startMinOfDay: number): boolean {
+  return startMinOfDay >= 6 * 60 && startMinOfDay < 30 * 60;
 }

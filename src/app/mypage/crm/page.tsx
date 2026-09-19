@@ -2,7 +2,18 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getCrmSchedule, lookupCrmCustomerByPhone, saveCrmTherapistMemo, setCrmBookingPricing, setCrmCancelBad } from '@/app/actions/crm';
+import {
+  closeCrmDay,
+  confirmCrmPay,
+  getCrmDaySummary,
+  getCrmSchedule,
+  lookupCrmCustomerByPhone,
+  reopenCrmDay,
+  saveCrmTherapistMemo,
+  setCrmBookingPricing,
+  setCrmCancelBad,
+  unconfirmCrmPay,
+} from '@/app/actions/crm';
 import {
   createManualBooking,
   deleteBooking,
@@ -17,8 +28,11 @@ import {
   CRM_PRICE_KINDS,
   CRM_PRICE_KIND_LABEL,
   CRM_PRICE_SINGLE,
+  inBusinessDay,
   sumCrmItems,
   yen,
+  type CrmDaySummary,
+  type CrmPayConfirm,
   type CrmBookingItem,
   type CrmPriceItem,
   type CrmScheduleBooking,
@@ -101,6 +115,9 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const [form, setForm] = useState<BookingFormState | null>(null);
   // 女子メモの編集（null＝閉じている）
   const [memoEdit, setMemoEdit] = useState<CrmScheduleTherapist | null>(null);
+  // 報酬確定・締め（第538便）
+  const [confirmFor, setConfirmFor] = useState<CrmScheduleTherapist | null>(null);
+  const [closing, setClosing] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [tick, setTick] = useState(0);
 
@@ -119,10 +136,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
   // 60秒ごとに読み直す（詳細・フォームを開いている間は止める＝見ている最中に動かさない）
   useEffect(() => {
-    if (picked || form || memoEdit) return;
+    if (picked || form || memoEdit || confirmFor || closing) return;
     const t = setInterval(() => setTick((v) => v + 1), REFRESH_MS);
     return () => clearInterval(t);
-  }, [picked, form, memoEdit]);
+  }, [picked, form, memoEdit, confirmFor, closing]);
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
 
@@ -195,7 +212,19 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           <span className="text-[14px] font-bold text-slate-700 md:ml-2">
             予約数 <span className="text-[#3f51b5]">{view.activeCount}</span>本 ／ 出勤数 <span className="text-[#3f51b5]">{view.workingCount}</span>人
             {' '}／ 売上 <span className="text-[#3f51b5]">{yen(view.sales)}</span> ／ 報酬 <span className="text-[#3f51b5]">{yen(view.payAll)}</span>
+            {' '}（報酬確定済 <span className="text-emerald-600">{data?.confirms.length ?? 0}</span>人）
           </span>
+        )}
+        {data && (
+          data.report ? (
+            <button type="button" onClick={() => setClosing(true)} className="bg-emerald-600 px-3 py-1.5 text-[13px] font-bold text-white">
+              ✓ 締め済み（日報）
+            </button>
+          ) : (
+            <button type="button" onClick={() => setClosing(true)} className="border-2 border-[#3f51b5] bg-white px-3 py-1 text-[13px] font-bold text-[#3f51b5]">
+              締め作業（日報を作る）
+            </button>
+          )
         )}
         <span className="ml-auto text-[12px] text-slate-500">空いているところを押すと受付できます</span>
       </div>
@@ -213,6 +242,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           pickedId={picked?.id ?? null}
           onPick={setPicked}
           onMemo={setMemoEdit}
+          confirms={data?.confirms ?? []}
+          onConfirm={setConfirmFor}
           onEmpty={(therapistId, min) => {
             setPicked(null);
             const first = data?.courses[0];
@@ -275,6 +306,29 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         />
       )}
 
+      {confirmFor && data && (
+        <ConfirmDialog
+          key={confirmFor.id}
+          therapist={confirmFor}
+          salonId={salonId}
+          date={date}
+          baseMs={baseMs}
+          bookings={data.bookings.filter((b) => b.therapistId === confirmFor.id)}
+          confirm={data.confirms.find((c) => c.therapistId === confirmFor.id) ?? null}
+          onClose={() => setConfirmFor(null)}
+          onDone={() => { setConfirmFor(null); reload(); }}
+        />
+      )}
+
+      {closing && (
+        <CloseDialog
+          salonId={salonId}
+          date={date}
+          onClose={() => setClosing(false)}
+          onDone={() => { setClosing(false); reload(); }}
+        />
+      )}
+
       {memoEdit && (
         <MemoDialog
           key={memoEdit.id}
@@ -304,7 +358,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, onEmpty,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, onEmpty,
 }: {
   rows: Row[];
   startMin: number;
@@ -315,6 +369,9 @@ function Grid({
   onPick: (b: CrmScheduleBooking) => void;
   /** 女子メモを押した */
   onMemo: (t: CrmScheduleTherapist) => void;
+  confirms: CrmPayConfirm[];
+  /** 報酬確定を押した */
+  onConfirm: (t: CrmScheduleTherapist) => void;
   /** 空いているところを押した（therapistId: null＝フリー・min: その日0:00からの分） */
   onEmpty: (therapistId: number | null, min: number) => void;
 }) {
@@ -354,12 +411,33 @@ function Grid({
                       ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
                       : '出勤なし'}
                   </p>
-                  <p className="text-[11px] text-slate-500">
-                    {r.bookings.filter((b) => b.status !== 'cancelled').length}本
-                    <span className="ml-1 bg-cyan-50 px-1 font-bold text-slate-700">
-                      報酬 {yen(r.bookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.payTotal ?? 0), 0))}
-                    </span>
-                  </p>
+                  {(() => {
+                    // ★ 報酬と確定は【営業日（6:00〜翌6:00に始まる予約）】で数える（サーバーの確定と同じ決まり）
+                    const mine = r.bookings.filter((b) => b.status !== 'cancelled' && inBusinessDay(Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000)));
+                    const pay = mine.reduce((a, b) => a + (b.payTotal ?? 0), 0);
+                    const cf = confirms.find((c) => c.therapistId === r.therapist!.id);
+                    const changed = cf && (cf.payTotal !== pay || cf.bookingCount !== mine.length);
+                    return (
+                      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
+                        <span>{mine.length}本</span>
+                        {cf ? (
+                          <button
+                            type="button"
+                            onClick={() => onConfirm(r.therapist!)}
+                            title={changed ? '確定のあとに予約が変わっています（押して確定し直し）' : '報酬確定済み（押すと内容・取り消し）'}
+                            className={`px-1 font-bold text-white ${changed ? 'bg-amber-500' : 'bg-emerald-600'}`}
+                          >
+                            {changed ? '⚠変更あり' : '✓確定'} {yen(cf.payTotal + cf.allowance)}
+                          </button>
+                        ) : (
+                          <>
+                            <span className="bg-cyan-50 px-1 font-bold text-slate-700">報酬 {yen(pay)}</span>
+                            <button type="button" onClick={() => onConfirm(r.therapist!)} className="bg-[#3f51b5] px-1 font-bold text-white">確定</button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </>
               ) : (
                 <>
@@ -1157,6 +1235,254 @@ function MemoDialog({
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── 報酬確定 ───────────────────────────────────────
+function ConfirmDialog({
+  therapist, salonId, date, baseMs, bookings, confirm, onClose, onDone,
+}: {
+  therapist: CrmScheduleTherapist;
+  salonId: number;
+  date: string;
+  baseMs: number;
+  bookings: CrmScheduleBooking[];
+  confirm: CrmPayConfirm | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [allowance, setAllowance] = useState(confirm ? String(confirm.allowance || '') : '');
+  const [note, setNote] = useState(confirm?.note ?? '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [sure, setSure] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const mine = bookings
+    .filter((b) => b.status !== 'cancelled' && inBusinessDay(Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000)))
+    .sort((a, b) => a.slotStartISO.localeCompare(b.slotStartISO));
+  const pay = mine.reduce((a, b) => a + (b.payTotal ?? 0), 0);
+  const al = Math.round(Number(allowance) || 0);
+  const noPrice = mine.filter((b) => b.payTotal == null).length;
+
+  const doConfirm = async () => {
+    setBusy(true); setErr('');
+    const r = await confirmCrmPay(salonId, therapist.id, date, al, note);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onDone();
+  };
+  const doUndo = async () => {
+    setBusy(true); setErr('');
+    const r = await unconfirmCrmPay(salonId, therapist.id, date);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onDone();
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
+        <div className="pointer-events-auto max-h-[92vh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
+          <div className="flex items-center bg-emerald-600 px-4 py-2.5 text-white">
+            <span className="text-[15px] font-black">報酬確定：{therapist.name}</span>
+            <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
+          </div>
+          <div className="space-y-3 p-4">
+            {confirm && (
+              <p className="bg-emerald-50 px-3 py-2 text-[13px] font-bold text-emerald-800">
+                確定済み：{confirm.bookingCount}本・報酬 {yen(confirm.payTotal)}{confirm.allowance ? `＋手当 ${yen(confirm.allowance)}` : ''} ＝ {yen(confirm.payTotal + confirm.allowance)}
+              </p>
+            )}
+            <div>
+              <p className="mb-1 text-[12px] font-bold text-slate-500">この日の予約（{mine.length}本）</p>
+              {mine.length === 0 ? (
+                <p className="text-[13px] text-slate-400">予約はありません</p>
+              ) : (
+                <ul className="divide-y divide-slate-100 border border-slate-200 text-[13px]">
+                  {mine.map((b) => (
+                    <li key={b.id} className="flex gap-2 px-2 py-1.5">
+                      <span className="font-bold">{hm(b.slotStartISO)}</span>
+                      <span className="truncate">{b.customer?.name || b.customerName}</span>
+                      <span className="truncate text-slate-500">{b.courseName}</span>
+                      <span className={`ml-auto font-bold ${b.payTotal == null ? 'text-amber-600' : ''}`}>{b.payTotal == null ? '料金未入力' : yen(b.payTotal)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {noPrice > 0 && <p className="mt-1 text-[12px] font-bold text-amber-700">料金・報酬がまだ入っていない予約が {noPrice} 本あります（0円で数えます）</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labCls}>手当・交通費など（±円）</label>
+                <input className={fieldCls} inputMode="numeric" value={allowance} onChange={(e) => setAllowance(e.target.value.replace(/[^0-9-]/g, ''))} placeholder="0" />
+              </div>
+              <div>
+                <label className={labCls}>一言</label>
+                <input className={fieldCls} value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="例）交通費1000" />
+              </div>
+            </div>
+            <p className="border-t border-slate-200 pt-2 text-[17px] font-black text-slate-800">
+              お渡しする報酬 {yen(pay + al)}
+              <span className="ml-2 text-[12px] font-bold text-slate-500">（予約の報酬 {yen(pay)}{al ? ` ＋ 手当 ${yen(al)}` : ''}）</span>
+            </p>
+            {err && <p className="text-[13px] font-bold text-rose-600">{err}</p>}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" disabled={busy} onClick={doConfirm} className="flex-1 bg-emerald-600 py-2.5 text-[15px] font-bold text-white disabled:opacity-50">
+                {confirm ? 'いまの内容で確定し直す' : 'この内容で確定する'}
+              </button>
+              {confirm && (
+                sure ? (
+                  <button type="button" disabled={busy} onClick={doUndo} className="bg-rose-600 px-3 text-[13px] font-bold text-white">本当に取り消す</button>
+                ) : (
+                  <button type="button" disabled={busy} onClick={() => setSure(true)} className="border border-slate-300 bg-white px-3 text-[13px] font-bold text-slate-600">確定を取り消す</button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ── 締め作業（日報） ─────────────────────────────────
+function CloseDialog({
+  salonId, date, onClose, onDone,
+}: {
+  salonId: number;
+  date: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [sum, setSum] = useState<CrmDaySummary | null>(null);
+  const [expense, setExpense] = useState('');
+  const [memo, setMemo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [sure, setSure] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getCrmDaySummary(salonId, date).then((r) => {
+      if (!alive) return;
+      if (!r.ok) { setErr(r.error); return; }
+      setSum(r.summary);
+      if (r.summary.report) {
+        setExpense(r.summary.report.expense ? String(r.summary.report.expense) : '');
+        setMemo(r.summary.report.memo);
+      }
+    });
+    return () => { alive = false; };
+  }, [salonId, date]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const ex = Math.max(0, Math.round(Number(expense) || 0));
+  const doClose = async () => {
+    setBusy(true); setErr('');
+    const r = await closeCrmDay(salonId, date, ex, memo);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onDone();
+  };
+  const doReopen = async () => {
+    setBusy(true); setErr('');
+    const r = await reopenCrmDay(salonId, date);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onDone();
+  };
+
+  const rep = sum?.report ?? null;
+  const changed = rep && sum && (rep.sales !== sum.sales || rep.pay !== sum.pay || rep.bookingCount !== sum.bookingCount);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
+        <div className="pointer-events-auto max-h-[92vh] w-full max-w-[560px] overflow-y-auto bg-white shadow-2xl">
+          <div className="flex items-center bg-[#1e2a5a] px-4 py-2.5 text-white">
+            <span className="text-[15px] font-black">締め作業（日報）：{dateLabel(date)}</span>
+            <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
+          </div>
+          {!sum ? (
+            <p className="p-6 text-center text-[14px] text-slate-400">{err || '集計しています…'}</p>
+          ) : (
+            <div className="space-y-3 p-4">
+              {rep && (
+                <p className={`px-3 py-2 text-[13px] font-bold ${changed ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}>
+                  {changed ? '⚠ 締めたあとに予約・報酬が変わっています。下の「締め直す」で今の数字に直せます。' : '✓ この日は締め済みです。'}
+                </p>
+              )}
+              {sum.unconfirmed.length > 0 && (
+                <p className="border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[13px] font-bold text-amber-800">
+                  報酬をまだ確定していない人：{sum.unconfirmed.join('・')}
+                </p>
+              )}
+              {sum.freeUnassigned > 0 && (
+                <p className="border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[13px] font-bold text-amber-800">
+                  担当が決まっていない予約が {sum.freeUnassigned} 本あります
+                </p>
+              )}
+              <div className="grid grid-cols-3 gap-px bg-slate-200 text-center">
+                {[
+                  ['本数', `${sum.bookingCount}本`],
+                  ['キャンセル', `${sum.cancelCount}本`],
+                  ['出勤', `${sum.workingCount}人`],
+                  ['売上', yen(sum.sales)],
+                  ['うち現金', yen(sum.cashSales)],
+                  ['女子報酬', yen(sum.pay)],
+                ].map(([k, v]) => (
+                  <div key={k} className="bg-white py-2">
+                    <p className="text-[11px] font-bold text-slate-400">{k}</p>
+                    <p className="text-[16px] font-black text-slate-800">{v}</p>
+                  </div>
+                ))}
+              </div>
+              {sum.allowance !== 0 && <p className="text-[12px] text-slate-500">女子報酬には、確定のときの手当 {yen(sum.allowance)} を含みます</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labCls}>経費（円）</label>
+                  <input className={fieldCls} inputMode="numeric" value={expense} onChange={(e) => setExpense(e.target.value.replace(/[^0-9]/g, ''))} placeholder="0" />
+                </div>
+                <div className="flex flex-col justify-end">
+                  <p className="text-[12px] font-bold text-slate-500">利益（売上 − 報酬 − 経費）</p>
+                  <p className={`text-[20px] font-black ${sum.sales - sum.pay - ex < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>{yen(sum.sales - sum.pay - ex)}</p>
+                </div>
+              </div>
+              <div>
+                <label className={labCls}>メモ</label>
+                <textarea className={`${fieldCls} min-h-[64px]`} maxLength={1000} value={memo} onChange={(e) => setMemo(e.target.value)} />
+              </div>
+              {err && <p className="text-[13px] font-bold text-rose-600">{err}</p>}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={busy} onClick={doClose} className="flex-1 bg-[#1e2a5a] py-2.5 text-[15px] font-bold text-white disabled:opacity-50">
+                  {rep ? 'いまの数字で締め直す' : 'この内容で締める'}
+                </button>
+                {rep && (
+                  sure ? (
+                    <button type="button" disabled={busy} onClick={doReopen} className="bg-rose-600 px-3 text-[13px] font-bold text-white">本当に取り消す</button>
+                  ) : (
+                    <button type="button" disabled={busy} onClick={() => setSure(true)} className="border border-slate-300 bg-white px-3 text-[13px] font-bold text-slate-600">締めを取り消す</button>
+                  )
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
