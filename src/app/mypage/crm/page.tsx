@@ -108,7 +108,7 @@ function useNarrow(): boolean {
   );
 }
 
-type Row = { key: string; therapist: CrmScheduleTherapist | null; bookings: CrmScheduleBooking[] };
+type Row = { key: string; therapist: CrmScheduleTherapist | null; bookings: CrmScheduleBooking[]; done?: boolean };
 
 export default function CrmSchedulePage() {
   const { access, adminSalonQuery } = useCrmAccess();
@@ -187,11 +187,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       const bs = visibleBookings.filter((b) => b.therapistId === t.id);
       if (scheds.length === 0 && bs.length === 0) continue;
       scheds.forEach((w) => note(minOfDay(w.startISO, baseMs), minOfDay(w.endISO, baseMs)));
-      therapistRows.push({ key: `t${t.id}`, therapist: { ...t, schedules: scheds }, bookings: bs });
+      therapistRows.push({ key: `t${t.id}`, therapist: { ...t, schedules: scheds }, bookings: bs, done: data.confirms.some((c) => c.therapistId === t.id) });
     }
     // 出勤の早い順（出勤なし・予約だけの人は後ろ）
     const firstStart = (r: Row) => r.therapist?.schedules[0] ? minOfDay(r.therapist.schedules[0].startISO, baseMs) : 99999;
-    therapistRows.sort((a, b) => firstStart(a) - firstStart(b));
+    // ★ 報酬を確定した人は灰色にして下へ（風俗CTIv2 と同じ・第543便）。取り消すと元の位置に戻る。
+    therapistRows.sort((a, b) => Number(!!a.done) - Number(!!b.done) || firstStart(a) - firstStart(b));
     rows.push(...therapistRows);
 
     const startMin = Math.floor(minStart / 60) * 60;
@@ -420,9 +421,9 @@ function Grid({
         </div>
 
         {rows.map((r) => (
-          <div key={r.key} className="relative flex border-b border-slate-200" style={{ height: ROW_H }}>
+          <div key={r.key} className={`relative flex border-b ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
-            <div className="sticky left-0 z-20 flex flex-none border-r border-slate-300 bg-white" style={{ width: leftW }}>
+            <div className={`sticky left-0 z-20 flex flex-none border-r border-slate-300 ${r.done ? 'bg-slate-300' : 'bg-white'}`} style={{ width: leftW }}>
             <div className="flex-none px-2 py-1.5" style={{ width: nameW }}>
               {r.therapist ? (
                 <>
@@ -501,7 +502,7 @@ function Grid({
 
             {/* 時間の中身（空いているところを押すと受付） */}
             <div
-              className="relative flex-none cursor-copy"
+              className={`relative flex-none cursor-copy ${r.done ? 'bg-slate-300/70' : ''}`}
               style={{ width }}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
