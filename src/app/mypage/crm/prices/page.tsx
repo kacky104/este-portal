@@ -82,7 +82,7 @@ function PricesBody({ salonId }: { salonId: number }) {
         <h2 className="text-[17px] font-black text-slate-800">料金表（料金と女子報酬）</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
           予約を受け付けるときに、ここの項目を押して選ぶと、料金と女子報酬が自動で計算されます。
-          お店の中だけの表です（お客様には見えません）。ここを直しても、もう入っている予約の金額は変わりません。
+          内容変更をしてもすでに入っている予約の金額は変わりません。
         </p>
         <button type="button" onClick={importMenu} className="mt-3 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700">
           いまのコースメニューからコースを取り込む
