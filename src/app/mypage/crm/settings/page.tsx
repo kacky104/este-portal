@@ -60,10 +60,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
     <div className="mx-auto max-w-2xl px-3 py-4">
       <section className="border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">スケジュールの表示時間</h2>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-          スケジュールの時間軸の始まりと終わりです。予約がこの時間の外にあるときは、見落とさないように自動で広げて表示します。
-        </p>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="mt-3 flex flex-wrap items-end gap-3">
           <div>
             <p className="mb-1 text-[12px] font-bold text-slate-500">開始時刻</p>
             <select className={sel} value={Math.floor(st.dayStartMin / 60)} onChange={(e) => setSt({ ...st, dayStartMin: Number(e.target.value) * 60 })}>
@@ -83,9 +80,6 @@ function SettingsBody({ salonId }: { salonId: number }) {
 
       <section className="mt-4 border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">セラピストの終わりの時刻のバッジ（既定）</h2>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-          スケジュールのピンクの帯の右端に、終わりの時刻とバッジを出します。バッジを押すと、その日だけ切り替えられます。ここではまだ切り替えていない日に出すバッジを選びます。
-        </p>
         <div className="mt-3 space-y-2">
           {(['accept', 'finish'] as CrmEndType[]).map((t) => (
             <label key={t} className="flex cursor-pointer items-center gap-2 text-[14px]">
