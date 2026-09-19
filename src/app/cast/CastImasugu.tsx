@@ -7,6 +7,7 @@
 // ★ 取り込み枠（駅ちかの即ヒメ）は【表示だけ】。排他制御には混ぜない（第40便の決定）。
 //   3枠は和集合であって排他ではないので、駅ちか由来で表示中でも本人は自分の枠を押せる。
 
+import { CastCardTitle } from './CastCardTitle';
 import { useEffect, useState } from 'react';
 import { setCastImasugu } from '@/app/actions/castImasugu';
 import { isFrameLive } from '@/lib/imasugu';
@@ -93,7 +94,8 @@ export function CastImasugu({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-6 space-y-4">
+    <div className="bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm p-6 space-y-4">
+      <CastCardTitle icon="bolt">今すぐ受付</CastCardTitle>
       {live ? (
         <div className="space-y-4 text-center">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-pink-50 border border-pink-200">

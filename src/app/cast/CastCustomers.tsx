@@ -123,7 +123,7 @@ function LogFields({ form, setForm, names, withHelp = false }: { form: Form; set
   );
 }
 
-export function CastCustomers({ today }: { today: string }) {
+export function CastCustomers({ today, onTodayChange }: { today: string; onTodayChange?: (total: number, count: number) => void }) {
   const [logs, setLogs] = useState<CustomerLog[]>([]);
   const [total, setTotal] = useState(0);
   const [allNames, setAllNames] = useState<string[]>([]);
@@ -246,6 +246,11 @@ export function CastCustomers({ today }: { today: string }) {
 
   // 今日・今月
   const todaySum = months[todayYm]?.[today] ?? { total: 0, count: 0, oldTotal: 0 };
+  // ★ 第524便: 上の「今日のまとめ」の報酬も合わせる（記録を足す・直す・消すと変わる）
+  const monthLoaded = months[todayYm] != null;
+  useEffect(() => {
+    if (monthLoaded) onTodayChange?.(todaySum.total, todaySum.count);
+  }, [monthLoaded, todaySum.total, todaySum.count, onTodayChange]);
   const todayMonthTotal = useMemo(() => Object.values(months[todayYm] ?? {}).reduce((s, d) => s + d.total, 0), [months, todayYm]);
   // カレンダーで見ている月
   const calDays = useMemo(() => months[ym] ?? {}, [months, ym]);
@@ -302,7 +307,7 @@ export function CastCustomers({ today }: { today: string }) {
 
       {/* ── カレンダー ── */}
       {showCal && (
-        <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-4 space-y-3">
+        <div className="bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm p-4 space-y-3">
           <div className="flex items-center">
             <button type="button" onClick={() => setYm((v) => addMonth(v, -1))} className="w-9 h-9 rounded-full text-slate-500 hover:bg-pink-50 text-lg font-bold" aria-label="前の月">‹</button>
             <div className="flex-1 text-center">
@@ -346,7 +351,7 @@ export function CastCustomers({ today }: { today: string }) {
       )}
 
       {/* ── 記録を足す ── */}
-      <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
         <LogFields form={form} setForm={setForm} names={names} withHelp />
         {error && <p className="text-xs font-bold text-red-500">{error}</p>}
         {notice && <p className="text-xs font-bold text-pink-600">{notice}</p>}
@@ -361,7 +366,7 @@ export function CastCustomers({ today }: { today: string }) {
       </div>
 
       {/* ── 検索と一覧 ── */}
-      <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
         {day ? (
           <div className="flex items-center gap-2 rounded-2xl bg-pink-50 border border-pink-100 px-3 py-2.5">
             <div className="min-w-0">

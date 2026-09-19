@@ -9,6 +9,7 @@ import { CastTabs } from './CastTabs';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
+import { getRecordMonth } from '@/app/actions/castCustomers';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -68,6 +69,27 @@ export default async function CastHomePage() {
     }
   }
 
+  // ★ 第524便: 今日のまとめ（報酬・日記）。★ 読めなくてもページは出す（0 のまま）
+  const businessDate = getBusinessDateJST();
+  let todayReward = 0;
+  let todayRewardCount = 0;
+  let diaryToday = 0;
+  if (therapist?.id != null) {
+    const [month, diary] = await Promise.all([
+      getRecordMonth(businessDate.slice(0, 7)),
+      supabase
+        .from('diary_posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('therapist_id', therapist.id)
+        .gte('created_at', new Date(`${businessDate}T06:00:00+09:00`).toISOString()),
+    ]);
+    if (month.ok) {
+      todayReward = month.days[businessDate]?.total ?? 0;
+      todayRewardCount = month.days[businessDate]?.count ?? 0;
+    }
+    diaryToday = diary.count ?? 0;
+  }
+
   // ★ 第493便: 着せ替えに使う店舗テーマの壁紙（管理画面で登録・誰でも読める表）。★ 読めなければ地の色だけ
   const { data: wpRows } = await supabase.from('theme_wallpapers').select('theme_key, image_url');
   const wallpapers: Record<string, string> = {};
@@ -79,7 +101,7 @@ export default async function CastHomePage() {
 
   return (
     <CastThemeProvider initialTheme={(therapist?.cast_theme as string | null) ?? null} wallpapers={wallpapers}>
-      <header className="bg-white border-b border-slate-100">
+      <header className="sticky top-0 z-30 bg-white/75 backdrop-blur-md border-b border-white/60">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <span className="flex items-baseline gap-1 shrink-0">
             <span className="font-bold text-[20px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span>
@@ -125,7 +147,7 @@ export default async function CastHomePage() {
         {therapist ? (
           <div className="space-y-5">
             {/* ★ 第516便: 挨拶カードを横長にして高さを約1/3に（スマホの1画面目にタブの中身まで入るように）。
-                左に写真・右に名前と店名・その下に本日の出勤の札。 */}
+                左に写真・右に名前と店名。★ 第524便: 本日の出勤の札は「今日のまとめ」へ移した。 */}
             <div className="bg-white/90 backdrop-blur rounded-3xl border border-pink-100 shadow-sm px-4 py-3.5 flex items-center gap-3.5">
               {therapist.profile_image_url ? (
                 <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-white overflow-hidden shadow-md ring-1 ring-pink-100">
@@ -149,18 +171,6 @@ export default async function CastHomePage() {
                 <p className="text-[11px] font-bold text-pink-500 leading-none">こんにちは</p>
                 <h1 className="mt-1 text-lg font-black text-slate-800 leading-tight truncate">{therapist.name ?? '(名前未設定)'} さん</h1>
                 {salonName && <p className="mt-0.5 text-[11px] text-slate-400 font-medium truncate">{salonName}</p>}
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {today.is_active && today.start_time ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 text-[11px] font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
-                      本日 {today.start_time}〜{today.end_time ?? ''}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">
-                      本日の出勤なし
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -177,7 +187,10 @@ export default async function CastHomePage() {
               importImasuguOn={Boolean(therapist.is_available_now_import)}
               importImasuguUntil={(therapist.available_until_import as string | null) ?? null}
               today={today}
-              businessDate={getBusinessDateJST()}
+              businessDate={businessDate}
+              todayReward={todayReward}
+              todayRewardCount={todayRewardCount}
+              diaryToday={diaryToday}
             />
 
             {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ 第522便: 遷移先は本人の fukuX（連携が無ければ /x）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}

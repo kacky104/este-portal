@@ -4,6 +4,7 @@
 // context で連携し、ピッカーで選ぶと即座に背景へ反映＋サーバー（therapists.cast_theme）へ保存する。
 // 保存は本人検証付きの Server Action（setCastTheme）経由。再ログイン時は page.tsx が cast_theme を読み initialTheme で渡す。
 
+import { CastCardTitle } from './CastCardTitle';
 import { createContext, useContext, useState, useTransition } from 'react';
 import { CAST_THEMES, getCastTheme, type CastThemeKey } from './castThemes';
 import { setCastTheme } from '@/app/actions/castTheme';
@@ -64,11 +65,11 @@ export function CastThemePicker() {
   const { themeKey, setThemeKey, saving, wallpapers } = ctx;
 
   return (
-    <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5">
-      <p className="text-[11px] font-bold text-slate-400 mb-3">
-        ページの色を選ぶ
-        {saving && <span className="ml-2 text-pink-400 font-normal">保存中...</span>}
-      </p>
+    <div className="bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <CastCardTitle icon="palette">ページの色を選ぶ</CastCardTitle>
+        {saving && <span className="text-[11px] text-pink-400">保存中...</span>}
+      </div>
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
         {CAST_THEMES.map((t) => {
           const selected = t.key === themeKey;

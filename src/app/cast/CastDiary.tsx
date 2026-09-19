@@ -7,6 +7,7 @@
 // （改ざん経路を作らない＝二重防御。最終的な権限は本人用 RLS が保証する）。
 // クライアント直叩き（ブラウザの supabase＝anon＋本人セッション）。本人用 RLS により自分の日記のみ操作可能。
 
+import { CastCardTitle } from './CastCardTitle';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
@@ -335,9 +336,9 @@ export function CastDiary({
     <div className="space-y-5">
       {/* ── 投稿フォーム ──
           ★ 第492便（カッキーさん）: アコーディオン（<details>）。★ 見出しを押すと開閉。既定は閉じる */}
-      <details className="group bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+      <details className="group bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
         <summary className="flex items-center gap-2 cursor-pointer list-none px-5 py-4 [&::-webkit-details-marker]:hidden">
-          <span className="text-[11px] font-bold text-slate-400">写メ日記を投稿（{therapistName}）</span>
+          <CastCardTitle icon="camera">写メ日記を投稿（{therapistName}）</CastCardTitle>
           <span className="ml-auto"><svg className="w-4 h-4 text-pink-400 transition-transform duration-200 group-open:rotate-180 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg></span>
         </summary>
         <div className="px-5 pb-5 space-y-3">
@@ -439,12 +440,12 @@ export function CastDiary({
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div>
           <button
             type="button"
             onClick={handleDiaryPost}
             disabled={diaryPosting || diaryUploading}
-            className="px-6 py-2 rounded-xl text-white font-bold text-xs shadow-sm disabled:opacity-50"
+            className="w-full py-2.5 rounded-xl text-white font-bold text-sm shadow-sm disabled:opacity-50"
             style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
           >
             {diaryPosting ? '投稿中...' : '投稿する'}
@@ -454,9 +455,9 @@ export function CastDiary({
       </details>
 
       {/* ── 投稿済み日記一覧（自分の分のみ）。★ 第492便: アコーディオン（既定は閉じる） ── */}
-      <details className="group bg-white rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
+      <details className="group bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
         <summary className="flex items-center gap-2 cursor-pointer list-none px-5 py-4 [&::-webkit-details-marker]:hidden">
-          <span className="text-[11px] font-bold text-slate-400">投稿済み日記（{total}件）</span>
+          <CastCardTitle icon="list">投稿済み日記（{total}件）</CastCardTitle>
           <span className="ml-auto"><svg className="w-4 h-4 text-pink-400 transition-transform duration-200 group-open:rotate-180 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg></span>
         </summary>
         <div className="px-5 pb-5">
@@ -521,11 +522,11 @@ export function CastDiary({
                       onChange={(e) => setEditBody(e.target.value)}
                     />
 
-                    <div className="flex justify-end gap-2">
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={cancelEdit}
-                        className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-500 transition-colors"
+                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-500 transition-colors"
                       >
                         キャンセル
                       </button>
@@ -533,7 +534,7 @@ export function CastDiary({
                         type="button"
                         onClick={() => handleSave(post.id)}
                         disabled={savingId === post.id || editUploading}
-                        className="px-5 py-2 rounded-xl text-white font-bold text-xs shadow-sm disabled:opacity-50"
+                        className="flex-1 py-2.5 rounded-xl text-white font-bold text-xs shadow-sm disabled:opacity-50"
                         style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
                       >
                         {savingId === post.id ? '保存中...' : '保存'}

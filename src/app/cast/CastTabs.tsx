@@ -8,7 +8,7 @@
 //  - 今すぐ：準備中表示（フェーズ3で実装）
 // テーマ背景はページ全体（CastThemeProvider）に効くため、タブを切り替えても維持される。
 
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { CastDiary } from './CastDiary';
 import { CastThemePicker } from './CastTheme';
 import { CastImasugu } from './CastImasugu';
@@ -59,6 +59,9 @@ export function CastTabs({
   importImasuguUntil,
   today,
   businessDate,
+  todayReward,
+  todayRewardCount,
+  diaryToday,
 }: {
   therapistId: string;
   therapistName: string;
@@ -73,9 +76,22 @@ export function CastTabs({
   importImasuguUntil: string | null;
   today: { is_active: boolean; start_time: string | null; end_time: string | null };
   businessDate: string; // ★ 第498便: 報酬の「今日」（営業日・YYYY-MM-DD）。第518便から記録帳に渡す
+  // ★ 第524便: 今日のまとめ（ページを開いた時点の値）
+  todayReward: number;
+  todayRewardCount: number;
+  diaryToday: number;
 }) {
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
   const topRef = useRef<HTMLDivElement>(null);
+  const [reward, setReward] = useState({ total: todayReward, count: todayRewardCount });
+  const onTodayChange = useCallback((total: number, count: number) => setReward({ total, count }), []);
+  // 今すぐ：本人・お店・取り込みのどれかが有効なら受付中（開いた時点で判定）
+  const [imasuguUntilShown] = useState<string | null>(() => {
+    const now = Date.now();
+    const live = [[imasuguOn, imasuguUntil], [ownerImasuguOn, ownerImasuguUntil], [importImasuguOn, importImasuguUntil]] as const;
+    const ends = live.filter(([on, u]) => on && u && new Date(u).getTime() > now).map(([, u]) => new Date(u as string).getTime());
+    return ends.length ? new Date(Math.max(...ends)).toISOString() : null;
+  });
 
   // タブを切り替えたら、中身の先頭が見える位置まで戻す（下のタブバーから押したときに、前のタブの途中のまま残らないように）。
   const selectTab = (key: CastTab) => {
@@ -85,7 +101,16 @@ export function CastTabs({
   };
 
   return (
-    <div ref={topRef} className="space-y-5 scroll-mt-4">
+    <div ref={topRef} className="space-y-5 scroll-mt-20">
+      {/* ★ 第524便: 今日のまとめ（出勤・今すぐ・報酬・日記）。押すとそのタブへ */}
+      <TodaySummary
+        today={today}
+        imasuguUntil={imasuguUntilShown}
+        reward={reward}
+        diaryToday={diaryToday}
+        onPick={selectTab}
+      />
+
       {/* PC（md 以上）: 上のピル型タブ */}
       <div className="hidden md:flex flex-wrap justify-center gap-2">
         {TABS.map(([key, label]) => {
@@ -96,7 +121,7 @@ export function CastTabs({
               type="button"
               onClick={() => selectTab(key)}
               aria-pressed={selected}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full border text-[13px] font-bold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-full border text-[14px] font-bold transition-colors ${
                 selected
                   ? 'bg-pink-50 text-pink-600 border-pink-300'
                   : 'bg-white text-slate-500 border-slate-200 hover:text-slate-700 hover:border-slate-300'
@@ -123,7 +148,7 @@ export function CastTabs({
                 type="button"
                 onClick={() => selectTab(key)}
                 aria-pressed={selected}
-                className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[58px] pt-1.5 pb-1 text-[11px] font-bold transition-colors ${
+                className={`relative flex flex-col items-center justify-center gap-0.5 min-h-[60px] pt-1.5 pb-1 text-[13px] font-bold transition-colors ${
                   selected ? 'text-pink-600' : 'text-slate-400 active:text-slate-600'
                 }`}
               >
@@ -143,7 +168,7 @@ export function CastTabs({
 
       {activeTab === 'theme' && <CastThemePicker />}
 
-      {activeTab === 'records' && <CastCustomers today={businessDate} />}
+      {activeTab === 'records' && <CastCustomers today={businessDate} onTodayChange={onTodayChange} />}
 
       {activeTab === 'now' && (
         <CastImasugu
@@ -156,6 +181,49 @@ export function CastTabs({
           today={today}
         />
       )}
+    </div>
+  );
+}
+
+// ★ 第524便: 今日のまとめ（横並びの小さなタイル4つ）。★ 出勤・今すぐ・日記はページを開いた時点の値、報酬は記録帳の変更に合わせて変わる
+function jstHm(iso: string): string {
+  return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+}
+
+function TodaySummary({
+  today,
+  imasuguUntil,
+  reward,
+  diaryToday,
+  onPick,
+}: {
+  today: { is_active: boolean; start_time: string | null; end_time: string | null };
+  imasuguUntil: string | null;
+  reward: { total: number; count: number };
+  diaryToday: number;
+  onPick: (tab: CastTab) => void;
+}) {
+  const onDuty = today.is_active && !!today.start_time;
+  const tiles: { key: string; tab: CastTab; label: string; value: string; sub: string; hot: boolean }[] = [
+    { key: 'duty', tab: 'now', label: '出勤', value: onDuty ? today.start_time! : 'お休み', sub: onDuty ? `〜${today.end_time ?? ''}` : '本日', hot: onDuty },
+    { key: 'now', tab: 'now', label: '今すぐ', value: imasuguUntil ? '受付中' : 'OFF', sub: imasuguUntil ? `〜${jstHm(imasuguUntil)}` : '—', hot: !!imasuguUntil },
+    { key: 'reward', tab: 'records', label: '今日の報酬', value: `¥${reward.total.toLocaleString('ja-JP')}`, sub: `${reward.count}人`, hot: reward.total > 0 },
+    { key: 'diary', tab: 'diary', label: '今日の日記', value: `${diaryToday}件`, sub: diaryToday > 0 ? '投稿済み' : 'まだ', hot: diaryToday > 0 },
+  ];
+  return (
+    <div className="grid grid-cols-4 gap-2">
+      {tiles.map((t) => (
+        <button
+          key={t.key}
+          type="button"
+          onClick={() => onPick(t.tab)}
+          className="min-w-0 rounded-2xl bg-white/85 backdrop-blur-sm border border-pink-100 shadow-sm px-1.5 py-2.5 text-center hover:border-pink-300 transition-colors"
+        >
+          <span className="block text-[10px] font-bold text-slate-400 leading-none truncate">{t.label}</span>
+          <span className={`block mt-1.5 text-[13px] sm:text-[15px] font-black leading-none tabular-nums truncate ${t.hot ? 'text-pink-600' : 'text-slate-400'}`}>{t.value}</span>
+          <span className="block mt-1 text-[10px] text-slate-400 leading-none tabular-nums truncate">{t.sub}</span>
+        </button>
+      ))}
     </div>
   );
 }
