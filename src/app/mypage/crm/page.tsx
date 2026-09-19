@@ -348,13 +348,14 @@ function Grid({
                 type="button"
                 onClick={() => onMemo(r.therapist!)}
                 title={r.therapist.memo || '女子メモを書く'}
-                className="flex-none overflow-hidden border-l border-slate-200 px-2 py-1 text-left hover:bg-amber-50"
+                className="flex-none overflow-hidden border-l border-slate-200 bg-amber-50/40 px-2 py-1 text-left hover:bg-amber-100"
                 style={{ width: MEMO_W }}
               >
                 {r.therapist.memo ? (
                   <p className="line-clamp-4 whitespace-pre-line text-[12px] leading-[1.3] text-slate-700">{r.therapist.memo}</p>
                 ) : (
-                  <p className="text-[11px] text-slate-300">＋ メモ</p>
+                  // ★ 薄すぎて見つけられなかった（2026-09-19）→ 枠つきのボタンに見える形に
+                  <span className="inline-block border border-dashed border-amber-400 bg-amber-50 px-2 py-1 text-[12px] font-bold text-amber-700">✎ メモを書く</span>
                 )}
               </button>
             ) : (
