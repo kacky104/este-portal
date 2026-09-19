@@ -258,6 +258,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           baseMs={baseMs}
           therapists={data.therapists}
           courses={data.courses}
+          dayBookings={data.bookings}
           onClose={() => setForm(null)}
           onSaved={() => { setForm(null); reload(); }}
         />
@@ -616,13 +617,15 @@ const fieldCls = 'w-full border border-slate-300 bg-white px-2.5 py-2 text-[14px
 const labCls = 'mb-1 block text-[12px] font-bold text-slate-500';
 
 function BookingForm({
-  initial, salonId, baseMs, therapists, courses, onClose, onSaved,
+  initial, salonId, baseMs, therapists, courses, dayBookings, onClose, onSaved,
 }: {
   initial: BookingFormState;
   salonId: number;
   baseMs: number;
   therapists: CrmScheduleTherapist[];
   courses: CrmScheduleData['courses'];
+  /** この日の予約（同じお客様の二重受付に気づけるように） */
+  dayBookings: CrmScheduleBooking[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -656,6 +659,15 @@ function BookingForm({
   }, [telDigits, salonId]);
 
   const customer = found && found !== 'none' && telDigits.length >= 10 ? found : null;
+  // ★ 同じお客様（台帳の人 or 同じ電話番号）が、この日すでに予約を持っていないか。
+  //   第531便の確認で「変更」のつもりが新しい受付になり、同じ人の予約が2本になった（2026-09-19）。
+  const telKey = telDigits.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+  const sameDay = dayBookings.filter((b) =>
+    b.id !== f.bookingId &&
+    b.status !== 'cancelled' &&
+    ((customer && b.customer?.id === customer.id) ||
+      (telKey.length >= 10 && b.customerTel.replace(/[^0-9]/g, '') === telKey)),
+  );
   const tid = f.therapistKey === 'free' ? null : Number(f.therapistKey);
   const ng = tid != null && (customer?.ngTherapistIds.includes(tid) ?? false);
 
@@ -731,6 +743,16 @@ function BookingForm({
             <input className={fieldCls} value={f.customerTel} inputMode="tel" onChange={(e) => { set('customerTel', e.target.value); setFound(null); }} placeholder="090-1234-5678" />
             {telDigits.length >= 10 && found === 'none' && (
               <p className="mt-1 text-[12px] text-slate-500">台帳にない番号です（新しいお客様として台帳に入ります）</p>
+            )}
+            {sameDay.length > 0 && (
+              <div className="mt-2 border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[13px] font-bold text-amber-800">
+                このお客様は、この日すでに予約があります：
+                {sameDay.map((b) => {
+                  const t = b.therapistId == null ? 'フリー' : therapists.find((x) => x.id === b.therapistId)?.name ?? '';
+                  return <span key={b.id} className="ml-1">{hm(b.slotStartISO)}〜 {t}</span>;
+                })}
+                {f.mode === 'new' && <p className="mt-1 text-[12px] font-normal">時間や担当を変えたいときは、その予約のカードを押して「変更する」を使ってください。</p>}
+              </div>
             )}
             {customer && (
               <div className="mt-2 border border-indigo-200 bg-indigo-50 p-2.5">
