@@ -846,7 +846,7 @@ export default function AdminDashboard() {
                         )}
                         {salon.crm_until && (
                           <span className="ml-1.5 align-middle text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold">
-                            CRM〜{salon.crm_until.slice(5).replace('-', '/')}
+                            CRM
                           </span>
                         )}
                       </td>

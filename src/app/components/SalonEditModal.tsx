@@ -60,6 +60,9 @@ type Props = {
 // クライアントはコンポーネント初期化時に一度だけ生成（認証セッションを確実に引き継ぐ）
 const supabase = createClient();
 
+// フクエスCRM を ON にしたときに crm_until へ入れる値（＝期限なし）。/mypage/crm 側も同じ値を「期限なし」として扱う。
+const CRM_ON_UNTIL = '9999-12-31';
+
 export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [form, setForm] = useState({
     name:        salon.name        ?? '',
@@ -85,7 +88,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [jobsEnabled,  setJobsEnabled]  = useState(salon.jobs_enabled ?? false);
   // 掲載プラン（第368便）。standard=本契約／free=無料掲載枠（簡易カード＋基本情報と口コミだけの詳細）。
   const [listingPlan,  setListingPlan]  = useState<'standard' | 'free'>(salon.listing_plan ?? 'standard');
-  // フクエスCRM（有料）の利用期限（2026-09-19）。空＝未契約。この日（JST）まで使える。
+  // フクエスCRM（有料）の契約（2026-09-19）。空＝OFF。値が入っていれば ON（ON は 9999-12-31）。
   const [crmUntil, setCrmUntil] = useState<string>(salon.crm_until ? String(salon.crm_until).slice(0, 10) : '');
 
   // ── ログインメール（auth.users）管理 ──
@@ -360,37 +363,18 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
             {textField('一言（無料掲載枠のカード用・27文字まで）', 'catchphrase', '例: 博多駅チカ・当日予約OK')}
           </div>
 
-          {/* フクエスCRM（有料）の利用期限（2026-09-19）。空＝未契約。/mypage/crm がこの日まで使える。 */}
-          <div className="space-y-1">
-            <label className="text-[11px] font-bold text-slate-400 block">フクエスCRM（有料）利用期限</label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="date"
-                value={crmUntil}
-                onChange={e => setCrmUntil(e.target.value)}
-                className="min-w-0 max-w-full appearance-none px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const base = crmUntil && crmUntil >= new Date().toISOString().slice(0, 10) ? new Date(crmUntil + 'T00:00:00') : new Date();
-                  base.setMonth(base.getMonth() + 1);
-                  setCrmUntil(`${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`);
-                }}
-                className="px-2.5 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-[11px] font-bold text-indigo-700"
-              >
-                ＋1か月
-              </button>
-              <button
-                type="button"
-                onClick={() => setCrmUntil('')}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-500"
-              >
-                未契約にする
-              </button>
-              <span className="text-[11px] text-slate-400">{crmUntil ? `${crmUntil.replaceAll('-', '/')} まで使える` : '未契約（ご案内だけ表示）'}</span>
-            </div>
-          </div>
+          {/* フクエスCRM（有料）の契約（2026-09-19）。★ 期限ではなく ON/OFF（カッキーさんの指示）。
+              ★ ON＝crm_until に 9999-12-31 を入れる／OFF＝null。★ 列は期限のまま残す（あとで期限制に戻せる）。
+              ★ ON の店だけ /mypage/crm の顧客台帳が使える（未契約はご案内だけ）。 */}
+          <label className="flex items-center gap-2 text-xs font-medium text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={Boolean(crmUntil)}
+              onChange={e => setCrmUntil(e.target.checked ? CRM_ON_UNTIL : '')}
+              className="w-4 h-4 accent-pink-500"
+            />
+            フクエスCRM（有料・顧客台帳）
+          </label>
 
           {/* 営業時間 */}
           <div className="space-y-1">

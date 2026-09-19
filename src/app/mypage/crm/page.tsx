@@ -449,7 +449,8 @@ export default function CrmPage() {
       <span className="truncate text-[12px] text-indigo-200">{access.salonName}</span>
       {access.isAdmin && <span className="bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-slate-900">運営で表示中</span>}
       <span className="ml-auto hidden text-[12px] text-indigo-200 sm:inline">
-        {access.crmUntil ? `ご契約：${access.crmUntil.replaceAll('-', '/')} まで` : ''}
+        {/* ★ ON/OFF 運用（9999-12-31＝期限なし）では何も出さない。期限つきのときだけ出す。 */}
+        {access.crmUntil && !access.crmUntil.startsWith('9999') ? `ご契約：${access.crmUntil.replaceAll('-', '/')} まで` : ''}
       </span>
     </header>
   );
