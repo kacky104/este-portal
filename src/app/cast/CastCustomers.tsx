@@ -94,7 +94,7 @@ function LogFields({ form, setForm, names }: { form: Form; setForm: (f: Form) =>
       </div>
       <label className="block">
         <span className="block text-[11px] font-bold text-slate-500 mb-1">一言メモ</span>
-        <textarea className={`${INPUT} resize-none`} rows={2} maxLength={200} placeholder="例：90分コース・延長15分／肩こり強め・甘いもの好き" value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} />
+        <textarea className={`${INPUT} resize-y min-h-[112px]`} rows={4} maxLength={200} placeholder="例：90分コース・延長15分／肩こり強め・甘いもの好き" value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} />
         <span className="block text-right text-[10px] text-slate-400">{form.memo.length}/200</span>
       </label>
     </div>
@@ -320,7 +320,6 @@ export function CastCustomers({ today }: { today: string }) {
 
       {/* ── 記録を足す ── */}
       <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
-        <h2 className="text-sm font-black text-slate-800">記録する</h2>
         <LogFields form={form} setForm={setForm} names={names} />
         {error && <p className="text-xs font-bold text-red-500">{error}</p>}
         {notice && <p className="text-xs font-bold text-pink-600">{notice}</p>}
