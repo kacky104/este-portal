@@ -32,6 +32,9 @@ import {
   type CrmDaySummary,
   CRM_PRICE_KINDS,
   CRM_FIXED_NOMINATIONS,
+  CRM_DEFAULT_SETTINGS,
+  type CrmSettings,
+  type CrmEndType,
   isFixedNomination,
   sumCrmItems,
   type CrmStats,
@@ -522,6 +525,8 @@ export async function getCrmSchedule(
       priceItems: (await readPriceItems(svc, salonId)).filter((p) => p.isActive),
       confirms: await readConfirms(svc, salonId, dateISO),
       report: await readReport(svc, salonId, dateISO),
+      settings: await readSettings(svc, salonId),
+      workEnds: await readWorkEnds(svc, salonId, dateISO),
       defaultIntervalMin: board.data.defaultIntervalMin,
       therapists: therapists.map((t) => ({
         id: t.id,
@@ -1228,5 +1233,77 @@ export async function setCrmPlayStatus(
     .eq('salon_id', salonId).eq('id', bookingId).select('id');
   if (error) return { ok: false, error: error.message };
   if (!data || data.length === 0) return { ok: false, error: '予約が見つかりません' };
+  return { ok: true };
+}
+
+// ── 設定と「受まで／上がり」（第548便）──────────────────
+async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
+  const { data } = await svc
+    .from('crm_settings').select('day_start_min, day_end_min, default_end_type').eq('salon_id', salonId).maybeSingle();
+  if (!data) return { ...CRM_DEFAULT_SETTINGS };
+  return {
+    dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
+    dayEndMin: Number(data.day_end_min) || CRM_DEFAULT_SETTINGS.dayEndMin,
+    defaultEndType: data.default_end_type === 'accept' ? 'accept' : 'finish',
+  };
+}
+
+async function readWorkEnds(svc: Svc, salonId: number, dateISO: string): Promise<Record<number, CrmEndType>> {
+  if (!validDate(dateISO)) return {};
+  const { data } = await svc
+    .from('crm_work_ends').select('therapist_id, end_type').eq('salon_id', salonId).eq('business_date', dateISO);
+  const out: Record<number, CrmEndType> = {};
+  for (const r of data ?? []) out[Number(r.therapist_id)] = r.end_type === 'accept' ? 'accept' : 'finish';
+  return out;
+}
+
+export async function getCrmSettings(
+  salonId: number,
+): Promise<{ ok: true; settings: CrmSettings } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  return { ok: true, settings: await readSettings(auth.svc, salonId) };
+}
+
+export async function saveCrmSettings(
+  salonId: number,
+  settings: CrmSettings,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const start = Math.round(Number(settings.dayStartMin));
+  const end = Math.round(Number(settings.dayEndMin));
+  if (!(start >= 360 && start <= 1800)) return { ok: false, error: '開始時刻は 6:00〜翌6:00 で選んでください' };
+  if (!(end >= 420 && end <= 1860)) return { ok: false, error: '終了時刻は 7:00〜翌7:00 で選んでください' };
+  if (end <= start) return { ok: false, error: '終了時刻は開始時刻より後にしてください' };
+  const { error } = await auth.svc.from('crm_settings').upsert({
+    salon_id: salonId,
+    day_start_min: start,
+    day_end_min: end,
+    default_end_type: settings.defaultEndType === 'accept' ? 'accept' : 'finish',
+    updated_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** その日のそのセラピストの「受まで／上がり」を決める */
+export async function setCrmWorkEnd(
+  salonId: number,
+  therapistId: number,
+  dateISO: string,
+  endType: CrmEndType,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
+  if (endType !== 'accept' && endType !== 'finish') return { ok: false, error: '種類が不正です' };
+  const { data: t } = await auth.svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+  const { error } = await auth.svc.from('crm_work_ends').upsert({
+    salon_id: salonId, therapist_id: therapistId, business_date: dateISO, end_type: endType,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: error.message };
   return { ok: true };
 }

@@ -13,6 +13,7 @@ import {
   setCrmBookingPricing,
   setCrmCancelBad,
   setCrmPlayStatus,
+  setCrmWorkEnd,
   unconfirmCrmPay,
 } from '@/app/actions/crm';
 import {
@@ -30,6 +31,8 @@ import {
   CRM_PRICE_KIND_LABEL,
   CRM_PRICE_SINGLE,
   CRM_PLAY_LABEL,
+  CRM_END_LABEL,
+  type CrmEndType,
   inBusinessDay,
   nominationBadge,
   type CrmPlayStatus,
@@ -63,8 +66,6 @@ const MEMO_W = 180;             // 女子メモの列（2026-09-19）
 const ROW_H = 66;
 const DAY_START_MIN = 6 * 60;  // 営業日の始まり（6:00）
 const WINDOW_END_MIN = 31 * 60; // 予約ボードの窓の終わり（翌7:00）
-const DEFAULT_START_MIN = 10 * 60;
-const DEFAULT_END_MIN = 29 * 60; // 翌5:00
 const REFRESH_MS = 60_000;
 const CLICK_STEP_MIN = 15;   // 空きを押したときの開始時刻の刻み
 const FORM_STEP_MIN = 5;     // フォームで選べる開始時刻の刻み（CTIv2 と同じ5分）
@@ -166,9 +167,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const view = useMemo(() => {
     if (!data) return null;
     const inWindow = (s: number, e: number) => e > DAY_START_MIN && s < WINDOW_END_MIN;
-    let minStart = DEFAULT_START_MIN;
-    let maxEnd = DEFAULT_END_MIN;
-    const note = (s: number, e: number) => {
+    // ★ 時間軸の始まりと終わりは「設定」タブの値（第548便）。予約がその外にあるときだけ広げる。
+    let minStart = data.settings.dayStartMin;
+    let maxEnd = data.settings.dayEndMin;
+    const noteBooking = (s: number, e: number) => {
       if (!inWindow(s, e)) return;
       minStart = Math.min(minStart, Math.max(DAY_START_MIN, s));
       maxEnd = Math.max(maxEnd, Math.min(WINDOW_END_MIN, e));
@@ -178,7 +180,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       const e = minOfDay(b.slotEndISO, baseMs);
       return inWindow(s, e);
     });
-    visibleBookings.forEach((b) => note(minOfDay(b.slotStartISO, baseMs), minOfDay(b.slotEndISO, baseMs)));
+    visibleBookings.forEach((b) => noteBooking(minOfDay(b.slotStartISO, baseMs), minOfDay(b.slotEndISO, baseMs)));
 
     const rows: Row[] = [];
     // ★ フリー（担当未定）の行はいつも出す（ここに受付できるように）。
@@ -190,7 +192,6 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       const scheds = t.schedules.filter((w) => inWindow(minOfDay(w.startISO, baseMs), minOfDay(w.endISO, baseMs)));
       const bs = visibleBookings.filter((b) => b.therapistId === t.id);
       if (scheds.length === 0 && bs.length === 0) continue;
-      scheds.forEach((w) => note(minOfDay(w.startISO, baseMs), minOfDay(w.endISO, baseMs)));
       therapistRows.push({ key: `t${t.id}`, therapist: { ...t, schedules: scheds }, bookings: bs, done: data.confirms.some((c) => c.therapistId === t.id) });
     }
     // 出勤の早い順（出勤なし・予約だけの人は後ろ）
@@ -264,6 +265,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           onMemo={setMemoEdit}
           confirms={data?.confirms ?? []}
           onConfirm={setConfirmFor}
+          endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
+          onToggleEnd={async (tid, next) => {
+            const r = await setCrmWorkEnd(salonId, tid, date, next);
+            if (!r.ok) { setErr(r.error); return; }
+            reload();
+          }}
           onEmpty={(therapistId, min) => {
             setPicked(null);
             const first = data?.courses[0];
@@ -378,8 +385,11 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, onEmpty,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, endTypeOf, onToggleEnd, onEmpty,
 }: {
+  /** そのセラピストのその日の「受まで／上がり」 */
+  endTypeOf: (therapistId: number) => CrmEndType;
+  onToggleEnd: (therapistId: number, next: CrmEndType) => void;
   rows: Row[];
   startMin: number;
   endMin: number;
@@ -525,7 +535,23 @@ function Grid({
                 const e = Math.round((new Date(w.endISO).getTime() - baseMs) / 60000);
                 return (
                   <div key={i} className="pointer-events-none absolute top-0 bottom-0 bg-pink-100/70" style={{ left: x(s), width: Math.max(0, x(e) - x(s)) }}>
-                    <span className="absolute right-1 top-0.5 text-[10px] font-bold text-pink-400">{w.end}</span>
+                    {/* ★ 終わりの時刻に「受まで／上がり」（押すとその日だけ切り替え・第548便） */}
+                    {(() => {
+                      const tid = r.therapist!.id;
+                      const et = endTypeOf(tid);
+                      return (
+                        <button
+                          type="button"
+                          onClick={(ev) => { ev.stopPropagation(); onToggleEnd(tid, et === 'accept' ? 'finish' : 'accept'); }}
+                          title="押すと「受まで」と「上がり」を切り替えます"
+                          className={`pointer-events-auto absolute right-0.5 top-0.5 z-[12] flex items-center gap-0.5 border px-1 text-[10px] font-bold leading-[14px] ${
+                            et === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'
+                          }`}
+                        >
+                          {CRM_END_LABEL[et]} {w.end <= w.start ? `翌${Number(w.end.slice(0, 2))}:${w.end.slice(3, 5)}` : w.end}
+                        </button>
+                      );
+                    })()}
                   </div>
                 );
               })}

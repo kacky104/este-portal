@@ -131,6 +131,10 @@ export type CrmScheduleData = {
   confirms: CrmPayConfirm[];
   /** 日報（締め済みなら） */
   report: CrmDailyReport | null;
+  /** 店の設定（第548便） */
+  settings: CrmSettings;
+  /** その日の「受まで／上がり」（セラピストID → 種類）。無い人は settings.defaultEndType */
+  workEnds: Record<number, CrmEndType>;
 };
 
 // ── 料金と報酬（第2段階・2026-09-19）────────────────────
@@ -262,3 +266,13 @@ export const CRM_FIXED_NOMINATIONS = ['フリー', 'ネット指名', '本指名
 export function isFixedNomination(kind: string, name: string): boolean {
   return kind === 'nomination' && (CRM_FIXED_NOMINATIONS as readonly string[]).includes(name);
 }
+
+// ── 設定と「受まで／上がり」（第548便）────────────────
+export type CrmEndType = 'accept' | 'finish';
+export const CRM_END_LABEL: Record<CrmEndType, string> = { accept: '受まで', finish: '上がり' };
+export type CrmSettings = {
+  dayStartMin: number;   // 時間軸の始まり（その日 0:00 からの分・6:00〜）
+  dayEndMin: number;     // 時間軸の終わり（〜翌7:00＝1860）
+  defaultEndType: CrmEndType;
+};
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish' };
