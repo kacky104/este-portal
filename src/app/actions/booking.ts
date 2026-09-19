@@ -13,6 +13,7 @@ import { sendBookingMail, sendBookingTestMail } from '@/app/lib/booking/sendBook
 import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
 import { linkBookingCustomer } from '@/app/lib/crm/linkCustomer';
+import { breakConflict } from '@/app/lib/crm/breakGuard';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -929,6 +930,9 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   if (therapistId !== null) {
     const overlapping = await fetchOverlappingBookings(therapistId, slotStart, slotEnd);
     if (overlapping.length > 0) return { ok: false, error: 'その時間帯は既に予約が入っています' };
+    // ★ フクエスCRMの休憩の時間には入れない（第551便）
+    const brk = await breakConflict(svc, salonId, therapistId, slotStart, slotEnd);
+    if (brk) return { ok: false, error: brk };
   } else {
     const { data: freeRows, error: freeErr } = await svc
       .from('salon_bookings')
@@ -1063,6 +1067,11 @@ export async function moveBooking(
   const { data: others, error: oErr } = await overlapQuery;
   if (oErr) return { ok: false, error: oErr.message };
   if (others && others.length > 0) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
+  // ★ フクエスCRMの休憩の時間には移せない（第551便）
+  if (therapistId !== null) {
+    const brk = await breakConflict(svc, Number(booking.salon_id), therapistId, slotStart, slotEnd);
+    if (brk) return { ok: false, error: brk };
+  }
 
   // 移動先の同一枠に cancelled 行が残っていれば掃除（UNIQUE制約対策）。
   let cleanupQuery = svc
@@ -1212,6 +1221,11 @@ export async function updateBookingDetails(
     }
   }
 
+  // ★ フクエスCRMの休憩の時間に伸ばさない（第551便）
+  if (booking.status !== 'cancelled' && booking.therapist_id != null && newSlotEnd.toISOString() !== (booking.slot_end as string)) {
+    const brk = await breakConflict(svc, Number(booking.salon_id), Number(booking.therapist_id), slotStart, newSlotEnd);
+    if (brk) return { ok: false, error: brk };
+  }
   // ★ フクエスCRM：電話番号が入っていれば名寄せし直す（消したときは今のひも付けを残す）。
   const customerId = await linkBookingCustomer(svc, Number(booking.salon_id), customerTel, customerName);
   const { error: upErr } = await svc

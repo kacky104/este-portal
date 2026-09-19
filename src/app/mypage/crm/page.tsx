@@ -282,6 +282,13 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
             reload();
           }}
           onEmpty={(therapistId, min) => {
+            // ★ 休憩の時間は受付しない（第551便）
+            const wd = therapistId != null ? data?.workDays[therapistId] : undefined;
+            if (wd && wd.breakStartMin != null && wd.breakEndMin != null && min >= wd.breakStartMin && min < wd.breakEndMin) {
+              setErr('休憩の時間には予約を入れられません');
+              return;
+            }
+            setErr('');
             setPicked(null);
             const first = data?.courses[0];
             setForm({
@@ -870,8 +877,6 @@ function DetailPanel({
                 </dd>
               </>
             )}
-            <dt className="font-bold text-slate-400">入り口</dt>
-            <dd className="text-slate-800">{b.source === 'web' ? 'ネット予約' : '予約ボード'}</dd>
             <dt className="font-bold text-slate-400">備考</dt>
             <dd className="whitespace-pre-line text-slate-800">{b.note || '—'}</dd>
           </dl>
