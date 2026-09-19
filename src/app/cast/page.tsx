@@ -112,10 +112,10 @@ export default async function CastHomePage() {
 
       <main className="relative max-w-2xl mx-auto px-4 pt-5 md:pt-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
         {/* ★ 第495便（カッキーさん）: fukuX のバナー（PC）。★ 本文の右横・上の空いた所に置く（xl 以上＝右に余白がある幅だけ）。
-            ★ 遷移先は fukuX（/x）。 */}
+            ★ 第522便: 遷移先は本人の fukuX アカウント（/x/u/[handle]）。連携が無ければ fukuX のトップ（/x）。 */}
         {therapist && (
           <Link
-            href="/x"
+            href={xHandle ? `/x/u/${xHandle}` : '/x'}
             aria-label="fukuX（フクエックス）メンズエステ専用SNS"
             className="hidden xl:block absolute top-8 left-full ml-6 w-[280px] rounded-2xl overflow-hidden shadow-md ring-1 ring-black/5 transition-transform hover:-translate-y-0.5"
           >
@@ -180,9 +180,9 @@ export default async function CastHomePage() {
               businessDate={getBusinessDateJST()}
             />
 
-            {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}
+            {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ 第522便: 遷移先は本人の fukuX（連携が無ければ /x）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}
             <Link
-              href="/x"
+              href={xHandle ? `/x/u/${xHandle}` : '/x'}
               aria-label="fukuX（フクエックス）メンズエステ専用SNS"
               className="xl:hidden block mt-8 rounded-2xl overflow-hidden shadow-md ring-1 ring-black/5"
             >
