@@ -12,6 +12,7 @@ import {
   saveCrmTherapistMemo,
   setCrmBookingPricing,
   setCrmCancelBad,
+  setCrmPlayStatus,
   unconfirmCrmPay,
 } from '@/app/actions/crm';
 import {
@@ -28,7 +29,10 @@ import {
   CRM_PRICE_KINDS,
   CRM_PRICE_KIND_LABEL,
   CRM_PRICE_SINGLE,
+  CRM_PLAY_LABEL,
   inBusinessDay,
+  nominationBadge,
+  type CrmPlayStatus,
   sumCrmItems,
   yen,
   type CrmDaySummary,
@@ -591,6 +595,15 @@ function BookingCard({
       <p className="flex items-center gap-1 truncate text-[12px]">
         {cancelled && <span className={`px-1 text-[10px] font-bold text-white ${b.cancelBad ? 'bg-rose-600' : 'bg-slate-400'}`}>{b.cancelBad ? '悪質' : 'ｷｬﾝｾﾙ'}</span>}
         {!cancelled && b.status === 'new' && <span className="bg-pink-500 px-1 text-[10px] font-bold text-white">未確定</span>}
+        {!cancelled && b.playStatus === 'address_sent' && <span className="bg-blue-600 px-1 text-[10px] font-bold text-white">住所送済</span>}
+        {!cancelled && b.playStatus === 'entered' && <span className="bg-yellow-300 px-1 text-[10px] font-bold text-slate-900">入室済</span>}
+        {(() => {
+          const nb = nominationBadge(b.items);
+          if (!nb) return null;
+          return nb === '本'
+            ? <span className="bg-pink-200 px-1 text-[10px] font-bold text-pink-800">本</span>
+            : <span className="bg-slate-200 px-1 text-[10px] font-bold text-slate-700">ﾌﾘｰ</span>;
+        })()}
         {c && <span className={`border px-1 text-[10px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>}
         <span className="truncate font-bold">{c?.name || b.customerName || '(名前なし)'}</span>
       </p>
@@ -736,6 +749,36 @@ function DetailPanel({
             <dd className="text-slate-800">
               {b.status === 'cancelled' ? (b.cancelBad ? '悪質キャンセル' : 'キャンセル') : b.status === 'new' ? '未確定（ネット予約）' : '確定'}
             </dd>
+            {b.status !== 'cancelled' && (
+              <>
+                <dt className="font-bold text-slate-400">状況</dt>
+                <dd>
+                  <div className="flex flex-wrap gap-1">
+                    {(['', 'address_sent', 'entered'] as CrmPlayStatus[]).map((ps) => {
+                      const on = (b.playStatus || '') === ps;
+                      const onCls = ps === 'entered' ? 'bg-yellow-300 text-slate-900 border-yellow-400' : ps === 'address_sent' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-600 text-white border-slate-600';
+                      return (
+                        <button
+                          key={ps || 'none'}
+                          type="button"
+                          disabled={busy || on}
+                          onClick={async () => {
+                            setBusy(true); setErr('');
+                            const r = await setCrmPlayStatus(salonId, b.id, ps);
+                            setBusy(false);
+                            if (!r.ok) { setErr(r.error); return; }
+                            onChanged({ ...b, playStatus: ps });
+                          }}
+                          className={`border px-2 py-0.5 text-[12px] font-bold ${on ? onCls : 'border-slate-300 bg-white text-slate-600'}`}
+                        >
+                          {CRM_PLAY_LABEL[ps]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </dd>
+              </>
+            )}
             <dt className="font-bold text-slate-400">入り口</dt>
             <dd className="text-slate-800">{b.source === 'web' ? 'ネット予約' : '予約ボード'}</dd>
             <dt className="font-bold text-slate-400">備考</dt>

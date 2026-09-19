@@ -103,6 +103,8 @@ export type CrmScheduleBooking = {
   priceTotal: number | null;    // null＝まだ料金を入れていない
   payTotal: number | null;
   paymentMethod: string;
+  /** プレイ状況：'' ＝ 予約だけ ／ address_sent ＝ 住所送済 ／ entered ＝ 入室済（第544便） */
+  playStatus: string;
 };
 
 export type CrmScheduleTherapist = {
@@ -240,3 +242,17 @@ export type CrmMonthStats = {
   bySource: CrmStatRow[];     // key=web / manual
   byHour: CrmStatRow[];       // key=開始の時（6〜29）
 };
+
+// ── プレイ状況・指名のバッジ（第544便）────────────────
+export const CRM_PLAY_STATUS = ['', 'address_sent', 'entered'] as const;
+export type CrmPlayStatus = (typeof CRM_PLAY_STATUS)[number];
+export const CRM_PLAY_LABEL: Record<CrmPlayStatus, string> = { '': '予約', address_sent: '住所送済', entered: '入室済' };
+
+/** 指名のバッジ：「本」が入る指名＝本（本指名）／フリー＝ﾌﾘｰ／それ以外（ネット指名など）は出さない */
+export function nominationBadge(items: CrmBookingItem[]): '本' | 'ﾌﾘｰ' | null {
+  const n = items.find((i) => i.kind === 'nomination');
+  if (!n) return null;
+  if (n.name.includes('本')) return '本';
+  if (/フリー|ﾌﾘｰ|free/i.test(n.name)) return 'ﾌﾘｰ';
+  return null;
+}

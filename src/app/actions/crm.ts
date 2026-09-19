@@ -453,13 +453,13 @@ export async function getCrmSchedule(
   type Extra = {
     customerId: number | null; cancelBad: boolean; source: string;
     items: CrmBookingItem[]; priceAdjust: number; payAdjust: number;
-    priceTotal: number | null; payTotal: number | null; paymentMethod: string;
+    priceTotal: number | null; payTotal: number | null; paymentMethod: string; playStatus: string;
   };
   const extra = new Map<string, Extra>();
   if (bookingIds.length > 0) {
     const { data } = await svc
       .from('salon_bookings')
-      .select('id, customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method')
+      .select('id, customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method, play_status')
       .eq('salon_id', salonId)
       .in('id', bookingIds);
     for (const r of data ?? []) {
@@ -473,6 +473,7 @@ export async function getCrmSchedule(
         priceTotal: r.price_total == null ? null : Number(r.price_total),
         payTotal: r.pay_total == null ? null : Number(r.pay_total),
         paymentMethod: String(r.payment_method ?? ''),
+        playStatus: String(r.play_status ?? ''),
       });
     }
   }
@@ -549,6 +550,7 @@ export async function getCrmSchedule(
           priceTotal: e?.priceTotal ?? null,
           payTotal: e?.payTotal ?? null,
           paymentMethod: e?.paymentMethod ?? '',
+          playStatus: e?.playStatus ?? '',
         };
       }),
     },
@@ -1204,4 +1206,21 @@ export async function getCrmMonthStats(
       byHour: [...maps.hour.values()].sort((a, b) => Number(a.key) - Number(b.key)),
     },
   };
+}
+
+/** プレイ状況を変える（'' ＝ 予約だけ／address_sent ＝ 住所送済／entered ＝ 入室済）（第544便） */
+export async function setCrmPlayStatus(
+  salonId: number,
+  bookingId: string,
+  playStatus: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!['', 'address_sent', 'entered'].includes(String(playStatus))) return { ok: false, error: '状況が不正です' };
+  const { data, error } = await auth.svc
+    .from('salon_bookings').update({ play_status: playStatus })
+    .eq('salon_id', salonId).eq('id', bookingId).select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: '予約が見つかりません' };
+  return { ok: true };
 }
