@@ -604,7 +604,8 @@ function BookingCard({
             ? <span className="bg-pink-200 px-1 text-[10px] font-bold text-pink-800">本</span>
             : <span className="bg-slate-200 px-1 text-[10px] font-bold text-slate-700">ﾌﾘｰ</span>;
         })()}
-        {c && <span className={`border px-1 text-[10px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>}
+        {/* ★ 「一般」は出さない（枠の場所をとるため・2026-09-19 カッキーさんの指示）。会員・常連・VIP・NG だけ */}
+        {c && c.category !== 'general' && <span className={`border px-1 text-[10px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>}
         <span className="truncate font-bold">{c?.name || b.customerName || '(名前なし)'}</span>
       </p>
       <p className="flex items-center gap-1 truncate text-[11px]">
