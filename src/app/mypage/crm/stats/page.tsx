@@ -136,7 +136,8 @@ function StatsBody({ salonId }: { salonId: number }) {
               {st.customers.noTel > 0 && <>電話番号の無い予約が {st.customers.noTel} 本あります（お客様の人数には入りません）。</>}
             </p>
           )}
-          <Table title="入り口別" rows={st.bySource} color="#DB2777" note="フクエスのネット予約から入った予約と、お店で入れた予約（電話など）の比べ" />
+          {/* ★ 入り口別は今は出さない（2026-09-19・カッキーさんの指示）。集計（st.bySource）はサーバーに残してある。
+              戻すときはここに <Table title="入り口別" rows={st.bySource} color="#DB2777" /> を置くだけ。 */}
           <Table title="セラピスト別" rows={st.byTherapist} color="#3f51b5" />
           <Table title="日別" rows={st.byDay} color="#0891b2" note="締めていない日も入ります（日報タブは締めた日だけ）" />
           <Table title="時間帯別（開始の時刻）" rows={st.byHour} color="#059669" />
