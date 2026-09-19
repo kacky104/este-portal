@@ -25,7 +25,7 @@ export function CastSignOutButton() {
       type="button"
       onClick={handle}
       disabled={loading}
-      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-rose-300 hover:text-rose-500 transition-colors disabled:opacity-50"
+      className="px-3 sm:px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold whitespace-nowrap hover:border-rose-300 hover:text-rose-500 transition-colors disabled:opacity-50"
     >
       {loading ? '処理中...' : 'ログアウト'}
     </button>

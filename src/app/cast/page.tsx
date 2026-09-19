@@ -81,9 +81,8 @@ export default async function CastHomePage() {
     <CastThemeProvider initialTheme={(therapist?.cast_theme as string | null) ?? null} wallpapers={wallpapers}>
       <header className="bg-white border-b border-slate-100">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <span className="flex items-baseline gap-1">
+          <span className="flex items-baseline gap-1 shrink-0">
             <span className="font-bold text-[20px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span>
-            <span className="text-[12px] font-normal leading-none text-slate-400">セラピスト</span>
           </span>
           <div className="flex items-center gap-2">
             {/* ★ 第516便: fukuX はタブから外してヘッダーの丸いアイコンに（スマホの下タブを5つに収めるため）。連携 handle があるときだけ */}
