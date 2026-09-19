@@ -15,6 +15,7 @@ import {
 
 const INPUT = 'w-full px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200';
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+const PAGE = 10; // ★ 第523便: 一覧は最初10件・「もっと見る」で10件ずつ
 
 const yen = (n: number) => `¥${n.toLocaleString('ja-JP')}`;
 
@@ -130,6 +131,7 @@ export function CastCustomers({ today }: { today: string }) {
   const [day, setDay] = useState(''); // カレンダーで選んだ日（空＝全部）
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [shown, setShown] = useState(PAGE);
 
   const [form, setForm] = useState<Form>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -170,6 +172,10 @@ export function CastCustomers({ today }: { today: string }) {
   }, []);
 
   // 検索は打ち終わって少し待ってから
+  // 検索・日付を変えたら一覧は最初の10件に戻す
+  const [prevKey, setPrevKey] = useState('');
+  if (prevKey !== `${query}|${day}`) { setPrevKey(`${query}|${day}`); setShown(PAGE); }
+
   useEffect(() => {
     const t = window.setTimeout(() => { void load(query, day); }, query ? 300 : 0);
     return () => window.clearTimeout(t);
@@ -381,7 +387,7 @@ export function CastCustomers({ today }: { today: string }) {
         )}
         <p className="text-[11px] text-slate-400">
           {loading ? '読み込み中…' : query ? `「${query}」の記録 ${total}件` : `記録 ${total}件`}
-          {!loading && total > logs.length && `（新しい${logs.length}件を表示）`}
+          {!loading && total > logs.length && `（新しい${logs.length}件まで）`}
         </p>
         {loadError && <p className="text-xs font-bold text-red-500">{loadError}</p>}
 
@@ -390,7 +396,7 @@ export function CastCustomers({ today }: { today: string }) {
         )}
 
         <ul className="space-y-2">
-          {logs.map((l) => (
+          {logs.slice(0, shown).map((l) => (
             <li key={l.id} className="border border-slate-100 rounded-2xl p-3">
               {editId === l.id ? (
                 <div className="space-y-2.5">
@@ -430,6 +436,16 @@ export function CastCustomers({ today }: { today: string }) {
             </li>
           ))}
         </ul>
+
+        {logs.length > shown && (
+          <button
+            type="button"
+            onClick={() => setShown((n) => n + PAGE)}
+            className="w-full py-2.5 rounded-xl border border-pink-200 bg-pink-50/50 text-pink-600 text-sm font-bold hover:bg-pink-50 transition-colors"
+          >
+            もっと見る（残り{logs.length - shown}件）
+          </button>
+        )}
       </div>
     </div>
   );
