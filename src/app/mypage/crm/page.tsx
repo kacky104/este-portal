@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getCrmSchedule, lookupCrmCustomerByPhone, setCrmCancelBad } from '@/app/actions/crm';
+import { getCrmSchedule, lookupCrmCustomerByPhone, saveCrmTherapistMemo, setCrmCancelBad } from '@/app/actions/crm';
 import {
   createManualBooking,
   deleteBooking,
@@ -33,6 +33,8 @@ import { CrmShell, useCrmAccess } from './CrmShell';
 
 const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
+const MEMO_W = 180;             // 女子メモの列（2026-09-19）
+const LEFT_W = NAME_W + MEMO_W; // 左に固定する幅（名前＋女子メモ）
 const ROW_H = 66;
 const DAY_START_MIN = 6 * 60;  // 営業日の始まり（6:00）
 const WINDOW_END_MIN = 31 * 60; // 予約ボードの窓の終わり（翌7:00）
@@ -89,6 +91,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const [picked, setPicked] = useState<CrmScheduleBooking | null>(null);
   // 受付・変更フォーム（null＝閉じている）
   const [form, setForm] = useState<BookingFormState | null>(null);
+  // 女子メモの編集（null＝閉じている）
+  const [memoEdit, setMemoEdit] = useState<CrmScheduleTherapist | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [tick, setTick] = useState(0);
 
@@ -107,10 +111,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
   // 60秒ごとに読み直す（詳細・フォームを開いている間は止める＝見ている最中に動かさない）
   useEffect(() => {
-    if (picked || form) return;
+    if (picked || form || memoEdit) return;
     const t = setInterval(() => setTick((v) => v + 1), REFRESH_MS);
     return () => clearInterval(t);
-  }, [picked, form]);
+  }, [picked, form, memoEdit]);
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
 
@@ -197,6 +201,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           nowMs={isToday ? nowMs : null}
           pickedId={picked?.id ?? null}
           onPick={setPicked}
+          onMemo={setMemoEdit}
           onEmpty={(therapistId, min) => {
             setPicked(null);
             const first = data?.courses[0];
@@ -250,6 +255,16 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         />
       )}
 
+      {memoEdit && (
+        <MemoDialog
+          key={memoEdit.id}
+          therapist={memoEdit}
+          salonId={salonId}
+          onClose={() => setMemoEdit(null)}
+          onSaved={() => { setMemoEdit(null); reload(); }}
+        />
+      )}
+
       {form && data && (
         <BookingForm
           key={form.bookingId ?? `new-${form.therapistKey}-${form.startMin}`}
@@ -268,7 +283,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onEmpty,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, onEmpty,
 }: {
   rows: Row[];
   startMin: number;
@@ -277,6 +292,8 @@ function Grid({
   nowMs: number | null;
   pickedId: string | null;
   onPick: (b: CrmScheduleBooking) => void;
+  /** 女子メモを押した */
+  onMemo: (t: CrmScheduleTherapist) => void;
   /** 空いているところを押した（therapistId: null＝フリー・min: その日0:00からの分） */
   onEmpty: (therapistId: number | null, min: number) => void;
 }) {
@@ -289,11 +306,12 @@ function Grid({
 
   return (
     <div className="max-h-[calc(100vh-170px)] overflow-auto border border-slate-300 bg-white">
-      <div className="relative" style={{ width: NAME_W + width }}>
+      <div className="relative" style={{ width: LEFT_W + width }}>
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
-          <div className="sticky left-0 z-10 flex-none border-r border-slate-300 bg-slate-100 px-2 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: NAME_W }}>
-            セラピスト
+          <div className="sticky left-0 z-10 flex flex-none border-r border-slate-300 bg-slate-100 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: LEFT_W }}>
+            <span className="px-2" style={{ width: NAME_W }}>セラピスト</span>
+            <span className="border-l border-slate-300 px-2" style={{ width: MEMO_W }}>女子メモ</span>
           </div>
           {hours.map((h) => (
             <div key={h} className="flex-none border-r border-slate-200 pl-1.5 text-[13px] font-bold leading-[30px] text-slate-600" style={{ width: 60 * PX_PER_MIN }}>
@@ -304,8 +322,9 @@ function Grid({
 
         {rows.map((r) => (
           <div key={r.key} className="relative flex border-b border-slate-200" style={{ height: ROW_H }}>
-            {/* 名前（左に固定） */}
-            <div className="sticky left-0 z-20 flex-none border-r border-slate-300 bg-white px-2 py-1.5" style={{ width: NAME_W }}>
+            {/* 名前と女子メモ（左に固定） */}
+            <div className="sticky left-0 z-20 flex flex-none border-r border-slate-300 bg-white" style={{ width: LEFT_W }}>
+            <div className="flex-none px-2 py-1.5" style={{ width: NAME_W }}>
               {r.therapist ? (
                 <>
                   <p className="truncate text-[15px] font-black text-[#3f51b5]">{r.therapist.name}</p>
@@ -322,6 +341,25 @@ function Grid({
                   <p className="text-[11px] text-slate-400">担当未定の予約</p>
                 </>
               )}
+            </div>
+            {/* 女子メモ（押すと書ける・お店の内部メモ） */}
+            {r.therapist ? (
+              <button
+                type="button"
+                onClick={() => onMemo(r.therapist!)}
+                title={r.therapist.memo || '女子メモを書く'}
+                className="flex-none overflow-hidden border-l border-slate-200 px-2 py-1 text-left hover:bg-amber-50"
+                style={{ width: MEMO_W }}
+              >
+                {r.therapist.memo ? (
+                  <p className="line-clamp-4 whitespace-pre-line text-[12px] leading-[1.3] text-slate-700">{r.therapist.memo}</p>
+                ) : (
+                  <p className="text-[11px] text-slate-300">＋ メモ</p>
+                )}
+              </button>
+            ) : (
+              <div className="flex-none border-l border-slate-200 bg-slate-50" style={{ width: MEMO_W }} />
+            )}
             </div>
 
             {/* 時間の中身（空いているところを押すと受付） */}
@@ -373,7 +411,7 @@ function Grid({
         {showNow && (
           <div
             className="pointer-events-none absolute bottom-0 z-[15] w-0.5 bg-red-500"
-            style={{ left: NAME_W + (nowMin! - startMin) * PX_PER_MIN, top: 30 }}
+            style={{ left: LEFT_W + (nowMin! - startMin) * PX_PER_MIN, top: 30 }}
           />
         )}
       </div>
@@ -860,6 +898,72 @@ function BookingForm({
           </div>
         </div>
       </aside>
+      </div>
+    </>
+  );
+}
+
+// ── 女子メモの編集 ─────────────────────────────────────
+function MemoDialog({
+  therapist, salonId, onClose, onSaved,
+}: {
+  therapist: CrmScheduleTherapist;
+  salonId: number;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [text, setText] = useState(therapist.memo);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const save = async () => {
+    setBusy(true);
+    setErr('');
+    const res = await saveCrmTherapistMemo(salonId, therapist.id, text);
+    setBusy(false);
+    if (!res.ok) { setErr(res.error); return; }
+    onSaved();
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
+        <div className="pointer-events-auto w-full max-w-[460px] bg-white shadow-2xl">
+          <div className="flex items-center bg-amber-500 px-4 py-2.5 text-white">
+            <span className="text-[15px] font-black">女子メモ：{therapist.name}</span>
+            <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
+          </div>
+          <div className="p-4">
+            <p className="mb-2 text-[12px] leading-relaxed text-slate-500">
+              お店の中だけのメモです（お客様・セラピスト本人には見えません）。日付に関係なく、この人にずっと残ります。
+            </p>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              maxLength={500}
+              autoFocus
+              placeholder={'例）交通費1000\n送迎（姪浜）\nLルームNG'}
+              className="min-h-[160px] w-full border border-slate-300 bg-white px-2.5 py-2 text-[14px] focus:border-amber-400 focus:outline-none"
+            />
+            <p className="mt-1 text-right text-[11px] text-slate-400">{text.length}/500</p>
+            {err && <p className="mt-1 text-[13px] font-bold text-rose-600">{err}</p>}
+            <div className="mt-3 flex gap-2">
+              <button type="button" disabled={busy} onClick={save} className="flex-1 bg-amber-500 py-2.5 text-[15px] font-bold text-white disabled:opacity-50">
+                {busy ? '保存中…' : '保存する'}
+              </button>
+              <button type="button" disabled={busy} onClick={onClose} className="border border-slate-300 bg-white px-4 text-[14px] font-bold text-slate-600">
+                やめる
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

@@ -458,6 +458,17 @@ export async function getCrmSchedule(
     }
   }
 
+  // 女子メモ（crm_therapist_memos・2026-09-19）
+  const memos = new Map<number, string>();
+  if (therapists.length > 0) {
+    const { data: ms } = await svc
+      .from('crm_therapist_memos')
+      .select('therapist_id, memo')
+      .eq('salon_id', salonId)
+      .in('therapist_id', therapists.map((t) => t.id));
+    for (const m of ms ?? []) memos.set(Number(m.therapist_id), String(m.memo ?? ''));
+  }
+
   const customerIds = [...new Set([...extra.values()].map((e) => e.customerId).filter((v): v is number => v != null))];
   const customers = new Map<number, CrmScheduleCustomer>();
   if (customerIds.length > 0) {
@@ -491,6 +502,7 @@ export async function getCrmSchedule(
         id: t.id,
         name: t.name,
         profileImageUrl: t.profileImageUrl,
+        memo: memos.get(t.id) ?? '',
         schedules: t.schedules.map((w) => ({ start: w.start, end: w.end, startISO: w.startISO, endISO: w.endISO })),
       })),
       bookings: bookings.map((b) => {
@@ -551,4 +563,35 @@ export async function lookupCrmCustomerByPhone(
       stats: stats.get(id) ?? emptyStats(),
     },
   };
+}
+
+/**
+ * 女子メモを保存する（セラピスト1人1行・空にすると行を消す）。
+ * ★ crm_therapist_memos は RLS で全部閉じてある（公開の therapists には置かない）。service_role で書く。
+ */
+export async function saveCrmTherapistMemo(
+  salonId: number,
+  therapistId: number,
+  memo: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const text = String(memo ?? '').replace(/\r\n/g, '\n').trim();
+  if (text.length > 500) return { ok: false, error: '女子メモは500文字までです' };
+
+  // その店のセラピストか確かめる
+  const { data: t } = await svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+
+  if (!text) {
+    const { error } = await svc.from('crm_therapist_memos').delete().eq('therapist_id', therapistId);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+  const { error } = await svc
+    .from('crm_therapist_memos')
+    .upsert({ therapist_id: therapistId, salon_id: salonId, memo: text, updated_at: new Date().toISOString() });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }

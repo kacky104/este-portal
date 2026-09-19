@@ -102,6 +102,8 @@ export type CrmScheduleTherapist = {
   id: number;
   name: string;
   profileImageUrl: string | null;
+  /** 女子メモ（お店の内部メモ・crm_therapist_memos）。無ければ空 */
+  memo: string;
   /** 出勤枠（ISO）。前日の夜跨ぎの尻尾も入る */
   schedules: Array<{ start: string; end: string; startISO: string; endISO: string }>;
 };
