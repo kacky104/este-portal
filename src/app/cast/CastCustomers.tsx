@@ -54,7 +54,9 @@ function formatAmountInput(s: string): string {
 type Form = { servedAt: string; name: string; visitCount: string; memo: string; amount: string };
 const emptyForm = (): Form => ({ servedAt: nowJstLocal(), name: '', visitCount: '', memo: '', amount: '' });
 
-function LogFields({ form, setForm, names }: { form: Form; setForm: (f: Form) => void; names: string[] }) {
+function LogFields({ form, setForm, names, withHelp = false }: { form: Form; setForm: (f: Form) => void; names: string[]; withHelp?: boolean }) {
+  // ★ 第521便: 名前の説明は「必須」の右の ? を押すと開く（折りたたみ）。新しく記録する欄だけに出す
+  const [helpOpen, setHelpOpen] = useState(false);
   return (
     <div className="space-y-2.5">
       {/* ★ 第497便: iPhone の Safari は日時の入力欄に最小幅を持つので、枠からはみ出さないよう min-w-0＋appearance-none で縮める */}
@@ -64,13 +66,28 @@ function LogFields({ form, setForm, names }: { form: Form; setForm: (f: Form) =>
         <input type="datetime-local" className={`${INPUT} block min-w-0 max-w-full appearance-none h-[38px] text-left [&::-webkit-date-and-time-value]:text-left`} value={form.servedAt} onChange={(e) => setForm({ ...form, servedAt: e.target.value })} />
       </label>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5">
-        <label className="block min-w-0">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1">名前<span className="px-1.5 py-px rounded bg-red-500 text-white text-[10px] font-bold leading-tight">必須</span></span>
-          <input className={INPUT} placeholder="例：田中さん" maxLength={40} list="cast-customer-names" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <div className="block min-w-0">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1">
+            <label htmlFor={withHelp ? 'cast-log-name-new' : undefined}>名前</label>
+            <span className="px-1.5 py-px rounded bg-red-500 text-white text-[10px] font-bold leading-tight">必須</span>
+            {withHelp && (
+              <button
+                type="button"
+                onClick={() => setHelpOpen((v) => !v)}
+                aria-expanded={helpOpen}
+                aria-controls="cast-log-name-help"
+                aria-label="名前の登録について"
+                className={`ml-1.5 w-[18px] h-[18px] rounded-full border text-[11px] font-black leading-none flex items-center justify-center transition-colors ${helpOpen ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-pink-300 text-pink-500 hover:bg-pink-50'}`}
+              >
+                ?
+              </button>
+            )}
+          </span>
+          <input id={withHelp ? 'cast-log-name-new' : undefined} className={INPUT} placeholder="例：田中さん" maxLength={40} list="cast-customer-names" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <datalist id="cast-customer-names">
             {names.map((n) => <option key={n} value={n} />)}
           </datalist>
-        </label>
+        </div>
         <label className="block min-w-0">
           <span className="flex items-center text-[11px] font-bold text-slate-500 mb-1 min-h-[17px]">報酬額</span>
           <span className="relative block">
@@ -87,6 +104,15 @@ function LogFields({ form, setForm, names }: { form: Form; setForm: (f: Form) =>
           </span>
         </label>
       </div>
+      {withHelp && helpOpen && (
+        <div id="cast-log-name-help" className="flex gap-2 rounded-2xl bg-pink-50/70 border border-pink-100 px-3 py-2.5">
+          <svg className="w-4 h-4 shrink-0 mt-px text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 11v5M12 8h.01" /></svg>
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            <span className="font-bold text-slate-700">名前ごとにリピート回数を自動で数えます。</span>
+            お客様はそれぞれ違う名前で登録してください（同じ名前は同じお客様として数えます）。
+          </p>
+        </div>
+      )}
       <label className="block">
         <span className="block text-[11px] font-bold text-slate-500 mb-1">一言メモ</span>
         <textarea className={`${INPUT} resize-y min-h-[112px]`} rows={4} maxLength={200} placeholder="例：90分コース・延長15分／肩こり強め・甘いもの好き" value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} />
@@ -315,14 +341,7 @@ export function CastCustomers({ today }: { today: string }) {
 
       {/* ── 記録を足す ── */}
       <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
-        <div className="flex gap-2 rounded-2xl bg-pink-50/70 border border-pink-100 px-3 py-2.5">
-          <svg className="w-4 h-4 shrink-0 mt-px text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 11v5M12 8h.01" /></svg>
-          <p className="text-[11px] leading-relaxed text-slate-600">
-            <span className="font-bold text-slate-700">名前ごとにリピート回数を自動で数えます。</span>
-            お客様はそれぞれ違う名前で登録してください（同じ名前は同じお客様として数えます）。
-          </p>
-        </div>
-        <LogFields form={form} setForm={setForm} names={names} />
+        <LogFields form={form} setForm={setForm} names={names} withHelp />
         {error && <p className="text-xs font-bold text-red-500">{error}</p>}
         {notice && <p className="text-xs font-bold text-pink-600">{notice}</p>}
         <button
