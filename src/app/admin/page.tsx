@@ -74,6 +74,7 @@ type Salon = {
   booking_email: string | null;
   listing_plan: 'standard' | 'free' | null; // 掲載プラン（第368便）
   catchphrase: string | null; // 無料掲載枠のカード用の一言（第368便）
+  crm_until: string | null; // フクエスCRM（有料）の利用期限（2026-09-19）
 };
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
@@ -198,7 +199,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, area2, price, rating, owner_id, hours, phone, postal_code, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email, listing_plan, catchphrase')
+      .select('id, name, area, area2, price, rating, owner_id, hours, phone, postal_code, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email, listing_plan, catchphrase, crm_until')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('店舗データの取得に失敗しました');
@@ -842,6 +843,11 @@ export default function AdminDashboard() {
                         <span className="align-middle">{salon.name ?? '—'}</span>
                         {salon.listing_plan === 'free' && (
                           <span className="ml-1.5 align-middle text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 border border-sky-200 font-bold">無料</span>
+                        )}
+                        {salon.crm_until && (
+                          <span className="ml-1.5 align-middle text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold">
+                            CRM〜{salon.crm_until.slice(5).replace('-', '/')}
+                          </span>
                         )}
                       </td>
                       <td className="px-4 py-3">

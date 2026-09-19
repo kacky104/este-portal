@@ -48,6 +48,7 @@ export type SalonForEdit = {
   booking_email: string | null;
   listing_plan: 'standard' | 'free' | null; // 掲載プラン（第368便）
   catchphrase: string | null; // 無料掲載枠のカード用の一言（第368便）
+  crm_until?: string | null; // フクエスCRM（有料）の利用期限 YYYY-MM-DD（2026-09-19）
 };
 
 type Props = {
@@ -84,6 +85,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
   const [jobsEnabled,  setJobsEnabled]  = useState(salon.jobs_enabled ?? false);
   // 掲載プラン（第368便）。standard=本契約／free=無料掲載枠（簡易カード＋基本情報と口コミだけの詳細）。
   const [listingPlan,  setListingPlan]  = useState<'standard' | 'free'>(salon.listing_plan ?? 'standard');
+  // フクエスCRM（有料）の利用期限（2026-09-19）。空＝未契約。この日（JST）まで使える。
+  const [crmUntil, setCrmUntil] = useState<string>(salon.crm_until ? String(salon.crm_until).slice(0, 10) : '');
 
   // ── ログインメール（auth.users）管理 ──
   // 対象は「この salon が開かれた時点の owner_uuid」に紐づくアカウント（既存アカウント引き継ぎのため
@@ -202,6 +205,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         jobs_enabled: jobsEnabled,
         booking_email: bookingEmail || null,
         listing_plan: listingPlan, // 掲載プラン（第368便）
+        crm_until: crmUntil || null, // フクエスCRM（有料）の利用期限（2026-09-19）
         catchphrase: form.catchphrase.trim(), // 無料掲載枠のカード用の一言（第368便）
       })
       .eq('id', salon.id)
@@ -354,6 +358,38 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
               </select>
             </div>
             {textField('一言（無料掲載枠のカード用・27文字まで）', 'catchphrase', '例: 博多駅チカ・当日予約OK')}
+          </div>
+
+          {/* フクエスCRM（有料）の利用期限（2026-09-19）。空＝未契約。/mypage/crm がこの日まで使える。 */}
+          <div className="space-y-1">
+            <label className="text-[11px] font-bold text-slate-400 block">フクエスCRM（有料）利用期限</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="date"
+                value={crmUntil}
+                onChange={e => setCrmUntil(e.target.value)}
+                className="min-w-0 max-w-full appearance-none px-3 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const base = crmUntil && crmUntil >= new Date().toISOString().slice(0, 10) ? new Date(crmUntil + 'T00:00:00') : new Date();
+                  base.setMonth(base.getMonth() + 1);
+                  setCrmUntil(`${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`);
+                }}
+                className="px-2.5 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-[11px] font-bold text-indigo-700"
+              >
+                ＋1か月
+              </button>
+              <button
+                type="button"
+                onClick={() => setCrmUntil('')}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-500"
+              >
+                未契約にする
+              </button>
+              <span className="text-[11px] text-slate-400">{crmUntil ? `${crmUntil.replaceAll('-', '/')} まで使える` : '未契約（ご案内だけ表示）'}</span>
+            </div>
           </div>
 
           {/* 営業時間 */}
