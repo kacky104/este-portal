@@ -437,7 +437,10 @@ function CustomersBody({ salonId }: { salonId: number }) {
                     <CategoryBadge c={c.category} />
                     <span className="truncate text-[15px] font-bold text-slate-800">{c.name || '(名前なし)'}</span>
                     {c.cautionMemo && <span className="bg-rose-600 px-1 text-[10px] font-bold text-white">要注意</span>}
-                    <span className="ml-auto flex-none text-[12px] text-slate-500">利用{c.stats.visits}</span>
+                    {c.stats.upcoming > 0 && (
+                      <span className="ml-auto flex-none bg-sky-100 px-1 text-[11px] font-bold text-sky-700">予約中{c.stats.upcoming}</span>
+                    )}
+                    <span className={`${c.stats.upcoming > 0 ? '' : 'ml-auto '}flex-none text-[12px] text-slate-500`}>利用{c.stats.visits}</span>
                   </div>
                   <div className="mt-0.5 flex gap-2 text-[12px] text-slate-400">
                     <span>{c.phones[0] ? fmtPhone(c.phones[0]) : '電話なし'}</span>

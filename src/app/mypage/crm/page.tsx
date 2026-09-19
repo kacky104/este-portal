@@ -185,7 +185,9 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     const endMin = Math.ceil(maxEnd / 60) * 60;
     const activeCount = visibleBookings.filter((b) => b.status !== 'cancelled').length;
     const sales = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.priceTotal ?? 0), 0);
-    const payAll = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.payTotal ?? 0), 0);
+    // ★ 報酬は確定のときの手当・交通費も足す（日報の女子報酬とそろえる・第539便）
+    const payAll = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.payTotal ?? 0), 0)
+      + data.confirms.reduce((a, c) => a + c.allowance, 0);
     const workingCount = therapistRows.filter((r) => (r.therapist?.schedules.length ?? 0) > 0).length;
     return { rows, startMin, endMin, activeCount, workingCount, sales, payAll };
   }, [data, baseMs]);
