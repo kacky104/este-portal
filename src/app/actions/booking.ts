@@ -12,6 +12,7 @@ import { BOOKING_SOURCE_WEB, BOOKING_SOURCE_MANUAL } from '@/app/lib/booking/sou
 import { sendBookingMail, sendBookingTestMail } from '@/app/lib/booking/sendBookingMail';
 import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
+import { linkBookingCustomer } from '@/app/lib/crm/linkCustomer';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -370,8 +371,11 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   // 予約枠＝コース＋インターバル（インターバル分も塞ぐ。course_min はコース時間のみを保存し、
   // 復元は (slot_end - slot_start) - course_min で行う＝手入力と同じ方式）。
   const slotEnd = new Date(slotStart.getTime() + (courseMin + intervalMin) * 60 * 1000);
+  // ★ フクエスCRM：電話番号で顧客台帳へ名寄せ（失敗しても予約は止めない・null のまま入れる）。
+  const customerId = await linkBookingCustomer(svc, salonId, customerTel, customerName);
   const { error: insErr } = await svc.from('salon_bookings').insert({
     salon_id: salonId,
+    customer_id: customerId,
     therapist_id: therapistId,
     slot_start: slotStart.toISOString(),
     slot_end: slotEnd.toISOString(),
@@ -958,8 +962,11 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
       .eq('status', 'cancelled');
   }
 
+  // ★ フクエスCRM：電話番号で顧客台帳へ名寄せ（失敗しても予約は止めない）。
+  const customerId = await linkBookingCustomer(svc, salonId, customerTel, customerName);
   const { error: insErr } = await svc.from('salon_bookings').insert({
     salon_id: salonId,
+    customer_id: customerId,
     therapist_id: therapistId,
     slot_start: slotStart.toISOString(),
     slot_end: slotEnd.toISOString(),
@@ -1204,6 +1211,8 @@ export async function updateBookingDetails(
     }
   }
 
+  // ★ フクエスCRM：電話番号が入っていれば名寄せし直す（消したときは今のひも付けを残す）。
+  const customerId = await linkBookingCustomer(svc, Number(booking.salon_id), customerTel, customerName);
   const { error: upErr } = await svc
     .from('salon_bookings')
     .update({
@@ -1213,6 +1222,7 @@ export async function updateBookingDetails(
       customer_tel: customerTel,
       note: note || null,
       slot_end: newSlotEnd.toISOString(),
+      ...(customerId ? { customer_id: customerId } : {}),
     })
     .eq('id', bookingId);
   if (upErr) {
