@@ -86,11 +86,22 @@ export default async function CastHomePage() {
             <span className="text-[12px] font-normal leading-none text-slate-400">セラピスト</span>
           </span>
           <div className="flex items-center gap-2">
+            {/* ★ 第516便: fukuX はタブから外してヘッダーの丸いアイコンに（スマホの下タブを5つに収めるため）。連携 handle があるときだけ */}
+            {xHandle && (
+              <Link
+                href={`/x/u/${xHandle}`}
+                aria-label="fukuX の自分のページ"
+                title="fukuX"
+                className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:border-pink-300 transition-colors"
+              >
+                <Image src="/fukux-mark.png" alt="" width={18} height={18} className="object-contain" />
+              </Link>
+            )}
             <Link
               href={therapist?.id != null ? `/therapist/${therapist.id}` : '/'}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold hover:border-pink-300 hover:text-pink-600 transition-colors"
+              className="px-3 sm:px-4 py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-bold whitespace-nowrap hover:border-pink-300 hover:text-pink-600 transition-colors"
             >
               サイトを見る
             </Link>
@@ -100,7 +111,7 @@ export default async function CastHomePage() {
       </header>
       <SiteNoticeBanner />
 
-      <main className="relative max-w-2xl mx-auto px-4 py-8">
+      <main className="relative max-w-2xl mx-auto px-4 pt-5 md:pt-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
         {/* ★ 第495便（カッキーさん）: fukuX のバナー（PC）。★ 本文の右横・上の空いた所に置く（xl 以上＝右に余白がある幅だけ）。
             ★ 遷移先は fukuX（/x）。 */}
         {therapist && (
@@ -114,29 +125,44 @@ export default async function CastHomePage() {
         )}
         {therapist ? (
           <div className="space-y-5">
-            <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-6 space-y-2 text-center">
-              {/* 円形プロフィール画像（スタイルはピックアップサロンのセラピスト円形サムネを踏襲：白枠＋影） */}
+            {/* ★ 第516便: 挨拶カードを横長にして高さを約1/3に（スマホの1画面目にタブの中身まで入るように）。
+                左に写真・右に名前と店名・その下に本日の出勤の札。 */}
+            <div className="bg-white/90 backdrop-blur rounded-3xl border border-pink-100 shadow-sm px-4 py-3.5 flex items-center gap-3.5">
               {therapist.profile_image_url ? (
-                <div className="relative w-24 h-24 mx-auto rounded-full border-2 border-white overflow-hidden shadow-md ring-1 ring-pink-100">
+                <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-white overflow-hidden shadow-md ring-1 ring-pink-100">
                   <Image
                     src={therapist.profile_image_url}
                     alt={therapist.name ?? 'セラピスト'}
                     fill
                     className="object-cover"
-                    sizes="96px"
+                    sizes="64px"
                   />
                 </div>
               ) : (
                 // 画像未設定時の控えめなプレースホルダー（淡ピンク円＋イニシャル）
-                <div className="w-24 h-24 mx-auto rounded-full border-2 border-white shadow-md ring-1 ring-pink-100 bg-pink-50 flex items-center justify-center">
-                  <span className="text-2xl font-black text-pink-300">
+                <div className="w-16 h-16 shrink-0 rounded-full border-2 border-white shadow-md ring-1 ring-pink-100 bg-pink-50 flex items-center justify-center">
+                  <span className="text-xl font-black text-pink-300">
                     {(therapist.name ?? '').charAt(0) || '♡'}
                   </span>
                 </div>
               )}
-              <p className="text-xs font-bold text-pink-500 pt-1">こんにちは</p>
-              <h1 className="text-xl font-black text-slate-800">{therapist.name ?? '(名前未設定)'} さん</h1>
-              {salonName && <p className="text-xs text-slate-400 font-medium">{salonName}</p>}
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-bold text-pink-500 leading-none">こんにちは</p>
+                <h1 className="mt-1 text-lg font-black text-slate-800 leading-tight truncate">{therapist.name ?? '(名前未設定)'} さん</h1>
+                {salonName && <p className="mt-0.5 text-[11px] text-slate-400 font-medium truncate">{salonName}</p>}
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {today.is_active && today.start_time ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 text-[11px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
+                      本日 {today.start_time}〜{today.end_time ?? ''}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">
+                      本日の出勤なし
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* 3タブ（写メ日記／着せ替え／今すぐ）。挨拶ブロックは上に常時表示のまま。 */}
@@ -145,7 +171,6 @@ export default async function CastHomePage() {
               therapistName={therapist.name ?? ''}
               salonId={Number(therapist.salon_id)}
               xProfileId={xProfileId}
-              xHandle={xHandle}
               imasuguOn={Boolean(therapist.is_available_now_cast)}
               imasuguUntil={(therapist.available_until_cast as string | null) ?? null}
               ownerImasuguOn={Boolean(therapist.is_available_now)}
