@@ -256,3 +256,9 @@ export function nominationBadge(items: CrmBookingItem[]): '本' | 'ﾌﾘｰ' | 
   if (/フリー|ﾌﾘｰ|free/i.test(n.name)) return 'ﾌﾘｰ';
   return null;
 }
+
+/** 最初から用意する指名（名前は変えられない・消せない。要らなければ「使う」を外す）（第546便） */
+export const CRM_FIXED_NOMINATIONS = ['フリー', 'ネット指名', '本指名'] as const;
+export function isFixedNomination(kind: string, name: string): boolean {
+  return kind === 'nomination' && (CRM_FIXED_NOMINATIONS as readonly string[]).includes(name);
+}

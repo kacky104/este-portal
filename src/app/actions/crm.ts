@@ -31,6 +31,8 @@ import {
   type CrmDailyReport,
   type CrmDaySummary,
   CRM_PRICE_KINDS,
+  CRM_FIXED_NOMINATIONS,
+  isFixedNomination,
   sumCrmItems,
   type CrmStats,
   type CrmTherapist,
@@ -652,7 +654,7 @@ function parseItems(raw: unknown): CrmBookingItem[] {
   return out;
 }
 
-async function readPriceItems(svc: Svc, salonId: number): Promise<CrmPriceItem[]> {
+async function readPriceItemsRaw(svc: Svc, salonId: number): Promise<CrmPriceItem[]> {
   const { data } = await svc
     .from('crm_price_items')
     .select('id, kind, name, minutes, price, pay, sort, is_active')
@@ -673,6 +675,23 @@ async function readPriceItems(svc: Svc, salonId: number): Promise<CrmPriceItem[]
   // 種類の並び（コース→指名→延長→オプション→割引）
   const order = new Map(CRM_PRICE_KINDS.map((k, i) => [k, i]));
   return out.sort((a, b) => (order.get(a.kind)! - order.get(b.kind)!) || a.sort - b.sort || a.id - b.id);
+}
+
+/**
+ * 料金表を読む。★ 固定の指名（フリー・ネット指名・本指名）が無ければ先に作る（第546便）。
+ *   名前は変えられず消せない。要らない店は「使う」を外す。
+ */
+async function readPriceItems(svc: Svc, salonId: number): Promise<CrmPriceItem[]> {
+  const items = await readPriceItemsRaw(svc, salonId);
+  const missing = CRM_FIXED_NOMINATIONS.filter((n) => !items.some((i) => i.kind === 'nomination' && i.name === n));
+  if (missing.length === 0) return items;
+  await svc.from('crm_price_items').insert(
+    missing.map((name) => ({
+      salon_id: salonId, kind: 'nomination', name, minutes: 0, price: 0, pay: 0,
+      sort: CRM_FIXED_NOMINATIONS.indexOf(name), is_active: true,
+    })),
+  );
+  return readPriceItemsRaw(svc, salonId);
 }
 
 /** 料金表を全部（使っていないものも）返す（料金設定の画面用） */
@@ -712,6 +731,19 @@ export async function saveCrmPriceItem(
   if (!name || name.length > 40) return { ok: false, error: '名前は1〜40文字で入れてください' };
   if (minutes < 0 || minutes > 720) return { ok: false, error: '分数は0〜720で入れてください' };
   if (price < 0 || price > 1000000 || pay < 0 || pay > 1000000) return { ok: false, error: '金額は0〜1,000,000で入れてください' };
+  // ★ 固定の指名は名前・種類を変えられない。ほかの項目に同じ名前も付けられない（第546便）
+  if (input.id) {
+    const { data: cur } = await auth.svc
+      .from('crm_price_items').select('kind, name').eq('salon_id', salonId).eq('id', input.id).maybeSingle();
+    if (!cur) return { ok: false, error: '項目が見つかりません' };
+    const wasFixed = isFixedNomination(String(cur.kind), String(cur.name));
+    if (wasFixed && (kind !== cur.kind || name !== cur.name)) {
+      return { ok: false, error: `「${cur.name}」は最初から用意されている項目なので、名前は変えられません` };
+    }
+    if (!wasFixed && isFixedNomination(kind, name)) return { ok: false, error: `「${name}」は最初から用意されています` };
+  } else if (isFixedNomination(kind, name)) {
+    return { ok: false, error: `「${name}」は最初から用意されています` };
+  }
   const row = {
     kind, name, minutes, price, pay,
     sort: num(input.sort),
@@ -736,41 +768,15 @@ export async function deleteCrmPriceItem(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
+  const { data: cur } = await auth.svc
+    .from('crm_price_items').select('kind, name').eq('salon_id', salonId).eq('id', id).maybeSingle();
+  if (cur && isFixedNomination(String(cur.kind), String(cur.name))) {
+    return { ok: false, error: '最初から用意されている項目は消せません（要らなければ「使う」を外してください）' };
+  }
   // ★ 予約は項目を写して持っているので、消しても過去の予約の金額は変わらない
   const { error } = await auth.svc.from('crm_price_items').delete().eq('salon_id', salonId).eq('id', id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
-}
-
-/**
- * 公開のコースメニュー（salons.booking_courses）から、コースの名前・分数・料金を取り込む。
- * ★ 報酬は 0 で入る（あとで店が入れる）。★ 同じ名前・分数のコースがすでにあれば足さない。
- */
-export async function importCrmCoursesFromMenu(
-  salonId: number,
-): Promise<{ ok: true; added: number } | { ok: false; error: string }> {
-  const auth = await assertCrm(salonId);
-  if (!auth.ok) return auth;
-  const svc = auth.svc;
-  const { data: salon } = await svc.from('salons').select('booking_courses').eq('id', salonId).maybeSingle();
-  const raw = Array.isArray(salon?.booking_courses) ? (salon!.booking_courses as Record<string, unknown>[]) : [];
-  const existing = await readPriceItems(svc, salonId);
-  const have = new Set(existing.filter((e) => e.kind === 'course').map((e) => `${e.name}|${e.minutes}`));
-  const rows: Array<Record<string, unknown>> = [];
-  let sort = existing.filter((e) => e.kind === 'course').length;
-  for (const c of raw) {
-    const name = String(c?.name ?? '').trim().slice(0, 40);
-    const minutes = Number(c?.duration_min) || 0;
-    const price = parseInt(String(c?.price ?? '').replace(/[^0-9]/g, ''), 10) || 0;
-    if (!name || have.has(`${name}|${minutes}`)) continue;
-    have.add(`${name}|${minutes}`);
-    rows.push({ salon_id: salonId, kind: 'course', name, minutes, price: Math.min(price, 1000000), pay: 0, sort: sort++, is_active: true });
-  }
-  if (rows.length > 0) {
-    const { error } = await svc.from('crm_price_items').insert(rows);
-    if (error) return { ok: false, error: error.message };
-  }
-  return { ok: true, added: rows.length };
 }
 
 export type CrmBookingPricingInput = {

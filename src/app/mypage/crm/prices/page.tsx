@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   deleteCrmPriceItem,
-  importCrmCoursesFromMenu,
   listCrmPriceItems,
   saveCrmPriceItem,
 } from '@/app/actions/crm';
 import {
   CRM_PRICE_KINDS,
   CRM_PRICE_KIND_LABEL,
+  isFixedNomination,
   type CrmPriceItem,
   type CrmPriceKind,
 } from '@/app/lib/crm/types';
@@ -22,7 +22,7 @@ import { CrmShell, useCrmAccess } from '../CrmShell';
 
 const HINT: Record<CrmPriceKind, string> = {
   course: '1つだけ選ぶ。分数が予約の時間になります。',
-  nomination: '1つだけ選ぶ（フリー・ネット指名・本指名など）。',
+  nomination: '1つだけ選ぶ。フリー・ネット指名・本指名は最初から用意してあり、名前は変えられません（要らなければ「使う」を外す）。ほかの指名は追加できます。',
   extension: 'いくつでも。分数が予約の時間に足されます。',
   option: 'いくつでも。',
   discount: 'いくつでも。「料金」はお客様の料金から引く額、「報酬」は女子報酬から引く額（引かないなら0）。',
@@ -52,7 +52,6 @@ function emptyDraft(kind: CrmPriceKind, sort: number): Draft {
 function PricesBody({ salonId }: { salonId: number }) {
   const [items, setItems] = useState<CrmPriceItem[] | null>(null);
   const [err, setErr] = useState('');
-  const [msg, setMsg] = useState('');
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -68,14 +67,6 @@ function PricesBody({ salonId }: { salonId: number }) {
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
 
-  const importMenu = async () => {
-    setMsg('');
-    const r = await importCrmCoursesFromMenu(salonId);
-    if (!r.ok) { setErr(r.error); return; }
-    setMsg(r.added > 0 ? `コースメニューから ${r.added} 件取り込みました。報酬を入れて保存してください。` : '取り込めるコースはありませんでした（もう入っているか、コースメニューが空です）。');
-    reload();
-  };
-
   return (
     <div className="mx-auto max-w-4xl px-3 py-4">
       <div className="mb-4 border border-slate-200 bg-white p-4">
@@ -84,10 +75,6 @@ function PricesBody({ salonId }: { salonId: number }) {
           予約を受け付けるときに、ここの項目を押して選ぶと、料金と女子報酬が自動で計算されます。
           内容変更をしてもすでに入っている予約の金額は変わりません。
         </p>
-        <button type="button" onClick={importMenu} className="mt-3 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700">
-          いまのコースメニューからコースを取り込む
-        </button>
-        {msg && <p className="mt-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
         {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
       </div>
 
@@ -139,6 +126,8 @@ function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; o
   const [err, setErr] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
   const isNew = d.id == null;
+  // ★ 固定の指名（フリー・ネット指名・本指名）は名前を変えられない・消せない（第546便）
+  const fixed = !isNew && isFixedNomination(initial.kind, initial.name);
   const dirty = JSON.stringify(d) !== JSON.stringify(initial);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   const numOnly = (v: string) => v.replace(/[^0-9]/g, '');
@@ -167,7 +156,14 @@ function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; o
   return (
     <tr className={`border-t border-slate-100 ${isNew ? 'bg-slate-50/60' : ''} ${!d.isActive ? 'opacity-50' : ''}`}>
       <td className="px-2 py-1.5">
-        <input className={cell} value={d.name} maxLength={40} onChange={(e) => set('name', e.target.value)} placeholder={isNew ? '＋ 新しい項目の名前' : ''} />
+        {fixed ? (
+          <div className="flex items-center gap-2 px-1 py-1.5">
+            <span className="text-[14px] font-bold text-slate-800">{d.name}</span>
+            <span className="bg-slate-200 px-1.5 text-[10px] font-bold text-slate-600">固定</span>
+          </div>
+        ) : (
+          <input className={cell} value={d.name} maxLength={40} onChange={(e) => set('name', e.target.value)} placeholder={isNew ? '＋ 新しい項目の名前' : ''} />
+        )}
         {err && <p className="mt-0.5 text-[12px] font-bold text-rose-600">{err}</p>}
       </td>
       {USES_MINUTES[d.kind] && (
@@ -186,7 +182,7 @@ function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; o
         >
           {isNew ? '追加' : '保存'}
         </button>
-        {!isNew && (
+        {!isNew && !fixed && (
           confirmDel ? (
             <button type="button" disabled={busy} onClick={del} className="ml-1 bg-rose-600 px-2 py-1 text-[12px] font-bold text-white">本当に削除</button>
           ) : (
