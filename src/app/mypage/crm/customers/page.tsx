@@ -412,7 +412,7 @@ function CustomersBody({ salonId }: { salonId: number }) {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="名前・フリガナ・電話（下4桁でも）・会員番号"
+                placeholder="名前・フリガナ・電話（下4桁でも）・会員番号・メモの言葉"
                 className={inputCls}
                 inputMode="search"
               />
@@ -442,6 +442,11 @@ function CustomersBody({ salonId }: { salonId: number }) {
                     )}
                     <span className={`${c.stats.upcoming > 0 ? '' : 'ml-auto '}flex-none text-[12px] text-slate-500`}>利用{c.stats.visits}</span>
                   </div>
+                  {c.memoHit && (
+                    <p className={`mt-0.5 truncate text-[12px] ${c.memoHit.kind === 'caution' ? 'font-bold text-rose-600' : 'text-amber-700'}`}>
+                      {c.memoHit.kind === 'caution' ? '要注意' : 'メモ'}：{c.memoHit.text}
+                    </p>
+                  )}
                   <div className="mt-0.5 flex gap-2 text-[12px] text-slate-400">
                     <span>{c.phones[0] ? fmtPhone(c.phones[0]) : '電話なし'}</span>
                     <span>最終 {fmtDate(c.stats.lastVisitISO)}</span>

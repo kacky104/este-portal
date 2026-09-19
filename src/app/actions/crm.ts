@@ -16,6 +16,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { normalizePhone } from '@/app/lib/validation/phone';
 import { getBookingBoardData } from '@/app/actions/booking';
+import { scheduleWindowUtc } from '@/app/lib/booking/slots';
 import {
   toCrmCategory,
   type CrmAccess,
@@ -164,7 +165,7 @@ type CustomerDbRow = {
   ng_therapist_ids?: number[] | null; created_at?: string | null;
 };
 
-const LIST_COLS = 'id, name, name_kana, category, member_no, caution_memo';
+const LIST_COLS = 'id, name, name_kana, category, member_no, caution_memo, memo';
 
 /**
  * 顧客を探す。
@@ -209,7 +210,7 @@ export async function searchCrmCustomers(
     const { data, error } = await svc
       .from('salon_customers').select(LIST_COLS)
       .eq('salon_id', salonId)
-      .or(`name.ilike.%${safe}%,name_kana.ilike.%${safe}%,member_no.ilike.%${safe}%`)
+      .or(`name.ilike.%${safe}%,name_kana.ilike.%${safe}%,member_no.ilike.%${safe}%,memo.ilike.%${safe}%,caution_memo.ilike.%${safe}%`)
       .order('updated_at', { ascending: false }).limit(LIST_LIMIT);
     if (error) return { ok: false, error: error.message };
     rows = (data ?? []) as CustomerDbRow[];
@@ -228,8 +229,24 @@ export async function searchCrmCustomers(
       phones: phones.get(Number(r.id)) ?? [],
       cautionMemo: r.caution_memo ?? '',
       stats: stats.get(Number(r.id)) ?? emptyStats(),
+      ...(memoHitOf(q, r) ? { memoHit: memoHitOf(q, r)! } : {}),
     })),
   };
+}
+
+/** 検索の言葉がメモ・要注意メモのどこに当たったか（前後を少し切り出す・第553便） */
+function memoHitOf(q: string, r: CustomerDbRow): { kind: 'caution' | 'memo'; text: string } | null {
+  const word = q.trim().toLowerCase();
+  if (!word || /^\d{4,13}$/.test(normalizePhone(q))) return null;
+  for (const [kind, raw] of [['caution', r.caution_memo], ['memo', r.memo]] as const) {
+    const text = String(raw ?? '');
+    const i = text.toLowerCase().indexOf(word);
+    if (i < 0) continue;
+    const from = Math.max(0, i - 12);
+    const to = Math.min(text.length, i + word.length + 18);
+    return { kind, text: `${from > 0 ? '…' : ''}${text.slice(from, to).replace(/\s+/g, ' ')}${to < text.length ? '…' : ''}` };
+  }
+  return null;
 }
 
 /** 1人の詳細＋予約履歴＋（女子NG用の）セラピスト一覧 */
@@ -1374,6 +1391,11 @@ export async function saveCrmWorkDay(
   if (room.length > 30) return { ok: false, error: '待機場所が長すぎます' };
   if (transport < 0 || transport > 100000) return { ok: false, error: '交通費は0〜100,000円で入れてください' };
   const attendance = ['late', 'absent', 'sent_home'].includes(String(wd.attendance)) ? wd.attendance : '';
+  // ★ 同じ部屋で、出勤の時間がほかの人と重なるなら保存しない（第553便）
+  if (room) {
+    const clash = await roomClash(auth.svc, salonId, therapistId, dateISO, room);
+    if (clash) return { ok: false, error: clash };
+  }
   const { error } = await auth.svc.from('crm_work_days').upsert({
     salon_id: salonId, therapist_id: therapistId, business_date: dateISO,
     break_start_min: bs, break_end_min: be, break_memo: memo, room, attendance, transport,
@@ -1381,4 +1403,44 @@ export async function saveCrmWorkDay(
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/**
+ * 同じ部屋を同じ時間に使う人がいないか（第553便）。
+ * ★ その営業日にその部屋を選んでいるほかのセラピストの出勤（therapist_schedules）と、この人の出勤が重なれば文を返す。
+ * ★ 出勤が無い人どうしは比べられないので止めない。
+ */
+async function roomClash(svc: Svc, salonId: number, therapistId: number, dateISO: string, room: string): Promise<string | null> {
+  const { data: others } = await svc
+    .from('crm_work_days').select('therapist_id')
+    .eq('salon_id', salonId).eq('business_date', dateISO).eq('room', room)
+    .neq('therapist_id', therapistId);
+  const otherIds = (others ?? []).map((o) => Number(o.therapist_id));
+  if (otherIds.length === 0) return null;
+  const ids = [therapistId, ...otherIds];
+  const { data: sch } = await svc
+    .from('therapist_schedules')
+    .select('therapist_id, start_time, end_time')
+    .in('therapist_id', ids).eq('schedule_date', dateISO).eq('is_active', true);
+  const win = new Map<number, Array<{ s: number; e: number; label: string }>>();
+  for (const r of sch ?? []) {
+    if (!r.start_time || !r.end_time) continue;
+    const start = String(r.start_time).slice(0, 5);
+    const end = String(r.end_time).slice(0, 5);
+    const { startUtc, endUtc } = scheduleWindowUtc(dateISO, start, end);
+    const list = win.get(Number(r.therapist_id)) ?? [];
+    list.push({ s: startUtc.getTime(), e: endUtc.getTime(), label: `${start}-${end}` });
+    win.set(Number(r.therapist_id), list);
+  }
+  const mine = win.get(therapistId) ?? [];
+  if (mine.length === 0) return null;
+  for (const oid of otherIds) {
+    for (const o of win.get(oid) ?? []) {
+      if (mine.some((m) => m.s < o.e && m.e > o.s)) {
+        const { data: t } = await svc.from('therapists').select('name').eq('id', oid).maybeSingle();
+        return `${room} は ${String(t?.name ?? 'ほかの人')} さん（${o.label}）が使っています。時間が重なるので選べません`;
+      }
+    }
+  }
+  return null;
 }

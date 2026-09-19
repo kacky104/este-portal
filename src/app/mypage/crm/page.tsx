@@ -193,8 +193,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
     const rows: Row[] = [];
     // ★ フリー（担当未定）の行はいつも出す（ここに受付できるように）。
+    // ★ フリー（担当未定）の行は出さない（第553便・カッキーさんの指示）。
+    //   ただし、前に入れた担当未定の予約が残っている日だけは、見落とさないように出す。
     const free = visibleBookings.filter((b) => b.therapistId == null);
-    rows.push({ key: 'free', therapist: null, bookings: free });
+    if (free.length > 0) rows.push({ key: 'free', therapist: null, bookings: free });
 
     const therapistRows: Row[] = [];
     for (const t of data.therapists) {
@@ -1201,7 +1203,8 @@ function BookingForm({
             <div className="col-span-2">
               <label className={labCls}>担当</label>
               <select className={fieldCls} value={f.therapistKey} onChange={(e) => set('therapistKey', e.target.value)}>
-                <option value="free">フリー（担当未定）</option>
+                {/* ★ フリー（担当未定）は選べない（第553便）。前に入れた担当未定の予約を直すときだけ出す */}
+                {initial.therapistKey === 'free' && <option value="free">フリー（担当未定）</option>}
                 {therapists.map((t) => (
                   <option key={t.id} value={String(t.id)}>
                     {t.name}{customer?.ngTherapistIds.includes(t.id) ? '（女子NG）' : ''}

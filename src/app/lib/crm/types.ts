@@ -42,6 +42,8 @@ export type CrmCustomerRow = {
   phones: string[];
   cautionMemo: string;
   stats: CrmStats;
+  /** 検索の言葉がメモ・要注意メモに当たったときの前後の文（第553便） */
+  memoHit?: { kind: 'caution' | 'memo'; text: string };
 };
 
 export type CrmCustomerDetail = CrmCustomerRow & {
