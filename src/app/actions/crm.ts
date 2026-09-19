@@ -33,6 +33,7 @@ import {
   CRM_PRICE_KINDS,
   CRM_FIXED_NOMINATIONS,
   CRM_DEFAULT_SETTINGS,
+  CRM_ROOM_COLORS,
   type CrmSettings,
   type CrmEndType,
   type CrmWorkDay,
@@ -1242,13 +1243,16 @@ export async function setCrmPlayStatus(
 // ── 設定と「受まで／上がり」（第548便）──────────────────
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
   const { data } = await svc
-    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms').eq('salon_id', salonId).maybeSingle();
+    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors').eq('salon_id', salonId).maybeSingle();
   if (!data) return { ...CRM_DEFAULT_SETTINGS };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
     dayEndMin: Number(data.day_end_min) || CRM_DEFAULT_SETTINGS.dayEndMin,
     defaultEndType: data.default_end_type === 'accept' ? 'accept' : 'finish',
     rooms: Array.isArray(data.rooms) ? (data.rooms as unknown[]).map(String) : [],
+    roomColors: data.room_colors && typeof data.room_colors === 'object' && !Array.isArray(data.room_colors)
+      ? Object.fromEntries(Object.entries(data.room_colors as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
+      : {},
   };
 }
 
@@ -1283,12 +1287,19 @@ export async function saveCrmSettings(
   const rooms = [...new Set((settings.rooms ?? []).map((r) => String(r).trim()).filter(Boolean))];
   if (rooms.length > 50) return { ok: false, error: '待機場所は50件までです' };
   if (rooms.some((r) => r.length > 30)) return { ok: false, error: '待機場所の名前は30文字までです' };
+  const allowed = new Set(CRM_ROOM_COLORS.map((c) => c.key));
+  const roomColors: Record<string, string> = {};
+  for (const r of rooms) {
+    const c = settings.roomColors?.[r];
+    if (c && allowed.has(c)) roomColors[r] = c;
+  }
   const { error } = await auth.svc.from('crm_settings').upsert({
     salon_id: salonId,
     day_start_min: start,
     day_end_min: end,
     default_end_type: settings.defaultEndType === 'accept' ? 'accept' : 'finish',
     rooms,
+    room_colors: roomColors,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };

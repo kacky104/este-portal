@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
-import { CRM_END_LABEL, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
+import { CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 
 // フクエスCRM「設定」（第548便・2026-09-19）。
@@ -94,15 +94,42 @@ function SettingsBody({ salonId }: { salonId: number }) {
 
       <section className="mt-4 border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">待機場所（部屋）</h2>
-        <p className="mt-1 text-[13px] text-slate-600">スケジュールで名前を押した「出勤情報」で選べます。選ぶと名前の下にバッジで出ます。</p>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {st.rooms.length === 0 && <span className="text-[13px] text-slate-400">まだありません</span>}
-          {st.rooms.map((r) => (
-            <span key={r} className="inline-flex items-center gap-1 bg-[#1e2a5a] px-2 py-1 text-[13px] font-bold text-white">
-              {r}
-              <button type="button" aria-label={`${r}を消す`} onClick={() => setSt({ ...st, rooms: st.rooms.filter((x) => x !== r) })} className="text-indigo-200 hover:text-white">×</button>
-            </span>
-          ))}
+        <p className="mt-1 text-[13px] text-slate-600">スケジュールで名前を押した「出勤情報」で選べます。選ぶと名前の下にバッジで出ます。色のマスを押すとバッジの色が変わります。</p>
+        {st.rooms.length === 0 && <p className="mt-3 text-[13px] text-slate-400">まだありません</p>}
+        <div className="mt-3 space-y-2">
+          {st.rooms.map((r) => {
+            const cur = st.roomColors[r] ?? 'navy';
+            const c = roomColor(cur);
+            return (
+              <div key={r} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">
+                <span className="min-w-[64px] px-2 py-1 text-center text-[13px] font-bold" style={{ background: c.bg, color: c.fg }}>{r}</span>
+                <div className="flex flex-wrap gap-1">
+                  {CRM_ROOM_COLORS.map((col) => (
+                    <button
+                      key={col.key}
+                      type="button"
+                      title={col.label}
+                      aria-label={`${r}を${col.label}にする`}
+                      onClick={() => setSt({ ...st, roomColors: { ...st.roomColors, [r]: col.key } })}
+                      className={`h-6 w-6 border ${cur === col.key ? 'ring-2 ring-indigo-500 ring-offset-1' : 'border-slate-300'}`}
+                      style={{ background: col.bg }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const rc = { ...st.roomColors };
+                    delete rc[r];
+                    setSt({ ...st, rooms: st.rooms.filter((x) => x !== r), roomColors: rc });
+                  }}
+                  className="ml-auto text-[12px] font-bold text-slate-400 underline"
+                >
+                  削除
+                </button>
+              </div>
+            );
+          })}
         </div>
         <div className="mt-3 flex gap-2">
           <input

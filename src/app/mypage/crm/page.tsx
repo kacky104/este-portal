@@ -37,6 +37,7 @@ import {
   CRM_ATTENDANCE,
   CRM_ATTENDANCE_LABEL,
   CRM_EMPTY_WORK_DAY,
+  roomColor,
   type CrmAttendance,
   type CrmWorkDay,
   inBusinessDay,
@@ -274,6 +275,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           confirms={data?.confirms ?? []}
           onConfirm={setConfirmFor}
           workDayOf={(tid) => data?.workDays[tid] ?? null}
+          roomColorOf={(room) => data?.settings.roomColors[room]}
           onWork={setWorkFor}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
           onToggleEnd={async (tid, next) => {
@@ -418,10 +420,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, onWork, endTypeOf, onToggleEnd, onEmpty,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, onWork, endTypeOf, onToggleEnd, onEmpty,
 }: {
   /** その日の出勤情報（休憩・待機場所・遅刻当欠・交通費） */
   workDayOf: (therapistId: number) => CrmWorkDay | null;
+  /** 部屋の色の名前 */
+  roomColorOf: (room: string) => string | undefined;
   /** 名前を押した */
   onWork: (t: CrmScheduleTherapist) => void;
   /** そのセラピストのその日の「受まで／上がり」 */
@@ -509,7 +513,10 @@ function Grid({
                               {CRM_ATTENDANCE_LABEL[wd.attendance]}
                             </span>
                           )}
-                          {wd.room && <span className="flex-none bg-[#1e2a5a] px-1 text-[10px] font-bold text-white">{wd.room}</span>}
+                          {wd.room && (() => {
+                            const c = roomColor(roomColorOf(wd.room));
+                            return <span className="flex-none px-1 text-[10px] font-bold" style={{ background: c.bg, color: c.fg }}>{wd.room}</span>;
+                          })()}
                         </>
                       );
                     })()}

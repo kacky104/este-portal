@@ -278,8 +278,29 @@ export type CrmSettings = {
   defaultEndType: CrmEndType;
   /** 待機場所（部屋）の一覧（第550便） */
   rooms: string[];
+  /** 部屋ごとのバッジの色（部屋名 → 色の名前・第552便） */
+  roomColors: Record<string, string>;
 };
-export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [] };
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {} };
+
+/** 部屋のバッジの色（第552便）。無い・知らない名前は紺 */
+export const CRM_ROOM_COLORS: Array<{ key: string; label: string; bg: string; fg: string }> = [
+  { key: 'navy', label: '紺', bg: '#1e2a5a', fg: '#ffffff' },
+  { key: 'blue', label: '青', bg: '#2563eb', fg: '#ffffff' },
+  { key: 'sky', label: '水色', bg: '#7dd3fc', fg: '#0c4a6e' },
+  { key: 'green', label: '緑', bg: '#15803d', fg: '#ffffff' },
+  { key: 'lime', label: '黄緑', bg: '#a3e635', fg: '#1a2e05' },
+  { key: 'yellow', label: '黄', bg: '#facc15', fg: '#422006' },
+  { key: 'orange', label: 'オレンジ', bg: '#f97316', fg: '#ffffff' },
+  { key: 'red', label: '赤', bg: '#dc2626', fg: '#ffffff' },
+  { key: 'pink', label: 'ピンク', bg: '#f9a8d4', fg: '#831843' },
+  { key: 'purple', label: '紫', bg: '#7e22ce', fg: '#ffffff' },
+  { key: 'gray', label: '灰', bg: '#9ca3af', fg: '#111827' },
+  { key: 'black', label: '黒', bg: '#111111', fg: '#ffffff' },
+];
+export function roomColor(key: string | undefined): { bg: string; fg: string } {
+  return CRM_ROOM_COLORS.find((c) => c.key === key) ?? CRM_ROOM_COLORS[0];
+}
 
 // ── 出勤情報（第550便）──────────────────────────────
 export const CRM_ATTENDANCE = ['', 'late', 'absent', 'sent_home'] as const;
