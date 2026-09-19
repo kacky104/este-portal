@@ -485,6 +485,8 @@ export async function getCrmSchedule(
     ok: true,
     data: {
       date: dateISO,
+      courses: board.data.courses,
+      defaultIntervalMin: board.data.defaultIntervalMin,
       therapists: therapists.map((t) => ({
         id: t.id,
         name: t.name,
@@ -509,6 +511,44 @@ export async function getCrmSchedule(
           customer: e?.customerId != null ? customers.get(e.customerId) ?? null : null,
         };
       }),
+    },
+  };
+}
+
+/**
+ * 電話番号から台帳のお客様を引く（受付フォームで番号を入れたとき）。見つからなければ customer: null。
+ * ★ 番号は完全一致（数字10〜13桁）。★ 途中一致はしない（別の人を出してしまうため）。
+ */
+export async function lookupCrmCustomerByPhone(
+  salonId: number,
+  tel: string,
+): Promise<{ ok: true; customer: CrmScheduleCustomer | null } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const phone = normalizePhone(String(tel ?? ''));
+  if (!/^\d{10,13}$/.test(phone)) return { ok: true, customer: null };
+  const svc = auth.svc;
+  const { data: ph } = await svc
+    .from('salon_customer_phones').select('customer_id')
+    .eq('salon_id', salonId).eq('phone', phone).maybeSingle();
+  if (!ph) return { ok: true, customer: null };
+  const id = Number(ph.customer_id);
+  const [{ data: c }, stats] = await Promise.all([
+    svc.from('salon_customers')
+      .select('id, name, category, caution_memo, ng_therapist_ids')
+      .eq('salon_id', salonId).eq('id', id).maybeSingle(),
+    statsFor(svc, salonId, [id]),
+  ]);
+  if (!c) return { ok: true, customer: null };
+  return {
+    ok: true,
+    customer: {
+      id,
+      name: (c.name as string | null) ?? '',
+      category: toCrmCategory(c.category),
+      cautionMemo: (c.caution_memo as string | null) ?? '',
+      ngTherapistIds: ((c.ng_therapist_ids as number[] | null) ?? []).map(Number),
+      stats: stats.get(id) ?? emptyStats(),
     },
   };
 }

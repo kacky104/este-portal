@@ -110,4 +110,8 @@ export type CrmScheduleData = {
   date: string;                 // YYYY-MM-DD（営業日）
   therapists: CrmScheduleTherapist[];
   bookings: CrmScheduleBooking[];
+  /** 受付フォームのコース候補（salons.booking_courses・予約ボードと同じ） */
+  courses: Array<{ name: string; durationMin: number; price: string }>;
+  /** 施術後インターバルの店舗設定（受付フォームの初期値） */
+  defaultIntervalMin: number;
 };
