@@ -7,7 +7,7 @@ summary: タイに伝わる、ストレッチと押す手技を組み合わせ�
 description: タイ古式とは、タイに伝わるストレッチと押す手技を組み合わせた施術のこと。どんな動きをするのか、もみほぐしやオイルの施術との違い、向いている人、予約前と当日に知っておくことを解説します。
 publishedAt: 2026-09-19
 heroImage: /glossary/thai-koshiki/hero.webp
-heroAlt: 床に敷いたマットの上で、ゆったりした服のお客様の脚を、セラピストが持ち上げて伸ばしているところ
+heroAlt: 床に敷いたマットの上で、仰向けになったお客様の脚を、セラピストが曲げて持ち上げ、伸ばしているところ
 related: [stretch, momihogushi, shiatsu, atsu-no-tsuyosa, counseling, course-jikan]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
