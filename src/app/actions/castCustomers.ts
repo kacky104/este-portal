@@ -98,8 +98,9 @@ export async function listCustomerLogs(query: string, day = ''): Promise<Result<
   const all: CustomerLog[] = (data ?? []).map((r) => {
     const name = String(r.customer_name ?? '');
     const key = nameKey(name);
+    // ★ 第520便: 回数の手入力はやめた（画面から外した）。★ 以前に手入力した数字も使わず、名前から日時順に数える
     const manual = r.visit_count != null ? Number(r.visit_count) : null;
-    const shown = manual ?? (counter.get(key) ?? 0) + 1;
+    const shown = (counter.get(key) ?? 0) + 1;
     counter.set(key, shown);
     return {
       id: Number(r.id),

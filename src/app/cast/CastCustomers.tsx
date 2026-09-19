@@ -57,27 +57,22 @@ const emptyForm = (): Form => ({ servedAt: nowJstLocal(), name: '', visitCount: 
 function LogFields({ form, setForm, names }: { form: Form; setForm: (f: Form) => void; names: string[] }) {
   return (
     <div className="space-y-2.5">
-      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_7rem] gap-2.5">
-        {/* ★ 第497便: iPhone の Safari は日時の入力欄に最小幅を持つので、枠からはみ出さないよう min-w-0＋appearance-none で縮める */}
-        <label className="block min-w-0">
-          <span className="block text-[11px] font-bold text-slate-500 mb-1">日時</span>
-          <input type="datetime-local" className={`${INPUT} block min-w-0 max-w-full appearance-none h-[38px] text-left [&::-webkit-date-and-time-value]:text-left`} value={form.servedAt} onChange={(e) => setForm({ ...form, servedAt: e.target.value })} />
-        </label>
-        <label className="block min-w-0">
-          <span className="block text-[11px] font-bold text-slate-500 mb-1">回数（空欄＝自動）</span>
-          <input inputMode="numeric" className={INPUT} placeholder="自動" maxLength={4} value={form.visitCount} onChange={(e) => setForm({ ...form, visitCount: e.target.value })} />
-        </label>
-      </div>
+      {/* ★ 第497便: iPhone の Safari は日時の入力欄に最小幅を持つので、枠からはみ出さないよう min-w-0＋appearance-none で縮める */}
+      {/* ★ 第520便: 回数の入力欄は外した（回数は名前から自動で数える） */}
+      <label className="block min-w-0">
+        <span className="block text-[11px] font-bold text-slate-500 mb-1">日時</span>
+        <input type="datetime-local" className={`${INPUT} block min-w-0 max-w-full appearance-none h-[38px] text-left [&::-webkit-date-and-time-value]:text-left`} value={form.servedAt} onChange={(e) => setForm({ ...form, servedAt: e.target.value })} />
+      </label>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2.5">
         <label className="block min-w-0">
-          <span className="block text-[11px] font-bold text-slate-500 mb-1">名前</span>
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 mb-1">名前<span className="px-1.5 py-px rounded bg-red-500 text-white text-[10px] font-bold leading-tight">必須</span></span>
           <input className={INPUT} placeholder="例：田中さん" maxLength={40} list="cast-customer-names" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <datalist id="cast-customer-names">
             {names.map((n) => <option key={n} value={n} />)}
           </datalist>
         </label>
         <label className="block min-w-0">
-          <span className="block text-[11px] font-bold text-slate-500 mb-1">コース金額</span>
+          <span className="flex items-center text-[11px] font-bold text-slate-500 mb-1 min-h-[17px]">報酬額</span>
           <span className="relative block">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">¥</span>
             <input
@@ -192,7 +187,7 @@ export function CastCustomers({ today }: { today: string }) {
     setEditForm({
       servedAt: isoToJstLocal(l.servedAt),
       name: l.name,
-      visitCount: l.visitCount != null ? String(l.visitCount) : '',
+      visitCount: '',
       memo: l.memo,
       amount: l.amount != null ? l.amount.toLocaleString('ja-JP') : '',
     });
@@ -320,6 +315,13 @@ export function CastCustomers({ today }: { today: string }) {
 
       {/* ── 記録を足す ── */}
       <div className="bg-white rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
+        <div className="flex gap-2 rounded-2xl bg-pink-50/70 border border-pink-100 px-3 py-2.5">
+          <svg className="w-4 h-4 shrink-0 mt-px text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 11v5M12 8h.01" /></svg>
+          <p className="text-[11px] leading-relaxed text-slate-600">
+            <span className="font-bold text-slate-700">名前ごとにリピート回数を自動で数えます。</span>
+            お客様はそれぞれ違う名前で登録してください（同じ名前は同じお客様として数えます）。
+          </p>
+        </div>
         <LogFields form={form} setForm={setForm} names={names} />
         {error && <p className="text-xs font-bold text-red-500">{error}</p>}
         {notice && <p className="text-xs font-bold text-pink-600">{notice}</p>}
