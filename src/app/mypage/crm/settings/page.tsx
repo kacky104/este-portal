@@ -28,6 +28,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [newRoom, setNewRoom] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -89,6 +90,48 @@ function SettingsBody({ salonId }: { salonId: number }) {
             </label>
           ))}
         </div>
+      </section>
+
+      <section className="mt-4 border border-slate-200 bg-white p-5">
+        <h2 className="text-[17px] font-black text-slate-800">待機場所（部屋）</h2>
+        <p className="mt-1 text-[13px] text-slate-600">スケジュールで名前を押した「出勤情報」で選べます。選ぶと名前の下にバッジで出ます。</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {st.rooms.length === 0 && <span className="text-[13px] text-slate-400">まだありません</span>}
+          {st.rooms.map((r) => (
+            <span key={r} className="inline-flex items-center gap-1 bg-[#1e2a5a] px-2 py-1 text-[13px] font-bold text-white">
+              {r}
+              <button type="button" aria-label={`${r}を消す`} onClick={() => setSt({ ...st, rooms: st.rooms.filter((x) => x !== r) })} className="text-indigo-200 hover:text-white">×</button>
+            </span>
+          ))}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input
+            value={newRoom}
+            maxLength={30}
+            onChange={(e) => setNewRoom(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newRoom.trim()) {
+                e.preventDefault();
+                if (!st.rooms.includes(newRoom.trim())) setSt({ ...st, rooms: [...st.rooms, newRoom.trim()] });
+                setNewRoom('');
+              }
+            }}
+            placeholder="例）B506"
+            className="w-48 border border-slate-300 bg-white px-3 py-2 text-[14px] focus:border-indigo-400 focus:outline-none"
+          />
+          <button
+            type="button"
+            disabled={!newRoom.trim()}
+            onClick={() => {
+              if (!st.rooms.includes(newRoom.trim())) setSt({ ...st, rooms: [...st.rooms, newRoom.trim()] });
+              setNewRoom('');
+            }}
+            className="border border-indigo-300 bg-indigo-50 px-3 text-[13px] font-bold text-indigo-700 disabled:opacity-40"
+          >
+            追加
+          </button>
+        </div>
+        <p className="mt-2 text-[12px] text-slate-400">追加・削除のあとは、下の「保存する」を押してください。</p>
       </section>
 
       {err && <p className="mt-3 text-[13px] font-bold text-rose-600">{err}</p>}

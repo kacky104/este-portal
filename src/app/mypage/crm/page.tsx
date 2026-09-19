@@ -14,6 +14,7 @@ import {
   setCrmCancelBad,
   setCrmPlayStatus,
   setCrmWorkEnd,
+  saveCrmWorkDay,
   unconfirmCrmPay,
 } from '@/app/actions/crm';
 import {
@@ -33,6 +34,11 @@ import {
   CRM_PLAY_LABEL,
   CRM_END_LABEL,
   type CrmEndType,
+  CRM_ATTENDANCE,
+  CRM_ATTENDANCE_LABEL,
+  CRM_EMPTY_WORK_DAY,
+  type CrmAttendance,
+  type CrmWorkDay,
   inBusinessDay,
   nominationBadge,
   type CrmPlayStatus,
@@ -136,6 +142,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   // 報酬確定・締め（第538便）
   const [confirmFor, setConfirmFor] = useState<CrmScheduleTherapist | null>(null);
   const [closing, setClosing] = useState(false);
+  // 出勤情報（名前を押す・第550便）
+  const [workFor, setWorkFor] = useState<CrmScheduleTherapist | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [tick, setTick] = useState(0);
 
@@ -154,10 +162,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
   // 60秒ごとに読み直す（詳細・フォームを開いている間は止める＝見ている最中に動かさない）
   useEffect(() => {
-    if (picked || form || memoEdit || confirmFor || closing) return;
+    if (picked || form || memoEdit || confirmFor || closing || workFor) return;
     const t = setInterval(() => setTick((v) => v + 1), REFRESH_MS);
     return () => clearInterval(t);
-  }, [picked, form, memoEdit, confirmFor, closing]);
+  }, [picked, form, memoEdit, confirmFor, closing, workFor]);
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
 
@@ -265,6 +273,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           onMemo={setMemoEdit}
           confirms={data?.confirms ?? []}
           onConfirm={setConfirmFor}
+          workDayOf={(tid) => data?.workDays[tid] ?? null}
+          onWork={setWorkFor}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
           onToggleEnd={async (tid, next) => {
             const r = await setCrmWorkEnd(salonId, tid, date, next);
@@ -333,9 +343,25 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         />
       )}
 
+      {workFor && data && (
+        <WorkDayDialog
+          key={workFor.id}
+          therapist={workFor}
+          salonId={salonId}
+          date={date}
+          rooms={data.settings.rooms}
+          endType={data.workEnds[workFor.id] ?? data.settings.defaultEndType}
+          initial={data.workDays[workFor.id] ?? CRM_EMPTY_WORK_DAY}
+          onClose={() => setWorkFor(null)}
+          onSaved={() => { setWorkFor(null); reload(); }}
+          onConfirm={() => { const t = workFor; setWorkFor(null); setConfirmFor(t); }}
+        />
+      )}
+
       {confirmFor && data && (
         <ConfirmDialog
           key={confirmFor.id}
+          transport={data.workDays[confirmFor.id]?.transport ?? 0}
           therapist={confirmFor}
           salonId={salonId}
           date={date}
@@ -385,8 +411,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, endTypeOf, onToggleEnd, onEmpty,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, onWork, endTypeOf, onToggleEnd, onEmpty,
 }: {
+  /** その日の出勤情報（休憩・待機場所・遅刻当欠・交通費） */
+  workDayOf: (therapistId: number) => CrmWorkDay | null;
+  /** 名前を押した */
+  onWork: (t: CrmScheduleTherapist) => void;
   /** そのセラピストのその日の「受まで／上がり」 */
   endTypeOf: (therapistId: number) => CrmEndType;
   onToggleEnd: (therapistId: number, next: CrmEndType) => void;
@@ -442,7 +472,10 @@ function Grid({
               {r.therapist ? (
                 <>
                   <p className="flex items-center gap-1">
-                    <span className="truncate text-[15px] font-black text-[#3f51b5]">{r.therapist.name}</span>
+                    {/* ★ 名前を押すと「出勤情報」（第550便） */}
+                    <button type="button" onClick={() => onWork(r.therapist!)} className="truncate text-left text-[15px] font-black text-[#3f51b5] underline decoration-dotted underline-offset-2 hover:text-indigo-800">
+                      {r.therapist.name}
+                    </button>
                     {narrow && (
                       <button
                         type="button"
@@ -453,10 +486,26 @@ function Grid({
                       </button>
                     )}
                   </p>
-                  <p className="text-[12px] font-bold text-slate-600">
-                    {r.therapist.schedules.length > 0
-                      ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
-                      : '出勤なし'}
+                  <p className="flex items-center gap-1 truncate text-[12px] font-bold text-slate-600">
+                    <span className="truncate">
+                      {r.therapist.schedules.length > 0
+                        ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
+                        : '出勤なし'}
+                    </span>
+                    {(() => {
+                      const wd = workDayOf(r.therapist!.id);
+                      if (!wd) return null;
+                      return (
+                        <>
+                          {wd.attendance && (
+                            <span className={`flex-none px-1 text-[10px] font-bold text-white ${wd.attendance === 'late' ? 'bg-amber-500' : 'bg-rose-600'}`}>
+                              {CRM_ATTENDANCE_LABEL[wd.attendance]}
+                            </span>
+                          )}
+                          {wd.room && <span className="flex-none bg-[#1e2a5a] px-1 text-[10px] font-bold text-white">{wd.room}</span>}
+                        </>
+                      );
+                    })()}
                   </p>
                   {(() => {
                     // ★ 報酬と確定は【営業日（6:00〜翌6:00に始まる予約）】で数える（サーバーの確定と同じ決まり）
@@ -555,6 +604,21 @@ function Grid({
                   </div>
                 );
               })}
+              {/* 休憩（白い帯・第550便） */}
+              {r.therapist && (() => {
+                const wd = workDayOf(r.therapist.id);
+                if (!wd || wd.breakStartMin == null || wd.breakEndMin == null) return null;
+                const fmt = (m: number) => `${m >= 1440 ? '翌' : ''}${Math.floor(m / 60) % 24}:${String(m % 60).padStart(2, '0')}`;
+                return (
+                  <div
+                    className="pointer-events-none absolute top-1 bottom-1 z-[6] overflow-hidden border border-slate-300 bg-white/95 px-1 text-[11px] leading-tight text-slate-600"
+                    style={{ left: x(wd.breakStartMin), width: Math.max(0, x(wd.breakEndMin) - x(wd.breakStartMin)) }}
+                  >
+                    <p className="truncate font-bold">休憩({fmt(wd.breakStartMin)}-{fmt(wd.breakEndMin)})</p>
+                    {wd.breakMemo && <p className="truncate">{wd.breakMemo}</p>}
+                  </div>
+                );
+              })()}
               {/* 予約 */}
               {r.bookings.map((b) => {
                 const s = Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000);
@@ -1346,8 +1410,10 @@ function MemoDialog({
 
 // ── 報酬確定 ───────────────────────────────────────
 function ConfirmDialog({
-  therapist, salonId, date, baseMs, bookings, confirm, onClose, onDone,
+  therapist, salonId, date, baseMs, bookings, confirm, transport, onClose, onDone,
 }: {
+  /** 出勤情報の交通費（まだ確定していないときの手当の初期値・第550便） */
+  transport: number;
   therapist: CrmScheduleTherapist;
   salonId: number;
   date: string;
@@ -1357,8 +1423,8 @@ function ConfirmDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [allowance, setAllowance] = useState(confirm ? String(confirm.allowance || '') : '');
-  const [note, setNote] = useState(confirm?.note ?? '');
+  const [allowance, setAllowance] = useState(confirm ? String(confirm.allowance || '') : transport ? String(transport) : '');
+  const [note, setNote] = useState(confirm?.note ?? (transport ? `交通費${transport}` : ''));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [sure, setSure] = useState(false);
@@ -1589,5 +1655,156 @@ function CloseDialog({
         </div>
       </div>
     </>
+  );
+}
+
+// ── 出勤情報（名前を押す・第550便）────────────────────
+function WorkDayDialog({
+  therapist, salonId, date, rooms, endType, initial, onClose, onSaved, onConfirm,
+}: {
+  therapist: CrmScheduleTherapist;
+  salonId: number;
+  date: string;
+  rooms: string[];
+  endType: CrmEndType;
+  initial: CrmWorkDay;
+  onClose: () => void;
+  onSaved: () => void;
+  onConfirm: () => void;
+}) {
+  const [wd, setWd] = useState<CrmWorkDay>(initial);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const set = <K extends keyof CrmWorkDay>(k: K, v: CrmWorkDay[K]) => setWd((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const save = async () => {
+    setBusy(true); setErr('');
+    const r = await saveCrmWorkDay(salonId, therapist.id, date, wd);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onSaved();
+  };
+
+  const roomOptions = wd.room && !rooms.includes(wd.room) ? [...rooms, wd.room] : rooms;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
+        <div className="pointer-events-auto flex max-h-[92vh] w-full max-w-[640px] flex-col bg-white shadow-2xl">
+          <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
+            <span className="text-[15px] font-black">出勤情報：{therapist.name}</span>
+            <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
+          </div>
+          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px]">
+              <span className="font-bold text-slate-500">{dateLabel(date)}</span>
+              <span className="font-bold text-slate-800">
+                出勤 {therapist.schedules.length > 0 ? therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ') : 'なし'}
+              </span>
+              <span className={`border px-1.5 text-[12px] font-bold ${endType === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'}`}>
+                {CRM_END_LABEL[endType]}
+              </span>
+            </div>
+            <p className="-mt-2 text-[12px] text-slate-400">出勤の時刻は、マイページの「出勤」で変えてください（サイトと媒体に出る出勤と同じものです）。</p>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={labCls}>休憩開始</label>
+                <TimePick value={wd.breakStartMin} onChange={(v) => set('breakStartMin', v)} />
+              </div>
+              <div>
+                <label className={labCls}>休憩終了</label>
+                <TimePick value={wd.breakEndMin} onChange={(v) => set('breakEndMin', v)} />
+              </div>
+            </div>
+            <div>
+              <label className={labCls}>休憩メモ</label>
+              <input className={fieldCls} value={wd.breakMemo} maxLength={100} onChange={(e) => set('breakMemo', e.target.value)} placeholder="例）親と電話" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className={labCls}>待機場所</label>
+                <select className={fieldCls} value={wd.room} onChange={(e) => set('room', e.target.value)}>
+                  <option value="">--</option>
+                  {roomOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+                {rooms.length === 0 && <p className="mt-1 text-[11px] text-slate-400">部屋の一覧は「設定」タブで作れます</p>}
+              </div>
+              <div>
+                <label className={labCls}>遅刻・当欠・休ませた</label>
+                <select className={fieldCls} value={wd.attendance} onChange={(e) => set('attendance', e.target.value as CrmAttendance)}>
+                  {CRM_ATTENDANCE.map((a) => <option key={a || 'none'} value={a}>{CRM_ATTENDANCE_LABEL[a]}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className={labCls}>交通費（円）</label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  className={`${fieldCls} max-w-[160px]`}
+                  inputMode="numeric"
+                  value={wd.transport ? String(wd.transport) : ''}
+                  onChange={(e) => set('transport', Number(e.target.value.replace(/[^0-9]/g, '')) || 0)}
+                  placeholder="0"
+                />
+                {[1000, 2000].map((v) => (
+                  <button key={v} type="button" onClick={() => set('transport', v)} className="border border-slate-300 bg-white px-2 py-1 text-[12px] font-bold text-slate-600">
+                    {v.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">報酬確定のときの「手当・交通費」に、はじめから入ります。</p>
+            </div>
+            {err && <p className="text-[13px] font-bold text-rose-600">{err}</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3">
+            <button type="button" disabled={busy} onClick={onConfirm} className="text-[13px] font-bold text-emerald-700 underline">
+              報酬確定を行う
+            </button>
+            <button type="button" disabled={busy} onClick={onClose} className="ml-auto border border-slate-300 bg-white px-4 py-2 text-[14px] font-bold text-slate-600">
+              閉じる
+            </button>
+            <button type="button" disabled={busy} onClick={save} className="bg-emerald-600 px-5 py-2 text-[14px] font-bold text-white disabled:opacity-50">
+              {busy ? '保存中…' : '保存'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// 休憩の時・分（'' ＝ なし）
+const TP_HOURS: number[] = Array.from({ length: 25 }, (_, i) => i + 6);
+const TP_MINS: number[] = Array.from({ length: 12 }, (_, i) => i * 5);
+function TimePick({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  return (
+    <div className="flex gap-1">
+      <select
+        className={fieldCls}
+        value={value == null ? '' : Math.floor(value / 60)}
+        onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value) * 60 + (value == null ? 0 : value % 60))}
+      >
+        <option value="">--</option>
+        {TP_HOURS.map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}
+      </select>
+      <select
+        className={fieldCls}
+        disabled={value == null}
+        value={value == null ? 0 : value % 60}
+        onChange={(e) => onChange(Math.floor((value ?? 0) / 60) * 60 + Number(e.target.value))}
+      >
+        {TP_MINS.map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}分</option>)}
+      </select>
+    </div>
   );
 }

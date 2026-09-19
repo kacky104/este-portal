@@ -135,6 +135,8 @@ export type CrmScheduleData = {
   settings: CrmSettings;
   /** その日の「受まで／上がり」（セラピストID → 種類）。無い人は settings.defaultEndType */
   workEnds: Record<number, CrmEndType>;
+  /** その日の出勤情報（セラピストID → 情報・第550便） */
+  workDays: Record<number, CrmWorkDay>;
 };
 
 // ── 料金と報酬（第2段階・2026-09-19）────────────────────
@@ -274,5 +276,21 @@ export type CrmSettings = {
   dayStartMin: number;   // 時間軸の始まり（その日 0:00 からの分・6:00〜）
   dayEndMin: number;     // 時間軸の終わり（〜翌7:00＝1860）
   defaultEndType: CrmEndType;
+  /** 待機場所（部屋）の一覧（第550便） */
+  rooms: string[];
 };
-export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish' };
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [] };
+
+// ── 出勤情報（第550便）──────────────────────────────
+export const CRM_ATTENDANCE = ['', 'late', 'absent', 'sent_home'] as const;
+export type CrmAttendance = (typeof CRM_ATTENDANCE)[number];
+export const CRM_ATTENDANCE_LABEL: Record<CrmAttendance, string> = { '': '—', late: '遅刻', absent: '当欠', sent_home: '休ませた' };
+export type CrmWorkDay = {
+  breakStartMin: number | null; // その日 0:00 からの分
+  breakEndMin: number | null;
+  breakMemo: string;
+  room: string;
+  attendance: CrmAttendance;
+  transport: number;
+};
+export const CRM_EMPTY_WORK_DAY: CrmWorkDay = { breakStartMin: null, breakEndMin: null, breakMemo: '', room: '', attendance: '', transport: 0 };

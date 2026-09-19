@@ -35,6 +35,8 @@ import {
   CRM_DEFAULT_SETTINGS,
   type CrmSettings,
   type CrmEndType,
+  type CrmWorkDay,
+  type CrmAttendance,
   isFixedNomination,
   sumCrmItems,
   type CrmStats,
@@ -527,6 +529,7 @@ export async function getCrmSchedule(
       report: await readReport(svc, salonId, dateISO),
       settings: await readSettings(svc, salonId),
       workEnds: await readWorkEnds(svc, salonId, dateISO),
+      workDays: await readWorkDays(svc, salonId, dateISO),
       defaultIntervalMin: board.data.defaultIntervalMin,
       therapists: therapists.map((t) => ({
         id: t.id,
@@ -1239,12 +1242,13 @@ export async function setCrmPlayStatus(
 // ── 設定と「受まで／上がり」（第548便）──────────────────
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
   const { data } = await svc
-    .from('crm_settings').select('day_start_min, day_end_min, default_end_type').eq('salon_id', salonId).maybeSingle();
+    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms').eq('salon_id', salonId).maybeSingle();
   if (!data) return { ...CRM_DEFAULT_SETTINGS };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
     dayEndMin: Number(data.day_end_min) || CRM_DEFAULT_SETTINGS.dayEndMin,
     defaultEndType: data.default_end_type === 'accept' ? 'accept' : 'finish',
+    rooms: Array.isArray(data.rooms) ? (data.rooms as unknown[]).map(String) : [],
   };
 }
 
@@ -1276,11 +1280,15 @@ export async function saveCrmSettings(
   if (!(start >= 360 && start <= 1800)) return { ok: false, error: '開始時刻は 6:00〜翌6:00 で選んでください' };
   if (!(end >= 420 && end <= 1860)) return { ok: false, error: '終了時刻は 7:00〜翌7:00 で選んでください' };
   if (end <= start) return { ok: false, error: '終了時刻は開始時刻より後にしてください' };
+  const rooms = [...new Set((settings.rooms ?? []).map((r) => String(r).trim()).filter(Boolean))];
+  if (rooms.length > 50) return { ok: false, error: '待機場所は50件までです' };
+  if (rooms.some((r) => r.length > 30)) return { ok: false, error: '待機場所の名前は30文字までです' };
   const { error } = await auth.svc.from('crm_settings').upsert({
     salon_id: salonId,
     day_start_min: start,
     day_end_min: end,
     default_end_type: settings.defaultEndType === 'accept' ? 'accept' : 'finish',
+    rooms,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };
@@ -1302,6 +1310,62 @@ export async function setCrmWorkEnd(
   if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
   const { error } = await auth.svc.from('crm_work_ends').upsert({
     salon_id: salonId, therapist_id: therapistId, business_date: dateISO, end_type: endType,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ── 出勤情報（第550便）──────────────────────────────
+// ★ 出勤の開始・終了時刻はここでは変えない（therapist_schedules はサイトと媒体の元・カッキーさんの決定）。
+async function readWorkDays(svc: Svc, salonId: number, dateISO: string): Promise<Record<number, CrmWorkDay>> {
+  if (!validDate(dateISO)) return {};
+  const { data } = await svc
+    .from('crm_work_days')
+    .select('therapist_id, break_start_min, break_end_min, break_memo, room, attendance, transport')
+    .eq('salon_id', salonId).eq('business_date', dateISO);
+  const out: Record<number, CrmWorkDay> = {};
+  for (const r of data ?? []) {
+    out[Number(r.therapist_id)] = {
+      breakStartMin: r.break_start_min == null ? null : Number(r.break_start_min),
+      breakEndMin: r.break_end_min == null ? null : Number(r.break_end_min),
+      breakMemo: String(r.break_memo ?? ''),
+      room: String(r.room ?? ''),
+      attendance: (['late', 'absent', 'sent_home'].includes(String(r.attendance)) ? r.attendance : '') as CrmAttendance,
+      transport: Number(r.transport) || 0,
+    };
+  }
+  return out;
+}
+
+export async function saveCrmWorkDay(
+  salonId: number,
+  therapistId: number,
+  dateISO: string,
+  wd: CrmWorkDay,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
+  const { data: t } = await auth.svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+  const bs = wd.breakStartMin == null ? null : Math.round(Number(wd.breakStartMin));
+  const be = wd.breakEndMin == null ? null : Math.round(Number(wd.breakEndMin));
+  if ((bs == null) !== (be == null)) return { ok: false, error: '休憩は開始と終了の両方を選んでください' };
+  if (bs != null && be != null) {
+    if (bs < 0 || be > 1860) return { ok: false, error: '休憩の時刻が不正です' };
+    if (be <= bs) return { ok: false, error: '休憩の終了は開始より後にしてください' };
+  }
+  const memo = String(wd.breakMemo ?? '').trim();
+  const room = String(wd.room ?? '').trim();
+  const transport = Math.round(Number(wd.transport) || 0);
+  if (memo.length > 100) return { ok: false, error: '休憩メモは100文字までです' };
+  if (room.length > 30) return { ok: false, error: '待機場所が長すぎます' };
+  if (transport < 0 || transport > 100000) return { ok: false, error: '交通費は0〜100,000円で入れてください' };
+  const attendance = ['late', 'absent', 'sent_home'].includes(String(wd.attendance)) ? wd.attendance : '';
+  const { error } = await auth.svc.from('crm_work_days').upsert({
+    salon_id: salonId, therapist_id: therapistId, business_date: dateISO,
+    break_start_min: bs, break_end_min: be, break_memo: memo, room, attendance, transport,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };
