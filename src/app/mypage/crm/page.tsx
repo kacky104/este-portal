@@ -544,8 +544,10 @@ function DetailPanel({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
-      <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[400px] overflow-y-auto bg-white shadow-xl">
+      {/* ★ 詳細も中央に出す（2026-09-19・カッキーさんの指示・受付フォームとそろえる） */}
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
+      <aside className="pointer-events-auto max-h-[92vh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center bg-[#b3b8e6] px-4 py-2.5">
           <span className="text-[15px] font-black text-slate-800">お客様と予約</span>
           <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold text-slate-700" aria-label="閉じる">×</button>
@@ -679,6 +681,7 @@ function DetailPanel({
           </p>
         </section>
       </aside>
+      </div>
     </>
   );
 }
