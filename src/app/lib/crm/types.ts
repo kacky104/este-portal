@@ -70,3 +70,44 @@ export type CrmTherapist = { id: number; name: string; isActive: boolean };
 export type CrmAccess =
   | { ok: true; salonId: number; salonName: string; crmUntil: string | null; active: boolean; isAdmin: boolean }
   | { ok: false; error: string; needLogin?: boolean };
+
+// ── 本日スケジュール（CRM版・2026-09-19）────────────────
+/** 予約に重ねるお客様の情報（台帳にひも付いている予約だけ） */
+export type CrmScheduleCustomer = {
+  id: number;
+  name: string;
+  category: CrmCategory;
+  cautionMemo: string;
+  ngTherapistIds: number[];
+  stats: CrmStats;
+};
+
+export type CrmScheduleBooking = {
+  id: string;
+  therapistId: number | null;   // null＝フリー客
+  slotStartISO: string;
+  slotEndISO: string;
+  courseName: string;
+  courseMin: number;
+  customerName: string;         // 予約に書かれた名前
+  customerTel: string;
+  note: string;
+  status: string;               // new / confirmed / cancelled
+  cancelBad: boolean;
+  source: string;               // web / manual
+  customer: CrmScheduleCustomer | null;
+};
+
+export type CrmScheduleTherapist = {
+  id: number;
+  name: string;
+  profileImageUrl: string | null;
+  /** 出勤枠（ISO）。前日の夜跨ぎの尻尾も入る */
+  schedules: Array<{ start: string; end: string; startISO: string; endISO: string }>;
+};
+
+export type CrmScheduleData = {
+  date: string;                 // YYYY-MM-DD（営業日）
+  therapists: CrmScheduleTherapist[];
+  bookings: CrmScheduleBooking[];
+};

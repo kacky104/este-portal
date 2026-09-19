@@ -15,12 +15,15 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { normalizePhone } from '@/app/lib/validation/phone';
+import { getBookingBoardData } from '@/app/actions/booking';
 import {
   toCrmCategory,
   type CrmAccess,
   type CrmBookingRow,
   type CrmCustomerDetail,
   type CrmCustomerRow,
+  type CrmScheduleData,
+  type CrmScheduleCustomer,
   type CrmStats,
   type CrmTherapist,
 } from '@/app/lib/crm/types';
@@ -416,5 +419,96 @@ export async function getCrmTherapists(
       name: (t.name as string | null) ?? '(名前未設定)',
       isActive: Boolean(t.is_active),
     })),
+  };
+}
+
+/**
+ * 本日スケジュール（CRM版）。予約ボードと同じ出勤・予約に、台帳のお客様情報を重ねて返す。
+ * ★ 出勤と予約の読み方は予約ボード（getBookingBoardData）をそのまま使う（★ 二重管理しない）。
+ *   ボードの窓は「その日 0:00〜翌7:00」。画面側で 6:00 より前（前日営業日の続き）は見せない。
+ * ★ 見られる日付もボードと同じ（過去90日〜7日先）。
+ */
+export async function getCrmSchedule(
+  salonId: number,
+  dateISO: string,
+): Promise<{ ok: true; data: CrmScheduleData } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+
+  const board = await getBookingBoardData(salonId, dateISO);
+  if (!board.ok) return board;
+  const { therapists, bookings } = board.data;
+
+  // 予約 → 顧客のひも付けと悪質・入り口（ボードの返り値には無い列）
+  const bookingIds = bookings.map((b) => b.id);
+  const extra = new Map<string, { customerId: number | null; cancelBad: boolean; source: string }>();
+  if (bookingIds.length > 0) {
+    const { data } = await svc
+      .from('salon_bookings')
+      .select('id, customer_id, cancel_bad, source')
+      .eq('salon_id', salonId)
+      .in('id', bookingIds);
+    for (const r of data ?? []) {
+      extra.set(String(r.id), {
+        customerId: r.customer_id == null ? null : Number(r.customer_id),
+        cancelBad: Boolean(r.cancel_bad),
+        source: String(r.source ?? ''),
+      });
+    }
+  }
+
+  const customerIds = [...new Set([...extra.values()].map((e) => e.customerId).filter((v): v is number => v != null))];
+  const customers = new Map<number, CrmScheduleCustomer>();
+  if (customerIds.length > 0) {
+    const [{ data: cs }, stats] = await Promise.all([
+      svc.from('salon_customers')
+        .select('id, name, category, caution_memo, ng_therapist_ids')
+        .eq('salon_id', salonId)
+        .in('id', customerIds),
+      statsFor(svc, salonId, customerIds),
+    ]);
+    for (const c of cs ?? []) {
+      const id = Number(c.id);
+      customers.set(id, {
+        id,
+        name: (c.name as string | null) ?? '',
+        category: toCrmCategory(c.category),
+        cautionMemo: (c.caution_memo as string | null) ?? '',
+        ngTherapistIds: ((c.ng_therapist_ids as number[] | null) ?? []).map(Number),
+        stats: stats.get(id) ?? emptyStats(),
+      });
+    }
+  }
+
+  return {
+    ok: true,
+    data: {
+      date: dateISO,
+      therapists: therapists.map((t) => ({
+        id: t.id,
+        name: t.name,
+        profileImageUrl: t.profileImageUrl,
+        schedules: t.schedules.map((w) => ({ start: w.start, end: w.end, startISO: w.startISO, endISO: w.endISO })),
+      })),
+      bookings: bookings.map((b) => {
+        const e = extra.get(b.id);
+        return {
+          id: b.id,
+          therapistId: b.therapistId,
+          slotStartISO: b.slotStart,
+          slotEndISO: b.slotEnd,
+          courseName: b.courseName,
+          courseMin: b.courseMin,
+          customerName: b.customerName,
+          customerTel: b.customerTel,
+          note: b.note ?? '',
+          status: b.status,
+          cancelBad: e?.cancelBad ?? false,
+          source: e?.source ?? '',
+          customer: e?.customerId != null ? customers.get(e.customerId) ?? null : null,
+        };
+      }),
+    },
   };
 }

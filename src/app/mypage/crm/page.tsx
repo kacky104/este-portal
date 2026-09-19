@@ -1,553 +1,478 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCrmSchedule, setCrmCancelBad } from '@/app/actions/crm';
 import {
-  getCrmAccess,
-  getCrmCustomer,
-  getCrmTherapists,
-  saveCrmCustomer,
-  searchCrmCustomers,
-  setCrmCancelBad,
-} from '@/app/actions/crm';
-import {
-  CRM_CATEGORIES,
   CRM_CATEGORY_CLASS,
   CRM_CATEGORY_LABEL,
-  type CrmAccess,
-  type CrmBookingRow,
-  type CrmCategory,
-  type CrmCustomerDetail,
-  type CrmCustomerRow,
-  type CrmTherapist,
+  type CrmScheduleBooking,
+  type CrmScheduleData,
+  type CrmScheduleTherapist,
 } from '@/app/lib/crm/types';
+import { CrmShell, useCrmAccess } from './CrmShell';
 
-// フクエスCRM（有料）第1段階：顧客台帳（2026-09-19）。
+// フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
 //
-// ★ 無料の予約ボード（/mypage）とは別の画面。★ 有料かどうかはサーバー（actions/crm.ts）が判定する。
-//   未契約の店には【ご案内だけ】を出す（台帳の中身はサーバーが返さない）。
-// ★ PC: 左に検索と一覧・右に1人の詳細。★ スマホ: 一覧 → 押すと詳細（「一覧へ戻る」で戻る）。
-// ★ 運営（ADMIN）は ?salon=店舗ID で、その店の台帳を確認できる。
+// ★ 行＝その日に出勤しているセラピスト（＋予約だけ残っている人）。上にフリー客の行（予約があるときだけ）。
+// ★ 横＝時間。ピンクの帯が出勤、カードが予約。★ カードにお客様の分類・要注意・女子NG を重ねる。
+// ★ カードを押すと右にお客様と予約の詳細（台帳へのリンク・悪質キャンセルの付け外し）。
+// ★ 出勤と予約は予約ボード（無料）と同じデータ。★ 予約の入力・移動は今は予約ボードで行う（この画面は見る専用）。
+// ★ 日付は【営業日】（朝6時区切り）。★ 表示は 6:00〜翌7:00 の中で、予定がある範囲（最低 10時〜翌5時）。
 
-const JST_DATE = new Intl.DateTimeFormat('ja-JP', {
-  timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short',
-});
-const JST_TIME = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' });
+const PX_PER_MIN = 1.6;       // 1時間＝96px
+const NAME_W = 150;
+const ROW_H = 66;
+const DAY_START_MIN = 6 * 60;  // 営業日の始まり（6:00）
+const WINDOW_END_MIN = 31 * 60; // 予約ボードの窓の終わり（翌7:00）
+const DEFAULT_START_MIN = 10 * 60;
+const DEFAULT_END_MIN = 29 * 60; // 翌5:00
+const REFRESH_MS = 60_000;
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
-  return JST_DATE.format(new Date(iso));
+const JST_HM = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false });
+
+/** 営業日（朝6時区切り）の YYYY-MM-DD */
+function businessTodayJST(): string {
+  const d = new Date(Date.now() + 9 * 3600_000 - 6 * 3600_000);
+  return d.toISOString().slice(0, 10);
 }
-function fmtDateTime(iso: string): string {
-  const d = new Date(iso);
-  return `${JST_DATE.format(d)} ${JST_TIME.format(d)}`;
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
-/** 09012345678 → 090-1234-5678（見やすさだけ。保存は数字のまま） */
-function fmtPhone(p: string): string {
-  if (/^0[789]0\d{8}$/.test(p)) return `${p.slice(0, 3)}-${p.slice(3, 7)}-${p.slice(7)}`;
-  if (/^0\d{9}$/.test(p)) return `${p.slice(0, 2)}-${p.slice(2, 6)}-${p.slice(6)}`;
-  return p;
+function dateLabel(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  const w = '日月火水木金土'[d.getUTCDay()];
+  return `${date.slice(0, 4)}年${date.slice(5, 7)}月${date.slice(8, 10)}日（${w}）`;
+}
+/** その日 0:00 からの分（翌日なら 24*60 以上） */
+function minOfDay(iso: string, baseMs: number): number {
+  return Math.round((new Date(iso).getTime() - baseMs) / 60000);
+}
+function hourLabel(h: number): string {
+  return h >= 24 ? `翌${h - 24}時` : `${h}時`;
+}
+function hm(iso: string): string {
+  return JST_HM.format(new Date(iso));
 }
 
-function CategoryBadge({ c }: { c: CrmCategory }) {
+type Row = { key: string; therapist: CrmScheduleTherapist | null; bookings: CrmScheduleBooking[] };
+
+export default function CrmSchedulePage() {
+  const { access, adminSalonQuery } = useCrmAccess();
   return (
-    <span className={`inline-block border px-1.5 py-0.5 text-[11px] font-bold leading-none ${CRM_CATEGORY_CLASS[c]}`}>
-      {CRM_CATEGORY_LABEL[c]}
-    </span>
+    <CrmShell access={access} adminSalonQuery={adminSalonQuery} current="schedule">
+      {(a) => <ScheduleBody salonId={a.salonId} adminSalonQuery={adminSalonQuery} />}
+    </CrmShell>
   );
 }
 
-function StatusBadge({ b, nowMs }: { b: CrmBookingRow; nowMs: number }) {
-  if (b.status === 'cancelled') {
-    return b.cancelBad
-      ? <span className="bg-rose-600 px-1.5 py-0.5 text-[11px] font-bold text-white">悪質キャンセル</span>
-      : <span className="bg-slate-200 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">キャンセル</span>;
-  }
-  if (new Date(b.slotStartISO).getTime() > nowMs) {
-    return <span className="bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold text-sky-700">予約中</span>;
-  }
-  return <span className="bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700">利用</span>;
-}
-
-// ── 未契約の店に出すご案内 ─────────────────────────────
-function Upsell({ salonName }: { salonName: string }) {
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <div className="border border-indigo-200 bg-white p-6 shadow-sm">
-        <p className="text-[12px] font-bold text-indigo-500">{salonName}</p>
-        <h2 className="mt-1 text-[20px] font-black text-slate-800">フクエスCRM（顧客台帳）は有料機能です</h2>
-        <p className="mt-3 text-[14px] leading-relaxed text-slate-600">
-          予約ボードは今までどおり無料でお使いいただけます。フクエスCRMをお申し込みいただくと、
-          次のことができるようになります。
-        </p>
-        <ul className="mt-3 space-y-1.5 text-[14px] text-slate-700">
-          <li>・電話番号で同じお客様をまとめ、利用回数・キャンセル回数・最終利用日を一覧で見る</li>
-          <li>・分類（一般／会員／常連／VIP／NG）・女子NG・要注意メモを残す</li>
-          <li>・悪質キャンセル（無断キャンセルなど）を記録する</li>
-          <li>・お客様ごとの予約の履歴を見る</li>
-        </ul>
-        <p className="mt-4 border-l-4 border-indigo-300 bg-indigo-50 px-3 py-2 text-[13px] leading-relaxed text-indigo-900">
-          予約ボード・ネット予約に入ったお客様は、今も自動で記録されています。
-          お申し込みいただくと、これまでの記録もすぐにご覧いただけます。
-        </p>
-        <p className="mt-4 text-[13px] text-slate-500">お申し込み・料金は運営事務局までお問い合わせください。</p>
-        <Link href="/mypage" className="mt-5 inline-block bg-slate-800 px-4 py-2 text-[13px] font-bold text-white">
-          マイページへ戻る
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-// ── 編集フォーム ─────────────────────────────────────
-type FormState = {
-  name: string; nameKana: string; category: CrmCategory; memberNo: string;
-  phones: string; ngTherapistIds: number[]; cautionMemo: string; memo: string;
-};
-
-function toForm(c: CrmCustomerDetail | null): FormState {
-  return {
-    name: c?.name ?? '',
-    nameKana: c?.nameKana ?? '',
-    category: c?.category ?? 'general',
-    memberNo: c?.memberNo ?? '',
-    phones: (c?.phones ?? []).join('\n'),
-    ngTherapistIds: c?.ngTherapistIds ?? [],
-    cautionMemo: c?.cautionMemo ?? '',
-    memo: c?.memo ?? '',
-  };
-}
-
-const inputCls = 'w-full border border-slate-300 bg-white px-2.5 py-2 text-[14px] focus:border-indigo-400 focus:outline-none';
-const labelCls = 'mb-1 block text-[12px] font-bold text-slate-500';
-
-function CustomerForm({
-  salonId, customer, therapists, onSaved, onCancel,
-}: {
-  salonId: number;
-  customer: CrmCustomerDetail | null; // null＝新規
-  therapists: CrmTherapist[];
-  onSaved: (id: number) => void;
-  onCancel: () => void;
-}) {
-  const [f, setF] = useState<FormState>(() => toForm(customer));
-  const [busy, setBusy] = useState(false);
+function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
+  const [date, setDate] = useState<string>(() => businessTodayJST());
+  const [data, setData] = useState<CrmScheduleData | null>(null);
   const [err, setErr] = useState('');
-  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
+  const [picked, setPicked] = useState<CrmScheduleBooking | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [tick, setTick] = useState(0);
 
-  const submit = async () => {
-    setBusy(true);
-    setErr('');
-    const res = await saveCrmCustomer({
-      salonId,
-      customerId: customer?.id ?? null,
-      name: f.name,
-      nameKana: f.nameKana,
-      category: f.category,
-      memberNo: f.memberNo,
-      phones: f.phones.split(/\n+/).map((s) => s.trim()).filter(Boolean),
-      ngTherapistIds: f.ngTherapistIds,
-      cautionMemo: f.cautionMemo,
-      memo: f.memo,
-    });
-    setBusy(false);
-    if (!res.ok) { setErr(res.error); return; }
-    onSaved(res.customerId);
-  };
-
-  const shown = therapists.filter((t) => t.isActive || f.ngTherapistIds.includes(t.id));
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className={labelCls}>名前 <span className="text-rose-500">必須</span></label>
-          <input className={inputCls} value={f.name} maxLength={40} onChange={(e) => set('name', e.target.value)} />
-        </div>
-        <div>
-          <label className={labelCls}>フリガナ</label>
-          <input className={inputCls} value={f.nameKana} maxLength={40} onChange={(e) => set('nameKana', e.target.value)} />
-        </div>
-        <div>
-          <label className={labelCls}>分類</label>
-          <select className={inputCls} value={f.category} onChange={(e) => set('category', e.target.value as CrmCategory)}>
-            {CRM_CATEGORIES.map((c) => <option key={c} value={c}>{CRM_CATEGORY_LABEL[c]}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={labelCls}>会員番号</label>
-          <input className={inputCls} value={f.memberNo} maxLength={20} onChange={(e) => set('memberNo', e.target.value)} />
-        </div>
-      </div>
-      <div>
-        <label className={labelCls}>電話番号（複数あるときは改行で区切る・5件まで）</label>
-        <textarea className={`${inputCls} min-h-[64px]`} value={f.phones} onChange={(e) => set('phones', e.target.value)} />
-      </div>
-      <div>
-        <label className={labelCls}>女子NG（このお客様につけない人）</label>
-        {shown.length === 0 ? (
-          <p className="text-[13px] text-slate-400">セラピストが登録されていません</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {shown.map((t) => {
-              const on = f.ngTherapistIds.includes(t.id);
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => set('ngTherapistIds', on ? f.ngTherapistIds.filter((x) => x !== t.id) : [...f.ngTherapistIds, t.id])}
-                  className={`border px-2 py-1 text-[13px] font-bold ${on ? 'border-rose-500 bg-rose-500 text-white' : 'border-slate-300 bg-white text-slate-600'}`}
-                >
-                  {t.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <div>
-        <label className={labelCls}>要注意メモ（赤で目立たせて出します・500字）</label>
-        <textarea className={`${inputCls} min-h-[64px]`} maxLength={500} value={f.cautionMemo} onChange={(e) => set('cautionMemo', e.target.value)} />
-      </div>
-      <div>
-        <label className={labelCls}>メモ（1000字）</label>
-        <textarea className={`${inputCls} min-h-[96px]`} maxLength={1000} value={f.memo} onChange={(e) => set('memo', e.target.value)} />
-      </div>
-      {err && <p className="whitespace-pre-line text-[13px] font-bold text-rose-600">{err}</p>}
-      <div className="flex gap-2">
-        <button type="button" disabled={busy} onClick={submit} className="bg-indigo-600 px-5 py-2 text-[14px] font-bold text-white disabled:opacity-50">
-          {busy ? '保存中…' : '保存する'}
-        </button>
-        <button type="button" disabled={busy} onClick={onCancel} className="border border-slate-300 bg-white px-4 py-2 text-[14px] font-bold text-slate-600">
-          やめる
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── 1人の詳細 ────────────────────────────────────────
-function CustomerDetail({
-  salonId, customerId, onBack, onChanged,
-}: {
-  salonId: number;
-  customerId: number;
-  onBack: () => void;
-  onChanged: () => void;
-}) {
-  const [data, setData] = useState<{ customer: CrmCustomerDetail; bookings: CrmBookingRow[]; therapists: CrmTherapist[] } | null>(null);
-  const [err, setErr] = useState('');
-  const [editing, setEditing] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  // 「予約中／利用」の境目。読み込んだ時点の時刻で固定する。
-  const [nowMs] = useState(() => Date.now());
-
-  const load = useCallback(async () => {
-    const res = await getCrmCustomer(salonId, customerId);
-    if (!res.ok) { setErr(res.error); return; }
-    setErr('');
-    setData({ customer: res.customer, bookings: res.bookings, therapists: res.therapists });
-  }, [salonId, customerId]);
-
-  // ★ お客様が変わったら、親が key で作り直す（ここで state を戻さない）。
+  // 読み込み（日付が変わったとき・自動更新のとき）
   useEffect(() => {
     let alive = true;
-    getCrmCustomer(salonId, customerId).then((res) => {
+    getCrmSchedule(salonId, date).then((res) => {
       if (!alive) return;
-      if (!res.ok) { setErr(res.error); return; }
-      setData({ customer: res.customer, bookings: res.bookings, therapists: res.therapists });
+      if (!res.ok) { setErr(res.error); setData(null); return; }
+      setErr('');
+      setData(res.data);
+      setNowMs(Date.now());
     });
     return () => { alive = false; };
-  }, [salonId, customerId]);
+  }, [salonId, date, tick]);
 
-  const toggleBad = async (b: CrmBookingRow) => {
-    setBusyId(b.id);
-    const res = await setCrmCancelBad(salonId, b.id, !b.cancelBad);
-    setBusyId(null);
-    if (!res.ok) { setErr(res.error); return; }
-    await load();
-    onChanged();
-  };
+  // 60秒ごとに読み直す（詳細を開いている間は止める＝見ている最中に動かさない）
+  useEffect(() => {
+    if (picked) return;
+    const t = setInterval(() => setTick((v) => v + 1), REFRESH_MS);
+    return () => clearInterval(t);
+  }, [picked]);
 
-  if (err && !data) return <p className="p-4 text-[14px] text-rose-600">{err}</p>;
-  if (!data) return <p className="p-4 text-[14px] text-slate-400">読み込み中です…</p>;
-  const { customer: c, bookings, therapists } = data;
-  const ngNames = therapists.filter((t) => c.ngTherapistIds.includes(t.id)).map((t) => t.name);
+  const reload = useCallback(() => setTick((v) => v + 1), []);
+
+  const baseMs = useMemo(() => new Date(`${date}T00:00:00+09:00`).getTime(), [date]);
+
+  // 行と表示範囲
+  const view = useMemo(() => {
+    if (!data) return null;
+    const inWindow = (s: number, e: number) => e > DAY_START_MIN && s < WINDOW_END_MIN;
+    let minStart = DEFAULT_START_MIN;
+    let maxEnd = DEFAULT_END_MIN;
+    const note = (s: number, e: number) => {
+      if (!inWindow(s, e)) return;
+      minStart = Math.min(minStart, Math.max(DAY_START_MIN, s));
+      maxEnd = Math.max(maxEnd, Math.min(WINDOW_END_MIN, e));
+    };
+    const visibleBookings = data.bookings.filter((b) => {
+      const s = minOfDay(b.slotStartISO, baseMs);
+      const e = minOfDay(b.slotEndISO, baseMs);
+      return inWindow(s, e);
+    });
+    visibleBookings.forEach((b) => note(minOfDay(b.slotStartISO, baseMs), minOfDay(b.slotEndISO, baseMs)));
+
+    const rows: Row[] = [];
+    const free = visibleBookings.filter((b) => b.therapistId == null);
+    if (free.length > 0) rows.push({ key: 'free', therapist: null, bookings: free });
+
+    const therapistRows: Row[] = [];
+    for (const t of data.therapists) {
+      const scheds = t.schedules.filter((w) => inWindow(minOfDay(w.startISO, baseMs), minOfDay(w.endISO, baseMs)));
+      const bs = visibleBookings.filter((b) => b.therapistId === t.id);
+      if (scheds.length === 0 && bs.length === 0) continue;
+      scheds.forEach((w) => note(minOfDay(w.startISO, baseMs), minOfDay(w.endISO, baseMs)));
+      therapistRows.push({ key: `t${t.id}`, therapist: { ...t, schedules: scheds }, bookings: bs });
+    }
+    // 出勤の早い順（出勤なし・予約だけの人は後ろ）
+    const firstStart = (r: Row) => r.therapist?.schedules[0] ? minOfDay(r.therapist.schedules[0].startISO, baseMs) : 99999;
+    therapistRows.sort((a, b) => firstStart(a) - firstStart(b));
+    rows.push(...therapistRows);
+
+    const startMin = Math.floor(minStart / 60) * 60;
+    const endMin = Math.ceil(maxEnd / 60) * 60;
+    const activeCount = visibleBookings.filter((b) => b.status !== 'cancelled').length;
+    const workingCount = therapistRows.filter((r) => (r.therapist?.schedules.length ?? 0) > 0).length;
+    return { rows, startMin, endMin, activeCount, workingCount };
+  }, [data, baseMs]);
+
+  const isToday = date === businessTodayJST();
 
   return (
-    <div className="p-4">
-      <button type="button" onClick={onBack} className="mb-3 text-[13px] font-bold text-indigo-600 md:hidden">
-        ← 一覧へ戻る
-      </button>
+    <div className="px-2 py-3 md:px-4">
+      {/* 日付と件数 */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-[18px] font-black text-slate-800 md:text-[20px]">{dateLabel(date)}</span>
+        <div className="flex">
+          <button type="button" onClick={() => setDate(shiftDate(date, -1))} className="bg-[#3f51b5] px-3 py-1.5 text-[13px] font-bold text-white">◀ 前日</button>
+          <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-3 py-1.5 text-[13px] font-bold text-white ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
+          <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-3 py-1.5 text-[13px] font-bold text-white">次日 ▶</button>
+        </div>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => e.target.value && setDate(e.target.value)}
+          className="min-w-0 max-w-full appearance-none border border-slate-300 bg-white px-2 py-1 text-[13px]"
+        />
+        {view && (
+          <span className="text-[14px] font-bold text-slate-700 md:ml-2">
+            予約数 <span className="text-[#3f51b5]">{view.activeCount}</span>本 ／ 出勤数 <span className="text-[#3f51b5]">{view.workingCount}</span>人
+          </span>
+        )}
+        <Link href="/mypage" target="_blank" className="ml-auto text-[12px] font-bold text-pink-600 underline">
+          予約の入力・変更は予約ボードで
+        </Link>
+      </div>
 
-      {editing ? (
-        <>
-          <h2 className="mb-3 text-[17px] font-black text-slate-800">お客様情報を編集</h2>
-          <CustomerForm
-            salonId={salonId}
-            customer={c}
-            therapists={therapists}
-            onCancel={() => setEditing(false)}
-            onSaved={async () => { setEditing(false); await load(); onChanged(); }}
+      {err && <p className="mb-3 border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">{err}</p>}
+      {!data && !err && <p className="p-6 text-center text-[14px] text-slate-400">読み込み中です…</p>}
+
+      {view && (
+        view.rows.length === 0 ? (
+          <p className="border border-slate-200 bg-white p-8 text-center text-[14px] text-slate-400">この日の出勤・予約はありません</p>
+        ) : (
+          <Grid
+            rows={view.rows}
+            startMin={view.startMin}
+            endMin={view.endMin}
+            baseMs={baseMs}
+            nowMs={isToday ? nowMs : null}
+            pickedId={picked?.id ?? null}
+            onPick={setPicked}
           />
-        </>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <CategoryBadge c={c.category} />
-            <h2 className="text-[20px] font-black text-slate-800">{c.name || '(名前なし)'}</h2>
-            {c.nameKana && <span className="text-[13px] text-slate-400">{c.nameKana}</span>}
-            <button type="button" onClick={() => setEditing(true)} className="ml-auto border border-indigo-300 bg-white px-3 py-1 text-[13px] font-bold text-indigo-600">
-              編集
-            </button>
-          </div>
-
-          {c.cautionMemo && (
-            <p className="mt-3 whitespace-pre-line border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[14px] font-bold text-rose-700">
-              要注意：{c.cautionMemo}
-            </p>
-          )}
-
-          <div className="mt-3 grid grid-cols-2 gap-px bg-slate-200 sm:grid-cols-5">
-            {[
-              ['利用', `${c.stats.visits}回`],
-              ['予約中', `${c.stats.upcoming}件`],
-              ['キャンセル', `${c.stats.cancels}回`],
-              ['うち悪質', `${c.stats.badCancels}回`],
-              ['最終利用', fmtDate(c.stats.lastVisitISO)],
-            ].map(([k, v]) => (
-              <div key={k} className="bg-white px-3 py-2">
-                <p className="text-[11px] font-bold text-slate-400">{k}</p>
-                <p className={`text-[15px] font-black ${k === 'うち悪質' && c.stats.badCancels > 0 ? 'text-rose-600' : 'text-slate-800'}`}>{v}</p>
-              </div>
-            ))}
-          </div>
-
-          <dl className="mt-3 grid grid-cols-[6.5em_1fr] gap-y-1.5 text-[14px]">
-            <dt className="font-bold text-slate-400">電話番号</dt>
-            <dd className="text-slate-800">{c.phones.length ? c.phones.map(fmtPhone).join('／') : '—'}</dd>
-            <dt className="font-bold text-slate-400">会員番号</dt>
-            <dd className="text-slate-800">{c.memberNo || '—'}</dd>
-            <dt className="font-bold text-slate-400">女子NG</dt>
-            <dd className={ngNames.length ? 'font-bold text-rose-600' : 'text-slate-800'}>{ngNames.length ? ngNames.join('・') : '—'}</dd>
-            <dt className="font-bold text-slate-400">メモ</dt>
-            <dd className="whitespace-pre-line text-slate-800">{c.memo || '—'}</dd>
-          </dl>
-        </>
+        )
       )}
 
-      <h3 className="mt-6 border-b-2 border-indigo-200 pb-1 text-[15px] font-black text-slate-700">
-        予約の履歴 <span className="text-[12px] font-bold text-slate-400">{bookings.length}件</span>
-      </h3>
-      {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
-      {bookings.length === 0 ? (
-        <p className="mt-2 text-[13px] text-slate-400">まだ予約はありません</p>
-      ) : (
-        <ul className="mt-1 divide-y divide-slate-100">
-          {bookings.map((b) => {
-            const ng = b.therapistId != null && c.ngTherapistIds.includes(b.therapistId);
-            return (
-              <li key={b.id} className="py-2 text-[13px]">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <StatusBadge b={b} nowMs={nowMs} />
-                  <span className="font-bold text-slate-800">{fmtDateTime(b.slotStartISO)}</span>
-                  <span className="text-slate-600">{b.courseName}{b.courseMin ? `（${b.courseMin}分）` : ''}</span>
-                  <span className={ng ? 'font-bold text-rose-600' : 'text-slate-600'}>
-                    {b.therapistName}{ng ? '（女子NG）' : ''}
-                  </span>
-                  <span className="text-[11px] text-slate-400">{b.source === 'web' ? 'ネット予約' : '予約ボード'}</span>
-                  {b.status === 'cancelled' && (
-                    <button
-                      type="button"
-                      disabled={busyId === b.id}
-                      onClick={() => toggleBad(b)}
-                      className="ml-auto border border-rose-300 bg-white px-2 py-0.5 text-[12px] font-bold text-rose-600 disabled:opacity-50"
-                    >
-                      {b.cancelBad ? '悪質を外す' : '悪質にする'}
-                    </button>
-                  )}
-                </div>
-                {(b.note || (b.customerName && b.customerName !== c.name)) && (
-                  <p className="mt-0.5 text-[12px] text-slate-500">
-                    {b.customerName && b.customerName !== c.name ? `予約時の名前：${b.customerName}　` : ''}
-                    {b.note}
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+      {picked && (
+        <DetailPanel
+          booking={picked}
+          therapistName={
+            picked.therapistId == null
+              ? 'フリー（担当未定）'
+              : data?.therapists.find((t) => t.id === picked.therapistId)?.name ?? '(不明)'
+          }
+          salonId={salonId}
+          adminSalonQuery={adminSalonQuery}
+          onClose={() => setPicked(null)}
+          onChanged={(b) => { setPicked(b); reload(); }}
+        />
       )}
     </div>
   );
 }
 
-// ── 本体 ─────────────────────────────────────────────
-export default function CrmPage() {
-  const [access, setAccess] = useState<CrmAccess | null>(null);
-  const [query, setQuery] = useState('');
-  const [list, setList] = useState<CrmCustomerRow[]>([]);
-  const [listErr, setListErr] = useState('');
-  const [loadingList, setLoadingList] = useState(false);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [therapists, setTherapists] = useState<CrmTherapist[]>([]);
-  const seq = useRef(0);
+function Grid({
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick,
+}: {
+  rows: Row[];
+  startMin: number;
+  endMin: number;
+  baseMs: number;
+  nowMs: number | null;
+  pickedId: string | null;
+  onPick: (b: CrmScheduleBooking) => void;
+}) {
+  const width = (endMin - startMin) * PX_PER_MIN;
+  const hours: number[] = [];
+  for (let m = startMin; m < endMin; m += 60) hours.push(m / 60);
+  const x = (min: number) => (Math.min(Math.max(min, startMin), endMin) - startMin) * PX_PER_MIN;
+  const nowMin = nowMs != null ? Math.round((nowMs - baseMs) / 60000) : null;
+  const showNow = nowMin != null && nowMin >= startMin && nowMin <= endMin;
+
+  return (
+    <div className="max-h-[calc(100vh-170px)] overflow-auto border border-slate-300 bg-white">
+      <div className="relative" style={{ width: NAME_W + width }}>
+        {/* 時間の見出し（上に固定） */}
+        <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
+          <div className="sticky left-0 z-10 flex-none border-r border-slate-300 bg-slate-100 px-2 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: NAME_W }}>
+            セラピスト
+          </div>
+          {hours.map((h) => (
+            <div key={h} className="flex-none border-r border-slate-200 pl-1.5 text-[13px] font-bold leading-[30px] text-slate-600" style={{ width: 60 * PX_PER_MIN }}>
+              {hourLabel(h)}
+            </div>
+          ))}
+        </div>
+
+        {rows.map((r) => (
+          <div key={r.key} className="relative flex border-b border-slate-200" style={{ height: ROW_H }}>
+            {/* 名前（左に固定） */}
+            <div className="sticky left-0 z-20 flex-none border-r border-slate-300 bg-white px-2 py-1.5" style={{ width: NAME_W }}>
+              {r.therapist ? (
+                <>
+                  <p className="truncate text-[15px] font-black text-[#3f51b5]">{r.therapist.name}</p>
+                  <p className="text-[12px] font-bold text-slate-600">
+                    {r.therapist.schedules.length > 0
+                      ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
+                      : '出勤なし'}
+                  </p>
+                  <p className="text-[11px] text-slate-400">{r.bookings.filter((b) => b.status !== 'cancelled').length}本</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[15px] font-black text-amber-600">フリー</p>
+                  <p className="text-[11px] text-slate-400">担当未定の予約</p>
+                </>
+              )}
+            </div>
+
+            {/* 時間の中身 */}
+            <div className="relative flex-none" style={{ width }}>
+              {/* 1時間ごとの線 */}
+              {hours.map((h) => (
+                <div key={h} className="absolute top-0 bottom-0 border-r border-slate-100" style={{ left: (h * 60 - startMin + 60) * PX_PER_MIN - 1 }} />
+              ))}
+              {/* 出勤の帯 */}
+              {r.therapist?.schedules.map((w, i) => {
+                const s = Math.round((new Date(w.startISO).getTime() - baseMs) / 60000);
+                const e = Math.round((new Date(w.endISO).getTime() - baseMs) / 60000);
+                return (
+                  <div key={i} className="absolute top-0 bottom-0 bg-pink-100/70" style={{ left: x(s), width: Math.max(0, x(e) - x(s)) }}>
+                    <span className="absolute right-1 top-0.5 text-[10px] font-bold text-pink-400">{w.end}</span>
+                  </div>
+                );
+              })}
+              {/* 予約 */}
+              {r.bookings.map((b) => {
+                const s = Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000);
+                const e = Math.round((new Date(b.slotEndISO).getTime() - baseMs) / 60000);
+                return (
+                  <BookingCard
+                    key={b.id}
+                    b={b}
+                    left={x(s)}
+                    width={Math.max(24, x(e) - x(s))}
+                    picked={pickedId === b.id}
+                    ng={r.therapist != null && (b.customer?.ngTherapistIds.includes(r.therapist.id) ?? false)}
+                    onPick={() => onPick(b)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* 今の時刻（赤い線） */}
+        {showNow && (
+          <div
+            className="pointer-events-none absolute bottom-0 z-[15] w-0.5 bg-red-500"
+            style={{ left: NAME_W + (nowMin! - startMin) * PX_PER_MIN, top: 30 }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BookingCard({
+  b, left, width, picked, ng, onPick,
+}: {
+  b: CrmScheduleBooking;
+  left: number;
+  width: number;
+  picked: boolean;
+  ng: boolean;
+  onPick: () => void;
+}) {
+  const cancelled = b.status === 'cancelled';
+  const c = b.customer;
+  const tone = cancelled
+    ? 'bg-slate-100 text-slate-400 border-slate-300'
+    : b.status === 'new'
+      ? 'bg-pink-50 text-slate-800 border-pink-400'
+      : 'bg-cyan-50 text-slate-800 border-cyan-400';
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      title={`${hm(b.slotStartISO)}-${hm(b.slotEndISO)} ${c?.name || b.customerName}`}
+      className={`absolute top-1 bottom-1 overflow-hidden border px-1 text-left leading-tight shadow-sm ${tone} ${
+        ng && !cancelled ? '!border-2 !border-rose-600' : ''
+      } ${picked ? 'ring-2 ring-[#3f51b5]' : ''} ${cancelled ? 'z-[5]' : 'z-10'}`}
+      style={{ left, width }}
+    >
+      <p className="truncate text-[12px] font-black">
+        {hm(b.slotStartISO)}-{hm(b.slotEndISO)}
+        {b.courseMin ? <span className="font-bold text-slate-500">（{b.courseMin}分）</span> : null}
+      </p>
+      <p className="flex items-center gap-1 truncate text-[12px]">
+        {cancelled && <span className={`px-1 text-[10px] font-bold text-white ${b.cancelBad ? 'bg-rose-600' : 'bg-slate-400'}`}>{b.cancelBad ? '悪質' : 'ｷｬﾝｾﾙ'}</span>}
+        {!cancelled && b.status === 'new' && <span className="bg-pink-500 px-1 text-[10px] font-bold text-white">未確定</span>}
+        {c && <span className={`border px-1 text-[10px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>}
+        <span className="truncate font-bold">{c?.name || b.customerName || '(名前なし)'}</span>
+      </p>
+      <p className="flex items-center gap-1 truncate text-[11px]">
+        {ng && !cancelled && <span className="bg-rose-600 px-1 font-bold text-white">女子NG</span>}
+        {c?.cautionMemo && <span className="bg-rose-100 px-1 font-bold text-rose-700">要注意</span>}
+        {c && <span className="text-slate-500">利用{c.stats.visits}</span>}
+        <span className="truncate text-slate-500">{b.courseName}</span>
+      </p>
+    </button>
+  );
+}
+
+function DetailPanel({
+  booking: b, therapistName, salonId, adminSalonQuery, onClose, onChanged,
+}: {
+  booking: CrmScheduleBooking;
+  therapistName: string;
+  salonId: number;
+  adminSalonQuery: string;
+  onClose: () => void;
+  onChanged: (b: CrmScheduleBooking) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const c = b.customer;
+  const ng = b.therapistId != null && (c?.ngTherapistIds.includes(b.therapistId) ?? false);
 
   useEffect(() => {
-    const sp = new URLSearchParams(window.location.search);
-    const adminSalon = Number(sp.get('salon') ?? '') || undefined;
-    getCrmAccess(adminSalon).then((a) => {
-      if (!a.ok && a.needLogin) {
-        window.location.href = '/owner/login?redirectTo=' + encodeURIComponent('/mypage/crm');
-        return;
-      }
-      setAccess(a);
-    });
-  }, []);
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
-  const salonId = access?.ok && access.active ? access.salonId : null;
-
-  const runSearch = useCallback(async (q: string) => {
-    if (!salonId) return;
-    const my = ++seq.current;
-    setLoadingList(true);
-    const res = await searchCrmCustomers(salonId, q);
-    if (my !== seq.current) return; // 古い検索の結果は捨てる
-    setLoadingList(false);
-    if (!res.ok) { setListErr(res.error); setList([]); return; }
-    setListErr('');
-    setList(res.customers);
-  }, [salonId]);
-
-  // 入力が止まって0.3秒で検索
-  useEffect(() => {
-    if (!salonId) return;
-    const t = setTimeout(() => { void runSearch(query); }, 300);
-    return () => clearTimeout(t);
-  }, [query, salonId, runSearch]);
-
-  const openCreate = async () => {
-    setSelected(null);
-    setCreating(true);
-    if (therapists.length === 0 && salonId) {
-      const r = await getCrmTherapists(salonId);
-      if (r.ok) setTherapists(r.therapists);
-    }
+  const toggleBad = async () => {
+    setBusy(true);
+    setErr('');
+    const res = await setCrmCancelBad(salonId, b.id, !b.cancelBad);
+    setBusy(false);
+    if (!res.ok) { setErr(res.error); return; }
+    onChanged({ ...b, cancelBad: !b.cancelBad });
   };
 
-  if (!access) {
-    return <p className="p-10 text-center text-[14px] text-slate-400">読み込み中です…</p>;
-  }
-  if (!access.ok) {
-    return <p className="whitespace-pre-line p-10 text-center text-[14px] text-slate-500">{access.error}</p>;
-  }
-
-  const header = (
-    <header className="sticky top-0 z-30 flex items-center gap-3 bg-[#1e2a5a] px-4 py-3 text-white shadow">
-      <span className="text-[17px] font-black tracking-wide">フクエスCRM</span>
-      <span className="truncate text-[12px] text-indigo-200">{access.salonName}</span>
-      {access.isAdmin && <span className="bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-slate-900">運営で表示中</span>}
-      <span className="ml-auto hidden text-[12px] text-indigo-200 sm:inline">
-        {/* ★ ON/OFF 運用（9999-12-31＝期限なし）では何も出さない。期限つきのときだけ出す。 */}
-        {access.crmUntil && !access.crmUntil.startsWith('9999') ? `ご契約：${access.crmUntil.replaceAll('-', '/')} まで` : ''}
-      </span>
-    </header>
-  );
-
-  if (!access.active) {
-    return (<>{header}<Upsell salonName={access.salonName} /></>);
-  }
-
-  const showDetailOnMobile = selected != null || creating;
+  const ledgerHref = c
+    ? `/mypage/crm/customers${adminSalonQuery ? `${adminSalonQuery}&` : '?'}customer=${c.id}`
+    : '';
 
   return (
     <>
-      {header}
-      <div className="mx-auto flex max-w-6xl gap-0 md:gap-4 md:p-4">
-        {/* 左：検索と一覧 */}
-        <section className={`w-full border-slate-200 bg-white md:block md:w-[380px] md:flex-none md:border ${showDetailOnMobile ? 'hidden' : 'block'}`}>
-          <div className="border-b border-slate-200 p-3">
-            <div className="flex gap-2">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="名前・フリガナ・電話（下4桁でも）・会員番号"
-                className={inputCls}
-                inputMode="search"
-              />
-              <button type="button" onClick={openCreate} className="flex-none bg-indigo-600 px-3 text-[13px] font-bold text-white">
-                新規
-              </button>
-            </div>
-            <p className="mt-1.5 text-[11px] text-slate-400">
-              {query ? (loadingList ? '探しています…' : `${list.length}人見つかりました`) : '最近更新したお客様（50人まで）'}
-            </p>
-          </div>
-          {listErr && <p className="p-3 text-[13px] font-bold text-rose-600">{listErr}</p>}
-          <ul className="max-h-none divide-y divide-slate-100 md:max-h-[calc(100vh-170px)] md:overflow-y-auto">
-            {list.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => { setCreating(false); setSelected(c.id); }}
-                  className={`block w-full px-3 py-2.5 text-left hover:bg-indigo-50 ${selected === c.id ? 'bg-indigo-50' : ''}`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <CategoryBadge c={c.category} />
-                    <span className="truncate text-[15px] font-bold text-slate-800">{c.name || '(名前なし)'}</span>
-                    {c.cautionMemo && <span className="bg-rose-600 px-1 text-[10px] font-bold text-white">要注意</span>}
-                    <span className="ml-auto flex-none text-[12px] text-slate-500">利用{c.stats.visits}</span>
-                  </div>
-                  <div className="mt-0.5 flex gap-2 text-[12px] text-slate-400">
-                    <span>{c.phones[0] ? fmtPhone(c.phones[0]) : '電話なし'}</span>
-                    <span>最終 {fmtDate(c.stats.lastVisitISO)}</span>
-                    {c.stats.cancels > 0 && (
-                      <span className={c.stats.badCancels > 0 ? 'font-bold text-rose-500' : ''}>
-                        ｷｬﾝｾﾙ{c.stats.cancels}{c.stats.badCancels > 0 ? `（悪質${c.stats.badCancels}）` : ''}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              </li>
-            ))}
-            {!loadingList && list.length === 0 && !listErr && (
-              <li className="p-4 text-[13px] leading-relaxed text-slate-400">
-                {query ? '見つかりませんでした' : 'まだお客様がいません。予約ボードやネット予約で電話番号つきの予約が入ると、自動でここに増えていきます。'}
-              </li>
-            )}
-          </ul>
-        </section>
+      <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} />
+      <aside className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-[400px] overflow-y-auto bg-white shadow-xl">
+        <div className="flex items-center bg-[#b3b8e6] px-4 py-2.5">
+          <span className="text-[15px] font-black text-slate-800">お客様と予約</span>
+          <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold text-slate-700" aria-label="閉じる">×</button>
+        </div>
 
-        {/* 右：詳細 */}
-        <section className={`min-h-[60vh] w-full flex-1 bg-white md:block md:border md:border-slate-200 ${showDetailOnMobile ? 'block' : 'hidden'}`}>
-          {creating ? (
-            <div className="p-4">
-              <button type="button" onClick={() => setCreating(false)} className="mb-3 text-[13px] font-bold text-indigo-600 md:hidden">
-                ← 一覧へ戻る
-              </button>
-              <h2 className="mb-3 text-[17px] font-black text-slate-800">お客様を新しく登録</h2>
-              <CustomerForm
-                salonId={access.salonId}
-                customer={null}
-                therapists={therapists}
-                onCancel={() => setCreating(false)}
-                onSaved={(id) => { setCreating(false); setSelected(id); void runSearch(query); }}
-              />
-            </div>
-          ) : selected != null ? (
-            <CustomerDetail
-              key={selected}
-              salonId={access.salonId}
-              customerId={selected}
-              onBack={() => setSelected(null)}
-              onChanged={() => void runSearch(query)}
-            />
+        {/* お客様 */}
+        <section className="border-b border-slate-200 p-4">
+          {c ? (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`border px-1.5 py-0.5 text-[11px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>
+                <span className="text-[18px] font-black text-slate-800">{c.name || b.customerName || '(名前なし)'}</span>
+              </div>
+              {c.cautionMemo && (
+                <p className="mt-2 whitespace-pre-line border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">要注意：{c.cautionMemo}</p>
+              )}
+              {ng && <p className="mt-2 bg-rose-600 px-3 py-1.5 text-[13px] font-bold text-white">担当の {therapistName} さんは、このお客様の女子NGです</p>}
+              <div className="mt-2 grid grid-cols-4 gap-px bg-slate-200 text-center">
+                {[
+                  ['利用', c.stats.visits],
+                  ['予約中', c.stats.upcoming],
+                  ['ｷｬﾝｾﾙ', c.stats.cancels],
+                  ['悪質', c.stats.badCancels],
+                ].map(([k, v]) => (
+                  <div key={String(k)} className="bg-white py-1.5">
+                    <p className="text-[10px] font-bold text-slate-400">{k}</p>
+                    <p className={`text-[15px] font-black ${k === '悪質' && Number(v) > 0 ? 'text-rose-600' : 'text-slate-800'}`}>{v}</p>
+                  </div>
+                ))}
+              </div>
+              <Link href={ledgerHref} className="mt-3 inline-block bg-[#3f51b5] px-3 py-1.5 text-[13px] font-bold text-white">
+                顧客台帳で開く（編集・履歴）
+              </Link>
+            </>
           ) : (
-            <p className="p-8 text-center text-[14px] text-slate-400">左の一覧からお客様を選んでください</p>
+            <>
+              <p className="text-[18px] font-black text-slate-800">{b.customerName || '(名前なし)'}</p>
+              <p className="mt-1 text-[12px] text-slate-500">電話番号が無い（または形が違う）ため、顧客台帳にはひも付いていません。</p>
+            </>
           )}
         </section>
-      </div>
+
+        {/* 予約 */}
+        <section className="p-4">
+          <dl className="grid grid-cols-[6em_1fr] gap-y-1.5 text-[14px]">
+            <dt className="font-bold text-slate-400">時間</dt>
+            <dd className="font-bold text-slate-800">{hm(b.slotStartISO)}〜{hm(b.slotEndISO)}</dd>
+            <dt className="font-bold text-slate-400">担当</dt>
+            <dd className={ng ? 'font-bold text-rose-600' : 'text-slate-800'}>{therapistName}</dd>
+            <dt className="font-bold text-slate-400">コース</dt>
+            <dd className="text-slate-800">{b.courseName || '—'}{b.courseMin ? `（${b.courseMin}分）` : ''}</dd>
+            <dt className="font-bold text-slate-400">電話</dt>
+            <dd className="text-slate-800">{b.customerTel || '—'}</dd>
+            <dt className="font-bold text-slate-400">状態</dt>
+            <dd className="text-slate-800">
+              {b.status === 'cancelled' ? (b.cancelBad ? '悪質キャンセル' : 'キャンセル') : b.status === 'new' ? '未確定（ネット予約）' : '確定'}
+            </dd>
+            <dt className="font-bold text-slate-400">入り口</dt>
+            <dd className="text-slate-800">{b.source === 'web' ? 'ネット予約' : '予約ボード'}</dd>
+            <dt className="font-bold text-slate-400">備考</dt>
+            <dd className="whitespace-pre-line text-slate-800">{b.note || '—'}</dd>
+          </dl>
+          {b.status === 'cancelled' && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={toggleBad}
+              className="mt-4 border border-rose-300 bg-white px-3 py-1.5 text-[13px] font-bold text-rose-600 disabled:opacity-50"
+            >
+              {b.cancelBad ? '悪質を外す' : '悪質キャンセルにする'}
+            </button>
+          )}
+          {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
+          <p className="mt-4 text-[12px] leading-relaxed text-slate-400">
+            時間・担当の変更やキャンセルは、今は予約ボード（マイページ）で行ってください。
+          </p>
+        </section>
+      </aside>
     </>
   );
 }
