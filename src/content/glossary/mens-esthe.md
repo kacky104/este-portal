@@ -8,7 +8,7 @@ summary: 男性向けのリラクゼーションサロン。アロマオイル�
 description: メンズエステとは、男性向けのリラクゼーションサロンのこと。美容のメンズエステとの違い、受けられる施術、来店から退店までの流れ、福岡での実情、初めての方のお店の選び方を解説します。
 publishedAt: 2026-09-19
 heroImage: /glossary/mens-esthe/hero.webp
-heroAlt: 夕暮れのビルの廊下で、間接照明に照らされたメンズエステの木の扉
+heroAlt: 夕暮れの街あかりが窓に見えるビルの廊下と、その先で間接照明に照らされたメンズエステの木の扉
 related: [kenzen-ten, aroma-oil-treatment, momihogushi, course-jikan, sejutsu-hani, kuchikomi]
 areas: [nakasu-tenjin, hakata-eki, kitakyushu, kurume]
 faq:
