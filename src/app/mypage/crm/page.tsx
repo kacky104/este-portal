@@ -926,6 +926,13 @@ function DetailPanel({
                 </dd>
               </>
             )}
+            {/* 入り口（第555便で戻す）：フクエスのネット予約は仮で枠が埋まるので、担当が見分けられるように */}
+            <dt className="font-bold text-slate-400">入り口</dt>
+            <dd>
+              {b.source === 'web'
+                ? <span className="bg-pink-500 px-1.5 py-0.5 text-[12px] font-bold text-white">フクエス（ネット予約）</span>
+                : <span className="text-slate-800">店で受付</span>}
+            </dd>
             <dt className="font-bold text-slate-400">備考</dt>
             <dd className="whitespace-pre-line text-slate-800">{b.note || '—'}</dd>
           </dl>
