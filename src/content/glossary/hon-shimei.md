@@ -7,7 +7,7 @@ summary: 一度施術を受けたセラピストを、2回目以降に改めて�
 description: 本指名とは、一度施術を受けたセラピストを、2回目以降に改めて指名すること。ネット指名・フリーとの違い、本指名のよいところ、本指名料や特典の見方、次の予約の取り方を解説します。
 publishedAt: 2026-09-20
 heroImage: /glossary/hon-shimei/hero.webp
-heroAlt: 玄関の棚に置かれた、スタンプが二つ押された会員カードと家の鍵
+heroAlt: 明るい受付で、制服のセラピストが笑顔でお客様を迎えているところ
 related: [shimei, shimei-ryo, free, kuchikomi, counseling, atsu-no-tsuyosa]
 areas: [nakasu-tenjin, hakata-eki]
 faq:

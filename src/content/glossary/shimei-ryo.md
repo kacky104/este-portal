@@ -7,7 +7,7 @@ summary: セラピストを指名したときに、コース料金に加えて�
 description: 指名料とは、セラピストを指名したときにコース料金に加えてかかる料金のこと。金額が変わる理由、ランク・初回・ネット予約での違い、料金表での確かめ方、福岡での目安を解説します。
 publishedAt: 2026-09-20
 heroImage: /glossary/shimei-ryo/hero.webp
-heroAlt: 受付の壁に掛けられた、名前の読めない木の名札が並んだ掛け板
+heroAlt: 待合のソファで、制服のセラピストがお客様にメニューブックを開いて見せながら、笑顔で話しているところ
 related: [shimei, hon-shimei, free, shokai-wari, encho, course-jikan]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
