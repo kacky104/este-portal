@@ -13,8 +13,9 @@ import { CastDiary } from './CastDiary';
 import { CastThemePicker } from './CastTheme';
 import { CastImasugu } from './CastImasugu';
 import { CastCustomers } from './CastCustomers';
+import { CastPay } from './CastPay';
 
-type CastTab = 'diary' | 'theme' | 'now' | 'records';
+type CastTab = 'diary' | 'theme' | 'now' | 'records' | 'pay';
 
 // ★ 第516便: スマホは画面下に固定のタブバー（アイコン＋文字）。PC（md 以上）は上のピル型のまま。
 //   アイコンはライブラリを入れずに SVG で持つ（線の太さ・大きさをそろえるため全部 24×24・stroke 1.8）。
@@ -27,6 +28,8 @@ const ICON_PATHS: Record<CastTab, string> = {
   theme: 'M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.8-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Z M7.5 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z M10 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z M14.5 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',
   // ノート（記録帳）
   records: 'M6 3.5h11A1.5 1.5 0 0 1 18.5 5v14a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19V5A1.5 1.5 0 0 1 6 3.5Z M8.5 8h6 M8.5 11.5h6 M8.5 15h3.5',
+  // 円（報酬明細・第572便）
+  pay: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z M8.5 7.5 12 12l3.5-4.5 M12 12v5.5 M9 12.5h6 M9 15h6',
 };
 
 function TabIcon({ tab, className }: { tab: CastTab; className?: string }) {
@@ -62,6 +65,7 @@ export function CastTabs({
   todayReward,
   todayRewardCount,
   diaryToday,
+  castPayEnabled = false,
 }: {
   therapistId: string;
   therapistName: string;
@@ -80,7 +84,10 @@ export function CastTabs({
   todayReward: number;
   todayRewardCount: number;
   diaryToday: number;
+  /** お店が報酬明細を公開しているとき「報酬明細」タブを出す（第572便） */
+  castPayEnabled?: boolean;
 }) {
+  const tabs: ReadonlyArray<readonly [CastTab, string]> = castPayEnabled ? [...TABS, ['pay', '報酬明細'] as const] : TABS;
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
   const topRef = useRef<HTMLDivElement>(null);
   const [reward, setReward] = useState({ total: todayReward, count: todayRewardCount });
@@ -113,7 +120,7 @@ export function CastTabs({
 
       {/* PC（md 以上）: 上のピル型タブ */}
       <div className="hidden md:flex flex-wrap justify-center gap-2">
-        {TABS.map(([key, label]) => {
+        {tabs.map(([key, label]) => {
           const selected = activeTab === key;
           return (
             <button
@@ -139,8 +146,8 @@ export function CastTabs({
         aria-label="メニュー"
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-pink-100 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]"
       >
-        <div className="max-w-2xl mx-auto grid grid-cols-4">
-          {TABS.map(([key, label]) => {
+        <div className={`max-w-2xl mx-auto grid ${tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+          {tabs.map(([key, label]) => {
             const selected = activeTab === key;
             return (
               <button
@@ -169,6 +176,8 @@ export function CastTabs({
       {activeTab === 'theme' && <CastThemePicker />}
 
       {activeTab === 'records' && <CastCustomers today={businessDate} onTodayChange={onTodayChange} />}
+
+      {activeTab === 'pay' && castPayEnabled && <CastPay />}
 
       {activeTab === 'now' && (
         <CastImasugu

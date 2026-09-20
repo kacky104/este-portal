@@ -10,6 +10,7 @@ import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import { getRecordMonth } from '@/app/actions/castCustomers';
+import { isCastPayEnabled } from '@/app/actions/castPay';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -191,6 +192,7 @@ export default async function CastHomePage() {
               todayReward={todayReward}
               todayRewardCount={todayRewardCount}
               diaryToday={diaryToday}
+              castPayEnabled={await isCastPayEnabled()}
             />
 
             {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ 第522便: 遷移先は本人の fukuX（連携が無ければ /x）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}

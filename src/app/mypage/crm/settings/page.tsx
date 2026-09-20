@@ -31,6 +31,7 @@ const SETTING_TABS = [
   { key: 'rooms', label: '待機場所（部屋）' },
   { key: 'alarms', label: '予約アラーム' },
   { key: 'consent', label: '来店時の同意書' },
+  { key: 'cast', label: 'セラピストへの公開' },
   { key: 'export', label: 'データの書き出し' },
 ] as const;
 type SettingTab = (typeof SETTING_TABS)[number]['key'];
@@ -297,6 +298,21 @@ function SettingsBody({ salonId }: { salonId: number }) {
           </div>
         )}
       </section>
+      )}
+
+      {tab === 'cast' && (
+        <section className="border border-slate-200 bg-white p-5">
+          <h2 className="text-[17px] font-black text-slate-800">セラピストへの公開</h2>
+          <label className="mt-3 flex cursor-pointer items-center gap-2 text-[15px] font-bold">
+            <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.castPayEnabled} onChange={(e) => setSt({ ...st, castPayEnabled: e.target.checked })} />
+            セラピストに報酬明細を見せる
+          </label>
+          <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+            ON にすると、セラピスト本人のページ（/cast）に「報酬明細」タブが出て、<b>報酬確定した日の分だけ</b>、自分の本数・予約ごとの報酬・手当と月の合計を見られます。
+            お客様の名前・電話番号・料金・お店の売上は見せません。ほかのセラピストの分も見えません。
+          </p>
+          <p className="mt-1 text-[12px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
+        </section>
       )}
 
       {tab === 'export' && <ExportSection salonId={salonId} />}

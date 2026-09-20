@@ -303,6 +303,8 @@ export type CrmSettings = {
   consentEnabled: boolean;
   consentTitle: string;
   consentBody: string;
+  /** セラピストに /cast で報酬明細を見せる（第572便） */
+  castPayEnabled: boolean;
 };
 
 /** 予約アラーム（第559便・風俗CTIv2 の予約アラームにあたる）。on: 予約開始／予約終了・min 分前・sec 秒鳴らす・sound 音1〜4 */
@@ -328,7 +330,7 @@ export function normalizeCrmAlarms(raw: unknown): CrmAlarm[] {
   return out;
 }
 
-export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS, consentEnabled: false, consentTitle: '', consentBody: '' };
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS, consentEnabled: false, consentTitle: '', consentBody: '', castPayEnabled: false };
 
 /** 同意書（第560便）：CRM で見る1件 */
 export type CrmConsent = {

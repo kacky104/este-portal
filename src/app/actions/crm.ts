@@ -1341,7 +1341,7 @@ export async function setCrmReceived(
 // ── 設定と「受まで／上がり」（第548便）──────────────────
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
   const { data } = await svc
-    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms, consent_enabled, consent_title, consent_body').eq('salon_id', salonId).maybeSingle();
+    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms, consent_enabled, consent_title, consent_body, cast_pay_enabled').eq('salon_id', salonId).maybeSingle();
   if (!data) return { ...CRM_DEFAULT_SETTINGS, alarms: normalizeCrmAlarms(null) };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
@@ -1355,6 +1355,7 @@ async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
     consentEnabled: Boolean(data.consent_enabled),
     consentTitle: String(data.consent_title ?? ''),
     consentBody: String(data.consent_body ?? ''),
+    castPayEnabled: Boolean(data.cast_pay_enabled),
   };
 }
 
@@ -1415,6 +1416,7 @@ export async function saveCrmSettings(
     consent_enabled: !!settings.consentEnabled,
     consent_title: consentTitle,
     consent_body: consentBody,
+    cast_pay_enabled: !!settings.castPayEnabled,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };
