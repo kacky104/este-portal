@@ -304,7 +304,7 @@ export type CrmSettings = {
   consentEnabled: boolean;
   consentTitle: string;
   consentBody: string;
-  /** セラピストに /cast で報酬明細を見せる（第572便） */
+  /** セラピストに /cast でスケジュール（本人の出勤と予約）を見せる（第599便で報酬明細から変更。列名 cast_pay_enabled は第572便のまま） */
   castPayEnabled: boolean;
   /** 自由に作れる出勤情報の項目（最大2つ・第597便）。例：掛け持ち出勤／A・B・C */
   customToggles: CrmToggle[];

@@ -309,11 +309,12 @@ function SettingsBody({ salonId }: { salonId: number }) {
           <h2 className="text-[17px] font-black text-slate-800">セラピストへの公開</h2>
           <label className="mt-3 flex cursor-pointer items-center gap-2 text-[15px] font-bold">
             <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.castPayEnabled} onChange={(e) => setSt({ ...st, castPayEnabled: e.target.checked })} />
-            セラピストに報酬明細を見せる
+            セラピストにスケジュールを見せる
           </label>
           <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-            ON にすると、セラピスト本人のページ（/cast）に「報酬明細」タブが出て、<b>報酬確定した日の分だけ</b>、自分の本数・予約ごとの報酬・手当と月の合計を見られます。
-            お客様の名前・電話番号・料金・お店の売上は見せません。ほかのセラピストの分も見えません。
+            ON にすると、セラピスト本人のページ（/cast）に「スケジュール」タブが出て、<b>自分の出勤と予約</b>をタイムラインで見られます（日付を切り替えられます）。
+            左の枠にはその日の待機場所（部屋）、予約には時間・お客様の名前・コースを出します。
+            お客様の電話番号・料金・報酬・お店のメモ・女子メモ・ほかのセラピストの予定は見せません。
           </p>
           <p className="mt-1 text-[12px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
         </section>
