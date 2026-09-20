@@ -587,7 +587,7 @@ function Grid({
                           })()}
                           {pickCrmToggleValues(toggleDefs, wd.toggles).map((tv) => (
                             <span key={tv.title} title={`${tv.title}：${tv.value}`} className="max-w-[96px] flex-none truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700">
-                              {tv.title}:{tv.value}
+                              {tv.value}
                             </span>
                           ))}
                         </>

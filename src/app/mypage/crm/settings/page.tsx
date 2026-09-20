@@ -446,7 +446,7 @@ function ToggleSection({ toggles, onChange }: { toggles: CrmToggle[]; onChange: 
       <h2 className="text-[17px] font-black text-slate-800">出勤情報の項目</h2>
       <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
         題名と選択肢を自由に作れます（{CRM_TOGGLE_MAX}つまで）。スケジュールで名前を押した「出勤情報」に選択肢のボタンが並び、1つ選べます（もう一度押すと外れます）。
-        選んだものは、スケジュールの名前の下にも小さく出ます。例）掛け持ち出勤　A・B・C
+        選んだ選択肢は、スケジュールの名前の下にも小さく出ます（題名は出しません）。例）掛け持ち出勤　A・B・C
       </p>
       <div className="mt-3 space-y-4">
         {toggles.map((t, i) => (
