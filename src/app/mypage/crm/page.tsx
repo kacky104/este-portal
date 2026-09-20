@@ -959,7 +959,14 @@ function DetailPanel({
             )}
             {/* 同意書（第560便） */}
             <dt className="font-bold text-slate-400">同意書</dt>
-            <dd><ConsentView salonId={salonId} bookingId={b.id} consentAt={b.consentAt} /></dd>
+            <dd><ConsentView
+              salonId={salonId}
+              bookingId={b.id}
+              consentAt={b.consentAt}
+              bookingLabel={`${new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' }).format(new Date(b.slotStartISO))} ${hm(b.slotStartISO)}〜${hm(b.slotEndISO)}`}
+              therapistName={therapistName}
+              customerName={b.customer?.name || b.customerName}
+            /></dd>
             {/* 入り口（第555便で戻す）：フクエスのネット予約は仮で枠が埋まるので、担当が見分けられるように */}
             <dt className="font-bold text-slate-400">入り口</dt>
             <dd>
@@ -1621,8 +1628,53 @@ function ConfirmDialog({
   );
 }
 
+// ── 同意書の印刷（第573便）：紙の同意書と同じ形（文面・☑・サイン・日時）で1枚に出す ──────────────
+function printConsent(
+  c: CrmConsent,
+  info: { bookingLabel: string; therapistName: string; customerName: string; fmt: string },
+) {
+  const w = window.open('', '_blank');
+  if (!w) return;
+  const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch] as string));
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>同意書 ${esc(info.fmt)}</title>
+<style>
+  @page { size: A4; margin: 16mm; }
+  body { font-family: sans-serif; color: #111; font-size: 12px; line-height: 1.7; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .body { white-space: pre-wrap; border: 1px solid #999; padding: 10px; }
+  .agree { margin: 14px 0 6px; font-size: 14px; font-weight: bold; }
+  .sig { border: 1px solid #999; height: 140px; display: flex; align-items: center; justify-content: center; }
+  .sig img { max-height: 130px; max-width: 100%; }
+  table { border-collapse: collapse; margin-top: 12px; width: 100%; }
+  th, td { border: 1px solid #999; padding: 4px 8px; text-align: left; font-size: 12px; }
+  th { background: #f2f2f2; width: 90px; }
+  .note { margin-top: 8px; color: #666; font-size: 10px; }
+</style></head><body>
+<h1>${esc(c.title || '同意書')}</h1>
+<div class="body">${esc(c.body)}</div>
+<p class="agree">☑ 上記の内容をすべて了承します</p>
+<p style="margin:0 0 4px">サイン</p>
+<div class="sig"><img src="${c.signaturePng}" alt="サイン"></div>
+<table>
+  <tr><th>了承日時</th><td>${esc(info.fmt)}</td></tr>
+  <tr><th>ご予約</th><td>${esc(info.bookingLabel)}</td></tr>
+  <tr><th>お名前</th><td>${esc(info.customerName || '')}</td></tr>
+  <tr><th>担当</th><td>${esc(info.therapistName || '')}</td></tr>
+  <tr><th>部屋</th><td>${esc(c.room || '')}</td></tr>
+</table>
+<p class="note">フクエスCRM の来店時の同意書（スマホで電子的に了承・サイン）を印刷したものです。${c.superseded ? '※ この後にサインし直しがあったため、有効な同意書ではありません。' : ''}</p>
+<script>window.onload=function(){window.print()}<\/script>
+</body></html>`);
+  w.document.close();
+}
+
 // ── 同意書（第560便）：予約の詳細で了承の時刻とサインを見る ──────────────
-function ConsentView({ salonId, bookingId, consentAt }: { salonId: number; bookingId: string; consentAt: string | null }) {
+function ConsentView({
+  salonId, bookingId, consentAt, bookingLabel, therapistName, customerName,
+}: {
+  salonId: number; bookingId: string; consentAt: string | null;
+  bookingLabel: string; therapistName: string; customerName: string;
+}) {
   const [list, setList] = useState<CrmConsent[] | null>(null);
   const [open, setOpen] = useState(false);
   const [err, setErr] = useState('');
@@ -1652,6 +1704,13 @@ function ConsentView({ salonId, bookingId, consentAt }: { salonId: number; booki
               </p>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={c.signaturePng} alt="サイン" className="mt-1 max-h-[120px] w-full border border-slate-200 bg-white object-contain" />
+              <button
+                type="button"
+                onClick={() => printConsent(c, { bookingLabel, therapistName, customerName, fmt: fmt(c.createdAt) })}
+                className="mt-1 border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600"
+              >
+                🖨 印刷する
+              </button>
               <details className="mt-1">
                 <summary className="cursor-pointer text-[11px] font-bold text-slate-500">了承した文面</summary>
                 <p className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-slate-600">{c.title ? `${c.title}\n\n` : ''}{c.body}</p>
