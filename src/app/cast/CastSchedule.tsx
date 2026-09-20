@@ -164,7 +164,7 @@ export function CastSchedule() {
               ))}
             </ul>
           )}
-          <p className="mt-3 text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
+          <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
         </>
       )}
     </section>
