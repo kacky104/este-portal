@@ -5,7 +5,10 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import {
   closeCrmDay,
   confirmCrmPay,
+  addCrmMoneyMove,
+  cancelCrmMoneyMove,
   getCrmDaySummary,
+  getCrmMoneyDay,
   getCrmSchedule,
   lookupCrmCustomerByPhone,
   reopenCrmDay,
@@ -34,6 +37,10 @@ import {
   CRM_PRICE_SINGLE,
   CRM_PLAY_LABEL,
   CRM_RECEIVED_LABEL,
+  CRM_MONEY_CATEGORY_LABEL,
+  CRM_MONEY_DIRECTION_LABEL,
+  moneyBalanceLabel,
+  type CrmMoneyDay,
   isUnreceived,
   type CrmReceivedBy,
   CRM_END_LABEL,
@@ -1581,10 +1588,115 @@ function ConfirmDialog({
                 )
               )}
             </div>
+            <SettleBox salonId={salonId} therapistId={therapist.id} date={date} />
           </div>
         </div>
       </div>
     </>
+  );
+}
+
+// ── 精算（金銭授受・第558便）──────────────────────────
+// 報酬確定の画面の下。女子が受領した料金 − 報酬 を出し、渡した／払ったを記録する。
+function SettleBox({ salonId, therapistId, date }: { salonId: number; therapistId: number; date: string }) {
+  const [day, setDay] = useState<CrmMoneyDay | null>(null);
+  const [amount, setAmount] = useState('');
+  const [memo, setMemo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    getCrmMoneyDay(salonId, therapistId, date).then((r) => {
+      if (!alive) return;
+      if (!r.ok) { setErr(r.error); return; }
+      setDay(r.day);
+      setAmount(r.day.balance !== 0 ? String(Math.abs(r.day.balance)) : '');
+    });
+    return () => { alive = false; };
+  }, [salonId, therapistId, date, tick]);
+
+  if (!day) return <p className="border-t border-slate-200 pt-3 text-[13px] text-slate-400">{err || '精算を読み込み中…'}</p>;
+
+  const toShop = day.balance >= 0;
+  const add = async () => {
+    const n = Math.round(Number(amount) || 0);
+    if (n <= 0) { setErr('金額を入れてください'); return; }
+    setBusy(true); setErr('');
+    const r = await addCrmMoneyMove(salonId, {
+      therapistId, date, direction: toShop ? 'to_shop' : 'to_therapist', category: 'settle', amount: n, memo,
+    });
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setMemo('');
+    setTick((t) => t + 1);
+  };
+  const undo = async (id: number) => {
+    setBusy(true); setErr('');
+    const r = await cancelCrmMoneyMove(salonId, id);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setTick((t) => t + 1);
+  };
+
+  return (
+    <div className="space-y-2 border-t-2 border-slate-200 pt-3">
+      <p className="text-[14px] font-black text-slate-800">精算（お金のやりとり）</p>
+      <div className="grid grid-cols-2 gap-px bg-slate-200 text-[13px]">
+        {[
+          ['前日までの残高', day.prior === 0 ? '0' : `${day.prior > 0 ? '+' : '−'}${yen(Math.abs(day.prior))}`],
+          ['女子が受領した料金', yen(day.received)],
+          [day.payConfirmed ? '報酬（確定）' : '報酬（見込み）', `−${yen(day.pay)}`],
+          ['渡した／払った', (() => {
+            const net = day.moves.filter((m) => !m.cancelledAt).reduce((a, m) => a + (m.direction === 'to_shop' ? -m.amount : m.amount), 0);
+            return net === 0 ? '0' : `${net > 0 ? '+' : '−'}${yen(Math.abs(net))}`;
+          })()],
+        ].map(([k, v]) => (
+          <div key={k} className="bg-white px-2 py-1.5">
+            <p className="text-[11px] font-bold text-slate-400">{k}</p>
+            <p className="font-bold text-slate-800">{v}</p>
+          </div>
+        ))}
+      </div>
+      <p className={`px-3 py-2 text-[15px] font-black ${day.balance === 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
+        {day.balance === 0 ? '✓ 精算済み' : moneyBalanceLabel(day.balance)}
+      </p>
+      {!day.payConfirmed && day.pay > 0 && (
+        <p className="text-[12px] text-slate-500">※ 報酬はまだ確定前の見込みです（手当は確定すると入ります）</p>
+      )}
+      {day.moves.length > 0 && (
+        <ul className="divide-y divide-slate-100 border border-slate-200 text-[12px]">
+          {day.moves.map((m) => (
+            <li key={m.id} className={`flex items-center gap-2 px-2 py-1 ${m.cancelledAt ? 'text-slate-400 line-through' : ''}`}>
+              <span>{CRM_MONEY_DIRECTION_LABEL[m.direction]}</span>
+              <span>{CRM_MONEY_CATEGORY_LABEL[m.category]}</span>
+              <span className="font-bold">{yen(m.amount)}</span>
+              <span className="truncate text-slate-500">{m.memo}</span>
+              {!m.cancelledAt && (
+                <button type="button" disabled={busy} onClick={() => undo(m.id)} className="ml-auto border border-slate-300 px-1.5 text-[11px] font-bold text-slate-500 no-underline">取消</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {day.balance !== 0 && (
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="w-[120px]">
+            <label className="mb-0.5 block text-[11px] font-bold text-slate-500">{toShop ? '受け取った額' : '払った額'}</label>
+            <input className="w-full border border-slate-300 px-2 py-1.5 text-[14px]" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <label className="mb-0.5 block text-[11px] font-bold text-slate-500">メモ</label>
+            <input className="w-full border border-slate-300 px-2 py-1.5 text-[14px]" value={memo} maxLength={200} onChange={(e) => setMemo(e.target.value)} placeholder="任意" />
+          </div>
+          <button type="button" disabled={busy} onClick={add} className={`px-3 py-2 text-[13px] font-bold text-white disabled:opacity-50 ${toShop ? 'bg-[#3f51b5]' : 'bg-pink-500'}`}>
+            {toShop ? '女子から受け取った' : '女子に払った'}
+          </button>
+        </div>
+      )}
+      {err && <p className="text-[13px] font-bold text-rose-600">{err}</p>}
+    </div>
   );
 }
 
@@ -1669,6 +1781,11 @@ function CloseDialog({
               {sum.unreceived > 0 && (
                 <p className="border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">
                   未受領の予約が {sum.unreceived} 件あります（締めることはできます）
+                </p>
+              )}
+              {sum.unsettled.length > 0 && (
+                <p className="border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[13px] font-bold text-amber-800">
+                  お金の精算が残っている人：{sum.unsettled.join('・')}（金銭授受タブで見られます）
                 </p>
               )}
               {sum.freeUnassigned > 0 && (

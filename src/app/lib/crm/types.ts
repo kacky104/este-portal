@@ -234,6 +234,7 @@ export type CrmDaySummary = {
   freeUnassigned: number; // 担当未定のままの予約
   unconfirmed: string[];  // まだ報酬を確定していない人の名前
   unreceived: number;     // 未受領（キャンセル以外・料金あり・開始を過ぎた予約）（第554便）
+  unsettled: string[];    // その日に動きがあって、残高が 0 でない人（名前）（第558便）
   report: CrmDailyReport | null;
 };
 
@@ -329,3 +330,53 @@ export type CrmWorkDay = {
   transport: number;
 };
 export const CRM_EMPTY_WORK_DAY: CrmWorkDay = { breakStartMin: null, breakEndMin: null, breakMemo: '', room: '', attendance: '', transport: 0 };
+
+// ── 金銭授受（第558便・2026-09-20）────────────────────
+// 女子の残高 ＝ 女子が受領した料金 − 女子の報酬 − 女子→お店に渡した額 ＋ お店→女子に払った額
+// ＋ ならお店が受け取る側、− ならお店が払う側。0 で精算済み。
+// 報酬は、報酬確定した日は確定の数字（手当込み）、まだの日は予約の報酬の合計（見込み）。
+export const CRM_MONEY_DIRECTIONS = ['to_shop', 'to_therapist'] as const;
+export type CrmMoneyDirection = (typeof CRM_MONEY_DIRECTIONS)[number];
+export const CRM_MONEY_DIRECTION_LABEL: Record<CrmMoneyDirection, string> = { to_shop: '女子→お店', to_therapist: 'お店→女子' };
+export const CRM_MONEY_CATEGORIES = ['settle', 'change', 'advance', 'other'] as const;
+export type CrmMoneyCategory = (typeof CRM_MONEY_CATEGORIES)[number];
+export const CRM_MONEY_CATEGORY_LABEL: Record<CrmMoneyCategory, string> = { settle: '精算', change: '釣銭', advance: '前借り', other: 'その他' };
+
+export type CrmMoneyMove = {
+  id: number;
+  therapistId: number;
+  therapistName: string;
+  date: string;               // 営業日
+  direction: CrmMoneyDirection;
+  category: CrmMoneyCategory;
+  amount: number;
+  memo: string;
+  createdAt: string;
+  cancelledAt: string | null;
+};
+
+export type CrmMoneyBalance = {
+  therapistId: number;
+  name: string;
+  received: number;     // 女子が受領した料金
+  pay: number;          // 女子の報酬
+  toShop: number;       // 女子→お店
+  toTherapist: number;  // お店→女子
+  balance: number;      // received − pay − toShop + toTherapist
+};
+
+/** 報酬確定の画面の「精算」欄：その日の分と、前日までの残高 */
+export type CrmMoneyDay = {
+  prior: number;        // 前日までの残高
+  received: number;     // その日に女子が受領した料金
+  pay: number;          // その日の報酬
+  payConfirmed: boolean;
+  moves: CrmMoneyMove[]; // その日の動き（取り消し含む）
+  balance: number;      // その日の終わりの残高（prior ＋ received − pay − 渡した ＋ 払った）
+};
+
+export function moneyBalanceLabel(balance: number): string {
+  if (balance > 0) return `お店が受け取る ${yen(balance)}`;
+  if (balance < 0) return `お店が払う ${yen(-balance)}`;
+  return '精算済み';
+}

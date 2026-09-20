@@ -37,6 +37,12 @@ import {
   CRM_ROOM_COLORS,
   CRM_RECEIVED,
   isUnreceived,
+  CRM_MONEY_CATEGORIES,
+  CRM_MONEY_DIRECTIONS,
+  type CrmMoneyCategory,
+  type CrmMoneyMove,
+  type CrmMoneyBalance,
+  type CrmMoneyDay,
   type CrmSettings,
   type CrmEndType,
   type CrmWorkDay,
@@ -1026,6 +1032,27 @@ export async function unconfirmCrmPay(
   return { ok: true };
 }
 
+/** その日に受領・報酬・動きがあって、その日の終わりの残高が 0 でない人の名前（第558便） */
+async function unsettledNames(svc: Svc, salonId: number, dateISO: string, known: Map<number, string>): Promise<string[]> {
+  try {
+    const byDay = await moneyByDay(svc, salonId, { untilDate: dateISO });
+    const ids: number[] = [];
+    for (const [tid, days] of byDay) {
+      if (!days.has(dateISO)) continue;
+      let bal = 0;
+      for (const a of days.values()) bal += aggBalance(a);
+      if (bal !== 0) ids.push(tid);
+    }
+    if (ids.some((id) => !known.has(id))) {
+      const { data } = await svc.from('therapists').select('id, name').in('id', ids);
+      (data ?? []).forEach((t) => known.set(Number(t.id), String(t.name ?? '')));
+    }
+    return ids.map((id) => known.get(id) ?? '(不明)');
+  } catch {
+    return [];
+  }
+}
+
 async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<CrmDaySummary> {
   const [bookings, confirms, working, report] = await Promise.all([
     readDayBookings(svc, salonId, dateISO),
@@ -1059,6 +1086,7 @@ async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<C
     freeUnassigned: active.filter((b) => b.therapistId == null).length,
     unconfirmed: needIds.map((id) => names.get(id) ?? '(不明)'),
     unreceived: bookings.filter((b) => isUnreceived({ ...b, priceTotal: b.hasPrice ? b.priceTotal : null }, Date.now())).length,
+    unsettled: await unsettledNames(svc, salonId, dateISO, names),
     report,
   };
 }
@@ -1472,4 +1500,230 @@ async function roomClash(svc: Svc, salonId: number, therapistId: number, dateISO
     }
   }
   return null;
+}
+
+// ── 金銭授受（第558便・2026-09-20）──────────────────────
+// ★ 表（crm_money_moves）には「動き」だけを持ち、残高はここで毎回計算する（types.ts の式）。
+// ★ 報酬：報酬確定した日は確定の数字（手当込み）、まだの日は予約の報酬の合計（見込み）。
+
+/** slot_start（UTC ISO）→ 営業日（朝6時区切り・JST） */
+function businessDateOf(iso: string): string {
+  return new Date(new Date(iso).getTime() + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
+}
+
+type MoneyAgg = { received: number; pay: number; toShop: number; toTherapist: number };
+const emptyAgg = (): MoneyAgg => ({ received: 0, pay: 0, toShop: 0, toTherapist: 0 });
+
+/** 1000行ずつ全部読む（PostgREST の上限対策） */
+async function readAll<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null }>): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; from < 200000; from += 1000) {
+    const { data } = await fetchPage(from, from + 999);
+    const rows = data ?? [];
+    out.push(...rows);
+    if (rows.length < 1000) break;
+  }
+  return out;
+}
+
+function toMove(r: Record<string, unknown>, names: Map<number, string>): CrmMoneyMove {
+  const tid = Number(r.therapist_id);
+  return {
+    id: Number(r.id),
+    therapistId: tid,
+    therapistName: names.get(tid) ?? '(不明)',
+    date: String(r.business_date),
+    direction: r.direction === 'to_therapist' ? 'to_therapist' : 'to_shop',
+    category: (CRM_MONEY_CATEGORIES as readonly string[]).includes(String(r.category)) ? (r.category as CrmMoneyCategory) : 'other',
+    amount: Number(r.amount) || 0,
+    memo: String(r.memo ?? ''),
+    createdAt: String(r.created_at),
+    cancelledAt: r.cancelled_at ? String(r.cancelled_at) : null,
+  };
+}
+
+async function therapistNames(svc: Svc, salonId: number): Promise<Map<number, string>> {
+  const { data } = await svc.from('therapists').select('id, name').eq('salon_id', salonId);
+  return new Map((data ?? []).map((t) => [Number(t.id), String(t.name ?? '')]));
+}
+
+/**
+ * 女子ごと×営業日ごとの受領・報酬・動きを集める。
+ * filter: therapistId を絞る／untilDate（この日まで・含む）。
+ */
+async function moneyByDay(
+  svc: Svc,
+  salonId: number,
+  opt: { therapistId?: number; untilDate?: string } = {},
+): Promise<Map<number, Map<string, MoneyAgg>>> {
+  const untilEnd = opt.untilDate ? businessWindow(opt.untilDate).endISO : null;
+  const bookings = await readAll<Record<string, unknown>>((from, to) => {
+    let q = svc.from('salon_bookings')
+      .select('therapist_id, price_total, pay_total, received_by, slot_start')
+      .eq('salon_id', salonId)
+      .neq('status', 'cancelled')
+      .not('therapist_id', 'is', null)
+      .or('price_total.not.is.null,pay_total.not.is.null');
+    if (opt.therapistId) q = q.eq('therapist_id', opt.therapistId);
+    if (untilEnd) q = q.lt('slot_start', untilEnd);
+    return q.order('slot_start').range(from, to);
+  });
+  const confirms = await readAll<Record<string, unknown>>((from, to) => {
+    let q = svc.from('crm_pay_confirms').select('therapist_id, business_date, pay_total, allowance').eq('salon_id', salonId);
+    if (opt.therapistId) q = q.eq('therapist_id', opt.therapistId);
+    if (opt.untilDate) q = q.lte('business_date', opt.untilDate);
+    return q.order('business_date').range(from, to);
+  });
+  const moves = await readAll<Record<string, unknown>>((from, to) => {
+    let q = svc.from('crm_money_moves').select('therapist_id, business_date, direction, amount')
+      .eq('salon_id', salonId).is('cancelled_at', null);
+    if (opt.therapistId) q = q.eq('therapist_id', opt.therapistId);
+    if (opt.untilDate) q = q.lte('business_date', opt.untilDate);
+    return q.order('id').range(from, to);
+  });
+
+  const out = new Map<number, Map<string, MoneyAgg>>();
+  const cell = (tid: number, date: string) => {
+    let m = out.get(tid);
+    if (!m) { m = new Map(); out.set(tid, m); }
+    let a = m.get(date);
+    if (!a) { a = emptyAgg(); m.set(date, a); }
+    return a;
+  };
+  const confirmed = new Map<string, number>();
+  for (const c of confirms) {
+    confirmed.set(`${Number(c.therapist_id)}|${String(c.business_date)}`, (Number(c.pay_total) || 0) + (Number(c.allowance) || 0));
+  }
+  for (const b of bookings) {
+    const tid = Number(b.therapist_id);
+    const date = businessDateOf(String(b.slot_start));
+    const a = cell(tid, date);
+    if (b.received_by === 'therapist') a.received += Number(b.price_total) || 0;
+    if (!confirmed.has(`${tid}|${date}`)) a.pay += Number(b.pay_total) || 0;
+  }
+  for (const [key, pay] of confirmed) {
+    const [tid, date] = key.split('|');
+    cell(Number(tid), date).pay += pay;
+  }
+  for (const mv of moves) {
+    const a = cell(Number(mv.therapist_id), String(mv.business_date));
+    if (mv.direction === 'to_therapist') a.toTherapist += Number(mv.amount) || 0;
+    else a.toShop += Number(mv.amount) || 0;
+  }
+  return out;
+}
+
+const aggBalance = (a: MoneyAgg) => a.received - a.pay - a.toShop + a.toTherapist;
+
+/** 金銭授受タブ：女子ごとの残高（通算）と、月の動き（ym は YYYY-MM） */
+export async function getCrmMoney(
+  salonId: number,
+  ym: string,
+): Promise<{ ok: true; balances: CrmMoneyBalance[]; moves: CrmMoneyMove[]; therapists: { id: number; name: string }[] } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!/^\d{4}-\d{2}$/.test(ym)) return { ok: false, error: '月が不正です' };
+  const svc = auth.svc;
+  const [names, byDay] = await Promise.all([therapistNames(svc, salonId), moneyByDay(svc, salonId)]);
+  const balances: CrmMoneyBalance[] = [];
+  for (const [tid, days] of byDay) {
+    const t = emptyAgg();
+    for (const a of days.values()) { t.received += a.received; t.pay += a.pay; t.toShop += a.toShop; t.toTherapist += a.toTherapist; }
+    balances.push({ therapistId: tid, name: names.get(tid) ?? '(不明)', ...t, balance: aggBalance(t) });
+  }
+  balances.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance) || a.name.localeCompare(b.name, 'ja'));
+
+  const [y, m] = ym.split('-').map(Number);
+  const next = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+  const { data: mv } = await svc.from('crm_money_moves')
+    .select('id, therapist_id, business_date, direction, category, amount, memo, created_at, cancelled_at')
+    .eq('salon_id', salonId).gte('business_date', `${ym}-01`).lt('business_date', next)
+    .order('business_date', { ascending: false }).order('id', { ascending: false }).limit(1000);
+  const { data: ts } = await svc.from('therapists').select('id, name, is_active').eq('salon_id', salonId).order('id');
+  return {
+    ok: true,
+    balances,
+    moves: (mv ?? []).map((r) => toMove(r, names)),
+    therapists: (ts ?? []).filter((t) => t.is_active !== false).map((t) => ({ id: Number(t.id), name: String(t.name ?? '') })),
+  };
+}
+
+/** 報酬確定の画面の「精算」欄 */
+export async function getCrmMoneyDay(
+  salonId: number,
+  therapistId: number,
+  dateISO: string,
+): Promise<{ ok: true; day: CrmMoneyDay } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!validDate(dateISO) || !Number.isInteger(therapistId)) return { ok: false, error: '指定が不正です' };
+  const svc = auth.svc;
+  const [byDay, names, { data: conf }, { data: mv }] = await Promise.all([
+    moneyByDay(svc, salonId, { therapistId, untilDate: dateISO }),
+    therapistNames(svc, salonId),
+    svc.from('crm_pay_confirms').select('therapist_id').eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).maybeSingle(),
+    svc.from('crm_money_moves')
+      .select('id, therapist_id, business_date, direction, category, amount, memo, created_at, cancelled_at')
+      .eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).order('id'),
+  ]);
+  const days = byDay.get(therapistId) ?? new Map<string, MoneyAgg>();
+  let prior = 0;
+  for (const [d, a] of days) if (d < dateISO) prior += aggBalance(a);
+  const today = days.get(dateISO) ?? emptyAgg();
+  return {
+    ok: true,
+    day: {
+      prior,
+      received: today.received,
+      pay: today.pay,
+      payConfirmed: !!conf,
+      moves: (mv ?? []).map((r) => toMove(r, names)),
+      balance: prior + aggBalance(today),
+    },
+  };
+}
+
+/** お金の動きを1件足す */
+export async function addCrmMoneyMove(
+  salonId: number,
+  input: { therapistId: number; date: string; direction: string; category: string; amount: number; memo: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const tid = Number(input.therapistId);
+  if (!Number.isInteger(tid) || tid <= 0) return { ok: false, error: 'セラピストを選んでください' };
+  if (!validDate(String(input.date))) return { ok: false, error: '日付が不正です' };
+  if (!(CRM_MONEY_DIRECTIONS as readonly string[]).includes(String(input.direction))) return { ok: false, error: '渡す向きが不正です' };
+  if (!(CRM_MONEY_CATEGORIES as readonly string[]).includes(String(input.category))) return { ok: false, error: '種別が不正です' };
+  const amount = Math.round(Number(input.amount) || 0);
+  if (amount < 1 || amount > 10000000) return { ok: false, error: '金額は1円以上で入れてください' };
+  const { data: t } = await auth.svc.from('therapists').select('salon_id').eq('id', tid).maybeSingle();
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'このお店のセラピストではありません' };
+  const { error } = await auth.svc.from('crm_money_moves').insert({
+    salon_id: salonId,
+    therapist_id: tid,
+    business_date: input.date,
+    direction: input.direction,
+    category: input.category,
+    amount,
+    memo: String(input.memo ?? '').trim().slice(0, 200),
+    created_by: auth.userId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** お金の動きを取り消す（消さずに取り消した時刻を入れる） */
+export async function cancelCrmMoneyMove(
+  salonId: number,
+  moveId: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const { data, error } = await auth.svc.from('crm_money_moves')
+    .update({ cancelled_at: new Date().toISOString() })
+    .eq('salon_id', salonId).eq('id', moveId).is('cancelled_at', null).select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: '見つからないか、もう取り消してあります' };
+  return { ok: true };
 }
