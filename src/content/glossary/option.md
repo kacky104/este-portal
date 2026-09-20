@@ -7,7 +7,7 @@ summary: 基本のコースに追加で選べるメニュー。ヘッドスパ�
 description: オプションとは、基本のコースに追加で選べるメニューのこと。よくあるオプションの種類、料金表での見方、申し込むタイミング、コースの時間との関係、選び方のコツを解説します。
 publishedAt: 2026-09-20
 heroImage: /glossary/option/hero.webp
-heroAlt: 午後の光の差す窓辺で、セラピストが香りを試す細い紙を扇のように広げて差し出しているところ
+heroAlt: 木のトレイに並んだオプションの写真カードから、お客様が一枚を指さして選んでいるところ
 related: [course-jikan, encho, aroma-oil-treatment, counseling, shimei-ryo, coupon, head-spa]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
