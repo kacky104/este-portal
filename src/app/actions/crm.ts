@@ -36,6 +36,7 @@ import {
   CRM_DEFAULT_SETTINGS,
   CRM_ROOM_COLORS,
   CRM_RECEIVED,
+  normalizeCrmAlarms,
   isUnreceived,
   CRM_MONEY_CATEGORIES,
   CRM_MONEY_DIRECTIONS,
@@ -1317,8 +1318,8 @@ export async function setCrmReceived(
 // ── 設定と「受まで／上がり」（第548便）──────────────────
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
   const { data } = await svc
-    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors').eq('salon_id', salonId).maybeSingle();
-  if (!data) return { ...CRM_DEFAULT_SETTINGS };
+    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms').eq('salon_id', salonId).maybeSingle();
+  if (!data) return { ...CRM_DEFAULT_SETTINGS, alarms: normalizeCrmAlarms(null) };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
     dayEndMin: Number(data.day_end_min) || CRM_DEFAULT_SETTINGS.dayEndMin,
@@ -1327,6 +1328,7 @@ async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
     roomColors: data.room_colors && typeof data.room_colors === 'object' && !Array.isArray(data.room_colors)
       ? Object.fromEntries(Object.entries(data.room_colors as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
       : {},
+    alarms: normalizeCrmAlarms(data.alarms),
   };
 }
 
@@ -1361,6 +1363,10 @@ export async function saveCrmSettings(
   const rooms = [...new Set((settings.rooms ?? []).map((r) => String(r).trim()).filter(Boolean))];
   if (rooms.length > 50) return { ok: false, error: '待機場所は50件までです' };
   if (rooms.some((r) => r.length > 30)) return { ok: false, error: '待機場所の名前は30文字までです' };
+  const rawAlarms = Array.isArray(settings.alarms) ? settings.alarms : [];
+  if (rawAlarms.length > 10) return { ok: false, error: 'アラームは10件までです' };
+  if (rawAlarms.some((a) => !(Number(a.sec) >= 5 && Number(a.sec) <= 300))) return { ok: false, error: 'アラームの秒数は5〜300秒で入れてください' };
+  if (rawAlarms.some((a) => !(Number(a.min) >= 0 && Number(a.min) <= 120))) return { ok: false, error: 'アラームの「○分前」は0〜120分で入れてください' };
   const allowed = new Set(CRM_ROOM_COLORS.map((c) => c.key));
   const roomColors: Record<string, string> = {};
   for (const r of rooms) {
@@ -1374,6 +1380,7 @@ export async function saveCrmSettings(
     default_end_type: settings.defaultEndType === 'accept' ? 'accept' : 'finish',
     rooms,
     room_colors: roomColors,
+    alarms: normalizeCrmAlarms(rawAlarms),
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };

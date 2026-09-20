@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   closeCrmDay,
   confirmCrmPay,
@@ -64,8 +64,10 @@ import {
   type CrmScheduleCustomer,
   type CrmScheduleData,
   type CrmScheduleTherapist,
+  type CrmAlarm,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from './CrmShell';
+import { alarmAudioReady, playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 
 // フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
 //
@@ -238,6 +240,15 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
   return (
     <div className="px-2 py-3 md:px-4">
+      {data && (
+        <AlarmCenter
+          salonId={salonId}
+          isToday={isToday}
+          bookings={data.bookings}
+          therapists={data.therapists}
+          alarms={data.settings.alarms}
+        />
+      )}
       {/* 日付と件数 */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-[18px] font-black text-slate-800 md:text-[20px]">{dateLabel(date)}</span>
@@ -702,6 +713,7 @@ function BookingCard({
   return (
     <button
       type="button"
+      data-bid={b.id}
       onClick={(e) => { e.stopPropagation(); onPick(); }}
       title={`${hm(b.slotStartISO)}-${hm(b.slotEndISO)} ${c?.name || b.customerName}`}
       className={`absolute top-1 bottom-1 overflow-hidden border px-1 text-left leading-tight shadow-sm ${tone} ${
@@ -1593,6 +1605,138 @@ function ConfirmDialog({
         </div>
       </div>
     </>
+  );
+}
+
+// ── 予約アラーム（第559便・風俗CTIv2 の予約アラームにあたる）──────────────
+// ★ スケジュール画面を開いている間だけ動く（閉じている・スリープ中は鳴らない）。
+// ★ 1秒ごとに見て、「開始（終了）○分前」を過ぎたら、その予約のカードを点滅させ、音を○秒鳴らす。
+//   別タブだとブラウザが時計を遅らせる（最大1分ほど）ので、時刻を過ぎて90秒（か鳴らす秒数）までは拾う。
+// ★ 一度鳴らした予約×アラームは覚えておく（読み直しても二度鳴らさない・sessionStorage）。
+// ★ 別の日を見ているときは、今日の予約を自分で読みに行く（60秒ごと）。
+type ActiveAlarm = { key: string; bookingId: string; text: string; until: number; sound: number };
+const FIRED_KEY = 'crm_alarm_fired';
+
+function AlarmCenter({
+  salonId, isToday, bookings, therapists, alarms,
+}: {
+  salonId: number;
+  isToday: boolean;
+  bookings: CrmScheduleBooking[];
+  therapists: CrmScheduleTherapist[];
+  alarms: CrmAlarm[];
+}) {
+  const [ready, setReady] = useState(false);
+  const [active, setActive] = useState<ActiveAlarm[]>([]);
+  const [own, setOwn] = useState<{ bookings: CrmScheduleBooking[]; therapists: CrmScheduleTherapist[] } | null>(null);
+
+  // 別の日を見ているときは、今日の分を自分で読む
+  useEffect(() => {
+    if (isToday || alarms.length === 0) return;
+    let alive = true;
+    const load = () => getCrmSchedule(salonId, businessTodayJST()).then((r) => {
+      if (alive && r.ok) setOwn({ bookings: r.data.bookings, therapists: r.data.therapists });
+    });
+    load();
+    const t = setInterval(load, REFRESH_MS);
+    return () => { alive = false; clearInterval(t); };
+  }, [isToday, salonId, alarms.length]);
+
+  const src = useMemo(() => (isToday ? { bookings, therapists } : own), [isToday, bookings, therapists, own]);
+  const activeRef = useRef<ActiveAlarm[]>([]);
+  const lastPlayRef = useRef(0);
+  const stop = (key: string | null) => {
+    const next = key ? activeRef.current.filter((x) => x.key !== key) : [];
+    activeRef.current = next;
+    setActive(next);
+  };
+
+  useEffect(() => {
+    if (!src || alarms.length === 0) return;
+    const names = new Map(src.therapists.map((t) => [t.id, t.name]));
+    const readFired = (): Set<string> => {
+      try { return new Set(JSON.parse(sessionStorage.getItem(FIRED_KEY) || '[]') as string[]); } catch { return new Set(); }
+    };
+    const fired = readFired();
+    const saveFired = () => {
+      try { sessionStorage.setItem(FIRED_KEY, JSON.stringify([...fired].slice(-500))); } catch { /* 何もしない */ }
+    };
+    const step = () => {
+      const now = Date.now();
+      const found: ActiveAlarm[] = [];
+      for (const b of src.bookings) {
+        if (b.status === 'cancelled') continue;
+        const start = new Date(b.slotStartISO).getTime();
+        const end = b.courseMin ? start + b.courseMin * 60000 : new Date(b.slotEndISO).getTime();
+        alarms.forEach((a, i) => {
+          const at = (a.on === 'start' ? start : end) - a.min * 60000;
+          const key = `${b.id}|${a.on}|${a.min}|${i}`;
+          if (now < at || now >= at + Math.max(a.sec * 1000, 90_000) || fired.has(key)) return;
+          fired.add(key);
+          const who = b.therapistId != null ? names.get(b.therapistId) ?? '' : 'フリー';
+          const cust = b.customer?.name || b.customerName || '';
+          found.push({
+            key,
+            bookingId: b.id,
+            text: `${who} ${hm(b.slotStartISO)}〜 ${cust} ／ 予約${a.on === 'start' ? '開始' : '終了'}${a.min}分前`,
+            until: now + a.sec * 1000,
+            sound: a.sound,
+          });
+        });
+      }
+      if (found.length > 0) saveFired();
+      const cur = activeRef.current;
+      const next = [...cur.filter((x) => x.until > now), ...found];
+      if (next.length !== cur.length || found.length > 0) {
+        activeRef.current = next;
+        setActive(next);
+      }
+      if (next.length > 0 && now - lastPlayRef.current >= 1200) {
+        lastPlayRef.current = now;
+        playAlarmOnce(next[next.length - 1].sound);
+      }
+    };
+    step();
+    const t = setInterval(step, 1000);
+    return () => clearInterval(t);
+  }, [src, alarms]);
+
+  if (alarms.length === 0) return null;
+  const blinkCss = active.length > 0
+    ? `@keyframes crmAlarmBlink{0%,100%{box-shadow:0 0 0 3px #f43f5e}50%{box-shadow:0 0 0 3px transparent;opacity:.55}}${
+      [...new Set(active.map((a) => a.bookingId))].map((id) => `[data-bid="${id.replace(/"/g, '')}"]`).join(',')
+    }{animation:crmAlarmBlink .8s linear infinite;z-index:30}`
+    : '';
+
+  return (
+    <div className="mb-2">
+      {blinkCss && <style>{blinkCss}</style>}
+      {!ready ? (
+        <button
+          type="button"
+          onClick={async () => { const ok = await unlockAlarmAudio(); setReady(ok && alarmAudioReady()); if (ok) playAlarmOnce(1); }}
+          className="border-2 border-amber-500 bg-amber-50 px-3 py-1 text-[13px] font-bold text-amber-800"
+        >
+          🔔 アラームの音をONにする（画面を開くたびに1回押してください）
+        </button>
+      ) : (
+        <span className="inline-block bg-emerald-600 px-2 py-0.5 text-[12px] font-bold text-white">🔔 アラームON</span>
+      )}
+      {active.length > 0 && (
+        <div className="sticky top-0 z-40 mt-2 space-y-1">
+          {active.map((a) => (
+            <div key={a.key} className="flex items-center gap-2 bg-rose-600 px-3 py-2 text-[14px] font-bold text-white shadow-lg">
+              <span className="animate-pulse">⏰</span>
+              <span className="min-w-0 flex-1 truncate">{a.text}</span>
+              <button type="button" onClick={() => stop(a.key)} className="bg-white px-3 py-1 text-[13px] font-bold text-rose-700">止める</button>
+            </div>
+          ))}
+          {active.length > 1 && (
+            <button type="button" onClick={() => stop(null)} className="bg-slate-800 px-3 py-1 text-[12px] font-bold text-white">全部止める</button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

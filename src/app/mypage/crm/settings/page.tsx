@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
-import { CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
+import { CRM_ALARM_SOUNDS, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
+import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 
 // フクエスCRM「設定」（第548便・2026-09-19）。
@@ -159,6 +160,46 @@ function SettingsBody({ salonId }: { salonId: number }) {
           </button>
         </div>
         <p className="mt-2 text-[12px] text-slate-400">追加・削除のあとは、下の「保存する」を押してください。</p>
+      </section>
+
+      <section className="mt-4 border border-slate-200 bg-white p-5">
+        <h2 className="text-[17px] font-black text-slate-800">予約アラーム</h2>
+        <p className="mt-1 text-[13px] text-slate-600">
+          予約の開始・終了の○分前に、スケジュール画面で音を鳴らし、その予約のカードを点滅させます。
+          スケジュール画面を開いているときだけ鳴ります（開くたびに「アラームの音をONにする」を1回押してください）。キャンセルの予約では鳴りません。
+        </p>
+        {st.alarms.length === 0 && <p className="mt-3 text-[13px] text-slate-400">アラームはありません（鳴らしません）</p>}
+        <div className="mt-3 space-y-2">
+          {st.alarms.map((a, i) => {
+            const upd = (p: Partial<CrmAlarm>) => setSt({ ...st, alarms: st.alarms.map((x, j) => (j === i ? { ...x, ...p } : x)) });
+            return (
+              <div key={i} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-[14px]">
+                <select className="border border-slate-300 bg-white px-2 py-1.5" value={a.on} onChange={(e) => upd({ on: e.target.value === 'end' ? 'end' : 'start' })}>
+                  <option value="start">予約開始</option>
+                  <option value="end">予約終了</option>
+                </select>
+                <input className="w-16 border border-slate-300 px-2 py-1.5 text-right" inputMode="numeric" value={a.min} onChange={(e) => upd({ min: Math.min(120, Number(e.target.value.replace(/[^0-9]/g, '')) || 0) })} />
+                <span>分前に</span>
+                <input className="w-16 border border-slate-300 px-2 py-1.5 text-right" inputMode="numeric" value={a.sec} onChange={(e) => upd({ sec: Math.min(300, Number(e.target.value.replace(/[^0-9]/g, '')) || 0) })} />
+                <span>秒</span>
+                <select className="border border-slate-300 bg-white px-2 py-1.5" value={a.sound} onChange={(e) => upd({ sound: Number(e.target.value) })}>
+                  {CRM_ALARM_SOUNDS.map((n) => <option key={n} value={n}>アラーム{n}</option>)}
+                </select>
+                <button type="button" onClick={async () => { if (await unlockAlarmAudio()) playAlarmOnce(a.sound); }} className="border border-slate-300 bg-white px-2 py-1 text-[12px] font-bold text-slate-600">▶ 試しに鳴らす</button>
+                <button type="button" onClick={() => setSt({ ...st, alarms: st.alarms.filter((_, j) => j !== i) })} className="ml-auto text-[12px] font-bold text-slate-400 underline">削除</button>
+              </div>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          disabled={st.alarms.length >= 10}
+          onClick={() => setSt({ ...st, alarms: [...st.alarms, { on: 'start', min: 5, sec: 30, sound: 1 }] })}
+          className="mt-3 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700 disabled:opacity-40"
+        >
+          ＋ アラームを追加
+        </button>
+        <p className="mt-2 text-[12px] text-slate-400">「○分前」は0〜120分、鳴らす秒数は5〜300秒です。変えたあとは、下の「保存する」を押してください。</p>
       </section>
 
       {err && <p className="mt-3 text-[13px] font-bold text-rose-600">{err}</p>}

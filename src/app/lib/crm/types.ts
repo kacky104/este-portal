@@ -295,8 +295,34 @@ export type CrmSettings = {
   rooms: string[];
   /** 部屋ごとのバッジの色（部屋名 → 色の名前・第552便） */
   roomColors: Record<string, string>;
+  /** 予約アラーム（第559便） */
+  alarms: CrmAlarm[];
 };
-export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {} };
+
+/** 予約アラーム（第559便・風俗CTIv2 の予約アラームにあたる）。on: 予約開始／予約終了・min 分前・sec 秒鳴らす・sound 音1〜4 */
+export type CrmAlarm = { on: 'start' | 'end'; min: number; sec: number; sound: number };
+export const CRM_ALARM_SOUNDS = [1, 2, 3, 4] as const;
+export const CRM_DEFAULT_ALARMS: CrmAlarm[] = [
+  { on: 'start', min: 5, sec: 30, sound: 2 },
+  { on: 'end', min: 10, sec: 30, sound: 4 },
+];
+/** 保存されたアラームの形を整える（null・壊れた値 → 既定）。空配列は「アラームなし」 */
+export function normalizeCrmAlarms(raw: unknown): CrmAlarm[] {
+  if (!Array.isArray(raw)) return CRM_DEFAULT_ALARMS.map((a) => ({ ...a }));
+  const out: CrmAlarm[] = [];
+  for (const r of raw.slice(0, 10)) {
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    const min = Math.round(Number(o.min));
+    const sec = Math.round(Number(o.sec));
+    const sound = Math.round(Number(o.sound));
+    if (!(min >= 0 && min <= 120) || !(sec >= 5 && sec <= 300)) continue;
+    out.push({ on: o.on === 'end' ? 'end' : 'start', min, sec, sound: sound >= 1 && sound <= 4 ? sound : 1 });
+  }
+  return out;
+}
+
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS };
 
 /** 部屋のバッジの色（第552便）。無い・知らない名前は紺 */
 export const CRM_ROOM_COLORS: Array<{ key: string; label: string; bg: string; fg: string }> = [
