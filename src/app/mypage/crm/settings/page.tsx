@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { exportCrmCsv, getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
+import { getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
@@ -31,9 +31,8 @@ const SETTING_TABS = [
   { key: 'endbadge', label: '終わりのバッジ' },
   { key: 'rooms', label: '待機場所（部屋）' },
   { key: 'alarms', label: '予約アラーム' },
-  { key: 'consent', label: '来店時の同意書' },
+  { key: 'consent', label: '来店時の同意書（QR）' },
   { key: 'cast', label: 'セラピストへの公開' },
-  { key: 'export', label: 'データの書き出し' },
   { key: 'import', label: 'データの取り込み' },
 ] as const;
 type SettingTab = (typeof SETTING_TABS)[number]['key'];
@@ -317,11 +316,10 @@ function SettingsBody({ salonId }: { salonId: number }) {
         </section>
       )}
 
-      {tab === 'export' && <ExportSection salonId={salonId} />}
       {tab === 'import' && <ImportSection salonId={salonId} />}
 
       {/* ★ 保存ボタンは画面の下についてくる（第564便） */}
-      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${tab === 'export' || tab === 'import' ? 'hidden' : ''}`}>
+      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${tab === 'import' ? 'hidden' : ''}`}>
         {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
         {msg && <p className="mb-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
         <button type="button" disabled={busy} onClick={save} className="w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
@@ -432,44 +430,8 @@ function ResetConsentButton({ onReset }: { onReset: () => void }) {
   );
 }
 
-// 店舗データの書き出し（第569便）。★ Excel で開けるように先頭に BOM を付けた CSV（UTF-8）。
-function ExportSection({ salonId }: { salonId: number }) {
-  const [busy, setBusy] = useState<'' | 'customers' | 'bookings'>('');
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
-  const run = async (kind: 'customers' | 'bookings') => {
-    setBusy(kind); setErr(''); setMsg('');
-    const r = await exportCrmCsv(salonId, kind);
-    setBusy('');
-    if (!r.ok) { setErr(r.error); return; }
-    const d = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10).replaceAll('-', '');
-    const blob = new Blob(['\uFEFF' + r.csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `fukues-crm_${kind === 'customers' ? '顧客台帳' : '予約'}_${d}.csv`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    setMsg(`${r.count}件を書き出しました`);
-  };
-  return (
-    <section className="border border-slate-200 bg-white p-5">
-      <h2 className="text-[17px] font-black text-slate-800">データの書き出し</h2>
-      <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-        お店のデータを CSV ファイル（Excel で開けます）でダウンロードします。お客様の個人情報が入っているので、保存したファイルの扱いにご注意ください。
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" disabled={!!busy} onClick={() => run('customers')} className="bg-indigo-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-50">
-          {busy === 'customers' ? '作っています…' : '顧客台帳を書き出す'}
-        </button>
-        <button type="button" disabled={!!busy} onClick={() => run('bookings')} className="bg-indigo-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-50">
-          {busy === 'bookings' ? '作っています…' : '予約をすべて書き出す'}
-        </button>
-      </div>
-      {msg && <p className="mt-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
-      {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
-    </section>
-  );
-}
+// ★ 第596便: 設定の「データの書き出し」は外した（カッキーさんの指示）。★ サーバー側の exportCrmCsv（actions/crm.ts）は残してある
+//   （規約 第7条3「サービスをやめるときは店舗データを書き出す手段を用意する」のため）。戻すときは第569〜578便の ExportSection を git から戻す。
 
 // データの取り込み（第579便）。★ 最初の1回くらいしか使わないので設定の一番下に置く
 function ImportSection({ salonId }: { salonId: number }) {
@@ -480,7 +442,7 @@ function ImportSection({ salonId }: { salonId: number }) {
       <h2 className="text-[17px] font-black text-slate-800">データの取り込み</h2>
       <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
         お客様の名前と電話番号を、ファイルからまとめて顧客台帳に入れます。使い始めるときの1回だけの作業です。
-        スマホの連絡先（.vcf）、Excel の CSV、「データの書き出し」で書き出した顧客台帳の CSV が読めます。
+        スマホの連絡先（.vcf）や Excel の CSV が読めます。
         電話番号が同じお客様は重複して作りません。分類・メモ・予約は取り込みません。
       </p>
       <button type="button" onClick={() => { setDone(false); setOpen(true); }} className="mt-3 bg-indigo-600 px-4 py-2 text-[14px] font-bold text-white">
