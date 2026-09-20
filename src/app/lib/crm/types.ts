@@ -355,6 +355,15 @@ export const CRM_ROOM_COLORS: Array<{ key: string; label: string; bg: string; fg
   { key: 'purple', label: '紫', bg: '#7e22ce', fg: '#ffffff' },
   { key: 'gray', label: '灰', bg: '#9ca3af', fg: '#111827' },
   { key: 'black', label: '黒', bg: '#111111', fg: '#ffffff' },
+  // 第564便で8色追加
+  { key: 'teal', label: '青緑', bg: '#0d9488', fg: '#ffffff' },
+  { key: 'mint', label: 'ミント', bg: '#99f6e4', fg: '#134e4a' },
+  { key: 'brown', label: '茶', bg: '#78350f', fg: '#ffffff' },
+  { key: 'beige', label: 'ベージュ', bg: '#e7d3b1', fg: '#422006' },
+  { key: 'gold', label: '金', bg: '#ca8a04', fg: '#ffffff' },
+  { key: 'wine', label: 'ワイン', bg: '#881337', fg: '#ffffff' },
+  { key: 'lavender', label: 'ラベンダー', bg: '#c4b5fd', fg: '#2e1065' },
+  { key: 'white', label: '白', bg: '#ffffff', fg: '#111827' },
 ];
 export function roomColor(key: string | undefined): { bg: string; fg: string } {
   return CRM_ROOM_COLORS.find((c) => c.key === key) ?? CRM_ROOM_COLORS[0];

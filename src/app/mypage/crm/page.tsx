@@ -545,7 +545,7 @@ function Grid({
                           )}
                           {wd.room && (() => {
                             const c = roomColor(roomColorOf(wd.room));
-                            return <span className="flex-none px-1 text-[10px] font-bold" style={{ background: c.bg, color: c.fg }}>{wd.room}</span>;
+                            return <span className="flex-none px-1 text-[10px] font-bold" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{wd.room}</span>;
                           })()}
                         </>
                       );

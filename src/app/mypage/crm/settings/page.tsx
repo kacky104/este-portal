@@ -108,7 +108,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
             const c = roomColor(cur);
             return (
               <div key={r} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">
-                <span className="min-w-[64px] px-2 py-1 text-center text-[13px] font-bold" style={{ background: c.bg, color: c.fg }}>{r}</span>
+                <span className="min-w-[64px] px-2 py-1 text-center text-[13px] font-bold" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{r}</span>
                 <div className="flex flex-wrap gap-1">
                   {CRM_ROOM_COLORS.map((col) => (
                     <button
@@ -253,11 +253,14 @@ function SettingsBody({ salonId }: { salonId: number }) {
         )}
       </section>
 
-      {err && <p className="mt-3 text-[13px] font-bold text-rose-600">{err}</p>}
-      {msg && <p className="mt-3 text-[13px] font-bold text-emerald-700">{msg}</p>}
-      <button type="button" disabled={busy} onClick={save} className="mt-4 w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
-        {busy ? '保存中…' : '保存する'}
-      </button>
+      {/* ★ 保存ボタンは画面の下についてくる（第564便） */}
+      <div className="sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
+        {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
+        {msg && <p className="mb-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
+        <button type="button" disabled={busy} onClick={save} className="w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
+          {busy ? '保存中…' : '保存する'}
+        </button>
+      </div>
     </div>
   );
 }
