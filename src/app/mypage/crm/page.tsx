@@ -83,7 +83,7 @@ import { ConsentView } from './ConsentView';
 
 const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
-const MEMO_W = 180;             // 女子メモの列（2026-09-19）
+const MEMO_W = 160;             // 女子メモの列（2026-09-19）
 const ROW_H = 66;
 const DAY_START_MIN = 6 * 60;  // 営業日の始まり（6:00）
 const WINDOW_END_MIN = 31 * 60; // 予約ボードの窓の終わり（翌7:00）
@@ -164,6 +164,16 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   // 報酬確定・締め（第538便）
   const [confirmFor, setConfirmFor] = useState<CrmScheduleTherapist | null>(null);
   const [closing, setClosing] = useState(false);
+  // ★ 表の上（アラーム・日付・件数）をたためる（第576便）。この端末だけ覚える
+  const [folded, setFolded] = useState<boolean>(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem('crm_top_folded') === '1'; } catch { return false; }
+  });
+  const toggleFold = () => {
+    setFolded((v) => {
+      try { localStorage.setItem('crm_top_folded', v ? '0' : '1'); } catch { /* 何もしない */ }
+      return !v;
+    });
+  };
   // 出勤情報（名前を押す・第550便）
   const [workFor, setWorkFor] = useState<CrmScheduleTherapist | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -255,8 +265,23 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           bookings={data.bookings}
           therapists={data.therapists}
           alarms={data.settings.alarms}
+          hideButton={folded}
         />
       )}
+      {folded ? (
+        // たたんだとき：日付と前日／今日／次日だけの細い1行
+        <div className="mb-1 flex items-center gap-1">
+          <span className="text-[13px] font-black text-slate-800 md:text-[15px]">{dateLabel(date)}</span>
+          <button type="button" onClick={() => setDate(shiftDate(date, -1))} className="bg-[#3f51b5] px-1.5 py-0.5 text-[11px] font-bold text-white">◀</button>
+          <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-1.5 py-0.5 text-[11px] font-bold text-white ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
+          <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-1.5 py-0.5 text-[11px] font-bold text-white">▶</button>
+          <button type="button" onClick={toggleFold} className="ml-auto border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600">▼ ひらく</button>
+        </div>
+      ) : (
+      <>
+      <div className="-mb-1 flex justify-end">
+        <button type="button" onClick={toggleFold} className="border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600">▲ たたむ</button>
+      </div>
       {/* 日付と件数 */}
       {/* ★ スマホは風俗CTIv2 に近い詰めた形（日付と前日/今日/次日を1行・件数は小さく1行・第575便） */}
       <div className="mb-1.5 flex flex-wrap items-center gap-1 md:mb-3 md:gap-2">
@@ -299,6 +324,9 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         )}
         <span className="ml-auto hidden text-[12px] text-slate-500 md:inline">空いているところを押すと受付できます</span>
       </div>
+
+      </>
+      )}
 
       {err && <p className="mb-3 border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">{err}</p>}
       {!data && !err && <p className="p-6 text-center text-[14px] text-slate-400">読み込み中です…</p>}
@@ -492,7 +520,7 @@ function Grid({
   const narrow = useNarrow();
   const zoom = narrow ? 0.72 : 1;
   const nameW = NAME_W;
-  const memoW = narrow ? 120 : MEMO_W;
+  const memoW = narrow ? 100 : MEMO_W;
   const leftW = nameW + memoW;
   const ppm = narrow ? 1.1 : PX_PER_MIN;
   const width = (endMin - startMin) * ppm;
@@ -1637,13 +1665,15 @@ type ActiveAlarm = { key: string; bookingId: string; text: string; until: number
 const FIRED_KEY = 'crm_alarm_fired';
 
 function AlarmCenter({
-  salonId, isToday, bookings, therapists, alarms,
+  salonId, isToday, bookings, therapists, alarms, hideButton = false,
 }: {
   salonId: number;
   isToday: boolean;
   bookings: CrmScheduleBooking[];
   therapists: CrmScheduleTherapist[];
   alarms: CrmAlarm[];
+  /** 表の上をたたんでいるときは「音をONにする」ボタンを出さない（鳴っている帯は出す） */
+  hideButton?: boolean;
 }) {
   const [ready, setReady] = useState(false);
   const [active, setActive] = useState<ActiveAlarm[]>([]);
@@ -1730,7 +1760,7 @@ function AlarmCenter({
   return (
     <div className="mb-2">
       {blinkCss && <style>{blinkCss}</style>}
-      {!ready ? (
+      {hideButton ? null : !ready ? (
         <button
           type="button"
           onClick={async () => { const ok = await unlockAlarmAudio(); setReady(ok && alarmAudioReady()); if (ok) playAlarmOnce(1); }}
