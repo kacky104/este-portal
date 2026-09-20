@@ -110,7 +110,7 @@ export function CastSchedule() {
           </p>
 
           {/* タイムライン：横いっぱい・横にスクロール（第600便で左の部屋の枠を外した） */}
-          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+          <div className="mt-3 overflow-hidden border border-slate-200">
             <div ref={scrollRef} className="overflow-x-auto">
               <div className="relative" style={{ width }}>
                 <div className="flex h-8 border-b border-slate-200">
