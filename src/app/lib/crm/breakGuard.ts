@@ -52,3 +52,43 @@ export async function breakConflict(
     return null;
   }
 }
+
+/**
+ * ネット予約（フクエスの公開側）の空き枠を休憩で閉じるための「休憩の枠」（第557便・2026-09-20）。
+ * 返す形は既存予約と同じ { slot_start, slot_end }（UTC ISO）。buildSlots の existingBookings に足すと、
+ * 休憩に重なる枠（コース＋インターバルで見る）が「埋まり」になる。
+ * ★ 休憩の時刻そのものは公開側に出さない（枠が埋まって見えるだけ）。
+ * ★ 読めなかったときは空（＝今までどおり）。休憩の見張りでネット予約そのものを止めない。
+ */
+export async function breakBlocks(
+  svc: Svc,
+  therapistId: number,
+  fromUtc: Date,
+  toUtc: Date,
+): Promise<{ slot_start: string; slot_end: string }[]> {
+  try {
+    const d0 = jstDate(fromUtc.getTime());
+    const d1 = jstDate(toUtc.getTime());
+    const dates = [...new Set([shift(d0, -1), d0, d1])];
+    const { data } = await svc
+      .from('crm_work_days')
+      .select('business_date, break_start_min, break_end_min')
+      .eq('therapist_id', therapistId)
+      .in('business_date', dates)
+      .not('break_start_min', 'is', null)
+      .not('break_end_min', 'is', null);
+    const out: { slot_start: string; slot_end: string }[] = [];
+    for (const r of data ?? []) {
+      const base = new Date(`${String(r.business_date)}T00:00:00+09:00`).getTime();
+      const bs = base + Number(r.break_start_min) * 60000;
+      const be = base + Number(r.break_end_min) * 60000;
+      if (be <= bs) continue;
+      if (bs < toUtc.getTime() && be > fromUtc.getTime()) {
+        out.push({ slot_start: new Date(bs).toISOString(), slot_end: new Date(be).toISOString() });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}

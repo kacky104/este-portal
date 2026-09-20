@@ -13,7 +13,7 @@ import { sendBookingMail, sendBookingTestMail } from '@/app/lib/booking/sendBook
 import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
 import { linkBookingCustomer } from '@/app/lib/crm/linkCustomer';
-import { breakConflict } from '@/app/lib/crm/breakGuard';
+import { breakBlocks, breakConflict } from '@/app/lib/crm/breakGuard';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -165,7 +165,11 @@ export async function getSlots(
   const end = String(sched.end_time).slice(0, 5);
   const { startUtc, endUtc } = scheduleWindowUtc(dateISO, start, end);
 
-  const existingBookings = await fetchOverlappingBookings(therapistId, startUtc, endUtc);
+  // ★ フクエスCRMの休憩の時間は埋まり扱い（第557便）。休憩の時刻そのものは公開側に出さない。
+  const existingBookings = [
+    ...(await fetchOverlappingBookings(therapistId, startUtc, endUtc)),
+    ...(await breakBlocks(createServiceClient(), therapistId, startUtc, endUtc)),
+  ];
 
   // 店舗設定のインターバル（2026-08-15）。ネスト結合の salons から読む。
   // 取れなければ 0＝従来と同じ挙動（枠計算が壊れて予約できなくなるより安全側）。
@@ -340,7 +344,11 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   if (!candidate) return { ok: false, error: 'invalid' };
 
   // 4-6) 直前ガード・出勤終了内に収まるか・既存予約との重なりを buildSlots で再判定（getSlots と同一ロジック）。
-  const existingBookings = await fetchOverlappingBookings(therapistId, candidate.startUtc, candidate.endUtc);
+  // ★ フクエスCRMの休憩も埋まり扱い（第557便・getSlots と同じ）
+  const existingBookings = [
+    ...(await fetchOverlappingBookings(therapistId, candidate.startUtc, candidate.endUtc)),
+    ...(await breakBlocks(svc, therapistId, candidate.startUtc, candidate.endUtc)),
+  ];
   const slots = buildSlots({
     scheduleDate: candidate.date,
     start: candidate.start,
