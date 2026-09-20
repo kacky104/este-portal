@@ -109,13 +109,15 @@ export function parseCsv(text: string): ImportRow[] {
   if (rows.length === 0) return [];
   const head = rows[0].map((h) => h.trim().toLowerCase());
   const isName = (h: string) => /名前|氏名|お名前|顧客名|name|表示名/.test(h) && !/フリガナ|ふりがな|kana|よみ/.test(h);
-  const isPhone = (h: string) => /電話|tel|phone|携帯|番号/.test(h);
+  // ★ 「会員番号」などを電話の列にしない（第578便）
+  const isPhone = (h: string) => /電話|tel|phone|携帯/.test(h);
   const nameCol = head.findIndex(isName);
   const phoneCols = head.map((h, i) => (isPhone(h) ? i : -1)).filter((i) => i >= 0);
   if (nameCol >= 0 || phoneCols.length > 0) {
     return rows.slice(1).map((r) => ({
       name: nameCol >= 0 ? String(r[nameCol] ?? '').trim() : '',
-      phones: phoneCols.map((i) => importPhone(r[i] ?? '')).filter(Boolean),
+      // ★ 1つの欄に「090… / 080…」のように複数入っていても分けて読む（フクエスCRM の書き出しの形・第578便）
+      phones: phoneCols.flatMap((i) => String(r[i] ?? '').split(/[\/／,、;]/)).map((v) => importPhone(v)).filter(Boolean),
     }));
   }
   return rows.map((r) => {

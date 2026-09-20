@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { exportCrmCsv, getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
@@ -318,7 +319,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
       {tab === 'export' && <ExportSection salonId={salonId} />}
 
       {/* ★ 保存ボタンは画面の下についてくる（第564便） */}
-      <div className="sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
+      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${tab === 'export' ? 'hidden' : ''}`}>
         {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
         {msg && <p className="mb-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
         <button type="button" disabled={busy} onClick={save} className="w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
@@ -464,6 +465,13 @@ function ExportSection({ salonId }: { salonId: number }) {
       </div>
       {msg && <p className="mt-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
       {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
+      <div className="mt-5 border-t border-slate-200 pt-4">
+        <h3 className="text-[15px] font-black text-slate-800">取り込み（インポート）</h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+          お客様の名前と電話番号の取り込みは、<Link href="/mypage/crm/customers" className="font-bold text-indigo-600 underline">顧客台帳</Link>の検索欄の横にある「取り込み」からできます。
+          スマホの連絡先（.vcf）、Excel の CSV、ここで書き出した顧客台帳の CSV が読めます。電話番号が同じお客様は重複して作りません。
+        </p>
+      </div>
     </section>
   );
 }
