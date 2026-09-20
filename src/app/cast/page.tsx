@@ -11,6 +11,7 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import { getRecordMonth } from '@/app/actions/castCustomers';
 import { isCastScheduleEnabled } from '@/app/actions/castSchedule';
+import { CastXIcon } from './CastXIcon';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -109,16 +110,7 @@ export default async function CastHomePage() {
           </span>
           <div className="flex items-center gap-2">
             {/* ★ 第516便: fukuX はタブから外してヘッダーの丸いアイコンに（スマホの下タブを5つに収めるため）。連携 handle があるときだけ */}
-            {xHandle && (
-              <Link
-                href={`/x/u/${xHandle}`}
-                aria-label="fukuX の自分のページ"
-                title="fukuX"
-                className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center hover:border-pink-300 transition-colors"
-              >
-                <Image src="/fukux-mark.png" alt="" width={18} height={18} className="object-contain" />
-              </Link>
-            )}
+            {xHandle && <CastXIcon handle={xHandle} profileId={xProfileId} />}
             <Link
               href={therapist?.id != null ? `/therapist/${therapist.id}` : '/'}
               target="_blank"
