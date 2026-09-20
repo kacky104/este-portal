@@ -9,6 +9,7 @@ import {
   cancelCrmMoneyMove,
   getCrmDaySummary,
   getCrmMoneyDay,
+  getCrmBookingConsents,
   getCrmSchedule,
   lookupCrmCustomerByPhone,
   reopenCrmDay,
@@ -65,6 +66,7 @@ import {
   type CrmScheduleData,
   type CrmScheduleTherapist,
   type CrmAlarm,
+  type CrmConsent,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from './CrmShell';
 import { alarmAudioReady, playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
@@ -732,6 +734,7 @@ function BookingCard({
         {!cancelled && b.status === 'new' && <span className="bg-pink-500 px-1 text-[10px] font-bold text-white">未確定</span>}
         {!cancelled && b.playStatus === 'address_sent' && <span className="bg-blue-600 px-1 text-[10px] font-bold text-white">住所送済</span>}
         {!cancelled && b.playStatus === 'entered' && <span className="bg-yellow-300 px-1 text-[10px] font-bold text-slate-900">入室済</span>}
+        {!cancelled && b.consentAt && <span className="bg-violet-600 px-1 text-[10px] font-bold text-white" title="同意書を了承済み">了承済</span>}
         {!cancelled && b.receivedBy && (
           <span className="bg-emerald-600 px-1 text-[10px] font-bold text-white" title={CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? ''}>
             受領済{b.receivedBy === 'therapist' ? '(女)' : b.receivedBy === 'shop' ? '(店)' : ''}
@@ -947,6 +950,9 @@ function DetailPanel({
                 </dd>
               </>
             )}
+            {/* 同意書（第560便） */}
+            <dt className="font-bold text-slate-400">同意書</dt>
+            <dd><ConsentView salonId={salonId} bookingId={b.id} consentAt={b.consentAt} /></dd>
             {/* 入り口（第555便で戻す）：フクエスのネット予約は仮で枠が埋まるので、担当が見分けられるように */}
             <dt className="font-bold text-slate-400">入り口</dt>
             <dd>
@@ -1605,6 +1611,49 @@ function ConfirmDialog({
         </div>
       </div>
     </>
+  );
+}
+
+// ── 同意書（第560便）：予約の詳細で了承の時刻とサインを見る ──────────────
+function ConsentView({ salonId, bookingId, consentAt }: { salonId: number; bookingId: string; consentAt: string | null }) {
+  const [list, setList] = useState<CrmConsent[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [err, setErr] = useState('');
+  const fmt = (iso: string) => new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+  if (!consentAt) return <span className="text-slate-400">まだ</span>;
+  const load = async () => {
+    setOpen(true);
+    if (list) return;
+    const r = await getCrmBookingConsents(salonId, bookingId);
+    if (!r.ok) { setErr(r.error); return; }
+    setList(r.consents);
+  };
+  return (
+    <div>
+      <span className="bg-violet-600 px-1.5 py-0.5 text-[12px] font-bold text-white">✓ 了承済</span>
+      <span className="ml-2 text-[12px] text-slate-600">{fmt(consentAt)}</span>
+      {!open ? (
+        <button type="button" onClick={load} className="ml-2 text-[12px] font-bold text-indigo-600 underline">サインを見る</button>
+      ) : (
+        <div className="mt-2 space-y-2">
+          {err && <p className="text-[12px] font-bold text-rose-600">{err}</p>}
+          {!list && !err && <p className="text-[12px] text-slate-400">読み込み中…</p>}
+          {list?.map((c) => (
+            <div key={c.id} className={`border p-2 ${c.superseded ? 'border-slate-200 opacity-60' : 'border-violet-300'}`}>
+              <p className="text-[11px] font-bold text-slate-500">
+                {fmt(c.createdAt)}{c.room ? `・${c.room}` : ''}{c.superseded ? '（サインし直す前のもの）' : ''}
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={c.signaturePng} alt="サイン" className="mt-1 max-h-[120px] w-full border border-slate-200 bg-white object-contain" />
+              <details className="mt-1">
+                <summary className="cursor-pointer text-[11px] font-bold text-slate-500">了承した文面</summary>
+                <p className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-slate-600">{c.title ? `${c.title}\n\n` : ''}{c.body}</p>
+              </details>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
+import { getCrmRoomQrUrl, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
+import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
@@ -202,11 +203,105 @@ function SettingsBody({ salonId }: { salonId: number }) {
         <p className="mt-2 text-[12px] text-slate-400">「○分前」は0〜120分、鳴らす秒数は5〜300秒です。変えたあとは、下の「保存する」を押してください。</p>
       </section>
 
+      <section className="mt-4 border border-slate-200 bg-white p-5">
+        <h2 className="text-[17px] font-black text-slate-800">来店時の同意書（ペーパーレス）</h2>
+        <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+          各部屋に置いた QR コードをお客様（かセラピスト・お店のタブレット）が読むと、この文面が出ます。
+          最後の「上記の内容をすべて了承します」に☑を入れ、指でサインして送信すると、その部屋のいまの予約に「了承済」とサインが記録されます。
+          ★ スケジュールで名前を押した「出勤情報」で、その日の待機場所（部屋）を選んでおいてください（部屋から予約を探すため）。
+        </p>
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-[14px] font-bold">
+          <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.consentEnabled} onChange={(e) => setSt({ ...st, consentEnabled: e.target.checked })} />
+          同意書を使う
+        </label>
+        <p className="mb-1 mt-3 text-[12px] font-bold text-slate-500">題名（任意）</p>
+        <input
+          value={st.consentTitle}
+          maxLength={60}
+          onChange={(e) => setSt({ ...st, consentTitle: e.target.value })}
+          placeholder="例）ご利用にあたっての注意事項"
+          className="w-full border border-slate-300 bg-white px-3 py-2 text-[14px]"
+        />
+        <p className="mb-1 mt-3 text-[12px] font-bold text-slate-500">本文</p>
+        <textarea
+          value={st.consentBody}
+          maxLength={8000}
+          onChange={(e) => setSt({ ...st, consentBody: e.target.value })}
+          placeholder={'例）\n・18歳未満の方はご利用いただけません\n・セラピストへの過度な接触は禁止です\n・…'}
+          className="min-h-[220px] w-full border border-slate-300 bg-white px-3 py-2 text-[14px] leading-relaxed"
+        />
+        <p className="mt-1 text-right text-[11px] text-slate-400">{st.consentBody.length}/8000</p>
+
+        <p className="mt-3 text-[13px] font-bold text-slate-700">部屋ごとの QR コード</p>
+        {st.rooms.length === 0 ? (
+          <p className="mt-1 text-[13px] text-slate-400">上の「待機場所（部屋）」を追加して保存すると、ここに部屋ごとの QR が出ます。</p>
+        ) : (
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {st.rooms.map((r) => <RoomQr key={r} salonId={salonId} room={r} />)}
+          </div>
+        )}
+      </section>
+
       {err && <p className="mt-3 text-[13px] font-bold text-rose-600">{err}</p>}
       {msg && <p className="mt-3 text-[13px] font-bold text-emerald-700">{msg}</p>}
       <button type="button" disabled={busy} onClick={save} className="mt-4 w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
         {busy ? '保存中…' : '保存する'}
       </button>
+    </div>
+  );
+}
+
+// 部屋ごとの QR（第560便）。★ 印刷はこの QR の画像を保存して印刷するか、「印刷用に開く」から。
+function RoomQr({ salonId, room }: { salonId: number; room: string }) {
+  const [img, setImg] = useState('');
+  const [url, setUrl] = useState('');
+  const [err, setErr] = useState('');
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const load = async (regenerate: boolean) => {
+    setBusy(true); setErr('');
+    const r = await getCrmRoomQrUrl(salonId, room, regenerate);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setUrl(r.url);
+    setImg(await QRCode.toDataURL(r.url, { width: 480, margin: 2, errorCorrectionLevel: 'M' }));
+    setSure(false);
+  };
+
+  const printIt = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const esc = room.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch] as string));
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc}</title></head><body style="text-align:center;font-family:sans-serif;padding:24px"><p style="font-size:20px;font-weight:bold">ご来店時にこちらを読み取ってください</p><img src="${img}" style="width:300px;height:300px"><p style="font-size:14px;color:#555">${esc}</p><script>window.onload=function(){window.print()}<\/script></body></html>`);
+    w.document.close();
+  };
+
+  return (
+    <div className="border border-slate-200 p-3 text-center">
+      <p className="text-[14px] font-black text-slate-800">{room}</p>
+      {!img ? (
+        <button type="button" disabled={busy} onClick={() => load(false)} className="mt-2 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700 disabled:opacity-50">
+          QRコードを出す
+        </button>
+      ) : (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={img} alt={`${room}のQRコード`} className="mx-auto mt-2 h-[160px] w-[160px]" />
+          <p className="mt-1 break-all text-[10px] text-slate-400">{url}</p>
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            <button type="button" onClick={printIt} className="bg-indigo-600 px-3 py-1.5 text-[12px] font-bold text-white">印刷用に開く</button>
+            <a href={img} download={`QR_${room}.png`} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600">画像を保存</a>
+            {sure ? (
+              <button type="button" disabled={busy} onClick={() => load(true)} className="bg-rose-600 px-3 py-1.5 text-[12px] font-bold text-white">本当に作り直す</button>
+            ) : (
+              <button type="button" onClick={() => setSure(true)} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-500">作り直す</button>
+            )}
+          </div>
+          {sure && <p className="mt-1 text-[11px] text-rose-600">作り直すと、今の QR は使えなくなります（貼り替えが必要です）</p>}
+        </>
+      )}
+      {err && <p className="mt-1 text-[12px] font-bold text-rose-600">{err}</p>}
     </div>
   );
 }

@@ -44,6 +44,7 @@ import {
   type CrmMoneyMove,
   type CrmMoneyBalance,
   type CrmMoneyDay,
+  type CrmConsent,
   type CrmSettings,
   type CrmEndType,
   type CrmWorkDay,
@@ -513,6 +514,15 @@ export async function getCrmSchedule(
     }
   }
 
+  // 同意書（第560便）：有効な同意の時刻
+  const consentAt = new Map<string, string>();
+  if (bookingIds.length > 0) {
+    const { data: cs } = await svc
+      .from('crm_consents').select('booking_id, created_at')
+      .eq('salon_id', salonId).is('superseded_at', null).in('booking_id', bookingIds);
+    for (const c of cs ?? []) consentAt.set(String(c.booking_id), String(c.created_at));
+  }
+
   // 女子メモ（crm_therapist_memos・2026-09-19）
   const memos = new Map<number, string>();
   if (therapists.length > 0) {
@@ -590,6 +600,7 @@ export async function getCrmSchedule(
           paymentMethod: e?.paymentMethod ?? '',
           playStatus: e?.playStatus ?? '',
           receivedBy: e?.receivedBy ?? '',
+          consentAt: consentAt.get(String(b.id)) ?? null,
         };
       }),
     },
@@ -1318,7 +1329,7 @@ export async function setCrmReceived(
 // ── 設定と「受まで／上がり」（第548便）──────────────────
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
   const { data } = await svc
-    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms').eq('salon_id', salonId).maybeSingle();
+    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms, consent_enabled, consent_title, consent_body').eq('salon_id', salonId).maybeSingle();
   if (!data) return { ...CRM_DEFAULT_SETTINGS, alarms: normalizeCrmAlarms(null) };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
@@ -1329,6 +1340,9 @@ async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
       ? Object.fromEntries(Object.entries(data.room_colors as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
       : {},
     alarms: normalizeCrmAlarms(data.alarms),
+    consentEnabled: Boolean(data.consent_enabled),
+    consentTitle: String(data.consent_title ?? ''),
+    consentBody: String(data.consent_body ?? ''),
   };
 }
 
@@ -1367,6 +1381,11 @@ export async function saveCrmSettings(
   if (rawAlarms.length > 10) return { ok: false, error: 'アラームは10件までです' };
   if (rawAlarms.some((a) => !(Number(a.sec) >= 5 && Number(a.sec) <= 300))) return { ok: false, error: 'アラームの秒数は5〜300秒で入れてください' };
   if (rawAlarms.some((a) => !(Number(a.min) >= 0 && Number(a.min) <= 120))) return { ok: false, error: 'アラームの「○分前」は0〜120分で入れてください' };
+  const consentTitle = String(settings.consentTitle ?? '').trim();
+  const consentBody = String(settings.consentBody ?? '').replace(/\r\n/g, '\n');
+  if (consentTitle.length > 60) return { ok: false, error: '同意書の題名は60文字までです' };
+  if (consentBody.length > 8000) return { ok: false, error: '同意書の本文は8000文字までです' };
+  if (settings.consentEnabled && !consentBody.trim()) return { ok: false, error: '同意書を使うときは本文を入れてください' };
   const allowed = new Set(CRM_ROOM_COLORS.map((c) => c.key));
   const roomColors: Record<string, string> = {};
   for (const r of rooms) {
@@ -1381,6 +1400,9 @@ export async function saveCrmSettings(
     rooms,
     room_colors: roomColors,
     alarms: normalizeCrmAlarms(rawAlarms),
+    consent_enabled: !!settings.consentEnabled,
+    consent_title: consentTitle,
+    consent_body: consentBody,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };
@@ -1733,4 +1755,60 @@ export async function cancelCrmMoneyMove(
   if (error) return { ok: false, error: error.message };
   if (!data || data.length === 0) return { ok: false, error: '見つからないか、もう取り消してあります' };
   return { ok: true };
+}
+
+// ── 来店時の同意書（第560便・2026-09-20）──────────────────
+// ★ 公開側（QR から開くページ）は actions/consent.ts。ここはオーナー（CRM）側。
+
+/** 部屋の QR の URL（無ければ合言葉を作る／regenerate で作り直す＝前の QR は使えなくなる） */
+export async function getCrmRoomQrUrl(
+  salonId: number,
+  room: string,
+  regenerate = false,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const r = String(room ?? '').trim();
+  if (!r || r.length > 30) return { ok: false, error: '部屋が不正です' };
+  const st = await readSettings(auth.svc, salonId);
+  if (!st.rooms.includes(r)) return { ok: false, error: 'この部屋は設定にありません（保存してからもう一度）' };
+  let token: string | null = null;
+  if (!regenerate) {
+    const { data } = await auth.svc.from('crm_room_tokens').select('token').eq('salon_id', salonId).eq('room', r).maybeSingle();
+    token = data ? String(data.token) : null;
+  }
+  if (!token) {
+    const { randomBytes } = await import('node:crypto');
+    token = randomBytes(18).toString('base64url');
+    const { error } = await auth.svc.from('crm_room_tokens').upsert({ salon_id: salonId, room: r, token, created_at: new Date().toISOString() });
+    if (error) return { ok: false, error: error.message };
+  }
+  return { ok: true, url: `https://fukues.com/g/${token}` };
+}
+
+/** 予約の同意書（新しい順・サインし直した古いものも含む） */
+export async function getCrmBookingConsents(
+  salonId: number,
+  bookingId: string,
+): Promise<{ ok: true; consents: CrmConsent[] } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const { data, error } = await auth.svc
+    .from('crm_consents')
+    .select('id, created_at, room, agreed_title, agreed_body, signature_png, superseded_at')
+    .eq('salon_id', salonId).eq('booking_id', bookingId)
+    .order('created_at', { ascending: false }).limit(20);
+  if (error) return { ok: false, error: error.message };
+  return {
+    ok: true,
+    consents: (data ?? []).map((r) => ({
+      id: Number(r.id),
+      createdAt: String(r.created_at),
+      room: String(r.room ?? ''),
+      title: String(r.agreed_title ?? ''),
+      body: String(r.agreed_body ?? ''),
+      signaturePng: String(r.signature_png ?? ''),
+      superseded: !!r.superseded_at,
+    })),
+  };
 }

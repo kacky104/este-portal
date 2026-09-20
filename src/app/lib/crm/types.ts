@@ -109,6 +109,8 @@ export type CrmScheduleBooking = {
   playStatus: string;
   /** 受領：'' ＝ 未受領 ／ therapist ＝ 女子が受領 ／ shop ＝ お店が受領（第554便） */
   receivedBy: string;
+  /** 同意書を了承した時刻（有効なもの・無ければ null）（第560便） */
+  consentAt: string | null;
 };
 
 export type CrmScheduleTherapist = {
@@ -297,6 +299,10 @@ export type CrmSettings = {
   roomColors: Record<string, string>;
   /** 予約アラーム（第559便） */
   alarms: CrmAlarm[];
+  /** 来店時の同意書（第560便） */
+  consentEnabled: boolean;
+  consentTitle: string;
+  consentBody: string;
 };
 
 /** 予約アラーム（第559便・風俗CTIv2 の予約アラームにあたる）。on: 予約開始／予約終了・min 分前・sec 秒鳴らす・sound 音1〜4 */
@@ -322,7 +328,18 @@ export function normalizeCrmAlarms(raw: unknown): CrmAlarm[] {
   return out;
 }
 
-export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS };
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS, consentEnabled: false, consentTitle: '', consentBody: '' };
+
+/** 同意書（第560便）：CRM で見る1件 */
+export type CrmConsent = {
+  id: number;
+  createdAt: string;
+  room: string;
+  title: string;
+  body: string;
+  signaturePng: string;
+  superseded: boolean;
+};
 
 /** 部屋のバッジの色（第552便）。無い・知らない名前は紺 */
 export const CRM_ROOM_COLORS: Array<{ key: string; label: string; bg: string; fg: string }> = [
