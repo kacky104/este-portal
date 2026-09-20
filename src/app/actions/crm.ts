@@ -1760,30 +1760,47 @@ export async function cancelCrmMoneyMove(
 // ── 来店時の同意書（第560便・2026-09-20）──────────────────
 // ★ 公開側（QR から開くページ）は actions/consent.ts。ここはオーナー（CRM）側。
 
-/** 部屋の QR の URL（無ければ合言葉を作る／regenerate で作り直す＝前の QR は使えなくなる） */
-export async function getCrmRoomQrUrl(
+/**
+ * 部屋の QR（第560便・第561便）。使える QR はいつも1つ（token）。一つ前（prev_token）は使えないが戻せる。
+ *   get：無ければ作る／regenerate：作り直す（今のを一つ前に）／revert：一つ前と入れ替える
+ */
+export async function getCrmRoomQr(
   salonId: number,
   room: string,
-  regenerate = false,
-): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  action: 'get' | 'regenerate' | 'revert' = 'get',
+): Promise<{ ok: true; url: string; createdAt: string; prevCreatedAt: string | null } | { ok: false; error: string }> {
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   const r = String(room ?? '').trim();
   if (!r || r.length > 30) return { ok: false, error: '部屋が不正です' };
   const st = await readSettings(auth.svc, salonId);
   if (!st.rooms.includes(r)) return { ok: false, error: 'この部屋は設定にありません（保存してからもう一度）' };
-  let token: string | null = null;
-  if (!regenerate) {
-    const { data } = await auth.svc.from('crm_room_tokens').select('token').eq('salon_id', salonId).eq('room', r).maybeSingle();
-    token = data ? String(data.token) : null;
+  const { data: cur } = await auth.svc
+    .from('crm_room_tokens').select('token, created_at, prev_token, prev_created_at')
+    .eq('salon_id', salonId).eq('room', r).maybeSingle();
+  const newToken = async () => (await import('node:crypto')).randomBytes(18).toString('base64url');
+  let row = cur
+    ? { token: String(cur.token), created_at: String(cur.created_at), prev_token: cur.prev_token ? String(cur.prev_token) : null, prev_created_at: cur.prev_created_at ? String(cur.prev_created_at) : null }
+    : null;
+
+  if (!row || action === 'regenerate') {
+    row = {
+      token: await newToken(),
+      created_at: new Date().toISOString(),
+      prev_token: row?.token ?? null,
+      prev_created_at: row?.created_at ?? null,
+    };
+  } else if (action === 'revert') {
+    if (!row.prev_token || !row.prev_created_at) return { ok: false, error: '一つ前の QR はありません' };
+    row = { token: row.prev_token, created_at: row.prev_created_at, prev_token: row.token, prev_created_at: row.created_at };
   }
-  if (!token) {
-    const { randomBytes } = await import('node:crypto');
-    token = randomBytes(18).toString('base64url');
-    const { error } = await auth.svc.from('crm_room_tokens').upsert({ salon_id: salonId, room: r, token, created_at: new Date().toISOString() });
+  if (!cur || action !== 'get') {
+    // 入れ替えのとき unique にぶつからないよう、先に prev を空にしてから書く
+    if (cur) await auth.svc.from('crm_room_tokens').update({ prev_token: null }).eq('salon_id', salonId).eq('room', r);
+    const { error } = await auth.svc.from('crm_room_tokens').upsert({ salon_id: salonId, room: r, ...row });
     if (error) return { ok: false, error: error.message };
   }
-  return { ok: true, url: `https://fukues.com/g/${token}` };
+  return { ok: true, url: `https://fukues.com/g/${row.token}`, createdAt: row.created_at, prevCreatedAt: row.prev_created_at };
 }
 
 /** 予約の同意書（新しい順・サインし直した古いものも含む） */

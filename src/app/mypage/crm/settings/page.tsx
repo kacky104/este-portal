@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCrmRoomQrUrl, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
+import { getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
@@ -251,22 +251,31 @@ function SettingsBody({ salonId }: { salonId: number }) {
   );
 }
 
-// 部屋ごとの QR（第560便）。★ 印刷はこの QR の画像を保存して印刷するか、「印刷用に開く」から。
+// 部屋ごとの QR（第560便・第561便）。★ 使える QR はいつも1つ。作り直しても「一つ前の QR に戻す」で戻せる
+//   （アクリル板などで外注したときに、うっかり作り直しても作ったものが無駄にならないように）。
 function RoomQr({ salonId, room }: { salonId: number; room: string }) {
   const [img, setImg] = useState('');
   const [url, setUrl] = useState('');
+  const [createdAt, setCreatedAt] = useState('');
+  const [prevAt, setPrevAt] = useState<string | null>(null);
   const [err, setErr] = useState('');
-  const [sure, setSure] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [sure, setSure] = useState<'' | 'regenerate' | 'revert'>('');
   const [busy, setBusy] = useState(false);
+  const day = (iso: string) => new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric' }).format(new Date(iso));
 
-  const load = async (regenerate: boolean) => {
-    setBusy(true); setErr('');
-    const r = await getCrmRoomQrUrl(salonId, room, regenerate);
+  const run = async (action: 'get' | 'regenerate' | 'revert') => {
+    setBusy(true); setErr(''); setMsg('');
+    const r = await getCrmRoomQr(salonId, room, action);
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setUrl(r.url);
+    setCreatedAt(r.createdAt);
+    setPrevAt(r.prevCreatedAt);
     setImg(await QRCode.toDataURL(r.url, { width: 480, margin: 2, errorCorrectionLevel: 'M' }));
-    setSure(false);
+    setSure('');
+    if (action === 'regenerate') setMsg('新しい QR にしました。前の QR は使えません。');
+    if (action === 'revert') setMsg(`一つ前の QR（${day(r.createdAt)} 作成）に戻しました。`);
   };
 
   const printIt = () => {
@@ -281,24 +290,45 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
     <div className="border border-slate-200 p-3 text-center">
       <p className="text-[14px] font-black text-slate-800">{room}</p>
       {!img ? (
-        <button type="button" disabled={busy} onClick={() => load(false)} className="mt-2 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700 disabled:opacity-50">
+        <button type="button" disabled={busy} onClick={() => run('get')} className="mt-2 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700 disabled:opacity-50">
           QRコードを出す
         </button>
       ) : (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={img} alt={`${room}のQRコード`} className="mx-auto mt-2 h-[160px] w-[160px]" />
-          <p className="mt-1 break-all text-[10px] text-slate-400">{url}</p>
+          <p className="mt-1 text-[12px] font-bold text-slate-600">この QR の作成日：{day(createdAt)}（いま使えるのはこれだけ）</p>
+          <p className="mt-0.5 break-all text-[10px] text-slate-400">{url}</p>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
             <button type="button" onClick={printIt} className="bg-indigo-600 px-3 py-1.5 text-[12px] font-bold text-white">印刷用に開く</button>
             <a href={img} download={`QR_${room}.png`} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600">画像を保存</a>
-            {sure ? (
-              <button type="button" disabled={busy} onClick={() => load(true)} className="bg-rose-600 px-3 py-1.5 text-[12px] font-bold text-white">本当に作り直す</button>
-            ) : (
-              <button type="button" onClick={() => setSure(true)} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-500">作り直す</button>
+            <button type="button" onClick={() => setSure(sure === 'regenerate' ? '' : 'regenerate')} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-500">作り直す</button>
+            {prevAt && (
+              <button type="button" onClick={() => setSure(sure === 'revert' ? '' : 'revert')} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-500">
+                一つ前の QR に戻す（{day(prevAt)} 作成）
+              </button>
             )}
           </div>
-          {sure && <p className="mt-1 text-[11px] text-rose-600">作り直すと、今の QR は使えなくなります（貼り替えが必要です）</p>}
+          {sure === 'regenerate' && (
+            <div className="mt-2 border border-rose-300 bg-rose-50 p-2 text-left text-[12px] leading-relaxed text-rose-700">
+              作り直すと、今の QR コード（{day(createdAt)} 作成）は<b>すぐに使えなくなります</b>。印刷した紙や、アクリル板などで作ったものも読めなくなります。
+              間違えた場合は「一つ前の QR に戻す」で戻せます。
+              <div className="mt-2 flex gap-2">
+                <button type="button" disabled={busy} onClick={() => run('regenerate')} className="bg-rose-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">本当に作り直す</button>
+                <button type="button" onClick={() => setSure('')} className="border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-600">やめる</button>
+              </div>
+            </div>
+          )}
+          {sure === 'revert' && prevAt && (
+            <div className="mt-2 border border-amber-300 bg-amber-50 p-2 text-left text-[12px] leading-relaxed text-amber-800">
+              一つ前の QR（{day(prevAt)} 作成）が使えるようになり、今の QR（{day(createdAt)} 作成）は使えなくなります。もう一度押せば、また入れ替わります。
+              <div className="mt-2 flex gap-2">
+                <button type="button" disabled={busy} onClick={() => run('revert')} className="bg-amber-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">一つ前に戻す</button>
+                <button type="button" onClick={() => setSure('')} className="border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-600">やめる</button>
+              </div>
+            </div>
+          )}
+          {msg && <p className="mt-1 text-[12px] font-bold text-emerald-700">{msg}</p>}
         </>
       )}
       {err && <p className="mt-1 text-[12px] font-bold text-rose-600">{err}</p>}
