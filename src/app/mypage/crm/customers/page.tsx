@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getCrmCustomer,
+  deleteCrmCustomer,
   getCrmTherapists,
   importCrmCustomers,
   previewCrmImport,
@@ -200,12 +201,13 @@ function CustomerForm({
 
 // ── 1人の詳細 ────────────────────────────────────────
 function CustomerDetail({
-  salonId, customerId, onBack, onChanged,
+  salonId, customerId, onBack, onChanged, onDeleted,
 }: {
   salonId: number;
   customerId: number;
   onBack: () => void;
   onChanged: () => void;
+  onDeleted: () => void;
 }) {
   const [data, setData] = useState<{ customer: CrmCustomerDetail; bookings: CrmBookingRow[]; therapists: CrmTherapist[] } | null>(null);
   const [err, setErr] = useState('');
@@ -350,6 +352,7 @@ function CustomerDetail({
           })}
         </ul>
       )}
+      {!editing && <DeleteCustomer salonId={salonId} customerId={c.id} name={c.name} onDeleted={onDeleted} />}
     </div>
   );
 }
@@ -505,6 +508,7 @@ function CustomersBody({ salonId }: { salonId: number }) {
               customerId={selected}
               onBack={() => setSelected(null)}
               onChanged={() => void runSearch(query)}
+              onDeleted={() => { setSelected(null); void runSearch(query); }}
             />
           ) : (
             <p className="p-8 text-center text-[14px] text-slate-400">左の一覧からお客様を選んでください</p>
@@ -644,5 +648,36 @@ function ImportDialog({ salonId, onClose, onDone }: { salonId: number; onClose: 
         </div>
       </div>
     </>
+  );
+}
+
+// お客様を台帳から消す（第569便）。★ お客様から削除を頼まれたとき用。2回押しで消す。
+function DeleteCustomer({ salonId, customerId, name, onDeleted }: { salonId: number; customerId: number; name: string; onDeleted: () => void }) {
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const run = async () => {
+    setBusy(true); setErr('');
+    const r = await deleteCrmCustomer(salonId, customerId);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    onDeleted();
+  };
+  return (
+    <div className="mt-8 border-t border-slate-200 pt-4">
+      {!sure ? (
+        <button type="button" onClick={() => setSure(true)} className="text-[12px] font-bold text-slate-400 underline">このお客様を台帳から削除する</button>
+      ) : (
+        <div className="border border-rose-300 bg-rose-50 p-3 text-[13px] text-rose-800">
+          <p className="font-bold">「{name || '(名前なし)'}」さんを台帳から削除します。元に戻せません。</p>
+          <p className="mt-1 leading-relaxed">電話番号・メモ・分類も消え、このお客様の予約は名前「削除済み」・電話番号なし・備考なしになります（日時・金額は日報やレポートのため残ります）。その予約の同意書も消えます。</p>
+          <div className="mt-2 flex gap-2">
+            <button type="button" disabled={busy} onClick={run} className="bg-rose-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">{busy ? '削除中…' : '本当に削除する'}</button>
+            <button type="button" onClick={() => setSure(false)} className="border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-600">やめる</button>
+          </div>
+          {err && <p className="mt-1 font-bold">{err}</p>}
+        </div>
+      )}
+    </div>
   );
 }

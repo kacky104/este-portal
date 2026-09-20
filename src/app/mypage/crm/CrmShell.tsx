@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getCrmAccess } from '@/app/actions/crm';
+import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
 import type { CrmAccess } from '@/app/lib/crm/types';
 
 // フクエスCRM の外枠（2026-09-19）。★ 画面が増えても、入口の判定と上の帯はここ1か所。
@@ -114,7 +114,45 @@ export function CrmShell({
           <div className="h-3" />
         )}
       </header>
-      {access.active ? children(access) : <Upsell salonName={access.salonName} />}
+      {!access.active ? <Upsell salonName={access.salonName} />
+        : !access.termsOk ? <TermsGate salonId={access.salonId} />
+        : children(access)}
     </>
+  );
+}
+
+// 規約への同意（第569便）。★ 版（lib/crm/terms.ts）が決まっていて、まだ同意していない店だけに出る。
+function TermsGate({ salonId }: { salonId: number }) {
+  const [checked, setChecked] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const agree = async () => {
+    setBusy(true); setErr('');
+    const r = await agreeCrmTerms(salonId);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    window.location.reload();
+  };
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-10">
+      <div className="border border-indigo-200 bg-white p-6 shadow-sm">
+        <h2 className="text-[20px] font-black text-slate-800">フクエスCRMのご利用にあたって</h2>
+        <p className="mt-3 text-[14px] leading-relaxed text-slate-600">
+          お使いいただく前に、利用規約と顧客データの取り扱いをお読みいただき、同意をお願いします（規約が新しくなったときも、もう一度お願いしています）。
+        </p>
+        <ul className="mt-3 space-y-1 text-[14px]">
+          <li>・<a href="/crm/terms" target="_blank" rel="noopener" className="font-bold text-indigo-600 underline">フクエスCRM 利用規約</a></li>
+          <li>・<a href="/crm/data" target="_blank" rel="noopener" className="font-bold text-indigo-600 underline">顧客データの取り扱い</a></li>
+        </ul>
+        <label className="mt-4 flex cursor-pointer items-center gap-2 text-[15px] font-bold">
+          <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+          利用規約と顧客データの取り扱いに同意します
+        </label>
+        {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
+        <button type="button" disabled={!checked || busy} onClick={agree} className="mt-4 w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:bg-slate-300">
+          {busy ? '記録しています…' : '同意して使い始める'}
+        </button>
+      </div>
+    </div>
   );
 }

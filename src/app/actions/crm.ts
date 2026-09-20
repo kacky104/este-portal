@@ -17,6 +17,8 @@ import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { normalizePhone } from '@/app/lib/validation/phone';
 import { getBookingBoardData } from '@/app/actions/booking';
 import { scheduleWindowUtc } from '@/app/lib/booking/slots';
+import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
+import { headers } from 'next/headers';
 import {
   toCrmCategory,
   type CrmAccess,
@@ -88,6 +90,13 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
   if (error || !data) return { ok: false, error: '店舗情報が見つかりません' };
 
   const crmUntil = (data.crm_until as string | null) ?? null;
+  // 規約への同意（第569便）：版が決まっていて、まだその版に同意していなければ false（運営は見るだけなので true）
+  let termsOk = true;
+  if (CRM_TERMS_VERSION && !isAdmin) {
+    const { data: ag } = await svc.from('crm_terms_agreements').select('id')
+      .eq('salon_id', Number(data.id)).eq('version', CRM_TERMS_VERSION).maybeSingle();
+    termsOk = !!ag;
+  }
   return {
     ok: true,
     salonId: Number(data.id),
@@ -95,6 +104,7 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
     crmUntil,
     active: isAdmin || isCrmActive(crmUntil),
     isAdmin,
+    termsOk,
   };
 }
 
@@ -1946,4 +1956,100 @@ export async function importCrmCustomers(
   }
   skipped += res.filter((r) => r.status === 'dup' || r.status === 'invalid').length;
   return { ok: true, created, updated, skipped };
+}
+
+// ── 規約への同意・お客様の削除・書き出し（第569便・2026-09-20）──────────────
+
+/** 今の版の規約・顧客データの取り扱いに同意する（オーナー本人だけ） */
+export async function agreeCrmTerms(salonId: number): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!CRM_TERMS_VERSION) return { ok: true };
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const ua = ((await headers()).get('user-agent') ?? '').slice(0, 300);
+  const { error } = await auth.svc.from('crm_terms_agreements')
+    .upsert({ salon_id: salonId, version: CRM_TERMS_VERSION, agreed_by: auth.userId, user_agent: ua }, { onConflict: 'salon_id,version', ignoreDuplicates: true });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * お客様を台帳から消す（お客様から削除を頼まれたときなど）。
+ * その人の予約は名前「削除済み」・電話 0000000000・備考なしにし、その予約の同意書も消す（金額・日時は残す）。
+ */
+export async function deleteCrmCustomer(
+  salonId: number,
+  customerId: number,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const { data: c } = await svc.from('salon_customers').select('id').eq('salon_id', salonId).eq('id', customerId).maybeSingle();
+  if (!c) return { ok: false, error: 'お客様が見つかりません' };
+  const ids = await readAll<Record<string, unknown>>((from, to) =>
+    svc.from('salon_bookings').select('id').eq('salon_id', salonId).eq('customer_id', customerId).order('id').range(from, to));
+  const bookingIds = ids.map((r) => String(r.id));
+  for (let i = 0; i < bookingIds.length; i += 300) {
+    const chunk = bookingIds.slice(i, i + 300);
+    await svc.from('crm_consents').delete().eq('salon_id', salonId).in('booking_id', chunk);
+    const { error } = await svc.from('salon_bookings')
+      .update({ customer_name: '削除済み', customer_tel: '0000000000', note: null })
+      .eq('salon_id', salonId).in('id', chunk);
+    if (error) return { ok: false, error: error.message };
+  }
+  const { error } = await svc.from('salon_customers').delete().eq('salon_id', salonId).eq('id', customerId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function toCsv(rows: unknown[][]): string {
+  return rows.map((r) => r.map(csvCell).join(',')).join('\r\n');
+}
+function jst(iso: unknown): string {
+  if (!iso) return '';
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(String(iso)));
+}
+
+/** 店舗データの書き出し（CSV・Excel で開けるよう先頭に BOM を付けるのは画面側） */
+export async function exportCrmCsv(
+  salonId: number,
+  kind: 'customers' | 'bookings',
+): Promise<{ ok: true; csv: string; count: number } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const names = await therapistNames(svc, salonId);
+  if (kind === 'customers') {
+    const cs = await readAll<Record<string, unknown>>((from, to) =>
+      svc.from('salon_customers').select('id, name, name_kana, category, member_no, ng_therapist_ids, caution_memo, memo, created_at, updated_at')
+        .eq('salon_id', salonId).order('id').range(from, to));
+    const ph = await readAll<Record<string, unknown>>((from, to) =>
+      svc.from('salon_customer_phones').select('customer_id, phone').eq('salon_id', salonId).order('id').range(from, to));
+    const phones = new Map<number, string[]>();
+    ph.forEach((p) => { const k = Number(p.customer_id); phones.set(k, [...(phones.get(k) ?? []), String(p.phone)]); });
+    const label: Record<string, string> = { general: '一般', member: '会員', regular: '常連', vip: 'VIP', ng: 'NG' };
+    const rows: unknown[][] = [['顧客ID', '名前', 'フリガナ', '電話番号', '分類', '会員番号', '女子NG', '要注意メモ', 'メモ', '登録日時', '更新日時']];
+    cs.forEach((c) => rows.push([
+      c.id, c.name, c.name_kana, (phones.get(Number(c.id)) ?? []).join(' / '), label[String(c.category)] ?? String(c.category),
+      c.member_no, ((c.ng_therapist_ids as number[] | null) ?? []).map((id) => names.get(Number(id)) ?? id).join(' / '),
+      c.caution_memo, c.memo, jst(c.created_at), jst(c.updated_at),
+    ]));
+    return { ok: true, csv: toCsv(rows), count: cs.length };
+  }
+  const bs = await readAll<Record<string, unknown>>((from, to) =>
+    svc.from('salon_bookings')
+      .select('id, slot_start, slot_end, therapist_id, course_name, customer_name, customer_tel, status, cancel_bad, price_total, pay_total, payment_method, received_by, source, note, customer_id')
+      .eq('salon_id', salonId).order('slot_start').range(from, to));
+  const st: Record<string, string> = { new: '未確定', confirmed: '確定', cancelled: 'キャンセル' };
+  const rcv: Record<string, string> = { '': '', therapist: '女子が受領', shop: 'お店が受領' };
+  const rows: unknown[][] = [['予約ID', '開始', '終了', '担当', 'コース', '名前', '電話番号', '状態', '悪質', '料金', '女子報酬', '支払い', '受領', '入り口', '備考', '顧客ID']];
+  bs.forEach((b) => rows.push([
+    b.id, jst(b.slot_start), jst(b.slot_end), b.therapist_id == null ? 'フリー' : names.get(Number(b.therapist_id)) ?? b.therapist_id,
+    b.course_name, b.customer_name, b.customer_tel, st[String(b.status)] ?? b.status, b.cancel_bad ? '悪質' : '',
+    b.price_total, b.pay_total, b.payment_method, rcv[String(b.received_by ?? '')] ?? '', b.source === 'web' ? 'フクエス' : '店で受付', b.note, b.customer_id,
+  ]));
+  return { ok: true, csv: toCsv(rows), count: bs.length };
 }

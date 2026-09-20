@@ -70,7 +70,7 @@ export type CrmBookingRow = {
 export type CrmTherapist = { id: number; name: string; isActive: boolean };
 
 export type CrmAccess =
-  | { ok: true; salonId: number; salonName: string; crmUntil: string | null; active: boolean; isAdmin: boolean }
+  | { ok: true; salonId: number; salonName: string; crmUntil: string | null; active: boolean; isAdmin: boolean; termsOk: boolean }
   | { ok: false; error: string; needLogin?: boolean };
 
 // ── 本日スケジュール（CRM版・2026-09-19）────────────────
