@@ -50,7 +50,7 @@ export default function RankingHandicapManager({ onToast }: { onToast: (m: strin
       supabase.from('salons').select('id, name, area, ranking_bonus').eq('is_hidden', false).order('id', { ascending: true }),
       supabase
         .from('therapists')
-        .select('id, name, ranking_bonus, is_active, salon_id, salons(name)')
+        .select('id, name, ranking_bonus, is_active, salon_id, salons!therapists_salon_id_fkey(name)')
         .eq('is_active', true)
         .order('id', { ascending: true }),
       supabase.from('ranking_hero').select('hero_overall, hero_salon, hero_therapist').eq('id', 1).maybeSingle(),

@@ -153,7 +153,7 @@ export async function getSlots(
   // セラピストの枠は取得できない（＝空配列＝予約不可）。
   const { data: sched, error } = await supabase
     .from('therapist_schedules')
-    .select('schedule_date, start_time, end_time, is_active, therapists!inner(salons!inner(id, default_interval_min))')
+    .select('schedule_date, start_time, end_time, is_active, therapists!inner(salons!therapists_salon_id_fkey!inner(id, default_interval_min))')
     .eq('therapist_id', therapistId)
     .eq('schedule_date', dateISO)
     .eq('is_active', true)

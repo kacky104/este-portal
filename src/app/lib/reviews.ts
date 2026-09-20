@@ -340,7 +340,7 @@ export async function getAllApprovedReviews(limit = 200): Promise<ApprovedReview
   const therapistIds = [...new Set(rows.map((r) => r.therapist_id))].filter((x): x is number => x != null);
   const { data: therapists } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, salon_id, salons!inner(name, is_hidden)')
+    .select('id, name, profile_image_url, salon_id, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
     .in('id', therapistIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
@@ -409,7 +409,7 @@ export async function getLatestReviewsForSalons(
   const { data, error } = await supabase
     .from('therapist_reviews')
     .select(
-      `${REVIEW_COLUMNS}, therapists!inner(id, name, profile_image_url, salon_id, salons!inner(name, is_hidden))`,
+      `${REVIEW_COLUMNS}, therapists!inner(id, name, profile_image_url, salon_id, salons!therapists_salon_id_fkey!inner(name, is_hidden))`,
     )
     .eq('status', 'approved')
     .eq('therapists.is_active', true)
@@ -531,7 +531,7 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
   const therapistIds = [...agg.keys()];
   const { data: therapists } = await supabase
     .from('therapists')
-    .select('id, name, profile_image_url, salon_id, salons!inner(name, is_hidden)')
+    .select('id, name, profile_image_url, salon_id, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
     .in('id', therapistIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);

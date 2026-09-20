@@ -33,7 +33,7 @@ function formatDateTime(iso: string): string {
 async function fetchDiaries(opts: { salonId?: string; limit?: number }): Promise<DiaryView[]> {
   let query = supabase
     .from('diary_posts')
-    .select('id, images, title, created_at, therapists!inner(id, name, salon_id, salons(name))')
+    .select('id, images, title, created_at, therapists!inner(id, name, salon_id, salons!therapists_salon_id_fkey(name))')
     .order('created_at', { ascending: false })
     .limit(opts.limit ?? 30);
 

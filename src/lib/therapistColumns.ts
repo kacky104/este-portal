@@ -34,9 +34,12 @@ export const IMASUGU_COLUMNS =
  * 横スクロール・検索・新人・出勤中で使う共通のカード列。
  * 使用: TherapistScroller / TherapistSearch / newFaceTherapists / WorkingTherapists / therapistPool
  * ★ salons!inner(is_hidden) を含む（非公開店を除くため）。
+ * ★★ 第595便: therapists→salons の埋め込みは必ず `salons!therapists_salon_id_fkey` と名指しする。
+ *   CRM の表（crm_work_days・crm_work_ends・crm_pay_confirms）が salon_id＋therapist_id を主キーに持つため、
+ *   名指ししないと PostgREST が「多対多」の道も候補に数えて PGRST201（あいまい）で失敗し、一覧が空になる。
  */
 export const THERAPIST_CARD_COLUMNS =
-  `id, name, work_hours, area, comment, salon_id, profile_image_url, age, ${IMASUGU_COLUMNS}, is_new_face, new_face_since, feature_badges, salons!inner(is_hidden)` as const;
+  `id, name, work_hours, area, comment, salon_id, profile_image_url, age, ${IMASUGU_COLUMNS}, is_new_face, new_face_since, feature_badges, salons!therapists_salon_id_fkey!inner(is_hidden)` as const;
 
 /**
  * 店舗ページのセラピスト一覧で使う列。

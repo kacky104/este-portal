@@ -192,7 +192,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
 
   const { data: tRows } = await supabase
     .from('therapists')
-    .select(`id, name, area, salon_id, profile_image_url, body_type, feature_badges, catchphrase, ${IMASUGU_COLUMNS}, ranking_bonus, is_active, salons!inner(id, name, is_hidden)`)
+    .select(`id, name, area, salon_id, profile_image_url, body_type, feature_badges, catchphrase, ${IMASUGU_COLUMNS}, ranking_bonus, is_active, salons!therapists_salon_id_fkey!inner(id, name, is_hidden)`)
     .in('id', candidateIds)
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
@@ -353,7 +353,7 @@ async function computeOverallScores(week: string): Promise<ScoredSalon[]> {
   // 在籍セラピスト（非表示店舗所属は除外）を店舗ごとに合算
   const { data: tRows } = await supabase
     .from('therapists')
-    .select('id, salon_id, ranking_bonus, is_active, salons!inner(is_hidden)')
+    .select('id, salon_id, ranking_bonus, is_active, salons!therapists_salon_id_fkey!inner(is_hidden)')
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
   type T = { id: number; salon_id: number | null; ranking_bonus: number | null };

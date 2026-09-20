@@ -76,7 +76,7 @@ export default async function Home() {
       .from('therapist_schedules')
       // therapists!inner→salons!inner の連鎖で、非表示サロン（anon RLSで不可視）所属の
       // 出勤を本日出勤総数のカウントから除外する。
-      .select('start_time, end_time, therapists!inner(salons!inner(id))')
+      .select('start_time, end_time, therapists!inner(salons!therapists_salon_id_fkey!inner(id))')
       .eq('schedule_date', todayJST)
       .eq('is_active', true)
       .eq('therapists.salons.is_hidden', false),
