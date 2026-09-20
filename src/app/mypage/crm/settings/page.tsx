@@ -25,12 +25,31 @@ export default function CrmSettingsPage() {
   );
 }
 
+const SETTING_TABS = [
+  { key: 'display', label: '表示時間' },
+  { key: 'endbadge', label: '終わりのバッジ' },
+  { key: 'rooms', label: '待機場所（部屋）' },
+  { key: 'alarms', label: '予約アラーム' },
+  { key: 'consent', label: '来店時の同意書' },
+] as const;
+type SettingTab = (typeof SETTING_TABS)[number]['key'];
+
 function SettingsBody({ salonId }: { salonId: number }) {
   const [st, setSt] = useState<CrmSettings | null>(null);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [newRoom, setNewRoom] = useState('');
+  // 左のサイドバーで選んでいる項目（URL の #rooms などで覚える・第565便）
+  const [tab, setTab] = useState<SettingTab>(() => {
+    if (typeof window === 'undefined') return 'display';
+    const h = window.location.hash.replace('#', '');
+    return (SETTING_TABS.some((t) => t.key === h) ? h : 'display') as SettingTab;
+  });
+  const pickTab = (k: SettingTab) => {
+    setTab(k);
+    try { window.history.replaceState(null, '', `#${k}`); } catch { /* 何もしない */ }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -64,7 +83,24 @@ function SettingsBody({ salonId }: { salonId: number }) {
   const sel = 'border border-slate-300 bg-white px-3 py-2 text-[15px] focus:border-indigo-400 focus:outline-none';
 
   return (
-    <div className="mx-auto max-w-2xl px-3 py-4">
+    <div className="mx-auto flex max-w-5xl flex-col gap-3 px-3 py-4 md:flex-row md:items-start md:gap-5">
+      {/* 左のサイドバー（第565便・風俗CTIv2 の設定画面にならう）。スマホでは上に横並び */}
+      <nav className="flex gap-1 overflow-x-auto md:sticky md:top-3 md:w-[200px] md:flex-none md:flex-col md:gap-0 md:overflow-visible md:border md:border-slate-200 md:bg-white">
+        {SETTING_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => pickTab(t.key)}
+            className={`whitespace-nowrap px-3 py-2 text-left text-[14px] font-bold md:border-b md:border-slate-100 md:px-5 md:py-4 md:text-[15px] ${
+              tab === t.key ? 'bg-indigo-50 text-indigo-700 md:border-l-4 md:border-l-indigo-600' : 'bg-white text-slate-700 hover:bg-slate-50 md:border-l-4 md:border-l-transparent'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <div className="min-w-0 flex-1">
+      {tab === 'display' && (
       <section className="border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">スケジュールの表示時間</h2>
         <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -84,7 +120,9 @@ function SettingsBody({ salonId }: { salonId: number }) {
         </div>
         <p className="mt-2 text-[12px] text-slate-400">終了時刻は翌7時まで選べます。締め・日報の「その日の分」は、表示時間に関係なく朝6時で区切ります。</p>
       </section>
+      )}
 
+      {tab === 'endbadge' && (
       <section className="mt-4 border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">セラピストの終わりの時刻のバッジ（既定）</h2>
         <div className="mt-3 space-y-2">
@@ -97,7 +135,9 @@ function SettingsBody({ salonId }: { salonId: number }) {
           ))}
         </div>
       </section>
+      )}
 
+      {tab === 'rooms' && (
       <section className="mt-4 border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">待機場所（部屋）</h2>
         <p className="mt-1 text-[13px] text-slate-600">スケジュールで名前を押した「出勤情報」で選べます。選ぶと名前の下にバッジで出ます。色のマスを押すとバッジの色が変わります。</p>
@@ -166,7 +206,9 @@ function SettingsBody({ salonId }: { salonId: number }) {
         </div>
         <p className="mt-2 text-[12px] text-slate-400">追加・削除のあとは、下の「保存する」を押してください。</p>
       </section>
+      )}
 
+      {tab === 'alarms' && (
       <section className="mt-4 border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">予約アラーム</h2>
         <p className="mt-1 text-[13px] text-slate-600">
@@ -206,7 +248,9 @@ function SettingsBody({ salonId }: { salonId: number }) {
         </button>
         <p className="mt-2 text-[12px] text-slate-400">「○分前」は0〜120分、鳴らす秒数は5〜300秒です。変えたあとは、下の「保存する」を押してください。</p>
       </section>
+      )}
 
+      {tab === 'consent' && (
       <section className="mt-4 border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">来店時の同意書（ペーパーレス）</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
@@ -252,6 +296,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
           </div>
         )}
       </section>
+      )}
 
       {/* ★ 保存ボタンは画面の下についてくる（第564便） */}
       <div className="sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
@@ -260,6 +305,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
         <button type="button" disabled={busy} onClick={save} className="w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
           {busy ? '保存中…' : '保存する'}
         </button>
+      </div>
       </div>
     </div>
   );
