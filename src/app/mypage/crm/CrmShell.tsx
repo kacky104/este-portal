@@ -87,9 +87,9 @@ export function CrmShell({
   return (
     <>
       <header className="sticky top-0 z-40 bg-[#1e2a5a] text-white shadow">
-        <div className="flex items-center gap-3 px-4 pt-3">
-          <span className="text-[17px] font-black tracking-wide">フクエスCRM</span>
-          <span className="truncate text-[12px] text-indigo-200">{access.salonName}</span>
+        <div className="flex items-center gap-2 px-3 pt-1.5 md:gap-3 md:px-4 md:pt-3">
+          <span className="text-[14px] font-black tracking-wide md:text-[17px]">フクエスCRM</span>
+          <span className="truncate text-[11px] text-indigo-200 md:text-[12px]">{access.salonName}</span>
           {access.isAdmin && <span className="bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-slate-900">運営で表示中</span>}
           <span className="ml-auto hidden text-[12px] text-indigo-200 sm:inline">
             {/* ★ ON/OFF 運用（9999-12-31＝期限なし）では何も出さない。期限つきのときだけ出す。 */}
@@ -97,13 +97,13 @@ export function CrmShell({
           </span>
         </div>
         {access.active ? (
-          <nav className="mt-2 flex gap-1 overflow-x-auto px-3 [scrollbar-width:none]">
+          <nav className="mt-1 flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] md:mt-2 md:gap-1 md:px-3">
             {/* ★ スマホでタブが収まらないときは横にすべらせる（第541便） */}
             {NAV.map((n) => (
               <Link
                 key={n.key}
                 href={n.href + adminSalonQuery}
-                className={`flex-none whitespace-nowrap px-3 py-2 text-[14px] font-bold md:px-4 ${
+                className={`flex-none whitespace-nowrap px-2.5 py-1.5 text-[12px] font-bold md:px-4 md:py-2 md:text-[14px] ${
                   current === n.key ? 'bg-[#eef1f8] text-[#1e2a5a]' : 'text-indigo-200 hover:text-white'
                 }`}
               >

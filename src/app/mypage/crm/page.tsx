@@ -247,7 +247,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const isToday = date === businessTodayJST();
 
   return (
-    <div className="px-2 py-3 md:px-4">
+    <div className="px-1.5 py-1.5 md:px-4 md:py-3">
       {data && (
         <AlarmCenter
           salonId={salonId}
@@ -258,21 +258,26 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         />
       )}
       {/* 日付と件数 */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-[18px] font-black text-slate-800 md:text-[20px]">{dateLabel(date)}</span>
+      {/* ★ スマホは風俗CTIv2 に近い詰めた形（日付と前日/今日/次日を1行・件数は小さく1行・第575便） */}
+      <div className="mb-1.5 flex flex-wrap items-center gap-1 md:mb-3 md:gap-2">
+        <span className="text-[14px] font-black text-slate-800 md:text-[20px]">{dateLabel(date)}</span>
         <div className="flex">
-          <button type="button" onClick={() => setDate(shiftDate(date, -1))} className="bg-[#3f51b5] px-3 py-1.5 text-[13px] font-bold text-white">◀ 前日</button>
-          <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-3 py-1.5 text-[13px] font-bold text-white ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
-          <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-3 py-1.5 text-[13px] font-bold text-white">次日 ▶</button>
+          <label className="relative flex items-center bg-[#3f51b5] px-1.5 py-1 text-[11px] font-bold text-white md:hidden" aria-label="日付を選ぶ">
+            📅
+            <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="absolute inset-0 opacity-0" />
+          </label>
+          <button type="button" onClick={() => setDate(shiftDate(date, -1))} className="bg-[#3f51b5] px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">◀前日</button>
+          <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px] ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
+          <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">次日▶</button>
         </div>
         <input
           type="date"
           value={date}
           onChange={(e) => e.target.value && setDate(e.target.value)}
-          className="min-w-0 max-w-full appearance-none border border-slate-300 bg-white px-2 py-1 text-[13px]"
+          className="hidden min-w-0 max-w-full appearance-none border border-slate-300 bg-white px-2 py-1 text-[13px] md:block"
         />
         {view && (
-          <span className="text-[14px] font-bold text-slate-700 md:ml-2">
+          <span className="w-full text-[11px] font-bold text-slate-700 md:ml-2 md:w-auto md:text-[14px]">
             予約数 <span className="text-[#3f51b5]">{view.activeCount}</span>本 ／ 出勤数 <span className="text-[#3f51b5]">{view.workingCount}</span>人
             {' '}／ 売上 <span className="text-[#3f51b5]">{yen(view.sales)}</span> ／ 報酬 <span className="text-[#3f51b5]">{yen(view.payAll)}</span>
             {' '}（報酬確定済 <span className="text-emerald-600">{data?.confirms.length ?? 0}</span>人）
@@ -283,16 +288,16 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         )}
         {data && (
           data.report ? (
-            <button type="button" onClick={() => setClosing(true)} className="bg-emerald-600 px-3 py-1.5 text-[13px] font-bold text-white">
+            <button type="button" onClick={() => setClosing(true)} className="bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">
               ✓ 締め済み（日報）
             </button>
           ) : (
-            <button type="button" onClick={() => setClosing(true)} className="border-2 border-[#3f51b5] bg-white px-3 py-1 text-[13px] font-bold text-[#3f51b5]">
+            <button type="button" onClick={() => setClosing(true)} className="border border-[#3f51b5] bg-white px-2 py-0.5 text-[11px] font-bold text-[#3f51b5] md:border-2 md:px-3 md:py-1 md:text-[13px]">
               締め作業（日報を作る）
             </button>
           )
         )}
-        <span className="ml-auto text-[12px] text-slate-500">空いているところを押すと受付できます</span>
+        <span className="ml-auto hidden text-[12px] text-slate-500 md:inline">空いているところを押すと受付できます</span>
       </div>
 
       {err && <p className="mb-3 border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">{err}</p>}
@@ -483,11 +488,13 @@ function Grid({
   onEmpty: (therapistId: number | null, min: number) => void;
 }) {
   // ★ スマホは名前の列を細く・女子メモの列を出さない（名前の下の「メモ」から開く）・時間軸を詰める（第541便）
+  // ★ 第575便：スマホも風俗CTIv2 のように女子メモの列を出し、PC と同じ形を小さく（zoom）して1画面に多く並べる
   const narrow = useNarrow();
-  const nameW = narrow ? 108 : NAME_W;
-  const memoW = narrow ? 0 : MEMO_W;
+  const zoom = narrow ? 0.72 : 1;
+  const nameW = NAME_W;
+  const memoW = narrow ? 120 : MEMO_W;
   const leftW = nameW + memoW;
-  const ppm = narrow ? 1.2 : PX_PER_MIN;
+  const ppm = narrow ? 1.1 : PX_PER_MIN;
   const width = (endMin - startMin) * ppm;
   const hours: number[] = [];
   for (let m = startMin; m < endMin; m += 60) hours.push(m / 60);
@@ -496,13 +503,13 @@ function Grid({
   const showNow = nowMin != null && nowMin >= startMin && nowMin <= endMin;
 
   return (
-    <div className="max-h-[calc(100vh-170px)] overflow-auto border border-slate-300 bg-white">
-      <div className="relative" style={{ width: leftW + width }}>
+    <div className="max-h-[calc(100vh-130px)] overflow-auto border border-slate-300 bg-white md:max-h-[calc(100vh-170px)]">
+      <div className="relative" style={{ width: leftW + width, zoom }}>
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
           <div className="sticky left-0 z-10 flex flex-none border-r border-slate-300 bg-slate-100 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: leftW }}>
             <span className="px-2" style={{ width: nameW }}>セラピスト</span>
-            {!narrow && <span className="border-l border-slate-300 px-2" style={{ width: memoW }}>女子メモ</span>}
+            <span className="border-l border-slate-300 px-2" style={{ width: memoW }}>女子メモ</span>
           </div>
           {hours.map((h) => (
             <div key={h} className="flex-none border-r border-slate-200 pl-1.5 text-[13px] font-bold leading-[30px] text-slate-600" style={{ width: 60 * ppm }}>
@@ -523,15 +530,6 @@ function Grid({
                     <button type="button" onClick={() => onWork(r.therapist!)} className="truncate text-left text-[15px] font-black text-[#3f51b5] underline decoration-dotted underline-offset-2 hover:text-indigo-800">
                       {r.therapist.name}
                     </button>
-                    {narrow && (
-                      <button
-                        type="button"
-                        onClick={() => onMemo(r.therapist!)}
-                        className={`flex-none px-1 text-[10px] font-bold ${r.therapist.memo ? 'bg-amber-400 text-white' : 'border border-dashed border-amber-400 text-amber-700'}`}
-                      >
-                        メモ
-                      </button>
-                    )}
                   </p>
                   <p className="flex items-center gap-1 truncate text-[12px] font-bold text-slate-600">
                     <span className="truncate">
@@ -593,7 +591,7 @@ function Grid({
               )}
             </div>
             {/* 女子メモ（押すと書ける・お店の内部メモ） */}
-            {narrow ? null : r.therapist ? (
+            {r.therapist ? (
               <button
                 type="button"
                 onClick={() => onMemo(r.therapist!)}
@@ -619,7 +617,9 @@ function Grid({
               style={{ width }}
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
-                const min = startMin + (e.clientX - rect.left) / ppm;
+                // ★ zoom しているときは画面上の幅が縮むので、その割合で戻す（第575便）
+                const scale = rect.width > 0 ? rect.width / width : 1;
+                const min = startMin + (e.clientX - rect.left) / (ppm * scale);
                 const snapped = Math.floor(min / CLICK_STEP_MIN) * CLICK_STEP_MIN;
                 onEmpty(r.therapist ? r.therapist.id : null, Math.max(DAY_START_MIN, Math.min(snapped, WINDOW_END_MIN - CLICK_STEP_MIN)));
               }}
@@ -1734,9 +1734,9 @@ function AlarmCenter({
         <button
           type="button"
           onClick={async () => { const ok = await unlockAlarmAudio(); setReady(ok && alarmAudioReady()); if (ok) playAlarmOnce(1); }}
-          className="border-2 border-amber-500 bg-amber-50 px-3 py-1 text-[13px] font-bold text-amber-800"
+          className="border border-amber-500 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 md:border-2 md:px-3 md:py-1 md:text-[13px]"
         >
-          🔔 アラームの音をONにする（画面を開くたびに1回押してください）
+          🔔 アラームの音をONにする<span className="hidden md:inline">（画面を開くたびに1回押してください）</span>
         </button>
       ) : (
         <span className="inline-block bg-emerald-600 px-2 py-0.5 text-[12px] font-bold text-white">🔔 アラームON</span>
