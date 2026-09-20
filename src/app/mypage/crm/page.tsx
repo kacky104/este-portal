@@ -147,7 +147,14 @@ export default function CrmSchedulePage() {
 }
 
 function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
-  const [date, setDate] = useState<string>(() => businessTodayJST());
+  // ★ 予約一覧から来たとき（?date=YYYY-MM-DD）はその日を開く（第571便）
+  const [date, setDate] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get('date') ?? '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    }
+    return businessTodayJST();
+  });
   const [data, setData] = useState<CrmScheduleData | null>(null);
   const [err, setErr] = useState('');
   const [picked, setPicked] = useState<CrmScheduleBooking | null>(null);

@@ -458,3 +458,29 @@ export const CRM_CONSENT_DEFAULT_BODY = `当店をご利用いただく前に、
 10. お預かりした個人情報は、ご予約とご来店の管理のためにのみ使用します。
 
 以上をご確認のうえ、下の「上記の内容をすべて了承します」に☑を入れ、サインをお願いします。`;
+
+// ── 予約一覧・検索（第571便）───────────────────────────
+export type CrmBookingSearch = {
+  from: string;          // 営業日 YYYY-MM-DD
+  to: string;
+  therapistId: number | null; // null＝全員／0＝フリー（担当未定）
+  status: 'all' | 'active' | 'unconfirmed' | 'cancelled' | 'bad';
+  source: '' | 'web' | 'manual';
+  q: string;             // 名前・電話番号の一部
+};
+export type CrmBookingListRow = {
+  id: string;
+  slotStartISO: string;
+  slotEndISO: string;
+  therapistName: string;
+  courseName: string;
+  customerName: string;
+  customerTel: string;
+  customerId: number | null;
+  status: string;
+  cancelBad: boolean;
+  source: string;
+  priceTotal: number | null;
+  payTotal: number | null;
+  receivedBy: string;
+};
