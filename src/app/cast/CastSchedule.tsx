@@ -131,7 +131,7 @@ export function CastSchedule() {
                   {day.bookings.map((b, i) => (
                     <div
                       key={i}
-                      className="absolute top-1.5 bottom-1.5 overflow-hidden rounded-md border border-sky-300 bg-sky-50 px-1.5 py-1 text-[11px] leading-tight text-slate-700"
+                      className="absolute top-1.5 bottom-1.5 overflow-hidden border border-sky-300 bg-sky-50 px-1.5 py-1 text-[11px] leading-tight text-slate-700"
                       style={{ left: x(b.startMin) + 1, width: Math.max(x(b.endMin) - x(b.startMin) - 2, 24) }}
                       title={`${hhmm(b.startMin)}〜${hhmm(b.endMin)} ${b.customerName}様 ${b.course}`}
                     >
