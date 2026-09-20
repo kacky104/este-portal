@@ -708,6 +708,8 @@ function BookingCard({
       </p>
       <p className="flex items-center gap-1 truncate text-[12px]">
         {cancelled && <span className={`px-1 text-[10px] font-bold text-white ${b.cancelBad ? 'bg-rose-600' : 'bg-slate-400'}`}>{b.cancelBad ? '悪質' : 'ｷｬﾝｾﾙ'}</span>}
+        {/* フクエスのネット予約（第556便）：仮で枠が埋まるので担当が見分けられるように。キャンセルでも出す */}
+        {b.source === 'web' && <span className="border border-pink-500 bg-white px-1 text-[10px] font-bold text-pink-600">ﾌｸｴｽ</span>}
         {!cancelled && b.status === 'new' && <span className="bg-pink-500 px-1 text-[10px] font-bold text-white">未確定</span>}
         {!cancelled && b.playStatus === 'address_sent' && <span className="bg-blue-600 px-1 text-[10px] font-bold text-white">住所送済</span>}
         {!cancelled && b.playStatus === 'entered' && <span className="bg-yellow-300 px-1 text-[10px] font-bold text-slate-900">入室済</span>}
