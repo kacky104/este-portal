@@ -22,6 +22,7 @@ import {
   type CrmTherapist,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { ConsentView } from '../ConsentView';
 import { decodeText, parseCsv, parseVcf } from '@/app/lib/crm/importParse';
 import type { CrmImportPreviewRow } from '@/app/actions/crm';
 
@@ -341,6 +342,18 @@ function CustomerDetail({
                     </button>
                   )}
                 </div>
+                {b.consentAt && (
+                  <div className="mt-1 text-[12px]">
+                    <ConsentView
+                      salonId={salonId}
+                      bookingId={b.id}
+                      consentAt={b.consentAt}
+                      bookingLabel={`${fmtDateTime(b.slotStartISO)} ${b.courseName}`}
+                      therapistName={b.therapistName}
+                      customerName={c.name || b.customerName}
+                    />
+                  </div>
+                )}
                 {(b.note || (b.customerName && b.customerName !== c.name)) && (
                   <p className="mt-0.5 text-[12px] text-slate-500">
                     {b.customerName && b.customerName !== c.name ? `予約時の名前：${b.customerName}　` : ''}

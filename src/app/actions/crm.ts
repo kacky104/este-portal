@@ -320,7 +320,11 @@ export async function getCrmCustomer(
     source: String(b.source ?? ''),
     note: (b.note as string | null) ?? '',
     customerName: (b.customer_name as string | null) ?? '',
+    consentAt: null as string | null,
   }));
+  // 同意書（第574便）：過去の予約のサインも台帳から見られるように
+  const cMap = await consentMap(svc, salonId, bookings.map((b) => b.id));
+  bookings.forEach((b) => { b.consentAt = cMap.get(b.id) ?? null; });
 
   return {
     ok: true,
@@ -2108,6 +2112,20 @@ export async function searchCrmBookings(
     priceTotal: b.price_total == null ? null : Number(b.price_total),
     payTotal: b.pay_total == null ? null : Number(b.pay_total),
     receivedBy: String(b.received_by ?? ''),
+    consentAt: null as string | null,
   }));
+  const cMap = await consentMap(svc, salonId, rows.map((r) => r.id));
+  rows.forEach((r) => { r.consentAt = cMap.get(r.id) ?? null; });
   return { ok: true, rows, truncated: (data ?? []).length > BOOKING_LIST_MAX };
+}
+
+/** 予約ID → 有効な同意書の時刻（第574便） */
+async function consentMap(svc: Svc, salonId: number, bookingIds: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (let i = 0; i < bookingIds.length; i += 300) {
+    const { data } = await svc.from('crm_consents').select('booking_id, created_at')
+      .eq('salon_id', salonId).is('superseded_at', null).in('booking_id', bookingIds.slice(i, i + 300));
+    (data ?? []).forEach((c) => out.set(String(c.booking_id), String(c.created_at)));
+  }
+  return out;
 }

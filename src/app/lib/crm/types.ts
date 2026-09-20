@@ -65,6 +65,7 @@ export type CrmBookingRow = {
   source: string;          // web / manual
   note: string;
   customerName: string;    // 予約に書かれた名前（台帳の名前と違うことがある）
+  consentAt: string | null; // 同意書を了承した時刻（第574便）
 };
 
 export type CrmTherapist = { id: number; name: string; isActive: boolean };
@@ -485,4 +486,5 @@ export type CrmBookingListRow = {
   priceTotal: number | null;
   payTotal: number | null;
   receivedBy: string;
+  consentAt: string | null; // 同意書を了承した時刻（第574便）
 };

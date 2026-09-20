@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getCrmTherapists, searchCrmBookings } from '@/app/actions/crm';
 import { CRM_RECEIVED_LABEL, yen, type CrmBookingListRow, type CrmBookingSearch, type CrmReceivedBy, type CrmTherapist } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { ConsentView } from '../ConsentView';
 
 // フクエスCRM「予約一覧」（第571便・2026-09-20）。★ 日付をまたいで予約を探す（先月のキャンセル・担当ごと・名前や電話で）。
 // ★ 行の日時を押すとその日のスケジュール、名前を押すと顧客台帳（ひも付いている人だけ）を開く。
@@ -153,6 +154,7 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
                 <th className="px-2 py-2 text-right">料金</th>
                 <th className="px-2 py-2 text-right">報酬</th>
                 <th className="px-2 py-2 text-left">受領</th>
+                <th className="px-2 py-2 text-left">同意書</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -187,6 +189,18 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{yen(b.priceTotal)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{yen(b.payTotal)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-[12px]">{b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : cancelled ? '' : '未受領'}</td>
+                    <td className="min-w-[140px] px-2 py-1.5 text-[12px]">
+                      {b.consentAt ? (
+                        <ConsentView
+                          salonId={salonId}
+                          bookingId={b.id}
+                          consentAt={b.consentAt}
+                          bookingLabel={`${dt(b.slotStartISO)}〜${hm(b.slotEndISO)}`}
+                          therapistName={b.therapistName}
+                          customerName={b.customerName}
+                        />
+                      ) : <span className="text-slate-300">—</span>}
+                    </td>
                   </tr>
                 );
               })}
