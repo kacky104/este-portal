@@ -1,12 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { exportCrmCsv, getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { ImportDialog } from '../ImportDialog';
 
 // フクエスCRM「設定」（第548便・2026-09-19）。
 // ★ スケジュールの時間軸の始まりと終わり・終わりの時刻の既定のバッジ（受まで／上がり）。
@@ -34,6 +34,7 @@ const SETTING_TABS = [
   { key: 'consent', label: '来店時の同意書' },
   { key: 'cast', label: 'セラピストへの公開' },
   { key: 'export', label: 'データの書き出し' },
+  { key: 'import', label: 'データの取り込み' },
 ] as const;
 type SettingTab = (typeof SETTING_TABS)[number]['key'];
 
@@ -317,9 +318,10 @@ function SettingsBody({ salonId }: { salonId: number }) {
       )}
 
       {tab === 'export' && <ExportSection salonId={salonId} />}
+      {tab === 'import' && <ImportSection salonId={salonId} />}
 
       {/* ★ 保存ボタンは画面の下についてくる（第564便） */}
-      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${tab === 'export' ? 'hidden' : ''}`}>
+      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${tab === 'export' || tab === 'import' ? 'hidden' : ''}`}>
         {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
         {msg && <p className="mb-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
         <button type="button" disabled={busy} onClick={save} className="w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
@@ -465,13 +467,27 @@ function ExportSection({ salonId }: { salonId: number }) {
       </div>
       {msg && <p className="mt-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
       {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
-      <div className="mt-5 border-t border-slate-200 pt-4">
-        <h3 className="text-[15px] font-black text-slate-800">取り込み（インポート）</h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-          お客様の名前と電話番号の取り込みは、<Link href="/mypage/crm/customers" className="font-bold text-indigo-600 underline">顧客台帳</Link>の検索欄の横にある「取り込み」からできます。
-          スマホの連絡先（.vcf）、Excel の CSV、ここで書き出した顧客台帳の CSV が読めます。電話番号が同じお客様は重複して作りません。
-        </p>
-      </div>
+    </section>
+  );
+}
+
+// データの取り込み（第579便）。★ 最初の1回くらいしか使わないので設定の一番下に置く
+function ImportSection({ salonId }: { salonId: number }) {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState(false);
+  return (
+    <section className="border border-slate-200 bg-white p-5">
+      <h2 className="text-[17px] font-black text-slate-800">データの取り込み</h2>
+      <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+        お客様の名前と電話番号を、ファイルからまとめて顧客台帳に入れます。使い始めるときの1回だけの作業です。
+        スマホの連絡先（.vcf）、Excel の CSV、「データの書き出し」で書き出した顧客台帳の CSV が読めます。
+        電話番号が同じお客様は重複して作りません。分類・メモ・予約は取り込みません。
+      </p>
+      <button type="button" onClick={() => { setDone(false); setOpen(true); }} className="mt-3 bg-indigo-600 px-4 py-2 text-[14px] font-bold text-white">
+        取り込みを始める
+      </button>
+      {done && <p className="mt-2 text-[13px] font-bold text-emerald-700">取り込みました。顧客台帳で確かめてください。</p>}
+      {open && <ImportDialog salonId={salonId} onClose={() => setOpen(false)} onDone={() => setDone(true)} />}
     </section>
   );
 }
