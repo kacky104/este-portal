@@ -1829,3 +1829,121 @@ export async function getCrmBookingConsents(
     })),
   };
 }
+
+// ── 顧客の取り込み（第566便・2026-09-20）──────────────────
+// ★ スマホの連絡先（.vcf）・CSV から読んだ「名前・電話番号」を台帳に入れる（読むのはブラウザ・lib/crm/importParse.ts）。
+// ★ 電話番号で名寄せする：もう台帳にいる番号の人は新しく作らない（名前が空なら名前だけ入れる・足りない番号を足す）。
+// ★ 電話番号が無い（形が違う）行は取り込まない（名寄せできないため）。
+
+const IMPORT_MAX = 3000;
+export type CrmImportStatus = 'new' | 'exists' | 'dup' | 'invalid';
+export type CrmImportPreviewRow = { name: string; phones: string[]; status: CrmImportStatus; existingName: string };
+
+function cleanImportRows(rows: { name: string; phones: string[] }[]) {
+  return (rows ?? []).slice(0, IMPORT_MAX).map((r) => ({
+    name: String(r?.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 40),
+    phones: [...new Set((Array.isArray(r?.phones) ? r.phones : []).map((p) => String(p).replace(/[^0-9]/g, '')).filter((p) => /^\d{10,13}$/.test(p)))].slice(0, 5),
+  }));
+}
+
+async function phoneOwners(svc: Svc, salonId: number, phones: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const uniq = [...new Set(phones)];
+  for (let i = 0; i < uniq.length; i += 300) {
+    const { data } = await svc.from('salon_customer_phones').select('phone, customer_id').eq('salon_id', salonId).in('phone', uniq.slice(i, i + 300));
+    (data ?? []).forEach((d) => out.set(String(d.phone), Number(d.customer_id)));
+  }
+  return out;
+}
+
+async function classifyImport(svc: Svc, salonId: number, rows: { name: string; phones: string[] }[]) {
+  const owners = await phoneOwners(svc, salonId, rows.flatMap((r) => r.phones));
+  const ids = [...new Set([...owners.values()])];
+  const names = new Map<number, string>();
+  for (let i = 0; i < ids.length; i += 300) {
+    const { data } = await svc.from('salon_customers').select('id, name').eq('salon_id', salonId).in('id', ids.slice(i, i + 300));
+    (data ?? []).forEach((c) => names.set(Number(c.id), String(c.name ?? '')));
+  }
+  const seen = new Set<string>();
+  return rows.map((r) => {
+    let status: CrmImportStatus = 'new';
+    let existingId: number | null = null;
+    if (r.phones.length === 0) status = 'invalid';
+    else if (r.phones.some((p) => seen.has(p))) status = 'dup';
+    else {
+      const hit = r.phones.find((p) => owners.has(p));
+      if (hit) { status = 'exists'; existingId = owners.get(hit)!; }
+    }
+    r.phones.forEach((p) => seen.add(p));
+    return { ...r, status, existingId, existingName: existingId != null ? names.get(existingId) ?? '' : '' };
+  });
+}
+
+/** 取り込む前の確認（新規／もう台帳にいる／ファイルの中で重複／番号なし） */
+export async function previewCrmImport(
+  salonId: number,
+  rows: { name: string; phones: string[] }[],
+): Promise<{ ok: true; rows: CrmImportPreviewRow[]; truncated: boolean } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const clean = cleanImportRows(rows);
+  const res = await classifyImport(auth.svc, salonId, clean);
+  return {
+    ok: true,
+    truncated: (rows ?? []).length > IMPORT_MAX,
+    rows: res.map((r) => ({ name: r.name, phones: r.phones, status: r.status, existingName: r.existingName })),
+  };
+}
+
+/** 取り込む（画面でチェックが入っている行だけ送る） */
+export async function importCrmCustomers(
+  salonId: number,
+  rows: { name: string; phones: string[] }[],
+): Promise<{ ok: true; created: number; updated: number; skipped: number } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const res = await classifyImport(svc, salonId, cleanImportRows(rows));
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  // 新規：まとめて作る（200人ずつ）
+  const news = res.filter((r) => r.status === 'new');
+  for (let i = 0; i < news.length; i += 200) {
+    const chunk = news.slice(i, i + 200);
+    const now = new Date().toISOString();
+    const { data, error } = await svc.from('salon_customers')
+      .insert(chunk.map((r) => ({ salon_id: salonId, name: r.name, updated_at: now })))
+      .select('id');
+    if (error || !data || data.length !== chunk.length) return { ok: false, error: `取り込みの途中で止まりました（${created}人まで登録済み）：${error?.message ?? ''}` };
+    const phoneRows = chunk.flatMap((r, k) => r.phones.map((phone) => ({ customer_id: Number(data[k].id), salon_id: salonId, phone })));
+    const { error: pErr } = await svc.from('salon_customer_phones').insert(phoneRows);
+    if (pErr) {
+      // まとめて入らなければ1件ずつ（その間に同じ番号が登録された等）
+      for (const p of phoneRows) await svc.from('salon_customer_phones').insert(p);
+    }
+    created += chunk.length;
+  }
+
+  // もう台帳にいる人：名前が空なら入れる・足りない番号を足す（5件まで）
+  for (const r of res.filter((x) => x.status === 'exists' && x.existingId != null)) {
+    const id = r.existingId!;
+    let changed = false;
+    if (!r.existingName.trim() && r.name) {
+      await svc.from('salon_customers').update({ name: r.name, updated_at: new Date().toISOString() }).eq('salon_id', salonId).eq('id', id);
+      changed = true;
+    }
+    const { data: cur } = await svc.from('salon_customer_phones').select('phone').eq('customer_id', id);
+    const have = new Set((cur ?? []).map((p) => String(p.phone)));
+    const owners = await phoneOwners(svc, salonId, r.phones.filter((p) => !have.has(p)));
+    const add = r.phones.filter((p) => !have.has(p) && !owners.has(p)).slice(0, Math.max(0, 5 - have.size));
+    if (add.length > 0) {
+      await svc.from('salon_customer_phones').insert(add.map((phone) => ({ customer_id: id, salon_id: salonId, phone })));
+      changed = true;
+    }
+    if (changed) updated++; else skipped++;
+  }
+  skipped += res.filter((r) => r.status === 'dup' || r.status === 'invalid').length;
+  return { ok: true, created, updated, skipped };
+}
