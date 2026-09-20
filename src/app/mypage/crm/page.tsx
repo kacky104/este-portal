@@ -631,7 +631,7 @@ function Grid({
                   <p className="line-clamp-4 whitespace-pre-line text-[12px] leading-[1.3] text-slate-700">{r.therapist.memo}</p>
                 ) : (
                   // ★ 薄すぎて見つけられなかった（2026-09-19）→ 枠つきのボタンに見える形に
-                  <span className="inline-block border border-dashed border-amber-400 bg-amber-50 px-2 py-1 text-[12px] font-bold text-amber-700">✎ メモを書く</span>
+                  <span className="inline-block whitespace-nowrap border border-dashed border-amber-400 bg-amber-50 px-1 py-0.5 text-[11px] font-bold text-amber-700">✎ メモを書く</span>
                 )}
               </button>
             ) : (
