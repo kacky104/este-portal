@@ -39,6 +39,11 @@ import {
   CRM_ROOM_COLORS,
   CRM_RECEIVED,
   normalizeCrmAlarms,
+  normalizeCrmToggles,
+  CRM_TOGGLE_MAX,
+  CRM_TOGGLE_TITLE_LEN,
+  CRM_TOGGLE_OPTION_MAX,
+  CRM_TOGGLE_OPTION_LEN,
   isUnreceived,
   CRM_MONEY_CATEGORIES,
   CRM_MONEY_DIRECTIONS,
@@ -1345,7 +1350,7 @@ export async function setCrmReceived(
 // ── 設定と「受まで／上がり」（第548便）──────────────────
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
   const { data } = await svc
-    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms, consent_enabled, consent_title, consent_body, cast_pay_enabled').eq('salon_id', salonId).maybeSingle();
+    .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms, consent_enabled, consent_title, consent_body, cast_pay_enabled, custom_toggles').eq('salon_id', salonId).maybeSingle();
   if (!data) return { ...CRM_DEFAULT_SETTINGS, alarms: normalizeCrmAlarms(null) };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
@@ -1360,6 +1365,7 @@ async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
     consentTitle: String(data.consent_title ?? ''),
     consentBody: String(data.consent_body ?? ''),
     castPayEnabled: Boolean(data.cast_pay_enabled),
+    customToggles: normalizeCrmToggles(data.custom_toggles),
   };
 }
 
@@ -1403,6 +1409,19 @@ export async function saveCrmSettings(
   if (consentTitle.length > 60) return { ok: false, error: '同意書の題名は60文字までです' };
   if (consentBody.length > 8000) return { ok: false, error: '同意書の本文は8000文字までです' };
   if (settings.consentEnabled && !consentBody.trim()) return { ok: false, error: '同意書を使うときは本文を入れてください' };
+  // 自由項目（第597便）
+  const rawToggles = Array.isArray(settings.customToggles) ? settings.customToggles : [];
+  if (rawToggles.length > CRM_TOGGLE_MAX) return { ok: false, error: `出勤情報の項目は${CRM_TOGGLE_MAX}つまでです` };
+  for (const t of rawToggles) {
+    const title = String(t?.title ?? '').trim();
+    const opts = (Array.isArray(t?.options) ? t.options : []).map((x) => String(x).trim()).filter(Boolean);
+    if (!title) return { ok: false, error: '出勤情報の項目に題名を入れてください' };
+    if (title.length > CRM_TOGGLE_TITLE_LEN) return { ok: false, error: `項目の題名は${CRM_TOGGLE_TITLE_LEN}文字までです` };
+    if (opts.length === 0) return { ok: false, error: `「${title}」に選択肢を1つ以上入れてください` };
+    if (opts.length > CRM_TOGGLE_OPTION_MAX) return { ok: false, error: `選択肢は1つの項目に${CRM_TOGGLE_OPTION_MAX}個までです` };
+    if (opts.some((o) => o.length > CRM_TOGGLE_OPTION_LEN)) return { ok: false, error: `選択肢は${CRM_TOGGLE_OPTION_LEN}文字までです` };
+  }
+  const customToggles = normalizeCrmToggles(rawToggles);
   const allowed = new Set(CRM_ROOM_COLORS.map((c) => c.key));
   const roomColors: Record<string, string> = {};
   for (const r of rooms) {
@@ -1421,6 +1440,7 @@ export async function saveCrmSettings(
     consent_title: consentTitle,
     consent_body: consentBody,
     cast_pay_enabled: !!settings.castPayEnabled,
+    custom_toggles: customToggles,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };
@@ -1454,7 +1474,7 @@ async function readWorkDays(svc: Svc, salonId: number, dateISO: string): Promise
   if (!validDate(dateISO)) return {};
   const { data } = await svc
     .from('crm_work_days')
-    .select('therapist_id, break_start_min, break_end_min, break_memo, room, attendance, transport')
+    .select('therapist_id, break_start_min, break_end_min, break_memo, room, attendance, transport, toggle_values')
     .eq('salon_id', salonId).eq('business_date', dateISO);
   const out: Record<number, CrmWorkDay> = {};
   for (const r of data ?? []) {
@@ -1465,7 +1485,18 @@ async function readWorkDays(svc: Svc, salonId: number, dateISO: string): Promise
       room: String(r.room ?? ''),
       attendance: (['late', 'absent', 'sent_home'].includes(String(r.attendance)) ? r.attendance : '') as CrmAttendance,
       transport: Number(r.transport) || 0,
+      toggles: readToggleValues(r.toggle_values),
     };
+  }
+  return out;
+}
+
+/** crm_work_days.toggle_values を { id: 選択肢 } に整える（第597便） */
+function readToggleValues(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (/^[a-z0-9]{1,12}$/.test(k) && typeof v === 'string' && v) out[k] = v.slice(0, CRM_TOGGLE_OPTION_LEN);
   }
   return out;
 }
@@ -1495,6 +1526,13 @@ export async function saveCrmWorkDay(
   if (room.length > 30) return { ok: false, error: '待機場所が長すぎます' };
   if (transport < 0 || transport > 100000) return { ok: false, error: '交通費は0〜100,000円で入れてください' };
   const attendance = ['late', 'absent', 'sent_home'].includes(String(wd.attendance)) ? wd.attendance : '';
+  // 自由項目（第597便）：いまの設定にある項目・選択肢だけを保存する
+  const toggleDefs = (await readSettings(auth.svc, salonId)).customToggles;
+  const toggleValues: Record<string, string> = {};
+  for (const t of toggleDefs) {
+    const v = wd.toggles?.[t.id];
+    if (v && t.options.includes(v)) toggleValues[t.id] = v;
+  }
   // ★ 同じ部屋で、出勤の時間がほかの人と重なるなら保存しない（第553便）
   if (room) {
     const clash = await roomClash(auth.svc, salonId, therapistId, dateISO, room);
@@ -1503,6 +1541,7 @@ export async function saveCrmWorkDay(
   const { error } = await auth.svc.from('crm_work_days').upsert({
     salon_id: salonId, therapist_id: therapistId, business_date: dateISO,
     break_start_min: bs, break_end_min: be, break_memo: memo, room, attendance, transport,
+    toggle_values: toggleValues,
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: error.message };

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
-import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
+import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { ImportDialog } from '../ImportDialog';
@@ -30,6 +30,7 @@ const SETTING_TABS = [
   { key: 'display', label: '表示時間' },
   { key: 'endbadge', label: '終わりのバッジ' },
   { key: 'rooms', label: '待機場所（部屋）' },
+  { key: 'toggles', label: '出勤情報の項目' },
   { key: 'alarms', label: '予約アラーム' },
   { key: 'consent', label: '来店時の同意書（QR）' },
   { key: 'cast', label: 'セラピストへの公開' },
@@ -301,6 +302,8 @@ function SettingsBody({ salonId }: { salonId: number }) {
       </section>
       )}
 
+      {tab === 'toggles' && <ToggleSection toggles={st.customToggles} onChange={(customToggles) => setSt({ ...st, customToggles })} />}
+
       {tab === 'cast' && (
         <section className="border border-slate-200 bg-white p-5">
           <h2 className="text-[17px] font-black text-slate-800">セラピストへの公開</h2>
@@ -427,6 +430,71 @@ function ResetConsentButton({ onReset }: { onReset: () => void }) {
     </span>
   ) : (
     <button type="button" onClick={() => setSure(true)} className="border border-slate-300 bg-white px-2 py-1 text-[12px] font-bold text-slate-600">初期の文面に戻す</button>
+  );
+}
+
+// 出勤情報の自由項目（第597便）。★ 題名と選択肢を自由に作れる・最大2つ。
+// ★ スケジュールで名前を押した「出勤情報」に選択肢のボタンが並ぶ（1つだけ選ぶ）。選んだものは名前の下にもバッジで出る。
+function newToggleId(): string {
+  return Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, '') || 't' + Date.now().toString(36).slice(-6);
+}
+function ToggleSection({ toggles, onChange }: { toggles: CrmToggle[]; onChange: (t: CrmToggle[]) => void }) {
+  const upd = (i: number, patch: Partial<CrmToggle>) => onChange(toggles.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+  const input = 'border border-slate-300 bg-white px-3 py-2 text-[14px] focus:border-indigo-400 focus:outline-none';
+  return (
+    <section className="border border-slate-200 bg-white p-5">
+      <h2 className="text-[17px] font-black text-slate-800">出勤情報の項目</h2>
+      <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+        題名と選択肢を自由に作れます（{CRM_TOGGLE_MAX}つまで）。スケジュールで名前を押した「出勤情報」に選択肢のボタンが並び、1つ選べます（もう一度押すと外れます）。
+        選んだものは、スケジュールの名前の下にも小さく出ます。例）掛け持ち出勤　A・B・C
+      </p>
+      <div className="mt-3 space-y-4">
+        {toggles.map((t, i) => (
+          <div key={t.id} className="border border-slate-200 p-3">
+            <div className="flex items-center gap-2">
+              <p className="text-[12px] font-bold text-slate-500">項目{i + 1}の題名</p>
+              <button type="button" onClick={() => onChange(toggles.filter((_, j) => j !== i))} className="ml-auto text-[12px] font-bold text-slate-400 underline">この項目を削除</button>
+            </div>
+            <input className={`${input} mt-1 w-full`} value={t.title} maxLength={CRM_TOGGLE_TITLE_LEN} placeholder="例）掛け持ち出勤" onChange={(e) => upd(i, { title: e.target.value })} />
+            <p className="mb-1 mt-3 text-[12px] font-bold text-slate-500">選択肢（{CRM_TOGGLE_OPTION_LEN}文字まで・{CRM_TOGGLE_OPTION_MAX}個まで）</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {t.options.map((o, k) => (
+                <span key={k} className="flex items-center border border-slate-300 bg-white">
+                  <input
+                    className="w-24 px-2 py-1.5 text-[14px] focus:outline-none"
+                    value={o}
+                    maxLength={CRM_TOGGLE_OPTION_LEN}
+                    placeholder={['A', 'B', 'C'][k] ?? ''}
+                    onChange={(e) => upd(i, { options: t.options.map((x, m) => (m === k ? e.target.value : x)) })}
+                  />
+                  <button type="button" aria-label="この選択肢を消す" onClick={() => upd(i, { options: t.options.filter((_, m) => m !== k) })} className="px-2 text-[14px] font-bold text-slate-400">×</button>
+                </span>
+              ))}
+              <button
+                type="button"
+                disabled={t.options.length >= CRM_TOGGLE_OPTION_MAX}
+                onClick={() => upd(i, { options: [...t.options, ''] })}
+                className="border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700 disabled:opacity-40"
+              >
+                ＋ 選択肢
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {toggles.length < CRM_TOGGLE_MAX && (
+        <button
+          type="button"
+          onClick={() => onChange([...toggles, { id: newToggleId(), title: '', options: ['', '', ''] }])}
+          className="mt-3 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700"
+        >
+          ＋ 項目を追加
+        </button>
+      )}
+      <p className="mt-2 text-[12px] leading-relaxed text-slate-400">
+        空の選択肢は保存のときに外れます。題名を変えても、これまでに選んだ内容はそのまま残ります（選択肢の文字を変えたときは、その選択肢を選んでいた日の表示が消えます）。変えたあとは、下の「保存する」を押してください。
+      </p>
+    </section>
   );
 }
 

@@ -306,7 +306,45 @@ export type CrmSettings = {
   consentBody: string;
   /** セラピストに /cast で報酬明細を見せる（第572便） */
   castPayEnabled: boolean;
+  /** 自由に作れる出勤情報の項目（最大2つ・第597便）。例：掛け持ち出勤／A・B・C */
+  customToggles: CrmToggle[];
 };
+
+/**
+ * 出勤情報の自由項目（第597便）。★ id で値を持つので、題名を変えても選んだ値は残る。
+ * ★ 選べるのは1つだけ（もう一度押すと外れる）。
+ */
+export type CrmToggle = { id: string; title: string; options: string[] };
+export const CRM_TOGGLE_MAX = 2;
+export const CRM_TOGGLE_OPTION_MAX = 10;
+export const CRM_TOGGLE_TITLE_LEN = 20;
+export const CRM_TOGGLE_OPTION_LEN = 10;
+/** 保存された項目の形を整える（壊れた値・空の題名・空の選択肢は落とす） */
+export function normalizeCrmToggles(raw: unknown): CrmToggle[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CrmToggle[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue;
+    const o = r as Record<string, unknown>;
+    const id = String(o.id ?? '').trim();
+    const title = String(o.title ?? '').trim().slice(0, CRM_TOGGLE_TITLE_LEN);
+    const options = [...new Set((Array.isArray(o.options) ? o.options : []).map((x) => String(x).trim().slice(0, CRM_TOGGLE_OPTION_LEN)).filter(Boolean))].slice(0, CRM_TOGGLE_OPTION_MAX);
+    if (!/^[a-z0-9]{1,12}$/.test(id) || !title || options.length === 0) continue;
+    if (out.some((t) => t.id === id)) continue;
+    out.push({ id, title, options });
+    if (out.length >= CRM_TOGGLE_MAX) break;
+  }
+  return out;
+}
+/** その日の選択を、いまの項目に合うものだけに絞る（消した項目・消した選択肢は出さない） */
+export function pickCrmToggleValues(toggles: CrmToggle[], values: Record<string, string> | undefined): Array<{ title: string; value: string }> {
+  const out: Array<{ title: string; value: string }> = [];
+  for (const t of toggles) {
+    const v = values?.[t.id];
+    if (v && t.options.includes(v)) out.push({ title: t.title, value: v });
+  }
+  return out;
+}
 
 /** 予約アラーム（第559便・風俗CTIv2 の予約アラームにあたる）。on: 予約開始／予約終了・min 分前・sec 秒鳴らす・sound 音1〜4 */
 export type CrmAlarm = { on: 'start' | 'end'; min: number; sec: number; sound: number };
@@ -331,7 +369,7 @@ export function normalizeCrmAlarms(raw: unknown): CrmAlarm[] {
   return out;
 }
 
-export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS, consentEnabled: false, consentTitle: '', consentBody: '', castPayEnabled: false };
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS, consentEnabled: false, consentTitle: '', consentBody: '', castPayEnabled: false, customToggles: [] };
 
 /** 同意書（第560便）：CRM で見る1件 */
 export type CrmConsent = {
@@ -383,8 +421,10 @@ export type CrmWorkDay = {
   room: string;
   attendance: CrmAttendance;
   transport: number;
+  /** 自由項目の選択（項目の id → 選んだ選択肢・第597便） */
+  toggles: Record<string, string>;
 };
-export const CRM_EMPTY_WORK_DAY: CrmWorkDay = { breakStartMin: null, breakEndMin: null, breakMemo: '', room: '', attendance: '', transport: 0 };
+export const CRM_EMPTY_WORK_DAY: CrmWorkDay = { breakStartMin: null, breakEndMin: null, breakMemo: '', room: '', attendance: '', transport: 0, toggles: {} };
 
 // ── 金銭授受（第558便・2026-09-20）────────────────────
 // 女子の残高 ＝ 女子が受領した料金 − 女子の報酬 − 女子→お店に渡した額 ＋ お店→女子に払った額

@@ -49,6 +49,8 @@ import {
   CRM_ATTENDANCE_LABEL,
   CRM_EMPTY_WORK_DAY,
   roomColor,
+  pickCrmToggleValues,
+  type CrmToggle,
   type CrmAttendance,
   type CrmWorkDay,
   inBusinessDay,
@@ -345,6 +347,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           onConfirm={setConfirmFor}
           workDayOf={(tid) => data?.workDays[tid] ?? null}
           roomColorOf={(room) => data?.settings.roomColors[room]}
+          toggleDefs={data?.settings.customToggles ?? []}
           onWork={setWorkFor}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
           onToggleEnd={async (tid, next) => {
@@ -428,6 +431,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           salonId={salonId}
           date={date}
           rooms={data.settings.rooms}
+          toggleDefs={data.settings.customToggles}
           endType={data.workEnds[workFor.id] ?? data.settings.defaultEndType}
           initial={data.workDays[workFor.id] ?? CRM_EMPTY_WORK_DAY}
           onClose={() => setWorkFor(null)}
@@ -489,12 +493,14 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, onWork, endTypeOf, onToggleEnd, onEmpty,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, endTypeOf, onToggleEnd, onEmpty,
 }: {
   /** その日の出勤情報（休憩・待機場所・遅刻当欠・交通費） */
   workDayOf: (therapistId: number) => CrmWorkDay | null;
   /** 部屋の色の名前 */
   roomColorOf: (room: string) => string | undefined;
+  /** 出勤情報の自由項目（第597便）。選んだものを名前の下に小さく出す */
+  toggleDefs: CrmToggle[];
   /** 名前を押した */
   onWork: (t: CrmScheduleTherapist) => void;
   /** そのセラピストのその日の「受まで／上がり」 */
@@ -579,6 +585,11 @@ function Grid({
                             const c = roomColor(roomColorOf(wd.room));
                             return <span className="flex-none px-1 text-[10px] font-bold" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{wd.room}</span>;
                           })()}
+                          {pickCrmToggleValues(toggleDefs, wd.toggles).map((tv) => (
+                            <span key={tv.title} title={`${tv.title}：${tv.value}`} className="max-w-[96px] flex-none truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700">
+                              {tv.title}:{tv.value}
+                            </span>
+                          ))}
                         </>
                       );
                     })()}
@@ -2039,12 +2050,13 @@ function CloseDialog({
 
 // ── 出勤情報（名前を押す・第550便）────────────────────
 function WorkDayDialog({
-  therapist, salonId, date, rooms, endType, initial, onClose, onSaved, onConfirm,
+  therapist, salonId, date, rooms, toggleDefs, endType, initial, onClose, onSaved, onConfirm,
 }: {
   therapist: CrmScheduleTherapist;
   salonId: number;
   date: string;
   rooms: string[];
+  toggleDefs: CrmToggle[];
   endType: CrmEndType;
   initial: CrmWorkDay;
   onClose: () => void;
@@ -2143,6 +2155,36 @@ function WorkDayDialog({
               </div>
               <p className="mt-1 text-[11px] text-slate-400">報酬確定のときの「手当・交通費」に、はじめから入ります。</p>
             </div>
+
+            {/* 自由項目（第597便）：設定で作った項目。1つだけ選ぶ・もう一度押すと外れる */}
+            {toggleDefs.map((t) => {
+              const cur = wd.toggles?.[t.id] ?? '';
+              return (
+                <div key={t.id}>
+                  <label className={labCls}>{t.title}</label>
+                  <div className="flex flex-wrap gap-2">
+                    {t.options.map((o) => {
+                      const on = cur === o;
+                      return (
+                        <button
+                          key={o}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setWd((p) => {
+                            const next = { ...(p.toggles ?? {}) };
+                            if (on) delete next[t.id]; else next[t.id] = o;
+                            return { ...p, toggles: next };
+                          })}
+                          className={`min-w-[52px] border px-3 py-1.5 text-[14px] font-bold ${on ? 'border-violet-600 bg-violet-600 text-white' : 'border-slate-300 bg-white text-slate-600'}`}
+                        >
+                          {o}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
             {err && <p className="text-[13px] font-bold text-rose-600">{err}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3">
