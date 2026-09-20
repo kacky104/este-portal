@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCastScheduleDay, type CastScheduleDay } from '@/app/actions/castSchedule';
 import { addBusinessDays, getBusinessDateJST } from '@/lib/dutyStatus';
 
 // /cast「スケジュール」（第599便）。★ 本人の行だけのタイムライン（CRM のスケジュールと同じ見た目の軸）。
-// ★ 左の枠は、その日の待機場所（部屋）だけ。女子メモは出さない。
+// ★ 左の枠は置かない（第600便）。待機場所（部屋）は上の「出勤」の行にバッジで出し、そのぶんタイムラインを横いっぱいに使う。女子メモは出さない。
+// ★ スマホでは枠を画面の左右いっぱいまで広げる（main の px-4 を -mx-4 で打ち消す）。
 // ★ 予約は 時間・お客様の名前・コース。電話番号・料金・報酬は出さない。
 
 const HOUR_W = 64; // 1時間の幅（px）
@@ -69,8 +70,19 @@ export function CastSchedule() {
   const x = (min: number) => ((min - axis.start) / 60) * HOUR_W;
   const width = hours.length * HOUR_W;
 
+  // 開いたとき、今の時刻（今日）か出勤の始まりが左端近くに来るように横スクロールしておく（第600便）
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const loadedDate = day?.date ?? null;
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !day) return;
+    const target = date === today && nowMinOf(date) != null ? (nowMinOf(date) as number) - 60 : (day.shifts[0]?.startMin ?? day.bookings[0]?.startMin ?? null);
+    if (target == null) { el.scrollLeft = 0; return; }
+    el.scrollLeft = Math.max(0, ((target - axis.start) / 60) * HOUR_W - 8);
+  }, [loadedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+    <section className="-mx-4 bg-white px-2 py-4 shadow-sm ring-1 ring-black/5 sm:mx-0 sm:rounded-2xl sm:p-4">
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setDate(addBusinessDays(date, -1))} className="rounded-full border border-slate-200 px-3 py-1.5 text-[13px] font-bold text-slate-500">◀ 前日</button>
         <p className="flex-1 text-center text-[16px] font-black text-slate-800">{dayLabel(date)}</p>
@@ -88,22 +100,18 @@ export function CastSchedule() {
         <p className="py-8 text-center text-[14px] text-slate-500">{res.err || '読み込めませんでした'}</p>
       ) : (
         <>
-          <p className="mt-3 text-center text-[13px] font-bold text-slate-600">
-            出勤 {day.shifts.length > 0 ? day.shifts.map((w) => `${hhmm(w.startMin)}〜${hhmm(w.endMin)}`).join(' / ') : 'なし'}
-            {day.breakStartMin != null && day.breakEndMin != null && <span className="ml-2 text-slate-400">休憩 {hhmm(day.breakStartMin)}〜{hhmm(day.breakEndMin)}</span>}
+          <p className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-[13px] font-bold text-slate-600">
+            <span className={`px-1.5 py-0.5 text-[12px] font-black ${day.room ? 'bg-[#1e2a5a] text-white' : 'border border-slate-300 text-slate-400'}`}>
+              {day.room ? `部屋 ${day.room}` : '部屋 未定'}
+            </span>
+            <span>出勤 {day.shifts.length > 0 ? day.shifts.map((w) => `${hhmm(w.startMin)}〜${hhmm(w.endMin)}`).join(' / ') : 'なし'}
+</span>
+            {day.breakStartMin != null && day.breakEndMin != null && <span className="text-slate-400">休憩 {hhmm(day.breakStartMin)}〜{hhmm(day.breakEndMin)}</span>}
           </p>
 
-          {/* タイムライン：左の枠（部屋）は固定、右は横にスクロール */}
-          <div className="mt-3 flex overflow-hidden rounded-xl border border-slate-200">
-            <div className="w-[72px] flex-none border-r border-slate-200 bg-slate-50">
-              <div className="flex h-8 items-center justify-center border-b border-slate-200 text-[11px] font-bold text-slate-400">部屋</div>
-              <div className="flex items-center justify-center px-1 text-center" style={{ height: ROW_H }}>
-                {day.room
-                  ? <span className="bg-[#1e2a5a] px-1.5 py-0.5 text-[13px] font-black text-white">{day.room}</span>
-                  : <span className="text-[11px] font-bold text-slate-400">未定</span>}
-              </div>
-            </div>
-            <div className="min-w-0 flex-1 overflow-x-auto">
+          {/* タイムライン：横いっぱい・横にスクロール（第600便で左の部屋の枠を外した） */}
+          <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
+            <div ref={scrollRef} className="overflow-x-auto">
               <div className="relative" style={{ width }}>
                 <div className="flex h-8 border-b border-slate-200">
                   {hours.map((h) => (
