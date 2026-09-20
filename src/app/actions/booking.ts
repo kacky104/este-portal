@@ -594,9 +594,13 @@ export async function updateBookingStatus(
   const auth = await assertBookingOwner(bookingId);
   if (!auth.ok) return { ok: false, error: auth.error };
 
+  // ★ キャンセルにしたら受領（CRM）も未受領に戻す（第554便）
+  const patch: Record<string, unknown> = nextStatus === 'cancelled'
+    ? { status: nextStatus, received_by: '', received_at: null }
+    : { status: nextStatus };
   const { error } = await auth.svc
     .from('salon_bookings')
-    .update({ status: nextStatus })
+    .update(patch)
     .eq('id', bookingId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };

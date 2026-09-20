@@ -35,6 +35,8 @@ import {
   CRM_FIXED_NOMINATIONS,
   CRM_DEFAULT_SETTINGS,
   CRM_ROOM_COLORS,
+  CRM_RECEIVED,
+  isUnreceived,
   type CrmSettings,
   type CrmEndType,
   type CrmWorkDay,
@@ -478,13 +480,13 @@ export async function getCrmSchedule(
   type Extra = {
     customerId: number | null; cancelBad: boolean; source: string;
     items: CrmBookingItem[]; priceAdjust: number; payAdjust: number;
-    priceTotal: number | null; payTotal: number | null; paymentMethod: string; playStatus: string;
+    priceTotal: number | null; payTotal: number | null; paymentMethod: string; playStatus: string; receivedBy: string;
   };
   const extra = new Map<string, Extra>();
   if (bookingIds.length > 0) {
     const { data } = await svc
       .from('salon_bookings')
-      .select('id, customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method, play_status')
+      .select('id, customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method, play_status, received_by')
       .eq('salon_id', salonId)
       .in('id', bookingIds);
     for (const r of data ?? []) {
@@ -499,6 +501,7 @@ export async function getCrmSchedule(
         payTotal: r.pay_total == null ? null : Number(r.pay_total),
         paymentMethod: String(r.payment_method ?? ''),
         playStatus: String(r.play_status ?? ''),
+        receivedBy: String(r.received_by ?? ''),
       });
     }
   }
@@ -579,6 +582,7 @@ export async function getCrmSchedule(
           payTotal: e?.payTotal ?? null,
           paymentMethod: e?.paymentMethod ?? '',
           playStatus: e?.playStatus ?? '',
+          receivedBy: e?.receivedBy ?? '',
         };
       }),
     },
@@ -894,13 +898,16 @@ function validDate(dateISO: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(dateISO) && !Number.isNaN(new Date(`${dateISO}T00:00:00Z`).getTime());
 }
 
-type DayBooking = { therapistId: number | null; status: string; priceTotal: number; payTotal: number; paymentMethod: string };
+type DayBooking = {
+  therapistId: number | null; status: string; priceTotal: number; payTotal: number; paymentMethod: string;
+  hasPrice: boolean; receivedBy: string; slotStartISO: string;
+};
 
 async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Promise<DayBooking[]> {
   const { startISO, endISO } = businessWindow(dateISO);
   const { data } = await svc
     .from('salon_bookings')
-    .select('therapist_id, status, price_total, pay_total, payment_method')
+    .select('therapist_id, status, price_total, pay_total, payment_method, received_by, slot_start')
     .eq('salon_id', salonId)
     .gte('slot_start', startISO)
     .lt('slot_start', endISO)
@@ -911,6 +918,9 @@ async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Prom
     priceTotal: Number(r.price_total) || 0,
     payTotal: Number(r.pay_total) || 0,
     paymentMethod: String(r.payment_method ?? ''),
+    hasPrice: r.price_total != null,
+    receivedBy: String(r.received_by ?? ''),
+    slotStartISO: String(r.slot_start),
   }));
 }
 
@@ -1048,6 +1058,7 @@ async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<C
     allowance,
     freeUnassigned: active.filter((b) => b.therapistId == null).length,
     unconfirmed: needIds.map((id) => names.get(id) ?? '(不明)'),
+    unreceived: bookings.filter((b) => isUnreceived({ ...b, priceTotal: b.hasPrice ? b.priceTotal : null }, Date.now())).length,
     report,
   };
 }
@@ -1254,6 +1265,24 @@ export async function setCrmPlayStatus(
     .eq('salon_id', salonId).eq('id', bookingId).select('id');
   if (error) return { ok: false, error: error.message };
   if (!data || data.length === 0) return { ok: false, error: '予約が見つかりません' };
+  return { ok: true };
+}
+
+/** 受領を変える（'' ＝ 未受領／therapist ＝ 女子が受領／shop ＝ お店が受領）（第554便） */
+export async function setCrmReceived(
+  salonId: number,
+  bookingId: string,
+  receivedBy: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  if (!(CRM_RECEIVED as readonly string[]).includes(String(receivedBy))) return { ok: false, error: '受領の値が不正です' };
+  const { data, error } = await auth.svc
+    .from('salon_bookings')
+    .update({ received_by: receivedBy, received_at: receivedBy ? new Date().toISOString() : null })
+    .eq('salon_id', salonId).eq('id', bookingId).neq('status', 'cancelled').select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: '予約が見つかりません（キャンセルの予約は受領にできません）' };
   return { ok: true };
 }
 

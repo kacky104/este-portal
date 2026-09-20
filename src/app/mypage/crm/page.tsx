@@ -13,6 +13,7 @@ import {
   setCrmBookingPricing,
   setCrmCancelBad,
   setCrmPlayStatus,
+  setCrmReceived,
   setCrmWorkEnd,
   saveCrmWorkDay,
   unconfirmCrmPay,
@@ -32,6 +33,9 @@ import {
   CRM_PRICE_KIND_LABEL,
   CRM_PRICE_SINGLE,
   CRM_PLAY_LABEL,
+  CRM_RECEIVED_LABEL,
+  isUnreceived,
+  type CrmReceivedBy,
   CRM_END_LABEL,
   type CrmEndType,
   CRM_ATTENDANCE,
@@ -219,8 +223,9 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     const payAll = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.payTotal ?? 0), 0)
       + data.confirms.reduce((a, c) => a + c.allowance, 0);
     const workingCount = therapistRows.filter((r) => (r.therapist?.schedules.length ?? 0) > 0).length;
-    return { rows, startMin, endMin, activeCount, workingCount, sales, payAll };
-  }, [data, baseMs]);
+    const unreceived = visibleBookings.filter((b) => isUnreceived(b, nowMs)).length;
+    return { rows, startMin, endMin, activeCount, workingCount, sales, payAll, unreceived };
+  }, [data, baseMs, nowMs]);
 
   const isToday = date === businessTodayJST();
 
@@ -245,6 +250,9 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
             予約数 <span className="text-[#3f51b5]">{view.activeCount}</span>本 ／ 出勤数 <span className="text-[#3f51b5]">{view.workingCount}</span>人
             {' '}／ 売上 <span className="text-[#3f51b5]">{yen(view.sales)}</span> ／ 報酬 <span className="text-[#3f51b5]">{yen(view.payAll)}</span>
             {' '}（報酬確定済 <span className="text-emerald-600">{data?.confirms.length ?? 0}</span>人）
+            {view.unreceived > 0 && (
+              <>{' '}／ <span className="text-rose-600">未受領 {view.unreceived}件</span></>
+            )}
           </span>
         )}
         {data && (
@@ -703,6 +711,11 @@ function BookingCard({
         {!cancelled && b.status === 'new' && <span className="bg-pink-500 px-1 text-[10px] font-bold text-white">未確定</span>}
         {!cancelled && b.playStatus === 'address_sent' && <span className="bg-blue-600 px-1 text-[10px] font-bold text-white">住所送済</span>}
         {!cancelled && b.playStatus === 'entered' && <span className="bg-yellow-300 px-1 text-[10px] font-bold text-slate-900">入室済</span>}
+        {!cancelled && b.receivedBy && (
+          <span className="bg-emerald-600 px-1 text-[10px] font-bold text-white" title={CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? ''}>
+            受領済{b.receivedBy === 'therapist' ? '(女)' : b.receivedBy === 'shop' ? '(店)' : ''}
+          </span>
+        )}
         {(() => {
           const nb = nominationBadge(b.items);
           if (!nb) return null;
@@ -879,6 +892,33 @@ function DetailPanel({
                           className={`border px-2 py-0.5 text-[12px] font-bold ${on ? onCls : 'border-slate-300 bg-white text-slate-600'}`}
                         >
                           {CRM_PLAY_LABEL[ps]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </dd>
+                {/* 受領（お金を受け取ったか・誰が受け取ったか）（第554便） */}
+                <dt className="font-bold text-slate-400">受領</dt>
+                <dd>
+                  <div className="flex flex-wrap gap-1">
+                    {(['', 'therapist', 'shop'] as CrmReceivedBy[]).map((rb) => {
+                      const on = (b.receivedBy || '') === rb;
+                      const onCls = rb ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-slate-600 text-white border-slate-600';
+                      return (
+                        <button
+                          key={rb || 'none'}
+                          type="button"
+                          disabled={busy || on}
+                          onClick={async () => {
+                            setBusy(true); setErr('');
+                            const r = await setCrmReceived(salonId, b.id, rb);
+                            setBusy(false);
+                            if (!r.ok) { setErr(r.error); return; }
+                            onChanged({ ...b, receivedBy: rb });
+                          }}
+                          className={`border px-2 py-0.5 text-[12px] font-bold ${on ? onCls : 'border-slate-300 bg-white text-slate-600'}`}
+                        >
+                          {CRM_RECEIVED_LABEL[rb]}
                         </button>
                       );
                     })}
@@ -1615,6 +1655,11 @@ function CloseDialog({
               {sum.unconfirmed.length > 0 && (
                 <p className="border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[13px] font-bold text-amber-800">
                   報酬をまだ確定していない人：{sum.unconfirmed.join('・')}
+                </p>
+              )}
+              {sum.unreceived > 0 && (
+                <p className="border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">
+                  未受領の予約が {sum.unreceived} 件あります（締めることはできます）
                 </p>
               )}
               {sum.freeUnassigned > 0 && (

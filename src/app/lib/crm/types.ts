@@ -107,6 +107,8 @@ export type CrmScheduleBooking = {
   paymentMethod: string;
   /** プレイ状況：'' ＝ 予約だけ ／ address_sent ＝ 住所送済 ／ entered ＝ 入室済（第544便） */
   playStatus: string;
+  /** 受領：'' ＝ 未受領 ／ therapist ＝ 女子が受領 ／ shop ＝ お店が受領（第554便） */
+  receivedBy: string;
 };
 
 export type CrmScheduleTherapist = {
@@ -231,6 +233,7 @@ export type CrmDaySummary = {
   allowance: number;
   freeUnassigned: number; // 担当未定のままの予約
   unconfirmed: string[];  // まだ報酬を確定していない人の名前
+  unreceived: number;     // 未受領（キャンセル以外・料金あり・開始を過ぎた予約）（第554便）
   report: CrmDailyReport | null;
 };
 
@@ -255,6 +258,15 @@ export type CrmMonthStats = {
 export const CRM_PLAY_STATUS = ['', 'address_sent', 'entered'] as const;
 export type CrmPlayStatus = (typeof CRM_PLAY_STATUS)[number];
 export const CRM_PLAY_LABEL: Record<CrmPlayStatus, string> = { '': '予約', address_sent: '住所送済', entered: '入室済' };
+
+/** 受領（お金を受け取ったか・誰が受け取ったか）（第554便） */
+export const CRM_RECEIVED = ['', 'therapist', 'shop'] as const;
+export type CrmReceivedBy = (typeof CRM_RECEIVED)[number];
+export const CRM_RECEIVED_LABEL: Record<CrmReceivedBy, string> = { '': '未受領', therapist: '女子が受領', shop: 'お店が受領' };
+/** 未受領として数える予約か：キャンセル以外・料金が入っている・開始を過ぎた */
+export function isUnreceived(b: { status: string; priceTotal: number | null; receivedBy: string; slotStartISO: string }, nowMs: number): boolean {
+  return b.status !== 'cancelled' && b.priceTotal != null && !b.receivedBy && new Date(b.slotStartISO).getTime() <= nowMs;
+}
 
 /** 指名のバッジ：「本」が入る指名＝本（本指名）／フリー＝ﾌﾘｰ／それ以外（ネット指名など）は出さない */
 export function nominationBadge(items: CrmBookingItem[]): '本' | 'ﾌﾘｰ' | null {

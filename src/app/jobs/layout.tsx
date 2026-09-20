@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { JobsLogo } from '@/components/JobsLogo';
 import { JobsSavedMenu } from '@/components/JobsSavedMenu';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -87,17 +88,17 @@ export default async function JobsLayout({ children }: { children: React.ReactNo
               運営者情報
             </a>
             {' ／ '}
-            <a href="/jobs/terms" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+            <Link href="/jobs/terms" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
               利用規約
-            </a>
+            </Link>
             {' ／ '}
-            <a href="/jobs/privacy" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+            <Link href="/jobs/privacy" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
               プライバシーポリシー
-            </a>
+            </Link>
             {' ／ '}
-            <a href="/jobs/banner" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+            <Link href="/jobs/banner" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
               リンクバナー
-            </a>
+            </Link>
           </p>
           <p className="text-xs text-slate-400">
             運営:{' '}
