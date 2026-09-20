@@ -61,7 +61,8 @@ export async function submitConsent(
 ): Promise<{ ok: true; timeLabel: string } | { ok: false; error: string }> {
   if (agreed !== true) return { ok: false, error: '「すべて了承します」に☑を入れてください' };
   const sig = String(signaturePng ?? '');
-  if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(sig) || sig.length < 500 || sig.length > 400000) {
+  // サインは PNG か WebP（第567便：縮めて WebP に。WebP を書き出せない端末は PNG）
+  if (!/^data:image\/(png|webp);base64,[A-Za-z0-9+/=]+$/.test(sig) || sig.length < 300 || sig.length > 400000) {
     return { ok: false, error: 'サインを書いてください' };
   }
   const svc = createServiceClient();

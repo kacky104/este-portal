@@ -9,6 +9,27 @@ import { submitConsent } from '@/app/actions/consent';
 // ★ サインは線の長さが一定以上ないと送信できない（点だけ・空欄では送れない）。
 
 const MIN_INK = 150; // サインとして認める線の長さ（px）
+const SAVE_WIDTH = 600; // 保存するサイン画像の横幅（第567便：縮めて容量を減らす）
+
+/**
+ * サインを保存用の画像にする（第567便）。横600pxに縮め、WebP（使えない端末は PNG）にする。
+ * ★ iPhone の Safari など WebP で書き出せないブラウザは、自動で PNG になる（どちらもサーバーで受け付ける）。
+ */
+function signatureDataUrl(src: HTMLCanvasElement): string {
+  const w = Math.min(SAVE_WIDTH, src.width);
+  const h = Math.max(1, Math.round((src.height * w) / src.width));
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d');
+  if (!g) return src.toDataURL('image/png');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, w, h);
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(src, 0, 0, w, h);
+  const webp = c.toDataURL('image/webp', 0.8);
+  return webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/png');
+}
 
 export function ConsentForm({
   token, title, body, candidates,
@@ -93,7 +114,7 @@ export function ConsentForm({
     const c = canvasRef.current;
     if (!c || !canSend) return;
     setBusy(true); setErr('');
-    const r = await submitConsent(token, bookingId, true, c.toDataURL('image/png'));
+    const r = await submitConsent(token, bookingId, true, signatureDataUrl(c));
     if (!r.ok) { setBusy(false); setErr(r.error); return; }
     window.location.replace(`/g/done?t=${encodeURIComponent(r.timeLabel)}`);
   };
