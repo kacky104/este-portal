@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
-import { CRM_ALARM_SOUNDS, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
+import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, type CrmAlarm, type CrmEndType, type CrmSettings } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 
@@ -37,7 +37,11 @@ function SettingsBody({ salonId }: { salonId: number }) {
     getCrmSettings(salonId).then((r) => {
       if (!alive) return;
       if (!r.ok) { setErr(r.error); return; }
-      setSt(r.settings);
+      // ★ 同意書の題名・本文がどちらも空なら、初期の文面を入れておく（保存するまでは DB は変わらない・第562便）
+      const s = r.settings;
+      setSt(!s.consentTitle.trim() && !s.consentBody.trim()
+        ? { ...s, consentTitle: CRM_CONSENT_DEFAULT_TITLE, consentBody: CRM_CONSENT_DEFAULT_BODY }
+        : s);
     });
     return () => { alive = false; };
   }, [salonId]);
@@ -230,7 +234,14 @@ function SettingsBody({ salonId }: { salonId: number }) {
           placeholder={'例）\n・18歳未満の方はご利用いただけません\n・セラピストへの過度な接触は禁止です\n・…'}
           className="min-h-[220px] w-full border border-slate-300 bg-white px-3 py-2 text-[14px] leading-relaxed"
         />
-        <p className="mt-1 text-right text-[11px] text-slate-400">{st.consentBody.length}/8000</p>
+        <div className="mt-1 flex items-center gap-2">
+          <ResetConsentButton onReset={() => setSt({ ...st, consentTitle: CRM_CONSENT_DEFAULT_TITLE, consentBody: CRM_CONSENT_DEFAULT_BODY })} />
+          <p className="ml-auto text-[11px] text-slate-400">{st.consentBody.length}/8000</p>
+        </div>
+        <p className="mt-1 text-[12px] leading-relaxed text-slate-400">
+          最初に入っている文面はひな形です。お店に合わせて自由に書き換えてください（書き換えたあとは下の「保存する」）。
+          内容が法的に十分かどうかは、必要に応じて専門家にご確認ください。
+        </p>
 
         <p className="mt-3 text-[13px] font-bold text-slate-700">部屋ごとの QR コード</p>
         {st.rooms.length === 0 ? (
@@ -333,5 +344,19 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
       )}
       {err && <p className="mt-1 text-[12px] font-bold text-rose-600">{err}</p>}
     </div>
+  );
+}
+
+// 同意書を初期の文面に戻す（第562便）。★ 押しただけでは保存しない（下の「保存する」で保存）
+function ResetConsentButton({ onReset }: { onReset: () => void }) {
+  const [sure, setSure] = useState(false);
+  return sure ? (
+    <span className="flex items-center gap-2 text-[12px]">
+      <span className="font-bold text-rose-600">いまの題名と本文が、初期の文面に置き換わります</span>
+      <button type="button" onClick={() => { onReset(); setSure(false); }} className="bg-rose-600 px-2 py-1 font-bold text-white">戻す</button>
+      <button type="button" onClick={() => setSure(false)} className="border border-slate-300 bg-white px-2 py-1 font-bold text-slate-600">やめる</button>
+    </span>
+  ) : (
+    <button type="button" onClick={() => setSure(true)} className="border border-slate-300 bg-white px-2 py-1 text-[12px] font-bold text-slate-600">初期の文面に戻す</button>
   );
 }
