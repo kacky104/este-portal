@@ -7,7 +7,7 @@ summary: 手のひらや前腕など広い面を肌に密着させ、体重を�
 description: 密着とは、手のひらや前腕といった広い面を肌に密着させ、体重を乗せてゆっくり圧をかける施術スタイルのこと。指圧との違い、どのコースで使われるか、圧の好みの伝え方を解説します。
 publishedAt: 2026-09-15
 heroImage: /glossary/micchaku/hero.webp
-heroAlt: 明るい施術室の施術ベッドに、たたんだ白いタオルとオイルのボトルが置かれているところ
+heroAlt: 施術ベッドに敷かれた白いリネンの、やわらかな皺のアップ
 related: [aroma-oil-treatment, lomilomi, atsu-no-tsuyosa, sejutsu-hani, oil, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
