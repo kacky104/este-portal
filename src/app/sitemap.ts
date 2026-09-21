@@ -37,17 +37,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // updated_at は 20260806 マイグレーションで追加（bump・今すぐ系だけの変更では動かないトリガつき）。
     // courses は /salon/[id]/price を sitemap に入れるかの判定にだけ使う（0件＝準備中表示なので入れない）。
     fetchAllRows<{ id: number; updated_at: string | null; courses: unknown; listing_plan: string }>((from, to) =>
-      supabase.from('salons').select('id, updated_at, courses, listing_plan').eq('is_hidden', false).order('id').range(from, to)),
+      supabase.from('salons').select('id, updated_at, courses, listing_plan').eq('is_hidden', false).order('id').range(from, to), 'sitemap:salons'),
     // is_active=true のみ。退店・非公開セラピストを載せると 404 が sitemap 経由で発生する
     // （2026-07-28: /therapist/38・/therapist/40 が Search Console で「見つかりませんでした(404)」）。
+    //
+    // ★★ therapists→salons の埋め込みは必ず `salons!therapists_salon_id_fkey` と名指しする
+    //   （第595便で therapistColumns.ts / page.tsx / booking.ts / reviews.ts は直したが、
+    //    ここだけ直し漏れていた。2026-09-21 のGSC週次点検で発覚）。
+    //   CRM の表（crm_work_days・crm_work_ends・crm_pay_confirms）が salon_id＋therapist_id を
+    //   主キーに持つため、名指ししないと PostgREST が「多対多」の道も候補に数えて
+    //   PGRST201（あいまい）＝HTTP 300 で失敗する。fetchAllRows は data:null を空配列として扱うので
+    //   ★ 失敗が「セラピスト0件」として静かに通り、sitemap から /therapist/[id] が449件まるごと消えていた。
+    //   同時に diaryEntries（公開セラピスト集合で突き合わせ）・therapistBadgeEntries・
+    //   /salon/[id]/therapists も連鎖で0件になっていた。
     fetchAllRows<{ id: number; salon_id: number; feature_badges: unknown; updated_at: string | null }>((from, to) =>
-      supabase.from('therapists').select('id, salon_id, feature_badges, updated_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to)),
+      supabase.from('therapists').select('id, salon_id, feature_badges, updated_at, salons!therapists_salon_id_fkey!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to), 'sitemap:therapists'),
     // 写メ日記の詳細（/diary/[diary_id]）。従来は sitemap に一切載っておらず、
     // 内部リンク（/diary の1ページ目・各セラピストの日記一覧）からしか発見できなかった。
     // 公開サロン所属の日記のみ（salons!inner + is_hidden=false）。退店セラピストの日記は
     // 下で「公開セラピストID集合」と突き合わせて除外する（詳細ページ側が404にするため）。
     fetchAllRows<{ id: number; therapist_id: number; created_at: string | null }>((from, to) =>
-      supabase.from('diary_posts').select('id, therapist_id, created_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).order('id').range(from, to)),
+      supabase.from('diary_posts').select('id, therapist_id, created_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).order('id').range(from, to), 'sitemap:diary_posts'),
     fetchActiveJobsForSitemap(),
     // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
     fetchFeatureSlugsWithActiveJobs(),
@@ -63,9 +73,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // x_posts には status 列が無く、公開可否は「投稿者プロフィールが approved か」で決まる。
     // author_profile_id を取得し、下で承認済みプロフィールの id 集合と突き合わせて絞る（2026-07-28）。
     fetchAllRows<{ id: number; handle: string }>((from, to) =>
-      supabase.from('x_profiles').select('id, handle').eq('status', 'approved').order('id').range(from, to)),
+      supabase.from('x_profiles').select('id, handle').eq('status', 'approved').order('id').range(from, to), 'sitemap:x_profiles'),
     fetchAllRows<{ id: number; author_profile_id: unknown; edited_at: string | null; created_at: string | null }>((from, to) =>
-      supabase.from('x_posts').select('id, author_profile_id, edited_at, created_at').is('parent_post_id', null).order('id').range(from, to)),
+      supabase.from('x_posts').select('id, author_profile_id, edited_at, created_at').is('parent_post_id', null).order('id').range(from, to), 'sitemap:x_posts'),
   ]);
 
   // 主要な静的ページ（lastModified は実更新日時を持たないため省略）。

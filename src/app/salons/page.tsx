@@ -79,6 +79,7 @@ export default async function SalonsPage() {
     fetchAllRows<{ id: number; name: string | null; area: string | null; phone: string | null; official_url: string | null }>(
       (from, to) =>
         supabase.from('salons').select('id, name, area, phone, official_url').eq('is_hidden', false).order('id').range(from, to),
+      'salons:salons',
     ),
     fetchAllRows<{ id: number; name: string | null; area: string | null; phone: string | null; website_url: string | null; display_order: number | null }>(
       (from, to) =>

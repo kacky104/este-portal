@@ -128,10 +128,12 @@ export async function fetchSalonStats({ weeks, from, to }: StatsRange): Promise<
     // 店舗（非表示も含めて全件。非表示は行にバッジを付けて区別する）
     fetchAllRows<{ id: number; name: string | null; area: string | null; is_hidden: boolean | null }>(
       (f, t) => supabase.from('salons').select('id, name, area, is_hidden').order('id').range(f, t),
+      'salonStats:salons',
     ),
     // セラピスト → 所属店舗の対応（PVを店舗に足し上げるため。退店・非公開も含めて全件）
     fetchAllRows<{ id: number; salon_id: number | null }>(
       (f, t) => supabase.from('therapists').select('id, salon_id').order('id').range(f, t),
+      'salonStats:therapists',
     ),
     // PV（週次）
     fetchAllRows<{ item_type: string; item_id: number; views: number }>((f, t) => {
