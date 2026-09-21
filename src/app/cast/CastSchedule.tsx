@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { getCastScheduleDay, type CastScheduleBooking, type CastScheduleDay } from '@/app/actions/castSchedule';
+import { getCastScheduleDay, setCastCustomerNickname, type CastScheduleBooking, type CastScheduleDay } from '@/app/actions/castSchedule';
 import { CRM_NOMINATION_CLASS } from '@/app/lib/crm/types';
 import { addBusinessDays, getBusinessDateJST } from '@/lib/dutyStatus';
 
@@ -182,7 +182,21 @@ export function CastSchedule() {
           <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
         </>
       )}
-      {picked && <BookingPopup b={picked} date={date} onClose={() => setPicked(null)} />}
+      {picked && (
+        <BookingPopup
+          key={picked.bookingId}
+          b={picked}
+          date={date}
+          onClose={() => setPicked(null)}
+          onSaved={(nickname) => {
+            // ★ 同じお客様の別の予約（同じ日のほかの枠）にもそのまま効くように、その日を読み直す
+            setPicked((p) => (p ? { ...p, nickname } : p));
+            getCastScheduleDay(date).then((r) => {
+              if (r.ok) setRes({ date, day: r.day, err: '' });
+            });
+          }}
+        />
+      )}
     </section>
   );
 }
@@ -190,7 +204,7 @@ export function CastSchedule() {
 // 予約のポップアップ（第628便）。★ 出すのは お客様の名前・日時・指名・コース・延長・オプション。
 // ★ 第629便: 部屋・受付（ネット予約）・未確定 は出さない（カッキーさんの指示）。
 // ★ 料金・報酬・電話番号・お店のメモは出さない（サーバーからも来ない）。
-function BookingPopup({ b, date, onClose }: { b: CastScheduleBooking; date: string; onClose: () => void }) {
+function BookingPopup({ b, date, onClose, onSaved }: { b: CastScheduleBooking; date: string; onClose: () => void; onSaved: (nickname: string) => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -220,6 +234,13 @@ function BookingPopup({ b, date, onClose }: { b: CastScheduleBooking; date: stri
           <p className="min-w-0 flex-1 text-[18px] font-black text-slate-800">{b.customerName ? `${b.customerName}様` : 'お客様'}</p>
           <button type="button" onClick={onClose} className="-mr-1 -mt-1 flex-none rounded-full px-2 py-1 text-[18px] leading-none text-slate-400 hover:bg-slate-100" aria-label="閉じる">×</button>
         </div>
+        <NicknameLine b={b} onSaved={onSaved} />
+        {b.visitNo != null && (
+          <p className="mt-1.5 text-[13px] font-bold text-slate-600">
+            あなたの接客 <span className={b.visitNo >= 2 ? 'text-pink-600' : 'text-slate-800'}>{b.visitNo}回目</span>
+            {b.visitNo === 1 && <span className="ml-1 text-[12px] font-normal text-slate-400">（はじめて）</span>}
+          </p>
+        )}
         <dl className="mt-3 divide-y divide-slate-100 text-[14px]">
           {rows.map(([k, v]) => (
             <div key={k} className="flex gap-3 py-2">
@@ -231,6 +252,69 @@ function BookingPopup({ b, date, onClose }: { b: CastScheduleBooking; date: stri
         <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
         <button type="button" onClick={onClose} className="mt-3 w-full rounded-full border border-slate-200 py-2.5 text-[14px] font-bold text-slate-600">閉じる</button>
       </div>
+    </div>
+  );
+}
+
+// ニックネーム（第630便）。★ セラピスト本人だけのお客様の呼び名。お店・ほかのセラピストには見えない。
+// ★ お客様は電話番号で同じ人とまとめているので、次に同じお客様が予約すると同じニックネームが出る。
+function NicknameLine({ b, onSaved }: { b: CastScheduleBooking; onSaved: (nickname: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(b.nickname);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  if (!b.canNickname) {
+    return <p className="mt-1 text-[12px] text-slate-400">電話番号が無い予約には、ニックネームを付けられません</p>;
+  }
+
+  const save = async (value: string) => {
+    setBusy(true);
+    setErr('');
+    const r = await setCastCustomerNickname(b.bookingId, value);
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setText(r.nickname);
+    setEditing(false);
+    onSaved(r.nickname);
+  };
+
+  if (!editing) {
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        {b.nickname ? (
+          <>
+            <span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[13px] font-bold text-violet-700">{b.nickname}</span>
+            <button type="button" onClick={() => { setText(b.nickname); setEditing(true); }} className="text-[12px] font-bold text-slate-400 underline">変更</button>
+          </>
+        ) : (
+          <button type="button" onClick={() => { setText(''); setEditing(true); }} className="rounded-full border border-dashed border-violet-300 px-2.5 py-0.5 text-[12px] font-bold text-violet-600">＋ ニックネームを付ける</button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={30}
+          autoFocus
+          placeholder="自分だけが分かる呼び名"
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-[16px] sm:text-[14px]"
+          onKeyDown={(e) => { if (e.key === 'Enter' && !busy) save(text); }}
+        />
+        <button type="button" disabled={busy} onClick={() => save(text)} className="flex-none rounded-lg bg-violet-600 px-3 text-[13px] font-bold text-white disabled:opacity-50">保存</button>
+      </div>
+      <div className="mt-1 flex items-center gap-3 text-[12px]">
+        <button type="button" disabled={busy} onClick={() => { setEditing(false); setErr(''); }} className="font-bold text-slate-400">やめる</button>
+        {b.nickname && <button type="button" disabled={busy} onClick={() => save('')} className="font-bold text-rose-400">消す</button>}
+        <span className="ml-auto text-slate-400">あなただけに見えます</span>
+      </div>
+      {err && <p className="mt-1 text-[12px] font-bold text-rose-600">{err}</p>}
     </div>
   );
 }

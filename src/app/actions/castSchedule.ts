@@ -4,6 +4,7 @@
 // ★ 第572便の「報酬明細」を置き換えた（報酬はセラピストが記録帳で自分で入れるため・カッキーさんの決定）。
 // ★ 見せるのは、お店が CRM 契約中で、設定「セラピストへの公開」（crm_settings.cast_pay_enabled・列名は第572便のまま）が ON のときだけ。
 // ★ 返すのは本人の行だけ：出勤の時間・休憩・待機場所（部屋）・予約の時間／コース／お客様の名前。
+//   ★ 第630便: ニックネーム（cast_customer_nicknames・本人だけ）と「あなたの接客 ◯回目」を足した。★ 鍵の customer_id は画面に渡さない。
 //   ★ 第628便: ポップアップ用に 指名の名前・延長とオプションの名前 を足した（どれも料金なし）。
 //   ★ 電話番号・料金・報酬・お店のメモ・ほかのセラピストの予定は返さない。
 // ★ ログイン中の user_id → therapists.id を確かめてから service_role で読む（castCustomers と同じ流儀・旧 castPay も同じだった）。
@@ -29,6 +30,15 @@ export type CastScheduleBooking = {
   extensions: string[];
   /** オプションの名前（料金なし） */
   options: string[];
+  // ── ニックネームと接客回数（第630便）。★ customer_id・電話番号は返さない ──
+  /** 予約の id（ニックネームを保存するときにこれを指す） */
+  bookingId: string;
+  /** お店の顧客台帳にひも付いている予約か（電話番号が無い手入力の予約は false＝ニックネームを付けられない） */
+  canNickname: boolean;
+  /** このセラピストがそのお客様に付けたニックネーム（無ければ ''） */
+  nickname: string;
+  /** このセラピストの接客として何回目か（キャンセル以外を日時順に数える）。台帳にひも付かない予約は null */
+  visitNo: number | null;
 };
 export type CastScheduleDay = {
   date: string;
@@ -113,7 +123,7 @@ export async function getCastScheduleDay(
       .eq('therapist_id', m.therapistId).eq('schedule_date', date).eq('is_active', true),
     m.svc.from('crm_work_days').select('room, break_start_min, break_end_min')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).eq('business_date', date).maybeSingle(),
-    m.svc.from('salon_bookings').select('slot_start, slot_end, course_name, customer_name, crm_items')
+    m.svc.from('salon_bookings').select('id, customer_id, slot_start, slot_end, course_name, customer_name, crm_items')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).neq('status', 'cancelled')
       .gte('slot_start', from).lt('slot_start', to).order('slot_start'),
   ]);
@@ -127,10 +137,32 @@ export async function getCastScheduleDay(
     if (e <= s) e += 1440; // 翌日にまたぐ
     shifts.push({ startMin: s, endMin: e });
   }
+  // ★ 第630便: 台帳にひも付く予約のお客様について、本人のニックネームと、本人の接客の順番を引く
+  const custIds = [...new Set((bs ?? []).map((b) => b.customer_id).filter((v) => v != null).map(Number))];
+  const nick = new Map<number, string>();
+  const order = new Map<number, string[]>(); // customer_id → この人の本人の予約 id（日時順）
+  if (custIds.length > 0) {
+    const [{ data: nk }, { data: hist }] = await Promise.all([
+      m.svc.from('cast_customer_nicknames').select('customer_id, nickname')
+        .eq('therapist_id', m.therapistId).in('customer_id', custIds),
+      m.svc.from('salon_bookings').select('id, customer_id, slot_start')
+        .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).neq('status', 'cancelled')
+        .in('customer_id', custIds).order('slot_start').order('id'),
+    ]);
+    for (const r of nk ?? []) nick.set(Number(r.customer_id), String(r.nickname ?? ''));
+    for (const r of hist ?? []) {
+      const k = Number(r.customer_id);
+      const arr = order.get(k) ?? [];
+      arr.push(String(r.id));
+      order.set(k, arr);
+    }
+  }
+
   const bookings: CastScheduleBooking[] = (bs ?? []).map((b) => {
     const s = Math.round((new Date(String(b.slot_start)).getTime() - base) / 60000);
     const e = b.slot_end ? Math.round((new Date(String(b.slot_end)).getTime() - base) / 60000) : s + 60;
     const it = itemsOf(b.crm_items);
+    const cid = b.customer_id == null ? null : Number(b.customer_id);
     return {
       startMin: s,
       endMin: Math.max(e, s + 10),
@@ -140,6 +172,10 @@ export async function getCastScheduleDay(
       nominationName: it.nominationName,
       extensions: it.extensions,
       options: it.options,
+      bookingId: String(b.id),
+      canNickname: cid != null,
+      nickname: cid != null ? (nick.get(cid) ?? '') : '',
+      visitNo: cid != null ? ((order.get(cid) ?? []).indexOf(String(b.id)) + 1 || null) : null,
     };
   });
 
@@ -156,4 +192,41 @@ export async function getCastScheduleDay(
       bookings,
     },
   };
+}
+
+/**
+ * 予約のお客様に、本人だけのニックネームを付ける／変える／消す（第630便）。
+ * ★ 画面からは予約 id だけ受け取り、サーバーで「本人の予約か」を確かめてから customer_id を引く（customer_id は画面に出さない）。
+ * ★ 空文字で消す。30文字まで。
+ */
+export async function setCastCustomerNickname(
+  bookingId: string,
+  nickname: string,
+): Promise<{ ok: true; nickname: string } | { ok: false; error: string }> {
+  const m = await me();
+  if (!m) return { ok: false, error: 'ログインしてください' };
+  const en = await readEnabled(m.svc, m.salonId);
+  if (!en.on) return { ok: false, error: 'お店がスケジュールを公開していません' };
+  const name = String(nickname ?? '').replace(/\s+/g, ' ').trim();
+  if ([...name].length > 30) return { ok: false, error: 'ニックネームは30文字までです' };
+  if (!bookingId) return { ok: false, error: '予約が見つかりません' };
+
+  const { data: bk } = await m.svc.from('salon_bookings').select('customer_id')
+    .eq('id', bookingId).eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).maybeSingle();
+  if (!bk) return { ok: false, error: '予約が見つかりません' };
+  if (bk.customer_id == null) return { ok: false, error: '電話番号が無い予約には付けられません' };
+  const customerId = Number(bk.customer_id);
+
+  if (!name) {
+    const { error } = await m.svc.from('cast_customer_nicknames').delete()
+      .eq('therapist_id', m.therapistId).eq('customer_id', customerId);
+    if (error) return { ok: false, error: '保存できませんでした' };
+    return { ok: true, nickname: '' };
+  }
+  const { error } = await m.svc.from('cast_customer_nicknames').upsert(
+    { therapist_id: m.therapistId, customer_id: customerId, nickname: name, updated_at: new Date().toISOString() },
+    { onConflict: 'therapist_id,customer_id' },
+  );
+  if (error) return { ok: false, error: '保存できませんでした' };
+  return { ok: true, nickname: name };
 }
