@@ -1288,17 +1288,17 @@ function BookingForm({
     return `${h >= 24 ? `翌${h - 24}` : h}:${String(e % 60).padStart(2, '0')}`;
   })();
 
-  // ★ かんたん受付（第645便）：料金・女子報酬の欄は「合計」。指名を選んでいたら、その分を引いた残りを補正に入れる
-  //   （合計＝指名の料金＋補正 になる）。★ 空欄なら補正0（＝指名の料金だけ）。
-  const quickAdj = (entered: string, itemsSum: number) => (entered === '' ? 0 : Math.round(Number(entered) || 0) - itemsSum);
+  // ★ かんたん受付（第645便 → 第646便で変更・カッキーさんの指示）：料金・女子報酬の欄は「指名を除いた額」。
+  //   入れた数字がそのまま補正に入り、指名の料金はその上に足される（10,000 と入れて本指名1,000 → 料金 11,000）。
+  //   ★ 電話口では「コース料金＋指名料」と分けて言うので、その感覚に合わせた。
   const savePricing = (bookingId: string) =>
     setCrmBookingPricing({
       salonId,
       bookingId,
       priceItemIds: f.selIds,
       keepItems: f.keepItems,
-      priceAdjust: quick ? quickAdj(f.priceAdjust, sums.price) : priceAdj,
-      payAdjust: quick ? quickAdj(f.payAdjust, sums.pay) : payAdj,
+      priceAdjust: priceAdj,
+      payAdjust: payAdj,
       paymentMethod: f.paymentMethod,
     });
 
@@ -1475,15 +1475,18 @@ function BookingForm({
                 </div>
               )}
               <div>
-                <label className={labCls}>料金（合計・円）</label>
+                <label className={labCls}>料金（円・指名を除く）</label>
                 <input className={fieldCls} inputMode="numeric" value={f.priceAdjust} onChange={(e) => set('priceAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="例）16000" />
               </div>
               <div>
-                <label className={labCls}>女子報酬（合計・円）</label>
+                <label className={labCls}>女子報酬（円・指名を除く）</label>
                 <input className={fieldCls} inputMode="numeric" value={f.payAdjust} onChange={(e) => set('payAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="空欄でもよい" />
               </div>
               <p className="col-span-2 -mt-1 text-[12px] text-slate-500">
-                料金と女子報酬は、お客様からもらう合計・セラピストに渡す合計を入れます（指名の分も込み）。コースなどは、あとでカードを押して「変更する」から料金表で選び直せます。
+                {sums.price > 0 || sums.pay > 0
+                  ? `指名の分（料金 ${sums.price.toLocaleString()}円・報酬 ${sums.pay.toLocaleString()}円）はこの上に足されます → 料金 ${(sums.price + priceAdj).toLocaleString()}円・女子報酬 ${(sums.pay + payAdj).toLocaleString()}円`
+                  : '指名を押すと、その料金がこの上に足されます。'}
+                コースなどは、あとでカードを押して「変更する」から料金表で選び直せます。
               </p>
             </div>
           )}
