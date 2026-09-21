@@ -1,6 +1,6 @@
 'use client';
 
-// /cast の3タブ（写メ日記・着せ替え・今すぐ）。/mypage のタブUI（activeTab state＋ピル型チップ）を踏襲。
+// /cast のタブ（写メ日記・今すぐ・記録帳・スケジュール・着せ替え。★ 着せ替えは一番右・第615便）。/mypage のタブUI（activeTab state＋ピル型チップ）を踏襲。
 // ★ 第516便: スマホは画面下に固定のタブバー、PC は上のピル型。fukuX はヘッダーのアイコンへ移した。
 // 初期表示は「写メ日記」。中身は既存コンポーネントをそのまま配置（移植のみ・ロジック非変更）：
 //  - 写メ日記：CastDiary（投稿フォーム＋自分の日記一覧）
@@ -42,10 +42,10 @@ function TabIcon({ tab, className }: { tab: CastTab; className?: string }) {
   );
 }
 
+// ★ 第615便: 「着せ替え」は毎日使うものではないので一番右（スケジュールがあるときはその右）に置く。
 const TABS: ReadonlyArray<readonly [CastTab, string]> = [
   ['diary', '写メ日記'],
   ['now', '今すぐ'],
-  ['theme', '着せ替え'],
   ['records', '記録帳'], // ★ 第518便: お客様記録帳（第496便）と報酬帳（第498便）を1つに
 ];
 
@@ -87,7 +87,11 @@ export function CastTabs({
   /** お店が「セラピストへの公開」を ON にしているとき「スケジュール」タブを出す（第599便） */
   castScheduleEnabled?: boolean;
 }) {
-  const tabs: ReadonlyArray<readonly [CastTab, string]> = castScheduleEnabled ? [...TABS, ['schedule', 'スケジュール'] as const] : TABS;
+  const tabs: ReadonlyArray<readonly [CastTab, string]> = [
+    ...TABS,
+    ...(castScheduleEnabled ? [['schedule', 'スケジュール'] as const] : []),
+    ['theme', '着せ替え'] as const,
+  ];
   const [activeTab, setActiveTab] = useState<CastTab>('diary');
   const topRef = useRef<HTMLDivElement>(null);
   const [reward, setReward] = useState({ total: todayReward, count: todayRewardCount });
