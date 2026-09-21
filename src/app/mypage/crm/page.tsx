@@ -539,8 +539,22 @@ function Grid({
   const nowMin = nowMs != null ? Math.round((nowMs - baseMs) / 60000) : null;
   const showNow = nowMin != null && nowMin >= startMin && nowMin <= endMin;
 
+  // ★ 開いたとき「今」の赤い線が画面の左 1/3 に来るように横スクロール（第640便・風俗CTIv2 と同じ）。
+  //   ★ 日付を変えたときにもう一度。★ 60秒ごとの読み直しでは動かさない（見ている最中にずらさない）。
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrolledFor = useRef<number | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !showNow || nowMin == null) return;
+    if (scrolledFor.current === baseMs) return;
+    scrolledFor.current = baseMs;
+    const target = (leftW + x(nowMin)) * zoom - el.clientWidth / 3;
+    el.scrollLeft = Math.max(0, target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseMs, showNow]);
+
   return (
-    <div className="max-h-[calc(100vh-130px)] overflow-auto border border-slate-300 bg-white md:max-h-[calc(100vh-170px)]">
+    <div ref={scrollRef} className="max-h-[calc(100vh-130px)] overflow-auto border border-slate-300 bg-white md:max-h-[calc(100vh-170px)]">
       <div className="relative" style={{ width: leftW + width, zoom }}>
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
@@ -1132,6 +1146,18 @@ function BookingForm({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [found, setFound] = useState<CrmScheduleCustomer | null | 'none'>(null); // null＝まだ引いていない
+  // ★ かんたん受付（第640便・カッキーさんの指示）。風俗CTIv2 でアイリス様が「時間メモ」に時刻・金額・名前だけ書いて回していたのに合わせる。
+  //   ★ 新規のときだけ。出すのは 電話・名前・担当・開始・時間・料金・女子報酬・備考。コース・料金表・インターバルは隠す（既定のまま）。
+  //   ★ 料金・女子報酬は「補正」の欄に入れる（料金表の項目を選ばない＝合計＝入れた数字）。あとから詳細の「変更する」で料金表から選び直せる。
+  //   ★ どちらで開くかはこの端末で覚える（crm_form_quick）。
+  const [quick, setQuick] = useState<boolean>(() => {
+    if (initial.mode !== 'new') return false;
+    try { return localStorage.getItem('crm_form_quick') !== '0'; } catch { return true; }
+  });
+  const switchQuick = (v: boolean) => {
+    setQuick(v);
+    try { localStorage.setItem('crm_form_quick', v ? '1' : '0'); } catch { /* 何もしない */ }
+  };
   const set = <K extends keyof BookingFormState>(k: K, v: BookingFormState[K]) => setF((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
@@ -1288,7 +1314,12 @@ function BookingForm({
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
       <aside className="pointer-events-auto flex max-h-[92vh] w-full max-w-[560px] flex-col bg-white shadow-2xl">
         <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
-          <span className="text-[15px] font-black">{f.mode === 'new' ? '予約を受け付ける' : '予約を変更する'}</span>
+          <span className="text-[15px] font-black">{f.mode === 'new' ? (quick ? 'かんたん受付' : '予約を受け付ける') : '予約を変更する'}</span>
+          {f.mode === 'new' && (
+            <button type="button" onClick={() => switchQuick(!quick)} className="ml-3 border border-white/60 px-2 py-0.5 text-[12px] font-bold">
+              {quick ? 'くわしく入れる' : 'かんたんにする'}
+            </button>
+          )}
           <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
         </div>
 
@@ -1360,14 +1391,40 @@ function BookingForm({
             </div>
             <div>
               <label className={labCls}>時間（終わり {endLabel}）</label>
-              <select className={fieldCls} value={f.courseMin} onChange={(e) => set('courseMin', Number(e.target.value))}>
+              <select
+                className={fieldCls}
+                value={f.courseMin}
+                onChange={(e) => {
+                  const m = Number(e.target.value);
+                  // ★ かんたん受付では、時間に合うコース名を自動で付ける（合うものが無ければ「電話予約」）（第640便）
+                  if (quick) {
+                    const c = courses.find((x) => x.durationMin === m);
+                    setF((p) => ({ ...p, courseMin: m, courseName: c?.name ?? '' }));
+                  } else set('courseMin', m);
+                }}
+              >
                 {durationOptions.map((m) => <option key={m} value={m}>{m}分</option>)}
               </select>
             </div>
           </div>
 
+          {/* かんたん受付：料金と女子報酬を数字だけ（第640便） */}
+          {quick && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labCls}>料金（円）</label>
+                <input className={fieldCls} inputMode="numeric" value={f.priceAdjust} onChange={(e) => set('priceAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="例）16000" />
+              </div>
+              <div>
+                <label className={labCls}>女子報酬（円）</label>
+                <input className={fieldCls} inputMode="numeric" value={f.payAdjust} onChange={(e) => set('payAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="空欄でもよい" />
+              </div>
+              <p className="col-span-2 -mt-1 text-[12px] text-slate-500">コースや指名は、あとでカードを押して「変更する」から料金表で選び直せます。</p>
+            </div>
+          )}
+
           {/* 料金と報酬（料金表から選ぶ） */}
-          {priceItems.length > 0 ? (
+          {quick ? null : priceItems.length > 0 ? (
             <div className="border border-indigo-200 bg-indigo-50/40 p-3">
               <p className="mb-2 text-[13px] font-black text-slate-700">料金（押して選ぶ）</p>
               {CRM_PRICE_KINDS.map((kind) => {
@@ -1436,6 +1493,7 @@ function BookingForm({
           )}
 
           {/* コース */}
+          {!quick && (
           <div>
             <label className={labCls}>コース</label>
             {courses.length > 0 && !priceItems.some((p) => p.kind === 'course') && (
@@ -1458,6 +1516,8 @@ function BookingForm({
             )}
             <input className={fieldCls} value={f.courseName} onChange={(e) => set('courseName', e.target.value)} placeholder="空欄なら「電話予約」" />
           </div>
+          )}
+          {!quick && (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labCls}>インターバル（次の予約まで空ける）</label>
@@ -1466,6 +1526,7 @@ function BookingForm({
               </select>
             </div>
           </div>
+          )}
           <div>
             <label className={labCls}>備考</label>
             <textarea className={`${fieldCls} min-h-[64px]`} value={f.note} onChange={(e) => set('note', e.target.value)} />
