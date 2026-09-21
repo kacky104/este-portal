@@ -7,7 +7,7 @@ summary: いまから施術を受けられるセラピストに付く表示。�
 description: 今すぐ案内とは、いまから施術を受けられるセラピストに付く表示のこと。どんなときに付くのか、表示が消えるしくみ、フクエスで今すぐの人を探す場所、見つけたときの上手な連絡のしかたを解説します。
 publishedAt: 2026-09-21
 heroImage: /glossary/imasugu-annai/hero.webp
-heroAlt: 夜、灯りのついた施術室の扉を開けて、制服のセラピストがほほえみながら待っているところ
+heroAlt: 夜、灯りのもれる施術室の扉のそばで、制服のセラピストがほほえみながら待っているところ
 related: [shukkin-joho, tojitsu-yoyaku, net-yoyaku, zaiseki, shimei, free]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
