@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useCrmLinks } from './CrmBase';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   closeCrmDay,
@@ -819,6 +820,7 @@ function DetailPanel({
   onDone: () => void;
   onEdit: () => void;
 }) {
+  const crm = useCrmLinks();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   // 取り返しのつきにくい操作は2回押し（ダイアログは出さない）
@@ -851,7 +853,7 @@ function DetailPanel({
   };
 
   const ledgerHref = c
-    ? `/mypage/crm/customers${adminSalonQuery ? `${adminSalonQuery}&` : '?'}customer=${c.id}`
+    ? `${crm.href('/customers')}${adminSalonQuery ? `${adminSalonQuery}&` : '?'}customer=${c.id}`
     : '';
 
   return (

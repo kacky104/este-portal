@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { decideConecfRoute, isConecfHost } from "@/lib/conecfHost";
+import { decideCrmRoute, isCrmHost } from "@/lib/crmHost";
 
 // ── 掲載店舗の独自ドメイン（公式HP事業・2026-08-09 段階3） ───────────────
 //
@@ -56,6 +57,8 @@ export async function proxy(request: NextRequest) {
       url.pathname = "/favicon-conecf.ico";
       return NextResponse.rewrite(url);
     }
+    // ★ フクエスCRM（第631便）は店舗ドメインではない。★ 本体の静的なファビコンをそのまま返す
+    if (isCrmHost(favRaw)) return NextResponse.next();
     if (!isAppHost(favHost)) {
       const url = request.nextUrl.clone();
       url.pathname = `/hp/${favHost}/favicon.ico`;
@@ -122,6 +125,26 @@ export async function proxy(request: NextRequest) {
   }
   if (isConecfHost(request.headers.get("x-forwarded-host") ?? request.headers.get("host"))) {
     // ★ /_next /api /auth はフクエス本体のまま動かす（店舗ドメインの rewrite にも入れない）
+    return supabaseResponse;
+  }
+
+  // ── フクエスCRM（fukuescrm.com・第631便・2026-09-21）──
+  //   ★ コネックエフと同じく、店舗の独自ドメインより【先に】見る（★ 後だと /hp/fukuescrm.com へ行ってしまう）。
+  //   ★ 判定は lib/crmHost.ts（番人: npm run check:crmhost）。★ fukues.com からの転送は CRM_REDIRECT_FROM_FUKUES で ON/OFF。
+  const crmHostRaw = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const crm = decideCrmRoute(crmHostRaw, path, request.nextUrl.search);
+  if (crm.kind === "redirect") {
+    return NextResponse.redirect(crm.url, 308);
+  }
+  if (crm.kind === "rewrite") {
+    const url = request.nextUrl.clone();
+    url.pathname = crm.pathname;
+    const rewritten = NextResponse.rewrite(url, { request });
+    supabaseResponse.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
+    return rewritten;
+  }
+  if (isCrmHost(crmHostRaw)) {
+    // ★ /_next /api /auth はフクエス本体のまま動かす
     return supabaseResponse;
   }
 

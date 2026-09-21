@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
+import { isCrmHost } from '@/lib/crmHost';
 import { createClient } from '@/app/lib/supabase/server';
 import { getTheme } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
@@ -22,7 +24,12 @@ export default async function MypageLayout({ children }: { children: React.React
   } = await supabase.auth.getUser();
 
   // 未ログインはオーナーログインへ（クライアント側の従来遷移先と同じ）。
-  if (!user) redirect('/owner/login?redirectTo=%2Fmypage');
+  // ★ 第631便: fukuescrm.com（CRM ドメイン）では CRM 専用のログイン（/login → /crm/login）へ。
+  if (!user) {
+    const h = await headers();
+    if (isCrmHost(h.get('x-forwarded-host') ?? h.get('host'))) redirect('/login');
+    redirect('/owner/login?redirectTo=%2Fmypage');
+  }
 
   // ★ 背景はシルバーテーマ＋テーマ壁紙（theme_wallpapers の silver）。2026-09-06・カッキーさんの指示。
   //   ★ /salons と同じ方式。★ 壁紙の上に theme.bg の85%不透明（D9）を重ねて、

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
 import type { CrmAccess } from '@/app/lib/crm/types';
+import { isCrmHost } from '@/lib/crmHost';
+import { useCrmLinks } from './CrmBase';
 
 // フクエスCRM の外枠（2026-09-19）。★ 画面が増えても、入口の判定と上の帯はここ1か所。
 //   ・未ログイン → オーナーログインへ
@@ -13,15 +15,16 @@ import type { CrmAccess } from '@/app/lib/crm/types';
 
 export type CrmNavKey = 'schedule' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'settings';
 
+// ★ 第631便: href は CRM の中のパス。★ 実際のリンク先は useCrmLinks().href で作る（fukuescrm.com では '/customers'、本体では '/mypage/crm/customers'）。
 const NAV: Array<{ key: CrmNavKey; label: string; href: string }> = [
-  { key: 'schedule', label: 'スケジュール', href: '/mypage/crm' },
-  { key: 'customers', label: '顧客台帳', href: '/mypage/crm/customers' },
-  { key: 'bookings', label: '予約一覧', href: '/mypage/crm/bookings' },
-  { key: 'reports', label: '日報', href: '/mypage/crm/reports' },
-  { key: 'money', label: '金銭授受', href: '/mypage/crm/money' },
-  { key: 'stats', label: 'レポート', href: '/mypage/crm/stats' },
-  { key: 'prices', label: '料金設定', href: '/mypage/crm/prices' },
-  { key: 'settings', label: '設定', href: '/mypage/crm/settings' },
+  { key: 'schedule', label: 'スケジュール', href: '/' },
+  { key: 'customers', label: '顧客台帳', href: '/customers' },
+  { key: 'bookings', label: '予約一覧', href: '/bookings' },
+  { key: 'reports', label: '日報', href: '/reports' },
+  { key: 'money', label: '金銭授受', href: '/money' },
+  { key: 'stats', label: 'レポート', href: '/stats' },
+  { key: 'prices', label: '料金設定', href: '/prices' },
+  { key: 'settings', label: '設定', href: '/settings' },
 ];
 
 /** 入口の判定（契約・店舗）。★ ページごとに書かない */
@@ -33,7 +36,10 @@ export function useCrmAccess(): { access: CrmAccess | null; adminSalonQuery: str
     const adminSalon = Number(sp.get('salon') ?? '') || undefined;
     getCrmAccess(adminSalon).then((a) => {
       if (!a.ok && a.needLogin) {
-        window.location.href = '/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname);
+        // ★ 第631便: fukuescrm.com では CRM 専用のログインへ
+        window.location.href = isCrmHost(window.location.hostname)
+          ? '/login'
+          : '/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname);
         return;
       }
       if (a.ok && a.isAdmin && adminSalon) setAdminSalonQuery(`?salon=${adminSalon}`);
@@ -44,6 +50,7 @@ export function useCrmAccess(): { access: CrmAccess | null; adminSalonQuery: str
 }
 
 function Upsell({ salonName }: { salonName: string }) {
+  const links = useCrmLinks();
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
       <div className="border border-indigo-200 bg-white p-6 shadow-sm">
@@ -65,9 +72,9 @@ function Upsell({ salonName }: { salonName: string }) {
           お申し込みいただくと、これまでの記録もすぐにご覧いただけます。
         </p>
         <p className="mt-4 text-[13px] text-slate-500">お申し込み・料金は運営事務局までお問い合わせください。</p>
-        <Link href="/mypage" className="mt-5 inline-block bg-slate-800 px-4 py-2 text-[13px] font-bold text-white">
+        <a href={links.fukues('/mypage')} className="mt-5 inline-block bg-slate-800 px-4 py-2 text-[13px] font-bold text-white">
           マイページへ戻る
-        </Link>
+        </a>
       </div>
     </div>
   );
@@ -81,6 +88,7 @@ export function CrmShell({
   current: CrmNavKey;
   children: (a: Extract<CrmAccess, { ok: true }>) => React.ReactNode;
 }) {
+  const links = useCrmLinks();
   if (!access) return <p className="p-10 text-center text-[14px] text-slate-400">読み込み中です…</p>;
   if (!access.ok) return <p className="whitespace-pre-line p-10 text-center text-[14px] text-slate-500">{access.error}</p>;
 
@@ -102,7 +110,7 @@ export function CrmShell({
             {NAV.map((n) => (
               <Link
                 key={n.key}
-                href={n.href + adminSalonQuery}
+                href={links.href(n.href) + adminSalonQuery}
                 className={`flex-none whitespace-nowrap px-2.5 py-1.5 text-[12px] font-bold md:px-4 md:py-2 md:text-[14px] ${
                   current === n.key ? 'bg-[#eef1f8] text-[#1e2a5a]' : 'text-indigo-200 hover:text-white'
                 }`}
@@ -124,6 +132,7 @@ export function CrmShell({
 
 // 規約への同意（第569便）。★ 版（lib/crm/terms.ts）が決まっていて、まだ同意していない店だけに出る。
 function TermsGate({ salonId }: { salonId: number }) {
+  const links = useCrmLinks();
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -142,8 +151,8 @@ function TermsGate({ salonId }: { salonId: number }) {
           お使いいただく前に、利用規約と顧客データの取り扱いをお読みいただき、同意をお願いします（規約が新しくなったときも、もう一度お願いしています）。
         </p>
         <ul className="mt-3 space-y-1 text-[14px]">
-          <li>・<a href="/crm/terms" target="_blank" rel="noopener" className="font-bold text-indigo-600 underline">フクエスCRM 利用規約</a></li>
-          <li>・<a href="/crm/data" target="_blank" rel="noopener" className="font-bold text-indigo-600 underline">顧客データの取り扱い</a></li>
+          <li>・<a href={links.special('terms')} target="_blank" rel="noopener" className="font-bold text-indigo-600 underline">フクエスCRM 利用規約</a></li>
+          <li>・<a href={links.special('data')} target="_blank" rel="noopener" className="font-bold text-indigo-600 underline">顧客データの取り扱い</a></li>
         </ul>
         <label className="mt-4 flex cursor-pointer items-center gap-2 text-[15px] font-bold">
           <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={checked} onChange={(e) => setChecked(e.target.checked)} />

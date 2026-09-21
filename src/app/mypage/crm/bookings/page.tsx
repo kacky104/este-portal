@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useCrmLinks } from '../CrmBase';
 import { useEffect, useState } from 'react';
 import { getCrmTherapists, searchCrmBookings } from '@/app/actions/crm';
 import { CRM_RECEIVED_LABEL, yen, type CrmBookingListRow, type CrmBookingSearch, type CrmReceivedBy, type CrmTherapist } from '@/app/lib/crm/types';
@@ -44,6 +45,7 @@ const STATUS_OPTIONS: Array<[CrmBookingSearch['status'], string]> = [
 ];
 
 function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
+  const crm = useCrmLinks();
   const today = businessTodayJST();
   const [f, setF] = useState<CrmBookingSearch>({ from: monthStart(today), to: today, therapistId: null, status: 'all', source: '', q: '' });
   const [qInput, setQInput] = useState('');
@@ -163,7 +165,7 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
                 return (
                   <tr key={b.id} className={cancelled ? 'text-slate-400' : ''}>
                     <td className="whitespace-nowrap px-2 py-1.5">
-                      <Link href={`/mypage/crm${adminSalonQuery}${sep}date=${businessDateOf(b.slotStartISO)}`} className="font-bold text-indigo-600 hover:underline">
+                      <Link href={`${crm.href('/')}${adminSalonQuery}${sep}date=${businessDateOf(b.slotStartISO)}`} className="font-bold text-indigo-600 hover:underline">
                         {dt(b.slotStartISO)}
                       </Link>
                       <span className="text-slate-400">〜{hm(b.slotEndISO)}</span>
@@ -171,7 +173,7 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
                     <td className="whitespace-nowrap px-2 py-1.5">{b.therapistName}</td>
                     <td className="px-2 py-1.5">
                       {b.customerId ? (
-                        <Link href={`/mypage/crm/customers${adminSalonQuery}${sep}customer=${b.customerId}`} className="font-bold text-slate-800 hover:underline">
+                        <Link href={`${crm.href('/customers')}${adminSalonQuery}${sep}customer=${b.customerId}`} className="font-bold text-slate-800 hover:underline">
                           {b.customerName || '(名前なし)'}
                         </Link>
                       ) : (

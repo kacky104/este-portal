@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CRM_ORIGIN, CRM_REDIRECT_FROM_FUKUES } from '@/lib/crmHost';
 import { isNewFaceActive } from '@/lib/newFace';
 import { matchesSearch } from '@/lib/searchNormalize';
 import { sortTherapistsForList, sortTherapistsByKana } from '@/lib/therapistOrder';
@@ -2944,9 +2945,10 @@ export default function MyPage() {
   //   ★ 専用画面 /mypage/crm への入口（★ フクエスリンク・フクエスワークと同じく新しいタブ）。
   //   ★ 全店舗に出す。★ 未契約の店には /mypage/crm 側で「有料機能のご案内」を出す（★ 中身は見せない）。
   //   ★ 関数名は差し替えの手間を減らすため renderCrmSoon のまま。
+  //   ★ 第631便: fukues.com からの転送を ON にしたら、入口も fukuescrm.com へ直接飛ばす（lib/crmHost.ts のスイッチ）。
   const renderCrmSoon = (pc: boolean) => (
     <Link
-      href="/mypage/crm"
+      href={CRM_REDIRECT_FROM_FUKUES ? CRM_ORIGIN : '/mypage/crm'}
       target="_blank"
       rel="noopener noreferrer"
       className={
