@@ -1288,14 +1288,17 @@ function BookingForm({
     return `${h >= 24 ? `翌${h - 24}` : h}:${String(e % 60).padStart(2, '0')}`;
   })();
 
+  // ★ かんたん受付（第645便）：料金・女子報酬の欄は「合計」。指名を選んでいたら、その分を引いた残りを補正に入れる
+  //   （合計＝指名の料金＋補正 になる）。★ 空欄なら補正0（＝指名の料金だけ）。
+  const quickAdj = (entered: string, itemsSum: number) => (entered === '' ? 0 : Math.round(Number(entered) || 0) - itemsSum);
   const savePricing = (bookingId: string) =>
     setCrmBookingPricing({
       salonId,
       bookingId,
       priceItemIds: f.selIds,
       keepItems: f.keepItems,
-      priceAdjust: priceAdj,
-      payAdjust: payAdj,
+      priceAdjust: quick ? quickAdj(f.priceAdjust, sums.price) : priceAdj,
+      payAdjust: quick ? quickAdj(f.payAdjust, sums.pay) : payAdj,
       paymentMethod: f.paymentMethod,
     });
 
@@ -1450,15 +1453,38 @@ function BookingForm({
           {/* かんたん受付：料金と女子報酬を数字だけ（第640便） */}
           {quick && (
             <div className="grid grid-cols-2 gap-3">
+              {/* ★ 指名だけは押してもらう（第645便）：レポートの「指名別」に乗るように。料金表の「指名」の項目を並べる */}
+              {priceItems.some((p) => p.kind === 'nomination') && (
+                <div className="col-span-2">
+                  <label className={labCls}>指名（1つ押す）</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {priceItems.filter((p) => p.kind === 'nomination').map((p) => {
+                      const on = f.selIds.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => togglePrice(p)}
+                          className={`border px-3 py-1.5 text-[13px] font-bold ${on ? 'border-[#3f51b5] bg-[#3f51b5] text-white' : 'border-slate-300 bg-white text-slate-700'}`}
+                        >
+                          {p.name}{p.price ? <span className={on ? 'text-indigo-100' : 'text-slate-400'}> {p.price.toLocaleString()}</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div>
-                <label className={labCls}>料金（円）</label>
+                <label className={labCls}>料金（合計・円）</label>
                 <input className={fieldCls} inputMode="numeric" value={f.priceAdjust} onChange={(e) => set('priceAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="例）16000" />
               </div>
               <div>
-                <label className={labCls}>女子報酬（円）</label>
+                <label className={labCls}>女子報酬（合計・円）</label>
                 <input className={fieldCls} inputMode="numeric" value={f.payAdjust} onChange={(e) => set('payAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="空欄でもよい" />
               </div>
-              <p className="col-span-2 -mt-1 text-[12px] text-slate-500">コースや指名は、あとでカードを押して「変更する」から料金表で選び直せます。</p>
+              <p className="col-span-2 -mt-1 text-[12px] text-slate-500">
+                料金と女子報酬は、お客様からもらう合計・セラピストに渡す合計を入れます（指名の分も込み）。コースなどは、あとでカードを押して「変更する」から料金表で選び直せます。
+              </p>
             </div>
           )}
 
