@@ -142,7 +142,14 @@ import sys,json,re,subprocess,time
 BASE=sys.argv[1]; SECRET=sys.argv[2]; UA=sys.argv[3]; TODAY=sys.argv[4]; MODE=sys.argv[5]
 CHUNK=10
 BACKOFF_FILE="/root/import.backoff"
-BACKOFF_SEC=1800
+BACKOFF_SEC=1800        # 429（多すぎる）のとき
+BACKOFF_SEC_5XX=600     # 5xx（駅ちか側の不調）のとき
+# ★★★ 第636便（2026-09-22）: 5xx は10分にした（429 は30分のまま）。
+#   駅ちかは夜に 502 を単発で返すことがある（2026-09-21 夜・ブラウザでも再現）。
+#   30分止めると、取り込んだ即ヒメ（期限つき）が切れて今すぐが0人になり、
+#   しかも relay.sh も同じファイルを見るので、駅ちかへの書き込みも30分止まる。
+#   ★ 429 は「相手が多すぎると言った」なので長く引く。5xx は「相手が一時的に不調」なので短く引く。
+#   ★ 5xx が続けば、10分ごとに1回だけ確かめてまた止まる（負荷は1周の最初の1件ぶんだけ）。
 
 # 駅ちかから1ページ取る。429/5xx が返ったら30分の停止を書いて即座に終わる（禁則273）。
 # ★ 200 以外（404など）はその店だけスキップする。全体は止めない。
@@ -151,12 +158,13 @@ def fetch(u):
     i=out.rfind("\n")
     body,code=(out[:i],out[i+1:].strip()) if i>=0 else ("","000")
     if code=="429" or code.startswith("5"):
-        with open(BACKOFF_FILE,"w") as f: f.write(str(int(time.time())+BACKOFF_SEC))
+        sec = BACKOFF_SEC if code=="429" else BACKOFF_SEC_5XX
+        with open(BACKOFF_FILE,"w") as f: f.write(str(int(time.time())+sec))
         # ★★★★★ 【第256便】目印 [BACKOFF] を入れる。★ relay.sh と揃えた。
         #   ★ 2026-09-10 夜: relay が止まった理由を探すのに「駅ちかが」で grep して2回空振りした。
         #     ★ import は「<URL> が」、relay は「駅ちかが」と**同じことを別の言葉で**書いていたため。
         #   → ★★ grep -h BACKOFF /root/import.log /root/relay.log で、開始・skip・解除が一度に並ぶ。
-        print("★★★ [BACKOFF] 開始: import が %s の %s を受けた。%d分停止する（解除: rm %s）" % (u,code,BACKOFF_SEC//60,BACKOFF_FILE),flush=True)
+        print("★★★ [BACKOFF] 開始: import が %s の %s を受けた。%d分停止する（解除: rm %s）" % (u,code,sec//60,BACKOFF_FILE),flush=True)
         raise SystemExit(2)
     if code!="200":
         print("★ %s が %s を返した（スキップ）" % (u,code),flush=True)
