@@ -322,7 +322,15 @@ export type CrmSettings = {
  * 出勤情報の自由項目（第597便）。★ id で値を持つので、題名を変えても選んだ値は残る。
  * ★ 選べるのは1つだけ（もう一度押すと外れる）。
  */
-export type CrmToggle = { id: string; title: string; options: string[] };
+// ★ colors（第638便）: 選択肢ごとの予約ブロックの背景色。無い選択肢は「なし」（色を変えない）。
+//   ★ custom_toggles は JSON なので列は足していない。★ 鍵は選択肢の文字（選択肢の文字を変えると色も付け直し）。
+export type CrmToggleColor = 'yellow' | 'green';
+export type CrmToggle = { id: string; title: string; options: string[]; colors?: Record<string, CrmToggleColor> };
+/** ★ 予約ブロックの文字（黒・各バッジ）が読める淡い色だけにする。★ 出勤のピンク・予約の水色／ピンクと区別がつく色 */
+export const CRM_TOGGLE_COLORS: Array<{ key: CrmToggleColor; label: string; bg: string; border: string }> = [
+  { key: 'yellow', label: '黄', bg: '#fef3c7', border: '#f59e0b' },
+  { key: 'green', label: '緑', bg: '#dcfce7', border: '#22c55e' },
+];
 export const CRM_TOGGLE_MAX = 2;
 export const CRM_TOGGLE_OPTION_MAX = 10;
 export const CRM_TOGGLE_TITLE_LEN = 20;
@@ -339,7 +347,13 @@ export function normalizeCrmToggles(raw: unknown): CrmToggle[] {
     const options = [...new Set((Array.isArray(o.options) ? o.options : []).map((x) => String(x).trim().slice(0, CRM_TOGGLE_OPTION_LEN)).filter(Boolean))].slice(0, CRM_TOGGLE_OPTION_MAX);
     if (!/^[a-z0-9]{1,12}$/.test(id) || !title || options.length === 0) continue;
     if (out.some((t) => t.id === id)) continue;
-    out.push({ id, title, options });
+    const colors: Record<string, CrmToggleColor> = {};
+    const rawColors = o.colors && typeof o.colors === 'object' && !Array.isArray(o.colors) ? (o.colors as Record<string, unknown>) : {};
+    for (const op of options) {
+      const c = rawColors[op];
+      if (c === 'yellow' || c === 'green') colors[op] = c;
+    }
+    out.push(Object.keys(colors).length ? { id, title, options, colors } : { id, title, options });
     if (out.length >= CRM_TOGGLE_MAX) break;
   }
   return out;
@@ -352,6 +366,18 @@ export function pickCrmToggleValues(toggles: CrmToggle[], values: Record<string,
     if (v && t.options.includes(v)) out.push({ title: t.title, value: v });
   }
   return out;
+}
+
+/** その日の選択から、予約ブロックの背景色を決める（第638便）。★ 色の付いた選択肢が無ければ null。★ 2つとも色付きなら上の項目を優先 */
+export function crmToggleBookingColor(toggles: CrmToggle[], values: Record<string, string> | undefined): { bg: string; border: string } | null {
+  for (const t of toggles) {
+    const v = values?.[t.id];
+    if (!v || !t.options.includes(v)) continue;
+    const key = t.colors?.[v];
+    const c = key ? CRM_TOGGLE_COLORS.find((x) => x.key === key) : undefined;
+    if (c) return { bg: c.bg, border: c.border };
+  }
+  return null;
 }
 
 /** 予約アラーム（第559便・風俗CTIv2 の予約アラームにあたる）。on: 予約開始／予約終了・min 分前・sec 秒鳴らす・sound 音1〜4 */

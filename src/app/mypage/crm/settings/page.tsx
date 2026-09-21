@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
-import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
+import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, CRM_TOGGLE_COLORS, type CrmToggleColor, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { ImportDialog } from '../ImportDialog';
@@ -30,7 +30,7 @@ const SETTING_TABS = [
   { key: 'display', label: '表示時間' },
   { key: 'endbadge', label: '終わりのバッジ' },
   { key: 'rooms', label: '待機場所（部屋）' },
-  { key: 'toggles', label: '出勤情報の項目' },
+  { key: 'toggles', label: '出勤情報の項目（追加）' },
   { key: 'alarms', label: '予約アラーム' },
   { key: 'consent', label: '来店時の同意書（QR）' },
   { key: 'cast', label: 'セラピストへの公開' },
@@ -502,10 +502,13 @@ function ToggleSection({ toggles, onChange }: { toggles: CrmToggle[]; onChange: 
   const input = 'border border-slate-300 bg-white px-3 py-2 text-[14px] focus:border-indigo-400 focus:outline-none';
   return (
     <section className="border border-slate-200 bg-white p-5">
-      <h2 className="text-[17px] font-black text-slate-800">出勤情報の項目</h2>
+      <h2 className="text-[17px] font-black text-slate-800">出勤情報の項目（追加）</h2>
       <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
         題名と選択肢を自由に作れます（{CRM_TOGGLE_MAX}つまで）。スケジュールで名前を押した「出勤情報」に選択肢のボタンが並び、1つ選べます（もう一度押すと外れます）。
         選んだ選択肢は、スケジュールの名前の下にも小さく出ます（題名は出しません）。例）掛け持ち出勤　A・B・C
+      </p>
+      <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+        選択肢ごとに<b>予約の背景の色</b>（なし・黄・緑）を決められます。その選択肢を選んだ日は、そのセラピストの予約が選んだ色になります。
       </p>
       <div className="mt-3 space-y-4">
         {toggles.map((t, i) => (
@@ -524,9 +527,32 @@ function ToggleSection({ toggles, onChange }: { toggles: CrmToggle[]; onChange: 
                     value={o}
                     maxLength={CRM_TOGGLE_OPTION_LEN}
                     placeholder={['A', 'B', 'C'][k] ?? ''}
-                    onChange={(e) => upd(i, { options: t.options.map((x, m) => (m === k ? e.target.value : x)) })}
+                    onChange={(e) => {
+                      // ★ 色は選択肢の文字で覚えるので、文字を変えたら色も付け替える（第638便）
+                      const nv = e.target.value;
+                      const colors = { ...(t.colors ?? {}) };
+                      const c = colors[o];
+                      delete colors[o];
+                      if (c && nv) colors[nv] = c;
+                      upd(i, { options: t.options.map((x, m) => (m === k ? nv : x)), colors });
+                    }}
                   />
-                  <button type="button" aria-label="この選択肢を消す" onClick={() => upd(i, { options: t.options.filter((_, m) => m !== k) })} className="px-2 text-[14px] font-bold text-slate-400">×</button>
+                  <select
+                    aria-label="予約の背景の色"
+                    value={t.colors?.[o] ?? ''}
+                    disabled={!o.trim()}
+                    onChange={(e) => {
+                      const colors = { ...(t.colors ?? {}) };
+                      if (e.target.value) colors[o] = e.target.value as CrmToggleColor; else delete colors[o];
+                      upd(i, { colors });
+                    }}
+                    className="border-l border-slate-300 px-1 py-1.5 text-[13px] disabled:opacity-40"
+                    style={{ background: CRM_TOGGLE_COLORS.find((c) => c.key === t.colors?.[o])?.bg ?? '#fff' }}
+                  >
+                    <option value="">色なし</option>
+                    {CRM_TOGGLE_COLORS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                  </select>
+                  <button type="button" aria-label="この選択肢を消す" onClick={() => { const colors = { ...(t.colors ?? {}) }; delete colors[o]; upd(i, { options: t.options.filter((_, m) => m !== k), colors }); }} className="px-2 text-[14px] font-bold text-slate-400">×</button>
                 </span>
               ))}
               <button

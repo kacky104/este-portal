@@ -51,6 +51,7 @@ import {
   CRM_EMPTY_WORK_DAY,
   roomColor,
   pickCrmToggleValues,
+  crmToggleBookingColor,
   type CrmToggle,
   type CrmAttendance,
   type CrmWorkDay,
@@ -722,6 +723,7 @@ function Grid({
                     width={Math.max(24, x(e) - x(s))}
                     picked={pickedId === b.id}
                     ng={r.therapist != null && (b.customer?.ngTherapistIds.includes(r.therapist.id) ?? false)}
+                    toggleColor={r.therapist ? crmToggleBookingColor(toggleDefs, workDayOf(r.therapist.id)?.toggles) : null}
                     onPick={() => onPick(b)}
                   />
                 );
@@ -743,7 +745,7 @@ function Grid({
 }
 
 function BookingCard({
-  b, left, width, picked, ng, onPick,
+  b, left, width, picked, ng, onPick, toggleColor,
 }: {
   b: CrmScheduleBooking;
   left: number;
@@ -751,6 +753,8 @@ function BookingCard({
   picked: boolean;
   ng: boolean;
   onPick: () => void;
+  /** 出勤情報の項目（追加）で選んだ選択肢の色（第638便）。★ 背景だけ変える（枠の色＝未確定／確定の見分けは残す） */
+  toggleColor?: { bg: string; border: string } | null;
 }) {
   const cancelled = b.status === 'cancelled';
   const c = b.customer;
@@ -768,7 +772,7 @@ function BookingCard({
       className={`absolute top-1 bottom-1 overflow-hidden border px-1 text-left leading-tight shadow-sm ${tone} ${
         ng && !cancelled ? '!border-2 !border-rose-600' : ''
       } ${picked ? 'ring-2 ring-[#3f51b5]' : ''} ${cancelled ? 'z-[5]' : 'z-10'}`}
-      style={{ left, width }}
+      style={{ left, width, ...(toggleColor && !cancelled ? { background: toggleColor.bg } : {}) }}
     >
       <p className="truncate text-[12px] font-black">
         {hm(b.slotStartISO)}-{hm(b.slotEndISO)}
