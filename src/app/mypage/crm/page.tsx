@@ -591,8 +591,9 @@ function Grid({
           ))}
         </div>
 
+        {/* ★ 行の hover:z-[25]：女子メモの全文（第643便）が下の行の名前の列に隠れないように（見出しの z-30 より下） */}
         {rows.map((r) => (
-          <div key={r.key} className={`relative flex border-b ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
+          <div key={r.key} className={`relative flex border-b hover:z-[25] ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
             <div className={`sticky left-0 z-20 flex flex-none border-r border-slate-300 ${r.done ? 'bg-slate-300' : 'bg-white'}`} style={{ width: leftW }}>
             <div className="flex-none px-2 py-1.5" style={{ width: nameW }}>
@@ -670,12 +671,13 @@ function Grid({
             </div>
             {/* 女子メモ（押すと書ける・お店の内部メモ） */}
             {r.therapist ? (
+              // ★ 女子メモ：ホバーで全文を浮かせて出す（第643便・風俗CTIv2 と同じ）。★ 押すと書ける（今までどおり）
+              <div className="group relative flex-none" style={{ width: memoW }}>
               <button
                 type="button"
                 onClick={() => onMemo(r.therapist!)}
-                title={r.therapist.memo || '女子メモを書く'}
-                className="flex-none overflow-hidden border-l border-slate-200 bg-amber-50/40 px-2 py-1 text-left hover:bg-amber-100"
-                style={{ width: memoW }}
+                title={r.therapist.memo ? undefined : '女子メモを書く'}
+                className="h-full w-full overflow-hidden border-l border-slate-200 bg-amber-50/40 px-2 py-1 text-left hover:bg-amber-100"
               >
                 {r.therapist.memo ? (
                   <p className="line-clamp-4 whitespace-pre-line text-[12px] leading-[1.3] text-slate-700">{r.therapist.memo}</p>
@@ -684,6 +686,13 @@ function Grid({
                   <span className="inline-block whitespace-nowrap border border-dashed border-amber-400 bg-amber-50 px-1 py-0.5 text-[11px] font-bold text-amber-700">✎ メモを書く</span>
                 )}
               </button>
+              {r.therapist.memo && (
+                <div className="pointer-events-none invisible absolute left-0 top-full z-50 w-[320px] max-w-[80vw] whitespace-pre-line border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] leading-relaxed text-slate-800 shadow-xl group-hover:visible">
+                  <p className="mb-1 text-[11px] font-bold text-amber-700">女子メモ（押すと書き直せます）</p>
+                  {r.therapist.memo}
+                </div>
+              )}
+              </div>
             ) : (
               <div className="flex-none border-l border-slate-200 bg-slate-50" style={{ width: memoW }} />
             )}
@@ -794,11 +803,17 @@ function BookingCard({
 }) {
   const cancelled = b.status === 'cancelled';
   const c = b.customer;
+  // ★ 色分け（第643便・風俗CTIv2 にならう）：受領済＝終わった予約はグレー寄り（一目で「済み」）・入室済＝枠を太く（いま部屋にいる）
+  //   ★ 未確定（ピンク枠）／確定（水色枠）の見分けは残す。★ 受領済は第638便の背景色（出勤情報の色）より優先
+  const received = !cancelled && !!b.receivedBy;
+  const entered = !cancelled && !received && b.playStatus === 'entered';
   const tone = cancelled
     ? 'bg-slate-100 text-slate-400 border-slate-300'
-    : b.status === 'new'
-      ? 'bg-pink-50 text-slate-800 border-pink-400'
-      : 'bg-cyan-50 text-slate-800 border-cyan-400';
+    : received
+      ? 'bg-slate-100 text-slate-500 border-slate-400'
+      : b.status === 'new'
+        ? 'bg-pink-50 text-slate-800 border-pink-400'
+        : 'bg-cyan-50 text-slate-800 border-cyan-400';
   return (
     <button
       type="button"
@@ -806,9 +821,11 @@ function BookingCard({
       onClick={(e) => { e.stopPropagation(); onPick(); }}
       title={`${hm(b.slotStartISO)}-${hm(b.slotEndISO)} ${c?.name || b.customerName}`}
       className={`absolute top-1 bottom-1 overflow-hidden border px-1 text-left leading-tight shadow-sm ${tone} ${
+        entered ? '!border-[3px] !border-amber-500' : ''
+      } ${
         ng && !cancelled ? '!border-2 !border-rose-600' : ''
       } ${picked ? 'ring-2 ring-[#3f51b5]' : ''} ${cancelled ? 'z-[5]' : 'z-10'}`}
-      style={{ left, width, ...(toggleColor && !cancelled ? { background: toggleColor.bg } : {}) }}
+      style={{ left, width, ...(toggleColor && !cancelled && !received ? { background: toggleColor.bg } : {}) }}
     >
       <p className="truncate text-[12px] font-black">
         {hm(b.slotStartISO)}-{hm(b.slotEndISO)}
