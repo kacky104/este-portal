@@ -7,7 +7,7 @@ summary: そのお店に所属しているセラピストのこと。「在籍�
 description: 在籍とは、そのお店に所属しているセラピストのこと。在籍と出勤の違い、フクエスの在籍セラピスト一覧で分かること、在籍人数の見方、指名したい人の探し方を解説します。
 publishedAt: 2026-09-21
 heroImage: /glossary/zaiseki/hero.webp
-heroAlt: 朝の光が入る衣装部屋で、木のハンガーラックに同じ制服が何着も並んでいるところ
+heroAlt: 朝の光が入る衣装部屋で、制服のセラピストがハンガーラックの制服に手をかけながらほほえんでいるところ
 related: [therapist, shukkin-joho, shimei, shame-nikki, kuchikomi, hon-shimei]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
