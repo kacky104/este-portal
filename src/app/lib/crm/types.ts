@@ -272,14 +272,22 @@ export function isUnreceived(b: { status: string; priceTotal: number | null; rec
   return b.status !== 'cancelled' && b.priceTotal != null && !b.receivedBy && new Date(b.slotStartISO).getTime() <= nowMs;
 }
 
-/** 指名のバッジ：「本」が入る指名＝本（本指名）／フリー＝ﾌﾘｰ／それ以外（ネット指名など）は出さない */
-export function nominationBadge(items: CrmBookingItem[]): '本' | 'ﾌﾘｰ' | null {
+/** 指名のバッジ：本指名＝本／フリー＝ﾌﾘｰ／ネット指名＝ﾈｯﾄ（第614便で追加）／それ以外（お店が足した指名）は出さない */
+export type CrmNominationBadge = '本' | 'ﾌﾘｰ' | 'ﾈｯﾄ';
+export function nominationBadge(items: CrmBookingItem[]): CrmNominationBadge | null {
   const n = items.find((i) => i.kind === 'nomination');
   if (!n) return null;
   if (n.name.includes('本')) return '本';
   if (/フリー|ﾌﾘｰ|free/i.test(n.name)) return 'ﾌﾘｰ';
+  if (/ネット|ﾈｯﾄ|ねっと|net|web/i.test(n.name)) return 'ﾈｯﾄ';
   return null;
 }
+/** バッジの色（CRM・/cast で同じ見た目にする） */
+export const CRM_NOMINATION_CLASS: Record<CrmNominationBadge, string> = {
+  '本': 'bg-pink-200 text-pink-800',
+  'ﾌﾘｰ': 'bg-slate-200 text-slate-700',
+  'ﾈｯﾄ': 'bg-sky-200 text-sky-800',
+};
 
 /** 最初から用意する指名（名前は変えられない・消せない。要らなければ「使う」を外す）（第546便） */
 export const CRM_FIXED_NOMINATIONS = ['フリー', 'ネット指名', '本指名'] as const;

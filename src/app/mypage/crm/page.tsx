@@ -55,6 +55,7 @@ import {
   type CrmWorkDay,
   inBusinessDay,
   nominationBadge,
+  CRM_NOMINATION_CLASS,
   type CrmPlayStatus,
   sumCrmItems,
   yen,
@@ -788,9 +789,7 @@ function BookingCard({
         {(() => {
           const nb = nominationBadge(b.items);
           if (!nb) return null;
-          return nb === '本'
-            ? <span className="bg-pink-200 px-1 text-[10px] font-bold text-pink-800">本</span>
-            : <span className="bg-slate-200 px-1 text-[10px] font-bold text-slate-700">ﾌﾘｰ</span>;
+          return <span className={`px-1 text-[10px] font-bold ${CRM_NOMINATION_CLASS[nb]}`}>{nb}</span>;
         })()}
         {/* ★ 「一般」は出さない（枠の場所をとるため・2026-09-19 カッキーさんの指示）。会員・常連・VIP・NG だけ */}
         {c && c.category !== 'general' && <span className={`border px-1 text-[10px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>}

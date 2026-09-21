@@ -7,6 +7,7 @@
 //   ★ 電話番号・料金・報酬・お店のメモ・ほかのセラピストの予定は返さない。
 // ★ ログイン中の user_id → therapists.id を確かめてから service_role で読む（castCustomers と同じ流儀・旧 castPay も同じだった）。
 
+import { nominationBadge, type CrmBookingItem, type CrmNominationBadge } from '@/app/lib/crm/types';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
@@ -18,6 +19,8 @@ export type CastScheduleBooking = {
   endMin: number;
   course: string;
   customerName: string;
+  /** 指名の種類（第614便）：本＝本指名／ﾌﾘｰ＝フリー／ﾈｯﾄ＝ネット指名。お店が指名を入れていない・ほかの指名のときは null */
+  nomination: CrmNominationBadge | null;
 };
 export type CastScheduleDay = {
   date: string;
@@ -29,6 +32,19 @@ export type CastScheduleDay = {
   breakEndMin: number | null;
   bookings: CastScheduleBooking[];
 };
+
+/** 予約の crm_items（jsonb）から指名の行だけ拾う。★ 料金・報酬は読まない（/cast には出さないため） */
+function nominationOf(raw: unknown): CrmNominationBadge | null {
+  if (!Array.isArray(raw)) return null;
+  const items: CrmBookingItem[] = [];
+  for (const r of raw as Record<string, unknown>[]) {
+    const kind = String(r?.kind ?? '');
+    const name = String(r?.name ?? '').trim();
+    if (kind !== 'nomination' || !name) continue;
+    items.push({ kind: 'nomination', name, minutes: 0, price: 0, pay: 0 });
+  }
+  return nominationBadge(items);
+}
 
 async function me(): Promise<{ svc: Svc; therapistId: number; salonId: number } | null> {
   const supabase = await createClient();
@@ -84,7 +100,7 @@ export async function getCastScheduleDay(
       .eq('therapist_id', m.therapistId).eq('schedule_date', date).eq('is_active', true),
     m.svc.from('crm_work_days').select('room, break_start_min, break_end_min')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).eq('business_date', date).maybeSingle(),
-    m.svc.from('salon_bookings').select('slot_start, slot_end, course_name, customer_name')
+    m.svc.from('salon_bookings').select('slot_start, slot_end, course_name, customer_name, crm_items')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).neq('status', 'cancelled')
       .gte('slot_start', from).lt('slot_start', to).order('slot_start'),
   ]);
@@ -101,7 +117,13 @@ export async function getCastScheduleDay(
   const bookings: CastScheduleBooking[] = (bs ?? []).map((b) => {
     const s = Math.round((new Date(String(b.slot_start)).getTime() - base) / 60000);
     const e = b.slot_end ? Math.round((new Date(String(b.slot_end)).getTime() - base) / 60000) : s + 60;
-    return { startMin: s, endMin: Math.max(e, s + 10), course: String(b.course_name ?? ''), customerName: String(b.customer_name ?? '') };
+    return {
+      startMin: s,
+      endMin: Math.max(e, s + 10),
+      course: String(b.course_name ?? ''),
+      customerName: String(b.customer_name ?? ''),
+      nomination: nominationOf(b.crm_items),
+    };
   });
 
   return {

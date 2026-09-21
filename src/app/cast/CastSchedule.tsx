@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCastScheduleDay, type CastScheduleDay } from '@/app/actions/castSchedule';
+import { CRM_NOMINATION_CLASS } from '@/app/lib/crm/types';
 import { addBusinessDays, getBusinessDateJST } from '@/lib/dutyStatus';
 
 // /cast「スケジュール」（第599便）。★ 本人の行だけのタイムライン（CRM のスケジュールと同じ見た目の軸）。
 // ★ 左の枠は置かない（第600便）。待機場所（部屋）は上の「出勤」の行にバッジで出し、そのぶんタイムラインを横いっぱいに使う。女子メモは出さない。
 // ★ スマホでは枠を画面の左右いっぱいまで広げる（main の px-4 を -mx-4 で打ち消す）。
-// ★ 予約は 時間・お客様の名前・コース。電話番号・料金・報酬は出さない。
+// ★ 予約は 時間・指名（本／ﾌﾘｰ／ﾈｯﾄ）・お客様の名前・コース。電話番号・料金・報酬は出さない。
+// ★ 指名のバッジは CRM のスケジュールと同じ色・同じ短い言い方にそろえる（第614便）。
 
 const HOUR_W = 64; // 1時間の幅（px）
 const ROW_H = 76;
@@ -133,10 +135,13 @@ export function CastSchedule() {
                       key={i}
                       className="absolute top-1.5 bottom-1.5 overflow-hidden border border-sky-300 bg-sky-50 px-1.5 py-1 text-[11px] leading-tight text-slate-700"
                       style={{ left: x(b.startMin) + 1, width: Math.max(x(b.endMin) - x(b.startMin) - 2, 24) }}
-                      title={`${hhmm(b.startMin)}〜${hhmm(b.endMin)} ${b.customerName}様 ${b.course}`}
+                      title={`${hhmm(b.startMin)}〜${hhmm(b.endMin)} ${b.nomination ? `[${b.nomination}] ` : ''}${b.customerName}様 ${b.course}`}
                     >
                       <p className="truncate font-black">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</p>
-                      <p className="truncate font-bold">{b.customerName ? `${b.customerName}様` : ''}</p>
+                      <p className="flex items-center gap-1 truncate font-bold">
+                        {b.nomination && <span className={`flex-none px-1 text-[10px] font-bold leading-none ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
+                        <span className="truncate">{b.customerName ? `${b.customerName}様` : ''}</span>
+                      </p>
                       <p className="truncate text-slate-500">{b.course}</p>
                     </div>
                   ))}
@@ -157,6 +162,7 @@ export function CastSchedule() {
                 <li key={i} className="flex items-baseline gap-3 py-2 text-[14px]">
                   <span className="w-[112px] flex-none font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
                   <span className="min-w-0 flex-1">
+                    {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
                     <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
                     <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
                   </span>
