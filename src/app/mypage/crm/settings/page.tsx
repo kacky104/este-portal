@@ -50,6 +50,16 @@ function SettingsBody({ salonId }: { salonId: number }) {
     const h = window.location.hash.replace('#', '');
     return (SETTING_TABS.some((t) => t.key === h) ? h : 'display') as SettingTab;
   });
+  // ★ スマホのドロワー（第635便）。開いている間は本文のスクロールを止める・Esc で閉じる
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+  }, [drawerOpen]);
   const pickTab = (k: SettingTab) => {
     setTab(k);
     try { window.history.replaceState(null, '', `#${k}`); } catch { /* 何もしない */ }
@@ -88,8 +98,56 @@ function SettingsBody({ salonId }: { salonId: number }) {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-3 px-3 py-4 md:flex-row md:items-start md:gap-5">
-      {/* 左のサイドバー（第565便・風俗CTIv2 の設定画面にならう）。スマホでは上に横並び */}
-      <nav className="flex gap-1 overflow-x-auto md:sticky md:top-3 md:w-[200px] md:flex-none md:flex-col md:gap-0 md:overflow-visible md:border md:border-slate-200 md:bg-white">
+      {/* ★ スマホ: 三本線＋いま開いている項目名。押すと左からドロワー（第635便・/mypage と同じ動き） */}
+      <div className="flex items-center gap-2 border border-slate-200 bg-white px-2 py-2 md:hidden">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="設定のメニューを開く"
+          aria-expanded={drawerOpen}
+          className="p-1 text-indigo-600"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden>
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <button type="button" onClick={() => setDrawerOpen(true)} className="min-w-0 flex-1 truncate text-left text-[15px] font-black text-slate-800">
+          {SETTING_TABS.find((t) => t.key === tab)?.label}
+        </button>
+      </div>
+      {drawerOpen && (
+        <div className="fixed inset-x-0 top-0 z-50 h-dvh md:hidden" role="dialog" aria-modal="true" aria-label="設定のメニュー">
+          <button type="button" aria-label="メニューを閉じる" onClick={() => setDrawerOpen(false)} className="absolute inset-0 bg-black/40" />
+          <nav
+            aria-label="設定の項目"
+            className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] overflow-y-auto overscroll-contain bg-white shadow-2xl [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+              <span className="text-sm font-black text-slate-700">設定</span>
+              <button type="button" onClick={() => setDrawerOpen(false)} aria-label="閉じる" className="p-1 text-slate-400 hover:text-slate-600">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            {SETTING_TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => { pickTab(t.key); setDrawerOpen(false); }}
+                aria-pressed={tab === t.key}
+                className={`block w-full border-b border-l-4 border-b-slate-100 px-4 py-3.5 text-left text-[14px] font-bold ${
+                  tab === t.key ? 'border-l-indigo-600 bg-indigo-50 text-indigo-700' : 'border-l-transparent text-slate-700'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      )}
+      {/* 左のサイドバー（第565便・風俗CTIv2 の設定画面にならう）。PC だけ（スマホは上のドロワー・第635便） */}
+      <nav className="hidden md:sticky md:top-3 md:flex md:w-[200px] md:flex-none md:flex-col md:gap-0 md:overflow-visible md:border md:border-slate-200 md:bg-white">
         {SETTING_TABS.map((t) => (
           <button
             key={t.key}
