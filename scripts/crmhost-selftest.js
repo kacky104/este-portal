@@ -22,6 +22,9 @@ eq('ログイン', v.decideCrmRoute('fukuescrm.com', '/login'), { kind: 'rewrite
 eq('ログイン（末尾 /）', v.decideCrmRoute('fukuescrm.com', '/login/'), { kind: 'rewrite', pathname: '/crm/login' });
 eq('規約', v.decideCrmRoute('fukuescrm.com', '/terms'), { kind: 'rewrite', pathname: '/crm/terms' });
 eq('データの取り扱い', v.decideCrmRoute('fukuescrm.com', '/data'), { kind: 'rewrite', pathname: '/crm/data' });
+eq('使い方（第648便）', v.decideCrmRoute('fukuescrm.com', '/guide'), { kind: 'rewrite', pathname: '/crm/guide' });
+eq('CRM: 使い方', v.crmSpecialHref('', 'guide'), '/guide');
+eq('本体: 使い方', v.crmSpecialHref('/mypage/crm', 'guide'), '/crm/guide');
 eq('/crm/terms はそのまま', v.decideCrmRoute('fukuescrm.com', '/crm/terms'), { kind: 'rewrite', pathname: '/crm/terms' });
 
 console.log('── 3. 本体のまま動かす道 ──');

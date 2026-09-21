@@ -16,7 +16,7 @@ export function CrmBaseProvider({ base, children }: { base: string; children: Re
 export function useCrmLinks(): {
   base: string;
   href: (path: string) => string;
-  special: (key: 'login' | 'terms' | 'data') => string;
+  special: (key: 'login' | 'terms' | 'data' | 'guide') => string;
   fukues: (path: string) => string;
 } {
   const base = useContext(BaseContext);

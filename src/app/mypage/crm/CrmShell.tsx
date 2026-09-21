@@ -107,6 +107,18 @@ export function CrmShell({
             {/* ★ ON/OFF 運用（9999-12-31＝期限なし）では何も出さない。期限つきのときだけ出す。 */}
             {access.crmUntil && !access.crmUntil.startsWith('9999') ? `ご契約：${access.crmUntil.replaceAll('-', '/')} まで` : ''}
           </span>
+          {/* ★ 使い方・よくある質問（第648便）。別タブで開く（受付の途中でも戻れるように） */}
+          {access.active && (
+            <a
+              href={links.special('guide')}
+              target="_blank"
+              rel="noopener"
+              className="flex flex-none items-center gap-1 border border-indigo-300/60 px-2 py-1 text-[12px] font-bold text-indigo-100 hover:bg-white/10 md:text-[13px]"
+              title="使い方・よくある質問（別タブ）"
+            >
+              <span aria-hidden>?</span><span className="hidden sm:inline">使い方</span>
+            </a>
+          )}
           {/* ★ 画面を更新（第641便・風俗CTIv2 の右上と同じ）。★ スケジュールは読み直すだけ（アラームの音の ON が消えない）。
               ★ ほかの画面は crm:refresh を受け取る人がいないので、ページごと読み直す。 */}
           {access.active && (
