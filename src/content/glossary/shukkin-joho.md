@@ -7,7 +7,7 @@ summary: どのセラピストが、いつ出勤するかの予定表。予約�
 description: 出勤情報とは、どのセラピストが、どの日の何時から何時まで出勤するかの予定表のこと。出勤表の読み方、「出勤中」「受付終了」などの表示の意味、深夜の出勤の書き方、フクエスで出勤を確かめる場所を解説します。
 publishedAt: 2026-09-21
 heroImage: /glossary/shukkin-joho/hero.webp
-heroAlt: 白い壁の予定ボードに、制服のセラピストがピンクのマグネットを置いている手元
+heroAlt: お店の裏の壁のボードに、制服のセラピストがほほえみながら色つきのマグネットを置いているところ
 related: [zaiseki, therapist, tojitsu-yoyaku, net-yoyaku, shimei, eigyo-jikan]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
