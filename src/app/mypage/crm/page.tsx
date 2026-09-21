@@ -170,8 +170,14 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const [confirmFor, setConfirmFor] = useState<CrmScheduleTherapist | null>(null);
   const [closing, setClosing] = useState(false);
   // ★ 表の上（アラーム・日付・件数）をたためる（第576便）。この端末だけ覚える
+  // ★ 第647便：スマホは最初からたたむ（一度でも押した端末は、その選んだ方を守る）
   const [folded, setFolded] = useState<boolean>(() => {
-    try { return typeof window !== 'undefined' && localStorage.getItem('crm_top_folded') === '1'; } catch { return false; }
+    try {
+      if (typeof window === 'undefined') return false;
+      const v = localStorage.getItem('crm_top_folded');
+      if (v != null) return v === '1';
+      return window.matchMedia('(max-width: 767px)').matches;
+    } catch { return false; }
   });
   const toggleFold = () => {
     setFolded((v) => {
@@ -707,7 +713,8 @@ function Grid({
                 // ★ zoom しているときは画面上の幅が縮むので、その割合で戻す（第575便）
                 const scale = rect.width > 0 ? rect.width / width : 1;
                 const min = startMin + (e.clientX - rect.left) / (ppm * scale);
-                const snapped = Math.floor(min / CLICK_STEP_MIN) * CLICK_STEP_MIN;
+                // ★ 第647便：切り捨てではなく近い15分に（1:12 → 1:15、1:07 → 1:00）
+                const snapped = Math.round(min / CLICK_STEP_MIN) * CLICK_STEP_MIN;
                 onEmpty(r.therapist ? r.therapist.id : null, Math.max(DAY_START_MIN, Math.min(snapped, WINDOW_END_MIN - CLICK_STEP_MIN)));
               }}
             >
@@ -829,7 +836,8 @@ function BookingCard({
     >
       <p className="truncate text-[12px] font-black">
         {hm(b.slotStartISO)}-{hm(b.slotEndISO)}
-        {b.courseMin ? <span className="font-bold text-slate-500">（{b.courseMin}分）</span> : null}
+        {/* ★ 第647便：「（80分）」だと切れるので、小さく「80分」 */}
+        {b.courseMin ? <span className="ml-1 text-[10px] font-bold text-slate-500">{b.courseMin}分</span> : null}
       </p>
       <p className="flex items-center gap-1 truncate text-[12px]">
         {cancelled && <span className={`px-1 text-[10px] font-bold text-white ${b.cancelBad ? 'bg-rose-600' : 'bg-slate-400'}`}>{b.cancelBad ? '悪質' : 'ｷｬﾝｾﾙ'}</span>}
