@@ -28,6 +28,9 @@ console.log('── 3. 本体のまま動かす道 ──');
 eq('/_next', v.decideCrmRoute('fukuescrm.com', '/_next/static/x.js'), { kind: 'none' });
 eq('/api', v.decideCrmRoute('fukuescrm.com', '/api/revalidate'), { kind: 'none' });
 eq('/auth', v.decideCrmRoute('fukuescrm.com', '/auth/callback'), { kind: 'none' });
+eq('ファビコンは本体のまま', v.decideCrmRoute('fukuescrm.com', '/favicon-crm.ico'), { kind: 'none' });
+eq('ロゴは本体のまま', v.decideCrmRoute('fukuescrm.com', '/crm-logo.png'), { kind: 'none' });
+eq('★ 下の階層の .png は通さない', v.decideCrmRoute('fukuescrm.com', '/x/a.png'), { kind: 'rewrite', pathname: '/mypage/crm/x/a.png' });
 eq('★ /apix は通さない', v.decideCrmRoute('fukuescrm.com', '/apix'), { kind: 'rewrite', pathname: '/mypage/crm/apix' });
 
 console.log('── 4. fukues.com からの転送（スイッチ） ──');

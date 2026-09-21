@@ -31,6 +31,9 @@ export const CRM_REDIRECT_FROM_FUKUES = true;
 /** rewrite しない道 */
 export const CRM_PASS_PREFIXES: readonly string[] = ['/_next', '/api', '/auth'];
 
+/** public 直下の静的ファイル（ファビコン・ロゴ等）は rewrite しない（★ 第633便: /favicon-crm.ico が /mypage/crm/… に化けて 404 になるのを防ぐ） */
+const PUBLIC_FILE = /^\/[^/]+\.(?:ico|png|svg|jpe?g|webp|gif|txt|xml|webmanifest)$/i;
+
 /** CRM ドメインの短いパス → アプリ内の置き場所（/mypage/crm の外にあるもの） */
 const CRM_SPECIAL: Readonly<Record<string, string>> = {
   '/login': '/crm/login',
@@ -75,6 +78,7 @@ export function decideCrmRoute(
 
   if (isCrmHost(h)) {
     if (CRM_PASS_PREFIXES.some((x) => startsWithSeg(p, x))) return { kind: 'none' };
+    if (PUBLIC_FILE.test(p)) return { kind: 'none' };
     const special = CRM_SPECIAL[p.replace(/\/+$/, '') || '/'];
     if (special) return { kind: 'rewrite', pathname: special };
     // ★ すでに /mypage/crm や /crm が付いていたら二重に付けない

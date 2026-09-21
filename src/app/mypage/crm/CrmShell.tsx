@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
@@ -96,7 +97,10 @@ export function CrmShell({
     <>
       <header className="sticky top-0 z-40 bg-[#1e2a5a] text-white shadow">
         <div className="flex items-center gap-2 px-3 pt-1.5 md:gap-3 md:px-4 md:pt-3">
-          <span className="text-[14px] font-black tracking-wide md:text-[17px]">フクエスCRM</span>
+          <span className="flex flex-none items-center gap-1.5">
+            <Image src="/crm-logo.png" alt="" width={48} height={48} className="h-5 w-5 md:h-6 md:w-6" priority />
+            <span className="text-[14px] font-black tracking-wide md:text-[17px]">フクエスCRM</span>
+          </span>
           <span className="truncate text-[11px] text-indigo-200 md:text-[12px]">{access.salonName}</span>
           {access.isAdmin && <span className="bg-amber-400 px-1.5 py-0.5 text-[11px] font-bold text-slate-900">運営で表示中</span>}
           <span className="ml-auto hidden text-[12px] text-indigo-200 sm:inline">

@@ -11,6 +11,15 @@ import { CrmBaseProvider } from './CrmBase';
 export const metadata: Metadata = {
   title: 'フクエスCRM（顧客台帳）',
   robots: { index: false, follow: false },
+  // ★ フクエスCRM 専用のファビコン（第633便・水色と紫の F）。ネストした metadata は近いほうが優先 → CRM の画面だけ差し替わる。
+  icons: {
+    icon: [
+      { url: '/favicon-crm.ico', sizes: 'any' },
+      { url: '/favicon-crm-32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-crm-16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    apple: [{ url: '/apple-touch-icon-crm.png', sizes: '180x180' }],
+  },
 };
 
 export default async function MypageCrmLayout({ children }: { children: React.ReactNode }) {

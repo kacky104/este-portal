@@ -57,8 +57,12 @@ export async function proxy(request: NextRequest) {
       url.pathname = "/favicon-conecf.ico";
       return NextResponse.rewrite(url);
     }
-    // ★ フクエスCRM（第631便）は店舗ドメインではない。★ 本体の静的なファビコンをそのまま返す
-    if (isCrmHost(favRaw)) return NextResponse.next();
+    // ★ フクエスCRM（第631便）は店舗ドメインではない。★ 第633便から CRM 専用のファビコン（F のロゴ）を返す
+    if (isCrmHost(favRaw)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/favicon-crm.ico";
+      return NextResponse.rewrite(url);
+    }
     if (!isAppHost(favHost)) {
       const url = request.nextUrl.clone();
       url.pathname = `/hp/${favHost}/favicon.ico`;

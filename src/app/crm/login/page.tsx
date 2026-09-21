@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { signInWithEmail } from '@/lib/auth';
 import { isCrmHost } from '@/lib/crmHost';
@@ -37,6 +38,7 @@ export default function CrmLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-[#eef1f8] px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
+          <Image src="/crm-logo.png" alt="" width={96} height={96} className="mx-auto mb-2 h-14 w-14" priority />
           <h1 className="text-[24px] font-black tracking-tight text-[#1e2a5a]">フクエスCRM</h1>
           <p className="mt-1 text-[13px] text-slate-500">店舗様専用ログイン</p>
         </div>
