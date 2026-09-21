@@ -429,7 +429,7 @@ function CustomersBody({ salonId }: { salonId: number }) {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="名前・フリガナ・電話（下4桁でも）・会員番号・メモの言葉"
+                placeholder="名前・電話（下4桁でも）・会員番号"
                 className={inputCls}
                 inputMode="search"
               />
@@ -439,7 +439,8 @@ function CustomersBody({ salonId }: { salonId: number }) {
 
             </div>
             <p className="mt-1.5 text-[11px] text-slate-400">
-              {query ? (loadingList ? '探しています…' : `${list.length}人見つかりました`) : '最近更新したお客様（50人まで）'}
+              {/* ★ 記入例が欄の幅で切れるので、探せるものはここに書く（第642便） */}
+              {query ? (loadingList ? '探しています…' : `${list.length}人見つかりました`) : '名前・フリガナ・電話（下4桁でも）・会員番号・メモの言葉で探せます。いまは最近更新したお客様（50人まで）'}
             </p>
           </div>
           {listErr && <p className="p-3 text-[13px] font-bold text-rose-600">{listErr}</p>}
