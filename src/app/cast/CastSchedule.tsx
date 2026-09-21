@@ -139,7 +139,7 @@ export function CastSchedule() {
                       type="button"
                       key={i}
                       onClick={() => setPicked(b)}
-                      className={`absolute top-1.5 bottom-1.5 overflow-hidden border px-1.5 py-1 text-left text-[11px] leading-tight text-slate-700 hover:ring-2 hover:ring-sky-300 ${b.unconfirmed ? 'border-dashed border-pink-400 bg-pink-50' : 'border-sky-300 bg-sky-50'}`}
+                      className="absolute top-1.5 bottom-1.5 overflow-hidden border border-sky-300 bg-sky-50 px-1.5 py-1 text-left text-[11px] leading-tight text-slate-700 hover:ring-2 hover:ring-sky-300"
                       style={{ left: x(b.startMin) + 1, width: Math.max(x(b.endMin) - x(b.startMin) - 2, 24) }}
                       title={`${hhmm(b.startMin)}〜${hhmm(b.endMin)} ${b.nomination ? `[${b.nomination}] ` : ''}${b.customerName}様 ${b.course}`}
                     >
@@ -172,7 +172,6 @@ export function CastSchedule() {
                     {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
                     <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
                     <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
-                    {b.unconfirmed && <span className="ml-2 bg-pink-500 px-1 text-[11px] font-bold text-white">未確定</span>}
                   </span>
                   <span className="flex-none text-[12px] text-slate-300" aria-hidden="true">›</span>
                   </button>
@@ -183,14 +182,15 @@ export function CastSchedule() {
           <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
         </>
       )}
-      {picked && day && <BookingPopup b={picked} date={date} room={day.room} onClose={() => setPicked(null)} />}
+      {picked && <BookingPopup b={picked} date={date} onClose={() => setPicked(null)} />}
     </section>
   );
 }
 
-// 予約のポップアップ（第628便）。★ 出すのは 日時・指名・お客様の名前・コース・延長・オプション・部屋・未確定かどうか・入口。
+// 予約のポップアップ（第628便）。★ 出すのは お客様の名前・日時・指名・コース・延長・オプション。
+// ★ 第629便: 部屋・受付（ネット予約）・未確定 は出さない（カッキーさんの指示）。
 // ★ 料金・報酬・電話番号・お店のメモは出さない（サーバーからも来ない）。
-function BookingPopup({ b, date, room, onClose }: { b: CastScheduleBooking; date: string; room: string; onClose: () => void }) {
+function BookingPopup({ b, date, onClose }: { b: CastScheduleBooking; date: string; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -206,8 +206,6 @@ function BookingPopup({ b, date, room, onClose }: { b: CastScheduleBooking; date
   ];
   if (b.extensions.length > 0) rows.push(['延長', b.extensions.join('・')]);
   if (b.options.length > 0) rows.push(['オプション', b.options.join('・')]);
-  rows.push(['部屋', room || <span className="text-slate-400">未定</span>]);
-  if (b.fromWeb) rows.push(['受付', 'フクエスのネット予約']);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose} role="presentation">
@@ -220,7 +218,6 @@ function BookingPopup({ b, date, room, onClose }: { b: CastScheduleBooking; date
       >
         <div className="flex items-start gap-2">
           <p className="min-w-0 flex-1 text-[18px] font-black text-slate-800">{b.customerName ? `${b.customerName}様` : 'お客様'}</p>
-          {b.unconfirmed && <span className="mt-1 flex-none bg-pink-500 px-1.5 py-0.5 text-[11px] font-bold text-white">未確定</span>}
           <button type="button" onClick={onClose} className="-mr-1 -mt-1 flex-none rounded-full px-2 py-1 text-[18px] leading-none text-slate-400 hover:bg-slate-100" aria-label="閉じる">×</button>
         </div>
         <dl className="mt-3 divide-y divide-slate-100 text-[14px]">
@@ -231,7 +228,6 @@ function BookingPopup({ b, date, room, onClose }: { b: CastScheduleBooking; date
             </div>
           ))}
         </dl>
-        {b.unconfirmed && <p className="mt-2 text-[12px] leading-relaxed text-pink-600">お店がまだ確定していない予約です。</p>}
         <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
         <button type="button" onClick={onClose} className="mt-3 w-full rounded-full border border-slate-200 py-2.5 text-[14px] font-bold text-slate-600">閉じる</button>
       </div>

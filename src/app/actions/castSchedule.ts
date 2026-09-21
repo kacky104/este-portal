@@ -4,7 +4,7 @@
 // ★ 第572便の「報酬明細」を置き換えた（報酬はセラピストが記録帳で自分で入れるため・カッキーさんの決定）。
 // ★ 見せるのは、お店が CRM 契約中で、設定「セラピストへの公開」（crm_settings.cast_pay_enabled・列名は第572便のまま）が ON のときだけ。
 // ★ 返すのは本人の行だけ：出勤の時間・休憩・待機場所（部屋）・予約の時間／コース／お客様の名前。
-//   ★ 第628便: ポップアップ用に 指名の名前・延長とオプションの名前・未確定かどうか・ネット予約かどうか を足した（どれも料金なし）。
+//   ★ 第628便: ポップアップ用に 指名の名前・延長とオプションの名前 を足した（どれも料金なし）。
 //   ★ 電話番号・料金・報酬・お店のメモ・ほかのセラピストの予定は返さない。
 // ★ ログイン中の user_id → therapists.id を確かめてから service_role で読む（castCustomers と同じ流儀・旧 castPay も同じだった）。
 
@@ -29,10 +29,6 @@ export type CastScheduleBooking = {
   extensions: string[];
   /** オプションの名前（料金なし） */
   options: string[];
-  /** お店がまだ確定していない（CRM の「未確定」＝status 'new'） */
-  unconfirmed: boolean;
-  /** フクエスのネット予約から入った予約 */
-  fromWeb: boolean;
 };
 export type CastScheduleDay = {
   date: string;
@@ -117,7 +113,7 @@ export async function getCastScheduleDay(
       .eq('therapist_id', m.therapistId).eq('schedule_date', date).eq('is_active', true),
     m.svc.from('crm_work_days').select('room, break_start_min, break_end_min')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).eq('business_date', date).maybeSingle(),
-    m.svc.from('salon_bookings').select('slot_start, slot_end, course_name, customer_name, crm_items, status, source')
+    m.svc.from('salon_bookings').select('slot_start, slot_end, course_name, customer_name, crm_items')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).neq('status', 'cancelled')
       .gte('slot_start', from).lt('slot_start', to).order('slot_start'),
   ]);
@@ -144,8 +140,6 @@ export async function getCastScheduleDay(
       nominationName: it.nominationName,
       extensions: it.extensions,
       options: it.options,
-      unconfirmed: String(b.status ?? '') === 'new',
-      fromWeb: String(b.source ?? '') === 'web',
     };
   });
 
