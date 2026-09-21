@@ -56,12 +56,13 @@ export function JobNewsList({ rows }: { rows: WorkNewsItem[] }) {
             {/* ★★ 画像は【比率を固定して切り取る】（2026-09-11・カッキーさんの指示）。
                 ★ 前は w-full h-auto（原寸の比率のまま）だったので、縦長の写真だと画面2〜3個ぶんの
                   高さになり、次の記事まで遠かった。
-                ★ スマホは 4:3、PC（sm:以上）は 16:9 の箱に収めて object-cover。
+                ★ スマホも PC も 4:3 の箱に収めて object-cover（第634便・カッキーさんの指示で揃えた。前は PC だけ 16:9）。
+                  ★ 推奨サイズは 1200×900px（4:3）の1つだけ（店舗の入力画面 JobNewsManager と対）。
                   ★ 一覧の高さが揃う＝スクロールの量が読める。
                 ★ 上下は切れる。★ 切られたくない写真は、店舗側で横長にして入れてもらう。
                 ★ fill を使うので、親に relative と比率（aspect-*）を置くこと。 */}
             {n.imageUrl && (
-              <div className="relative mb-3 w-full aspect-[4/3] sm:aspect-video rounded-xl overflow-hidden border border-emerald-100 bg-slate-50">
+              <div className="relative mb-3 w-full aspect-[4/3] rounded-xl overflow-hidden border border-emerald-100 bg-slate-50">
                 <Image
                   src={n.imageUrl}
                   alt={n.title}

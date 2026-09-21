@@ -458,7 +458,8 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
 
   const imageBox = (url: string | null, onClear: () => void, uploading: boolean, onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void) => (
     url ? (
-      <div className="relative w-32 h-32 rounded-none overflow-hidden border border-emerald-100 bg-slate-50">
+      // ★ 第634便: プレビューも公開側と同じ 4:3 で切り取る（どこが切れるか店舗が見て分かるように）
+      <div className="relative w-48 aspect-[4/3] rounded-none overflow-hidden border border-emerald-100 bg-slate-50">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt="新着情報画像" className="w-full h-full object-cover" />
         <button
@@ -471,7 +472,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         </button>
       </div>
     ) : (
-      <label className="flex flex-col items-center justify-center w-32 h-32 rounded-none border-2 border-dashed border-emerald-200 bg-emerald-50/40 text-emerald-500 cursor-pointer hover:bg-emerald-50 transition-colors">
+      <label className="flex flex-col items-center justify-center w-48 aspect-[4/3] rounded-none border-2 border-dashed border-emerald-200 bg-emerald-50/40 text-emerald-500 cursor-pointer hover:bg-emerald-50 transition-colors">
         {uploading ? (
           <span className="text-[10px] font-bold">アップ中...</span>
         ) : (
@@ -551,7 +552,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         </div>
         <div>
           <label className={labelClass}>画像（任意・1枚）</label>
-          <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
+          <p className="text-[10px] text-slate-400 mb-1.5">推奨：1200×900px（横4：縦3）／ JPEG・PNG・WebP・5MB以下（スマホ・PC とも、この比率で表示します）</p>
           {imageBox(
             newForm.image_url,
             () => setNewForm((p) => ({ ...p, image_url: null })),
@@ -732,7 +733,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                       </div>
                       <div>
                         <label className={labelClass}>画像（任意・1枚）</label>
-                        <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
+                        <p className="text-[10px] text-slate-400 mb-1.5">推奨：1200×900px（横4：縦3）／ JPEG・PNG・WebP・5MB以下（スマホ・PC とも、この比率で表示します）</p>
                         {imageBox(
                           form.image_url,
                           () => setForms((prev) => ({ ...prev, [n.id]: { ...prev[n.id], image_url: null } })),
