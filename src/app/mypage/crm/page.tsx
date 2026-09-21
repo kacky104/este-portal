@@ -1009,6 +1009,7 @@ function DetailPanel({
               bookingLabel={`${new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' }).format(new Date(b.slotStartISO))} ${hm(b.slotStartISO)}〜${hm(b.slotEndISO)}`}
               therapistName={therapistName}
               customerName={b.customer?.name || b.customerName}
+              onManualChanged={b.status === 'cancelled' ? undefined : (at) => onChanged({ ...b, consentAt: at })}
             /></dd>
             {/* 入り口（第555便で戻す）：フクエスのネット予約は仮で枠が埋まるので、担当が見分けられるように */}
             <dt className="font-bold text-slate-400">入り口</dt>

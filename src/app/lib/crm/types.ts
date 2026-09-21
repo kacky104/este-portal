@@ -414,6 +414,10 @@ export type CrmConsent = {
   body: string;
   signaturePng: string;
   superseded: boolean;
+  /** 紙でもらって、お店が手動で了承済にしたもの（第639便）。★ サインの画像は無い */
+  manual: boolean;
+  /** 手動の了承を押したのが運営（ADMIN）か */
+  manualByAdmin: boolean;
 };
 
 /** 部屋のバッジの色（第552便）。無い・知らない名前は紺 */
