@@ -25,8 +25,8 @@ export const CRM_ORIGIN = 'https://fukuescrm.com';
 /** フクエス本体（予約ボードなどへ戻るリンク用） */
 export const FUKUES_ORIGIN = 'https://fukues.com';
 
-/** ★★ fukues.com/mypage/crm を fukuescrm.com へ送るか。★ ドメインの接続を確かめてから true にする */
-export const CRM_REDIRECT_FROM_FUKUES = false;
+/** ★★ fukues.com/mypage/crm を fukuescrm.com へ送るか。★ 第632便（2026-09-21）: ドメイン接続・ログイン・画面の移動をカッキーさんが確認して true にした */
+export const CRM_REDIRECT_FROM_FUKUES = true;
 
 /** rewrite しない道 */
 export const CRM_PASS_PREFIXES: readonly string[] = ['/_next', '/api', '/auth'];

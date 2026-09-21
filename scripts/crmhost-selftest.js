@@ -31,7 +31,8 @@ eq('/auth', v.decideCrmRoute('fukuescrm.com', '/auth/callback'), { kind: 'none' 
 eq('★ /apix は通さない', v.decideCrmRoute('fukuescrm.com', '/apix'), { kind: 'rewrite', pathname: '/mypage/crm/apix' });
 
 console.log('── 4. fukues.com からの転送（スイッチ） ──');
-eq('★ 既定（false）は転送しない', v.decideCrmRoute('fukues.com', '/mypage/crm'), { kind: 'none' });
+eq('OFF のときは転送しない', v.decideCrmRoute('fukues.com', '/mypage/crm', '', false), { kind: 'none' });
+eq('★ 既定（true）は転送する', v.decideCrmRoute('fukues.com', '/mypage/crm'), { kind: 'redirect', url: 'https://fukuescrm.com/' });
 eq('ON: トップ', v.decideCrmRoute('fukues.com', '/mypage/crm', '', true), { kind: 'redirect', url: 'https://fukuescrm.com/' });
 eq('ON: 下の画面＋クエリ', v.decideCrmRoute('www.fukues.com', '/mypage/crm/customers', '?customer=3', true), { kind: 'redirect', url: 'https://fukuescrm.com/customers?customer=3' });
 eq('ON: /mypage は転送しない', v.decideCrmRoute('fukues.com', '/mypage', '', true), { kind: 'none' });
