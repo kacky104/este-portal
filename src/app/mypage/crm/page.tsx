@@ -206,6 +206,25 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
 
+  // ★ 帯の「画面を更新」（第641便）：開いている詳細・フォームは閉じて、読み直す。「更新しました」を2秒出す
+  const [refreshedAt, setRefreshedAt] = useState<number | null>(null);
+  useEffect(() => {
+    const onRefresh = (e: Event) => {
+      e.preventDefault();
+      setPicked(null); setForm(null); setMemoEdit(null); setConfirmFor(null); setClosing(false); setWorkFor(null);
+      setErr('');
+      reload();
+      setRefreshedAt(Date.now());
+    };
+    window.addEventListener('crm:refresh', onRefresh);
+    return () => window.removeEventListener('crm:refresh', onRefresh);
+  }, [reload]);
+  useEffect(() => {
+    if (refreshedAt == null) return;
+    const t = setTimeout(() => setRefreshedAt(null), 2000);
+    return () => clearTimeout(t);
+  }, [refreshedAt]);
+
   const baseMs = useMemo(() => new Date(`${date}T00:00:00+09:00`).getTime(), [date]);
 
   // 行と表示範囲
@@ -334,6 +353,9 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       )}
 
       {err && <p className="mb-3 border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">{err}</p>}
+      {refreshedAt != null && (
+        <div className="pointer-events-none fixed left-1/2 top-16 z-[60] -translate-x-1/2 bg-slate-800/90 px-4 py-2 text-[13px] font-bold text-white shadow-lg">更新しました</div>
+      )}
       {!data && !err && <p className="p-6 text-center text-[14px] text-slate-400">読み込み中です…</p>}
 
       {view && (

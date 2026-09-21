@@ -107,6 +107,24 @@ export function CrmShell({
             {/* ★ ON/OFF 運用（9999-12-31＝期限なし）では何も出さない。期限つきのときだけ出す。 */}
             {access.crmUntil && !access.crmUntil.startsWith('9999') ? `ご契約：${access.crmUntil.replaceAll('-', '/')} まで` : ''}
           </span>
+          {/* ★ 画面を更新（第641便・風俗CTIv2 の右上と同じ）。★ スケジュールは読み直すだけ（アラームの音の ON が消えない）。
+              ★ ほかの画面は crm:refresh を受け取る人がいないので、ページごと読み直す。 */}
+          {access.active && (
+            <button
+              type="button"
+              onClick={() => {
+                const ok = window.dispatchEvent(new CustomEvent('crm:refresh', { cancelable: true }));
+                if (ok) window.location.reload();
+              }}
+              className="flex flex-none items-center gap-1 border border-indigo-300/60 px-2 py-1 text-[12px] font-bold text-indigo-100 hover:bg-white/10 md:text-[13px]"
+              title="最新の状態に読み直します"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M21 12a9 9 0 1 1-2.6-6.4" /><path d="M21 3v6h-6" />
+              </svg>
+              <span className="hidden sm:inline">画面を更新</span>
+            </button>
+          )}
         </div>
         {access.active ? (
           <nav className="mt-1 flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] md:mt-2 md:gap-1 md:px-3">
