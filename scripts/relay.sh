@@ -87,7 +87,8 @@ FILE_PATH = "/api/relay/file"
 FILE_MAX_BYTES = 10 * 1024 * 1024   # 駅ちかの画面の注記「10MB 以下」
 FILE_TMP = "/tmp/relay.f"
 MAX_TIME = 30          # 1リクエストの上限（秒）
-BACKOFF_SEC = 1800     # 429/5xx を見たら30分引く
+BACKOFF_SEC = 1800     # 429（多すぎる）を見たら30分引く
+BACKOFF_SEC_5XX = 600  # 5xx（駅ちか側の不調）は10分（第636便・import.sh と揃えた）
 IDLE_SLEEP = 5         # ジョブが無いときの待ち
 
 HDR = "/tmp/relay.h"
@@ -263,10 +264,10 @@ while time.time() < deadline:
     # ★ 相手が「重い」と言ってきたら引く（禁則273）。結果は返したうえで止める。
     if status == 429 or 500 <= status <= 599:
         with open(BACKOFF_FILE, "w") as f:
-            f.write(str(int(time.time()) + BACKOFF_SEC))
+            f.write(str(int(time.time()) + (BACKOFF_SEC if status == 429 else BACKOFF_SEC_5XX)))
         # ★★★★★ 【第256便】目印 [BACKOFF] を入れる。★ import.sh と揃えた（同じことを別の言葉で書かない）。
         #   ★ url は出さない方針のまま（★ ログに宛先の詳細を残さない）。★ 揃えたのは【目印と語順】だけ。
-        log("★★★ [BACKOFF] 開始: relay が 駅ちか の %d を受けた。%d分停止する（解除: rm %s）" % (status, BACKOFF_SEC // 60, BACKOFF_FILE))
+        log("★★★ [BACKOFF] 開始: relay が 駅ちか の %d を受けた。%d分停止する（解除: rm %s）" % (status, (BACKOFF_SEC if status == 429 else BACKOFF_SEC_5XX) // 60, BACKOFF_FILE))
         break
 
 # ★ 生存の記録は「育たない1ファイル」に。ログには何も書かない。
