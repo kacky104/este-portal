@@ -8,7 +8,7 @@ summary: 植物由来の精油をブレンドしたオイルを肌に塗り、�
 description: アロマオイルトリートメントとは、植物由来の精油をブレンドしたオイルを使い、手のひらや前腕で全身をゆっくり流していく施術のこと。施術の流れ、オイルの種類、福岡での料金の目安、初めての方がコースを選ぶときの見方を解説します。
 publishedAt: 2026-09-16
 heroImage: /glossary/aroma-oil-treatment/hero.webp
-heroAlt: 明るい施術室のトレイに、アロマオイルの小瓶が数本と、たたんだ白いタオルが並んでいるところ
+heroAlt: 間接照明をつけた夜の施術室。ダークウッドの壁の部屋で、ベッドに白いリネンが敷かれているところ
 related: [sejutsu-hani, kenzen-ten, lymph-drainage, kami-pants, shower, oil, towel-work, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
