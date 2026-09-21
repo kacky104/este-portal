@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { getCastScheduleDay, type CastScheduleDay } from '@/app/actions/castSchedule';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { getCastScheduleDay, type CastScheduleBooking, type CastScheduleDay } from '@/app/actions/castSchedule';
 import { CRM_NOMINATION_CLASS } from '@/app/lib/crm/types';
 import { addBusinessDays, getBusinessDateJST } from '@/lib/dutyStatus';
 
@@ -10,6 +10,7 @@ import { addBusinessDays, getBusinessDateJST } from '@/lib/dutyStatus';
 // ★ スマホでは枠を画面の左右いっぱいまで広げる（main の px-4 を -mx-4 で打ち消す）。
 // ★ 予約は 時間・指名（本／ﾌﾘｰ／ﾈｯﾄ）・お客様の名前・コース。電話番号・料金・報酬は出さない。
 // ★ 指名のバッジは CRM のスケジュールと同じ色・同じ短い言い方にそろえる（第614便）。
+// ★ 予約（タイムラインの枠・下の一覧）を押すと、その予約の中身をポップアップで出す（第628便）。料金・電話番号は出さない。
 
 const HOUR_W = 64; // 1時間の幅（px）
 const ROW_H = 76;
@@ -37,6 +38,9 @@ export function CastSchedule() {
   const [date, setDate] = useState(today);
   const [res, setRes] = useState<{ date: string; day: CastScheduleDay | null; err: string } | null>(null);
   const [nowMin, setNowMin] = useState<number | null>(null);
+  const [picked, setPicked] = useState<CastScheduleBooking | null>(null);
+  // 日を変えたら開いているポップアップは閉じる
+  const go = (d: string) => { setPicked(null); setDate(d); };
 
   useEffect(() => {
     let alive = true;
@@ -86,13 +90,13 @@ export function CastSchedule() {
   return (
     <section className="-mx-4 bg-white px-2 py-4 shadow-sm ring-1 ring-black/5 sm:mx-0 sm:rounded-2xl sm:p-4">
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setDate(addBusinessDays(date, -1))} className="rounded-full border border-slate-200 px-3 py-1.5 text-[13px] font-bold text-slate-500">◀ 前日</button>
+        <button type="button" onClick={() => go(addBusinessDays(date, -1))} className="rounded-full border border-slate-200 px-3 py-1.5 text-[13px] font-bold text-slate-500">◀ 前日</button>
         <p className="flex-1 text-center text-[16px] font-black text-slate-800">{dayLabel(date)}</p>
-        <button type="button" onClick={() => setDate(addBusinessDays(date, 1))} className="rounded-full border border-slate-200 px-3 py-1.5 text-[13px] font-bold text-slate-500">翌日 ▶</button>
+        <button type="button" onClick={() => go(addBusinessDays(date, 1))} className="rounded-full border border-slate-200 px-3 py-1.5 text-[13px] font-bold text-slate-500">翌日 ▶</button>
       </div>
       {date !== today && (
         <p className="mt-2 text-center">
-          <button type="button" onClick={() => setDate(today)} className="rounded-full bg-pink-50 px-3 py-1 text-[12px] font-bold text-pink-600">今日に戻る</button>
+          <button type="button" onClick={() => go(today)} className="rounded-full bg-pink-50 px-3 py-1 text-[12px] font-bold text-pink-600">今日に戻る</button>
         </p>
       )}
 
@@ -131,9 +135,11 @@ export function CastSchedule() {
                     <div className="absolute top-0 bottom-0 bg-slate-200/70" style={{ left: x(day.breakStartMin), width: x(day.breakEndMin) - x(day.breakStartMin) }} title="休憩" />
                   )}
                   {day.bookings.map((b, i) => (
-                    <div
+                    <button
+                      type="button"
                       key={i}
-                      className="absolute top-1.5 bottom-1.5 overflow-hidden border border-sky-300 bg-sky-50 px-1.5 py-1 text-[11px] leading-tight text-slate-700"
+                      onClick={() => setPicked(b)}
+                      className={`absolute top-1.5 bottom-1.5 overflow-hidden border px-1.5 py-1 text-left text-[11px] leading-tight text-slate-700 hover:ring-2 hover:ring-sky-300 ${b.unconfirmed ? 'border-dashed border-pink-400 bg-pink-50' : 'border-sky-300 bg-sky-50'}`}
                       style={{ left: x(b.startMin) + 1, width: Math.max(x(b.endMin) - x(b.startMin) - 2, 24) }}
                       title={`${hhmm(b.startMin)}〜${hhmm(b.endMin)} ${b.nomination ? `[${b.nomination}] ` : ''}${b.customerName}様 ${b.course}`}
                     >
@@ -143,7 +149,7 @@ export function CastSchedule() {
                         <span className="truncate">{b.customerName ? `${b.customerName}様` : ''}</span>
                       </p>
                       <p className="truncate text-slate-500">{b.course}</p>
-                    </div>
+                    </button>
                   ))}
                   {nowMin != null && nowMin >= axis.start && nowMin <= axis.end && (
                     <div className="absolute top-0 bottom-0 w-[2px] bg-rose-500" style={{ left: x(nowMin) }} />
@@ -159,13 +165,17 @@ export function CastSchedule() {
           ) : (
             <ul className="mt-4 divide-y divide-slate-100">
               {day.bookings.map((b, i) => (
-                <li key={i} className="flex items-baseline gap-3 py-2 text-[14px]">
+                <li key={i}>
+                  <button type="button" onClick={() => setPicked(b)} className="flex w-full items-baseline gap-3 py-2 text-left text-[14px] hover:bg-slate-50">
                   <span className="w-[112px] flex-none font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
                   <span className="min-w-0 flex-1">
                     {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
                     <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
                     <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
+                    {b.unconfirmed && <span className="ml-2 bg-pink-500 px-1 text-[11px] font-bold text-white">未確定</span>}
                   </span>
+                  <span className="flex-none text-[12px] text-slate-300" aria-hidden="true">›</span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -173,6 +183,58 @@ export function CastSchedule() {
           <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
         </>
       )}
+      {picked && day && <BookingPopup b={picked} date={date} room={day.room} onClose={() => setPicked(null)} />}
     </section>
+  );
+}
+
+// 予約のポップアップ（第628便）。★ 出すのは 日時・指名・お客様の名前・コース・延長・オプション・部屋・未確定かどうか・入口。
+// ★ 料金・報酬・電話番号・お店のメモは出さない（サーバーからも来ない）。
+function BookingPopup({ b, date, room, onClose }: { b: CastScheduleBooking; date: string; room: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const rows: Array<[string, ReactNode]> = [
+    ['日時', <>{dayLabel(date)} {hhmm(b.startMin)}〜{hhmm(b.endMin)}</>],
+    ['指名', b.nominationName
+      ? <span className="inline-flex items-center gap-1.5">{b.nomination && <span className={`px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}{b.nominationName}</span>
+      : <span className="text-slate-400">—</span>],
+    ['コース', b.course || <span className="text-slate-400">—</span>],
+  ];
+  if (b.extensions.length > 0) rows.push(['延長', b.extensions.join('・')]);
+  if (b.options.length > 0) rows.push(['オプション', b.options.join('・')]);
+  rows.push(['部屋', room || <span className="text-slate-400">未定</span>]);
+  if (b.fromWeb) rows.push(['受付', 'フクエスのネット予約']);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose} role="presentation">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="予約の内容"
+        className="w-full max-w-sm bg-white p-5 shadow-xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-2">
+          <p className="min-w-0 flex-1 text-[18px] font-black text-slate-800">{b.customerName ? `${b.customerName}様` : 'お客様'}</p>
+          {b.unconfirmed && <span className="mt-1 flex-none bg-pink-500 px-1.5 py-0.5 text-[11px] font-bold text-white">未確定</span>}
+          <button type="button" onClick={onClose} className="-mr-1 -mt-1 flex-none rounded-full px-2 py-1 text-[18px] leading-none text-slate-400 hover:bg-slate-100" aria-label="閉じる">×</button>
+        </div>
+        <dl className="mt-3 divide-y divide-slate-100 text-[14px]">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex gap-3 py-2">
+              <dt className="w-[76px] flex-none text-[12px] font-bold leading-6 text-slate-400">{k}</dt>
+              <dd className="min-w-0 flex-1 font-bold text-slate-700">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {b.unconfirmed && <p className="mt-2 text-[12px] leading-relaxed text-pink-600">お店がまだ確定していない予約です。</p>}
+        <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
+        <button type="button" onClick={onClose} className="mt-3 w-full rounded-full border border-slate-200 py-2.5 text-[14px] font-bold text-slate-600">閉じる</button>
+      </div>
+    </div>
   );
 }

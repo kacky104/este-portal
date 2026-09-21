@@ -4,6 +4,7 @@
 // ★ 第572便の「報酬明細」を置き換えた（報酬はセラピストが記録帳で自分で入れるため・カッキーさんの決定）。
 // ★ 見せるのは、お店が CRM 契約中で、設定「セラピストへの公開」（crm_settings.cast_pay_enabled・列名は第572便のまま）が ON のときだけ。
 // ★ 返すのは本人の行だけ：出勤の時間・休憩・待機場所（部屋）・予約の時間／コース／お客様の名前。
+//   ★ 第628便: ポップアップ用に 指名の名前・延長とオプションの名前・未確定かどうか・ネット予約かどうか を足した（どれも料金なし）。
 //   ★ 電話番号・料金・報酬・お店のメモ・ほかのセラピストの予定は返さない。
 // ★ ログイン中の user_id → therapists.id を確かめてから service_role で読む（castCustomers と同じ流儀・旧 castPay も同じだった）。
 
@@ -21,6 +22,17 @@ export type CastScheduleBooking = {
   customerName: string;
   /** 指名の種類（第614便）：本＝本指名／ﾌﾘｰ＝フリー／ﾈｯﾄ＝ネット指名。お店が指名を入れていない・ほかの指名のときは null */
   nomination: CrmNominationBadge | null;
+  // ── ここから下はポップアップ用（第628便）。★ 料金・報酬・電話番号・お店のメモは返さない ──
+  /** 指名の名前そのまま（「本指名」「ネット指名」、お店が足した指名名も）。無ければ '' */
+  nominationName: string;
+  /** 延長の名前（料金なし） */
+  extensions: string[];
+  /** オプションの名前（料金なし） */
+  options: string[];
+  /** お店がまだ確定していない（CRM の「未確定」＝status 'new'） */
+  unconfirmed: boolean;
+  /** フクエスのネット予約から入った予約 */
+  fromWeb: boolean;
 };
 export type CastScheduleDay = {
   date: string;
@@ -33,17 +45,22 @@ export type CastScheduleDay = {
   bookings: CastScheduleBooking[];
 };
 
-/** 予約の crm_items（jsonb）から指名の行だけ拾う。★ 料金・報酬は読まない（/cast には出さないため） */
-function nominationOf(raw: unknown): CrmNominationBadge | null {
-  if (!Array.isArray(raw)) return null;
-  const items: CrmBookingItem[] = [];
+/** 予約の crm_items（jsonb）から、指名・延長・オプションの【名前だけ】拾う。★ 料金・報酬は読まない（/cast には出さないため） */
+function itemsOf(raw: unknown): { nomination: CrmNominationBadge | null; nominationName: string; extensions: string[]; options: string[] } {
+  const out = { nomination: null as CrmNominationBadge | null, nominationName: '', extensions: [] as string[], options: [] as string[] };
+  if (!Array.isArray(raw)) return out;
+  const noms: CrmBookingItem[] = [];
   for (const r of raw as Record<string, unknown>[]) {
     const kind = String(r?.kind ?? '');
     const name = String(r?.name ?? '').trim();
-    if (kind !== 'nomination' || !name) continue;
-    items.push({ kind: 'nomination', name, minutes: 0, price: 0, pay: 0 });
+    if (!name) continue;
+    if (kind === 'nomination') noms.push({ kind: 'nomination', name, minutes: 0, price: 0, pay: 0 });
+    else if (kind === 'extension') out.extensions.push(name);
+    else if (kind === 'option') out.options.push(name);
   }
-  return nominationBadge(items);
+  out.nomination = nominationBadge(noms);
+  out.nominationName = noms[0]?.name ?? '';
+  return out;
 }
 
 async function me(): Promise<{ svc: Svc; therapistId: number; salonId: number } | null> {
@@ -100,7 +117,7 @@ export async function getCastScheduleDay(
       .eq('therapist_id', m.therapistId).eq('schedule_date', date).eq('is_active', true),
     m.svc.from('crm_work_days').select('room, break_start_min, break_end_min')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).eq('business_date', date).maybeSingle(),
-    m.svc.from('salon_bookings').select('slot_start, slot_end, course_name, customer_name, crm_items')
+    m.svc.from('salon_bookings').select('slot_start, slot_end, course_name, customer_name, crm_items, status, source')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).neq('status', 'cancelled')
       .gte('slot_start', from).lt('slot_start', to).order('slot_start'),
   ]);
@@ -117,12 +134,18 @@ export async function getCastScheduleDay(
   const bookings: CastScheduleBooking[] = (bs ?? []).map((b) => {
     const s = Math.round((new Date(String(b.slot_start)).getTime() - base) / 60000);
     const e = b.slot_end ? Math.round((new Date(String(b.slot_end)).getTime() - base) / 60000) : s + 60;
+    const it = itemsOf(b.crm_items);
     return {
       startMin: s,
       endMin: Math.max(e, s + 10),
       course: String(b.course_name ?? ''),
       customerName: String(b.customer_name ?? ''),
-      nomination: nominationOf(b.crm_items),
+      nomination: it.nomination,
+      nominationName: it.nominationName,
+      extensions: it.extensions,
+      options: it.options,
+      unconfirmed: String(b.status ?? '') === 'new',
+      fromWeb: String(b.source ?? '') === 'web',
     };
   });
 
