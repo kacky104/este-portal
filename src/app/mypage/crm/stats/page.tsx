@@ -141,6 +141,8 @@ function StatsBody({ salonId }: { salonId: number }) {
           <Table title="セラピスト別" rows={st.byTherapist} color="#3f51b5" />
           <Table title="日別" rows={st.byDay} color="#0891b2" note="締めていない日も入ります（日報タブは締めた日だけ）" />
           <Table title="時間帯別（開始の時刻）" rows={st.byHour} color="#059669" />
+          <Table title="指名別" rows={st.byNomination} color="#DB2777" note="料金表の「指名」で選んだ項目で分けています（かんたん受付で入れた予約は「指名なし」）" />
+          <Table title="新規／リピート（本数）" rows={st.byNewRepeat} color="#7C3AED" note="その人の初めての1本＝新規、2本目から＝リピート（前の月までの利用も見ます）" />
         </>
       )}
     </div>

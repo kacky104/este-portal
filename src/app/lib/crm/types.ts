@@ -256,6 +256,10 @@ export type CrmMonthStats = {
   byTherapist: CrmStatRow[];  // key=therapistId か 'free'
   bySource: CrmStatRow[];     // key=web / manual
   byHour: CrmStatRow[];       // key=開始の時（6〜29）
+  /** 指名別（第644便）：key=hon / net / free / other / none */
+  byNomination: CrmStatRow[];
+  /** 新規／リピート（本数・第644便）：key=new / repeat / notel */
+  byNewRepeat: CrmStatRow[];
 };
 
 // ── プレイ状況・指名のバッジ（第544便）────────────────

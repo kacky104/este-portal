@@ -46,6 +46,7 @@ import {
   CRM_TOGGLE_OPTION_MAX,
   CRM_TOGGLE_OPTION_LEN,
   isUnreceived,
+  nominationBadge,
   CRM_MONEY_CATEGORIES,
   CRM_MONEY_DIRECTIONS,
   type CrmMoneyCategory,
@@ -1221,7 +1222,7 @@ export async function getCrmMonthStats(
 
   const { data: rows, error } = await svc
     .from('salon_bookings')
-    .select('slot_start, therapist_id, status, cancel_bad, price_total, pay_total, source, customer_id')
+    .select('slot_start, therapist_id, status, cancel_bad, price_total, pay_total, source, customer_id, crm_items')
     .eq('salon_id', salonId)
     .gte('slot_start', new Date(startMs).toISOString())
     .lt('slot_start', new Date(endMs).toISOString())
@@ -1244,7 +1245,7 @@ export async function getCrmMonthStats(
   }
 
   type Row = import('@/app/lib/crm/types').CrmStatRow;
-  const maps = { day: new Map<string, Row>(), th: new Map<string, Row>(), src: new Map<string, Row>(), hour: new Map<string, Row>() };
+  const maps = { day: new Map<string, Row>(), th: new Map<string, Row>(), src: new Map<string, Row>(), hour: new Map<string, Row>(), nom: new Map<string, Row>(), nr: new Map<string, Row>() };
   const bump = (map: Map<string, Row>, key: string, label: string, b: { cancelled: boolean; price: number; pay: number }) => {
     const r = map.get(key) ?? { key, label, count: 0, cancels: 0, sales: 0, pay: 0 };
     if (b.cancelled) r.cancels += 1;
@@ -1277,6 +1278,11 @@ export async function getCrmMonthStats(
     const sk = String(b.source ?? '') === 'web' ? 'web' : 'manual';
     bump(maps.src, sk, sk === 'web' ? 'ネット予約（フクエス）' : '予約ボード・CRM（電話など）', v);
     bump(maps.hour, String(hour), hour >= 24 ? `翌${hour - 24}時台` : `${hour}時台`, v);
+    // ★ 指名別（第644便）：料金表の「指名」の項目の名前で分ける（本／ネット／フリー／その他の指名／指名なし）
+    const nomItem = parseItems(b.crm_items).find((i) => i.kind === 'nomination');
+    const nb = nomItem ? nominationBadge([nomItem]) : null;
+    const nk = !nomItem ? 'none' : nb === '本' ? 'hon' : nb === 'ﾈｯﾄ' ? 'net' : nb === 'ﾌﾘｰ' ? 'free' : 'other';
+    bump(maps.nom, nk, { hon: '本指名', net: 'ネット指名', free: 'フリー', other: 'その他の指名', none: '指名なし（料金表で選んでいない）' }[nk], v);
   }
 
   // 新規／リピート（人数）：その月より前に利用（キャンセル以外）があればリピート
@@ -1296,6 +1302,22 @@ export async function getCrmMonthStats(
     const cnt = new Map<number, number>();
     custInMonth.forEach((c) => cnt.set(c, (cnt.get(c) ?? 0) + 1));
     repeatPeople = people.filter((p) => before.has(p) || (cnt.get(p) ?? 0) >= 2).length;
+    // ★ 新規／リピート（本数・第644便）：その人の初回（その月より前に利用が無く、月の中で最初の1本）＝新規、2本目からリピート
+    const seen = new Set<number>();
+    for (const b of list) {
+      const cancelled = b.status === 'cancelled';
+      const v = { cancelled, price: Number(b.price_total) || 0, pay: Number(b.pay_total) || 0 };
+      if (b.customer_id == null) { bump(maps.nr, 'notel', '電話番号なし（分けられない）', v); continue; }
+      const cid = Number(b.customer_id);
+      const isNew = !before.has(cid) && !seen.has(cid);
+      if (!cancelled) seen.add(cid);
+      bump(maps.nr, isNew ? 'new' : 'repeat', isNew ? '新規' : 'リピート', v);
+    }
+  } else {
+    for (const b of list) {
+      if (b.customer_id != null) continue;
+      bump(maps.nr, 'notel', '電話番号なし（分けられない）', { cancelled: b.status === 'cancelled', price: Number(b.price_total) || 0, pay: Number(b.pay_total) || 0 });
+    }
   }
 
   const sortSales = (a: Row, b: Row) => b.sales - a.sales || b.count - a.count;
@@ -1309,6 +1331,8 @@ export async function getCrmMonthStats(
       byTherapist: [...maps.th.values()].sort(sortSales),
       bySource: [...maps.src.values()].sort(sortSales),
       byHour: [...maps.hour.values()].sort((a, b) => Number(a.key) - Number(b.key)),
+      byNomination: ['hon', 'net', 'free', 'other', 'none'].map((k) => maps.nom.get(k)).filter((r): r is Row => !!r),
+      byNewRepeat: ['new', 'repeat', 'notel'].map((k) => maps.nr.get(k)).filter((r): r is Row => !!r),
     },
   };
 }
