@@ -37,7 +37,7 @@ const STATUS_BADGE = {
 export { card as guideCard, SectionTitle, GoLink };
 
 export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideContent } = {}) {
-  const { link } = useMediaBrand();
+  const { link, isConecf } = useMediaBrand();
   const c = content;
   return (
     <div className="space-y-4">
@@ -90,7 +90,8 @@ export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideCon
             </div>
           ))}
         </div>
-        <GoLink href={link('matrix')}>反映の早見表（何が・どれくらいで反映されるか）</GoLink>
+        {/* ★ 第671便: 早見表はフクエスリンクの並びから外した（書き込みの表のため）。★ コネックエフだけ出す */}
+        {isConecf && <GoLink href={link('matrix')}>反映の早見表（何が・どれくらいで反映されるか）</GoLink>}
       </section>
 
       {/* ── 3つの設定 ── ★ 第396便: 中身が空なら節ごと出さない（コネックエフには向きの選択が無い） */}
