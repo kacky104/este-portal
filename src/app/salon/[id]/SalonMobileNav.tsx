@@ -29,7 +29,7 @@ export type SalonNavItem = {
   /**
    * ★ 「今すぐ」だけ: ここに店舗IDが入っていると、ドロワーを開いたときに
    *   【その場の時刻で】人数を数えて数字を出す（★ サーバーでは数えない）。
-   *   ★ 今すぐは30分で自動的に消えるため、ISRに焼くと古い人数が残るから（ImasuguCountBadge と同じ考え方）。
+   *   ★ 今すぐは45分（IMASUGU_WINDOW_MIN）で自動的に消えるため、ISRに焼くと古い人数が残るから（ImasuguCountBadge と同じ考え方）。
    */
   liveImasuguSalonId?: number;
 };

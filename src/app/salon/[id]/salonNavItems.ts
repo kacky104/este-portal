@@ -24,7 +24,7 @@ export function buildSalonNavItems(salonId: number, c: SalonNavCounts): SalonNav
   return [
     { key: 'schedule', label: '週間スケジュール', href: `/salon/${id}/schedule`, count: c.onDutyCount },
     // ★ 2026-09-09（第225便）: 「今すぐ」にも数字を出す。★ ただし人数はサーバーで数えない。
-    //   ★ 今すぐは時刻で自動的に消える（30分）ので、ISRに焼くと古い人数が残る。
+    //   ★ 今すぐは時刻で自動的に消える（45分・IMASUGU_WINDOW_MIN）ので、ISRに焼くと古い人数が残る。
     //   ★ liveImasuguSalonId を渡し、ドロワー側（クライアント）がその場の時刻で数える。
     { key: 'imasugu', label: '今すぐ', href: `/salon/${id}/imasugu`, liveImasuguSalonId: id },
     { key: 'diary', label: '写メ日記', href: `/salon/${id}/diary`, count: c.diaryRecentCount },

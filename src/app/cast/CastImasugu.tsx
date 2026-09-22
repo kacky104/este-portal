@@ -1,7 +1,7 @@
 'use client';
 
 // /cast「今すぐ」タブ：セラピスト本人がキャスト専用枠（is_available_now_cast / available_until_cast）を
-// 自分で ON/OFF する。ON で30分有効・自動失効。判定はマウント時＋1分ごとの現在時刻で行う（ISR焼き付き回避）。
+// 自分で ON/OFF する。ON で IMASUGU_WINDOW_MIN 分有効（第326便で45分）・自動失効。判定はマウント時＋1分ごとの現在時刻で行う（ISR焼き付き回避）。
 // このタブが【操作する】のはキャスト枠のみ。
 // ★ オーナー枠は排他制御にだけ使う（お店が設定中は本人が操作できない）。
 // ★ 取り込み枠（駅ちかの即ヒメ）は【表示だけ】。排他制御には混ぜない（第40便の決定）。
@@ -10,7 +10,7 @@
 import { CastCardTitle } from './CastCardTitle';
 import { useEffect, useState } from 'react';
 import { setCastImasugu } from '@/app/actions/castImasugu';
-import { isFrameLive } from '@/lib/imasugu';
+import { isFrameLive, IMASUGU_WINDOW_MIN } from '@/lib/imasugu';
 import { getScheduleStatus } from '@/app/components/TherapistScroller';
 
 type TodaySchedule = { is_active: boolean; start_time: string | null; end_time: string | null };
@@ -177,7 +177,8 @@ export function CastImasugu({
       )}
 
       <p className="text-[11px] text-slate-400 leading-relaxed">
-        「今すぐ受付中」にすると、30分間サイトに「今すぐ」と表示されます。30分後に自動で解除されます。
+        {/* ★ 第650便: 分数は IMASUGU_WINDOW_MIN から出す（★ 30分のまま残っていた・第326便で45分に変えた値と揃える） */}
+        「今すぐ受付中」にすると、{IMASUGU_WINDOW_MIN}分間サイトに「今すぐ」と表示されます。{IMASUGU_WINDOW_MIN}分後に自動で解除されます。
       </p>
     </div>
   );

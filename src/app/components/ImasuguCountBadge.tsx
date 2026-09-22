@@ -6,7 +6,7 @@ import { isImasuguLiveRow } from '@/lib/imasugu';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 // サロン詳細の「今すぐ」件数ハートバッジ。
-// 「今すぐ」は is_available_now=true かつ available_until が未来か、という時刻ベース判定（30分で自動失効）。
+// 「今すぐ」は is_available_now=true かつ available_until が未来か、という時刻ベース判定（IMASUGU_WINDOW_MIN＝45分で自動失効）。
 // この判定をサーバー（ISRキャッシュ対象）で行うと生成時刻が焼き付いてズレるため、
 // トップの TherapistScroller と同様にクライアント側でマウント時の現在時刻で判定する。
 export function ImasuguCountBadge({ salonId, fill, num }: { salonId: number; fill: string; num: string }) {
