@@ -2841,7 +2841,7 @@ export default function MyPage() {
         pc={pc}
         href={hpNav.href}
         // ★ 第674便: 画像を差し替えたら【ファイル名を変える】（同じ名前だとブラウザや配信の一時保存で古い絵が出続けた）
-        src="/mypage/sidebar/hp-v4.webp"
+        src="/mypage/sidebar/hp-v5.webp"
         alt="フクエスサイト　公式ホームページを無料で作成"
         disabledLabel="準備中"
       />
@@ -2872,20 +2872,14 @@ export default function MyPage() {
   //   ★ 全店舗に出す。★ 未契約の店には /mypage/crm 側で「有料機能のご案内」を出す（★ 中身は見せない）。
   //   ★ 関数名は差し替えの手間を減らすため renderCrmSoon のまま。
   //   ★ 第631便: fukues.com からの転送を ON にしたら、入口も fukuescrm.com へ直接飛ばす（lib/crmHost.ts のスイッチ）。
+  //   ★ 第679便（2026-09-23・カッキーさんの指示）: 文字リンクを画像バナーに（./SidebarBanner.tsx）。行き先・別タブは今までどおり。
   const renderCrmSoon = (pc: boolean) => (
-    <Link
+    <SidebarBanner
+      pc={pc}
       href={CRM_REDIRECT_FROM_FUKUES ? CRM_ORIGIN : '/mypage/crm'}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={
-        pc
-          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
-      }
-    >
-      {tabIcon('crm')}
-      フクエスCRM（顧客台帳）
-    </Link>
+      src="/mypage/sidebar/crm.webp"
+      alt="フクエスCRM　顧客管理、セラピスト管理を効率化"
+    />
   );
 
   // ★★ 「今すぐ」のリロード・保存（2026-09-06 第185便・カッキーさんの指示）。
