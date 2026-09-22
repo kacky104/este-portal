@@ -2938,7 +2938,7 @@ export default function MyPage() {
     <SidebarBanner
       pc={pc}
       href={conecfOn ? CONECF_ORIGIN : '/mypage/conecf'}
-      src="/mypage/sidebar/conecf.webp"
+      src="/mypage/sidebar/conecf-v2.webp"
       alt="コネックエフ　日常作業を効率化・媒体連携"
     />
   );
@@ -2949,7 +2949,7 @@ export default function MyPage() {
     <SidebarBanner
       pc={pc}
       href="/mypage/media"
-      src="/mypage/sidebar/link.webp"
+      src="/mypage/sidebar/link-v2.webp"
       alt="フクエスリンク　フクエスを自動で更新"
     />
   );
