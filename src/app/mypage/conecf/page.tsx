@@ -1,113 +1,67 @@
-// コネックエフのご案内（第667便・2026-09-22・カッキーさんの指示）。
+// コネックエフのご案内（第667便で作成・第673便で画像に差し替え・2026-09-22・カッキーさんの指示）。
 // ★ マイページのサイドバーの「コネックエフ」バナーから、まだ切り替えていないお店が開く説明ページ。読んだあと「始める」で conecf.com へ。
 // ★ 切り替え済みのお店はバナーから直接 conecf.com へ行く（page.tsx の renderConecfLink）。★ ここはログインだけで開ける（中身は全店同じ）。
-// ★★ 位置づけ（カッキーさんの決定 2026-09-22）: 書き込み・一元管理＝コネックエフ。駅ちかから読むだけ＝フクエスリンクの取り込み（残す）。
-//   ★ 1つのお店はどちらか一方（★ コネックエフに切り替えると駅ちかからの取り込みは止まる・第400便）。
-// ★ できることの一覧は lib/conecfGuide.ts が正（★ ここで別に書かない）。
+// ★★ 第673便: 本文5ブロックを、カッキーさん作成の画像（指示書 README-implementation.md）に差し替えた。
+//   ★ PC は横1200px の画像、スマホ（640px以下）は縦長の画像（<picture> で出し分け）。置き場所は public/mypage/conecf/。
+//   ★ 画像の中の文章は alt に要点を書く（★ 画面読み上げ・検索のため）。★ ボタン2つは画像にせず HTML のまま（押せるように）。
+//   ★ 画像の中身を変えたら alt も直すこと（★ 食い違わせない）。
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { CONECF_GUIDE } from '@/lib/conecfGuide';
 import { CONECF_ORIGIN } from '@/lib/conecfHost';
 
 export const metadata: Metadata = { title: 'コネックエフのご案内｜フクエス マイページ' };
 
-const CARD = 'bg-white border border-slate-200 shadow-sm p-5 sm:p-6';
-const H2 = 'text-[17px] sm:text-[18px] font-black text-slate-800 mb-3 flex items-center gap-2';
-const BAR = 'inline-block w-1 h-5 bg-[#1e3a8a]';
+const BLOCKS: ReadonlyArray<{ name: string; alt: string }> = [
+  {
+    name: '01-conecf-overview',
+    alt: 'コネックエフのサービス概要。コネックエフに入力した出勤やセラピストの情報を、フクエス・駅ちか・エステ魂などへまとめて更新するツールです。サイトごとの再入力を削減、入力は1か所だけ、更新結果を確認できる、契約店舗様は無料。',
+  },
+  {
+    name: '02-conecf-supported-sites',
+    alt: 'コネックエフでまとめて更新できるサイト。フクエス：出勤7日分・写メ日記・今すぐ・セラピストの新規登録・プロフィール写真の更新・セラピストの削除・お知らせとフクエスワーク新着情報の自動投稿。駅ちか：出勤7日分・写メ日記・即ヒメ・セラピストの新規登録・プロフィール写真の更新・セラピストの削除・新着情報とココア店長ブログの自動投稿。エステ魂：出勤7日分・写メ日記・即セラ・セラピストの新規登録・プロフィール写真の更新・セラピストの非表示。全国エステランキングは準備中。エステラブは写メ日記。',
+  },
+  {
+    name: '03-conecf-comparison',
+    alt: 'コネックエフとフクエスリンク（駅ちかからの取り込み）の違い。入力する場所：コネックエフはコネックエフだけ、フクエスリンクは今までどおり駅ちか（またはお使いのツール）。情報の向き：コネックエフからフクエス・駅ちか・エステ魂など／駅ちかからフクエス（読むだけ）。向いているお店：入力を1か所にまとめて手間を減らしたいお店／駅ちかの入力のしかたを変えたくないお店。どちらか一方をお選びください。コネックエフに切り替えると駅ちかからの取り込みは止まります。',
+  },
+  {
+    name: '04-conecf-notes',
+    alt: 'コネックエフを始める前の注意事項。ほかの連携ツール（ベンリーなど）をお使いの場合は、そちらのフクエス・駅ちか・エステ魂との連携を外してからお使いください。同じサイトに2つのツールから書き込むと上書きし合います。フクエス契約店舗様は無料でお使いいただけます。コネックエフをやめて取り込みに戻したいときは、運営事務局へご連絡ください。',
+  },
+  {
+    name: '05-conecf-start-guide',
+    alt: 'コネックエフの始め方。1、下の「コネックエフを始める」を押してコネックエフを開きます。2、フクエスと同じメールアドレス・パスワードでログインします。3、ホームの「コネックエフに切り替える」を押します。4、「駅ちかから最初に1回だけ取り込む」で今のセラピストと出勤をコネックエフに入れます。5、「ID・PASS登録」で駅ちか・エステ魂などのログイン情報を登録します。',
+  },
+];
 
 export default function ConecfIntroPage() {
-  const sites = CONECF_GUIDE.sites.filter((s) => s.status === 'ok');
   return (
     <main className="min-h-screen bg-slate-50 py-6 sm:py-10 px-4">
-      <div className="max-w-3xl mx-auto space-y-5">
+      <div className="max-w-3xl mx-auto">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/mypage/sidebar/conecf-intro.webp" alt="コネックエフ　日常作業を効率化・媒体連携" width={1200} height={400} className="block w-full h-auto border border-slate-200" />
+        <img src="/mypage/sidebar/conecf-intro.webp" alt="コネックエフ　日常作業を効率化・媒体連携" width={1200} height={400} className="block w-full h-auto border border-slate-200 mb-6" />
 
-        <section className={CARD}>
-          <h1 className="text-[20px] sm:text-[22px] font-black text-slate-800">{CONECF_GUIDE.intro.title}</h1>
-          <p className="mt-2 text-[15px] text-slate-600 leading-relaxed">{CONECF_GUIDE.intro.lead}</p>
-          <ul className="mt-4 space-y-2">
-            {CONECF_GUIDE.intro.points.map((p) => (
-              <li key={p} className="flex gap-2 text-[14.5px] text-slate-700 leading-relaxed">
-                <span className="text-[#1e3a8a] font-black">✓</span>{p}
-              </li>
-            ))}
-          </ul>
-        </section>
+        {BLOCKS.map((b, i) => (
+          <picture key={b.name}>
+            <source media="(max-width: 640px)" srcSet={`/mypage/conecf/${b.name}-sp.webp`} />
+            <img
+              src={`/mypage/conecf/${b.name}-pc.webp`}
+              alt={b.alt}
+              width={1200}
+              height={b.name.startsWith('02') ? 930 : b.name.startsWith('04') ? 560 : b.name.startsWith('05') ? 830 : 650}
+              loading={i === 0 ? 'eager' : 'lazy'}
+              className="block w-full h-auto mx-auto mb-6"
+            />
+          </picture>
+        ))}
 
-        <section className={CARD}>
-          <h2 className={H2}><span className={BAR} />まとめて更新できるサイト</h2>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {sites.map((s) => (
-              <div key={s.name} className="border border-slate-200 p-3">
-                <p className="text-[15px] font-black text-[#1e3a8a]">{s.name}</p>
-                <ul className="mt-1.5 space-y-0.5">
-                  {s.items.map((it) => <li key={it} className="text-[13px] text-slate-600">・{it}</li>)}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* ★ 画像の「はじめての方へ」を押せる形でも置く（★ 画像の文字は押せないため） */}
+        <p className="-mt-2 mb-6 text-center text-[13.5px] text-slate-500">
+          くわしい使い方は、コネックエフの<a href={`${CONECF_ORIGIN}/guide`} target="_blank" rel="noopener noreferrer" className="underline font-bold text-[#1d4ed8]">はじめての方へ</a>にもまとめています。
+        </p>
 
-        <section className={CARD}>
-          <h2 className={H2}><span className={BAR} />フクエスリンク（駅ちかからの取り込み）との違い</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] border-collapse text-[14px]">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 text-[13px]">
-                  <th className="border border-slate-200 px-3 py-2 text-left w-[28%]"></th>
-                  <th className="border border-slate-200 px-3 py-2 text-left text-[#1e3a8a]">コネックエフ</th>
-                  <th className="border border-slate-200 px-3 py-2 text-left">フクエスリンク（取り込み）</th>
-                </tr>
-              </thead>
-              <tbody className="text-slate-700">
-                <tr>
-                  <th className="border border-slate-200 px-3 py-2 text-left font-bold bg-slate-50">入力する場所</th>
-                  <td className="border border-slate-200 px-3 py-2">コネックエフだけ</td>
-                  <td className="border border-slate-200 px-3 py-2">今までどおり駅ちか（またはお使いのツール）</td>
-                </tr>
-                <tr>
-                  <th className="border border-slate-200 px-3 py-2 text-left font-bold bg-slate-50">情報の向き</th>
-                  <td className="border border-slate-200 px-3 py-2">コネックエフ → フクエス・駅ちか・エステ魂 など</td>
-                  <td className="border border-slate-200 px-3 py-2">駅ちか → フクエス（読むだけ）</td>
-                </tr>
-                <tr>
-                  <th className="border border-slate-200 px-3 py-2 text-left font-bold bg-slate-50">向いているお店</th>
-                  <td className="border border-slate-200 px-3 py-2">入力を1か所にまとめて、手間を減らしたいお店</td>
-                  <td className="border border-slate-200 px-3 py-2">駅ちかの入力のしかたを変えたくないお店</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-3 text-[13.5px] text-slate-500 leading-relaxed">
-            どちらか一方をお選びください。コネックエフに切り替えると、駅ちかからの取り込みは止まります（両方を使うと、情報が上書きし合うためです）。
-          </p>
-        </section>
-
-        <section className={CARD}>
-          <h2 className={H2}><span className={BAR} />始める前にご確認ください</h2>
-          <ul className="space-y-2 text-[14.5px] text-slate-700 leading-relaxed">
-            <li>・ほかの連携ツール（ベンリーなど）をお使いの場合は、<b>そちらのフクエス・駅ちか・エステ魂との連携を外してから</b>お使いください。同じサイトに2つのツールから書き込むと、上書きし合います。</li>
-            <li>・フクエス契約店舗様は無料でお使いいただけます。</li>
-            <li>・コネックエフをやめて取り込みに戻したいときは、運営事務局へご連絡ください。</li>
-          </ul>
-        </section>
-
-        <section className={CARD}>
-          <h2 className={H2}><span className={BAR} />始め方</h2>
-          <ol className="space-y-2.5 text-[14.5px] text-slate-700 leading-relaxed">
-            <li><b className="text-[#1e3a8a]">1.</b> 下の「コネックエフを始める」を押して、コネックエフを開きます。</li>
-            <li><b className="text-[#1e3a8a]">2.</b> フクエスと同じメールアドレス・パスワードでログインします。</li>
-            <li><b className="text-[#1e3a8a]">3.</b> ホームの「コネックエフに切り替える」を押します。</li>
-            <li><b className="text-[#1e3a8a]">4.</b> 「駅ちかから最初に1回だけ取り込む」で、今のセラピストと出勤をコネックエフに入れます。</li>
-            <li><b className="text-[#1e3a8a]">5.</b> 「ID・PASS登録」で、駅ちか・エステ魂などのログイン情報を登録します。</li>
-          </ol>
-          <p className="mt-3 text-[13.5px] text-slate-500">
-            くわしい使い方は、コネックエフの<a href={`${CONECF_ORIGIN}/guide`} target="_blank" rel="noopener noreferrer" className="underline font-bold text-[#1e3a8a]">はじめての方へ</a>にもまとめています。
-          </p>
-        </section>
-
+        {/* ★ ボタンは画像にしない（指示書）。★ PC は横並び・スマホは縦並び */}
         <div className="flex flex-col sm:flex-row gap-3 pb-6">
           <a
             href={CONECF_ORIGIN}
@@ -115,7 +69,7 @@ export default function ConecfIntroPage() {
           >
             コネックエフを始める
           </a>
-          <Link href="/mypage" className="sm:w-48 text-center py-4 border border-slate-300 bg-white text-[15px] font-bold text-slate-600 hover:bg-slate-50">
+          <Link href="/mypage" className="sm:w-56 text-center py-4 border-2 border-[#2563eb] bg-white text-[15px] font-bold text-[#1d4ed8] hover:bg-blue-50">
             マイページへ戻る
           </Link>
         </div>
