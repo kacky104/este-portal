@@ -4,15 +4,15 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode, setAllLinkModes } from '@/app/actions/mediaCredentials';
 import {
-  switchChoices, switchDoneText, switchAskText, homeHeadline, isReadingElsewhere, readingElsewhereLabel, offRowNote,
-  isWritingElsewhere, writingElsewhereLabels, readBlockedNote, doubleWriteNote,
-  sendOnlyChoiceNote, canReadProvider,
+  switchChoices, switchDoneText, switchAskText, homeHeadline, isReadingElsewhere,
+  isWritingElsewhere, writingElsewhereLabels, readBlockedNote,
+  canReadProvider,
   bulkPlan, bulkAskText, bulkDoneText, bulkLabel, readLinkLabel,
   autoOffWorkSites, autoOffNoticeText,
   type SiteDirection, type SwitchChoice, type BulkTarget,
 } from '@/lib/mediaOverview';
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
-import { CONSENT_RECHECK_BADGE, consentRecheckNotice } from '@/lib/mediaConsent';
+import { consentRecheckNotice } from '@/lib/mediaConsent';
 // ★ 反映の早見表（第212便〜第298便）は第299便で別ページ（/mypage/media/matrix・MatrixBoard.tsx）へ移した。
 //   ★ ここには何も残さない（左サイドバーに行き先があるので、同じ行き先を二度並べない・第117便と同じ理由）。
 
@@ -96,27 +96,7 @@ const LIVE_BLINK = 'link-live-kirari';
  */
 const LIVE_BLINK_STYLE = { '--lk-duration': '3s' } as React.CSSProperties;
 
-/**
- * ★★ 行の右端に並ぶ小さな札・ボタンの【寸法】（第296便・2026-09-12・カッキーさんの指示）。
- *   ★ 「駅ちかから反映中」（状態の札）と「反映しない」（ボタン）と「反映なし」（状態の札）が
- *     ばらばらの高さ・幅だった。★ 寸法だけここに置いて、全部に同じものを付ける。
- *   ★ 高さは 34px で揃える。★ 幅は 112px を下限にする（★ 「反映なし」と「反映しない」が同じ幅になる）。
- *   ★ 中身は縦横とも中央。★ 色は各所のまま（★ ここは寸法だけを持つ）。
- */
-// ★★★★ 第345便（2026-09-13・カッキーさん）: 幅を 112px → 144px に広げた。
-//   ★ 状態の札とボタンは同じ幅で揃える約束だが、「フクエスから反映中」（9文字）が 112px に収まらず、
-//     その行だけ右へずれて、駅ちかとエステ魂で列が揃っていなかった。
-//   ★ 9文字（13px）＋左右の余白（px-3）で約 141px。★ 144px なら、よく出る札とボタンが全部入る。
-//   ★★ min- なので、これより長い名前（全国エステランキングから反映 等）は今までどおり伸びる。
-const ROW_CHIP = 'flex-none inline-flex items-center justify-center text-center text-[13px] font-bold px-3 min-h-[34px] min-w-[144px] border';
-
-const PILL: Record<string, string> = {
-  read: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  write: 'bg-sky-50 text-sky-700 border-sky-200',
-  // ★ off は【選んだ結果】。★ 未設定の灰色と分ける（第87便）
-  off: 'bg-slate-100 text-slate-600 border-slate-300',
-  unset: 'bg-white text-slate-400 border-slate-200',
-};
+// ★ 行の札・ボタンの寸法（ROW_CHIP・PILL）は第682便でサイトごとの行と一緒に外した。
 
 // ★ 用事のタイル（Tile / TileIcon）は第117便で外した。★ 左サイドバーと同じ行き先が二度並んでいたため
 
@@ -384,179 +364,30 @@ export function MediaHome({ salonId, onToast }: {
           );
         })()}
 
-        {/* ★★★ 見出し・ログイン情報のリンク・サイト名・最後の読み取り・いまの状態の印を外した
-            （第90便・カッキーさん）。★ すぐ上のブロックに同じことが書いてあり、二度読ませていた。
-            ★ ログイン情報へは左の並びから行ける。
-          ★★★ 第192便: 行はサイトごとの【名前・状態・個別の「反映しない」】だけにした。
-            ★ 読める媒体の大きなボタン（read / write）は上の3つの設定へ移した。★ 止める道は行に必ず残す（第111便）。 */}
-        {loading ? (
-          <p className="text-[14px] text-slate-400">読み込み中…</p>
-        ) : sites.length === 0 ? (
-          <p className="text-[14px] text-slate-400">まだ登録されていません。</p>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {sites.map((s) => {
-              // ★ 自動で反映しているあいだは変えさせない。★ 先に自動をやめてもらう。
-              // ★★ 第111便: provider を渡す。★ 書くだけのサイトには 'read' を出さない
-              // ★★★ ほかの媒体が正本のあいだは 'write' を出さない（第127便）。
-              // ★★★ 逆側（第190便）: ほかの媒体へフクエスから反映しているあいだは 'read' を出さない
-              const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
-              const me = { provider: s.provider, slot: s.slot };
-              const elsewhere = isReadingElsewhere(others, me);
-              const writingElsewhere = isWritingElsewhere(others, me);
-              // ★★★★ 第343便: 自動中でも【止める道】を残す。★ !s.autoOn を外した。
-              //   ★ 自動にしたとたん「反映しない」も消えていた。★ 第111便で塞いだ穴と同じ形になっていた。
-              const all = s.canSwitch
-                ? switchChoices(s.direction as SiteDirection, s.label, s.provider, elsewhere, writingElsewhere)
-                : [];
-              // ★★★ 第192便: 読める媒体（駅ちか）の行には【個別の「反映しない」】だけを出していた。
-              //   ★ read / write へは上の3つの設定（一括ボタン・小リンク）から入る。★ 同じボタンを2か所に出さない。
-              // ★★★★ 【第347便】（2026-09-13・カッキーさん）: **どの媒体も「反映しない」だけ**に揃えた。
-              //   ★ それまで書くだけの媒体（エステ魂）だけ行に「フクエスから反映」が出ていて、駅ちかの行と読み方が違った。
-              //     ★ 第346便で列を意味の順に揃えたら、その差が悪目立ちした（★ 駅ちかだけ左の列が空）。
-              //   ★★ これで画面の作りが1つに揃う:
-              //     上の大きいボタン2つ … 全サイトまとめての向き
-              //     上の小リンク       … 駅ちかから反映（★ 駅ちかにしかない道）
-              //     行                 … その枠だけ止める
-              //   ★★★ 第111便の「止める道は必ず残す」は守っている（★ 'none' は出し続ける）。
-              //   ★ 失うのは「1つの媒体だけを1手で write にする」道。★ 大きいボタン → その枠を「反映しない」の2手になる。
-              //     ★ 大きいボタンで write にしても【自動ではない】（毎回承認）ので、途中で勝手に反映されることはない。
-              const choices = all.filter((c) => c.mode === 'none');
-              // ★★★ 禁止の組み合わせが【既にできている】か（第190便）。★ write の行で、ほかが正本のとき
-              const dbl = s.direction === 'write' ? doubleWriteNote(s.label, readingElsewhereLabel(others, me)) : null;
-
-              // ★★★★ 【第346便】（2026-09-13・カッキーさん）: 右側の並びを【意味の順】に固定した。
-              //   ★ それまでは「いまの状態の札 → 選ぶボタン」の順だったので、行によって同じ列に
-              //     違う意味のものが来ていた:
-              //       駅ちか   … [フクエスから反映中]（状態） [反映しない]（ボタン）
-              //       エステ魂 … [反映なし]（状態）           [フクエスから反映]（ボタン）
-              //     ★ 左の列が「フクエスから反映」だったり「反映なし」だったりして、目が迷う。
-              //   ★★ 直し方: 列を read → write → none の順に固定し、その列が
-              //     【いまの状態なら札】【選べるならボタン】【どちらでもなければ空】にする。
-              //       駅ちか   … [フクエスから反映中]（状態） [反映しない]（ボタン）
-              //       エステ魂 … [フクエスから反映]（ボタン） [反映なし]（状態）
-              //     ★ どの行でも「フクエスから反映」は同じ列、「反映しない」は同じ列に来る。
-              //   ★ 未設定など、どの列にも状態が入らないときは、これまでどおり先頭に札を出す。
-              const dirMode: 'read' | 'write' | 'none' | null =
-                s.direction === 'read' ? 'read'
-                : s.direction === 'write' ? 'write'
-                : s.direction === 'off' ? 'none'
-                : null;
-              const cells = (['read', 'write', 'none'] as const)
-                .map((m) => {
-                  if (dirMode === m) return { kind: 'state' as const, mode: m };
-                  const c = choices.find((x) => x.mode === m);
-                  return c ? { kind: 'choice' as const, mode: m, choice: c } : null;
-                })
-                .filter((x): x is { kind: 'state'; mode: 'read' | 'write' | 'none' } | { kind: 'choice'; mode: 'read' | 'write' | 'none'; choice: SwitchChoice } => x !== null);
-              // ★ 状態の札がどの列にも入らなかったか（未設定など）。★ そのときだけ先頭に出す
-              const stateShown = cells.some((c) => c.kind === 'state');
-
-              return (
-                <div key={s.provider + '#' + s.slot} className="py-3">
-                  {/* ★★★ 第312便（2026-09-12・カッキーさんの指示）: スマホは【縦に積む】。
-                      ★ 横1列のままだと、サイト名＋チップ＋状態の札＋ボタンが 360px に入らず、
-                        名前が1文字ずつ折り返すか、ボタンが潰れていた。
-                      ★ PC（md以上）の見た目は1つも変えない。★ 右側のまとまりは md:contents で
-                        包みを透明にし、これまでどおり行の直接の子として並ぶ。 */}
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
-                    <span className="min-w-0 flex-1">
-                      {/* ★★ 送れるもののチップをサイト名の【すぐ右】に（第193便・カッキーさん）。
-                          ★ 「送れるもの：」の文字は付けない（右に「◯◯から反映中」とあるので、言葉が重なる）。
-                          ★★ 置くのは名前の側。★ 右端の状態の印のそばに置くと「この4つをいま反映している」と読める。
-                            ★ 左は【できること】、右は【いまの状態】。★ 見た目はログイン情報の画面と同じ灰色のチップ。 */}
-                      <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                        <b className="text-[15px] font-bold text-slate-700">{s.label}</b>
-                        {(s.capabilities ?? []).map((c) => (
-                          <span key={c} className="inline-block text-[12px] leading-5 border border-slate-200 text-slate-500 px-1.5">
-                            {c}
-                          </span>
-                        ))}
-                      </span>
-                      <span className={`block text-[13px] tabular-nums ${dbl ? 'text-amber-800 font-bold' : 'text-slate-400'}`}>
-                        {/* ★★ 止まっているときは、時刻より先に【止まっていること】を書く（第89便） */}
-                        {s.needsConsent
-                          ? '同意の取り直しが必要です。いまは何も更新していません'
-                          : s.direction === 'read'
-                          // ★ 第313便（カッキーさん）: 時刻の見出しは【最終確認】にそろえた（★ 第310便の「最後の更新」から）
-                          //   （★ 「読む」はこちら側の動き。★ 店舗様から見て起きるのは、この画面の中身が新しくなること）
-                          ? (fmt(s.listLastRunAt) ? `最終確認 ${fmt(s.listLastRunAt)}` : 'まだ確認していません')
-                          : s.direction === 'write'
-                            // ★★★ 禁止の組み合わせが既にできているとき（第190便）は、時刻より先にそれを言う
-                            // ★★★★ 【第348便】（2026-09-13・カッキーさん）: 「最後の反映」→【最終確認】。
-                            //   ★ 中身がすでに一致している枠は書き換える必要が一度も無いので、
-                            //     「まだ反映していません」のまま止まって見えた（★ 実際は毎周ちゃんと確かめている）。
-                            //   ★ 逆に「最後の反映 9/2」も、11日前に見えるが変える必要が無かっただけ。
-                            //   ★★ 「確認した」はどちらの行でも必ず起きていること。★ 嘘にならず、両方に同じ言い方で出せる。
-                            //   ★ 読む向きの行（すぐ上の枝）もすでに「最終確認」（第313便）。★ 画面の言葉が1つに揃う。
-                            //   ★ 実際に書き換えた時刻は【連携の記録】に残る。★ ホームは「いま動いているか」を見る場所。
-                            ? (dbl ?? (fmt(s.planCheckedAt) ? `最終確認 ${fmt(s.planCheckedAt)}` : 'まだ確認していません'))
-                            // ★★ 選んで止めているのだから、失敗のように書かない（§223）
-                            : s.direction === 'off'
-                              // ★ 文言は mediaOverview.offRowNote（第189便）。★ ほかが正本なら理由も言う
-                            ? offRowNote(s.label, readingElsewhereLabel(others, me))
-                              : '駅ちかから反映していません'}
-                      </span>
-                    </span>
-                    <span className="flex flex-wrap items-center gap-2 md:contents">
-                    {s.needsConsent && (
-                      <span className={`${ROW_CHIP} bg-amber-50 text-amber-800 border-amber-300`}>
-                        {CONSENT_RECHECK_BADGE}
-                      </span>
-                    )}
-                    {/* ★ 第346便: 状態がどの列にも入らないとき（未設定など）だけ、ここに札を出す */}
-                    {!stateShown && (
-                      <span className={`${ROW_CHIP} ${PILL[s.direction] ?? PILL.unset}`}>
-                        {s.statusLabel}
-                      </span>
-                    )}
-                    {/* ★★★★ 第344便（2026-09-13・カッキーさん）: ホームの行から「自動をやめる」を外した。
-                        ★ 第343便で「反映しない」と「駅ちかから反映にする ›」が自動中でも出るようになり、
-                          この行にボタンが3つ並んで、どれを押せばよいのか分からなくなっていた。
-                        ★★ 自動の入り切りの置き場は【出勤を更新】の画面（第65便・設計メモ §206）。
-                          ★ そこに「出勤 自動更新中」＋「自動をやめる」がある（第342便）。★ 2か所に置かない。 */}
-                    {/* ★★★ サイトごとの列（第111便／第346便で意味の順に固定）。
-                        ★ 名前と状態の右に小さく置く。★ これが無いと、write にした店に
-                          【止める道が画面から消える】（第111便で見つかった穴）。 */}
-                    {cells.length > 0 && (
-                      <span className="flex-none flex flex-wrap gap-2">
-                        {cells.map((cell) => (cell.kind === 'state' ? (
-                          <span
-                            key={'state-' + cell.mode}
-                            className={`${ROW_CHIP} ${PILL[s.direction] ?? PILL.unset}`}
-                          >
-                            {s.statusLabel}
-                          </span>
-                        ) : (
-                          <button
-                            key={cell.choice.mode}
-                            type="button"
-                            onClick={() => setAsk({ site: s, choice: cell.choice })}
-                            disabled={switching !== '' || bulking}
-                            className={`${ROW_CHIP} border-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40`}
-                          >
-                            {switching === s.provider + '#' + s.slot ? '変えています…' : cell.choice.label}
-                          </button>
-                        )))}
-                      </span>
-                    )}
-                    {/* ★★ 未設定のときは「変える」を出さない。★ 変える先が決まっていない
-                        ★ 書くだけのサイトは行き先が1つなので、すぐ上のボタンが出る（第111便） */}
-                    {canReadProvider(s.provider) && s.canSwitch && !s.autoOn && s.direction === 'unset' && (
-                      <Link
-                        href="/mypage/media/login"
-                        className={`${ROW_CHIP} border-slate-200 text-slate-500 hover:border-slate-300`}
-                      >
-                        設定する
-                      </Link>
-                    )}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {/* ★★★ 第682便（2026-09-23・カッキーさんの指示）: サイトごとの行（駅ちか＋チップ＋最終確認＋札＋ボタン）を消した。
+            ★ フクエスリンクは「駅ちかから反映する／しない」だけ（第668便）。★ 上の箱にすでに全部書いてある。
+            ★ 止める道（反映しない）だけは必ず残す（第111便）。★ 小さな文字リンクにして、押す前の問いは今までどおり。 */}
+        {!loading && !error && reading && reading.canSwitch && (() => {
+          const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
+          const me = { provider: reading.provider, slot: reading.slot };
+          const stop = switchChoices(
+            reading.direction as SiteDirection, reading.label, reading.provider,
+            isReadingElsewhere(others, me), isWritingElsewhere(others, me),
+          ).find((c) => c.mode === 'none');
+          if (!stop) return null;
+          return (
+            <p className="text-center">
+              <button
+                type="button"
+                onClick={() => setAsk({ site: reading, choice: stop })}
+                disabled={switching !== '' || bulking}
+                className="text-[13px] text-slate-400 underline hover:text-slate-600 disabled:opacity-40"
+              >
+                {switching === reading.provider + '#' + reading.slot ? '変えています…' : '駅ちかからの反映をやめる'}
+              </button>
+            </p>
+          );
+        })()}
       </div>
 
       {/* ★ 反映の早見表（折りたたみ）はここにあったが、第299便で /mypage/media/matrix へ移した。 */}
