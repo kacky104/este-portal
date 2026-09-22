@@ -2838,7 +2838,7 @@ export default function MyPage() {
         pc={pc}
         href={hpNav.href}
         // ★ 第674便: 画像を差し替えたら【ファイル名を変える】（同じ名前だとブラウザや配信の一時保存で古い絵が出続けた）
-        src="/mypage/sidebar/hp-v3.webp"
+        src="/mypage/sidebar/hp-v4.webp"
         alt="フクエスサイト　公式ホームページを無料で作成"
         disabledLabel="準備中"
       />
