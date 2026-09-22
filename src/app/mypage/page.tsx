@@ -2877,7 +2877,7 @@ export default function MyPage() {
     <SidebarBanner
       pc={pc}
       href={CRM_REDIRECT_FROM_FUKUES ? CRM_ORIGIN : '/mypage/crm'}
-      src="/mypage/sidebar/crm.webp"
+      src="/mypage/sidebar/crm-v2.webp"
       alt="フクエスCRM　顧客管理、セラピスト管理を効率化"
     />
   );
