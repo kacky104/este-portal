@@ -171,6 +171,8 @@ export function CastSchedule() {
                   <span className="min-w-0 flex-1">
                     {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
                     <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
+                    {/* ★ 第651便: ニックネームを一覧にも（ポップアップと同じ紫の札・本人だけに見える値） */}
+                    {b.nickname && <span className="ml-1.5 inline-block max-w-[10em] truncate align-bottom rounded-full bg-violet-50 px-2 py-px text-[12px] font-bold text-violet-700">{b.nickname}</span>}
                     <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
                   </span>
                   <span className="flex-none text-[12px] text-slate-300" aria-hidden="true">›</span>
