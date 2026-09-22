@@ -216,7 +216,10 @@ export function TherapistBoard({ salonId, onToast }: {
     setTherapists(t.data);
     // ★ 名簿が取れなかったら黙って空にする。★ ここで「0人」と出すと揃っているように見える
     setRoster(r.ok ? r.data : []);
-    const list = ov.ok ? (ov.data.sites as Site[]) : [];
+    // ★★★ 第670便（2026-09-22・カッキーさんの決定）: フクエスリンクは駅ちかから反映（取り込み）専用。
+    //   ★ フクエスリンクで出すのは駅ちかのタブだけ（★ エステ魂などの書くだけのサイトはコネックエフで扱う）。★ コネックエフは今までどおり全部
+    const all = ov.ok ? (ov.data.sites as Site[]) : [];
+    const list = brand.isConecf ? all : all.filter((x) => x.provider === 'ekichika');
     setSites(list);
     // ★ 最初に開くのは1つ目のサイト。★ すでに選んでいるものは動かさない（読み直しのたびに戻さない）
     const c = pickCols(list);
@@ -598,11 +601,19 @@ export function TherapistBoard({ salonId, onToast }: {
             )}
           </div>
 
+          {/* ★ 第670便: フクエスリンクで鍵（ID・PW）が無い店。★ 名簿は駅ちかの管理画面から読むので、ここは見られないことを先に言う */}
+          {!brand.isConecf && !site.hasCredential && (
+            <div className="mb-3 border border-slate-200 bg-slate-50 p-3 text-[13.5px] text-slate-600 leading-relaxed">
+              駅ちかの名簿との照らし合わせを見るには、駅ちかのID・PWが必要です（写メ日記と同じ）。
+              登録していなくても、出勤・プロフィール・即ヒメの取り込みでは、名前で自動的に照らし合わせています。
+              名前の書き方が違って反映されない方がいるときは、運営事務局へご連絡ください。
+            </div>
+          )}
           {/* ★ 第198便: 押せないボタンには理由を添える（§185・できないことは理由といっしょに）。★ 写しはそのまま使える */}
           {site.direction === 'off' && (
             <p className="mb-3 text-[13px] text-slate-400 leading-relaxed">
               現在「反映しない」設定のため、名簿の更新不可。
-              {brand.isConecf ? '更新するには、ホームでこのサイトの「更新する」を押してください。' : '更新するには、ホームで「フクエスから反映」にしてください。'}
+              {brand.isConecf ? '更新するには、ホームでこのサイトの「更新する」を押してください。' : '更新するには、ホームで「駅ちかから反映する」を押してください。'}
             </p>
           )}
 
@@ -728,7 +739,7 @@ export function TherapistBoard({ salonId, onToast }: {
                   //   ★ 「います」（もう居る）と「まだ読んでいません」（読んでいないのに送らない）には出さない。
                   //   ★★★ 【第262便】「いません」にも出さない。★ 材料づくりが「結びついていれば積まない」ので必ず止まる。
                   const targetOff = targetOffs.has(`${t.id}#${site.provider}#${site.slot}`);
-                  const canCreate = CREATE_PROVIDERS.includes(site.provider) && site.hasCredential && st === 'unlinked' && !targetOff;
+                  const canCreate = brand.isConecf && CREATE_PROVIDERS.includes(site.provider) && site.hasCredential && st === 'unlinked' && !targetOff;   // ★ 第670便: 新しく登録（書き込み）はコネックエフだけ
                   const view = createView && createView.tid === t.id ? createView : null;
                   return (
                     <Fragment key={t.id}>
