@@ -18,6 +18,7 @@ import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { ScheduleGrid } from './ScheduleGrid';
 import { SidebarBanner } from './SidebarBanner';
+import { CONECF_ORIGIN } from '@/lib/conecfHost';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
@@ -2927,6 +2928,17 @@ export default function MyPage() {
     />
   );
 
+  // ★★ 第667便（2026-09-22・カッキーさんの指示）: コネックエフの画像バナー（全店舗）。
+  //   ★ 切り替え済み（conecf_enabled_at あり）→ conecf.com へ直接。★ まだの店 → 説明ページ /mypage/conecf（読んだあと「始める」で conecf.com）。
+  const renderConecfLink = (pc: boolean) => (
+    <SidebarBanner
+      pc={pc}
+      href={conecfOn ? CONECF_ORIGIN : '/mypage/conecf'}
+      src="/mypage/sidebar/conecf.webp"
+      alt="コネックエフ　日常作業を効率化・媒体連携"
+    />
+  );
+
   const renderMediaLink = (pc: boolean) => (
     <Link
       href="/mypage/media"
@@ -3209,6 +3221,7 @@ export default function MyPage() {
                       {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
                       {isSites && salon && renderJobsLink(false)}
                       {withMedia && renderMediaLink(false)}
+                      {isSites && salon && renderConecfLink(false)}
                       {isSites && renderFukuxLink(false)}
                       {isSites && renderCrmSoon(false)}
                       {isSites && renderHpLink(false)}
@@ -3296,6 +3309,7 @@ export default function MyPage() {
                   {/* ★ フクエスワーク（求人）→ フクエスリンク の順（★ 第184便までの並びのまま）。 */}
                   {open && sec.group === '関連サイト' && salon && renderJobsLink(true)}
                   {open && withMedia && renderMediaLink(true)}
+                  {open && sec.group === '関連サイト' && salon && renderConecfLink(true)}
                   {/* ★ フクエックス（SNS）。★ 媒体連携と違い、契約に関係なく全店舗に出す。 */}
                   {open && sec.group === '関連サイト' && renderFukuxLink(true)}
                   {open && sec.group === '関連サイト' && renderCrmSoon(true)}
