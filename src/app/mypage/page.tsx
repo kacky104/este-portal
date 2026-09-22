@@ -2837,7 +2837,7 @@ export default function MyPage() {
         pc={pc}
         href={hpNav.href}
         src="/mypage/sidebar/hp.webp"
-        alt="フクエスサイト　公式サイトを無料で作成"
+        alt="フクエスサイト　公式ホームページを無料で作成"
         disabledLabel="準備中"
       />
     );
