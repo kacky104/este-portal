@@ -186,11 +186,16 @@ export function MediaHome({ salonId, onToast }: {
     onToast(res.ok ? bulkDoneText(res.data) : res.error);
   };
 
-  const sites = data?.sites ?? [];
+  // ★★★ 第668便（2026-09-22・カッキーさんの決定）: フクエスリンクは【駅ちかから反映（取り込み）専用】。
+  //   ★ ホームに出すのは読める媒体（駅ちか）だけ。★ 書き込み（フクエスから反映）の道はコネックエフへ移した。
+  //   ★ ほかの媒体の設定・鍵は消していない（コネックエフが同じ表を使う）。★ 画面に出さないだけ。
+  const sites = (data?.sites ?? []).filter((s) => canReadProvider(s.provider));
   // ★★★ 同意の取り直しが要る枠（第89便）。★ 入口のいちばん上に出す
   const recheck = sites.filter((s) => s.needsConsent);
   // ★★★★ 第393便: 反映する向きなのに、出勤がまだ自動更新でない枠。★ 判定は mediaOverview（純粋関数）
-  const autoOffWork = autoOffWorkSites(sites);
+  // ★ 第668便: 出勤の自動更新（書き込み）はコネックエフへ移したので、ここでは出さない
+  const autoOffWork: typeof sites = [];
+  void autoOffWorkSites;
   const reading = sites.find((s) => s.direction === 'read') ?? null;
   const writing = sites.filter((s) => s.direction === 'write');
   // ★ 自分で「送らない」を選んでいる枠。★ 未設定と混ぜて書かない（§223）
@@ -327,7 +332,7 @@ export function MediaHome({ salonId, onToast }: {
                      選んだことと、戻せることを、すぐ下に書く（§223） */}
               {offSite
                 ? '「反映しない」を選んでいます。下のボタンでいつでも戻せます。'
-                : 'ログイン情報を登録すると始められます。'}
+                : '駅ちかのお店のページが登録されると始められます。運営事務局へご連絡ください。'}
             </p>
           </>
         )}
@@ -342,94 +347,39 @@ export function MediaHome({ salonId, onToast }: {
               （「フクエスからの反映は設定しやすく、駅ちかからの反映は設定しにくく」・カッキーさん）。
             ★★ 一括で変えるのは主・副だけ。★ 小リンクは駅ちか1枠を変えるだけで、
               ほかが write なら従来のガード（第190便）で断られる（一括で倒さない・案A）。 */}
+        {/* ★★★ 第668便: 3つの設定（フクエスから反映／反映しない／駅ちかから反映）は、
+            【駅ちかから反映する】ボタン1つにした。★ 止める道（反映しない）は下の行に残る（第111便）。
+            ★ 書き込み（フクエスから反映）はコネックエフへ（★ ボタンの下に案内を1行）。 */}
         {(() => {
           if (loading || error || sites.length === 0) return null;
-          const switchable = sites.filter((s) => s.canSwitch);
-          if (switchable.length === 0) return null;
+          const readable = sites.find((s) => s.canSwitch && s.direction !== 'read') ?? null;
+          if (!readable) return null;
           const busy = switching !== '' || bulking;
-          const write = bulkLabel('write');
-          const none = bulkLabel('none');
-          // ★ 設定1のリンク。★ 読める媒体で、鍵があり、まだ read でない枠に出す
-          // ★★★★ 第343便（2026-09-13・カッキーさんが実機で発見）: 【!s.autoOn を外した】。
-          //   ★ 自動にした枠では、このリンクも行のボタンも消えて、
-          //     **ホームから「駅ちかから反映」へ戻る道が1つも無くなっていた**（行き止まり）。
-          //   ★ 第331便で自動を選べるようになって、初めてこの穴に入った。
-          //   ★★ link_mode は1つの列なので、read にすれば自動は定義上そこで終わる。
-          //     ★ 矛盾した状態（read なのに write_auto）は作れない。★ だから塞ぐ理由が無い。
-          const readable = sites.find((s) => canReadProvider(s.provider) && s.canSwitch && s.direction !== 'read') ?? null;
           const onReadLink = () => {
-            if (!readable) return;
-            const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
+            const others = (data?.sites ?? []).map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
             const me = { provider: readable.provider, slot: readable.slot };
             const choices = switchChoices(
               readable.direction as SiteDirection, readable.label, readable.provider,
               isReadingElsewhere(others, me), isWritingElsewhere(others, me),
             );
             const read = choices.find((c) => c.mode === 'read');
-            // ★★ 出せない理由を黙らない（第190便）。★ 先にほかの「反映しない」を押してもらう
+            // ★★ 出せない理由を黙らない（第190便）
             if (!read) { onToast(readBlockedNote(readable.label, writingElsewhereLabels(others, me))); return; }
             setAsk({ site: readable, choice: read });
           };
           return (
-            <div className="pb-4 mb-2 border-b border-slate-100">
-              {/* ★ 2つのボタンは【同じ幅】にする（第296便・2026-09-12・カッキーさんの指示）。
-                  ★ 文字数が違うので、横に並べるだけだと幅が揃わない。
-                  ★ 2等分の枠（grid-cols-2）に入れて、中身の長さで幅が動かないようにした。
-                  ★ 狭いときは縦に積む（そのときも幅は同じ）。 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-[560px] mx-auto">
-                <button
-                  type="button"
-                  onClick={() => setBulkAsk('write')}
-                  disabled={busy}
-                  className="w-full px-4 py-3.5 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40"
-                >
-                  <span className="block text-[16px] font-black">{bulking ? '変えています…' : write.label}</span>
-                  <span className="block text-[12px] font-bold text-indigo-100">（{write.sub}）</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBulkAsk('none')}
-                  disabled={busy}
-                  className="w-full px-4 py-3.5 border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors disabled:opacity-40"
-                >
-                  <span className="block text-[16px] font-bold">{none.label}</span>
-                  <span className="block text-[12px] font-bold text-slate-400">（{none.sub}）</span>
-                </button>
-              </div>
-              {/* ★★ 説明文は大きなボタンの【直下】に置く（第192便）。★ エステ魂の行の真下に置くと、
-                  エステ魂の説明に読める（カッキーさんが実際にそう読んだ） */}
-              {(() => {
-                // ★★ 第310便（カッキーさん）: 読める媒体があるときの1行
-                //   （homeChoiceNote＝「出勤の反映は、フクエスと駅ちかのどちらか一方です。」）は出さない。
-                //   ★ ボタンが2つ並んでいて片方が濃い色、という形そのものが「どちらか一方」を言っている。
-                //   ★★ 送るだけの媒体しか無い店舗様の1行（sendOnlyChoiceNote）は残す。
-                //     ★ あちらは【送るだけ】という別の事実で、見ただけでは分からない。
-                //   ★ 出し分けの順番は変えていない（★ 読める媒体があれば、送るだけの文は出さない）。
-                // ★ 第343便: !s.autoOn を外した（上のリンクと同じ理由）
-                const readableSite = sites.find((s) => s.canSwitch && canReadProvider(s.provider));
-                const sendOnlySite = sites.find((s) => s.canSwitch && !canReadProvider(s.provider));
-                const note = readableSite
-                  ? ''
-                  : sendOnlySite
-                    ? sendOnlyChoiceNote(sendOnlySite.label)
-                    : '';
-                if (!note) return null;
-                return (
-                  <p className="mt-3 text-[13px] text-slate-400 leading-relaxed text-center">{note}</p>
-                );
-              })()}
-              {readable && (
-                <p className="mt-3 text-center">
-                  <button
-                    type="button"
-                    onClick={onReadLink}
-                    disabled={busy}
-                    className="text-[13px] font-bold text-slate-400 underline underline-offset-4 hover:text-slate-600 disabled:opacity-40"
-                  >
-                    {readLinkLabel(readable.label)} ›
-                  </button>
-                </p>
-              )}
+            <div className="pb-4 mb-2 border-b border-slate-100 text-center">
+              <button
+                type="button"
+                onClick={onReadLink}
+                disabled={busy}
+                className="w-full max-w-[360px] px-4 py-3.5 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-40"
+              >
+                <span className="block text-[16px] font-black">{readLinkLabel(readable.label)}</span>
+              </button>
+              <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
+                各サイトへの書き込み（出勤・写メ日記の転送など）は<Link href="/mypage/conecf" className="underline font-bold text-indigo-600">コネックエフ</Link>で行います。
+              </p>
             </div>
           );
         })()}
@@ -545,7 +495,7 @@ export function MediaHome({ salonId, onToast }: {
                             : s.direction === 'off'
                               // ★ 文言は mediaOverview.offRowNote（第189便）。★ ほかが正本なら理由も言う
                             ? offRowNote(s.label, readingElsewhereLabel(others, me))
-                              : (s.hasCredential ? '入力する場所が決まっていません' : 'ログイン情報がまだありません')}
+                              : '駅ちかから反映していません'}
                       </span>
                     </span>
                     <span className="flex flex-wrap items-center gap-2 md:contents">

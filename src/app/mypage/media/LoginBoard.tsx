@@ -256,6 +256,7 @@ export function LoginBoard({
   //   ★ loginTally（数える関数）と自己点検はそのまま残してある（また出すかもしれない）。
   // ★★★ 同意の取り直しが要る枠（第89便）。★ 要るあいだ、その枠へは何も送っていない
   const recheck = MEDIA_SITES
+    .filter((site) => site.provider === 'ekichika')   // ★ 第668便: 駅ちかだけ
     .map((site) => ({ site, rows: rowsOf(site.provider).filter((r) => r.needsConsent) }))
     .filter((x) => x.rows.length > 0);
 
@@ -309,7 +310,17 @@ export function LoginBoard({
       {/* ── サイトごと ── */}
       {/* ★★ 並びは sortSitesForLogin が決める（第117便）。★ 使えるサイトが上、
           ★ 接続できないサイト（エステラブ）がいちばん下。★ 表そのものは並べ替えない */}
-      {sortSitesForLogin(MEDIA_SITES).map((site) => {
+      {/* ★★★ 第668便（2026-09-22・カッキーさんの決定）: フクエスリンクは駅ちかからの取り込み専用。★ ここに出すのは駅ちかだけ。
+          ★ ほかのサイトの ID・PW は消していない（コネックエフが同じ表を使う）。★ 画面に出さないだけ。 */}
+      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+        <p className="text-[15.5px] font-black text-slate-800">写メ日記もフクエスに出したい場合は、駅ちかのIDとパスワードを入れてください</p>
+        <ul className="mt-2 space-y-1 text-[14px] text-slate-600 leading-relaxed">
+          <li>・出勤・プロフィール・即ヒメは、IDとパスワードが無くてもフクエスへ反映されます。</li>
+          <li>・写メ日記は、駅ちかの管理画面から読むため、IDとパスワードが必要です。</li>
+          <li>・駅ちかへの書き込み（出勤・写メ日記の転送など）は行いません。書き込みはコネックエフをお使いください。</li>
+        </ul>
+      </div>
+      {sortSitesForLogin(MEDIA_SITES).filter((site) => site.provider === 'ekichika').map((site) => {
         const siteRows = rowsOf(site.provider);
         const status = siteLoginStatus({ known, rows: siteRows, accepting: site.accepting });
         const open = openKey === site.provider;

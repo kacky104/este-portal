@@ -26,6 +26,9 @@ import type { MediaPageDecision } from '@/lib/mediaVisibility';
 // ★ 'matrix'（反映の早見表）は第299便で追加（ホームの折りたたみから独立）
 export type MediaNavKey = 'home' | 'guide' | 'qa' | 'work' | 'diary' | 'news' | 'roster' | 'login' | 'log' | 'matrix';
 
+/** ★ 第668便: 書き込み系の画面。★ 開かれたら「コネックエフへ移りました」を出す（URL を直接開いた・古いブックマークの人向け） */
+const MOVED: ReadonlySet<MediaNavKey> = new Set<MediaNavKey>(['work', 'diary', 'news', 'matrix']);
+
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },
   // ★★ ログイン情報はホームの次（カッキーさん・2026-09-03）。
@@ -33,7 +36,10 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   //   ★ 以前は下の「設定・記録」に入れていたが、始めるときにいちばん探されるのがここだった。
   // ★ 第299便: 「ログイン情報」→「ログイン情報（ID・PW）」（カッキーさん）。
   //   ★ 何を入れる場所なのかを、開く前に見せる。★ ページの見出しも同じ言葉にそろえた。
-  { key: 'login',  label: 'ログイン情報（ID・PW）', href: '/mypage/media/login' },
+  // ★★★ 第668便（2026-09-22・カッキーさんの決定）: フクエスリンクは【駅ちかから反映（取り込み）専用】になった。
+  //   ★ ID・PW は駅ちかだけ（写メ日記を反映したい店だけ入れる）。★ 出勤・プロフィール・即ヒメは ID・PW なしで反映される。
+  //   ★ 書き込み（出勤の自動更新・写メ日記の転送・駅ちか新着情報）と早見表は並びから外し、MOVED の案内を出す（中の仕組みはコネックエフが使うので残す）。
+  { key: 'login',  label: '駅ちかのID・PW（写メ日記）', href: '/mypage/media/login', group: '設定' },
   // ★ セラピスト設定は【基本の情報】なので、送る作業より上に置く（カッキーさん・2026-08-30）
   // ★ 第298便: 名前を「セラピスト一覧」→「セラピスト設定」に（カッキーさんの添削）
   { key: 'roster', label: 'セラピスト設定',    href: '/mypage/media/therapists' },
@@ -43,8 +49,6 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   //     ★ この画面ですることは【1回きりの更新】ではなく【自動更新の設定】になった（第393便b）。
   //     ★ 「フクエスから反映」にしただけで出勤も自動になると思う店舗様が居る。
   //       ★ 左の並びの名前そのものに「設定がある」と書いておく（★ 探しに来られるようにする）。
-  { key: 'work',   label: '出勤の自動更新設定', href: '/mypage/media/work',       group: '更新・確かめる' },
-  { key: 'diary',  label: '写メ日記の投稿先',   href: '/mypage/media/diary' },
   // ★ 新着情報（第158便）。★ 「送る」仲間なのでここに置く。
   //   ★★ 送る前に【枠の状態】を見せる画面でもある（2026-09-05 の実弾で、送ってから
   //     「公開ページに出ていない」と分かった。★ その順番を逆にするための画面）。
@@ -54,12 +58,10 @@ const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string
   //     ★ ページの見出し（news/page.tsx）と括弧の中をそろえている。
   //   ★ 出勤・写メ日記の「フクエスの内容を各サイトへ送る」仲間ではなく、駅ちか専用の書式で自動で回す別物。
   //     ★ read でも write でも出す（3つの設定に連動しない・設計メモ_写メ日記の入口をホームの設定に連動 §4）。
-  { key: 'news',   label: '駅ちか新着情報（自動投稿）', href: '/mypage/media/news' },
   // ★ 設定（ログイン情報）が上へ移ったので、この見出しは「記録」だけになった
   { key: 'log',    label: '連携の記録',        href: '/mypage/media/log',        group: '記録' },
   // ★ 反映の早見表（第299便・2026-09-12・カッキーさん）。★ ホームの下の折りたたみをやめて別ページに。
   //   ★ 置き場は「連携の記録」の下（カッキーさんの指示）。★ 記録と同じく【読むだけ】の画面なので同じ見出しの中。
-  { key: 'matrix', label: '反映の早見表',      href: '/mypage/media/matrix' },
   // ★ 第394便（2026-09-16・カッキーさん）: 初めての店舗様向けの使い方と Q&A。
   //   ★ 一度読めば次はあまり開かないので、いちばん下（早見表の下）に置く。★ Q&A は別ページでその下。
   { key: 'guide',  label: 'はじめての方へ（使い方）', href: '/mypage/media/guide', group: 'ご案内' },
@@ -159,6 +161,24 @@ export function MediaShell({
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-slate-400 text-[16px]">読み込み中...</p>
+      </div>
+    );
+  }
+
+  if (MOVED.has(current)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md bg-white border border-slate-200 shadow-sm p-7 text-center space-y-4">
+          <p className="text-[18px] font-black text-slate-800">この画面はコネックエフへ移りました</p>
+          <p className="text-[14px] text-slate-500 leading-relaxed text-left">
+            フクエスリンクは【駅ちかからフクエスへの反映（取り込み）】専用になりました。
+            出勤・写メ日記・新着情報などを各サイトへ更新したいときは、コネックエフをお使いください（フクエス契約店舗様は無料）。
+          </p>
+          <Link href="/mypage/conecf" className="inline-block w-full py-3 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
+            コネックエフのご案内を見る
+          </Link>
+          <Link href="/mypage/media" className="block text-[13.5px] font-bold text-slate-400 hover:text-indigo-600">フクエスリンクのホームへ</Link>
+        </div>
       </div>
     );
   }

@@ -19,7 +19,7 @@ export default function MediaLoginPage() {
       loadError={loadError}
       salonId={salon ? Number(salon.id) : null}
       salonName={salon?.name ?? null}
-      title="ログイン情報（ID・PW）"
+      title="駅ちかのID・PW（写メ日記を反映する場合）"
       current="login"
       toast={toast}
     >
