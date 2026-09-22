@@ -13,6 +13,7 @@ import { parseBodyType } from '@/lib/bodyType';
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { isSavableTarget } from '@/lib/conecfTargets';
+import { therapistNameDupMessage } from '@/lib/therapistNameDup';
 import {
   normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
 } from '@/lib/conecfSiteFields';
@@ -112,6 +113,8 @@ export async function createConecfGirl(input: { name: string; isNewFace: boolean
     })
     .select('id')
     .single();
+  const dup = therapistNameDupMessage(error);
+  if (dup) return { ok: false, error: dup };
   if (error || !data) return { ok: false, error: `追加に失敗しました: ${error?.message ?? ''}` };
   return { ok: true, data: { id: Number(data.id) } };
 }
@@ -204,6 +207,8 @@ export async function saveConecfGirl(input: { id: number; values: ConecfGirlInpu
   if (!v.isNewFace) patch.new_face_since = null;
 
   const { error: upErr } = await svc.from('therapists').update(patch).eq('id', t.id).eq('salon_id', salonId);
+  const dupUp = therapistNameDupMessage(upErr);
+  if (dupUp) return { ok: false, error: dupUp };
   if (upErr) return { ok: false, error: `保存に失敗しました: ${upErr.message}` };
 
   const { error: pErr } = await svc.from('conecf_therapist_profiles').upsert({

@@ -28,6 +28,7 @@ import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { snapClockPair } from '@/lib/timeSnap';
 import { conecfLockMessage } from '@/lib/conecfLock';
+import { therapistNameDupMessage } from '@/lib/therapistNameDup';
 import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow, imasuguUntilISO, IMASUGU_WINDOW_MIN, imasuguMax, imasuguLimitNote } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
 import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/app/actions/castInvite';
@@ -1991,6 +1992,8 @@ export default function MyPage() {
     if (error) {
       const lockedMsg = conecfLockMessage(error);
       if (lockedMsg) { setAddError(lockedMsg); setAddingTherapist(false); return; }
+      const dupMsg = therapistNameDupMessage(error);
+      if (dupMsg) { setAddError(dupMsg); setAddingTherapist(false); return; }
       setAddError(
         error.code === '42501'
           ? 'RLSポリシーにより追加が拒否されました。Supabase ダッシュボードで therapists テーブルへの INSERT ポリシーを確認してください。'
