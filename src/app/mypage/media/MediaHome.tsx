@@ -383,7 +383,7 @@ export function MediaHome({ salonId, onToast }: {
                 disabled={switching !== '' || bulking}
                 className="text-[13px] text-slate-400 underline hover:text-slate-600 disabled:opacity-40"
               >
-                {switching === reading.provider + '#' + reading.slot ? '変えています…' : '駅ちかからの反映をやめる'}
+                {switching === reading.provider + '#' + reading.slot ? '変えています…' : '駅ちかからの反映を止める'}
               </button>
             </p>
           );
@@ -476,7 +476,7 @@ export function MediaHome({ salonId, onToast }: {
                 onClick={() => setAsk(null)}
                 className="px-4 py-1.5 border border-slate-200 text-[14px] font-bold text-slate-500 hover:bg-slate-50"
               >
-                やめる
+                もどる
               </button>
               <button
                 type="button"
@@ -484,7 +484,8 @@ export function MediaHome({ salonId, onToast }: {
                 disabled={switching !== ''}
                 className="px-4 py-1.5 border border-indigo-600 bg-indigo-600 text-[14px] font-bold text-white hover:bg-indigo-700 disabled:opacity-40"
               >
-                {ask.choice.label}
+                {/* ★ 第685便: 止める問いの右のボタンは「止める」（見出し「…止めますか？」と同じ言葉）。★ 反映する側は今までどおり */}
+                {ask.choice.mode === 'none' ? '止める' : ask.choice.label}
               </button>
             </div>
           </div>
