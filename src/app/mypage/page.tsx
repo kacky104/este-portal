@@ -2837,7 +2837,8 @@ export default function MyPage() {
       <SidebarBanner
         pc={pc}
         href={hpNav.href}
-        src="/mypage/sidebar/hp.webp"
+        // ★ 第674便: 画像を差し替えたら【ファイル名を変える】（同じ名前だとブラウザや配信の一時保存で古い絵が出続けた）
+        src="/mypage/sidebar/hp-v3.webp"
         alt="フクエスサイト　公式ホームページを無料で作成"
         disabledLabel="準備中"
       />
@@ -2939,22 +2940,15 @@ export default function MyPage() {
     />
   );
 
+  // ★★ 第674便（2026-09-22・カッキーさんの指示）: フクエスリンクも画像バナーに（./SidebarBanner.tsx）。
+  //   ★ 行き先は今までどおり /mypage/media（別タブ）。★ 出す相手も今までどおり（withMedia の店だけ）。
   const renderMediaLink = (pc: boolean) => (
-    <Link
+    <SidebarBanner
+      pc={pc}
       href="/mypage/media"
-      target="_blank"
-      rel="noopener noreferrer"
-      className={
-        pc
-          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-          // ★ スマホは「その他」の中の項目と同じ形にそろえる（2026-09-06・カッキーさんの指示）。
-          //   ★ フクエスワーク（求人）と同じ 13px・px-4・py-2.5・text-slate-500。
-          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
-      }
-    >
-      {tabIcon('media')}
-      フクエスリンク（媒体連携）
-    </Link>
+      src="/mypage/sidebar/link.webp"
+      alt="フクエスリンク　フクエスを自動で更新"
+    />
   );
 
   return (
