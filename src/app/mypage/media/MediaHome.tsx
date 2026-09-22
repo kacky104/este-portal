@@ -464,9 +464,12 @@ export function MediaHome({ salonId, onToast }: {
             <p className="text-[17px] font-black text-slate-800">
               {switchAskText(ask.choice.mode, ask.site.label, ask.site.provider).title}
             </p>
-            <p className="mt-2 text-[14px] text-slate-500 leading-relaxed">
-              {switchAskText(ask.choice.mode, ask.site.label, ask.site.provider).body}
-            </p>
+            {/* ★ 第684便: 本文が空の問い（駅ちかからの反映を止めますか？）は見出しだけ */}
+            {switchAskText(ask.choice.mode, ask.site.label, ask.site.provider).body && (
+              <p className="mt-2 text-[14px] text-slate-500 leading-relaxed">
+                {switchAskText(ask.choice.mode, ask.site.label, ask.site.provider).body}
+              </p>
+            )}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
