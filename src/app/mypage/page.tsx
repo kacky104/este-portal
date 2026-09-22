@@ -2874,22 +2874,14 @@ export default function MyPage() {
   const fukuxHref = xShopHandle
     ? `/x/u/${encodeURIComponent(xShopHandle)}`
     : ((salon?.fukux_url ?? '').trim() || '/x');
+  // ★★ 第664便（2026-09-22・カッキーさんの指示）: 文字リンクを画像バナーに置き換えた（./SidebarBanner.tsx）。行き先は上の fukuxHref のまま。
   const renderFukuxLink = (pc: boolean) => (
-    <Link
+    <SidebarBanner
+      pc={pc}
       href={fukuxHref}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={
-        pc
-          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-          // ★ スマホは「その他」の中の項目と同じ形にそろえる（2026-09-06・カッキーさんの指示）。
-          //   ★ フクエスワーク（求人）と同じ 13px・px-4・py-2.5・text-slate-500。
-          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
-      }
-    >
-      {tabIcon('fukux')}
-      フクエックス（SNS）
-    </Link>
+      src="/mypage/sidebar/fukux.webp"
+      alt="fukuX フクエックス　メンズエステ専用SNS"
+    />
   );
 
   // ★★ フクエスCRM（有料）（2026-09-19・カッキーさんの指示で「準備中」から本物のリンクへ）。
