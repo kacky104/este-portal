@@ -320,7 +320,7 @@ export function BookingFlow({
           <BackBar onBack={() => setStep('date')} label={selectedDate ? `${formatDateTab(selectedDate, false).md}（${formatDateTab(selectedDate, false).wd}）／${course?.name}` : ''} />
           <SectionTitle>4. 時間を選ぶ</SectionTitle>
           <p className="text-[11px] text-slate-400 mt-1">
-            選べる枠（青）をタップしてください。<span className="text-slate-400">TEL＝直前のためお電話で</span>／×＝空きなし。
+            選べる枠（ピンク）をタップしてください。<span className="text-slate-400">TEL＝直前のためお電話で</span>／×＝空きなし。
           </p>
           {slotsLoading ? (
             <p className="text-xs text-slate-400 mt-3">空き枠を読み込み中...</p>
