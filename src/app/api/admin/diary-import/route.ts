@@ -3,6 +3,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow, diaryBackfillContext } from '@/app/lib/media/relayFlow';
 import { importsDiaryFromEkichika, readDiarySource } from '@/lib/diarySource';
 import { stampDiaryQueued } from '@/app/lib/media/diaryWatch';
+import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
 
 // ── 写メ日記の取り込みを1回まわす（第95便）─────────────────────────────
 //   POST /api/admin/diary-import  (Authorization: Bearer <CRON_SECRET>)
@@ -81,6 +82,11 @@ export async function POST(req: Request) {
   //   ★ 鍵の有無ではなく【店舗が選んだ入口】で決める。
   //   ★ 引けなかったときは回さない。★「分からない」を「回してよい」と読まない（作法 3-5）。
   const salonIds = Array.from(new Set(consented.map((c) => Number((c as { salon_id: number }).salon_id))));
+  // ★★★ 第669便: 入口を今の向き・鍵から導き直してから読む（★ 向きを SQL で直接変えても、ここで揃う）。
+  //   ★ 試し打ち（apply なし）では書かない。★ 失敗しても周は止めない（syncDiarySource が console.error する）。
+  if (apply) {
+    for (const id of salonIds) await syncDiarySource(svc, id, 'cron:diary-import');
+  }
   const sourceOf = new Map<number, string>();
   if (salonIds.length > 0) {
     const { data: salonRows, error: salonErr } = await svc
