@@ -233,6 +233,9 @@ export function MediaHome({ salonId, onToast }: {
 
       {/* ── 取り込みの状態 ────────────────────────────────
           ★ いちばん上は【状態】だけ。★ 操作も説明も置かない。 */}
+      {/* ★ 第686便（2026-09-23・カッキーさん）: 止めているとき（off）は上の箱を出さない。
+          ★ 「反映していません／「反映しない」を選んでいます」の2行は、下の大きいボタンだけで足りる。 */}
+      {!(!loading && !error && topDirection === 'off') && (
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         {loading ? (
           <p className="text-[14px] text-slate-400">読み込み中…</p>
@@ -317,6 +320,7 @@ export function MediaHome({ salonId, onToast }: {
           </>
         )}
       </div>
+      )}
 
       {/* ── 連携しているサイト ──────────────────────────── */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
@@ -348,7 +352,7 @@ export function MediaHome({ salonId, onToast }: {
             setAsk({ site: readable, choice: read });
           };
           return (
-            <div className="pb-4 mb-2 border-b border-slate-100 text-center">
+            <div className="text-center">
               <button
                 type="button"
                 onClick={onReadLink}
@@ -357,9 +361,7 @@ export function MediaHome({ salonId, onToast }: {
               >
                 <span className="block text-[16px] font-black">{readLinkLabel(readable.label)}</span>
               </button>
-              <p className="mt-3 text-[13px] text-slate-400 leading-relaxed">
-                各サイトへの書き込み（出勤・写メ日記の転送など）は<Link href="/mypage/conecf" className="underline font-bold text-indigo-600">コネックエフ</Link>で行います。
-              </p>
+              {/* ★ 第686便: 「各サイトへの書き込み…はコネックエフで行います」の1行は消した（カッキーさん） */}
             </div>
           );
         })()}
