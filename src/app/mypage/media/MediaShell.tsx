@@ -263,8 +263,9 @@ export function MediaShell({
 
         <nav aria-label="画面" className="flex flex-col py-2">{navList()}</nav>
 
+        {/* ★ 第683便（2026-09-23・カッキーさん）: 駅ちか専用（第668便）になったので、4サイトの列挙をやめて1行に */}
         <p className="px-4 py-3.5 mt-2 border-t border-slate-100 text-[13.5px] text-slate-400 leading-relaxed">
-          駅ちか・エステラブ・エステ魂・全国エステランキングとの連携をまとめて扱います。
+          駅ちかの出勤・セラピスト・写メ日記をフクエスに反映します。
         </p>
       </aside>
 
@@ -397,7 +398,7 @@ export function MediaShell({
             </Link>
 
             <p className="px-4 py-4 border-t border-slate-100 text-[12px] text-slate-400 leading-relaxed">
-              駅ちか・エステラブ・エステ魂・全国エステランキングとの連携をまとめて扱います。
+              駅ちかの出勤・セラピスト・写メ日記をフクエスに反映します。
             </p>
           </nav>
         </div>
