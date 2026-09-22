@@ -7,7 +7,7 @@ summary: 施術台に寝るときの体の向き。背中側を施術するの�
 description: うつ伏せ・仰向けとは、施術台に寝るときの体の向きのこと。それぞれの向きで施術するところ、よくある施術の流れ、向きを変えるときのこと、楽に受けるコツを解説します。
 publishedAt: 2026-09-22
 heroImage: /glossary/utsubuse-aomuke/hero.webp
-heroAlt: 朝の光の入る施術室で、施術台の上に、顔の穴のあいたクッションとふつうの枕が並べて置かれているところ
+heroAlt: 朝の光の入る施術室で、施術台の上に、うつ伏せのときに顔をのせるU字のクッションと、ふつうの枕が並べて置かれているところ
 related: [sejutsu-dai, course-jikan, sejutsu-hani, counseling, towel-work, aroma-oil-treatment]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
