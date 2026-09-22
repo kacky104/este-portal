@@ -2826,42 +2826,20 @@ export default function MyPage() {
               href: `/hp/${hpSite.slug}/admin`,
             };
 
+  // ★★ 第665便（2026-09-22・カッキーさんの指示）: 文字リンクを画像バナーに置き換えた（./SidebarBanner.tsx）。
+  //   ★ 行き先は上の hpNav のまま: 申し込み前→/hp/templates・公開中→/hp/{slug}/admin（管理画面）。
+  //   ★ 制作中・停止中は押せない表示（薄く＋「準備中」の札）。
   const renderHpLink = (pc: boolean) => {
     // ★ まだ読んでいないあいだは描かない（上の hpNav のコメント参照）。
     if (!hpNav) return null;
-    if (hpNav.href === null) {
-      // ★ 制作中・停止中。★ フクエスCRM（準備中）と同じ見た目にそろえる。
-      return (
-        <div
-          aria-disabled
-          className={
-            pc
-              ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-300 cursor-default select-none'
-              // ★ スマホは「その他」の中の項目と同じ形（★ 押せないので文字は薄いまま）。
-          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-300 cursor-default select-none'
-          }
-        >
-          {tabIcon('hp')}
-          {hpNav.label}
-        </div>
-      );
-    }
     return (
-      <Link
+      <SidebarBanner
+        pc={pc}
         href={hpNav.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={
-          pc
-            ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-            // ★ スマホは「その他」の中の項目と同じ形にそろえる（2026-09-06・カッキーさんの指示）。
-          //   ★ フクエスワーク（求人）と同じ 13px・px-4・py-2.5・text-slate-500。
-          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
-        }
-      >
-        {tabIcon('hp')}
-        {hpNav.label}
-      </Link>
+        src="/mypage/sidebar/hp.webp"
+        alt="フクエスサイト　公式サイトを無料で作成"
+        disabledLabel="準備中"
+      />
     );
   };
 
