@@ -13,6 +13,8 @@ import {
 } from '@/lib/mediaOverview';
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
 import { consentRecheckNotice } from '@/lib/mediaConsent';
+// ★ 第688便: 写メ日記が取り込めているか（駅ちかの鍵あり・同意済み）の判定は diarySource と同じ物差し
+import { ekichikaReadReady } from '@/lib/diarySource';
 // ★ 反映の早見表（第212便〜第298便）は第299便で別ページ（/mypage/media/matrix・MatrixBoard.tsx）へ移した。
 //   ★ ここには何も残さない（左サイドバーに行き先があるので、同じ行き先を二度並べない・第117便と同じ理由）。
 
@@ -391,6 +393,40 @@ export function MediaHome({ salonId, onToast }: {
           );
         })()}
       </div>
+
+      {/* ── ★★★ 第688便（2026-09-23・カッキーさんの指示）: いま反映できている項目を ○／✕ で ──
+          ★ 駅ちかから反映中のときだけ。★ 出勤・セラピスト・即ヒメは鍵なしで反映される（第668便）。
+          ★ 写メ日記だけは駅ちかの ID・PW が要る（ekichikaReadReady）。✕ のときは次にすること（鍵の登録）を書く。
+          ★ 新着情報は駅ちかへ【送る】ものなので（取り込めない）、ここには出さない。 */}
+      {!loading && !error && reading && (() => {
+        const diaryOk = ekichikaReadReady(sites);
+        const items: Array<{ label: string; ok: boolean; note?: string }> = [
+          { label: '出勤', ok: true },
+          { label: 'セラピスト', ok: true },
+          { label: '即ヒメ', ok: true },
+          { label: '写メ日記', ok: diaryOk, note: diaryOk ? undefined : '駅ちかのID・PWを登録すると反映されます' },
+        ];
+        return (
+          <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+            <p className="text-[13px] font-bold text-slate-400 text-center">反映している項目</p>
+            <ul className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {items.map((it) => (
+                <li key={it.label} className={`border px-3 py-2.5 text-center ${it.ok ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+                  <span className={`block text-[22px] font-black leading-none ${it.ok ? 'text-emerald-600' : 'text-slate-400'}`}>
+                    {it.ok ? '○' : '✕'}
+                  </span>
+                  <span className={`block mt-1 text-[14px] font-bold ${it.ok ? 'text-slate-700' : 'text-slate-400'}`}>{it.label}</span>
+                  {it.note && (
+                    <Link href="/mypage/media/login" className="block mt-1 text-[12px] text-indigo-600 underline leading-snug">
+                      {it.note}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })()}
 
       {/* ★ 反映の早見表（折りたたみ）はここにあったが、第299便で /mypage/media/matrix へ移した。 */}
 
