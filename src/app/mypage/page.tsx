@@ -16,6 +16,7 @@ import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 // ★ normalizeHpSiteKey（独自ドメインの www. を落とす）は、フクエスサイトの飛び先を
 //   独自ドメインから /hp/{slug}/admin に変えた時点で使わなくなった（2026-09-11 夜）。★ 取り込みごと外す。
 import { TimeRangePicker } from '@/components/TimeRangePicker';
+import { ScheduleGrid } from './ScheduleGrid';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
@@ -453,11 +454,6 @@ function formatPublishedAt(iso: string): string {
   }).format(d);
 }
 
-function formatDateLabel(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`;
-}
-
 // 予約枠（UTC timestamptz）を JST の "M/D(曜) HH:MM〜HH:MM" に整形する。
 function formatBookingSlot(startISO: string, endISO: string): string {
   const parts = (iso: string) => {
@@ -480,27 +476,6 @@ function bookingStatusLabel(status: string): { label: string; cls: string } {
     case 'cancelled': return { label: 'キャンセル', cls: 'bg-slate-100 text-slate-500' };
     default: return { label: status, cls: 'bg-slate-100 text-slate-500' };
   }
-}
-
-function toPickerValue(start: string | null, end: string | null): string {
-  if (!start || !end) return '';
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const prefix = (eh * 60 + em) < (sh * 60 + sm) ? '翌' : '';
-  return `${sh}:${pad(sm)}〜${prefix}${eh}:${pad(em)}`;
-}
-
-function fromPickerValue(value: string): { start: string | null; end: string | null } {
-  if (!value) return { start: null, end: null };
-  const clean = value.replace(/翌/g, '');
-  const parts = clean.split('〜');
-  if (parts.length < 2) return { start: null, end: null };
-  const norm = (t: string) => {
-    const [h, m] = t.trim().split(':').map(Number);
-    return `${String(h).padStart(2, '0')}:${String(isNaN(m) ? 0 : m).padStart(2, '0')}`;
-  };
-  return { start: norm(parts[0]), end: norm(parts[1]) };
 }
 
 type CourseItem  = { duration: string; price: string };
@@ -769,7 +744,6 @@ export default function MyPage() {
   // 通知先メールのテスト送信（2026-08-16）。送信中の二度押し防止＋結果メッセージの保持。
   const [mailTesting, setMailTesting] = useState(false);
   const [mailTestResult, setMailTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [savingSchedule, setSavingSchedule] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('available');
   // ★★ 開いている画面を URL に残す（?tab=course）。2026-09-06
   //   ★ 再読み込みしても同じ画面に戻る。★ 「←戻る」で1つ前の画面へ戻る。
@@ -1350,26 +1324,6 @@ export default function MyPage() {
     })();
     return () => { alive = false; };
   }, [salon?.id, mediaVisible]);
-
-  const updateDay = (therapistId: string, dateStr: string, patch: Partial<DaySchedule>) => {
-    setSchedules(prev => {
-      const current: DaySchedule = prev[therapistId]?.[dateStr] ?? {
-        is_active: false,
-        start_time: null,
-        end_time: null,
-      };
-      return {
-        ...prev,
-        [therapistId]: {
-          ...prev[therapistId],
-          [dateStr]: {
-            ...current,
-            ...patch,
-          },
-        },
-      };
-    });
-  };
 
   const storageRemove = (url: string) => {
     const marker = '/salon-images/';
@@ -1955,18 +1909,18 @@ export default function MyPage() {
     else setActiveTab('available');
   };
 
-  const handleScheduleSave = async (therapistId: string) => {
+  // ★★ 第649便: 週間スケジュール（ScheduleGrid）の保存。★ 変えたマスのある人だけ、その人の7日ぶんを1回の upsert で書く。
+  //   ★ 中身は前の handleScheduleSave と同じ（30分に寄せる・寄せた数を伝える・再検証）。★ 保存の道はこれ1つ。
+  const saveSchedules = async (edits: Record<string, Record<string, DaySchedule>>): Promise<boolean> => {
     // ★ 第399便（案B）: コネックエフに切り替えた店は、出勤をコネックエフで保存する
-    if (conecfOn) { showToast('出勤はコネックエフの週間スケジュールで編集します'); return; }
-    setSavingSchedule(therapistId);
-    // ★★ 保存の前に30分刻みへ内側に寄せる（第75便）。
-    //   ★ 手打ちの欄からは 12:15 のような時刻を入れられるので、ピッカーだけでは揃わない。
-    //   ★ 黙って書き換えない——寄せた枠は数えて、保存後にそのまま伝える。
-    //   ★ 寄せると勤務が無くなる枠（12:15〜12:30）は【そのまま残し】、別に伝える。
+    if (conecfOn) { showToast('出勤はコネックエフの週間スケジュールで編集します'); return false; }
+    const ids = Object.keys(edits);
+    if (ids.length === 0) return true;
+    // ★★ 保存の前に30分刻みへ内側に寄せる（第75便）。★ 寄せると勤務が無くなる枠は【そのまま残し】、別に伝える。
     let snappedCount = 0;
     const keptAsIs: string[] = [];
-    const rows = sevenDays.map(dateStr => {
-      const s = schedules[therapistId]?.[dateStr] ?? { is_active: false, start_time: null, end_time: null };
+    const rows = ids.flatMap((therapistId) => sevenDays.map((dateStr) => {
+      const s = edits[therapistId]?.[dateStr] ?? schedules[therapistId]?.[dateStr] ?? { is_active: false, start_time: null, end_time: null };
       let start = s.start_time;
       let end = s.end_time;
       if (s.is_active && start && end) {
@@ -1986,35 +1940,31 @@ export default function MyPage() {
         start_time: s.is_active ? start : null,
         end_time: s.is_active ? end : null,
       };
-    });
+    }));
     const { error } = await supabase
       .from('therapist_schedules')
       .upsert(rows, { onConflict: 'therapist_id,schedule_date' });
-    setSavingSchedule(null);
-    if (!error) {
-      // 店舗ページ＋トップ（既存）に加え、当該セラピストの公開ページ /therapist/[id] も即時再検証。
-      // これが無いと出勤表は revalidate=600 の時間経過まで古いキャッシュのまま固着する。
-      if (salon) revalidateSalon(salon.id);
-      revalidateTherapist(therapistId);
-      // ★ 画面の値も、保存した値に合わせる（寄せた結果が見えないと「効いていない」に見える）
-      setSchedules(prev => {
-        const next = { ...prev };
-        const cur = { ...(next[therapistId] ?? {}) };
-        rows.forEach(r => {
-          const before = cur[r.schedule_date];
-          if (before) cur[r.schedule_date] = { ...before, start_time: r.start_time, end_time: r.end_time };
-        });
-        next[therapistId] = cur;
-        return next;
-      });
-    }
     // ★★ 起きたことを必ず言葉にする（§14-3）。黙って時刻を書き換えない
-    if (error) showToast(conecfLockMessage(error) ?? '保存に失敗しました');
-    else if (keptAsIs.length > 0)
-      showToast('スケジュールを保存しました（' + keptAsIs.join('・') + ' は30分単位にできないため、そのままです）');
-    else if (snappedCount > 0)
-      showToast('スケジュールを保存しました（' + snappedCount + '件を30分単位に寄せました）');
-    else showToast('スケジュールを保存しました');
+    if (error) { showToast(conecfLockMessage(error) ?? '保存に失敗しました'); return false; }
+    // 店舗ページ＋トップに加え、セラピストの公開ページ /therapist/[id] も即時再検証（revalidate=600 の固着を防ぐ）。
+    if (salon) revalidateSalon(salon.id);
+    ids.forEach((id) => revalidateTherapist(id));
+    // ★ 画面の値も、保存した値に合わせる（寄せた結果が見えないと「効いていない」に見える）
+    setSchedules((prev) => {
+      const next = { ...prev };
+      rows.forEach((r) => {
+        next[r.therapist_id] = {
+          ...(next[r.therapist_id] ?? {}),
+          [r.schedule_date]: { is_active: r.is_active, start_time: r.start_time, end_time: r.end_time },
+        };
+      });
+      return next;
+    });
+    const who = ids.length + '人の出勤を保存しました';
+    if (keptAsIs.length > 0) showToast(who + '（' + keptAsIs.join('・') + ' は30分単位にできないため、そのままです）');
+    else if (snappedCount > 0) showToast(who + '（' + snappedCount + '件を30分単位に寄せました）');
+    else showToast(who);
+    return true;
   };
 
   const handleTherapistAdd = async () => {
@@ -3442,7 +3392,7 @@ export default function MyPage() {
           ★ 倍率は mainZoom の数字1つ。★ 1.5倍は大きすぎたので1.2倍にした。 */}
       <main
         style={mainZoom === 1 ? undefined : { zoom: mainZoom }}
-        className={`${activeTab === 'board' ? 'max-w-none px-[5px]' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6 ${activeTab === 'salon' || activeTab === 'booking' ? 'pb-28' : ''}`}
+        className={`${activeTab === 'board' ? 'max-w-none px-[5px]' : activeTab === 'schedule' ? 'max-w-6xl px-4' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6 ${activeTab === 'salon' || activeTab === 'booking' || activeTab === 'schedule' ? 'pb-28' : ''}`}
       >
 
         {/* ── 店名（最上部・独立ブロック）──
@@ -4315,129 +4265,23 @@ export default function MyPage() {
             </div>
           )}
 
-          {scheduleTherapists.map((t) => {
-            const isOpen = expandedSections.has(`${t.id}-schedule`);
-            return (
-              <div key={t.id} className="bg-white rounded-none border border-pink-100 shadow-sm overflow-hidden">
-
-                <button
-                  type="button"
-                  onClick={() => toggleSection(`${t.id}-schedule`)}
-                  className="w-full flex items-center justify-between pr-5 hover:bg-pink-50/40 transition-colors"
-                >
-                  {/* ★ 名前の左に四角い顔写真（2026-09-11・カッキーさんの指示）。
-                      ★ 角は直角・バーの高さいっぱい（64px）・左端にぴったり付ける。
-                      ★ バーの高さは今までと同じ64px（★ 旧: py-4 の 32px ＋ 写真 32px）。
-                      ★ 写真が無い人は頭文字の四角を出す（★ 欠けて見えないように）。 */}
-                  <span className="flex items-center gap-3 min-w-0">
-                    {t.profile_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={t.profile_image_url}
-                        alt=""
-                        className="w-16 h-16 rounded-none object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <span className="w-16 h-16 rounded-none bg-pink-100 text-pink-400 text-base font-bold flex items-center justify-center flex-shrink-0">
-                        {(t.name ?? '?').charAt(0)}
-                      </span>
-                    )}
-                    <span className="text-sm font-bold text-slate-700 truncate">{t.name ?? '(名前未設定)'}</span>
-                    {/* ★ 新人マーク（2026-09-06・カッキーさんの指示）。
-                        ★ 判定は src/lib/newFace.ts ただ1つ（is_new_face かつ 60日以内）。 */}
-                    {isNewFaceActive(t.is_new_face, t.new_face_since) && (
-                      <span className="flex-shrink-0 px-1.5 py-0.5 bg-emerald-500 text-white text-[9px] font-black leading-none tracking-wider">
-                        NEW
-                      </span>
-                    )}
-                    {/* ★ 非公開の印（第216便・2026-09-08）。★ 一覧からは外さず、印を付けて残す
-                        （★ カッキーさんの判断: 外すと公開に戻す入口が見つからなくなる）。
-                        ★ 切替は「セラピスト情報」→ プロフィールを編集 の中。 */}
-                    {t.is_active === false && (
-                      <span className="flex-shrink-0 px-1.5 py-0.5 bg-slate-600 text-white text-[9px] font-black leading-none">
-                        非公開
-                      </span>
-                    )}
-                  </span>
-                  <svg
-                    className={`w-4 h-4 text-pink-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                <div className={isOpen ? 'px-5 pb-5 pt-2 space-y-4 border-t border-pink-100' : 'hidden'}>
-
-                  {/* 7日間スケジュール */}
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-bold text-slate-400">7日間スケジュール</p>
-
-                    {sevenDays.map((dateStr, idx) => {
-                      const day = schedules[t.id]?.[dateStr] ?? { is_active: false, start_time: null, end_time: null };
-                      const pickerVal = toPickerValue(day.start_time, day.end_time);
-                      return (
-                        <div
-                          key={dateStr}
-                          className={`rounded-none border px-3 py-2.5 space-y-2 transition-colors ${
-                            day.is_active ? 'border-pink-200 bg-pink-50/30' : 'border-slate-100 bg-slate-50/50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs font-bold ${idx === 0 ? 'text-pink-600' : 'text-slate-600'}`}>
-                              {idx === 0 ? '今日 ' : ''}{formatDateLabel(dateStr)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => updateDay(t.id, dateStr, { is_active: !day.is_active })}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-none transition-colors ${
-                                day.is_active ? 'bg-pink-500' : 'bg-slate-200'
-                              }`}
-                            >
-                              <span className={`inline-block h-4 w-4 transform rounded-none bg-white shadow transition-transform ${
-                                day.is_active ? 'translate-x-6' : 'translate-x-1'
-                              }`} />
-                              <span className="sr-only">{day.is_active ? '出勤' : '休み'}</span>
-                            </button>
-                          </div>
-                          {day.is_active && (
-                            <div className="flex items-center gap-2">
-                              <input
-                                className="flex-1 px-3 py-1.5 rounded-none border border-slate-200 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300"
-                                placeholder="例: 12:00〜21:00"
-                                value={pickerVal}
-                                onChange={e => {
-                                  const { start, end } = fromPickerValue(e.target.value);
-                                  updateDay(t.id, dateStr, { start_time: start, end_time: end });
-                                }}
-                              />
-                              <TimeRangePicker
-                                value={pickerVal}
-                                onChange={v => {
-                                  const { start, end } = fromPickerValue(v);
-                                  updateDay(t.id, dateStr, { start_time: start, end_time: end });
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                    <div className="flex justify-end pt-1">
-                      <button
-                        className={saveBtn}
-                        onClick={() => handleScheduleSave(t.id)}
-                        disabled={savingSchedule === t.id || conecfOn}
-                      >
-                        {savingSchedule === t.id ? '保存中...' : 'スケジュールを保存'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {/* ★★ 第649便（2026-09-22・カッキーさんの指示）: コネックエフと同じ「セラピスト×7日のマス」に作り直した。
+              ★ 前の「1人ずつ開いて7日のスイッチ＋保存」はやめた。★ 部品は ./ScheduleGrid.tsx、保存は saveSchedules。 */}
+          {scheduleTherapists.length > 0 && (
+            <ScheduleGrid
+              days={sevenDays}
+              therapists={scheduleTherapists.map((t) => ({
+                id: t.id,
+                name: t.name,
+                imageUrl: t.profile_image_url,
+                isActive: t.is_active !== false,
+                isNew: isNewFaceActive(t.is_new_face, t.new_face_since),
+              }))}
+              saved={schedules}
+              locked={conecfOn}
+              onSave={saveSchedules}
+            />
+          )}
         </div>
 
         {/* ── タブ3: 今すぐ ── */}
