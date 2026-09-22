@@ -17,6 +17,7 @@ import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 //   独自ドメインから /hp/{slug}/admin に変えた時点で使わなくなった（2026-09-11 夜）。★ 取り込みごと外す。
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { ScheduleGrid } from './ScheduleGrid';
+import { SidebarBanner } from './SidebarBanner';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
 import { VipLetterForm } from '@/app/components/VipLetterForm';
@@ -2943,22 +2944,17 @@ export default function MyPage() {
   // ★★★ フクエスワーク（求人）（第220便・2026-09-08・カッキーさんの指示）。
   //   ★ タブではなく専用サイト /mypage/jobs への入口（★ フクエスリンクとまったく同じ形）。
   //   ★ 新しいタブで開く。★ 出すのはフクエスワーク掲載（jobs_enabled）契約店だけ。
+  // ★★ 第663便（2026-09-22・カッキーさんの指示）: 文字リンクを画像バナーに置き換えた（./SidebarBanner.tsx）。
+  //   ★ 契約店（jobs_enabled）は今までどおり管理画面 /mypage/jobs へ・未対応の応募の数を右上に。
+  //   ★ 未契約店にも出し、押すと公開サイト /jobs へ（フクエスワークを知ってもらう入口）。
   const renderJobsLink = (pc: boolean) => (
-    <Link
-      href="/mypage/jobs"
-      target="_blank"
-      rel="noopener noreferrer"
-      className={
-        pc
-          ? 'inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold text-slate-400 transition-colors hover:bg-pink-50/40 hover:text-slate-600'
-          : 'inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 py-2.5 text-[13px] font-bold text-slate-500 transition-colors'
-      }
-    >
-      {tabIcon('jobs')}
-      フクエスワーク（求人）
-      {/* ★ 未対応（新規のまま）の応募の数を右に出す（2026-09-11・カッキーさんの指示）。 */}
-      <NewCountBadge count={newApplications} />
-    </Link>
+    <SidebarBanner
+      pc={pc}
+      href={salon?.jobs_enabled ? '/mypage/jobs' : '/jobs'}
+      src="/mypage/sidebar/jobs.webp"
+      alt="フクエスワーク　福岡でメンズエステのお仕事探し"
+      badge={salon?.jobs_enabled && newApplications > 0 ? <NewCountBadge count={newApplications} /> : undefined}
+    />
   );
 
   const renderMediaLink = (pc: boolean) => (
@@ -3241,7 +3237,7 @@ export default function MyPage() {
                         );
                       })}
                       {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
-                      {isSites && salon?.jobs_enabled && renderJobsLink(false)}
+                      {isSites && salon && renderJobsLink(false)}
                       {withMedia && renderMediaLink(false)}
                       {isSites && renderFukuxLink(false)}
                       {isSites && renderCrmSoon(false)}
@@ -3328,7 +3324,7 @@ export default function MyPage() {
                   {/* ★★★ フクエスリンク（媒体連携）（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
                       ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
                   {/* ★ フクエスワーク（求人）→ フクエスリンク の順（★ 第184便までの並びのまま）。 */}
-                  {open && sec.group === '関連サイト' && salon?.jobs_enabled && renderJobsLink(true)}
+                  {open && sec.group === '関連サイト' && salon && renderJobsLink(true)}
                   {open && withMedia && renderMediaLink(true)}
                   {/* ★ フクエックス（SNS）。★ 媒体連携と違い、契約に関係なく全店舗に出す。 */}
                   {open && sec.group === '関連サイト' && renderFukuxLink(true)}
