@@ -440,10 +440,11 @@ export function switchDoneText(to: 'read' | 'write' | 'none', siteLabel: string,
     if (to === 'none') return `${siteLabel}へは反映しないようにしました。フクエスに入れた出勤は、そのまま残ります`;
     return `${siteLabel}は、更新することしかできません`;
   }
-  if (to === 'read') return `${siteLabel}から反映するようにしました。フクエスからは更新しません`;
+  // ★ 第690便（2026-09-23・カッキーさん）: 押したあとの知らせも1文に（switchAskText と同じ理由）
+  if (to === 'read') return `${siteLabel}から反映するようにしました。`;
   if (to === 'write') return `フクエスから反映するようにしました。${siteLabel}からの取り込みは止まります`;
   // ★★★ 第192便: 「どのサイトへも」を消した（switchAskText('none') と対）。★ 変わったのはこの枠だけ
-  return `${siteLabel}へは反映しないようにしました。${siteLabel}は更新せず、${siteLabel}からの取り込みもしません`;
+  return `${siteLabel}からの反映を止めました`;
 }
 
 /**
