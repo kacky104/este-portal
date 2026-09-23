@@ -417,7 +417,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               )}
             </p>
             <Link href={brand.link('login')} className="mt-2 inline-block text-[14px] font-bold text-sky-700 underline">
-              {brand.isConecf ? 'ID・PASS登録へ' : 'ログイン情報へ'}
+              {brand.isConecf ? 'ID・パスワード登録へ' : 'ログイン情報へ'}
             </Link>
           </div>
         </div>

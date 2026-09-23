@@ -11,7 +11,7 @@ import { useToast } from '@/app/components/useToast';
 export default function ConecfSitesPage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="sites" title="ID・PASS登録" toast={toast}>
+    <ConecfShell current="sites" title="ID・パスワード登録" toast={toast}>
       {(a) => <ConecfLoginBoard salonId={a.salonId} onToast={showToast} />}
     </ConecfShell>
   );

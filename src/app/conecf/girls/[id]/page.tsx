@@ -362,7 +362,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
             </ul>
             {sites.length === 0 && (
               <p className="text-[13.5px] text-slate-500">
-                ID・PASSを登録したサイトがまだありません。<Link href={href('/sites')} className="font-bold text-indigo-600 underline">ID・PASS登録</Link>
+                ID・PASSを登録したサイトがまだありません。<Link href={href('/sites')} className="font-bold text-indigo-600 underline">ID・パスワード登録</Link>
               </p>
             )}
           </div>

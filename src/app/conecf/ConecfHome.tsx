@@ -84,7 +84,7 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
         <div className="border border-amber-300 bg-amber-50 px-4 py-3">
           <p className="text-[15px] font-bold text-amber-800">{consentRecheckNotice(recheck.map((x) => x.label)).title}</p>
           <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">{consentRecheckNotice(recheck.map((x) => x.label)).body}</p>
-          <Link href={href('/sites')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">ID・PASS登録を開く ›</Link>
+          <Link href={href('/sites')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">ID・パスワード登録を開く ›</Link>
         </div>
       )}
 
@@ -195,7 +195,7 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
 
           {data && sites.length === 0 && (
             <li className="px-4 py-3 text-[14px] text-slate-500">
-              まだどのサイトも登録されていません。<Link href={href('/sites')} className="font-bold text-indigo-600 underline underline-offset-4">ID・PASS登録</Link>から始めてください。
+              まだどのサイトも登録されていません。<Link href={href('/sites')} className="font-bold text-indigo-600 underline underline-offset-4">ID・パスワード登録</Link>から始めてください。
             </li>
           )}
         </ul>

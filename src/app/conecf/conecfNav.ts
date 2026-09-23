@@ -16,7 +16,7 @@ export type ConecfNavItem = { key: ConecfNavKey; label: string; href: string; gr
 
 export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'home',         label: 'ホーム',               href: '/' },
-  { key: 'sites',        label: 'ID・PASS登録',          href: '/sites' },
+  { key: 'sites',        label: 'ID・パスワード登録',          href: '/sites' },
   { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
   { key: 'girlsSync',    label: 'セラピスト登録状況一覧', href: '/girls/sync' },
   { key: 'schedule',     label: '週間スケジュール',       href: '/schedule',      group: '出勤' },
