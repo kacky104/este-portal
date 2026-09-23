@@ -30,7 +30,10 @@ type Overview = { therapistCount: number; sites: Site[] };
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 
-export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
+// ★ 第756便（カッキーさん）: enabled=false（コネックエフに切り替える前）は【見るだけ】。
+//   ★ 更新しているサイトは 0、各サイトは「更新していません」（駅ちかだけ「フクエスリンクで反映中」を出す）、ボタンは出さない。
+//   ★ 切り替える前に「コネックエフから更新する」を押せて向きが変わる穴を塞ぐ。
+export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: number | null; enabled?: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
@@ -99,7 +102,7 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
         <div className="px-4 py-3">
           <div className="text-[12.5px] font-bold text-slate-400">更新しているサイト</div>
           <div className="text-[22px] font-black text-slate-800 tabular-nums">
-            {data ? updating.length + 1 : '—'}<span className="text-[13px] font-bold text-slate-400 ml-0.5">サイト</span>
+            {data ? (enabled ? updating.length + 1 : 0) : '—'}<span className="text-[13px] font-bold text-slate-400 ml-0.5">サイト</span>
           </div>
         </div>
       </div>
@@ -112,7 +115,9 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
             <b className="text-[15.5px] font-black text-slate-800">フクエス</b>
             {/* ★ 第721便（カッキーさん）: 写メ日記はフクエスから投稿だが、利用者に分かりやすいよう並べて出す */}
             <span className="text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・セラピスト・写メ日記・今すぐ・お知らせ</span>
-            <span className="ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
+            {enabled
+              ? <span className="ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
+              : <span className="ml-auto text-[13.5px] font-bold text-slate-400">更新していません</span>}
           </li>
 
           {!data && <li className="px-4 py-3 text-[14px] text-slate-400">読み込み中…</li>}
@@ -124,7 +129,12 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
             /** ★ 第437便: 状態の下に出す1行（★ 直し方まで書く） */
             let note: { text: string; tone: string; link: { href: string; label: string } | null } | null = null;
 
-            if (s.needsConsent) {
+            if (!enabled) {
+              // ★ 第756便: 切り替える前は見るだけ。★ 駅ちかから反映中だけは事実として出す
+              status = s.direction === 'read'
+                ? { text: 'フクエスリンクで反映中', tone: 'text-amber-700' }
+                : { text: '更新していません', tone: 'text-slate-400' };
+            } else if (s.needsConsent) {
               status = { text: '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
             } else if (!s.hasCredential) {

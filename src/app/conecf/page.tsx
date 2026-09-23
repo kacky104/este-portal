@@ -77,7 +77,7 @@ export default function ConecfHomePage() {
         <div className="space-y-3">
           {/* ★ 第411便: 「◯◯ 様」の帯は外した（★ 店舗名はサイドバーに出ている。★ はじめての方へはサイドバーから） */}
           <SwitchCard enabledAt={access.enabledAt} onToast={showToast} />
-          <ConecfHome salonId={access.salonId} onToast={showToast} />
+          <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} onToast={showToast} />
         </div>
       )}
     </ConecfShell>
