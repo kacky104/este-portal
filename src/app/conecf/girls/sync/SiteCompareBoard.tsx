@@ -185,24 +185,27 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
               <tr className="border-b border-slate-200 align-bottom">
                 {/* ★ 第738便: サイトの列は同じ幅（140px）。★ 第739便: 表を左に寄せる（名前 260px・右は空ける） */}
                 <th className="text-left px-4 py-3 font-bold text-slate-500 w-[260px]">名前</th>
-                <th className="px-2 py-3 text-center w-[140px]">
-                  <div className="font-bold text-slate-700">フクエス</div>
-                  <div className="text-[11px] text-slate-400 font-normal">{therapists.length}人</div>
+                <th className="px-2 py-3 text-center w-[160px]">
+                  <div className="font-bold text-slate-800 text-[15.5px]">フクエス</div>
+                  <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">{therapists.length}人</div>
                 </th>
                 {sites.map((s) => {
                   const p = pairsOf[key(s)];
                   const bad = therapists.filter((t) => s.hasCredential && cellOf(t, s) !== 'ok').length;
                   return (
-                    <th key={key(s)} className={`px-2 py-3 text-center w-[140px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
-                      <div className="font-bold text-slate-700">{s.label}</div>
+                    <th key={key(s)} className={`px-2 py-3 text-center w-[160px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
+                      <div className="font-bold text-slate-800 text-[15.5px]">{s.label}</div>
                       {s.hasCredential ? (
                         <>
-                          <div className="text-[11px] text-slate-400 font-normal">
+                          {/* ★ 第740便（カッキーさん）: 1行目 サイト名／2行目 最終確認／3行目 △×の人数。★ 文字も大きく */}
+                          <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">
                             {p?.readAt ? `最終確認 ${fmtAt(p.readAt)}` : 'まだ読んでいません'}
-                            {bad > 0 && <span className="ml-1 text-rose-500 font-bold">△× {bad}人</span>}
+                          </div>
+                          <div className={`text-[13px] font-bold ${bad > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
+                            {bad > 0 ? `△× ${bad}人` : '差異なし'}
                           </div>
                           <button type="button" disabled={reading === key(s)} onClick={() => void onRead(s)}
-                            className="mt-1 text-[12px] text-indigo-600 underline disabled:opacity-40">
+                            className="mt-1 text-[12.5px] text-indigo-600 underline disabled:opacity-40">
                             {reading === key(s) ? '読み直しています…' : '再読み込み'}
                           </button>
                         </>
