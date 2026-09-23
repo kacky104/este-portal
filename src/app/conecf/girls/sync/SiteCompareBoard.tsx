@@ -187,7 +187,9 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                 <th className="text-left px-4 py-3 font-bold text-slate-500 w-[260px]">名前</th>
                 <th className="px-2 py-3 text-center w-[160px]">
                   <div className="font-bold text-slate-800 text-[15.5px]">フクエス</div>
-                  <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">{therapists.length}人</div>
+                  {/* ★ 第741便（カッキーさん）: ほかのサイトと同じ3行に（フクエスは正本なので常時確認・差異0） */}
+                  <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">最終確認 常時確認</div>
+                  <div className="text-[13px] font-bold text-slate-400">△× 0人</div>
                 </th>
                 {sites.map((s) => {
                   const p = pairsOf[key(s)];
@@ -202,7 +204,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                             {p?.readAt ? `最終確認 ${fmtAt(p.readAt)}` : 'まだ読んでいません'}
                           </div>
                           <div className={`text-[13px] font-bold ${bad > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
-                            {bad > 0 ? `△× ${bad}人` : '差異なし'}
+                            {`△× ${bad}人`}
                           </div>
                           <button type="button" disabled={reading === key(s)} onClick={() => void onRead(s)}
                             className="mt-1 text-[12.5px] text-indigo-600 underline disabled:opacity-40">
