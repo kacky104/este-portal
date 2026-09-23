@@ -70,7 +70,7 @@ export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideCon
 
       {/* ── サイトごとにできること ── */}
       <section className={`${card} space-y-3`}>
-        <SectionTitle>連携できるサイトと、できること</SectionTitle>
+        <SectionTitle>{isConecf ? '連携できるサイトと、できること' : '連携できること'}</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {c.sites.map((s) => (
             <div key={s.name} className="border border-slate-200 p-3.5">
