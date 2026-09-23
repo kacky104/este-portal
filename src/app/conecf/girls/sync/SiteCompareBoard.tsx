@@ -166,11 +166,11 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
       </p>
 
       <div className={`${CARD} p-3 flex flex-wrap items-center gap-3`}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="女性名で検索"
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="セラピスト名で検索"
           className="border border-slate-300 rounded px-3 py-1.5 text-[14px] w-[240px]" />
         <label className="flex items-center gap-1.5 text-[13.5px] text-slate-600">
           <input type="checkbox" checked={onlyDiff} onChange={(e) => setOnlyDiff(e.target.checked)} className="accent-indigo-600" />
-          差異がある女性のみ表示
+          差異があるセラピストのみ表示
         </label>
         <span className="ml-auto text-[13px] text-slate-500">{shown.length}人 / {therapists.length}人中</span>
       </div>
@@ -223,7 +223,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
             </thead>
             <tbody>
               {shown.length === 0 ? (
-                <tr><td colSpan={2 + sites.length} className="px-4 py-6 text-center text-slate-400">{onlyDiff ? '差異がある女性はいません。' : '女性がいません。'}</td></tr>
+                <tr><td colSpan={2 + sites.length} className="px-4 py-6 text-center text-slate-400">{onlyDiff ? '差異があるセラピストはいません。' : 'セラピストがいません。'}</td></tr>
               ) : shown.map((t) => (
                 <tr key={t.id} className="border-b border-slate-100 align-middle">
                   <td className="px-4 py-1.5">

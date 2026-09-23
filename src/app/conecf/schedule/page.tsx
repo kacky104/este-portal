@@ -108,7 +108,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       )}
 
       <div className={`${CARD} p-3 flex flex-wrap items-center gap-3`}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="女性名で検索"
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="セラピスト名で検索"
           className="flex-1 min-w-[160px] border border-slate-200 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200" />
         <span className="text-[13px] font-bold text-slate-500">今日の出勤 <b className="text-indigo-700 text-[16px] tabular-nums">{todayCount}</b>名</span>
         <Link href={href('/schedule/sync')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">出勤をサイトへ ›</Link>
@@ -119,7 +119,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]">
           <thead>
             <tr className="bg-slate-50">
-              <th className="sticky left-0 z-10 bg-slate-50 text-left px-1.5 sm:px-3 py-2 border-b border-slate-200 w-[64px] sm:w-[150px] text-[12px] text-slate-400">女性</th>
+              <th className="sticky left-0 z-10 bg-slate-50 text-left px-1.5 sm:px-3 py-2 border-b border-slate-200 w-[64px] sm:w-[150px] text-[12px] text-slate-400">セラピスト</th>
               {dates.map((d, i) => {
                 const h = dateHead(d, i);
                 return (

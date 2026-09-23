@@ -220,7 +220,7 @@ export function ConecfShell({
         </div>
       )}
       {/* ── 左サイドバー（PC）── */}
-      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[232px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
+      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[272px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
         <Link href={href('/')} className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
           <ConecfLogo />
           <b className="text-[18px] font-bold text-[#212121]">コネックエフ</b>

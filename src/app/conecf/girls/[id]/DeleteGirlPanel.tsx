@@ -40,12 +40,12 @@ export function DeleteGirlPanel({ id, enabled, onToast }: { id: number; enabled:
   return (
     <div className="bg-white border border-slate-200 px-4 py-3 space-y-3 text-[14px] text-[#212121]">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="font-bold">女性の削除</span>
-        <span className="text-[12px] text-slate-500">退店した女性を消します（取り消せません）</span>
+        <span className="font-bold">セラピストの削除</span>
+        <span className="text-[12px] text-slate-500">退店したセラピストを消します（取り消せません）</span>
         {!info && (
           <button type="button" disabled={busy} onClick={() => void open()}
             className="ml-auto h-8 px-4 rounded border border-[#c62828] text-[#c62828] text-[12px] disabled:opacity-40">
-            {busy ? '確認しています…' : 'この女性を削除'}
+            {busy ? '確認しています…' : 'このセラピストを削除'}
           </button>
         )}
       </div>

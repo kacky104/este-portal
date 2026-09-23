@@ -78,7 +78,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
     return (
       <div className={`${CARD} p-5 space-y-2`}>
         <p className="text-[14px] text-slate-500">{error}</p>
-        <Link href={href('/girls')} className="text-[14px] font-bold text-indigo-600 underline">女性一覧へ戻る</Link>
+        <Link href={href('/girls')} className="text-[14px] font-bold text-indigo-600 underline">セラピスト一覧へ戻る</Link>
       </div>
     );
   }
@@ -212,7 +212,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <Link href={href('/girls')} className="text-[14px] font-bold text-slate-500 hover:text-indigo-600">‹ 女性一覧へ</Link>
+        <Link href={href('/girls')} className="text-[14px] font-bold text-slate-500 hover:text-indigo-600">‹ セラピスト一覧へ</Link>
         <button type="button" disabled={saving || !enabled} onClick={() => void onToggleActive()}
           className={`px-3 py-1.5 text-[13px] font-bold border ${form.isActive ? 'text-indigo-700 border-indigo-300 bg-indigo-50' : 'text-slate-500 border-slate-300 bg-white'} disabled:opacity-50`}>
           {form.isActive ? '公開中（押すと非公開）' : '非公開（押すと公開）'}
@@ -241,7 +241,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
       {tab === 'basic' && (
         <div className={CARD}>
           <div className="px-4 py-2">
-            <Field label="女性名" badge="必須">
+            <Field label="セラピスト名" badge="必須">
               <input className={INPUT} value={form.name} maxLength={CONECF_NAME_MAX} onChange={(e) => set('name', e.target.value)} />
               <p className="text-[12px] text-slate-400 mt-1">{[...form.name].length}/{CONECF_NAME_MAX}文字。</p>
               {/* ★★ 第450便（カッキーさん）: 名前だけは自動で送れないので、赤字で気づけるようにした */}
@@ -381,8 +381,8 @@ export default function ConecfGirlEditPage() {
   const id = Number(params?.id);
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="girls" title="女性プロフィール編集" toast={toast}>
-      {(a) => (Number.isInteger(id) && id > 0 ? <EditBody id={id} enabled={!!a.enabledAt} onToast={showToast} /> : <p className="text-slate-500">女性の指定が正しくありません。</p>)}
+    <ConecfShell current="girls" title="セラピストプロフィール編集" toast={toast}>
+      {(a) => (Number.isInteger(id) && id > 0 ? <EditBody id={id} enabled={!!a.enabledAt} onToast={showToast} /> : <p className="text-slate-500">セラピストの指定が正しくありません。</p>)}
     </ConecfShell>
   );
 }

@@ -124,7 +124,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
 
   const onBulk = async () => {
     if (!enabled) { needEnabled('更新するには、ホームで「コネックエフに切り替える」を押してください'); return; }
-    if (picked.size === 0) { onToast('更新する女性にチェックを入れてください'); return; }
+    if (picked.size === 0) { onToast('更新するセラピストにチェックを入れてください'); return; }
     setBulkBusy(true); setBulkNote('');
     const p = await previewConecfEkichikaPhotoRemovals({ ids: [...picked] });
     setBulkBusy(false);
@@ -137,7 +137,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const [esuRemovals, setEsuRemovals] = useState<PhotoRemoval[] | null>(null);
   const onBulkEsutama = async (allowRemove?: boolean) => {
     if (!enabled) { needEnabled('更新するには、ホームで「コネックエフに切り替える」を押してください'); return; }
-    if (picked.size === 0) { onToast('更新する女性にチェックを入れてください'); return; }
+    if (picked.size === 0) { onToast('更新するセラピストにチェックを入れてください'); return; }
     setBulkBusy(true); setBulkNote('');
     if (allowRemove === undefined) {
       const p = await previewConecfEsutamaPhotoRemovals({ ids: [...picked] });
@@ -149,7 +149,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     setEsuRemovals(null);
     if (!r.ok) { onToast(r.error); return; }
     if (r.data.queued > 0) { onToast(`${r.data.queued}名のエステ魂への更新を受け付けました。結果は「更新結果」に出ます`); setPicked(new Set()); }
-    else onToast('更新できる女性がいませんでした');
+    else onToast('更新できるセラピストがいませんでした');
     setBulkNote(r.data.skipped.length > 0 ? `エステ魂へ更新しなかった方：${r.data.skipped.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '');
   };
 
@@ -163,7 +163,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     if (r.data.queued > 0) {
       onToast(`${r.data.queued}名の駅ちかへの更新を受け付けました。結果は「更新結果」に出ます`);
       setPicked(new Set());
-    } else onToast('更新できる女性がいませんでした');
+    } else onToast('更新できるセラピストがいませんでした');
     setBulkNote(sk.length > 0 ? `更新しなかった方：${sk.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '');
   };
 
@@ -235,7 +235,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             onClick={() => (enabled ? setImportOpen((x) => !x) : needEnabled('取り込むには、ホームで「コネックエフに切り替える」を押してください'))}
             className={GREEN_PILL}
           >
-            <span className="text-[16px] leading-none">⤓</span>女性取り込み
+            <span className="text-[16px] leading-none">⤓</span>セラピスト取り込み
           </button>
         )}
         {canPhotoImport && (
@@ -281,12 +281,12 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       {/* ── 新規登録 ── */}
       {adding && (
         <div className="bg-white border border-slate-200 p-4 space-y-3">
-          <p className="font-bold">新しい女性を登録</p>
+          <p className="font-bold">新しいセラピストを登録</p>
           <div className="flex flex-wrap items-center gap-3">
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="女性名（10文字まで）"
+              placeholder="セラピスト名（10文字まで）"
               maxLength={10}
               className="flex-1 min-w-[180px] h-[34px] border border-slate-300 rounded px-2 text-[14px] focus:outline-none focus:border-[#1e88e5]"
             />
@@ -305,12 +305,12 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       {/* ── 女性取り込み（駅ちかから最初の1回だけ）── */}
       {importOpen && canImport && (
         <div className="bg-white border border-slate-200 p-4 space-y-3">
-          <p className="font-bold">駅ちかから女性と出勤を取り込む（最初の1回だけ）</p>
+          <p className="font-bold">駅ちかからセラピストと出勤を取り込む（最初の1回だけ）</p>
           <ul className="text-[13px] text-slate-600 leading-relaxed list-disc pl-5">
-            <li>駅ちかに載っている女性・年齢・サイズ・1週間の出勤を、まとめて取り込みます</li>
-            <li>まだ居ない女性は公開で追加します（新人マークは付けません）</li>
+            <li>駅ちかに載っているセラピスト・年齢・サイズ・1週間の出勤を、まとめて取り込みます</li>
+            <li>まだ居ないセラピストは公開で追加します（新人マークは付けません）</li>
             <li>入力済みの出勤の日はそのまま残します／年齢・サイズは空欄だけ埋めます</li>
-            <li>写真がまだ無い女性は、駅ちかの写真も取り込みます（写真を入れてある女性はそのまま）</li>
+            <li>写真がまだ無いセラピストは、駅ちかの写真も取り込みます（写真を入れてあるセラピストはそのまま）</li>
             <li>1回だけ押せます</li>
           </ul>
           <div className="flex gap-2">
@@ -326,8 +326,8 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         <div className="bg-white border border-slate-200 p-4 space-y-3">
           <p className="font-bold">駅ちかから写真を取り込む（1回だけ）</p>
           <ul className="text-[13px] text-slate-600 leading-relaxed list-disc pl-5">
-            <li>写真がまだ無い女性（{pst?.noPhotoCount ?? 0}名）に、駅ちかに載っている写真を取り込みます</li>
-            <li>写真を入れてある女性はそのままです</li>
+            <li>写真がまだ無いセラピスト（{pst?.noPhotoCount ?? 0}名）に、駅ちかに載っている写真を取り込みます</li>
+            <li>写真を入れてあるセラピストはそのままです</li>
             <li>駅ちかで写真の枠が空いている場合は、詰めて並べます（次に「駅ちかへ更新」したとき、駅ちか側も詰まります）</li>
             <li>取り込んだあとは、コネックエフで写真を消すと駅ちかからも消えます</li>
             <li>1回だけ押せます</li>
@@ -351,7 +351,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       )}
       {st && st.phase === 'done' && st.summary && st.summary.unmatched.length > 0 && (
         <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-slate-500">
-          駅ちかから取り込めなかった女性：{st.summary.unmatched.join('、')}（「＋新規登録」から登録してください）
+          駅ちかから取り込めなかったセラピスト：{st.summary.unmatched.join('、')}（「＋新規登録」から登録してください）
         </p>
       )}
 
@@ -363,7 +363,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="女性名で検索"
+              placeholder="セラピスト名で検索"
               className="flex-1 min-w-0 bg-transparent text-[14px] focus:outline-none"
             />
           </label>
@@ -391,7 +391,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         </div>
 
         {!rows && <p className="p-5 text-slate-400">読み込み中…</p>}
-        {rows && rows.length === 0 && <p className="p-5 text-slate-500">まだ女性が登録されていません。</p>}
+        {rows && rows.length === 0 && <p className="p-5 text-slate-500">まだセラピストが登録されていません。</p>}
         <ul>
           {shown.map((g) => {
             const [t, bwh] = sizeLines(g.bodyType);
@@ -452,7 +452,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
 export default function ConecfGirlsPage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="girls" title="女性一覧" toast={toast}>
+    <ConecfShell current="girls" title="セラピスト一覧" toast={toast}>
       {(a) => <GirlsBody enabled={!!a.enabledAt} onToast={showToast} />}
     </ConecfShell>
   );

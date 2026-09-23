@@ -180,7 +180,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       {/* ── 対象 ── */}
       <div className={CARD}>
         <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-          <p className="text-[15px] font-black text-slate-800">対象の女性（今日の出勤）{targets.length}名</p>
+          <p className="text-[15px] font-black text-slate-800">対象のセラピスト（今日の出勤）{targets.length}名</p>
           {orderDirty && (
             <button type="button" disabled={busy !== ''} onClick={() => void saveMembers()} className="px-4 py-1.5 bg-indigo-600 text-white text-[13px] font-bold">
               {busy === 'members' ? '保存しています…' : '並び順・除外を保存'}

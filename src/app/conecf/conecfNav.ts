@@ -17,8 +17,8 @@ export type ConecfNavItem = { key: ConecfNavKey; label: string; href: string; gr
 export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'home',         label: 'ホーム',               href: '/' },
   { key: 'sites',        label: 'ID・PASS登録',          href: '/sites' },
-  { key: 'girls',        label: '女性一覧（新規登録など）',          href: '/girls',         group: '女性' },
-  { key: 'girlsSync',    label: '女性をサイトへ登録',     href: '/girls/sync' },
+  { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
+  { key: 'girlsSync',    label: 'セラピストをサイトへ登録', href: '/girls/sync' },
   { key: 'schedule',     label: '週間スケジュール',       href: '/schedule',      group: '出勤' },
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
   // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
