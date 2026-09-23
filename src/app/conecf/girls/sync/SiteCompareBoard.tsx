@@ -160,8 +160,9 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
 
   return (
     <div className="space-y-3">
+      {/* ★ 第743便（カッキーさん）: 記号は表と同じ色で */}
       <p className="text-[13px] text-slate-500 leading-relaxed">
-        登録している女性が、各サイトに登録されているかの一覧です。○＝連携済み、△＝確かめられません（名前が違うなど）、×＝サイトにいません。△や×を押すと、その場で連携・登録できます。
+        各サイトへの登録状況一覧です。<b className="text-sky-500 font-black">○</b>＝連携済み、<b className="text-amber-500 font-black">△</b>＝確かめられません（名前が違うなど）、<b className="text-rose-500 font-black">×</b>＝サイトにいません。<b className="text-amber-500 font-black">△</b>や<b className="text-rose-500 font-black">×</b>を押すと、その場で連携・登録できます。
       </p>
 
       <div className={`${CARD} p-3 flex flex-wrap items-center gap-3`}>
