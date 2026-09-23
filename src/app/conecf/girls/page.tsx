@@ -23,6 +23,8 @@ import { PhotoRemoveConfirm, type PhotoRemoval } from './PhotoRemoveConfirm';
 // ★ 親データはフクエスの therapists（★ ここに出る人＝フクエスに居る人）。
 
 const GREEN_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg-[#218925] text-white text-[12px] shadow-sm disabled:opacity-40';
+// ★ 第746便（カッキーさん）: 新規登録だけピンク
+const PINK_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg-[#e91e63] text-white text-[12px] shadow-sm disabled:opacity-40';
 const COLS = 'grid grid-cols-[84px_68px_1fr_48px_72px] md:grid-cols-[96px_76px_1fr_64px_72px_190px_110px_110px]';
 
 function sizeLines(raw: string | null): [string, string] {
@@ -225,7 +227,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         <button
           type="button"
           onClick={() => (enabled ? setAdding((x) => !x) : needEnabled('登録するには、ホームで「コネックエフに切り替える」を押してください'))}
-          className={GREEN_PILL}
+          className={PINK_PILL}
         >
           <span className="text-[18px] leading-none">＋</span>新規登録
         </button>
@@ -406,7 +408,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                     aria-label={`${g.name}を選ぶ`}
                   />
                   <Link href={href(`/girls/${g.id}`)} className="inline-flex items-center gap-1 text-[12px] text-[#1558d6] underline underline-offset-2">
-                    <span aria-hidden>✎</span>編集
+                    編集
                   </Link>
                 </span>
                 <Link href={href(`/girls/${g.id}`)} className="block w-[60px] h-[80px] bg-slate-100 overflow-hidden">
