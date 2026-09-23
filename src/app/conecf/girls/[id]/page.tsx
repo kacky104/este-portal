@@ -280,21 +280,22 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
             </Field>
             {/* ★★ 第444便（カッキーさん）: カタカナ・ひらがな・ローマ字の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
                 ★ 入っている値は消していない（★ 保存でも触らない）。★ 使うときが来たら戻す */}
+            {/* ★ 第765便（カッキーさん）: 左に年齢（下に「新人に設定する」）・右に入店日 */}
             <FieldPair
-              a={{ label: '入店日', children: (
-              <div className="flex flex-wrap items-center gap-3">
-                <input type="date" className={`${INPUT} max-w-[200px]`} value={form.joinedOn} onChange={(e) => set('joinedOn', e.target.value)} />
-                <label className="flex items-center gap-1.5 text-[14px] text-slate-600">
+              a={{ label: '年齢', children: (
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input inputMode="numeric" className={`${INPUT} max-w-[100px]`} value={form.age} onChange={(e) => set('age', e.target.value)} />
+                  <span className="text-[14px] text-slate-500">歳</span>
+                </div>
+                <label className="mt-2 flex w-fit items-center gap-1.5 text-[14px] text-slate-600">
                   <input type="checkbox" checked={form.isNewFace} onChange={(e) => set('isNewFace', e.target.checked)} className="accent-indigo-600" />
                   新人に設定する
                 </label>
               </div>
               ) }}
-              b={{ label: '年齢', children: (
-              <div className="flex flex-wrap items-center gap-3">
-                <input inputMode="numeric" className={`${INPUT} max-w-[100px]`} value={form.age} onChange={(e) => set('age', e.target.value)} />
-                <span className="text-[14px] text-slate-500">歳</span>
-              </div>
+              b={{ label: '入店日', children: (
+                <input type="date" className={`${INPUT} max-w-[200px]`} value={form.joinedOn} onChange={(e) => set('joinedOn', e.target.value)} />
               ) }}
             />
             {/* ★★ 第445便（カッキーさん）: 生年月日・体重の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
