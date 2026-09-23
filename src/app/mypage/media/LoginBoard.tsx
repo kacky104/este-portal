@@ -365,11 +365,24 @@ export function LoginBoard({
 
         return (
           <div key={site.provider} className={`${CARD} border-l-[3px] ${accent}`}>
-            {/* ★ 第691便: 見出しは押すものではなくなった（常に開いている）。★ チップと矢印も外した。
-                ★ チップ（出勤…新着情報）は「送れるもの」で、取り込み専用のこの画面では意味がずれていた。 */}
-            <div className="w-full flex items-start gap-3 text-left px-4 py-3.5">
-              <span className="flex-1 min-w-0 space-y-1.5">
-                <span className="flex items-center gap-2 flex-wrap">
+            {/* ★ 第693便: 上の見出し行（駅ちか・状態の札・最終確認）は全部外し、状態の札は「掲載枠」の右横へ */}
+
+            {open && (
+              <div className="border-t border-slate-100 p-4 space-y-4">
+                {/* ★★ 向きの枠（「◯◯の情報をフクエスに反映中」＋フクエスから反映／反映しない）は
+                    第117便で外した（カッキーさん・2026-09-03）。
+                    ★ ホーム（MediaHome）に同じ切り替えが1か所あり、そちらが本体。
+                    ★ 2か所に置くと、片方だけ直したときに言い方がずれる（第87便で揃えたばかりの場所）。
+                    ★ 切り替えの判断（switchChoices / loginDirection）は lib に残してある。 */}
+
+                {/* ── 枠 ──
+                    ★ 受け付けていないサイトでは出さない（第64便・設計メモ §200）。
+                      ★ 登録できないのに枠を選べるのは、選ぶ意味が無い。
+                      ★ ただし既に行があるサイトでは出す（止める・消すのために要る）。 */}
+                {showSlots && (
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[13px] font-bold text-slate-500">掲載枠</span>
                   {/* ★ 第692便: サイト名「駅ちか」は消した（ページの見出しに書いてある） */}
                   {/* ★ 接続できないサイトでは状態の札を出さない（第117便）。
                       ★ 「未登録」と出すと、登録すれば使えるように読める。★ 送れるものだけを出す */}
@@ -394,36 +407,9 @@ export function LoginBoard({
                   {siteRows.some((r) => r.needsConsent) && (
                     <span className="text-[13px] font-bold px-2 py-0.5 border bg-amber-50 text-amber-800 border-amber-300">
                       {CONSENT_RECHECK_BADGE}
-                    </span>
+                      </span>
                   )}
-                </span>
-                {/* ★★ カッキーさんの要望：このサイトに何が送れるかの可視化
-                    ★★★ 出すのは【いま送れるもの】だけ（第117便・sendableCapabilities）。
-                      ★ 第83便で「送れないのに 送れるもの：出勤 と出る」を直したとき、
-                        受け付けていないサイトでは丸ごと隠した。★ だが**全部だめではない**:
-                        エステラブは出勤が送れないだけで、写メ日記（メール）は送れる。
-                      ★ 全部隠すと、使える機能まで店舗が諦める（§185 の逆）。 */}
-                {/* ★ 第299便: 「送れるもの：」の文字は外した（カッキーさん）。★ チップだけ残す。
-                    ★ ホーム（MediaHome）のサイトの行も、第193便から文字なしのチップだけで並べている。 */}
-                {/* ★ 第692便: 「枠1 を登録済み ／ 最終確認」の行は消した（下の登録済みの枠に同じことが出る） */}
-              </span>
-            </div>
-
-            {open && (
-              <div className="border-t border-slate-100 p-4 space-y-4">
-                {/* ★★ 向きの枠（「◯◯の情報をフクエスに反映中」＋フクエスから反映／反映しない）は
-                    第117便で外した（カッキーさん・2026-09-03）。
-                    ★ ホーム（MediaHome）に同じ切り替えが1か所あり、そちらが本体。
-                    ★ 2か所に置くと、片方だけ直したときに言い方がずれる（第87便で揃えたばかりの場所）。
-                    ★ 切り替えの判断（switchChoices / loginDirection）は lib に残してある。 */}
-
-                {/* ── 枠 ──
-                    ★ 受け付けていないサイトでは出さない（第64便・設計メモ §200）。
-                      ★ 登録できないのに枠を選べるのは、選ぶ意味が無い。
-                      ★ ただし既に行があるサイトでは出す（止める・消すのために要る）。 */}
-                {showSlots && (
-                <div>
-                  <div className="text-[13px] font-bold text-slate-500">掲載枠</div>
+                  </div>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
                     {mediaSiteSlots(site).map((n) => {
                       const has = !!rowAt(site.provider, n);
