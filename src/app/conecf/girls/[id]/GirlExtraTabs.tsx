@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  getConecfGirlExtras, saveConecfGirlComments, saveConecfGirlQa, saveConecfGirlSiteFields, type ConecfGirlExtras,
+  getConecfGirlExtras, saveConecfGirlComments, saveConecfGirlQa, saveConecfGirlSiteFields, saveConecfGirlBadges, type ConecfGirlExtras,
 } from '@/app/actions/conecfGirls';
 import {
   len, overSites, COMMENT_SITE_LIMITS, CATCH_MAX, SHOP_COMMENT_MAX, SHOP_TITLE_MAX, GIRL_COMMENT_MAX,
@@ -12,6 +12,7 @@ import {
   type QaItem,
 } from '@/lib/conecfSiteFields';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
+import { BADGE_CATEGORY_ORDER, BADGE_CATEGORY_LABELS, BADGE_CATEGORY_COLORS, BADGES_BY_CATEGORY, MAX_BADGES } from '@/lib/therapistBadges';
 
 // コネックエフ「女性プロフィール編集」のタブ：コメント／各サイト項目／Q&A（第414便・2026-09-17）。
 // ★ ベンリーの同じタブに寄せた。★ 候補と上限は駅ちか・エステ魂の管理画面の実物（設計メモ §4・§5）。
@@ -38,6 +39,48 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div className="px-4 py-2">
       <p className="text-[13.5px] font-bold text-slate-700 pt-3 pb-1 border-b border-slate-200">{title}</p>
       {children}
+    </div>
+  );
+}
+
+// ★ 第726便: フクエスの特徴バッジ（マイページ /mypage/therapist/[id] と同じ見た目・同じ上限）
+function BadgePicker({ badges, onChange }: { badges: string[]; onChange: (v: string[]) => void }) {
+  const atMax = badges.length >= MAX_BADGES;
+  const toggle = (label: string) => {
+    if (badges.includes(label)) onChange(badges.filter((b) => b !== label));
+    else if (!atMax) onChange([...badges, label]);
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-[12px] text-pink-700 bg-pink-50 border border-pink-100 rounded px-3 py-2 leading-relaxed">
+        設定すると特徴検索・特徴別ページに載り、お客様に見つけてもらいやすくなります。（最大{MAX_BADGES}つ・{badges.length} / {MAX_BADGES} 選択中）
+      </p>
+      {BADGE_CATEGORY_ORDER.map((cat) => {
+        const colors = BADGE_CATEGORY_COLORS[cat];
+        return (
+          <div key={cat}>
+            <p className="text-[12px] font-bold text-slate-400 mb-1.5 flex items-center gap-1.5">
+              {BADGE_CATEGORY_LABELS[cat]}
+              <span aria-hidden className="inline-block w-4 h-2.5 rounded-full border" style={{ backgroundColor: colors.fill, borderColor: colors.border }} />
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {BADGES_BY_CATEGORY[cat].map((label) => {
+                const selected = badges.includes(label);
+                const disabled = !selected && atMax;
+                return (
+                  <button key={label} type="button" disabled={disabled} onClick={() => toggle(label)} aria-pressed={selected}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-bold border-2 ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                    style={selected
+                      ? { backgroundColor: colors.fill, color: colors.text, borderColor: colors.text }
+                      : { backgroundColor: '#F9FAFB', color: '#9CA3AF', borderColor: '#E5E7EB' }}>
+                    {selected ? '✓ ' : ''}{label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -168,8 +211,10 @@ export function GirlExtraTab({
     const onSave = async () => {
       setSaving(true);
       const res = await saveConecfGirlComments({ id, comments: c });
+      const rb = await saveConecfGirlBadges({ id, badges: x.badges });
       setSaving(false);
       if (!res.ok) { onToast(res.error); return; }
+      if (!rb.ok) { onToast(rb.error); return; }
       void revalidateSalon(salonId); void revalidateTherapist(id);
       onToast('保存しました（フクエスに反映しました。駅ちか・エステ魂へは上の【更新する】で送ります）');
     };
@@ -183,6 +228,10 @@ export function GirlExtraTab({
           <Row label="詳細プロフィール">
             <textarea rows={8} className={INPUT} value={c.profileText} onChange={(e) => setC('profileText', e.target.value)} />
             <Counter text={c.profileText} max={SHOP_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.shopComment} />
+          </Row>
+          {/* ★ 第726便（カッキーさん）: フクエスの特徴バッジもここで（★ 駅ちか・エステ魂には送らない。フクエスだけ） */}
+          <Row label="特徴バッジ">
+            <BadgePicker badges={x.badges} onChange={(v) => setX((p) => (p ? { ...p, badges: v } : p))} />
           </Row>
         </Section>
         {saveBar(() => void onSave())}

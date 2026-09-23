@@ -10,6 +10,7 @@ import {
   bodyTypeFromSizes, normalizeConecfGirl, CONECF_MAX_IMAGES, type ConecfGirlInput,
 } from '@/lib/conecfGirl';
 import { parseBodyType } from '@/lib/bodyType';
+import { sanitizeBadges } from '@/lib/therapistBadges';
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { isSavableTarget } from '@/lib/conecfTargets';
@@ -288,6 +289,8 @@ export async function listConecfTargetOffs(): Promise<Result<{ offs: string[] }>
 
 export type ConecfGirlExtras = {
   comments: { catchphrase: string; profileText: string; shopTitle: string; girlComment: string };
+  /** ★ 第726便: フクエスの特徴バッジ（therapists.feature_badges）。★ マイページと同じ列・同じ上限（sanitizeBadges） */
+  badges: string[];
   qa: QaItem[];
   siteFields: Array<{ provider: string; slot: number; label: string; fields: Record<string, unknown> }>;
   ready: boolean;
@@ -299,7 +302,7 @@ export async function getConecfGirlExtras(input: { id: number }): Promise<Result
   const { svc, salonId } = r.data;
   const t = await ownTherapist(svc, salonId, Number(input.id));
   if (!t) return { ok: false, error: 'この女性は見つかりません' };
-  const { data: th } = await svc.from('therapists').select('catchphrase, profile_text').eq('id', t.id).maybeSingle();
+  const { data: th } = await svc.from('therapists').select('catchphrase, profile_text, feature_badges').eq('id', t.id).maybeSingle();
   const { data: p } = await svc.from('conecf_therapist_profiles').select('*').eq('therapist_id', t.id).maybeSingle();
   const prof = (p ?? {}) as Record<string, unknown>;
   const { data: sf, error: sfErr } = await svc.from('conecf_therapist_site_fields').select('provider, slot, fields').eq('therapist_id', t.id);
@@ -324,6 +327,7 @@ export async function getConecfGirlExtras(input: { id: number }): Promise<Result
         catchphrase: s(th?.catchphrase), profileText: s(th?.profile_text),
         shopTitle: s(prof.shop_title), girlComment: s(prof.girl_comment),
       },
+      badges: sanitizeBadges(th?.feature_badges),
       qa: Array.isArray(prof.qa) ? (prof.qa as QaItem[]) : [],
       siteFields,
       // ★ SQL がまだなら site_fields が読めない（★ 画面で「準備中」と出す）
@@ -351,6 +355,19 @@ export async function saveConecfGirlComments(input: { id: number; comments: Reco
   }, { onConflict: 'therapist_id' });
   if (pErr) return { ok: false, error: `保存に失敗しました（SQL がまだの可能性があります）: ${pErr.message}` };
   return { ok: true, data: { saved: true } };
+}
+
+/** ★ 第726便: フクエスの特徴バッジを保存（マイページの保存と同じ列・同じ正規化） */
+export async function saveConecfGirlBadges(input: { id: number; badges: unknown }): Promise<Result<{ badges: string[] }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: 'この女性は見つかりません' };
+  const badges = sanitizeBadges(input.badges);
+  const { error } = await svc.from('therapists').update({ feature_badges: badges }).eq('id', t.id).eq('salon_id', salonId);
+  if (error) return { ok: false, error: `保存に失敗しました: ${error.message}` };
+  return { ok: true, data: { badges } };
 }
 
 export async function saveConecfGirlQa(input: { id: number; qa: unknown }): Promise<Result<{ count: number }>> {
