@@ -27,6 +27,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
   const [rows, setRows] = useState<ImportSourceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [salonId, setSalonId] = useState<number | ''>('');
+  const [slot, setSlot] = useState<1 | 2 | 3>(1);
   const [externalId, setExternalId] = useState('');
   const [shopUrl, setShopUrl] = useState('');
   const [idTouched, setIdTouched] = useState(false);
@@ -49,11 +50,11 @@ export default function ImportSourceManager({ allSalons, onToast }: {
   const onSave = async () => {
     if (salonId === '') { onToast('店舗を選んでください'); return; }
     setSaving(true);
-    const res = await adminUpsertImportSource({ salonId: Number(salonId), slot: 1, externalId, shopUrl });
+    const res = await adminUpsertImportSource({ salonId: Number(salonId), slot, externalId, shopUrl });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
     onToast(res.created ? '登録しました。次の取り込み（15分以内）から動きます' : '上書きしました。次の取り込み（15分以内）から動きます');
-    setExternalId(''); setShopUrl(''); setIdTouched(false);
+    setExternalId(''); setShopUrl(''); setIdTouched(false); setSlot(1);
     await load();
   };
 
@@ -66,7 +67,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
     await load();
   };
 
-  const registered = new Set(rows.map((r) => r.salonId));
+  const registered = new Set(rows.filter((r) => r.slot === slot).map((r) => r.salonId));
 
   return (
     <div className="space-y-5">
@@ -78,7 +79,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
       </p>
 
       {/* ── 登録 ── */}
-      <div className="grid gap-3 md:grid-cols-[1.4fr_1.8fr_1fr_auto] items-end border border-gray-200 rounded-xl p-4 bg-gray-50">
+      <div className="grid gap-3 md:grid-cols-[1.4fr_auto_1.8fr_1fr_auto] items-end border border-gray-200 rounded-xl p-4 bg-gray-50">
         <label className="block">
           <span className="text-[11px] font-bold text-gray-500">店舗</span>
           <select
@@ -90,6 +91,19 @@ export default function ImportSourceManager({ allSalons, onToast }: {
             {allSalons.map((s) => (
               <option key={s.id} value={s.id}>{s.name}{registered.has(s.id) ? '（登録済み・上書き）' : ''}</option>
             ))}
+          </select>
+        </label>
+        {/* ★ 第707便: 掲載枠が2つ以上ある店は、枠ごとに登録する（一覧では「（枠2）」と付いて別の行） */}
+        <label className="block">
+          <span className="text-[11px] font-bold text-gray-500">枠</span>
+          <select
+            value={slot}
+            onChange={(e) => setSlot(Number(e.target.value) as 1 | 2 | 3)}
+            className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value={1}>枠1</option>
+            <option value={2}>枠2</option>
+            <option value={3}>枠3</option>
           </select>
         </label>
         <label className="block">
