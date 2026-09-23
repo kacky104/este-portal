@@ -173,9 +173,16 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
   return (
     <div className="space-y-3">
       {/* ★ 第743便（カッキーさん）: 記号は表と同じ色で */}
-      <p className="text-[13px] text-slate-500 leading-relaxed">
-        各サイトへの登録状況一覧です。<b className="text-sky-500 font-black">○</b>＝連携済み、<b className="text-amber-500 font-black">△</b>＝確かめられません（名前が違うなど）、<b className="text-rose-500 font-black">×</b>＝サイトにいません。<b className="text-amber-500 font-black">△</b>や<b className="text-rose-500 font-black">×</b>を押すと、その場で連携・登録できます。
-      </p>
+      {/* ★ 第773便（カッキーさん）: 説明を「一文＋記号の凡例＋操作の一言」に分けて見やすく */}
+      <div className="text-[13px] text-slate-600 leading-relaxed space-y-1">
+        <p>各サイトへの登録状況一覧です。</p>
+        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+          <li className="whitespace-nowrap"><b className="text-sky-500 font-black text-[15px] mr-1">○</b>連携済み</li>
+          <li className="whitespace-nowrap"><b className="text-amber-500 font-black text-[15px] mr-1">△</b>確かめられません（名前が違うなど）</li>
+          <li className="whitespace-nowrap"><b className="text-rose-500 font-black text-[15px] mr-1">×</b>サイトにいません</li>
+        </ul>
+        <p className="text-slate-500"><b className="text-amber-500 font-black">△</b>・<b className="text-rose-500 font-black">×</b> を押すと、その場で連携・登録できます。</p>
+      </div>
 
       <div className={`${CARD} p-3 flex flex-wrap items-center gap-3`}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="セラピスト名で検索"
