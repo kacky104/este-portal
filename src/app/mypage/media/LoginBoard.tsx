@@ -323,12 +323,8 @@ export function LoginBoard({
       {/* ★★★ 第668便（2026-09-22・カッキーさんの決定）: フクエスリンクは駅ちかからの取り込み専用。★ ここに出すのは駅ちかだけ。
           ★ ほかのサイトの ID・PW は消していない（コネックエフが同じ表を使う）。★ 画面に出さないだけ。 */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        <p className="text-[15.5px] font-black text-slate-800">写メ日記もフクエスに出したい場合は、駅ちかのIDとパスワードを入れてください</p>
-        {/* ★ 第691便: 「駅ちかへの書き込みは行いません…コネックエフを」の1行は消した（カッキーさん） */}
-        <ul className="mt-2 space-y-1 text-[14px] text-slate-600 leading-relaxed">
-          <li>・出勤・プロフィール・即ヒメは、IDとパスワードが無くてもフクエスへ反映されます。</li>
-          <li>・写メ日記は、駅ちかの管理画面から読むため、IDとパスワードが必要です。</li>
-        </ul>
+        {/* ★ 第699便（カッキーさん）: 見出しを1文に。★ 箇条書き（出勤…はIDなしで反映／写メ日記は要る）は消した */}
+        <p className="text-[15.5px] font-black text-slate-800">写メ日記をフクエスに反映するには、駅ちかのIDとパスワードの設定が必要です。</p>
       </div>
       {sortSitesForLogin(MEDIA_SITES).filter((site) => site.provider === 'ekichika').map((site) => {
         const siteRows = rowsOf(site.provider);
