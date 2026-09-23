@@ -114,10 +114,13 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
           <li className="px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <b className="text-[15.5px] font-black text-slate-800">フクエス</b>
             {/* ★ 第721便（カッキーさん）: 写メ日記はフクエスから投稿だが、利用者に分かりやすいよう並べて出す */}
-            <span className="text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・セラピスト・写メ日記・今すぐ・お知らせ</span>
+            {/* ★ 第769便（カッキーさん）: スマホは 1行目 サイト名／2行目 送るもの／3行目 状態 */}
+            <div className="basis-full sm:basis-auto">
+              <span className="inline-block text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・セラピスト・写メ日記・今すぐ・お知らせ</span>
+            </div>
             {enabled
-              ? <span className="ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
-              : <span className="ml-auto text-[13.5px] font-bold text-slate-400">更新していません</span>}
+              ? <span className="sm:ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
+              : <span className="sm:ml-auto text-[13.5px] font-bold text-slate-400">更新していません</span>}
           </li>
 
           {!data && <li className="px-4 py-3 text-[14px] text-slate-400">読み込み中…</li>}
@@ -177,10 +180,13 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
               <li key={k} className="px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <b className="text-[15.5px] font-black text-slate-800">{s.label}</b>
                 {s.capabilities.length > 0 && (
-                  <span className="text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">{s.capabilities.join('・')}</span>
+                  <div className="basis-full sm:basis-auto">
+                    {/* ★ 第769便（カッキーさん）: 駅ちかはココア（店長ブログ）にも送れるので最後に足す */}
+                    <span className="inline-block text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">{[...s.capabilities, ...(s.provider === 'ekichika' ? ['ココア'] : [])].join('・')}</span>
+                  </div>
                 )}
-                <span className={`ml-auto text-[13.5px] font-bold ${status.tone}`}>{status.text}</span>
-                {action}
+                <span className={`sm:ml-auto text-[13.5px] font-bold ${status.tone}`}>{status.text}</span>
+                {action && <span className="ml-auto sm:ml-0">{action}</span>}
                 {note && (
                   <span className={`basis-full text-[12.5px] font-bold ${note.tone}`}>
                     {note.text}
