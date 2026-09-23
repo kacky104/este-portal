@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  adminListImportSources, adminUpsertImportSource, adminSetImportSourceEnabled, buildEkichikaShopUrl,
+  adminListImportSources, adminUpsertImportSource, adminSetImportSourceEnabled, extractEkichikaShopId,
   type ImportSourceRow,
 } from '@/app/actions/importSourceAdmin';
 
 // /admin「フクエスリンク：駅ちかの店舗ページ登録」（第704便・2026-09-23・カッキーさん）。
-//   ★ 上: 店舗を選ぶ → 駅ちかの店舗番号を入れる → URL は番号から自動で入る（手で直せる）→ 登録する
+//   ★ 上: 店舗を選ぶ → 駅ちかのお店のページの URL を貼る → 店舗番号は URL から自動で入る（手で直せる）→ 登録する
 //   ★ 下: 登録済みの一覧（店舗名・番号・URL・最終取り込み・状態）。行ごとに 停止／再開 だけ（削除は付けない）
 //   ★ 読み書きは server action（service_role）。★ 旗は server action 側で全部立てる。
 
@@ -29,7 +29,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
   const [salonId, setSalonId] = useState<number | ''>('');
   const [externalId, setExternalId] = useState('');
   const [shopUrl, setShopUrl] = useState('');
-  const [urlTouched, setUrlTouched] = useState(false);
+  const [idTouched, setIdTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -40,10 +40,10 @@ export default function ImportSourceManager({ allSalons, onToast }: {
   }, [onToast]);
   useEffect(() => { void load(); }, [load]);
 
-  // ★ 番号を入れたら URL を組み立てる（★ 手で直したあとは触らない）
-  const onExternalId = async (v: string) => {
-    setExternalId(v);
-    if (!urlTouched) setShopUrl(await buildEkichikaShopUrl(v));
+  // ★ URL を貼ったら番号を抜く（★ 番号を手で直したあとは触らない）
+  const onShopUrl = async (v: string) => {
+    setShopUrl(v);
+    if (!idTouched) setExternalId(await extractEkichikaShopId(v));
   };
 
   const onSave = async () => {
@@ -53,7 +53,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
     onToast(res.created ? '登録しました。次の取り込み（15分以内）から動きます' : '上書きしました。次の取り込み（15分以内）から動きます');
-    setExternalId(''); setShopUrl(''); setUrlTouched(false);
+    setExternalId(''); setShopUrl(''); setIdTouched(false);
     await load();
   };
 
@@ -77,7 +77,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
       </p>
 
       {/* ── 登録 ── */}
-      <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1.6fr_auto] items-end border border-gray-200 rounded-xl p-4 bg-gray-50">
+      <div className="grid gap-3 md:grid-cols-[1.4fr_1.8fr_1fr_auto] items-end border border-gray-200 rounded-xl p-4 bg-gray-50">
         <label className="block">
           <span className="text-[11px] font-bold text-gray-500">店舗</span>
           <select
@@ -92,21 +92,21 @@ export default function ImportSourceManager({ allSalons, onToast }: {
           </select>
         </label>
         <label className="block">
-          <span className="text-[11px] font-bold text-gray-500">駅ちかの店舗番号</span>
+          <span className="text-[11px] font-bold text-gray-500">駅ちかのお店のページの URL（貼り付け）</span>
           <input
-            value={externalId}
-            onChange={(e) => void onExternalId(e.target.value)}
-            inputMode="numeric"
-            placeholder="例: 37168"
+            value={shopUrl}
+            onChange={(e) => void onShopUrl(e.target.value)}
+            placeholder="https://ranking-deli.jp/fukuoka/area175/style8/46440/"
             className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
           />
         </label>
         <label className="block">
-          <span className="text-[11px] font-bold text-gray-500">お店のページの URL（番号から自動・直せます）</span>
+          <span className="text-[11px] font-bold text-gray-500">店舗番号（URL から自動・直せます）</span>
           <input
-            value={shopUrl}
-            onChange={(e) => { setUrlTouched(true); setShopUrl(e.target.value); }}
-            placeholder="https://ranking-deli.jp/37168/"
+            value={externalId}
+            onChange={(e) => { setIdTouched(true); setExternalId(e.target.value); }}
+            inputMode="numeric"
+            placeholder="例: 46440"
             className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
           />
         </label>

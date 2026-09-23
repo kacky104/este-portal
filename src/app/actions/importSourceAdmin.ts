@@ -46,10 +46,14 @@ export type ImportSourceRow = {
   lastError: string | null;
 };
 
-/** 駅ちかの店舗番号から、公開のお店のページの URL を組み立てる（★ 画面の初期値。手で直せる） */
-export async function buildEkichikaShopUrl(externalId: string): Promise<string> {
-  const id = String(externalId ?? '').trim();
-  return /^\d+$/.test(id) ? `https://ranking-deli.jp/${id}/` : '';
+/**
+ * 駅ちかのお店のページの URL から店舗番号を抜く（★ 画面の初期値。手で直せる）。
+ *   例: https://ranking-deli.jp/fukuoka/area175/style8/46440/ → '46440'
+ *   ★ URL にはエリア・業態が入るので、番号から URL は作れない（カッキーさん・2026-09-23）。★ 逆向きだけ
+ */
+export async function extractEkichikaShopId(shopUrl: string): Promise<string> {
+  const m = String(shopUrl ?? '').trim().match(/ranking-deli\.jp\/(?:[a-z0-9_-]+\/)*?(\d+)\/?(?:[?#].*)?$/i);
+  return m ? m[1] : '';
 }
 
 /** 登録済みの一覧（駅ちかだけ）。★ 店舗名は salons から引く */
