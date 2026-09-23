@@ -74,6 +74,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
         フクエスリンク（駅ちかからの反映）は、ここで駅ちかのお店のページを登録した店舗だけ動きます。
         登録すると取り込みの設定（出勤・プロフィール・即ヒメ・新しく入った子の作成・15分ごと）は自動で立ちます。
         店舗様はそのあと、フクエスリンクのホームで「駅ちかから反映する」を押すだけです。
+        ★ 掲載番号（URL 末尾・例 46440）は、駅ちか管理画面のログイン用の店舗ID（例 37168）とは別の番号です。
       </p>
 
       {/* ── 登録 ── */}
@@ -101,7 +102,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
           />
         </label>
         <label className="block">
-          <span className="text-[11px] font-bold text-gray-500">店舗番号（URL から自動・直せます）</span>
+          <span className="text-[11px] font-bold text-gray-500">掲載番号（URL 末尾の数字・自動で入ります）</span>
           <input
             value={externalId}
             onChange={(e) => { setIdTouched(true); setExternalId(e.target.value); }}
@@ -131,7 +132,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
             <thead>
               <tr className="text-left text-gray-500 border-b border-gray-200">
                 <th className="py-2 pr-3">店舗</th>
-                <th className="py-2 pr-3">店舗番号</th>
+                <th className="py-2 pr-3">掲載番号</th>
                 <th className="py-2 pr-3">URL</th>
                 <th className="py-2 pr-3">向き</th>
                 <th className="py-2 pr-3">最終取り込み</th>

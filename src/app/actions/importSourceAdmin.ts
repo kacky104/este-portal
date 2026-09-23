@@ -101,7 +101,7 @@ export async function adminUpsertImportSource(input: {
   const shopUrl = String(input.shopUrl ?? '').trim();
   if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗を選んでください' };
   if (![1, 2, 3].includes(slot)) return { ok: false, error: '枠は 1〜3 です' };
-  if (!/^\d{1,10}$/.test(externalId)) return { ok: false, error: '店舗番号は数字だけで入れてください（例: 37168）' };
+  if (!/^\d{1,10}$/.test(externalId)) return { ok: false, error: '掲載番号は数字だけで入れてください（例: 46440・URL 末尾の数字）' };
   if (!/^https:\/\/([a-z0-9-]+\.)*ranking-deli\.jp\/\S*$/i.test(shopUrl)) {
     return { ok: false, error: 'URL は https://ranking-deli.jp/ で始まる駅ちかのお店のページにしてください' };
   }
