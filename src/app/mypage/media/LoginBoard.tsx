@@ -684,7 +684,7 @@ export function LoginBoard({
                           disabled={busy !== ''}
                           className="px-3 py-1 bg-rose-600 text-white text-[13.5px] font-bold disabled:opacity-40"
                         >
-                          本当に削除
+                          本当に解除する
                         </button>
                       ) : (
                         <button
@@ -692,7 +692,7 @@ export function LoginBoard({
                           onClick={() => setConfirmDelete(`${site.provider}:${slot}`)}
                           className="px-3 py-1 border border-rose-200 text-[13.5px] font-bold text-rose-600 hover:bg-rose-50"
                         >
-                          削除
+                          ID・PWを解除する
                         </button>
                       )}
                     </div>
