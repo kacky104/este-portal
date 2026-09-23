@@ -10,7 +10,7 @@ import { useToast } from '@/app/components/useToast';
 export default function ConecfGirlsSyncPage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="girlsSync" title="セラピストをサイトへ登録" toast={toast}>
+    <ConecfShell current="girlsSync" title="セラピスト登録状況一覧" toast={toast}>
       {(a) => <SiteCompareBoard salonId={a.salonId} onToast={showToast} />}
     </ConecfShell>
   );
