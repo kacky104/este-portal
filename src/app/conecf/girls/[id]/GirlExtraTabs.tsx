@@ -12,6 +12,8 @@ import {
   type QaItem,
 } from '@/lib/conecfSiteFields';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
+import { useSitePush } from './useSitePush';
+import { PhotoRemoveConfirm } from '../PhotoRemoveConfirm';
 import { BADGE_CATEGORY_ORDER, BADGE_CATEGORY_LABELS, BADGE_CATEGORY_COLORS, BADGES_BY_CATEGORY, MAX_BADGES } from '@/lib/therapistBadges';
 
 // コネックエフ「女性プロフィール編集」のタブ：コメント／各サイト項目／Q&A（第414便・2026-09-17）。
@@ -31,7 +33,7 @@ const INPUT = 'w-full border border-slate-300 rounded bg-white px-2 py-1.5 text-
 // ★ 第447便: エステ魂へも送れるようになった（第430便）。★ 「準備中」のままだった案内を直す
 // ★ 第724便: NOTE_SEND（駅ちか・エステ魂は更新する）はタブごとの文に置き換えたので外した
 // ★ 第457便（カッキーさん）: すぐ前でサイト名を言っているところ用（★ 同じサイト名を2度言わない）
-const NOTE_SEND_SHORT = '保存後、上の【更新する】を押してください。';
+// ★ 第732便: NOTE_SEND_SHORT（保存後に上の更新するを押す）は「保存して更新」ができたので外した
 
 // ★ 第724便: タブの中の区画の見出し（★ render の中で作らない。作ると入力のたびに作り直されてフォーカスが飛ぶ）
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -148,6 +150,10 @@ export function GirlExtraTab({
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [slotIdx, setSlotIdx] = useState(0);
+  // ★ 第732便（カッキーさん）: 「保存して更新」。★ 保存が通ったら、そのタブのサイトへ更新を積む（フクエスタブは両方）。
+  //   ★ 写真が消える確認（第428便）は同じく出る（★ 保存は済んでいて、更新だけ確認待ち）。
+  const pushEk = useSitePush('ekichika', id, enabled, onToast);
+  const pushEs = useSitePush('esutama', id, enabled, onToast);
 
   useEffect(() => {
     let alive = true;
@@ -161,16 +167,48 @@ export function GirlExtraTab({
   if (error) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>{error}</div>;
   if (!x) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
 
-  const saveBar = (onClick: () => void, label = '保存') => (
-    <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex items-center justify-end gap-3">
-      {!enabled && <span className="text-[12px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
-      {enabled && !x.ready && <span className="text-[12px] text-amber-700">準備中です（運営の設定が済むと保存できます）</span>}
-      <button type="button" disabled={saving || !enabled || !x.ready} onClick={onClick}
-        className="h-8 min-w-[80px] px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40">
-        {saving ? '保存中…' : label}
-      </button>
-    </div>
-  );
+  // ★ 第732便: onSave は成功したら true を返す。★ sites はこのタブで更新するサイト
+  const pushing = pushEk.busy || pushEs.busy;
+  const saveBar = (onSave: () => Promise<boolean>, sites: Array<'ekichika' | 'esutama'>) => {
+    const onSaveAndPush = async () => {
+      const ok = await onSave();
+      if (!ok) return;
+      for (const site of sites) {
+        const p = site === 'ekichika' ? pushEk : pushEs;
+        await p.onUpdate({ quiet: true });   // ★ 写真が消えるときは確認で止まる（下に出る）
+      }
+    };
+    const siteLabel = sites.map((s) => (s === 'ekichika' ? '駅ちか' : 'エステ魂')).join('・');
+    return (
+      <>
+        {pushEk.removals && sites.includes('ekichika') && (
+          <div className="px-4 pb-3">
+            <PhotoRemoveConfirm items={pushEk.removals} busy={pushEk.busy}
+              onRemove={() => void pushEk.send(true)} onKeep={() => void pushEk.send(false)} onCancel={() => pushEk.setRemovals(null)} />
+          </div>
+        )}
+        {pushEs.removals && sites.includes('esutama') && (
+          <div className="px-4 pb-3">
+            <PhotoRemoveConfirm site="エステ魂" items={pushEs.removals} busy={pushEs.busy}
+              onRemove={() => void pushEs.send(true)} onKeep={() => void pushEs.send(false)} onCancel={() => pushEs.setRemovals(null)} />
+          </div>
+        )}
+        <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-end gap-3">
+          {!enabled && <span className="text-[12px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
+          {enabled && !x.ready && <span className="text-[12px] text-amber-700">準備中です（運営の設定が済むと保存できます）</span>}
+          <button type="button" disabled={saving || pushing || !enabled || !x.ready} onClick={() => void onSave()}
+            className="h-8 min-w-[80px] px-5 rounded border border-[#218925] bg-white text-[#218925] text-[12px] disabled:opacity-40">
+            {saving ? '保存中…' : '保存'}
+          </button>
+          <button type="button" disabled={saving || pushing || !enabled || !x.ready} onClick={() => void onSaveAndPush()}
+            className="h-8 min-w-[80px] px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40"
+            title={`保存してから、${siteLabel}へ更新を送ります`}>
+            {saving ? '保存中…' : pushing ? '受け付けています…' : `保存して${siteLabel}へ更新`}
+          </button>
+        </div>
+      </>
+    );
+  };
 
   // ── 共通: コメント欄 ──
   const c = x.comments;
@@ -208,15 +246,16 @@ export function GirlExtraTab({
 
   // ══ フクエス ══
   if (tab === 'fukues') {
-    const onSave = async () => {
+    const onSave = async (): Promise<boolean> => {
       setSaving(true);
       const res = await saveConecfGirlComments({ id, comments: c });
       const rb = await saveConecfGirlBadges({ id, badges: x.badges });
       setSaving(false);
-      if (!res.ok) { onToast(res.error); return; }
-      if (!rb.ok) { onToast(rb.error); return; }
+      if (!res.ok) { onToast(res.error); return false; }
+      if (!rb.ok) { onToast(rb.error); return false; }
       void revalidateSalon(salonId); void revalidateTherapist(id);
-      onToast('保存しました（フクエスに反映しました。駅ちか・エステ魂へは上の【更新する】で送ります）');
+      onToast('保存しました（フクエスに反映しました）');
+      return true;
     };
     return (
       <div className={CARD}>
@@ -234,24 +273,25 @@ export function GirlExtraTab({
             <BadgePicker badges={x.badges} onChange={(v) => setX((p) => (p ? { ...p, badges: v } : p))} />
           </Row>
         </Section>
-        {saveBar(() => void onSave())}
+        {saveBar(onSave, ['ekichika', 'esutama'])}
       </div>
     );
   }
 
   // ══ 駅ちか ══
   if (tab === 'ekichika') {
-    const onSave = async () => {
+    const onSave = async (): Promise<boolean> => {
       setSaving(true);
       const r1 = await saveConecfGirlComments({ id, comments: c });
       const r2 = await saveConecfGirlQa({ id, qa });
       const r3 = cur ? await saveConecfGirlSiteFields({ id, provider: cur.provider, slot: cur.slot, fields: cur.fields }) : null;
       setSaving(false);
       const bad = [r1, r2, r3].find((r) => r && !r.ok);
-      if (bad && !bad.ok) { onToast(bad.error); return; }
+      if (bad && !bad.ok) { onToast(bad.error); return false; }
       if (r3 && r3.ok) setFields(r3.data.fields);
       void revalidateSalon(salonId); void revalidateTherapist(id);
-      onToast('駅ちかの項目を保存しました。' + NOTE_SEND_SHORT);
+      onToast('駅ちかの項目を保存しました');
+      return true;
     };
     return (
       <div className={CARD}>
@@ -333,20 +373,21 @@ export function GirlExtraTab({
             </Row>
           ))}
         </Section>
-        {saveBar(() => void onSave())}
+        {saveBar(onSave, ['ekichika'])}
       </div>
     );
   }
 
   // ══ エステ魂 ══
-  const onSaveEs = async () => {
-    if (!cur) return;
+  const onSaveEs = async (): Promise<boolean> => {
+    if (!cur) return false;
     setSaving(true);
     const res = await saveConecfGirlSiteFields({ id, provider: cur.provider, slot: cur.slot, fields: cur.fields });
     setSaving(false);
-    if (!res.ok) { onToast(res.error); return; }
+    if (!res.ok) { onToast(res.error); return false; }
     setFields(res.data.fields);
-    onToast('エステ魂の項目を保存しました。' + NOTE_SEND_SHORT);
+    onToast('エステ魂の項目を保存しました');
+    return true;
   };
   return (
     <div className={CARD}>
@@ -408,7 +449,7 @@ export function GirlExtraTab({
           );
         })()}
       </Section>
-      {cur && saveBar(() => void onSaveEs())}
+      {cur && saveBar(onSaveEs, ['esutama'])}
     </div>
   );
 }
