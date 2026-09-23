@@ -27,7 +27,7 @@ const GREEN_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg
 const PINK_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg-[#e91e63] text-white text-[12px] shadow-sm disabled:opacity-40';
 // ★ 第747便（カッキーさん）: PC では名前を固定幅（200px）にして、年齢との間の空白を無くす。★ 余りは右端（公開状態の右）に
 // ★ 第762便（カッキーさん）: 「新人」「入店日」の列を消した（新人は名前の上に NEW）
-const COLS = 'grid grid-cols-[84px_68px_1fr_48px] md:grid-cols-[96px_76px_200px_64px_190px_110px_1fr]';
+const COLS = 'grid grid-cols-[84px_68px_1fr_48px] md:grid-cols-[96px_76px_150px_64px_210px_110px_1fr]'; // ★ 第763便: 名前 200→150px（年齢を名前に寄せる）・サイズ 210px
 
 function sizeLines(raw: string | null): [string, string] {
   const b = parseBodyType(raw);
