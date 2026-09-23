@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getDiaryForwards, saveDiaryForward } from '@/app/actions/diaryForward';
+import { getDiaryForwards, saveDiaryForward, getSalonDiaryConsents, setDiaryConsent } from '@/app/actions/diaryForward';
+import { toConsentState, consentLabel, type ConsentState } from '@/lib/therapistMediaConsent';
 
 // コネックエフ「女性プロフィール編集」の【写メ日記】タブ（第731便・2026-09-23・カッキーさん）。
 // ★ 中身はフクエスのマイページ（/mypage/therapist/[id]）の「写メ日記の転送先」と同じ（同じ action・同じ表 therapist_diary_forwards）。
@@ -15,11 +16,36 @@ const SITES = [{ p: 'ekichika', label: '駅ちか' }, { p: 'esulove', label: '�
 
 type Row = { provider: string; slot: number; address: string; saved: string };
 
-export function GirlDiaryTab({ id, onToast }: { id: number; onToast: (m: string) => void }) {
+// ★ 第767便（カッキーさん）: エステ魂は宛先ではなく【本人の了承】（写メ日記転送のエステ魂タブと同じ記録・同じ action）
+const CONSENT_BTNS: Array<[ConsentState, string]> = [['agreed', '了承あり'], ['declined', '送らない'], ['unknown', '未確認']];
+
+export function GirlDiaryTab({ id, salonId, onToast }: { id: number; salonId: number; onToast: (m: string) => void }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState<string | null>(null);
+  const [consent, setConsent] = useState<ConsentState | null>(null);
+  const [consentBusy, setConsentBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getSalonDiaryConsents({ salonId, provider: 'esutama' }).then((r) => {
+      if (!alive || !r.ok) return;
+      const c = r.data.consents.find((x) => String(x.therapistId) === String(id));
+      setConsent(c ? toConsentState(c.state) : 'unknown');
+    }).catch(() => { /* ★ 読めなければ行を出さない */ });
+    return () => { alive = false; };
+  }, [id, salonId]);
+
+  const onConsent = async (state: ConsentState) => {
+    setConsentBusy(true);
+    try {
+      const r = await setDiaryConsent({ therapistId: id, provider: 'esutama', state });
+      if (!r.ok) { onToast(r.error); return; }
+      setConsent(state);
+      onToast(state === 'agreed' ? 'エステ魂を「了承あり」にしました' : state === 'declined' ? 'エステ魂を「送らない」にしました' : 'エステ魂を「まだ確認していません」に戻しました');
+    } finally { setConsentBusy(false); }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -96,6 +122,27 @@ export function GirlDiaryTab({ id, onToast }: { id: number; onToast: (m: string)
             );
           });
         })}
+        {loaded && consent && (
+          <div className="grid grid-cols-1 sm:grid-cols-[170px_1fr] gap-1.5 sm:gap-3 items-start py-3 border-b border-slate-100">
+            <div className="pt-1 text-[14px]">エステ魂</div>
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={`text-[13.5px] font-bold ${consent === 'agreed' ? 'text-emerald-700' : consent === 'declined' ? 'text-slate-500' : 'text-amber-700'}`}>
+                  {consentLabel(consent)}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {CONSENT_BTNS.map(([st, label]) => (
+                    <button key={st} type="button" onClick={() => void onConsent(st)} disabled={consentBusy || consent === st} aria-pressed={consent === st}
+                      className={`text-[13px] font-bold px-2.5 py-1 border disabled:opacity-40 ${consent === st ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </span>
+              </div>
+              <p className="text-[12px] text-slate-500 mt-1.5 leading-relaxed">エステ魂はセラピスト本人のアカウントから投稿するため、ご本人の了承を記録します。了承ありでも「魂セラピスト」を始めていないと転送できません。</p>
+            </div>
+          </div>
+        )}
         <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2 my-3 leading-relaxed">
           ※ この宛先を知っている人は誰でもこのセラピストとして各サイトに投稿できます。取り扱いにご注意ください。
         </p>

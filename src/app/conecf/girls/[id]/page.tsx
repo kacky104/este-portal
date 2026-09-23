@@ -256,7 +256,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic' }: { id: number; 
       )}
 
       {/* ★ 第731便: 写メ日記の転送先（マイページと同じ中身・1人1サイト1か所） */}
-      {tab === 'diary' && <GirlDiaryTab id={id} onToast={onToast} />}
+      {tab === 'diary' && <GirlDiaryTab id={id} salonId={d.salonId} onToast={onToast} />}
 
       {tab === 'basic' && (
         <div className={CARD}>
