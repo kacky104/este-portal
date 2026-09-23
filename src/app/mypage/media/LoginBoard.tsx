@@ -328,7 +328,7 @@ export function LoginBoard({
         <p className="text-[15.5px] font-black text-slate-800">
           {known && rowsOf('ekichika').some((r) => r.hasPassword && r.isEnabled && !r.needsConsent)
             ? '写メ日記をフクエスに反映しています。'
-            : '写メ日記をフクエスに反映するには、駅ちかのIDとパスワードの設定が必要です。'}
+            : '写メ日記をフクエスに反映するには、駅ちかのIDとパスワードの設定が必要です。登録すると数分後に反映されます。'}
         </p>
       </div>
       {sortSitesForLogin(MEDIA_SITES).filter((site) => site.provider === 'ekichika').map((site) => {

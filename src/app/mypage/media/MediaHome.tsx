@@ -317,8 +317,17 @@ export function MediaHome({ salonId, onToast }: {
                      選んだことと、戻せることを、すぐ下に書く（§223） */}
               {offSite
                 ? '「反映しない」を選んでいます。下のボタンでいつでも戻せます。'
-                : '駅ちかのお店のページが登録されると始められます。運営事務局へご連絡ください。'}
+                : '駅ちかのお店のページが登録されると始められます。駅ちかのお店ページURLを添えて運営事務局へご連絡ください。'}
             </p>
+            {/* ★ 第715便（カッキーさん）: 未登録の店が自分で動けるように、問い合わせ（マイページ「運営事務局」）への入口を置く */}
+            {!offSite && (
+              <Link
+                href="/mypage?tab=support"
+                className="inline-block mt-3 px-4 py-2.5 border border-indigo-600 bg-indigo-600 text-white text-[14.5px] font-bold hover:bg-indigo-700"
+              >
+                駅ちかのお店ページURLを運営事務局に送る
+              </Link>
+            )}
           </>
         )}
       </div>
