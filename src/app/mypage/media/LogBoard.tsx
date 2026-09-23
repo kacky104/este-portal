@@ -159,7 +159,8 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       <div className={`${CARD} p-4`}>
         {/* ★ 第211便（2026-09-07・カッキーさん）: 76字 → 1文。★ 「新しい順・失敗も残す」は一覧を見れば分かるので言わない */}
         <p className="text-[14.5px] text-slate-500 leading-relaxed">
-          {brand.name}が各サイトへ行ったことの記録です（<b className="text-slate-700">書き換えできません</b>）。
+          {/* ★ 第718便: フクエスリンクは駅ちかだけ（カッキーさん） */}
+          {brand.isConecf ? `${brand.name}が各サイトへ行ったことの記録です` : 'フクエスが駅ちかで行ったことの記録です'}（<b className="text-slate-700">書き換えできません</b>）。
         </p>
       </div>
 
@@ -194,6 +195,8 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
 
       {/* ── 絞り込み ── */}
       <div className={`${CARD} p-3.5 space-y-2.5`}>
+        {/* ★ 第718便: フクエスリンクは駅ちかだけなので、サイトの絞り込みは出さない（コネックエフだけ） */}
+        {brand.isConecf && (
         <Pills
           label="サイト"
           value={filter.provider}
@@ -205,6 +208,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
             ...MEDIA_SITES.map((s) => ({ v: s.provider, t: s.name })),
           ]}
         />
+        )}
         <Pills
           label="結果"
           value={filter.outcome}
