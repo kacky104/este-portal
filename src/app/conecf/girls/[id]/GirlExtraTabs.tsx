@@ -257,9 +257,19 @@ export function GirlExtraTab({
       <div className={CARD}>
         {slotPills}
         <Section title="駅ちかに反映">
-          <Row label="お店からのメッセージ">
+          {/* ★ 第728便（カッキーさん）: キャッチコピーとお店からのメッセージ（本文）も駅ちかのタブに出す。
+              ★ 中身はフクエスのタブと同じ値（therapists.catchphrase / profile_text）。どちらで直しても同じ */}
+          <Row label="女の子キャッチコピー">
+            <input className={INPUT} value={c.catchphrase} onChange={(e) => setC('catchphrase', e.target.value)} />
+            <Counter text={c.catchphrase} max={CATCH_MAX} limits={COMMENT_SITE_LIMITS.catch} />
+          </Row>
+          <Row label="お店からのメッセージ（タイトル）">
             <input className={INPUT} value={c.shopTitle} onChange={(e) => setC('shopTitle', e.target.value)} />
             <Counter text={c.shopTitle} max={SHOP_TITLE_MAX} />
+          </Row>
+          <Row label="お店からのメッセージ">
+            <textarea rows={8} className={INPUT} value={c.profileText} onChange={(e) => setC('profileText', e.target.value)} />
+            <Counter text={c.profileText} max={SHOP_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.shopComment} />
           </Row>
           <Row label="女の子からのメッセージ">
             <textarea rows={5} className={INPUT} value={c.girlComment} onChange={(e) => setC('girlComment', e.target.value)} />
