@@ -175,12 +175,12 @@ export function GirlExtraTab({
     };
     return (
       <div className={CARD}>
-        <Section title="フクエスに反映するもの（駅ちか・エステ魂にも同じ内容を送ります）">
-          <Row label="キャッチコピー">
+        <Section title="フクエスに反映">
+          <Row label="キャッチフレーズ">
             <input className={INPUT} value={c.catchphrase} onChange={(e) => setC('catchphrase', e.target.value)} />
             <Counter text={c.catchphrase} max={CATCH_MAX} limits={COMMENT_SITE_LIMITS.catch} />
           </Row>
-          <Row label="お店コメント" hint="フクエス「紹介文」　駅ちか「お店からのメッセージ」　エステ魂「ショップコメント」">
+          <Row label="詳細プロフィール">
             <textarea rows={8} className={INPUT} value={c.profileText} onChange={(e) => setC('profileText', e.target.value)} />
             <Counter text={c.profileText} max={SHOP_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.shopComment} />
           </Row>
