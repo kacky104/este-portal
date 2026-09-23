@@ -29,8 +29,11 @@ export function QaBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideConten
                   <div className="flex gap-2.5 pb-3.5">
                     <span className="flex-none text-[15px] font-black text-rose-500">A</span>
                     <div className="flex-1 space-y-1.5">
+                      {/* ★ 第712便: 先頭が「!」の行は赤字（大事な注意）。★ 印は表示しない */}
                       {qa.a.map((line) => (
-                        <p key={line} className="text-[14px] text-slate-600 leading-relaxed">{line}</p>
+                        line.startsWith('!')
+                          ? <p key={line} className="text-[14px] font-bold text-rose-600 leading-relaxed">{line.slice(1)}</p>
+                          : <p key={line} className="text-[14px] text-slate-600 leading-relaxed">{line}</p>
                       ))}
                       {qa.link && qa.linkLabel && <GoLink href={link(qa.link)}>{qa.linkLabel}</GoLink>}
                     </div>
