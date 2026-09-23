@@ -1023,17 +1023,7 @@ export default function TherapistEditPage() {
                       </div>
                     );
                   })}
-                  <button
-                    type="button"
-                    onClick={() => setForwardRows((rs) => {
-                      const slots = rs.filter((x) => x.provider === m.p).map((x) => x.slot);
-                      const next = slots.length ? Math.max(...slots) + 1 : 1;
-                      return [...rs, { provider: m.p, slot: next, address: '', saved: '' }];
-                    })}
-                    className="text-[11px] font-bold text-pink-600 hover:text-pink-700"
-                  >
-                    ＋ {m.label}の枠を追加
-                  </button>
+                  {/* ★ 第731便（カッキーさん）: 「＋ 枠を追加」は外した。★ 1人につきサイト1か所。★ 既に入っている2枠目以降はそのまま出る */}
                 </div>
               );
             })

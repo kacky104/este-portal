@@ -12,6 +12,7 @@ import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
 import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import { GirlExtraTab } from './GirlExtraTabs';
+import { GirlDiaryTab } from './GirlDiaryTab';
 import { EkichikaEditPanel } from './EkichikaEditPanel';
 import { EsutamaEditPanel } from './EsutamaEditPanel';
 import { DeleteGirlPanel } from './DeleteGirlPanel';
@@ -30,7 +31,7 @@ const supabase = createClient();
 const BUCKET = 'therapist-photos';
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-200 bg-white px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200';
-type Tab = 'basic' | 'fukues' | 'ekichika' | 'esutama' | 'images' | 'sites';
+type Tab = 'basic' | 'fukues' | 'ekichika' | 'esutama' | 'diary' | 'images' | 'sites';
 type Form = ConecfGirlDetail['form'];
 
 // ★ 第446便: 「推奨」の札はやめた（★ 残すのは「必須」だけ）
@@ -153,7 +154,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
 
   // ★ 第414便: ベンリーと同じ並び（基本情報／コメント／各サイト項目／Q&A項目／画像）＋送り先サイト
   // ★ 第724便（カッキーさん）: コメント／各サイト項目／Q&A → サイトごと（フクエス／駅ちか／エステ魂）。★ そのサイトに反映するものが1タブにまとまる
-  const TABS: Array<[Tab, string]> = [['basic', '基本情報'], ['fukues', 'フクエス'], ['ekichika', '駅ちか'], ['esutama', 'エステ魂'], ['images', '画像'], ['sites', '送り先サイト']];
+  const TABS: Array<[Tab, string]> = [['basic', '基本情報'], ['fukues', 'フクエス'], ['ekichika', '駅ちか'], ['esutama', 'エステ魂'], ['diary', '写メ日記'], ['images', '画像'], ['sites', '送り先サイト']];
   const saveBtn = (onClick: () => void, label = '保存する') => (
     <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex items-center justify-end gap-3">
       {!enabled && <span className="text-[12.5px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
@@ -196,6 +197,9 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
       {(tab === 'fukues' || tab === 'ekichika' || tab === 'esutama') && (
         <GirlExtraTab key={tab} tab={tab} id={id} salonId={d.salonId} enabled={enabled} onToast={onToast} />
       )}
+
+      {/* ★ 第731便: 写メ日記の転送先（マイページと同じ中身・1人1サイト1か所） */}
+      {tab === 'diary' && <GirlDiaryTab id={id} onToast={onToast} />}
 
       {tab === 'basic' && (
         <div className={CARD}>
