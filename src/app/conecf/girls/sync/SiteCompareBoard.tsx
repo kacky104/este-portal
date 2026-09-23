@@ -190,6 +190,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                   {/* ★ 第741便（カッキーさん）: ほかのサイトと同じ3行に（フクエスは正本なので常時確認・差異0） */}
                   <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">最終確認 常時確認</div>
                   <div className="text-[13px] font-bold text-slate-400">△× 0人</div>
+                  <div className="mt-1 text-[12.5px] text-slate-400">読み込み不要</div>
                 </th>
                 {sites.map((s) => {
                   const p = pairsOf[key(s)];
