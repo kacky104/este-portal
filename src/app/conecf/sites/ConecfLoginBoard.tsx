@@ -233,7 +233,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
             <li className="grid grid-cols-[88px_1fr_auto] md:grid-cols-[88px_1fr_320px_260px] items-center px-2 min-h-12 py-2 border-b border-slate-100">
               <span className="text-[12px] text-slate-400 pl-2">—</span>
               <span>フクエス</span>
-              <span className="hidden md:flex flex-wrap gap-1"><Chip>出勤</Chip><Chip>今すぐ</Chip><Chip>セラピスト</Chip></span>
+              <span className="hidden md:flex flex-wrap gap-1"><Chip>出勤</Chip><Chip>セラピスト</Chip><Chip>写メ日記</Chip><Chip>今すぐ</Chip><Chip>お知らせ</Chip></span>
               <span className={`text-[12px] ${GREEN} text-right md:text-left`}>更新中（ID・PASS不要）</span>
             </li>
           )}
