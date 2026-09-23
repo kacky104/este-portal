@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   getSalonTherapists, getMediaOverview, getMediaLinkPairs,
-  linkTherapistMediaId, unlinkTherapistMediaId, startMediaRosterRead, startMediaTherapistCreatePush,
+  linkTherapistMediaId, unlinkTherapistMediaId, startMediaRosterRead, startMediaTherapistCreate, startMediaTherapistCreatePush,
 } from '@/app/actions/mediaCredentials';
 import { listConecfTargetOffs } from '@/app/actions/conecfGirls';
 import { canLink, strengthLabel, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { useMediaBrand } from '@/app/mypage/media/mediaBrand';
+import { summarizeCreatePlan } from '@/app/mypage/media/createPlanSummary';
 
 // コネックエフ「女性をサイトへ登録」（第736便・2026-09-23・カッキーさんの決定）。
 // ★ ベンリーの「女性登録状況一覧」と同じ形: 縦に女性、横にサイト、○×で一目。
@@ -37,7 +38,8 @@ function fmtAt(iso: string | null): string {
   if (Number.isNaN(d.getTime())) return '';
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
-function plainText(s: string): string { return s.replace(/<[^>]+>/g, ''); }
+// ★ 第759便: 運営向けの印（★）と強調（**）も剥がす（試し打ちの注意の文言に入っている）
+function plainText(s: string): string { return s.replace(/<[^>]+>/g, '').replace(/★+\s*/g, '').replace(/\*\*/g, ''); }
 
 export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
   const brand = useMediaBrand();
@@ -53,6 +55,8 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
   const [busy, setBusy] = useState('');
   const [open, setOpen] = useState<{ tid: string; key: string } | null>(null);
   const [pick, setPick] = useState('');
+  // ★ 第759便: 「新しく登録」は先に送る内容を見せる（試し打ち＝サイトへは何も送らない）→「登録する」で送る
+  const [preview, setPreview] = useState<{ plan: Record<string, unknown>; warnings: string[] } | null>(null);
   const autoRead = useRef<Set<string>>(new Set());
 
   const key = (s: { provider: string; slot: number }) => s.provider + '#' + s.slot;
@@ -135,13 +139,21 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
       void load();
     } finally { setBusy(''); }
   };
+  const onCreateCheck = async (t: Therapist, s: Site) => {
+    setBusy('check');
+    try {
+      const res = await startMediaTherapistCreate({ salonId, provider: s.provider, slot: s.slot, therapistId: t.id });
+      if (!res.ok) { onToast(plainText(res.error)); return; }
+      setPreview({ plan: res.data.plan, warnings: res.data.warnings });
+    } finally { setBusy(''); }
+  };
   const onCreate = async (t: Therapist, s: Site) => {
     setBusy(t.id);
     try {
       const res = await startMediaTherapistCreatePush({ salonId, provider: s.provider, slot: s.slot, therapistId: t.id });
       if (!res.ok) { onToast(plainText(res.error)); return; }
       onToast(`${s.label}へ登録を送りました。結果は「更新結果」に出ます。数分後に「再読み込み」を押すと、この表にも反映されます`);
-      setOpen(null);
+      setOpen(null); setPreview(null);
     } finally { setBusy(''); }
   };
 
@@ -250,7 +262,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                     return (
                       <td key={key(s)} className="px-3 py-1.5 text-center">
                         <button type="button" title={m.title} disabled={c === 'unknown' || c === 'ok'}
-                          onClick={() => { setOpen({ tid: t.id, key: key(s) }); setPick(''); }}
+                          onClick={() => { setOpen({ tid: t.id, key: key(s) }); setPick(''); setPreview(null); }}
                           className={`text-[24px] leading-none ${m.cls} ${c === 'ok' || c === 'unknown' ? 'cursor-default' : 'hover:scale-110 transition-transform'}`}>
                           {m.text}
                         </button>
@@ -275,10 +287,39 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
         const off = targetOffs.has(`${t.id}#${s.provider}#${s.slot}`);
         const unl = p.pairs.unlinked.find((u) => String(u.therapistId) === t.id) ?? null;
         return (
-          <div className="fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4" role="dialog" aria-modal="true" onClick={() => setOpen(null)}>
-            <div className="w-full max-w-[420px] bg-white border border-slate-200 shadow-lg p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
-              <p className="text-[16px] font-black text-slate-800">{t.name} を {s.label} へ</p>
-              {c === 'unlinked' && (
+          <div className="fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4" role="dialog" aria-modal="true" onClick={() => { setOpen(null); setPreview(null); }}>
+            <div className="w-full max-w-[460px] max-h-[90vh] overflow-y-auto bg-white border border-slate-200 shadow-lg p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+              <p className="text-[16px] font-black text-slate-800">{t.name} を {s.label} へ{preview ? '、この内容で登録します' : ''}</p>
+              {preview ? (
+                <>
+                  <dl className="border border-slate-200 bg-white divide-y divide-slate-100">
+                    {summarizeCreatePlan(preview.plan).map((r) => (
+                      <div key={r.k} className="flex gap-3 px-3 py-1.5 text-[14px]">
+                        <dt className="w-[52px] flex-none font-bold text-slate-400">{r.k}</dt>
+                        <dd className="min-w-0 text-slate-700 break-words">{brand.text(r.v)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {preview.warnings.length > 0 && (
+                    <ul className="border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+                      {preview.warnings.map((w, i) => (
+                        <li key={i} className="text-[13px] leading-relaxed text-slate-700">{plainText(w)}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="text-[12.5px] text-slate-500 leading-relaxed">
+                    登録は{s.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。消すときは、{s.label}の管理画面から直接消してください（この画面からは消せません）。同じ名前の方が{s.label}にすでにいる場合は、登録されずに終わります。
+                  </p>
+                  <div className="flex gap-2">
+                    <button type="button" disabled={busy !== ''} onClick={() => setPreview(null)}
+                      className="flex-1 px-3 py-2.5 border border-slate-300 bg-white text-[14px] font-bold text-slate-600 disabled:opacity-40">やめる</button>
+                    <button type="button" disabled={busy !== ''} onClick={() => void onCreate(t, s)}
+                      className="flex-1 px-3 py-2.5 bg-[#218925] text-white text-[14px] font-bold disabled:opacity-40">
+                      {busy === t.id ? '送っています…' : '登録する'}
+                    </button>
+                  </div>
+                </>
+              ) : c === 'unlinked' && (
                 <>
                   <p className="text-[13px] text-slate-500 leading-relaxed">{s.label}の名簿に、この方と結びついた登録が見つかりません。すでに{s.label}にいるなら連携を、いないなら新しく登録してください。</p>
                   {unl && unl.candidates.length > 0 && (
@@ -305,14 +346,14 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                   {off ? (
                     <p className="text-[12.5px] text-slate-400">送り先サイトで{s.label}へ「送らない」にしているため、新しく登録はできません。</p>
                   ) : (
-                    <button type="button" disabled={busy !== ''} onClick={() => void onCreate(t, s)}
+                    <button type="button" disabled={busy !== ''} onClick={() => void onCreateCheck(t, s)}
                       className="block w-full px-3 py-2.5 bg-[#218925] text-white text-[14px] font-bold disabled:opacity-40">
-                      {busy === t.id ? '送っています…' : `${s.label}へ新しく登録する`}
+                      {busy === 'check' ? '送る内容を確かめています…' : `${s.label}へ新しく登録する`}
                     </button>
                   )}
                 </>
               )}
-              {c === 'missing' && (
+              {!preview && c === 'missing' && (
                 <>
                   <p className="text-[13px] text-slate-500 leading-relaxed">番号はありますが、{s.label}の名簿にいません（{s.label}で削除された・読み取りが不完全 など）。連携を外すと、新しく登録し直せます。</p>
                   <button type="button" disabled={busy !== ''} onClick={() => void onUnlink(t, s)}
@@ -320,7 +361,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                 </>
               )}
               <div className="flex justify-end">
-                <button type="button" onClick={() => setOpen(null)} className="px-4 py-1.5 border border-slate-200 text-[13.5px] font-bold text-slate-500 hover:bg-slate-50">もどる</button>
+                <button type="button" onClick={() => { setOpen(null); setPreview(null); }} className="px-4 py-1.5 border border-slate-200 text-[13.5px] font-bold text-slate-500 hover:bg-slate-50">もどる</button>
               </div>
             </div>
           </div>
