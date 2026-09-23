@@ -588,3 +588,14 @@ body.paw-bg {
   font-size: 14px;
 }
 .conecf-venrey .font-black { font-weight: 700; }
+/* ★ 第753便（カッキーさん）: コネックエフのボタン・リンク・チェック・選択肢は、乗せると手の形（pointer）。
+   ★ 押せないもの（disabled）は矢印のまま（★ 押せないことが手の形で分かる）。 */
+.conecf-venrey button:not(:disabled),
+.conecf-venrey a[href],
+.conecf-venrey label:has(input[type="checkbox"]),
+.conecf-venrey label:has(input[type="radio"]),
+.conecf-venrey input[type="checkbox"]:not(:disabled),
+.conecf-venrey input[type="radio"]:not(:disabled),
+.conecf-venrey select:not(:disabled),
+.conecf-venrey summary { cursor: pointer; }
+.conecf-venrey button:disabled { cursor: not-allowed; }
