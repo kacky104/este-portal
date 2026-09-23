@@ -180,11 +180,12 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
         <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>
       ) : (
         <div className={`${CARD} overflow-x-auto`}>
-          <table className="w-full text-[14px]">
+          <table className="w-full text-[14px] table-fixed">
             <thead>
               <tr className="border-b border-slate-200 align-bottom">
-                <th className="text-left px-4 py-3 font-bold text-slate-500 w-[280px]">名前</th>
-                <th className="px-3 py-3 text-center">
+                {/* ★ 第738便: 名前の列だけ伸びる。サイトの列は同じ幅（150px）で右に寄せ、○の間を詰める */}
+                <th className="text-left px-4 py-3 font-bold text-slate-500">名前</th>
+                <th className="px-2 py-3 text-center w-[140px]">
                   <div className="font-bold text-slate-700">フクエス</div>
                   <div className="text-[11px] text-slate-400 font-normal">{therapists.length}人</div>
                 </th>
@@ -192,7 +193,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                   const p = pairsOf[key(s)];
                   const bad = therapists.filter((t) => s.hasCredential && cellOf(t, s) !== 'ok').length;
                   return (
-                    <th key={key(s)} className={`px-3 py-3 text-center min-w-[150px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
+                    <th key={key(s)} className={`px-2 py-3 text-center w-[140px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
                       <div className="font-bold text-slate-700">{s.label}</div>
                       {s.hasCredential ? (
                         <>
