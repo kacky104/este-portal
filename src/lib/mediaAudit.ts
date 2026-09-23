@@ -30,6 +30,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'push_photo',          // ★★ 駅ちかへ写真を送った（第107便）。★ 書き換える
   'plan_work',           // ★ 試し打ち。送るとどうなるかを組み立てただけ（第43便）
   'link_mode_changed',   // ★ 連携の向きを変えた（読む↔書く・第46便）
+  'source_registered',   // ★ 運営が駅ちかの店舗ページ（店舗番号・URL）を登録した（第704便・2026-09-23）。★ 取り込みの旗も一緒に立つ
   'sokuhime_auto_changed', // ★ 今すぐ→即ヒメ の自動を入切した（第215便）。★ 向き（link_mode）とは別のスイッチ
   'diary_source_synced', // ★ 写メ日記の入口を、向きから導いて書き換えた（第205便）。★ 店舗は直接いじらない
   'cast_id_linked',      // ★ 名簿の結びを画面から作った（第115便）。★ 送り先が決まる
@@ -555,6 +556,13 @@ export function defaultAuditSummary(input: {
               ? `${n}の連携が「フクエスから反映」ではなくなったため、即ヒメの自動も止めました`
               : `フクエスの「今すぐ」を${n}の即ヒメへ自動で送るのをやめました`)
         : `${n}の即ヒメの自動を切り替えられませんでした`;
+      break;
+    }
+    case 'source_registered': {
+      // ★ 第704便: 運営の /admin から登録した。★ 店舗様が読んでも分かる言い方で
+      s = input.outcome === 'ok'
+        ? `運営が駅ちかのお店のページ（店舗番号 ${String(d?.['externalId'] ?? '')}）を登録しました。駅ちかからの反映を始められます`
+        : '運営が駅ちかのお店のページを登録できませんでした';
       break;
     }
     case 'diary_source_synced': {

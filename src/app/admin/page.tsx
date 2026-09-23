@@ -20,6 +20,7 @@ import SalonIntakeManager from '@/app/components/SalonIntakeManager';
 import { HpDemoManager } from '@/app/components/HpDemoManager';
 import { HpSitesManager } from '@/app/components/HpSitesManager';
 import OwnerContactManager from '@/app/components/OwnerContactManager';
+import ImportSourceManager from '@/app/components/ImportSourceManager';
 import MainArticlesManager from '@/app/components/MainArticlesManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
@@ -740,6 +741,14 @@ export default function AdminDashboard() {
           {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
           <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
             <OwnerContactManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          {/* ── フクエスリンク：駅ちかの店舗ページ登録（第704便）。★ これが無いと駅ちかからの取り込みが動かない ── */}
+          <AccordionSection id="import-sources" title="フクエスリンク：駅ちかの店舗ページ登録" expanded={expandedSections} onToggle={toggleSection}>
+            <ImportSourceManager
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
             />
