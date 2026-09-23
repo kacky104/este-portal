@@ -169,16 +169,19 @@ export function GirlExtraTab({
 
   // ★ 第732便: onSave は成功したら true を返す。★ sites はこのタブで更新するサイト
   const pushing = pushEk.busy || pushEs.busy;
+  // ★ 第733便（カッキーさん）: フクエスタブは sites=[]。★ フクエスは保存した時点で反映されるので更新は要らないが、
+  //   ほかのタブと見た目をそろえるため「保存してフクエスへ更新」も出す（★ 中身は保存と同じ。押した感のため）。
   const saveBar = (onSave: () => Promise<boolean>, sites: Array<'ekichika' | 'esutama'>) => {
     const onSaveAndPush = async () => {
       const ok = await onSave();
       if (!ok) return;
+      if (sites.length === 0) { onToast('フクエスへ更新しました'); return; }
       for (const site of sites) {
         const p = site === 'ekichika' ? pushEk : pushEs;
         await p.onUpdate({ quiet: true });   // ★ 写真が消えるときは確認で止まる（下に出る）
       }
     };
-    const siteLabel = sites.map((s) => (s === 'ekichika' ? '駅ちか' : 'エステ魂')).join('・');
+    const siteLabel = sites.length === 0 ? 'フクエス' : sites.map((s) => (s === 'ekichika' ? '駅ちか' : 'エステ魂')).join('・');
     return (
       <>
         {pushEk.removals && sites.includes('ekichika') && (
@@ -254,7 +257,7 @@ export function GirlExtraTab({
       if (!res.ok) { onToast(res.error); return false; }
       if (!rb.ok) { onToast(rb.error); return false; }
       void revalidateSalon(salonId); void revalidateTherapist(id);
-      onToast('保存しました（フクエスに反映しました）');
+      onToast('保存しました');
       return true;
     };
     return (
@@ -273,7 +276,7 @@ export function GirlExtraTab({
             <BadgePicker badges={x.badges} onChange={(v) => setX((p) => (p ? { ...p, badges: v } : p))} />
           </Row>
         </Section>
-        {saveBar(onSave, ['ekichika', 'esutama'])}
+        {saveBar(onSave, [])}
       </div>
     );
   }
