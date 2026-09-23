@@ -72,7 +72,8 @@ function Pills({
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-[13px] font-bold text-slate-400 w-9 flex-none">{label}</span>
+      {/* ★ 第768便: 「サイト」が2行に折れていた（w-9）。★ 1行で収まる幅に */}
+      <span className="text-[13px] font-bold text-slate-400 w-11 flex-none whitespace-nowrap">{label}</span>
       <div className="flex gap-1.5 flex-wrap">
         {options.map((o) => (
           <button
@@ -205,7 +206,8 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
             { v: '', t: 'すべて' },
             // ★★ 記録が1件も無いサイトも選べるようにする。
             //   ★ 選べないと「まだ動いていない」ことを確かめられない
-            ...MEDIA_SITES.map((s) => ({ v: s.provider, t: s.name })),
+            // ★ 第768便（カッキーさん）: エステラブは外す（写メ日記の転送だけで、更新結果に記録が出ないため）
+            ...MEDIA_SITES.filter((s) => s.provider !== 'esulove').map((s) => ({ v: s.provider, t: s.name })),
           ]}
         />
         )}
