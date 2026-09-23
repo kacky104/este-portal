@@ -234,7 +234,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
               <span className="text-[12px] text-slate-400 pl-2">—</span>
               <span>フクエス</span>
               <span className="hidden md:flex flex-wrap gap-1"><Chip>出勤</Chip><Chip>セラピスト</Chip><Chip>写メ日記</Chip><Chip>今すぐ</Chip><Chip>お知らせ</Chip></span>
-              <span className={`text-[12px] ${GREEN} text-right md:text-left`}>連携中（ID・PASS不要）</span>
+              <span className={`text-[12px] ${GREEN} text-right md:text-left`}>枠1 ／ 連携中</span>
             </li>
           )}
           {!loading && shown.map((site) => {
