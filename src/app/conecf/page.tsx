@@ -49,19 +49,19 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
             <li>セラピストの追加・写真・年齢・サイズ・公開と出勤は、フクエスのマイページではなくコネックエフで編集するようになります。</li>
             {/* ★ 第470便: キャッチ・紹介文はコネックエフの「コメント」タブでも編集できる（★ フクエスと同じ列・駅ちか・エステ魂へも送れる） */}
             <li>キャッチ・紹介文は、マイページとコネックエフのどちらでも編集できます（同じ内容です）。</li>
-            <li>特徴バッジ、写メ日記・クーポン・ネット予約などは、これまでどおりマイページで編集します。</li>
+            <li>クーポン・ネット予約などは、これまでどおりマイページで編集します。</li>
             <li>フクエスのマイページでの編集に戻したいときは、運営までご連絡ください。</li>
           </ul>
           {reading && (
             <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 text-[13.5px] text-rose-800 leading-relaxed">
-              いま <b>{reading.join('・')}</b> から出勤などを取り込んでいます。このままだとコネックエフで入れた出勤が上書きされるため、
-              <b>取り込みを止めてから</b>切り替えます（ID・PASSはそのまま残ります）。
+              いまは<b>{reading.join('・')}</b>から出勤などを反映させています。このままだとコネックエフで入れた出勤が上書きされるため、
+              <b>反映を止めてから</b>切り替えます（ID・PASSはそのまま残ります）。
             </div>
           )}
           <div className="flex gap-2">
             <button type="button" onClick={() => { setAsk(false); setReading(null); }} disabled={busy} className="px-4 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600">やめる</button>
             <button type="button" onClick={() => void onGo(reading !== null)} disabled={busy} className="px-5 py-2 bg-indigo-600 text-white text-[14px] font-bold disabled:opacity-50">
-              {busy ? '切り替えています…' : reading ? '取り込みを止めて切り替える' : '切り替える'}
+              {busy ? '切り替えています…' : reading ? '反映を止めて切り替える' : '切り替える'}
             </button>
           </div>
         </div>
