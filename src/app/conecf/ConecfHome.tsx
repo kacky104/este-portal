@@ -110,7 +110,8 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
         <ul className="divide-y divide-slate-100 border-t border-slate-100">
           <li className="px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <b className="text-[15.5px] font-black text-slate-800">フクエス</b>
-            <span className="text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・今すぐ・セラピスト</span>
+            {/* ★ 第721便（カッキーさん）: 写メ日記はフクエスから投稿だが、利用者に分かりやすいよう並べて出す */}
+            <span className="text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・セラピスト・写メ日記・今すぐ・お知らせ</span>
             <span className="ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
           </li>
 
