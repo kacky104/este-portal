@@ -193,12 +193,13 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
         <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>
       ) : (
         <div className={`${CARD} overflow-x-auto`}>
-          {/* ★ 第770便（カッキーさん）: スマホは横スクロールでよいので、列を縮めず1行に（名前 260＋サイト 160×3） */}
-          <table className="text-[14px] table-fixed w-[740px] min-w-[740px] whitespace-nowrap">
+          {/* ★ 第770便（カッキーさん）: スマホは横スクロールでよいので、列を縮めず1行に（サイト 160×3）。
+              ★ 第771便: スマホは名前の列を 140px に詰めて、サイトの列を名前に寄せる（PC は 260px のまま） */}
+          <table className="text-[14px] table-fixed w-[620px] min-w-[620px] sm:w-[740px] sm:min-w-[740px] whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-200 align-bottom">
                 {/* ★ 第738便: サイトの列は同じ幅（140px）。★ 第739便: 表を左に寄せる（名前 260px・右は空ける） */}
-                <th className="text-left px-4 py-3 font-bold text-slate-500 w-[260px]">名前</th>
+                <th className="text-left px-3 sm:px-4 py-3 font-bold text-slate-500 w-[140px] sm:w-[260px]">名前</th>
                 <th className="px-2 py-3 text-center w-[160px]">
                   <div className="font-bold text-slate-800 text-[15.5px]">フクエス</div>
                   {/* ★ 第741便（カッキーさん）: ほかのサイトと同じ3行に（フクエスは正本なので常時確認・差異0） */}
@@ -239,7 +240,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                 <tr><td colSpan={2 + sites.length} className="px-4 py-6 text-center text-slate-400">{onlyDiff ? '差異があるセラピストはいません。' : 'セラピストがいません。'}</td></tr>
               ) : shown.map((t) => (
                 <tr key={t.id} className="border-b border-slate-100 align-middle">
-                  <td className="px-4 py-1.5">
+                  <td className="px-3 sm:px-4 py-1.5 overflow-hidden">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-slate-100 overflow-hidden flex-none">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
