@@ -54,8 +54,7 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
           </ul>
           {reading && (
             <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 text-[13.5px] text-rose-800 leading-relaxed">
-              いまは<b>{reading.join('・')}</b>から出勤などを反映させています。このままだとコネックエフで入れた出勤が上書きされるため、
-              <b>反映を止めてから</b>切り替えます（ID・PASSはコネックエフに引き継がれます）。
+              現在、<b>{reading.join('・')}</b>から出勤などを反映させています。{reading.join('・')}からの反映を止めてコネックエフからの反映に切り替えますか？
             </div>
           )}
           <div className="flex gap-2">
