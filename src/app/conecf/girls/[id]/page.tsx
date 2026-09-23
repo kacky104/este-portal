@@ -202,7 +202,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
           </button>
           <button type="button" disabled={saving || pushing || !enabled} onClick={() => void onSaveAndPush()}
             className="h-8 min-w-[80px] px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40">
-            {saving ? '保存中…' : pushing ? '受け付けています…' : `${label}して駅ちか・エステ魂へ更新`}
+            {saving ? '保存中…' : pushing ? '受け付けています…' : `${label}してフクエス・駅ちか・エステ魂へ更新`}
           </button>
         </div>
       </>
