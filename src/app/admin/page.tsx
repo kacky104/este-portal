@@ -153,7 +153,7 @@ export default function AdminDashboard() {
   const [hidingId, setHidingId] = useState<number | null>(null);
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null); // オーナーログインリンク発行中のサロンID
   // タブ（本体/求人）とアコーディオン開閉。タブはURLクエリ ?tab= と同期（リロード・ブックマークで維持）。
-  const [activeTab, setActiveTab] = useState<'main' | 'jobs' | 'salon' | 'hp' | 'docs'>('main');
+  const [activeTab, setActiveTab] = useState<'main' | 'jobs' | 'salon' | 'data' | 'hp' | 'docs'>('main');
   // 初期は使用頻度の高い「掲載サロン一覧」のみ開。開閉状態はクライアントstateのみ（永続化しない）。
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
   // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
@@ -186,7 +186,7 @@ export default function AdminDashboard() {
   };
 
   // タブ切替時にURLも更新（履歴を汚さない replace。ページ自体は同一ルートなので再マウントされない）。
-  const selectTab = (key: 'main' | 'jobs' | 'salon' | 'hp' | 'docs') => {
+  const selectTab = (key: 'main' | 'jobs' | 'salon' | 'data' | 'hp' | 'docs') => {
     setActiveTab(key);
     router.replace(`/admin?tab=${key}`, { scroll: false });
   };
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
   // マウント時に ?tab= を反映（リロード・ブックマークでタブを維持）。
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'jobs' || t === 'salon' || t === 'hp' || t === 'docs') setActiveTab(t);
+    if (t === 'jobs' || t === 'salon' || t === 'data' || t === 'hp' || t === 'docs') setActiveTab(t);
   }, []);
 
   const fetchSalons = useCallback(async () => {
@@ -424,6 +424,7 @@ export default function AdminDashboard() {
       <div className="max-w-5xl mx-auto px-3 pt-4 flex flex-wrap justify-center gap-1.5">
         {([
           ['salon', '店舗管理'],
+          ['data', '店舗データ'],
           ['hp', '公式HP'],
           ['main', 'オプション'],
           ['jobs', '求人'],
@@ -461,7 +462,7 @@ export default function AdminDashboard() {
                     「予約を取りこぼしている」という意味なので、他の要対応と区別が付くようにする。
                   ★ 件数は EmailEventManager が通知する。あちらはタブが非表示でもマウント
                     されているので、他のタブを開いていてもこのバッジは出る。 */}
-              {key === 'salon' && emailTroubleOpenCount > 0 && (
+              {key === 'data' && emailTroubleOpenCount > 0 && (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black leading-none">
                   {emailTroubleOpenCount}
                 </span>
@@ -544,37 +545,6 @@ export default function AdminDashboard() {
 
         {/* 店舗管理タブ（本体から移動：店舗登録・サロン一覧・オーナー連絡・優先順位・コラム記事） */}
         <div className={`space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
-
-          {/* ── 届かなかったメール（email_events・2026-08-16 新設／第19便） ──
-              Resend の Webhook（/api/webhooks/resend）が記録したバウンス等の一覧。
-              ★ タブ最上部に置いてあるのは、ここに行があると【ネット予約を取りこぼしている】ため。
-                店の booking_email が間違っていると、予約は入るのに店には何も届かない。
-                他のどのアコーディオンより先に目に入る位置であること。 */}
-          <AccordionSection
-            id="email-events"
-            title="メール配信トラブル"
-            meta={
-              emailTroubleOpenCount > 0 ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-600 border border-rose-200">
-                  未対応{emailTroubleOpenCount}件
-                </span>
-              ) : undefined
-            }
-            expanded={expandedSections}
-            onToggle={toggleSection}
-          >
-            <EmailEventManager onToast={showToast} onOpenCount={setEmailTroubleOpenCount} />
-          </AccordionSection>
-
-          {/* ── 店舗別のPV・送客アクション集計（2026-08-06 新設。契約更新やレポートの根拠に使う） ── */}
-          <AccordionSection id="salon-stats" title="店舗別アクセス・送客数" expanded={expandedSections} onToggle={toggleSection}>
-            <SalonStatsManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 契約店舗にそのまま送れる月次レポート（2026-08-06 新設。集計は上と同じ lib/salonStats.ts） ── */}
-          <AccordionSection id="salon-monthly-report" title="月次レポート（店舗へ送る文面）" expanded={expandedSections} onToggle={toggleSection}>
-            <SalonMonthlyReport onToast={showToast} />
-          </AccordionSection>
 
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection
@@ -738,44 +708,12 @@ export default function AdminDashboard() {
 
           </AccordionSection>
 
-          {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
-          <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
-            <OwnerContactManager
-              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
-              onToast={showToast}
-            />
-          </AccordionSection>
-
           {/* ── フクエスリンク：駅ちかの店舗ページ登録（第704便）。★ これが無いと駅ちかからの取り込みが動かない ── */}
           <AccordionSection id="import-sources" title="フクエスリンク：駅ちかの店舗ページ登録" expanded={expandedSections} onToggle={toggleSection}>
             <ImportSourceManager
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
             />
-          </AccordionSection>
-
-          <AccordionSection id="card-boost" title="店舗カード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
-            <CardBoostManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 週間ランキングの下駄（ハンデ）設定：店舗/セラピストごとに毎週の加算値を設定 ── */}
-          <AccordionSection id="ranking-handicap" title="週間ランキング下駄（ハンデ）設定" expanded={expandedSections} onToggle={toggleSection}>
-            <RankingHandicapManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── ページ別ヒーロー（ヘッダー）画像：特徴で探す/写メ日記/口コミ/新人/SNS ── */}
-          <AccordionSection id="page-heroes" title="ページ別ヒーロー画像設定" expanded={expandedSections} onToggle={toggleSection}>
-            <PageHeroManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 口コミ投稿者への個別VIPレター（オープン記念キャンペーン用・運営専用） ── */}
-          <AccordionSection id="review-campaign" title="口コミ投稿者へVIPレター送信" expanded={expandedSections} onToggle={toggleSection}>
-            <ReviewCampaignManager onToast={showToast} />
-          </AccordionSection>
-
-          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
-          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
-            <MainArticlesManager onToast={showToast} />
           </AccordionSection>
 
           {/* ── 掲載サロン一覧テーブル（件数はアコーディオン見出しに表示） ── */}
@@ -935,6 +873,75 @@ export default function AdminDashboard() {
         {/* 店舗管理タブ ここまで */}
 
         {/* ══════════ 公式HPタブ（掲載店舗向け公式ホームページ事業・2026-08-09） ══════════ */}
+        {/* ══════════ 店舗データタブ（第708便・2026-09-23・カッキーさん）══════════
+            ★ 店舗管理タブが長くなったので、【見る・送る・整える】系をこちらへ分けた。
+            ★ 店舗管理に残したのは【店舗そのものの登録・一覧・問い合わせ・フクエスリンク登録】。 */}
+        <div className={`space-y-4 ${activeTab === 'data' ? '' : 'hidden'}`}>
+          {/* ── 届かなかったメール（email_events・2026-08-16 新設／第19便） ──
+              Resend の Webhook（/api/webhooks/resend）が記録したバウンス等の一覧。
+              ★ タブ最上部に置いてあるのは、ここに行があると【ネット予約を取りこぼしている】ため。
+                店の booking_email が間違っていると、予約は入るのに店には何も届かない。
+                他のどのアコーディオンより先に目に入る位置であること。 */}
+          <AccordionSection
+            id="email-events"
+            title="メール配信トラブル"
+            meta={
+              emailTroubleOpenCount > 0 ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                  未対応{emailTroubleOpenCount}件
+                </span>
+              ) : undefined
+            }
+            expanded={expandedSections}
+            onToggle={toggleSection}
+          >
+            <EmailEventManager onToast={showToast} onOpenCount={setEmailTroubleOpenCount} />
+          </AccordionSection>
+
+          {/* ── 店舗別のPV・送客アクション集計（2026-08-06 新設。契約更新やレポートの根拠に使う） ── */}
+          <AccordionSection id="salon-stats" title="店舗別アクセス・送客数" expanded={expandedSections} onToggle={toggleSection}>
+            <SalonStatsManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 契約店舗にそのまま送れる月次レポート（2026-08-06 新設。集計は上と同じ lib/salonStats.ts） ── */}
+          <AccordionSection id="salon-monthly-report" title="月次レポート（店舗へ送る文面）" expanded={expandedSections} onToggle={toggleSection}>
+            <SalonMonthlyReport onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── オーナー連絡（お知らせ配信＋お問い合わせ受信。/mypage「運営から」タブと対） ── */}
+          <AccordionSection id="owner-contact" title="オーナー連絡（お知らせ配信・お問い合わせ）" expanded={expandedSections} onToggle={toggleSection}>
+            <OwnerContactManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          <AccordionSection id="card-boost" title="店舗カード優先表示（バナー設置特典）" expanded={expandedSections} onToggle={toggleSection}>
+            <CardBoostManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 週間ランキングの下駄（ハンデ）設定：店舗/セラピストごとに毎週の加算値を設定 ── */}
+          <AccordionSection id="ranking-handicap" title="週間ランキング下駄（ハンデ）設定" expanded={expandedSections} onToggle={toggleSection}>
+            <RankingHandicapManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── ページ別ヒーロー（ヘッダー）画像：特徴で探す/写メ日記/口コミ/新人/SNS ── */}
+          <AccordionSection id="page-heroes" title="ページ別ヒーロー画像設定" expanded={expandedSections} onToggle={toggleSection}>
+            <PageHeroManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 口コミ投稿者への個別VIPレター（オープン記念キャンペーン用・運営専用） ── */}
+          <AccordionSection id="review-campaign" title="口コミ投稿者へVIPレター送信" expanded={expandedSections} onToggle={toggleSection}>
+            <ReviewCampaignManager onToast={showToast} />
+          </AccordionSection>
+
+          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
+          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
+            <MainArticlesManager onToast={showToast} />
+          </AccordionSection>
+
+        </div>
+
         <div className={`space-y-4 ${activeTab === 'hp' ? '' : 'hidden'}`}>
 
           {/* ── 公式ホームページ制作のお申し込み（/hp/templates/contact のフォーム・2026-08-16 新設） ──
