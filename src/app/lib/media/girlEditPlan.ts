@@ -58,8 +58,9 @@ export async function buildGirlEditValues(
     cup: str(prof.cup ?? body?.cup),
     bloodtype: str(prof.blood_type),
     constellation: str(f.constellation),
-    catchcopy: str(th.catchphrase),
-    comments: str(th.profile_text),
+    // ★ 第729便: 駅ちか専用の値があればそれ、空ならフクエスの値
+    catchcopy: str(f.catchcopy) || str(th.catchphrase),
+    comments: str(f.comments) || str(th.profile_text),
     title: str(prof.shop_title),
     girlComments: str(prof.girl_comment),
     qa: Array.isArray(prof.qa) ? (prof.qa as Array<{ q: string; a: string }>) : [],
@@ -197,7 +198,7 @@ export async function buildCastEditValues(
         hip: str(prof.hip ?? body?.hip),
         cup: str(prof.cup ?? body?.cup),
         blood: str(prof.blood_type),
-        description: str(th.profile_text),
+        description: str(f.description) || str(th.profile_text),   // ★ 第729便: エステ魂専用が空ならフクエスの詳細プロフィール
         castPr: str(prof.girl_comment),
         types: Array.isArray(f.types) ? (f.types as unknown[]).filter((x): x is string => typeof x === 'string') : [],
         experience: str(f.experience),

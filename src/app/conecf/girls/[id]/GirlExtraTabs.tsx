@@ -6,7 +6,7 @@ import {
 } from '@/app/actions/conecfGirls';
 import {
   len, overSites, COMMENT_SITE_LIMITS, CATCH_MAX, SHOP_COMMENT_MAX, SHOP_TITLE_MAX, GIRL_COMMENT_MAX,
-  QA_MAX, QA_TEXT_MAX,
+  QA_MAX, QA_TEXT_MAX, EKICHIKA_CATCH_MAX, EKICHIKA_COMMENTS_MAX, ESUTAMA_DESCRIPTION_MAX,
   EKICHIKA_P_GENRES, EKICHIKA_P_GENRE_MAX, EKICHIKA_GENRE_GROUPS, EKICHIKA_GENRE_MAX, EKICHIKA_OPTIONS_MAX, EKICHIKA_ROOKIE, CONSTELLATIONS,
   ESUTAMA_TYPES, ESUTAMA_TYPE_MAX, ESUTAMA_BODY_STYLES, ESUTAMA_QUESTIONS, ESUTAMA_QUESTION_MAX, ESUTAMA_QUALIFIED_MAX, ESUTAMA_SNS,
   type QaItem,
@@ -133,13 +133,13 @@ function Chips({ all, picked, max, onChange }: { all: readonly string[]; picked:
   );
 }
 
-type Ek = { pGenres: string[]; genres: string[]; options: string; rookie: string; constellation: string };
-type Es = { types: string[]; experience: string; qualified: string; bodyStyle: string; answers: Record<string, string>; sns: Record<string, string> };
+type Ek = { pGenres: string[]; genres: string[]; options: string; rookie: string; constellation: string; catchcopy: string; comments: string };
+type Es = { types: string[]; experience: string; qualified: string; bodyStyle: string; answers: Record<string, string>; sns: Record<string, string>; description: string };
 const arr = (v: unknown) => (Array.isArray(v) ? (v.filter((x) => typeof x === 'string') as string[]) : []);
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const rec = (v: unknown) => (v && typeof v === 'object' ? (v as Record<string, string>) : {});
-const toEk = (f: Record<string, unknown>): Ek => ({ pGenres: arr(f.pGenres), genres: arr(f.genres), options: str(f.options), rookie: str(f.rookie), constellation: str(f.constellation) });
-const toEs = (f: Record<string, unknown>): Es => ({ types: arr(f.types), experience: str(f.experience), qualified: str(f.qualified), bodyStyle: str(f.bodyStyle), answers: { ...rec(f.answers) }, sns: { ...rec(f.sns) } });
+const toEk = (f: Record<string, unknown>): Ek => ({ pGenres: arr(f.pGenres), genres: arr(f.genres), options: str(f.options), rookie: str(f.rookie), constellation: str(f.constellation), catchcopy: str(f.catchcopy), comments: str(f.comments) });
+const toEs = (f: Record<string, unknown>): Es => ({ types: arr(f.types), experience: str(f.experience), qualified: str(f.qualified), bodyStyle: str(f.bodyStyle), answers: { ...rec(f.answers) }, sns: { ...rec(f.sns) }, description: str(f.description) });
 
 export function GirlExtraTab({
   tab, id, salonId, enabled, onToast,
@@ -257,20 +257,28 @@ export function GirlExtraTab({
       <div className={CARD}>
         {slotPills}
         <Section title="駅ちかに反映">
-          {/* ★ 第728便（カッキーさん）: キャッチコピーとお店からのメッセージ（本文）も駅ちかのタブに出す。
-              ★ 中身はフクエスのタブと同じ値（therapists.catchphrase / profile_text）。どちらで直しても同じ */}
-          <Row label="女の子キャッチコピー">
-            <input className={INPUT} value={c.catchphrase} onChange={(e) => setC('catchphrase', e.target.value)} />
-            <Counter text={c.catchphrase} max={CATCH_MAX} limits={COMMENT_SITE_LIMITS.catch} />
-          </Row>
-          <Row label="お店からのメッセージ（タイトル）">
-            <input className={INPUT} value={c.shopTitle} onChange={(e) => setC('shopTitle', e.target.value)} />
-            <Counter text={c.shopTitle} max={SHOP_TITLE_MAX} />
-          </Row>
-          <Row label="お店からのメッセージ">
-            <textarea rows={8} className={INPUT} value={c.profileText} onChange={(e) => setC('profileText', e.target.value)} />
-            <Counter text={c.profileText} max={SHOP_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.shopComment} />
-          </Row>
+          {/* ★ 第729便（カッキーさん）: 駅ちか専用のキャッチコピー・お店からのメッセージ（★ 空ならフクエスの内容を送る）。
+              ★ 置き場は駅ちかの項目（site_fields）。★ ID・PASS が無い店は欄が出ない（送る先が無い） */}
+          {cur && (() => {
+            const f = toEk(cur.fields);
+            const up = (k: keyof Ek, v: unknown) => setFields({ ...f, [k]: v });
+            return (
+              <>
+                <Row label="女の子キャッチコピー" hint={f.catchcopy ? undefined : `空のままなら、フクエスのキャッチフレーズ「${c.catchphrase || '（未入力）'}」を送ります。`}>
+                  <input className={INPUT} value={f.catchcopy} onChange={(e) => up('catchcopy', e.target.value)} placeholder="駅ちか専用（空ならフクエスと同じ）" />
+                  <Counter text={f.catchcopy} max={EKICHIKA_CATCH_MAX} />
+                </Row>
+                <Row label="お店からのメッセージ（タイトル）">
+                  <input className={INPUT} value={c.shopTitle} onChange={(e) => setC('shopTitle', e.target.value)} />
+                  <Counter text={c.shopTitle} max={SHOP_TITLE_MAX} />
+                </Row>
+                <Row label="お店からのメッセージ" hint={f.comments ? undefined : '空のままなら、フクエスの詳細プロフィールを送ります。'}>
+                  <textarea rows={8} className={INPUT} value={f.comments} onChange={(e) => up('comments', e.target.value)} placeholder="駅ちか専用（空ならフクエスと同じ）" />
+                  <Counter text={f.comments} max={EKICHIKA_COMMENTS_MAX} />
+                </Row>
+              </>
+            );
+          })()}
           <Row label="女の子からのメッセージ">
             <textarea rows={5} className={INPUT} value={c.girlComment} onChange={(e) => setC('girlComment', e.target.value)} />
             <Counter text={c.girlComment} max={GIRL_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.girlComment} />
@@ -344,12 +352,17 @@ export function GirlExtraTab({
     <div className={CARD}>
       {slotPills}
       <Section title="エステ魂に反映するもの">
-        <p className="text-[12px] text-slate-500 py-2">キャッチコピー・お店コメントは「フクエス」タブ、セラピストコメントは「駅ちか」タブの女の子コメントが送られます。{NOTE_SEND_SHORT}</p>
+        <p className="text-[12px] text-slate-500 py-2">セラピストコメントは「駅ちか」タブの女の子からのメッセージが送られます。{NOTE_SEND_SHORT}</p>
         {!cur ? noFields('エステ魂') : (() => {
           const f = toEs(cur.fields);
           const up = (k: keyof Es, v: unknown) => setFields({ ...f, [k]: v });
           return (
             <>
+              {/* ★ 第729便: エステ魂専用のショップコメント（★ 空ならフクエスの詳細プロフィールを送る） */}
+              <Row label="ショップコメント" hint={f.description ? undefined : '空のままなら、フクエスの詳細プロフィールを送ります。'}>
+                <textarea rows={6} className={INPUT} value={f.description} onChange={(e) => up('description', e.target.value)} placeholder="エステ魂専用（空ならフクエスと同じ）" />
+                <Counter text={f.description} max={ESUTAMA_DESCRIPTION_MAX} />
+              </Row>
               {/* ★★ 第448便（カッキーさん）: 特徴が0個だとエステ魂へ更新できない。★ 見落とさないよう赤字で出す */}
               <Row
                 label={`セラピストの特徴（${f.types.length}/${ESUTAMA_TYPE_MAX}）`}

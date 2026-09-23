@@ -87,7 +87,11 @@ export const EKICHIKA_OPTIONS_MAX = 145;
 export const EKICHIKA_ROOKIE: ReadonlyArray<readonly [string, string]> = [['', '付けない'], ['1', '新人'], ['2', '体験入店＋新人']];
 export const CONSTELLATIONS: readonly string[] = ['おひつじ', 'おうし', 'ふたご', 'かに', 'しし', 'おとめ', 'てんびん', 'さそり', 'いて', 'やぎ', 'みずがめ', 'うお'];
 
-export type EkichikaFields = { pGenres: string[]; genres: string[]; options: string; rookie: string; constellation: string };
+// ★ 第729便（2026-09-23・カッキーさん）: 駅ちか専用の キャッチコピー（catchcopy・15字）と お店からのメッセージ（comments・2000字）。
+//   ★ 空ならフクエスの値（therapists.catchphrase / profile_text）を送る（girlEditPlan）。★ 入れた店だけサイトごとに変えられる
+export const EKICHIKA_CATCH_MAX = 15;
+export const EKICHIKA_COMMENTS_MAX = 2000;
+export type EkichikaFields = { pGenres: string[]; genres: string[]; options: string; rookie: string; constellation: string; catchcopy: string; comments: string };
 
 /** 候補にあるものだけ・重複なし・選んだ順のまま・上限まで */
 export function pickFrom(input: unknown, candidates: readonly string[], max: number): string[] {
@@ -107,12 +111,16 @@ export function normalizeEkichikaFields(input: Record<string, unknown> | null | 
   if (len(options) > EKICHIKA_OPTIONS_MAX) return { ok: false, error: `可能オプションは${EKICHIKA_OPTIONS_MAX}文字までです` };
   const rookie = EKICHIKA_ROOKIE.some(([v]) => v === x.rookie) ? String(x.rookie) : '';
   const constellation = typeof x.constellation === 'string' && CONSTELLATIONS.includes(x.constellation) ? x.constellation : '';
+  const catchcopy = typeof x.catchcopy === 'string' ? x.catchcopy.trim() : '';
+  if (len(catchcopy) > EKICHIKA_CATCH_MAX) return { ok: false, error: `駅ちかのキャッチコピーは${EKICHIKA_CATCH_MAX}文字までです` };
+  const comments = typeof x.comments === 'string' ? x.comments.trim() : '';
+  if (len(comments) > EKICHIKA_COMMENTS_MAX) return { ok: false, error: `駅ちかのお店からのメッセージは${EKICHIKA_COMMENTS_MAX}文字までです` };
   return {
     ok: true,
     value: {
       pGenres: pickFrom(x.pGenres, EKICHIKA_P_GENRES, EKICHIKA_P_GENRE_MAX),
       genres: pickFrom(x.genres, EKICHIKA_GENRES, EKICHIKA_GENRE_MAX),
-      options, rookie, constellation,
+      options, rookie, constellation, catchcopy, comments,
     },
   };
 }
@@ -135,9 +143,11 @@ export const ESUTAMA_QUALIFIED_MAX = 200;
 export const ESUTAMA_SNS: ReadonlyArray<readonly [string, string]> = [['blog', '外部ブログ'], ['twitter', 'X(旧Twitter)'], ['bluesky', 'Bluesky'], ['instagram', 'Instagram']];
 export const ESUTAMA_SNS_MAX = 255;
 
+// ★ 第729便: エステ魂専用のショップコメント（description・500字）。★ 空ならフクエスの詳細プロフィールを送る
+export const ESUTAMA_DESCRIPTION_MAX = 500;
 export type EsutamaFields = {
   types: string[]; experience: string; qualified: string; bodyStyle: string;
-  answers: Record<string, string>; sns: Record<string, string>;
+  answers: Record<string, string>; sns: Record<string, string>; description: string;
 };
 
 export function normalizeEsutamaFields(input: Record<string, unknown> | null | undefined):
@@ -163,7 +173,9 @@ export function normalizeEsutamaFields(input: Record<string, unknown> | null | u
     if (len(v) > ESUTAMA_SNS_MAX) return { ok: false, error: `${label}は${ESUTAMA_SNS_MAX}文字までです` };
     if (v) sns[k] = v;
   }
-  return { ok: true, value: { types: pickFrom(x.types, ESUTAMA_TYPES, ESUTAMA_TYPE_MAX), experience, qualified, bodyStyle, answers, sns } };
+  const description = s(x.description);
+  if (len(description) > ESUTAMA_DESCRIPTION_MAX) return { ok: false, error: `ショップコメントは${ESUTAMA_DESCRIPTION_MAX}文字までです` };
+  return { ok: true, value: { types: pickFrom(x.types, ESUTAMA_TYPES, ESUTAMA_TYPE_MAX), experience, qualified, bodyStyle, answers, sns, description } };
 }
 
 /** 各サイト項目を持てる媒体（★ いまは駅ちか・エステ魂） */
