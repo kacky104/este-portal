@@ -256,13 +256,12 @@ export function GirlExtraTab({
     return (
       <div className={CARD}>
         {slotPills}
-        <Section title="駅ちかに反映するもの">
-          <p className="text-[12px] text-slate-500 py-2">キャッチコピー・お店コメントは「フクエス」タブの内容が送られます。{NOTE_SEND_SHORT}</p>
-          <Row label="お店コメントのタイトル" hint="駅ちか「お店からのメッセージ」のタイトルです。">
+        <Section title="駅ちかに反映">
+          <Row label="お店からのメッセージ">
             <input className={INPUT} value={c.shopTitle} onChange={(e) => setC('shopTitle', e.target.value)} />
             <Counter text={c.shopTitle} max={SHOP_TITLE_MAX} />
           </Row>
-          <Row label="女の子コメント" hint="駅ちか「女の子からのメッセージ」・エステ魂「セラピストコメント」に使います。">
+          <Row label="女の子からのメッセージ">
             <textarea rows={5} className={INPUT} value={c.girlComment} onChange={(e) => setC('girlComment', e.target.value)} />
             <Counter text={c.girlComment} max={GIRL_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.girlComment} />
           </Row>
