@@ -193,7 +193,8 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
         <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>
       ) : (
         <div className={`${CARD} overflow-x-auto`}>
-          <table className="text-[14px] table-fixed">
+          {/* ★ 第770便（カッキーさん）: スマホは横スクロールでよいので、列を縮めず1行に（名前 260＋サイト 160×3） */}
+          <table className="text-[14px] table-fixed w-[740px] min-w-[740px] whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-200 align-bottom">
                 {/* ★ 第738便: サイトの列は同じ幅（140px）。★ 第739便: 表を左に寄せる（名前 260px・右は空ける） */}
