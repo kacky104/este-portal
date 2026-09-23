@@ -268,6 +268,8 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
             );
           })}
         </ul>
+        {/* ★ 第751便（カッキーさん）: フクエスが ID・PASS なしで連携する理由を、表の下に1行 */}
+        <p className="px-4 py-3 text-[12.5px] text-slate-500">※フクエスはID・PASS不要で連携します。（コネックエフの利用条件）</p>
       </div>
 
       {/* ── ID・PASS設定の窓（ベンリーと同じ 600px）── */}
