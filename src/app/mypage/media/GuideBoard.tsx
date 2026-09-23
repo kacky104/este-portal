@@ -74,12 +74,17 @@ export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideCon
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {c.sites.map((s) => (
             <div key={s.name} className="border border-slate-200 p-3.5">
+              {/* ★ 第701便: フクエスリンクは駅ちかだけなので「駅ちか／使えます」の行を出さない。★ 2枠目（反映されないもの）は名前だけ出す */}
+              {(isConecf || s.status !== 'ok') && (
               <div className="flex items-center justify-between gap-2">
                 <b className="text-[15.5px] font-black text-slate-800">{s.name}</b>
+                {isConecf && (
                 <span className={`text-[12px] font-bold border px-2 py-0.5 ${STATUS_BADGE[s.status].cls}`}>
                   {STATUS_BADGE[s.status].label}
                 </span>
+                )}
               </div>
+              )}
               {s.items.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {s.items.map((it) => (
