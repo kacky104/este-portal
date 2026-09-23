@@ -8,7 +8,7 @@ import {
 import type { PhotoRemoval } from '../PhotoRemoveConfirm';
 
 // サイトへ「更新する」の共通の動き（第732便・2026-09-23）。
-// ★ EkichikaEditPanel / EsutamaEditPanel と、各タブの「保存して更新」（GirlExtraTabs）が同じ動きを使う。
+// ★ 各タブの「保存して更新」（GirlExtraTabs・page.tsx）が同じ動きを使う（第758便で旧 EkichikaEditPanel / EsutamaEditPanel は削除）。
 //   ★ 2か所に書くと、写真が消える確認（第428便）を片方だけ忘れる。
 // ★ 流れ: 切り替え済みか → 消える写真があるか（preview）→ あれば確認を出して止まる → 無ければ送る。
 // ★ 結果は待たない（受け付けて終わり）。★ 結果は「更新結果」に出る。
