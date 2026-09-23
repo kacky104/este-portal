@@ -18,7 +18,7 @@ import { PhotoRemoveConfirm, type PhotoRemoval } from './PhotoRemoveConfirm';
 // ★★ ベンリー（mrvenrey.jp の女性一覧）の形に寄せた（★ ベンリーから移る店舗様が迷わないため）。
 //   ・上に緑の丸いボタン（＋新規登録・女性取り込み）
 //   ・丸い検索欄と「1-N人 / N人中」
-//   ・表：編集（青）｜写真 60×80｜名前｜年齢｜新人｜サイズ（T. と B.W.H. の2行）｜入店日｜公開状態（スイッチ）
+//   ・表：編集（青）｜写真 60×80｜名前（新人は上に NEW）｜年齢｜サイズ（T. と B.W.H. の2行）｜公開状態（スイッチ）
 //   ★ 寸法・色はベンリーの実物で測った値（見出し 12px 太字・本文 14px・緑 #218925・青 #1558d6）。
 // ★ 親データはフクエスの therapists（★ ここに出る人＝フクエスに居る人）。
 
@@ -26,7 +26,8 @@ const GREEN_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg
 // ★ 第746便（カッキーさん）: 新規登録だけピンク
 const PINK_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg-[#e91e63] text-white text-[12px] shadow-sm disabled:opacity-40';
 // ★ 第747便（カッキーさん）: PC では名前を固定幅（200px）にして、年齢との間の空白を無くす。★ 余りは右端（公開状態の右）に
-const COLS = 'grid grid-cols-[84px_68px_1fr_48px_72px] md:grid-cols-[96px_76px_200px_64px_72px_190px_110px_110px_1fr]';
+// ★ 第762便（カッキーさん）: 「新人」「入店日」の列を消した（新人は名前の上に NEW）
+const COLS = 'grid grid-cols-[84px_68px_1fr_48px] md:grid-cols-[96px_76px_200px_64px_190px_110px_1fr]';
 
 function sizeLines(raw: string | null): [string, string] {
   const b = parseBodyType(raw);
@@ -387,9 +388,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           <span />
           <span>名前</span>
           <span className="text-center">年齢</span>
-          <span className="text-center">新人</span>
           <span className="hidden md:block">サイズ</span>
-          <span className="hidden md:block">入店日</span>
           <span className="hidden md:block text-center">公開状態</span>
         </div>
 
@@ -418,18 +417,16 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                     ? <img src={g.imageUrl} alt="" className="w-full h-full object-cover" />
                     : <span className="w-full h-full grid place-items-center text-[11px] text-slate-400">写真なし</span>}
                 </Link>
-                <span className={`min-w-0 truncate pr-2 ${g.isActive ? '' : 'text-slate-400'}`}>{g.name || '（名前なし）'}</span>
-                <span className="text-center tabular-nums">{g.age ?? ''}</span>
-                <span className="flex items-center justify-center gap-1 text-[13px]">
-                  <span className={`w-4 h-4 grid place-items-center rounded-sm border ${g.isNewFace ? 'bg-[#1e88e5] border-[#1e88e5] text-white' : 'border-slate-400'}`} aria-hidden>
-                    {g.isNewFace ? '✓' : ''}
-                  </span>
-                  <span className={g.isNewFace ? 'font-bold' : ''}>新人</span>
+                <span className={`min-w-0 pr-2 ${g.isActive ? '' : 'text-slate-400'}`}>
+                  {g.isNewFace && (
+                    <span className="block w-fit mb-1 px-1.5 rounded-sm bg-[#e91e63] text-white text-[10.5px] font-bold leading-[18px] tracking-wide">NEW</span>
+                  )}
+                  <span className="block truncate">{g.name || '（名前なし）'}</span>
                 </span>
+                <span className="text-center tabular-nums">{g.age ?? ''}</span>
                 <span className="hidden md:block leading-snug tabular-nums">
                   {t}{t && <br />}{bwh}
                 </span>
-                <span className="hidden md:block tabular-nums">{g.joinedOn ? g.joinedOn.replace(/-0?/g, '/').replace(/^(\d{4})\//, '$1/') : ''}</span>
                 <span className="hidden md:flex justify-center">
                   <button
                     type="button"
