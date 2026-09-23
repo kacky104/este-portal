@@ -590,12 +590,13 @@ body.paw-bg {
 .conecf-venrey .font-black { font-weight: 700; }
 /* ★ 第753便（カッキーさん）: コネックエフのボタン・リンク・チェック・選択肢は、乗せると手の形（pointer）。
    ★ 押せないもの（disabled）は矢印のまま（★ 押せないことが手の形で分かる）。 */
-.conecf-venrey button:not(:disabled),
-.conecf-venrey a[href],
-.conecf-venrey label:has(input[type="checkbox"]),
-.conecf-venrey label:has(input[type="radio"]),
-.conecf-venrey input[type="checkbox"]:not(:disabled),
-.conecf-venrey input[type="radio"]:not(:disabled),
-.conecf-venrey select:not(:disabled),
-.conecf-venrey summary { cursor: pointer; }
-.conecf-venrey button:disabled { cursor: not-allowed; }
+/* ★ 1つのセレクタ一覧に :has() を混ぜると、古い環境で一覧ごと無効になるので分けて書く。★ !important は Tailwind の base に確実に勝つため */
+.conecf-venrey button:not(:disabled) { cursor: pointer !important; }
+.conecf-venrey a[href] { cursor: pointer !important; }
+.conecf-venrey input[type="checkbox"]:not(:disabled) { cursor: pointer !important; }
+.conecf-venrey input[type="radio"]:not(:disabled) { cursor: pointer !important; }
+.conecf-venrey select:not(:disabled) { cursor: pointer !important; }
+.conecf-venrey summary { cursor: pointer !important; }
+.conecf-venrey label:has(input[type="checkbox"]) { cursor: pointer !important; }
+.conecf-venrey label:has(input[type="radio"]) { cursor: pointer !important; }
+.conecf-venrey button:disabled { cursor: not-allowed !important; }
