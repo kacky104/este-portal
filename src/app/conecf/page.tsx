@@ -50,7 +50,7 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
             {/* ★ 第470便: キャッチ・紹介文はコネックエフの「コメント」タブでも編集できる（★ フクエスと同じ列・駅ちか・エステ魂へも送れる） */}
             <li>キャッチ・紹介文は、マイページとコネックエフのどちらでも編集できます（同じ内容です）。</li>
             <li>特徴バッジ、写メ日記・クーポン・ネット予約などは、これまでどおりマイページで編集します。</li>
-            <li>元に戻したいときは、運営までご連絡ください。</li>
+            <li>マイページでの編集に戻したいときは、運営までご連絡ください。</li>
           </ul>
           {reading && (
             <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 text-[13.5px] text-rose-800 leading-relaxed">

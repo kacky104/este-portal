@@ -145,7 +145,7 @@ export function ConecfHome({ salonId, onToast }: { salonId: number | null; onToa
                 ? { text: '出勤は自動で更新しています', tone: 'text-slate-500', link: null }
                 : { text: '出勤の自動更新が未設定です', tone: 'text-rose-700', link: { href: href('/schedule/sync'), label: '設定する' } };
             } else if (s.direction === 'read') {
-              status = { text: `${s.label}から取り込み中（コネックエフからは更新していません）`, tone: 'text-amber-700' };
+              status = { text: 'フクエスリンクで反映中', tone: 'text-amber-700' };
               action = (
                 <button type="button" disabled={busy !== ''} onClick={() => void onSet(s, 'write')}
                   className="px-3 py-1.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[13px] font-bold disabled:opacity-40">
