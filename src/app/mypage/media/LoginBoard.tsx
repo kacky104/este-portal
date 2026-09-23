@@ -324,7 +324,12 @@ export function LoginBoard({
           ★ ほかのサイトの ID・PW は消していない（コネックエフが同じ表を使う）。★ 画面に出さないだけ。 */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         {/* ★ 第699便（カッキーさん）: 見出しを1文に。★ 箇条書き（出勤…はIDなしで反映／写メ日記は要る）は消した */}
-        <p className="text-[15.5px] font-black text-slate-800">写メ日記をフクエスに反映するには、駅ちかのIDとパスワードの設定が必要です。</p>
+        {/* ★ 第709便: 登録済み（パスワードあり・止めていない・同意済み）なら「反映しています」に変える */}
+        <p className="text-[15.5px] font-black text-slate-800">
+          {known && rowsOf('ekichika').some((r) => r.hasPassword && r.isEnabled && !r.needsConsent)
+            ? '写メ日記をフクエスに反映しています。'
+            : '写メ日記をフクエスに反映するには、駅ちかのIDとパスワードの設定が必要です。'}
+        </p>
       </div>
       {sortSitesForLogin(MEDIA_SITES).filter((site) => site.provider === 'ekichika').map((site) => {
         const siteRows = rowsOf(site.provider);
@@ -337,12 +342,7 @@ export function LoginBoard({
         // ★★★ 接続できないサイト（エステラブ）は、状態より先に【使えない】ことで色を決める（第117便）。
         //   ★ 「未登録（琥珀）」だと、登録すれば使えるように見える。★ 待っても使えないので分ける。
         const blocked = site.accepting === false && site.notYetKind === 'blocked';
-        const accent =
-          blocked ? 'border-l-sky-400'
-          : status === 'enabled' ? 'border-l-emerald-600'
-          : status === 'unregistered' ? 'border-l-amber-300'
-          : status === 'unknown' ? 'border-l-slate-300'
-          : 'border-l-slate-400';
+        // ★ 第709便: 左の色線（accent）は外した
         const chip =
           blocked ? 'bg-rose-50 text-rose-700 border-rose-200'
           : status === 'enabled' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -360,7 +360,7 @@ export function LoginBoard({
         const showSlots = canRegister || siteRows.length > 0;
 
         return (
-          <div key={site.provider} className={`${CARD} border-l-[3px] ${accent}`}>
+          <div key={site.provider} className={CARD}>{/* ★ 第709便: 左の色線（accent）は出さない */}
             {/* ★ 第693便: 上の見出し行（駅ちか・状態の札・最終確認）は全部外し、状態の札は「掲載枠」の右横へ */}
 
             {open && (
