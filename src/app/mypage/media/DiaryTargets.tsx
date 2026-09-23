@@ -54,7 +54,7 @@ type Data = {
 // ★ 第371便: 日時を整える fmt() は消した（「◯名ぶん 登録済み」のブロックでしか使っていなかった）。
 //   ★ 読み取った日時は【連携の記録】が出す。★ Data.lastRead は受け口の戻り値の形なので型には残してある
 
-export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '' }: {
+export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '', therapistEditHref }: {
   salonId: number | null;
   /**
    * ★ 第465便: 「入力する／変える」の飛び先（フクエスのセラピスト編集ページ）の頭。
@@ -62,6 +62,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
    *   （★ 相対だと conecf.com/mypage/therapist/N になり 404 だった）。
    */
   therapistEditOrigin?: string;
+  /** ★ 第766便: 渡されたら「入力する／変える」はこちらへ（コネックエフのプロフィール編集の写メ日記タブ）。★ therapistEditOrigin より優先 */
+  therapistEditHref?: (therapistId: string | number) => string;
   onToast: (m: string) => void;
   /** ★ 「エステ魂」を選んだときに、投稿先の一覧の代わりに出すもの（送信状況・了承）。★ 第201便 */
   esutamaPanel?: React.ReactNode;
@@ -285,7 +287,9 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
               ★ 表の「未登録」と「入力する」を見れば、手で入れるものだと分かる。 */}
           <div>
             <p className="text-[14px] text-slate-500 leading-relaxed">
-              入力は、フクエスのセラピスト編集ページ下部にある「写メ日記の転送先」で行ってください。
+              {therapistEditHref
+                ? '入力は、セラピストプロフィール編集の「写メ日記」タブで行ってください。'
+                : '入力は、フクエスのセラピスト編集ページ下部にある「写メ日記の転送先」で行ってください。'}
             </p>
           </div>
 
@@ -322,7 +326,14 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                           )}
                         </td>
                         <td className="py-1.5 whitespace-nowrap">
-                          {therapistEditOrigin ? (
+                          {therapistEditHref ? (
+                            <Link
+                              href={therapistEditHref(t.id)}
+                              className="text-[13.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"
+                            >
+                              {f && f.addressMask.length > 0 ? '変える' : '入力する'}
+                            </Link>
+                          ) : therapistEditOrigin ? (
                             <a
                               href={`${therapistEditOrigin}/mypage/therapist/${t.id}`}
                               className="text-[13.5px] font-bold px-2.5 py-1 border border-slate-200 text-slate-600"

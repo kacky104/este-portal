@@ -5,12 +5,14 @@ import { ConecfShell } from '../ConecfShell';
 import { DiaryTargets } from '@/app/mypage/media/DiaryTargets';
 import { DiaryConsent } from '@/app/mypage/media/DiaryConsent';
 import { useToast } from '@/app/components/useToast';
+import { useConecfHref } from '../ConecfBase';
 
 // コネックエフ「写メ日記転送」（第402便・1f）。★ 中身はフクエスリンクの「写メ日記の投稿先」と同じ部品。
 // ★ 写メ日記を書くのは、これまでどおりフクエス（マイページ・セラピスト本人）。
 
 export default function ConecfDiaryPage() {
   const { toast, showToast } = useToast();
+  const href = useConecfHref();
   const [consentVersion, setConsentVersion] = useState(0);
   return (
     <ConecfShell current="diary" title="写メ日記転送" toast={toast}>
@@ -24,6 +26,7 @@ export default function ConecfDiaryPage() {
             onToast={showToast}
             consentVersion={consentVersion}
             therapistEditOrigin="https://fukues.com"
+            therapistEditHref={(tid) => href(`/girls/${tid}?tab=diary`)}
             esutamaPanel={<DiaryConsent salonId={a.salonId} onToast={showToast} onChanged={() => setConsentVersion((v) => v + 1)} />}
           />
         </div>

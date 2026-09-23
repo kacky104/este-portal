@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ConecfShell } from '../../ConecfShell';
 import { useConecfHref } from '../../ConecfBase';
@@ -69,11 +69,11 @@ function FieldPair({ a, b }: { a: { label: string; badge?: '必須'; children: R
   );
 }
 
-function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onToast: (m: string) => void }) {
+function EditBody({ id, enabled, onToast, initialTab = 'basic' }: { id: number; enabled: boolean; onToast: (m: string) => void; initialTab?: Tab }) {
   const href = useConecfHref();
   const [d, setD] = useState<ConecfGirlDetail | null>(null);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<Tab>('basic');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [form, setForm] = useState<Form | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [sites, setSites] = useState<ConecfGirlDetail['sites']>([]);
@@ -415,10 +415,14 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
 export default function ConecfGirlEditPage() {
   const params = useParams<{ id: string }>();
   const id = Number(params?.id);
+  // ★ 第766便: ?tab=diary などで開くタブを指定（写メ日記転送の「入力する」から写メ日記タブへ）
+  const sp = useSearchParams();
+  const qt = sp?.get('tab') ?? '';
+  const initialTab: Tab = (['basic', 'fukues', 'ekichika', 'esutama', 'diary', 'images', 'sites'] as const).find((t) => t === qt) ?? 'basic';
   const { toast, showToast } = useToast();
   return (
     <ConecfShell current="girls" title="セラピストプロフィール編集" toast={toast}>
-      {(a) => (Number.isInteger(id) && id > 0 ? <EditBody id={id} enabled={!!a.enabledAt} onToast={showToast} /> : <p className="text-slate-500">セラピストの指定が正しくありません。</p>)}
+      {(a) => (Number.isInteger(id) && id > 0 ? <EditBody id={id} enabled={!!a.enabledAt} onToast={showToast} initialTab={initialTab} /> : <p className="text-slate-500">セラピストの指定が正しくありません。</p>)}
     </ConecfShell>
   );
 }
