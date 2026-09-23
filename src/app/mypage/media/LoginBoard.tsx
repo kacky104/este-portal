@@ -336,7 +336,6 @@ export function LoginBoard({
         const open = openKey === site.provider;
         const slot = slotOf[site.provider] ?? mediaSiteSlots(site)[0];
         const row = rowAt(site.provider, slot);
-        const anyRow = siteRows[0] ?? null;
 
 
         // ★★★ 接続できないサイト（エステラブ）は、状態より先に【使えない】ことで色を決める（第117便）。
@@ -356,23 +355,7 @@ export function LoginBoard({
           : status === 'site_closed' ? 'bg-rose-50 text-rose-700 border-rose-200'
           : 'bg-slate-50 text-slate-500 border-slate-200';
 
-        const meta = blocked
-          // ★ 接続できないサイトでは、登録の有無を言わない（第117便）。
-          //   ★ 登録できないサイトに「まだ登録されていません」と書くと、登録すれば使えるように読める。
-          //   ★ 代わりに「送れるもの：写メ日記」を出す（下の行）。理由は開けば書いてある。
-          ? ''
-          : !known
-          ? 'まだ読み込めていません'
-          // ★★ 使えないサイトで「登録済み」とだけ書かない（第83便）。
-          //   ★ 登録は残っているが、送っていない。★ そこを言葉にする
-          : status === 'site_closed'
-            ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} の登録は残っていますが、いまは使っていません`
-            // ★★ 取り直しが要る枠は、時刻より先に【止まっていること】を書く（第89便）
-            : siteRows.some((r) => r.needsConsent)
-              ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ ★ 同意の取り直しが必要です。いまは何も送っていません`
-              : siteRows.length > 0
-                ? `${siteRows.map((r) => `枠${r.slot}`).join('・')} を登録済み ／ 最終確認 ${fmtDay(anyRow?.lastVerifiedAt ?? null)}`
-                : 'まだ登録されていません';
+        // ★ 第692便: 見出しの下の1行（枠◯ を登録済み ／ 最終確認）は消した。★ 同じことは下の「登録済みの枠」に出る
 
         const canRegister = canRegisterSite(site);
         const needConsent = !row || row.needsConsent;
@@ -387,7 +370,7 @@ export function LoginBoard({
             <div className="w-full flex items-start gap-3 text-left px-4 py-3.5">
               <span className="flex-1 min-w-0 space-y-1.5">
                 <span className="flex items-center gap-2 flex-wrap">
-                  <b className="text-[16.5px] font-black text-slate-800">{site.name}</b>
+                  {/* ★ 第692便: サイト名「駅ちか」は消した（ページの見出しに書いてある） */}
                   {/* ★ 接続できないサイトでは状態の札を出さない（第117便）。
                       ★ 「未登録」と出すと、登録すれば使えるように読める。★ 送れるものだけを出す */}
                   {!blocked && (
@@ -422,7 +405,7 @@ export function LoginBoard({
                       ★ 全部隠すと、使える機能まで店舗が諦める（§185 の逆）。 */}
                 {/* ★ 第299便: 「送れるもの：」の文字は外した（カッキーさん）。★ チップだけ残す。
                     ★ ホーム（MediaHome）のサイトの行も、第193便から文字なしのチップだけで並べている。 */}
-                {meta && <span className="block text-[13.5px] text-slate-500 tabular-nums">{meta}</span>}
+                {/* ★ 第692便: 「枠1 を登録済み ／ 最終確認」の行は消した（下の登録済みの枠に同じことが出る） */}
               </span>
             </div>
 
