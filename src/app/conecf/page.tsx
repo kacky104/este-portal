@@ -36,7 +36,7 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
     <div className="bg-white border-2 border-indigo-300 px-5 py-4 space-y-3">
       <p className="text-[16px] font-black text-indigo-800">コネックエフに切り替えましょう</p>
       <p className="text-[14px] text-slate-600 leading-relaxed">
-        いまは見るだけです。切り替えると、セラピストの追加・写真・年齢・サイズ・公開と出勤を、コネックエフで保存できるようになります。
+        いまは見るだけです。切り替えると、セラピストの追加・写真・年齢・サイズ・公開と出勤を、コネックエフから各サイトへ反映できる様になります。
       </p>
       {!ask ? (
         <button type="button" onClick={() => setAsk(true)} className="px-5 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
