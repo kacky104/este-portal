@@ -536,9 +536,10 @@ export function defaultAuditSummary(input: {
         mode === 'write'
           ? `${t}の連携を「フクエスから${n}へ反映する」に変更しました`
           : mode === 'read'
-            ? `${t}の連携を「${n}から取り込む」に戻しました`
+            // ★ 第717便: 画面の言葉「駅ちかから反映」にそろえた（「取り込む」はこちら側の言い方）
+            ? `${t}の連携を「${n}から反映する」にしました`
             // ★ 第205便: 画面の言葉「反映しない」に揃えた（「連携しない」は第90便より前の呼び名）
-            : `${t}の連携を「反映しない」に変更しました`;
+            : `${t}からの反映を止めました`;
       break;
     }
     case 'sokuhime_auto_changed': {
@@ -570,7 +571,7 @@ export function defaultAuditSummary(input: {
       const to = d?.['to'];
       const how =
         to === 'fukues' ? 'フクエスで書く'
-        : to === 'ekichika' ? '駅ちかで書く（フクエスへ取り込む）'
+        : to === 'ekichika' ? '駅ちかで書く（フクエスへ反映）'
         : 'どのサイトにも反映しない';
       s = `写メ日記の入口を、ホームの設定に合わせて「${how}」にしました`;
       break;
