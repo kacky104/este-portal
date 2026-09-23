@@ -49,6 +49,26 @@ function Field({ label, badge, children }: { label: string; badge?: '必須'; ch
   );
 }
 
+// ★ 第764便（カッキーさん）: 2項目を1行に（入店日＋年齢・カップ＋血液型）。★ 左右の見出しの位置がそろうよう同じ列幅
+function PairLabel({ label, badge }: { label: string; badge?: '必須' }) {
+  return (
+    <div className="flex items-center gap-1.5 pt-2">
+      {badge && <span className="text-[11px] font-bold px-1.5 py-0.5 text-rose-600 bg-rose-50">{badge}</span>}
+      <span className="text-[14px] font-bold text-slate-600">{label}</span>
+    </div>
+  );
+}
+function FieldPair({ a, b }: { a: { label: string; badge?: '必須'; children: React.ReactNode }; b: { label: string; badge?: '必須'; children: React.ReactNode } }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-[150px_minmax(0,1fr)_110px_minmax(0,1fr)] gap-1.5 sm:gap-3 items-start py-2.5 border-b border-slate-100 last:border-b-0">
+      <PairLabel label={a.label} badge={a.badge} />
+      <div>{a.children}</div>
+      <PairLabel label={b.label} badge={b.badge} />
+      <div>{b.children}</div>
+    </div>
+  );
+}
+
 function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [d, setD] = useState<ConecfGirlDetail | null>(null);
@@ -242,14 +262,26 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
         <div className={CARD}>
           <div className="px-4 py-2">
             <Field label="セラピスト名" badge="必須">
-              <input className={INPUT} value={form.name} maxLength={CONECF_NAME_MAX} onChange={(e) => set('name', e.target.value)} />
-              <p className="text-[12px] text-slate-400 mt-1">{[...form.name].length}/{CONECF_NAME_MAX}文字。</p>
-              {/* ★★ 第450便（カッキーさん）: 名前だけは自動で送れないので、赤字で気づけるようにした */}
-              <p className="text-[12.5px] font-bold text-rose-700 mt-1">名前の変更は駅ちか・エステ魂はサイトでも直接変更が必要です。</p>
+              {/* ★ 第764便（カッキーさん）: 左に1枚目の画像（トップ画像） */}
+              <div className="flex items-start gap-3">
+                <div className="w-[60px] h-[80px] flex-none bg-slate-100 border border-slate-200 overflow-hidden grid place-items-center">
+                  {images[0]
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={images[0]} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-[11px] text-slate-400">写真なし</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <input className={INPUT} value={form.name} maxLength={CONECF_NAME_MAX} onChange={(e) => set('name', e.target.value)} />
+                  <p className="text-[12px] text-slate-400 mt-1">{[...form.name].length}/{CONECF_NAME_MAX}文字。</p>
+                  {/* ★★ 第450便（カッキーさん）: 名前だけは自動で送れないので、赤字で気づけるようにした */}
+                  <p className="text-[12.5px] font-bold text-rose-700 mt-1">名前の変更は駅ちか・エステ魂はサイトでも直接変更が必要です。</p>
+                </div>
+              </div>
             </Field>
             {/* ★★ 第444便（カッキーさん）: カタカナ・ひらがな・ローマ字の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
                 ★ 入っている値は消していない（★ 保存でも触らない）。★ 使うときが来たら戻す */}
-            <Field label="入店日">
+            <FieldPair
+              a={{ label: '入店日', children: (
               <div className="flex flex-wrap items-center gap-3">
                 <input type="date" className={`${INPUT} max-w-[200px]`} value={form.joinedOn} onChange={(e) => set('joinedOn', e.target.value)} />
                 <label className="flex items-center gap-1.5 text-[14px] text-slate-600">
@@ -257,15 +289,16 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
                   新人に設定する
                 </label>
               </div>
-            </Field>
-            {/* ★★ 第445便（カッキーさん）: 生年月日・体重の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
-                ★ 「生年月日と連動させる」も一緒に外した（★ 生年月日が無いと動かないため）。★ 入っている値は消していない */}
-            <Field label="年齢">
+              ) }}
+              b={{ label: '年齢', children: (
               <div className="flex flex-wrap items-center gap-3">
                 <input inputMode="numeric" className={`${INPUT} max-w-[100px]`} value={form.age} onChange={(e) => set('age', e.target.value)} />
                 <span className="text-[14px] text-slate-500">歳</span>
               </div>
-            </Field>
+              ) }}
+            />
+            {/* ★★ 第445便（カッキーさん）: 生年月日・体重の欄はやめた（★ どこにも送っておらず、使い道が無かった）。
+                ★ 「生年月日と連動させる」も一緒に外した（★ 生年月日が無いと動かないため）。★ 入っている値は消していない */}
             <Field label="3サイズ">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {([['bust', 'B'], ['waist', 'W'], ['hip', 'H'], ['height', 'T']] as const).map(([k, l]) => (
@@ -276,18 +309,20 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
                 ))}
               </div>
             </Field>
-            <Field label="カップ" badge="必須">
+            <FieldPair
+              a={{ label: 'カップ', badge: '必須', children: (
               <select className={`${INPUT} max-w-[140px]`} value={form.cup} onChange={(e) => set('cup', e.target.value)}>
                 <option value="">未選択</option>
                 {CONECF_CUPS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-            </Field>
-            <Field label="血液型">
+              ) }}
+              b={{ label: '血液型', children: (
               <select className={`${INPUT} max-w-[140px]`} value={form.bloodType} onChange={(e) => set('bloodType', e.target.value)}>
                 <option value="">未選択</option>
                 {CONECF_BLOOD_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-            </Field>
+              ) }}
+            />
             {/* ★★ 第446便（カッキーさん）: スタイル・タイプの欄はやめた（★ どこにも送っておらず、
                 ★ 同じ役目のものが「各サイト項目」にサイトごとに在る）。★ 入っている値は消していない */}
           </div>
