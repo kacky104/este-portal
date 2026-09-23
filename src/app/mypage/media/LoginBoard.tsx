@@ -133,7 +133,7 @@ export function LoginBoard({
     if (salonId == null) return;
     // ★ ここで setLoading(true) をしない。初回は loading=true で始まり、
     //   保存や削除のあとの読み直しでは「読み込み中…」を挟まない（画面がちらつくため）。
-    const res = await getMediaCredentials({ salonId });
+    const res = await getMediaCredentials({ salonId, service: 'link' });   // ★ 第716便: フクエスリンクの版で見る
     if (res.ok) {
       setRows(res.data.rows as CredRow[]);
       setConsentVersion(res.data.consentVersion);

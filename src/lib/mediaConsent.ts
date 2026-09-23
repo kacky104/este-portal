@@ -127,6 +127,16 @@ export const FUKUES_LINK_CONSENT_SECTIONS: ReadonlyArray<{ heading: string; body
   },
 ];
 
+/**
+ * ★★★ フクエスリンクの同意の版（第716便・2026-09-23・カッキーさんの決定: 版を分ける）。
+ *   ★ コネックエフの版（MEDIA_CONSENT_VERSION）を上げても、フクエスリンクの店に「取り直し」を出さないため。
+ *   ★ フクエスリンクの文言を直したら、ここを上げる（作法は MEDIA_CONSENT_VERSION と同じ）。
+ *   ★★ どちらの版に同意したかは salon_media_credentials.consent_version にそのまま残る。
+ */
+export const FUKUES_LINK_CONSENT_VERSION = 'link-v1-2026-09-23';
+/** 言い方だけを直したフクエスリンクの版（★ 足してよい条件は MEDIA_CONSENT_WORDING_ONLY と同じ） */
+export const FUKUES_LINK_CONSENT_WORDING_ONLY: readonly string[] = [];
+
 /** フクエスリンク用のチェックボックスの一文（第695便） */
 export const FUKUES_LINK_CONSENT_AGREE_LABEL =
   '上記を読み、駅ちかのログイン情報をフクエスに預けることに同意します';
@@ -166,9 +176,31 @@ export const MEDIA_CONSENT_WORDING_ONLY: readonly string[] = [
  * ★ 知らない版は【要る側】に倒す。
  */
 export function needsConsent(savedVersion: string | null | undefined): boolean {
+  // ★ 第716便: 版が2系統になった。★ 共通の判定は【どちらかに同意していればよい】。
+  //   ★ コネックエフの文はフクエスリンクの使い道（読むだけ）を含むので、コネックエフに同意済みの店はフクエスリンクも使える。
+  //   ★ 逆（フクエスリンクだけに同意した店がコネックエフの書き込みを使う）は、コネックエフの ID・PW 画面が
+  //     needsConecfConsent で「取り直し」を出す。★ 店は片方しか使わない（第668便）ので、共通の判定はここまで。
+  return needsConecfConsent(savedVersion) && needsFukuesLinkConsent(savedVersion);
+}
+
+/** ★ コネックエフの文に同意しているか（厳密）。★ コネックエフの ID・PW 画面はこちらを見る */
+export function needsConecfConsent(savedVersion: string | null | undefined): boolean {
   if (typeof savedVersion !== 'string' || savedVersion.length === 0) return true;
   if (savedVersion === MEDIA_CONSENT_VERSION) return false;
   return !MEDIA_CONSENT_WORDING_ONLY.includes(savedVersion);
+}
+
+/** ★ フクエスリンクの文に同意しているか。★ コネックエフの文（読むだけを含む）に同意済みでもよい */
+export function needsFukuesLinkConsent(savedVersion: string | null | undefined): boolean {
+  if (typeof savedVersion !== 'string' || savedVersion.length === 0) return true;
+  if (savedVersion === FUKUES_LINK_CONSENT_VERSION) return false;
+  if (FUKUES_LINK_CONSENT_WORDING_ONLY.includes(savedVersion)) return false;
+  return needsConecfConsent(savedVersion);
+}
+
+/** ★ 保存時に受け付ける版か（第716便）。★ どちらの画面から来たかで版が違う */
+export function isAcceptableConsentVersion(v: string): boolean {
+  return v === MEDIA_CONSENT_VERSION || v === FUKUES_LINK_CONSENT_VERSION;
 }
 
 /** 監査ログや控えに残すための、文言の全文（1つの文字列）。 */

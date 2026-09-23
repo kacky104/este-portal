@@ -4,7 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
-import { MEDIA_CONSENT_VERSION, needsConsent } from '@/lib/mediaConsent';
+import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isAcceptableConsentVersion } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
@@ -172,7 +172,8 @@ async function ensureSendOnlySource(input: {
  *   「登録されているか」は hasPassword で分かれば足りる。
  *   復号して返す口を作ると、その口が漏れ口になる。
  */
-export async function getMediaCredentials(input: { salonId: string | number }): Promise<
+// ★ 第716便: service で「どちらの画面か」を受ける。★ 省略は共通（どちらかに同意していればよい）
+export async function getMediaCredentials(input: { salonId: string | number; service?: 'conecf' | 'link' }): Promise<
   Result<{
     consentVersion: string;
     rows: Array<{
@@ -229,7 +230,11 @@ export async function getMediaCredentials(input: { salonId: string | number }): 
       passwordMask: r.password_enc ? maskSecret() : '',
       hasPassword: Boolean(r.password_enc),
       isEnabled: r.is_enabled !== false,
-      needsConsent: needsConsent(r.consent_version as string | null),
+      needsConsent: input.service === 'conecf'
+        ? needsConecfConsent(r.consent_version as string | null)
+        : input.service === 'link'
+          ? needsFukuesLinkConsent(r.consent_version as string | null)
+          : needsConsent(r.consent_version as string | null),
       consentAgreedAt: (r.consent_agreed_at as string | null) ?? null,
       lastVerifiedAt: (r.last_verified_at as string | null) ?? null,
       lastError: (r.last_error as string | null) ?? null,
@@ -240,7 +245,7 @@ export async function getMediaCredentials(input: { salonId: string | number }): 
       return pi !== 0 ? pi : a.slot - b.slot;
     });
 
-  return { ok: true, data: { consentVersion: MEDIA_CONSENT_VERSION, rows } };
+  return { ok: true, data: { consentVersion: input.service === 'link' ? FUKUES_LINK_CONSENT_VERSION : MEDIA_CONSENT_VERSION, rows } };
 }
 
 /**
@@ -279,7 +284,8 @@ export async function saveMediaCredential(input: {
 
   // ★★ 同意の検査。すでにいまの版で同意済みなら、毎回チェックを求めない
   const alreadyAgreed = !needsConsent((existing?.consent_version as string | null) ?? null);
-  const agreeingNow = input.agreed === true && input.consentVersion === MEDIA_CONSENT_VERSION;
+  // ★ 第716便: 版は2系統（コネックエフ v5 / フクエスリンク link-v1）。★ 来た版をそのまま保存する（どちらの文に同意したかを残す）
+  const agreeingNow = input.agreed === true && isAcceptableConsentVersion(input.consentVersion);
   if (!alreadyAgreed && !agreeingNow) {
     // ★ 版がずれている場合もここに来る。画面が古いまま送ってきた可能性があるので、そう言う
     return {
@@ -325,7 +331,8 @@ export async function saveMediaCredential(input: {
       login_id: loginId,
       password_enc: passwordEnc,
       is_enabled: true,
-      consent_version: MEDIA_CONSENT_VERSION,
+      // ★ 第716便: いま同意した版をそのまま入れる。★ 同意済みでパスワードを入れ直しただけなら、前の版を残す
+      consent_version: agreeingNow ? input.consentVersion : ((existing?.consent_version as string | null) ?? MEDIA_CONSENT_VERSION),
       // ★ すでに同意済みなら日時は上書きしない（「いつ同意したか」を新しくしない）
       ...(alreadyAgreed ? {} : { consent_agreed_at: nowISO, consent_agreed_by: guard.data.userId }),
       last_error: null,
@@ -340,7 +347,7 @@ export async function saveMediaCredential(input: {
     await recordMediaAudit({
       salonId, provider: input.provider, slot,
       event: 'consent_agreed', outcome: 'ok',
-      detail: { consentVersion: MEDIA_CONSENT_VERSION },
+      detail: { consentVersion: input.consentVersion },
       actor,
     });
   }

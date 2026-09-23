@@ -85,7 +85,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
 
   const load = useCallback(async () => {
     if (salonId == null) return;
-    const res = await getMediaCredentials({ salonId });
+    const res = await getMediaCredentials({ salonId, service: 'conecf' });   // ★ 第716便: コネックエフの版で見る（厳密）
     if (res.ok) {
       setRows(res.data.rows as CredRow[]);
       setConsentVersion(res.data.consentVersion);
