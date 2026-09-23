@@ -46,8 +46,6 @@ type Tab = 'all' | 'registered' | 'unregistered';
 
 const GREEN = 'text-[#218925]';
 const BLUE = 'text-[#1558d6]';
-// ★ 第760便（カッキーさん）: 「連携中」はピンク（セラピスト一覧の新規登録と同じ色）
-const PINK = 'text-[#e91e63]';
 
 const fmtDay = (iso: string | null) => {
   if (!iso) return '—';
@@ -188,7 +186,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
     if (siteRows.length === 0) return { text: '', tone: '' };
     const slots = mediaSiteSlots(site).length > 1 ? siteRows.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : '';
     if (st === 'disabled') return { text: `${slots}一時停止中`, tone: 'text-slate-500' };
-    return { text: `${slots}連携中`, tone: PINK };
+    return { text: `${slots}連携中`, tone: GREEN }; // ★ 第761便（カッキーさん）: 連携中は緑
   };
 
   const row = edit ? rowAt(edit.provider, slot) : null;
@@ -236,7 +234,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
               <span className="text-[12px] text-slate-400 pl-2">—</span>
               <span>フクエス</span>
               <span className="hidden md:flex flex-wrap gap-1"><Chip>出勤</Chip><Chip>セラピスト</Chip><Chip>写メ日記</Chip><Chip>今すぐ</Chip><Chip>お知らせ</Chip></span>
-              <span className={`text-[12px] ${PINK} text-right md:text-left`}>枠1 ／ 連携中</span>
+              <span className={`text-[12px] ${GREEN} text-right md:text-left`}>枠1 ／ 連携中</span>
             </li>
           )}
           {!loading && shown.map((site) => {
