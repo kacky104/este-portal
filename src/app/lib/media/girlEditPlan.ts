@@ -199,7 +199,7 @@ export async function buildCastEditValues(
         cup: str(prof.cup ?? body?.cup),
         blood: str(prof.blood_type),
         description: str(f.description) || str(th.profile_text),   // ★ 第729便: エステ魂専用が空ならフクエスの詳細プロフィール
-        castPr: str(prof.girl_comment),
+        castPr: str(f.castPr) || str(prof.girl_comment),   // ★ 第730便: エステ魂専用が空なら女の子からのメッセージ
         types: Array.isArray(f.types) ? (f.types as unknown[]).filter((x): x is string => typeof x === 'string') : [],
         experience: str(f.experience),
         qualified: str(f.qualified),

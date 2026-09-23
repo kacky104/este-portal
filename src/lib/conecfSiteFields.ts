@@ -145,9 +145,11 @@ export const ESUTAMA_SNS_MAX = 255;
 
 // ★ 第729便: エステ魂専用のショップコメント（description・500字）。★ 空ならフクエスの詳細プロフィールを送る
 export const ESUTAMA_DESCRIPTION_MAX = 500;
+// ★ 第730便: エステ魂専用のセラピストコメント（castPr・500字）。★ 空なら駅ちかタブの「女の子からのメッセージ」を送る
+export const ESUTAMA_CASTPR_MAX = 500;
 export type EsutamaFields = {
   types: string[]; experience: string; qualified: string; bodyStyle: string;
-  answers: Record<string, string>; sns: Record<string, string>; description: string;
+  answers: Record<string, string>; sns: Record<string, string>; description: string; castPr: string;
 };
 
 export function normalizeEsutamaFields(input: Record<string, unknown> | null | undefined):
@@ -175,7 +177,9 @@ export function normalizeEsutamaFields(input: Record<string, unknown> | null | u
   }
   const description = s(x.description);
   if (len(description) > ESUTAMA_DESCRIPTION_MAX) return { ok: false, error: `ショップコメントは${ESUTAMA_DESCRIPTION_MAX}文字までです` };
-  return { ok: true, value: { types: pickFrom(x.types, ESUTAMA_TYPES, ESUTAMA_TYPE_MAX), experience, qualified, bodyStyle, answers, sns, description } };
+  const castPr = s(x.castPr);
+  if (len(castPr) > ESUTAMA_CASTPR_MAX) return { ok: false, error: `セラピストコメントは${ESUTAMA_CASTPR_MAX}文字までです` };
+  return { ok: true, value: { types: pickFrom(x.types, ESUTAMA_TYPES, ESUTAMA_TYPE_MAX), experience, qualified, bodyStyle, answers, sns, description, castPr } };
 }
 
 /** 各サイト項目を持てる媒体（★ いまは駅ちか・エステ魂） */

@@ -6,7 +6,7 @@ import {
 } from '@/app/actions/conecfGirls';
 import {
   len, overSites, COMMENT_SITE_LIMITS, CATCH_MAX, SHOP_COMMENT_MAX, SHOP_TITLE_MAX, GIRL_COMMENT_MAX,
-  QA_MAX, QA_TEXT_MAX, EKICHIKA_CATCH_MAX, EKICHIKA_COMMENTS_MAX, ESUTAMA_DESCRIPTION_MAX,
+  QA_MAX, QA_TEXT_MAX, EKICHIKA_CATCH_MAX, EKICHIKA_COMMENTS_MAX, ESUTAMA_DESCRIPTION_MAX, ESUTAMA_CASTPR_MAX,
   EKICHIKA_P_GENRES, EKICHIKA_P_GENRE_MAX, EKICHIKA_GENRE_GROUPS, EKICHIKA_GENRE_MAX, EKICHIKA_OPTIONS_MAX, EKICHIKA_ROOKIE, CONSTELLATIONS,
   ESUTAMA_TYPES, ESUTAMA_TYPE_MAX, ESUTAMA_BODY_STYLES, ESUTAMA_QUESTIONS, ESUTAMA_QUESTION_MAX, ESUTAMA_QUALIFIED_MAX, ESUTAMA_SNS,
   type QaItem,
@@ -134,12 +134,12 @@ function Chips({ all, picked, max, onChange }: { all: readonly string[]; picked:
 }
 
 type Ek = { pGenres: string[]; genres: string[]; options: string; rookie: string; constellation: string; catchcopy: string; comments: string };
-type Es = { types: string[]; experience: string; qualified: string; bodyStyle: string; answers: Record<string, string>; sns: Record<string, string>; description: string };
+type Es = { types: string[]; experience: string; qualified: string; bodyStyle: string; answers: Record<string, string>; sns: Record<string, string>; description: string; castPr: string };
 const arr = (v: unknown) => (Array.isArray(v) ? (v.filter((x) => typeof x === 'string') as string[]) : []);
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const rec = (v: unknown) => (v && typeof v === 'object' ? (v as Record<string, string>) : {});
 const toEk = (f: Record<string, unknown>): Ek => ({ pGenres: arr(f.pGenres), genres: arr(f.genres), options: str(f.options), rookie: str(f.rookie), constellation: str(f.constellation), catchcopy: str(f.catchcopy), comments: str(f.comments) });
-const toEs = (f: Record<string, unknown>): Es => ({ types: arr(f.types), experience: str(f.experience), qualified: str(f.qualified), bodyStyle: str(f.bodyStyle), answers: { ...rec(f.answers) }, sns: { ...rec(f.sns) }, description: str(f.description) });
+const toEs = (f: Record<string, unknown>): Es => ({ types: arr(f.types), experience: str(f.experience), qualified: str(f.qualified), bodyStyle: str(f.bodyStyle), answers: { ...rec(f.answers) }, sns: { ...rec(f.sns) }, description: str(f.description), castPr: str(f.castPr) });
 
 export function GirlExtraTab({
   tab, id, salonId, enabled, onToast,
@@ -352,7 +352,6 @@ export function GirlExtraTab({
     <div className={CARD}>
       {slotPills}
       <Section title="エステ魂に反映するもの">
-        <p className="text-[12px] text-slate-500 py-2">セラピストコメントは「駅ちか」タブの女の子からのメッセージが送られます。{NOTE_SEND_SHORT}</p>
         {!cur ? noFields('エステ魂') : (() => {
           const f = toEs(cur.fields);
           const up = (k: keyof Es, v: unknown) => setFields({ ...f, [k]: v });
@@ -362,6 +361,11 @@ export function GirlExtraTab({
               <Row label="ショップコメント" hint={f.description ? undefined : '空のままなら、フクエスの詳細プロフィールを送ります。'}>
                 <textarea rows={6} className={INPUT} value={f.description} onChange={(e) => up('description', e.target.value)} placeholder="エステ魂専用（空ならフクエスと同じ）" />
                 <Counter text={f.description} max={ESUTAMA_DESCRIPTION_MAX} />
+              </Row>
+              {/* ★ 第730便: エステ魂専用のセラピストコメント（★ 空なら駅ちかタブの女の子からのメッセージを送る） */}
+              <Row label="セラピストコメント" hint={f.castPr ? undefined : '空のままなら、駅ちかタブの「女の子からのメッセージ」を送ります。'}>
+                <textarea rows={5} className={INPUT} value={f.castPr} onChange={(e) => up('castPr', e.target.value)} placeholder="エステ魂専用（空なら女の子からのメッセージと同じ）" />
+                <Counter text={f.castPr} max={ESUTAMA_CASTPR_MAX} />
               </Row>
               {/* ★★ 第448便（カッキーさん）: 特徴が0個だとエステ魂へ更新できない。★ 見落とさないよう赤字で出す */}
               <Row
