@@ -87,24 +87,12 @@ export const GUIDE_STEPS: ReadonlyArray<{
     link: 'login',
     linkLabel: '駅ちかのID・PWを開く',
   },
-  {
-    title: 'セラピストさんの反映を確かめる',
-    body:
-      '駅ちかの方は、名前で自動的にフクエスの方と照らし合わせています。反映されない方がいるときは「セラピスト設定」で確かめてください（照らし合わせを見るには駅ちかのID・PWが必要です）。',
-    link: 'roster',
-    linkLabel: 'セラピスト設定を開く',
-  },
+  // ★ 第710便: ステップ3「セラピストさんの反映を確かめる」は消した（セラピスト設定を並びから外したため・第694便）
 ];
 
 /** 必要に応じて */
-export const GUIDE_OPTIONAL: ReadonlyArray<{ title: string; body: string; link: GuideLinkKey; linkLabel: string }> = [
-  {
-    title: '連携の記録',
-    body: 'いつ・何を取り込んだかを確かめられます。止まっているときは、画面の上に赤いお知らせが出ます。',
-    link: 'log',
-    linkLabel: '連携の記録を開く',
-  },
-];
+// ★ 第710便: 「連携の記録」の枠は消した（空なら節ごと出さない）
+export const GUIDE_OPTIONAL: ReadonlyArray<{ title: string; body: string; link: GuideLinkKey; linkLabel: string }> = [];
 
 export type GuideQa = { q: string; a: readonly string[]; link?: GuideLinkKey; linkLabel?: string };
 

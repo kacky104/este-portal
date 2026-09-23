@@ -145,6 +145,7 @@ export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideCon
           ))}
         </ol>
 
+        {c.optional.length > 0 && (
         <div className="pt-3 border-t border-slate-100">
           <p className="text-[14.5px] font-black text-slate-700">必要に応じて</p>
           <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -157,6 +158,7 @@ export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideCon
             ))}
           </div>
         </div>
+        )}
       </section>
 
       {/* ── 注意（相手先の事情）と Q&A への入口（第394便b） ── */}
