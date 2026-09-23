@@ -13,8 +13,8 @@ import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therap
 import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import { GirlExtraTab } from './GirlExtraTabs';
 import { GirlDiaryTab } from './GirlDiaryTab';
-import { EkichikaEditPanel } from './EkichikaEditPanel';
-import { EsutamaEditPanel } from './EsutamaEditPanel';
+import { useSitePush } from './useSitePush';
+import { PhotoRemoveConfirm } from '../PhotoRemoveConfirm';
 import { DeleteGirlPanel } from './DeleteGirlPanel';
 import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
@@ -60,6 +60,9 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<number | null>(null);
   const [sessionUploads, setSessionUploads] = useState<string[]>([]);
+  // ★ 第734便: 駅ちか・エステ魂への更新（基本情報・画像のタブの「保存して更新」用）
+  const pushEk = useSitePush('ekichika', id, enabled, onToast);
+  const pushEs = useSitePush('esutama', id, enabled, onToast);
 
   useEffect(() => {
     let alive = true;
@@ -83,14 +86,15 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
 
   const set = (k: keyof Form, v: string | boolean) => setForm((f) => (f ? { ...f, [k]: v } : f));
 
-  const onSaveBasic = async () => {
+  const onSaveBasic = async (): Promise<boolean> => {
     setSaving(true);
     const res = await saveConecfGirl({ id, values: { ...form, ageFromBirth: false } });
     setSaving(false);
-    if (!res.ok) { onToast(res.error); return; }
+    if (!res.ok) { onToast(res.error); return false; }
     setForm((f) => (f ? { ...f, age: res.data.age ?? '' } : f));
     void revalidateSalon(d.salonId); void revalidateTherapist(id);
     onToast('保存しました（フクエスにも反映しました）');
+    return true;
   };
 
   const onToggleActive = async () => {
@@ -124,12 +128,12 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
     onToast('アップロードしました（保存を押すと反映されます）');
   };
 
-  const onSaveImages = async () => {
+  const onSaveImages = async (): Promise<boolean> => {
     setSaving(true);
     const before = d.images;
     const res = await saveConecfGirlImages({ id, images });
     setSaving(false);
-    if (!res.ok) { onToast(res.error); return; }
+    if (!res.ok) { onToast(res.error); return false; }
     const keep = new Set(res.data.images);
     const removed = [...new Set([...before, ...sessionUploads])].filter((u) => !keep.has(u));
     if (removed.length > 0) void cleanupTherapistPhotos({ therapistId: String(id), salonId: d.salonId, urls: removed }).catch(() => {});
@@ -137,6 +141,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
     setD((x) => (x ? { ...x, images: res.data.images } : x));
     void revalidateSalon(d.salonId); void revalidateTherapist(id);
     onToast('写真を保存しました（1枚目がトップ画像です）');
+    return true;
   };
 
   const move = (i: number, dir: -1 | 1) => setImages((prev) => {
@@ -164,6 +169,45 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
       </button>
     </div>
   );
+  // ★ 第734便（カッキーさん）: 上の3ブロック（フクエス 自動更新／駅ちか・エステ魂 更新する）を消し、
+  //   基本情報・画像のタブにも「保存」「保存して駅ちか・エステ魂へ更新」を付けた（★ GirlExtraTabs の saveBar と同じ形）。
+  //   ★ 基本情報（年齢・サイズ）と写真は両サイトに関係するので両方へ。★ 写真が消える確認（第428便）はそのまま出る。
+  const pushing = pushEk.busy || pushEs.busy;
+  const saveAndPushBar = (onSave: () => Promise<boolean>, label = '保存') => {
+    const onSaveAndPush = async () => {
+      const ok = await onSave();
+      if (!ok) return;
+      await pushEk.onUpdate({ quiet: true });
+      await pushEs.onUpdate({ quiet: true });
+    };
+    return (
+      <>
+        {pushEk.removals && (
+          <div className="px-4 pb-3">
+            <PhotoRemoveConfirm items={pushEk.removals} busy={pushEk.busy}
+              onRemove={() => void pushEk.send(true)} onKeep={() => void pushEk.send(false)} onCancel={() => pushEk.setRemovals(null)} />
+          </div>
+        )}
+        {pushEs.removals && (
+          <div className="px-4 pb-3">
+            <PhotoRemoveConfirm site="エステ魂" items={pushEs.removals} busy={pushEs.busy}
+              onRemove={() => void pushEs.send(true)} onKeep={() => void pushEs.send(false)} onCancel={() => pushEs.setRemovals(null)} />
+          </div>
+        )}
+        <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-end gap-3">
+          {!enabled && <span className="text-[12.5px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
+          <button type="button" disabled={saving || pushing || !enabled} onClick={() => void onSave()}
+            className="h-8 min-w-[80px] px-5 rounded border border-[#218925] bg-white text-[#218925] text-[12px] disabled:opacity-40">
+            {saving ? '保存中…' : label}
+          </button>
+          <button type="button" disabled={saving || pushing || !enabled} onClick={() => void onSaveAndPush()}
+            className="h-8 min-w-[80px] px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40">
+            {saving ? '保存中…' : pushing ? '受け付けています…' : `${label}して駅ちか・エステ魂へ更新`}
+          </button>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="space-y-3">
@@ -175,15 +219,8 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
         </button>
       </div>
 
-      {/* ★★ 第449便（カッキーさん）: フクエスも1ブロックで並べる（★ 第三者が見て「どこへ行くのか」が分かるように） */}
-      <div className="bg-white border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3 text-[14px] text-[#212121]">
-        <span className="font-bold">フクエス</span>
-        <span className="ml-auto h-8 px-5 inline-flex items-center rounded border border-slate-300 bg-slate-50 text-slate-500 text-[12px]">自動更新</span>
-      </div>
-
-      {/* ★ 第418便: 駅ちかへ反映（確かめてから送る） */}
-      <EkichikaEditPanel id={id} enabled={enabled} onToast={onToast} />
-      <EsutamaEditPanel id={id} enabled={enabled} onToast={onToast} />
+      {/* ★ 第734便: 上の3ブロック（フクエス 自動更新／駅ちか・エステ魂の「更新する」）は消した。
+          ★ 更新は各タブの「保存して○○へ更新」から（★ 保存せずに更新だけ、は無くなった。どれかのタブで保存して更新すれば同じ） */}
 
       <div className="flex flex-wrap border-b border-slate-200">
         {TABS.map(([k, label]) => (
@@ -254,7 +291,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
             {/* ★★ 第446便（カッキーさん）: スタイル・タイプの欄はやめた（★ どこにも送っておらず、
                 ★ 同じ役目のものが「各サイト項目」にサイトごとに在る）。★ 入っている値は消していない */}
           </div>
-          {saveBtn(() => void onSaveBasic())}
+          {saveAndPushBar(onSaveBasic)}
         </div>
       )}
 
@@ -296,7 +333,7 @@ function EditBody({ id, enabled, onToast }: { id: number; enabled: boolean; onTo
               })}
             </div>
           </div>
-          {saveBtn(() => void onSaveImages(), '写真を保存する')}
+          {saveAndPushBar(onSaveImages, '写真を保存')}
         </div>
       )}
 
