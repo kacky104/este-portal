@@ -194,13 +194,13 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
       ) : (
         <div className={`${CARD} overflow-x-auto`}>
           {/* ★ 第770便（カッキーさん）: スマホは横スクロールでよいので、列を縮めず1行に（サイト 160×3）。
-              ★ 第771便: スマホは名前の列を 140px に詰めて、サイトの列を名前に寄せる（PC は 260px のまま） */}
-          <table className="text-[14px] table-fixed w-[620px] min-w-[620px] sm:w-[740px] sm:min-w-[740px] whitespace-nowrap">
+              ★ 第771・772便: スマホは名前 110px・サイト 122px に詰める（PC は 260px・160px のまま） */}
+          <table className="text-[14px] table-fixed w-[476px] min-w-[476px] sm:w-[740px] sm:min-w-[740px] whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-200 align-bottom">
                 {/* ★ 第738便: サイトの列は同じ幅（140px）。★ 第739便: 表を左に寄せる（名前 260px・右は空ける） */}
-                <th className="text-left px-3 sm:px-4 py-3 font-bold text-slate-500 w-[140px] sm:w-[260px]">名前</th>
-                <th className="px-2 py-3 text-center w-[160px]">
+                <th className="text-left px-3 sm:px-4 py-3 font-bold text-slate-500 w-[110px] sm:w-[260px]">名前</th>
+                <th className="px-1 sm:px-2 py-3 text-center w-[122px] sm:w-[160px]">
                   <div className="font-bold text-slate-800 text-[15.5px]">フクエス</div>
                   {/* ★ 第741便（カッキーさん）: ほかのサイトと同じ3行に（フクエスは正本なので常時確認・差異0） */}
                   <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">最終確認 常時確認</div>
@@ -211,7 +211,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                   const p = pairsOf[key(s)];
                   const bad = therapists.filter((t) => s.hasCredential && cellOf(t, s) !== 'ok').length;
                   return (
-                    <th key={key(s)} className={`px-2 py-3 text-center w-[160px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
+                    <th key={key(s)} className={`px-1 sm:px-2 py-3 text-center w-[122px] sm:w-[160px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
                       <div className="font-bold text-slate-800 text-[15.5px]">{s.label}</div>
                       {s.hasCredential ? (
                         <>
@@ -255,14 +255,14 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-1.5 text-center text-[24px] leading-none text-sky-500">○</td>
+                  <td className="px-1 sm:px-3 py-1.5 text-center text-[24px] leading-none text-sky-500">○</td>
                   {sites.map((s) => {
-                    if (!s.hasCredential) return <td key={key(s)} className="px-3 py-1.5 text-center bg-slate-50 text-[12px] text-slate-300">NO DATA</td>;
+                    if (!s.hasCredential) return <td key={key(s)} className="px-1 sm:px-3 py-1.5 text-center bg-slate-50 text-[12px] text-slate-300">NO DATA</td>;
                     const c = cellOf(t, s);
                     const m = MARK[c];
                     const off = targetOffs.has(`${t.id}#${s.provider}#${s.slot}`);
                     return (
-                      <td key={key(s)} className="px-3 py-1.5 text-center">
+                      <td key={key(s)} className="px-1 sm:px-3 py-1.5 text-center">
                         <button type="button" title={m.title} disabled={c === 'unknown' || c === 'ok'}
                           onClick={() => { setOpen({ tid: t.id, key: key(s) }); setPick(''); setPreview(null); }}
                           className={`text-[24px] leading-none ${m.cls} ${c === 'ok' || c === 'unknown' ? 'cursor-default' : 'hover:scale-110 transition-transform'}`}>
