@@ -1,17 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMediaBrand } from './mediaBrand';
 import {
   MEDIA_SITES,
-  capabilityLabel,
   mediaSiteSlots,
   siteLoginStatus,
   loginStatusLabel,
   canRegisterSite,
   notYetLabel,
-  sendableCapabilities,
   sortSitesForLogin,
   loginIdLabelOf,
   type MediaSite,
@@ -116,6 +114,7 @@ export function LoginBoard({
   const [loadError, setLoadError] = useState('');
 
   const [openKey, setOpenKey] = useState<string>('');
+  const initedRef = useRef(false);
   const [slotOf, setSlotOf] = useState<Record<string, number>>({});
 
   const [shopId, setShopId] = useState('');
@@ -140,6 +139,21 @@ export function LoginBoard({
       setConsentVersion(res.data.consentVersion);
       setKnown(true);
       setLoadError('');
+      // ★★ 第691便（2026-09-23・カッキーさん）: 駅ちかしか無いので、たたまずに最初から開いておく。
+      //   ★ 最初の1回だけ、枠1（または登録済みの枠）の中身をフォームへ入れる（★ 保存後の読み直しでは触らない）。
+      if (!initedRef.current) {
+        initedRef.current = true;
+        const site = MEDIA_SITES.find((x) => x.provider === 'ekichika');
+        if (site) {
+          const list = (res.data.rows as CredRow[]).filter((r) => r.provider === site.provider);
+          const slot = list[0]?.slot ?? mediaSiteSlots(site)[0];
+          const r = list.find((x) => x.slot === slot) ?? null;
+          setOpenKey(site.provider);
+          setSlotOf((m) => ({ ...m, [site.provider]: slot }));
+          setShopId(r?.shopId ?? '');
+          setLoginId(r?.loginId ?? '');
+        }
+      }
     } else {
       // ★★ 読めなかったときは known を立てない。★ 空の一覧を「未登録」と見せない
       setKnown(false);
@@ -170,11 +184,7 @@ export function LoginBoard({
     setConfirmDelete('');
   }, [rowAt]);
 
-  const toggleOpen = (site: MediaSite) => {
-    if (openKey === site.provider) { setOpenKey(''); return; }
-    setOpenKey(site.provider);
-    focusSlot(site, slotOf[site.provider] ?? mediaSiteSlots(site)[0]);
-  };
+  // ★ toggleOpen（押して開閉）は第691便で外した。★ 駅ちかだけなので常に開いている。
 
   /**
    * ★★★ 同意の場所まで運ぶ（第89便・カッキーさんの指摘）。
@@ -314,10 +324,10 @@ export function LoginBoard({
           ★ ほかのサイトの ID・PW は消していない（コネックエフが同じ表を使う）。★ 画面に出さないだけ。 */}
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <p className="text-[15.5px] font-black text-slate-800">写メ日記もフクエスに出したい場合は、駅ちかのIDとパスワードを入れてください</p>
+        {/* ★ 第691便: 「駅ちかへの書き込みは行いません…コネックエフを」の1行は消した（カッキーさん） */}
         <ul className="mt-2 space-y-1 text-[14px] text-slate-600 leading-relaxed">
           <li>・出勤・プロフィール・即ヒメは、IDとパスワードが無くてもフクエスへ反映されます。</li>
           <li>・写メ日記は、駅ちかの管理画面から読むため、IDとパスワードが必要です。</li>
-          <li>・駅ちかへの書き込み（出勤・写メ日記の転送など）は行いません。書き込みはコネックエフをお使いください。</li>
         </ul>
       </div>
       {sortSitesForLogin(MEDIA_SITES).filter((site) => site.provider === 'ekichika').map((site) => {
@@ -372,13 +382,9 @@ export function LoginBoard({
 
         return (
           <div key={site.provider} className={`${CARD} border-l-[3px] ${accent}`}>
-            {/* 見出し（押すと開く） */}
-            <button
-              type="button"
-              onClick={() => toggleOpen(site)}
-              aria-expanded={open}
-              className="w-full flex items-start gap-3 text-left px-4 py-3.5 hover:bg-slate-50/60 transition-colors"
-            >
+            {/* ★ 第691便: 見出しは押すものではなくなった（常に開いている）。★ チップと矢印も外した。
+                ★ チップ（出勤…新着情報）は「送れるもの」で、取り込み専用のこの画面では意味がずれていた。 */}
+            <div className="w-full flex items-start gap-3 text-left px-4 py-3.5">
               <span className="flex-1 min-w-0 space-y-1.5">
                 <span className="flex items-center gap-2 flex-wrap">
                   <b className="text-[16.5px] font-black text-slate-800">{site.name}</b>
@@ -416,25 +422,9 @@ export function LoginBoard({
                       ★ 全部隠すと、使える機能まで店舗が諦める（§185 の逆）。 */}
                 {/* ★ 第299便: 「送れるもの：」の文字は外した（カッキーさん）。★ チップだけ残す。
                     ★ ホーム（MediaHome）のサイトの行も、第193便から文字なしのチップだけで並べている。 */}
-                {sendableCapabilities(site).length > 0 && (
-                  <span className="block text-[13.5px] text-slate-400">
-                    {sendableCapabilities(site).map((c) => (
-                      <span key={c} className="inline-block border border-slate-200 text-slate-500 px-1.5 mr-1">
-                        {capabilityLabel(c)}
-                      </span>
-                    ))}
-                  </span>
-                )}
                 {meta && <span className="block text-[13.5px] text-slate-500 tabular-nums">{meta}</span>}
               </span>
-              <svg
-                width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                className={`flex-none text-slate-400 mt-1 transition-transform ${open ? 'rotate-180' : ''}`}
-              >
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </button>
+            </div>
 
             {open && (
               <div className="border-t border-slate-100 p-4 space-y-4">
