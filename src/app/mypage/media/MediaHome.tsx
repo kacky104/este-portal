@@ -424,6 +424,10 @@ export function MediaHome({ salonId, onToast }: {
                 </li>
               ))}
             </ul>
+            {/* ★ 第694便: セラピスト設定を外した代わりの1文。★ 名前で自動照合していることを言う */}
+            <p className="mt-3 text-[13px] text-slate-500 text-center leading-relaxed">
+              セラピストは、駅ちかとフクエスで同じ名前の子に反映されます。駅ちかとフクエスのセラピスト名は同じにしてください。
+            </p>
           </div>
         );
       })()}
