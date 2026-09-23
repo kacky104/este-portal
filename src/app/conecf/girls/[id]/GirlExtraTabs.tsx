@@ -17,14 +17,30 @@ import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 // ★ ベンリーの同じタブに寄せた。★ 候補と上限は駅ちか・エステ魂の管理画面の実物（設計メモ §4・§5）。
 // ★★ この便は【保存まで】。★ サイトへ送るのは次の便（★ 画面にもそう書く）。
 
-export type ExtraTab = 'comments' | 'siteFields' | 'qa';
+// ★★ 第724便（2026-09-23・カッキーさん）: タブを【サイトごと】（フクエス／駅ちか／エステ魂）にした。
+//   ★ それまでは コメント／各サイト項目／Q&A の3タブで、「どの項目がどのサイトに行くか」を店舗様が組み立てる必要があった。
+//   ★ 今は「そのサイトに反映するもの」が1つのタブにまとまる。保存ボタンはタブごとに1つ（中で複数の action を呼ぶ）。
+//     フクエス … キャッチコピー・お店コメント（★ 駅ちか・エステ魂にも同じ内容を送る）
+//     駅ちか   … お店コメントのタイトル・女の子コメント（★ エステ魂にも）・駅ちか専用の項目・Q&A（10問）
+//     エステ魂 … エステ魂専用の項目（特徴・エステ歴・資格・体型・質問・SNS）
+export type ExtraTab = 'fukues' | 'ekichika' | 'esutama';
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-300 rounded bg-white px-2 py-1.5 text-[14px] focus:outline-none focus:border-[#1e88e5]';
 // ★ 第447便: エステ魂へも送れるようになった（第430便）。★ 「準備中」のままだった案内を直す
-const NOTE_SEND = '保存後、上の「駅ちか」「エステ魂」は【更新する】を押してください。';
+// ★ 第724便: NOTE_SEND（駅ちか・エステ魂は更新する）はタブごとの文に置き換えたので外した
 // ★ 第457便（カッキーさん）: すぐ前でサイト名を言っているところ用（★ 同じサイト名を2度言わない）
 const NOTE_SEND_SHORT = '保存後、上の【更新する】を押してください。';
+
+// ★ 第724便: タブの中の区画の見出し（★ render の中で作らない。作ると入力のたびに作り直されてフォーカスが飛ぶ）
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="px-4 py-2">
+      <p className="text-[13.5px] font-bold text-slate-700 pt-3 pb-1 border-b border-slate-200">{title}</p>
+      {children}
+    </div>
+  );
+}
 
 // ★ 第448便: warn を渡すと、注意として赤字で出す（★ 見落とすと更新できない決まりごと用）
 function Row({ label, children, hint, warn }: { label: string; children: React.ReactNode; hint?: string; warn?: string }) {
@@ -88,7 +104,7 @@ export function GirlExtraTab({
   const [x, setX] = useState<ConecfGirlExtras | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [site, setSite] = useState(0);
+  const [slotIdx, setSlotIdx] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -113,22 +129,53 @@ export function GirlExtraTab({
     </div>
   );
 
-  // ── コメント ──
-  if (tab === 'comments') {
-    const c = x.comments;
-    const setC = (k: keyof ConecfGirlExtras['comments'], v: string) => setX((p) => (p ? { ...p, comments: { ...p.comments, [k]: v } } : p));
+  // ── 共通: コメント欄 ──
+  const c = x.comments;
+  const setC = (k: keyof ConecfGirlExtras['comments'], v: string) => setX((p) => (p ? { ...p, comments: { ...p.comments, [k]: v } } : p));
+
+  // ── 共通: そのサイトの専用項目（ID・PASS の枠ごとに1つ） ──
+  const provider = tab === 'ekichika' ? 'ekichika' : tab === 'esutama' ? 'esutama' : null;
+  const mine = provider ? x.siteFields.filter((s) => s.provider === provider) : [];
+  const cur = mine.length > 0 ? mine[Math.min(slotIdx, mine.length - 1)] : null;
+  const setFields = (f: Record<string, unknown>) => setX((p) => (p && cur ? {
+    ...p, siteFields: p.siteFields.map((s) => (s.provider === cur.provider && s.slot === cur.slot ? { ...s, fields: f } : s)),
+  } : p));
+  const slotPills = mine.length > 1 && (
+    <div className="flex flex-wrap gap-1 px-4 pt-4">
+      {mine.map((s, i) => (
+        <button key={s.provider + '#' + s.slot} type="button" onClick={() => setSlotIdx(i)}
+          className={`h-8 px-4 rounded-full text-[13px] ${i === slotIdx ? 'bg-[#1e88e5] text-white' : 'bg-black/[0.06] text-[#212121]'}`}>
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+  const noFields = (name: string) => (
+    <p className="text-[13px] text-slate-500 py-2">{name}のID・PASSが登録されていないため、{name}専用の項目はありません。</p>
+  );
+
+  // ── Q&A（駅ちか） ──
+  const qa: QaItem[] = Array.from({ length: QA_MAX }, (_, i) => x.qa[i] ?? { q: '', a: '' });
+  const setQa = (i: number, k: 'q' | 'a', v: string) => setX((p) => {
+    if (!p) return p;
+    const next = Array.from({ length: QA_MAX }, (_, j) => p.qa[j] ?? { q: '', a: '' });
+    next[i] = { ...next[i], [k]: v };
+    return { ...p, qa: next };
+  });
+
+  // ══ フクエス ══
+  if (tab === 'fukues') {
     const onSave = async () => {
       setSaving(true);
       const res = await saveConecfGirlComments({ id, comments: c });
       setSaving(false);
       if (!res.ok) { onToast(res.error); return; }
       void revalidateSalon(salonId); void revalidateTherapist(id);
-      onToast('コメントを保存しました（キャッチ・お店コメントはフクエスにも反映しました）');
+      onToast('保存しました（フクエスに反映しました。駅ちか・エステ魂へは上の【更新する】で送ります）');
     };
     return (
       <div className={CARD}>
-        <div className="px-4 py-2">
-          <p className="text-[12px] text-slate-500 py-2">{NOTE_SEND}</p>
+        <Section title="フクエスに反映するもの（駅ちか・エステ魂にも同じ内容を送ります）">
           <Row label="キャッチコピー">
             <input className={INPUT} value={c.catchphrase} onChange={(e) => setC('catchphrase', e.target.value)} />
             <Counter text={c.catchphrase} max={CATCH_MAX} limits={COMMENT_SITE_LIMITS.catch} />
@@ -137,6 +184,31 @@ export function GirlExtraTab({
             <textarea rows={8} className={INPUT} value={c.profileText} onChange={(e) => setC('profileText', e.target.value)} />
             <Counter text={c.profileText} max={SHOP_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.shopComment} />
           </Row>
+        </Section>
+        {saveBar(() => void onSave())}
+      </div>
+    );
+  }
+
+  // ══ 駅ちか ══
+  if (tab === 'ekichika') {
+    const onSave = async () => {
+      setSaving(true);
+      const r1 = await saveConecfGirlComments({ id, comments: c });
+      const r2 = await saveConecfGirlQa({ id, qa });
+      const r3 = cur ? await saveConecfGirlSiteFields({ id, provider: cur.provider, slot: cur.slot, fields: cur.fields }) : null;
+      setSaving(false);
+      const bad = [r1, r2, r3].find((r) => r && !r.ok);
+      if (bad && !bad.ok) { onToast(bad.error); return; }
+      if (r3 && r3.ok) setFields(r3.data.fields);
+      void revalidateSalon(salonId); void revalidateTherapist(id);
+      onToast('駅ちかの項目を保存しました。' + NOTE_SEND_SHORT);
+    };
+    return (
+      <div className={CARD}>
+        {slotPills}
+        <Section title="駅ちかに反映するもの">
+          <p className="text-[12px] text-slate-500 py-2">キャッチコピー・お店コメントは「フクエス」タブの内容が送られます。{NOTE_SEND_SHORT}</p>
           <Row label="お店コメントのタイトル" hint="駅ちか「お店からのメッセージ」のタイトルです。">
             <input className={INPUT} value={c.shopTitle} onChange={(e) => setC('shopTitle', e.target.value)} />
             <Counter text={c.shopTitle} max={SHOP_TITLE_MAX} />
@@ -145,31 +217,48 @@ export function GirlExtraTab({
             <textarea rows={5} className={INPUT} value={c.girlComment} onChange={(e) => setC('girlComment', e.target.value)} />
             <Counter text={c.girlComment} max={GIRL_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.girlComment} />
           </Row>
-        </div>
-        {saveBar(() => void onSave())}
-      </div>
-    );
-  }
-
-  // ── Q&A ──
-  if (tab === 'qa') {
-    const qa: QaItem[] = Array.from({ length: QA_MAX }, (_, i) => x.qa[i] ?? { q: '', a: '' });
-    const setQa = (i: number, k: 'q' | 'a', v: string) => setX((p) => {
-      if (!p) return p;
-      const next = Array.from({ length: QA_MAX }, (_, j) => p.qa[j] ?? { q: '', a: '' });
-      next[i] = { ...next[i], [k]: v };
-      return { ...p, qa: next };
-    });
-    const onSave = async () => {
-      setSaving(true);
-      const res = await saveConecfGirlQa({ id, qa });
-      setSaving(false);
-      onToast(res.ok ? `Q&Aを保存しました（${res.data.count}問）` : res.error);
-    };
-    return (
-      <div className={CARD}>
-        <div className="px-4 py-2">
-          <p className="text-[12px] text-slate-500 py-2">駅ちか「女の子へ質問」（10問・各{QA_TEXT_MAX}文字まで）に使います。{NOTE_SEND_SHORT}</p>
+          {!cur ? noFields('駅ちか') : (() => {
+            const f = toEk(cur.fields);
+            const up = (k: keyof Ek, v: unknown) => setFields({ ...f, [k]: v });
+            return (
+              <>
+                <Row label="優先タグ" hint={`女の子ランキングで上位に出やすくなるタグです。${EKICHIKA_P_GENRE_MAX}つまで。`}>
+                  <Chips all={EKICHIKA_P_GENRES} picked={f.pGenres} max={EKICHIKA_P_GENRE_MAX} onChange={(v) => up('pGenres', v)} />
+                </Row>
+                <Row label={`ジャンル（${f.genres.length}/${EKICHIKA_GENRE_MAX}）`} hint="押した順に並びます。先頭の3つが大きなアイコンで出ます。">
+                  <div className="space-y-2">
+                    {EKICHIKA_GENRE_GROUPS.map(([g, xs]) => (
+                      <div key={g}>
+                        <p className="text-[12px] font-bold text-black/50 mb-1">{g}</p>
+                        <Chips all={xs} picked={f.genres} max={EKICHIKA_GENRE_MAX} onChange={(v) => up('genres', v)} />
+                      </div>
+                    ))}
+                  </div>
+                </Row>
+                <Row label="可能オプション" hint="（△は要確認）">
+                  <textarea rows={3} className={INPUT} value={f.options} onChange={(e) => up('options', e.target.value)} />
+                  <Counter text={f.options} max={EKICHIKA_OPTIONS_MAX} />
+                </Row>
+                <Row label="新人・体験入店">
+                  <div className="flex flex-wrap gap-4">
+                    {EKICHIKA_ROOKIE.map(([v, l]) => (
+                      <label key={v} className="flex items-center gap-1.5 text-[14px]">
+                        <input type="radio" checked={f.rookie === v} onChange={() => up('rookie', v)} className="accent-[#1e88e5]" />{l}
+                      </label>
+                    ))}
+                  </div>
+                </Row>
+                <Row label="星座">
+                  <select className={`${INPUT} max-w-[180px]`} value={f.constellation} onChange={(e) => up('constellation', e.target.value)}>
+                    <option value="">表示しない</option>
+                    {CONSTELLATIONS.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
+                  </select>
+                </Row>
+              </>
+            );
+          })()}
+        </Section>
+        <Section title={`女の子へ質問（Q&A・10問・各${QA_TEXT_MAX}文字まで）`}>
           {qa.map((item, i) => (
             <Row key={i} label={`質問${i + 1}`}>
               <input className={INPUT} placeholder="質問" value={item.q} onChange={(e) => setQa(i, 'q', e.target.value)} />
@@ -177,82 +266,28 @@ export function GirlExtraTab({
               {(len(item.q) > QA_TEXT_MAX || len(item.a) > QA_TEXT_MAX) && <p className="text-[12px] text-rose-600">{QA_TEXT_MAX}文字までです</p>}
             </Row>
           ))}
-        </div>
+        </Section>
         {saveBar(() => void onSave())}
       </div>
     );
   }
 
-  // ── 各サイト項目 ──
-  if (x.siteFields.length === 0) {
-    return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>駅ちか・エステ魂のID・PASSが登録されていないため、各サイト項目はありません。</div>;
-  }
-  const cur = x.siteFields[Math.min(site, x.siteFields.length - 1)];
-  const setFields = (f: Record<string, unknown>) => setX((p) => (p ? {
-    ...p, siteFields: p.siteFields.map((s) => (s.provider === cur.provider && s.slot === cur.slot ? { ...s, fields: f } : s)),
-  } : p));
-  const onSave = async () => {
+  // ══ エステ魂 ══
+  const onSaveEs = async () => {
+    if (!cur) return;
     setSaving(true);
     const res = await saveConecfGirlSiteFields({ id, provider: cur.provider, slot: cur.slot, fields: cur.fields });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
     setFields(res.data.fields);
-    onToast(`${cur.label}の項目を保存しました`);
+    onToast('エステ魂の項目を保存しました。' + NOTE_SEND_SHORT);
   };
-
   return (
     <div className={CARD}>
-      <div className="flex flex-wrap gap-1 px-4 pt-4">
-        {x.siteFields.map((s, i) => (
-          <button key={s.provider + '#' + s.slot} type="button" onClick={() => setSite(i)}
-            className={`h-8 px-4 rounded-full text-[13px] ${i === site ? 'bg-[#1e88e5] text-white' : 'bg-black/[0.06] text-[#212121]'}`}>
-            {s.label}
-          </button>
-        ))}
-      </div>
-      <div className="px-4 py-2">
-        <p className="text-[12px] text-slate-500 py-2">{NOTE_SEND}</p>
-        {cur.provider === 'ekichika' && (() => {
-          const f = toEk(cur.fields);
-          const up = (k: keyof Ek, v: unknown) => setFields({ ...f, [k]: v });
-          return (
-            <>
-              <Row label="優先タグ" hint={`女の子ランキングで上位に出やすくなるタグです。${EKICHIKA_P_GENRE_MAX}つまで。`}>
-                <Chips all={EKICHIKA_P_GENRES} picked={f.pGenres} max={EKICHIKA_P_GENRE_MAX} onChange={(v) => up('pGenres', v)} />
-              </Row>
-              <Row label={`ジャンル（${f.genres.length}/${EKICHIKA_GENRE_MAX}）`} hint="押した順に並びます。先頭の3つが大きなアイコンで出ます。">
-                <div className="space-y-2">
-                  {EKICHIKA_GENRE_GROUPS.map(([g, xs]) => (
-                    <div key={g}>
-                      <p className="text-[12px] font-bold text-black/50 mb-1">{g}</p>
-                      <Chips all={xs} picked={f.genres} max={EKICHIKA_GENRE_MAX} onChange={(v) => up('genres', v)} />
-                    </div>
-                  ))}
-                </div>
-              </Row>
-              <Row label="可能オプション" hint="（△は要確認）">
-                <textarea rows={3} className={INPUT} value={f.options} onChange={(e) => up('options', e.target.value)} />
-                <Counter text={f.options} max={EKICHIKA_OPTIONS_MAX} />
-              </Row>
-              <Row label="新人・体験入店">
-                <div className="flex flex-wrap gap-4">
-                  {EKICHIKA_ROOKIE.map(([v, l]) => (
-                    <label key={v} className="flex items-center gap-1.5 text-[14px]">
-                      <input type="radio" checked={f.rookie === v} onChange={() => up('rookie', v)} className="accent-[#1e88e5]" />{l}
-                    </label>
-                  ))}
-                </div>
-              </Row>
-              <Row label="星座">
-                <select className={`${INPUT} max-w-[180px]`} value={f.constellation} onChange={(e) => up('constellation', e.target.value)}>
-                  <option value="">表示しない</option>
-                  {CONSTELLATIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </Row>
-            </>
-          );
-        })()}
-        {cur.provider === 'esutama' && (() => {
+      {slotPills}
+      <Section title="エステ魂に反映するもの">
+        <p className="text-[12px] text-slate-500 py-2">キャッチコピー・お店コメントは「フクエス」タブ、セラピストコメントは「駅ちか」タブの女の子コメントが送られます。{NOTE_SEND_SHORT}</p>
+        {!cur ? noFields('エステ魂') : (() => {
           const f = toEs(cur.fields);
           const up = (k: keyof Es, v: unknown) => setFields({ ...f, [k]: v });
           return (
@@ -280,7 +315,7 @@ export function GirlExtraTab({
               <Row label="体型">
                 <select className={`${INPUT} max-w-[200px]`} value={f.bodyStyle} onChange={(e) => up('bodyStyle', e.target.value)}>
                   <option value="">未選択</option>
-                  {ESUTAMA_BODY_STYLES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {ESUTAMA_BODY_STYLES.map((cc) => <option key={cc} value={cc}>{cc}</option>)}
                 </select>
               </Row>
               {ESUTAMA_QUESTIONS.map(([k, l]) => (
@@ -297,8 +332,8 @@ export function GirlExtraTab({
             </>
           );
         })()}
-      </div>
-      {saveBar(() => void onSave())}
+      </Section>
+      {cur && saveBar(() => void onSaveEs())}
     </div>
   );
 }
