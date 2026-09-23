@@ -219,7 +219,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
         )}
 
         {/* ── 見出し ── */}
-        <div className="grid grid-cols-[88px_1fr_auto] md:grid-cols-[88px_1fr_320px_260px] items-center px-2 h-9 border-b border-slate-200 text-[12px] font-bold text-black/50">
+        <div className="grid grid-cols-[88px_1fr_auto] md:grid-cols-[88px_200px_1fr_220px] items-center px-2 h-9 border-b border-slate-200 text-[12px] font-bold text-black/50">
           <span />
           <span>サイト名</span>
           <span className="hidden md:block">ステータス</span>
@@ -230,7 +230,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
 
         <ul>
           {showFukues && !loading && (
-            <li className="grid grid-cols-[88px_1fr_auto] md:grid-cols-[88px_1fr_320px_260px] items-center px-2 min-h-12 py-2 border-b border-slate-100">
+            <li className="grid grid-cols-[88px_1fr_auto] md:grid-cols-[88px_200px_1fr_220px] items-center px-2 min-h-12 py-2 border-b border-slate-100">
               <span className="text-[12px] text-slate-400 pl-2">—</span>
               <span>フクエス</span>
               <span className="hidden md:flex flex-wrap gap-1"><Chip>出勤</Chip><Chip>セラピスト</Chip><Chip>写メ日記</Chip><Chip>今すぐ</Chip><Chip>お知らせ</Chip></span>
@@ -242,7 +242,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
             const canReg = canRegisterSite(site);
             const memo = memoOf(site);
             return (
-              <li key={site.provider} className="grid grid-cols-[88px_1fr_auto] md:grid-cols-[88px_1fr_320px_260px] items-center px-2 min-h-12 py-2 border-b border-slate-100 hover:bg-black/[0.03]">
+              <li key={site.provider} className="grid grid-cols-[88px_1fr_auto] md:grid-cols-[88px_200px_1fr_220px] items-center px-2 min-h-12 py-2 border-b border-slate-100 hover:bg-black/[0.03]">
                 <span className="pl-2">
                   {reg ? (
                     <button type="button" onClick={() => openEdit(site)} className={`text-[12px] ${BLUE} hover:underline`}>
