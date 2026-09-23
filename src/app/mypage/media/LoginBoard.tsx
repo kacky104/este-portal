@@ -15,8 +15,8 @@ import {
   type MediaSite,
 } from '@/lib/mediaSites';
 import {
-  MEDIA_CONSENT_SECTIONS,
-  MEDIA_CONSENT_AGREE_LABEL,
+  FUKUES_LINK_CONSENT_SECTIONS,
+  FUKUES_LINK_CONSENT_AGREE_LABEL,
   CONSENT_RECHECK_BADGE,
   consentRecheckNotice,
 } from '@/lib/mediaConsent';
@@ -88,7 +88,7 @@ const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0
 function ConsentText() {
   return (
     <ol className="space-y-2.5 list-none">
-      {MEDIA_CONSENT_SECTIONS.map((s, i) => (
+      {FUKUES_LINK_CONSENT_SECTIONS.map((s, i) => (
         <li key={s.heading}>
           <p className="text-[14px] font-bold text-slate-600">{i + 1}. {s.heading}</p>
           <p className="text-[13.5px] text-slate-500 leading-relaxed mt-0.5">{s.body}</p>
@@ -562,7 +562,7 @@ export function LoginBoard({
                             className="mt-0.5 accent-indigo-600"
                           />
                           <span className="text-[13.5px] text-slate-600 leading-relaxed">
-                            {MEDIA_CONSENT_AGREE_LABEL}
+                            {FUKUES_LINK_CONSENT_AGREE_LABEL}
                           </span>
                         </label>
                       </>
