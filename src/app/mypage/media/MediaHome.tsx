@@ -338,7 +338,8 @@ export function MediaHome({ salonId, onToast }: {
             ★ 書き込み（フクエスから反映）はコネックエフへ（★ ボタンの下に案内を1行）。 */}
         {(() => {
           if (loading || error || sites.length === 0) return null;
-          const readable = sites.find((s) => s.canSwitch && s.direction !== 'read') ?? null;
+          // ★ 第697便: canSwitch（鍵がある枠だけ）を見ない。★ フクエスリンクの取り込みは ID・PW なしで動く（第668便）ので、鍵を消しても止める・始めるはできる
+          const readable = sites.find((s) => canReadProvider(s.provider) && s.direction !== 'read') ?? null;
           if (!readable) return null;
           const busy = switching !== '' || bulking;
           const onReadLink = () => {
@@ -371,7 +372,7 @@ export function MediaHome({ salonId, onToast }: {
         {/* ★★★ 第682便（2026-09-23・カッキーさんの指示）: サイトごとの行（駅ちか＋チップ＋最終確認＋札＋ボタン）を消した。
             ★ フクエスリンクは「駅ちかから反映する／しない」だけ（第668便）。★ 上の箱にすでに全部書いてある。
             ★ 止める道（反映しない）だけは必ず残す（第111便）。★ 小さな文字リンクにして、押す前の問いは今までどおり。 */}
-        {!loading && !error && reading && reading.canSwitch && (() => {
+        {!loading && !error && reading && (() => {
           const others = sites.map((x) => ({ provider: x.provider, slot: x.slot, direction: x.direction, label: x.label }));
           const me = { provider: reading.provider, slot: reading.slot };
           const stop = switchChoices(
@@ -424,10 +425,6 @@ export function MediaHome({ salonId, onToast }: {
                 </li>
               ))}
             </ul>
-            {/* ★ 第694便: セラピスト設定を外した代わりの1文。★ 名前で自動照合していることを言う */}
-            <p className="mt-3 text-[13px] text-slate-500 text-center leading-relaxed">
-              セラピストは、駅ちかとフクエスで同じ名前の子に反映されます。駅ちかとフクエスのセラピスト名は同じにしてください。
-            </p>
           </div>
         );
       })()}
