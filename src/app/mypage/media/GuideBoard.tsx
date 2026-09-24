@@ -51,10 +51,10 @@ export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideCon
           {c.flow.map((f, i) => (
             <div key={f.name} className="contents">
               {i > 0 && <div className="text-indigo-400 font-black text-[18px] rotate-90 sm:rotate-0" aria-hidden>→</div>}
-              {/* ★ 第700便（カッキーさん）: フクエスリンクの反映先（フクエス）の箱は灰色 → ピンク基調（フクエスの色）。★ コネックエフは各サイトなので灰色のまま */}
-              <div className={`flex-1 border px-3 py-2.5 ${i < 2 ? 'border-indigo-200 bg-indigo-50' : isConecf ? 'border-slate-200 bg-slate-50' : 'border-pink-200 bg-pink-50'}`}>
-                <div className={`text-[12px] font-bold ${i < 2 ? 'text-indigo-500' : isConecf ? 'text-slate-400' : 'text-pink-500'}`}>{f.caption}</div>
-                <div className={i < 2 ? 'text-[16px] font-black text-indigo-800' : isConecf ? 'text-[14.5px] font-black text-slate-700' : 'text-[16px] font-black text-pink-700'}>{f.name}</div>
+              {/* ★ 第700便（カッキーさん）: 反映先の箱は灰色 → ピンク基調（フクエスの色）。★ 第778便: コネックエフもピンクに（カッキーさん） */}
+              <div className={`flex-1 border px-3 py-2.5 ${i < 2 ? 'border-indigo-200 bg-indigo-50' : 'border-pink-200 bg-pink-50'}`}>
+                <div className={`text-[12px] font-bold ${i < 2 ? 'text-indigo-500' : 'text-pink-500'}`}>{f.caption}</div>
+                <div className={i < 2 ? 'text-[16px] font-black text-indigo-800' : isConecf ? 'text-[14.5px] font-black text-pink-700' : 'text-[16px] font-black text-pink-700'}>{f.name}</div>
               </div>
             </div>
           ))}
