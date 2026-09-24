@@ -7,7 +7,7 @@ summary: マンションの一室を施術室として使うメンズエステ�
 description: ルーム型とは、マンションの一室を施術室として使うメンズエステの形態のこと。「マンション型」とも呼ばれます。店舗型との違い、予約から入室までの流れ、福岡での実情、初めてのときのコツを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/room-gata/hero.webp
-heroAlt: 夜のマンションの廊下で、やわらかい照明に照らされた、番号の入っていない玄関ドアとインターホン
+heroAlt: やわらかい照明の落ち着いた内廊下で、番号の入っていない木目の玄関ドアと、壁のインターホン
 related: [tenpo-gata, shuccho-gata, kanzen-yoyaku-sei, net-yoyaku, tojitsu-yoyaku, koshitsu]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
