@@ -15,7 +15,8 @@ export function QaBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideConten
         <SectionTitle>よくあるご質問</SectionTitle>
         {content.qa.map((g) => (
           <div key={g.group}>
-            <p className="text-[13px] font-bold text-slate-400 tracking-wider mb-1.5">{g.group}</p>
+            {/* ★ 第780便: 分類の見出しを見やすく（薄い灰色の小さな字 → 紺の太字） */}
+            <p className="text-[14.5px] font-black text-indigo-700 mb-1.5">{g.group}</p>
             <div className="border-t border-slate-200">
               {g.items.map((qa) => (
                 <details key={qa.q} className="group border-b border-slate-200">
