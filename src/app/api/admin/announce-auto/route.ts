@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { applyAnnouncePhoto } from '@/app/lib/announcePhoto';
 import {
   shouldAutoPost,
   announceFingerprint,
@@ -140,6 +141,8 @@ export async function POST(req: Request) {
       .eq('id', pick.id)
       .eq('salon_id', salonId);
     if (upErr) { failed.push({ salonId, why: upErr.message.slice(0, 200) }); continue; }
+    // ★ 第775便: 画像なしのお知らせに写真の箱から1枚（★ 自分で付けた画像は触らない・失敗しても止めない）
+    await applyAnnouncePhoto(svc, salonId, String(pick.id));
 
     // ★★ 出したあとに順番を進める。★ 出せていないのに進めない（出す前に進めると1本飛ぶ）
     // ★ フクエスTOPの並びを動かしたので、守り3の起点も更新する。

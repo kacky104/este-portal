@@ -22,6 +22,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
+import { AnnouncePhotoPool } from './AnnouncePhotoPool';
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-200 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200';
@@ -321,6 +322,9 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
       <div className={`${CARD} p-4 text-[13.5px] text-slate-500 leading-relaxed`}>
         フクエスの店舗ページとトップの新着に出る「お知らせ」です。自動投稿にしたお知らせは、1日1回・順番にフクエスの新着の先頭へ出します。
       </div>
+
+      {/* ★ 第775便: 写真の箱（画像なしのお知らせにランダムで1枚） */}
+      <AnnouncePhotoPool salonId={salonId} enabled={enabled} onToast={onToast} />
 
       {/* 新規 */}
       <div className={CARD}>

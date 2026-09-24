@@ -12,6 +12,8 @@ import {
   rotationCycleMessage,
   autoPostTimeLabel,
 } from '@/lib/announceAuto';
+import { applyAnnouncePhoto, listAnnouncePhotoTherapists } from '@/app/lib/announcePhoto';
+import { ARTICLE_PHOTO_MAX, normalizeArticlePhotoIds } from '@/lib/articlePhotoPick';
 
 // お知らせの手動配信（第68便・設計メモ 追記37 §191 守り3 / §192）。
 //
@@ -163,6 +165,9 @@ export async function postAnnouncementManually(input: {
   //   ただし黙らない（次の周で「手動があった日」を取りこぼす可能性がある）。
   if (upErr) console.error('[announce] 手動配信の記録に失敗:', upErr.message);
 
+  // ★ 第775便: 出したときだけ、画像なしのお知らせに写真の箱から1枚（★ 自分で付けた画像は触らない・失敗しても止めない）
+  if (judged.bumpFukues) await applyAnnouncePhoto(svc, salonId, input.announcementId);
+
   // ★ 第500便: おすすめランキング（1回5点）と 1日5回の材料。★ フクエスTOPが動いた回だけ残す
   if (judged.bumpFukues) {
     const { error: evErr } = await svc.from('salon_rank_events').insert({ salon_id: salonId, kind: 'announce_manual' });
@@ -253,4 +258,51 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
       remainingToday: usedToday == null ? null : Math.max(0, ANNOUNCE_DAILY_LIMIT - usedToday),
     },
   };
+}
+
+/**
+ * ★★ 第775便: お知らせの【写真の箱】を読む（コネックエフのお知らせ画面）。
+ *   ★ available=false … SQL（20260924_announce_photo_pool.sql）の前。★ 画面は節を出さない
+ */
+export async function getAnnouncePhotoBoard(input: { salonId: string | number }): Promise<
+  Result<{ available: boolean; photoIds: number[]; therapists: Array<{ id: number; name: string; photoUrl: string }> }>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const svc = createServiceClient();
+  const therapists = await listAnnouncePhotoTherapists(svc, salonId);
+  const { data: st, error } = await svc
+    .from('salon_announce_state').select('photo_therapist_ids')
+    .eq('salon_id', salonId).maybeSingle();
+  if (error) return { ok: true, data: { available: false, photoIds: [], therapists } };
+  // ★ 写真が消された方は落として返す（★ 選べない人を選んでいるように見せない）
+  const photoIds = normalizeArticlePhotoIds(st?.photo_therapist_ids ?? []).filter((id) => therapists.some((t) => t.id === id));
+  return { ok: true, data: { available: true, photoIds, therapists } };
+}
+
+/**
+ * ★★ 第775便: お知らせの【写真の箱】を保存する。★ salon_announce_state はサーバ側しか書けない表
+ *   ★ 他店の方・写真の無い方は入れない。★ 上限（10枚）を超えたら切らずに断る。★ 入れ替えたら直前の1枚は忘れる
+ */
+export async function saveAnnouncePhotoPool(input: { salonId: string | number; therapistIds: number[] }): Promise<Result<{ photoIds: number[] }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const raw = Array.isArray(input.therapistIds) ? input.therapistIds : [];
+  const want = normalizeArticlePhotoIds(raw);
+  if (raw.length > ARTICLE_PHOTO_MAX || want.length > ARTICLE_PHOTO_MAX) return { ok: false, error: '写真は' + ARTICLE_PHOTO_MAX + '枚までです' };
+  const svc = createServiceClient();
+  const therapists = await listAnnouncePhotoTherapists(svc, salonId);
+  if (want.some((id) => !therapists.some((t) => t.id === id))) {
+    return { ok: false, error: '選べない写真が混ざっています。画面を開き直してもう一度お選びください' };
+  }
+  const { error } = await svc.from('salon_announce_state').upsert(
+    { salon_id: salonId, photo_therapist_ids: want, last_photo_therapist_id: null, updated_at: new Date().toISOString() },
+    { onConflict: 'salon_id' },
+  );
+  if (error) return { ok: false, error: '写真を保存できませんでした。時間をおいてお試しください' };
+  return { ok: true, data: { photoIds: want } };
 }
