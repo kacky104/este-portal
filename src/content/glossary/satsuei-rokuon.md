@@ -7,7 +7,7 @@ summary: 店内やセラピストを撮影したり、会話を録音したり�
 description: 撮影・録音とは、店内やセラピストを撮影したり、会話を録音したりすること。メンズエステで禁止されている理由、施術中のスマホの置き場所、SNSや口コミに書くときのマナーを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/satsuei-rokuon/hero.webp
-heroAlt: 夕方の施術室の棚の上で、紺の袖の男性が革のショルダーバッグにスマホをしまっている手元
+heroAlt: 施術室の入口脇の木の棚で、紺の袖の男性がキャメル色の革のショルダーバッグにスマホをしまっている手元
 related: [kinshi-jiko, therapist-eno-sesshoku, koshitsu, kuchikomi, shame-nikki, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
