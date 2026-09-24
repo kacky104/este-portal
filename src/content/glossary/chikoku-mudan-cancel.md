@@ -7,7 +7,7 @@ summary: 予約の時間に遅れること、連絡なしに来店しないこ�
 description: 遅刻・無断キャンセルとは、予約の時間に遅れること、連絡なしに来店しないことのこと。遅れたときに施術時間が短くなる理由、キャンセル料、遅れそうなときの連絡のしかたを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/chikoku-mudan-cancel/hero.webp
-heroAlt: 雨上がりの夜の駅のホームで、紺のコートの袖の男性が腕時計に目をやりながらスマホを手にしている手元
+heroAlt: 雨に濡れた夜の駅のホームで、紺のコートの男性が腕時計に目をやりながら、もう片方の手にスマホを持っている手元
 related: [cancel-ryo, kanzen-yoyaku-sei, kinshi-jiko, course-jikan, net-yoyaku, tojitsu-yoyaku, encho]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
