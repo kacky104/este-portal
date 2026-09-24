@@ -237,12 +237,13 @@ function ContractsTab({ data, busy, run }: { data: BillingAdminData; busy: boole
   const salons = data.salons.filter((s) => !q || s.name.includes(q));
   const salon = data.salons.find((s) => s.id === salonId) ?? null;
   return (
-    <div className="grid md:grid-cols-[240px_1fr] gap-4">
+    <div className="grid md:grid-cols-[340px_1fr] gap-4">
       <div className="bg-white border border-slate-200 p-2 max-h-[70vh] overflow-y-auto">
         <input className={`${input} mb-2`} placeholder="店舗名で探す" value={q} onChange={(e) => setQ(e.target.value)} />
         {salons.map((s) => (
           <button key={s.id} type="button" onClick={() => setSalonId(s.id)}
-            className={`block w-full text-left text-sm px-2 py-1.5 ${salonId === s.id ? 'bg-pink-50 text-pink-700 font-bold' : 'text-slate-700'}`}>
+            title={s.name}
+            className={`block w-full text-left text-[13px] px-2 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis ${salonId === s.id ? 'bg-pink-50 text-pink-700 font-bold' : 'text-slate-700'}`}>
             {withLines.has(s.id) ? '● ' : '　'}{s.name}{s.is_hidden ? '（非表示）' : ''}
           </button>
         ))}
