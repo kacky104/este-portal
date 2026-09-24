@@ -7,7 +7,7 @@ summary: 「メンズエステ」を縮めた呼び方。SNSや口コミ、検�
 description: メンエスとは、「メンズエステ」を縮めた呼び方のこと。意味はメンズエステと同じです。どんな場面で使われるか、お店での呼ばれ方との違い、検索で探すときのコツ、よくある質問を解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/menesu/hero.webp
-heroAlt: 昼の公園のベンチで、紺の服の男性がスマホで調べものをしている斜め後ろ姿
+heroAlt: 木漏れ日の公園の木のベンチで、紺の服の男性がスマホで調べものをしている斜め後ろ姿
 related: [mens-esthe, relaxation-salon, kenzen-ten, kuchikomi, ranking, net-yoyaku]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
