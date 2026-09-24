@@ -46,9 +46,11 @@ export async function POST(req: Request) {
 
   const { data: sources, error } = await svc
     .from('salon_import_sources')
-    .select('salon_id, provider, slot')
+    .select('salon_id, provider, slot, salons!inner(conecf_enabled_at)')
     .eq('is_enabled', true)
-    .eq('link_mode', 'write_auto');
+    .eq('link_mode', 'write_auto')
+    // ★★ 第781便（カッキーさん）: コネックエフに切り替えている店だけ（★ 運営が SQL で conecf_enabled_at を null に戻した店へは送らない）
+    .not('salons.conecf_enabled_at', 'is', null);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   const rows = (sources ?? []) as Row[];

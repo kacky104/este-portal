@@ -111,9 +111,11 @@ export async function POST(req: Request) {
   // ★ 駅ちかへ「書く」向きの枠だけ（★ 第323便: sokuhime_auto は見ない。即セラの周と同じ条件）
   const { data: sources, error: srcErr } = await svc
     .from('salon_import_sources')
-    .select('salon_id, slot')
+    .select('salon_id, slot, salons!inner(conecf_enabled_at)')
     .eq('provider', PROVIDER).eq('is_enabled', true)
-    .in('link_mode', ['write', 'write_auto']);
+    .in('link_mode', ['write', 'write_auto'])
+    // ★★ 第781便（カッキーさん）: コネックエフに切り替えている店だけ（★ 運営が SQL で conecf_enabled_at を null に戻した店へは送らない）
+    .not('salons.conecf_enabled_at', 'is', null);
   if (srcErr) return NextResponse.json({ ok: false, error: srcErr.message }, { status: 500 });
 
   const rows = (sources ?? []) as Array<{ salon_id: number; slot: number }>;
