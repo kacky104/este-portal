@@ -7,7 +7,7 @@ summary: セラピストがホテルや自宅に来て施術を行うメンズ�
 description: 出張型とは、セラピストがお客様のホテルや自宅に出向いて施術を行うメンズエステの形態のこと。「出張エステ」とも呼ばれます。店舗型・ルーム型との違い、予約から施術までの流れ、福岡での実情、予約前に確かめることを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/shuccho-gata/hero.webp
-heroAlt: 午前の光が入るホテルの客室で、ベッドの脇に置かれた施術用の大きなバッグ
+heroAlt: 開いた扉の向こう、午前の光が入るホテルの客室で、ベッドの足もとに置かれた大きな黒いバッグ
 related: [tenpo-gata, room-gata, kanzen-yoyaku-sei, shower, course-jikan, tojitsu-yoyaku]
 areas: [dispatch, nakasu-tenjin, hakata-eki]
 faq:
