@@ -769,8 +769,9 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
               aria-label="fukuX メンズエステ専用SNS"
               className="block border border-pink-100 overflow-hidden shadow-sm"
             >
+              {/* ★ 第814便（カッキーさん）: シェア用の ogp-fukux.png から、サイドバー専用の画像に分けた */}
               <Image
-                src="/ogp-fukux.png"
+                src="/fukux-side-banner.webp"
                 alt="fukuX メンズエステ専用SNS"
                 width={1200}
                 height={630}
