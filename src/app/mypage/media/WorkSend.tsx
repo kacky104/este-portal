@@ -584,7 +584,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {/* ★ 自動更新中の枠。★ 第210便の文言のまま（周期は AUTO_PUSH_INTERVAL_MIN から出す） */}
                 {s.autoOn && (
                   <p className="text-[13px] text-slate-400 leading-relaxed">
-                    変わったところだけを、{AUTO_PUSH_INTERVAL_MIN}分以内に承認なしで{s.label}を更新します。更新できないときは止めて、ここに出します。
+                    {AUTO_PUSH_INTERVAL_MIN}分以内に{s.label}を更新します。更新できないときは止めて、ここに出します。
                   </p>
                 )}
 
