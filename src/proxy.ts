@@ -71,6 +71,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ★ 第821便（カッキーさん）: 開こうとしたページを、サーバー側（/mypage の layout）へ伝える。
+  //   ★ 未ログインでログイン画面へ回すとき「ログインしたらこのページへ戻る」に使う（★ 請求書のメールのリンク等）。
+  //   ★ ブラウザから同じ名前のヘッダーが来ても、ここで必ず上書きする。
+  request.headers.set("x-fukues-path", request.nextUrl.pathname + request.nextUrl.search);
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

@@ -28,7 +28,11 @@ export default async function MypageLayout({ children }: { children: React.React
   if (!user) {
     const h = await headers();
     if (isCrmHost(h.get('x-forwarded-host') ?? h.get('host'))) redirect('/login');
-    redirect('/owner/login?redirectTo=%2Fmypage');
+    // ★ 第821便: ログインしたら【開こうとしたページ】へ戻す（★ 請求書のメールのリンクなど）。
+    //   ★ 戻り先は /mypage の中だけ（★ proxy.ts が入れた x-fukues-path・// で始まるものは使わない）。
+    const want = h.get('x-fukues-path') ?? '';
+    const back = want.startsWith('/mypage') && !want.startsWith('//') ? want : '/mypage';
+    redirect(`/owner/login?redirectTo=${encodeURIComponent(back)}`);
   }
 
   // ★ 背景はシルバーテーマ＋テーマ壁紙（theme_wallpapers の silver）。2026-09-06・カッキーさんの指示。
