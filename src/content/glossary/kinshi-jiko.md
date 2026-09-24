@@ -7,7 +7,7 @@ summary: お店が定めている、お客様がしてはいけないことの�
 description: 禁止事項とは、お店が定めている、お客様がしてはいけないことのリストのこと。よくある項目、どこに書かれているか、守られなかったときの扱い、予約前の確かめ方を解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/kinshi-jiko/hero.webp
-heroAlt: 夕方の待合の窓ぎわのカウンターで、紺の袖の男性が二つ折りの案内カードを開いて読んでいる手元
+heroAlt: 夕暮れの街が見える窓ぎわの木のカウンターで、紺のセーターの男性が二つ折りの案内カードを開いて読んでいる手元
 related: [therapist-eno-sesshoku, sejutsu-hani, kenzen-ten, inshu-go-no-riyo, satsuei-rokuon, chikoku-mudan-cancel, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
