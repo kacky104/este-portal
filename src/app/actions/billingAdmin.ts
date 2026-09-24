@@ -3,11 +3,10 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { jstTodayYmd } from '@/app/lib/salonStats';
-import { sendInvoiceMail } from '@/app/lib/billing/sendInvoiceMail';
 import { createDraftsCore } from '@/app/lib/billing/createDrafts';
+import { issueInvoiceCore } from '@/app/lib/billing/issue';
 import {
-  calcTotals, invoiceNo, isMonth, lineAmount, nextInvoiceSeq,
+  calcTotals, isMonth, lineAmount,
   type BillingLineInput,
 } from '@/lib/billing';
 
@@ -208,42 +207,29 @@ export async function deleteDraft(id: number): Promise<{ ok: true } | Err> {
 }
 
 // ── 発行 ────────────────────────────────────────────────
-//   ★ 番号を付け・発行者の設定を丸ごと写し・発行日を入れる。★ そのあとメール（失敗しても発行は戻さない）
+//   ★ 本体は src/app/lib/billing/issue.ts
 export async function issueInvoice(id: number): Promise<{ ok: true; mail: string } | Err> {
   const auth = await requireAdmin(); if (!auth.ok) return auth;
-  const svc = createServiceClient();
-  const { data: inv, error: ie } = await svc.from('invoices').select('id, salon_id, status, billing_month, recipient_name, total, due_date').eq('id', id).maybeSingle();
-  if (ie) return { ok: false, error: ie.message };
-  if (!inv) return { ok: false, error: '請求書が見つかりません' };
-  if (inv.status !== 'draft') return { ok: false, error: 'この請求書はもう発行されています' };
-  const { data: st } = await svc.from('billing_settings').select(SETTINGS_COLS).eq('id', 1).maybeSingle();
-  if (!st || !st.issuer_name) return { ok: false, error: '先に「発行者の設定」で屋号を入れてください' };
-  const month = inv.billing_month as string;
-  let no = '';
-  for (let tries = 0; tries < 5; tries++) {
-    const { data: nos } = await svc.from('invoices').select('invoice_no').eq('billing_month', month).not('invoice_no', 'is', null);
-    no = invoiceNo(month, nextInvoiceSeq(month, (nos ?? []).map((r) => r.invoice_no as string)));
-    const { error: ue, data: upd } = await svc.from('invoices').update({
-      invoice_no: no, status: 'issued', issue_date: jstTodayYmd(), issuer_snapshot: st,
-      issued_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-    }).eq('id', id).eq('status', 'draft').select('id');
-    if (!ue) { if (!upd || upd.length === 0) return { ok: false, error: 'ほかの画面で先に発行されました' }; break; }
-    if (ue.code !== '23505') return { ok: false, error: ue.message };
-    if (tries === 4) return { ok: false, error: '請求番号を付けられませんでした。もう一度押してください' };
+  return issueInvoiceCore(id);
+}
+
+// ★ 第825便: チェックした店にまとめて発行。★ 発行の直前に、その店の下書きを契約から作り直してから発行する
+export async function issueForSalons(month: string, salonIds: number[]): Promise<{ ok: true; mail: string } | Err> {
+  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  if (!isMonth(month)) return { ok: false, error: '月の形が正しくありません' };
+  const ids = [...new Set(salonIds.filter((n) => Number.isInteger(n)))];
+  if (ids.length === 0) return { ok: false, error: '発行する店を選んでください' };
+  const d = await createDraftsCore(month, { salonIds: ids, refreshDrafts: true });
+  if (!d.ok) return d;
+  const done: string[] = []; const failed: string[] = [];
+  for (const sid of ids) {
+    const inv = d.draftIds[sid];
+    if (!inv) { failed.push(`店舗${sid}（この月の契約がないか、もう発行済み）`); continue; }
+    const r = await issueInvoiceCore(inv);
+    if (r.ok) done.push(r.mail); else failed.push(r.error);
   }
-  // ★ 送り先: 請求先のメール → 無ければオーナーのログインメール
-  let to = '';
-  const { data: prof } = await svc.from('salon_billing_profiles').select('billing_email').eq('salon_id', inv.salon_id).maybeSingle();
-  to = (prof?.billing_email as string | null) ?? '';
-  if (!to) {
-    const { data: s } = await svc.from('salons').select('owner_id').eq('id', inv.salon_id).maybeSingle();
-    if (s?.owner_id) { const { data: u } = await svc.auth.admin.getUserById(s.owner_id as string); to = u?.user?.email ?? ''; }
-  }
-  const r = await sendInvoiceMail({
-    to, recipientName: inv.recipient_name as string, billingMonth: month, invoiceNo: no,
-    total: inv.total as number, dueDate: inv.due_date as string, invoiceId: id,
-  });
-  return { ok: true, mail: r.ok ? `メールを送りました（${to}）` : `発行しましたが、メールは送れませんでした：${r.error}` };
+  const msg = `${done.length}通 発行しました。` + (failed.length ? `／発行できなかったもの：${failed.join('、')}` : '');
+  return failed.length && done.length === 0 ? { ok: false, error: msg } : { ok: true, mail: msg };
 }
 
 // ── 入金・取り消し ──────────────────────────────────────
