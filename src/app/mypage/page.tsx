@@ -3037,6 +3037,8 @@ export default function MyPage() {
           {/* ★ サイドバーの頭（PCだけ）。★ フクエスリンクと同じ形: 印＋名前＋店舗名。2026-09-06 */}
           <div className="hidden md:block">
             <div className="flex items-center gap-2 px-4 py-4 border-b border-slate-100">
+              {/* ★ 第782便（カッキーさん）: ロゴを押すと「今すぐ」へ */}
+              <button type="button" onClick={() => goTab('available')} aria-label="今すぐへ" className="flex items-center gap-2 cursor-pointer">
               {/* ★ ヘッダー共通ロゴ（Logo.tsx）と同じ肉球＋オレンジ→ピンクのグラデ文字。
                   ★ サイドバーは幅が狭いので、サブテキスト（～福岡メンズエステポータル～）は出さない。 */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -3053,6 +3055,7 @@ export default function MyPage() {
               >
                 フクエス
               </span>
+              </button>
               {/* ★★★ 未対応の応募の数を、サイドバーのいちばん上に出す（2026-09-11 夜・カッキーさんの指示）。
                   ★ 「関連サイト → フクエスワーク（求人）」はサイドバーの下の方にあり、
                     見出しを閉じていたり画面が短いと、赤丸がスクロールの外に出てしまう。
