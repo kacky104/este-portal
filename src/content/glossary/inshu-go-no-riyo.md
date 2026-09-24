@@ -7,7 +7,7 @@ summary: お酒を飲んだあとに施術を受けること。体調を崩す�
 description: 飲酒後の利用とは、お酒を飲んだあとにメンズエステの施術を受けること。多くのお店で断られる理由、どのくらい飲んだら控えるべきか、飲み会のあとに行きたいときの予約のしかたを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/inshu-go-no-riyo/hero.webp
-heroAlt: 朝の日差しが入るダイニングテーブルに、水の入ったグラスとレモンの輪切り、椅子の背に紺のジャケット
+heroAlt: 朝の日差しが入る白いダイニングテーブルに、水の入ったグラスと小皿のレモンの輪切り、椅子の背に掛けた紺のジャケット
 related: [kinshi-jiko, therapist-eno-sesshoku, aroma-oil-treatment, momihogushi, tojitsu-yoyaku, cancel-ryo, seiketsu]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
