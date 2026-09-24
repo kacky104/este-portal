@@ -7,7 +7,7 @@ summary: 利用するお客様の年齢を確かめること。多くのお店�
 description: 年齢確認とは、メンズエステを利用するお客様の年齢を確かめること。18歳未満が利用できない理由、身分証の提示を求められる場面、持っていくとよいもの、提示を断ったときの扱いを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/nenrei-kakunin/hero.webp
-heroAlt: 夜の街の灯りを背に、紺のスーツの男性が内ポケットから閉じたカードケースを取り出している手元
+heroAlt: 夜の街の灯りを背に、紺のスーツの男性が上着の内ポケットから閉じた黒い革のカードケースを取り出している手元
 related: [kinshi-jiko, kanzen-yoyaku-sei, net-yoyaku, kaiin-sei, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
