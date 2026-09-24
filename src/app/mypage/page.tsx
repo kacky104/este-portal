@@ -861,6 +861,14 @@ export default function MyPage() {
   }, [salonForm.name]);
   /** ★ 媒体連携が「書き込みの向きのまま止まっている」警告（第47便）。トップに出す */
   const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
+  // ★ 第816便: お支払い待ちの請求書の数（★ RLS で自分の店の発行済みだけが数えられる）。★ 0 なら何も出さない
+  const [unpaidInvoices, setUnpaidInvoices] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    void supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'issued')
+      .then(({ count }) => { if (alive) setUnpaidInvoices(count ?? 0); });
+    return () => { alive = false; };
+  }, []);
   /**
    * ★★★ 媒体連携を出すかどうか（第54便）。★ 既定は【出さない】。
    *   他社の担当者が店舗のマイページを覗きに来るため（設計メモ 追記28）。
@@ -2937,6 +2945,20 @@ export default function MyPage() {
     />
   );
 
+  // ★ 第816便: ご請求書（/mypage/invoices）。★ お支払い待ちがあれば数を出す。
+  const renderInvoicesLink = (pc: boolean) => (
+    <Link
+      href="/mypage/invoices"
+      className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 font-bold text-slate-500 hover:text-slate-700 ${pc ? 'py-3 text-[16px] text-slate-400' : 'py-2.5 text-[13px]'}`}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 2h9l5 5v15H6z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg>
+      ご請求書
+      {unpaidInvoices > 0 && (
+        <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-amber-500 text-white text-[9px] font-black leading-none">{unpaidInvoices}</span>
+      )}
+    </Link>
+  );
+
   // ★★ 第674便（2026-09-22・カッキーさんの指示）: フクエスリンクも画像バナーに（./SidebarBanner.tsx）。
   //   ★ 行き先は今までどおり /mypage/media（別タブ）。★ 出す相手も今までどおり（withMedia の店だけ）。
   const renderMediaLink = (pc: boolean) => (
@@ -3212,6 +3234,8 @@ export default function MyPage() {
                           </button>
                         );
                       })}
+                      {/* ★ 第816便: ご請求書（運営事務局のすぐ下）。 */}
+                      {!sec.group && renderInvoicesLink(false)}
                       {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
                       {isSites && salon && renderJobsLink(false)}
                       {withMedia && renderMediaLink(false)}
@@ -3298,6 +3322,8 @@ export default function MyPage() {
                       </button>
                     );
                   })}
+                  {/* ★ 第816便: ご請求書（運営事務局のすぐ下）。 */}
+                  {!sec.group && renderInvoicesLink(true)}
                   {/* ★★★ フクエスリンク（媒体連携）（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
                       ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
                   {/* ★ フクエスワーク（求人）→ フクエスリンク の順（★ 第184便までの並びのまま）。 */}
@@ -3319,6 +3345,14 @@ export default function MyPage() {
 
         <div className="flex-1 min-w-0">
 
+        {/* ★ 第816便: お支払い待ちの請求書のお知らせ。 */}
+        {unpaidInvoices > 0 && (
+          <div className="max-w-2xl mx-auto px-3 pt-2">
+            <Link href="/mypage/invoices" className="block border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
+              お支払い待ちのご請求書が {unpaidInvoices} 通あります。<span className="underline">ご請求書を見る</span>
+            </Link>
+          </div>
+        )}
         {/* ★★★ 媒体連携が「書き込みの向きのまま止まっている」ときの警告（第47便）。
             ★ タブの中ではなくトップに出す。媒体連携タブを開かない限り気づけない、では見張りにならない
               （設計メモ §2-3「失敗を店舗に届ける」・追記11 §40）。 */}
