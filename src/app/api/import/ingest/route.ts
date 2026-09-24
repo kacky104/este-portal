@@ -219,8 +219,17 @@ export async function POST(req: Request) {
   let photoPeople = 0;
   let photoSaved = 0;
   const photoNotes: string[] = [];
+  // ★★ 第777便（カッキーさん）: フクエスリンク（駅ちかから反映）の周でも、写真が0枚の子は駅ちかの写真を取り込む。
+  //   ★ 新人（この周で作った子）も、すでに既定画像で出ている子も（カッキーさんの決定 B）。
+  //   ★ 出勤・年齢サイズを全員ぶん書き終えてから、最後にまとめて取る（★ 写真の時間で出勤が遅れない）。
+  //   ★ 1枚でもフクエスに写真がある子は触らない（importEkichikaCastPhotos が直前にもう一度確かめる）。
+  //   ★ 個人ページを読むのは1日1回の周だけ（毎時の list の周は ingest-list で、ここを通らない）。
+  const readPhotoQueue: Array<{ therapistId: number; html: string; castId: string | undefined; name: string }> = [];
   const takePhotos = async (therapistId: number, html: string, castId: string | undefined, name: string) => {
-    if (Date.now() - startedMs > PHOTO_BUDGET_MS) { photoNotes.push(name + '（時間切れ・もう一度「写真を取り込む」で入ります）'); return; }
+    if (Date.now() - startedMs > PHOTO_BUDGET_MS) {
+      photoNotes.push(name + (firstImport || photoOnly ? '（時間切れ・もう一度「写真を取り込む」で入ります）' : '（時間切れ・次の周で入ります）'));
+      return;
+    }
     const r = await importEkichikaCastPhotos(supabase, { therapistId, provider, slot, photos: extractCastPhotos(html, castId ?? null) });
     if (r.kind === 'saved') {
       photoPeople++; photoSaved += r.saved;
@@ -379,7 +388,13 @@ export async function POST(req: Request) {
         if (!error) profilesUpdated++;
       }
     }
+
+    // ★★ 第777便: 写真は最後にまとめて（上のコメント）
+    readPhotoQueue.push({ therapistId, html: c.html, castId: c.castId, name: cast.name.trim() });
   }
+
+  // ★★ 第777便: フクエスリンクの周の写真（★ 写真が0枚の子だけ・時間の上限は最初の1回と同じ）
+  for (const q of readPhotoQueue) await takePhotos(q.therapistId, q.html, q.castId, q.name);
 
   // ★★★ 第153便: 日付がずれていたら、静かに済ませない。
   //   ★ 正常なら1件も出ない。★ 出たら「こちらの今日」の決め方（import.sh の TODAY）を疑う。
