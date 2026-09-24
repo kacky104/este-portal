@@ -7,7 +7,7 @@ summary: テナントビルや路面店など、看板のある店舗で営業�
 description: 店舗型とは、テナントビルや路面店など、看板を出した店舗で営業するメンズエステの形態のこと。ルーム型・出張型との違い、来店の流れ、福岡での実情、選ぶときのポイントを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/tenpo-gata/hero.webp
-heroAlt: 夕方のビルの入口で、あたたかい灯りのともる小さな看板と、ガラス扉の奥に見える受付
+heroAlt: 夕暮れのビルの入口で、あたたかい灯りのともる行灯と、ガラス扉の奥に見える受付カウンター
 related: [room-gata, shuccho-gata, koshitsu, mens-esthe, shower, eigyo-jikan]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
@@ -23,7 +23,7 @@ faq:
 
 メンズエステのお店の形は、大きく分けて三つあります。
 
-![店舗型・ルーム型・出張型の三つの形を、施術を受ける場所の違いで並べた図](/glossary/tenpo-gata/02-three-types.webp)
+![店舗型は看板のある店舗、ルーム型はマンションの一室、出張型はホテルや自宅へ伺う形として、三つを並べた図](/glossary/tenpo-gata/02-three-types.webp)
 
 **店舗型**は、ビルの一室や路面の店舗に看板を出して営業する形です。**[ルーム型](/glossary/room-gata)**は、マンションの一室を施術室として使う形で、看板はなく、予約のあとに部屋の場所が案内されます。**[出張型](/glossary/shuccho-gata)**は、セラピストがお客様のホテルや自宅に出向いて施術をする形です。
 
