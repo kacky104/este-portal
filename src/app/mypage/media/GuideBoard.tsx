@@ -148,7 +148,8 @@ export function GuideBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideCon
         {c.optional.length > 0 && (
         <div className="pt-3 border-t border-slate-100">
           <p className="text-[14.5px] font-black text-slate-700">必要に応じて</p>
-          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* ★ 第779便: 3つのときは3列（2列だと1つだけ下に余る） */}
+          <div className={`mt-2 grid grid-cols-1 gap-3 ${c.optional.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
             {c.optional.map((o) => (
               <div key={o.title} className="border border-slate-200 p-3.5 space-y-1.5">
                 <b className="text-[14.5px] font-black text-slate-800">{o.title}</b>
