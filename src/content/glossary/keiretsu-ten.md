@@ -7,7 +7,7 @@ summary: 同じ運営者が、別の店名やエリアで営業しているお�
 description: 系列店とは、同じ運営者が別の店名やエリアで営業しているお店のこと。系列店に共通しやすいこと、セラピストの出勤、福岡での実情、系列店を上手に使うコツを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/keiretsu-ten/hero.webp
-heroAlt: カフェのテーブルで、紺の袖の男性がスマホの地図に並んだ二つの印を見比べている手元
+heroAlt: 夕方のカフェの木のテーブルで、紺の袖の男性が両手で持つスマホの地図に、二つの印が並んでいる手元
 related: [zaiseki, shukkin-joho, tenpo-gata, room-gata, shimei, kaiin-sei]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
