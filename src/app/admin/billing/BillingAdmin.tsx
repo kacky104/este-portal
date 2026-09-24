@@ -140,7 +140,9 @@ function InvoicesTab({ data, month, setMonth, busy, run, salonName }: {
 }
 
 function InvoiceDetail({ inv, data, busy, run }: { inv: InvoiceRow; data: BillingAdminData; busy: boolean; run: RunFn }) {
-  const [lines, setLines] = useState(inv.lines.map((l) => ({ label: l.label, unit_price: String(l.unit_price), quantity: String(l.quantity) })));
+  // ★ 第824便: 下書きでも割引を足せる（種類「割引」＋プラスの金額・保存でマイナスにする）
+  type DL = { kind: 'charge' | 'discount'; label: string; unit_price: string; quantity: string };
+  const [lines, setLines] = useState<DL[]>(inv.lines.map((l) => ({ kind: l.unit_price < 0 ? 'discount' : 'charge', label: l.label, unit_price: String(Math.abs(l.unit_price)), quantity: String(l.quantity) })));
   const [recipient, setRecipient] = useState(inv.recipient_name);
   const [pay, setPay] = useState<'transfer' | 'cash'>(inv.payment_method);
   const [note, setNote] = useState(inv.admin_note);
@@ -148,7 +150,7 @@ function InvoiceDetail({ inv, data, busy, run }: { inv: InvoiceRow; data: Billin
   const [paidDay, setPaidDay] = useState(() => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10));
   const [preview, setPreview] = useState(false);
   const isDraft = inv.status === 'draft';
-  const parsed = lines.map((l) => ({ label: l.label, unit_price: Number(toHalf(l.unit_price)) || 0, quantity: Number(toHalf(l.quantity)) || 1 }));
+  const parsed = lines.map((l) => { const n = Math.abs(Number(toHalf(l.unit_price)) || 0); return { label: l.label, unit_price: l.kind === 'discount' ? -n : n, quantity: Number(toHalf(l.quantity)) || 1 }; });
   const t = calcTotals(parsed, inv.tax_rate_pct);
   const sheetInv = isDraft
     ? { ...inv, recipient_name: recipient, payment_method: pay, subtotal: t.subtotal, tax_amount: t.tax, total: t.total,
@@ -166,24 +168,30 @@ function InvoiceDetail({ inv, data, busy, run }: { inv: InvoiceRow; data: Billin
             <label className="text-xs text-slate-500">メモ（店舗には出ない）<input className={input} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
           <table className="w-full text-sm">
-            <thead><tr className="text-xs text-slate-500"><th className="text-left">品名</th><th className="w-28">単価（税抜・割引は −10000 のように）</th><th className="w-16">数量</th><th className="w-24 text-right">金額</th><th className="w-8" /></tr></thead>
+            <thead><tr className="text-xs text-slate-500"><th className="w-28 text-left">種類</th><th className="text-left">品名</th><th className="w-28">単価（税抜）</th><th className="w-16">数量</th><th className="w-24 text-right">金額</th><th className="w-8" /></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
+                  <td className="pr-1 py-0.5">
+                    <select className={input} value={l.kind} onChange={(e) => { const k = e.target.value as DL['kind']; setLines(lines.map((x, j) => j === i ? { ...x, kind: k, label: k === 'discount' && !x.label ? '割引' : x.label } : x)); }}>
+                      <option value="charge">請求</option><option value="discount">割引（引く）</option>
+                    </select>
+                  </td>
                   <td className="pr-1 py-0.5"><input className={input} value={l.label} onChange={(e) => setLines(lines.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} /></td>
                   <td className="pr-1"><input className={`${input} text-right`} inputMode="numeric" value={l.unit_price} onChange={(e) => setLines(lines.map((x, j) => j === i ? { ...x, unit_price: e.target.value } : x))} /></td>
                   <td className="pr-1"><input className={`${input} text-center`} inputMode="numeric" value={l.quantity} onChange={(e) => setLines(lines.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} /></td>
-                  <td className="text-right">{yen(lineAmount(parsed[i]))}</td>
+                  <td className={`text-right ${l.kind === 'discount' ? 'text-rose-600' : ''}`}>{lineAmount(parsed[i]) < 0 ? '−' : ''}{yen(Math.abs(lineAmount(parsed[i])))}</td>
                   <td className="text-center"><button type="button" className="text-rose-500 text-xs" onClick={() => setLines(lines.filter((_, j) => j !== i))}>✕</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="flex flex-wrap gap-2 items-center">
-            <button type="button" className={btnGray} onClick={() => setLines([...lines, { label: '', unit_price: '', quantity: '1' }])}>＋ 行を足す</button>
+            <button type="button" className={btnGray} onClick={() => setLines([...lines, { kind: 'charge', label: '', unit_price: '', quantity: '1' }])}>＋ 行を足す</button>
+            <button type="button" className={btnGray} onClick={() => setLines([...lines, { kind: 'discount', label: '割引', unit_price: '', quantity: '1' }])}>＋ 割引を足す</button>
             <select className="border border-slate-300 px-2 py-1.5 text-sm" value="" onChange={(e) => {
               const it = data.items.find((x) => x.id === Number(e.target.value));
-              if (it) setLines([...lines, { label: it.name, unit_price: String(it.unit_price), quantity: '1' }]);
+              if (it) setLines([...lines, { kind: it.unit_price < 0 ? 'discount' : 'charge', label: it.name, unit_price: String(Math.abs(it.unit_price)), quantity: '1' }]);
             }}>
               <option value="">品目から足す…</option>
               {data.items.filter((x) => x.is_active).map((x) => <option key={x.id} value={x.id}>{x.name}（{yen(x.unit_price)}）</option>)}
