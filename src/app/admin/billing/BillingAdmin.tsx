@@ -26,8 +26,13 @@ const STATUS: Record<string, { text: string; cls: string }> = {
   void: { text: '取り消し', cls: 'bg-slate-100 text-slate-400 line-through' },
 };
 
-function monthOptions(center: string): string[] {
-  return Array.from({ length: 18 }, (_, i) => addMonths(center, i - 12));
+// ★ 第819便: 月の選択肢は【今月を中心に固定】（前6か月〜先12か月）。★ 以前は選んだ月を中心に作り直していて、
+//   前の月を選ぶたびに選択肢が過去へずれ、2022年まで行けてしまった。★ 範囲外の月を選んでいるときだけ足す
+const TODAY_MONTH = (() => { const d = new Date(Date.now() + 9 * 3600e3); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`; })();
+function monthOptions(selected?: string): string[] {
+  const base = Array.from({ length: 19 }, (_, i) => addMonths(TODAY_MONTH, i - 6));
+  if (selected && !base.includes(selected)) base.push(selected);
+  return base.sort();
 }
 
 export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
@@ -328,7 +333,7 @@ function LineEditor({ line, busy, onCancel, onSave }: { line: Partial<ContractLi
   const [qty, setQty] = useState(String(line.quantity ?? 1));
   const [start, setStart] = useState(line.start_month ?? '2026-10-01');
   const [end, setEnd] = useState<string | null>(line.end_month ?? null);
-  const months = monthOptions(line.start_month ?? '2026-10-01');
+  const months = monthOptions(line.start_month);
   const n = Number(toHalf(amount).replace(/^-/, ''));
   const bad = !amount || !Number.isFinite(n) || !Number.isInteger(n);
   return (
