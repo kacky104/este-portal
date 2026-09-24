@@ -7,7 +7,7 @@ summary: 心身の疲れをほぐすことを目的とした施術を行うお�
 description: リラクゼーションサロンとは、もみほぐしやアロマトリートメントなど、心身の疲れをほぐすことを目的とした施術を行うお店の総称のこと。整体院・マッサージ院との違い、メンズエステとの関係、選び方を解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/relaxation-salon/hero.webp
-heroAlt: 昼の光が入る明るい待合で、竹の目隠しの前の木のベンチにくつろいで座る男性の後ろ姿
+heroAlt: 昼の光が差し込む和の待合で、すだれの前の白木のベンチに座ってくつろぐ、紺のセーターの男性の後ろ姿
 related: [mens-esthe, momihogushi, aroma-oil-treatment, reflexology, shiatsu, kenzen-ten]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
