@@ -7,7 +7,7 @@ summary: お客様の側からセラピストの体に触れること。メン�
 description: セラピストへの接触とは、お客様の側からセラピストの体に触れること。メンズエステ共通の禁止事項です。このルールがある理由、守られなかったときの扱い、施術中の希望の伝え方を解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/therapist-eno-sesshoku/hero.webp
-heroAlt: 午後の明るい施術室で、紺の制服のセラピストが両手を前で重ね、椅子に座る紺の服の男性に会釈している横顔
+heroAlt: 午後の光が入る施術室で、紺の制服のセラピストが両手を前で重ねて会釈し、木の椅子に座る紺のシャツの男性がそれを迎えている後ろ姿
 related: [kinshi-jiko, sejutsu-hani, kenzen-ten, counseling, therapist, atsu-no-tsuyosa]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
