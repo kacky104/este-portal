@@ -12,7 +12,17 @@ export default async function MyInvoicePage({ params }: { params: Promise<{ id: 
   const n = Number(id);
   if (!Number.isInteger(n) || n <= 0) notFound();
   const r = await getMyInvoice(n);
-  if (!r.ok) notFound();
+  // ★ 第820便: 見られないときは 404 ではなく理由を出す（★ 別のアカウントでログインしていると見えない）
+  if (!r.ok) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-xl mx-auto px-4 py-10 text-sm">
+          <p className="bg-white border border-slate-200 p-5 text-slate-700">{r.error}</p>
+          <Link href="/mypage/invoices" className="inline-block mt-4 text-pink-600 underline">ご請求書の一覧へ</Link>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-slate-50 print:bg-white">
       <style>{`@page { size: A4; margin: 14mm; }`}</style>
