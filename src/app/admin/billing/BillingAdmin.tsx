@@ -275,7 +275,7 @@ function SalonContract({ salonId, salonName, data, busy, run }: { salonId: numbe
       </div>
 
       <div className="bg-white border border-slate-200 p-3">
-        <p className="font-bold text-slate-800 mb-2">毎月の契約（割引はマイナスの金額で入れる）</p>
+        <p className="font-bold text-slate-800 mb-2">毎月の契約（割引は「＋ 割引を足す」から）</p>
         {lines.length === 0 ? <p className="text-sm text-slate-500 mb-2">まだありません。</p> : (
           <table className="w-full text-sm mb-2">
             <thead><tr className="text-xs text-slate-500"><th className="text-left">品名</th><th className="text-right">単価</th><th>数量</th><th>期間</th><th /></tr></thead>
