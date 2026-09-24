@@ -7,7 +7,7 @@ summary: 施術を受けるための専用の部屋。メンズエステはセ�
 description: 個室とは、施術を受けるための専用の部屋のこと。メンズエステはセラピストと1対1で施術を行うため、基本的に個室で行われます。個室にあるもの、完全個室と半個室の違い、福岡での実情、過ごし方のコツを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/koshitsu/hero.webp
-heroAlt: 朝の白い光が入る無人の施術室を、少し開いた扉口から見たところ
+heroAlt: 朝の光がレースのカーテン越しに入る無人の個室に、白いシーツの施術台と、奥の壁ぎわの着替えのかご
 related: [sejutsu-dai, shower, tenpo-gata, room-gata, kami-pants, counseling]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
