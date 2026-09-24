@@ -7,7 +7,7 @@ summary: 施術前にシャワーを浴びる、爪を短く切っておくな�
 description: 清潔とは、清潔な状態で施術を受けるための、お客様のマナーのこと。来店前に整えておくこと、施術前のシャワー、肌に傷があるときの伝え方、お店の側の清潔への取り組みを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/seiketsu/hero.webp
-heroAlt: 朝の光が入る白い洗面台の前で、紺の袖の男性が爪切りで指先の爪を整えている手元
+heroAlt: 朝の光が入る白い洗面台の前で、紺のシャツの袖をまくった男性が爪切りで指先の爪を整えている手元
 related: [shower, kinshi-jiko, counseling, aroma-oil-treatment, oil, towel-work, inshu-go-no-riyo]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
