@@ -7,7 +7,7 @@ summary: 開店したばかりのお店のこと。オープン記念の割引�
 description: 新規オープンとは、開店したばかりのお店のこと。新規オープン店のよいところ、プレオープンとの違い、福岡での探し方、予約するときに確かめることを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/shinki-open/hero.webp
-heroAlt: 朝の光が入る真新しい受付で、制服のセラピストが開店祝いの花を整えている横顔
+heroAlt: 明るい真新しい受付で、紺の制服のセラピストが白と若草色の開店祝いの花をほほえみながら整えている横顔
 related: [shokai-wari, coupon, shinjin, kuchikomi, net-yoyaku, tenpo-gata]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
