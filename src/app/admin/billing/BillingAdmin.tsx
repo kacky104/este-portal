@@ -113,6 +113,7 @@ function InvoicesTab({ data, month, setMonth, busy, run, salonName }: {
           契約から下書きを作る
         </button>
       </div>
+      <p className="text-xs text-slate-500 mb-1">★ 前月に前払い：{monthLabel(month)}は {dateLabel(`${addMonths(month, -1).slice(0, 7)}-01`)} に発行・期限は同じ月の{data.settings.due_day}日</p>
       <p className="text-xs text-slate-500 mb-3">
         発行済み ¥{yen(sum('issued'))}　／　入金済み ¥{yen(sum('paid'))}　／　下書き {data.invoices.filter((i) => i.status === 'draft').length} 通
       </p>
@@ -352,10 +353,10 @@ function LineEditor({ line, busy, onCancel, onSave }: { line: Partial<ContractLi
       </label>
       <label className="text-xs text-slate-500">数量<input className={`${input} text-center`} inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} /></label>
       <span className={`text-sm text-right pb-1 ${kind === 'discount' ? 'text-rose-600' : ''}`}>{bad ? '' : `${kind === 'discount' ? '−' : ''}${yen(n * (Number(toHalf(qty)) || 1))}円`}</span>
-      <label className="text-xs text-slate-500 sm:col-span-2">開始月
+      <label className="text-xs text-slate-500 sm:col-span-2">開始月（最初に請求する「◯月分」）
         <select className={input} value={start} onChange={(e) => setStart(e.target.value)}>{months.map((m) => <option key={m} value={m}>{monthLabel(m).replace('分', '')}</option>)}</select>
       </label>
-      <label className="text-xs text-slate-500 sm:col-span-2">終了月
+      <label className="text-xs text-slate-500 sm:col-span-2">終了月（最後に請求する「◯月分」）
         <select className={input} value={end ?? ''} onChange={(e) => setEnd(e.target.value || null)}>
           <option value="">ずっと</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m).replace('分', '')}</option>)}
         </select>

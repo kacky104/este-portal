@@ -60,10 +60,31 @@ export function calcTotals(lines: BillingLineInput[], taxRatePct: number): { sub
   return { subtotal, tax, total: subtotal + tax };
 }
 
-/** お支払い期限（対象の月の dueDay 日）。 */
-export function dueDateOf(month: string, dueDay: number): string {
+// ★★ 第822便（カッキーさん）: 【前月に前払い】。「11月分」は 10月1日に発行・10月25日が期限。
+//   ★ billing_month は【ご利用の月】（請求書の「◯月分」）。★ 発行と期限は、その前の月。
+
+/** 発行する月（ご利用の月の前の月）。 */
+export function issueMonthOf(billingMonth: string): string {
+  return addMonths(billingMonth, -1);
+}
+
+/** 今日発行するなら何月分か（今月の翌月）。 */
+export function billingMonthForIssueDay(todayYmd: string): string {
+  return addMonths(monthOf(todayYmd), 1);
+}
+
+/** お支払い期限（ご利用の月の【前の月】の dueDay 日）。 */
+export function dueDateOf(billingMonth: string, dueDay: number): string {
   const d = Math.min(Math.max(Math.trunc(dueDay), 1), 28);
-  return `${month.slice(0, 7)}-${String(d).padStart(2, '0')}`;
+  return `${issueMonthOf(billingMonth).slice(0, 7)}-${String(d).padStart(2, '0')}`;
+}
+
+/** ご利用期間の最後の日（'YYYY-MM-DD'）。 */
+export function monthEnd(month: string): string {
+  const next = addMonths(month, 1);
+  const d = new Date(`${next}T00:00:00Z`);
+  d.setUTCDate(0);
+  return d.toISOString().slice(0, 10);
 }
 
 /** 請求番号 FK-YYYYMM-0001。 */

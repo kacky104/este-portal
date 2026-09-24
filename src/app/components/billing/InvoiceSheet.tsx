@@ -1,4 +1,4 @@
-import { dateLabel, monthLabel, yen } from '@/lib/billing';
+import { dateLabel, monthEnd, monthLabel, yen } from '@/lib/billing';
 
 // 請求書の紙面（第816便）。★ 店舗マイページと管理画面の両方で使う。★ 印刷すると A4 1枚に収まる大きさ。
 // ★ 発行済みは issuer（発行時に写した設定）を出す。★ 下書きの見本は今の設定を渡す。
@@ -29,6 +29,8 @@ export function InvoiceSheet({ invoice, issuer }: { invoice: SheetInvoice; issue
         <div className="min-w-0">
           <p className="text-lg font-bold border-b border-slate-800 pb-1 mb-3">{invoice.recipient_name} 御中</p>
           <p className="text-sm mb-1">{monthLabel(invoice.billing_month)}のご利用料金を、下記のとおりご請求申し上げます。</p>
+          {/* ★ 第822便: 前月に前払い。★ どの期間の料金かを書いておく */}
+          <p className="text-sm text-slate-600">ご利用期間：{dateLabel(invoice.billing_month)}〜{dateLabel(monthEnd(invoice.billing_month))}</p>
         </div>
         <div className="text-sm leading-6 text-right">
           <p>請求番号：{invoice.invoice_no ?? '（発行時に付きます）'}</p>
