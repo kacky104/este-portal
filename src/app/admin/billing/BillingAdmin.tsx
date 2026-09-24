@@ -142,7 +142,7 @@ function InvoiceDetail({ inv, data, busy, run }: { inv: InvoiceRow; data: Billin
   const [paidDay, setPaidDay] = useState(() => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10));
   const [preview, setPreview] = useState(false);
   const isDraft = inv.status === 'draft';
-  const parsed = lines.map((l) => ({ label: l.label, unit_price: Number(l.unit_price.replace(/[,\s]/g, '')) || 0, quantity: Number(l.quantity) || 1 }));
+  const parsed = lines.map((l) => ({ label: l.label, unit_price: Number(toHalf(l.unit_price)) || 0, quantity: Number(toHalf(l.quantity)) || 1 }));
   const t = calcTotals(parsed, inv.tax_rate_pct);
   const sheetInv = isDraft
     ? { ...inv, recipient_name: recipient, payment_method: pay, subtotal: t.subtotal, tax_amount: t.tax, total: t.total,
@@ -160,7 +160,7 @@ function InvoiceDetail({ inv, data, busy, run }: { inv: InvoiceRow; data: Billin
             <label className="text-xs text-slate-500">メモ（店舗には出ない）<input className={input} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           </div>
           <table className="w-full text-sm">
-            <thead><tr className="text-xs text-slate-500"><th className="text-left">品名</th><th className="w-28">単価（税抜・割引は−）</th><th className="w-16">数量</th><th className="w-24 text-right">金額</th><th className="w-8" /></tr></thead>
+            <thead><tr className="text-xs text-slate-500"><th className="text-left">品名</th><th className="w-28">単価（税抜・割引は −10000 のように）</th><th className="w-16">数量</th><th className="w-24 text-right">金額</th><th className="w-8" /></tr></thead>
             <tbody>
               {lines.map((l, i) => (
                 <tr key={i}>
@@ -304,7 +304,7 @@ function SalonContract({ salonId, salonName, data, busy, run }: { salonId: numbe
               <option value="">＋ 品目から足す…</option>
               {data.items.filter((x) => x.is_active).map((x) => <option key={x.id} value={x.id}>{x.name}（{yen(x.unit_price)}）</option>)}
             </select>
-            <button type="button" className={btnGray} onClick={() => setEditing({ salon_id: salonId, item_id: null, label: '割引', unit_price: -10000, quantity: 1, start_month: thisMonth, end_month: null, sort_order: 90 })}>＋ 割引を足す</button>
+            <button type="button" className={btnGray} onClick={() => setEditing({ salon_id: salonId, item_id: null, label: '割引', unit_price: undefined, quantity: 1, start_month: thisMonth, end_month: null, sort_order: 90 })}>＋ 割引を足す</button>
           </div>
         ) : (
           <LineEditor line={editing} busy={busy} onCancel={() => setEditing(null)}
@@ -315,26 +315,51 @@ function SalonContract({ salonId, salonName, data, busy, run }: { salonId: numbe
   );
 }
 
+// ★ 第817便（カッキーさん）: 金額は文字のまま持つ（数字に直すのは保存のとき）。★ 以前は1文字ごとに数字へ直していて、
+//   「−」だけ・空のときに NaN になり打てなくなっていた。
+// ★ 割引は「割引」を選んで【プラスの金額】を入れる（保存のときにマイナスにする）。★ 並び順は画面に出さない（請求→割引の順に自動）。
+function toHalf(v: string): string {
+  return v.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[－ー−‐]/g, '-').replace(/[,，\s円¥￥]/g, '');
+}
 function LineEditor({ line, busy, onCancel, onSave }: { line: Partial<ContractLineRow>; busy: boolean; onCancel: () => void; onSave: (l: Partial<ContractLineRow>) => void }) {
-  const [l, setL] = useState(line);
+  const [label, setLabel] = useState(line.label ?? '');
+  const [kind, setKind] = useState<'charge' | 'discount'>((line.unit_price ?? 0) < 0 || (line.unit_price === undefined && line.sort_order === 90) ? 'discount' : 'charge');
+  const [amount, setAmount] = useState(line.unit_price === undefined ? '' : String(Math.abs(line.unit_price)));
+  const [qty, setQty] = useState(String(line.quantity ?? 1));
+  const [start, setStart] = useState(line.start_month ?? '2026-10-01');
+  const [end, setEnd] = useState<string | null>(line.end_month ?? null);
   const months = monthOptions(line.start_month ?? '2026-10-01');
+  const n = Number(toHalf(amount).replace(/^-/, ''));
+  const bad = !amount || !Number.isFinite(n) || !Number.isInteger(n);
   return (
-    <div className="border border-pink-200 bg-pink-50/40 p-2 grid sm:grid-cols-5 gap-2 items-end">
-      <label className="text-xs text-slate-500 sm:col-span-2">品名<input className={input} value={l.label ?? ''} onChange={(e) => setL({ ...l, label: e.target.value })} /></label>
-      <label className="text-xs text-slate-500">単価（税抜・割引は−）<input className={input} inputMode="numeric" value={String(l.unit_price ?? '')} onChange={(e) => setL({ ...l, unit_price: Number(e.target.value.replace(/[,\s]/g, '')) })} /></label>
-      <label className="text-xs text-slate-500">数量<input className={input} inputMode="numeric" value={String(l.quantity ?? 1)} onChange={(e) => setL({ ...l, quantity: Number(e.target.value) })} /></label>
-      <span />
-      <label className="text-xs text-slate-500">開始月
-        <select className={input} value={l.start_month} onChange={(e) => setL({ ...l, start_month: e.target.value })}>{months.map((m) => <option key={m} value={m}>{monthLabel(m).replace('分', '')}</option>)}</select>
+    <div className="border border-pink-200 bg-pink-50/40 p-2 grid sm:grid-cols-6 gap-2 items-end">
+      <label className="text-xs text-slate-500">種類
+        <select className={input} value={kind} onChange={(e) => {
+          const k = e.target.value as 'charge' | 'discount'; setKind(k);
+          if (k === 'discount' && (!label || label === line.label)) setLabel('割引');
+        }}>
+          <option value="charge">請求</option><option value="discount">割引（引く）</option>
+        </select>
       </label>
-      <label className="text-xs text-slate-500">終了月
-        <select className={input} value={l.end_month ?? ''} onChange={(e) => setL({ ...l, end_month: e.target.value || null })}>
+      <label className="text-xs text-slate-500 sm:col-span-2">品名<input className={input} value={label} onChange={(e) => setLabel(e.target.value)} /></label>
+      <label className="text-xs text-slate-500">{kind === 'discount' ? '引く金額（税抜）' : '単価（税抜）'}
+        <input className={`${input} text-right`} inputMode="numeric" placeholder="10000" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      </label>
+      <label className="text-xs text-slate-500">数量<input className={`${input} text-center`} inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} /></label>
+      <span className={`text-sm text-right pb-1 ${kind === 'discount' ? 'text-rose-600' : ''}`}>{bad ? '' : `${kind === 'discount' ? '−' : ''}${yen(n * (Number(toHalf(qty)) || 1))}円`}</span>
+      <label className="text-xs text-slate-500 sm:col-span-2">開始月
+        <select className={input} value={start} onChange={(e) => setStart(e.target.value)}>{months.map((m) => <option key={m} value={m}>{monthLabel(m).replace('分', '')}</option>)}</select>
+      </label>
+      <label className="text-xs text-slate-500 sm:col-span-2">終了月
+        <select className={input} value={end ?? ''} onChange={(e) => setEnd(e.target.value || null)}>
           <option value="">ずっと</option>{months.map((m) => <option key={m} value={m}>{monthLabel(m).replace('分', '')}</option>)}
         </select>
       </label>
-      <label className="text-xs text-slate-500">並び順<input className={input} inputMode="numeric" value={String(l.sort_order ?? 0)} onChange={(e) => setL({ ...l, sort_order: Number(e.target.value) })} /></label>
       <div className="sm:col-span-2 flex gap-2">
-        <button type="button" className={btnPink} disabled={busy} onClick={() => onSave(l)}>保存</button>
+        <button type="button" className={btnPink} disabled={busy || bad} onClick={() => onSave({
+          ...line, label: label.trim(), unit_price: kind === 'discount' ? -n : n, quantity: Number(toHalf(qty)) || 1,
+          start_month: start, end_month: end, sort_order: kind === 'discount' ? 90 : (line.sort_order !== undefined && line.sort_order < 90 ? line.sort_order : 10),
+        })}>保存</button>
         <button type="button" className={btnGray} onClick={onCancel}>やめる</button>
       </div>
     </div>
