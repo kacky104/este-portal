@@ -36,7 +36,8 @@ function fmtAt(iso: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  // ★ 第774便（カッキーさん）: 日付だけ（時刻は出さない・列を詰めるため）
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 // ★ 第759便: 運営向けの印（★）と強調（**）も剥がす（試し打ちの注意の文言に入っている）
 function plainText(s: string): string { return s.replace(/<[^>]+>/g, '').replace(/★+\s*/g, '').replace(/\*\*/g, ''); }
@@ -202,15 +203,15 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
         <div className={`${CARD} overflow-x-auto`}>
           {/* ★ 第770便（カッキーさん）: スマホは横スクロールでよいので、列を縮めず1行に（サイト 160×3）。
               ★ 第771・772便: スマホは名前 110px・サイト 122px に詰める（PC は 260px・160px のまま） */}
-          <table className="text-[14px] table-fixed w-[476px] min-w-[476px] sm:w-[740px] sm:min-w-[740px] whitespace-nowrap">
+          <table className="text-[14px] table-fixed w-[410px] min-w-[410px] sm:w-[620px] sm:min-w-[620px] whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-200 align-bottom">
                 {/* ★ 第738便: サイトの列は同じ幅（140px）。★ 第739便: 表を左に寄せる（名前 260px・右は空ける） */}
                 <th className="text-left px-3 sm:px-4 py-3 font-bold text-slate-500 w-[110px] sm:w-[260px]">名前</th>
-                <th className="px-1 sm:px-2 py-3 text-center w-[122px] sm:w-[160px]">
+                <th className="px-1 sm:px-2 py-3 text-center w-[100px] sm:w-[120px]">
                   <div className="font-bold text-slate-800 text-[15.5px]">フクエス</div>
                   {/* ★ 第741便（カッキーさん）: ほかのサイトと同じ3行に（フクエスは正本なので常時確認・差異0） */}
-                  <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">最終確認 常時確認</div>
+                  <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">最終確認 常時</div>
                   <div className="text-[13px] font-bold text-slate-400">△× 0人</div>
                   <div className="mt-1 text-[12.5px] text-slate-400">読み込み不要</div>
                 </th>
@@ -218,7 +219,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                   const p = pairsOf[key(s)];
                   const bad = therapists.filter((t) => s.hasCredential && cellOf(t, s) !== 'ok').length;
                   return (
-                    <th key={key(s)} className={`px-1 sm:px-2 py-3 text-center w-[122px] sm:w-[160px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
+                    <th key={key(s)} className={`px-1 sm:px-2 py-3 text-center w-[100px] sm:w-[120px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
                       <div className="font-bold text-slate-800 text-[15.5px]">{s.label}</div>
                       {s.hasCredential ? (
                         <>
@@ -257,7 +258,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                         <Link href={brand.link('girls') + '/' + t.id} className="font-bold text-slate-800 hover:underline">{t.name}</Link>
                         <div className="text-[11px] text-slate-400 flex gap-1.5">
                           <span>{t.isActive ? '公開中' : '非公開'}</span>
-                          {t.isNewFace && <span className="text-pink-600 font-bold">新人</span>}
+                          {t.isNewFace && <span className="text-pink-600 font-bold">新</span>}
                         </div>
                       </div>
                     </div>
