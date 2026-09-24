@@ -7,7 +7,7 @@ summary: 事前に予約した人だけが利用できる仕組み。予約な�
 description: 完全予約制とは、事前に予約したお客様だけを受け入れる仕組みのこと。メンズエステで完全予約制が多い理由、予約の取り方、当日でも予約できるか、遅れそうなときのマナーを解説します。
 publishedAt: 2026-09-24
 heroImage: /glossary/kanzen-yoyaku-sei/hero.webp
-heroAlt: 午後の窓辺の棚に、日付の読めない卓上カレンダーと一本のペンが置かれているところ
+heroAlt: 予約の時間に合わせて、制服のセラピストが施術台の白いシーツを整えている手元
 related: [net-yoyaku, tojitsu-yoyaku, cancel-ryo, room-gata, tenpo-gata, eigyo-jikan]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
