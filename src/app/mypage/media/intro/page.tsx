@@ -124,7 +124,9 @@ export default async function MediaIntroPage({ searchParams }: { searchParams: P
 
         {!onConecf && (
           <p className="pb-6 text-center text-[12.5px] text-slate-500 leading-relaxed">
-            駅ちか以外（エステ魂など）にもまとめて送りたいお店は
+            駅ちか以外（エステ魂など）にもまとめて送りたい場合は
+            {/* ★ 第860便: スマホでは2行（ここで改行）・PCは1行のまま */}
+            <br className="sm:hidden" />
             <Link href="/mypage/conecf" className="underline font-bold text-slate-600">コネックエフ</Link>
             をご覧ください。
           </p>
