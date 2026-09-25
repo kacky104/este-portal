@@ -2990,7 +2990,8 @@ export default function MyPage() {
   const renderMediaLink = (pc: boolean) => (
     <SidebarBanner
       pc={pc}
-      href={mediaInUse === false ? '/mypage/media/intro' : '/mypage/media'}
+      // ★ 第858便（案B）: コネックエフに切り替えたお店はフクエスリンクを使えない（enableConecf・setMediaLinkMode で止めている）→ ご案内に「使えません」を出す
+      href={conecfOn ? '/mypage/media/intro?conecf=1' : mediaInUse === false ? '/mypage/media/intro' : '/mypage/media'}
       src="/mypage/sidebar/link-v2.webp"
       alt="フクエスリンク　フクエスを自動で更新"
     />

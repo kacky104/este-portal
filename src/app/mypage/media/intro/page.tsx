@@ -8,6 +8,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { CONECF_ORIGIN } from '@/lib/conecfHost';
 
 export const metadata: Metadata = { title: 'フクエスリンクのご案内｜フクエス マイページ' };
 
@@ -19,7 +20,10 @@ const ITEMS: ReadonlyArray<{ t: string; d: string; note?: boolean }> = [
 ];
 
 
-export default function MediaIntroPage() {
+// ★ 第858便（案B）: ?conecf=1 はコネックエフに切り替えたお店（マイページのバナーが付ける）。
+//   ★ 「使えません」を出し、始めるボタンの代わりにコネックエフを開くボタン。★ 表示だけの出し分け（守りは enableConecf・setMediaLinkMode 側）。
+export default async function MediaIntroPage({ searchParams }: { searchParams: Promise<{ conecf?: string }> }) {
+  const onConecf = (await searchParams).conecf === '1';
   return (
     <main className="min-h-screen py-6 sm:py-10 px-4">
       <div className="max-w-2xl mx-auto space-y-5">
@@ -31,6 +35,13 @@ export default function MediaIntroPage() {
           height={200}
           className="block w-full max-w-[600px] h-auto mx-auto border border-amber-200"
         />
+
+        {onConecf && (
+          <section className="border-2 border-blue-300 bg-blue-50 px-6 py-4 text-center">
+            <p className="text-[16px] font-black text-[#1e3a8a]">コネックエフをお使いのため、フクエスリンクは使えません</p>
+            <p className="mt-1 text-[13.5px] text-[#1e3a8a]/80">出勤・セラピストはコネックエフで入力してください。</p>
+          </section>
+        )}
 
         {/* ── 一言で ── */}
         <section className="bg-white border border-amber-200 shadow-sm p-6 text-center">
@@ -75,7 +86,9 @@ export default function MediaIntroPage() {
           </ul>
         </section>
 
+        {/* ★ 第858便: コネックエフのお店には出さない（ショップページの話は関係ないため） */}
         {/* ── 注意事項（第855便・カッキーさんの指示で「始め方」から差し替え） ── */}
+        {!onConecf && (
         <section className="bg-white border border-amber-200 shadow-sm px-6 py-4">
           <p className="text-[14px] text-slate-700 leading-relaxed">
             ※ 駅ちかにお店のショップページが必要です。
@@ -85,25 +98,37 @@ export default function MediaIntroPage() {
             ください。
           </p>
         </section>
+        )}
 
         {/* ★ ボタンは HTML（押せるように）。★ PC は横並び・スマホは縦並び（コネックエフのご案内と同じ） */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Link
-            href="/mypage/media"
-            className="flex-1 text-center py-4 bg-gradient-to-r from-[#b45309] to-[#d97706] text-white text-[17px] font-black shadow-md hover:opacity-95"
-          >
-            フクエスリンクを始める
-          </Link>
+          {onConecf ? (
+            <a
+              href={CONECF_ORIGIN}
+              className="flex-1 text-center py-4 bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] text-white text-[17px] font-black shadow-md hover:opacity-95"
+            >
+              コネックエフを開く
+            </a>
+          ) : (
+            <Link
+              href="/mypage/media"
+              className="flex-1 text-center py-4 bg-gradient-to-r from-[#b45309] to-[#d97706] text-white text-[17px] font-black shadow-md hover:opacity-95"
+            >
+              フクエスリンクを始める
+            </Link>
+          )}
           <Link href="/mypage" className="sm:w-56 text-center py-4 border-2 border-[#d97706] bg-white text-[15px] font-bold text-[#b45309] hover:bg-amber-50">
             マイページへ戻る
           </Link>
         </div>
 
-        <p className="pb-6 text-center text-[12.5px] text-slate-500 leading-relaxed">
-          駅ちか以外（エステ魂など）にもまとめて送りたいお店は
-          <Link href="/mypage/conecf" className="underline font-bold text-slate-600">コネックエフ</Link>
-          をご覧ください。
-        </p>
+        {!onConecf && (
+          <p className="pb-6 text-center text-[12.5px] text-slate-500 leading-relaxed">
+            駅ちか以外（エステ魂など）にもまとめて送りたいお店は
+            <Link href="/mypage/conecf" className="underline font-bold text-slate-600">コネックエフ</Link>
+            をご覧ください。
+          </p>
+        )}
       </div>
     </main>
   );
