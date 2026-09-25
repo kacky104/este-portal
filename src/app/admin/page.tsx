@@ -395,6 +395,13 @@ export default function AdminDashboard() {
             <h1 className="text-base font-black text-slate-800 tracking-wide">管理者ダッシュボード</h1>
           </div>
           <div className="flex items-center gap-4">
+            {/* ★ 第862便: 運営からのお知らせ（店舗マイページの上の帯・一覧） */}
+            <Link
+              href="/admin/notices"
+              className="text-xs text-pink-600 hover:text-pink-700 font-bold transition-colors"
+            >
+              お知らせ
+            </Link>
             {/* ★ 第816便: 請求書の管理 */}
             <Link
               href="/admin/billing"

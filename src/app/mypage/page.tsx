@@ -48,6 +48,7 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { getMediaLinkAlerts, getMediaOverview } from '@/app/actions/mediaCredentials';
 import { canReadProvider } from '@/lib/mediaOverview';
+import { OpsNoticeBar } from './OpsNoticeBar';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -3401,6 +3402,9 @@ export default function MyPage() {
         </aside>
 
         <div className="flex-1 min-w-0">
+
+        {/* ★ 第862便: 運営からのお知らせ（1行の帯・公開から14日・無ければ出ない）。★ お支払いのお願い・警告より上、目立たない色 */}
+        <OpsNoticeBar />
 
         {/* ★ 第816便 → 第833便: お支払いのお願いの帯。★ 運営が管理画面で「マイページに帯を出す」を押した店だけ・入金済みで自動で消える */}
         {paymentNotice && (
