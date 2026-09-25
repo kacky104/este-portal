@@ -2,7 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { ADMIN_UUID } from '@/app/lib/admin';
+import { ADMIN_UUID, MODERATOR_UUIDS } from '@/app/lib/admin';
 import { createDraftsCore } from '@/app/lib/billing/createDrafts';
 import { issueInvoiceCore, sendOverdueReminderCore } from '@/app/lib/billing/issue';
 import {
@@ -22,6 +22,17 @@ async function requireAdmin(): Promise<{ ok: true } | Err> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'ログインが必要です' };
   if (user.id !== ADMIN_UUID) return { ok: false, error: '管理者専用です' };
+  return { ok: true };
+}
+
+// ★ 第867便（2026-09-26・カッキーさんの OK）: 請求書の操作は /moderation に入れる人（MODERATOR_UUIDS）にも開く。
+//   ★ ただし「⚙ 設定」（発行者・振込先・品目）は管理者だけ（saveBillingSettings・saveBillingItem は requireAdmin のまま）。
+//     ★ 振込先の口座を書き換えられると、お金が別の口座に振り込まれる危険があるため。
+async function requireStaff(): Promise<{ ok: true } | Err> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'ログインが必要です' };
+  if (!MODERATOR_UUIDS.includes(user.id)) return { ok: false, error: '運営スタッフ専用です' };
   return { ok: true };
 }
 
@@ -66,7 +77,7 @@ function cleanInt(v: unknown): number | null {
 
 // ── 読み込み ────────────────────────────────────────────
 export async function getBillingAdmin(month: string): Promise<Ok<{ data: BillingAdminData }> | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   if (!isMonth(month)) return { ok: false, error: '月の形が正しくありません' };
   const svc = createServiceClient();
   const [st, it, sa, pr, li, iv] = await Promise.all([
@@ -124,7 +135,7 @@ export async function saveBillingItem(input: { id?: number; name: string; unit_p
 
 // ── 店舗の請求先 ────────────────────────────────────────
 export async function saveSalonProfile(input: SalonProfile): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const email = (input.billing_email ?? '').trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: 'メールアドレスの形が正しくありません' };
   const svc = createServiceClient();
@@ -138,7 +149,7 @@ export async function saveSalonProfile(input: SalonProfile): Promise<{ ok: true 
 
 // ── 店舗の契約の行（割引はマイナス）─────────────────────
 export async function saveContractLine(input: Omit<ContractLineRow, 'id'> & { id?: number }): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const label = input.label.trim(); const price = cleanInt(input.unit_price); const qty = cleanInt(input.quantity);
   if (!label) return { ok: false, error: '品名を入れてください' };
   if (price === null) return { ok: false, error: '金額を数字で入れてください（割引はマイナス）' };
@@ -155,7 +166,7 @@ export async function saveContractLine(input: Omit<ContractLineRow, 'id'> & { id
 }
 
 export async function deleteContractLine(id: number): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const svc = createServiceClient();
   const { error } = await svc.from('salon_billing_lines').delete().eq('id', id);
   return error ? { ok: false, error: error.message } : { ok: true };
@@ -163,7 +174,7 @@ export async function deleteContractLine(id: number): Promise<{ ok: true } | Err
 
 // ★ 本体は src/app/lib/billing/createDrafts.ts（'use server' の外＝ブラウザから直接は呼べない）
 export async function createDrafts(month: string) {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   return createDraftsCore(month);
 }
 
@@ -172,7 +183,7 @@ export async function saveDraft(input: {
   id: number; recipient_name: string; payment_method: 'transfer' | 'cash'; admin_note: string;
   lines: { label: string; unit_price: number; quantity: number }[];
 }): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const svc = createServiceClient();
   const { data: cur, error: ce } = await svc.from('invoices').select('status, tax_rate_pct').eq('id', input.id).maybeSingle();
   if (ce) return { ok: false, error: ce.message };
@@ -202,7 +213,7 @@ export async function saveDraft(input: {
 }
 
 export async function deleteDraft(id: number): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const svc = createServiceClient();
   const { error } = await svc.from('invoices').delete().eq('id', id).eq('status', 'draft');
   return error ? { ok: false, error: error.message } : { ok: true };
@@ -211,13 +222,13 @@ export async function deleteDraft(id: number): Promise<{ ok: true } | Err> {
 // ── 発行 ────────────────────────────────────────────────
 //   ★ 本体は src/app/lib/billing/issue.ts
 export async function issueInvoice(id: number): Promise<{ ok: true; mail: string } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   return issueInvoiceCore(id);
 }
 
 // ★ 第825便: チェックした店にまとめて発行。★ 発行の直前に、その店の下書きを契約から作り直してから発行する
 export async function issueForSalons(month: string, salonIds: number[]): Promise<{ ok: true; mail: string } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   if (!isMonth(month)) return { ok: false, error: '月の形が正しくありません' };
   const ids = [...new Set(salonIds.filter((n) => Number.isInteger(n)))];
   if (ids.length === 0) return { ok: false, error: '発行する店を選んでください' };
@@ -236,13 +247,13 @@ export async function issueForSalons(month: string, salonIds: number[]): Promise
 
 // ── お支払い期限を過ぎています（第832便・事務員さんが押して送る）──
 export async function sendOverdueReminder(id: number): Promise<{ ok: true; mail: string } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   return sendOverdueReminderCore(id);
 }
 
 // ── マイページの黄色い帯（第833便・事務員さんが押したときだけ出る）──
 export async function setPaymentNotice(id: number, on: boolean): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const svc = createServiceClient();
   const { error } = await svc.from('invoices').update({ payment_notice_on: !!on, updated_at: new Date().toISOString() }).eq('id', id).eq('status', 'issued');
   return error ? { ok: false, error: error.message } : { ok: true };
@@ -250,7 +261,7 @@ export async function setPaymentNotice(id: number, on: boolean): Promise<{ ok: t
 
 // ── 入金・取り消し ──────────────────────────────────────
 export async function markPaid(id: number, method: 'transfer' | 'cash', paidYmd: string): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(paidYmd)) return { ok: false, error: '入金日を選んでください' };
   const svc = createServiceClient();
   const { error } = await svc.from('invoices').update({
@@ -260,14 +271,14 @@ export async function markPaid(id: number, method: 'transfer' | 'cash', paidYmd:
 }
 
 export async function unmarkPaid(id: number): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const svc = createServiceClient();
   const { error } = await svc.from('invoices').update({ status: 'issued', paid_method: null, paid_at: null, updated_at: new Date().toISOString() }).eq('id', id).eq('status', 'paid');
   return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 export async function voidInvoice(id: number): Promise<{ ok: true } | Err> {
-  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const auth = await requireStaff(); if (!auth.ok) return auth;
   const svc = createServiceClient();
   const { error } = await svc.from('invoices').update({ status: 'void', updated_at: new Date().toISOString() }).eq('id', id).in('status', ['issued', 'paid']);
   return error ? { ok: false, error: error.message } : { ok: true };

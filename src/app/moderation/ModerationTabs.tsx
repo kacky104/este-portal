@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 
 // /moderation のタブ切替。上段タブ＝口コミ審査／求人／書類。口コミ審査の中はさらに
@@ -41,6 +42,8 @@ export function ModerationTabs({
             {label}
           </button>
         ))}
+        {/* ★ 第867便: 請求書（別ページ /moderation/billing・中身は管理画面の請求書と同じ・⚙ 設定は管理者だけ） */}
+        <Link href="/moderation/billing" className={pill(false, true)}>請求書</Link>
       </div>
 
       <div className={tab === 'reviews' ? '' : 'hidden'}>

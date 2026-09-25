@@ -65,7 +65,18 @@ const STATE_BADGE: Record<State, string> = {
   none: 'bg-slate-50 text-slate-400', ready: 'bg-slate-100 text-slate-600', issued: 'bg-amber-100 text-amber-800', paid: 'bg-emerald-100 text-emerald-800',
 };
 
-export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
+// ★ 第867便: /moderation/billing からも開く（スタッフ）。★ canEditSettings=false のときは「⚙ 設定」を出さない（振込先などは管理者だけ）。
+export function BillingAdmin({
+  initialMonth,
+  canEditSettings = true,
+  backHref = '/admin',
+  backLabel = '管理画面へ戻る',
+}: {
+  initialMonth: string;
+  canEditSettings?: boolean;
+  backHref?: string;
+  backLabel?: string;
+}) {
   const [month, setMonth] = useState(initialMonth);
   const [data, setData] = useState<BillingAdminData | null>(null);
   const [err, setErr] = useState('');
@@ -162,7 +173,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
     { key: 'contracts', label: '契約（店ごとの料金）', sub: '新しい店・料金の変更' },
     { key: 'settings', label: '⚙ 設定', sub: '発行者・振込先・品目' },
     { key: 'help', label: '？ 使い方', sub: '初めての方はこちら' },
-  ];
+  ].filter((n) => canEditSettings || n.key !== 'settings') as { key: Page; label: string; count?: number; tone?: string; sub?: string }[];
   const showMonth = page === 'issue' || page === 'unpaid' || page === 'paid' || page === 'contracts';
 
   // ★ 第834便: 1行目＝店名・金額・状態、2行目＝明細、3行目＝ボタン（ボタンが増えて店名が潰れたため）
@@ -235,7 +246,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <h1 className="text-lg font-black">請求書</h1>
           <span className="text-sm text-slate-500 hidden sm:inline">フクエス 店舗様へのご請求</span>
-          <Link href="/admin" className="ml-auto text-sm text-slate-500 hover:text-pink-600">管理画面へ戻る</Link>
+          <Link href={backHref} className="ml-auto text-sm text-slate-500 hover:text-pink-600">{backLabel}</Link>
         </div>
       </header>
 
@@ -265,7 +276,11 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
           {setupMissing && page !== 'settings' && (
             <div className="mb-4 bg-amber-50 border-2 border-amber-400 px-4 py-3 flex flex-wrap items-center gap-3">
               <p className="text-[15px]"><b>はじめに：</b>請求書に印字する <b>屋号・振込先</b> がまだ入っていません。先に設定してください。</p>
-              <button type="button" className={`${btnPink} ml-auto`} onClick={() => changePage('settings')}>⚙ 設定を開く</button>
+              {canEditSettings ? (
+                <button type="button" className={`${btnPink} ml-auto`} onClick={() => changePage('settings')}>⚙ 設定を開く</button>
+              ) : (
+                <span className="ml-auto text-sm text-amber-900">管理者に設定をお願いしてください</span>
+              )}
             </div>
           )}
 
@@ -354,7 +369,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
               )}
 
               {/* ⚙ 設定 */}
-              {page === 'settings' && (
+              {page === 'settings' && canEditSettings && (
                 <div className="mt-4">
                   <h2 className="font-black text-lg">⚙ 設定</h2>
                   <p className="text-sm text-slate-500 mb-3">請求書に印字する発行者（屋号・住所・振込先）と、料金を入れるときの品目の一覧。</p>
