@@ -189,6 +189,21 @@ export default async function SalonReviewsPage({
           />
         )}
 
+        {/* 口コミを書く（第846便）: セラピストの口コミ一覧と同じボタン・右寄せ。行き先は店舗の投稿ページ（セラピストを選ぶ／無料掲載は店舗宛て）。 */}
+        <div className="flex justify-end mb-3">
+          <Link
+            href={`/salon/${id}/review/new`}
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-white px-4 py-2 rounded-xl shadow-sm flex-shrink-0 hover:opacity-90 transition-opacity"
+            style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)' }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 20h9" />
+              <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+            </svg>
+            口コミを書く
+          </Link>
+        </div>
+
         {/* 口コミ一覧 */}
         {reviews.length === 0 ? (
           <div className="text-center py-12 text-sm rounded-2xl border" style={{ color: theme.body, backgroundColor: theme.card, borderColor: theme.cardBorder }}>

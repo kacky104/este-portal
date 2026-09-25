@@ -115,6 +115,26 @@ function MoreLink({ full, href, label }: { full: boolean; href: string; label: s
   );
 }
 
+/** 「口コミを書く」（第846便）。★ セラピストの口コミ一覧の「口コミを書く」と同じ色（オレンジ→ピンク）。 */
+function WriteLink({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2 rounded-full text-white shadow-sm transition-opacity hover:opacity-90 flex-shrink-0"
+      style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)' }}
+    >
+      <svg
+        width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+      >
+        <path d="M12 20h9" />
+        <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+      </svg>
+      口コミを書く
+    </Link>
+  );
+}
+
 export function LatestReviewsBlock({
   reviews,
   variant,
@@ -124,6 +144,7 @@ export function LatestReviewsBlock({
   moreLabel = '口コミをもっとみる',
   cardStyle,
   className = 'mt-12',
+  writeHref,
 }: {
   reviews: ApprovedReview[];
   variant: 'section' | 'sidebar';
@@ -135,8 +156,20 @@ export function LatestReviewsBlock({
   cardStyle?: { backgroundColor?: string; borderColor?: string };
   /** 'section' の外側の余白。縦に積むカラムの中に置くときは 'mt-0' などに差し替える */
   className?: string;
+  /** 'section' のみ（第846便・店舗詳細）: 渡すと下の行が「左＝口コミを書く／右＝もっと見る」になる。
+   *  ★ 0件でも「口コミを書く」だけは出す（書き込み口をなくさない）。 */
+  writeHref?: string;
 }) {
-  if (reviews.length === 0) return null;
+  if (reviews.length === 0) {
+    if (variant === 'section' && writeHref) {
+      return (
+        <div className={`${className}${mobileOnly ? ' lg:hidden' : ''} flex justify-center`}>
+          <WriteLink href={writeHref} />
+        </div>
+      );
+    }
+    return null;
+  }
 
   if (variant === 'sidebar') {
     return (
@@ -166,9 +199,16 @@ export function LatestReviewsBlock({
           <ReviewMiniCard key={r.id} r={r} compact={false} cardStyle={cardStyle} />
         ))}
       </ul>
-      <div className="flex justify-center mt-4">
-        <MoreLink full={false} href={moreHref} label={moreLabel} />
-      </div>
+      {writeHref ? (
+        <div className="flex items-center justify-between gap-2 mt-4">
+          <WriteLink href={writeHref} />
+          <MoreLink full={false} href={moreHref} label={moreLabel} />
+        </div>
+      ) : (
+        <div className="flex justify-center mt-4">
+          <MoreLink full={false} href={moreHref} label={moreLabel} />
+        </div>
+      )}
     </section>
   );
 }

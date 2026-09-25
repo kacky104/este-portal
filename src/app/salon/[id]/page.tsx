@@ -940,7 +940,8 @@ export default async function SalonPage({
               variant="section"
               className="mt-0"
               moreHref={`/salon/${id}/reviews`}
-              moreLabel="この店舗の口コミをもっとみる"
+              moreLabel="口コミをもっと見る"
+              writeHref={`/salon/${id}/review/new`}
               cardStyle={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}
             />
 
