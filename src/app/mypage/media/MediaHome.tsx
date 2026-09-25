@@ -237,7 +237,8 @@ export function MediaHome({ salonId, onToast }: {
           ★ いちばん上は【状態】だけ。★ 操作も説明も置かない。 */}
       {/* ★ 第686便（2026-09-23・カッキーさん）: 止めているとき（off）は上の箱を出さない。
           ★ 「反映していません／「反映しない」を選んでいます」の2行は、下の大きいボタンだけで足りる。 */}
-      {!(!loading && !error && topDirection === 'off') && (
+      {/* ★ 第851便: off でも箱を出す（使っていないお店と同じ概要を出すため）。第686便の「off は箱ごと出さない」をやめた */}
+      {(
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         {loading ? (
           <p className="text-[14px] text-slate-400">読み込み中…</p>
@@ -306,8 +307,8 @@ export function MediaHome({ salonId, onToast }: {
               {homeHeadline('write', topLabel)}
             </p>
           </div>
-        ) : !offSite ? (
-          /* ★★ 第850便（2026-09-25・カッキーさんの指示）: まだ使っていないお店には【短い概要】を出す（コネックエフのご案内と同じ考え）。
+        ) : (
+          /* ★★ 第850便（2026-09-25・カッキーさんの指示）: まだ使っていないお店・止めているお店（第851便）には【短い概要】を出す（コネックエフのご案内と同じ考え）。
              ★ 文字は少なく。★ 始め方は今までどおり「駅ちかのお店ページURLを運営事務局へ」（第715便）。 */
           <div className="text-center">
             <p className="text-[12px] font-bold text-indigo-600 tracking-wider">フクエスリンクとは</p>
@@ -331,30 +332,27 @@ export function MediaHome({ salonId, onToast }: {
               ))}
             </ul>
             <p className="mt-3 text-[13px] text-slate-500">フクエス契約店舗様は無料です。</p>
-            <p className="mt-4 text-[14px] font-bold text-slate-700">始め方：駅ちかのお店ページのURLを送るだけ</p>
-            {/* ★ 第715便（カッキーさん）: 未登録の店が自分で動けるように、問い合わせ（マイページ「運営事務局」）への入口を置く */}
-            <Link
-              href="/mypage?tab=support"
-              className="inline-block mt-2 px-4 py-2.5 border border-indigo-600 bg-indigo-600 text-white text-[14.5px] font-bold hover:bg-indigo-700"
-            >
-              駅ちかのお店ページURLを運営事務局に送る
-            </Link>
+            {offSite ? (
+              /* ★ 第851便: 止めているお店（off）は駅ちかのお店ページが登録済み＝下のボタン1つで始められる */
+              <p className="mt-4 text-[14px] font-bold text-slate-700">始め方：下の「駅ちかから反映にする」を押すだけ</p>
+            ) : (
+              <>
+                <p className="mt-4 text-[14px] font-bold text-slate-700">始め方：駅ちかのお店ページのURLを送るだけ</p>
+                {/* ★ 第715便（カッキーさん）: 未登録の店が自分で動けるように、問い合わせ（マイページ「運営事務局」）への入口を置く */}
+                <Link
+                  href="/mypage?tab=support"
+                  className="inline-block mt-2 px-4 py-2.5 border border-indigo-600 bg-indigo-600 text-white text-[14.5px] font-bold hover:bg-indigo-700"
+                >
+                  駅ちかのお店ページURLを運営事務局に送る
+                </Link>
+              </>
+            )}
             <p className="mt-4 text-[12.5px] text-slate-400 leading-relaxed">
               入力を1か所にまとめて、駅ちか・エステ魂などにも送りたいお店は
               <Link href="/mypage/conecf" className="underline font-bold text-slate-500">コネックエフ</Link>
               をご覧ください。
             </p>
           </div>
-        ) : (
-          <>
-            {/* ★ ここは【止まっている】（off）。★ 点滅させない。★ 第686便で off のときは箱ごと出さないので、ふだんは通らない */}
-            <p className="text-[19px] font-black text-slate-800">
-              {homeHeadline(topDirection, topLabel)}
-            </p>
-            <p className="mt-1 text-[14px] text-slate-500 leading-relaxed">
-              「反映しない」を選んでいます。下のボタンでいつでも戻せます。
-            </p>
-          </>
         )}
       </div>
       )}
