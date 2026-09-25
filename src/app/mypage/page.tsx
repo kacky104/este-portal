@@ -862,11 +862,21 @@ export default function MyPage() {
   /** ★ 媒体連携が「書き込みの向きのまま止まっている」警告（第47便）。トップに出す */
   const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
   // ★ 第816便: お支払い待ちの請求書の数（★ RLS で自分の店の発行済みだけが数えられる）。★ 0 なら何も出さない
+  // ★ 第833便: 黄色い帯は【運営が管理画面で押した請求書だけ】（payment_notice_on）。数のバッジは今までどおり発行済みの数
   const [unpaidInvoices, setUnpaidInvoices] = useState(0);
+  const [paymentNotice, setPaymentNotice] = useState<{ dueDate: string | null; overdue: boolean } | null>(null);
   useEffect(() => {
     let alive = true;
-    void supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'issued')
-      .then(({ count }) => { if (alive) setUnpaidInvoices(count ?? 0); });
+    void supabase.from('invoices').select('id, due_date, payment_notice_on').eq('status', 'issued').order('due_date')
+      .then(({ data }) => {
+        if (!alive) return;
+        const rows = data ?? [];
+        setUnpaidInvoices(rows.length);
+        const on = rows.find((r) => r.payment_notice_on);
+        if (!on) { setPaymentNotice(null); return; }
+        const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+        setPaymentNotice({ dueDate: (on.due_date as string | null) ?? null, overdue: !!on.due_date && (on.due_date as string) < today });
+      });
     return () => { alive = false; };
   }, []);
   /**
@@ -3345,11 +3355,17 @@ export default function MyPage() {
 
         <div className="flex-1 min-w-0">
 
-        {/* ★ 第816便: お支払い待ちの請求書のお知らせ。 */}
-        {unpaidInvoices > 0 && (
+        {/* ★ 第816便 → 第833便: お支払いのお願いの帯。★ 運営が管理画面で「マイページに帯を出す」を押した店だけ・入金済みで自動で消える */}
+        {paymentNotice && (
           <div className="max-w-2xl mx-auto px-3 pt-2">
-            <Link href="/mypage/invoices" className="block border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800">
-              お支払い待ちのご請求書が {unpaidInvoices} 通あります。<span className="underline">ご請求書を見る</span>
+            <Link href="/mypage/invoices" className="block border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <span className="font-bold">
+                {paymentNotice.dueDate
+                  ? `ご請求のお支払い期限（${paymentNotice.dueDate.replace(/^\d+-(\d+)-(\d+)$/, (_, m, d) => `${Number(m)}月${Number(d)}日`)}）${paymentNotice.overdue ? 'を過ぎております' : 'が近づいております'}。`
+                  : 'お支払い待ちのご請求書があります。'}
+                <span className="underline ml-1">ご請求書を見る</span>
+              </span>
+              <span className="block text-xs mt-0.5">※すでにお振込み済みの場合は、ご入金の確認までお時間をいただいており申し訳ございません。行き違いですのでご容赦ください。</span>
             </Link>
           </div>
         )}

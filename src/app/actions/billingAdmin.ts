@@ -41,7 +41,7 @@ export type InvoiceRow = {
   id: number; salon_id: number; invoice_no: string | null; billing_month: string; status: 'draft' | 'issued' | 'paid' | 'void';
   recipient_name: string; payment_method: 'transfer' | 'cash'; issue_date: string | null; due_date: string | null;
   subtotal: number; tax_amount: number; total: number; tax_rate_pct: number; issued_at: string | null;
-  paid_at: string | null; paid_method: 'transfer' | 'cash' | null; admin_note: string; reminder_sent_at: string | null; lines: InvoiceLineRow[];
+  paid_at: string | null; paid_method: 'transfer' | 'cash' | null; admin_note: string; reminder_sent_at: string | null; payment_notice_on: boolean; lines: InvoiceLineRow[];
 };
 export type BillingSalon = { id: number; name: string; is_hidden: boolean | null; listing_plan: string | null };
 
@@ -51,7 +51,7 @@ export type BillingAdminData = {
 };
 
 const SETTINGS_COLS = 'issuer_name, issuer_address, issuer_tel, issuer_email, registration_no, bank_info, tax_rate_pct, due_day, note';
-const INVOICE_COLS = 'id, salon_id, invoice_no, billing_month, status, recipient_name, payment_method, issue_date, due_date, subtotal, tax_amount, total, tax_rate_pct, issued_at, paid_at, paid_method, admin_note, reminder_sent_at, invoice_lines(id, label, unit_price, quantity, amount, sort_order)';
+const INVOICE_COLS = 'id, salon_id, invoice_no, billing_month, status, recipient_name, payment_method, issue_date, due_date, subtotal, tax_amount, total, tax_rate_pct, issued_at, paid_at, paid_method, admin_note, reminder_sent_at, payment_notice_on, invoice_lines(id, label, unit_price, quantity, amount, sort_order)';
 
 type RawInvoice = Omit<InvoiceRow, 'lines'> & { invoice_lines: InvoiceLineRow[] | null };
 function shapeInvoice(r: RawInvoice): InvoiceRow {
@@ -238,6 +238,14 @@ export async function issueForSalons(month: string, salonIds: number[]): Promise
 export async function sendOverdueReminder(id: number): Promise<{ ok: true; mail: string } | Err> {
   const auth = await requireAdmin(); if (!auth.ok) return auth;
   return sendOverdueReminderCore(id);
+}
+
+// ── マイページの黄色い帯（第833便・事務員さんが押したときだけ出る）──
+export async function setPaymentNotice(id: number, on: boolean): Promise<{ ok: true } | Err> {
+  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  const svc = createServiceClient();
+  const { error } = await svc.from('invoices').update({ payment_notice_on: !!on, updated_at: new Date().toISOString() }).eq('id', id).eq('status', 'issued');
+  return error ? { ok: false, error: error.message } : { ok: true };
 }
 
 // ── 入金・取り消し ──────────────────────────────────────

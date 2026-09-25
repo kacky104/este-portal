@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getBillingAdmin, saveBillingSettings, saveBillingItem, saveSalonProfile, saveContractLine, deleteContractLine,
-  issueForSalons, markPaid, unmarkPaid, voidInvoice, sendOverdueReminder,
+  issueForSalons, markPaid, unmarkPaid, voidInvoice, sendOverdueReminder, setPaymentNotice,
   type BillingAdminData, type BillingSettings, type ContractLineRow, type InvoiceRow,
 } from '@/app/actions/billingAdmin';
 import { InvoiceSheet } from '@/app/components/billing/InvoiceSheet';
@@ -139,6 +139,14 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
     if (!confirm(`${r.name} に「${monthLabel(month)}のご請求 お支払い期限を過ぎております」のメールを送ります。${again}\n\n文面には「すでにお振込み済みの場合は行き違いですのでご容赦ください」が入ります。\n送ってよろしいですか？`)) return;
     void run(() => sendOverdueReminder(inv.id));
   };
+  // ★ 第833便: マイページの黄色い帯。発行した月の20日から押せる（それまでは出さない）。入金済みにすると自動で消える
+  const noticeFrom = `${issueMonthOf(month).slice(0, 7)}-20`;
+  const canNotice = today >= noticeFrom;
+  const toggleNotice = (r: Row) => {
+    const inv = r.invoice!;
+    if (!inv.payment_notice_on && !confirm(`${r.name} のマイページの上に、黄色い帯「お支払いのお願い」を出します。\n（「すでにお振込み済みの場合は申し訳ございません」の一言が入ります。入金済みにすると自動で消えます）\nよろしいですか？`)) return;
+    void run(() => setPaymentNotice(inv.id, !inv.payment_notice_on), inv.payment_notice_on ? '帯を消しました' : 'マイページに帯を出しました');
+  };
   const quickPaid = (r: Row) => {
     const inv = r.invoice!;
     const how = inv.payment_method === 'cash' ? '現金' : '振込';
@@ -173,6 +181,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
           {r.state === 'issued' && inv && (
             <p className={`text-sm ${late ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
               {inv.invoice_no}・{inv.issue_date ? md(inv.issue_date) : ''}発行・期限 {inv.due_date ? md(inv.due_date) : ''}{late ? `（${late}日過ぎています）` : ''}
+              {inv.payment_notice_on && <span className="ml-2 text-xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5">マイページに帯 表示中</span>}
               {inv.reminder_sent_at && <span className="ml-2 text-xs font-normal text-slate-500">期限切れメール {md(inv.reminder_sent_at.slice(0, 10))} 送信済み</span>}
             </p>
           )}
@@ -190,6 +199,11 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
               {r.state === 'ready' && <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>中身を確かめる</button>}
               {r.state === 'issued' && <>
                 <button type="button" className={btnGreen} disabled={busy} onClick={() => quickPaid(r)}>入金済みにする</button>
+                {canNotice && (
+                  <button type="button" className={`${btn} ${inv?.payment_notice_on ? 'bg-amber-100 text-amber-800 border-amber-400' : 'bg-white text-amber-700 border-amber-400 hover:bg-amber-50'}`} disabled={busy} onClick={() => toggleNotice(r)}>
+                    {inv?.payment_notice_on ? '帯を消す' : 'マイページに帯を出す'}
+                  </button>
+                )}
                 {late > 0 && (
                   <button type="button" className={`${btn} bg-white text-rose-600 border-rose-400 hover:bg-rose-50`} disabled={busy} onClick={() => remind(r)}>
                     {inv?.reminder_sent_at ? 'もう一度 期限切れメール' : '期限切れメールを送る'}
@@ -307,7 +321,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
                 <>
                   <div className="mt-4">
                     <h2 className="font-black text-lg">② 入金待ち</h2>
-                    <p className="text-sm text-slate-500">発行済みで、まだ入金のない {issued.length}店・合計 ¥{yen(sumOf(issued))}。振込を確かめたら「入金済みにする」。{lateCount > 0 && <b className="text-rose-600">期限を過ぎた店が {lateCount}店あります。「期限切れメールを送る」で、お支払いのお願いを送れます（自動では送りません）。</b>}</p>
+                    <p className="text-sm text-slate-500">発行済みで、まだ入金のない {issued.length}店・合計 ¥{yen(sumOf(issued))}。振込を確かめたら「入金済みにする」。{canNotice ? `${md(noticeFrom)}を過ぎたので、まだの店に「マイページに帯を出す」が押せます（押した店だけ出ます）。` : `${md(noticeFrom)}から「マイページに帯を出す」が押せます。`}{lateCount > 0 && <b className="text-rose-600">期限を過ぎた店が {lateCount}店あります。「期限切れメールを送る」で、お支払いのお願いを送れます（自動では送りません）。</b>}</p>
                   </div>
                   {listBox([...issued].sort((a, b) => (a.invoice?.due_date ?? '').localeCompare(b.invoice?.due_date ?? '')), '入金待ちの店はありません。')}
                 </>
@@ -361,6 +375,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
                     <ol className="list-decimal ml-5 mt-1 space-y-1">
                       <li>左の <b>「② 入金待ち」</b> を開く。期限を過ぎた店は赤く出ます。</li>
                       <li>通帳と照らして <b>「入金済みにする」</b>。日付は今日、方法は契約どおり（振込／現金）で入ります。別の日なら「請求書を見る」から入れてください。</li>
+                      <li>20日を過ぎても入金がない店には <b>「マイページに帯を出す」</b>。その店のマイページの上に黄色い「お支払いのお願い」が出ます（押した店だけ・入金済みにすると自動で消えます）。</li>
                       <li>期限を過ぎても入金がない店には <b>「期限切れメールを送る」</b>。押したときだけ送ります（自動では送りません）。「行き違いでしたらご容赦ください」の一言が入ります。</li>
                     </ol>
                   </div>
