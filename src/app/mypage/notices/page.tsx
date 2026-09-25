@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { shortDate, loadReadIds, saveReadId } from '@/lib/opsNotices';
-import { useOpsNotices, NoticeBody } from '../OpsNoticeParts';
+import { shortDate, loadReadIds } from '@/lib/opsNotices';
+import { useOpsNotices } from '../OpsNoticeParts';
 
-// 店舗マイページ「運営からのお知らせ」一覧（第862便）。★ 公開中のものが日付の新しい順に並ぶ。★ 押すと説明が開く。
+// 店舗マイページ「運営からのお知らせ」一覧（第862便）。★ 公開中のものが日付の新しい順に並ぶ。
+// ★ 第865便: 押すと個別ページ /mypage/notices/[id] へ（その場で開く形はやめた）。
 
 export default function OpsNoticesPage() {
   const { notices, loaded } = useOpsNotices();
-  const [openId, setOpenId] = useState<number | null>(null);
   const [readIds, setReadIds] = useState<number[]>([]);
   useEffect(() => { setReadIds(loadReadIds()); }, []);
 
@@ -26,33 +26,16 @@ export default function OpsNoticesPage() {
           <p className="text-sm text-slate-500 bg-white border border-slate-200 p-6">いまはお知らせはありません。</p>
         ) : (
           <ul className="bg-white border border-slate-200 divide-y divide-slate-100">
-            {notices.map((n) => {
-              const open = openId === n.id;
-              const unread = !readIds.includes(n.id);
-              return (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    aria-expanded={open}
-                    onClick={() => {
-                      setOpenId(open ? null : n.id);
-                      if (unread) { saveReadId(n.id); setReadIds((x) => [...x, n.id]); }
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
-                  >
-                    <span className="flex-shrink-0 w-12 text-sm font-bold text-slate-500 tabular-nums">{shortDate(n.notice_date)}</span>
-                    <span className="flex-1 min-w-0 text-[15px] font-bold text-slate-800">{n.title}</span>
-                    {unread && <span className="flex-shrink-0 text-[10px] font-black text-white bg-pink-500 px-1.5 leading-5">NEW</span>}
-                    <span className="flex-shrink-0 text-xs text-slate-400">{open ? '▲' : '▼'}</span>
-                  </button>
-                  {open && (
-                    <div className="px-4 pb-4 pl-[4.75rem]">
-                      <NoticeBody text={n.body} />
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+            {notices.map((n) => (
+              <li key={n.id}>
+                <Link href={`/mypage/notices/${n.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 group">
+                  <span className="flex-shrink-0 w-12 text-sm font-bold text-slate-500 tabular-nums">{shortDate(n.notice_date)}</span>
+                  <span className="flex-1 min-w-0 text-[15px] font-bold text-slate-800 group-hover:text-pink-600">{n.title}</span>
+                  {!readIds.includes(n.id) && <span className="flex-shrink-0 text-[10px] font-black text-white bg-pink-500 px-1.5 leading-5">NEW</span>}
+                  <span className="flex-shrink-0 text-slate-400">›</span>
+                </Link>
+              </li>
+            ))}
           </ul>
         )}
       </div>
