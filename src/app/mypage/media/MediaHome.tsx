@@ -306,35 +306,62 @@ export function MediaHome({ salonId, onToast }: {
               {homeHeadline('write', topLabel)}
             </p>
           </div>
+        ) : !offSite ? (
+          /* ★★ 第850便（2026-09-25・カッキーさんの指示）: まだ使っていないお店には【短い概要】を出す（コネックエフのご案内と同じ考え）。
+             ★ 文字は少なく。★ 始め方は今までどおり「駅ちかのお店ページURLを運営事務局へ」（第715便）。 */
+          <div className="text-center">
+            <p className="text-[12px] font-bold text-indigo-600 tracking-wider">フクエスリンクとは</p>
+            <p className="mt-1 text-[19px] font-black text-slate-800 leading-snug">
+              駅ちかの情報を、フクエスに自動で反映
+            </p>
+            <p className="mt-1.5 text-[14px] text-slate-500 leading-relaxed">
+              駅ちかに入れるだけで、フクエスも更新されます。フクエスでの入力は要りません。
+            </p>
+            <ul className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-left sm:text-center">
+              {[
+                { t: '出勤', d: '毎朝6時台' },
+                { t: 'セラピスト', d: '新人も自動で登録' },
+                { t: '即ヒメ', d: 'フクエスの「今すぐ」に' },
+                { t: '写メ日記', d: '駅ちかのID・PWを登録すると' },
+              ].map((x) => (
+                <li key={x.t} className="border border-indigo-200 bg-indigo-50 px-3 py-2.5">
+                  <span className="block text-[14px] font-bold text-slate-700">{x.t}</span>
+                  <span className="block mt-0.5 text-[12px] text-slate-500 leading-snug">{x.d}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-[13px] text-slate-500">フクエス契約店舗様は無料です。</p>
+            <p className="mt-4 text-[14px] font-bold text-slate-700">始め方：駅ちかのお店ページのURLを送るだけ</p>
+            {/* ★ 第715便（カッキーさん）: 未登録の店が自分で動けるように、問い合わせ（マイページ「運営事務局」）への入口を置く */}
+            <Link
+              href="/mypage?tab=support"
+              className="inline-block mt-2 px-4 py-2.5 border border-indigo-600 bg-indigo-600 text-white text-[14.5px] font-bold hover:bg-indigo-700"
+            >
+              駅ちかのお店ページURLを運営事務局に送る
+            </Link>
+            <p className="mt-4 text-[12.5px] text-slate-400 leading-relaxed">
+              入力を1か所にまとめて、駅ちか・エステ魂などにも送りたいお店は
+              <Link href="/mypage/conecf" className="underline font-bold text-slate-500">コネックエフ</Link>
+              をご覧ください。
+            </p>
+          </div>
         ) : (
           <>
-            {/* ★ ここは【止まっている】2つ（off・未設定）。★ 点滅させない */}
+            {/* ★ ここは【止まっている】（off）。★ 点滅させない。★ 第686便で off のときは箱ごと出さないので、ふだんは通らない */}
             <p className="text-[19px] font-black text-slate-800">
               {homeHeadline(topDirection, topLabel)}
             </p>
             <p className="mt-1 text-[14px] text-slate-500 leading-relaxed">
-              {/* ★★ off は【選んだ結果】。★ 「していません」の1行だけで終わらせず、
-                     選んだことと、戻せることを、すぐ下に書く（§223） */}
-              {offSite
-                ? '「反映しない」を選んでいます。下のボタンでいつでも戻せます。'
-                : '駅ちかのお店のページが登録されると始められます。駅ちかのお店ページURLを添えて運営事務局へご連絡ください。'}
+              「反映しない」を選んでいます。下のボタンでいつでも戻せます。
             </p>
-            {/* ★ 第715便（カッキーさん）: 未登録の店が自分で動けるように、問い合わせ（マイページ「運営事務局」）への入口を置く */}
-            {!offSite && (
-              <Link
-                href="/mypage?tab=support"
-                className="inline-block mt-3 px-4 py-2.5 border border-indigo-600 bg-indigo-600 text-white text-[14.5px] font-bold hover:bg-indigo-700"
-              >
-                駅ちかのお店ページURLを運営事務局に送る
-              </Link>
-            )}
           </>
         )}
       </div>
       )}
 
       {/* ── 連携しているサイト ──────────────────────────── */}
-      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+      {/* ★ 第850便: 中身が何も出ないとき（まだ使っていないお店など）は空の白い箱を出さない（empty:hidden） */}
+      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 empty:hidden">
         {/* ★★★ 3つの設定（第192便・設計メモ_フクエスリンクの3つの設定ボタン_2026-09-07.md）
             ★ 主ボタン「フクエスから反映」（設定2・ゴール）＝色付き・大。
             ★ 副ボタン「どのサイトにも反映しない」（設定3）＝白。
@@ -440,6 +467,7 @@ export function MediaHome({ salonId, onToast }: {
 
       {/* ── セラピストで反映されないもの（第848便・2026-09-25）──────────
           ★ キャッチ・紹介文・特徴バッジは駅ちかから来ない＝フクエスで直接入力。★ AIの下書きは特徴バッジを選んでからが良い。 */}
+      {!loading && !error && reading && (
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <p className="text-[13px] font-bold text-slate-400 text-center">セラピストで反映されないもの</p>
         <div className="mt-3 border border-amber-200 bg-amber-50 px-4 py-3 text-[14px] leading-relaxed text-slate-700 space-y-1.5">
@@ -456,6 +484,7 @@ export function MediaHome({ salonId, onToast }: {
           </Link>
         </div>
       </div>
+      )}
 
       {/* ★ 反映の早見表（折りたたみ）はここにあったが、第299便で /mypage/media/matrix へ移した。 */}
 
