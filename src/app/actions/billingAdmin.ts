@@ -30,7 +30,8 @@ export type BillingSettings = {
   registration_no: string | null; bank_info: string; tax_rate_pct: number; due_day: number; note: string;
 };
 export type BillingItem = { id: number; name: string; unit_price: number; is_active: boolean; sort_order: number };
-export type SalonProfile = { salon_id: number; recipient_name: string | null; billing_email: string | null; payment_method: 'transfer' | 'cash'; memo: string };
+// ★ 第831便: transfer_name＝振込名義（通帳に出る名前）のメモ。請求書には出ない
+export type SalonProfile = { salon_id: number; recipient_name: string | null; billing_email: string | null; payment_method: 'transfer' | 'cash'; memo: string; transfer_name: string };
 export type ContractLineRow = {
   id: number; salon_id: number; item_id: number | null; label: string; unit_price: number; quantity: number;
   start_month: string; end_month: string | null; sort_order: number;
@@ -72,7 +73,7 @@ export async function getBillingAdmin(month: string): Promise<Ok<{ data: Billing
     svc.from('billing_settings').select(SETTINGS_COLS).eq('id', 1).maybeSingle(),
     svc.from('billing_items').select('id, name, unit_price, is_active, sort_order').order('sort_order').order('id'),
     svc.from('salons').select('id, name, is_hidden, listing_plan').order('id'),
-    svc.from('salon_billing_profiles').select('salon_id, recipient_name, billing_email, payment_method, memo'),
+    svc.from('salon_billing_profiles').select('salon_id, recipient_name, billing_email, payment_method, memo, transfer_name'),
     svc.from('salon_billing_lines').select('id, salon_id, item_id, label, unit_price, quantity, start_month, end_month, sort_order').order('salon_id').order('sort_order').order('id'),
     svc.from('invoices').select(INVOICE_COLS).eq('billing_month', month).order('salon_id'),
   ]);
@@ -129,7 +130,8 @@ export async function saveSalonProfile(input: SalonProfile): Promise<{ ok: true 
   const svc = createServiceClient();
   const { error } = await svc.from('salon_billing_profiles').upsert({
     salon_id: input.salon_id, recipient_name: (input.recipient_name ?? '').trim() || null, billing_email: email || null,
-    payment_method: input.payment_method === 'cash' ? 'cash' : 'transfer', memo: (input.memo ?? '').trim(), updated_at: new Date().toISOString(),
+    payment_method: input.payment_method === 'cash' ? 'cash' : 'transfer', memo: (input.memo ?? '').trim(),
+    transfer_name: (input.transfer_name ?? '').trim().slice(0, 60), updated_at: new Date().toISOString(),
   });
   return error ? { ok: false, error: error.message } : { ok: true };
 }

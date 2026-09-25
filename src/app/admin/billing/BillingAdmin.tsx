@@ -56,6 +56,7 @@ type Row = {
   voided: number;                     // 取り消した数
   total: number;
   state: State;
+  transferName: string;               // ★ 第831便: 振込名義のメモ（通帳と照らす用）
 };
 type Page = 'issue' | 'unpaid' | 'paid' | 'contracts' | 'settings' | 'help';
 
@@ -107,6 +108,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
         salonId: s.id, name: s.name, hidden: !!s.is_hidden, lines, invoice: live,
         voided: invs.filter((i) => i.status === 'void').length,
         total: live ? live.total : calcTotals(lines, tax).total, state,
+        transferName: data.profiles.find((p) => p.salon_id === s.id)?.transfer_name ?? '',
       };
     });
   }, [data, month]);
@@ -165,6 +167,9 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
             <p className={`text-sm ${late ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
               {inv.invoice_no}・{inv.issue_date ? md(inv.issue_date) : ''}発行・期限 {inv.due_date ? md(inv.due_date) : ''}{late ? `（${late}日過ぎています）` : ''}
             </p>
+          )}
+          {r.transferName && (page === 'unpaid' || page === 'contracts') && (
+            <p className="text-sm text-slate-700"><span className="text-xs bg-slate-100 px-1.5 py-0.5 mr-1">振込名義</span>{r.transferName}</p>
           )}
           {r.state === 'paid' && inv && <p className="text-sm text-emerald-700">{inv.paid_at ? md(inv.paid_at.slice(0, 10)) : ''}に{inv.paid_method === 'cash' ? '現金' : '振込'}で入金</p>}
         </div>
@@ -589,11 +594,12 @@ function ProfileForm({ salonId, salonName, data, busy, run }: { salonId: number;
   const [email, setEmail] = useState(prof?.billing_email ?? '');
   const [pay, setPay] = useState<'transfer' | 'cash'>(prof?.payment_method ?? 'transfer');
   const [memo, setMemo] = useState(prof?.memo ?? '');
+  const [transferName, setTransferName] = useState(prof?.transfer_name ?? '');
   return (
     <details className="bg-white border border-slate-200 p-4">
       <summary className="font-bold cursor-pointer">
-        ③ 請求先・支払い方法 <span className="text-sm font-normal text-slate-500">（宛名：{prof?.recipient_name || salonName}／{(prof?.payment_method ?? 'transfer') === 'cash' ? '現金' : '振込'}／メール：{prof?.billing_email || 'オーナーのログインメール'}）</span>
-        <span className="block text-xs font-normal text-slate-500 mt-0.5">押すと開きます。宛名を変えたいとき・メールを別の宛先にしたいとき・現金の店のとき。</span>
+        ③ 請求先・支払い方法 <span className="text-sm font-normal text-slate-500">（宛名：{prof?.recipient_name || salonName}／{(prof?.payment_method ?? 'transfer') === 'cash' ? '現金' : '振込'}／メール：{prof?.billing_email || 'オーナーのログインメール'}{prof?.transfer_name ? `／振込名義：${prof.transfer_name}` : ''}）</span>
+        <span className="block text-xs font-normal text-slate-500 mt-0.5">押すと開きます。宛名を変えたいとき・メールを別の宛先にしたいとき・現金の店のとき・振込名義をメモしたいとき。</span>
       </summary>
       <div className="grid sm:grid-cols-2 gap-3 mt-3">
         <label className="text-sm">宛名<input className={input} placeholder={salonName} value={recipient} onChange={(e) => setRecipient(e.target.value)} /></label>
@@ -601,9 +607,10 @@ function ProfileForm({ salonId, salonName, data, busy, run }: { salonId: number;
         <label className="text-sm">支払い方法
           <select className={input} value={pay} onChange={(e) => setPay(e.target.value as 'transfer' | 'cash')}><option value="transfer">振込</option><option value="cash">現金</option></select>
         </label>
+        <label className="text-sm">振込名義（通帳に出る名前・店舗には見えません）<input className={input} placeholder="例）カ）ラビリンス／ヤマダ タロウ" value={transferName} onChange={(e) => setTransferName(e.target.value)} /></label>
         <label className="text-sm">契約時のメモ（店舗には見えません）<input className={input} value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
       </div>
-      <button type="button" className={`${btnPink} mt-3`} disabled={busy} onClick={() => run(() => saveSalonProfile({ salon_id: salonId, recipient_name: recipient, billing_email: email, payment_method: pay, memo }))}>保存する</button>
+      <button type="button" className={`${btnPink} mt-3`} disabled={busy} onClick={() => run(() => saveSalonProfile({ salon_id: salonId, recipient_name: recipient, billing_email: email, payment_method: pay, memo, transfer_name: transferName }))}>保存する</button>
     </details>
   );
 }
