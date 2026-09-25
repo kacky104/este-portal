@@ -33,6 +33,15 @@ function daysBetween(a: string, b: string): number { return Math.round((Date.par
 function toHalf(v: string): string {
   return v.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[－ー−‐]/g, '-').replace(/[,，\s円¥￥]/g, '');
 }
+// ★ 第830便: あいうえお順の並べ替えの鍵。店名の中の最初のカナ（「THE LABYRINTH 〜ラビリンス〜」→「ラビリンス」）。
+//   カナがない店（漢字・英字だけ）は店名そのまま。ひらがなはカタカナに寄せ、長音・記号は除く。
+function kanaKey(name: string): string {
+  const m = /[ぁ-んァ-ヶー]+/.exec(name);
+  const src = m ? m[0] : name;
+  return src.replace(/[ぁ-ん]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0x60)).replace(/[ー〜～\-\s]/g, '').toLowerCase();
+}
+const jaCollator = new Intl.Collator('ja', { numeric: true, sensitivity: 'base' });
+
 function periodText(l: ContractLineRow): string {
   if (l.end_month === l.start_month) return `${shortMonth(l.start_month)}分だけ`;
   if (!l.end_month) return `${shortMonth(l.start_month)}分から毎月`;
@@ -82,10 +91,14 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
     } finally { setBusy(false); }
   };
 
+  // ★ 第830便: 全部のページで あいうえお順・非表示の店は下
   const rows: Row[] = useMemo(() => {
     if (!data) return [];
     const tax = data.settings.tax_rate_pct;
-    return data.salons.map((s) => {
+    const hasKana = (n: string) => /[ぁ-んァ-ヶ]/.test(n) ? 0 : 1; // ★ カナのない店（英字・漢字だけ）は後ろ
+    const sorted = [...data.salons].sort((a, b) =>
+      (Number(!!a.is_hidden) - Number(!!b.is_hidden)) || (hasKana(a.name) - hasKana(b.name)) || jaCollator.compare(kanaKey(a.name), kanaKey(b.name)) || a.id - b.id);
+    return sorted.map((s) => {
       const lines = linesForMonth(data.lines.filter((l) => l.salon_id === s.id), month);
       const invs = data.invoices.filter((i) => i.salon_id === s.id);
       const live = invs.find((i) => i.status === 'issued' || i.status === 'paid') ?? null;
@@ -298,9 +311,9 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
                 <>
                   <div className="mt-4">
                     <h2 className="font-black text-lg">契約（店ごとの料金）</h2>
-                    <p className="text-sm text-slate-500">全部の店が並びます。新しい店は「料金を入れる」、すでにある店は「料金を見る・変える」。ここで入れた料金が、翌月から自動で「① 発行する」に並びます。</p>
+                    <p className="text-sm text-slate-500">全部の店があいうえお順で並びます（非表示の店は下）。新しい店は「料金を入れる」、すでにある店は「料金を見る・変える」。ここで入れた料金が、翌月から自動で「① 発行する」に並びます。</p>
                   </div>
-                  {listBox([...rows].sort((a, b) => (a.state === 'none' ? 1 : 0) - (b.state === 'none' ? 1 : 0)), '店がありません。')}
+                  {listBox(rows, '店がありません。')}
                 </>
               )}
 
