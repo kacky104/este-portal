@@ -165,40 +165,44 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
   ];
   const showMonth = page === 'issue' || page === 'unpaid' || page === 'paid' || page === 'contracts';
 
+  // ★ 第834便: 1行目＝店名・金額・状態、2行目＝明細、3行目＝ボタン（ボタンが増えて店名が潰れたため）
   const salonRow = (r: Row) => {
     const inv = r.invoice;
     const late = r.state === 'issued' && inv?.due_date && inv.due_date < today ? daysBetween(inv.due_date, today) : 0;
+    const withCheck = page === 'issue';
     return (
-      <div key={r.salonId} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 ${late ? 'bg-rose-50/60' : ''}`}>
-        {page === 'issue' && r.state === 'ready'
-          ? <input type="checkbox" className="w-6 h-6 cursor-pointer" checked={checked.has(r.salonId)} onChange={(e) => toggle(r.salonId, e.target.checked)} />
-          : page === 'issue' ? <span className="w-6" /> : null}
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-[17px] truncate">{r.name}{r.hidden && <span className="text-xs text-slate-400 font-normal">（非表示の店）</span>}</p>
-          <p className="text-sm text-slate-500 truncate">
+      <div key={r.salonId} className={`px-4 py-3 ${late ? 'bg-rose-50/60' : ''}`}>
+        <div className="flex items-center gap-3">
+          {withCheck && (r.state === 'ready'
+            ? <input type="checkbox" className="w-6 h-6 shrink-0 cursor-pointer" checked={checked.has(r.salonId)} onChange={(e) => toggle(r.salonId, e.target.checked)} />
+            : <span className="w-6 shrink-0" />)}
+          <p className="font-bold text-[17px] min-w-0 flex-1 truncate">{r.name}{r.hidden && <span className="text-xs text-slate-400 font-normal">（非表示の店）</span>}</p>
+          <p className="font-black text-xl shrink-0">{r.state === 'none' ? '—' : `¥${yen(r.total)}`}</p>
+          <span className={`w-20 shrink-0 text-center text-sm font-bold py-1 ${STATE_BADGE[r.state]}`}>{STATE_LABEL[r.state]}</span>
+        </div>
+        <div className={`mt-1 text-sm ${withCheck ? 'pl-9' : ''}`}>
+          <p className="text-slate-500 truncate">
             {r.state === 'none' ? `${monthLabel(month)}の料金はありません` : (inv ? inv.lines : r.lines).map((l) => `${l.label} ${l.unit_price < 0 ? '−' : ''}${yen(Math.abs(l.unit_price * l.quantity))}`).join('／')}
           </p>
           {r.state === 'issued' && inv && (
-            <p className={`text-sm ${late ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+            <p className={late ? 'text-rose-600 font-bold' : 'text-slate-500'}>
               {inv.invoice_no}・{inv.issue_date ? md(inv.issue_date) : ''}発行・期限 {inv.due_date ? md(inv.due_date) : ''}{late ? `（${late}日過ぎています）` : ''}
               {inv.payment_notice_on && <span className="ml-2 text-xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5">マイページに帯 表示中</span>}
               {inv.reminder_sent_at && <span className="ml-2 text-xs font-normal text-slate-500">期限切れメール {md(inv.reminder_sent_at.slice(0, 10))} 送信済み</span>}
             </p>
           )}
+          {r.state === 'paid' && inv && <p className="text-emerald-700">{inv.paid_at ? md(inv.paid_at.slice(0, 10)) : ''}に{inv.paid_method === 'cash' ? '現金' : '振込'}で入金</p>}
           {r.transferName && (page === 'unpaid' || page === 'contracts') && (
-            <p className="text-sm text-slate-700"><span className="text-xs bg-slate-100 px-1.5 py-0.5 mr-1">振込名義</span>{r.transferName}</p>
+            <p className="text-slate-700"><span className="text-xs bg-slate-100 px-1.5 py-0.5 mr-1">振込名義</span>{r.transferName}</p>
           )}
-          {r.state === 'paid' && inv && <p className="text-sm text-emerald-700">{inv.paid_at ? md(inv.paid_at.slice(0, 10)) : ''}に{inv.paid_method === 'cash' ? '現金' : '振込'}で入金</p>}
         </div>
-        <p className="w-28 text-right font-black text-xl">{r.state === 'none' ? '—' : `¥${yen(r.total)}`}</p>
-        <span className={`w-24 text-center text-sm font-bold py-1 ${STATE_BADGE[r.state]}`}>{STATE_LABEL[r.state]}</span>
-        <div className="flex gap-2">
+        <div className={`mt-2 flex flex-wrap gap-2 justify-end ${withCheck ? 'pl-9' : ''}`}>
           {page === 'contracts'
             ? <button type="button" className={r.state === 'none' ? btnPink : btnGray} onClick={() => setOpenSalon(r.salonId)}>{r.state === 'none' ? '料金を入れる' : '料金を見る・変える'}</button>
             : <>
               {r.state === 'ready' && <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>中身を確かめる</button>}
               {r.state === 'issued' && <>
-                <button type="button" className={btnGreen} disabled={busy} onClick={() => quickPaid(r)}>入金済みにする</button>
+                <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>請求書を見る</button>
                 {canNotice && (
                   <button type="button" className={`${btn} ${inv?.payment_notice_on ? 'bg-amber-100 text-amber-800 border-amber-400' : 'bg-white text-amber-700 border-amber-400 hover:bg-amber-50'}`} disabled={busy} onClick={() => toggleNotice(r)}>
                     {inv?.payment_notice_on ? '帯を消す' : 'マイページに帯を出す'}
@@ -209,7 +213,7 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
                     {inv?.reminder_sent_at ? 'もう一度 期限切れメール' : '期限切れメールを送る'}
                   </button>
                 )}
-                <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>請求書を見る</button>
+                <button type="button" className={btnGreen} disabled={busy} onClick={() => quickPaid(r)}>入金済みにする</button>
               </>}
               {r.state === 'paid' && <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>請求書を見る</button>}
             </>}
