@@ -41,9 +41,9 @@ function ForgotPasswordInner() {
 
         <div className="text-center mb-6 relative z-10">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center">
-              <span className="text-pink-500 font-bold leading-none">◆</span>
-            </div>
+            {/* ★ 第866便: ◆ の仮アイコンをフクエスのロゴ（/logo.png・ヘッダーの Logo と同じ画像）に */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="" width={32} height={32} className="w-8 h-8 flex-shrink-0" />
             <span className="flex items-baseline gap-1"><span className="font-bold text-[22px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span></span>
           </Link>
           <h1 className="text-lg font-black text-slate-900 mt-3">パスワード再設定</h1>

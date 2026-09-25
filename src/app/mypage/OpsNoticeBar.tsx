@@ -31,7 +31,7 @@ export function OpsNoticeBar({ zoom = 1 }: { zoom?: number }) {
           <span className="flex-shrink-0 text-[11px] text-slate-400">›</span>
         </Link>
         <Link href="/mypage/notices" className="flex-shrink-0 text-[11px] sm:text-[12px] text-slate-400 underline hover:text-pink-600">
-          すべて見る
+          一覧
         </Link>
       </div>
     </div>
