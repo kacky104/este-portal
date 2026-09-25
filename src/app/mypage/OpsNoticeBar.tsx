@@ -24,8 +24,9 @@ export function OpsNoticeBar({ zoom = 1 }: { zoom?: number }) {
   return (
     <div className="max-w-2xl mx-auto px-4 pt-3" style={zoom === 1 ? undefined : { zoom }}>
       <div className="border border-slate-200 bg-white">
-        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-1.5 sm:py-2.5">
-          <span className="flex-shrink-0 text-[11px] sm:text-[12px] font-bold text-slate-400">運営から</span>
+        <div className="flex items-center gap-1.5 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2.5">
+          {/* ★ 第864便: スマホでは「運営から」を出さない（タイトルを長く見せる） */}
+          <span className="hidden sm:inline flex-shrink-0 text-[12px] font-bold text-slate-400">運営から</span>
           <button
             type="button"
             onClick={() => {
