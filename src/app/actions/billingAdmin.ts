@@ -4,7 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { createDraftsCore } from '@/app/lib/billing/createDrafts';
-import { issueInvoiceCore } from '@/app/lib/billing/issue';
+import { issueInvoiceCore, sendOverdueReminderCore } from '@/app/lib/billing/issue';
 import {
   calcTotals, isMonth, lineAmount,
   type BillingLineInput,
@@ -41,7 +41,7 @@ export type InvoiceRow = {
   id: number; salon_id: number; invoice_no: string | null; billing_month: string; status: 'draft' | 'issued' | 'paid' | 'void';
   recipient_name: string; payment_method: 'transfer' | 'cash'; issue_date: string | null; due_date: string | null;
   subtotal: number; tax_amount: number; total: number; tax_rate_pct: number; issued_at: string | null;
-  paid_at: string | null; paid_method: 'transfer' | 'cash' | null; admin_note: string; lines: InvoiceLineRow[];
+  paid_at: string | null; paid_method: 'transfer' | 'cash' | null; admin_note: string; reminder_sent_at: string | null; lines: InvoiceLineRow[];
 };
 export type BillingSalon = { id: number; name: string; is_hidden: boolean | null; listing_plan: string | null };
 
@@ -51,7 +51,7 @@ export type BillingAdminData = {
 };
 
 const SETTINGS_COLS = 'issuer_name, issuer_address, issuer_tel, issuer_email, registration_no, bank_info, tax_rate_pct, due_day, note';
-const INVOICE_COLS = 'id, salon_id, invoice_no, billing_month, status, recipient_name, payment_method, issue_date, due_date, subtotal, tax_amount, total, tax_rate_pct, issued_at, paid_at, paid_method, admin_note, invoice_lines(id, label, unit_price, quantity, amount, sort_order)';
+const INVOICE_COLS = 'id, salon_id, invoice_no, billing_month, status, recipient_name, payment_method, issue_date, due_date, subtotal, tax_amount, total, tax_rate_pct, issued_at, paid_at, paid_method, admin_note, reminder_sent_at, invoice_lines(id, label, unit_price, quantity, amount, sort_order)';
 
 type RawInvoice = Omit<InvoiceRow, 'lines'> & { invoice_lines: InvoiceLineRow[] | null };
 function shapeInvoice(r: RawInvoice): InvoiceRow {
@@ -232,6 +232,12 @@ export async function issueForSalons(month: string, salonIds: number[]): Promise
   }
   const msg = `${done.length}通 発行しました。` + (failed.length ? `／発行できなかったもの：${failed.join('、')}` : '');
   return failed.length && done.length === 0 ? { ok: false, error: msg } : { ok: true, mail: msg };
+}
+
+// ── お支払い期限を過ぎています（第832便・事務員さんが押して送る）──
+export async function sendOverdueReminder(id: number): Promise<{ ok: true; mail: string } | Err> {
+  const auth = await requireAdmin(); if (!auth.ok) return auth;
+  return sendOverdueReminderCore(id);
 }
 
 // ── 入金・取り消し ──────────────────────────────────────

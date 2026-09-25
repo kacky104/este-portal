@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { jstTodayYmd } from '@/app/lib/salonStats';
-import { sendInvoiceMail } from '@/app/lib/billing/sendInvoiceMail';
+import { sendInvoiceMail, sendOverdueMail } from '@/app/lib/billing/sendInvoiceMail';
 import { invoiceNo, nextInvoiceSeq } from '@/lib/billing';
 
 // 請求書の発行（第816便 → 第825便で actions から切り出し）。★ 'use server' の外＝ブラウザから直接は呼べない。
@@ -31,14 +31,7 @@ export async function issueInvoiceCore(id: number): Promise<{ ok: true; mail: st
     if (ue.code !== '23505') return { ok: false, error: ue.message };
     if (tries === 4) return { ok: false, error: '請求番号を付けられませんでした。もう一度押してください' };
   }
-  // ★ 送り先: 請求先のメール → 無ければオーナーのログインメール
-  let to = '';
-  const { data: prof } = await svc.from('salon_billing_profiles').select('billing_email').eq('salon_id', inv.salon_id).maybeSingle();
-  to = (prof?.billing_email as string | null) ?? '';
-  if (!to) {
-    const { data: s } = await svc.from('salons').select('owner_id').eq('id', inv.salon_id).maybeSingle();
-    if (s?.owner_id) { const { data: u } = await svc.auth.admin.getUserById(s.owner_id as string); to = u?.user?.email ?? ''; }
-  }
+  const to = await mailTo(svc, inv.salon_id as number);
   const r = await sendInvoiceMail({
     to, recipientName: inv.recipient_name as string, billingMonth: month, invoiceNo: no,
     total: inv.total as number, dueDate: inv.due_date as string, invoiceId: id,
@@ -46,3 +39,32 @@ export async function issueInvoiceCore(id: number): Promise<{ ok: true; mail: st
   return { ok: true, mail: r.ok ? `メールを送りました（${to}）` : `発行しましたが、メールは送れませんでした：${r.error}` };
 }
 
+
+// ── 送り先: 請求先のメール → 無ければオーナーのログインメール ──
+async function mailTo(svc: ReturnType<typeof createServiceClient>, salonId: number): Promise<string> {
+  const { data: prof } = await svc.from('salon_billing_profiles').select('billing_email').eq('salon_id', salonId).maybeSingle();
+  let to = (prof?.billing_email as string | null) ?? '';
+  if (!to) {
+    const { data: s } = await svc.from('salons').select('owner_id').eq('id', salonId).maybeSingle();
+    if (s?.owner_id) { const { data: u } = await svc.auth.admin.getUserById(s.owner_id as string); to = u?.user?.email ?? ''; }
+  }
+  return to;
+}
+
+// ── お支払い期限を過ぎています（第832便）────────────────
+//   ★ 入金待ち（issued）だけ。★ 送れたら reminder_sent_at を今にする（何度でも送れる）。
+export async function sendOverdueReminderCore(id: number): Promise<{ ok: true; mail: string } | { ok: false; error: string }> {
+  const svc = createServiceClient();
+  const { data: inv, error: ie } = await svc.from('invoices').select('id, salon_id, status, billing_month, recipient_name, total, due_date, invoice_no').eq('id', id).maybeSingle();
+  if (ie) return { ok: false, error: ie.message };
+  if (!inv) return { ok: false, error: '請求書が見つかりません' };
+  if (inv.status !== 'issued') return { ok: false, error: '入金待ちの請求書だけ送れます' };
+  const to = await mailTo(svc, inv.salon_id as number);
+  const r = await sendOverdueMail({
+    to, recipientName: inv.recipient_name as string, billingMonth: inv.billing_month as string, invoiceNo: (inv.invoice_no as string | null) ?? '',
+    total: inv.total as number, dueDate: inv.due_date as string, invoiceId: id,
+  });
+  if (!r.ok) return { ok: false, error: `メールを送れませんでした：${r.error}` };
+  await svc.from('invoices').update({ reminder_sent_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
+  return { ok: true, mail: `お支払い期限のお知らせを送りました（${to}）` };
+}
