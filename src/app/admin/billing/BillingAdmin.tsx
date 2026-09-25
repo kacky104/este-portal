@@ -362,11 +362,24 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
 }
 
 // ── 右から出る枠 ─────────────────────────────────────────
-function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+// ★ 第828便: left を渡すと、PC では左から請求書の見本の画面が出て、右の枠と並ぶ（スマホでは右の枠だけ）。
+function Drawer({ title, onClose, children, left, leftTitle }: {
+  title: string; onClose: () => void; children: React.ReactNode; left?: React.ReactNode; leftTitle?: string;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex">
-      <button type="button" aria-label="閉じる" className="flex-1 bg-black/30" onClick={onClose} />
-      <div className="w-full max-w-3xl bg-slate-50 h-full overflow-y-auto shadow-xl">
+      {left ? (
+        <div className="hidden md:flex flex-1 min-w-0 flex-col bg-slate-200 h-full shadow-xl">
+          <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center">
+            <h2 className="text-lg font-black truncate">{leftTitle}</h2>
+            <button type="button" className="ml-auto text-sm text-slate-500 underline" onClick={onClose}>閉じる</button>
+          </div>
+          <div className="flex-1 overflow-auto p-4">{left}</div>
+        </div>
+      ) : (
+        <button type="button" aria-label="閉じる" className="flex-1 bg-black/30" onClick={onClose} />
+      )}
+      <div className={`w-full ${left ? 'max-w-2xl' : 'max-w-3xl'} bg-slate-50 h-full overflow-y-auto shadow-xl border-l border-slate-200`}>
         <div className="sticky top-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center z-10">
           <h2 className="text-lg font-black truncate">{title}</h2>
           <button type="button" className="ml-auto text-2xl leading-none text-slate-400 hover:text-slate-700 px-2" onClick={onClose}>×</button>
@@ -395,7 +408,9 @@ function SalonPanel({ data, month, row, busy, run, onClose }: { data: BillingAdm
   const [paidMethod, setPaidMethod] = useState<'transfer' | 'cash'>(row.invoice?.payment_method ?? prof?.payment_method ?? 'transfer');
 
   return (
-    <Drawer title={`${row.name}　${monthLabel(month)}`} onClose={onClose}>
+    <Drawer title={`${row.name}　${monthLabel(month)}`} onClose={onClose}
+      leftTitle={row.invoice ? '発行した請求書（店舗様に見えている形）' : '請求書の見本（発行するとこの形で店舗様に届きます）'}
+      left={<InvoiceSheet invoice={preview} issuer={data.settings} />}>
       {/* いまの状態と、次にすること */}
       <section className={`border-2 p-4 flex flex-wrap items-center gap-3 ${
         row.state === 'none' ? 'bg-white border-slate-300' : row.state === 'ready' ? 'bg-pink-50/40 border-pink-300' : row.state === 'issued' ? 'bg-amber-50/60 border-amber-300' : 'bg-emerald-50/60 border-emerald-300'
@@ -403,7 +418,7 @@ function SalonPanel({ data, month, row, busy, run, onClose }: { data: BillingAdm
         {row.state === 'none' && <p className="text-[15px]"><b>この店は {monthLabel(month)} の料金がまだありません。</b><br /><span className="text-sm text-slate-600">下の「① この月の料金」で「＋ 毎月の料金を追加」を押して入れると、一覧の「これから発行」に並びます。</span></p>}
         {row.state === 'ready' && (
           <>
-            <p className="text-[15px]"><b>まだ発行していません。</b>合計 <b className="text-xl">¥{yen(t.total)}</b><br /><span className="text-sm text-slate-600">下の①〜③を確かめてから、右のボタンで発行できます（一覧でまとめて発行しても同じです）。</span></p>
+            <p className="text-[15px]"><b>まだ発行していません。</b>合計 <b className="text-xl">¥{yen(t.total)}</b><br /><span className="text-sm text-slate-600">左の見本と、下の料金・請求先を確かめてから、右のボタンで発行できます（一覧でまとめて発行しても同じです）。</span></p>
             <button type="button" className={`${btnPink} ml-auto`} disabled={busy} onClick={() => {
               if (!confirm(`${row.name} に ${monthLabel(month)} の請求書（¥${yen(t.total)}）を発行します。よろしいですか？`)) return;
               void run(() => issueForSalons(month, [row.salonId]));
@@ -461,8 +476,8 @@ function SalonPanel({ data, month, row, busy, run, onClose }: { data: BillingAdm
         )}
       </section>
 
-      {/* ② 請求書の見本 */}
-      <section>
+      {/* ② 請求書の見本（★ PC では左の画面に出る・ここはスマホだけ） */}
+      <section className="md:hidden">
         <h3 className="font-bold mb-2">② {row.invoice ? '発行した請求書（店舗様に見えている形）' : '請求書の見本（発行するとこの形で店舗様に届きます）'}</h3>
         <div className="overflow-x-auto bg-slate-200 p-3">
           <InvoiceSheet invoice={preview} issuer={data.settings} />
