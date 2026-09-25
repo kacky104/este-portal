@@ -98,11 +98,12 @@ function ReviewMiniCard({
 }
 
 /** 「もっとみる」。★ 押す先が一覧であることが分かる文言にする。 */
-function MoreLink({ full, href, label }: { full: boolean; href: string; label: string }) {
+function MoreLink({ full, href, label, pair = false }: { full: boolean; href: string; label: string; pair?: boolean }) {
+  // pair … 「口コミを書く」と横に並べるとき（第847便）: 同じ幅・同じ高さ・折り返さない。
   return (
     <Link
       href={href}
-      className={`${full ? 'flex w-full' : 'inline-flex'} items-center justify-center gap-1 text-xs font-bold px-5 py-2 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50`}
+      className={`${full ? 'flex w-full' : 'inline-flex'} items-center justify-center gap-1 text-xs font-bold ${pair ? 'px-2' : 'px-5'} py-2 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50 whitespace-nowrap`}
     >
       {label}
       <svg
@@ -116,11 +117,12 @@ function MoreLink({ full, href, label }: { full: boolean; href: string; label: s
 }
 
 /** 「口コミを書く」（第846便）。★ セラピストの口コミ一覧の「口コミを書く」と同じ色（オレンジ→ピンク）。 */
-function WriteLink({ href }: { href: string }) {
+function WriteLink({ href, full = false }: { href: string; full?: boolean }) {
+  // ★ border-transparent で「もっと見る」（枠線1px）と高さをそろえる。
   return (
     <Link
       href={href}
-      className="inline-flex items-center justify-center gap-1.5 text-xs font-bold px-4 py-2 rounded-full text-white shadow-sm transition-opacity hover:opacity-90 flex-shrink-0"
+      className={`${full ? 'flex w-full px-2' : 'inline-flex px-5'} items-center justify-center gap-1 text-xs font-bold py-2 rounded-full border border-transparent text-white shadow-sm transition-opacity hover:opacity-90 whitespace-nowrap`}
       style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)' }}
     >
       <svg
@@ -200,9 +202,9 @@ export function LatestReviewsBlock({
         ))}
       </ul>
       {writeHref ? (
-        <div className="flex items-center justify-between gap-2 mt-4">
-          <WriteLink href={writeHref} />
-          <MoreLink full={false} href={moreHref} label={moreLabel} />
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <WriteLink href={writeHref} full />
+          <MoreLink full pair href={moreHref} label={moreLabel} />
         </div>
       ) : (
         <div className="flex justify-center mt-4">
