@@ -47,6 +47,7 @@ import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { getMediaLinkAlerts, getMediaOverview } from '@/app/actions/mediaCredentials';
+import { canReadProvider } from '@/lib/mediaOverview';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -1356,7 +1357,9 @@ export default function MyPage() {
     (async () => {
       const res = await getMediaOverview({ salonId: Number(salon.id) });
       if (!alive || !res.ok) return;
-      setMediaInUse(res.data.sites.some((x) => x.direction === 'read' || x.direction === 'write'));
+      // ★ 第859便: フクエスリンクは「駅ちかから反映」専用（第668便）。★ 使っている＝読める媒体が read のときだけ（ホーム MediaHome と同じ見方）。
+      //   ★ 昔の write（エステ魂など・今はコネックエフの役目）が残っていても「使っている」に数えない（ラビリンス様で実際に起きた）。
+      setMediaInUse(res.data.sites.some((x) => canReadProvider(x.provider) && x.direction === 'read'));
     })();
     return () => { alive = false; };
   }, [salon?.id, mediaVisible]);
