@@ -3189,18 +3189,45 @@ export default function MyPage() {
                 aria-label="その他のメニュー"
                 className="absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-white shadow-2xl overflow-y-auto overscroll-contain scrollbar-none pb-24 [padding-bottom:calc(6rem+env(safe-area-inset-bottom))]"
               >
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-                  <span className="text-sm font-black text-slate-700">メニュー</span>
+                {/* ★ 第835便（カッキーさん）: 頭を「メニュー」から PC のサイドバーと同じ【ロゴ＋フクエス】に。★ その下に店舗名。
+                    ★ 本文の最上部にあった店舗名のブロックは消した（ここに移した）。 */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+                  <button type="button" onClick={() => { setDrawerOpen(false); goTab('available'); }} aria-label="今すぐへ" className="flex items-center gap-2 cursor-pointer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo.png" alt="" className="w-7 h-7 flex-shrink-0" />
+                    <span
+                      className="font-bold text-[22px] tracking-wide leading-none inline-block"
+                      style={{
+                        background: 'linear-gradient(95deg,#FB923C,#DB2777)',
+                        WebkitBackgroundClip: 'text',
+                        backgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        color: 'transparent',
+                      }}
+                    >
+                      フクエス
+                    </span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setDrawerOpen(false)}
                     aria-label="閉じる"
-                    className="p-1 text-slate-400 hover:text-slate-600"
+                    className="ml-auto p-1 text-slate-400 hover:text-slate-600"
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
                       <path d="M6 6l12 12M18 6L6 18" />
                     </svg>
                   </button>
+                </div>
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <div className="text-[12.5px] font-bold text-slate-400 tracking-wider">店舗</div>
+                  <div
+                    className="font-bold text-slate-600 mt-0.5 leading-snug whitespace-nowrap overflow-hidden"
+                    style={{ fontSize: '15.5px', textOverflow: 'ellipsis' }}
+                    title={salonForm.name ?? ''}
+                  >
+                    {salonForm.name ?? ''}
+                  </div>
                 </div>
                 {MOBILE_OTHER_SECTIONS.map((sec) => {
                   const keys = sec.keys.filter(navVisible);
@@ -3419,17 +3446,7 @@ export default function MyPage() {
         className={`${activeTab === 'board' ? 'max-w-none px-[5px]' : activeTab === 'schedule' ? 'max-w-6xl px-4' : 'max-w-2xl px-4'} mx-auto py-6 space-y-6 ${activeTab === 'salon' || activeTab === 'booking' || activeTab === 'schedule' ? 'pb-28' : ''}`}
       >
 
-        {/* ── 店名（最上部・独立ブロック）──
-            ★★ PCでは消した（★ サイドバーの頭に店舗名が出るため・2026-09-06）。
-            ★ スマホはサイドバーの頭が無いので、ここに残す。 */}
-        <div className="md:hidden max-w-2xl mx-auto w-full bg-white rounded-none border border-slate-100 shadow-sm p-5 text-center">
-          <h2
-            className="font-black text-slate-800 whitespace-nowrap overflow-hidden"
-            style={{ fontSize: 'clamp(16px, 4vw, 24px)', textOverflow: 'ellipsis' }}
-          >
-            {salonForm.name ?? ''}
-          </h2>
-        </div>
+        {/* ── 店名の独立ブロック: PC は 2026-09-06 に、スマホは第835便に消した（★ 両方ともサイドバーの頭に店舗名が出る）。 */}
 
         {/* ── 上位表示（TOP・地域ページの店舗カードを先頭へ）──
             ★★ 「今すぐ」の画面のいちばん上に置いた（2026-09-06・カッキーさんの指示）。
