@@ -18,11 +18,6 @@ const ITEMS: ReadonlyArray<{ t: string; d: string; note?: boolean }> = [
   { t: '写メ日記', d: '駅ちかのID・PWを登録すると', note: true },
 ];
 
-const STEPS: ReadonlyArray<string> = [
-  '下の「フクエスリンクを始める」を押す',
-  '駅ちかのお店ページのURLを運営事務局に送る',
-  '運営が登録すると、自動で反映が始まります',
-];
 
 export default function MediaIntroPage() {
   return (
@@ -80,20 +75,14 @@ export default function MediaIntroPage() {
           </ul>
         </section>
 
-        {/* ── 始め方 ── */}
-        <section className="bg-white border border-amber-200 shadow-sm p-6">
-          <h2 className="text-[17px] font-black text-slate-800 text-center">始め方</h2>
-          <ol className="mt-4 space-y-2.5">
-            {STEPS.map((t, i) => (
-              <li key={t} className="flex items-center gap-3">
-                <span className="flex-shrink-0 w-8 h-8 grid place-items-center bg-amber-600 text-white text-[15px] font-black">{i + 1}</span>
-                <span className="text-[15px] font-bold text-slate-700">{t}</span>
-              </li>
-            ))}
-          </ol>
-          {/* ★ 運営の登録（importSourceAdmin）は link_mode='read' で入る＝押す手順はない。★ 止めたお店だけはホームのボタンで再開 */}
-          <p className="mt-4 text-[13px] text-slate-500 leading-relaxed">
-            ※ 一度止めたお店は、ホームの「駅ちかから反映にする」を押すだけで再開できます。
+        {/* ── 注意事項（第855便・カッキーさんの指示で「始め方」から差し替え） ── */}
+        <section className="bg-white border border-amber-200 shadow-sm px-6 py-4">
+          <p className="text-[14px] text-slate-700 leading-relaxed">
+            ※ 駅ちかにお店のショップページが必要です。
+            <br />
+            ショップページがあるのに利用できない場合は、
+            <Link href="/mypage?tab=support" className="underline font-bold text-amber-800">フクエス運営にお問い合わせ</Link>
+            ください。
           </p>
         </section>
 
