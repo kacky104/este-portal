@@ -10,14 +10,13 @@ import {
 import { InvoiceSheet } from '@/app/components/billing/InvoiceSheet';
 import { addMonths, billingMonthForIssueDay, calcTotals, dateLabel, dueDateOf, issueMonthOf, lineAmount, linesForMonth, monthLabel, yen } from '@/lib/billing';
 
-// 管理画面「請求書」（第825便で1枚の表に・第826便で「初めての事務員さんが迷わない並び」に作り直し・2026-09-25・カッキーさん）。
-// ★★ 画面の上から下が、そのまま仕事の順番:
-//   ① 発行者の設定が空なら、まず黄色い帯（屋号・振込先を入れる）
-//   ② 「いつ発行する・何月分」の帯 → 3つの箱（これから発行／入金待ち／入金済み）＝押すと絞り込み
-//   ③ 一覧の各行の右端に【次にやること】のボタン1つ（確かめる／入金済みにする／請求書を見る）
-//   ④ 下の固定帯「チェックした店に発行する」
+// 管理画面「請求書」（第825便で1枚の表に・第826便で事務員さん向けの並びに・第827便で左のサイドバー＋ページ分けに・2026-09-25・カッキーさん）。
+// ★★ 左のサイドバーの項目＝ページ。上から仕事の順番:
+//   ① 発行する（これから発行の店にチェック→発行）／② 入金待ち（入金済みにする・期限切れは赤）／③ 入金済み
+//   契約（店ごとの料金を入れる・変える）／⚙ 設定（発行者・品目）／？ 使い方
+//   ・月の帯は①②③契約のページに共通（いま見ている月）。★ 店の中身は右から出る枠（どのページからも同じ）
+//   ・発行者が空なら、どのページでも上に黄色い帯
 // ★ 前月に前払い: 「11月分」は 10月1日に発行・10月25日期限（src/lib/billing.ts）。
-// ★ 契約のない店は一覧に出さず、「新しく契約する店」の選択で開く（間違えて発行できない）。
 
 const input = 'border border-slate-300 px-2.5 py-2 text-[15px] w-full bg-white';
 const btn = 'text-[15px] font-bold px-4 py-2 border disabled:opacity-40';
@@ -49,11 +48,11 @@ type Row = {
   total: number;
   state: State;
 };
-type Filter = 'ready' | 'issued' | 'paid' | 'all';
+type Page = 'issue' | 'unpaid' | 'paid' | 'contracts' | 'settings' | 'help';
 
-const STATE_LABEL: Record<State, string> = { none: '', ready: '未発行', issued: '入金待ち', paid: '入金済み' };
+const STATE_LABEL: Record<State, string> = { none: '契約なし', ready: '未発行', issued: '入金待ち', paid: '入金済み' };
 const STATE_BADGE: Record<State, string> = {
-  none: 'text-slate-300', ready: 'bg-slate-100 text-slate-600', issued: 'bg-amber-100 text-amber-800', paid: 'bg-emerald-100 text-emerald-800',
+  none: 'bg-slate-50 text-slate-400', ready: 'bg-slate-100 text-slate-600', issued: 'bg-amber-100 text-amber-800', paid: 'bg-emerald-100 text-emerald-800',
 };
 
 export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
@@ -62,10 +61,9 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const [filter, setFilter] = useState<Filter>('ready');
+  const [page, setPage] = useState<Page>('issue');
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [openSalon, setOpenSalon] = useState<number | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const today = jstToday();
   const thisMonth = billingMonthForIssueDay(today);
 
@@ -102,14 +100,15 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
 
   const by = (st: State) => rows.filter((r) => r.state === st);
   const sumOf = (list: Row[]) => list.reduce((a, r) => a + r.total, 0);
-  const ready = by('ready'), issued = by('issued'), paid = by('paid'), none = by('none');
-  const shown = filter === 'all' ? rows.filter((r) => r.state !== 'none') : by(filter);
+  const ready = by('ready'), issued = by('issued'), paid = by('paid');
+  const lateCount = issued.filter((r) => r.invoice?.due_date && r.invoice.due_date < today).length;
   const checkedReady = ready.filter((r) => checked.has(r.salonId));
   const issueDay = `${issueMonthOf(month).slice(0, 7)}-01`;
   const dueDay = data ? dueDateOf(month, data.settings.due_day) : '';
   const setupMissing = !!data && (!data.settings.issuer_name.trim() || !data.settings.bank_info.trim());
 
   const changeMonth = (m: string) => { setMonth(m); setChecked(new Set()); setMsg(''); };
+  const changePage = (p: Page) => { setPage(p); setMsg(''); };
   const toggle = (id: number, on: boolean) => { const n = new Set(checked); if (on) n.add(id); else n.delete(id); setChecked(n); };
 
   const issue = (list: Row[]) => {
@@ -125,172 +124,239 @@ export function BillingAdmin({ initialMonth }: { initialMonth: string }) {
     void run(() => markPaid(inv.id, inv.payment_method, today), `${r.name} を入金済みにしました`);
   };
 
-  const box = (key: Filter, label: string, list: Row[], tone: string, help: string) => (
-    <button type="button" onClick={() => setFilter(key)} aria-pressed={filter === key}
-      className={`text-left bg-white border-2 px-4 py-3 transition ${filter === key ? `${tone} shadow-md` : 'border-slate-200 hover:border-slate-400'}`}>
-      <p className="text-sm font-bold">{label}</p>
-      <p className="text-2xl font-black leading-tight">{list.length}<span className="text-sm font-bold">店</span><span className="text-base font-bold ml-2">¥{yen(sumOf(list))}</span></p>
-      <p className="text-xs text-slate-500 mt-0.5">{help}</p>
-    </button>
+  // ── サイドバーの項目 ──
+  const nav: { key: Page; label: string; count?: number; tone?: string; sub?: string }[] = [
+    { key: 'issue', label: '① 発行する', count: ready.length, tone: 'bg-pink-600', sub: 'これから発行の店' },
+    { key: 'unpaid', label: '② 入金待ち', count: issued.length, tone: lateCount ? 'bg-rose-600' : 'bg-amber-500', sub: lateCount ? `期限切れ ${lateCount}店` : '振込を確かめる' },
+    { key: 'paid', label: '③ 入金済み', count: paid.length, tone: 'bg-emerald-600', sub: 'この月は完了' },
+    { key: 'contracts', label: '契約（店ごとの料金）', sub: '新しい店・料金の変更' },
+    { key: 'settings', label: '⚙ 設定', sub: '発行者・振込先・品目' },
+    { key: 'help', label: '？ 使い方', sub: '初めての方はこちら' },
+  ];
+  const showMonth = page === 'issue' || page === 'unpaid' || page === 'paid' || page === 'contracts';
+
+  const salonRow = (r: Row) => {
+    const inv = r.invoice;
+    const late = r.state === 'issued' && inv?.due_date && inv.due_date < today ? daysBetween(inv.due_date, today) : 0;
+    return (
+      <div key={r.salonId} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 ${late ? 'bg-rose-50/60' : ''}`}>
+        {page === 'issue' && r.state === 'ready'
+          ? <input type="checkbox" className="w-6 h-6 cursor-pointer" checked={checked.has(r.salonId)} onChange={(e) => toggle(r.salonId, e.target.checked)} />
+          : page === 'issue' ? <span className="w-6" /> : null}
+        <div className="min-w-0 flex-1">
+          <p className="font-bold text-[17px] truncate">{r.name}{r.hidden && <span className="text-xs text-slate-400 font-normal">（非表示の店）</span>}</p>
+          <p className="text-sm text-slate-500 truncate">
+            {r.state === 'none' ? `${monthLabel(month)}の料金はありません` : (inv ? inv.lines : r.lines).map((l) => `${l.label} ${l.unit_price < 0 ? '−' : ''}${yen(Math.abs(l.unit_price * l.quantity))}`).join('／')}
+          </p>
+          {r.state === 'issued' && inv && (
+            <p className={`text-sm ${late ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+              {inv.invoice_no}・{inv.issue_date ? md(inv.issue_date) : ''}発行・期限 {inv.due_date ? md(inv.due_date) : ''}{late ? `（${late}日過ぎています）` : ''}
+            </p>
+          )}
+          {r.state === 'paid' && inv && <p className="text-sm text-emerald-700">{inv.paid_at ? md(inv.paid_at.slice(0, 10)) : ''}に{inv.paid_method === 'cash' ? '現金' : '振込'}で入金</p>}
+        </div>
+        <p className="w-28 text-right font-black text-xl">{r.state === 'none' ? '—' : `¥${yen(r.total)}`}</p>
+        <span className={`w-24 text-center text-sm font-bold py-1 ${STATE_BADGE[r.state]}`}>{STATE_LABEL[r.state]}</span>
+        <div className="flex gap-2">
+          {page === 'contracts'
+            ? <button type="button" className={r.state === 'none' ? btnPink : btnGray} onClick={() => setOpenSalon(r.salonId)}>{r.state === 'none' ? '料金を入れる' : '料金を見る・変える'}</button>
+            : <>
+              {r.state === 'ready' && <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>中身を確かめる</button>}
+              {r.state === 'issued' && <>
+                <button type="button" className={btnGreen} disabled={busy} onClick={() => quickPaid(r)}>入金済みにする</button>
+                <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>請求書を見る</button>
+              </>}
+              {r.state === 'paid' && <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>請求書を見る</button>}
+            </>}
+        </div>
+      </div>
+    );
+  };
+
+  const listBox = (list: Row[], empty: string) => (
+    <div className="mt-2 bg-white border border-slate-200 divide-y divide-slate-100">
+      {list.length === 0 && <p className="p-5 text-slate-500 text-[15px]">{empty}</p>}
+      {list.map(salonRow)}
+    </div>
   );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <h1 className="text-lg font-black">請求書</h1>
-          <details className="relative">
-            <summary className="list-none cursor-pointer text-sm font-bold text-slate-600 border border-slate-300 px-3 py-1.5 hover:border-pink-400">？ 使い方</summary>
-            <div className="absolute left-0 mt-1 w-[min(92vw,520px)] bg-white border border-slate-300 shadow-lg p-4 text-[15px] space-y-2 z-40">
-              <p className="font-bold">この画面ですること（毎月1日ごろ）</p>
-              <ol className="list-decimal ml-5 space-y-1">
-                <li><b>これから発行</b> の店を開いて、金額と請求先を確かめる。</li>
-                <li>チェックして <b>「チェックした店に発行する」</b>。店舗様のマイページに請求書が出て、メールが届きます。</li>
-                <li>振込があったら <b>「入金済みにする」</b> を押す。</li>
-              </ol>
-              <p className="text-sm text-slate-600 border-t border-slate-100 pt-2">
-                ★ 料金は<b>前の月に前払い</b>です。たとえば「11月分」は 10月1日に発行し、お支払い期限は 10月25日。
-                この画面は開いたとき、今日発行する分（来月分）を出します。
-              </p>
-              <p className="text-sm text-slate-600">★ 新しい店の料金は、一覧の下の「新しく契約する店」から入れます。屋号・振込先は右上の「⚙ 設定」。</p>
-            </div>
-          </details>
-          <button type="button" onClick={() => setSettingsOpen(true)} className="ml-auto text-sm font-bold text-slate-600 border border-slate-300 px-3 py-1.5 hover:border-pink-400">⚙ 設定（発行者・品目）</button>
-          <Link href="/admin" className="text-sm text-slate-500 hover:text-pink-600">管理画面へ戻る</Link>
+          <span className="text-sm text-slate-500 hidden sm:inline">フクエス 店舗様へのご請求</span>
+          <Link href="/admin" className="ml-auto text-sm text-slate-500 hover:text-pink-600">管理画面へ戻る</Link>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-5">
-        {/* ── ① 最初にすること（発行者が空のとき） ── */}
-        {setupMissing && (
-          <div className="mb-4 bg-amber-50 border-2 border-amber-400 px-4 py-3 flex flex-wrap items-center gap-3">
-            <p className="text-[15px]"><b>はじめに：</b>請求書に印字する <b>屋号・振込先</b> がまだ入っていません。先に設定してください。</p>
-            <button type="button" className={`${btnPink} ml-auto`} onClick={() => setSettingsOpen(true)}>⚙ 設定を開く</button>
-          </div>
-        )}
-
-        {/* ── ② いつ発行する・何月分 ── */}
-        <div className="bg-white border border-slate-200 px-4 py-4 flex flex-wrap items-center gap-3">
-          <button type="button" className={btnGray} onClick={() => changeMonth(addMonths(month, -1))}>← 前の月</button>
-          <div className="flex-1 min-w-[240px] text-center">
-            <p className="text-xs font-bold text-slate-500">いま見ているのは</p>
-            <p className="text-2xl font-black">{monthLabel(month)}の請求書</p>
-            <p className="text-sm text-slate-600 mt-0.5">
-              <b>{md(issueDay)}に発行</b>・お支払い期限 <b>{dueDay ? md(dueDay) : '—'}</b>
-              {month === thisMonth
-                ? <span className="ml-2 inline-block bg-pink-600 text-white text-xs font-bold px-2 py-0.5 align-middle">今日発行する分</span>
-                : <button type="button" className="ml-2 text-xs font-bold text-pink-600 underline" onClick={() => changeMonth(thisMonth)}>今日発行する分（{monthLabel(thisMonth)}）に戻る</button>}
-            </p>
-          </div>
-          <button type="button" className={btnGray} onClick={() => changeMonth(addMonths(month, 1))}>次の月 →</button>
-        </div>
-
-        {msg && <p className={`mt-3 text-[15px] font-bold ${msg.startsWith('×') ? 'text-rose-600' : 'text-emerald-700'}`}>{msg}</p>}
-        {err && <p className="mt-3 text-rose-600">読み込めませんでした：{err}</p>}
-        {!data ? <p className="mt-6 text-slate-500">読み込み中…</p> : (
-          <>
-            {/* ── ③ 3つの箱＝押すと絞り込み ── */}
-            <p className="mt-4 text-sm text-slate-500">箱を押すと、その店だけが下に出ます。</p>
-            <div className="grid grid-cols-3 gap-2 mt-1">
-              {box('ready', '① これから発行', ready, 'border-pink-500', '確かめて発行する')}
-              {box('issued', '② 入金待ち', issued, 'border-amber-500', '振込があったら入金済みに')}
-              {box('paid', '③ 入金済み', paid, 'border-emerald-500', 'この月は完了')}
-            </div>
-
-            {/* ── 一覧 ── */}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <p className="font-bold text-[15px]">
-                {filter === 'ready' ? '① これから発行する店' : filter === 'issued' ? '② 入金待ちの店' : filter === 'paid' ? '③ 入金済みの店' : 'この月の全部の店'}
-                <span className="text-slate-500 font-normal">（{shown.length}店）</span>
-              </p>
-              <button type="button" className="text-sm text-slate-500 underline" onClick={() => setFilter(filter === 'all' ? 'ready' : 'all')}>
-                {filter === 'all' ? '① だけにする' : '全部まとめて見る'}
+      <div className="max-w-6xl mx-auto px-4 py-5 md:flex md:gap-5 md:items-start">
+        {/* ── 左のサイドバー（スマホでは上に横並び） ── */}
+        <nav className="md:w-60 md:shrink-0 md:sticky md:top-[61px] mb-4 md:mb-0">
+          <div className="bg-white border border-slate-200 flex md:flex-col overflow-x-auto md:overflow-visible">
+            {nav.map((n) => (
+              <button key={n.key} type="button" onClick={() => changePage(n.key)} aria-current={page === n.key ? 'page' : undefined}
+                className={`shrink-0 text-left px-4 py-3 md:border-b border-slate-100 border-r md:border-r-0 last:border-r-0 md:last:border-b-0 transition flex items-center gap-3 ${
+                  page === n.key ? 'bg-pink-50 border-l-4 border-l-pink-600 md:pl-3' : 'hover:bg-slate-50 md:border-l-4 md:border-l-transparent md:pl-3'
+                }`}>
+                <span className="min-w-0">
+                  <span className={`block font-bold text-[15px] ${page === n.key ? 'text-pink-700' : ''}`}>{n.label}</span>
+                  {n.sub && <span className="block text-xs text-slate-500 truncate">{n.sub}</span>}
+                </span>
+                {n.count !== undefined && data && (
+                  <span className={`ml-auto shrink-0 text-white text-sm font-bold min-w-[28px] text-center px-2 py-0.5 rounded-full ${n.count ? n.tone : 'bg-slate-300'}`}>{n.count}</span>
+                )}
               </button>
-              {filter === 'ready' && ready.length > 0 && (
-                <label className="text-sm flex items-center gap-1.5 ml-auto font-bold cursor-pointer">
-                  <input type="checkbox" className="w-5 h-5" checked={checkedReady.length === ready.length}
-                    onChange={(e) => setChecked(e.target.checked ? new Set(ready.map((r) => r.salonId)) : new Set())} />
-                  全部の店にチェック
-                </label>
-              )}
-            </div>
+            ))}
+          </div>
+        </nav>
 
-            <div className="mt-2 bg-white border border-slate-200 divide-y divide-slate-100">
-              {shown.length === 0 && (
-                <p className="p-5 text-slate-500 text-[15px]">
-                  {filter === 'ready' && (rows.some((r) => r.state !== 'none') ? 'この月に発行する店は、もうありません（全部発行済みです）。' : 'この月に請求する店はまだありません。下の「新しく契約する店」から料金を入れてください。')}
-                  {filter === 'issued' && '入金待ちの店はありません。'}
-                  {filter === 'paid' && 'この月に入金済みの店はまだありません。'}
-                  {filter === 'all' && 'この月に請求する店はまだありません。下の「新しく契約する店」から料金を入れてください。'}
+        {/* ── 右のページ ── */}
+        <main className="flex-1 min-w-0">
+          {setupMissing && page !== 'settings' && (
+            <div className="mb-4 bg-amber-50 border-2 border-amber-400 px-4 py-3 flex flex-wrap items-center gap-3">
+              <p className="text-[15px]"><b>はじめに：</b>請求書に印字する <b>屋号・振込先</b> がまだ入っていません。先に設定してください。</p>
+              <button type="button" className={`${btnPink} ml-auto`} onClick={() => changePage('settings')}>⚙ 設定を開く</button>
+            </div>
+          )}
+
+          {showMonth && (
+            <div className="bg-white border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3">
+              <button type="button" className={btnGray} onClick={() => changeMonth(addMonths(month, -1))}>← 前の月</button>
+              <div className="flex-1 min-w-[240px] text-center">
+                <p className="text-xl font-black">{monthLabel(month)}の請求書</p>
+                <p className="text-sm text-slate-600">
+                  <b>{md(issueDay)}に発行</b>・お支払い期限 <b>{dueDay ? md(dueDay) : '—'}</b>
+                  {month === thisMonth
+                    ? <span className="ml-2 inline-block bg-pink-600 text-white text-xs font-bold px-2 py-0.5 align-middle">今日発行する分</span>
+                    : <button type="button" className="ml-2 text-xs font-bold text-pink-600 underline" onClick={() => changeMonth(thisMonth)}>今日発行する分（{monthLabel(thisMonth)}）に戻る</button>}
                 </p>
-              )}
-              {shown.map((r) => {
-                const inv = r.invoice;
-                const late = r.state === 'issued' && inv?.due_date && inv.due_date < today ? daysBetween(inv.due_date, today) : 0;
-                return (
-                  <div key={r.salonId} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 ${late ? 'bg-rose-50/60' : ''}`}>
-                    {r.state === 'ready'
-                      ? <input type="checkbox" className="w-6 h-6 cursor-pointer" checked={checked.has(r.salonId)} onChange={(e) => toggle(r.salonId, e.target.checked)} />
-                      : <span className="w-6" />}
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-[17px] truncate">{r.name}{r.hidden && <span className="text-xs text-slate-400 font-normal">（非表示の店）</span>}</p>
-                      <p className="text-sm text-slate-500 truncate">
-                        {(inv ? inv.lines : r.lines).map((l) => `${l.label} ${l.unit_price < 0 ? '−' : ''}${yen(Math.abs(l.unit_price * l.quantity))}`).join('／')}
-                      </p>
-                      {r.state === 'issued' && inv && (
-                        <p className={`text-sm ${late ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
-                          {inv.invoice_no}・{inv.issue_date ? md(inv.issue_date) : ''}発行・期限 {inv.due_date ? md(inv.due_date) : ''}{late ? `（${late}日過ぎています）` : ''}
-                        </p>
-                      )}
-                      {r.state === 'paid' && inv && <p className="text-sm text-emerald-700">{inv.paid_at ? md(inv.paid_at.slice(0, 10)) : ''}に{inv.paid_method === 'cash' ? '現金' : '振込'}で入金</p>}
-                    </div>
-                    <p className="w-28 text-right font-black text-xl">¥{yen(r.total)}</p>
-                    <span className={`w-24 text-center text-sm font-bold py-1 ${STATE_BADGE[r.state]}`}>{STATE_LABEL[r.state]}</span>
-                    <div className="flex gap-2">
-                      {r.state === 'ready' && <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>中身を確かめる</button>}
-                      {r.state === 'issued' && <>
-                        <button type="button" className={btnGreen} disabled={busy} onClick={() => quickPaid(r)}>入金済みにする</button>
-                        <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>請求書を見る</button>
-                      </>}
-                      {r.state === 'paid' && <button type="button" className={btnGray} onClick={() => setOpenSalon(r.salonId)}>請求書を見る</button>}
-                    </div>
-                  </div>
-                );
-              })}
+              </div>
+              <button type="button" className={btnGray} onClick={() => changeMonth(addMonths(month, 1))}>次の月 →</button>
             </div>
+          )}
 
-            {/* ── 新しく契約する店 ── */}
-            {none.length > 0 && (
-              <div className="mt-4 bg-white border border-dashed border-slate-300 px-4 py-3 flex flex-wrap items-center gap-3">
-                <p className="text-[15px] font-bold">新しく契約する店（{monthLabel(month)}に料金がない店）</p>
-                <select className="border border-slate-300 px-2.5 py-2 text-[15px] bg-white min-w-[240px]" value="" onChange={(e) => { if (e.target.value) setOpenSalon(Number(e.target.value)); }}>
-                  <option value="">店を選ぶ → 料金を入れる</option>
-                  {none.map((r) => <option key={r.salonId} value={r.salonId}>{r.name}{r.hidden ? '（非表示）' : ''}</option>)}
-                </select>
-              </div>
-            )}
+          {msg && <p className={`mt-3 text-[15px] font-bold ${msg.startsWith('×') ? 'text-rose-600' : 'text-emerald-700'}`}>{msg}</p>}
+          {err && <p className="mt-3 text-rose-600">読み込めませんでした：{err}</p>}
+          {!data ? <p className="mt-6 text-slate-500">読み込み中…</p> : (
+            <>
+              {/* ① 発行する */}
+              {page === 'issue' && (
+                <>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <div>
+                      <h2 className="font-black text-lg">① 発行する</h2>
+                      <p className="text-sm text-slate-500">まだ発行していない {ready.length}店・合計 ¥{yen(sumOf(ready))}。「中身を確かめる」で金額を見て、チェックして下のボタンで発行します。</p>
+                    </div>
+                    {ready.length > 0 && (
+                      <label className="text-sm flex items-center gap-1.5 ml-auto font-bold cursor-pointer">
+                        <input type="checkbox" className="w-5 h-5" checked={checkedReady.length === ready.length}
+                          onChange={(e) => setChecked(e.target.checked ? new Set(ready.map((r) => r.salonId)) : new Set())} />
+                        全部の店にチェック
+                      </label>
+                    )}
+                  </div>
+                  {listBox(ready, rows.some((r) => r.state !== 'none') ? 'この月に発行する店は、もうありません（全部発行済みです）。' : 'この月に請求する店はまだありません。左の「契約」から料金を入れてください。')}
+                  {ready.length > 0 && (
+                    <div className="sticky bottom-0 mt-4 bg-white border-2 border-pink-300 px-4 py-3 flex flex-wrap items-center gap-3 shadow-lg">
+                      <div>
+                        <p className="text-[15px]">チェックした店：<b className="text-lg">{checkedReady.length}店</b>　合計 <b className="text-lg">¥{yen(sumOf(checkedReady))}</b></p>
+                        <p className="text-xs text-slate-500">発行すると店舗様のマイページに出て、お知らせのメールが届きます。発行前に金額を確かめてください。</p>
+                      </div>
+                      <button type="button" className={`${btnPink} ml-auto text-base px-6 py-3`} disabled={busy || checkedReady.length === 0} onClick={() => issue(checkedReady)}>
+                        {checkedReady.length === 0 ? '店にチェックを入れてください' : `チェックした${checkedReady.length}店に発行する`}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
 
-            {/* ── ④ 発行の帯 ── */}
-            {filter !== 'paid' && ready.length > 0 && (
-              <div className="sticky bottom-0 mt-4 bg-white border-2 border-pink-300 px-4 py-3 flex flex-wrap items-center gap-3 shadow-lg">
-                <div>
-                  <p className="text-[15px]">チェックした店：<b className="text-lg">{checkedReady.length}店</b>　合計 <b className="text-lg">¥{yen(sumOf(checkedReady))}</b></p>
-                  <p className="text-xs text-slate-500">発行すると店舗様のマイページに出て、お知らせのメールが届きます。発行前に金額を確かめてください。</p>
+              {/* ② 入金待ち */}
+              {page === 'unpaid' && (
+                <>
+                  <div className="mt-4">
+                    <h2 className="font-black text-lg">② 入金待ち</h2>
+                    <p className="text-sm text-slate-500">発行済みで、まだ入金のない {issued.length}店・合計 ¥{yen(sumOf(issued))}。振込を確かめたら「入金済みにする」。{lateCount > 0 && <b className="text-rose-600">期限を過ぎた店が {lateCount}店あります。</b>}</p>
+                  </div>
+                  {listBox([...issued].sort((a, b) => (a.invoice?.due_date ?? '').localeCompare(b.invoice?.due_date ?? '')), '入金待ちの店はありません。')}
+                </>
+              )}
+
+              {/* ③ 入金済み */}
+              {page === 'paid' && (
+                <>
+                  <div className="mt-4">
+                    <h2 className="font-black text-lg">③ 入金済み</h2>
+                    <p className="text-sm text-slate-500">{monthLabel(month)}で入金が済んだ {paid.length}店・合計 ¥{yen(sumOf(paid))}。間違えたときは「請求書を見る」から入金待ちに戻せます。</p>
+                  </div>
+                  {listBox(paid, 'この月に入金済みの店はまだありません。')}
+                </>
+              )}
+
+              {/* 契約 */}
+              {page === 'contracts' && (
+                <>
+                  <div className="mt-4">
+                    <h2 className="font-black text-lg">契約（店ごとの料金）</h2>
+                    <p className="text-sm text-slate-500">全部の店が並びます。新しい店は「料金を入れる」、すでにある店は「料金を見る・変える」。ここで入れた料金が、翌月から自動で「① 発行する」に並びます。</p>
+                  </div>
+                  {listBox([...rows].sort((a, b) => (a.state === 'none' ? 1 : 0) - (b.state === 'none' ? 1 : 0)), '店がありません。')}
+                </>
+              )}
+
+              {/* ⚙ 設定 */}
+              {page === 'settings' && (
+                <div className="mt-4">
+                  <h2 className="font-black text-lg">⚙ 設定</h2>
+                  <p className="text-sm text-slate-500 mb-3">請求書に印字する発行者（屋号・住所・振込先）と、料金を入れるときの品目の一覧。</p>
+                  <SettingsBody key={String(data.settings.issuer_name) + data.items.length} data={data} busy={busy} run={run} />
                 </div>
-                <button type="button" className={`${btnPink} ml-auto text-base px-6 py-3`} disabled={busy || checkedReady.length === 0} onClick={() => issue(checkedReady)}>
-                  {checkedReady.length === 0 ? '店にチェックを入れてください' : `チェックした${checkedReady.length}店に発行する`}
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </main>
+              )}
+
+              {/* ？ 使い方 */}
+              {page === 'help' && (
+                <div className="mt-4 bg-white border border-slate-200 p-5 text-[15px] space-y-4 max-w-3xl">
+                  <h2 className="font-black text-lg">？ 使い方</h2>
+                  <div>
+                    <p className="font-bold">毎月1日ごろにすること</p>
+                    <ol className="list-decimal ml-5 mt-1 space-y-1">
+                      <li>左の <b>「① 発行する」</b> を開く。今日発行する分（来月分）の店が並んでいます。</li>
+                      <li>店の「中身を確かめる」で金額と請求先を見る。直すところがあれば、その枠の中で料金や割引を足せます。</li>
+                      <li>店にチェックして、下の <b>「チェックした店に発行する」</b>。店舗様のマイページに請求書が出て、お知らせのメールが届きます。</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <p className="font-bold">振込があったら</p>
+                    <ol className="list-decimal ml-5 mt-1 space-y-1">
+                      <li>左の <b>「② 入金待ち」</b> を開く。期限を過ぎた店は赤く出ます。</li>
+                      <li>通帳と照らして <b>「入金済みにする」</b>。日付は今日、方法は契約どおり（振込／現金）で入ります。別の日なら「請求書を見る」から入れてください。</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <p className="font-bold">新しい店と契約したら</p>
+                    <ol className="list-decimal ml-5 mt-1 space-y-1">
+                      <li>左の <b>「契約」</b> でその店の「料金を入れる」。品目を選ぶと金額が入ります。</li>
+                      <li>「いつまで？」は普通「ずっと」。キャンペーンなら「◯月分まで」や「この月だけ」。割引はマイナスで入ります。</li>
+                      <li>宛名やメールを変えたいときは、同じ枠の「③ 請求先・支払い方法」。</li>
+                    </ol>
+                  </div>
+                  <div className="border-t border-slate-100 pt-3 text-sm text-slate-600 space-y-1">
+                    <p>★ 料金は<b>前の月に前払い</b>です。「11月分」は 10月1日に発行し、お支払い期限は 10月25日。</p>
+                    <p>★ 金額をまちがえて発行したら、その店の「請求書を見る」→「取り消して作り直す」。取り消した請求書は店舗様に「取り消し」と出ます。</p>
+                    <p>★ 請求書の PDF はサーバーでは作りません。店舗様も運営も、請求書の画面から「印刷・PDFで保存」です。</p>
+                    <p>★ 屋号・住所・振込先を変えるときは「⚙ 設定」。発行済みの請求書は発行したときの内容のまま残ります。</p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      </div>
 
       {data && openSalon !== null && (
         <SalonPanel key={`${openSalon}-${month}`} data={data} month={month} row={rows.find((r) => r.salonId === openSalon)!}
           busy={busy} run={run} onClose={() => setOpenSalon(null)} />
       )}
-      {data && settingsOpen && <SettingsPanel data={data} busy={busy} run={run} onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }
@@ -514,14 +580,14 @@ function ProfileForm({ salonId, salonName, data, busy, run }: { salonId: number;
   );
 }
 
-// ── ⚙ 設定（発行者・品目）────────────────────────────────
-function SettingsPanel({ data, busy, run, onClose }: { data: BillingAdminData; busy: boolean; run: RunFn; onClose: () => void }) {
+// ── ⚙ 設定（発行者・品目）★ 第827便からページに直接 ─────────
+function SettingsBody({ data, busy, run }: { data: BillingAdminData; busy: boolean; run: RunFn }) {
   const [s, setS] = useState<BillingSettings & { registration_no: string }>({ ...data.settings, registration_no: data.settings.registration_no ?? '' });
   const f = (k: keyof typeof s) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setS({ ...s, [k]: e.target.value });
   const [rows, setRows] = useState(data.items.map((i) => ({ ...i, price: String(i.unit_price) })));
   const [nw, setNw] = useState({ name: '', price: '' });
   return (
-    <Drawer title="⚙ 設定" onClose={onClose}>
+    <div className="space-y-4">
       <section className="bg-white border border-slate-200 p-4 space-y-3">
         <h3 className="font-bold">品目（料金を追加するときの一覧）</h3>
         <p className="text-sm text-slate-500">金額は税抜。ここを変えても、もう入れた料金や発行済みの請求書は変わりません。</p>
@@ -538,7 +604,7 @@ function SettingsPanel({ data, busy, run, onClose }: { data: BillingAdminData; b
           <input className={`${input} w-32 text-right`} inputMode="numeric" placeholder="金額" value={nw.price} onChange={(e) => setNw({ ...nw, price: e.target.value })} />
           <button type="button" className={btnPink} disabled={busy || !nw.name.trim() || !nw.price} onClick={() => run(async () => {
             const r = await saveBillingItem({ name: nw.name, unit_price: Number(toHalf(nw.price)), is_active: true, sort_order: (rows.length + 1) * 10 });
-            if (r.ok) { setNw({ name: '', price: '' }); onClose(); } return r;
+            if (r.ok) setNw({ name: '', price: '' }); return r;
           }, '品目を足しました')}>足す</button>
         </div>
       </section>
@@ -564,6 +630,6 @@ function SettingsPanel({ data, busy, run, onClose }: { data: BillingAdminData; b
         </details>
         <button type="button" className={btnPink} disabled={busy} onClick={() => run(() => saveBillingSettings({ ...s, registration_no: s.registration_no || null }))}>保存する</button>
       </section>
-    </Drawer>
+    </div>
   );
 }
