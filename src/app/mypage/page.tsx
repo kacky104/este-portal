@@ -46,7 +46,7 @@ import { sanitizeInternalPath } from '@/app/lib/safeLink';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
-import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
+import { getMediaLinkAlerts, getMediaOverview } from '@/app/actions/mediaCredentials';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -1342,6 +1342,21 @@ export default function MyPage() {
     (async () => {
       const res = await getMediaLinkAlerts({ salonId: Number(salon.id) });
       if (alive && res.ok) setMediaAlerts(res.data);
+    })();
+    return () => { alive = false; };
+  }, [salon?.id, mediaVisible]);
+
+  // ★★ 第852便（2026-09-25・カッキーさんの指示）: フクエスリンクを使っているか（駅ちかから反映中か）。
+  //   ★ 使っていないお店（未登録・止めている）はバナーからご案内ページ /mypage/media/intro へ（コネックエフと同じ形）。
+  //   ★ 読むのはホームと同じ getMediaOverview（★ 新しい読み取りは足さない）。★ 分からないあいだ・読めないときは今までどおりホームへ。
+  const [mediaInUse, setMediaInUse] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!salon?.id || !mediaVisible) return;
+    let alive = true;
+    (async () => {
+      const res = await getMediaOverview({ salonId: Number(salon.id) });
+      if (!alive || !res.ok) return;
+      setMediaInUse(res.data.sites.some((x) => x.direction === 'read' || x.direction === 'write'));
     })();
     return () => { alive = false; };
   }, [salon?.id, mediaVisible]);
@@ -2971,10 +2986,11 @@ export default function MyPage() {
 
   // ★★ 第674便（2026-09-22・カッキーさんの指示）: フクエスリンクも画像バナーに（./SidebarBanner.tsx）。
   //   ★ 行き先は今までどおり /mypage/media（別タブ）。★ 出す相手も今までどおり（withMedia の店だけ）。
+  //   ★ 第852便: 使っていないお店（mediaInUse === false）はご案内ページ /mypage/media/intro へ。
   const renderMediaLink = (pc: boolean) => (
     <SidebarBanner
       pc={pc}
-      href="/mypage/media"
+      href={mediaInUse === false ? '/mypage/media/intro' : '/mypage/media'}
       src="/mypage/sidebar/link-v2.webp"
       alt="フクエスリンク　フクエスを自動で更新"
     />
