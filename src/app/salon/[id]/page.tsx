@@ -743,19 +743,12 @@ export default async function SalonPage({
               </Link>
             </div>
 
-            {/* 4段目：口コミを書く ／ fukuX ／ 女性求人。 */}
+            {/* 4段目：空枠（将来用プレースホルダ）／ fukuX ／ 女性求人。
+                空枠は既存セルと同じ枠スタイル（bg/border）で中身なし・クリック不可のプレースホルダ。
+                グリッドの align-items:stretch により空枠の高さは他セルに自動で揃う。 */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {/* 口コミを書く（第844便・2026-09-25）: 店舗ページから直接書けるように（それまではセラピスト詳細からだけ）。
-                  行き先は /salon/[id]/review/new（セラピストを選んで書く・無料掲載は店舗宛て・ログイン判定はフォーム側）。
-                  アイコンは lucide pencil-line（ペン＋下線）＝隣の「口コミ」（四角＋ペン）と見分ける。 */}
-              <Link href={`/salon/${id}/review/new`} className="flex flex-col items-center justify-center gap-1.5 rounded-lg border px-1.5 py-3 sm:py-4 shadow-sm cursor-pointer hover:shadow-md hover:brightness-95 transition-all" style={{ backgroundColor: qn.bg, borderColor: qn.border }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0" style={{ color: qn.icon }}>
-                  <path d="M12 20h9" />
-                  <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
-                  <path d="m15 5 3 3" />
-                </svg>
-                <span className="text-[11px] sm:text-sm font-bold leading-none whitespace-nowrap" style={{ color: qn.text }}>口コミを書く</span>
-              </Link>
+              {/* プレースホルダ①：将来アイコンを追加する枠（中身なし・非クリック） */}
+              <div className="rounded-lg border shadow-sm" style={{ backgroundColor: qn.bg, borderColor: qn.border }} aria-hidden />
               {/* fukuX：salons.fukux_url があればそのURL（外部）へ。未設定ならクリック不可の無効状態で表示。
                   アイコンは lucide の MessagesSquare（二重吹き出し）グリフをインライン化（本リポジトリはアイコンライブラリ非使用でSVG統一）。 */}
               {salon.fukuxUrl ? (
