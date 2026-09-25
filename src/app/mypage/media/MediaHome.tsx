@@ -438,6 +438,25 @@ export function MediaHome({ salonId, onToast }: {
         );
       })()}
 
+      {/* ── セラピストで反映されないもの（第848便・2026-09-25）──────────
+          ★ キャッチ・紹介文・特徴バッジは駅ちかから来ない＝フクエスで直接入力。★ AIの下書きは特徴バッジを選んでからが良い。 */}
+      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
+        <p className="text-[13px] font-bold text-slate-400 text-center">セラピストで反映されないもの</p>
+        <div className="mt-3 border border-amber-200 bg-amber-50 px-4 py-3 text-[14px] leading-relaxed text-slate-700 space-y-1.5">
+          <p>
+            セラピストの<b>キャッチ・紹介文・特徴バッジ</b>は駅ちかから反映されません。マイページの「セラピスト」から直接入力してください。
+          </p>
+          <p>
+            キャッチと紹介文は<b>「AIで下書きを作る」</b>で自動で作れます。先に特徴バッジを選んでから使うと、その人らしい文に仕上がります。
+          </p>
+        </div>
+        <div className="mt-3 text-center">
+          <Link href="/mypage?tab=profile" className="text-[14px] font-bold text-indigo-600 underline">
+            セラピストを入力する →
+          </Link>
+        </div>
+      </div>
+
       {/* ★ 反映の早見表（折りたたみ）はここにあったが、第299便で /mypage/media/matrix へ移した。 */}
 
       {/* ── ★★★ 一括ボタンの押す前の問い（第192便）──────────
