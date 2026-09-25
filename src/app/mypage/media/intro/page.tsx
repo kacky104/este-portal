@@ -12,10 +12,10 @@ import Link from 'next/link';
 export const metadata: Metadata = { title: 'フクエスリンクのご案内｜フクエス マイページ' };
 
 const ITEMS: ReadonlyArray<{ t: string; d: string; note?: boolean }> = [
-  { t: '出勤', d: '15分以内に自動で反映' },
-  { t: 'セラピスト', d: '新人さんも自動で登録' },
-  { t: '即ヒメ', d: 'フクエスの「今すぐ」に' },
-  { t: '写メ日記', d: '駅ちかのID・PWを登録すると', note: true },
+  { t: '出勤', d: '15分以内に自動反映' },
+  { t: 'セラピスト', d: '新人も自動登録' },
+  { t: '即ヒメ', d: '即ヒメ → 今すぐ' },
+  { t: '写メ日記', d: '駅ちかのID・PWを登録', note: true },
 ];
 
 
