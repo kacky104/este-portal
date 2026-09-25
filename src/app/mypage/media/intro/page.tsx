@@ -15,7 +15,7 @@ const ITEMS: ReadonlyArray<{ t: string; d: string; note?: boolean }> = [
   { t: '出勤', d: '15分以内に自動反映' },
   { t: 'セラピスト', d: '新人も自動登録' },
   { t: '即ヒメ', d: '即ヒメ → 今すぐ' },
-  { t: '写メ日記', d: '駅ちかのID・PWを登録', note: true },
+  { t: '写メ日記', d: '駅ちかのID・PWを登録で', note: true },
 ];
 
 
@@ -66,10 +66,10 @@ export default function MediaIntroPage() {
           <h2 className="text-[17px] font-black text-slate-800 text-center">反映されるもの</h2>
           <ul className="mt-4 grid grid-cols-2 gap-2.5">
             {ITEMS.map((x) => (
-              <li key={x.t} className="border border-emerald-200 bg-emerald-50 px-3 py-3 text-center">
+              <li key={x.t} className="border border-emerald-200 bg-emerald-50 px-1 sm:px-3 py-3 text-center">
                 <span className="block text-[20px] font-black leading-none text-emerald-600">○</span>
                 <span className="block mt-1.5 text-[16px] font-bold text-slate-800">{x.t}</span>
-                <span className={`block mt-0.5 text-[12.5px] leading-snug ${x.note ? 'text-amber-700 font-bold' : 'text-slate-500'}`}>{x.d}</span>
+                <span className={`block mt-0.5 text-[10.5px] min-[400px]:text-[11.5px] sm:text-[12.5px] leading-snug whitespace-nowrap ${x.note ? 'text-amber-700 font-bold' : 'text-slate-500'}`}>{x.d}</span>
               </li>
             ))}
           </ul>
