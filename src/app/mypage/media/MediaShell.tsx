@@ -27,7 +27,9 @@ import type { MediaPageDecision } from '@/lib/mediaVisibility';
 export type MediaNavKey = 'home' | 'guide' | 'qa' | 'work' | 'diary' | 'news' | 'roster' | 'login' | 'log' | 'matrix';
 
 /** ★ 第668便: 書き込み系の画面。★ 開かれたら「コネックエフへ移りました」を出す（URL を直接開いた・古いブックマークの人向け） */
-const MOVED: ReadonlySet<MediaNavKey> = new Set<MediaNavKey>(['work', 'diary', 'news', 'matrix']);
+// ★ 第904便（カッキーさん）: 'diary'（写メ日記の投稿先）は戻した。★ 写メ日記の書き方で「フクエスで書く」を選べるようになり（第895便）、
+//   投稿先アドレスの確認が要るため。★ ホームの「写メ日記の投稿先を見る →」の行き先
+const MOVED: ReadonlySet<MediaNavKey> = new Set<MediaNavKey>(['work', 'news', 'matrix']);
 
 const NAV: Array<{ key: MediaNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',   label: 'ホーム',           href: '/mypage/media' },

@@ -261,7 +261,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                   この幅で2行になっていた。★ 二重投稿を防ぐという理由は、この帯からは外した。
                 ★ 引用符は画面の他と揃えて「」（カッキーさんの原文は『』）。 */}
             <b className="font-bold text-rose-700">{brand.text('現在、フクエスから転送不可。')}</b>{' '}
-            {brand.isConecf ? 'ホームでこのサイトの「更新する」を押すと転送します。' : 'ホームで「フクエスから反映」にすると転送します。'}
+            {brand.isConecf ? 'ホームでこのサイトの「更新する」を押すと転送します。' : 'ホームの「写メ日記の書き方」で「フクエスで書く」にすると転送します。'}
           </p>
         </div>
       )}
