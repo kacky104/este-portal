@@ -88,7 +88,9 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
       )}
 
       {st.pref === 'fukues' && !ask && (
-        <div className="text-[13px] text-slate-600 leading-relaxed space-y-1">
+        // ★ 第907便（カッキーさん）: 「フクエスで書く」のブロックの下（右の列）に出す
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="sm:col-start-2 text-[13px] text-slate-600 leading-relaxed space-y-1">
           <p>
             駅ちかの投稿用アドレス：<b className="tabular-nums">{st.withAddress}/{st.total}名</b> 登録済み
             {st.withAddress < st.total && <span className="text-rose-600">（未登録の方の写メ日記は、駅ちかへ届きません）</span>}
@@ -100,6 +102,7 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
             </p>
           )}
           <Link href="/mypage/media/diary" className="inline-block text-[13px] font-bold text-indigo-600 underline">写メ日記の投稿先を見る →</Link>
+        </div>
         </div>
       )}
     </div>
