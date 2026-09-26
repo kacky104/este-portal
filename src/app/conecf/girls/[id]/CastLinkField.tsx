@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   getCastLinkStatus, inviteCast, resendCastInvite, cancelCastInvite, unlinkCast,
 } from '@/app/actions/castInvite';
@@ -15,7 +15,8 @@ const BTN = 'h-9 px-4 text-[13px] font-bold border disabled:opacity-50 whitespac
 
 type Status = { status: 'linked' | 'invited' | 'none'; email: string | null };
 
-export function CastLinkField({ therapistId, salonId, onToast }: { therapistId: number; salonId: number; onToast: (m: string) => void }) {
+// ★ 第871便: note を渡すと下の説明文を差し替える（写メ日記タブでは写メ日記向けの説明）
+export function CastLinkField({ therapistId, salonId, onToast, note }: { therapistId: number; salonId: number; onToast: (m: string) => void; note?: ReactNode }) {
   const [st, setSt] = useState<Status | null>(null);
   const [loadErr, setLoadErr] = useState('');
   const [email, setEmail] = useState('');
@@ -121,10 +122,12 @@ export function CastLinkField({ therapistId, salonId, onToast }: { therapistId: 
 
       {st.status === 'none' && inviteRow('例）sample@example.com', '招待メールを送る')}
 
-      <p className="text-[12.5px] text-slate-400 leading-relaxed">
-        セラピストページと連携するためのメールアドレスです。「招待メールを送る」を押すと、本人に招待メールが届きます。
-        <span className="block">※ 下の「保存」とは別です（このボタンだけで送られます）。</span>
-      </p>
+      {note ?? (
+        <p className="text-[12.5px] text-slate-400 leading-relaxed">
+          セラピストページと連携するためのメールアドレスです。「招待メールを送る」を押すと、本人に招待メールが届きます。
+          <span className="block">※ 下の「保存」とは別です（このボタンだけで送られます）。</span>
+        </p>
+      )}
     </div>
   );
 }

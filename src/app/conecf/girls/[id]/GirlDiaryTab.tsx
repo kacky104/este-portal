@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getDiaryForwards, saveDiaryForward, getSalonDiaryConsents, setDiaryConsent } from '@/app/actions/diaryForward';
 import { toConsentState, consentLabel, type ConsentState } from '@/lib/therapistMediaConsent';
+import { CastLinkField } from './CastLinkField';
 
 // コネックエフ「女性プロフィール編集」の【写メ日記】タブ（第731便・2026-09-23・カッキーさん）。
 // ★ 中身はフクエスのマイページ（/mypage/therapist/[id]）の「写メ日記の転送先」と同じ（同じ action・同じ表 therapist_diary_forwards）。
@@ -84,6 +85,17 @@ export function GirlDiaryTab({ id, salonId, onToast }: { id: number; salonId: nu
   return (
     <div className={CARD}>
       <div className="px-4 py-2">
+        {/* ★ 第871便（カッキーさん）: 写メ日記タブにもセラピストページ連携（基本情報タブと同じ部品・同じ action） */}
+        <p className="text-[13.5px] font-bold text-slate-700 pt-3 pb-1 border-b border-slate-200">セラピストページ連携</p>
+        <div className="py-3">
+          <CastLinkField therapistId={id} salonId={salonId} onToast={onToast} note={(
+            <div className="text-[12.5px] text-slate-600 bg-indigo-50/60 border border-indigo-100 rounded px-3 py-2 leading-relaxed space-y-0.5">
+              <p>・写メ日記の同時投稿は、<b className="font-bold">フクエスからの投稿が必須</b>です。</p>
+              <p>・セラピストは、<b className="font-bold">セラピストページと連携しないと写メ日記を投稿できません</b>。</p>
+              <p className="text-slate-500">「招待メールを送る」を押すと、本人に招待メールが届きます（メールのリンクからパスワードを決めると連携されます）。</p>
+            </div>
+          )} />
+        </div>
         <p className="text-[13.5px] font-bold text-slate-700 pt-3 pb-1 border-b border-slate-200">写メ日記の転送先</p>
         <p className="text-[12px] text-slate-500 py-2">
           各サイトで発行された「日記の投稿用メールアドレス」を貼ってください。空なら送りません。
