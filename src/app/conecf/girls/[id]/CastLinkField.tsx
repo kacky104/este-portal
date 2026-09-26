@@ -122,7 +122,7 @@ export function CastLinkField({ therapistId, salonId, onToast }: { therapistId: 
       {st.status === 'none' && inviteRow('例）sample@example.com', '招待メールを送る')}
 
       <p className="text-[12.5px] text-slate-400 leading-relaxed">
-        セラピスト本人のページ（/cast）に入るためのメールアドレスです。「招待メールを送る」を押すと、本人に招待メールが届きます。
+        セラピストページと連携するためのメールアドレスです。「招待メールを送る」を押すと、本人に招待メールが届きます。
         <span className="block">※ 下の「保存」とは別です（このボタンだけで送られます）。</span>
       </p>
     </div>
