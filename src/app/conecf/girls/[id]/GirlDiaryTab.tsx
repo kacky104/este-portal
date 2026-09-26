@@ -92,6 +92,8 @@ export function GirlDiaryTab({ id, salonId, onToast }: { id: number; salonId: nu
             <div className="text-[12.5px] text-slate-600 bg-indigo-50/60 border border-indigo-100 rounded px-3 py-2 leading-relaxed space-y-0.5">
               <p>・写メ日記の同時投稿は、<b className="font-bold">フクエスからの投稿が必須</b>です。</p>
               <p>・セラピストは、<b className="font-bold">セラピストページと連携しないと写メ日記を投稿できません</b>。</p>
+              {/* ★ 第874便（カッキーさん）: どのメールを入れるのか */}
+              <p>・入力するのは、セラピストさんがふだん使っているメールアドレスです。ご本人に教えてもらって入力し、連携してください。</p>
               <p className="text-slate-500">「招待メールを送る」を押すと、本人に招待メールが届きます（メールのリンクからパスワードを決めると連携されます）。</p>
             </div>
           )} />

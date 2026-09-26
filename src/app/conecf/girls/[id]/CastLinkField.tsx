@@ -125,6 +125,8 @@ export function CastLinkField({ therapistId, salonId, onToast, note }: { therapi
       {note ?? (
         <p className="text-[12.5px] text-slate-400 leading-relaxed">
           セラピストページと連携するためのメールアドレスです。「招待メールを送る」を押すと、本人に招待メールが届きます。
+          {/* ★ 第874便（カッキーさん）: どのメールを入れるのか */}
+          <span className="block font-bold text-slate-500">入力するのは、セラピストさんがふだん使っているメールアドレスです。ご本人に教えてもらって入力し、連携してください。</span>
           <span className="block">※ 下の「保存」とは別です（このボタンだけで送られます）。</span>
         </p>
       )}
