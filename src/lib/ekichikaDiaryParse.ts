@@ -416,8 +416,12 @@ export function diaryListUsable(page: EkichikaDiaryListPage): boolean {
 // ★★ ホストの境目まで見る。★ `systemfiles.ranking-deli.jp` という別のホストが同居している。
 //   ★ `files.ranking-deli.jp` の直前が / か . であることを要求する（`systemfiles.` は m なので当たらない）。
 // ★★ `diary/` は【あってもなくても】読む。★ 実物には有る（2026-09-01）。設計メモには無かった。
+// ★★ 第900便（2026-09-26）: 写真の置き場は files.ranking-deli.jp（S3・CloudFront 経由）だけではなかった。
+//   ★ サラ様の3件は mensesthe-images.ranking-deli.jp/diary/<日記ID>/… にあり、拾えず「写真なし」で入っていた。
+//   ★ その置き場も拾う。★ systemfiles.ranking-deli.jp（店のシステム画像）は今までどおり拾わない。
+//   ★ 同じ写真が両方の置き場で出てきても1枚に数える（★ ファイル名で重ねる・下の urls）。
 const IMG_IN_URL =
-  /https?:\/\/[^\s"'<>]*[/.]files\.ranking-deli\.jp\/(?:diary\/)?\d+\/diaries_\d+_file_name\d+\.(?:jpe?g|png|webp)/gi;
+  /https?:\/\/(?:[^\s"'<>]*[/.]files\.ranking-deli\.jp|mensesthe-images\.ranking-deli\.jp)\/(?:diary\/)?\d+\/diaries_\d+_file_name\d+\.(?:jpe?g|png|webp)/gi;
 // ★ 欄の値。実物は `414840669/diaries_414840669_file_name….jpeg`（日記ID付き）。★ ファイル名だけの形も許す。
 const IMG_FIELD = /^(?:(\d+)\/)?(diaries_(\d+)_file_name\d+\.(?:jpe?g|png|webp))$/i;
 const IMG_ID_IN_URL = /\/(?:diary\/)?(\d+)\/diaries_\d+_file_name/;
@@ -458,10 +462,14 @@ export function parseEkichikaDiaryDetail(
 
   // 2. 画像（§370・1投稿1画像）
   const urls = new Set<string>();
+  // ★ 第900便: 同じファイル名は1枚（置き場が2つ出ても重ねない）。★ 先に見つけたURLを使う
+  const byFile = new Map<string, string>();
   IMG_IN_URL.lastIndex = 0;
   for (let m = IMG_IN_URL.exec(src); m !== null; m = IMG_IN_URL.exec(src)) {
-    urls.add(m[0]); // ★★ 見つけたURLは、そのまま使う（組み立て直さない）
+    const file = m[0].slice(m[0].lastIndexOf('/') + 1);
+    if (!byFile.has(file)) byFile.set(file, m[0]); // ★★ 見つけたURLは、そのまま使う（組み立て直さない）
   }
+  for (const u of byFile.values()) urls.add(u);
   // ★ URLがどこにも無いときだけ、欄の値から組み立てる（実物の img 欄は `<日記ID>/<ファイル名>`）
   if (urls.size === 0) {
     for (const tag of inputsNamed(src, 'img')) {
