@@ -4756,14 +4756,16 @@ export default function MyPage() {
                     len <= 10 ? 'text-sm' : len <= 14 ? 'text-xs' : len <= 20 ? 'text-[10px]' : 'text-[9px]';
                   return (
                     <div className="relative flex items-center justify-center min-w-0 min-h-[24px]">
-                      <span className={`${nameSize} font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis max-w-[calc(100%-60px)]`}>
+                      <span className={`${nameSize} font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis max-w-[calc(100%-200px)]`}>
                         {nm}
                       </span>
                       <Link
                         href={`/mypage/therapist/${t.id}`}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 w-[52px] h-[22px] inline-flex items-center justify-center rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 h-[22px] px-1.5 inline-flex items-center justify-center rounded-none border border-pink-300 text-pink-600 text-[11px] font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
                       >
-                        編集
+                        {/* ★ 第891便（カッキーさん）: 「編集」→「プロフィール編集」。★ 幅は文字なり（高さ 22px はそのまま）。
+                            ★ 名前は真ん中のまま、ボタンに重ならないよう名前の最大幅を「両側にボタン1つぶん」空けた */}
+                        プロフィール編集
                       </Link>
                     </div>
                   );
