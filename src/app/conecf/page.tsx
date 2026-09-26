@@ -2,6 +2,7 @@
 
 import { ConecfShell } from './ConecfShell';
 import { ConecfHome } from './ConecfHome';
+import { CastLinkProgress } from './CastLinkProgress';
 import { useToast } from '@/app/components/useToast';
 import { useState } from 'react';
 import { enableConecf } from '@/app/actions/conecf';
@@ -77,6 +78,8 @@ export default function ConecfHomePage() {
         <div className="space-y-3">
           {/* ★ 第411便: 「◯◯ 様」の帯は外した（★ 店舗名はサイドバーに出ている。★ はじめての方へはサイドバーから） */}
           <SwitchCard enabledAt={access.enabledAt} onToast={showToast} />
+          {/* ★ 第884便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧 */}
+          <CastLinkProgress salonId={access.salonId} />
           <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} onToast={showToast} />
         </div>
       )}

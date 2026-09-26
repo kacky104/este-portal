@@ -332,16 +332,21 @@ export async function getCastLinkStatus(input: { therapistId: string; salonId: n
  * - 写メ日記転送ページの「連携」列（〇／✕）用。オーナー（または管理者）だけ。読むだけ。
  */
 export async function getSalonCastLinks(input: { salonId: number }): Promise<
-  { ok: true; linkedIds: string[] } | { ok: false; error: string }
+  { ok: true; linkedIds: string[]; invitedIds: string[] } | { ok: false; error: string }
 > {
   const auth = await assertOwner(input.salonId);
   if ('error' in auth) return { ok: false, error: auth.error };
   const svc = createServiceClient();
+  // ★ 第884便: 招待中（invited_email あり・user_id なし）も返す（ホームの連携率で「招待中」と出すため）。★ メールそのものは返さない
   const { data, error } = await svc
     .from('therapists')
-    .select('id')
-    .eq('salon_id', input.salonId)
-    .not('user_id', 'is', null);
+    .select('id, user_id, invited_email')
+    .eq('salon_id', input.salonId);
   if (error) return { ok: false, error: error.message };
-  return { ok: true, linkedIds: (data ?? []).map((r) => String(r.id)) };
+  const rows = (data ?? []) as Array<{ id: number | string; user_id: string | null; invited_email: string | null }>;
+  return {
+    ok: true,
+    linkedIds: rows.filter((r) => r.user_id).map((r) => String(r.id)),
+    invitedIds: rows.filter((r) => !r.user_id && (r.invited_email ?? '').trim()).map((r) => String(r.id)),
+  };
 }
