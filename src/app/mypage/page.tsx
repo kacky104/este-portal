@@ -49,6 +49,8 @@ import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { getMediaLinkAlerts, getMediaOverview } from '@/app/actions/mediaCredentials';
 import { canReadProvider } from '@/lib/mediaOverview';
 import { OpsNoticeBar } from './OpsNoticeBar';
+// ★ 第885便: セラピストページ連携の連携率（コネックエフのホームと同じ部品）
+import { CastLinkProgress } from '@/app/components/CastLinkProgress';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -3479,6 +3481,14 @@ export default function MyPage() {
         {salon && (
           <div className={activeTab === 'available' ? '' : 'hidden'}>
             <SalonBumpButton salonId={Number(salon.id)} />
+          </div>
+        )}
+
+        {/* ★ 第885便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧（今すぐの画面・上位表示の下）。
+            ★ コネックエフに切り替えた店はコネックエフのホームに出るので、ここでは出さない */}
+        {salon && !conecfOn && (
+          <div className={activeTab === 'available' ? '' : 'hidden'}>
+            <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" />
           </div>
         )}
 

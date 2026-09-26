@@ -350,3 +350,35 @@ export async function getSalonCastLinks(input: { salonId: number }): Promise<
     invitedIds: rows.filter((r) => !r.user_id && (r.invited_email ?? '').trim()).map((r) => String(r.id)),
   };
 }
+
+/**
+ * ★ 第885便: 連携率ブロック（コネックエフのホーム・フクエスのマイページ）用の名簿。
+ * - その店のセラピスト全員（公開・非公開とも）と、連携の状態（linked／invited／none）。★ メールは返さない。
+ * - オーナー（または管理者）だけ。読むだけ。
+ */
+export async function getSalonCastLinkRoster(input: { salonId: number }): Promise<
+  | { ok: true; rows: Array<{ id: string; name: string; imageUrl: string | null; isActive: boolean; status: 'linked' | 'invited' | 'none' }> }
+  | { ok: false; error: string }
+> {
+  const auth = await assertOwner(input.salonId);
+  if ('error' in auth) return { ok: false, error: auth.error };
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('therapists')
+    .select('id, name, profile_image_url, profile_images, is_active, user_id, invited_email')
+    .eq('salon_id', input.salonId);
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []).map((t) => {
+    const imgs = Array.isArray(t.profile_images) ? (t.profile_images as unknown[]).filter((x): x is string => typeof x === 'string' && x !== '') : [];
+    const status: 'linked' | 'invited' | 'none' = t.user_id ? 'linked' : ((t.invited_email as string | null) ?? '').trim() ? 'invited' : 'none';
+    return {
+      id: String(t.id),
+      name: (t.name as string | null) ?? '',
+      imageUrl: imgs[0] ?? ((t.profile_image_url as string | null) || null),
+      isActive: t.is_active !== false,
+      status,
+    };
+  });
+  rows.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  return { ok: true, rows };
+}

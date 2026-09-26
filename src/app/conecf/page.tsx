@@ -2,7 +2,8 @@
 
 import { ConecfShell } from './ConecfShell';
 import { ConecfHome } from './ConecfHome';
-import { CastLinkProgress } from './CastLinkProgress';
+import { CastLinkProgress } from '@/app/components/CastLinkProgress';
+import { useConecfHref } from './ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { useState } from 'react';
 import { enableConecf } from '@/app/actions/conecf';
@@ -72,6 +73,7 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
 
 export default function ConecfHomePage() {
   const { toast, showToast } = useToast();
+  const href = useConecfHref();
   return (
     <ConecfShell current="home" title="ホーム" toast={toast}>
       {(access) => (
@@ -79,7 +81,7 @@ export default function ConecfHomePage() {
           {/* ★ 第411便: 「◯◯ 様」の帯は外した（★ 店舗名はサイドバーに出ている。★ はじめての方へはサイドバーから） */}
           <SwitchCard enabledAt={access.enabledAt} onToast={showToast} />
           {/* ★ 第884便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧 */}
-          <CastLinkProgress salonId={access.salonId} />
+          <CastLinkProgress salonId={access.salonId} editHref={(id) => href(`/girls/${id}`)} />
           <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} onToast={showToast} />
         </div>
       )}
