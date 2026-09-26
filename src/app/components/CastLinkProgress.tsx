@@ -77,7 +77,7 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo' }: {
         <div className={`h-full ${T.bar} transition-all`} style={{ width: `${pct}%` }} />
       </div>
       <p className="text-[13px] text-slate-500 leading-relaxed">
-        連携したセラピストは、写メ日記・今すぐ・出勤を自分のスマホから更新できます。お店の入力が減り、写メ日記の転送にも連携が必要です。
+        連携したセラピストは、写メ日記と今すぐを自分のスマホから更新できます。お店の入力が減り、写メ日記の転送にも連携が必要です。
         <span className="text-slate-400">（公開中の方だけ数えています）</span>
       </p>
 

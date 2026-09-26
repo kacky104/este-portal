@@ -3484,13 +3484,6 @@ export default function MyPage() {
           </div>
         )}
 
-        {/* ★ 第885便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧（今すぐの画面・上位表示の下）。
-            ★ コネックエフに切り替えた店はコネックエフのホームに出るので、ここでは出さない */}
-        {salon && !conecfOn && (
-          <div className={activeTab === 'available' ? '' : 'hidden'}>
-            <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" />
-          </div>
-        )}
 
         {/* ── コースメニュー（料金表）──
             ★ 「店舗情報の編集」から切り出して、その上の独立ブロックにした（2026-09-06・カッキーさんの指示）。
@@ -4515,6 +4508,14 @@ export default function MyPage() {
             })()}
           </div>
         </div>
+
+        {/* ★ 第885便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧（今すぐの画面・「今すぐ対応可能なセラピスト」の下）。
+            ★ コネックエフに切り替えた店はコネックエフのホームに出るので、ここでは出さない */}
+        {salon && !conecfOn && (
+          <div className={activeTab === 'available' ? '' : 'hidden'}>
+            <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" />
+          </div>
+        )}
 
         {/* ── タブ4: セラピスト情報 ── */}
         <div className={`space-y-3 ${activeTab === 'profile' ? '' : 'hidden'}`}>
