@@ -2414,43 +2414,75 @@ async function planDiaryList(
  * ★★ 到達性は 2026-09-01 時点で **未測定**（測ろうとしたが、こちら側の事情で測れなかった）。
  *   ★ だから「落とせた／落とせなかった」を必ず note に残す。★ 1店1日流せば本番の記録で分かる。
  */
+/**
+ * ★ 第901便: 写真の置き場の候補。★ 駅ちかは同じファイルを2か所に置いていることがある
+ *   （files.ranking-deli.jp の S3 ／ mensesthe-images.ranking-deli.jp）。片方で取れなければもう片方を試す。
+ */
+function diaryImageCandidates(url: string): string[] {
+  const out = [url];
+  const m = /\/diary\/(\d+\/diaries_\d+_file_name[^?#\s"'<>]+)/i.exec(url);
+  if (m) {
+    const rest = m[1];
+    const s3 = 'https://s3-ap-northeast-1.amazonaws.com/files.ranking-deli.jp/diary/' + rest;
+    const mi = 'https://mensesthe-images.ranking-deli.jp/diary/' + rest;
+    for (const u of [mi, s3]) if (!out.includes(u)) out.push(u);
+  }
+  return out;
+}
+
+/** ★ 第901便: 中身の先頭から画像の種類を見る（★ S3 は content-type が binary/octet-stream のことがある） */
+function sniffImageType(buf: Buffer): string | null {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
+  if (buf.length >= 12 && buf.subarray(0, 4).toString('ascii') === 'RIFF' && buf.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp';
+  return null;
+}
+
 async function fetchDiaryImage(
   url: string,
   therapistId: number,
   diaryId: string,
 ): Promise<{ publicUrl: string | null; note: string }> {
-  try {
-    const res = await fetch(url, {
-      // ★ 相手のS3。★ Cookie も認証も付けない（公開URL）
-      signal: AbortSignal.timeout(15000),
-      redirect: 'follow',
-    });
-    if (!res.ok) return { publicUrl: null, note: '写真を取れなかった（' + res.status + '）' };
+  const tried: string[] = [];
+  for (const cand of diaryImageCandidates(url)) {
+    try {
+      const res = await fetch(cand, {
+        // ★ 相手のS3・画像サーバ。★ Cookie も認証も付けない（公開URL）
+        signal: AbortSignal.timeout(15000),
+        redirect: 'follow',
+      });
+      if (!res.ok) { tried.push(new URL(cand).host + ':' + res.status); continue; }
 
-    const contentType = String(res.headers.get('content-type') ?? '').split(';')[0].toLowerCase();
-    const ext = DIARY_IMAGE_EXT[contentType];
-    if (!ext) return { publicUrl: null, note: '写真の種類が想定外（' + (contentType || '不明') + '）' };
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength === 0) { tried.push(new URL(cand).host + ':空'); continue; }
+      if (buf.byteLength > DIARY_MAX_IMAGE_BYTES) {
+        return { publicUrl: null, note: '写真が大きすぎた（' + buf.byteLength + 'バイト）' };
+      }
+      // ★ 種類は content-type → だめなら中身の先頭で判断（★ 第901便）
+      const headerType = String(res.headers.get('content-type') ?? '').split(';')[0].toLowerCase();
+      const contentType = DIARY_IMAGE_EXT[headerType] ? headerType : sniffImageType(buf);
+      if (!contentType || !DIARY_IMAGE_EXT[contentType]) {
+        tried.push(new URL(cand).host + ':種類が想定外（' + (headerType || '不明') + '）');
+        continue;
+      }
+      const ext = DIARY_IMAGE_EXT[contentType];
 
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.byteLength === 0) return { publicUrl: null, note: '写真が空だった' };
-    if (buf.byteLength > DIARY_MAX_IMAGE_BYTES) {
-      return { publicUrl: null, note: '写真が大きすぎた（' + buf.byteLength + 'バイト）' };
+      const supabase = createServiceClient();
+      // ★ 同じ日記を入れ直しても同じ場所になる名前にする（★ 二重取り込みは記録側で防ぐが、名前でも重ねない）
+      const path = therapistId + '/ekichika_' + diaryId + '.' + ext;
+      const { error: upErr } = await supabase.storage
+        .from(DIARY_BUCKET)
+        .upload(path, buf, { contentType, upsert: true });
+      if (upErr) return { publicUrl: null, note: '写真を保存できなかった: ' + upErr.message.slice(0, 80) };
+
+      const { data } = supabase.storage.from(DIARY_BUCKET).getPublicUrl(path);
+      return { publicUrl: data.publicUrl, note: '写真1枚' + (tried.length ? '（' + tried.join(' / ') + ' のあと）' : '') };
+    } catch (e) {
+      // ★★ 握りつぶさない。★ 次の候補へ
+      tried.push(new URL(cand).host + ':' + String((e as Error).message).slice(0, 40));
     }
-
-    const supabase = createServiceClient();
-    // ★ 同じ日記を入れ直しても同じ場所になる名前にする（★ 二重取り込みは記録側で防ぐが、名前でも重ねない）
-    const path = therapistId + '/ekichika_' + diaryId + '.' + ext;
-    const { error: upErr } = await supabase.storage
-      .from(DIARY_BUCKET)
-      .upload(path, buf, { contentType, upsert: true });
-    if (upErr) return { publicUrl: null, note: '写真を保存できなかった: ' + upErr.message.slice(0, 80) };
-
-    const { data } = supabase.storage.from(DIARY_BUCKET).getPublicUrl(path);
-    return { publicUrl: data.publicUrl, note: '写真1枚' };
-  } catch (e) {
-    // ★★ ここが「フクエスから直接落とせるか」の答えが出る場所。★ 握りつぶさない
-    return { publicUrl: null, note: '写真を取りに行けなかった: ' + String((e as Error).message).slice(0, 80) };
   }
+  return { publicUrl: null, note: '写真を取れなかった（' + tried.join(' / ') + '）' };
 }
 
 /**
