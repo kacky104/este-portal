@@ -2546,6 +2546,7 @@ async function saveDiaryDetail(
   // ④ 写真（★ 取れなくても本文は入れる）
   let images: string[] = [];
   let imageNote = '写真なし';
+  if (!detail.imageUrl) console.warn('[diary] 写真のURLが見つからない', params.salonId, diaryId, (detail.problems ?? []).join(' / '));
   if (detail.imageUrl) {
     const img = await fetchDiaryImage(detail.imageUrl, therapistId, diaryId);
     imageNote = img.note;
@@ -2595,7 +2596,13 @@ async function saveDiaryDetail(
         event: 'read_diary_detail',
         outcome: 'ok',
         summary: '駅ちかの写メ日記を1件フクエスに取り込みました',
-        detail: { hasImage: images.length > 0, imported: true, flowId: ctx.flowId },
+        // ★ 第902便: 写真が付かなかった理由を記録に残す（★ SQL で salon_media_audit を見れば分かる）
+        detail: {
+          hasImage: images.length > 0, imported: true, flowId: ctx.flowId, diaryId,
+          ...(images.length === 0
+            ? { imageNote, imageUrl: detail.imageUrl ?? null, problems: (detail.problems ?? []).slice(0, 5).join(' / ').slice(0, 300) }
+            : {}),
+        },
       },
     ],
   );
