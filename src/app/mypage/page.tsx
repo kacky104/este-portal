@@ -4729,7 +4729,7 @@ export default function MyPage() {
                       </span>
                       <Link
                         href={`/mypage/therapist/${t.id}`}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 px-2 sm:px-3 py-0.5 rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 w-[52px] h-[22px] inline-flex items-center justify-center rounded-none border border-pink-300 text-pink-600 text-xs font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
                       >
                         編集
                       </Link>
@@ -4827,12 +4827,13 @@ export default function MyPage() {
                       <p className="text-[10px] font-normal text-slate-400/90 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
                         セラピストアカウントに招待
                       </p>
-                      {/* ★ 内側の隙間は【4分の1】（2026-09-11・カッキーさんの指示）: 左右 16→4px ／ 上下 6→1.5px。 */}
+                      {/* ★ 内側の隙間は【4分の1】（2026-09-11・カッキーさんの指示）: 左右 16→4px ／ 上下 6→1.5px。
+                      ★ 第878便（カッキーさん）: 「編集」と同じ大きさに固定（縦＝編集の 22px・横＝招待するの 52px）。 */}
                       <button
                         type="button"
                         onClick={() => handleInviteCast(t.id)}
                         disabled={inviteBusyId === t.id}
-                        className="px-1 py-[1.5px] rounded-none text-white text-[11px] font-bold shadow-sm disabled:opacity-50 flex-shrink-0"
+                        className="w-[52px] h-[22px] inline-flex items-center justify-center rounded-none text-white text-[11px] font-bold shadow-sm disabled:opacity-50 flex-shrink-0"
                         style={{ background: 'linear-gradient(to right, #ec4899, #f97316)' }}
                       >
                         {inviteBusyId === t.id ? '送信中...' : '招待する'}
