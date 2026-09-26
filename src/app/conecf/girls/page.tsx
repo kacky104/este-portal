@@ -29,8 +29,8 @@ const GREEN_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg
 const PINK_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg-[#e91e63] text-white text-[12px] shadow-sm disabled:opacity-40';
 // ★ 第747便（カッキーさん）: PC では名前を固定幅（200px）にして、年齢との間の空白を無くす。★ 余りは右端（公開状態の右）に
 // ★ 第762便（カッキーさん）: 「新人」「入店日」の列を消した（新人は名前の上に NEW）
-// ★ 第877便（カッキーさん）: 公開状態の右に「セラピストページ連携」（PC 150px／スマホ 40px で「連携」）
-const COLS = 'grid grid-cols-[84px_68px_1fr_48px_40px] md:grid-cols-[96px_76px_150px_64px_210px_110px_150px_1fr]'; // ★ 第763便: 名前 200→150px（年齢を名前に寄せる）・サイズ 210px
+// ★ 第877便（カッキーさん）: 公開状態の右に「セラピストページ連携」（PC 150px）。★ 第881便: スマホでは出さない
+const COLS = 'grid grid-cols-[84px_68px_1fr_48px] md:grid-cols-[96px_76px_150px_64px_210px_110px_150px_1fr]'; // ★ 第763便: 名前 200→150px（年齢を名前に寄せる）・サイズ 210px
 
 function sizeLines(raw: string | null): [string, string] {
   const b = parseBodyType(raw);
@@ -394,7 +394,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           <span className="text-center">年齢</span>
           <span className="hidden md:block">サイズ</span>
           <span className="hidden md:block text-center">公開状態</span>
-          <span className="text-center"><span className="md:hidden">連携</span><span className="hidden md:inline">セラピストページ連携</span></span>
+          <span className="hidden md:block text-center">セラピストページ連携</span>
         </div>
 
         {!rows && <p className="p-5 text-slate-400">読み込み中…</p>}
@@ -445,7 +445,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                     <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow ${g.isActive ? 'right-0.5' : 'left-0.5'}`} />
                   </button>
                 </span>
-                <span className="text-center">
+                <span className="hidden md:block text-center">
                   {castLinked && <CastLinkMark linked={castLinked.has(String(g.id))} />}
                 </span>
               </li>
