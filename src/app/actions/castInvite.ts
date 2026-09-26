@@ -4,6 +4,8 @@ import { headers } from 'next/headers';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { createHash, randomBytes } from 'crypto';
+import { isConecfHost } from '@/lib/conecfHost';
 
 // キャスト（セラピスト本人）招待・本人化のサーバー専用処理。
 // - オーナー操作（招待/再送/紐付け解除）は assertOwner で「その salon のオーナー本人 or 管理者」を検証。
@@ -27,6 +29,9 @@ function isValidEmail(email: string): boolean {
 async function getOrigin(): Promise<string> {
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host');
+  // ★ 第887便: コネックエフ（conecf.com）から招待したときも、戻り先はフクエス（/cast はフクエスにしか無い）。
+  //   ★ conecf.com/cast/welcome は /conecf/cast/welcome に振り分けられて開けなかった（第868便からの見落とし）
+  if (isConecfHost(host)) return 'https://fukues.com';
   const proto = h.get('x-forwarded-proto') ?? (process.env.NODE_ENV === 'development' ? 'http' : 'https');
   return host ? `${proto}://${host}` : 'https://fukues.com';
 }
@@ -381,4 +386,143 @@ export async function getSalonCastLinkRoster(input: { salonId: number }): Promis
   });
   rows.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
   return { ok: true, rows };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// ★ 第887便（カッキーさん）: 「リンク・QRで招待」。
+//   オーナーがセラピスト1人ごとに招待リンクを作る → 本人がリンクを開いて自分のメールを入れる
+//   → 今までと同じ招待メール（sendInvite）→ パスワードを決めると連携（claimCastTherapist・変えていない）。
+// ★ リンクの文字列は保存しない（sha256 だけ）。★ 24時間・1回だけ。★ 作り直すと前のリンクは無効。
+// ★ 表 cast_invite_links は service role だけが読み書き（supabase/migrations/20260926_cast_invite_links.sql）。
+// ─────────────────────────────────────────────────────────────
+
+const INVITE_LINK_HOURS = 24;
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex');
+}
+
+function isTokenShape(token: string): boolean {
+  return /^[A-Za-z0-9_-]{32,128}$/.test(token);
+}
+
+/** 招待リンクを作る（前のリンクは無効にする）。オーナー（または管理者）だけ。 */
+export async function createCastInviteLink(input: { therapistId: string; salonId: number }): Promise<
+  { ok: true; url: string; expiresAt: string } | { ok: false; error: string }
+> {
+  const auth = await assertOwner(input.salonId);
+  if ('error' in auth) return { ok: false, error: auth.error };
+
+  const svc = createServiceClient();
+  const t = await getTherapistInSalon(svc, input.therapistId, input.salonId);
+  if (!t) return { ok: false, error: 'セラピストが見つかりません' };
+  if (t.user_id) return { ok: false, error: 'このセラピストは既に連携済みです' };
+
+  const now = new Date();
+  // 前のリンク（まだ使っていない・取り消していない）を無効に
+  const { error: rvErr } = await svc
+    .from('cast_invite_links')
+    .update({ revoked_at: now.toISOString() })
+    .eq('therapist_id', t.id)
+    .is('used_at', null)
+    .is('revoked_at', null);
+  if (rvErr) return { ok: false, error: `招待リンクを作れませんでした: ${rvErr.message}` };
+
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = new Date(now.getTime() + INVITE_LINK_HOURS * 60 * 60 * 1000).toISOString();
+  const { error: insErr } = await svc.from('cast_invite_links').insert({
+    therapist_id: t.id,
+    salon_id: input.salonId,
+    token_hash: hashToken(token),
+    expires_at: expiresAt,
+    created_by: auth.userId,
+  });
+  if (insErr) return { ok: false, error: `招待リンクを作れませんでした: ${insErr.message}` };
+
+  const origin = await getOrigin();
+  return { ok: true, url: `${origin}/cast/join/${token}`, expiresAt };
+}
+
+type LinkRow = { id: number; therapist_id: number; salon_id: number; expires_at: string; used_at: string | null; revoked_at: string | null };
+type LinkCheck =
+  | { ok: true; link: LinkRow; therapistName: string; salonName: string }
+  | { ok: false; code: 'invalid' | 'expired' | 'used' | 'linked'; error: string };
+
+async function checkLink(svc: Svc, token: string): Promise<LinkCheck> {
+  const bad = { ok: false as const, code: 'invalid' as const, error: 'この招待リンクは使えません。お店に新しいリンクをもらってください。' };
+  if (!isTokenShape(token)) return bad;
+  const { data } = await svc
+    .from('cast_invite_links')
+    .select('id, therapist_id, salon_id, expires_at, used_at, revoked_at')
+    .eq('token_hash', hashToken(token))
+    .maybeSingle();
+  const link = data as LinkRow | null;
+  if (!link || link.revoked_at) return bad;
+  if (link.used_at) return { ok: false, code: 'used', error: 'この招待リンクはもう使われています。届いた招待メールを確認するか、お店に新しいリンクをもらってください。' };
+  if (new Date(link.expires_at).getTime() <= Date.now()) {
+    return { ok: false, code: 'expired', error: 'この招待リンクは期限（24時間）が切れています。お店に新しいリンクをもらってください。' };
+  }
+  const { data: t } = await svc.from('therapists').select('id, name, salon_id, user_id').eq('id', link.therapist_id).maybeSingle();
+  if (!t || Number(t.salon_id) !== Number(link.salon_id)) return bad;
+  if (t.user_id) return { ok: false, code: 'linked', error: 'このセラピストは既に連携済みです。セラピストページにログインしてください。' };
+  const { data: salon } = await svc.from('salons').select('name').eq('id', link.salon_id).maybeSingle();
+  return { ok: true, link, therapistName: (t.name as string | null) ?? '', salonName: (salon?.name as string | null) ?? '' };
+}
+
+/** 招待リンクの中身（/cast/join/[token] の表示用）。★ 誰でも呼べる（リンクを持っている人＝本人） */
+export async function getCastInviteLinkInfo(input: { token: string }): Promise<
+  { ok: true; therapistName: string; salonName: string } | { ok: false; code: string; error: string }
+> {
+  const svc = createServiceClient();
+  const c = await checkLink(svc, String(input.token ?? ''));
+  if (!c.ok) return c;
+  return { ok: true, therapistName: c.therapistName, salonName: c.salonName };
+}
+
+/** 本人がメールを入れる → 招待メールを送る。★ リンクはここで使用済みになる（送れなかったら戻す） */
+export async function acceptCastInviteLink(input: { token: string; email: string }): Promise<ActionResult> {
+  const svc = createServiceClient();
+  const c = await checkLink(svc, String(input.token ?? ''));
+  if (!c.ok) return { ok: false, error: c.error };
+
+  const email = String(input.email ?? '').trim().toLowerCase();
+  if (!isValidEmail(email)) return { ok: false, error: 'メールアドレスの形式が正しくありません' };
+
+  // ★ 同じメールが別のセラピストに使われていないか（inviteCast と同じ確かめ方）
+  const { data: dupRows, error: dupErr } = await svc
+    .from('therapists')
+    .select('id')
+    .eq('invited_email', email)
+    .neq('id', c.link.therapist_id)
+    .limit(1);
+  if (dupErr) return { ok: false, error: `確認に失敗しました: ${dupErr.message}` };
+  if (dupRows && dupRows.length > 0) {
+    return { ok: false, error: 'このメールアドレスは既に別のセラピストに使われています。別のメールアドレスを入れてください。' };
+  }
+
+  // ★ 使用済みにする（★ used_at が空のときだけ＝同時に2回押されても1回だけ通る）
+  const usedAt = new Date().toISOString();
+  const { data: claimed, error: useErr } = await svc
+    .from('cast_invite_links')
+    .update({ used_at: usedAt })
+    .eq('id', c.link.id)
+    .is('used_at', null)
+    .is('revoked_at', null)
+    .select('id');
+  if (useErr) return { ok: false, error: `受け付けできませんでした: ${useErr.message}` };
+  if (!claimed || claimed.length === 0) return { ok: false, error: 'この招待リンクはもう使われています。' };
+
+  const undo = async () => { await svc.from('cast_invite_links').update({ used_at: null }).eq('id', c.link.id); };
+
+  const { error: upErr } = await svc
+    .from('therapists')
+    .update({ invited_email: email })
+    .eq('id', c.link.therapist_id)
+    .is('user_id', null);
+  if (upErr) { await undo(); return { ok: false, error: `受け付けできませんでした: ${upErr.message}` }; }
+
+  const sent = await sendInvite(svc, email);
+  if (!sent.ok) await undo();
+  return sent;
 }

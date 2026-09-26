@@ -51,6 +51,8 @@ import { canReadProvider } from '@/lib/mediaOverview';
 import { OpsNoticeBar } from './OpsNoticeBar';
 // ★ 第885便: セラピストページ連携の連携率（コネックエフのホームと同じ部品）
 import { CastLinkProgress } from '@/app/components/CastLinkProgress';
+// ★ 第887便: リンク・QRで招待（カードでは52×22の「QR」ボタン）
+import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -4840,6 +4842,17 @@ export default function MyPage() {
                       </p>
                       {/* ★ 内側の隙間は【4分の1】（2026-09-11・カッキーさんの指示）: 左右 16→4px ／ 上下 6→1.5px。
                       ★ 第878便（カッキーさん）: 「編集」と同じ大きさに固定（縦＝編集の 22px・横＝招待するの 52px）。 */}
+                      {/* ★ 第887便（カッキーさん）: 「招待する」の左隣に「QR」（同じ大きさ）。★ 中身は小窓に出すのでカードは広がらない */}
+                      {salon && (
+                        <CastInviteLinkButton
+                          variant="compact"
+                          therapistId={t.id}
+                          therapistName={t.name ?? undefined}
+                          salonId={Number(salon.id)}
+                          onToast={showToast}
+                          onClosed={() => void refreshTherapists()}
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => handleInviteCast(t.id)}

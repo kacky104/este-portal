@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import {
   getCastLinkStatus, inviteCast, resendCastInvite, cancelCastInvite, unlinkCast,
 } from '@/app/actions/castInvite';
@@ -91,6 +92,14 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
   if (loadErr) return <p className="pt-2 text-[13px] text-slate-400">{loadErr}</p>;
   if (!st) return <p className="pt-2 text-[13px] text-slate-400">読み込み中…</p>;
 
+  // ★ 第887便: メールが分からないときは「リンク・QRで招待」（本人が自分でメールを入れる）
+  const linkRow = (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-[12.5px] text-slate-500">メールアドレスが分からないときは</span>
+      <CastInviteLinkButton therapistId={therapistId} salonId={salonId} onToast={onToast} tone={tone} onClosed={() => void load()} />
+    </div>
+  );
+
   const inviteRow = (placeholder: string, label: string) => (
     <div className="flex items-center gap-2">
       <input type="email" inputMode="email" autoComplete="off" className={INPUT} placeholder={placeholder}
@@ -133,10 +142,12 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
             </div>
           </div>
           {inviteRow('別のメールアドレスで招待し直す', '招待し直す')}
+          {linkRow}
         </>
       )}
 
       {st.status === 'none' && inviteRow('例）sample@example.com', '招待メールを送る')}
+      {st.status === 'none' && linkRow}
 
       {note ?? (
         <p className="text-[12.5px] text-slate-400 leading-relaxed">
