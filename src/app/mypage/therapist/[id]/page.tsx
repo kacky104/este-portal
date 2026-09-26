@@ -22,6 +22,8 @@ import { getDiaryForwards, saveDiaryForward } from '@/app/actions/diaryForward';
 import { useToast } from '@/app/components/useToast';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { therapistDirtyFields, therapistDirtyNote, therapistLeaveWarning } from '@/lib/therapistDirty';
+// ★ 第879便: セラピストページ連携（コネックエフのセラピスト編集と同じ部品）
+import { CastLinkField } from '@/app/conecf/girls/[id]/CastLinkField';
 
 
 // ★★ この画面から「戻る」先（第228便・2026-09-09・カッキーさんの指示）。
@@ -939,6 +941,25 @@ export default function TherapistEditPage() {
             ★ 送るかどうかは店舗単位の「どこで書くか」で決まる。ここは宛先の登録だけ。 */}
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-black text-slate-700">写メ日記の転送先</h2>
+
+          {/* ★ 第879便（カッキーさん）: 写メ日記を投稿するにはセラピストページとの連携が必要、の説明と連携のメール入力 */}
+          <div className="space-y-2 pb-3 border-b border-slate-100">
+            <p className="text-xs font-bold text-slate-600">セラピストページ連携</p>
+            <CastLinkField
+              therapistId={Number(therapistId)}
+              salonId={Number(therapist.salon_id)}
+              onToast={showToast}
+              tone="pink"
+              note={(
+                <div className="text-[11px] text-slate-600 bg-pink-50/60 border border-pink-100 rounded-xl px-3 py-2 leading-relaxed space-y-0.5">
+                  <p>・写メ日記の同時投稿は、<b className="font-bold">フクエスからの投稿が必須</b>です。</p>
+                  <p>・セラピストが写メ日記を投稿するには、<b className="font-bold">セラピストページとの連携が必要</b>です。</p>
+                  <p>・入力するのは、セラピストさんが確認できるメールアドレスです。ご本人に教えてもらって入力し、連携してください。</p>
+                  <p className="text-slate-500">「招待メールを送る」を押すと、本人に招待メールが届きます（メールのリンクからパスワードを決めると連携されます）。下の「保存する」とは別です。</p>
+                </div>
+              )}
+            />
+          </div>
 
           {/* ★★★ 第152便（2026-09-05）: この枠をまるごと外した。
               ★ 元は「店舗全体の設定（写メ日記をどこで書くか）」を読めるようにする枠で、

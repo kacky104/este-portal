@@ -10,13 +10,29 @@ import {
 //   未招待 → メールを入れて「招待メールを送る」／招待中 → 再送・取り消し・別のメールで招待し直す／本人ログイン済み → 紐付け解除。
 // ★ 下の「保存」とは別（★ このボタンを押した時点で招待メールが飛ぶ）。
 
-const INPUT = 'w-full border border-slate-200 bg-white px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200 placeholder:text-slate-300';
-const BTN = 'h-9 px-4 text-[13px] font-bold border disabled:opacity-50 whitespace-nowrap flex-none';
+// ★ 第879便: tone='pink' はフクエスのマイページ（セラピスト編集）用の見た目。既定はコネックエフの藍色
+const TONES = {
+  indigo: {
+    input: 'w-full border border-slate-200 bg-white px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200 placeholder:text-slate-300',
+    btn: 'h-9 px-4 text-[13px] font-bold border disabled:opacity-50 whitespace-nowrap flex-none',
+    primary: 'border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700',
+    secondary: 'border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50',
+  },
+  pink: {
+    input: 'w-full border border-slate-200 rounded-xl bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 placeholder:text-slate-300',
+    btn: 'h-9 px-4 rounded-xl text-xs font-bold border disabled:opacity-50 whitespace-nowrap flex-none',
+    primary: 'border-pink-500 bg-pink-500 text-white hover:bg-pink-600',
+    secondary: 'border-pink-300 bg-white text-pink-600 hover:bg-pink-50',
+  },
+} as const;
 
 type Status = { status: 'linked' | 'invited' | 'none'; email: string | null };
 
 // ★ 第871便: note を渡すと下の説明文を差し替える（写メ日記タブでは写メ日記向けの説明）
-export function CastLinkField({ therapistId, salonId, onToast, note }: { therapistId: number; salonId: number; onToast: (m: string) => void; note?: ReactNode }) {
+export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'indigo' }: { therapistId: number; salonId: number; onToast: (m: string) => void; note?: ReactNode; tone?: keyof typeof TONES }) {
+  const T = TONES[tone];
+  const INPUT = T.input;
+  const BTN = T.btn;
   const [st, setSt] = useState<Status | null>(null);
   const [loadErr, setLoadErr] = useState('');
   const [email, setEmail] = useState('');
@@ -80,7 +96,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note }: { therapi
       <input type="email" inputMode="email" autoComplete="off" className={INPUT} placeholder={placeholder}
         value={email} onChange={(e) => setEmail(e.target.value)} />
       <button type="button" disabled={busy} onClick={() => void onInvite()}
-        className={`${BTN} border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700`}>
+        className={`${BTN} ${T.primary}`}>
         {busy ? '送っています…' : label}
       </button>
     </div>
@@ -107,7 +123,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note }: { therapi
             <span className="text-[12.5px] text-slate-400">（本人のログイン待ち）</span>
             <div className="ml-auto flex gap-2">
               <button type="button" disabled={busy} onClick={() => void onResend()}
-                className={`${BTN} border-indigo-300 bg-white text-indigo-700 hover:bg-indigo-50`}>
+                className={`${BTN} ${T.secondary}`}>
                 {busy ? '処理中…' : '招待を再送'}
               </button>
               <button type="button" disabled={busy} onClick={() => void onCancel()}
