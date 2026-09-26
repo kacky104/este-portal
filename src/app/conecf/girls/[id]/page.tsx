@@ -16,6 +16,7 @@ import { GirlDiaryTab } from './GirlDiaryTab';
 import { useSitePush } from './useSitePush';
 import { PhotoRemoveConfirm } from '../PhotoRemoveConfirm';
 import { DeleteGirlPanel } from './DeleteGirlPanel';
+import { CastLinkField } from './CastLinkField';
 import {
   getConecfGirl, saveConecfGirl, saveConecfGirlImages, saveConecfGirlTargets, type ConecfGirlDetail,
 } from '@/app/actions/conecfGirls';
@@ -324,6 +325,10 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic' }: { id: number; 
               </select>
               ) }}
             />
+            {/* ★ 第868便（カッキーさん）: /cast（セラピスト本人のページ）へ連携するメールアドレス。★ 保存とは別に、その場で招待メールを送る */}
+            <Field label="/cast 連携メール">
+              <CastLinkField therapistId={id} salonId={d.salonId} onToast={onToast} />
+            </Field>
             {/* ★★ 第446便（カッキーさん）: スタイル・タイプの欄はやめた（★ どこにも送っておらず、
                 ★ 同じ役目のものが「各サイト項目」にサイトごとに在る）。★ 入っている値は消していない */}
           </div>

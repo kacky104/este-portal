@@ -304,3 +304,25 @@ export async function claimCastTherapist(): Promise<ClaimResult> {
 
   return { ok: true, therapistName: (match.name as string | null) ?? null };
 }
+
+/**
+ * ★ 第868便: 本人ログイン（/cast）の連携状態を読む（コネックエフのセラピスト編集「基本情報」用）。
+ * - オーナー（または管理者）だけ。読むだけ（★ DB・Auth には書かない）。
+ * - status: 'linked'＝本人ログイン済み／'invited'＝招待中（本人のログイン待ち）／'none'＝未招待。
+ */
+export async function getCastLinkStatus(input: { therapistId: string; salonId: number }): Promise<
+  | { ok: true; status: 'linked' | 'invited' | 'none'; email: string | null }
+  | { ok: false; error: string }
+> {
+  const auth = await assertOwner(input.salonId);
+  if ('error' in auth) return { ok: false, error: auth.error };
+
+  const svc = createServiceClient();
+  const t = await getTherapistInSalon(svc, input.therapistId, input.salonId);
+  if (!t) return { ok: false, error: 'セラピストが見つかりません' };
+
+  const email = (t.invited_email ?? '').trim() || null;
+  if (t.user_id) return { ok: true, status: 'linked', email };
+  if (email) return { ok: true, status: 'invited', email };
+  return { ok: true, status: 'none', email: null };
+}
