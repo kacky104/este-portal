@@ -53,7 +53,7 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
     <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5 space-y-3">
       <p className="text-[13px] font-bold text-slate-400 text-center">写メ日記の書き方</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {opt('auto', '駅ちかで書く', '駅ちかに書いた写メ日記を、フクエスに取り込みます。')}
+        {opt('auto', '駅ちかで書く', '駅ちかに書いた写メ日記を、フクエスに載せます。')}
         {opt('fukues', 'フクエスで書く', 'セラピストページ（フクエス）で書いた写メ日記を、フクエスと駅ちかに載せます。')}
       </div>
 
@@ -66,13 +66,13 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
             {ask === 'fukues' ? (
               <>
                 <li>セラピストは、セラピストページ（フクエス）から写メ日記を書きます。</li>
-                <li><b>駅ちかに直接書いた写メ日記は、フクエスに取り込まれなくなります</b>（同じ日記が2つ並ばないため）。</li>
+                <li><b>駅ちかに直接書いた写メ日記は、フクエスに載らなくなります</b>（同じ日記が2つ並ばないため）。</li>
                 <li>駅ちかへは、投稿用メールアドレスが登録されているセラピストの分だけ届きます（いま {st.withAddress}/{st.total}名）。</li>
                 <li>出勤・セラピスト・即ヒメは、今までどおり駅ちかから反映します。</li>
               </>
             ) : (
               <>
-                <li>駅ちかに書いた写メ日記を、15分ごとにフクエスに取り込みます。</li>
+                <li>駅ちかに書いた写メ日記を、15分ごとにフクエスに載せます。</li>
                 <li>フクエスで書いた写メ日記は、駅ちかへ送らなくなります。</li>
               </>
             )}

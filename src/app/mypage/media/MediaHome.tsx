@@ -450,7 +450,7 @@ export function MediaHome({ salonId, onToast }: {
       {!loading && !error && reading && (
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         {/* ★ 第894便（カッキーさん）: 見出しを「入力が必要」と言い切る形に・本文は2行（案A）。★ AIはバッジ3つ以上が条件（第880便） */}
-        <p className="text-[14px] font-bold text-rose-600 text-center">以下のセラピスト情報は、入力が必要です</p>
+        <p className="text-[14px] font-bold text-slate-800 text-center">以下のセラピスト情報は、入力が必要です</p>
         <div className="mt-3 border border-amber-200 bg-amber-50 px-4 py-3 text-[14px] leading-relaxed text-slate-700 space-y-1.5">
           <p>
             <b>キャッチ・紹介文・特徴バッジ</b>は駅ちかから反映されません。マイページの「セラピスト」で入力してください。
