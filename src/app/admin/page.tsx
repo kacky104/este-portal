@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import Link from 'next/link';
-import { EmailQuotaBar } from './EmailQuotaBar';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
@@ -498,8 +497,6 @@ export default function AdminDashboard() {
       </div>
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {/* ★ 第898便: 今日のメール送信数（Resend 無料プランの見張り） */}
-        <EmailQuotaBar />
 
         {/* ══════════ 本体タブ ══════════ */}
         <div className={`space-y-4 ${activeTab === 'main' ? '' : 'hidden'}`}>
