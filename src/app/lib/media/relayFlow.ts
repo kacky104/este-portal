@@ -2241,6 +2241,8 @@ const DIARY_MAX_TITLE_LEN = 100;
 const DIARY_MAX_CONTENT_LEN = 5000;
 const DIARY_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const DIARY_BUCKET = 'diary-images';
+/** ★ 第903便: diary-images バケットの上限（20260618_diary_posts_storage.sql の 5MB）。★ 少し余裕を見る */
+const DIARY_STORAGE_MAX_BYTES = Math.floor(4.8 * 1024 * 1024);
 const DIARY_IMAGE_EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
@@ -2453,7 +2455,7 @@ async function fetchDiaryImage(
       });
       if (!res.ok) { tried.push(new URL(cand).host + ':' + res.status); continue; }
 
-      const buf = Buffer.from(await res.arrayBuffer());
+      let buf: Buffer = Buffer.from(await res.arrayBuffer());
       if (buf.byteLength === 0) { tried.push(new URL(cand).host + ':空'); continue; }
       if (buf.byteLength > DIARY_MAX_IMAGE_BYTES) {
         return { publicUrl: null, note: '写真が大きすぎた（' + buf.byteLength + 'バイト）' };
@@ -2465,18 +2467,39 @@ async function fetchDiaryImage(
         tried.push(new URL(cand).host + ':種類が想定外（' + (headerType || '不明') + '）');
         continue;
       }
-      const ext = DIARY_IMAGE_EXT[contentType];
+      let ext = DIARY_IMAGE_EXT[contentType];
+      let saveType = contentType;
+
+      // ★★ 第903便: diary-images の上限（5MB）を超える写真は縮めてから保存する。
+      //   ★ サラ様の4件は「The object exceeded the maximum allowed size」で落ちていた（第902便の記録で判明）。
+      //   ★ バケットの上限は変えない（★ 他の口の約束も5MB）。★ 長い辺2000px・JPEG 品質85 で作り直す。
+      let shrunk = '';
+      if (buf.byteLength > DIARY_STORAGE_MAX_BYTES) {
+        try {
+          const sharp = (await import('sharp')).default;
+          const out = await sharp(buf).rotate()
+            .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: 85 }).toBuffer();
+          shrunk = '（' + Math.round(buf.byteLength / 1024) + 'KB→' + Math.round(out.byteLength / 1024) + 'KB に縮めた）';
+          buf = out; ext = 'jpg'; saveType = 'image/jpeg';
+        } catch (e) {
+          return { publicUrl: null, note: '写真を縮められなかった: ' + String((e as Error).message).slice(0, 80) };
+        }
+        if (buf.byteLength > DIARY_STORAGE_MAX_BYTES) {
+          return { publicUrl: null, note: '写真を縮めても大きすぎた（' + buf.byteLength + 'バイト）' };
+        }
+      }
 
       const supabase = createServiceClient();
       // ★ 同じ日記を入れ直しても同じ場所になる名前にする（★ 二重取り込みは記録側で防ぐが、名前でも重ねない）
       const path = therapistId + '/ekichika_' + diaryId + '.' + ext;
       const { error: upErr } = await supabase.storage
         .from(DIARY_BUCKET)
-        .upload(path, buf, { contentType, upsert: true });
+        .upload(path, buf, { contentType: saveType, upsert: true });
       if (upErr) return { publicUrl: null, note: '写真を保存できなかった: ' + upErr.message.slice(0, 80) };
 
       const { data } = supabase.storage.from(DIARY_BUCKET).getPublicUrl(path);
-      return { publicUrl: data.publicUrl, note: '写真1枚' + (tried.length ? '（' + tried.join(' / ') + ' のあと）' : '') };
+      return { publicUrl: data.publicUrl, note: '写真1枚' + shrunk + (tried.length ? '（' + tried.join(' / ') + ' のあと）' : '') };
     } catch (e) {
       // ★★ 握りつぶさない。★ 次の候補へ
       tried.push(new URL(cand).host + ':' + String((e as Error).message).slice(0, 40));
