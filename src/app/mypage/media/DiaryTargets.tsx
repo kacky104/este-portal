@@ -409,7 +409,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
               <button
                 onClick={() => onImport(true)}
                 disabled={busy}
-                className="flex-none px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                type="button"
+                className="relative z-10 cursor-pointer flex-none px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 上書き登録する
               </button>
