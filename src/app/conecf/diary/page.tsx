@@ -18,9 +18,11 @@ export default function ConecfDiaryPage() {
     <ConecfShell current="diary" title="写メ日記転送" toast={toast}>
       {(a) => (
         <div className="space-y-3">
-          <p className="text-[13.5px] text-slate-500 bg-white border border-slate-200 px-4 py-2.5">
-            写メ日記は、フクエス（マイページ・セラピストさん本人）で書いてください。それを、ここで決めたサイトへ転送します。
-          </p>
+          {/* ★ 第872便（カッキーさん）: フクエスでの投稿が必須・セラピストページと連携しないと送れない、をはっきり書く */}
+          <div className="text-[13.5px] text-slate-600 bg-white border border-slate-200 px-4 py-2.5 leading-relaxed space-y-0.5">
+            <p>・写メ日記は、<b className="font-bold text-slate-800">フクエスでの投稿が必須</b>です。フクエスに投稿した写メ日記を、ここで決めたサイトへ転送します。</p>
+            <p>・セラピストは、<b className="font-bold text-slate-800">セラピストページと連携しないと写メ日記を送れません</b>（連携はセラピスト編集の「基本情報」または「写メ日記」タブから）。</p>
+          </div>
           <DiaryTargets
             salonId={a.salonId}
             onToast={showToast}
