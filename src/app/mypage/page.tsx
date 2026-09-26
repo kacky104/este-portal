@@ -4755,13 +4755,14 @@ export default function MyPage() {
                   const nameSize =
                     len <= 10 ? 'text-sm' : len <= 14 ? 'text-xs' : len <= 20 ? 'text-[10px]' : 'text-[9px]';
                   return (
-                    <div className="relative flex items-center justify-center min-w-0 min-h-[24px]">
-                      <span className={`${nameSize} font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis max-w-[calc(100%-200px)]`}>
+                    <div className="flex items-center gap-1 min-w-0 min-h-[24px]">
+                      {/* ★ 第892便（カッキーさん）: 名前は【写真と「プロフィール編集」の間の空白】の真ん中（flex-1 の中で中央寄せ） */}
+                      <span className={`flex-1 min-w-0 text-center ${nameSize} font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis`}>
                         {nm}
                       </span>
                       <Link
                         href={`/mypage/therapist/${t.id}`}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 h-[22px] px-1.5 inline-flex items-center justify-center rounded-none border border-pink-300 text-pink-600 text-[11px] font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
+                        className="flex-shrink-0 h-[22px] px-1.5 inline-flex items-center justify-center rounded-none border border-pink-300 text-pink-600 text-[11px] font-bold whitespace-nowrap hover:bg-pink-50 transition-colors"
                       >
                         {/* ★ 第891便（カッキーさん）: 「編集」→「プロフィール編集」。★ 幅は文字なり（高さ 22px はそのまま）。
                             ★ 名前は真ん中のまま、ボタンに重ならないよう名前の最大幅を「両側にボタン1つぶん」空けた */}
