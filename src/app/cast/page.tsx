@@ -128,9 +128,10 @@ export default async function CastHomePage() {
       <main className="relative max-w-2xl mx-auto px-4 pt-5 md:pt-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8">
         {/* ★ 第495便（カッキーさん）: fukuX のバナー（PC）。★ 本文の右横・上の空いた所に置く（xl 以上＝右に余白がある幅だけ）。
             ★ 第522便: 遷移先は本人の fukuX アカウント（/x/u/[handle]）。連携が無ければ fukuX のトップ（/x）。 */}
-        {therapist && (
+        {/* ★ 第883便（カッキーさん）: fukuX のアカウントを持っている人（連携 handle あり）にはバナーを出さない。★ 行き先はヘッダーの丸いアイコン */}
+        {therapist && !xHandle && (
           <Link
-            href={xHandle ? `/x/u/${xHandle}` : '/x'}
+            href="/x"
             aria-label="fukuX（フクエックス）メンズエステ専用SNS"
             className="hidden xl:block absolute top-8 left-full ml-6 w-[280px] rounded-2xl overflow-hidden shadow-md ring-1 ring-black/5 transition-transform hover:-translate-y-0.5"
           >
@@ -188,13 +189,16 @@ export default async function CastHomePage() {
             />
 
             {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ 第522便: 遷移先は本人の fukuX（連携が無ければ /x）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}
-            <Link
-              href={xHandle ? `/x/u/${xHandle}` : '/x'}
-              aria-label="fukuX（フクエックス）メンズエステ専用SNS"
-              className="xl:hidden block mt-8 rounded-2xl overflow-hidden shadow-md ring-1 ring-black/5"
-            >
-              <Image src="/fukux-cast-banner.webp" alt="fukuX（フクエックス）メンズエステ専用SNS" width={1200} height={630} sizes="(max-width: 672px) 100vw, 640px" className="block w-full h-auto" />
-            </Link>
+            {/* ★ 第883便: fukuX のアカウントを持っている人には出さない（PC と同じ） */}
+            {!xHandle && (
+              <Link
+                href="/x"
+                aria-label="fukuX（フクエックス）メンズエステ専用SNS"
+                className="xl:hidden block mt-8 rounded-2xl overflow-hidden shadow-md ring-1 ring-black/5"
+              >
+                <Image src="/fukux-cast-banner.webp" alt="fukuX（フクエックス）メンズエステ専用SNS" width={1200} height={630} sizes="(max-width: 672px) 100vw, 640px" className="block w-full h-auto" />
+              </Link>
+            )}
           </div>
         ) : (
           // ログインはできたが紐づくキャストが無い別種アカウント
