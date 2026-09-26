@@ -326,7 +326,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic' }: { id: number; 
               ) }}
             />
             {/* ★ 第868便（カッキーさん）: /cast（セラピスト本人のページ）へ連携するメールアドレス。★ 保存とは別に、その場で招待メールを送る */}
-            <Field label="/cast 連携メール">
+            <Field label="セラピストページ連携">
               <CastLinkField therapistId={id} salonId={d.salonId} onToast={onToast} />
             </Field>
             {/* ★★ 第446便（カッキーさん）: スタイル・タイプの欄はやめた（★ どこにも送っておらず、
