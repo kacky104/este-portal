@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { notifyAdmin } from '@/app/lib/notifyAdmin';
+import { EMAIL_DAILY_LIMIT, EMAIL_DAILY_WARN } from '@/app/lib/email/sendQuota';
 import { normalizeEmail } from '@/app/lib/validation/email';
 import {
   isEmailTroubleEvent,
@@ -28,6 +29,42 @@ import {
 //
 // ★ 生のボディで検証すること。req.json() したものを JSON.stringify し直すと
 //   キーの順序や空白が変わって署名が【必ず】合わなくなる。必ず req.text() を先に呼ぶ。
+
+// ★ 第898便: 1日の送信数の見張り（Resend 無料プラン＝1日100通・80通で運営へ）
+const EMAIL_SENT_EVENT = 'email.sent';
+
+/** 日本時間の日付（YYYY-MM-DD） */
+function jstDay(iso: string | null): string {
+  const t = iso && !Number.isNaN(Date.parse(iso)) ? Date.parse(iso) : Date.now();
+  return new Date(t + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+async function countEmailSent(createdAt: string | null): Promise<void> {
+  try {
+    const svc = createServiceClient();
+    const day = jstDay(createdAt);
+    const { data: sent, error } = await svc.rpc('bump_email_send_daily', { p_day: day });
+    if (error) { console.error('[resend webhook] 送信数を数えられなかった', error.message); return; }
+    const n = Number(sent ?? 0);
+    if (n < EMAIL_DAILY_WARN) return;
+    // ★ 1日1回だけ知らせる（warned_at が空のときだけ埋められた人が送る）
+    const { data: claimed } = await svc
+      .from('email_send_daily')
+      .update({ warned_at: new Date().toISOString() })
+      .eq('day', day)
+      .is('warned_at', null)
+      .select('day');
+    if (!claimed || claimed.length === 0) return;
+    await notifyAdmin(`【フクエス】今日のメール送信が${n}通になりました（上限${EMAIL_DAILY_LIMIT}通）`, [
+      `今日（${day}）Resend から送ったメールが ${n} 通になりました。`,
+      `無料プランは1日 ${EMAIL_DAILY_LIMIT} 通までです。超えると、その日のそれ以降のメール（写メ日記の転送・招待・請求書・予約通知など）が送られません。`,
+      'Resend を PRO プランに上げてください。',
+      '管理画面: https://fukues.com/admin',
+    ]);
+  } catch (e) {
+    console.error('[resend webhook] 送信数の見張りで失敗', e instanceof Error ? e.message : e);
+  }
+}
 
 // 署名検証で node:crypto を使うので Node ランタイムを明示する（Edge では動かない）。
 export const runtime = 'nodejs';
@@ -127,6 +164,14 @@ export async function POST(req: Request) {
 
   const eventType = str(body.type);
   if (!eventType) return NextResponse.json({ ok: true, ignored: 'no type' });
+
+  // ★★ 第898便: 送った数を数える（Resend 無料プランの1日100通の見張り・80通で運営へ知らせる）。
+  //   ★ Resend の Webhook で「email.sent」も購読していること（★ 購読していなければ何も数えない）。
+  //   ★ 数えるのに失敗しても 200 を返す（★ Svix のリトライで他のイベントを詰まらせない）。
+  if (eventType === EMAIL_SENT_EVENT) {
+    await countEmailSent(str(body.created_at));
+    return NextResponse.json({ ok: true, counted: true });
+  }
 
   // ★ 購読していない種別が来ても 200 を返して静かに捨てる。
   //   ここで 4xx/5xx を返すと Svix が延々リトライし、他のイベントの配送まで詰まる。
