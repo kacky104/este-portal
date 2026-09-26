@@ -65,3 +65,35 @@ export async function syncDiarySource(svc: ReturnType<typeof createServiceClient
   });
 }
 
+
+
+/**
+ * ★ 第897便（2026-09-26・カッキーさん・案B）: はじめて駅ちかの写メ日記を取り込めるようになった店は、過去60日ぶんを自動で遡る。
+ * ★ 条件: 入口が 'ekichika' になった ＋ まだ1件も取り込み記録が無い ＋ 遡りの列が空。
+ *   ★ 既存の店（取り込み記録がある店）は対象外。★ 一度入りきったら列は空に戻る（relayFlow の planDiaryList）。
+ * ★ 失敗しても呼び元は止めない。
+ */
+export const DIARY_BACKFILL_DAYS = 60;
+
+export async function maybeStartDiaryBackfill(svc: ReturnType<typeof createServiceClient>, salonId: number, actor: string): Promise<void> {
+  try {
+    const { data: salon } = await svc.from('salons').select('diary_source, diary_backfill_since').eq('id', salonId).maybeSingle();
+    if (!salon || readDiarySource((salon.diary_source as string | null) ?? null) !== 'ekichika') return;
+    if ((salon as { diary_backfill_since?: string | null }).diary_backfill_since) return;
+    const { count } = await svc
+      .from('salon_diary_imports').select('external_diary_id', { count: 'exact', head: true })
+      .eq('salon_id', salonId).eq('provider', 'ekichika');
+    if ((count ?? 0) > 0) return;
+    const since = new Date(Date.now() - DIARY_BACKFILL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await svc.from('salons').update({ diary_backfill_since: since, diary_backfill_until: null }).eq('id', salonId);
+    if (error) { console.error('[media] 遡りを始められなかった', salonId, error.message); return; }
+    await recordMediaAudit({
+      salonId, provider: 'ekichika', slot: 1,
+      event: 'diary_backfill_started', outcome: 'ok',
+      detail: { since, days: DIARY_BACKFILL_DAYS },
+      actor,
+    });
+  } catch (e) {
+    console.error('[media] 遡りの確認に失敗', salonId, e instanceof Error ? e.message : e);
+  }
+}

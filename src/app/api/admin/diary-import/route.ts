@@ -88,23 +88,31 @@ export async function POST(req: Request) {
     for (const id of salonIds) await syncDiarySource(svc, id, 'cron:diary-import');
   }
   const sourceOf = new Map<number, string>();
+  // ★ 第897便: 自動の遡り（はじめて ID・PW を入れた店・60日）。★ since が入っている間だけ
+  const backfillOf = new Map<number, { since: string; until: string | null }>();
   if (salonIds.length > 0) {
     const { data: salonRows, error: salonErr } = await svc
-      .from('salons').select('id, diary_source').in('id', salonIds);
+      .from('salons').select('id, diary_source, diary_backfill_since, diary_backfill_until').in('id', salonIds);
     if (salonErr) return NextResponse.json({ ok: false, error: salonErr.message }, { status: 500 });
     for (const r of salonRows ?? []) {
-      sourceOf.set(Number((r as { id: number }).id), readDiarySource((r as { diary_source: unknown }).diary_source));
+      const row = r as { id: number; diary_source: unknown; diary_backfill_since?: string | null; diary_backfill_until?: string | null };
+      sourceOf.set(Number(row.id), readDiarySource(row.diary_source));
+      if (row.diary_backfill_since) backfillOf.set(Number(row.id), { since: row.diary_backfill_since, until: row.diary_backfill_until ?? null });
     }
   }
 
-  const targets = consented.filter((c) =>
-    importsDiaryFromEkichika(sourceOf.get(Number((c as { salon_id: number }).salon_id)))
-  );
+  // ★★ 回すのは: 入口が ekichika の店 ＋【遡りの途中で「フクエスで書く」にした店】（★ until があるときだけ＝切り替え前の日記だけ取り込む）
+  const canRun = (salonId: number): boolean => {
+    if (importsDiaryFromEkichika(sourceOf.get(salonId))) return true;
+    const b = backfillOf.get(salonId);
+    return !!(b && b.until);
+  };
+  const targets = consented.filter((c) => canRun(Number((c as { salon_id: number }).salon_id)));
 
   // ★★ 「0件」の理由が読み取れる形で返す（第35便の反省6）。
   //   ★ 鍵はあるのに回らない店を、黙って数から消さない。
   const skipped = consented
-    .filter((c) => !importsDiaryFromEkichika(sourceOf.get(Number((c as { salon_id: number }).salon_id))))
+    .filter((c) => !canRun(Number((c as { salon_id: number }).salon_id)))
     .map((c) => ({
       salonId: Number((c as { salon_id: number }).salon_id),
       slot: Number((c as { slot: number }).slot),
@@ -136,7 +144,12 @@ export async function POST(req: Request) {
         intent: 'diary_read',
         actor: 'cron:diary-import',
         // ★ since を渡したときだけ遡る。★ 通常運転は1ページ目だけ
-        ...(since ? diaryBackfillContext({ since, maxPages: Number(body.maxPages) }) : {}),
+        // ★ 第897便: 自動の遡りの店は、列の since（と until）で遡る（★ 手動の since を渡されたら手動を優先）
+        ...(since
+          ? diaryBackfillContext({ since, maxPages: Number(body.maxPages), until: backfillOf.get(salonId)?.until ?? null })
+          : backfillOf.has(salonId)
+            ? diaryBackfillContext({ since: backfillOf.get(salonId)!.since, until: backfillOf.get(salonId)!.until, backfill: true })
+            : {}),
       });
       started.push({ salonId, slot, jobId: r.ok ? r.jobId : undefined, note: r.note });
       // ★★ 積めた【後】に心拍を刻む（第100便）。★ 前に刻むと、積めていないのに新しくなる

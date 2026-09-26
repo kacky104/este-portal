@@ -147,6 +147,10 @@ export async function startRelayFlow(params: {
    */
   diarySince?: string | null;
   diaryPagesLeft?: number;
+  /** ★ 第897便: この時刻より前の日記だけ（途中で「フクエスで書く」にした店の遡り） */
+  diaryUntil?: string | null;
+  /** ★ 第897便: 自動の遡りの周（入りきったら salons.diary_backfill_* を空に戻す） */
+  diaryBackfill?: boolean;
   /**
    * intent='photo_push' のときだけ（第107便）。★ 写真の在処・枠・切り抜きの範囲。
    * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
@@ -409,6 +413,9 @@ export async function startRelayFlow(params: {
     ...(Number.isFinite(params.diaryPagesLeft)
       ? { diaryPagesLeft: Number(params.diaryPagesLeft) }
       : {}),
+    // ★ 第897便: 自動の遡り（上限の時刻・終わったら列を空に戻す印）
+    ...(params.diaryUntil ? { diaryUntil: params.diaryUntil } : {}),
+    ...(params.diaryBackfill ? { diaryBackfill: true } : {}),
     // ★ 写真の送信（第107便）。★ 渡されたときだけ入れる
     ...(params.photo
       ? {
@@ -2341,6 +2348,7 @@ async function planDiaryList(
   const plan = selectDiariesToFetch(page, {
     known,
     since: ctx.diarySince ?? null,
+    until: ctx.diaryUntil ?? null,
     now: new Date().toISOString(),
   });
 
@@ -2374,6 +2382,12 @@ async function planDiaryList(
 
   const next = nextDiaryJob(base);
   if (!next) {
+    // ★★ 第897便: 自動の遡りで、遡りきって新しく開くものが1件も無かった＝入りきった。★ 列を空に戻す（次の周から1ページ目だけ）
+    if (ctx.diaryBackfill) {
+      await supabase.from('salons')
+        .update({ diary_backfill_since: null, diary_backfill_until: null })
+        .eq('id', params.salonId);
+    }
     return {
       audits: [],
       note:
@@ -2559,9 +2573,14 @@ async function saveDiaryDetail(
 export function diaryBackfillContext(input: {
   since: string;
   maxPages?: number;
-}): Pick<RelayFlowContext, 'diarySince' | 'diaryPagesLeft'> {
+  /** ★ 第897便 */
+  until?: string | null;
+  backfill?: boolean;
+}): Pick<RelayFlowContext, 'diarySince' | 'diaryPagesLeft' | 'diaryUntil' | 'diaryBackfill'> {
   const n = Number(input.maxPages);
   return {
+    ...(input.until ? { diaryUntil: input.until } : {}),
+    ...(input.backfill ? { diaryBackfill: true } : {}),
     diarySince: input.since,
     diaryPagesLeft: Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), DIARY_MAX_PAGES) : DIARY_MAX_PAGES,
   };

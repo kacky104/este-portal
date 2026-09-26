@@ -33,6 +33,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'source_registered',   // ★ 運営が駅ちかの店舗ページ（店舗番号・URL）を登録した（第704便・2026-09-23）。★ 取り込みの旗も一緒に立つ
   'sokuhime_auto_changed', // ★ 今すぐ→即ヒメ の自動を入切した（第215便）。★ 向き（link_mode）とは別のスイッチ
   'diary_source_synced', // ★ 写メ日記の入口を、向きから導いて書き換えた（第205便）。★ 店舗は直接いじらない
+  'diary_backfill_started', // ★ 第897便: はじめて写メ日記を取り込める店で、過去60日ぶんの自動の遡りを始めた
   'diary_write_pref', // ★ 第895便: 店舗オーナーが写メ日記の書き方（駅ちかで書く／フクエスで書く）を選んだ
   'cast_id_linked',      // ★ 名簿の結びを画面から作った（第115便）。★ 送り先が決まる
   'cast_id_unlinked',    // ★ 名簿の結びを画面から外した（第115便）
@@ -565,6 +566,10 @@ export function defaultAuditSummary(input: {
       s = input.outcome === 'ok'
         ? `運営が駅ちかのお店のページ（店舗番号 ${String(d?.['externalId'] ?? '')}）を登録しました。駅ちかからの反映を始められます`
         : '運営が駅ちかのお店のページを登録できませんでした';
+      break;
+    }
+    case 'diary_backfill_started': {
+      s = `駅ちかの写メ日記を、過去${String(d?.['days'] ?? 60)}日ぶん遡ってフクエスに載せ始めました（15分ごとに少しずつ入ります）`;
       break;
     }
     case 'diary_write_pref': {

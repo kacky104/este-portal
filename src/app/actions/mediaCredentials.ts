@@ -6,7 +6,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isAcceptableConsentVersion } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
-import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
+import { syncDiarySource, maybeStartDiaryBackfill } from '@/app/lib/media/diarySourceSync';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 // ★★★ 【第259便】セラピスト登録の材料づくり。★ 運営の curl の口（media-girl-create）と同じ1か所を呼ぶ（第257便）。
 import { buildGirlCreatePlan } from '@/app/lib/media/girlCreatePlan';
@@ -365,6 +365,8 @@ export async function saveMediaCredential(input: {
   await ensureSendOnlySource({ svc, salonId, provider: input.provider, slot, actor });
   // ★ 駅ちか read の店は、鍵が入った瞬間に写メ日記を取り込めるようになる（第205便）
   await syncDiarySource(svc, salonId, actor);
+  // ★ 第897便: はじめて写メ日記を取り込めるようになった店は、過去60日ぶんを自動で遡る
+  await maybeStartDiaryBackfill(svc, salonId, actor);
 
   return { ok: true, data: { saved: true } };
 }
@@ -828,6 +830,8 @@ async function applyLinkMode(input: {
 
   // ★★★ 写メ日記の入口を、この向きから導いて書く（第205便）。★ 1枠も一括もここを通る
   await syncDiarySource(svc, salonId, input.actor);
+  // ★ 第897便: 向きを「駅ちかから反映」にして、はじめて写メ日記を取り込めるようになった店も同じ
+  await maybeStartDiaryBackfill(svc, salonId, input.actor);
 
   return { ok: true, data: { mode: input.mode } };
 }
@@ -2582,10 +2586,12 @@ type DiaryWriteState = {
   total: number;
   /** そのうち駅ちかの投稿用アドレスがある人数 */
   withAddress: number;
+  /** ★ 第897便: 過去分を遡って取り込んでいる途中か */
+  backfilling: boolean;
 };
 
 async function readDiaryWriteState(svc: ReturnType<typeof createServiceClient>, salonId: number): Promise<DiaryWriteState> {
-  const { data: salon } = await svc.from('salons').select('diary_source, diary_write_pref').eq('id', salonId).maybeSingle();
+  const { data: salon } = await svc.from('salons').select('diary_source, diary_write_pref, diary_backfill_since').eq('id', salonId).maybeSingle();
   const { data: ts } = await svc.from('therapists').select('id').eq('salon_id', salonId).neq('is_active', false);
   const ids = (ts ?? []).map((t) => Number(t.id));
   let withAddress = 0;
@@ -2598,7 +2604,8 @@ async function readDiaryWriteState(svc: ReturnType<typeof createServiceClient>, 
     withAddress = new Set((fw ?? []).filter((f) => f.is_enabled !== false && String(f.address ?? '').trim()).map((f) => Number(f.therapist_id))).size;
   }
   const pref = (salon as { diary_write_pref?: string | null } | null)?.diary_write_pref === 'fukues' ? 'fukues' : 'auto';
-  return { pref, source: String((salon?.diary_source as string | null) ?? 'benry'), total: ids.length, withAddress };
+  const backfilling = !!(salon as { diary_backfill_since?: string | null } | null)?.diary_backfill_since;
+  return { pref, source: String((salon?.diary_source as string | null) ?? 'benry'), total: ids.length, withAddress, backfilling };
 }
 
 export async function getDiaryWritePref(input: { salonId: number }): Promise<Result<DiaryWriteState>> {
@@ -2618,7 +2625,12 @@ export async function setDiaryWritePref(input: { salonId: number; pref: string }
 
   const svc = createServiceClient();
   const { data: before } = await svc.from('salons').select('diary_write_pref').eq('id', salonId).maybeSingle();
-  const { error } = await svc.from('salons').update({ diary_write_pref: input.pref }).eq('id', salonId);
+  // ★ 第897便: 過去分の遡りの途中なら、「フクエスで書く」にした時刻より前の日記だけ最後まで取り込む（★ 戻したら上限なし）
+  const { data: bf } = await svc.from('salons').select('diary_backfill_since').eq('id', salonId).maybeSingle();
+  const backfilling = !!(bf as { diary_backfill_since?: string | null } | null)?.diary_backfill_since;
+  const patch: Record<string, unknown> = { diary_write_pref: input.pref };
+  if (backfilling) patch.diary_backfill_until = input.pref === 'fukues' ? new Date().toISOString() : null;
+  const { error } = await svc.from('salons').update(patch).eq('id', salonId);
   if (error) return { ok: false, error: error.message };
 
   const actor = 'shop:' + guard.data.userId;

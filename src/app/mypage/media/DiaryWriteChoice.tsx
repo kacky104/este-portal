@@ -8,7 +8,7 @@ import { getDiaryWritePref, setDiaryWritePref } from '@/app/actions/mediaCredent
 // ★ 店舗オーナーが選ぶ: 駅ちかで書く（駅ちか → フクエス）／フクエスで書く（フクエス → フクエス・駅ちか）。
 // ★ 入口は常に1つ（二重投稿を防ぐ）。★ 押す前に、何が変わるかを必ず出す。
 
-type State = { pref: 'auto' | 'fukues'; source: string; total: number; withAddress: number };
+type State = { pref: 'auto' | 'fukues'; source: string; total: number; withAddress: number; backfilling: boolean };
 
 export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToast: (m: string) => void }) {
   const [st, setSt] = useState<State | null>(null);
@@ -69,6 +69,7 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
                 <li><b>駅ちかに直接書いた写メ日記は、フクエスに載らなくなります</b>（同じ日記が2つ並ばないため）。</li>
                 <li>駅ちかへは、投稿用メールアドレスが登録されているセラピストの分だけ届きます（いま {st.withAddress}/{st.total}名）。</li>
                 <li>出勤・セラピスト・即ヒメは、今までどおり駅ちかから反映します。</li>
+                {st.backfilling && <li>いま過去の写メ日記をフクエスに載せている途中です。切り替える前に駅ちかで書かれた分は、最後まで載せます。</li>}
               </>
             ) : (
               <>

@@ -656,6 +656,8 @@ export type DiaryFetchPlan = {
   skippedWaiting: string[];
   /** 期間の外なので開かない（初回40日ぶん） */
   skippedOld: string[];
+  /** ★ 第897便: until より新しい（または日時が読めない）ので開かない＝フクエスから送った日記かもしれない */
+  skippedNew?: string[];
 };
 
 function normalizeKnown(v: string | KnownDiary): KnownDiary {
@@ -704,6 +706,11 @@ export function selectDiariesToFetch(
     now?: string | null;
     /** この周で開いてよい上限。★ 渡さなければ DIARY_MAX_PER_RUN */
     limit?: number | null;
+    /**
+     * ★ 第897便: この時刻【より前】の投稿だけ開く（★ 途中で「フクエスで書く」に切り替えた店の遡り）。
+     *   ★ 日時が読めない行は【開かない】（★ 二重になるほうへ倒さない）。★ 渡さなければ上限なし
+     */
+    until?: string | null;
   },
 ): DiaryFetchPlan {
   const known = new Map<string, KnownDiary>();
@@ -721,6 +728,8 @@ export function selectDiariesToFetch(
   const skippedDone: string[] = [];
   const skippedWaiting: string[] = [];
   const skippedOld: string[] = [];
+  const skippedNew: string[] = [];
+  const untilMs = options?.until ? Date.parse(options.until) : Number.NaN;
 
   for (const row of page.rows) {
     const rec = known.get(row.diaryId);
@@ -735,6 +744,10 @@ export function selectDiariesToFetch(
       fetch.push(row);
       continue;
     }
+    if (!Number.isNaN(untilMs)) {
+      const t = row.postedAt !== null ? Date.parse(row.postedAt) : Number.NaN;
+      if (Number.isNaN(t) || t >= untilMs) { skippedNew.push(row.diaryId); continue; }
+    }
     if (!Number.isNaN(sinceMs) && row.postedAt !== null) {
       const t = Date.parse(row.postedAt);
       if (!Number.isNaN(t) && t < sinceMs) {
@@ -747,7 +760,7 @@ export function selectDiariesToFetch(
     fetch.push(row);
   }
 
-  return { fetch, deferred, skippedDone, skippedWaiting, skippedOld };
+  return { fetch, deferred, skippedDone, skippedWaiting, skippedOld, skippedNew };
 }
 
 // ────────────────────────────────────────────────────────────
