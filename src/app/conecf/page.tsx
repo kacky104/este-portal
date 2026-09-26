@@ -81,7 +81,7 @@ export default function ConecfHomePage() {
           {/* ★ 第411便: 「◯◯ 様」の帯は外した（★ 店舗名はサイドバーに出ている。★ はじめての方へはサイドバーから） */}
           <SwitchCard enabledAt={access.enabledAt} onToast={showToast} />
           {/* ★ 第884便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧 */}
-          <CastLinkProgress salonId={access.salonId} editHref={(id) => href(`/girls/${id}`)} />
+          <CastLinkProgress salonId={access.salonId} editHref={(id) => href(`/girls/${id}`)} onToast={showToast} />
           <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} onToast={showToast} />
         </div>
       )}

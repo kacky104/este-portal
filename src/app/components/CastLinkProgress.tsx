@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getSalonCastLinkRoster } from '@/app/actions/castInvite';
+// ★ 第893便: 「招待する」の左横に「QR」（リンク・QRで招待の小窓）
+import { CastInviteLinkButton } from './CastInviteLinkButton';
 
 // ★ 第884便（カッキーさん）: 「セラピストページ連携」の連携率と、まだ連携していない方の一覧。
 // ★ 第885便: コネックエフのホームとフクエスのマイページ（今すぐの画面）で同じ部品を使う（tone で色だけ変える）。
@@ -29,16 +31,18 @@ const TONES = {
   },
 } as const;
 
-export function CastLinkProgress({ salonId, editHref, tone = 'indigo' }: {
+export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast }: {
   salonId: number | null;
   /** 「招待する／確認する」の行き先（そのセラピストの編集ページ） */
   editHref: (therapistId: string) => string;
   tone?: keyof typeof TONES;
+  onToast?: (m: string) => void;
 }) {
   const T = TONES[tone];
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (salonId == null) return;
@@ -49,7 +53,7 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo' }: {
       setRows(r.rows);
     }).catch(() => { if (alive) setError(true); });
     return () => { alive = false; };
-  }, [salonId]);
+  }, [salonId, reload]);
 
   // ★ 読めなかったときは出さない（★ 0% と書かない。読めていないことと0名は違う）
   if (salonId == null || error || !rows) return null;
@@ -103,6 +107,16 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo' }: {
                       {inv ? '招待中（本人のログイン待ち）' : '未連携'}
                     </span>
                   </span>
+                  <CastInviteLinkButton
+                    variant="compact"
+                    therapistId={g.id}
+                    therapistName={g.name}
+                    salonId={salonId}
+                    tone={tone}
+                    onToast={onToast ?? (() => {})}
+                    onClosed={() => setReload((n) => n + 1)}
+                    triggerClassName={`flex-none h-8 px-3 inline-flex items-center border bg-white text-[12.5px] font-bold ${T.btn}`}
+                  />
                   <Link href={editHref(g.id)}
                     className={`flex-none h-8 px-3 inline-flex items-center border text-[12.5px] font-bold ${T.btn}`}>
                     {inv ? '確認する' : '招待する'}

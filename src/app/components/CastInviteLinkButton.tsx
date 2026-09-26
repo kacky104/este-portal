@@ -23,6 +23,8 @@ type Props = {
   hideTrigger?: boolean;
   /** ★ 第889便: 小窓の一番上に出す一言（例: 「◯◯さんを登録しました。」） */
   lead?: string;
+  /** ★ 第893便: compact のボタンの見た目を差し替える（連携率ブロックの一覧で「招待する」と同じ形にする） */
+  triggerClassName?: string;
 };
 
 function fmt(iso: string): string {
@@ -30,7 +32,7 @@ function fmt(iso: string): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-export function CastInviteLinkButton({ therapistId, salonId, therapistName, onToast, variant = 'full', tone = 'pink', onClosed, defaultOpen = false, hideTrigger = false, lead }: Props) {
+export function CastInviteLinkButton({ therapistId, salonId, therapistName, onToast, variant = 'full', tone = 'pink', onClosed, defaultOpen = false, hideTrigger = false, lead, triggerClassName }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<{ url: string; expiresAt: string } | null>(null);
@@ -80,7 +82,7 @@ export function CastInviteLinkButton({ therapistId, salonId, therapistName, onTo
     <>
       {hideTrigger ? null : variant === 'compact' ? (
         <button type="button" onClick={onOpen} title="リンク・QRで招待"
-          className="w-[52px] h-[22px] inline-flex items-center justify-center rounded-none border border-pink-300 bg-white text-pink-600 text-[11px] font-bold flex-shrink-0 hover:bg-pink-50">
+          className={triggerClassName ?? 'w-[52px] h-[22px] inline-flex items-center justify-center rounded-none border border-pink-300 bg-white text-pink-600 text-[11px] font-bold flex-shrink-0 hover:bg-pink-50'}>
           QR
         </button>
       ) : (

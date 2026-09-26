@@ -4534,7 +4534,7 @@ export default function MyPage() {
             ★ コネックエフに切り替えた店はコネックエフのホームに出るので、ここでは出さない */}
         {salon && !conecfOn && (
           <div className={activeTab === 'available' ? '' : 'hidden'}>
-            <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" />
+            <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" onToast={showToast} />
           </div>
         )}
 
