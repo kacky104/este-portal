@@ -444,13 +444,14 @@ export function MediaHome({ salonId, onToast }: {
       {/* ★ 第852便: 駅ちかから反映中のときだけ */}
       {!loading && !error && reading && (
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        <p className="text-[13px] font-bold text-slate-400 text-center">セラピストで反映されないもの</p>
+        {/* ★ 第894便（カッキーさん）: 見出しを「入力が必要」と言い切る形に・本文は2行（案A）。★ AIはバッジ3つ以上が条件（第880便） */}
+        <p className="text-[14px] font-bold text-rose-600 text-center">以下のセラピスト情報は、入力が必要です</p>
         <div className="mt-3 border border-amber-200 bg-amber-50 px-4 py-3 text-[14px] leading-relaxed text-slate-700 space-y-1.5">
           <p>
-            セラピストの<b>キャッチ・紹介文・特徴バッジ</b>は駅ちかから反映されません。マイページの「セラピスト」から直接入力してください。
+            <b>キャッチ・紹介文・特徴バッジ</b>は駅ちかから反映されません。マイページの「セラピスト」で入力してください。
           </p>
           <p>
-            キャッチと紹介文は<b>「AIで下書きを作る」</b>で自動で作れます。先に特徴バッジを選んでから使うと、その人らしい文に仕上がります。
+            特徴バッジを3つ以上選ぶと、キャッチと紹介文は<b>「AIで下書きを作る」</b>で作れます。
           </p>
         </div>
         <div className="mt-3 text-center">
