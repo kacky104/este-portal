@@ -70,11 +70,13 @@ function FieldPair({ a, b }: { a: { label: string; badge?: '必須'; children: R
   );
 }
 
-function EditBody({ id, enabled, onToast, initialTab = 'basic' }: { id: number; enabled: boolean; onToast: (m: string) => void; initialTab?: Tab }) {
+function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = false }: { id: number; enabled: boolean; onToast: (m: string) => void; initialTab?: Tab; autoInvite?: boolean }) {
   const href = useConecfHref();
   const [d, setD] = useState<ConecfGirlDetail | null>(null);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>(initialTab);
+  // ★ 第889便: 新規登録の直後だけ小窓を開く（★ 閉じたら、タブを行き来しても再び開かない）
+  const [autoInv, setAutoInv] = useState(autoInvite);
   const [form, setForm] = useState<Form | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [sites, setSites] = useState<ConecfGirlDetail['sites']>([]);
@@ -327,7 +329,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic' }: { id: number; 
             />
             {/* ★ 第868便（カッキーさん）: /cast（セラピスト本人のページ）へ連携するメールアドレス。★ 保存とは別に、その場で招待メールを送る */}
             <Field label="セラピストページ連携">
-              <CastLinkField therapistId={id} salonId={d.salonId} onToast={onToast} />
+              <CastLinkField therapistId={id} salonId={d.salonId} onToast={onToast} autoOpenLink={autoInv} onAutoClosed={() => setAutoInv(false)} therapistName={form.name} />
             </Field>
             {/* ★★ 第446便（カッキーさん）: スタイル・タイプの欄はやめた（★ どこにも送っておらず、
                 ★ 同じ役目のものが「各サイト項目」にサイトごとに在る）。★ 入っている値は消していない */}
@@ -419,10 +421,18 @@ export default function ConecfGirlEditPage() {
   const sp = useSearchParams();
   const qt = sp?.get('tab') ?? '';
   const initialTab: Tab = (['basic', 'fukues', 'ekichika', 'esutama', 'diary', 'images', 'sites'] as const).find((t) => t === qt) ?? 'basic';
+  // ★ 第889便: 新規登録の直後（?invite=1）は「リンク・QRで招待」の小窓を開く。★ 開き直し（再読み込み）で出ないよう、URL からは消す
+  const [autoInvite] = useState(() => sp?.get('invite') === '1');
+  useEffect(() => {
+    if (!autoInvite) return;
+    const u = new URL(window.location.href);
+    u.searchParams.delete('invite');
+    window.history.replaceState(null, '', u.toString());
+  }, [autoInvite]);
   const { toast, showToast } = useToast();
   return (
     <ConecfShell current="girls" title="セラピストプロフィール編集" toast={toast}>
-      {(a) => (Number.isInteger(id) && id > 0 ? <EditBody id={id} enabled={!!a.enabledAt} onToast={showToast} initialTab={initialTab} /> : <p className="text-slate-500">セラピストの指定が正しくありません。</p>)}
+      {(a) => (Number.isInteger(id) && id > 0 ? <EditBody id={id} enabled={!!a.enabledAt} onToast={showToast} initialTab={initialTab} autoInvite={autoInvite} /> : <p className="text-slate-500">セラピストの指定が正しくありません。</p>)}
     </ConecfShell>
   );
 }

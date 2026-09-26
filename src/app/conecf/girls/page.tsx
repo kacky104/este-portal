@@ -181,7 +181,8 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     setBusy(false);
     if (!res.ok) { onToast(res.error); return; }
     if (salonId != null) void revalidateSalon(salonId);
-    window.location.href = href(`/girls/${res.data.id}`);
+    // ★ 第889便（カッキーさん）: 登録したら、編集ページで「リンク・QRで招待」の小窓をすぐ開く
+    window.location.href = href(`/girls/${res.data.id}?invite=1`);
   };
 
   const onToggle = async (g: ConecfGirlRow) => {

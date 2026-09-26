@@ -30,7 +30,7 @@ const TONES = {
 type Status = { status: 'linked' | 'invited' | 'none'; email: string | null };
 
 // ★ 第871便: note を渡すと下の説明文を差し替える（写メ日記タブでは写メ日記向けの説明）
-export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'indigo' }: { therapistId: number; salonId: number; onToast: (m: string) => void; note?: ReactNode; tone?: keyof typeof TONES }) {
+export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'indigo', autoOpenLink = false, therapistName, onAutoClosed }: { therapistId: number; salonId: number; onToast: (m: string) => void; note?: ReactNode; tone?: keyof typeof TONES; autoOpenLink?: boolean; therapistName?: string; onAutoClosed?: () => void }) {
   const T = TONES[tone];
   const INPUT = T.input;
   const BTN = T.btn;
@@ -96,7 +96,10 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
   const linkRow = (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-[12.5px] text-slate-500">メールアドレスが分からないときは</span>
-      <CastInviteLinkButton therapistId={therapistId} salonId={salonId} onToast={onToast} tone={tone} onClosed={() => void load()} />
+      <CastInviteLinkButton therapistId={therapistId} salonId={salonId} onToast={onToast} tone={tone} onClosed={() => { void load(); onAutoClosed?.(); }}
+        therapistName={therapistName}
+        defaultOpen={autoOpenLink && st?.status === 'none'}
+        lead={autoOpenLink ? `${therapistName ? therapistName + 'さんを' : ''}登録しました。続けてセラピストページに招待しましょう。` : undefined} />
     </div>
   );
 

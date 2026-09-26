@@ -906,6 +906,8 @@ export default function MyPage() {
   const [newTherapistName, setNewTherapistName] = useState('');
   // ★ 第398便（コネックエフ 1c・案B）: コネックエフを使う店は、セラピストの追加をコネックエフで行う
   const [conecfOn, setConecfOn] = useState(false);
+  // ★ 第889便: 追加した直後のセラピスト（招待の小窓を開く）
+  const [justAdded, setJustAdded] = useState<{ id: string; name: string } | null>(null);
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
   const [addingTherapist, setAddingTherapist] = useState(false);
   const [addError, setAddError] = useState('');
@@ -2049,6 +2051,8 @@ export default function MyPage() {
     setTherapists(list);
 
     const existingIds = new Set(Object.keys(therapistForms));
+    // ★ 第889便（カッキーさん）: 追加した方を見つけて、「リンク・QRで招待」の小窓をすぐ開く
+    const added = list.find((t) => !existingIds.has(String(t.id)) && t.name === newTherapistName.trim());
     const newForms: Record<string, Partial<Therapist>> = {};
     list.forEach((t) => {
       if (!existingIds.has(String(t.id))) {
@@ -2066,6 +2070,7 @@ export default function MyPage() {
     setAddingTherapist(false);
     if (salon) revalidateSalon(salon.id);
     showToast('セラピストを追加しました');
+    if (added) setJustAdded({ id: String(added.id), name: added.name ?? '' });
   };
 
   // ★★★ セラピストの削除は【非公開にした方だけ】（2026-09-11・カッキーさんの指示）。
@@ -3007,6 +3012,20 @@ export default function MyPage() {
 
   return (
     <div className="min-h-screen">
+      {/* ★ 第889便（カッキーさん）: セラピストを追加した直後に「リンク・QRで招待」の小窓 */}
+      {justAdded && salon && (
+        <CastInviteLinkButton
+          key={justAdded.id}
+          hideTrigger
+          defaultOpen
+          therapistId={justAdded.id}
+          therapistName={justAdded.name}
+          salonId={Number(salon.id)}
+          onToast={showToast}
+          lead={`${justAdded.name}さんを追加しました。続けてセラピストページに招待しましょう。`}
+          onClosed={() => { setJustAdded(null); void refreshTherapists(); }}
+        />
+      )}
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-pink-200 shadow-lg rounded-none px-6 py-3 text-sm font-bold text-pink-600">
           {toast}
