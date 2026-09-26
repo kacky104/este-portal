@@ -9,6 +9,8 @@ import {
 } from '@/lib/therapistMediaConsent';
 // ★ 第372便: 名前の左の顔バッジ（投稿先の一覧と同じ部品）
 import { TherapistBadge } from './TherapistBadge';
+// ★ 第873便: 「連携」列
+import { CastLinkMark, useCastLinked } from './CastLinkMark';
 
 // エステ魂の写メ日記：セラピスト本人の了承（第118便・2026-09-03）。
 //
@@ -25,8 +27,10 @@ const PROVIDER = 'esutama';
 
 type Row = { id: string; name: string; isActive: boolean; imageUrl: string | null; state: ConsentState };
 
-export function DiaryConsent({ salonId, onToast, onChanged }: {
+export function DiaryConsent({ salonId, onToast, onChanged, showCastLink = false }: {
   salonId: number | null;
+  /** ★ 第873便: true なら「連携」列（〇／✕）を出す（コネックエフだけ） */
+  showCastLink?: boolean;
   onToast: (m: string) => void;
   /** ★ 第370便: 了承を変えたあとに呼ぶ。★ 上の「どのサイト」タブの人数を読み直すため（DiaryTargets） */
   onChanged?: () => void;
@@ -38,6 +42,7 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
   const [showHidden, setShowHidden] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const castLinked = useCastLinked(salonId, showCastLink);
 
   useEffect(() => {
     if (salonId == null) return;
@@ -126,11 +131,18 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
             )}
           </div>
 
-          <ul className="mt-2 border border-slate-200 divide-y divide-slate-100">
+          {/* ★ 第873便: 「連携」列の見出し（名前の欄を固定幅にして、下の〇／✕とそろえる） */}
+          {castLinked && (
+            <div className="mt-2 hidden sm:flex px-3 text-[13px] text-slate-400">
+              <span className="w-[260px] flex-none">セラピスト</span>
+              <span className="w-[60px] flex-none text-center">連携</span>
+            </div>
+          )}
+          <ul className={`${castLinked ? 'mt-1' : 'mt-2'} border border-slate-200 divide-y divide-slate-100`}>
             {shown.map((r) => (
               <li key={r.id} className="px-3 py-2.5 flex items-start justify-between gap-3 flex-wrap">
                 {/* ★ 第372便: 名前の左に顔バッジ（投稿先の一覧と揃える） */}
-                <span className="min-w-0 flex items-start gap-2">
+                <span className={`min-w-0 flex items-start gap-2 ${castLinked ? 'sm:w-[260px] sm:flex-none' : ''}`}>
                   <TherapistBadge url={r.imageUrl} name={r.name || ''} />
                   <span className="min-w-0">
                     <b className="text-[15px] font-bold text-slate-800 break-words">{r.name || '（名前なし）'}</b>
@@ -147,7 +159,13 @@ export function DiaryConsent({ salonId, onToast, onChanged }: {
                     </span>
                   </span>
                 </span>
-                <span className="flex items-center gap-1.5 flex-wrap justify-end">
+                {castLinked && (
+                  <span className="sm:w-[60px] sm:flex-none text-center pt-0.5">
+                    <span className="sm:hidden text-[12px] text-slate-400 mr-1">連携</span>
+                    <CastLinkMark linked={castLinked.has(String(r.id))} />
+                  </span>
+                )}
+                <span className={`flex items-center gap-1.5 flex-wrap justify-end ${castLinked ? 'sm:ml-auto' : ''}`}>
                   {/* ★ 3つとも押せる。★ 「戻す」も含めて、いつでも選び直せる */}
                   {([
                     ['agreed', '了承あり'],

@@ -16,6 +16,8 @@ import { toConsentState } from '@/lib/therapistMediaConsent';
 import { findMediaSite } from '@/lib/mediaSites';
 // ★ 第372便: 顔のバッジは了承の一覧（DiaryConsent）でも使うので、1つのファイルに出した
 import { TherapistBadge } from './TherapistBadge';
+// ★ 第873便: 「連携」列（セラピストページと連携しているか）
+import { CastLinkMark, useCastLinked } from './CastLinkMark';
 // ★ 第370便: diarySourceNote の import は外した（「どこで書くか」のブロックを消したため）。
 //   ★ ライブラリ（lib/diarySource）と番人（check:diarysource）はそのまま残っている
 
@@ -54,8 +56,10 @@ type Data = {
 // ★ 第371便: 日時を整える fmt() は消した（「◯名ぶん 登録済み」のブロックでしか使っていなかった）。
 //   ★ 読み取った日時は【連携の記録】が出す。★ Data.lastRead は受け口の戻り値の形なので型には残してある
 
-export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '', therapistEditHref }: {
+export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '', therapistEditHref, showCastLink = false }: {
   salonId: number | null;
+  /** ★ 第873便: true なら表に「連携」列（〇／✕）を出す（コネックエフだけ） */
+  showCastLink?: boolean;
   /**
    * ★ 第465便: 「入力する／変える」の飛び先（フクエスのセラピスト編集ページ）の頭。
    *   フクエスの /mypage では ''（同じサイト内）。コネックエフ（conecf.com）では 'https://fukues.com'
@@ -74,6 +78,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
   consentVersion?: number;
 }) {
   const brand = useMediaBrand();
+  const castLinked = useCastLinked(salonId, showCastLink);
   const [data, setData] = useState<Data | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
   // ★ 第370便: エステ魂のタブに出す人数の【分子】＝了承ありが何名か。
@@ -302,6 +307,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                   <tr className="text-slate-400 text-left">
                     <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
                     <th className="font-medium py-1 pr-3 whitespace-nowrap">投稿先</th>
+                    {castLinked && <th className="font-medium py-1 pr-3 whitespace-nowrap text-center">連携</th>}
                     <th className="font-medium py-1 whitespace-nowrap"></th>
                   </tr>
                 </thead>
@@ -325,6 +331,9 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                             <span className="text-amber-700 font-bold">未登録</span>
                           )}
                         </td>
+                        {castLinked && (
+                          <td className="py-1.5 pr-3 text-center whitespace-nowrap"><CastLinkMark linked={castLinked.has(String(t.id))} /></td>
+                        )}
                         <td className="py-1.5 whitespace-nowrap">
                           {therapistEditHref ? (
                             <Link
@@ -413,6 +422,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                       <tr className="text-slate-400 text-left">
                         <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
                         <th className="font-medium py-1 pr-3 whitespace-nowrap">届け先</th>
+                        {castLinked && <th className="font-medium py-1 pr-3 whitespace-nowrap text-center">連携</th>}
                         <th className="font-medium py-1 whitespace-nowrap">状態</th>
                       </tr>
                     </thead>
@@ -431,6 +441,9 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                             </span>
                           </td>
                           <td className="py-1.5 pr-3 text-slate-500 whitespace-nowrap tabular-nums">{r.addressMask}</td>
+                          {castLinked && (
+                            <td className="py-1.5 pr-3 text-center whitespace-nowrap"><CastLinkMark linked={castLinked.has(String(r.therapistId))} /></td>
+                          )}
                           <td className="py-1.5 whitespace-nowrap">
                             {r.isEnabled ? (
                               <span className="text-[13px] font-bold px-2.5 py-0.5 border bg-emerald-50 text-emerald-700 border-emerald-200">

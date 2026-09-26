@@ -326,3 +326,22 @@ export async function getCastLinkStatus(input: { therapistId: string; salonId: n
   if (email) return { ok: true, status: 'invited', email };
   return { ok: true, status: 'none', email: null };
 }
+
+/**
+ * ★ 第873便: 店のセラピストのうち、セラピストページ（/cast）と連携済み（user_id あり）の id を返す。
+ * - 写メ日記転送ページの「連携」列（〇／✕）用。オーナー（または管理者）だけ。読むだけ。
+ */
+export async function getSalonCastLinks(input: { salonId: number }): Promise<
+  { ok: true; linkedIds: string[] } | { ok: false; error: string }
+> {
+  const auth = await assertOwner(input.salonId);
+  if ('error' in auth) return { ok: false, error: auth.error };
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('therapists')
+    .select('id')
+    .eq('salon_id', input.salonId)
+    .not('user_id', 'is', null);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, linkedIds: (data ?? []).map((r) => String(r.id)) };
+}
