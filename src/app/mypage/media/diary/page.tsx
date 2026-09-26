@@ -37,6 +37,9 @@ export default function MediaDiaryPage() {
           salonId={salon ? Number(salon.id) : null}
           onToast={showToast}
           consentVersion={consentVersion}
+          // ★ 第905便（カッキーさん）: 駅ちかだけ・セラピストページ連携の列（〇／✕）
+          onlyEkichika
+          showCastLink
           esutamaPanel={
             /* ★ エステ魂は本人のアカウントから投稿する仕組み（第118便）。★ 了承を1人ずつ記録する */
             <DiaryConsent

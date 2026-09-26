@@ -238,7 +238,7 @@ export function MediaShell({
 
   // ★ 地の色（ブルーのテーマ壁紙）は layout.tsx が敷く。★ ここでは塗らない（★ 塗ると壁紙が隠れる）。
   return (
-    <div className="min-h-screen md:flex">
+    <div className="min-h-screen md:flex media-shell-hand">
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg px-6 py-3 text-[16px] font-bold text-indigo-700">
           {toast}

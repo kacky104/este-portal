@@ -56,8 +56,10 @@ type Data = {
 // ★ 第371便: 日時を整える fmt() は消した（「◯名ぶん 登録済み」のブロックでしか使っていなかった）。
 //   ★ 読み取った日時は【連携の記録】が出す。★ Data.lastRead は受け口の戻り値の形なので型には残してある
 
-export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '', therapistEditHref, showCastLink = false }: {
+export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '', therapistEditHref, showCastLink = false, onlyEkichika = false }: {
   salonId: number | null;
+  /** ★ 第905便: 駅ちかだけ（「どのサイトを見ますか？」のブロックを出さない・フクエスリンク用） */
+  onlyEkichika?: boolean;
   /** ★ 第873便: true なら表に「連携」列（〇／✕）を出す（コネックエフだけ） */
   showCastLink?: boolean;
   /**
@@ -181,6 +183,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
     <div className="space-y-3">
 
       {/* ── どのサイトを見るか ─────────────────────────── */}
+      {/* ★ 第905便（カッキーさん）: フクエスリンクでは出さない（駅ちかだけ） */}
+      {!onlyEkichika && (
       <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
         <h3 className="text-[16px] font-bold text-slate-700 mb-3">どのサイトを見ますか？</h3>
 
@@ -247,6 +251,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
           駅ちか・エステラブは、セラピストの投稿先メールアドレスを登録。エステ魂はご本人の了承を記録。
         </p>
       </div>
+      )}
 
       {/* ── 正本の注意（二重投稿を防ぐ唯一の仕掛け）───────── */}
       {/* ★ 青→赤（第85便・カッキー様）。★ ここは「登録しても送っていない」という
@@ -307,7 +312,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                   <tr className="text-slate-400 text-left">
                     <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
                     <th className="font-medium py-1 pr-3 whitespace-nowrap">投稿先</th>
-                    {castLinked && <th className="font-medium py-1 pr-3 whitespace-nowrap text-center">連携</th>}
+                    {castLinked && <th className="font-medium py-1 pr-3 whitespace-nowrap text-center">{onlyEkichika ? 'セラピストページ連携' : '連携'}</th>}
                     <th className="font-medium py-1 whitespace-nowrap"></th>
                   </tr>
                 </thead>
@@ -422,7 +427,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
                       <tr className="text-slate-400 text-left">
                         <th className="font-medium py-1 pr-3 whitespace-nowrap">セラピスト</th>
                         <th className="font-medium py-1 pr-3 whitespace-nowrap">届け先</th>
-                        {castLinked && <th className="font-medium py-1 pr-3 whitespace-nowrap text-center">連携</th>}
+                        {castLinked && <th className="font-medium py-1 pr-3 whitespace-nowrap text-center">{onlyEkichika ? 'セラピストページ連携' : '連携'}</th>}
                         <th className="font-medium py-1 whitespace-nowrap">状態</th>
                       </tr>
                     </thead>

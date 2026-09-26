@@ -600,3 +600,14 @@ body.paw-bg {
 .conecf-venrey label:has(input[type="checkbox"]) { cursor: pointer !important; }
 .conecf-venrey label:has(input[type="radio"]) { cursor: pointer !important; }
 .conecf-venrey button:disabled { cursor: not-allowed !important; }
+
+/* ★ 第905便（カッキーさん）: フクエスリンク（MediaShell）もコネックエフと同じく、押せるところは手の形 */
+.media-shell-hand button:not(:disabled) { cursor: pointer !important; }
+.media-shell-hand a[href] { cursor: pointer !important; }
+.media-shell-hand input[type="checkbox"]:not(:disabled) { cursor: pointer !important; }
+.media-shell-hand input[type="radio"]:not(:disabled) { cursor: pointer !important; }
+.media-shell-hand select:not(:disabled) { cursor: pointer !important; }
+.media-shell-hand summary { cursor: pointer !important; }
+.media-shell-hand label:has(input[type="checkbox"]) { cursor: pointer !important; }
+.media-shell-hand label:has(input[type="radio"]) { cursor: pointer !important; }
+.media-shell-hand button:disabled { cursor: not-allowed !important; }
