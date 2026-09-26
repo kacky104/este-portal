@@ -308,7 +308,13 @@ export default function TherapistEditPage() {
   const aiNoMaterial = images.length === 0 && badges.length === 0;
   // 写真を使わない設定にしていて、バッジも無い＝文字素材が年齢・サイズだけになる場合も止める。
   const aiNoMaterialForText = !aiUseImage && badges.length === 0;
-  const aiBlocked = aiNoMaterial || aiNoMaterialForText;
+  // ★ 第880便（カッキーさん）: 特徴バッジは【3つ以上】必須。★ サーバー（therapistCopyCore）と同じ数。
+  //   ★ サーバーは【保存済み】のバッジで数えるので、選んだだけ（未保存）のときも止めて「保存してから」と出す。
+  const AI_MIN_BADGES = 3;
+  const savedBadgeCount = therapist ? sanitizeBadges(therapist.feature_badges).length : 0;
+  const aiFewBadges = badges.length < AI_MIN_BADGES;
+  const aiBadgesUnsaved = !aiFewBadges && savedBadgeCount < AI_MIN_BADGES;
+  const aiBlocked = aiNoMaterial || aiNoMaterialForText || aiFewBadges || aiBadgesUnsaved;
 
   const handleAiUndo = () => {
     if (!aiUndo) return;
@@ -763,19 +769,15 @@ export default function TherapistEditPage() {
           {/* 素材ゼロ＝止める。無駄に1回消費させないため、押す前に理由を出す。 */}
           {aiBlocked ? (
             <p className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
-              {aiNoMaterial
-                ? 'まだ材料がありません。プロフィール写真を登録するか、下の「特徴バッジ」を選んでから作成してください。'
-                : '写真を使わない設定のときは、下の「特徴バッジ」を選んでから作成してください。'}
+              {aiFewBadges
+                ? `下の「特徴バッジ」を3つ以上選んでから作成してください（現在 ${badges.length}つ）。`
+                : aiBadgesUnsaved
+                  ? '特徴バッジを選びました。いちど「保存する」を押してから作成してください。'
+                  : aiNoMaterial
+                    ? 'まだ材料がありません。プロフィール写真を登録するか、下の「特徴バッジ」を選んでから作成してください。'
+                    : '写真を使わない設定のときは、下の「特徴バッジ」を選んでから作成してください。'}
             </p>
-          ) : (
-            /* 材料はあるが少ない＝案内だけ出して、押すこと自体は止めない。 */
-            badges.length < 3 && (
-              <p className="text-[11px] text-violet-900/70 bg-white/60 border border-violet-100 rounded-xl px-3 py-2 leading-relaxed">
-                下の「特徴バッジ」を設定してから作ると、その人らしい文章になります
-                （現在 {badges.length}つ）。このまま作ることもできます。
-              </p>
-            )
-          )}
+          ) : null /* ★ 第880便: バッジ3つ未満は上で止めるので、「このまま作ることもできます」の案内は外した */}
 
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -789,7 +791,7 @@ export default function TherapistEditPage() {
                 : aiOutOfQuota
                   ? '今月の回数を使い切りました'
                   : aiBlocked
-                    ? '写真かバッジを設定してください'
+                    ? (aiFewBadges ? '特徴バッジを3つ以上選んでください' : aiBadgesUnsaved ? '先に保存してください' : '写真かバッジを設定してください')
                     : 'AIで下書きを作る'}
             </button>
             {aiUndo && !aiLoading && (

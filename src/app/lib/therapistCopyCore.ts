@@ -174,6 +174,11 @@ export async function generateCopyForTherapist(
   const hasImage = image !== null;
 
   // 素材ゼロなら叩かない。年齢・サイズだけでは誰にでも当てはまる文章にしかならない。
+  // ★ 第880便（カッキーさん）: 特徴バッジは【3つ以上】必須（写真の有無にかかわらず）。
+  //   ★ 画面（/mypage/therapist/[id] の AI_MIN_BADGES）と同じ数。★ 変えるときは両方
+  if (badges.length < 3) {
+    return { ok: false, error: `特徴バッジを3つ以上選んで保存してから作成してください（現在${badges.length}つ）` };
+  }
   if (!hasImage && badges.length === 0) {
     return { ok: false, error: 'プロフィール写真を登録するか、特徴バッジを選んでから作成してください' };
   }
