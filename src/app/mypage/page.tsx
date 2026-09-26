@@ -4855,9 +4855,10 @@ export default function MyPage() {
                     {/* ★ 説明文は【招待するボタンの左真横】に必ず並べる（2026-09-11・カッキーさんの指示）。
                         ★ 2列にして幅が狭くなったぶん、折り返し（flex-wrap）をやめて文字を10pxに落とした。
                         ★ 入りきらないときは文が … で切れる。★ ボタンは縮めない（flex-shrink-0）。 */}
-                    <div className="flex items-center justify-end gap-1.5">
-                      <p className="text-[10px] font-normal text-slate-400/90 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
-                        セラピストアカウントに招待
+                    <div className="flex items-center justify-end gap-1">
+                      {/* ★ 第890便（カッキーさん）: 「セラピストアカウントに招待」→「セラピストページ」。★ QR ボタンが入って幅が減ったので 9px・字間を詰めて切れずに全部見せる */}
+                      <p className="text-[9px] tracking-tighter font-normal text-slate-400/90 min-w-0 whitespace-nowrap overflow-hidden">
+                        セラピストページ
                       </p>
                       {/* ★ 内側の隙間は【4分の1】（2026-09-11・カッキーさんの指示）: 左右 16→4px ／ 上下 6→1.5px。
                       ★ 第878便（カッキーさん）: 「編集」と同じ大きさに固定（縦＝編集の 22px・横＝招待するの 52px）。 */}
