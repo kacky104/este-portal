@@ -15,6 +15,8 @@ import {
 import { consentRecheckNotice } from '@/lib/mediaConsent';
 // ★ 第688便: 写メ日記が取り込めているか（駅ちかの鍵あり・同意済み）の判定は diarySource と同じ物差し
 import { ekichikaReadReady } from '@/lib/diarySource';
+// ★ 第895便: 写メ日記の書き方（駅ちかで書く／フクエスで書く）
+import { DiaryWriteChoice } from './DiaryWriteChoice';
 // ★ 反映の早見表（第212便〜第298便）は第299便で別ページ（/mypage/media/matrix・MatrixBoard.tsx）へ移した。
 //   ★ ここには何も残さない（左サイドバーに行き先があるので、同じ行き先を二度並べない・第117便と同じ理由）。
 
@@ -438,6 +440,9 @@ export function MediaHome({ salonId, onToast }: {
           </div>
         );
       })()}
+
+      {/* ── ★ 第895便（カッキーさん）: 写メ日記の書き方。★ 駅ちかから反映中のときだけ ── */}
+      {!loading && !error && reading && salonId != null && <DiaryWriteChoice salonId={salonId} onToast={onToast} />}
 
       {/* ── セラピストで反映されないもの（第848便・2026-09-25）──────────
           ★ キャッチ・紹介文・特徴バッジは駅ちかから来ない＝フクエスで直接入力。★ AIの下書きは特徴バッジを選んでからが良い。 */}

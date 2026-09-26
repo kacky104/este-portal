@@ -127,7 +127,10 @@ export function ekichikaReadWithoutKey(sites: ReadonlyArray<DiarySourceSite>): b
  * ★ 順番: write が1つでもあれば fukues（★ 第127/190便のガードで read と write は同居しないので、実際は排他）。
  * ★ 知らない direction は数えない（write でも read でもない＝ benry 側に倒れる＝何も送らない側）。
  */
-export function deriveDiarySource(sites: ReadonlyArray<DiarySourceSite>): DiarySource {
+export function deriveDiarySource(sites: ReadonlyArray<DiarySourceSite>, pref: unknown = 'auto'): DiarySource {
+  // ★ 第895便（カッキーさん）: 店舗オーナーが「写メ日記はフクエスで書く」を選んだら、ホームの向きに関係なく 'fukues'。
+  //   ★ 出勤・セラピストは駅ちかから反映したまま、写メ日記だけフクエス → 駅ちか（投稿用メール）。
+  if (readDiaryWritePref(pref) === 'fukues') return 'fukues';
   if (sites.some((s) => s.direction === 'write')) return 'fukues';
   if (ekichikaReadReady(sites)) return 'ekichika';
   return 'benry';
@@ -150,4 +153,29 @@ export function diarySourceNote(source: unknown, sites: ReadonlyArray<DiarySourc
     return { title: '駅ちかで書きます', body: '写メ日記を取り込むには、駅ちかのログイン情報を登録してください。登録するまでは取り込みません。', needsKey: true };
   }
   return { title: 'どのサイトにも反映していません', body: '写メ日記はフクエスの中だけです。どこへも送らず、どこからも取り込みません。', needsKey: false };
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// ★ 第895便（2026-09-26・カッキーさん）: 写メ日記の書き方を店舗オーナーが選ぶ（salons.diary_write_pref）。
+//   'auto'   … 今までどおり（ホームの向きから deriveDiarySource が決める）
+//   'fukues' … 写メ日記だけフクエスで書く。★ 駅ちかからの取り込みは止まる（入口は常に1つ）
+// ─────────────────────────────────────────────────────────────
+export const DIARY_WRITE_PREFS = ['auto', 'fukues'] as const;
+export type DiaryWritePref = (typeof DIARY_WRITE_PREFS)[number];
+
+/** ★ 知らない値・空は 'auto'（★ いまの動きのまま＝安全側） */
+export function readDiaryWritePref(v: unknown): DiaryWritePref {
+  return v === 'fukues' ? 'fukues' : 'auto';
+}
+
+/**
+ * ★ その媒体へ写メ日記を送ってよいか（forwardDiary の 5-2）。
+ *   ・「フクエスから反映」（write / write_auto）なら送る（今までどおり）
+ *   ・★ 'fukues' を選んだ店は、駅ちかから反映（read）している媒体にも送る（★ 写メ日記だけ向きが逆）
+ *   ・none（反映していない）には送らない
+ */
+export function diaryForwardAllowed(linkMode: string | null | undefined, pref: unknown): boolean {
+  if (linkMode === 'write' || linkMode === 'write_auto') return true;
+  return readDiaryWritePref(pref) === 'fukues' && linkMode === 'read';
 }

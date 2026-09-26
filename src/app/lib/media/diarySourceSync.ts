@@ -49,8 +49,9 @@ export async function syncDiarySource(svc: ReturnType<typeof createServiceClient
     return { provider, direction, hasCredential: cred?.hasCredential === true, needsConsent: cred?.needsConsent === true };
   });
 
-  const next = deriveDiarySource(sites);
-  const { data: salon } = await svc.from('salons').select('diary_source').eq('id', salonId).maybeSingle();
+  // ★ 第895便: 店舗オーナーの選択（写メ日記はフクエスで書く）も見る
+  const { data: salon } = await svc.from('salons').select('diary_source, diary_write_pref').eq('id', salonId).maybeSingle();
+  const next = deriveDiarySource(sites, (salon as { diary_write_pref?: string | null } | null)?.diary_write_pref ?? 'auto');
   const cur = readDiarySource((salon?.diary_source as string | null) ?? null);
   if (cur === next) return;
 

@@ -2567,3 +2567,88 @@ export async function unlinkTherapistMediaId(input: {
 
   return { ok: true, data: { therapistId } };
 }
+
+// ─────────────────────────────────────────────────────────────
+// ★ 第895便（2026-09-26・カッキーさん）: 写メ日記の書き方を店舗オーナーが選ぶ（フクエスリンクのホーム）。
+//   'auto'   … 駅ちかで書く（駅ちか → フクエスへ取り込む・今までどおり）
+//   'fukues' … フクエスで書く（フクエス → 駅ちかの投稿用メールへ送る）。★ 駅ちかからの取り込みは止まる
+// ★ 入口（salons.diary_source）は syncDiarySource が決め直す（★ 判断は lib/diarySource の一本線）。
+// ─────────────────────────────────────────────────────────────
+
+type DiaryWriteState = {
+  pref: 'auto' | 'fukues';
+  source: string;
+  /** 公開中のセラピスト数 */
+  total: number;
+  /** そのうち駅ちかの投稿用アドレスがある人数 */
+  withAddress: number;
+};
+
+async function readDiaryWriteState(svc: ReturnType<typeof createServiceClient>, salonId: number): Promise<DiaryWriteState> {
+  const { data: salon } = await svc.from('salons').select('diary_source, diary_write_pref').eq('id', salonId).maybeSingle();
+  const { data: ts } = await svc.from('therapists').select('id').eq('salon_id', salonId).neq('is_active', false);
+  const ids = (ts ?? []).map((t) => Number(t.id));
+  let withAddress = 0;
+  if (ids.length > 0) {
+    const { data: fw } = await svc
+      .from('therapist_diary_forward')
+      .select('therapist_id, address, is_enabled')
+      .eq('provider', 'ekichika')
+      .in('therapist_id', ids);
+    withAddress = new Set((fw ?? []).filter((f) => f.is_enabled !== false && String(f.address ?? '').trim()).map((f) => Number(f.therapist_id))).size;
+  }
+  const pref = (salon as { diary_write_pref?: string | null } | null)?.diary_write_pref === 'fukues' ? 'fukues' : 'auto';
+  return { pref, source: String((salon?.diary_source as string | null) ?? 'benry'), total: ids.length, withAddress };
+}
+
+export async function getDiaryWritePref(input: { salonId: number }): Promise<Result<DiaryWriteState>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  return { ok: true, data: await readDiaryWriteState(createServiceClient(), salonId) };
+}
+
+export async function setDiaryWritePref(input: { salonId: number; pref: string }): Promise<Result<DiaryWriteState & { addressImport: string | null }>> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  if (input.pref !== 'auto' && input.pref !== 'fukues') return { ok: false, error: '指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+
+  const svc = createServiceClient();
+  const { data: before } = await svc.from('salons').select('diary_write_pref').eq('id', salonId).maybeSingle();
+  const { error } = await svc.from('salons').update({ diary_write_pref: input.pref }).eq('id', salonId);
+  if (error) return { ok: false, error: error.message };
+
+  const actor = 'shop:' + guard.data.userId;
+  await recordMediaAudit({
+    salonId, provider: 'ekichika', slot: 1,
+    event: 'diary_write_pref', outcome: 'ok',
+    detail: { from: String((before as { diary_write_pref?: string | null } | null)?.diary_write_pref ?? 'auto'), to: input.pref },
+    actor,
+  });
+  // ★ 入口を決め直す（'fukues' なら取り込みが止まり、送るようになる）
+  await syncDiarySource(svc, salonId, actor);
+
+  // ★ フクエスで書くに切り替えたら、駅ちかの投稿用アドレスを読み込む（鍵と同意があるときだけ・失敗しても切り替えはそのまま）
+  let addressImport: string | null = null;
+  if (input.pref === 'fukues') {
+    const { data: cred } = await svc
+      .from('salon_media_credentials').select('slot, consent_version, is_enabled')
+      .eq('salon_id', salonId).eq('provider', 'ekichika').eq('is_enabled', true);
+    const row = (cred ?? []).find((c) => !needsConsent((c.consent_version as string | null) ?? null));
+    if (row) {
+      try {
+        const r = await startRelayFlow({ salonId, provider: 'ekichika', slot: Number(row.slot ?? 1), intent: 'mail_apply', actor });
+        addressImport = r.ok ? 'started' : r.note;
+      } catch (e) {
+        addressImport = e instanceof Error ? e.message : 'failed';
+      }
+    } else {
+      addressImport = 'no_credential';
+    }
+  }
+
+  return { ok: true, data: { ...(await readDiaryWriteState(svc, salonId)), addressImport } };
+}

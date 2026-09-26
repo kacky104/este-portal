@@ -1,7 +1,6 @@
 import { Resend } from 'resend';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { forwardsDiaryFromFukues, readDiarySource } from '@/lib/diarySource';
-import { isWriteDirection } from '@/lib/mediaLinkMode';
+import { forwardsDiaryFromFukues, readDiarySource, diaryForwardAllowed } from '@/lib/diarySource';
 
 // ── 写メ日記の他媒体転送（第36便・第2弾）────────────────────────────────
 //
@@ -67,6 +66,8 @@ type Payload = {
   therapistId: number;
   salonId: number;
   source: string;
+  /** ★ 第895便: salons.diary_write_pref（'auto' | 'fukues'） */
+  writePref: string;
   title: string | null;
   content: string | null;
   attachments: Array<{ filename: string; content: string }>;
@@ -90,8 +91,10 @@ async function buildPayload(svc: Svc, diaryId: string): Promise<{ ok: true; payl
   const therapistId = diary.therapist_id as number;
   const salonId = diary.salon_id as number;
 
-  const { data: salon } = await svc.from('salons').select('diary_source').eq('id', salonId).maybeSingle();
+  const { data: salon } = await svc.from('salons').select('diary_source, diary_write_pref').eq('id', salonId).maybeSingle();
   const source = (salon?.diary_source as string | null) ?? 'benry';
+  // ★ 第895便: 写メ日記だけフクエスで書く店は、駅ちかから反映（read）の媒体へも送る
+  const writePref = ((salon as { diary_write_pref?: string | null } | null)?.diary_write_pref) ?? 'auto';
 
   const title = (diary.title as string | null)?.trim() || null;
   const content = (diary.content as string | null)?.trim() || null;
@@ -115,7 +118,7 @@ async function buildPayload(svc: Svc, diaryId: string): Promise<{ ok: true; payl
     }
   }
 
-  return { ok: true, payload: { therapistId, salonId, source, title, content, attachments, 外した理由, totalBytes: total } };
+  return { ok: true, payload: { therapistId, salonId, source, writePref, title, content, attachments, 外した理由, totalBytes: total } };
 }
 
 /**
@@ -134,7 +137,7 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
   // 1〜2. 日記本体と「送る中身」（件名・本文・添付）を組み立てる
   const built = await buildPayload(svc, diaryId);
   if (!built.ok) return { ...base, ok: false, 注意: built.error };
-  const { therapistId, salonId, source, title, content, attachments, 外した理由, totalBytes } = built.payload;
+  const { therapistId, salonId, source, writePref, title, content, attachments, 外した理由, totalBytes } = built.payload;
 
   // 3. 転送先（媒体×枠）
   const { data: fwd } = await svc
@@ -216,7 +219,7 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
       continue;
     }
     const lm = linkModeOf.get(provider + '#' + slot);
-    if (lm !== undefined && !isWriteDirection(lm)) {
+    if (lm !== undefined && !diaryForwardAllowed(lm, writePref)) {
       // ★ その媒体へは「フクエスから反映」していない。★ 理由を残す（黙って飛ばさない）
       result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'skipped:link_mode_is_' + String(lm ?? 'null') });
       if (apply) await log(provider, 'skipped:link_mode_is_' + String(lm ?? 'null'), undefined, slot);
