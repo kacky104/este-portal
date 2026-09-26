@@ -337,12 +337,16 @@ function buildSystemPromptFrom(samplesText: string): string {
     具体的に書く。数値（身長・サイズ）はそのまま書いてよい。
   ★★ 禁じられた語を別の語に置き換えるのではなく、【要約するのをやめて具体を書く】こと。
 
+- ★ 第882便（カッキーさん）: 紹介文は【3段落くらい】に分け、段落と段落の間は【1行あける】（改行2つ）。
+  1段落は2〜3文。お手本は1かたまりで書かれているが、出力は段落に分けること。
+  JSON の中では改行を \\n と書く（段落の間は \\n\\n）。
+
 ## お手本（フクエス掲載中の実例）
 ${samplesText}
 
 ## 出力形式
 必ず次のJSONだけを出力する。前後に説明文やコードフェンスを付けない。
-{"catchphrase":"（${MAX_CATCH_LEN}文字以内）","profileText":"（紹介文）"}`;
+{"catchphrase":"（${MAX_CATCH_LEN}文字以内）","profileText":"（1段落目）\\n\\n（2段落目）\\n\\n（3段落目）"}`;
 }
 
 /**
@@ -420,13 +424,26 @@ export function parseCopyResponse(raw: string): CopyOutput | null {
     try {
       const o = JSON.parse(c) as Record<string, unknown>;
       const cp = typeof o.catchphrase === 'string' ? o.catchphrase.trim() : '';
-      const pt = typeof o.profileText === 'string' ? o.profileText.trim() : '';
+      const pt = typeof o.profileText === 'string' ? normalizeParagraphs(o.profileText) : '';
       if (pt) return { catchphrase: cp.slice(0, MAX_CATCH_LEN), profileText: pt };
     } catch {
       // 次の候補へ
     }
   }
   return null;
+}
+
+/**
+ * ★ 第882便（カッキーさん・B）: 段落の間を【1行あける】にそろえる。
+ * ★ AI が改行1つ・3つ以上・行頭の空白を返しても、段落＝空行1つ（\n\n）に直す。★ 改行が無ければ1段落のまま。
+ */
+export function normalizeParagraphs(text: string): string {
+  return String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+    .join('\n\n');
 }
 
 /** 紹介文が下限字数を満たすか。空白・改行は数えない。 */
