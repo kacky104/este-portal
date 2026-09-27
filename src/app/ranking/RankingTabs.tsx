@@ -287,7 +287,7 @@ export default function RankingTabs({
           <div className={tab === 'therapist' ? '' : 'hidden'}>
             <>
               <RankingHeading
-                title="セラピストランキング TOP50"
+                title="セラピストランキング TOP150"
                 description={<>セラピスト個別ページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ人気セラピストランキングです</>}
                 bodyColor={theme.body}
               />
@@ -320,18 +320,21 @@ export default function RankingTabs({
                        ★ 見出し・広告バナー・41位以降のリストは従来の768pxのまま
                          （リスト化された41位以降まで広げると1行が間延びする）。 */}
                   <div className="lg:relative lg:left-1/2 lg:-translate-x-1/2 lg:w-[min(1150px,calc(100vw-32px))]">
+                    {/* ★★ 第912便（2026-09-27・カッキーさん）: TOP50 → TOP150。カードの段を1段ずつ下へ広げた。
+                         1〜10位＝大（旧1〜3位）／11〜30位＝compact（旧4〜10位）／31〜50位＝mini（旧11〜20位）／
+                         51〜70位＝micro（旧21〜30位）／71〜100位＝nano（旧31〜40位）／101〜150位＝リスト（旧41〜50位）。 */}
                     {([
-                      [0, 3, ''],
-                      [3, 10, 'lg:grid lg:grid-cols-2 lg:gap-x-3.5 lg:items-start'],
-                      [10, 20, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
-                      [20, 30, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
+                      [0, 10, ''],
+                      [10, 30, 'lg:grid lg:grid-cols-2 lg:gap-x-3.5 lg:items-start'],
+                      [30, 50, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
+                      [50, 70, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
                       // ★★ 31〜40位は3列（2026-09-09・カッキーさんの指示）。
                       //   ★ 2列だと1枚あたりの幅が広く、21〜30位（3列）より【下の順位の方が大きい】
                       //     という逆転が起きていた。★ 右側に空白も残っていた。
                       //   ★ 3列にすると 1枚 ≒ 373px・高さ ≒ 70px で、21〜30位（≒93px）より確実に小さくなる。
-                      [30, 40, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
+                      [70, 100, 'lg:grid lg:grid-cols-3 lg:gap-x-3.5 lg:items-start'],
                     ] as const).map(([from, to, gridCls]) => {
-                      const group = therapistRanking.slice(0, 40).slice(from, to);
+                      const group = therapistRanking.slice(0, 100).slice(from, to);
                       if (group.length === 0) return null;
                       // ★ 1〜10位の地に敷く壁紙（2026-09-09・カッキーさん）。
                       //   1位=ゴールド / 2位=シルバー / 3位=イエロー / 4〜6位=パープル / 7〜10位=グリーン。
@@ -340,10 +343,10 @@ export default function RankingTabs({
                         <RankingTherapistShowcase
                           key={t.id}
                           rank={t.rank}
-                          compact={t.rank >= 4 && t.rank <= 10}
-                          mini={t.rank >= 11}
-                          micro={t.rank >= 21}
-                          nano={t.rank >= 31}
+                          compact={t.rank >= 11 && t.rank <= 30}
+                          mini={t.rank >= 31}
+                          micro={t.rank >= 51}
+                          nano={t.rank >= 71}
                           id={t.id}
                           name={t.name}
                           salonName={t.salonName}
@@ -374,10 +377,10 @@ export default function RankingTabs({
                       );
                     })}
                   </div>
-                  {therapistRanking.length > 40 && (
+                  {therapistRanking.length > 100 && (
                     <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                       <ul>
-                        {therapistRanking.slice(40).map((t, idx, arr) => (
+                        {therapistRanking.slice(100).map((t, idx, arr) => (
                           <li
                             key={t.id}
                             style={idx < arr.length - 1 ? { borderBottom: `1px solid ${theme.cardBorder}` } : undefined}

@@ -42,7 +42,7 @@ export default async function RankingPage() {
   const [overallRanking, salonRanking, therapistRanking, heroes, wallpapers, prevRanks, adBanners] = await Promise.all([
     fetchRecommendWeeklyRanking(10), // ★ 第500便: おすすめ（上位表示・お知らせ・fukuX の点数）トップ10。変数名は overall のまま
     fetchSalonWeeklyRanking(10),    // 店舗はトップ10まで
-    fetchTherapistWeeklyRanking(50),
+    fetchTherapistWeeklyRanking(150), // ★ 第912便: TOP50 → TOP150
     fetchRankingHeroes(),
     fetchThemeWallpapers(),
     fetchPreviousRankMaps(),        // 前週順位（順位変動マーク用）

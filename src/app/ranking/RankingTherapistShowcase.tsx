@@ -112,7 +112,7 @@ export function RankingTherapistShowcase({
       : { background: darkTheme ? theme.card : '#ffffff' };
 
   return (
-    <div className={`p-[2.5px] shadow-md ${rank >= 30 && rank <= 39 ? 'mb-[5px]' : rank >= 20 && rank <= 29 ? 'mb-[10px]' : rank >= 10 && rank <= 19 ? 'mb-[15px]' : 'mb-5'}`} style={{ background: m.border }}>
+    <div className={`p-[2.5px] shadow-md ${nano ? 'mb-[5px]' : micro ? 'mb-[10px]' : mini ? 'mb-[15px]' : 'mb-5'}`} style={{ background: m.border }}>
       {/* ★★ 1〜10位の地は【順位ごとのテーマ壁紙】
           （1位=ゴールド／2位=シルバー／3位=イエロー／4〜6位=パープル／7〜10位=グリーン）。
           ★ そのまま敷くと名前・スリーサイズが読めないので、白を88%(E0)重ねて薄い金の地にする
@@ -171,7 +171,7 @@ export function RankingTherapistShowcase({
                   <path d="M36 48 L24 92 L40 82 L45 94 L52 60 Z" fill={m.ribbonL} />
                   <path d="M64 48 L76 92 L60 82 L55 94 L48 60 Z" fill={m.ribbonR} />
                   <circle cx="50" cy="40" r="30" fill={m.circle} stroke={m.stroke} strokeWidth="3" />
-                  <text x="50" y="51" textAnchor="middle" fontSize="30" fontWeight="900" fill={m.num}>{rank}</text>
+                  <text x="50" y={rank >= 100 ? 49 : 51} textAnchor="middle" fontSize={rank >= 100 ? 23 : 30} fontWeight="900" fill={m.num}>{rank}</text>
                 </svg>
               </span>
               <span className="flex-shrink-0 -ml-2 mt-1"><RankDelta current={rank} prev={prevRank} /></span>
