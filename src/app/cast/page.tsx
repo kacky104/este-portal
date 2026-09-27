@@ -162,7 +162,7 @@ export default async function CastHomePage() {
           <div className="space-y-5">
             {/* ★ 第516便: 挨拶カードを横長にして高さを約1/3に（スマホの1画面目にタブの中身まで入るように）。
                 左に写真・右に名前と店名。★ 第524便: 本日の出勤の札は「今日のまとめ」へ移した。 */}
-            <div className="bg-white/90 backdrop-blur rounded-3xl border border-pink-100 shadow-sm px-4 py-3.5 flex items-center gap-3.5">
+            <div className="bg-white/90 backdrop-blur rounded-3xl border border-pink-100 shadow-sm px-2 py-3.5 flex items-center gap-3.5">
               {therapist.profile_image_url ? (
                 <div className="relative w-16 h-16 shrink-0 rounded-full border-2 border-white overflow-hidden shadow-md ring-1 ring-pink-100">
                   <Image
@@ -296,10 +296,10 @@ function RankChip({ href, label, value, unit, ariaLabel, style, small = false }:
       target="_blank"
       rel="noopener noreferrer"
       aria-label={ariaLabel}
-      className="flex flex-col items-center justify-center w-[52px] px-0 py-1.5 rounded-xl border shadow-sm hover:opacity-90 transition-opacity"
+      className="flex flex-col items-center justify-center w-[60px] px-0 py-1.5 rounded-xl border shadow-sm hover:opacity-90 transition-opacity"
       style={style}
     >
-      <span className="text-[9px] font-bold leading-none whitespace-nowrap tracking-tighter">{label}</span>
+      <span className="text-[9px] font-bold leading-none whitespace-nowrap">{label}</span>
       <span className="mt-1 leading-none font-black whitespace-nowrap">
         <span className={small ? 'text-[12px]' : 'text-[22px]'}>{value}</span>
         {unit && <span className="text-[11px] ml-0.5">{unit}</span>}
