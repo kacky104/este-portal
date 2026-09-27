@@ -378,12 +378,16 @@ export default function RankingTabs({
                     })}
                   </div>
                   {therapistRanking.length > 100 && (
+                    // ★ 第913便: PC（lg以上）は上のカードと同じ幅に広げて3列（スマホは今までどおり1列）。
+                    //   ★ 区切り線は li の下と右。3列目の右は消す。★ 最後の行の下線は ul の -mb-px で枠の下に隠す。
+                    <div className="lg:relative lg:left-1/2 lg:-translate-x-1/2 lg:w-[min(1150px,calc(100vw-32px))]">
                     <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
-                      <ul>
-                        {therapistRanking.slice(100).map((t, idx, arr) => (
+                      <ul className="lg:grid lg:grid-cols-3 lg:-mb-px">
+                        {therapistRanking.slice(100).map((t) => (
                           <li
                             key={t.id}
-                            style={idx < arr.length - 1 ? { borderBottom: `1px solid ${theme.cardBorder}` } : undefined}
+                            className="border-b last:border-b-0 lg:border-r lg:last:border-b lg:[&:nth-child(3n)]:border-r-0"
+                            style={{ borderColor: theme.cardBorder }}
                           >
                             <Link
                               href={`/therapist/${t.id}`}
@@ -411,6 +415,7 @@ export default function RankingTabs({
                           </li>
                         ))}
                       </ul>
+                    </div>
                     </div>
                   )}
                 </>
