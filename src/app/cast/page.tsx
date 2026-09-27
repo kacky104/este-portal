@@ -13,6 +13,7 @@ import { getRecordMonth } from '@/app/actions/castCustomers';
 import { isCastScheduleEnabled } from '@/app/actions/castSchedule';
 import { CastXIcon } from './CastXIcon';
 import { fetchTherapistWeeklyRanking } from '@/app/lib/ranking';
+import { getTherapistReviewRanking } from '@/app/lib/reviews';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -95,14 +96,20 @@ export default async function CastHomePage() {
 
   // ★ 第916便（カッキーさん）: セラピストランキング（/ranking と同じ今週の順位・TOP150）。圏外は null＝何も出さない。
   //   ★ 読めなくてもページは出す。
+  // ★ 第917便: 口コミ数ランキング（/reviews のセラピストタブ・TOP50）と殿堂入り（口コミ21件以上）も。
+  //   ★ 殿堂入りの人はランキングから外れる（/reviews と同じ）＝どちらか一方だけが出る。圏外・口コミなしは出さない。
   let weeklyRank: number | null = null;
+  let reviewRank: number | null = null;
+  let hallOfFameCount: number | null = null;
   if (therapist?.id != null) {
-    try {
-      const ranking = await fetchTherapistWeeklyRanking(150);
-      weeklyRank = ranking.find((t) => t.id === Number(therapist.id))?.rank ?? null;
-    } catch {
-      weeklyRank = null;
-    }
+    const tid = Number(therapist.id);
+    const [pop, rev] = await Promise.all([
+      fetchTherapistWeeklyRanking(150).catch(() => null),
+      getTherapistReviewRanking().catch(() => null),
+    ]);
+    weeklyRank = pop?.find((t) => t.id === tid)?.rank ?? null;
+    reviewRank = rev?.ranking.find((t) => t.id === tid)?.rank ?? null;
+    hallOfFameCount = rev?.hallOfFame.find((t) => t.id === tid)?.reviewCount ?? null;
   }
 
   // ★ 第493便: 着せ替えに使う店舗テーマの壁紙（管理画面で登録・誰でも読める表）。★ 読めなければ地の色だけ
@@ -179,30 +186,42 @@ export default async function CastHomePage() {
                 <h1 className="mt-1 text-lg font-black text-slate-800 leading-tight truncate">{therapist.name ?? '(名前未設定)'} さん</h1>
                 {salonName && <p className="mt-0.5 text-[11px] text-slate-400 font-medium truncate">{salonName}</p>}
               </div>
-              {/* ★ 第916便: セラピストランキングの順位（TOP150 に入っているときだけ）。押すと /ranking のセラピストタブ */}
-              {weeklyRank != null && (
-                <Link
-                  href="/ranking#therapist"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={`セラピストランキング 今週${weeklyRank}位`}
-                  className="shrink-0 flex flex-col items-center justify-center min-w-[64px] px-2.5 py-1.5 rounded-2xl border shadow-sm hover:opacity-90 transition-opacity"
-                  style={
-                    weeklyRank === 1
-                      ? { background: 'linear-gradient(135deg,#FFF7D6,#F7C948)', borderColor: '#E8A317', color: '#5A3E00' }
-                      : weeklyRank === 2
-                      ? { background: 'linear-gradient(135deg,#F8F9FA,#C9CDD3)', borderColor: '#9AA0A6', color: '#3A3F45' }
-                      : weeklyRank === 3
-                      ? { background: 'linear-gradient(135deg,#FBE7D3,#D89C66)', borderColor: '#B87333', color: '#4A2A10' }
-                      : { background: '#FDF2F8', borderColor: '#FBCFE8', color: '#DB2777' }
-                  }
-                >
-                  <span className="text-[9px] font-bold leading-none whitespace-nowrap">{weeklyRank <= 3 ? '👑 ' : ''}人気ランキング</span>
-                  <span className="mt-1 leading-none font-black whitespace-nowrap">
-                    <span className="text-[22px]">{weeklyRank}</span>
-                    <span className="text-[11px] ml-0.5">位</span>
-                  </span>
-                </Link>
+              {/* ★ 第916便: セラピストランキングの順位（TOP150 に入っているときだけ）。押すと /ranking のセラピストタブ
+                  ★ 第917便: 右に口コミ数ランキング（TOP50）か殿堂入り。★ どれも該当しないときは何も出さない */}
+              {(weeklyRank != null || reviewRank != null || hallOfFameCount != null) && (
+                <div className="shrink-0 flex items-stretch gap-1.5">
+                  {weeklyRank != null && (
+                    <RankChip
+                      href="/ranking#therapist"
+                      label={(weeklyRank <= 3 ? '👑 ' : '') + '人気'}
+                      value={String(weeklyRank)}
+                      unit="位"
+                      ariaLabel={`セラピストランキング 今週${weeklyRank}位`}
+                      style={medalStyle(weeklyRank, { background: '#FDF2F8', borderColor: '#FBCFE8', color: '#DB2777' })}
+                    />
+                  )}
+                  {reviewRank != null && (
+                    <RankChip
+                      href="/reviews#therapist"
+                      label={(reviewRank <= 3 ? '👑 ' : '') + '口コミ数'}
+                      value={String(reviewRank)}
+                      unit="位"
+                      ariaLabel={`口コミ数ランキング ${reviewRank}位`}
+                      style={medalStyle(reviewRank, { background: '#F8FAFC', borderColor: '#CBD5E1', color: '#475569' })}
+                    />
+                  )}
+                  {hallOfFameCount != null && (
+                    <RankChip
+                      href="/reviews#hall"
+                      label="👑 口コミ"
+                      value="殿堂入り"
+                      unit=""
+                      small
+                      ariaLabel={`口コミ殿堂入り（口コミ${hallOfFameCount}件）`}
+                      style={{ background: 'linear-gradient(135deg,#7F1D1D,#1C1917)', borderColor: '#D4A017', color: '#F7C948' }}
+                    />
+                  )}
+                </div>
               )}
             </div>
 
@@ -257,5 +276,34 @@ export default async function CastHomePage() {
         )}
       </main>
     </CastThemeProvider>
+  );
+}
+
+// ★ 第917便: /cast の挨拶カード右の小さな札（人気・口コミ数・殿堂入り）。
+function medalStyle(rank: number, fallback: React.CSSProperties): React.CSSProperties {
+  if (rank === 1) return { background: 'linear-gradient(135deg,#FFF7D6,#F7C948)', borderColor: '#E8A317', color: '#5A3E00' };
+  if (rank === 2) return { background: 'linear-gradient(135deg,#F8F9FA,#C9CDD3)', borderColor: '#9AA0A6', color: '#3A3F45' };
+  if (rank === 3) return { background: 'linear-gradient(135deg,#FBE7D3,#D89C66)', borderColor: '#B87333', color: '#4A2A10' };
+  return fallback;
+}
+
+function RankChip({ href, label, value, unit, ariaLabel, style, small = false }: {
+  href: string; label: string; value: string; unit: string; ariaLabel: string; style: React.CSSProperties; small?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={ariaLabel}
+      className="flex flex-col items-center justify-center min-w-[56px] px-2 py-1.5 rounded-2xl border shadow-sm hover:opacity-90 transition-opacity"
+      style={style}
+    >
+      <span className="text-[9px] font-bold leading-none whitespace-nowrap">{label}</span>
+      <span className="mt-1 leading-none font-black whitespace-nowrap">
+        <span className={small ? 'text-[12px]' : 'text-[22px]'}>{value}</span>
+        {unit && <span className="text-[11px] ml-0.5">{unit}</span>}
+      </span>
+    </Link>
   );
 }
