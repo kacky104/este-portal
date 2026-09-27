@@ -53,7 +53,7 @@ import { OpsNoticeBar } from './OpsNoticeBar';
 import { CastLinkProgress } from '@/app/components/CastLinkProgress';
 // ★ 第887便: リンク・QRで招待（カードでは52×22の「QR」ボタン）
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
-import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
+import { postAnnouncementManually, getAnnounceState, applyAnnouncePhotoOnSave } from '@/app/actions/announcePost';
 import { AnnouncePhotoPool } from '@/app/conecf/announce/AnnouncePhotoPool';
 import { AnnounceRandomTile, isOwnAnnounceImageUrl } from '@/app/components/AnnounceRandomTile';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
@@ -2604,13 +2604,22 @@ export default function MyPage() {
     // 差し替え・画像なしへの変更で不要になった旧画像を掃除（保存成功後・best-effort）。
     const prevImageUrl = announcements.find(a => a.id === id)?.image_url ?? null;
     if (prevImageUrl && prevImageUrl !== image_url) removeAnnouncementImage(prevImageUrl);
+    // ★ 第911便: ランダム表示（画像なし）で公開中なら、その場で「お知らせの写真」から1枚入れる
+    let savedImageUrl = image_url;
+    let photoNote = '';
+    if (salon && is_published && !image_url) {
+      const r = await applyAnnouncePhotoOnSave({ salonId: Number(salon.id), announcementId: id });
+      if (r.ok && r.data.reason === 'applied') savedImageUrl = r.data.imageUrl;
+      if (r.ok && r.data.reason === 'empty_pool') photoNote = '（ランダム表示の写真がありません。先に「お知らせの写真（ランダム）」で選んでください）';
+    }
     setAnnouncements(prev => prev.map(a => a.id === id
-      ? { ...a, title: form.title!.trim(), content, is_published, image_url, auto_rotate }
+      ? { ...a, title: form.title!.trim(), content, is_published, image_url: savedImageUrl, auto_rotate }
       : a));
+    if (savedImageUrl !== image_url) setAnnouncementForms(prev => (prev[id] ? { ...prev, [id]: { ...prev[id], image_url: savedImageUrl } } : prev));
     if (salon) revalidateSalon(salon.id);
     // ★ 「自動で回す」の印は自動配信の対象件数を変える。状態の1行も取り直す
     void refreshAnnounceState();
-    showToast('お知らせを保存しました');
+    showToast('お知らせを保存しました' + photoNote);
   };
 
   // お知らせ：公開/非公開のワンタップ切替（即時保存）

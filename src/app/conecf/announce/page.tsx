@@ -21,7 +21,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
-import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
+import { postAnnouncementManually, getAnnounceState, applyAnnouncePhotoOnSave } from '@/app/actions/announcePost';
 import { AnnouncePhotoPool } from './AnnouncePhotoPool';
 import { AnnounceRandomTile, isOwnAnnounceImageUrl } from '@/app/components/AnnounceRandomTile';
 
@@ -251,9 +251,15 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
     setBusy('');
     if (upErr) { onToast('保存に失敗しました: ' + upErr.message); return; }
     if (a.image_url && a.image_url !== f.image_url) void removeImage(a.image_url);
+    // ★ 第911便: ランダム表示（画像なし）で公開中なら、その場で「写真」から1枚入れる
+    let photoNote = '';
+    if (f.is_published && !f.image_url) {
+      const r = await applyAnnouncePhotoOnSave({ salonId, announcementId: a.id });
+      if (r.ok && r.data.reason === 'empty_pool') photoNote = '（ランダム表示の写真がありません。先に下の「写真」で選んでください）';
+    }
     void revalidateSalon(salonId);
     await load(); void refreshAuto();
-    onToast('お知らせを保存しました');
+    onToast('お知らせを保存しました' + photoNote);
   };
   const onItemImage = async (a: Announcement, e: React.ChangeEvent<HTMLInputElement>) => {
     const url = await upload(a.id, e);

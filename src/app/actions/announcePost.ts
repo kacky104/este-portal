@@ -306,3 +306,28 @@ export async function saveAnnouncePhotoPool(input: { salonId: string | number; t
   if (error) return { ok: false, error: '写真を保存できませんでした。時間をおいてお試しください' };
   return { ok: true, data: { photoIds: want } };
 }
+
+/**
+ * ★★ 第911便（2026-09-27・カッキーさん）: ランダム表示にして【保存】したら、その場で写真の箱から1枚入れる。
+ *   ★ 今までは出したとき（自動・再投稿・新規）にしか入らず、画像を外して保存すると次に出すまで画像なしだった。
+ *   ★ 対象は【公開中】で【画像なし】のお知らせだけ（★ 自分の画像・前回のランダム写真は触らない）。
+ *   ★ 投稿ではない＝1日5回の数・ランキング・並び順には触らない。
+ *   返す reason: 'applied' 入れた／'empty_pool' 箱が空（写真を選んでいない）／'skip' 対象外
+ */
+export async function applyAnnouncePhotoOnSave(input: { salonId: string | number; announcementId: string }): Promise<
+  Result<{ reason: 'applied' | 'empty_pool' | 'skip'; imageUrl: string | null }>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const guard = await assertSalonOwner(salonId);
+  if (!guard.ok) return guard;
+  const svc = createServiceClient();
+  const { data: ann } = await svc
+    .from('announcements').select('id, image_url, is_published')
+    .eq('id', input.announcementId).eq('salon_id', salonId).maybeSingle();
+  if (!ann || ann.is_published !== true || ann.image_url) return { ok: true, data: { reason: 'skip', imageUrl: (ann?.image_url as string | null) ?? null } };
+  const { changed } = await applyAnnouncePhoto(svc, salonId, input.announcementId);
+  if (!changed) return { ok: true, data: { reason: 'empty_pool', imageUrl: null } };
+  const { data: after } = await svc.from('announcements').select('image_url').eq('id', input.announcementId).maybeSingle();
+  return { ok: true, data: { reason: 'applied', imageUrl: (after?.image_url as string | null) ?? null } };
+}
