@@ -2,7 +2,7 @@
 // ログイン cookie は同一オリジンの fetch で自動同送されるため、トークンの受け渡しは不要。
 // 失敗（ネットワーク/権限等）は握りつぶし、ユーザー操作は止めない。
 
-type RevalidateBody = { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean; adBanners?: boolean };
+type RevalidateBody = { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean; adBanners?: boolean; salonsList?: boolean };
 
 // 週間ランキングページ（/ranking）だけを無効化する（下駄設定の保存後などに使う）。
 export async function revalidateRanking(): Promise<void> {
@@ -31,6 +31,11 @@ async function postRevalidate(body?: RevalidateBody): Promise<void> {
     // 失敗してもユーザー操作は継続。ログのみ。
     console.warn("[revalidate] failed:", e);
   }
+}
+
+// 掲載店舗一覧（/salons）だけを無効化する（テキスト掲載の保存後に使う・第915便）。
+export async function revalidateSalonsList(): Promise<void> {
+  await postRevalidate({ salonsList: true, top: false });
 }
 
 // トップ(/)のみを無効化（従来どおり）。

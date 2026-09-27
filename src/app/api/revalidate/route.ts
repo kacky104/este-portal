@@ -31,6 +31,7 @@ export async function POST(req: Request) {
   let ranking = false;
   let pageHeroes = false;
   let adBanners = false;
+  let salonsList = false;
   let top = true;
   try {
     const body = (await req.json()) as { salonId?: number | string; therapistId?: number | string; top?: boolean; area?: string; areasAll?: boolean; ranking?: boolean; pageHeroes?: boolean; adBanners?: boolean } | null;
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
       if (body.ranking === true) ranking = true;
       if (body.pageHeroes === true) pageHeroes = true;
       if (body.adBanners === true) adBanners = true;
+      if ((body as { salonsList?: boolean }).salonsList === true) salonsList = true;
       if (body.top === false) top = false;
     }
   } catch {
@@ -70,6 +72,10 @@ export async function POST(req: Request) {
     // サロン新着情報の横断一覧（/news）もお知らせ保存の即時反映対象にする（トップの5件ブロックは top で反映）。
     revalidatePath("/news");
     revalidated.push("/news");
+    // ★ 第915便: 掲載店舗一覧（/salons・ISR 10分）も。店名・電話・公式HP（official_url）を出しているので、
+    //   店舗の保存（管理の店舗編集・マイページの店舗情報）がすぐ出るように。
+    revalidatePath("/salons");
+    revalidated.push("/salons");
 
     // ── 店舗の公式ホームページ（/hp/…）も無効化する（2026-08-18 第23便）──
     //
@@ -146,6 +152,12 @@ export async function POST(req: Request) {
       revalidatePath(route, "page");
       revalidated.push(route);
     }
+  }
+
+  if (salonsList) {
+    // ★ 第915便: テキスト掲載（free_salon_listings）の保存後。/salons だけ作り直す
+    revalidatePath("/salons");
+    revalidated.push("/salons");
   }
 
   if (top) {
