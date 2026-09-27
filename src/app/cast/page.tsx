@@ -12,6 +12,7 @@ import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import { getRecordMonth } from '@/app/actions/castCustomers';
 import { isCastScheduleEnabled } from '@/app/actions/castSchedule';
 import { CastXIcon } from './CastXIcon';
+import { fetchTherapistWeeklyRanking } from '@/app/lib/ranking';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -92,6 +93,18 @@ export default async function CastHomePage() {
     diaryToday = diary.count ?? 0;
   }
 
+  // ★ 第916便（カッキーさん）: セラピストランキング（/ranking と同じ今週の順位・TOP150）。圏外は null＝何も出さない。
+  //   ★ 読めなくてもページは出す。
+  let weeklyRank: number | null = null;
+  if (therapist?.id != null) {
+    try {
+      const ranking = await fetchTherapistWeeklyRanking(150);
+      weeklyRank = ranking.find((t) => t.id === Number(therapist.id))?.rank ?? null;
+    } catch {
+      weeklyRank = null;
+    }
+  }
+
   // ★ 第493便: 着せ替えに使う店舗テーマの壁紙（管理画面で登録・誰でも読める表）。★ 読めなければ地の色だけ
   const { data: wpRows } = await supabase.from('theme_wallpapers').select('theme_key, image_url');
   const wallpapers: Record<string, string> = {};
@@ -166,6 +179,31 @@ export default async function CastHomePage() {
                 <h1 className="mt-1 text-lg font-black text-slate-800 leading-tight truncate">{therapist.name ?? '(名前未設定)'} さん</h1>
                 {salonName && <p className="mt-0.5 text-[11px] text-slate-400 font-medium truncate">{salonName}</p>}
               </div>
+              {/* ★ 第916便: セラピストランキングの順位（TOP150 に入っているときだけ）。押すと /ranking のセラピストタブ */}
+              {weeklyRank != null && (
+                <Link
+                  href="/ranking#therapist"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`セラピストランキング 今週${weeklyRank}位`}
+                  className="shrink-0 flex flex-col items-center justify-center min-w-[64px] px-2.5 py-1.5 rounded-2xl border shadow-sm hover:opacity-90 transition-opacity"
+                  style={
+                    weeklyRank === 1
+                      ? { background: 'linear-gradient(135deg,#FFF7D6,#F7C948)', borderColor: '#E8A317', color: '#5A3E00' }
+                      : weeklyRank === 2
+                      ? { background: 'linear-gradient(135deg,#F8F9FA,#C9CDD3)', borderColor: '#9AA0A6', color: '#3A3F45' }
+                      : weeklyRank === 3
+                      ? { background: 'linear-gradient(135deg,#FBE7D3,#D89C66)', borderColor: '#B87333', color: '#4A2A10' }
+                      : { background: '#FDF2F8', borderColor: '#FBCFE8', color: '#DB2777' }
+                  }
+                >
+                  <span className="text-[9px] font-bold leading-none whitespace-nowrap">{weeklyRank <= 3 ? '👑 ' : ''}人気ランキング</span>
+                  <span className="mt-1 leading-none font-black whitespace-nowrap">
+                    <span className="text-[22px]">{weeklyRank}</span>
+                    <span className="text-[11px] ml-0.5">位</span>
+                  </span>
+                </Link>
+              )}
             </div>
 
             {/* 3タブ（写メ日記／着せ替え／今すぐ）。挨拶ブロックは上に常時表示のまま。 */}
