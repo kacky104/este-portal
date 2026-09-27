@@ -54,6 +54,7 @@ import { CastLinkProgress } from '@/app/components/CastLinkProgress';
 // ★ 第887便: リンク・QRで招待（カードでは52×22の「QR」ボタン）
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
+import { AnnouncePhotoPool } from '@/app/conecf/announce/AnnouncePhotoPool';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
@@ -5484,6 +5485,10 @@ export default function MyPage() {
               <p className="text-[11px] text-slate-400">自動配信の状態を読み込み中です…</p>
             )}
           </div>
+
+          {/* ★ 第909便: お知らせの写真（コネックエフの「写真」と同じ部品・同じ箱）。
+              画像を付けていないお知らせを出すたび（自動・再投稿・新規）に、選んだ中から1枚が入る。 */}
+          {salon && <AnnouncePhotoPool salonId={Number(salon.id)} enabled onToast={showToast} tone="pink" />}
 
 
           {/* 再投稿の確認モーダル（標準confirmの置き換え）。文言は既存confirmと同一。

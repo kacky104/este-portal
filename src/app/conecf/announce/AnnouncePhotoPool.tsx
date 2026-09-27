@@ -9,6 +9,7 @@ import { ARTICLE_PHOTO_MAX } from '@/lib/articlePhotoPick';
 // ★ 画像なしのお知らせを出すたび（自動・再投稿・新規公開）に、ここで選んだ中から1枚が入る。
 //   ★ 自分で画像を付けたお知らせは、その画像のまま（カッキーさんの決定）。
 // ★ SQL 前（available=false）は節ごと出さない。
+// ★ 第909便: /mypage のお知らせにも同じ部品を置いた（tone='pink'）。箱は同じ salon_announce_state＝どちらで選んでも同じ。
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 
@@ -16,7 +17,13 @@ type Board = { available: boolean; photoIds: number[]; therapists: Array<{ id: n
 
 const sameIds = (a: readonly number[], b: readonly number[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 
-export function AnnouncePhotoPool({ salonId, enabled, onToast }: { salonId: number; enabled: boolean; onToast: (m: string) => void }) {
+export function AnnouncePhotoPool({ salonId, enabled, onToast, tone = 'indigo' }: { salonId: number; enabled: boolean; onToast: (m: string) => void; tone?: 'indigo' | 'pink' }) {
+  const pink = tone === 'pink';
+  const card = pink ? 'bg-white border border-pink-100 shadow-sm' : CARD;
+  const onBox = pink ? 'border-pink-500 bg-pink-50' : 'border-indigo-500 bg-indigo-50';
+  const onTag = pink ? 'bg-pink-500' : 'bg-indigo-600';
+  const onName = pink ? 'text-pink-700' : 'text-indigo-800';
+  const saveCls = pink ? 'bg-pink-500 hover:bg-pink-600' : 'bg-indigo-600 hover:bg-indigo-700';
   const [board, setBoard] = useState<Board | null>(null);
   const [pool, setPool] = useState<number[]>([]);
   const [open, setOpen] = useState(false);
@@ -50,11 +57,11 @@ export function AnnouncePhotoPool({ salonId, enabled, onToast }: { salonId: numb
   const dirty = !sameIds(pool, board.photoIds);
 
   return (
-    <section className={CARD}>
+    <section className={card}>
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
         className="w-full text-left px-4 py-3.5 flex items-start justify-between gap-3 hover:bg-slate-50">
         <div className="min-w-0">
-          <h2 className="text-[15px] font-black text-slate-800">写真</h2>
+          <h2 className={pink ? 'text-xs font-black text-pink-600' : 'text-[15px] font-black text-slate-800'}>{pink ? 'お知らせの写真（ランダム）' : '写真'}</h2>
           <p className="text-[13px] text-slate-500 leading-relaxed mt-0.5">
             画像を付けていないお知らせに、選んだ中から1枚がランダムで表示されます（投稿のたびに入れ替わります）。
           </p>
@@ -78,13 +85,13 @@ export function AnnouncePhotoPool({ salonId, enabled, onToast }: { salonId: numb
                 const on = pool.includes(t.id);
                 return (
                   <button key={t.id} type="button" onClick={() => toggle(t.id)} disabled={busy} aria-pressed={on}
-                    className={'text-left border p-1 disabled:opacity-60 ' + (on ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50')}>
+                    className={'text-left border p-1 disabled:opacity-60 ' + (on ? onBox : 'border-slate-200 hover:bg-slate-50')}>
                     <span className="block aspect-square bg-slate-100 overflow-hidden relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={t.photoUrl} alt="" className="w-full h-full object-cover" />
-                      {on && <span className="absolute left-1 top-1 text-[11px] font-black text-white bg-indigo-600 px-1.5 py-0.5">選択中</span>}
+                      {on && <span className={'absolute left-1 top-1 text-[11px] font-black text-white px-1.5 py-0.5 ' + onTag}>選択中</span>}
                     </span>
-                    <span className={'block text-[12.5px] font-bold truncate mt-1 px-0.5 ' + (on ? 'text-indigo-800' : 'text-slate-600')}>{t.name}</span>
+                    <span className={'block text-[12.5px] font-bold truncate mt-1 px-0.5 ' + (on ? onName : 'text-slate-600')}>{t.name}</span>
                   </button>
                 );
               })}
@@ -94,7 +101,7 @@ export function AnnouncePhotoPool({ salonId, enabled, onToast }: { salonId: numb
           {dirty && (
             <div className="flex items-center gap-3 flex-wrap mt-3 pt-3 border-t border-slate-200">
               <button type="button" onClick={() => void onSave()} disabled={busy}
-                className="text-[15px] font-black px-6 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">
+                className={'text-[15px] font-black px-6 py-2.5 text-white disabled:opacity-40 ' + saveCls}>
                 {busy ? '保存しています…' : '写真を保存する'}
               </button>
               <button type="button" onClick={() => setPool(board.photoIds)} disabled={busy}
