@@ -189,7 +189,7 @@ export default async function CastHomePage() {
               {/* ★ 第916便: セラピストランキングの順位（TOP150 に入っているときだけ）。押すと /ranking のセラピストタブ
                   ★ 第917便: 右に口コミ数ランキング（TOP50）か殿堂入り。★ どれも該当しないときは何も出さない */}
               {(weeklyRank != null || reviewRank != null || hallOfFameCount != null) && (
-                <div className="shrink-0 flex items-stretch gap-1.5">
+                <div className="shrink-0 flex items-stretch gap-1">
                   {weeklyRank != null && (
                     <RankChip
                       href="/ranking#therapist"
@@ -296,10 +296,10 @@ function RankChip({ href, label, value, unit, ariaLabel, style, small = false }:
       target="_blank"
       rel="noopener noreferrer"
       aria-label={ariaLabel}
-      className="flex flex-col items-center justify-center min-w-[56px] px-2 py-1.5 rounded-2xl border shadow-sm hover:opacity-90 transition-opacity"
+      className="flex flex-col items-center justify-center w-[52px] px-0 py-1.5 rounded-xl border shadow-sm hover:opacity-90 transition-opacity"
       style={style}
     >
-      <span className="text-[9px] font-bold leading-none whitespace-nowrap">{label}</span>
+      <span className="text-[9px] font-bold leading-none whitespace-nowrap tracking-tighter">{label}</span>
       <span className="mt-1 leading-none font-black whitespace-nowrap">
         <span className={small ? 'text-[12px]' : 'text-[22px]'}>{value}</span>
         {unit && <span className="text-[11px] ml-0.5">{unit}</span>}
