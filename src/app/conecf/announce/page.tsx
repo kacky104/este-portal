@@ -23,6 +23,7 @@ import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import { AnnouncePhotoPool } from './AnnouncePhotoPool';
+import { AnnounceRandomTile, isOwnAnnounceImageUrl } from '@/app/components/AnnounceRandomTile';
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-200 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200';
@@ -100,22 +101,30 @@ function CrosspostChecks({ linked, on, setOn, noReplies, setNoReplies }: {
 function ImagePicker({ url, uploading, onPick, onClear }: {
   url: string | null; uploading: boolean; onPick: (e: React.ChangeEvent<HTMLInputElement>) => void; onClear: () => void;
 }) {
+  const own = isOwnAnnounceImageUrl(url);
   return (
     <div>
       <label className={LABEL}>画像（任意・1枚）</label>
       <p className="text-[12px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
       <div className="flex items-center gap-3">
         {/* ★ 第476便（カッキーさん）: マイページと同じ見た目の大きさ（正方形・154px＝マイページの w-32 h-32 × PC の拡大1.2） */}
-        <div className="w-[154px] h-[154px] flex-none bg-slate-100 border border-slate-200 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {url && <img src={url} alt="" className="w-full h-full object-cover" />}
+        {/* ★ 第910便: 自分で付けた画像のときだけ左に出す。ランダム表示中は右の🎲の枠に写真が出る */}
+        {own && (
+          <div className="w-[154px] h-[154px] flex-none bg-slate-100 border border-slate-200 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url as string} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+        <AnnounceRandomTile imageUrl={url} onChoose={onClear} tone="indigo" boxClassName="w-[154px] h-[154px]" />
+        <div className="flex flex-col items-start gap-2">
+          <label className="text-[13px] font-bold text-indigo-600 border border-indigo-200 px-3 py-1.5 cursor-pointer hover:bg-indigo-50">
+            {uploading ? 'アップロード中…' : own ? '画像を変える' : '画像を選ぶ'}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading} onChange={onPick} />
+          </label>
+          {own && <button type="button" onClick={onClear} className="text-[13px] text-rose-600 underline">外す</button>}
         </div>
-        <label className="text-[13px] font-bold text-indigo-600 border border-indigo-200 px-3 py-1.5 cursor-pointer hover:bg-indigo-50">
-          {uploading ? 'アップロード中…' : url ? '画像を変える' : '画像を選ぶ'}
-          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading} onChange={onPick} />
-        </label>
-        {url && <button type="button" onClick={onClear} className="text-[13px] text-rose-600 underline">外す</button>}
       </div>
+      <p className="text-[12px] text-slate-400 mt-1.5">ランダム表示：投稿のたびに、下の「写真」で選んだ中から1枚が入ります。</p>
     </div>
   );
 }

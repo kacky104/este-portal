@@ -55,6 +55,7 @@ import { CastLinkProgress } from '@/app/components/CastLinkProgress';
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import { postAnnouncementManually, getAnnounceState } from '@/app/actions/announcePost';
 import { AnnouncePhotoPool } from '@/app/conecf/announce/AnnouncePhotoPool';
+import { AnnounceRandomTile, isOwnAnnounceImageUrl } from '@/app/components/AnnounceRandomTile';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
@@ -5404,10 +5405,12 @@ export default function MyPage() {
               <div>
                 <label className={labelClass}>画像（任意・1枚）</label>
                 <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
-                {newAnnouncement.image_url ? (
+                {/* ★ 第910便: 右に「ランダム表示」ボタン（押すと自分の画像を外してランダムに） */}
+                <div className="flex items-start gap-3">
+                {isOwnAnnounceImageUrl(newAnnouncement.image_url) ? (
                   <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={newAnnouncement.image_url} alt="お知らせ画像" className="w-full h-full object-cover" />
+                    <img src={newAnnouncement.image_url ?? undefined} alt="お知らせ画像" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setNewAnnouncement(p => ({ ...p, image_url: null }))}
@@ -5436,6 +5439,9 @@ export default function MyPage() {
                     />
                   </label>
                 )}
+                <AnnounceRandomTile imageUrl={newAnnouncement.image_url} onChoose={() => setNewAnnouncement(p => ({ ...p, image_url: null }))} />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">ランダム表示：投稿のたびに、下の「お知らせの写真（ランダム）」で選んだ中から1枚が入ります。</p>
               </div>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
@@ -5668,7 +5674,8 @@ export default function MyPage() {
                   <div>
                     <label className={labelClass}>画像（任意・1枚）</label>
                     <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
-                    {(form.image_url as string | null) ? (
+                    <div className="flex items-start gap-3">
+                    {isOwnAnnounceImageUrl(form.image_url as string | null) ? (
                       <div className="relative w-32 h-32 rounded-none overflow-hidden border border-pink-100 bg-slate-50">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={form.image_url as string} alt="お知らせ画像" className="w-full h-full object-cover" />
@@ -5700,7 +5707,9 @@ export default function MyPage() {
                         />
                       </label>
                     )}
-                    <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除は「保存」で確定します。</p>
+                    <AnnounceRandomTile imageUrl={form.image_url as string | null} onChoose={() => setAnnouncementForms(prev => ({ ...prev, [a.id]: { ...prev[a.id], image_url: null } }))} />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">※ 画像の差し替え・削除・ランダム表示は「保存」で確定します。ランダム表示は、投稿のたびに「お知らせの写真（ランダム）」から1枚が入ります。</p>
                   </div>
                   {/* ★★ 「自動で回す」のチェックはここから外した（第289便・2026-09-12）。
                       ★ 同じ用事のボタン（自動投稿にする／自動投稿中）が上にある——入口を2つ持たない。
