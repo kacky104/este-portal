@@ -52,7 +52,7 @@ const HERO_HEAD: Record<
   // 銀の光をまとった神秘的なグラデ（中央が明るく輝く）＋シルバーのグロー。
   therapist: {
     label: 'REVIEW RANKING',
-    title: 'セラピスト口コミ数TOP50',
+    title: 'セラピスト口コミ数TOP20',
     labelClass: 'text-slate-500/90',
     gradClass: 'from-slate-600 via-gray-300 to-slate-600 drop-shadow-[0_1px_14px_rgba(148,163,184,0.5)]',
     dividerClass: 'via-slate-400/70',

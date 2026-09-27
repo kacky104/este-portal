@@ -572,7 +572,7 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
   //   ★ 載せるのは【順位が50位まで】の全員（人数ではない）。★ 殿堂入り未満は最大20件＝最大20段なので、
   //     今の決まりでは口コミが1件でもある子は全員載る。
   //   ★ 同じ順位の中の並びは今までどおり（総合平均が高い順 → 最新口コミが新しい順）。順位の数字には関係しない。
-  const RANK_LIMIT = 50;
+  const RANK_LIMIT = 20; // ★ 第921便: 見出し「TOP20」に合わせた（殿堂入り未満は最大20段なので、実際に切れることはない）
   const ranking: TherapistReviewRankItem[] = [];
   let denseRank = 0;
   let prevCount: number | null = null;
