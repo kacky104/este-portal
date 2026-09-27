@@ -48,6 +48,7 @@ export type SalonForEdit = {
   booking_email: string | null;
   listing_plan: 'standard' | 'free' | null; // 掲載プラン（第368便）
   catchphrase: string | null; // 無料掲載枠のカード用の一言（第368便）
+  official_url?: string | null; // 公式ホームページURL（第914便・/salons と店舗ページに出る）
   crm_until?: string | null; // フクエスCRM（有料）の利用期限 YYYY-MM-DD（2026-09-19）
 };
 
@@ -78,6 +79,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
     owner_id:    salon.owner_id    ?? '',
     booking_email: salon.booking_email ?? '',
     catchphrase: salon.catchphrase ?? '', // 無料掲載枠のカード用の一言（第368便）
+    official_url: salon.official_url ?? '', // 公式ホームページURL（第914便）
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -185,6 +187,13 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
       setError('予約通知メールの形式が正しくありません');
       return;
     }
+    // ★ 第914便: 公式ホームページURL。空欄は null。入力ありは http/https だけ（マイページと同じ判定）
+    const officialRaw = form.official_url.trim();
+    if (officialRaw) {
+      let okUrl = false;
+      try { const u = new URL(officialRaw); okUrl = u.protocol === 'http:' || u.protocol === 'https:'; } catch { okUrl = false; }
+      if (!okUrl) { setError('公式ホームページURLは https://〜 の形で入力してください'); return; }
+    }
     setSaving(true);
     setError('');
 
@@ -210,6 +219,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
         listing_plan: listingPlan, // 掲載プラン（第368便）
         crm_until: crmUntil || null, // フクエスCRM（有料）の利用期限（2026-09-19）
         catchphrase: form.catchphrase.trim(), // 無料掲載枠のカード用の一言（第368便）
+        official_url: officialRaw || null, // 公式ホームページURL（第914便）
       })
       .eq('id', salon.id)
       .select('id');   // 影響行を取得してRLSブロックを検出
@@ -403,6 +413,9 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
             {textField('住所',     'address',     '例: 福岡市博多区...')}
           </div>
           {textField('アクセス', 'access',  '例: 博多駅より徒歩5分')}
+
+          {/* ★ 第914便: 公式ホームページURL（/salons の一覧・店舗ページに出る。空欄可） */}
+          {textField('公式ホームページURL（任意）', 'official_url', 'https://〜')}
 
           {/* 予約通知メール（空欄可・入力時のみ形式チェック） */}
           {textField('予約通知メール', 'booking_email', '例: owner@example.com（ネット予約の通知先）')}

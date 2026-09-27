@@ -75,6 +75,7 @@ type Salon = {
   booking_email: string | null;
   listing_plan: 'standard' | 'free' | null; // 掲載プラン（第368便）
   catchphrase: string | null; // 無料掲載枠のカード用の一言（第368便）
+  official_url: string | null; // 公式ホームページURL（第914便）
   crm_until: string | null; // フクエスCRM（有料）の利用期限（2026-09-19）
 };
 
@@ -200,7 +201,7 @@ export default function AdminDashboard() {
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
       .from('salons')
-      .select('id, name, area, area2, price, rating, owner_id, hours, phone, postal_code, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email, listing_plan, catchphrase, crm_until')
+      .select('id, name, area, area2, price, rating, owner_id, hours, phone, postal_code, address, access, closed_days, show_on_top, dispatch_type, jobs_enabled, is_hidden, booking_email, listing_plan, catchphrase, official_url, crm_until')
       .order('id', { ascending: true });
     if (error) {
       setFetchError('店舗データの取得に失敗しました');
