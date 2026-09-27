@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 //  - 折りたたみは line-clamp-[10]（10行）。マウント後に ref で scrollHeight > clientHeight を比較し、
 //    溢れた本文にだけ「続きを読む」＋下端フェードを出す（溢れていなければ何も出さない）。
 //  - トグル式：「続きを読む」で全文展開、「閉じる」で再び折りたたむ。
-//  - SSR/hydration の不整合を避けるため溢れ判定はマウント後1回のみ（判定前はボタン非表示・リサイズ追従なし）。
+//  - SSR/hydration の不整合を避けるため溢れ判定はマウント後（判定前はボタン非表示）。★ 第924便から大きさが変わるたびに測り直す。
 //
 // 既存の本文整形（text-sm / text-slate-600 / leading-relaxed / whitespace-pre-wrap / break-words）は維持。
 export function JobDescriptionCollapse({ text }: { text: string }) {
@@ -24,7 +24,15 @@ export function JobDescriptionCollapse({ text }: { text: string }) {
     if (!el) return;
     // line-clamp 適用時の可視高さ(clientHeight)と全高(scrollHeight)を比較（1px の許容）。
     // md 以上は clamp が外れ scrollHeight === clientHeight となるため overflowing=false（＝PCでは出さない）。
-    setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    const check = () => setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    check();
+    // ★ 第924便: 「新着情報」タブは最初 hidden（display:none）で描かれる＝マウント時は高さ0で「溢れていない」と
+    //   判定され、タブを開いても「続きを読む」が出ず本文が … で切れたままだった。
+    //   → 大きさが変わったとき（タブを開いて見えたとき・画面幅が変わったとき）に測り直す。
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [expanded, text]);
 
   const clamped = !expanded;
