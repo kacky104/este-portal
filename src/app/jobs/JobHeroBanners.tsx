@@ -62,7 +62,7 @@ export function JobHeroBanners({
           {title}
         </h1>
       </div>
-      {/* ★ 第926便（カッキーさん）: 「表示順は30分ごとに入れ替わります」の注記は消した（並びの入れ替え自体はそのまま）。
+      {/* ★ 第926便（カッキーさん）: 「表示順は30分ごとに入れ替わります」の注記は消した（並びは第386便から毎朝6時に1回だけ入れ替わる＝shuffleJobs・dailySeedJST）。
           見出しとバナーの間は、注記があったときと同じくらい空ける。 */}
       {hasBanners && <div className="mb-4" aria-hidden />}
 
