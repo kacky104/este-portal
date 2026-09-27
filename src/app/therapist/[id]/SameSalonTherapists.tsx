@@ -45,7 +45,7 @@ export default function SameSalonTherapists({ list }: { list: SameSalonTherapist
             <span className="w-[52px] h-[52px] lg:w-8 lg:h-8 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
               {t.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={t.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                <img src={t.image} alt={t.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-[15px] lg:text-[11px] font-bold text-slate-400">{(t.name || '?').charAt(0)}</span>
               )}

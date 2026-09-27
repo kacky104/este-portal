@@ -25,7 +25,7 @@ export const revalidate = 600;
 
 // 自己参照 canonical を明示（root の canonical '/' 継承による重複扱いを防ぐ）。
 // openGraph は浅いマージで root の og が丸ごと消えるため必要項目を全て明示。
-const NEWS_TITLE = '店舗新着情報｜フクエス - 福岡メンズエステポータル';
+const NEWS_TITLE = '福岡メンズエステの店舗新着情報【フクエス】';
 const NEWS_DESCRIPTION =
   '福岡のメンズエステ店舗の最新お知らせ一覧。新人入店・イベント・割引情報など店舗の新着情報をまとめてチェックできます。';
 

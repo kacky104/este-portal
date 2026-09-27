@@ -163,9 +163,10 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
       {/* ① 画面の流れの中 */}
       {mode === 'top' && (
         <div ref={anchorRef} className="mb-4">
-          <h1 className="px-2">
+          {/* ★ 第923便: 店舗トップの h1 は PC 側（page.tsx）の1本だけにする。ここは見た目は同じ div（h1 が2本並んでいた） */}
+          <div className="px-2">
             <AutoFitText text={salonName} max={26} min={15} className="text-center font-bold leading-tight" style={{ color: colors.heading }} />
-          </h1>
+          </div>
           <div className="mt-1.5 px-2 flex items-center gap-2">
             <div className="flex-1 min-w-0 text-center leading-relaxed" style={{ color: colors.body }}>
               <p className="text-[12px]">{metaLine1}</p>

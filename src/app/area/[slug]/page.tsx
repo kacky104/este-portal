@@ -40,7 +40,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const area = areaFromSlug(slug);
   if (!area) return {};
   const label = areaLabel(area);
-  const title = `${label}のメンズエステ一覧｜フクエス`;
+  // ★ 第923便: 末尾を【フクエス】にそろえ、先頭に「福岡・」（地名に福岡が無いとき）
+  const title = `${label.includes('福岡') ? label : `福岡・${label}`}のメンズエステ一覧【フクエス】`;
   // meta description はエリア固有文（areaSeoContent）を優先。未定義エリアは従来の汎用文にフォールバック。
   const description =
     AREA_SEO_CONTENT[area]?.metaDescription ??

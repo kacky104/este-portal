@@ -5,7 +5,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getAllApprovedReviews, getTherapistReviewRanking } from '@/app/lib/reviews';
 import ReviewsTabs from './ReviewsTabs';
 
-const PAGE_TITLE = '福岡メンズエステの口コミ一覧｜フクエス';
+const PAGE_TITLE = '福岡メンズエステの口コミ一覧【フクエス】';
 const PAGE_DESC =
   '福岡のメンズエステに寄せられた口コミを新着順・口コミ数のセラピストランキング・殿堂入りでまとめてチェック。接客・施術・受付の評価とレビューを店舗横断で確認できます。';
 

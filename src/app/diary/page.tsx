@@ -26,7 +26,7 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 
 const PAGE_SIZE = 50;
 
-const PAGE_TITLE = '福岡メンズエステの写メ日記｜フクエス';
+const PAGE_TITLE = '福岡メンズエステの写メ日記【フクエス】';
 const PAGE_DESC =
   '福岡のメンズエステ各店のセラピストが投稿する写メ日記を新着順でまとめてチェック。出勤情報やお店の雰囲気、セラピストの日常が写真でわかります。';
 

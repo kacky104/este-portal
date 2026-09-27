@@ -18,7 +18,7 @@ import { fetchShopShowcases } from '@/app/x/xShops';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 
-const TITLE = '福岡メンズエステの承認店舗一覧｜フクエス';
+const TITLE = '福岡メンズエステの承認店舗一覧【フクエス】';
 const DESCRIPTION =
   '福岡メンズエステ専用SNS「fukuX」に参加する承認店舗の一覧です。各店のショーケース画像をまとめてチェックできます。';
 

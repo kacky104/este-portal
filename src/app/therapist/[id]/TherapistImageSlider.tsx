@@ -159,7 +159,7 @@ export function TherapistImageSlider({
             style={{ border: i === idx ? '2px solid #ec4899' : '2px solid transparent' }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            <img src={url} alt={`${name} ${i + 1}枚目`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
           </button>
         ))}
       </div>

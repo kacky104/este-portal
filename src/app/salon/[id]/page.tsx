@@ -822,7 +822,7 @@ export default async function SalonPage({
                     <picture>
                       <source media="(min-width: 640px)" srcSet={b.imgPc} />
                       {/* picture 配下の img は @next/next/no-img-element の対象外（disable 不要） */}
-                      <img src={b.imgSp} alt="" className="block w-full h-[117px] sm:h-auto sm:aspect-[31/9] object-cover shadow-sm" />
+                      <img src={b.imgSp} alt={`${salon.name}のバナー`} className="block w-full h-[117px] sm:h-auto sm:aspect-[31/9] object-cover shadow-sm" />
                     </picture>
                   );
                   return b.link ? (
