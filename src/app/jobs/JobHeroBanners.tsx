@@ -62,9 +62,9 @@ export function JobHeroBanners({
           {title}
         </h1>
       </div>
-      {/* 30分入れ替えの注記（見出し h1 構造には含めない・控えめなグレー小文字）。バナー0枚でも表示。
-          このブロックのバナー(heroBanners=deriveHeroBanners)は30分バケットでシャッフルされるため表記と一致。 */}
-      <p className={`text-xs text-gray-500 mt-1 ${hasBanners ? 'mb-3' : ''}`}>表示順は30分ごとに入れ替わります</p>
+      {/* ★ 第926便（カッキーさん）: 「表示順は30分ごとに入れ替わります」の注記は消した（並びの入れ替え自体はそのまま）。
+          見出しとバナーの間は、注記があったときと同じくらい空ける。 */}
+      {hasBanners && <div className="mb-4" aria-hidden />}
 
       {/* 16:9バナーの縦積み（1列・コンテナ幅いっぱい）。バナー0枚なら省略（見出しのみ）。 */}
       {hasBanners && (
