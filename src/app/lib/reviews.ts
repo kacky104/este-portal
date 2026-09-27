@@ -479,7 +479,7 @@ export type TherapistReviewRankItem = {
 };
 
 export type TherapistReviewRanking = {
-  ranking: TherapistReviewRankItem[]; // HALL_OF_FAME_MIN 未満・TOP50人
+  ranking: TherapistReviewRankItem[]; // HALL_OF_FAME_MIN 未満・順位50位まで（同じ件数は同じ順位・第920便）
   hallOfFame: TherapistReviewRankItem[]; // HALL_OF_FAME_MIN 以上（殿堂入り）
 };
 
@@ -565,10 +565,22 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
 
   // 5. 殿堂入り未満＝通常ランキング（TOP50人まで）／HALL_OF_FAME_MIN 以上＝殿堂入り。各リスト内で1位から採番。
   //    ★ 人数の上限（TOP50人）は口コミの本数とは別の話。★ ここは変えていない。
-  const ranking = items
-    .filter((t) => t.reviewCount < HALL_OF_FAME_MIN)
-    .slice(0, 50)
-    .map(({ latest: _latest, ...t }, i) => ({ ...t, rank: i + 1 }));
+  //
+  // ★★ 第920便（2026-09-27・カッキーさん）: 順位は【口コミの件数だけ】で決める（同じ件数は同じ順位）。
+  //   ★ 順位の数え方は「詰めて数える」: 2件が2人＝1位・1件が100人＝全員2位。
+  //     1人が3件になったら 3件＝1位・2件＝2位・1件＝3位（1件の子は「4位」ではなく「3位」）。
+  //   ★ 載せるのは【順位が50位まで】の全員（人数ではない）。★ 殿堂入り未満は最大20件＝最大20段なので、
+  //     今の決まりでは口コミが1件でもある子は全員載る。
+  //   ★ 同じ順位の中の並びは今までどおり（総合平均が高い順 → 最新口コミが新しい順）。順位の数字には関係しない。
+  const RANK_LIMIT = 50;
+  const ranking: TherapistReviewRankItem[] = [];
+  let denseRank = 0;
+  let prevCount: number | null = null;
+  for (const { latest: _latest, ...t } of items.filter((x) => x.reviewCount < HALL_OF_FAME_MIN)) {
+    if (t.reviewCount !== prevCount) { denseRank += 1; prevCount = t.reviewCount; }
+    if (denseRank > RANK_LIMIT) break;
+    ranking.push({ ...t, rank: denseRank });
+  }
   const hallOfFame = items
     .filter((t) => t.reviewCount >= HALL_OF_FAME_MIN)
     .map(({ latest: _latest, ...t }, i) => ({ ...t, rank: i + 1 }));
