@@ -41,6 +41,7 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import { SalonMobileNav } from '@/app/salon/[id]/SalonMobileNav';
 import { fetchSalonNavItems } from '@/app/salon/[id]/salonNavItems';
+import SameSalonTherapists from './SameSalonTherapists';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -346,7 +347,8 @@ export default async function TherapistPublicPage({
       .eq('is_active', true)
       .neq('id', therapistId)
       .order('id')
-      .limit(9),
+      // ★ 第908便: 9名の上限をやめて公開中を全員渡す（ブラウザで毎回シャッフルして9名＝SameSalonTherapists）。
+      .limit(200),
   ]);
 
   // ★ スマホ右ドロワーの中身（第219便）。★ 店舗ページと同じ11個・同じ数字。
@@ -801,28 +803,7 @@ export default async function TherapistPublicPage({
             {sameSalonTherapists.length > 0 && salon && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-3">同じ店の他のセラピスト</p>
-                <ul className="grid grid-cols-3 gap-x-2 gap-y-2.5 lg:block lg:space-y-1">
-                  {sameSalonTherapists.map((t) => (
-                    <li key={t.id} className="min-w-0">
-                      <Link
-                        href={`/therapist/${t.id}`}
-                        className="flex flex-col items-center gap-1.5 py-2 px-0.5 rounded-xl hover:bg-pink-50/70 transition-colors lg:flex-row lg:gap-2.5 lg:py-1.5 lg:px-0 lg:rounded-lg"
-                      >
-                        <span className="w-[52px] h-[52px] lg:w-8 lg:h-8 rounded-full bg-slate-100 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                          {t.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={t.image} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-[15px] lg:text-[11px] font-bold text-slate-400">{(t.name || '?').charAt(0)}</span>
-                          )}
-                        </span>
-                        <span className="w-full lg:w-auto text-center lg:text-left text-[11.5px] lg:text-[13px] font-semibold text-slate-700 truncate">
-                          {t.name}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                <SameSalonTherapists list={sameSalonTherapists} />
                 <Link
                   href={`/salon/${salon.id}/therapists`}
                   className="block mt-3 text-xs font-semibold text-pink-600 text-right hover:opacity-80 transition-opacity"
