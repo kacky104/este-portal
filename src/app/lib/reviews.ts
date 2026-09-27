@@ -467,6 +467,13 @@ export async function getLatestReviewsForSalons(
 /** 殿堂入りに必要な口コミ件数（これ以上で殿堂入り）。 */
 export const HALL_OF_FAME_MIN = 21;
 
+/**
+ * ★ 第922便（カッキーさん）: 口コミ数ランキングに載る【下値】（この件数以上で載る）。
+ *   ★ 今は1件から。載るセラピストが増えてきたら 2 → 3 … と切り上げる（この1か所を変えるだけ）。
+ *   ★ 下値を上げても順位は「件数だけ・詰めて数える」のまま（一番多い件数が1位）。/cast の札も同じ判定。
+ */
+export const REVIEW_RANK_MIN = 1;
+
 export type TherapistReviewRankItem = {
   id: number;
   rank: number; // 各リスト内の順位（1始まり）
@@ -576,7 +583,7 @@ export async function getTherapistReviewRanking(): Promise<TherapistReviewRankin
   const ranking: TherapistReviewRankItem[] = [];
   let denseRank = 0;
   let prevCount: number | null = null;
-  for (const { latest: _latest, ...t } of items.filter((x) => x.reviewCount < HALL_OF_FAME_MIN)) {
+  for (const { latest: _latest, ...t } of items.filter((x) => x.reviewCount < HALL_OF_FAME_MIN && x.reviewCount >= REVIEW_RANK_MIN)) {
     if (t.reviewCount !== prevCount) { denseRank += 1; prevCount = t.reviewCount; }
     if (denseRank > RANK_LIMIT) break;
     ranking.push({ ...t, rank: denseRank });
