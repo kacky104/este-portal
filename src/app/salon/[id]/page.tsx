@@ -528,9 +528,8 @@ export default async function SalonPage({
         <PageViewLogger itemType="salon" itemId={salon.id} />
 
         {/* ─── パンくずリスト：トップ › サロン名（他ページと同形式） ─── */}
-        {/* ★ 第929便: スマホだけ、パンくず行の左端に店舗メニューの三本線（右ドロワーは SalonMobileNav） */}
+        {/* ★ 第930便: スマホだけ、パンくず行の右端に店舗メニューの三本線（右ドロワーは SalonMobileNav） */}
         <div className="flex items-center gap-2 mb-3">
-        <SalonNavBurgerButton color="#ec4899" />
         <nav aria-label="パンくずリスト" className="flex-1 min-w-0 flex items-center gap-1.5" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
             トップ
@@ -540,6 +539,7 @@ export default async function SalonPage({
             {salon.name || '店舗'}
           </span>
         </nav>
+        <SalonNavBurgerButton color="#ec4899" />
         </div>
 
         {/* ─── Block 1: 画像スライダー（TOP画像） ─────────────────── */}

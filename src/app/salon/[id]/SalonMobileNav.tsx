@@ -55,7 +55,7 @@ type Props = {
 export const SALON_NAV_OPEN_EVENT = 'fukues:salon-nav-open';
 
 /**
- * ★ 第929便（2026-09-28・カッキーさんの指示）: 店舗トップ（スマホだけ）のパンくず行の【左端】に置く三本線。
+ * ★ 第929便（2026-09-28・カッキーさんの指示）: 店舗トップ（スマホだけ）のパンくず行の【右端】に置く三本線（第930便で左端→右端）。
  *   押すと SalonMobileNav の右ドロワーを開く（同じページにいる SalonMobileNav が合図を受け取る）。
  */
 export function SalonNavBurgerButton({ color }: { color: string }) {
@@ -64,7 +64,7 @@ export function SalonNavBurgerButton({ color }: { color: string }) {
       type="button"
       onClick={() => window.dispatchEvent(new Event(SALON_NAV_OPEN_EVENT))}
       aria-label="この店舗のメニューを開く"
-      className="md:hidden flex-none p-1 -ml-1 -my-1 rounded-lg active:opacity-70"
+      className="md:hidden flex-none p-1 -mr-1 -my-1 rounded-lg active:opacity-70"
       style={{ color }}
     >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
@@ -156,7 +156,7 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
     return () => { active = false; };
   }, [open, imasuguSalonId]);
 
-  // ★ 第929便: 店舗トップのパンくず行の左端の三本線（SalonNavBurgerButton）から開く。
+  // ★ 第929便: 店舗トップのパンくず行の右端の三本線（SalonNavBurgerButton）から開く。
   useEffect(() => {
     const onOpen = () => setOpen(true);
     window.addEventListener(SALON_NAV_OPEN_EVENT, onOpen);
@@ -202,7 +202,7 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
               <p className="text-[12px]">{metaLine1}</p>
               {metaLine2 && <p className="text-[12px]">{metaLine2}</p>}
             </div>
-            {/* ★ 第929便: 店舗トップの三本線はここ（情報行の右）からパンくず行の左端へ移した（SalonNavBurgerButton） */}
+            {/* ★ 第929便: 店舗トップの三本線はここ（情報行の右）からパンくず行の右端へ移した（SalonNavBurgerButton） */}
           </div>
         </div>
       )}
