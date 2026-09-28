@@ -589,7 +589,7 @@ body.paw-bg {
 }
 .conecf-venrey .font-black { font-weight: 700; }
 /* ★ 第935便（2026-09-28・カッキーさん）: /mypage もコネックエフと同じ文字の形（フォントだけ・色や大きさは変えない）。
-   ★ mypage/layout.tsx の .mypage-font。★ body 直下に出すポップアップ（createPortal）は対象外。 */
+   ★ mypage/layout.tsx の .mypage-font。★ 第936便で /admin・/moderation・/owner（ログイン等）にも。★ body 直下に出すポップアップ（createPortal）は対象外。 */
 .mypage-font {
   font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Hiragino Kaku Gothic ProN", Meiryo, Arial, sans-serif;
 }

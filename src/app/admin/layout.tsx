@@ -27,5 +27,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // children をレンダリングする前に弾くため、非管理者には管理UIの内容が一切送られない。
   if (user.id !== ADMIN_UUID) redirect('/');
 
-  return <>{children}</>;
+  // ★ 第936便: 文字の形はコネックエフと同じ（.mypage-font）。★ contents＝箱を増やさない（並びは今までどおり）
+  return <div className="mypage-font contents">{children}</div>;
 }

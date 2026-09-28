@@ -8,5 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default function OwnerLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  // ★ 第936便: 文字の形はコネックエフと同じ（.mypage-font）。★ contents＝箱を増やさない（並びは今までどおり）
+  return <div className="mypage-font contents">{children}</div>;
 }

@@ -21,5 +21,6 @@ export default async function ModerationLayout({ children }: { children: React.R
   // children をレンダリングする前に弾くため、許可外には審査UIの内容が一切送られない。
   if (!MODERATOR_UUIDS.includes(user.id)) redirect('/');
 
-  return <>{children}</>;
+  // ★ 第936便: 文字の形はコネックエフと同じ（.mypage-font）。★ contents＝箱を増やさない（並びは今までどおり）
+  return <div className="mypage-font contents">{children}</div>;
 }
