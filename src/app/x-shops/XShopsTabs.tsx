@@ -25,7 +25,7 @@ export function XShopsTabs({ shops, therapists, shopCount, therapistCount, color
   };
   const items = [
     ['shops', `承認店舗（${shopCount}）`],
-    ['therapists', `認証セラピスト（${therapistCount}）`],
+    ['therapists', `赤バッジセラピスト（${therapistCount}）`],
   ] as const;
   return (
     <>
