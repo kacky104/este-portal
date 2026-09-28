@@ -133,7 +133,7 @@ export default async function XShopsPage() {
             {/* ★ 第942便（カッキーさん）: タブ名を「赤バッジセラピスト」に＋赤バッジの説明を1行 */}
             <p className="mb-4 flex items-center justify-center gap-1.5 text-center text-xs sm:text-sm leading-relaxed text-slate-600">
               <VerifiedBadge kind="therapist" size={16} />
-              <span>赤バッジは、fukuX（フクエックス）で活躍しているセラピストに付与されるバッジです。</span>
+              <span>赤バッジは、fukuX（フクエックス）で<br className="sm:hidden" />活躍しているセラピストに付与されるバッジです。</span>
             </p>
             {therapists.length === 0 ? (
               <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-blue-100 rounded-3xl bg-blue-50/10">
