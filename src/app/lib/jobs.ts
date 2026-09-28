@@ -197,6 +197,21 @@ export const JOB_FEATURE_GROUPS: { title: string; slugs: string[] }[] = [
 // AreaBrowse が area の日本語DB値をそのままキーにするのと同方式（title と厳密一致・順序も保持）。
 export const JOB_FEATURE_CATEGORY_KEYS = JOB_FEATURE_GROUPS.map((g) => g.title);
 
+// ★ 第933便（2026-09-28・カッキーさんの指示）: 特徴タグの色をカテゴリー別に。
+//   経験・年齢＝ピンク／働き方＝青／待遇・お金＝オレンジ／環境・安心＝紫。未知の slug は従来の緑。
+export type FeatureTagColor = { text: string; border: string; bg: string };
+const FEATURE_TAG_COLOR_BY_CATEGORY: Record<string, FeatureTagColor> = {
+  '経験・年齢': { text: '#DB2777', border: '#FBCFE8', bg: '#FDF2F8' },
+  '働き方':     { text: '#2563EB', border: '#BFDBFE', bg: '#EFF6FF' },
+  '待遇・お金': { text: '#EA580C', border: '#FED7AA', bg: '#FFF7ED' },
+  '環境・安心': { text: '#7C3AED', border: '#DDD6FE', bg: '#F5F3FF' },
+};
+const FEATURE_TAG_COLOR_DEFAULT: FeatureTagColor = { text: '#059669', border: '#A7F3D0', bg: '#ECFDF5' };
+export function featureTagColor(slug: string): FeatureTagColor {
+  const g = JOB_FEATURE_GROUPS.find((gr) => gr.slugs.includes(slug));
+  return (g && FEATURE_TAG_COLOR_BY_CATEGORY[g.title]) || FEATURE_TAG_COLOR_DEFAULT;
+}
+
 const FEATURE_LABEL_BY_SLUG: Record<string, string> = Object.fromEntries(
   JOB_FEATURES.map((f) => [f.slug, f.label]),
 );

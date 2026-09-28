@@ -3,7 +3,7 @@ import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { fetchJobById, fetchPublishedWorkNews, featureLabel, WORK_NEWS_PAGE_SIZE, type JobDetail } from '@/app/lib/jobs';
+import { fetchJobById, fetchPublishedWorkNews, featureLabel, featureTagColor, WORK_NEWS_PAGE_SIZE, type JobDetail } from '@/app/lib/jobs';
 import { ApplyForm } from './ApplyForm';
 import { JobHeroSlider } from './JobHeroSlider';
 import { JobGallery } from './JobGallery';
@@ -308,16 +308,20 @@ export default async function JobDetailPage({
               <h2 className="font-bold text-slate-900">この求人の特徴</h2>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {job.features.map((slug) => (
-                <Link
-                  key={slug}
-                  href={`/jobs/tag/${slug}`}
-                  className="text-xs font-bold px-3 py-1 rounded-full border transition-colors hover:bg-emerald-50"
-                  style={{ borderColor: '#A7F3D0', color: '#059669' }}
-                >
-                  {featureLabel(slug)}
-                </Link>
-              ))}
+              {job.features.map((slug) => {
+                // ★ 第933便: カテゴリー別の色・角だけ丸い長方形
+                const c = featureTagColor(slug);
+                return (
+                  <Link
+                    key={slug}
+                    href={`/jobs/tag/${slug}`}
+                    className="text-xs font-bold px-3 py-1 rounded-md border transition-[filter] hover:brightness-95"
+                    style={{ borderColor: c.border, color: c.text, backgroundColor: c.bg }}
+                  >
+                    {featureLabel(slug)}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}

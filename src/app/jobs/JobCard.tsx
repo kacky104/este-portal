@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { featureLabel, isNewJob, type JobListItem } from '@/app/lib/jobs';
+import { featureLabel, featureTagColor, isNewJob, type JobListItem } from '@/app/lib/jobs';
 
 // 求人一覧カード（/jobs と /jobs/tag/[slug] で共用）。サーバーコンポーネント。
 // カード肥大化を防ぐため特徴タグは最大3個＋「+n」。
@@ -51,13 +51,17 @@ export function JobCard({ job, reserveTopRight = false }: { job: JobListItem; re
       {/* 特徴タグ（最大3個＋「+n」・グリーン枠の小バッジ） */}
       {job.features.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2.5">
-          {shown.map((slug) => (
-            <span key={slug} className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200 bg-emerald-50" style={{ color: '#059669' }}>
-              {featureLabel(slug)}
-            </span>
-          ))}
+          {shown.map((slug) => {
+            // ★ 第933便: カテゴリー別の色・角だけ丸い長方形（詳細ページと同じ）
+            const c = featureTagColor(slug);
+            return (
+              <span key={slug} className="text-[10px] font-bold px-2 py-0.5 rounded border" style={{ color: c.text, borderColor: c.border, backgroundColor: c.bg }}>
+                {featureLabel(slug)}
+              </span>
+            );
+          })}
           {overflow > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200 text-slate-400">
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 text-slate-400">
               +{overflow}
             </span>
           )}
