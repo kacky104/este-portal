@@ -26,8 +26,7 @@ const ITEMS: { href: string; label: string }[] = [
   { href: '/therapist/new', label: '新人' },
   { href: '/diary', label: '写メ日記' },
   { href: '/reviews', label: '口コミ' },
-  { href: '/column', label: 'コラム' },
-  { href: '/glossary', label: '用語集' }, // メンズエステ用語集（第349便・2026-09-13）
+  // コラム・用語集はメニューから外した（第928便・2026-09-28・カッキーさん）。ページとフッターのリンクは残す。
   { href: '/x-shops', label: 'SNS' },
   { href: '/join', label: '会員登録について' },
 ];
