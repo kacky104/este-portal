@@ -8,11 +8,11 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 type Colors = { heading: string; body: string; card: string; cardBorder: string };
 
-export function XShopsTabs({ shops, therapists, shopCount, therapistCount, colors, therapistColors, therapistBgStyle }: {
+export function XShopsTabs({ shops, therapists, between, colors, therapistColors, therapistBgStyle }: {
   shops: ReactNode;
   therapists: ReactNode;
-  shopCount: number;
-  therapistCount: number;
+  /** ★ 第945便: タブ（ヒーロー画像のすぐ下）と中身の間に出すもの（見出し・説明・広告バナー） */
+  between?: ReactNode;
   colors: Colors;
   /** ★ 第944便: 赤バッジセラピストのタブの間のタブの色（レッド） */
   therapistColors?: Colors;
@@ -34,8 +34,9 @@ export function XShopsTabs({ shops, therapists, shopCount, therapistCount, color
     try { history.replaceState(null, '', t === 'therapists' ? '#therapists' : window.location.pathname); } catch { /* 何もしない */ }
   };
   const items = [
-    ['shops', `承認店舗（${shopCount}）`],
-    ['therapists', `赤バッジセラピスト（${therapistCount}）`],
+    // ★ 第945便（カッキーさん）: 人数（1）は出さない
+    ['shops', '承認店舗'],
+    ['therapists', '赤バッジセラピスト'],
   ] as const;
   return (
     <>
@@ -66,6 +67,7 @@ export function XShopsTabs({ shops, therapists, shopCount, therapistCount, color
           })}
         </div>
       </div>
+      {between}
       <div className={tab === 'shops' ? '' : 'hidden'}>{shops}</div>
       <div id="therapists" className={tab === 'therapists' ? 'scroll-mt-24' : 'hidden'}>{therapists}</div>
     </>
