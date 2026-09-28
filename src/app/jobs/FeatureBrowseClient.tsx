@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { featureTagColor } from '@/app/lib/jobs';
 
 // FeatureBrowse の開閉部分だけを担うクライアントコンポーネント（アイコンfetch・href生成はサーバー側で完了済み）。
 // 排他アコーディオン：1つ開くと他は閉じる／開いているタイルを再クリックで閉じる／初期は全閉。
@@ -77,21 +78,25 @@ export function FeatureBrowseClient({
       {openCategory && (
         <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
           <div className="flex flex-wrap gap-2">
-            {openCategory.tags.map((t) => (
+            {/* ★ 第958便: 求人詳細・カードと同じカテゴリー別の色・角だけ丸い長方形。今いるタグはその色で塗りつぶす。 */}
+            {openCategory.tags.map((t) => {
+              const c = featureTagColor(t.slug);
+              return (
               <Link
                 key={t.slug}
                 href={t.href}
                 aria-current={t.active ? 'page' : undefined}
-                className="text-sm font-bold px-3.5 py-1.5 rounded-full border transition-colors"
+                className="text-sm font-bold px-3.5 py-1.5 rounded border transition-colors"
                 style={
                   t.active
-                    ? { background: 'linear-gradient(95deg,#10B981,#84CC16)', color: '#ffffff', borderColor: 'transparent' }
-                    : { borderColor: '#A7F3D0', color: '#059669' }
+                    ? { background: c.text, color: '#ffffff', borderColor: c.text }
+                    : { borderColor: c.border, color: c.text, backgroundColor: c.bg }
                 }
               >
                 {t.label}
               </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

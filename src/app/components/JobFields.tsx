@@ -5,6 +5,7 @@ import type { MyJob } from '@/app/actions/jobs';
 import {
   JOB_FEATURE_GROUPS,
   featureLabel,
+  featureTagColor,
   MAX_JOB_FEATURES,
   isValidEmailFormat,
   MAX_JOB_AREA_LEN,
@@ -267,23 +268,33 @@ export function JobFields({
           選んだタグの絞り込みページに掲載されます。現在 {value.features.length}/{MAX_JOB_FEATURES} 個
         </p>
         <div className="space-y-3">
-          {JOB_FEATURE_GROUPS.map((g) => (
+          {/* ★ 第958便: 求人詳細・カードと同じカテゴリー別の色（角だけ丸い長方形）。選ぶとその色で塗る。 */}
+          {JOB_FEATURE_GROUPS.map((g) => {
+            const gc = featureTagColor(g.slugs[0]);
+            return (
             <div key={g.title}>
-              <p className="text-[11px] font-bold text-slate-500 mb-1.5">{g.title}</p>
-              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+              <p className="text-[11px] font-bold mb-1.5" style={{ color: gc.text }}>{g.title}</p>
+              <div className="flex flex-wrap gap-1.5">
                 {g.slugs.map((slug) => {
                   const checked = value.features.includes(slug);
                   const disabled = !checked && atMax; // 上限到達時は未選択を不可
+                  const c = featureTagColor(slug);
                   return (
                     <label
                       key={slug}
-                      className={`inline-flex items-center gap-1 text-xs select-none ${
-                        disabled ? 'text-slate-300 cursor-not-allowed' : 'text-slate-600 cursor-pointer'
+                      className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded border select-none transition-colors ${
+                        disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
                       }`}
+                      style={
+                        checked
+                          ? { color: c.text, borderColor: c.text, backgroundColor: c.bg }
+                          : { color: c.text, borderColor: c.border, backgroundColor: '#ffffff' }
+                      }
                     >
                       <input
                         type="checkbox"
-                        className="accent-emerald-500 w-3.5 h-3.5"
+                        className="w-3.5 h-3.5"
+                        style={{ accentColor: c.text }}
                         checked={checked}
                         disabled={disabled}
                         onChange={() => toggleFeature(slug)}
@@ -294,7 +305,8 @@ export function JobFields({
                 })}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
         {featureWarn && (
           <p className="text-[10px] text-rose-500 mt-2">特徴タグは最大{MAX_JOB_FEATURES}個までです。</p>
