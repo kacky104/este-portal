@@ -1,15 +1,14 @@
 import Link from 'next/link';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { featureLabel, featureTagColor, isNewJob, type JobListItem } from '@/app/lib/jobs';
+import { featureLabel, featureTagColor, isNewJob, pickOnePerFeatureCategory, type JobListItem } from '@/app/lib/jobs';
 
 // 求人一覧カード（/jobs と /jobs/tag/[slug] で共用）。サーバーコンポーネント。
-// カード肥大化を防ぐため特徴タグは最大3個＋「+n」。
-const MAX_CARD_FEATURES = 3;
+// ★ 第957便: 特徴タグはバナーカードと同じく【各カテゴリーから1つずつ】（最大4個）＋「+n」。
 
 // reserveTopRight: カード右上に別要素（保存解除ボタン等）を重ねる呼び出し向けに、タイトル右へ余白を確保。
 // 既定 false＝/jobs・/jobs/tag は従来どおり余白なしで不変。
 export function JobCard({ job, reserveTopRight = false }: { job: JobListItem; reserveTopRight?: boolean }) {
-  const shown = job.features.slice(0, MAX_CARD_FEATURES);
+  const shown = pickOnePerFeatureCategory(job.features);
   const overflow = job.features.length - shown.length;
   // 掲載開始から14日以内なら店名横に控えめな NEW バッジ（判定はサーバー側・ISR生成時）。
   const isNew = isNewJob(job);
@@ -48,7 +47,7 @@ export function JobCard({ job, reserveTopRight = false }: { job: JobListItem; re
         <p className="text-sm font-bold mt-2 break-words" style={{ color: '#059669' }}>{job.salaryText}</p>
       )}
 
-      {/* 特徴タグ（最大3個＋「+n」・グリーン枠の小バッジ） */}
+      {/* 特徴タグ（各カテゴリーから1つずつ・最大4個＋「+n」） */}
       {job.features.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2.5">
           {shown.map((slug) => {
