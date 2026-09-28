@@ -39,3 +39,48 @@ export async function fetchShopShowcases(): Promise<ShopShowcase[]> {
     }));
   return seededWeightedShuffle(shops, thirtyMinSeed(), () => 1.0);
 }
+
+// ★★ 第941便（2026-09-28・カッキーさん）: /x-shops の「認証セラピスト」タブ用。
+//   ★ fukuX の赤バッジ（kind='therapist' かつ is_verified）が付いた承認済み（status=approved）の人だけ。
+//   ★ 読むだけ（anon・ISR）。★ 所属店舗名は affiliated_shop_id の承認済み店舗から引く（無ければ出さない）。
+//   ★ 並びは店舗タブと同じ30分シードのシャッフル。
+export type VerifiedTherapistCard = {
+  id: string;
+  handle: string;
+  displayName: string;
+  avatarUrl: string | null;
+  age: number | null;
+  shopName: string | null;
+};
+
+export async function fetchVerifiedTherapists(): Promise<VerifiedTherapistCard[]> {
+  const client = createPublicClient();
+  const { data } = await client
+    .from('x_profiles')
+    .select('id, handle, display_name, avatar_url, age, affiliated_shop_id')
+    .eq('kind', 'therapist')
+    .eq('status', 'approved')
+    .eq('is_verified', true)
+    .limit(500);
+  const rows = (data ?? []).filter((r) => typeof r.handle === 'string' && r.handle);
+  const shopIds = [...new Set(rows.map((r) => r.affiliated_shop_id).filter((v): v is string => typeof v === 'string' && !!v))];
+  const shopName = new Map<string, string>();
+  if (shopIds.length > 0) {
+    const { data: shops } = await client
+      .from('x_profiles')
+      .select('id, display_name')
+      .in('id', shopIds)
+      .eq('kind', 'shop')
+      .eq('status', 'approved');
+    for (const s of shops ?? []) shopName.set(String(s.id), String(s.display_name ?? ''));
+  }
+  const list = rows.map((r) => ({
+    id: String(r.id),
+    handle: r.handle as string,
+    displayName: (r.display_name as string | null) || (r.handle as string),
+    avatarUrl: (r.avatar_url as string | null) ?? null,
+    age: typeof r.age === 'number' ? r.age : null,
+    shopName: (r.affiliated_shop_id && shopName.get(String(r.affiliated_shop_id))) || null,
+  }));
+  return seededWeightedShuffle(list, thirtyMinSeed(), () => 1.0);
+}

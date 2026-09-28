@@ -14,7 +14,8 @@ import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { VerifiedBadge } from '@/app/x/VerifiedBadge';
-import { fetchShopShowcases } from '@/app/x/xShops';
+import { fetchShopShowcases, fetchVerifiedTherapists } from '@/app/x/xShops';
+import { XShopsTabs } from './XShopsTabs';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 
@@ -45,8 +46,10 @@ export const revalidate = 600;
 
 export default async function XShopsPage() {
   // 青テーマ壁紙を固定レイヤーで敷く（/therapists と同方式）。ショップ・ヒーロー・壁紙を同時取得。
-  const [shops, hero, wallpapers, adBanners] = await Promise.all([
+  // ★ 第941便: 認証セラピスト（赤バッジ）も同時に取る。★ 読めなくても店舗タブは出す（空配列）。
+  const [shops, therapists, hero, wallpapers, adBanners] = await Promise.all([
     fetchShopShowcases(),
+    fetchVerifiedTherapists().catch(() => []),
     fetchPageHero('xshops'),
     fetchThemeWallpapers(),
     fetchActiveAdBanners(),
@@ -91,13 +94,7 @@ export default async function XShopsPage() {
           <h1 className="mt-2 text-xl sm:text-3xl font-black tracking-[0.06em] bg-gradient-to-r from-blue-700 via-sky-600 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(59,130,246,0.25)]">
             fukuX〜フクエックス〜承認店舗
           </h1>
-          {shops.length > 0 && (
-            <div className="mt-3">
-              <span className="inline-flex items-center rounded-full border border-blue-200 bg-white/80 px-2.5 py-0.5 text-xs font-bold text-blue-600">
-                全{shops.length}件
-              </span>
-            </div>
-          )}
+          {/* ★ 第941便: 件数（全n件）はタブの名前に入れた */}
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-blue-400/70 to-transparent" />
           {/* 説明文（fukuXの説明。神秘的レイアウトの中央寄せで表示）。 */}
           <p className="mx-auto mt-4 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-600">
@@ -108,8 +105,47 @@ export default async function XShopsPage() {
         {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
         <AdBanner banners={adBanners} />
 
-        {/* Shop list */}
-        {shops.length === 0 ? (
+        {/* ★ 第941便: 承認店舗／認証セラピスト の切り替えタブ（人気ランキングと同じ形） */}
+        <XShopsTabs
+          shopCount={shops.length}
+          therapistCount={therapists.length}
+          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder }}
+          therapists={
+            therapists.length === 0 ? (
+              <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-blue-100 rounded-3xl bg-blue-50/10">
+                認証セラピストはまだいません
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {therapists.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={`/x/u/${encodeURIComponent(t.handle)}`}
+                    className="block rounded-2xl overflow-hidden bg-white border border-blue-100 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="aspect-square w-full bg-gradient-to-br from-blue-100 to-sky-100 flex items-center justify-center">
+                      {t.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={t.avatarUrl} alt={t.displayName} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="text-blue-400 font-bold text-3xl">{t.displayName.charAt(0) || '?'}</span>
+                      )}
+                    </div>
+                    <div className="px-2.5 py-2">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <span className="font-bold text-[14px] text-slate-800 truncate">{t.displayName}</span>
+                        <VerifiedBadge kind="therapist" />
+                        {t.age != null && <span className="flex-none text-[12px] text-slate-500">（{t.age}）</span>}
+                      </div>
+                      {t.shopName && <p className="mt-0.5 text-[11px] text-slate-500 truncate">{t.shopName}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
+          }
+          shops={
+        shops.length === 0 ? (
           <div className="text-center py-16 text-slate-400 text-sm border border-dashed border-blue-100 rounded-3xl bg-blue-50/10">
             表示できるお店がまだありません
           </div>
@@ -159,7 +195,9 @@ export default async function XShopsPage() {
               </Link>
             ))}
           </div>
-        )}
+        )
+          }
+        />
         {/* ルックバナー（ページ下部）。上部の枠とは独立にランダム抽選。 */}
         <AdBanner banners={adBanners} />
       </main>
