@@ -62,6 +62,7 @@ export function SalonNavBurgerButton({ color }: { color: string }) {
   return (
     <button
       type="button"
+      data-salon-nav-burger
       onClick={() => window.dispatchEvent(new Event(SALON_NAV_OPEN_EVENT))}
       aria-label="この店舗のメニューを開く"
       className="md:hidden flex-none p-1 -mr-1 -my-1 rounded-lg active:opacity-70"
@@ -115,7 +116,10 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
       window.addEventListener('scroll', onScroll, { passive: true });
       return () => window.removeEventListener('scroll', onScroll);
     }
-    const el = anchorRef.current;
+    // ★ 第931便（2026-09-28・カッキーさんの指示）: パンくず行の三本線（SalonNavBurgerButton）があれば、
+    //   【それが】ヘッダーの下に隠れた瞬間にバーを出す（前は店名＋情報行が隠れてから＝画像1枚ぶん遅かった）。
+    //   無いページ（サブページ）は今までどおり anchorRef。
+    const el = document.querySelector<HTMLElement>('[data-salon-nav-burger]') ?? anchorRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
     const io = new IntersectionObserver(
       ([entry]) => {
