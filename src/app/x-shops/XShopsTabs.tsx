@@ -33,6 +33,7 @@ export function XShopsTabs({ shops, therapists, between, colors, therapistColors
     setTab(t);
     try { history.replaceState(null, '', t === 'therapists' ? '#therapists' : window.location.pathname); } catch { /* 何もしない */ }
   };
+  // ★ 第947便（カッキーさん）: PCでも2つのタブを同じ幅に（sm:w-56）。スマホは今までどおり半分ずつ
   const items = [
     // ★ 第945便（カッキーさん）: 人数（1）は出さない
     ['shops', '承認店舗'],
@@ -54,7 +55,7 @@ export function XShopsTabs({ shops, therapists, between, colors, therapistColors
                 type="button"
                 onClick={() => change(key)}
                 aria-pressed={selected}
-                className={`flex-1 sm:flex-none flex items-center justify-center px-2 sm:px-10 py-2.5 border text-sm font-bold transition-colors ${i > 0 ? '-ml-px' : ''} ${selected ? 'relative z-10' : ''}`}
+                className={`flex-1 sm:flex-none sm:w-56 flex items-center justify-center px-2 py-2.5 border text-sm font-bold transition-colors ${i > 0 ? '-ml-px' : ''} ${selected ? 'relative z-10' : ''}`}
                 style={
                   selected
                     ? { background: `${c.heading}1A`, color: c.heading, borderColor: c.heading }
