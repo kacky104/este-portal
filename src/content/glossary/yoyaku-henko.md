@@ -7,7 +7,7 @@ summary: 一度決めた予約の日時・コース・セラピストなどを�
 description: 予約変更とは、一度決めた予約の日時・コース・セラピストをあとから変えること。変えられることと変えにくいこと、キャンセルとの違い、お店への伝え方と早めに連絡する大切さを解説します。
 publishedAt: 2026-09-28
 heroImage: /glossary/yoyaku-henko/hero.webp
-heroAlt: 木の机の上に開いた手帳とスマートフォン、手帳の予定欄に書かれた時間を鉛筆で書き直しているところ
+heroAlt: 朝の木の机に開いた手帳と鉛筆と消しゴム、予定欄を書き直したあとに消しくずが少し残っているところ
 related: [yoyaku-kakunin, cancel-ryo, chikoku-mudan-cancel, net-yoyaku, course-jikan, encho]
 areas: [nakasu-tenjin, hakata-eki]
 faq:

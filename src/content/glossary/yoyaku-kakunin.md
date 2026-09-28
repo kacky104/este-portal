@@ -7,7 +7,7 @@ summary: 予約した日時・セラピスト・コースに間違いがない�
 description: 予約確認とは、予約した日時・セラピスト・コースに間違いがないかをお店とお客様で確かめ合うこと。確認の連絡が来るタイミング、返事のしかた、連絡に気づけなかったときの対応を解説します。
 publishedAt: 2026-09-28
 heroImage: /glossary/yoyaku-kakunin/hero.webp
-heroAlt: 夕方のオフィスの窓際で、スマートフォンに届いたメッセージを確かめているスーツ姿の男性の手元
+heroAlt: 夕暮れのオフィスの窓ぎわのデスクで、ノートパソコンの横に置いたスマートフォンの画面が通知で明るく灯っているところ
 related: [net-yoyaku, yoyaku-henko, tojitsu-yoyaku, cancel-ryo, chikoku-mudan-cancel, kanzen-yoyaku-sei]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
