@@ -50,10 +50,13 @@ export async function generateMetadata({
   const images = (data.images as string[] | null) ?? [];
   const image = images[0] || '/ogp.png';
 
+  // 2026-09-28: 写メ日記の個別記事は noindex（リンクはたどらせる）。
+  // GSC 3か月で約180件中177件が表示0・「クロール済み - インデックス未登録」の主因だったため。
+  // 一覧 /diary は index のまま。noindex ページには canonical を付けない（サイト内の方針）。
   return {
     title,
     description,
-    alternates: { canonical: `/diary/${diary_id}` },
+    robots: { index: false, follow: true },
     openGraph: {
       title,
       description,

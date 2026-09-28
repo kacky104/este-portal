@@ -25,10 +25,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   // 投稿画像はSupabase Storageの絶対URL。無ければ共通OGP（相対＝metadataBaseで解決）。
   const image = post.images?.[0] ?? '/ogp-fukux.png';
 
+  // 2026-09-28: fukuX の個別投稿は noindex（リンクはたどらせる）。
+  // GSC 3か月でほぼ全件が表示0だったため。noindex ページには canonical を付けない。
   return {
     title,
     description,
-    alternates: { canonical: `/x/post/${id}` },
+    robots: { index: false, follow: true },
     openGraph: {
       title,
       description,

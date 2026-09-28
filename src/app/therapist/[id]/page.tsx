@@ -5,7 +5,7 @@ import { Logo } from '@/app/components/Logo';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { truncatePlain } from '@/app/lib/truncatePlain';
 import { toJsonLdString, buildBreadcrumbJsonLd } from '@/app/lib/jsonLd';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
 import { pickWithTable } from '@/lib/therapistPlaceholder';
@@ -145,13 +145,31 @@ export default async function TherapistPublicPage({
     .eq('id', id)
     .single();
 
-  if (tError || !tRow) notFound();
+  // ★ 行が無い（削除済み）は /therapists へ 301（2026-09-28・GSC点検）。
+  //   検索流入のあったURLが 404 のままだと評価と流入を捨てるため。
+  //   .single() の「0件」は PGRST116。通信エラー等では恒久リダイレクトを返さず従来どおり 404。
+  if (!tRow) {
+    if (tError?.code === 'PGRST116') permanentRedirect('/therapists');
+    notFound();
+  }
 
-  // ★ 退店（is_active=false）は404にする（第34便）。
+  // ★ 退店（is_active=false）は非公開（第34便）。
   //   ランキング・検索・sitemap は元から is_active で絞っているが、このページと店舗詳細の
   //   在籍一覧だけは絞っていなかったため、直リンクで退店者のプロフィールが見えていた。
   //   運用: 戻ってきた子はこのレコードを復活させず新しく作る（オーナー判断・第34便）。
-  if (tRow.is_active === false) notFound();
+  //   2026-09-28: 404 ではなく所属店舗の在籍一覧へ 301（店舗が非表示なら /therapists）。
+  //   /therapist/44 などが退店後も検索から流入していたため（GSC 3か月で15クリック）。
+  if (tRow.is_active === false) {
+    const { data: s } = await supabase
+      .from('salons')
+      .select('is_hidden, listing_plan')
+      .eq('id', tRow.salon_id as number)
+      .maybeSingle();
+    if (s && !s.is_hidden && s.listing_plan !== 'free') {
+      permanentRedirect(`/salon/${tRow.salon_id}/therapists`);
+    }
+    permanentRedirect('/therapists');
+  }
 
   const { data: salonRow } = await supabase
     .from('salons')

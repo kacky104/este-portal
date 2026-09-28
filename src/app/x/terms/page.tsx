@@ -6,7 +6,8 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'fukuX利用規約｜fukuX(フクエックス)',
   description: '福岡メンズエステ専用SNS「fukuX(フクエックス)」の利用規約（フクエス利用規約の特則）です。',
-  alternates: { canonical: '/x/terms' },
+  // 2026-09-28: 検索流入が無い（GSC 3か月 表示0）ため noindex。sitemap からも外した。
+  robots: { index: false, follow: true },
 };
 
 // 見出し・本文のスタイルはテーマ変数（x-theme.css）参照＝グラデ/白テーマ両対応。

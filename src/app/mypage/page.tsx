@@ -2998,7 +2998,7 @@ export default function MyPage() {
   const renderInvoicesLink = (pc: boolean) => (
     <Link
       href="/mypage/invoices"
-      className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 font-bold text-slate-500 hover:text-slate-700 ${pc ? 'py-3 text-[16px] text-slate-400' : 'py-2.5 text-[13px]'}`}
+      className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 font-normal text-[#212121] hover:text-pink-600 ${pc ? 'py-3 text-[16px]' : 'py-2.5 text-[13px]'}`}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 2h9l5 5v15H6z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg>
       ご請求書
@@ -3310,10 +3310,10 @@ export default function MyPage() {
                             key={key}
                             onClick={() => { goTab(key); setDrawerOpen(false); }}
                             aria-pressed={selected}
-                            className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 px-4 py-2.5 text-[13px] font-bold transition-colors ${
+                            className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 px-4 py-2.5 text-[13px] font-normal transition-colors ${
                               selected
                                 ? 'bg-pink-50 text-pink-600 border-l-pink-500'
-                                : 'text-slate-500 border-l-transparent'
+                                : 'text-[#212121] border-l-transparent'
                             }`}
                           >
                             {tabIcon(key)}
@@ -3372,7 +3372,7 @@ export default function MyPage() {
                         className={
                           NAV_BAND_GROUPS.has(sec.group)
                             ? 'px-4 py-2 mb-1 font-bold tracking-wider text-[16px] text-white bg-pink-500'
-                            : 'px-4 pt-3.5 pb-1 font-bold tracking-wider text-[13px] text-slate-400'
+                            : 'px-4 pt-3.5 pb-1 font-normal tracking-wider text-[13px] text-slate-400'
                         }
                       >
                         {sec.group}
@@ -3388,10 +3388,11 @@ export default function MyPage() {
                         key={key}
                         onClick={() => goTab(key)}
                         aria-pressed={selected}
-                        className={`relative inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-bold transition-colors ${
+                        className={`relative inline-flex w-full items-center justify-start gap-2.5 border-0 border-l-4 border-l-transparent px-4 py-3 text-[16px] font-normal transition-colors ${
+                          // ★ 第938便（カッキーさん）: 文字はコネックエフのサイドバーと同じ（太字なし・#212121）
                           selected
                             ? 'bg-white text-pink-600'
-                            : 'bg-white text-slate-400 hover:bg-pink-50/40 hover:text-slate-600'
+                            : 'bg-white text-[#212121] hover:bg-pink-50/40'
                         }`}
                       >
                         {tabIcon(key)}

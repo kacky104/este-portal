@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchAllRows } from '@/app/lib/fetchAllRows';
-import { fetchActiveJobsForSitemap, fetchFeatureSlugsWithActiveJobs, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
+import { fetchActiveJobsForSitemap, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
 import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
 import { fetchPublishedMainArticlesForSitemap } from '@/app/lib/mainArticles';
 import { jobsAreaHref, AREA_SLUGS_LIST } from '@/app/lib/areas';
@@ -33,7 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 公開サロン／公開サロン所属セラピスト／掲載中求人を並列取得。失敗時は空配列（サイトマップは壊さない）。
   // ※salons/therapists/x_profiles/x_posts は fetchAllRows で全件ページング（.order は範囲取得の安定化に必須）。
   //   求人・コラムは件数規模が小さく lib 側取得のまま（1000件が見えてきたら同様にページング化する）。
-  const [salonRows, therapistRows, diaryRows, jobs, featureSlugs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfileRows, xPostRows] = await Promise.all([
+  const [salonRows, therapistRows, jobs, areaTag, dispatchJobs, columnArticles, mainColumnArticles, xProfileRows] = await Promise.all([
     // updated_at は 20260806 マイグレーションで追加（bump・今すぐ系だけの変更では動かないトリガつき）。
     // courses は /salon/[id]/price を sitemap に入れるかの判定にだけ使う（0件＝準備中表示なので入れない）。
     fetchAllRows<{ id: number; updated_at: string | null; courses: unknown; listing_plan: string }>((from, to) =>
@@ -52,16 +52,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     //   /salon/[id]/therapists も連鎖で0件になっていた。
     fetchAllRows<{ id: number; salon_id: number; feature_badges: unknown; updated_at: string | null }>((from, to) =>
       supabase.from('therapists').select('id, salon_id, feature_badges, updated_at, salons!therapists_salon_id_fkey!inner(is_hidden)').eq('salons.is_hidden', false).eq('is_active', true).order('id').range(from, to), 'sitemap:therapists'),
-    // 写メ日記の詳細（/diary/[diary_id]）。従来は sitemap に一切載っておらず、
-    // 内部リンク（/diary の1ページ目・各セラピストの日記一覧）からしか発見できなかった。
-    // 公開サロン所属の日記のみ（salons!inner + is_hidden=false）。退店セラピストの日記は
-    // 下で「公開セラピストID集合」と突き合わせて除外する（詳細ページ側が404にするため）。
-    fetchAllRows<{ id: number; therapist_id: number; created_at: string | null }>((from, to) =>
-      supabase.from('diary_posts').select('id, therapist_id, created_at, salons!inner(is_hidden)').eq('salons.is_hidden', false).order('id').range(from, to), 'sitemap:diary_posts'),
     fetchActiveJobsForSitemap(),
-    // 求人が1件以上あるタグのみ（0件＝noindexページはsitemapに入れない）。
-    fetchFeatureSlugsWithActiveJobs(),
-    // 求人ありのエリア／エリア×タグペア（0件ペアはnoindexなのでsitemapに入れない）。
+    // 求人ありのエリア（areas のみ使う。エリア×タグ pairs は 2026-09-28 から noindex で不使用）。
     fetchAreaTagPairsWithActiveJobs(),
     // 出張専門ページ（/jobs/dispatch）は求人が1件以上あるときのみ列挙（エリアページと同じ「求人あり」方針）。
     fetchActiveDispatchJobs(),
@@ -69,13 +61,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     fetchPublishedArticlesForSitemap(),
     // 本体コラム（main_articles・published のみ）。/column 配下のURLに使う。
     fetchPublishedMainArticlesForSitemap(),
-    // fukuX: 承認済みプロフィール全件＋トップレベル投稿全件。
-    // x_posts には status 列が無く、公開可否は「投稿者プロフィールが approved か」で決まる。
-    // author_profile_id を取得し、下で承認済みプロフィールの id 集合と突き合わせて絞る（2026-07-28）。
+    // fukuX: 承認済みプロフィール全件（個別投稿は 2026-09-28 から noindex で sitemap 対象外）。
     fetchAllRows<{ id: number; handle: string }>((from, to) =>
       supabase.from('x_profiles').select('id, handle').eq('status', 'approved').order('id').range(from, to), 'sitemap:x_profiles'),
-    fetchAllRows<{ id: number; author_profile_id: unknown; edited_at: string | null; created_at: string | null }>((from, to) =>
-      supabase.from('x_posts').select('id, author_profile_id, edited_at, created_at').is('parent_post_id', null).order('id').range(from, to), 'sitemap:x_posts'),
   ]);
 
   // 主要な静的ページ（lastModified は実更新日時を持たないため省略）。
@@ -180,17 +168,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   });
 
-  // 写メ日記の詳細（/diary/[diary_id]）。公開サロン所属かつ公開セラピストの投稿のみ。
-  // 退店（is_active=false）セラピストの日記は詳細ページ側が 404 になるため sitemap に載せない。
-  const publicTherapistIds = new Set(therapistRows.map((t) => String(t.id)));
-  const diaryEntries: MetadataRoute.Sitemap = diaryRows
-    .filter((d) => publicTherapistIds.has(String(d.therapist_id)))
-    .map((d) => ({
-      url: `${SITE_URL}/diary/${d.id}`,
-      ...(d.created_at ? { lastModified: new Date(d.created_at) } : {}),
-      changeFrequency: 'monthly' as const,
-      priority: 0.4,
-    }));
+  // 写メ日記の詳細（/diary/[diary_id]）は 2026-09-28 から noindex のため sitemap に載せない
+  // （GSC 3か月で約180件中177件が表示0。noindex を sitemap に入れると GSC でエラーになる）。
 
   // 特徴バッジ別ランディングページ（/therapists/badge/[slug]）。
   // 「中身ありのみ」方針：公開（is_active）セラピストが実際に持つバッジのスラッグだけを列挙し、
@@ -218,25 +197,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  // 特徴タグページ（求人ありのタグのみ）。
-  const tagEntries: MetadataRoute.Sitemap = featureSlugs.map((slug) => ({
-    url: `${SITE_URL}/jobs/tag/${slug}`,
-    changeFrequency: 'daily',
-    priority: 0.7,
-  }));
+  // 特徴タグページ（/jobs/tag/[slug]）・エリア×タグ（/jobs/area/[slug]/tag/[tag]）は
+  // 2026-09-28 から常に noindex のため sitemap に載せない（GSC 3か月で全件表示0）。
 
   // エリア別求人ページ（求人ありの通常エリアのみ）。jobsAreaHref で /jobs/area/<slug> を生成。
   const areaEntries: MetadataRoute.Sitemap = areaTag.areas.map((area) => ({
     url: `${SITE_URL}${jobsAreaHref(area)}`,
     changeFrequency: 'daily',
     priority: 0.7,
-  }));
-
-  // エリア×タグ掛け合わせページ（求人ありのペアのみ＝0件ペアはnoindexなので除外）。
-  const areaTagEntries: MetadataRoute.Sitemap = areaTag.pairs.map(({ area, slug }) => ({
-    url: `${SITE_URL}${jobsAreaHref(area)}/tag/${slug}`,
-    changeFrequency: 'daily',
-    priority: 0.6,
   }));
 
   // 出張専門ページ（/jobs/dispatch）。出張専門サロンの求人が1件以上あるときのみ列挙。
@@ -285,10 +253,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // fukuX（/x配下）：トップ＋承認済みプロフィール＋トップレベル投稿。失敗時は空配列（サイトマップは壊さない）。
   const xStaticEntries: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/x`, changeFrequency: 'daily', priority: 0.8 },
-    // ポリシー類（fukuX特則）。本体 /terms・/privacy と同じ扱い（yearly・低priority）。
-    { url: `${SITE_URL}/x/terms`, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/x/privacy`, changeFrequency: 'yearly', priority: 0.3 },
-    { url: `${SITE_URL}/x/banner`, changeFrequency: 'yearly', priority: 0.3 },
+    // /x/terms・/x/privacy・/x/banner は 2026-09-28 から noindex のため載せない。
     { url: `${SITE_URL}/x/guide/user`, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/x/guide/therapist`, changeFrequency: 'monthly', priority: 0.4 },
     { url: `${SITE_URL}/x/guide/shop`, changeFrequency: 'monthly', priority: 0.4 },
@@ -300,21 +265,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  // 承認済みプロフィールの投稿のみ（未承認・保留中の投稿者のURLは sitemap に載せない）。
-  // lastModified は edited_at → created_at の順で採用。両方 null なら省略
-  // （new Date(null) は Invalid Date → toISOString() 例外で sitemap 全体が落ちるため）。
-  const approvedProfileIds = new Set(xProfileRows.map((p) => String(p.id)));
-  const xPostEntries: MetadataRoute.Sitemap = xPostRows
-    .filter((r) => approvedProfileIds.has(String(r.author_profile_id)))
-    .map((r) => {
-      const ts = r.edited_at ?? r.created_at;
-      return {
-        url: `${SITE_URL}/x/post/${r.id}`,
-        ...(ts ? { lastModified: new Date(ts) } : {}),
-        changeFrequency: 'weekly' as const,
-        priority: 0.4,
-      };
-    });
+  // fukuX の個別投稿（/x/post/[id]）は 2026-09-28 から noindex のため sitemap に載せない。
 
   // メンズエステ用語集の各語（/glossary/<slug>・第349便）。DB ではなく src/content/glossary/*.md を
   // ビルド時に読む（同期・fs）。lastModified は frontmatter の publishedAt（実日付を持つので付けてよい）。
@@ -332,12 +283,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...salonEntries,
     ...salonSubpageEntries,
     ...therapistEntries,
-    ...diaryEntries,
     ...therapistBadgeEntries,
     ...jobEntries,
-    ...tagEntries,
     ...areaEntries,
-    ...areaTagEntries,
     ...dispatchEntries,
     ...columnCategoryEntries,
     ...columnArticleEntries,
@@ -345,6 +293,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...mainColumnArticleEntries,
     ...xStaticEntries,
     ...xProfileEntries,
-    ...xPostEntries,
   ];
 }

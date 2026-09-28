@@ -8,7 +8,8 @@ import { XBannerTagCode } from './XBannerTagCode';
 export const metadata: Metadata = {
   title: 'リンクバナーについて｜fukuX(フクエックス)',
   description: '福岡メンズエステ専用SNS「fukuX(フクエックス)」のリンクバナーと貼り付け用HTMLタグのご案内です。リンクはご自由にどうぞ。',
-  alternates: { canonical: '/x/banner' },
+  // 2026-09-28: 検索流入が無い（GSC 3か月 表示0）ため noindex。sitemap からも外した。
+  robots: { index: false, follow: true },
 };
 
 const SITE_URL = 'https://fukues.com';

@@ -47,15 +47,14 @@ export async function generateMetadata({
   const brandedTitle = `${baseTitle}｜フクエスワーク`;
   const description = `福岡・${areaLbl}で「${tagLbl}」のメンズエステ セラピスト求人を掲載。${areaLbl}エリア×${tagLbl}の条件で働けるお店の求人をフクエスワークでチェックできます。`;
 
-  // 0件の掛け合わせページは薄いページのため noindex（1件以上は通常index）。
-  const jobs = await fetchActiveJobsByAreaAndFeature(area, tag);
-  const robots = jobs.length === 0 ? { index: false, follow: true } : undefined;
-
-  // noindex（0件）ページには canonical を付けず、indexさせる正常系のみ自己参照 canonical を付与。
+  // 2026-09-28: 絞り込みページは求人の有無にかかわらず noindex（リンクはたどらせる）。
+  //   GSC 3か月で全件が表示0、/jobs や /jobs/area と内容が重なる薄いページだったため、
+  //   評価を /jobs・/jobs/area・/jobs/[id] に集める。sitemap からも外した。
+  //   （以前は 0件のときだけ noindex・1件以上は index＋自己参照 canonical だった）
   return {
     title: baseTitle,
     description,
-    ...(robots ? { robots } : { alternates: { canonical: `/jobs/area/${slug}/tag/${tag}` } }),
+    robots: { index: false, follow: true },
     // Next の metadata は浅いマージ＝openGraph を部分指定すると layout の og が丸ごと消える
     // （og:image も消える）。そのため url/siteName/type/images まで全て明示する。
     openGraph: {
