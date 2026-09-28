@@ -9,7 +9,8 @@ import { shuffleJobs } from '@/app/lib/shuffleJobs';
 // 同一30分バケット内は顔ぶれ・並びとも決定的（リロードで不変）。バケットが変われば顔ぶれと並びの両方が変わる。
 // シャッフルの適用はこの1箇所のみ（呼び出し側でバナー配列を再シャッフルしない＝二重シャッフルなし）。
 // バナー化できる求人が無ければ空配列（＝呼び出し側でブロックごと非表示）。
-export type HeroBanner = { id: number; title: string; heroImageUrl: string; salonName: string };
+// ★ 第939便: features（特徴タグの slug）も持たせる（バナーの下に最大4個出す）
+export type HeroBanner = { id: number; title: string; heroImageUrl: string; salonName: string; features: string[] };
 
 // バナー表示上限。件数が増えた場合はここを調整、または将来的にページングを追加する拡張ポイント。
 export const HERO_BANNER_LIMIT = 30;
@@ -19,5 +20,5 @@ export function deriveHeroBanners(jobs: JobListItem[], limit: number = HERO_BANN
   // 抽出 → 30分バケットでシャッフル → 先頭 limit 件を切り出し → バナーカード化。
   return shuffleJobs(eligible)
     .slice(0, limit)
-    .map((j) => ({ id: j.id, title: j.title, heroImageUrl: j.heroImageUrls[0], salonName: j.salon.name }));
+    .map((j) => ({ id: j.id, title: j.title, heroImageUrl: j.heroImageUrls[0], salonName: j.salon.name, features: j.features ?? [] }));
 }
