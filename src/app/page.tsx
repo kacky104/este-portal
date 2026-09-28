@@ -177,18 +177,18 @@ export default async function Home() {
             {/* ★ 第959便: 数字の帯（実数・10分ごとの ISR で自動的に増える）。数え取りに失敗した項目は出さない。 */}
             {(() => {
               const stats = [
-                { label: '福岡のセラピスト総数', count: therapistCountRes.count, unit: '人', href: '/therapists' },
+                { label: '福岡のセラピスト', count: therapistCountRes.count, unit: '人', href: '/therapists' },
                 { label: '口コミ', count: reviewCountRes.count, unit: '件', href: '/reviews' },
                 { label: '写メ日記', count: diaryCountRes.count, unit: '件', href: '/diary' },
               ].filter((x) => typeof x.count === 'number' && x.count > 0);
               if (stats.length === 0) return null;
               return (
-                <div className="mt-2.5 grid" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
+                <div className="mt-1.5 grid" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
                   {stats.map((x) => (
                     <Link
                       key={x.label}
                       href={x.href}
-                      className="py-2 px-1 hover:opacity-75 transition-opacity"
+                      className="py-[5px] px-1 hover:opacity-75 transition-opacity"
                     >
                       <span className="block text-[18px] sm:text-[22px] font-bold leading-tight text-[#DB2777]">
                         {(x.count as number).toLocaleString('ja-JP')}
