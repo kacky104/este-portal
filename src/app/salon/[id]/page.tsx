@@ -51,7 +51,7 @@ import { fetchSalonTherapists } from "@/app/lib/salonTherapists";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { AutoFitText } from "@/app/components/AutoFitText";
-import { SalonMobileNav } from "./SalonMobileNav";
+import { SalonMobileNav, SalonNavBurgerButton } from "./SalonMobileNav";
 import { InfoTelLink } from "@/app/components/InfoTelLink";
 import { buildSalonNavItems } from "./salonNavItems";
 import { SalonActionButtons } from "./SalonActionButtons";
@@ -528,7 +528,10 @@ export default async function SalonPage({
         <PageViewLogger itemType="salon" itemId={salon.id} />
 
         {/* ─── パンくずリスト：トップ › サロン名（他ページと同形式） ─── */}
-        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
+        {/* ★ 第929便: スマホだけ、パンくず行の左端に店舗メニューの三本線（右ドロワーは SalonMobileNav） */}
+        <div className="flex items-center gap-2 mb-3">
+        <SalonNavBurgerButton color="#ec4899" />
+        <nav aria-label="パンくずリスト" className="flex-1 min-w-0 flex items-center gap-1.5" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
             トップ
           </Link>
@@ -537,6 +540,7 @@ export default async function SalonPage({
             {salon.name || '店舗'}
           </span>
         </nav>
+        </div>
 
         {/* ─── Block 1: 画像スライダー（TOP画像） ─────────────────── */}
         <div className="border shadow-sm overflow-hidden mb-3" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>

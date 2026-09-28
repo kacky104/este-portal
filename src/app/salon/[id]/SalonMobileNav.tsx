@@ -51,6 +51,29 @@ type Props = {
   pageLabel?: string;
 };
 
+/** ★ 第929便: パンくず行の三本線 → SalonMobileNav のドロワーを開く合図 */
+export const SALON_NAV_OPEN_EVENT = 'fukues:salon-nav-open';
+
+/**
+ * ★ 第929便（2026-09-28・カッキーさんの指示）: 店舗トップ（スマホだけ）のパンくず行の【左端】に置く三本線。
+ *   押すと SalonMobileNav の右ドロワーを開く（同じページにいる SalonMobileNav が合図を受け取る）。
+ */
+export function SalonNavBurgerButton({ color }: { color: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event(SALON_NAV_OPEN_EVENT))}
+      aria-label="この店舗のメニューを開く"
+      className="md:hidden flex-none p-1 -ml-1 -my-1 rounded-lg active:opacity-70"
+      style={{ color }}
+    >
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+  );
+}
+
 export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLine1 = '', metaLine2 = '', pageLabel = '' }: Props) {
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const [stuck, setStuck] = useState(false);
@@ -133,6 +156,13 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
     return () => { active = false; };
   }, [open, imasuguSalonId]);
 
+  // ★ 第929便: 店舗トップのパンくず行の左端の三本線（SalonNavBurgerButton）から開く。
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(SALON_NAV_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(SALON_NAV_OPEN_EVENT, onOpen);
+  }, []);
+
   // ★ ドロワーを開いている間は本文をスクロールさせない。Esc で閉じる。
   useEffect(() => {
     if (!open) return;
@@ -172,7 +202,7 @@ export function SalonMobileNav({ salonName, items, colors, mode = 'top', metaLin
               <p className="text-[12px]">{metaLine1}</p>
               {metaLine2 && <p className="text-[12px]">{metaLine2}</p>}
             </div>
-            {burger}
+            {/* ★ 第929便: 店舗トップの三本線はここ（情報行の右）からパンくず行の左端へ移した（SalonNavBurgerButton） */}
           </div>
         </div>
       )}
