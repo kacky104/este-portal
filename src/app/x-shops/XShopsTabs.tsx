@@ -4,16 +4,18 @@
 //   ★ 人気ランキング（RankingTabs）と同じ形: 同じページの中で切り替え・角なし隙間なしのセグメント。
 //   ★ 両方とも最初から HTML に描き、選んでいない方は hidden（★ クローラーにも両方見える）。
 //   ★ #therapists で開くと、最初から認証セラピストのタブ。
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 type Colors = { heading: string; body: string; card: string; cardBorder: string };
 
-export function XShopsTabs({ shops, therapists, shopCount, therapistCount, colors }: {
+export function XShopsTabs({ shops, therapists, shopCount, therapistCount, colors, therapistBgStyle }: {
   shops: ReactNode;
   therapists: ReactNode;
   shopCount: number;
   therapistCount: number;
   colors: Colors;
+  /** ★ 第943便: 赤バッジセラピストのタブを選んでいる間だけ敷く背景（壁紙テーマのレッド） */
+  therapistBgStyle?: CSSProperties;
 }) {
   const [tab, setTab] = useState<'shops' | 'therapists'>('shops');
   useEffect(() => {
@@ -29,6 +31,10 @@ export function XShopsTabs({ shops, therapists, shopCount, therapistCount, color
   ] as const;
   return (
     <>
+      {/* ★ 第943便（カッキーさん）: 赤バッジセラピストのタブの間は、背景をレッドの壁紙に（ページの青の壁紙の上に重ねる） */}
+      {tab === 'therapists' && therapistBgStyle && (
+        <div aria-hidden className="fixed inset-0 -z-10" style={therapistBgStyle} />
+      )}
       <div className="flex sm:justify-center mb-5">
         <div className="flex w-full sm:w-auto">
           {items.map(([key, label], i) => {

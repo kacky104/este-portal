@@ -67,6 +67,20 @@ export default async function XShopsPage() {
       : {}),
   };
 
+  // ★ 第943便: 赤バッジセラピストのタブの背景＝壁紙テーマのレッド（青と同じ作り方）
+  const redTheme = getTheme('red');
+  const redWallpaperUrl = wallpapers[redTheme.key] ?? null;
+  const redBgStyle = {
+    backgroundColor: redTheme.bg,
+    ...(redWallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${redTheme.bg}D9, ${redTheme.bg}D9), url(${redWallpaperUrl})`,
+          backgroundSize: 'cover' as const,
+          backgroundPosition: 'center' as const,
+        }
+      : {}),
+  };
+
   return (
     <div className="min-h-screen text-slate-900">
       {/* 背景：blue テーマ壁紙を固定レイヤーで敷く（サロン詳細/therapists と同方式）。 */}
@@ -109,6 +123,7 @@ export default async function XShopsPage() {
         <XShopsTabs
           shopCount={shops.length}
           therapistCount={therapists.length}
+          therapistBgStyle={redBgStyle}
           colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder }}
           therapists={
             <>
