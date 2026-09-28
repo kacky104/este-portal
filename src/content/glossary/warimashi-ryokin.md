@@ -7,7 +7,7 @@ summary: 決まった条件のときに、通常のコース料金に上乗せ�
 description: 割増料金とは、決まった条件のときに通常のコース料金へ上乗せされる料金のこと。メンズエステでよくある割増の種類、料金表での見つけ方、割引との違い、総額で考えるコツを解説します。
 publishedAt: 2026-09-28
 heroImage: /glossary/warimashi-ryokin/hero.webp
-heroAlt: 夜の受付カウンターに置かれた料金表のボードと、そのそばで小さく灯るテーブルランプ
+heroAlt: 夜の受付カウンターに置かれた空の真鍮のコイントレーと、そのそばで小さく灯るテーブルランプ
 related: [waribiki, hayawari-shinyawari, shuccho-gata, shimei-ryo, option, encho]
 areas: [nakasu-tenjin, hakata-eki]
 faq:

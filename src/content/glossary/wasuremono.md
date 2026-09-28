@@ -7,7 +7,7 @@ summary: 来店したときに、お店に置いたまま帰ってしまった�
 description: 忘れ物とは、来店時にお店に置いたまま帰ってしまった持ち物のこと。メンズエステで忘れやすい物、気づいたときの連絡のしかた、受け取り方、そもそも忘れないための工夫を解説します。
 publishedAt: 2026-09-28
 heroImage: /glossary/wasuremono/hero.webp
-heroAlt: 落ち着いた照明の個室の入口に置かれた小さなかごと、その中にたたまれたハンカチと腕時計
+heroAlt: 夕方、扉が少し開いた無人の個室で、小さな木のサイドテーブルに眼鏡がひとつだけ残っているところ
 related: [koshitsu, shower, kinshi-jiko, seiketsu, yoyaku-kakunin, room-gata]
 areas: [nakasu-tenjin, hakata-eki]
 faq:
