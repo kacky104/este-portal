@@ -170,7 +170,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
      *   ★ 並びは第142便で外す前と同じ（出勤の次）。
      */
     can: ['work', 'therapist', 'diary', 'sokuhime', 'news'],
-    slots: 3,
+    // ★ 第937便（2026-09-28・カッキーさん）: 駅ちかの掲載枠は枠2まで（3→2）。★ 画面の選択肢だけ。保存済みの行は消さない
+    slots: 2,
     readable: true,
     accepting: true,
     notYet: '',

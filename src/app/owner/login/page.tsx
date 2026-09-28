@@ -97,8 +97,9 @@ function OwnerLoginInner() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
+          {/* ★ 第937便: ダイヤ（◆）→ フクエスのロゴ（/logo.png） */}
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-pink-50 border border-pink-200 mb-4">
-            <span className="text-pink-500 font-bold text-xl leading-none">◆</span>
+            <img src="/logo.png" alt="フクエス" width={28} height={28} className="w-7 h-7" />
           </div>
           <h1 className="text-xl font-bold text-slate-900">店舗オーナーログイン</h1>
           <p className="text-sm text-slate-500 mt-1">福岡メンズエステポータル 管理画面</p>
