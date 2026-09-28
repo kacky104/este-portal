@@ -183,12 +183,12 @@ export default async function Home() {
               ].filter((x) => typeof x.count === 'number' && x.count > 0);
               if (stats.length === 0) return null;
               return (
-                <div className="mt-2.5 grid border border-pink-100 bg-pink-50/40" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
-                  {stats.map((x, i) => (
+                <div className="mt-2.5 grid" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
+                  {stats.map((x) => (
                     <Link
                       key={x.label}
                       href={x.href}
-                      className={`py-2 px-1 hover:bg-pink-50 transition-colors ${i > 0 ? 'border-l border-pink-100' : ''}`}
+                      className="py-2 px-1 hover:opacity-75 transition-opacity"
                     >
                       <span className="block text-[18px] sm:text-[22px] font-bold leading-tight text-[#DB2777]">
                         {(x.count as number).toLocaleString('ja-JP')}
