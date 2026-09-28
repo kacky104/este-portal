@@ -69,7 +69,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -100,6 +100,23 @@ export default async function Home() {
     fetchSiteImage(supabase, LIST_MORE_CARD_KEY),
     // 無料掲載枠（listing_plan='free'）。TOP 最下部の簡易カード用。0件なら出さない（第368便）。
     fetchFreeListings(supabase),
+    // ★ 第959便: h1 の下の「数字の帯」。件数だけ数える（head:true＝行は取らない）。★ 下駄は乗せない（実数のみ）。
+    //   セラピスト＝/therapists と同じ条件（在籍中・非表示でない店）。
+    supabase
+      .from('therapists')
+      .select('id, salons!therapists_salon_id_fkey!inner(id)', { count: 'exact', head: true })
+      .eq('is_active', true)
+      .eq('salons.is_hidden', false),
+    //   口コミ＝承認済み（お店あても含む）。
+    supabase
+      .from('therapist_reviews')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'approved'),
+    //   写メ日記＝/diary と同じ条件（非表示でない店）。
+    supabase
+      .from('diary_posts')
+      .select('id, salons!inner(id)', { count: 'exact', head: true })
+      .eq('salons.is_hidden', false),
   ]);
 
   // TOPに出すのは先頭3件だけ。続きは /reviews。
@@ -156,6 +173,33 @@ export default async function Home() {
             <h1 className="bg-gradient-to-r from-[#FB923C] to-[#DB2777] text-white font-bold text-[18px] sm:text-[22px] leading-snug py-2.5 px-4">
               福岡メンズエステ密着型ポータルサイト
             </h1>
+
+            {/* ★ 第959便: 数字の帯（実数・10分ごとの ISR で自動的に増える）。数え取りに失敗した項目は出さない。 */}
+            {(() => {
+              const stats = [
+                { label: '福岡のセラピスト総数', count: therapistCountRes.count, unit: '人', href: '/therapists' },
+                { label: '口コミ', count: reviewCountRes.count, unit: '件', href: '/reviews' },
+                { label: '写メ日記', count: diaryCountRes.count, unit: '件', href: '/diary' },
+              ].filter((x) => typeof x.count === 'number' && x.count > 0);
+              if (stats.length === 0) return null;
+              return (
+                <div className="mt-2.5 grid border border-pink-100 bg-pink-50/40" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
+                  {stats.map((x, i) => (
+                    <Link
+                      key={x.label}
+                      href={x.href}
+                      className={`py-2 px-1 hover:bg-pink-50 transition-colors ${i > 0 ? 'border-l border-pink-100' : ''}`}
+                    >
+                      <span className="block text-[18px] sm:text-[22px] font-bold leading-tight text-[#DB2777]">
+                        {(x.count as number).toLocaleString('ja-JP')}
+                        <span className="text-[11px] sm:text-xs font-bold ml-0.5">{x.unit}</span>
+                      </span>
+                      <span className="block text-[10px] sm:text-xs text-slate-500 leading-tight mt-0.5">{x.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </section>
 
