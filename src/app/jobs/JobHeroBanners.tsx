@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { HeroBanner } from '@/app/lib/heroBanners';
-import { featureLabel, featureTagColor } from '@/app/lib/jobs';
+import { featureLabel, featureTagColor, pickOnePerFeatureCategory } from '@/app/lib/jobs';
 
-// ★ 第939便（2026-09-28・カッキーさん）: タイトルの下に特徴タグを1行（最大4個＋「+n」・お店が選んだ順・カテゴリー別の色）
-const BANNER_TAG_MAX = 4;
+// ★ 第939便（2026-09-28・カッキーさん）: タイトルの下に特徴タグを1行（「+n」・カテゴリー別の色）
+// ★ 第940便: 出すのは【各カテゴリーから1つずつ】（最大4個・カテゴリー順）。残りは「+n」。
 
 // 求人一覧ページのバナーカードセクション（全求人ページ共通）。サーバーコンポーネント。
 // オーナーが設定した求人バナー画像（16:9・文言焼き込み済み）を縦積みで表示し、
@@ -95,7 +95,7 @@ export function JobHeroBanners({
               <p className="text-xs font-bold text-slate-800 line-clamp-1">{b.title}</p>
               {b.features.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1.5 max-h-[18px] overflow-hidden">
-                  {b.features.slice(0, BANNER_TAG_MAX).map((slug) => {
+                  {pickOnePerFeatureCategory(b.features).map((slug) => {
                     const c = featureTagColor(slug);
                     return (
                       <span key={slug} className="text-[10px] font-bold leading-none px-1.5 py-[3px] rounded border whitespace-nowrap" style={{ color: c.text, borderColor: c.border, backgroundColor: c.bg }}>
@@ -103,9 +103,9 @@ export function JobHeroBanners({
                       </span>
                     );
                   })}
-                  {b.features.length > BANNER_TAG_MAX && (
+                  {b.features.length > pickOnePerFeatureCategory(b.features).length && (
                     <span className="text-[10px] font-bold leading-none px-1.5 py-[3px] rounded border border-slate-200 text-slate-400 whitespace-nowrap">
-                      +{b.features.length - BANNER_TAG_MAX}
+                      +{b.features.length - pickOnePerFeatureCategory(b.features).length}
                     </span>
                   )}
                 </div>

@@ -212,6 +212,17 @@ export function featureTagColor(slug: string): FeatureTagColor {
   return (g && FEATURE_TAG_COLOR_BY_CATEGORY[g.title]) || FEATURE_TAG_COLOR_DEFAULT;
 }
 
+// ★ 第940便（カッキーさん）: 各カテゴリーから1つずつ（経験・年齢→働き方→待遇・お金→環境・安心の順）。
+//   ★ カテゴリーの中は、お店が選んだ順の先頭。★ 選んでいないカテゴリーは飛ばす（最大4個）。
+export function pickOnePerFeatureCategory(features: string[]): string[] {
+  const out: string[] = [];
+  for (const g of JOB_FEATURE_GROUPS) {
+    const hit = features.find((s) => g.slugs.includes(s));
+    if (hit) out.push(hit);
+  }
+  return out;
+}
+
 const FEATURE_LABEL_BY_SLUG: Record<string, string> = Object.fromEntries(
   JOB_FEATURES.map((f) => [f.slug, f.label]),
 );
