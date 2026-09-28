@@ -8,12 +8,14 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 
 type Colors = { heading: string; body: string; card: string; cardBorder: string };
 
-export function XShopsTabs({ shops, therapists, shopCount, therapistCount, colors, therapistBgStyle }: {
+export function XShopsTabs({ shops, therapists, shopCount, therapistCount, colors, therapistColors, therapistBgStyle }: {
   shops: ReactNode;
   therapists: ReactNode;
   shopCount: number;
   therapistCount: number;
   colors: Colors;
+  /** ★ 第944便: 赤バッジセラピストのタブの間のタブの色（レッド） */
+  therapistColors?: Colors;
   /** ★ 第943便: 赤バッジセラピストのタブを選んでいる間だけ敷く背景（壁紙テーマのレッド） */
   therapistBgStyle?: CSSProperties;
 }) {
@@ -21,6 +23,12 @@ export function XShopsTabs({ shops, therapists, shopCount, therapistCount, color
   useEffect(() => {
     if (window.location.hash === '#therapists') setTab('therapists');
   }, []);
+  // ★ 第944便: 見出し（FUKUES SNS・h1・線）の色を CSS で切り替えるため、body に今のタブを書く（globals.css の data-xshops-tab）
+  useEffect(() => {
+    document.body.dataset.xshopsTab = tab;
+    return () => { delete document.body.dataset.xshopsTab; };
+  }, [tab]);
+  const c = tab === 'therapists' && therapistColors ? therapistColors : colors;
   const change = (t: 'shops' | 'therapists') => {
     setTab(t);
     try { history.replaceState(null, '', t === 'therapists' ? '#therapists' : window.location.pathname); } catch { /* 何もしない */ }
@@ -48,8 +56,8 @@ export function XShopsTabs({ shops, therapists, shopCount, therapistCount, color
                 className={`flex-1 sm:flex-none flex items-center justify-center px-2 sm:px-10 py-2.5 border text-sm font-bold transition-colors ${i > 0 ? '-ml-px' : ''} ${selected ? 'relative z-10' : ''}`}
                 style={
                   selected
-                    ? { background: `${colors.heading}1A`, color: colors.heading, borderColor: colors.heading }
-                    : { background: colors.card, color: colors.body, borderColor: colors.cardBorder }
+                    ? { background: `${c.heading}1A`, color: c.heading, borderColor: c.heading }
+                    : { background: c.card, color: c.body, borderColor: c.cardBorder }
                 }
               >
                 {label}

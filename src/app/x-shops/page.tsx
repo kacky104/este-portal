@@ -104,12 +104,13 @@ export default async function XShopsPage() {
 
         {/* Heading：カードを外し、青の壁紙背景に直接（神秘的なレイアウト・/therapists と同方式）。 */}
         <div className="my-8 sm:my-10 text-center">
-          <p className="text-[11px] tracking-[0.35em] font-semibold text-blue-500/80">FUKUES SNS</p>
-          <h1 className="mt-2 text-xl sm:text-3xl font-black tracking-[0.06em] bg-gradient-to-r from-blue-700 via-sky-600 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(59,130,246,0.25)]">
+          {/* ★ 第944便: xs-eyebrow・xs-h1・xs-line は赤バッジセラピストのタブの間だけ赤系（globals.css） */}
+          <p className="xs-eyebrow text-[11px] tracking-[0.35em] font-semibold text-blue-500/80">FUKUES SNS</p>
+          <h1 className="xs-h1 mt-2 text-xl sm:text-3xl font-black tracking-[0.06em] bg-gradient-to-r from-blue-700 via-sky-600 to-blue-700 bg-clip-text text-transparent drop-shadow-[0_1px_10px_rgba(59,130,246,0.25)]">
             fukuX〜フクエックス〜承認店舗
           </h1>
           {/* ★ 第941便: 件数（全n件）はタブの名前に入れた */}
-          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-blue-400/70 to-transparent" />
+          <div className="xs-line mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-blue-400/70 to-transparent" />
           {/* 説明文（fukuXの説明。神秘的レイアウトの中央寄せで表示）。 */}
           <p className="mx-auto mt-4 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-600">
             「fukuX（フクエックス）」は、福岡のメンズエステに特化した専用SNS。ここに掲載しているのは運営が承認した店舗のみ。気になるお店をフォローすれば、割引や当日の空き状況、写メ日記などの最新情報をいち早く受け取れます。
@@ -124,6 +125,7 @@ export default async function XShopsPage() {
           shopCount={shops.length}
           therapistCount={therapists.length}
           therapistBgStyle={redBgStyle}
+          therapistColors={{ heading: redTheme.heading, body: redTheme.body, card: redTheme.card, cardBorder: redTheme.cardBorder }}
           colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder }}
           therapists={
             <>

@@ -616,3 +616,14 @@ body.paw-bg {
 .media-shell-hand label:has(input[type="checkbox"]) { cursor: pointer !important; }
 .media-shell-hand label:has(input[type="radio"]) { cursor: pointer !important; }
 .media-shell-hand button:disabled { cursor: not-allowed !important; }
+
+/* ★ 第944便（2026-09-28・カッキーさん）: /x-shops の「赤バッジセラピスト」タブの間は見出しも赤系に。
+   ★ body[data-xshops-tab] は XShopsTabs が書く。★ 承認店舗のタブ（既定）は今までどおり青。 */
+body[data-xshops-tab="therapists"] .xs-eyebrow { color: rgba(239, 68, 68, 0.8) !important; }
+body[data-xshops-tab="therapists"] .xs-h1 {
+  background-image: linear-gradient(to right, #b91c1c, #e11d48, #b91c1c) !important;
+  filter: drop-shadow(0 1px 10px rgba(239, 68, 68, 0.25)) !important;
+}
+body[data-xshops-tab="therapists"] .xs-line {
+  background-image: linear-gradient(to right, transparent, rgba(248, 113, 113, 0.7), transparent) !important;
+}
