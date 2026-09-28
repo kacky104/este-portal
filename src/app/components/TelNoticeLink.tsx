@@ -14,6 +14,7 @@ export function TelNoticeLink({
   style,
   children,
   onCall,
+  brand = 'fukues',
 }: {
   phone: string;
   className?: string;
@@ -22,7 +23,10 @@ export function TelNoticeLink({
   /** ポップアップの「電話をかける」を押した瞬間に呼ばれる（送客アクション計測用・2026-08-06）。
    *  ボタンを開いただけでは呼ばれない＝実際に発信した人だけを数える。 */
   onCall?: () => void;
+  /** ★ 第932便: 'work' … フクエスワーク（文言「フクエスワークを見た」・緑の配色）。既定はフクエス。 */
+  brand?: 'fukues' | 'work';
 }) {
+  const isWork = brand === 'work';
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -52,7 +56,7 @@ export function TelNoticeLink({
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm bg-white rounded-2xl shadow-xl p-5 text-center">
             <p className="text-sm font-bold text-slate-800 leading-relaxed">
               お電話の際は<br />
-              「<span className="text-pink-600">フクエスを見た</span>」と<br />
+              「<span className={isWork ? 'text-emerald-600' : 'text-pink-600'}>{isWork ? 'フクエスワークを見た' : 'フクエスを見た'}</span>」と<br />
               お伝えください
             </p>
             <p className="mt-2 text-lg font-bold text-slate-700">{phone}</p>
@@ -60,7 +64,7 @@ export function TelNoticeLink({
               href={telHref}
               onClick={() => { onCall?.(); setOpen(false); }}
               className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-sm font-bold text-white hover:brightness-105 transition-all"
-              style={{ background: 'linear-gradient(to right,#FB923C,#DB2777)' }}
+              style={{ background: isWork ? 'linear-gradient(95deg,#10B981,#84CC16)' : 'linear-gradient(to right,#FB923C,#DB2777)' }}
             >
               電話をかける
             </a>

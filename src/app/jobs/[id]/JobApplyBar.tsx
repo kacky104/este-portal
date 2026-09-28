@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { TelNoticeLink } from '@/app/components/TelNoticeLink';
 
 // 求人詳細（/jobs/[id]）のモバイル専用・応募固定バー（画面下部追従）。
 // 表示のみの補助導線で、電話番号・フォーム誘導先は詳細ページの既存応募ブロック
@@ -36,8 +37,10 @@ export function JobApplyBar({ phone }: { phone: string | null }) {
     >
       <div className="flex items-center gap-2.5">
         {phone && (
-          <a
-            href={`tel:${phone}`}
+          // ★ 第932便: 「フクエスワークを見たとお伝えください」のポップアップを挟む
+          <TelNoticeLink
+            brand="work"
+            phone={phone}
             className="flex items-center justify-center gap-1.5 flex-1 py-3 rounded-xl font-bold text-sm border transition-colors hover:bg-emerald-50"
             style={{ borderColor: '#6EE7B7', color: '#059669' }}
           >
@@ -45,7 +48,7 @@ export function JobApplyBar({ phone }: { phone: string | null }) {
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 8.81a19.79 19.79 0 01-3.07-8.63A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
             </svg>
             電話で応募
-          </a>
+          </TelNoticeLink>
         )}
         <a
           href="#apply-section"
