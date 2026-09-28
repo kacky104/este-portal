@@ -141,7 +141,7 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
               status = { text: '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
             } else if (!s.hasCredential) {
-              status = { text: 'ID・PASS未登録', tone: 'text-slate-400' };
+              status = { text: 'ID・パスワード未登録', tone: 'text-slate-400' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">登録する</Link>;
             } else if (s.direction === 'write') {
               // ★★ 第437便（カッキーさん）: 「更新中（出勤の自動更新は未設定）」＋「更新しない」は、

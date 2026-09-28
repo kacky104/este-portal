@@ -115,7 +115,7 @@ export async function postConecfCocoaNow(): Promise<Result<{ title: string }>> {
   if (!r.ok) return r;
   const res = await postCocoaForSalon(r.svc, r.salonId, true, false);
   if (res.posted) return { ok: true, data: { title: res.title ?? '' } };
-  if (res.skipped === 'no-ekichika-login') return { ok: false, error: '駅ちかのID・PASSが登録されていない（または一時停止中の）ため投稿できません' };
+  if (res.skipped === 'no-ekichika-login') return { ok: false, error: '駅ちかのID・パスワードが登録されていない（または一時停止中の）ため投稿できません' };
   return { ok: false, error: res.error ?? '投稿できませんでした（' + (res.skipped ?? '') + '）' };
 }
 

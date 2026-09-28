@@ -31,7 +31,7 @@ export const CONECF_GUIDE: GuideContent = {
       name: 'フクエス',
       status: 'ok',
       items: ['出勤（週間出勤）', '今すぐ', 'セラピストの情報', 'お知らせ（自動投稿）'],   // ★ 第475便: お知らせ
-      note: '入力した時点で反映されます。ID・PASSの登録はいりません。',
+      note: '入力した時点で反映されます。ID・パスワードの登録はいりません。',
     },
     {
       name: '駅ちか',

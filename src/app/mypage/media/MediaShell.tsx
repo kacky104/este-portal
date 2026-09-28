@@ -193,7 +193,7 @@ export function MediaShell({
         <div className="w-full max-w-md bg-white border border-slate-200 shadow-sm p-7 text-center space-y-4">
           <p className="text-[18px] font-black text-slate-800">フクエスリンクはコネックエフへ移りました</p>
           <p className="text-[14px] text-slate-500 leading-relaxed">
-            この店舗はコネックエフに切り替え済みです。ID・PASS、女性、出勤、今すぐ、写メ日記の転送、駅ちか新着情報は、コネックエフで設定します。
+            この店舗はコネックエフに切り替え済みです。ID・パスワード、女性、出勤、今すぐ、写メ日記の転送、駅ちか新着情報は、コネックエフで設定します。
           </p>
           <a href="https://conecf.com/" className="inline-block w-full py-3 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
             コネックエフを開く

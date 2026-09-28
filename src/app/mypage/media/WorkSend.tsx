@@ -411,7 +411,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           <div className="border border-sky-200 bg-sky-50 px-4 py-3">
             <p className="text-[14px] leading-relaxed text-slate-600">
               {brand.isConecf ? (
-                <>駅ちか・エステ魂などは、ID・PASSを登録すると始められます。</>
+                <>駅ちか・エステ魂などは、ID・パスワードを登録すると始められます。</>
               ) : (
                 <><b className="font-bold text-sky-700">更新できるサイトがありません。</b>{' '}ログイン情報を登録すると始められます。</>
               )}

@@ -235,7 +235,7 @@ export function GirlExtraTab({
     </div>
   );
   const noFields = (name: string) => (
-    <p className="text-[13px] text-slate-500 py-2">{name}のID・PASSが登録されていないため、{name}専用の項目はありません。</p>
+    <p className="text-[13px] text-slate-500 py-2">{name}のID・パスワードが登録されていないため、{name}専用の項目はありません。</p>
   );
 
   // ── Q&A（駅ちか） ──

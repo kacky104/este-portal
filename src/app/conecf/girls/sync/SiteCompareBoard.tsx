@@ -236,7 +236,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                           </button>
                         </>
                       ) : (
-                        <div className="text-[11px] text-slate-400 font-normal">ID・PASS未登録</div>
+                        <div className="text-[11px] text-slate-400 font-normal">ID・パスワード未登録</div>
                       )}
                     </th>
                   );

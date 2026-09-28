@@ -215,7 +215,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
         <div className="flex items-center justify-end px-5 py-3 text-[14px]">{known ? `${total}件` : ''}</div>
 
         {loadError && (
-          <p className="px-5 pb-3 text-[14px] text-rose-600">ID・PASSを読み込めませんでした：{loadError}</p>
+          <p className="px-5 pb-3 text-[14px] text-rose-600">ID・パスワードを読み込めませんでした：{loadError}</p>
         )}
 
         {/* ── 見出し ── */}
@@ -271,7 +271,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
           })}
         </ul>
         {/* ★ 第751便（カッキーさん）: フクエスが ID・PASS なしで連携する理由を、表の下に1行 */}
-        <p className="px-4 py-3 text-[12.5px] text-slate-500">※フクエスはID・PASS不要で連携します。（コネックエフの利用条件）</p>
+        <p className="px-4 py-3 text-[12.5px] text-slate-500">※フクエスはID・パスワード不要で連携します。（コネックエフの利用条件）</p>
       </div>
 
       {/* ── ID・PASS設定の窓（ベンリーと同じ 600px）── */}
@@ -281,7 +281,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
             {/* 見出し */}
             <div className="flex items-start gap-3 px-6 pt-5 pb-3 border-b border-slate-200">
               <div className="flex-1 min-w-0">
-                <p className="text-[14px]">ID・PASS設定</p>
+                <p className="text-[14px]">ID・パスワード設定</p>
                 <p className="text-[12px] mt-0.5">{edit.name}</p>
               </div>
               {row && (
@@ -338,7 +338,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
                     className="flex-1 min-w-0 h-[30px] px-2 border border-slate-300 rounded text-[14px] focus:outline-none focus:border-[#1e88e5]" />
                 </label>
                 <label className="flex items-center gap-3">
-                  <span className="w-[120px] flex-none">PASS</span>
+                  <span className="w-[120px] flex-none">パスワード</span>
                   <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password"
                     placeholder={row?.hasPassword ? `${row.passwordMask}（変更するときだけ入力）` : ''}
                     className="flex-1 min-w-0 h-[30px] px-2 border border-slate-300 rounded text-[14px] focus:outline-none focus:border-[#1e88e5]" />

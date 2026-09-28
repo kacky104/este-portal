@@ -173,7 +173,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
             {/* ★ 第474便: 駅ちかのID・PASSが無いと投稿しない（★ 解除・一時停止したとき） */}
             {!data.hasEkichika && (
               <p className="mt-1 text-[12.5px] font-bold text-rose-700">
-                駅ちかのID・PASSが登録されていない（または一時停止中の）ため、いまは投稿しません。
+                駅ちかのID・パスワードが登録されていない（または一時停止中の）ため、いまは投稿しません。
               </p>
             )}
           </div>
