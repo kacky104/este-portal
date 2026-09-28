@@ -54,5 +54,6 @@ export default async function MypageLayout({ children }: { children: React.React
       : {}),
   };
 
-  return <div className="min-h-screen" style={bgStyle}>{children}</div>;
+  // ★ 第935便: 文字の形はコネックエフと同じ（globals.css の .mypage-font）
+  return <div className="mypage-font min-h-screen" style={bgStyle}>{children}</div>;
 }
