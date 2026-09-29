@@ -76,3 +76,16 @@ export async function fetchAffiliatedTherapists(
     avatarUrl: (t.avatar_url as string | null) ?? null,
   }));
 }
+
+// ★★ 第994便（2026-09-30・カッキーさん）: セラピストページ連携済みのセラピストを、そのお店の fukuX（認証済み）に【自動で所属】させる。
+//   ★ 中身は DB の関数 x_affiliation_auto_link（supabase/migrations/20260930_x_affiliation_auto_link.sql）。
+//   ★ 本人のログイン（cookie の createClient）で呼ぶ。service_role は使わない。
+//   ★ 戻り値: 所属先の x_profiles.id（条件に合わなければ null）。失敗しても画面は止めない（null）。
+export async function autoLinkMyAffiliation(client: AnyClient): Promise<string | null> {
+  const { data, error } = await client.rpc('x_affiliation_auto_link');
+  if (error) {
+    console.error('[x] 自動所属に失敗', error.message);
+    return null;
+  }
+  return typeof data === 'string' && data ? data : null;
+}

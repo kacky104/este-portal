@@ -3,7 +3,7 @@ import { XHeader } from './XHeader';
 import { XMeProvider, type MeSeed } from './XMeProvider';
 import { getXContext } from './xProfile';
 import { createClient } from '@/app/lib/supabase/server';
-import { fetchShopMini } from './xAffiliation';
+import { fetchShopMini, autoLinkMyAffiliation } from './xAffiliation';
 import './x-theme.css';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
@@ -55,10 +55,16 @@ export default async function XLayout({ children }: { children: React.ReactNode 
   // ※ seed は props で渡すだけ＝ISRキャッシュには焼かない（ISR凍結回避を維持）。レイアウトは動的化する。
   const { userId, email, profile } = await getXContext();
   let affiliatedShop: MeSeed['affiliatedShop'] = null;
-  if (profile?.kind === 'therapist' && profile.affiliated_shop_id) {
+  if (profile?.kind === 'therapist') {
     const supabase = await createClient();
-    const shop = await fetchShopMini(supabase, profile.affiliated_shop_id);
-    affiliatedShop = shop ? { handle: shop.handle, displayName: shop.displayName } : null;
+    let shopId = profile.affiliated_shop_id;
+    // ★ 第994便: まだ所属が無いセラピストは、セラピストページ連携＋認証済みのお店なら自動で所属させる
+    //   （条件に合わなければ null が返るだけ。すでに所属している人には呼ばない）
+    if (!shopId) shopId = await autoLinkMyAffiliation(supabase);
+    if (shopId) {
+      const shop = await fetchShopMini(supabase, shopId);
+      affiliatedShop = shop ? { handle: shop.handle, displayName: shop.displayName } : null;
+    }
   }
   const seed: MeSeed = { me: profile, userId, email, affiliatedShop };
 

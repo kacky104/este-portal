@@ -74,6 +74,11 @@ export async function createMyXProfile(input: {
     console.error('[x] アカウントを開設できなかった', user.id, error.code, msg);
     return { ok: false, error: 'アカウントを開設できませんでした。ページを開き直してから、もう一度お試しください。' };
   }
+  // ★ 第994便: セラピストなら、セラピストページ連携＋認証済みのお店に自動で所属（条件に合わなければ何もしない）
+  if (input.kind === 'therapist') {
+    const { autoLinkMyAffiliation } = await import('@/app/x/xAffiliation');
+    await autoLinkMyAffiliation(supabase);
+  }
   return { ok: true };
 }
 
