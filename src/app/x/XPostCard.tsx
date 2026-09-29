@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/client';
+import { deleteMyXPost, pinMyXPost } from '@/app/actions/xPost'; // ★ 第984便: 削除・固定はサーバー経由
 import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
 import { PostBody } from './PostBody';
@@ -13,7 +13,6 @@ import { useMe } from './XMeProvider';
 import { safeHref, linkDomain } from './xLink';
 import type { XPost, XPostAuthor } from './xPosts';
 
-const sb = createClient();
 
 const KIND_LABEL: Record<string, string> = {
   user: 'ユーザー',
@@ -170,22 +169,15 @@ export function XPostCard({
   const [pinnedAt, setPinnedAt] = useState<string | null>(post.pinnedAt ?? null);
   const onTogglePin = async () => {
     setMenuOpen(false);
-    const sb = createClient();
     const pin = !pinnedAt;
-    if (pin) {
-      // 既存の固定を解除（1人1件運用）。RLSにより自分の投稿以外は更新されない。
-      await sb.from('x_posts').update({ pinned_at: null }).eq('author_profile_id', a.id).not('pinned_at', 'is', null);
-    }
-    const at = new Date().toISOString();
-    const { error } = await sb
-      .from('x_posts')
-      .update({ pinned_at: pin ? at : null })
-      .eq('id', post.id);
-    if (error) {
-      window.alert(`固定の更新に失敗しました：${error.message}`);
+    // ★ 既存の固定の解除（1人1件）もサーバーでまとめて行う
+    let res: Awaited<ReturnType<typeof pinMyXPost>>;
+    try { res = await pinMyXPost(a.id, post.id, pin); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
+    if (!res.ok) {
+      window.alert(res.error);
       return;
     }
-    setPinnedAt(pin ? at : null);
+    setPinnedAt(res.pinnedAt);
     // プロフィールページの並び（固定を先頭へ）をサーバー再取得で反映。
     router.refresh();
   };
@@ -208,9 +200,10 @@ export function XPostCard({
   const onDelete = async () => {
     setMenuOpen(false);
     if (!window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。リプライやいいねも一緒に削除されます。')) return;
-    const { error } = await sb.from('x_posts').delete().eq('id', post.id);
-    if (error) {
-      window.alert(`削除できませんでした：${error.message}`);
+    let res: Awaited<ReturnType<typeof deleteMyXPost>>;
+    try { res = await deleteMyXPost(post.id); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
+    if (!res.ok) {
+      window.alert(res.error);
       return;
     }
     setDeleted(true);

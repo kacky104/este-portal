@@ -3,13 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+import { deleteMyXStory } from '@/app/actions/xPost'; // ★ 第984便: 削除はサーバー経由
 import { VerifiedBadge } from './VerifiedBadge';
 import { XTimeAgo } from './XTimeAgo';
 import { markStorySeen } from './xStoriesShared';
 import type { StoryGroup } from './xStories';
 
-const sb = createClient();
 
 const STORY_MS = 5000; // 1枚あたりの自動送り時間
 
@@ -104,9 +103,10 @@ export function XStoryViewer({
     if (deleting || !story) return;
     if (!window.confirm('このストーリーを削除しますか？')) return;
     setDeleting(true);
-    const { error } = await sb.from('x_stories').delete().eq('id', story.id);
+    let res: Awaited<ReturnType<typeof deleteMyXStory>>;
+    try { res = await deleteMyXStory(story.id); } catch { res = { ok: false, error: '削除できませんでした' }; }
     setDeleting(false);
-    if (error) {
+    if (!res.ok) {
       window.alert('削除できませんでした');
       return;
     }

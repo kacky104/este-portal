@@ -2,16 +2,16 @@
 
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+// ★ 第984便: 投稿・編集・下書き・画像はサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
+import { createMyXPostImageUploadUrl, createMyXPost, editMyXPost, saveMyXDraft } from '@/app/actions/xPost';
+import { putToSignedUrl } from '@/app/lib/signedUpload';
 import { normalizeLinkUrl } from './xLink';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
 import type { XDraft } from './xDrafts';
 import { XDraftsPanel } from './XDraftsPanel';
 import { refreshXPostLinkPreview } from './xLinkPreviewActions';
-import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
-const supabase = createClient();
 const BODY_MAX = 500;
 const MAX_IMAGES = 4;
 // 表示中のプロフィールと実ログインが食い違ったとき（別タブで /admin 等に別アカウントでログインした場合など）の案内。
@@ -79,10 +79,8 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
   // 同一ブラウザの別タブで /admin などに別アカウントでログインすると、開きっぱなしのタブは
   // 表示上のプロフィールのまま認証トークンだけが切り替わり、投稿・下書き・画像アップロードが
   // RLS違反の生エラーになる。送信前にここで検出し、分かりやすい案内を出す（getSession はローカル参照のみで高速）。
-  const sessionMatchesProfile = async (): Promise<boolean> => {
-    const { data } = await supabase.auth.getSession();
-    return (data.session?.user?.id ?? null) === me.auth_user_id;
-  };
+  // ★ 第984便: この確認はサーバー側（各アクションの expectUid）で行う。ブラウザの getSession は止まることがあるので使わない。
+  const NET_ERR = '通信できませんでした。電波のよい場所で、もう一度押してください。';
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -94,11 +92,6 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
       return;
     }
     setError('');
-    // アカウント切り替わり検出（x-images の RLS は本人UIDフォルダを要求＝ズレていると必ず失敗するため先に案内）。
-    if (!(await sessionMatchesProfile())) {
-      setError(SESSION_MISMATCH_MSG);
-      return;
-    }
     setUploading(true);
     const picked = files.slice(0, room);
     for (let i = 0; i < picked.length; i++) {
@@ -109,16 +102,20 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
         continue;
       }
       const ext = file.name.split('.').pop() ?? 'jpg';
-      // x-images の本人フォルダ配下に固定（RLS が先頭フォルダ = 本人UID を要求）。複数枚は連番で衝突回避。
-      const path = `${me.auth_user_id}/${Date.now()}-${i}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('x-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
-      if (upErr) {
-        setError(`画像のアップロードに失敗しました: ${upErr.message}`);
+      // ★ 置き場所（x-images/本人UID/）はサーバーが決める。アカウント切り替わりもサーバーが見つける。
+      let prep: Awaited<ReturnType<typeof createMyXPostImageUploadUrl>>;
+      try { prep = await createMyXPostImageUploadUrl(me.auth_user_id, ext); } catch { prep = { ok: false, error: NET_ERR }; }
+      if (!prep.ok) {
+        setError(prep.error);
+        if (prep.error === SESSION_MISMATCH_MSG) break;
         continue;
       }
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('x-images').getPublicUrl(path);
+      const up = await putToSignedUrl(prep.signedUrl, file);
+      if (!up.ok) {
+        setError(up.error);
+        continue;
+      }
+      const publicUrl = prep.publicUrl;
       setImages((prev) => (prev.length < MAX_IMAGES ? [...prev, publicUrl] : prev));
     }
     setUploading(false);
@@ -140,32 +137,25 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
       setError(linkErr);
       return false;
     }
-    // アカウント切り替わり検出（RLSの生エラーを出さず、再読み込みの案内に置き換える）。
-    if (!(await sessionMatchesProfile())) {
-      setError(SESSION_MISMATCH_MSG);
-      return false;
-    }
     setSavingDraft(true);
     setError('');
-    const row: Record<string, unknown> = {
-      body: trimmed || null,
-      images,
-      link_url: linkUrl,
-      replies_disabled: canToggleReplies ? repliesDisabled : false,
-    };
+    // ★ 第984便: 既存下書きは上書き・無ければ新規（リプライ下書きは parent_post_id 付き）。サーバーで保存。
     let ok = false;
-    if (activeDraftId) {
-      // 既存下書きの上書き（updated_at はトリガで自動更新）。
-      const { error: upErr } = await supabase.from('x_drafts').update(row).eq('id', activeDraftId);
-      ok = !upErr;
-      if (upErr) setError(`下書きを保存できませんでした：${upErr.message}`);
-    } else {
-      // 新規下書き。リプライ下書きは parent_post_id を付与（x_posts.id は bigint＝文字列でも自動変換）。
-      const { error: insErr } = await supabase
-        .from('x_drafts')
-        .insert({ ...row, author_profile_id: me.id, parent_post_id: parentPostId ?? null });
-      ok = !insErr;
-      if (insErr) setError(`下書きを保存できませんでした：${insErr.message}`);
+    try {
+      const res = await saveMyXDraft({
+        expectUid: me.auth_user_id,
+        draftId: activeDraftId,
+        authorProfileId: me.id,
+        parentPostId: parentPostId ?? null,
+        body: trimmed || null,
+        images,
+        linkUrl,
+        repliesDisabled: canToggleReplies ? repliesDisabled : false,
+      });
+      ok = res.ok;
+      if (!res.ok) setError(res.error);
+    } catch {
+      setError(NET_ERR);
     }
     setSavingDraft(false);
     if (ok) {
@@ -212,28 +202,29 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
       setError(linkErr);
       return;
     }
-    // アカウント切り替わり検出（投稿・編集ともRLS違反になる前に再読み込みの案内を出す）。
-    if (!(await sessionMatchesProfile())) {
-      setError(SESSION_MISMATCH_MSG);
-      return;
-    }
     setPosting(true);
     setError('');
 
     // ── 編集モード：対象投稿を update（edited_at=now）。author/id/createdAt は維持。 ──
     if (editPost) {
       const editedAt = new Date().toISOString();
-      const upd: Record<string, unknown> = {
-        body: trimmed || null,
-        images,
-        link_url: linkUrl,
-        edited_at: editedAt,
-      };
-      if (canToggleReplies) upd.replies_disabled = repliesDisabled;
-      const { error: upErr } = await supabase.from('x_posts').update(upd).eq('id', editPost.id);
+      let res: Awaited<ReturnType<typeof editMyXPost>>;
+      try {
+        res = await editMyXPost({
+          expectUid: me.auth_user_id,
+          postId: editPost.id,
+          body: trimmed || null,
+          images,
+          linkUrl,
+          editedAt,
+          repliesDisabled: canToggleReplies ? repliesDisabled : null,
+        });
+      } catch {
+        res = { ok: false, error: NET_ERR };
+      }
       setPosting(false);
-      if (upErr) {
-        setError(`編集できませんでした：${upErr.message}`);
+      if (!res.ok) {
+        setError(res.error);
         return;
       }
       // 反映用：元の投稿に編集後の値を上書きして親へ返す（author/id/createdAt は不変）。
@@ -255,31 +246,29 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
     // ── 新規（投稿/リプライ）：insert ──
     // リプライ時は parent_post_id を、通常投稿で therapist/shop のときのみ replies_disabled を付与。
     // reply_count は触らない（DBトリガが親側を自動増減する）。link_url は検証済みのみ（空は null）。
-    const payload: Record<string, unknown> = {
-      author_profile_id: me.id,
-      body: trimmed || null,
-      images,
-      link_url: linkUrl,
-    };
-    if (isReply) payload.parent_post_id = parentPostId;
-    else if (canToggleReplies) payload.replies_disabled = repliesDisabled;
-
-    const { data, error: insErr } = await supabase
-      .from('x_posts')
-      .insert(payload)
-      .select('id, like_count, reply_count, replies_disabled, created_at')
-      .single();
+    let res: Awaited<ReturnType<typeof createMyXPost>>;
+    try {
+      res = await createMyXPost({
+        expectUid: me.auth_user_id,
+        authorProfileId: me.id,
+        body: trimmed || null,
+        images,
+        linkUrl,
+        parentPostId: isReply ? (parentPostId ?? null) : null,
+        repliesDisabled: !isReply && canToggleReplies ? repliesDisabled : null,
+        draftId: activeDraftId, // ★ 下書きから起こした投稿なら、投稿後にサーバーがその下書きを消す
+      });
+    } catch {
+      res = { ok: false, error: NET_ERR };
+    }
     setPosting(false);
 
-    if (insErr) {
-      // RLS違反（未承認shop／親がリプライ不可になっていた等）も握りつぶさずメッセージ化。
-      setError(
-        isReply
-          ? `リプライできませんでした：${insErr.message}`
-          : `投稿できませんでした：${insErr.message}`
-      );
+    if (!res.ok) {
+      // RLS違反（親がリプライ不可になっていた等）も、サーバーが理由を返す。
+      setError(res.error);
       return;
     }
+    const data = res.row;
 
     // 成功：一覧へ反映するための XPost を組み立てて親へ。
     onPosted({
@@ -305,10 +294,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
       },
     });
     // 下書きから起こした投稿なら、その下書きを削除（投稿できたので不要）。
-    if (activeDraftId) {
-      await supabase.from('x_drafts').delete().eq('id', activeDraftId);
-      setActiveDraftId(null);
-    }
+    if (activeDraftId) setActiveDraftId(null); // ★ 下書きの削除はサーバーで済ませた
     setBody('');
     setImages([]);
     setLink('');

@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
-import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+// ★ 第984便: 画像とストーリー投稿はサーバー経由（アプリ内ブラウザ対策）
+import { createMyXPostImageUploadUrl, createMyXStory } from '@/app/actions/xPost';
+import { putToSignedUrl } from '@/app/lib/signedUpload';
 import type { XProfile } from './xProfile';
 
-const supabase = createClient();
 
 const CAPTION_MAX = 200;
 
@@ -67,16 +67,18 @@ export function XStoryComposer({ me, onClose }: { me: XProfile; onClose: () => v
   // 画像アップロード（x-images バケットの本人フォルダ配下＝XSettingsForm と同パターン）。
   const uploadImage = async (f: File): Promise<string | null> => {
     const ext = f.name.split('.').pop() ?? 'jpg';
-    const path = `${me.auth_user_id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('x-images').upload(path, f, { cacheControl: STORAGE_CACHE_CONTROL });
-    if (upErr) {
-      setError(`画像のアップロードに失敗しました: ${upErr.message}`);
+    let prep: Awaited<ReturnType<typeof createMyXPostImageUploadUrl>>;
+    try { prep = await createMyXPostImageUploadUrl(me.auth_user_id, ext); } catch { prep = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
+    if (!prep.ok) {
+      setError(prep.error);
       return null;
     }
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('x-images').getPublicUrl(path);
-    return publicUrl;
+    const up = await putToSignedUrl(prep.signedUrl, f);
+    if (!up.ok) {
+      setError(up.error);
+      return null;
+    }
+    return prep.publicUrl;
   };
 
   const submit = async () => {
@@ -88,14 +90,15 @@ export function XStoryComposer({ me, onClose }: { me: XProfile; onClose: () => v
       setBusy(false);
       return;
     }
-    const { error: insErr } = await supabase.from('x_stories').insert({
-      author_profile_id: me.id,
-      image_url: imageUrl,
-      caption: caption.trim() || null,
-    });
+    let res: Awaited<ReturnType<typeof createMyXStory>>;
+    try {
+      res = await createMyXStory({ expectUid: me.auth_user_id, authorProfileId: me.id, imageUrl, caption });
+    } catch {
+      res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' };
+    }
     setBusy(false);
-    if (insErr) {
-      setError(`投稿に失敗しました：${insErr.message}`);
+    if (!res.ok) {
+      setError(res.error);
       return;
     }
     router.refresh();

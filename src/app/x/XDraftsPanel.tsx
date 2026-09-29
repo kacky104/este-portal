@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
+import { listMyXDrafts, deleteMyXDraft } from '@/app/actions/xPost'; // ★ 第984便: サーバー経由
 import type { XProfile } from './xProfile';
 import { XTimeAgo } from './XTimeAgo';
-import { mapDraftRow, type XDraft, type XDraftRow } from './xDrafts';
+import { type XDraft } from './xDrafts';
 
-const supabase = createClient();
 
 // 下書き一覧モーダル。XComposer から「下書き」ボタンで開く。
 // parentPostId=null → 通常投稿の下書き / parentPostId 指定 → そのスレッドのリプライ下書きのみ。
@@ -30,21 +29,15 @@ export function XDraftsPanel({
   useEffect(() => {
     let alive = true;
     (async () => {
-      let q = supabase
-        .from('x_drafts')
-        .select('id, body, images, link_url, replies_disabled, parent_post_id, updated_at')
-        .eq('author_profile_id', me.id)
-        .order('updated_at', { ascending: false })
-        .limit(50);
-      q = parentPostId ? q.eq('parent_post_id', parentPostId) : q.is('parent_post_id', null);
-      const { data, error: err } = await q;
+      let res: Awaited<ReturnType<typeof listMyXDrafts>>;
+      try { res = await listMyXDrafts(me.id, parentPostId); } catch { res = { ok: false, error: '下書きを読み込めませんでした' }; }
       if (!alive) return;
-      if (err) {
-        setError('下書きを読み込めませんでした');
+      if (!res.ok) {
+        setError(res.error);
         setDrafts([]);
         return;
       }
-      setDrafts(((data ?? []) as XDraftRow[]).map(mapDraftRow));
+      setDrafts(res.drafts);
     })();
     return () => {
       alive = false;
@@ -67,10 +60,11 @@ export function XDraftsPanel({
 
   const remove = async (id: string) => {
     setDeletingId(id);
-    const { error: err } = await supabase.from('x_drafts').delete().eq('id', id);
+    let res: Awaited<ReturnType<typeof deleteMyXDraft>>;
+    try { res = await deleteMyXDraft(id); } catch { res = { ok: false, error: '削除できませんでした' }; }
     setDeletingId(null);
-    if (err) {
-      setError('削除できませんでした');
+    if (!res.ok) {
+      setError(res.error);
       return;
     }
     setDrafts((prev) => (prev ?? []).filter((d) => d.id !== id));
