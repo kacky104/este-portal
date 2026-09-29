@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getSession, onAuthChange, updatePassword } from '@/lib/auth';
+import { getSession, onAuthChange } from '@/lib/auth';
 import { PASSWORD_HINT, validatePassword } from '@/lib/password';
-import { claimCastTherapist } from '@/app/actions/castInvite';
+import { claimCastTherapist, setCastPassword } from '@/app/actions/castInvite';
 import { readInviteHash, establishSessionFromHash, clearAuthHash } from '@/app/lib/inviteHash';
 
 // キャスト招待の着地ページ。
@@ -61,14 +61,15 @@ export default function CastWelcomePage() {
     if (password !== confirm) { setError('確認用パスワードが一致しません。'); return; }
     setLoading(true);
     try {
-      const res = await updatePassword(password);
-      if (!res.ok) { setError('パスワードの設定に失敗しました。時間をおいて再度お試しください。'); return; }
+      // ★ 第962便: ブラウザ（supabase-js）ではなくサーバーで設定する（ブラウザ側でセッションが読めず、送る前に止まる事故があった）。
+      const res = await setCastPassword(password);
+      if (!res.ok) { setError(res.error); return; }
       // 念のため本人化を再実行（冪等）。
       await claimCastTherapist();
       setDone(true);
       setTimeout(() => { router.push('/cast'); router.refresh(); }, 1500);
     } catch {
-      setError('通信エラーが発生しました。時間をおいて再度お試しください。');
+      setError('通信できませんでした。電波のよい場所で、もう一度押してください。');
     } finally {
       setLoading(false);
     }
@@ -113,6 +114,10 @@ export default function CastWelcomePage() {
             >
               セラピストログインへ
             </Link>
+            {/* ★ 第962便: 招待メールは開けたがパスワードを決められなかった方は、ここからメールで設定できる */}
+            <Link href="/cast/forgot-password" className="block text-[12px] text-pink-600 underline">
+              パスワードをまだ決めていない方・忘れた方
+            </Link>
           </div>
         ) : (
           <form onSubmit={submit} className="relative z-10 space-y-4">
@@ -129,6 +134,8 @@ export default function CastWelcomePage() {
             {error && (
               <div className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-500 text-[12px] font-medium text-center">
                 ⚠️ {error}
+                {/* ★ 第962便: 何度やっても通らないときの逃げ道（メールでパスワードを決める） */}
+                <Link href="/cast/forgot-password" className="block mt-2 underline text-pink-600">パスワードを忘れた方（メールで設定する）</Link>
               </div>
             )}
             <div className="space-y-1">

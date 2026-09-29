@@ -526,3 +526,43 @@ export async function acceptCastInviteLink(input: { token: string; email: string
   if (!sent.ok) await undo();
   return sent;
 }
+
+// ★★★ 第962便（2026-09-29・カッキーさん）: 招待後のパスワード設定を【サーバー側】で行う。
+// ★ 起きたこと: セラピストさん（レミさん）が /cast/welcome で「パスワードの設定に失敗しました」になり、何度押しても通らなかった。
+//   Supabase の Auth ログには招待の /verify（13:37）までは残っていたが、パスワード保存（PUT /user）が1件も無かった
+//   ＝ ブラウザ側の supabase-js が「セッションが無い」で【送る前に】止めていた（メールアプリ内ブラウザ等でセッションが読めない）。
+//   ★ 一方で本人化（claimCastTherapist・サーバー）は同じ画面で成功していた＝サーバーはクッキーでログイン状態を読めていた。
+// ★ だからパスワードも、サーバーでログイン中の本人を確かめてから service_role で本人の分だけ変える。
+// ★ 本人以外のパスワードは変えられない（user.id はサーバーで getUser したものだけを使う・引数に取らない）。
+export type SetCastPasswordResult =
+  | { ok: true }
+  | { ok: false; code: 'no_session' | 'weak' | 'failed'; error: string };
+
+export async function setCastPassword(password: string): Promise<SetCastPasswordResult> {
+  const { validatePassword, PASSWORD_ERROR } = await import('@/lib/password');
+  if (typeof password !== 'string' || validatePassword(password)) {
+    return { ok: false, code: 'weak', error: PASSWORD_ERROR };
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      code: 'no_session',
+      error: 'ログイン状態が切れています。届いたメールのリンクを、Safari や Chrome でもう一度開いてください。',
+    };
+  }
+  const svc = createServiceClient();
+  const { error } = await svc.auth.admin.updateUserById(user.id, { password });
+  if (error) {
+    const code = (error as { code?: string }).code ?? '';
+    console.error('[cast] パスワードを設定できなかった', user.id, code, error.message);
+    if (code === 'weak_password') return { ok: false, code: 'weak', error: PASSWORD_ERROR };
+    return {
+      ok: false,
+      code: 'failed',
+      error: 'パスワードを設定できませんでした。下の「パスワードを忘れた方」から、メールで設定してください。',
+    };
+  }
+  return { ok: true };
+}

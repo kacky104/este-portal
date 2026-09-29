@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getSession, onAuthChange, updatePassword } from '@/lib/auth';
-import { PASSWORD_HINT, PASSWORD_ERROR, validatePassword } from '@/lib/password';
+import { getSession, onAuthChange } from '@/lib/auth';
+import { setCastPassword } from '@/app/actions/castInvite';
+import { PASSWORD_HINT, validatePassword } from '@/lib/password';
 import { readInviteHash, establishSessionFromHash, clearAuthHash } from '@/app/lib/inviteHash';
 
 // セラピスト用パスワード再設定の着地ページ（会員 /reset-password のクローン）。
@@ -15,23 +16,6 @@ import { readInviteHash, establishSessionFromHash, clearAuthHash } from '@/app/l
 //     inviteHash の流用でセッションを確立し URL を浄化する（PKCE/?code= ・ token_hash ・ # の3形態に対応）。
 //     ※ readInviteHash は type を問わず access_token/refresh_token を拾うため recovery でも使える。
 
-function passwordUpdateError(res: { error?: string; code?: string }): string {
-  const code = res.code ?? '';
-  const m = (res.error ?? '').toLowerCase();
-  if (code === 'same_password' || m.includes('different from the old') || m.includes('should be different')) {
-    return '新しいパスワードは、現在のパスワードと異なるものを設定してください。';
-  }
-  if (
-    code === 'weak_password' ||
-    m.includes('should be at least') ||
-    m.includes('should contain') ||
-    m.includes('weak password') ||
-    m.includes('password is too')
-  ) {
-    return PASSWORD_ERROR;
-  }
-  return 'パスワードの変更に失敗しました。時間をおいて再度お試しください。';
-}
 
 export default function CastResetPasswordPage() {
   // リカバリーセッションの有無（/auth/callback 経由 or ハッシュ着地で確立済みの想定）。
@@ -72,13 +56,14 @@ export default function CastResetPasswordPage() {
     if (password !== confirm) { setError('確認用パスワードが一致しません。'); return; }
     setLoading(true);
     try {
-      const res = await updatePassword(password);
-      if (!res.ok) { setError(passwordUpdateError(res)); return; }
+      // ★ 第962便: /cast/welcome と同じくサーバーで設定する（ブラウザ側でセッションが読めず送る前に止まる事故の対策）。
+      const res = await setCastPassword(password);
+      if (!res.ok) { setError(res.error); return; }
       setDone(true);
       // 変更後はログイン済み状態。少し見せてから /cast へ（ハードナビでガードに確実に伝える）。
       setTimeout(() => { window.location.assign('/cast'); }, 1600);
     } catch {
-      setError('通信エラーが発生しました。時間をおいて再度お試しください。');
+      setError('通信できませんでした。電波のよい場所で、もう一度押してください。');
     } finally {
       setLoading(false);
     }

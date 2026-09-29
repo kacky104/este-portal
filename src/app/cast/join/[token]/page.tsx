@@ -70,6 +70,12 @@ export default function CastJoinPage() {
               <Link href="/cast/login" className="block w-full py-2.5 rounded-lg bg-pink-600 text-white text-sm font-semibold hover:bg-pink-700">
                 セラピストログインへ
               </Link>
+              {/* ★ 第962便: 招待メールは開いたがパスワードを決められなかった方（アカウントだけできている）はログインできないので、ここから設定する */}
+              <p className="text-[12px] text-slate-500 leading-relaxed">
+                パスワードをまだ決めていない方は、
+                <Link href="/cast/forgot-password" className="text-pink-600 underline">パスワードを忘れた方</Link>
+                から、メールで設定してください。
+              </p>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 space-y-3 text-center">
