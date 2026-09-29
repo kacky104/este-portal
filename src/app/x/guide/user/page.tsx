@@ -337,7 +337,7 @@ export default function XUserGuidePage() {
           </FlowCard>
           <FlowCard n={3}>
             @ID（英数字とアンダースコア、3〜20文字・<span className={STRONG}>あとから変更不可</span>
-            <Tag>変更不可</Tag>）と表示名（30文字まで）を決めて完了です。
+            <Tag>変更不可</Tag>）とアカウント名（30文字まで）を決めて完了です。
           </FlowCard>
         </ol>
 

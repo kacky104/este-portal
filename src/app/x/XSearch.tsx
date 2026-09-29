@@ -199,7 +199,7 @@ export function XSearch() {
       <div className="mt-3">
         {!q.trim() ? (
           <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">
-            表示名・@ID・投稿本文（一部でOK）で検索できます
+            アカウント名・@ID・投稿本文（一部でOK）で検索できます
           </p>
         ) : loading ? (
           <p className="x-rescue-muted text-sm text-white/90 text-center py-10 drop-shadow-sm">検索中...</p>

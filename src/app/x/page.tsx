@@ -168,7 +168,7 @@ export default async function XHomePage() {
         <div className="mt-4 mb-1 p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-sky-50 border border-indigo-100">
           <p className="text-sm font-bold text-slate-800">アカウントを開設しましょう</p>
           <p className="text-[12px] text-slate-500 mt-0.5 mb-3">
-            表示名と ID を設定すると、投稿・いいね・フォローができるようになります。
+            アカウント名と ID を設定すると、投稿・いいね・フォローができるようになります。
           </p>
           <Link
             href="/x/onboarding"

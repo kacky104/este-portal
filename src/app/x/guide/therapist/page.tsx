@@ -268,7 +268,7 @@ export default function XTherapistGuidePage() {
         <InfoBox icon={<IconMail />}>※メールアドレスは他のユーザーに公開されません。</InfoBox>
 
         <div className={STEP_GAP}>
-          <Step n={2} title="アカウントを開設する（種別・@ID・表示名）" />
+          <Step n={2} title="アカウントを開設する（種別・@ID・アカウント名）" />
           <ol className={`${OL} mt-3`}>
             <li>ログイン後の「アカウントを開設」で、種別は<span className={STRONG}>「セラピスト」</span>を選びます。</li>
             <li>
@@ -277,7 +277,7 @@ export default function XTherapistGuidePage() {
               <Tag>変更不可</Tag>
               ので、源氏名など分かりやすいものがおすすめです。
             </li>
-            <li>表示名（30文字まで・あとから変更可）とアバター画像（任意）を設定して開設完了です。</li>
+            <li>アカウント名（30文字まで・あとから変更可）とアバター画像（任意）を設定して開設完了です。</li>
           </ol>
         </div>
 

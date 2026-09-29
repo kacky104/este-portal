@@ -40,7 +40,7 @@ export function XAuthGateModal({
           // ── ログイン済み・x_profiles 未開設 ──
           <>
             <p className="text-center text-sm text-[color:var(--x-text-primary)] leading-relaxed mb-6">
-              いいね・フォローするには、表示名と ID を設定して<strong>アカウントを開設</strong>してください。
+              いいね・フォローするには、アカウント名と ID を設定して<strong>アカウントを開設</strong>してください。
             </p>
             <Link
               href="/x/onboarding"

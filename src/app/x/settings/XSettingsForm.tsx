@@ -223,7 +223,7 @@ export function XSettingsForm({
 
   const save = async () => {
     if (!displayOk) {
-      setError('表示名は1〜30文字で入力してください');
+      setError('アカウント名は1〜30文字で入力してください');
       return;
     }
     // リンク検証（http/https のみ・スキーム無しは https:// 補完・危険スキームは弾く）。空は null。
@@ -383,12 +383,12 @@ export function XSettingsForm({
 
       {/* ── 表示名 ── */}
       <div>
-        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">表示名</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">アカウント名</label>
         <input
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="表示名を入力"
+          placeholder="アカウント名を入力"
           maxLength={DISPLAY_MAX}
           className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-sm bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />

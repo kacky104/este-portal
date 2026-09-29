@@ -208,14 +208,14 @@ export default function XShopGuidePage() {
         <p className={NOTE}>※メールアドレスは他のユーザーに公開されません。</p>
 
         <div className={STEP_GAP}>
-          <Step n={2} title="アカウントを開設する（種別・@ID・表示名）" />
+          <Step n={2} title="アカウントを開設する（種別・@ID・アカウント名）" />
           <ol className={`${OL} mt-3`}>
             <li>ログイン後の「アカウントを開設」で、種別は<span className={STRONG}>「お店」</span>を選びます。</li>
             <li>
               <span className={STRONG}>@ID</span>（英数字とアンダースコア、3〜20文字）を決めます。
               <span className={STRONG}>あとから変更できない</span>ので、店名にちなんだ分かりやすいものがおすすめです。
             </li>
-            <li>表示名（30文字まで・あとから変更可）とアバター画像（任意）を設定して開設完了です。</li>
+            <li>アカウント名（30文字まで・あとから変更可）とアバター画像（任意）を設定して開設完了です。</li>
           </ol>
         </div>
 
