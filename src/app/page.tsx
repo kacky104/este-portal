@@ -194,7 +194,7 @@ export default async function Home() {
               ].filter((x) => typeof x.count === 'number' && x.count > 0);
               if (stats.length === 0) return null;
               return (
-                <div className="mt-1.5 grid" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
+                <div className="mt-1.5 -mx-4 sm:mx-0 grid" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
                   {stats.map((x) => {
                     const body = (
                       <>
@@ -202,13 +202,13 @@ export default async function Home() {
                         {(x.count as number).toLocaleString('ja-JP')}
                         <span className="text-[11px] sm:text-xs font-bold ml-0.5">{x.unit}</span>
                       </span>
-                      <span className="block text-[10px] sm:text-xs text-slate-500 leading-tight mt-0.5">{x.label}</span>
+                      <span className="block text-[10px] sm:text-xs text-slate-500 leading-tight mt-0.5 whitespace-nowrap tracking-[-0.03em] sm:tracking-normal">{x.label}</span>
                       </>
                     );
                     return x.href ? (
-                      <Link key={x.label} href={x.href} className="py-[5px] px-1 hover:opacity-75 transition-opacity">{body}</Link>
+                      <Link key={x.label} href={x.href} className="py-[5px] px-0 sm:px-1 hover:opacity-75 transition-opacity">{body}</Link>
                     ) : (
-                      <div key={x.label} className="py-[5px] px-1">{body}</div>
+                      <div key={x.label} className="py-[5px] px-0 sm:px-1">{body}</div>
                     );
                   })}
                 </div>
