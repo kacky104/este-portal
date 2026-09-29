@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+import { saveMyNickname } from '@/app/actions/memberProfile';
 
 const NICKNAME_MAX = 20;
 
@@ -12,9 +12,9 @@ const NICKNAME_MAX = 20;
 //   - 未設定（initialNickname が空）：入力可＋事前注意書き＋空保存禁止（必須）。
 //   - 設定済み（initialNickname が非空）：読み取り専用＋確定メッセージ。保存ボタンは出さない。
 //   DBトリガー（prevent_nickname_change）が本丸で、UIすり抜けの変更 upsert は DB が弾く。
-// 保存は /mypage と同じくクライアント側の supabase から（RLS で本人の行のみ更新可）。
-// id は必ずサーバーで確定したログインユーザーの uid を使い、ユーザー入力の id は受け取らない。
-export function ProfileForm({ userId, initialNickname }: { userId: string; initialNickname: string }) {
+// ★ 第980便: 保存はサーバーアクション saveMyNickname（本人のログインのまま＝RLS・トリガーはそのまま効く）。
+// id はサーバーの getUser() の本人だけ（ユーザー入力の id は受け取らない）。
+export function ProfileForm({ initialNickname }: { userId: string; initialNickname: string }) {
   const router = useRouter();
   const [nickname, setNickname] = useState(initialNickname);
   const [saving, setSaving] = useState(false);
@@ -31,16 +31,18 @@ export function ProfileForm({ userId, initialNickname }: { userId: string; initi
     }
     setSaving(true);
     setToast('');
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('profiles')
-      .upsert(
-        { id: userId, nickname: nickname.trim(), updated_at: new Date().toISOString() },
-        { onConflict: 'id' }
-      );
+    // ★ 第980便: ブラウザの supabase-js ではなくサーバーで保存する（アプリ内ブラウザでログインが読めず断られる事故の対策）。
+    let res: Awaited<ReturnType<typeof saveMyNickname>>;
+    try {
+      res = await saveMyNickname(nickname.trim());
+    } catch {
+      setSaving(false);
+      setToast('通信できませんでした。電波のよい場所で、もう一度押してください。');
+      return;
+    }
     setSaving(false);
-    if (error) {
-      setToast('保存に失敗しました。時間をおいて再度お試しください。');
+    if (!res.ok) {
+      setToast(res.error);
       return;
     }
     setToast('保存しました');
