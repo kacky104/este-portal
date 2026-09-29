@@ -127,8 +127,8 @@ export function XProfileView({
 
   return (
     <div>
-      {/* ─── ヘッダー（浮遊カード） ─── */}
-      <div className="x-card mt-3 rounded-2xl overflow-hidden bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+      {/* ─── ヘッダー（浮遊カード） ★ 第992便: スマホは両端いっぱい（-mx-4・角なし）・PC は従来のカード ─── */}
+      <div className="x-card mt-3 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl overflow-hidden bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         {/* バナー（header_url があればタップで全体表示） */}
         {/* 高さ: スマホ=123px / PC=168×1.2≒202px */}
         <div className="h-[123px] sm:h-[202px] bg-gradient-to-br from-indigo-100 to-sky-100 relative">
@@ -357,7 +357,7 @@ export function XProfileView({
 
       {/* ─── 所属セラピスト一覧（店舗プロフィールのみ・浮遊カード） ─── */}
       {target.kind === 'shop' && (
-        <div className="x-card mt-3 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
+        <div className="x-card mt-3 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
           <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">
             所属セラピスト
             {affiliatedTherapists.length > 0 && (
@@ -430,11 +430,11 @@ export function XProfileView({
         </div>
       )}
 
-      {/* ─── 投稿＋リポスト一覧（各カードが浮遊） ─── */}
+      {/* ─── 投稿＋リポスト一覧 ★ 第992便: タイムラインと同じ全幅の行＋区切り線（flat）。PC も同じ見た目 ─── */}
       {/* ユーザーは投稿不可だがリポストは可能。投稿ゼロでもリポストがあればフィードを描画する。
           セラピスト・お店は従来どおり（空のときの空表示も維持）。ユーザーでフィード空なら丸ごと非描画。 */}
       {(target.kind !== 'user' || feed.length > 0) && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-3 -mx-4 divide-y divide-[color:var(--x-border)] border-t border-b border-[color:var(--x-border)]">
           {feed.length === 0 ? (
             <div className="py-16 text-center">
               <p className="x-rescue-muted text-sm text-white/90 drop-shadow-sm">まだ投稿がありません</p>
@@ -466,6 +466,7 @@ export function XProfileView({
                   repostLabel={item.kind === 'repost' ? `${item.reposterName} さんがリポスト` : undefined}
                   pinnedLabel={item.kind === 'post' && p.id === pinnedPostId}
                   moderation={{ onReport: handleReport }}
+                  flat
                 />
               );
             })
