@@ -130,8 +130,8 @@ export function XProfileView({
       {/* ─── ヘッダー（浮遊カード） ★ 第992便: スマホは両端いっぱい（-mx-4・角なし）・PC は従来のカード ─── */}
       <div className="x-card mt-3 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl overflow-hidden bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         {/* バナー（header_url があればタップで全体表示） */}
-        {/* 高さ: スマホ=123px / PC=168×1.2≒202px */}
-        <div className="h-[123px] sm:h-[202px] bg-gradient-to-br from-indigo-100 to-sky-100 relative">
+        {/* 高さ: スマホ=150px / PC=230px（★ 第993便: 少し縦に伸ばした。元は 123px / 202px。切り抜きは 3:1 のまま） */}
+        <div className="h-[150px] sm:h-[230px] bg-gradient-to-br from-indigo-100 to-sky-100 relative">
           {target.header_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
