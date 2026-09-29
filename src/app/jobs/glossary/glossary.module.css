@@ -108,10 +108,18 @@
   /* ★ 第976便→第977便（カッキーさん作の画像）: スマホは縦長の写真を【右上に小さく（幅62%）】置き、
      文字はその下から始める（padding-top ＝ 幅の36%）。写真は ::before（下の @media (max-width: 767px)）で、
      左端と下端をマスクでぼかして下地になじませる（境目の線を出さない）。 */
+  /* ★ 第979便（カッキーさん）: フクエスの用語集と同じく、スマホも写真を【文字の後ろに全面の背景】として敷く
+     （文字や検索欄と重なってよい）。写真は右上寄せ・cover。上から白い帯を重ねて文字を読みやすくする。 */
   background-color: #eef6f0;
-  background-image: linear-gradient(to bottom, #f5faf6 0%, #eef6f0 100%);
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.35) 55%, rgba(255, 255, 255, 0.1) 100%),
+    url('/work-glossary/hero-bg-sp.webp'),
+    linear-gradient(to bottom, #f5faf6 0%, #eef6f0 100%);
+  background-size: cover, cover, cover;
+  background-position: center, right top, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
   box-shadow: 0 18px 50px rgba(20, 83, 45, 0.16);
-  padding: calc((100vw - 32px) * 0.36) 20px 28px;
+  padding: 28px 20px;
 }
 /* ★ 第976便: タブレット（768px 以上）から PC の写真（右に女性）。文字は左 56%。 */
 @media (min-width: 768px) {
@@ -1053,11 +1061,10 @@
 
 
 /* ══════════════════════════════════════════════════════════════════════════
-   ★ 第977便（2026-09-29・カッキーさん）: スマホの写真（右上に小さく・端をぼかす）。一覧（.hero）と各用語（.termHero）で共通。
+   ★ 第977便（2026-09-29・カッキーさん）: スマホの写真（右上に小さく・端をぼかす）。★ 第979便から各用語（.termHero）だけ（一覧 .hero は全面の背景に戻した）。
    ★ 上の「.hero::before, .hero::after { display: none; }」より後ろに置くこと（ここで出し直している）。
    ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
-  .hero::before,
   .termHero::before {
     display: block;
     content: "";
