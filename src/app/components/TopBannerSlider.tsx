@@ -100,9 +100,6 @@ export function TopBannerSlider({ banners }: { banners: TopBanner[] }) {
         >
           {PICKUP_TITLE}
         </h2>
-        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-pink-50 text-pink-500 border border-pink-200">
-          おすすめ
-        </span>
       </div>
 
       {/* ── スライダー本体 ── */}
