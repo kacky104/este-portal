@@ -186,11 +186,11 @@ export default async function Home() {
             {(() => {
               const memberCount = memberCountRes.error ? null : Number(memberCountRes.data);
               const stats: { label: string; count: number | null; unit: string; href: string | null }[] = [
-                { label: '掲載店舗', count: salonCountRes.count, unit: '店', href: '/salons' },
+                { label: '掲載店舗', count: salonCountRes.count, unit: '店', href: null },
                 { label: '福岡のセラピスト', count: therapistCountRes.count, unit: '人', href: '/therapists' },
                 { label: '口コミ', count: reviewCountRes.count, unit: '件', href: '/reviews' },
                 { label: '写メ日記', count: diaryCountRes.count, unit: '件', href: '/diary' },
-                { label: '会員', count: Number.isFinite(memberCount) ? memberCount : null, unit: '人', href: null },
+                { label: '会員', count: Number.isFinite(memberCount) ? memberCount : null, unit: '人', href: '/join' }, // ★ 第964便: 会員登録へ
               ].filter((x) => typeof x.count === 'number' && x.count > 0);
               if (stats.length === 0) return null;
               return (
