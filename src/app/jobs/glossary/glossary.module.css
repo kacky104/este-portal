@@ -1,0 +1,1042 @@
+/* ★ 第970便: /glossary の glossary.module.css を写して緑（フクエスワーク）に塗り替えたもの。★ ピンク・紫の背景画像は透明の層に置き換えた（形はそのまま）。 */
+/* ★★★ /glossary（用語集ハブ）専用のスタイル（第352便・2026-09-13・リデザイン）
+   ★ このファイルは /glossary のハブだけが読む。globals.css は触らない。
+   ★ 色はこのページ専用のトークン（--glossary-*）で持つ。サイト共通の色（pink-600 など）とは
+     別に、「難しい言葉を、やさしく探せる」の白＋ピンク基調にそろえる。オレンジは CTA だけ。
+   ★ レイアウト（flex/grid/余白）は Tailwind、色・カード・ナビの見た目はここ。
+   ★ 第353便b（カッキーさんの指示）: **角はすべて直角**（border-radius: 0）。
+     箱・ボタン・入力欄・チップ・アイコンの下地まで角丸をやめた。
+     丸のまま残すのは「行見出しの前の点（.rowLabel）」だけ（点は箱ではなく記号のため）。
+     ★ 新しい要素を足すときも角丸を付けないこと。
+   ★ 第353便d（カッキーさんの指示）: 背景は**フクエスのテーマ壁紙（ゴールド）**。
+     CSS で金色を作るのをやめ、src/app/glossary/layout.tsx が theme_wallpapers の gold を敷く
+     （/column のホワイト・/salons のシルバーと同じ作法）。★ このファイルは背景を持たない。
+   ★ 幅はヘッダー／フッターの内側（max-w-5xl＝1024px）に合わせている。 */
+
+.page {
+  --glossary-accent: #059669;
+  --glossary-accent-dark: #047857;
+  --glossary-accent-soft: #ecfdf5;
+  --glossary-orange: #65a30d;
+  --glossary-ink: #111b35;
+  --glossary-text: #34405a;
+  --glossary-muted: #748097;
+  --glossary-line: #bbf7d0;
+  --glossary-bg: #f7fdf9;
+  --glossary-white: #ffffff;
+
+  /* ★ 第391便（カッキーさんの指示）: 「いま選んでいる」「押して移動する」小さな部品を紫の花柄にそろえた。
+     ★ 花柄そのものは /glossary/purple.webp。ここでは枠線と文字の色だけ持つ。
+     ★★ ピンク（--glossary-accent）は見出し・強調のまま。紫は**操作する部品だけ**に使う。
+       ★ 両方をむやみに混ぜると、どれを押せばよいか分からなくなる。 */
+  --glossary-purple: #0d9488;
+  --glossary-purple-dark: #115e59;
+  --glossary-purple-line: #99f6e4;
+
+  color: var(--glossary-text);
+  max-width: 1024px; /* ヘッダー・フッターの内側（max-w-5xl）と同じ幅にそろえる */
+  margin-inline: auto;
+  padding: 16px 16px 48px;
+}
+@media (min-width: 768px) {
+  .page { padding: 24px 28px 64px; }
+}
+@media (min-width: 1024px) {
+  .page { padding: 28px 32px 80px; }
+}
+
+/* ── アンカー移動（#row-ka など）を滑らかに。reduced-motion では無効 ──
+   scroll-behavior はスクロールする要素（html）に付けないと効かない。
+   このページが表示されているときだけ html に効かせる（:has）。 */
+:global(html):has(.page) { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  :global(html):has(.page) { scroll-behavior: auto; }
+}
+
+/* ── 見出しの共通 ── */
+.h2 {
+  scroll-margin-top: 88px; /* 追従ヘッダー 56px ＋ 五十音ナビ（PC で sticky）の分 */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--glossary-ink);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.3;
+  margin: 0 0 16px;
+}
+@media (min-width: 768px) { .h2 { font-size: 24px; } }
+/* ★ 第366便: ピンクの縦棒 → 星のアイコン（サイト共通の /icons/heading-star.webp）。幅も高さに合わせて26px。 */
+.h2Bar {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  background: url('/icons/heading-star.webp') center / contain no-repeat;
+}
+/* ★ .h2Icon（見出し左の四角いアイコン）は第361便で削除。
+   使っていたのは「五十音順」の見出しだけで、その見出し自体を外したため。 */
+
+.h3 {
+  scroll-margin-top: 88px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--glossary-ink);
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+/* ★★ 第389便（2026-09-15・カッキーさんの指示）: 行見出しの前の【赤い丸】をキラ星に変えた。
+   ★ 画像は public/icons/heading-sparkle.webp（4方向に光がのびる星）。
+     ★ 「もっと詳しく」「よくある質問」で使っている /icons/heading-star.webp（5角の星）とは別の絵。
+   ★ 大きさは見出し（16px）に合わせて 20px。★ .h2Bar（見出し20〜24px）の26pxより一段小さい。 */
+.rowLabel {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  background: url('/icons/heading-sparkle.webp') center / contain no-repeat;
+}
+
+/* ── ヒーロー（白→淡ピンク→淡オレンジのカード） ──
+   ★★ 第368便: スマホ・タブレット（1023px以下）は、用語ページの定義カードと同じ写真
+   （public/glossary/term-hero-bg-sp.webp・第363便）を背景に敷く。1024px以上は第356便の PC 写真のまま。
+   ★ 3枚重ね（上から）: ① 白い帯（文字のコントラスト）② 写真（右下寄せ・cover＝小瓶を右下の角に固定）③ 元のグラデーション。 */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d1fae5;
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(transparent, transparent),
+    linear-gradient(135deg, #fff 0%, #effbf4 60%, #f7fdf2 100%);
+  background-size: cover, cover, cover;
+  background-position: center, right bottom, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  box-shadow: 0 18px 50px rgba(20, 83, 45, 0.16);
+  padding: 28px 20px;
+}
+@media (min-width: 768px) {
+  .hero { padding: 48px 56px; }
+}
+@media (min-width: 1024px) {
+  .hero { padding: 52px 64px; }
+}
+/* ★★ 第356便: PC（1024px以上）はヒーローの背景に写真（public/glossary/hero-bg.webp）を敷く。
+   ★ 右にモデル・左は淡いピンクの花柄。見出し・説明文・検索欄は【左52%】に収めて、人物の手に重ねない。
+   ★ 背景は3枚重ね（上から）:
+       ① 左を白く起こす帯（文字のコントラストを確保）
+       ② 写真（右寄せ・cover）
+       ③ 元のグラデーション（写真が読めなくてもここで色が残る＝崩れない）
+   ★★ 写真を出すのは 1024px 以上だけ。★ タブレット（768〜1023px）とスマホでは出さない。
+     ★ 理由: 幅が狭いとヒーローが縦に伸び、cover で写真が拡大されて【手が左に伸びて文字に重なる】。
+       実測で 768px のときは手が x=237 まで来て、どう文字を詰めても重なった。
+   ★ 高さは 420px 固定寄り（min-height）。★ ここを増やすと写真が拡大され、手が左に寄る。
+   ★ 背景画像＝装飾。見出し・説明文・検索欄は今までどおり HTML のまま。
+     ★ URL・タイトル・description・構造化データ・検索機能は1つも変えていない。 */
+@media (min-width: 1024px) {
+  .hero {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.5) 38%, rgba(255, 255, 255, 0) 60%),
+      linear-gradient(transparent, transparent),
+      linear-gradient(135deg, #fff 0%, #effbf4 60%, #f7fdf2 100%);
+    background-size: cover, cover, cover;
+    background-position: center, right center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat;
+    min-height: 420px;
+  }
+  /* 写真と喧嘩するので、円形のぼかし装飾は写真を出す幅では非表示 */
+  .hero::before,
+  .hero::after { display: none; }
+  /* 見出し・説明文・検索欄は左 52%（人物の手に重ねない） */
+  .heroInner { max-width: 52%; }
+}
+
+/* 背景の円形装飾（スマホ用。本文の可読性を優先して、ごく薄く） */
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.hero::before {
+  top: -80px; right: -60px; width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(5, 150, 105, 0.10) 0%, rgba(5, 150, 105, 0) 70%);
+}
+.hero::after {
+  bottom: -90px; left: -40px; width: 220px; height: 220px;
+  background: radial-gradient(circle, rgba(101, 163, 13, 0.10) 0%, rgba(101, 163, 13, 0) 70%);
+}
+/* ★ 第368便: スマホにも写真を敷いたので、円形のぼかし装飾は全幅で出さない（写真と喧嘩する）。 */
+.hero::before,
+.hero::after { display: none; }
+.heroInner { position: relative; z-index: 1; }
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: var(--glossary-accent-dark);
+}
+.h1 {
+  margin: 8px 0 0;
+  font-size: clamp(26px, 8vw, 40px);
+  line-height: 1.2;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: var(--glossary-ink);
+}
+@media (min-width: 768px) { .h1 { font-size: 40px; } }
+.lead {
+  margin: 14px 0 0;
+  max-width: 620px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+@media (min-width: 768px) { .lead { font-size: 15px; } }
+
+/* ── 検索欄 ── */
+.search {
+  position: relative;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 620px;
+}
+.searchIcon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: var(--glossary-accent);
+  pointer-events: none;
+}
+.searchInput {
+  width: 100%;
+  height: 56px;
+  padding: 0 44px 0 46px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-ink);
+  font-size: 16px; /* iOS の自動ズームを避けるため 16px 以上 */
+  box-shadow: 0 6px 18px rgba(20, 83, 45, 0.10);
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.searchInput::placeholder { color: var(--glossary-muted); }
+.searchInput:focus-visible {
+  border-color: var(--glossary-accent);
+  box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.15);
+}
+.searchClear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--glossary-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.searchClear:hover { background: var(--glossary-accent-soft); color: var(--glossary-accent-dark); }
+.searchClear:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+.searchHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--glossary-muted);
+}
+
+/* ── 五十音ナビ（白い横長カード） ── */
+.kanaCard {
+  margin-top: 16px;
+  border: 1px solid var(--glossary-line);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #f3fcf7;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 252, 247, 0.90) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  box-shadow: 0 8px 24px rgba(20, 83, 45, 0.12);
+  padding: 12px;
+}
+@media (min-width: 1024px) {
+  .kanaCardSticky {
+    position: sticky;
+    top: 64px; /* 追従ヘッダー（56px）の下に少し余白 */
+    z-index: 20;
+  }
+}
+.kanaList {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 768px) {
+  .kanaList {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+}
+.kanaBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-ink);
+  font-weight: 800;
+  font-size: 16px;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+@media (min-width: 768px) { .kanaBtn { width: 52px; } }
+.kanaBtn:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
+.kanaBtn:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 2px; }
+/* ★★ 第391便（カッキーさんの指示）: 選んでいる行を、赤べた塗り → 紫の花柄に。
+   ── 花柄の敷き方（この先 .filterClear / .termBadge / .termRowLink / .chip も同じ） ──
+   ・白い膜は **薄め（0.30〜0.45）**。★ カードの膜（0.86）と同じ濃さにすると、ほぼ白くなって
+     「選んでいる」ことが伝わらない。★ 小さい部品なので、色が出る濃さで敷く。
+   ・`background-position` は **left bottom**。★ この画像は中央が淡く、左下に花が寄っている。
+     44px の四角に cover で敷くと、center では淡いところしか出ない。
+   ・文字は濃い紫（--glossary-purple-dark）。★ 白文字は花の淡いところで読めなくなる。 */
+.kanaBtnActive {
+  background-color: #e0f7f1;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.44) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  border-color: var(--glossary-purple);
+  color: var(--glossary-purple-dark);
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.28);
+}
+/* ★ 膜を薄くするだけで「押している」感じを出す（画像は差し替えない）。
+   ★★ background-color も書いておく。★ 1つ上の .kanaBtn:hover が `background:`（一括指定）で
+     ピンクを入れてくるので、ここで書かないと下地だけピンクに戻る。 */
+.kanaBtnActive:hover {
+  background-color: #e0f7f1;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    linear-gradient(transparent, transparent);
+  border-color: var(--glossary-purple);
+}
+.kanaBtnDisabled {
+  background: #fafafa;
+  border-color: #ececf1;
+  color: #b3bac9;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.kanaBtnDisabled:hover { background: #fafafa; border-color: #ececf1; }
+
+/* ── 絞り込み中の帯（第361便） ──
+   五十音ナビで行を選んでいるあいだだけ出る。いま何で絞っているかと、解除の入口。 */
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--glossary-line);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #f3fcf7;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 252, 247, 0.90) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+.filterText {
+  margin: 0;
+  font-size: 14px;
+  color: var(--glossary-text);
+}
+.filterText strong { color: var(--glossary-accent-dark); font-weight: 800; }
+/* 「すべて表示」。★ 第391便: 紫の花柄（.kanaBtnActive と同じ敷き方）。
+   ★ この帯（.filterBar）はピンクの花柄なので、ボタンだけ紫にすると押せる場所が浮き上がる。 */
+.filterClear {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1.5px solid var(--glossary-purple);
+  background-color: #e0f7f1;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.46) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.filterClear:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    linear-gradient(transparent, transparent);
+}
+.filterClear:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
+
+/* ── セクション ── */
+.section { margin-top: 40px; }
+@media (min-width: 1024px) { .section { margin-top: 64px; } }
+/* 五十音順の一覧。★ 第361便で「五十音順」の見出しバーを外したので、ナビ（と絞り込みの帯）の
+   すぐ続きとして少し詰める。他の節（.section）と違う間隔になるのはこの節だけ。 */
+.rowsSection { margin-top: 28px; }
+@media (min-width: 1024px) { .rowsSection { margin-top: 36px; } }
+.rowGroup { margin-top: 24px; }
+.rowGroup:first-of-type { margin-top: 0; }
+
+/* ── 用語カード（業態・五十音・検索結果で共用） ── */
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 768px) { .cardGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; } }
+.cardGrid > li { display: flex; min-width: 0; }
+@media (min-width: 1280px) { .cardGridDense { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #c6f3d9;
+  /* ★★ 第389便（2026-09-15・カッキーさんの指示）: カードの背景を、フクエスの
+     【ピンクの壁紙テーマ】と同じ花柄にした。
+     ★ 用語集は DB を使わない静的ページなので、壁紙は theme_wallpapers から引かず
+       public/glossary/card-bg.webp に置いた1枚を読む（ヒーロー背景と同じ作法）。
+     ★★ 上に白〜淡ピンクの膜を重ねて、柄を薄くしてから文字を乗せる。
+       ★ 膜を外すと本文のコントラストが落ちる。★ 濃さを変えるときはこの2つの alpha だけ触る。
+     ★ 画像が無いときは膜だけが見える（＝前のグラデとほぼ同じ）。★ ページは壊れない。 */
+  background-color: #f3fcf7;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 252, 247, 0.90) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(20, 83, 45, 0.10);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+@media (min-width: 768px) { .card { padding: 24px; } }
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--glossary-accent);
+  box-shadow: 0 14px 30px rgba(4, 120, 87, 0.14);
+}
+.card:focus-visible {
+  outline: 3px solid var(--glossary-accent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .kanaBtn, .cta, .ctaButton, .linkCard { transition: none; }
+  .card:hover, .ctaButton:hover, .linkCard:hover { transform: none; }
+}
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.cardTerm {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--glossary-ink);
+  line-height: 1.3;
+}
+@media (min-width: 768px) { .cardTerm { font-size: 19px; } }
+.cardReading {
+  font-size: 12px;
+  color: var(--glossary-muted);
+}
+.cardSummary {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+.cardMore {
+  margin-top: auto;
+  padding-top: 12px;
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--glossary-accent-dark);
+}
+.card:hover .cardMore { color: var(--glossary-accent); }
+
+/* ── 検索結果 ── */
+.empty {
+  padding: 28px 20px;
+  border: 1px dashed var(--glossary-line);
+  background: var(--glossary-white);
+  text-align: center;
+  color: var(--glossary-muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+/* ── 注意文（情報カード） ── */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--glossary-line);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #f3fcf7;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 252, 247, 0.90) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+}
+@media (min-width: 768px) {
+  .notice { flex-direction: row; align-items: flex-start; gap: 16px; padding: 22px 24px; }
+}
+.noticeIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--glossary-white);
+  border: 1.5px solid var(--glossary-line);
+  color: var(--glossary-accent);
+}
+.noticeIcon svg { width: 20px; height: 20px; }
+.noticeText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+@media (min-width: 768px) { .noticeText { font-size: 16px; } }
+
+/* ── 関連コラムのカード ── */
+.linkCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 14px 18px;
+  border: 1px solid var(--glossary-line);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #f3fcf7;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 252, 247, 0.90) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-ink);
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(20, 83, 45, 0.10);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+.linkCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--glossary-accent);
+  box-shadow: 0 10px 24px rgba(4, 120, 87, 0.12);
+}
+.linkCard:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+.linkCardIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--glossary-accent-soft);
+  color: var(--glossary-accent);
+}
+.linkCardIcon svg { width: 20px; height: 20px; }
+.linkCardArrow { margin-left: auto; color: var(--glossary-accent); flex-shrink: 0; }
+.linkCardArrow svg { width: 18px; height: 18px; }
+
+/* ── 店舗検索 CTA ── */
+.cta {
+  padding: 22px 18px;
+  border: 1px solid var(--glossary-line);
+  /* ★ 第389便: カードと同じピンクの花柄（膜の濃さもカードとそろえる） */
+  background-color: #f3fcf7;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 252, 247, 0.90) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  box-shadow: 0 14px 40px rgba(20, 83, 45, 0.16);
+}
+@media (min-width: 768px) { .cta { padding: 28px 32px; } }
+.ctaButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 64px;
+  /* ★★ 第389便（2026-09-15・カッキーさんの指示）: ピンク→オレンジのグラデをやめ、
+     赤の花柄（public/glossary/red.webp）に変えた。
+     ★ 白い文字が乗るので、上に薄い黒の膜を1枚かませてコントラストを確保する。
+       ★ 読みにくいときは、この膜の alpha（0.22 / 0.14）だけを上げる。
+     ★ 画像が読めないときは background-color の赤が出る（★ 文字は白のまま読める）。 */
+  background-color: #047857;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.14) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-white);
+  font-size: 17px;
+  font-weight: 800;
+  text-decoration: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 24px rgba(4, 120, 87, 0.28);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+@media (min-width: 768px) { .ctaButton { height: 68px; font-size: 18px; } }
+.ctaButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(16, 185, 129, 0.38);
+}
+.ctaButton:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+.ctaButton svg { width: 18px; height: 18px; }
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+/* 最下部の地域リンク（「中洲・天神・薬院の店舗」など）。
+   ★ 第391便: 白 → 紫の花柄。★ この節（.cta）はピンクの花柄なので、白のままだと沈む。
+   ★ 上の赤いバー（.ctaButton）＝いちばん押してほしい入口、紫のチップ＝地域で選ぶ入口、と役割を分けた。 */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1.5px solid var(--glossary-purple-line);
+  background-color: #e0f7f1;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.50) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.chip:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(255, 255, 255, 0.32) 100%),
+    linear-gradient(transparent, transparent);
+  border-color: var(--glossary-purple);
+}
+.chip:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
+
+/* ── パンくず ── */
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+@media (min-width: 768px) { .crumbs { font-size: 14px; margin-bottom: 16px; } }
+.crumbLink { color: var(--glossary-accent-dark); text-decoration: none; white-space: nowrap; }
+.crumbLink:hover { text-decoration: underline; }
+.crumbSep { color: var(--glossary-muted); }
+.crumbCurrent { color: var(--glossary-ink); font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   個別の用語ページ（/glossary/[slug]）だけが使うもの（第354便・2026-09-13）
+   ★ 色・角（直角）・カード・注意文・CTA は上のトークンと共用。ここは配置と本文の体裁だけ。
+   ★ 本文（ArticleBody）は /column と共用の部品なので触らず、
+     .termArticle の中だけ :global() で字を大きくする（コラム側は今までどおり）。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 定義カード（ページ上部） ──
+   ★★ 第363便: 背景に写真を敷く（カッキーさん作。public/glossary/term-hero-bg-sp.webp / -pc.webp）。
+   ★ 写真は右下にオイルの小瓶とタオル、左〜中央は白く明るい。文字は今までどおり HTML のまま。
+   ★ 背景は3枚重ね（上から）:
+       ① 白い帯（文字のコントラストを確保。写真がもともと明るいので薄め）
+       ② 写真（右下寄せ・cover ＝ 小瓶を右下の角に固定し、文字の下は明るい部分だけにする）
+       ③ 元のグラデーション（写真が読めなくてもここで色が残る＝崩れない）
+   ★ スマホ（〜767px）は縦長の箱なので SP 用（3:2）、768px 以上は横長の PC 用（2.5:1）。
+   ★ 角は直角のまま。URL・title・h1・構造化データは1つも変えていない。 */
+.termHero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #ccf5df;
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(transparent, transparent),
+    linear-gradient(135deg, #ffffff 0%, #ecfaf2 62%, #f7fdf2 100%);
+  background-size: cover, cover, cover;
+  background-position: center, right bottom, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  box-shadow: 0 18px 50px rgba(20, 83, 45, 0.16);
+  padding: 24px 20px;
+}
+@media (min-width: 768px) {
+  .termHero {
+    padding: 40px 44px;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.3) 45%, rgba(255, 255, 255, 0) 70%),
+      linear-gradient(transparent, transparent),
+      linear-gradient(135deg, #ffffff 0%, #ecfaf2 62%, #f7fdf2 100%);
+  }
+}
+@media (min-width: 1024px) { .termHero { padding: 48px 56px; } }
+
+/* 右上の線画装飾（本・虫眼鏡）。★ 第363便: 写真と喧嘩するので出さない（HTML は残してある。戻すなら display を外す）。 */
+.termHeroMark {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 132px;
+  height: 132px;
+  color: var(--glossary-accent);
+  opacity: 0.10;
+  pointer-events: none;
+  display: none;
+}
+.termHeroMark svg { width: 100%; height: 100%; }
+@media (max-width: 480px) { .termHeroMark { width: 96px; height: 96px; } }
+
+/* ★ 第361便: h1 を1行に収めるため、この箱を「コンテナ」にする。
+   100cqw ＝ この箱の中身の幅（termHero の padding を引いたあとの、文字が置ける幅）。 */
+.termHeroInner { position: relative; z-index: 1; container-type: inline-size; }
+
+/* 見出し画像の中の区分バッジ（「施術・コース」）。
+   ★ 第391便: 白 → 紫の花柄。★ 見出し画像の上に載るので、白いままだと背景と溶ける。 */
+.termBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 1.5px solid var(--glossary-purple);
+  background-color: #e0f7f1;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.46) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.termBadge:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    linear-gradient(transparent, transparent);
+}
+.termBadge:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
+
+/* ★★★ 第361便（カッキーさんの指示）: スマホで h1 が2行になるのをやめ、字の大きさで1行に収める。
+   ── しくみ ──
+   h1 の文字列「メンズエステの「{用語}」とは？」の幅は、日本語の文字が1文字＝1em なので
+   【文字数からそのまま計算できる】。その em 数をサーバーが --term-title-em として渡し、
+   「入る幅 ÷ em 数」を font-size にする。つまり font-size をその語の長さに合わせて決める。
+   ・100cqw … .termHeroInner の中身の幅（＝文字が置ける幅）。画面幅ではなく箱の幅なので、
+              ページやカードの padding が変わっても計算がずれない。
+   ・--term-title-em … サーバーが渡す。安全側に少しだけ大きめ（下の page.tsx を参照）。
+   ・上限 46px … これまでと同じ。PC の見た目は変えない。
+   ・下限 18px … 用語が長すぎて1行に入らないときは、字を小さくし続けずにここで止めて折り返す。
+                 （読めない大きさにしてまで1行にはしない）
+   ★ white-space: nowrap は付けない。下限に当たったときに横スクロールが出ないようにするため。 */
+.termTitle {
+  margin: 12px 0 0;
+  font-size: clamp(18px, calc(100cqw / var(--term-title-em, 16)), 46px);
+  line-height: 1.25;
+  font-weight: 900;
+  color: var(--glossary-ink);
+  overflow-wrap: anywhere;
+}
+/* コンテナクエリ単位が使えない古いブラウザ向けの保険（第352便までと同じ式に落ちる）。 */
+@supports not (width: 1cqw) {
+  .termTitle { font-size: clamp(28px, 7vw, 46px); }
+}
+/* ★ 第362便: 長い語（h1 が 20em 超）は「メンズエステの」を1行目に、「「用語」とは？」を2行目にする。
+   用語名は途中で折らない。短い語には .termTitleSplit が付かないので第361便のまま1行。 */
+.termTitleSplit .termTitlePrefix {
+  display: block;
+}
+.termTitleSplit .termTitleTerm {
+  white-space: nowrap;
+}
+.termReading {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--glossary-muted);
+  overflow-wrap: anywhere;
+}
+/* 定義文（frontmatter の summary）。本文のリード文より前に、意味を1文で出す。 */
+.termLead {
+  margin: 16px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--glossary-line);
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--glossary-text);
+}
+@media (min-width: 768px) { .termLead { font-size: 18px; } }
+
+/* ★ 第358便で公開日を外したので、いまは「か行へ戻る」だけが入る行。
+   ★ 将来「最終更新」を足すなら、また横に並ぶので flex のままにしてある。 */
+.termMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+/* 「か行の用語一覧へ戻る」 */
+/* ★ 第391便: 白 → 紫の花柄。★ 区分バッジ（.termBadge）と同じ画像の中に並ぶので、色をそろえる。 */
+.termRowLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--glossary-purple);
+  background-color: #e0f7f1;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.46) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: left bottom, left bottom;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-purple-dark);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.termRowLink:hover {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.30) 100%),
+    linear-gradient(transparent, transparent);
+}
+.termRowLink:focus-visible { outline: 3px solid var(--glossary-purple); outline-offset: 2px; }
+.termRowLink svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── 読み物の列（本文・FAQ・関連語は 800px 幅で中央に） ── */
+.termColumn {
+  max-width: 800px;
+  margin-inline: auto;
+}
+
+/* ── 本文カード ── */
+.termArticle {
+  border: 1px solid #dcefe4;
+  background: var(--glossary-white);
+  box-shadow: 0 4px 14px rgba(20, 83, 45, 0.10);
+  padding: 22px 18px;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 768px) { .termArticle { padding: 40px 44px; } }
+
+/* ArticleBody（共用部品）の字だけ、この中で大きくする。★ /column には影響しない。 */
+.termArticle :global(p) { font-size: 15px; line-height: 1.9; margin: 1.35em 0 0; }
+.termArticle :global(p:first-child) { margin-top: 0; }
+.termArticle :global(li) { font-size: 15px; line-height: 1.85; }
+@media (min-width: 768px) {
+  .termArticle :global(p) { font-size: 16px; }
+  .termArticle :global(li) { font-size: 16px; }
+}
+/* 本文中の画像は角を直角に（ArticleBody 側の rounded-2xl を上書き） */
+.termArticle :global(img) { border-radius: 0; }
+
+/* ★★ 第389便（2026-09-15・カッキーさんの指示）: 本文の箇条書きの「・」をキラ星に。
+   ★ ArticleBody（共用部品）の ul は Tailwind の list-disc ＋ marker:text-pink-400。
+     ★ ここは **用語集の中だけ**の上書き（.termArticle の下）。★ /column の見た目は変えていない。
+   ★ 点を消して、ul の左の余白（pl-6 = 24px）の中に星を置く。★ 番号つき（ol）はそのまま。 */
+.termArticle :global(ul) { list-style: none; }
+.termArticle :global(ul > li) { position: relative; }
+.termArticle :global(ul > li::before) {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 0.3em;
+  width: 16px;
+  height: 16px;
+  background: url('/icons/heading-sparkle.webp') center / contain no-repeat;
+}
+
+/* ── よくある質問 ── */
+.faqList { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.faqItem {
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-white);
+  box-shadow: 0 4px 14px rgba(20, 83, 45, 0.10);
+  padding: 18px;
+}
+@media (min-width: 768px) { .faqItem { padding: 22px 24px; } }
+.faqQ {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.7;
+  color: var(--glossary-ink);
+}
+.faqQ::before {
+  content: "Q";
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--glossary-accent);
+  color: var(--glossary-white);
+  font-size: 13px;
+  font-weight: 800;
+}
+.faqA {
+  display: flex;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--glossary-text);
+}
+.faqA::before {
+  content: "A";
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1.5px solid var(--glossary-line);
+  color: var(--glossary-accent-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* ── 用語集へ戻る導線 ── */
+.backLinks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--glossary-line);
+  background: var(--glossary-white);
+  box-shadow: 0 4px 14px rgba(20, 83, 45, 0.10);
+}
+@media (min-width: 640px) { .backLinks { flex-direction: row; align-items: center; padding: 20px 24px; } }
+/* 「メンズエステ用語集に戻る」。
+   ★ 第391便（カッキーさんの指示）: 薄ピンクのべた塗り → ピンクの花柄（card-bg）。
+   ★ ここは**紫にしない**。紫は「いま選んでいる行」「地域で選ぶ」に使い、
+     この大きなボタンは用語集そのものへ戻る道なので、ページの基調（ピンク）のままにしてある。
+   ★ 膜の濃さ（0.86 / 0.90）はカード・注意文の箱と同じ。★ 文字は今までどおり読める。 */
+.backPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1.5px solid var(--glossary-accent);
+  background-color: #f3fcf7;
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86) 0%, rgba(243, 252, 247, 0.90) 100%),
+    linear-gradient(transparent, transparent);
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat, no-repeat;
+  color: var(--glossary-accent-dark);
+  font-size: 15px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.backPrimary:hover { background: var(--glossary-accent); color: var(--glossary-white); }
+.backPrimary:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+.backPrimary svg { width: 16px; height: 16px; flex-shrink: 0; }
+.backSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+  color: var(--glossary-text);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.backSecondary:hover { background: var(--glossary-accent-soft); border-color: var(--glossary-accent); }
+.backSecondary:focus-visible { outline: 3px solid var(--glossary-accent); outline-offset: 3px; }
+
+/* ── 著者 ── */
+.author {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--glossary-line);
+  background: linear-gradient(135deg, #f3fcf7 0%, #ffffff 100%);
+}
+.authorIcon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
+  border: 1.5px solid var(--glossary-line);
+  background: var(--glossary-white);
+}
+.authorIcon img { width: 100%; height: 100%; object-fit: cover; }
+.authorName { margin: 0; font-size: 14px; font-weight: 800; color: var(--glossary-ink); }
+.authorText { margin: 4px 0 0; font-size: 12px; line-height: 1.8; color: var(--glossary-muted); }

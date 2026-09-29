@@ -1,0 +1,269 @@
+import Link from 'next/link';
+import Image from 'next/image';
+import type { CSSProperties } from 'react';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { extractArticleHeadings, TOC_MIN_HEADINGS, type ArticleHeading } from '@/app/lib/articleToc';
+import { buildBreadcrumbJsonLd, buildFaqPageJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { getAllWorkGlossaryMeta, getWorkGlossaryEntry, WORK_GLOSSARY_CATEGORIES } from '@/app/lib/workGlossary';
+import { KANA_ROW_IDS, kanaRow, titleEmWidth } from '@/lib/glossaryParse';
+import { ArticleBody } from '@/app/column/ArticleBody';
+import { ArticleToc } from '@/app/column/ArticleToc';
+import { GlossaryCardGrid, toCardData } from '../GlossaryCard';
+import { GlossaryNotice } from '../GlossaryNotice';
+import { GlossaryCta } from '../GlossaryCta';
+import styles from '../glossary.module.css';
+
+// ★ 第362便: h1 全体がこの em を超えたら「メンズエステの」を1行目に割る（用語 8文字〜）。健全店 15.45／施術範囲 16.47 は割らない。
+const TITLE_SPLIT_EM = 20;
+
+// ★★★ フクエスワークのセラピスト用語集の1語ページ（/jobs/glossary/[slug]・第970便・2026-09-29）
+// ★ /glossary/[slug]（お客様目線）を写して、置き場所・文言・リンク先・色を働く人向けに差し替えたもの。
+// ★ 文章は src/content/work-glossary/<slug>.md（ビルド時に読む・静的生成）。★ 公開日はページに出さない（/glossary と同じ）。
+
+const SITE_URL = 'https://fukues.com';
+const AUTHOR_NAME = 'フクエスワーク編集部';
+
+export function generateStaticParams() {
+  return getAllWorkGlossaryMeta().map((m) => ({ slug: m.slug }));
+}
+
+// 未知の slug は 404（ファイルが無い語のURLを動的に生成しない）。
+export const dynamicParams = false;
+
+function pageTitle(term: string): string {
+  // ★ ルートの layout は title が固定文字列で template を持たない。/glossary 配下の layout にも
+  //   metadata を置いていない（置くと「｜フクエス」が二重になる）ので、フルタイトルをここで書く。
+  return `${term}とは？メンズエステで働く前に知りたい意味と実際`; // ★ /jobs の template が「｜フクエスワーク」を付ける
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const entry = getWorkGlossaryEntry(slug);
+  if (!entry) return {};
+  const { meta } = entry;
+  const title = pageTitle(meta.term);
+  const shareImage = meta.heroImage ? `${SITE_URL}${meta.heroImage}` : `${SITE_URL}/ogp-fukuwork.png`;
+  // ★ og:image:alt は heroImage を出すときだけ（既定の /ogp.png はフクエスのロゴ画像なので語の説明にならない）
+  const shareImageAlt = meta.heroImage ? (meta.heroAlt ?? `${meta.term}のイメージ`) : undefined;
+  return {
+    title,
+    description: meta.description,
+    alternates: { canonical: `/jobs/glossary/${meta.slug}` },
+    openGraph: {
+      title: `${title}｜フクエスワーク`,
+      description: meta.description,
+      url: `${SITE_URL}/jobs/glossary/${meta.slug}`,
+      siteName: 'フクエスワーク',
+      type: 'article',
+      images: [{ url: shareImage, ...(shareImageAlt ? { alt: shareImageAlt } : {}) }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: meta.description,
+      images: [shareImage],
+    },
+  };
+}
+
+export default async function WorkGlossaryTermPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const entry = getWorkGlossaryEntry(slug);
+  if (!entry) notFound();
+  const { meta, body, related } = entry;
+
+  // 目次: 本文の h2 ＋ テンプレートが足す節（FAQ・関連語）。
+  const headings: ArticleHeading[] = [...extractArticleHeadings(body)];
+  if (meta.faq.length > 0) headings.push({ id: 'faq', text: 'よくある質問' });
+  if (related.length > 0) headings.push({ id: 'related', text: '関連する用語' });
+  const showToc = headings.length >= TOC_MIN_HEADINGS;
+
+  // ★ 第361便: h1 を1行に収めるための「文字幅（em）」。
+  //   日本語（漢字・かな・全角記号）は1文字＝1em、半角英数は約0.5em で数える。
+  //   CSS 側が font-size = 入る幅 ÷ この数 にする（glossary.module.css の .termTitle）。
+  // ★ 第362便: 長い語は h1 を「前置き／「用語」とは？」の2行に割る。テキストは変えない（SEOの形は第350便のまま）。
+  //   割るときは、字の大きさを「長いほうの行」の em で決める（1行に全部を押し込まない）。
+  const h1Prefix = 'メンズエステの';
+  const h1Rest = `「${meta.term}」とは？`;
+  const h1Text = h1Prefix + h1Rest;
+  const splitTitle = titleEmWidth(h1Text) > TITLE_SPLIT_EM;
+  const titleEm = splitTitle
+    ? Math.max(titleEmWidth(h1Prefix), titleEmWidth(h1Rest))
+    : titleEmWidth(h1Text);
+
+  // 「か行の用語一覧へ戻る」。★ 健全店に決め打ちせず、読みから行を出す（どの語でも効く）。
+  const row = kanaRow(meta.reading);
+  const rowId = KANA_ROW_IDS[row] ?? 'other';
+  const rowLabel = row === 'その他' ? 'その他' : `${row}行`;
+
+  const termJsonLd = {
+    '@context': 'https://schema.org/',
+    '@type': 'DefinedTerm',
+    '@id': `${SITE_URL}/jobs/glossary/${meta.slug}`,
+    name: meta.term,
+    description: meta.summary,
+    url: `${SITE_URL}/jobs/glossary/${meta.slug}`,
+    inDefinedTermSet: { '@type': 'DefinedTermSet', '@id': `${SITE_URL}/jobs/glossary#set`, name: 'セラピスト用語集' },
+  };
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: 'フクエスワーク', path: '/jobs' },
+    { name: 'セラピスト用語集', path: '/jobs/glossary' },
+    { name: meta.term, path: `/jobs/glossary/${meta.slug}` },
+  ]);
+
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(termJsonLd) }} />
+      {meta.faq.length > 0 && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildFaqPageJsonLd(meta.faq)) }} />
+      )}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(breadcrumbJsonLd) }} />
+
+      <main className={styles.page}>
+        {/* パンくず：フクエス › 用語集 › 用語 */}
+        <nav aria-label="パンくず" className={styles.crumbs}>
+          <Link href="/jobs" className={styles.crumbLink}>フクエスワーク</Link>
+          <span aria-hidden="true" className={styles.crumbSep}>›</span>
+          <Link href="/jobs/glossary" className={styles.crumbLink}>セラピスト用語集</Link>
+          <span aria-hidden="true" className={styles.crumbSep}>›</span>
+          <span aria-current="page" className={styles.crumbCurrent}>{meta.term}</span>
+        </nav>
+
+        {/* ── 定義カード ── */}
+        <section className={styles.termHero} aria-labelledby="glossary-term-title">
+          {/* 右上の線画（本と虫眼鏡）。装飾なので読み上げない。 */}
+          <span className={styles.termHeroMark} aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 14h16a6 6 0 0 1 6 6v28a6 6 0 0 0-6-6H10V14Z" />
+              <path d="M54 14H38a6 6 0 0 0-6 6v28a6 6 0 0 1 6-6h16V14Z" />
+              <circle cx="44" cy="40" r="9" />
+              <path d="m51 47 7 7" />
+            </svg>
+          </span>
+
+          <div className={styles.termHeroInner}>
+            <p className={styles.eyebrow}>THERAPIST GLOSSARY</p>
+            <Link href="/jobs/glossary" className={styles.termBadge}>
+              {WORK_GLOSSARY_CATEGORIES[meta.category]}
+            </Link>
+
+            {/* h1 に「メンズエステの」を前置き（第350便）。title には「メンズエステ」が入っているが h1 に
+                無かった。一般的な検索（メンズエステ ○○ とは）への一致を h1 側でも揃える。 */}
+            {/* ★ 第361便: --term-title-em を渡すと、CSS が「入る幅 ÷ em 数」で字の大きさを決める。
+                スマホで2行になっていた見出しが1行に収まる（長すぎる語は 18px で止めて折り返す）。 */}
+            <h1
+              id="glossary-term-title"
+              className={splitTitle ? `${styles.termTitle} ${styles.termTitleSplit}` : styles.termTitle}
+              style={{ '--term-title-em': titleEm } as CSSProperties}
+            >
+              <span className={styles.termTitlePrefix}>{h1Prefix}</span>
+              <span className={styles.termTitleTerm}>「{meta.term}」</span>
+              とは？
+            </h1>
+            <p className={styles.termReading}>読み: {meta.reading}</p>
+
+            {/* 定義文（frontmatter の summary）。★ 一覧のカードに出しているものと同じ1文。 */}
+            <p className={styles.termLead}>{meta.summary}</p>
+
+            <div className={styles.termMetaRow}>
+              <Link href={`/jobs/glossary#row-${rowId}`} className={styles.termRowLink}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                {rowLabel}の用語一覧へ戻る
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ── 読み物の列（本文・FAQ・関連語） ── */}
+        <div className={styles.termColumn}>
+          {/* ヒーロー画像（public に有るときだけ。無ければ何も出ない） */}
+          {meta.heroImage && (
+            <div className={`${styles.section}`}>
+              <Image
+                src={meta.heroImage}
+                alt={meta.heroAlt ?? `${meta.term}のイメージ`}
+                width={1200}
+                height={630}
+                priority
+                sizes="(max-width: 800px) 100vw, 800px"
+                className="w-full h-auto border border-pink-100"
+              />
+            </div>
+          )}
+
+          {showToc && <ArticleToc headings={headings} star />}
+
+          {/* 本文（Markdown・本文中の画像あり） */}
+          <article className={`${styles.termArticle} ${styles.section}`}>
+            <ArticleBody body={body} allowImages star />
+          </article>
+
+          {/* よくある質問（frontmatter の faq。★ 閉じない＝FAQPage の内容と同じものを常に表示） */}
+          {meta.faq.length > 0 && (
+            <section className={styles.section} aria-labelledby="faq">
+              <h2 id="faq" className={styles.h2}>
+                <span className={styles.h2Bar} aria-hidden="true" />
+                よくある質問
+              </h2>
+              <div className={styles.faqList}>
+                {meta.faq.map((f) => (
+                  <div key={f.q} className={styles.faqItem}>
+                    <p className={styles.faqQ}><span>{f.q}</span></p>
+                    <p className={styles.faqA}><span>{f.a}</span></p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 関連する用語（存在する語だけ・一覧と同じカード） */}
+          {related.length > 0 && (
+            <section className={styles.section} aria-labelledby="related">
+              <h2 id="related" className={styles.h2}>
+                <span className={styles.h2Bar} aria-hidden="true" />
+                関連する用語
+              </h2>
+              <GlossaryCardGrid items={related.map(toCardData)} dense />
+            </section>
+          )}
+
+          {/* 著者表記 */}
+          <div className={`${styles.author} ${styles.section}`}>
+            <div className={styles.authorIcon}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/column/author-fukueswork.webp" width={256} height={256} alt="" loading="lazy" decoding="async" />
+            </div>
+            <div className="min-w-0">
+              <p className={styles.authorName}>{AUTHOR_NAME}</p>
+              <p className={styles.authorText}>
+                福岡のメンズエステ求人サイト「フクエスワーク」の編集部です。メンズエステで安心して働くための情報をお届けします。
+              </p>
+            </div>
+          </div>
+
+          {/* 掲載店舗についての方針文（1回だけ・ハブと共通の部品） */}
+          <GlossaryNotice className={styles.section} />
+
+          {/* 用語集へ戻る導線（ブラウザの「戻る」に頼らせない） */}
+          <nav className={`${styles.backLinks} ${styles.section}`} aria-label="用語集へ戻る">
+            <Link href="/jobs/glossary" className={styles.backPrimary}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              セラピスト用語集に戻る
+            </Link>
+            <Link href={`/jobs/glossary#row-${rowId}`} className={styles.backSecondary}>
+              {rowLabel}の用語を見る
+            </Link>
+          </nav>
+        </div>
+
+        {/* 店舗検索CTA（ハブと共通の部品・ページ幅いっぱい） */}
+        <GlossaryCta className={styles.section} />
+      </main>
+    </>
+  );
+}

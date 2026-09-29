@@ -10,6 +10,7 @@ import { badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { ARTICLE_CATEGORY_ORDER } from '@/app/lib/articleCategories';
 import { MAIN_ARTICLE_CATEGORY_ORDER } from '@/app/lib/mainArticleCategories';
 import { getAllGlossaryMeta } from '@/app/lib/glossary';
+import { getAllWorkGlossaryMeta } from '@/app/lib/workGlossary';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -93,6 +94,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/column`, changeFrequency: 'daily', priority: 0.7 },
     // メンズエステ用語集のハブ（/glossary・第349便）。語は下の glossaryEntries。
     { url: `${SITE_URL}/glossary`, changeFrequency: 'weekly', priority: 0.7 },
+    // ★ 第970便: フクエスワークのセラピスト用語集のハブ（/jobs/glossary）。語は下の workGlossaryEntries。
+    { url: `${SITE_URL}/jobs/glossary`, changeFrequency: 'weekly', priority: 0.6 },
     // ポリシー類（法令対応・E-E-A-T用の静的ページ。更新頻度は低い）。
     // 運営者情報（E-E-A-T用の静的ページ。2026-07-23追加）。
     { url: `${SITE_URL}/about`, changeFrequency: 'yearly', priority: 0.3 },
@@ -276,9 +279,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // ★ 第970便: セラピスト用語集の各語（/jobs/glossary/<slug>）。src/content/work-glossary/*.md。
+  const workGlossaryEntries: MetadataRoute.Sitemap = getAllWorkGlossaryMeta().map((m) => ({
+    url: `${SITE_URL}/jobs/glossary/${m.slug}`,
+    lastModified: new Date(`${m.publishedAt}T00:00:00+09:00`),
+    changeFrequency: 'monthly',
+    priority: 0.5,
+  }));
+
   return [
     ...staticEntries,
     ...glossaryEntries,
+    ...workGlossaryEntries,
     ...areaPageEntries,
     ...salonEntries,
     ...salonSubpageEntries,

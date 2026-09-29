@@ -99,6 +99,11 @@ export default async function JobsLayout({ children }: { children: React.ReactNo
             <Link href="/jobs/banner" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
               リンクバナー
             </Link>
+            {' ／ '}
+            {/* ★ 第970便: セラピスト用語集（/jobs/glossary）への常設の入口 */}
+            <Link href="/jobs/glossary" className="font-medium hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
+              セラピスト用語集
+            </Link>
           </p>
           <p className="text-xs text-slate-400">
             運営:{' '}

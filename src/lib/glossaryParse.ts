@@ -155,7 +155,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * 1語ファイルの全文を meta と body に分ける。
  * ★ 失敗は throw（理由は日本語で1行・先頭に「glossary <slug>:」）。
  */
-export function parseGlossaryFile(raw: string, fileSlug: string): ParsedGlossary {
+// ★ 第970便: allowedCategories を渡すと、そのカテゴリーの集合で検証する（フクエスワークのセラピスト用語集 /jobs/glossary 用）。
+//   ★ 省略時は今までどおり GLOSSARY_CATEGORY_ORDER（/glossary）。★ 型は GlossaryCategory のまま（呼び元で読み替える）。
+export function parseGlossaryFile(raw: string, fileSlug: string, allowedCategories?: readonly string[]): ParsedGlossary {
   const text = raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const lines = text.split('\n');
   if (lines[0]?.trim() !== '---') fail(fileSlug, '先頭が --- で始まっていない（frontmatter が無い）');
@@ -179,7 +181,7 @@ export function parseGlossaryFile(raw: string, fileSlug: string): ParsedGlossary
   const heroAlt = str(meta, 'heroAlt', fileSlug, false);
 
   if (slug !== fileSlug) fail(fileSlug, `slug（${slug}）がファイル名（${fileSlug}）と違う`);
-  if (!(GLOSSARY_CATEGORY_ORDER as readonly string[]).includes(category)) fail(fileSlug, `category が未知: ${category}`);
+  if (!(allowedCategories ?? (GLOSSARY_CATEGORY_ORDER as readonly string[])).includes(category)) fail(fileSlug, `category が未知: ${category}`);
   if (!DATE_RE.test(publishedAt)) fail(fileSlug, `publishedAt は YYYY-MM-DD で書く: ${publishedAt}`);
   if (!HIRAGANA_RE.test(reading)) fail(fileSlug, `reading はひらがなだけで書く: ${reading}`);
   if (description.length > GLOSSARY_DESCRIPTION_MAX) fail(fileSlug, `description が ${GLOSSARY_DESCRIPTION_MAX} 字を超えている（${description.length} 字）`);
