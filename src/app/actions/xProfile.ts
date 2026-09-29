@@ -96,6 +96,15 @@ export async function updateMyXProfile(profileId: string, patch: Record<string, 
   const clean: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(patch ?? {})) if (UPDATABLE.has(k)) clean[k] = v;
   if (Object.keys(clean).length === 0) return { ok: true };
+  // ★ 第996便: フクエスに在籍（セラピストページ連携・公開中）のセラピストは、リンク先をフクエスの個別ページに固定
+  if ('link_url' in clean) {
+    const { data: meRow } = await supabase.from('x_profiles').select('kind').eq('id', profileId).eq('auth_user_id', user.id).maybeSingle();
+    if (meRow?.kind === 'therapist') {
+      const { getLinkedTherapistForXProfile, fukuesTherapistPageUrl } = await import('@/app/lib/xLink');
+      const linked = await getLinkedTherapistForXProfile(user.id);
+      if (linked) clean.link_url = fukuesTherapistPageUrl(linked.id);
+    }
+  }
   const { data, error } = await supabase
     .from('x_profiles')
     .update(clean)

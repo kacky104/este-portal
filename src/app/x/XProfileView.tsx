@@ -51,6 +51,7 @@ export function XProfileView({
   affiliatedShop,
   affiliatedTherapists,
   scheduleTherapistId,
+  fixedLinkUrl = null,
 }: {
   target: XProfile;
   storyGroup: StoryGroup | null; // target の未失効ストーリー（あればアバターにリング＋タップでビューア）
@@ -72,6 +73,7 @@ export function XProfileView({
   affiliatedShop: ShopMini | null; // target が therapist のとき所属先（無ければ null）
   affiliatedTherapists: TherapistMini[]; // target が shop のとき所属セラピスト一覧
   scheduleTherapistId: number | null; // 紐づく本体 therapist id（セラピスト＋連携時のみ。無ければスケジュール非表示）
+  fixedLinkUrl?: string | null; // ★ 第996便: フクエス在籍のセラピストは、リンク先をフクエスの個別ページに固定（link_url より優先）
 }) {
   const { toast, showToast } = useXToast();
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
@@ -290,11 +292,11 @@ export function XProfileView({
 
             {/* リンク（任意・http/https のみ）と fukuX開始日（作成日・変更不可）を同じ行に。
                 リンクが無くても開始日は単独で表示する（狭幅は折り返し）。 */}
-            {(safeHref(target.link_url) || startDate) && (
+            {(safeHref(fixedLinkUrl ?? target.link_url) || startDate) && (
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                {safeHref(target.link_url) && (
+                {safeHref(fixedLinkUrl ?? target.link_url) && (
                   <a
-                    href={safeHref(target.link_url)!}
+                    href={safeHref(fixedLinkUrl ?? target.link_url)!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-[color:var(--x-accent)] hover:underline"
@@ -303,7 +305,7 @@ export function XProfileView({
                       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                     </svg>
-                    <span className="truncate">{linkDomain(target.link_url!)}</span>
+                    <span className="truncate">{fixedLinkUrl ? 'フクエスのセラピストページ' : linkDomain(target.link_url!)}</span>
                   </a>
                 )}
                 {startDate && <span className="text-xs text-[color:var(--x-text-secondary)]">{startDate}</span>}

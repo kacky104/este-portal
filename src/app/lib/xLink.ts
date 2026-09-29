@@ -109,3 +109,9 @@ export async function getLinkedTherapistForXProfile(
 
   return { id: t.id as number, name: (t.name as string) ?? '' };
 }
+
+// ★★ 第996便（2026-09-30・カッキーさん）: フクエスに在籍（セラピストページ連携・公開中）のセラピストは、
+//   fukuX プロフィールのリンク先を【フクエスのその子の個別ページ】に固定する。在籍が無い子は今まで通り好きなリンク。
+export function fukuesTherapistPageUrl(therapistId: number): string {
+  return `https://fukues.com/therapist/${therapistId}`;
+}

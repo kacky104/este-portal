@@ -51,10 +51,12 @@ export function XSettingsForm({
   profile,
   email,
   affiliatedShop,
+  fixedLinkUrl = null,
 }: {
   profile: XProfile;
   email: string | null;
   affiliatedShop: ShopMini | null;
+  fixedLinkUrl?: string | null; // ★ 第996便: フクエス在籍のセラピストはリンク先固定（入力欄を出さない）
 }) {
   const router = useRouter();
 
@@ -225,7 +227,8 @@ export function XSettingsForm({
       return;
     }
     // リンク検証（http/https のみ・スキーム無しは https:// 補完・危険スキームは弾く）。空は null。
-    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
+    // ★ 第996便: 固定リンクの人は入力値を使わず固定先を保存（サーバー側でも同じに揃える）
+    const { url: linkUrl, error: linkErr } = fixedLinkUrl ? { url: fixedLinkUrl, error: null } : normalizeLinkUrl(link);
     if (linkErr) {
       setError(linkErr);
       return;
@@ -410,7 +413,17 @@ export function XSettingsForm({
         </p>
       </div>
 
-      {/* ── リンク（任意・http/https のみ）── text-base(16px) で iOS 自動ズーム抑止 */}
+      {/* ── リンク（任意・http/https のみ）── text-base(16px) で iOS 自動ズーム抑止
+          ★ 第996便: フクエスに在籍しているセラピストは、フクエスの個別ページに固定（入力欄なし） */}
+      {fixedLinkUrl ? (
+        <div>
+          <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">リンク</label>
+          <div className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border)] text-sm bg-[color:var(--x-inset)] text-[color:var(--x-text-secondary)] break-all">
+            {fixedLinkUrl}
+          </div>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">フクエスに在籍しているセラピストのリンクは、フクエスのあなたのページに固定されます。</p>
+        </div>
+      ) : (
       <div>
         <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">リンク（任意）</label>
         <input
@@ -426,6 +439,7 @@ export function XSettingsForm({
         />
         <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1 px-1">http:// または https:// のリンク（プロフィールに表示されます）</p>
       </div>
+      )}
 
       {/* ── プライバシー：DM受付（全kind共通） ── */}
       <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">

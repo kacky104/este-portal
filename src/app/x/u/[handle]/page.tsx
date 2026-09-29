@@ -20,7 +20,7 @@ import {
 } from '../../xAffiliation';
 import { countVerifiedProfiles } from '../../xFollows';
 import { XProfileView } from '../../XProfileView';
-import { getLinkedTherapistForXProfile } from '@/app/lib/xLink';
+import { getLinkedTherapistForXProfile, fukuesTherapistPageUrl } from '@/app/lib/xLink';
 import type { StoryGroup } from '../../xStories';
 
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
@@ -197,9 +197,9 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     target.kind === 'shop'
       ? fetchAffiliatedTherapists(supabase, target.id)
       : Promise.resolve([] as TherapistMini[]),
-    // 本体 therapist は fukuX の所属とは別系統（auth_user_id 紐づけ）のため、
-    // fukuX 上で未所属（affiliated_shop_id null）なら解決しない＝所属解除でスケジュールブロックも消える。
-    target.kind === 'therapist' && t.affiliated_shop_id
+    // 本体 therapist（auth_user_id 紐づけ・公開中）。★ 第996便: 所属の有無に関わらず解決する（リンク先の固定に使う）。
+    //   出勤スケジュールは従来どおり fukuX 上で所属しているときだけ出す（下の scheduleTherapistId）。
+    target.kind === 'therapist'
       ? getLinkedTherapistForXProfile(target.auth_user_id)
       : Promise.resolve(null),
     // target の未失効ストーリー（アバターのストーリーリング用）。閲覧はログイン必須＝RLSにより未ログインは常に0件。
@@ -210,7 +210,9 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: true }),
   ]);
-  const scheduleTherapistId = linkedTherapist?.id ?? null; // 紐づく therapist が無ければ null＝ブロック非表示
+  const scheduleTherapistId = t.affiliated_shop_id ? (linkedTherapist?.id ?? null) : null; // 所属中＋紐づく therapist があるときだけ＝無ければブロック非表示
+  // ★ 第996便: フクエスに在籍している子は、リンク先をフクエスの個別ページに固定
+  const fixedLinkUrl = linkedTherapist ? fukuesTherapistPageUrl(linkedTherapist.id) : null;
 
   // ストーリーが無ければ null＝アバターは従来表示（リングなし・タップで全体表示）。
   const storyRows = (storyRes.data ?? []) as Array<{ id: number | string; image_url: string; caption: string | null; created_at: string }>;
@@ -349,6 +351,7 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
         affiliatedShop={affiliatedShop}
         affiliatedTherapists={affiliatedTherapists}
         scheduleTherapistId={scheduleTherapistId}
+        fixedLinkUrl={fixedLinkUrl}
       />
     </>
   );
