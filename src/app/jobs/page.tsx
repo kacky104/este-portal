@@ -198,6 +198,42 @@ export default async function JobsPage() {
         </section>
       )}
 
+      {/* ★ 第978便（カッキーさん）: セラピスト用語集（/jobs/glossary）へのバナー。お仕事コラムのすぐ下。
+          ★ 写真は用語集のタイトル部分と同じ public/work-glossary/hero-bg.webp（右に女性）。文字は左に HTML で重ねる。 */}
+      <Link
+        href="/jobs/glossary"
+        className="group relative mt-8 block overflow-hidden rounded-2xl border border-emerald-100 shadow-sm hover:shadow-md transition-shadow"
+        aria-label="セラピスト用語集を見る"
+      >
+        <div className="relative h-[150px] sm:h-[180px]">
+          <Image
+            src="/work-glossary/hero-bg.webp"
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-cover"
+            style={{ objectPosition: 'right 20%' }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.8) 45%, rgba(255,255,255,0) 72%)' }}
+          />
+          <div className="absolute inset-y-0 left-0 flex w-[66%] sm:w-[64%] flex-col justify-center px-4 sm:px-7">
+            <p className="text-[9px] sm:text-[10px] font-bold tracking-[0.3em]" style={{ color: '#047857' }}>THERAPIST GLOSSARY</p>
+            <p className="mt-1 text-xl sm:text-2xl font-black text-slate-900 leading-tight">セラピスト用語集</p>
+            <p className="mt-1.5 text-[11px] sm:text-[13px] leading-snug text-slate-600">
+              バック率・日払い・体験入店など、<br />働く前に知りたい言葉をやさしく解説
+            </p>
+            <span
+              className="mt-2.5 inline-flex w-fit items-center gap-1 rounded-full px-3 py-1 text-[11px] sm:text-xs font-bold text-white group-hover:opacity-90 transition-opacity"
+              style={{ background: 'linear-gradient(95deg,#10B981,#84CC16)' }}
+            >
+              用語集を見る →
+            </span>
+          </div>
+        </div>
+      </Link>
+
       {/* ── セラピスト求人（テキスト一覧）：ページ最下部＝コラム枠より下に配置 ──
           見出しは常に h2（h1 は上部の JobHeroBanners が常設で担うため、ここを昇格させない）。 */}
       <div className="mt-10">
