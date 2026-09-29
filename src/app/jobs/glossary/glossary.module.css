@@ -105,18 +105,33 @@
   position: relative;
   overflow: hidden;
   border: 1px solid #d1fae5;
+  /* ★ 第976便（カッキーさん作の画像）: スマホは縦長の写真（上に女性・下が白くぼける）を上に敷き、
+     文字は女性の下のぼけた所から始める（padding-top ＝ 写真の高さの約56%）。
+     ★ 写真の下端が切れて見えないよう、下地は写真の下端とほぼ同じ淡い緑。 */
+  background-color: #eef6f0;
   background-image:
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0) 100%),
-    linear-gradient(transparent, transparent),
-    linear-gradient(135deg, #fff 0%, #effbf4 60%, #f7fdf2 100%);
-  background-size: cover, cover, cover;
-  background-position: center, right bottom, center;
-  background-repeat: no-repeat, no-repeat, no-repeat;
+    url('/work-glossary/hero-bg-sp.webp'),
+    linear-gradient(to bottom, #f3f9f4 0%, #eef6f0 100%);
+  background-size: 100% auto, cover;
+  background-position: right top, center;
+  background-repeat: no-repeat, no-repeat;
   box-shadow: 0 18px 50px rgba(20, 83, 45, 0.16);
-  padding: 28px 20px;
+  padding: calc((100vw - 32px) * 0.56) 20px 28px;
 }
+/* ★ 第976便: タブレット（768px 以上）から PC の写真（右に女性）。文字は左 56%。 */
 @media (min-width: 768px) {
-  .hero { padding: 48px 56px; }
+  .hero {
+    padding: 48px 56px;
+    min-height: 420px;
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.6) 45%, rgba(255, 255, 255, 0) 68%),
+      url('/work-glossary/hero-bg.webp'),
+      linear-gradient(135deg, #fff 0%, #effbf4 60%, #f7fdf2 100%);
+    background-size: cover, cover, cover;
+    background-position: center, right center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat;
+  }
+  .heroInner { max-width: 56%; }
 }
 @media (min-width: 1024px) {
   .hero { padding: 52px 64px; }
@@ -137,7 +152,7 @@
   .hero {
     background-image:
       linear-gradient(to right, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0.5) 38%, rgba(255, 255, 255, 0) 60%),
-      linear-gradient(transparent, transparent),
+      url('/work-glossary/hero-bg.webp'),
       linear-gradient(135deg, #fff 0%, #effbf4 60%, #f7fdf2 100%);
     background-size: cover, cover, cover;
     background-position: center, right center, center;
