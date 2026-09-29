@@ -89,3 +89,15 @@ export async function autoLinkMyAffiliation(client: AnyClient): Promise<string |
   }
   return typeof data === 'string' && data ? data : null;
 }
+
+// ★★ 第1000便（2026-09-30・カッキーさん）: フクエスに掲載中のお店の fukuX アカウントに、自動で認証バッジを付ける。
+//   ★ 中身は DB の関数 x_shop_auto_verify（supabase/migrations/20260930_x_shop_auto_verify.sql）。本人のログインで呼ぶ。
+//   ★ 戻り値: true=認証済み（今回 or 以前から）、false=条件に合わない／失敗。
+export async function autoVerifyMyShop(client: AnyClient): Promise<boolean> {
+  const { data, error } = await client.rpc('x_shop_auto_verify');
+  if (error) {
+    console.error('[x] お店の自動認証に失敗', error.message);
+    return false;
+  }
+  return data === true;
+}

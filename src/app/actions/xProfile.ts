@@ -79,6 +79,11 @@ export async function createMyXProfile(input: {
     const { autoLinkMyAffiliation } = await import('@/app/x/xAffiliation');
     await autoLinkMyAffiliation(supabase);
   }
+  // ★ 第1000便: お店なら、フクエスに掲載中の店舗オーナーは自動で認証バッジ（条件に合わなければ何もしない）
+  if (input.kind === 'shop') {
+    const { autoVerifyMyShop } = await import('@/app/x/xAffiliation');
+    await autoVerifyMyShop(supabase);
+  }
   return { ok: true };
 }
 

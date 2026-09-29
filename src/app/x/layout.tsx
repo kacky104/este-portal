@@ -3,7 +3,7 @@ import { XHeader } from './XHeader';
 import { XMeProvider, type MeSeed } from './XMeProvider';
 import { getXContext } from './xProfile';
 import { createClient } from '@/app/lib/supabase/server';
-import { fetchShopMini, autoLinkMyAffiliation } from './xAffiliation';
+import { fetchShopMini, autoLinkMyAffiliation, autoVerifyMyShop } from './xAffiliation';
 import './x-theme.css';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 
@@ -66,7 +66,13 @@ export default async function XLayout({ children }: { children: React.ReactNode 
       affiliatedShop = shop ? { handle: shop.handle, displayName: shop.displayName } : null;
     }
   }
-  const seed: MeSeed = { me: profile, userId, email, affiliatedShop };
+  // ★ 第1000便: まだ認証バッジの無いお店アカウントは、フクエスに掲載中なら自動で認証（条件に合わなければ何もしない）
+  let me = profile;
+  if (profile?.kind === 'shop' && !profile.is_verified) {
+    const supabase = await createClient();
+    if (await autoVerifyMyShop(supabase)) me = { ...profile, is_verified: true };
+  }
+  const seed: MeSeed = { me, userId, email, affiliatedShop };
 
   return (
     <div
