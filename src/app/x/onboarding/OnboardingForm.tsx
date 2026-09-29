@@ -381,7 +381,7 @@ export function OnboardingForm(_props: { userId: string }) { // ★ 第983便: �
 
       {/* ③ handle（@ID） */}
       <div>
-        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">ID（@ユーザー名）</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">ID（@ユーザー名）<span className="ml-1.5 font-normal text-rose-400">※開設後は変更できません</span></label>
         <div className="flex items-center rounded-xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] focus-within:ring-2 focus-within:ring-indigo-400 focus-within:border-transparent overflow-hidden">
           <span className="pl-3 pr-1 text-[color:var(--x-text-muted)] font-bold select-none">@</span>
           <input
@@ -401,12 +401,12 @@ export function OnboardingForm(_props: { userId: string }) { // ★ 第983便: �
 
       {/* ④ display_name */}
       <div>
-        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">表示名</label>
+        <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">アカウント名<span className="ml-1.5 font-normal">（開設後に変更できます）</span></label>
         <input
           type="text"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="表示名を入力"
+          placeholder="アカウント名を入力"
           maxLength={DISPLAY_MAX}
           className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
