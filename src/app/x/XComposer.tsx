@@ -380,10 +380,11 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
         </label>
       )}
 
-      <div className="mt-2 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      {/* ★ 第995便: スマホでは「画像・下書き・残り」の行と「下書き保存・投稿する」の行の2段に分ける（1行に詰めると文字が2行に折れて読めない）。PC は従来の1行。 */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-y-2">
+        <div className="flex items-center gap-3 whitespace-nowrap">
           <label
-            className={`inline-flex items-center gap-1 text-xs font-bold cursor-pointer transition-colors ${
+            className={`inline-flex items-center gap-1 text-xs font-bold cursor-pointer transition-colors whitespace-nowrap ${
               images.length >= MAX_IMAGES ? 'text-[color:var(--x-text-muted)] cursor-not-allowed' : 'text-indigo-500 hover:text-[color:var(--x-accent)]'
             }`}
           >
@@ -408,7 +409,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
             <button
               type="button"
               onClick={() => setShowDrafts(true)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:text-[color:var(--x-accent)] transition-colors"
+              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-500 hover:text-[color:var(--x-accent)] transition-colors whitespace-nowrap"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -418,19 +419,19 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
             </button>
           )}
 
-          <span className="text-[11px] text-[color:var(--x-text-muted)] tabular-nums">
+          <span className="text-[11px] text-[color:var(--x-text-muted)] tabular-nums whitespace-nowrap">
             残り{BODY_MAX - body.length}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
           {/* 下書き保存（編集モード以外・内容があるときのみ有効） */}
           {!isEdit && (
             <button
               type="button"
               onClick={onClickSaveDraft}
               disabled={!hasDraftableContent || savingDraft || posting || uploading}
-              className="px-4 py-2 rounded-full font-bold text-sm border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:bg-[color:var(--x-inset)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 rounded-full font-bold text-sm whitespace-nowrap border border-[color:var(--x-border-strong)] text-[color:var(--x-text-secondary)] hover:bg-[color:var(--x-inset)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {savingDraft ? '保存中...' : '下書き保存'}
             </button>
@@ -439,7 +440,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
             type="button"
             onClick={submit}
             disabled={!canPost}
-            className="px-5 py-2 rounded-full text-white font-bold text-sm shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            className="px-5 py-2 rounded-full text-white font-bold text-sm whitespace-nowrap shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
             style={{ background: 'linear-gradient(100deg,#6366F1,#8B5CF6)' }}
           >
             {posting
