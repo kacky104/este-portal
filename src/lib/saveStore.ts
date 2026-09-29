@@ -5,6 +5,9 @@
 // バックエンド（local/DB）を意識しなくてよい。変更時は従来と同じイベントを必ず発火する。
 import { createClient } from '@/app/lib/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+// ★ 第982便: saved_items の読み書きはサーバーアクションで（アプリ内ブラウザで送る前に止まる事故の対策）。
+//   ログイン状態の見張り（onAuthStateChange）だけは従来どおりブラウザで行う。
+import { loadMySavedItems, setMySavedItem, mergeMySavedItems } from '@/app/actions/savedItems';
 
 export type SavedSalon = { id: number; name: string };
 export type SavedTherapist = { id: number; name: string; salonId: number };
@@ -99,13 +102,13 @@ export function initSaveStore() {
     session = sess ?? null;
     if (event === 'SIGNED_IN' && sess) {
       // ログイン時：端末の保存を DB へマージ → クリア → DB を読み込む
-      mergeLocalToDb(sess.user.id).then(loadDbCache);
+      mergeLocalToDb().then(loadDbCache);
     } else if (event === 'INITIAL_SESSION') {
       if (sess) {
         // 確認後オートログイン等で、端末に未マージの保存が残っていればマージしてから読み込む。
         // 通常のログイン済み再訪は localStorage が空のためマージは走らない（再マージ防止）。
         const hasLocal = readLocalSalons().length > 0 || readLocalTherapists().length > 0 || readLocalJobSalons().length > 0;
-        if (hasLocal) mergeLocalToDb(sess.user.id).then(loadDbCache);
+        if (hasLocal) mergeLocalToDb().then(loadDbCache);
         else loadDbCache();
       } else {
         emitAll(); // 未ログイン（localStorage）モード確定
@@ -122,13 +125,10 @@ export function initSaveStore() {
 }
 
 async function loadDbCache() {
-  const supabase = createClient();
-  const { data, error } = await supabase
-    .from('saved_items')
-    .select('item_type, item_id, created_at')
-    .order('created_at', { ascending: true });
-  if (error) { dbReady = false; return; }
-  const rows = (data ?? []) as { item_type: string; item_id: number | string }[];
+  let res: Awaited<ReturnType<typeof loadMySavedItems>>;
+  try { res = await loadMySavedItems(); } catch { dbReady = false; return; }
+  if (!res.ok) { dbReady = false; return; }
+  const rows = res.rows;
   dbSalonIds = rows.filter(r => r.item_type === 'salon').map(r => Number(r.item_id));
   dbTherapistIds = rows.filter(r => r.item_type === 'therapist').map(r => Number(r.item_id));
   dbJobSalonIds = rows.filter(r => r.item_type === 'job_salon').map(r => Number(r.item_id));
@@ -136,20 +136,20 @@ async function loadDbCache() {
   emitAll();
 }
 
-async function mergeLocalToDb(userId: string) {
+async function mergeLocalToDb() {
   const ls = readLocalSalons();
   const lt = readLocalTherapists();
   const lj = readLocalJobSalons();
   const rows = [
-    ...ls.map(s => ({ user_id: userId, item_type: 'salon', item_id: s.id })),
-    ...lt.map(t => ({ user_id: userId, item_type: 'therapist', item_id: t.id })),
-    ...lj.map(j => ({ user_id: userId, item_type: 'job_salon', item_id: j.id })),
+    ...ls.map(s => ({ kind: 'salon' as const, id: s.id })),
+    ...lt.map(t => ({ kind: 'therapist' as const, id: t.id })),
+    ...lj.map(j => ({ kind: 'job_salon' as const, id: j.id })),
   ];
   if (rows.length) {
-    const supabase = createClient();
-    await supabase
-      .from('saved_items')
-      .upsert(rows, { onConflict: 'user_id,item_type,item_id', ignoreDuplicates: true });
+    // ★ 第982便: 入れられなかったら端末側は消さずに残す（次の機会にもう一度まとめる）
+    let merged = false;
+    try { merged = (await mergeMySavedItems(rows)).ok; } catch { merged = false; }
+    if (!merged) return;
   }
   // マージ後は端末側をクリア（DBを単一ソースに。再マージや二重表示を防止）。
   if (typeof window !== 'undefined') {
@@ -162,7 +162,6 @@ async function mergeLocalToDb(userId: string) {
 // ── DB 書き込み（楽観的更新。失敗時はキャッシュを戻して再通知） ──
 async function writeDb(kind: 'salon' | 'therapist' | 'job_salon', id: number, add: boolean) {
   if (!session) return;
-  const supabase = createClient();
   const event =
     kind === 'salon' ? SAVED_SALONS_EVENT
     : kind === 'therapist' ? SAVED_THERAPISTS_EVENT
@@ -174,23 +173,9 @@ async function writeDb(kind: 'salon' | 'therapist' | 'job_salon', id: number, ad
     else dbJobSalonIds = undo(dbJobSalonIds);
     emit(event);
   };
-  if (add) {
-    const { error } = await supabase
-      .from('saved_items')
-      .upsert(
-        { user_id: session.user.id, item_type: kind, item_id: id },
-        { onConflict: 'user_id,item_type,item_id', ignoreDuplicates: true }
-      );
-    if (error) revert();
-  } else {
-    const { error } = await supabase
-      .from('saved_items')
-      .delete()
-      .eq('user_id', session.user.id)
-      .eq('item_type', kind)
-      .eq('item_id', id);
-    if (error) revert();
-  }
+  let saved = false;
+  try { saved = (await setMySavedItem(kind, id, add)).ok; } catch { saved = false; }
+  if (!saved) revert();
 }
 
 // ── 公開API：サロン ──
