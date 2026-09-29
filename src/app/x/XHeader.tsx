@@ -303,7 +303,9 @@ export function XHeader() {
           <nav className="flex-1 overflow-y-auto p-2">
             {loggedIn && profile ? (
               <>
-                <DrawerLink href={`/x/u/${profile.handle}`} onClick={() => setOpen(false)} label="マイプロフィール" />
+                {/* ★ 第991便: 「ホーム」＝自分のアカウントのページ・「プロフィール編集」＝設定画面 */}
+                <DrawerLink href={`/x/u/${profile.handle}`} onClick={() => setOpen(false)} label="ホーム" />
+                <DrawerLink href="/x/settings" onClick={() => setOpen(false)} label="プロフィール編集" />
                 <DrawerLink href="/x/saved" onClick={() => setOpen(false)} label="保存した投稿" />
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {(isVerifiedShop || profile.kind === 'official') && (
