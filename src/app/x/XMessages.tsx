@@ -2,29 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/client';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XListSkeleton } from './XSkeleton';
 import { useMe } from './XMeProvider';
-import type { DmOtherProfile } from './xDmShared';
+import { listMyXConversations, type ConvItem } from './xReadActions';
 
-const sb = createClient();
 
-type ConvRow = {
-  id: string | number;
-  participant_a: string;
-  participant_b: string;
-  last_message_at: string;
-};
 
-type ConvItem = {
-  id: string;
-  other: DmOtherProfile | null;
-  preview: string | null;
-  lastAt: string;
-  unread: boolean;
-};
 
 // 会話一覧（要ログイン）。RLS により自分が参加する会話だけが返る。last_message_at 降順。
 export function XMessages() {
@@ -40,87 +25,12 @@ export function XMessages() {
     }
     let alive = true;
     (async () => {
-      const myId = me.id;
-
-      // 自分の会話（RLSで自分のものだけ）。
-      const { data: convRows } = await sb
-        .from('x_conversations')
-        .select('id, participant_a, participant_b, last_message_at')
-        .order('last_message_at', { ascending: false });
-      const convs = (convRows ?? []) as ConvRow[];
-      if (convs.length === 0) {
-        if (alive) {
-          setItems([]);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const convIds = convs.map((c) => String(c.id));
-      const otherIds = [
-        ...new Set(convs.map((c) => (c.participant_a === myId ? c.participant_b : c.participant_a))),
-      ];
-
-      // 相手プロフィール・自分の既読位置・各会話の最新メッセージをまとめて取得。
-      const [profRes, readRes, msgRes] = await Promise.all([
-        sb
-          .from('x_profiles')
-          .select('id, handle, display_name, avatar_url, kind, is_verified, status, dm_disabled')
-          .in('id', otherIds),
-        sb.from('x_conversation_reads').select('conversation_id, last_read_at').eq('profile_id', myId).in('conversation_id', convIds),
-        sb
-          .from('x_messages')
-          .select('conversation_id, body, created_at, sender_profile_id')
-          .in('conversation_id', convIds)
-          .order('created_at', { ascending: false })
-          .limit(500),
-      ]);
-
-      const profDict = new Map<string, DmOtherProfile>();
-      (profRes.data ?? []).forEach((p) =>
-        profDict.set(p.id as string, {
-          id: p.id as string,
-          handle: (p.handle as string) ?? '',
-          displayName: (p.display_name as string) ?? '',
-          avatarUrl: (p.avatar_url as string | null) ?? null,
-          kind: ((p.kind as string) ?? 'user') as DmOtherProfile['kind'],
-          isVerified: Boolean(p.is_verified),
-          status: (p.status as string) ?? 'approved',
-          dmDisabled: Boolean(p.dm_disabled),
-        })
-      );
-
-      const readMap = new Map<string, string>();
-      (readRes.data ?? []).forEach((r) => readMap.set(String(r.conversation_id), String(r.last_read_at)));
-
-      // 最新メッセージ（desc 取得済みなので会話ごと最初の1件）。
-      const lastMsg = new Map<string, { body: string; created_at: string; sender: string }>();
-      (msgRes.data ?? []).forEach((m) => {
-        const cid = String(m.conversation_id);
-        if (!lastMsg.has(cid)) {
-          lastMsg.set(cid, {
-            body: (m.body as string) ?? '',
-            created_at: m.created_at as string,
-            sender: m.sender_profile_id as string,
-          });
-        }
-      });
-
-      const list: ConvItem[] = convs.map((c) => {
-        const cid = String(c.id);
-        const otherId = c.participant_a === myId ? c.participant_b : c.participant_a;
-        const lm = lastMsg.get(cid);
-        const readAt = readMap.get(cid) ?? '1970-01-01T00:00:00Z';
-        const unread = !!lm && lm.sender !== myId && new Date(lm.created_at).getTime() > new Date(readAt).getTime();
-        return {
-          id: cid,
-          other: profDict.get(otherId) ?? null,
-          preview: lm?.body ?? null,
-          lastAt: lm?.created_at ?? c.last_message_at,
-          unread,
-        };
-      });
-
+      // ★ 第986便: 会話一覧の読み込みはサーバーで（アプリ内ブラウザで止まる事故の対策）
+      let list: ConvItem[] = [];
+      try {
+        const r = await listMyXConversations();
+        list = r.ok ? r.items : [];
+      } catch { /* 読めないときは空で表示 */ }
       if (!alive) return;
       setItems(list);
       setLoading(false);

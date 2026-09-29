@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { signOut } from '@/lib/auth';
-import { createClient } from '@/app/lib/supabase/client';
+import { getMyXUnreadCounts } from './xReadActions'; // ★ 第986便: 未読バッジもサーバー経由
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XThemeToggle } from './XThemeToggle';
@@ -15,7 +15,6 @@ import { NOTIF_READ_EVENT } from './xNotificationsShared';
 import { DM_READ_EVENT } from './xDmShared';
 import type { XProfile } from './xProfile';
 
-const supabase = createClient();
 
 // アバター表示に必要な最小フィールド（XProfile はこれを満たす）。
 type AvatarProfile = Pick<XProfile, 'avatar_url' | 'display_name'>;
@@ -96,12 +95,10 @@ export function XHeader() {
     }
     let alive = true;
     (async () => {
-      const { count } = await supabase
-        .from('x_notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('recipient_profile_id', profileId)
-        .eq('is_read', false);
-      if (alive) setUnread(count ?? 0);
+      try {
+        const c = await getMyXUnreadCounts();
+        if (alive) setUnread(c.notif);
+      } catch { /* バッジが出ないだけ */ }
     })();
     return () => {
       alive = false;
@@ -122,8 +119,10 @@ export function XHeader() {
       setDmUnread(0);
       return;
     }
-    const { data } = await supabase.rpc('x_unread_dm_count');
-    setDmUnread(typeof data === 'number' ? data : 0);
+    try {
+      const c = await getMyXUnreadCounts();
+      setDmUnread(c.dm);
+    } catch { /* バッジが出ないだけ */ }
   }, [profileId]);
   useEffect(() => {
     fetchDmCount();

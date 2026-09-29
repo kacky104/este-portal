@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/client';
-import { fetchShopMiniByIds } from './xAffiliation';
+import { fetchXReplyThread } from './xThreadActions'; // ★ 第986便: 読み込みはサーバー経由
+import { getMyXPostStates } from './xReadActions';
 import { XPostCard } from './XPostCard';
 import { XComposer } from './XComposer';
 import { XAuthGateModal } from './XAuthGateModal';
@@ -11,105 +11,7 @@ import { XListSkeleton } from './XSkeleton';
 import { useXEngagement } from './useXEngagement';
 import { useXToast } from './useXToast';
 import { useMe } from './XMeProvider';
-import type { XKind } from './xProfile';
 import type { XPost } from './xPosts';
-
-const sb = createClient();
-
-const REPLY_COLS =
-  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
-
-type ReplyRow = {
-  id: string | number;
-  author_profile_id: string;
-  body: string | null;
-  images: string[] | null;
-  like_count: number | null;
-  reply_count: number | null;
-  replies_disabled: boolean | null;
-  link_url: string | null;
-  edited_at: string | null;
-  created_at: string;
-};
-
-// クライアントでリプライ行＋著者プロフィールを組み立てる（xPosts.ts はサーバー専用のため流用不可）。
-// 1階層フラット：parent_post_id = 親ID の直下リプライのみを created_at 昇順で取得。
-// BAN(status='rejected') の著者のリプライは除外（サーバー側 attachAuthors と同方針）。
-async function fetchReplyThread(parentId: string): Promise<XPost[]> {
-  const { data: rows } = await sb
-    .from('x_posts')
-    .select(REPLY_COLS)
-    .eq('parent_post_id', parentId)
-    .order('created_at', { ascending: true });
-  const list = (rows ?? []) as ReplyRow[];
-  if (list.length === 0) return [];
-
-  const authorIds = [...new Set(list.map((r) => r.author_profile_id).filter(Boolean))];
-  const { data: profs } = await sb
-    .from('x_profiles')
-    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id, address')
-    .in('id', authorIds);
-
-  const dict = new Map<
-    string,
-    {
-      handle: string;
-      display_name: string;
-      kind: XKind;
-      avatar_url: string | null;
-      status: string;
-      is_verified: boolean;
-      affiliated_shop_id: string | null;
-      address: string | null;
-    }
-  >();
-  (profs ?? []).forEach((p) =>
-    dict.set(p.id as string, {
-      handle: (p.handle as string) ?? '',
-      display_name: (p.display_name as string) ?? '',
-      kind: (p.kind as XKind) ?? 'user',
-      avatar_url: (p.avatar_url as string | null) ?? null,
-      status: (p.status as string) ?? 'approved',
-      is_verified: Boolean(p.is_verified),
-      affiliated_shop_id: (p.affiliated_shop_id as string | null) ?? null,
-      address: (p.address as string | null) ?? null,
-    })
-  );
-
-  const shopDict = await fetchShopMiniByIds(
-    sb,
-    [...dict.values()].map((a) => a.affiliated_shop_id)
-  );
-
-  const out: XPost[] = [];
-  for (const r of list) {
-    const a = dict.get(r.author_profile_id);
-    if (!a || a.status === 'rejected') continue;
-    const shop = a.affiliated_shop_id ? shopDict.get(a.affiliated_shop_id) : undefined;
-    out.push({
-      id: String(r.id),
-      body: r.body ?? null,
-      images: r.images ?? [],
-      likeCount: r.like_count ?? 0,
-      replyCount: r.reply_count ?? 0,
-      repliesDisabled: Boolean(r.replies_disabled),
-      linkUrl: r.link_url ?? null,
-      editedAt: r.edited_at ?? null,
-      createdAt: r.created_at,
-      author: {
-        id: r.author_profile_id,
-        handle: a.handle,
-        displayName: a.display_name,
-        kind: a.kind,
-        avatarUrl: a.avatar_url,
-        isVerified: a.is_verified,
-        address: a.address,
-        affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
-      },
-    });
-  }
-  return out;
-}
 
 // 投稿詳細（スレッド）。親投稿はサーバー（ISR）取得済みを props で受け取り、
 // 本人依存・動的なもの（自分の profile / リプライ一覧 / いいね・フォロー状態）はマウント時にクライアント取得する。
@@ -138,14 +40,22 @@ export function XPostDetail({ parent }: { parent: XPost }) {
     if (meLoading) return; // me 確定を待つ（未ログインと断定しない）
     let alive = true;
     (async () => {
-      const thread = await fetchReplyThread(parent.id);
+      let thread: XPost[] = [];
+      try { thread = await fetchXReplyThread(parent.id); } catch { /* 空で表示 */ }
       if (!alive) return;
       setReplies(thread);
       setReplyCount(thread.length);
 
-      // 親投稿のリポスト件数＋自分のリポスト済み（公開読み取り。リプライはリポスト対象外なので親のみ）。
-      const { data: rr } = await sb.from('x_reposts').select('reposter_profile_id').eq('post_id', parent.id);
-      const rrows = rr ?? [];
+      // ★ 第986便: リポスト・いいね・フォロー・保存の状態はサーバーでまとめて取る
+      const allPosts = [parent, ...thread];
+      let st: Awaited<ReturnType<typeof getMyXPostStates>> = { liked: [], followees: [], saved: [], reposts: [] };
+      try {
+        st = await getMyXPostStates(allPosts.map((p) => p.id), [...new Set(allPosts.map((p) => p.author.id))], !!me);
+      } catch { /* 未いいね等で表示 */ }
+      if (!alive) return;
+
+      // 親投稿のリポスト件数＋自分のリポスト済み（リプライはリポスト対象外なので親のみ）。
+      const rrows = st.reposts.filter((x) => String(x.post_id) === parent.id);
       if (alive) {
         seedReposts(
           { [parent.id]: rrows.length },
@@ -153,21 +63,12 @@ export function XPostDetail({ parent }: { parent: XPost }) {
         );
       }
 
-      const allPosts = [parent, ...thread];
       let likedIds: string[] = [];
       if (me) {
-        const ids = allPosts.map((p) => p.id);
-        const authorIds = [...new Set(allPosts.map((p) => p.author.id))];
-        // いいね・フォロー・保存状態は互いに独立＝並列取得（B）。
-        const [likeRes, followRes, saveRes] = await Promise.all([
-          sb.from('x_likes').select('post_id').eq('profile_id', me.id).in('post_id', ids),
-          sb.from('x_follows').select('followee_profile_id').eq('follower_profile_id', me.id).in('followee_profile_id', authorIds),
-          sb.from('x_post_saves').select('post_id').eq('profile_id', me.id).in('post_id', ids),
-        ]);
-        likedIds = (likeRes.data ?? []).map((l) => String(l.post_id));
+        likedIds = st.liked;
         if (alive) {
-          seedFollowees((followRes.data ?? []).map((f) => String(f.followee_profile_id)));
-          seedSaved((saveRes.data ?? []).map((s) => String(s.post_id)));
+          seedFollowees(st.followees);
+          seedSaved(st.saved);
         }
       }
       if (!alive) return;

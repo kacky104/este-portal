@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/client';
+import { listMyXNotifications } from './xReadActions'; // ★ 第986便: 読み込みもサーバー経由
 import { markAllXNotificationsRead, markXNotificationRead } from './xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -18,19 +18,6 @@ import {
   type XNotificationActor,
   type XNotificationType,
 } from './xNotificationsShared';
-
-const sb = createClient();
-const LIMIT = 50; // まずは最新50件（無限スクロールは将来拡張）
-
-type NotifRow = {
-  id: string | number;
-  type: XNotificationType;
-  post_id: string | number | null;
-  reply_post_id: string | number | null;
-  is_read: boolean;
-  created_at: string;
-  actor_profile_id: string;
-};
 
 // type 別の小アイコン（アバター右下に重ねる）。like=ハート / reply=吹き出し / follow=人＋ / suki=唇 / post=ベル。
 function TypeIcon({ type }: { type: XNotificationType }) {
@@ -107,59 +94,12 @@ export function XNotifications() {
     }
     let alive = true;
     (async () => {
-      const myId = me.id;
-
-      // 自分宛・新しい順・上限取得。
-      const { data: rows } = await sb
-        .from('x_notifications')
-        .select('id, type, post_id, reply_post_id, is_read, created_at, actor_profile_id')
-        .eq('recipient_profile_id', myId)
-        .order('created_at', { ascending: false })
-        .limit(LIMIT);
-      const list = (rows ?? []) as NotifRow[];
-
-      // actor を1クエリで合流し、rejected(凍結) actor の通知は表示から除外（トリガーは rejected でも作るため）。
-      const actorIds = [...new Set(list.map((r) => r.actor_profile_id).filter(Boolean))];
-      const dict = new Map<string, XNotificationActor & { status: string }>();
-      if (actorIds.length > 0) {
-        const { data: profs } = await sb
-          .from('x_profiles')
-          .select('id, handle, display_name, avatar_url, kind, is_verified, status')
-          .in('id', actorIds);
-        (profs ?? []).forEach((p) =>
-          dict.set(p.id as string, {
-            id: p.id as string,
-            handle: (p.handle as string) ?? '',
-            displayName: (p.display_name as string) ?? '',
-            avatarUrl: (p.avatar_url as string | null) ?? null,
-            kind: ((p.kind as string) ?? 'user') as XNotificationActor['kind'],
-            isVerified: Boolean(p.is_verified),
-            status: (p.status as string) ?? 'approved',
-          })
-        );
-      }
-
-      const built: XNotification[] = [];
-      for (const r of list) {
-        const a = dict.get(r.actor_profile_id);
-        if (!a || a.status === 'rejected') continue;
-        built.push({
-          id: String(r.id),
-          type: r.type,
-          postId: r.post_id != null ? String(r.post_id) : null,
-          replyPostId: r.reply_post_id != null ? String(r.reply_post_id) : null,
-          isRead: Boolean(r.is_read),
-          createdAt: r.created_at,
-          actor: {
-            id: a.id,
-            handle: a.handle,
-            displayName: a.displayName,
-            avatarUrl: a.avatarUrl,
-            kind: a.kind,
-            isVerified: a.isVerified,
-          },
-        });
-      }
+      // ★ 第986便: 通知一覧の読み込みはサーバーで（アプリ内ブラウザで止まる事故の対策）
+      let built: XNotification[] = [];
+      try {
+        const r = await listMyXNotifications();
+        built = r.ok ? r.items : [];
+      } catch { /* 読めないときは空で表示 */ }
       if (!alive) return;
       setItems(built);
       setLoading(false);

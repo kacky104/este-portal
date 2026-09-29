@@ -170,3 +170,30 @@ export async function respondXAffiliation(requestId: number, accept: boolean): P
   const r = await rpc('x_affiliation_respond', { p_request_id: requestId, p_accept: accept }, accept ? '承認できませんでした' : '却下できませんでした');
   return r.ok ? { ok: true } : r;
 }
+
+// ── 店舗管理: セラピストを @ID で1件探す（★ 第986便: 読み込みもサーバー経由） ──
+export async function findXTherapistByHandle(raw: string): Promise<
+  { ok: true; row: { id: string; handle: string; display_name: string; avatar_url: string | null; affiliated_shop_id: string | null } | null; otherShopName: string | null } | Fail
+> {
+  const h = String(raw ?? '').trim().replace(/^@+/, '');
+  if (!h) return { ok: true, row: null, otherShopName: null };
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('x_profiles')
+    .select('id, handle, display_name, avatar_url, affiliated_shop_id, status')
+    .ilike('handle', h.replace(/([\\%_])/g, '\\$1'))
+    .eq('kind', 'therapist')
+    .neq('status', 'rejected')
+    .limit(1);
+  if (error) return { ok: false, error: '検索できませんでした。もう一度お試しください。' };
+  const row = (data ?? [])[0] as
+    | { id: string; handle: string; display_name: string; avatar_url: string | null; affiliated_shop_id: string | null }
+    | undefined;
+  if (!row || row.handle.toLowerCase() !== h.toLowerCase()) return { ok: true, row: null, otherShopName: null };
+  let otherShopName: string | null = null;
+  if (row.affiliated_shop_id) {
+    const { data: shop } = await supabase.from('x_profiles').select('display_name').eq('id', row.affiliated_shop_id).maybeSingle();
+    otherShopName = (shop?.display_name as string) ?? '他店';
+  }
+  return { ok: true, row, otherShopName };
+}

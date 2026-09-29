@@ -1,9 +1,8 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
-import { getSession, onAuthChange } from '@/lib/auth';
-import { fetchShopMiniByIds } from './xAffiliation';
+import { onAuthChange } from '@/lib/auth';
+import { loadMyXMe } from './xMeActions';
 import type { XProfile } from './xProfile';
 
 // fukuX の「自分（me）」をクライアントで一元管理する Context。
@@ -14,9 +13,9 @@ import type { XProfile } from './xProfile';
 // ⚠ ISR凍結回避：me（ログイン依存）はこの「クライアント Context」だけで保持し、
 //    サーバーコンポーネント／ISRキャッシュには一切焼かない。公開読み取りや時間依存の方針も不変。
 
-const supabase = createClient();
-const PROFILE_COLS =
-  'id, auth_user_id, kind, status, handle, display_name, bio, avatar_url, header_url, is_verified, affiliated_shop_id, link_url, dm_disabled';
+// ★ 第986便: me の取り直しはサーバー（loadMyXMe）で行う。ブラウザの getSession / x_profiles 読み込みは
+//   アプリ内ブラウザで止まったり「未ログイン」と誤って返ったりして、ログイン中なのにログアウト表示になるため使わない。
+//   ブラウザのログイン状態の変化（onAuthChange）は「取り直しのきっかけ」にだけ使う。
 
 export type MeContextValue = {
   me: XProfile | null; // 開設済みプロフィール（未開設は null）
@@ -57,52 +56,39 @@ export function XMeProvider({ children, seed }: { children: React.ReactNode; see
   // onAuthChange は購読時に INITIAL_SESSION を1回発火する。seed 済みで同一ユーザーならその初回再取得を抑止。
   const seededRef = useRef(seed !== undefined);
 
-  const load = useCallback(async (uid: string | undefined, mail: string | null) => {
-    if (!uid) {
-      setUserId(null);
-      setEmail(null);
-      setMe(null);
-      setAffiliatedShop(null);
-      setLoading(false);
+  const load = useCallback(async () => {
+    let r: MeSeed;
+    try {
+      r = await loadMyXMe();
+    } catch {
+      setLoading(false); // ★ 通信できないときは今の表示を保つ（ログアウト扱いにはしない）
       return;
     }
-    setUserId(uid);
-    setEmail(mail);
-    const { data } = await supabase.from('x_profiles').select(PROFILE_COLS).eq('auth_user_id', uid).maybeSingle();
-    const p = (data as XProfile | null) ?? null;
-    setMe(p);
-    if (p && p.kind === 'therapist' && p.affiliated_shop_id) {
-      const dict = await fetchShopMiniByIds(supabase, [p.affiliated_shop_id]);
-      const s = dict.get(p.affiliated_shop_id);
-      setAffiliatedShop(s ? { handle: s.handle, displayName: s.displayName } : null);
-    } else {
-      setAffiliatedShop(null);
-    }
+    setUserId(r.userId);
+    setEmail(r.email);
+    setMe(r.me);
+    setAffiliatedShop(r.affiliatedShop);
     setLoading(false);
   }, []);
 
   const refresh = useCallback(() => {
-    getSession().then((s) => load(s?.user.id, s?.user.email ?? null));
+    void load();
   }, [load]);
 
   useEffect(() => {
     let mounted = true;
     // seed が無いときだけ初回取得（seed があれば既に確定値を持っている）。
-    if (seed === undefined) {
-      getSession().then((s) => {
-        if (mounted) load(s?.user.id, s?.user.email ?? null);
-      });
-    }
-    // ログイン/ログアウト切替は購読で反映。ただし seed 済みの初回イベント（INITIAL_SESSION）が
-    // 同一ユーザーなら取り直さない＝リロード時の二重取得を回避（別ユーザー＝切替時のみ load）。
+    if (seed === undefined) void load();
+    // ログイン/ログアウト切替は購読で「きっかけ」を受け、中身はサーバーで取り直す。
+    // seed 済みの初回イベント（INITIAL_SESSION）が同一ユーザーなら取り直さない＝リロード時の二重取得を回避。
     const off = onAuthChange((s) => {
       if (!mounted) return;
-      const uid = s?.user.id;
+      const uid = s?.user.id ?? null;
       if (seededRef.current) {
         seededRef.current = false;
-        if ((uid ?? null) === (seed?.userId ?? null)) return;
+        if (uid === (seed?.userId ?? null)) return;
       }
-      load(uid, s?.user.email ?? null);
+      void load();
     });
     return () => {
       mounted = false;

@@ -2,12 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/client';
-import { requestXAffiliation, cancelXAffiliationRequest, removeXAffiliation } from '../xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
+import { requestXAffiliation, cancelXAffiliationRequest, removeXAffiliation, findXTherapistByHandle } from '../xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import type { TherapistMini } from '../xAffiliation';
 import { useXToast } from '../useXToast';
 
-const supabase = createClient();
 
 export type PendingRequest = {
   requestId: string;
@@ -20,11 +18,6 @@ type SearchResult = {
   // 'none'=未所属 / 'self'=自店所属済み / {shopName}=他店所属
   affiliation: 'none' | 'self' | { shopName: string };
 };
-
-// LIKE のワイルドカード（% _ \）をエスケープし、ilike で大文字小文字無視の「完全一致」にする。
-function escapeLike(s: string): string {
-  return s.replace(/([\\%_])/g, '\\$1');
-}
 
 export function XShop({
   shopProfileId,
@@ -57,25 +50,16 @@ export function XShop({
     setSearched(true);
     setResult(null);
 
-    const { data, error } = await supabase
-      .from('x_profiles')
-      .select('id, handle, display_name, avatar_url, affiliated_shop_id, status')
-      .ilike('handle', escapeLike(raw))
-      .eq('kind', 'therapist')
-      .neq('status', 'rejected')
-      .limit(1);
-
-    if (error) {
+    // ★ 第986便: 検索はサーバー経由
+    let res: Awaited<ReturnType<typeof findXTherapistByHandle>>;
+    try { res = await findXTherapistByHandle(raw); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
+    if (!res.ok) {
       setSearching(false);
-      showToast(`検索に失敗しました：${error.message}`);
+      showToast(res.error);
       return;
     }
-
-    const row = (data ?? [])[0] as
-      | { id: string; handle: string; display_name: string; avatar_url: string | null; affiliated_shop_id: string | null }
-      | undefined;
-
-    if (!row || row.handle.toLowerCase() !== raw.toLowerCase()) {
+    const row = res.row;
+    if (!row) {
       setResult(null);
       setSearching(false);
       return;
@@ -88,17 +72,12 @@ export function XShop({
       avatarUrl: row.avatar_url,
     };
 
-    // 所属状態の判定（他店所属なら店舗名を1件引いて表示）。
+    // 所属状態の判定（他店所属なら店舗名を表示）。
     let affiliation: SearchResult['affiliation'] = 'none';
     if (row.affiliated_shop_id === shopProfileId) {
       affiliation = 'self';
     } else if (row.affiliated_shop_id) {
-      const { data: shop } = await supabase
-        .from('x_profiles')
-        .select('display_name')
-        .eq('id', row.affiliated_shop_id)
-        .maybeSingle();
-      affiliation = { shopName: (shop?.display_name as string) ?? '他店' };
+      affiliation = { shopName: res.otherShopName ?? '他店' };
     }
 
     setResult({ therapist, affiliation });

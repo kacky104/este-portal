@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+import { isXFollowLinked } from './xReadActions'; // ★ 第986便: フォロー関係の確認もサーバー経由
 import { startXConversation } from './xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import type { XProfile } from './xProfile';
 import { useXToast } from './useXToast';
 import { XOfficialContactModal } from './XOfficialContactModal';
 
-const sb = createClient();
 
 // プロフィールの「メッセージ」ボタン。表示条件：ログイン済み ∧ can_act(=非BAN) ∧ 自分以外 ∧
 // 自分→相手 または 相手→自分 のフォローが1本でもある。最終防御は x_start_conversation の例外。
@@ -50,19 +49,9 @@ export function XMessageButton({
     let alive = true;
     (async () => {
       // どちら向きでもフォローが1本あれば可（.or() を使わず2クエリで判定）。
-      const [a, b] = await Promise.all([
-        sb
-          .from('x_follows')
-          .select('follower_profile_id', { head: true, count: 'exact' })
-          .eq('follower_profile_id', viewerProfile.id)
-          .eq('followee_profile_id', target.id),
-        sb
-          .from('x_follows')
-          .select('follower_profile_id', { head: true, count: 'exact' })
-          .eq('follower_profile_id', target.id)
-          .eq('followee_profile_id', viewerProfile.id),
-      ]);
-      if (alive) setEligible((a.count ?? 0) > 0 || (b.count ?? 0) > 0);
+      let linked = false;
+      try { linked = await isXFollowLinked(viewerProfile.id, target.id); } catch { /* ボタンが出ないだけ */ }
+      if (alive) setEligible(linked);
     })();
     return () => {
       alive = false;

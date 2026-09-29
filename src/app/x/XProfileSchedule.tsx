@@ -6,11 +6,10 @@
 // データは本体の therapist_schedules を流用し、整形は本体と共有の scheduleFormat を使う（二重メンテ回避）。
 
 import { useState, useCallback } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
+import { getXTherapistSchedule } from './xReadActions'; // ★ 第986便: サーバー経由
 import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { formatDate, formatTime, buildDisplayHours } from '@/lib/scheduleFormat';
 
-const supabase = createClient();
 
 type DaySched = { is_active: boolean; start_time: string | null; end_time: string | null };
 
@@ -25,12 +24,8 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
   const load = useCallback(async () => {
     setLoading(true);
     const range = getBusinessDateRangeJST(7); // クライアントの現在時刻基準（ISRに焼かない）
-    const { data } = await supabase
-      .from('therapist_schedules')
-      .select('schedule_date, is_active, start_time, end_time')
-      .eq('therapist_id', therapistId)
-      .in('schedule_date', range)
-      .order('schedule_date', { ascending: true });
+    let data: Awaited<ReturnType<typeof getXTherapistSchedule>> = [];
+    try { data = await getXTherapistSchedule(therapistId, range); } catch { /* 空で表示 */ }
 
     const map: Record<string, DaySched> = {};
     (data ?? []).forEach((row) => {

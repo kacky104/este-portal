@@ -3,186 +3,18 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
-import { fetchShopMiniByIds } from './xAffiliation';
+import { searchXProfiles, searchXPosts, type Hit } from './xSearchActions'; // ★ 第986便: 検索はサーバー経由
+import { getMyXPostStates } from './xReadActions';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XPostCard } from './XPostCard';
 import { XAuthGateModal } from './XAuthGateModal';
 import { useXEngagement } from './useXEngagement';
 import { useXToast } from './useXToast';
 import { useMe } from './XMeProvider';
-import type { XKind } from './xProfile';
 import type { XPost } from './xPosts';
-
-const sb = createClient();
-const LIMIT = 50;
 
 const KIND_LABEL: Record<string, string> = { user: 'ユーザー', therapist: 'セラピスト', shop: 'お店', official: '運営' };
 
-const POST_COLS =
-  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
-
-// ilike のワイルドカード（% _ \）をエスケープし、入力を「部分一致の literal」として扱う。
-// .or() は使わず handle / display_name を別々の .ilike() で引いてマージするため、
-// カンマ・カッコ等で .or() フィルタ文字列が壊れる事故が起きない（パターンは値として渡る）。
-function escapeLike(s: string): string {
-  return s.replace(/([\\%_])/g, '\\$1');
-}
-
-type ProfRow = {
-  id: string;
-  handle: string;
-  display_name: string;
-  avatar_url: string | null;
-  kind: 'user' | 'therapist' | 'shop' | 'official';
-  is_verified: boolean;
-  status: string;
-  affiliated_shop_id: string | null;
-};
-
-type Hit = {
-  id: string;
-  handle: string;
-  displayName: string;
-  avatarUrl: string | null;
-  kind: 'user' | 'therapist' | 'shop' | 'official';
-  isVerified: boolean;
-  affiliatedShop: { handle: string; displayName: string } | null;
-};
-
-const SELECT = 'id, handle, display_name, avatar_url, kind, is_verified, status, affiliated_shop_id';
-
-// handle / display_name を部分一致（ilike）で検索。BAN(status='rejected')は除外。
-// 2クエリ（handle / 表示名）を投げて id でマージ・重複除去し、handle 昇順で返す。所属バッジも解決。
-async function searchProfiles(raw: string): Promise<Hit[]> {
-  const kw = raw.trim();
-  if (!kw) return [];
-  const pattern = `%${escapeLike(kw)}%`;
-
-  const [byHandle, byName] = await Promise.all([
-    sb.from('x_profiles').select(SELECT).ilike('handle', pattern).neq('status', 'rejected').limit(LIMIT),
-    sb.from('x_profiles').select(SELECT).ilike('display_name', pattern).neq('status', 'rejected').limit(LIMIT),
-  ]);
-
-  const map = new Map<string, ProfRow>();
-  [...((byHandle.data ?? []) as ProfRow[]), ...((byName.data ?? []) as ProfRow[])].forEach((r) => {
-    if (!map.has(r.id)) map.set(r.id, r);
-  });
-  const rows = [...map.values()].sort((a, b) => a.handle.localeCompare(b.handle)).slice(0, LIMIT);
-
-  // セラピストの所属先バッジを1クエリで解決（N+1回避）。
-  const shopDict = await fetchShopMiniByIds(sb, rows.map((r) => r.affiliated_shop_id));
-
-  return rows.map((r) => {
-    const shop = r.affiliated_shop_id ? shopDict.get(r.affiliated_shop_id) : undefined;
-    return {
-      id: r.id,
-      handle: r.handle,
-      displayName: r.display_name,
-      avatarUrl: r.avatar_url,
-      kind: r.kind,
-      isVerified: Boolean(r.is_verified),
-      affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
-    };
-  });
-}
-
-type PostRow = {
-  id: string | number;
-  author_profile_id: string;
-  body: string | null;
-  images: string[] | null;
-  like_count: number | null;
-  reply_count: number | null;
-  replies_disabled: boolean | null;
-  link_url: string | null;
-  edited_at: string | null;
-  created_at: string;
-};
-
-// 投稿本文検索：x_posts.body を部分一致（ilike）。通常投稿のみ（parent_post_id IS NULL）・新しい順・上限。
-// 著者を1クエリ合流し rejected(BAN) 著者の投稿は除外（既存 attachAuthors と同方針）。所属バッジも解決。
-async function searchPosts(raw: string): Promise<XPost[]> {
-  const kw = raw.trim();
-  if (!kw) return [];
-  const pattern = `%${escapeLike(kw)}%`;
-
-  const { data: rows } = await sb
-    .from('x_posts')
-    .select(POST_COLS)
-    .ilike('body', pattern)
-    .is('parent_post_id', null)
-    .order('created_at', { ascending: false })
-    .limit(LIMIT);
-  const list = (rows ?? []) as PostRow[];
-  if (list.length === 0) return [];
-
-  const authorIds = [...new Set(list.map((r) => r.author_profile_id).filter(Boolean))];
-  const { data: profs } = await sb
-    .from('x_profiles')
-    .select('id, handle, display_name, kind, avatar_url, status, is_verified, affiliated_shop_id, address')
-    .in('id', authorIds);
-
-  const dict = new Map<
-    string,
-    {
-      handle: string;
-      display_name: string;
-      kind: XKind;
-      avatar_url: string | null;
-      status: string;
-      is_verified: boolean;
-      affiliated_shop_id: string | null;
-      address: string | null;
-    }
-  >();
-  (profs ?? []).forEach((p) =>
-    dict.set(p.id as string, {
-      handle: (p.handle as string) ?? '',
-      display_name: (p.display_name as string) ?? '',
-      kind: ((p.kind as string) ?? 'user') as XKind,
-      avatar_url: (p.avatar_url as string | null) ?? null,
-      status: (p.status as string) ?? 'approved',
-      is_verified: Boolean(p.is_verified),
-      affiliated_shop_id: (p.affiliated_shop_id as string | null) ?? null,
-      address: (p.address as string | null) ?? null,
-    })
-  );
-
-  const shopDict = await fetchShopMiniByIds(sb, [...dict.values()].map((a) => a.affiliated_shop_id));
-
-  const out: XPost[] = [];
-  for (const r of list) {
-    const a = dict.get(r.author_profile_id);
-    if (!a || a.status === 'rejected') continue; // BAN 著者の投稿は除外
-    const shop = a.affiliated_shop_id ? shopDict.get(a.affiliated_shop_id) : undefined;
-    out.push({
-      id: String(r.id),
-      body: r.body ?? null,
-      images: r.images ?? [],
-      likeCount: r.like_count ?? 0,
-      replyCount: r.reply_count ?? 0,
-      repliesDisabled: Boolean(r.replies_disabled),
-      linkUrl: r.link_url ?? null,
-      editedAt: r.edited_at ?? null,
-      createdAt: r.created_at,
-      author: {
-        id: r.author_profile_id,
-        handle: a.handle,
-        displayName: a.display_name,
-        kind: a.kind,
-        avatarUrl: a.avatar_url,
-        isVerified: a.is_verified,
-        address: a.address,
-        affiliatedShop: shop ? { handle: shop.handle, displayName: shop.displayName } : null,
-      },
-    });
-  }
-  return out;
-}
-
-// ユーザー / 投稿 の検索（公開・要ログインなし）。入力はデバウンス（300ms）。空文字では検索しない。
-// キーワードはタブ間で共有。投稿タブはいいね/フォロー操作のため engagement を持つ（未ログインは認証モーダル）。
 export function XSearch() {
   // URL クエリ ?q= / ?tab= で初期キーワード・初期タブを受け取る（#タグ タップからの遷移先）。
   const params = useSearchParams();
@@ -233,34 +65,32 @@ export function XSearch() {
     let cancelled = false;
     const t = setTimeout(async () => {
       if (tab === 'users') {
-        const hits = await searchProfiles(kw);
+        let hits: Hit[] = [];
+        try { hits = await searchXProfiles(kw); } catch { /* 空で表示 */ }
         if (cancelled) return;
         setUserResults(hits);
       } else {
-        const posts = await searchPosts(kw);
+        let posts: XPost[] = [];
+        try { posts = await searchXPosts(kw); } catch { /* 空で表示 */ }
         if (cancelled) return;
         setPostResults(posts);
         // ログイン時は結果投稿のいいね/フォロー状態を seed（未ログインは未いいね・未フォロー表示）。
+        // ★ 第986便: いいね・フォロー・保存・リポストの状態はサーバーでまとめて取る
+        const ids = posts.map((p) => p.id);
+        const authorIds = [...new Set(posts.map((p) => p.author.id))];
+        let st: Awaited<ReturnType<typeof getMyXPostStates>> = { liked: [], followees: [], saved: [], reposts: [] };
+        try { st = await getMyXPostStates(ids, authorIds, !!me); } catch { /* 未いいね等で表示 */ }
+        if (cancelled) return;
         if (me) {
-          const ids = posts.map((p) => p.id);
-          const authorIds = [...new Set(posts.map((p) => p.author.id))];
-          const [likeRes, followRes, saveRes] = await Promise.all([
-            sb.from('x_likes').select('post_id').eq('profile_id', me.id).in('post_id', ids),
-            sb.from('x_follows').select('followee_profile_id').eq('follower_profile_id', me.id).in('followee_profile_id', authorIds),
-            sb.from('x_post_saves').select('post_id').eq('profile_id', me.id).in('post_id', ids),
-          ]);
-          if (cancelled) return;
-          seedFollowees((followRes.data ?? []).map((f) => String(f.followee_profile_id)));
-          seedSaved((saveRes.data ?? []).map((s) => String(s.post_id)));
-          seedPosts(posts, (likeRes.data ?? []).map((l) => String(l.post_id)));
+          seedFollowees(st.followees);
+          seedSaved(st.saved);
+          seedPosts(posts, st.liked);
         } else {
           seedPosts(posts, []);
         }
 
         // リポスト件数（公開）＋自分のリポスト済み（ログイン時）を seed。件数は全結果に 0 を敷いてから加算。
-        const rIds = posts.map((p) => p.id);
-        const { data: rr } = await sb.from('x_reposts').select('post_id, reposter_profile_id').in('post_id', rIds);
-        if (cancelled) return;
+        const rr = st.reposts;
         const rCounts: Record<string, number> = {};
         posts.forEach((p) => {
           rCounts[p.id] = 0;
