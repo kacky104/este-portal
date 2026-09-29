@@ -11,7 +11,7 @@ import { XComposer } from './XComposer';
 import { RepostIcon } from './RepostIcon';
 import { useMe } from './XMeProvider';
 import { safeHref, linkDomain } from './xLink';
-import type { XPost, XPostAuthor } from './xPosts';
+import type { XPost } from './xPosts';
 
 
 const KIND_LABEL: Record<string, string> = {
@@ -148,11 +148,9 @@ export function XPostCard({
   // X風の全幅行モード（2026-07-10 本採用）。true で浮遊カードの装飾（角丸・影）を外し
   // 全幅の行として描画する（区切り線は親コンテナの divide-y が担当）。タイムラインのみで使用。
   flat?: boolean;
-  // 「…」ドロワー（フォロー切替/保存/ミュート/ブロック/通報）。渡した呼び出し元（タイムライン）のみ、
+  // 「…」ドロワー（フォロー切替/保存/通報）。★ 第990便: ミュート・ブロックは廃止。渡した呼び出し元（タイムライン）のみ、
   // 自分以外の投稿の右上に「…」ボタンを表示する。未指定の呼び出し元は従来どおり非表示。
   moderation?: {
-    onMute: (author: XPostAuthor) => void;
-    onBlock: (author: XPostAuthor) => void;
     onReport: (post: XPost, reason: string) => void;
   };
   // 📌「固定された投稿」ラベル（プロフィール先頭の固定表示用）。true でカード上部に表示。
@@ -353,17 +351,6 @@ export function XPostCard({
                           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>}
                         />
                       )}
-                      <MenuRow
-                        onClick={() => { moderation.onMute(a); setDrawerOpen(false); }}
-                        label={`@${a.handle} をミュート`}
-                        icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>}
-                      />
-                      <MenuRow
-                        danger
-                        onClick={() => { moderation.onBlock(a); setDrawerOpen(false); }}
-                        label={`@${a.handle} をブロック`}
-                        icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>}
-                      />
                       <MenuRow
                         danger
                         onClick={() => setReportStep(true)}

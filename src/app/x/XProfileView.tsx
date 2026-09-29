@@ -6,7 +6,7 @@ import type { XProfile } from './xProfile';
 import type { StoryGroup } from './xStories';
 import { XStoryViewer } from './XStoryViewer';
 import { getSeenMap, isGroupSeen } from './xStoriesShared';
-import type { XPost, XPostAuthor, FeedItem } from './xPosts';
+import type { XPost, FeedItem } from './xPosts';
 import type { ShopMini, TherapistMini } from './xAffiliation';
 import { XPostCard } from './XPostCard';
 import { VerifiedBadge } from './VerifiedBadge';
@@ -21,7 +21,7 @@ import { XProfileSchedule } from './XProfileSchedule';
 import { safeHref, linkDomain } from './xLink';
 import { formatFukuxStartDate } from './xDate';
 import { useXEngagement } from './useXEngagement';
-import { muteProfile, blockProfile, reportPost } from './xModerationActions';
+import { reportPost } from './xModerationActions';
 
 const KIND_LABEL: Record<string, string> = {
   user: 'ユーザー',
@@ -76,19 +76,7 @@ export function XProfileView({
   const { toast, showToast } = useXToast();
   const [gateOpen, setGateOpen] = useState(false); // 未ログイン／未開設アクション時のモーダル
 
-  // 投稿カードの「…」メニュー（ミュート/ブロック/通報）。タイムラインと同じ操作をプロフィールでも使えるように。
-  // このページでは投稿の非表示までは行わない（本人のページを開いている文脈のため）。タイムラインには次回表示から反映される。
-  const handleMute = async (author: XPostAuthor) => {
-    if (!viewerProfile) { setGateOpen(true); return; }
-    const res = await muteProfile(author.id);
-    showToast(res.ok ? `@${author.handle} をミュートしました（タイムラインに表示されなくなります）` : res.error);
-  };
-  const handleBlock = async (author: XPostAuthor) => {
-    if (!viewerProfile) { setGateOpen(true); return; }
-    if (!window.confirm(`@${author.handle} をブロックしますか？\n相手の投稿がタイムラインに表示されなくなり、相互のフォローも解除されます。`)) return;
-    const res = await blockProfile(author.id);
-    showToast(res.ok ? `@${author.handle} をブロックしました` : res.error);
-  };
+  // 投稿カードの「…」メニュー（通報）。★ 第990便: ミュート・ブロックは廃止。
   const handleReport = async (post: XPost, reason: string) => {
     if (!viewerProfile) { setGateOpen(true); return; }
     const res = await reportPost({ targetProfileId: post.author.id, postId: post.id, reason });
@@ -477,7 +465,7 @@ export function XProfileView({
                   onToggleRepost={eng.toggleRepost}
                   repostLabel={item.kind === 'repost' ? `${item.reposterName} さんがリポスト` : undefined}
                   pinnedLabel={item.kind === 'post' && p.id === pinnedPostId}
-                  moderation={{ onMute: handleMute, onBlock: handleBlock, onReport: handleReport }}
+                  moderation={{ onReport: handleReport }}
                 />
               );
             })
