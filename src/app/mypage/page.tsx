@@ -28,6 +28,8 @@ import { SupportTab } from '@/app/mypage/SupportTab';
 import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { snapClockPair } from '@/lib/timeSnap';
 import { conecfLockMessage } from '@/lib/conecfLock';
+// ★ 第988便: 出勤・セラピスト追加・今すぐはサーバー経由（スマホのアプリ内ブラウザ対策）
+import { saveOwnerSchedules, addOwnerTherapist, saveOwnerAvailableNow } from '@/app/actions/ownerTherapist';
 import { therapistNameDupMessage } from '@/lib/therapistNameDup';
 import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow, imasuguUntilISO, IMASUGU_WINDOW_MIN, imasuguMax, imasuguLimitNote } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
@@ -1989,11 +1991,10 @@ export default function MyPage() {
         end_time: s.is_active ? end : null,
       };
     }));
-    const { error } = await supabase
-      .from('therapist_schedules')
-      .upsert(rows, { onConflict: 'therapist_id,schedule_date' });
+    let error: { message: string; code?: string } | null = null;
+    try { error = (await saveOwnerSchedules(rows)).error; } catch { error = { message: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     // ★★ 起きたことを必ず言葉にする（§14-3）。黙って時刻を書き換えない
-    if (error) { showToast(conecfLockMessage(error) ?? '保存に失敗しました'); return false; }
+    if (error) { showToast(conecfLockMessage(error) ?? (/[ぁ-んァ-ン一-龥]/.test(error.message) ? error.message : '保存に失敗しました')); return false; }
     // 店舗ページ＋トップに加え、セラピストの公開ページ /therapist/[id] も即時再検証（revalidate=600 の固着を防ぐ）。
     if (salon) revalidateSalon(salon.id);
     ids.forEach((id) => revalidateTherapist(id));
@@ -2020,19 +2021,15 @@ export default function MyPage() {
     setAddingTherapist(true);
     setAddError('');
 
-    const { error } = await supabase.from('therapists').insert({
-      salon_id:          salon.id,
-      name:              newTherapistName.trim(),
-      area:              salon.area ?? null,
-      work_hours:        null,
-      comment:           null,
-      profile_image_url: null,
-      profile_text:      null,
-      age:               null,
-      body_type:         null,
-      is_new_face:       newTherapistIsNew,
-      new_face_since:    newTherapistIsNew ? new Date().toISOString() : null,
-    });
+    let error: { message: string; code?: string } | null = null;
+    try {
+      error = (await addOwnerTherapist({
+        salonId: Number(salon.id),
+        name: newTherapistName.trim(),
+        area: salon.area ?? null,
+        isNewFace: newTherapistIsNew,
+      })).error;
+    } catch { error = { message: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
 
     if (error) {
       const lockedMsg = conecfLockMessage(error);
@@ -2197,6 +2194,7 @@ export default function MyPage() {
     );
     // ★ 第326便: 有効時間の正は lib/imasugu（30分→45分）。★ ここに分数を書かない
     const availableUntil = imasuguUntilISO();
+    const availUpdates: { id: string | number; is_available_now: boolean; available_until: string | null }[] = [];
     for (const t of therapists) {
       // キャスト本人が受付中の枠は触らない（オーナーは相手の枠を上書き・解除しない）。
       if (isCastLiveRow(t, now)) continue;
@@ -2207,17 +2205,15 @@ export default function MyPage() {
       const until = isLive
         ? (isOwnerLiveRow(t) && t.available_until ? t.available_until : availableUntil)
         : null;
-      const { error: upErr } = await supabase
-        .from('therapists')
-        .update({
-          is_available_now: isLive,
-          available_until: until,
-        })
-        .eq('id', t.id);
-      // ★ 第407便: コネックエフの DB ロックで断られたら、そこで止めて理由を出す（古いタブ）
-      const locked = conecfLockMessage(upErr);
-      if (locked) { setSavingAvailable(false); showToast(locked); return; }
+      availUpdates.push({ id: t.id, is_available_now: isLive, available_until: until });
     }
+    // ★ 第988便: 保存はサーバーでまとめて（1人ずつ・断られたらそこで止める、は同じ）
+    let upErr: { message: string; code?: string } | null = null;
+    try { upErr = (await saveOwnerAvailableNow(availUpdates)).error; } catch { upErr = { message: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
+    // ★ 第407便: コネックエフの DB ロックで断られたら、そこで止めて理由を出す（古いタブ）
+    const locked = conecfLockMessage(upErr);
+    if (locked) { setSavingAvailable(false); showToast(locked); return; }
+    if (upErr) { setSavingAvailable(false); showToast(/[ぁ-んァ-ン一-龥]/.test(upErr.message) ? upErr.message : '保存に失敗しました'); return; }
     if (salon) {
       const refreshed = await fetchTherapistList(String(salon.id));
       setTherapists(refreshed);

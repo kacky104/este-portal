@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/client';
+import { loadOwnerTherapistForEdit, createOwnerTherapistPhotoUploadUrl, updateOwnerTherapist } from '@/app/actions/ownerTherapist'; // ★ 第988便
+import { putToSignedUrl } from '@/app/lib/signedUpload';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import {
   BADGE_CATEGORY_ORDER,
@@ -13,7 +14,6 @@ import {
   MAX_BADGES,
   sanitizeBadges,
 } from '@/lib/therapistBadges';
-import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
 import { conecfLockMessage } from '@/lib/conecfLock';
 import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
@@ -31,7 +31,6 @@ import { CastLinkField } from '@/app/conecf/girls/[id]/CastLinkField';
 //   ★ 文字列は【この1か所】。★ 戻る導線は3つ（読み込み失敗・ヘッダーの矢印・下部の保存バー）あるので、散らさない。
 const MYPAGE_BACK = '/mypage?tab=profile';
 
-const supabase = createClient();
 
 type BodyParts = { height: string; bust: string; cup: string; waist: string; hip: string };
 
@@ -148,39 +147,26 @@ export default function TherapistEditPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname));
+      // ★ 第988便: 読み込み（ログイン確認・自分の店のセラピストか）はサーバーで（スマホのアプリ内ブラウザ対策）
+      let res: Awaited<ReturnType<typeof loadOwnerTherapistForEdit>>;
+      try {
+        res = await loadOwnerTherapistForEdit(therapistId);
+      } catch {
+        setLoadError('読み込めませんでした。電波のよい場所で、ページを開き直してください。');
         return;
       }
-
-      const { data: tData, error: tError } = await supabase
-        .from('therapists')
-        .select('id, salon_id, name, profile_image_url, profile_images, age, body_type, profile_text, catchphrase, feature_badges, is_active')
-        .eq('id', therapistId)
-        .single();
-
-      if (tError || !tData) {
-        setLoadError('セラピストが見つかりません');
+      if (!res.ok) {
+        if (res.reason === 'login') {
+          router.push('/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname));
+          return;
+        }
+        setLoadError(res.reason === 'forbidden' ? 'このセラピストを編集する権限がありません' : 'セラピストが見つかりません');
         return;
       }
-
-      // 自分のサロンのセラピストか確認
-      const { data: salonData } = await supabase
-        .from('salons')
-        .select('id, conecf_enabled_at')
-        .eq('id', tData.salon_id)
-        .eq('owner_id', user.id)
-        // 0 件（他店のセラピスト）は想定内の分岐なので maybeSingle。single だと 0 件でもエラーを吐く。
-        .maybeSingle();
-
-      if (!salonData) {
-        setLoadError('このセラピストを編集する権限がありません');
-        return;
-      }
+      const tData = res.therapist as unknown as Therapist;
 
       // ★ 第398便（コネックエフ 1c・案B）: 写真・年齢・サイズ・公開はコネックエフで編集する店
-      setConecfOn(!!(salonData as { conecf_enabled_at?: string | null }).conecf_enabled_at);
+      setConecfOn(res.conecfOn);
       setTherapist(tData);
       setForm(tData);
       // 複数画像：profile_images を優先、無ければ既存の単一画像を1枚目として扱う（互換性）
@@ -217,23 +203,18 @@ export default function TherapistEditPage() {
 
     setUploadingSlot(slot);
 
-    const ext = file.name.split('.').pop();
-    const fileName = `${therapist.id}-${Date.now()}.${ext}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('therapist-photos')
-      .upload(fileName, file, { cacheControl: STORAGE_CACHE_CONTROL });
-
-    if (uploadError) {
-      showToast('アップロードに失敗しました: ' + uploadError.message);
+    const ext = file.name.split('.').pop() ?? 'jpg';
+    // ★ 第988便: 置き場所はサーバーが作り、画像はそこへ直接送る（写メ日記と同じやり方）
+    let prep: Awaited<ReturnType<typeof createOwnerTherapistPhotoUploadUrl>>;
+    try { prep = await createOwnerTherapistPhotoUploadUrl(String(therapist.id), ext); } catch { prep = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度選んでください。' }; }
+    const up = prep.ok ? await putToSignedUrl(prep.signedUrl, file) : prep;
+    if (!prep.ok || !up.ok) {
+      showToast(!up.ok ? up.error : 'アップロードできませんでした。もう一度選んでください。');
       setUploadingSlot(null);
       e.target.value = '';
       return;
     }
-
-    const { data: urlData } = supabase.storage
-      .from('therapist-photos')
-      .getPublicUrl(fileName);
+    const urlData = { publicUrl: prep.publicUrl };
 
     sessionUploadsRef.current.push(urlData.publicUrl);
     setImages(prev => {
@@ -411,9 +392,10 @@ export default function TherapistEditPage() {
     if (!therapist) return;
     setSaving(true);
 
-    const { error } = await supabase
-      .from('therapists')
-      .update({
+    // ★ 第988便: 保存はサーバーで（送ってよい項目だけサーバー側でも絞る）
+    let error: { message: string; code?: string } | null = null;
+    try {
+      error = (await updateOwnerTherapist(therapist.id, {
         // ★ 第398便: コネックエフを使う店では、写真・年齢・サイズを書かない（★ コネックエフの値を上書きしない）
         ...(conecfOn ? {} : {
           // profile_image_url は1枚目を保存して既存表示との互換性を維持
@@ -426,8 +408,10 @@ export default function TherapistEditPage() {
         catchphrase:       (form.catchphrase ?? '').trim().slice(0, 16) || null,
         // 念のため保存前に正規化（既知バッジのみ・カテゴリ順に並べ替え・最大 MAX_BADGES 件）
         feature_badges:    sanitizeBadges(badges),
-      })
-      .eq('id', therapist.id);
+      })).error;
+    } catch {
+      error = { message: '通信できませんでした。電波のよい場所で、もう一度押してください。' };
+    }
 
     // ★ 転送先も一緒に保存する（下の「保存」で画面全体が保存される、という自然な期待に合わせる）。
     const fwdErr = await flushForwardRows();
@@ -474,7 +458,7 @@ export default function TherapistEditPage() {
       }));
     }
     showToast(
-      error ? (conecfLockMessage(error) ?? '保存に失敗しました')
+      error ? (conecfLockMessage(error) ?? (/[ぁ-んァ-ン一-龥]/.test(error.message) ? error.message : '保存に失敗しました'))
         : fwdErr ? `保存しました（転送先だけ失敗: ${fwdErr}）`
         : '保存しました',
     );
