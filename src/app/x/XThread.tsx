@@ -2,14 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@/app/lib/supabase/client';
+import { loadXThread, listXMessages, sendXMessage, markXConversationRead } from './xDmActions';
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XListSkeleton } from './XSkeleton';
 import { useMe } from './XMeProvider';
 import { DM_READ_EVENT, type DmOtherProfile } from './xDmShared';
 
-const sb = createClient();
 const POLL_MS = 8000; // 軽いポーリング（Realtimeは将来）。離脱時にクリア。
 
 type Msg = { id: string; body: string; createdAt: string; mine: boolean };
@@ -30,31 +29,26 @@ export function XThread({ conversationId }: { conversationId: string }) {
   const countRef = useRef(0);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  // ★ 第985便: 会話の読み込み・送信・既読化はサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
   const markRead = async () => {
     try {
-      await sb.rpc('x_mark_conversation_read', { p_conversation_id: convNum });
+      await markXConversationRead(convNum);
       window.dispatchEvent(new Event(DM_READ_EVENT)); // ヘッダーのDM未読を再取得
     } catch {
       /* 既読化失敗は致命的でない */
     }
   };
 
-  const fetchMessages = async (myId: string): Promise<Msg[]> => {
-    const { data } = await sb
-      .from('x_messages')
-      .select('id, body, created_at, sender_profile_id')
-      .eq('conversation_id', convNum)
-      .order('created_at', { ascending: true });
-    return (data ?? []).map((m) => ({
-      id: String(m.id),
-      body: (m.body as string) ?? '',
-      createdAt: m.created_at as string,
-      mine: (m.sender_profile_id as string) === myId,
-    }));
+  const fetchMessages = async (): Promise<Msg[] | null> => {
+    try {
+      const r = await listXMessages(convNum);
+      return r.ok ? r.messages : null;
+    } catch {
+      return null;
+    }
   };
 
-  // 初回ロード：会話（RLSで非メンバーは0件）→ 相手解決 → メッセージ → 既読化。
-  // 自分(me)は Context から即得られるため、会話取得を待ちなく開始できる。
+  // 初回ロード：会話（RLSで非メンバーは0件）→ 相手解決 → メッセージ → 既読化（まとめてサーバーで）。
   useEffect(() => {
     if (meLoading) return;
     if (!me) {
@@ -63,46 +57,24 @@ export function XThread({ conversationId }: { conversationId: string }) {
     }
     let alive = true;
     (async () => {
-      const myId = me.id;
-      myIdRef.current = myId;
-
-      // RLS：自分が参加者でない会話は返らない（=他人の会話IDを叩いてもデータは出ない）。
-      const { data: conv } = await sb
-        .from('x_conversations')
-        .select('id, participant_a, participant_b')
-        .eq('id', convNum)
-        .maybeSingle();
+      myIdRef.current = me.id;
+      let r: Awaited<ReturnType<typeof loadXThread>>;
+      try { r = await loadXThread(convNum); } catch { r = { ok: false, error: '読み込めませんでした。電波のよい場所で、ページを開き直してください。' }; }
       if (!alive) return;
-      if (!conv) {
+      if (!r.ok) {
+        setError(r.error);
+        setLoading(false);
+        return;
+      }
+      if (!r.accessible) {
         setAccessible(false);
         setLoading(false);
         return;
       }
       setAccessible(true);
-
-      const otherId = (conv.participant_a as string) === myId ? (conv.participant_b as string) : (conv.participant_a as string);
-      const { data: op } = await sb
-        .from('x_profiles')
-        .select('id, handle, display_name, avatar_url, kind, is_verified, status, dm_disabled')
-        .eq('id', otherId)
-        .maybeSingle();
-      if (alive && op) {
-        setOther({
-          id: op.id as string,
-          handle: (op.handle as string) ?? '',
-          displayName: (op.display_name as string) ?? '',
-          avatarUrl: (op.avatar_url as string | null) ?? null,
-          kind: ((op.kind as string) ?? 'user') as DmOtherProfile['kind'],
-          isVerified: Boolean(op.is_verified),
-          status: (op.status as string) ?? 'approved',
-          dmDisabled: Boolean(op.dm_disabled),
-        });
-      }
-
-      const msgs = await fetchMessages(myId);
-      if (!alive) return;
-      setMessages(msgs);
-      countRef.current = msgs.length;
+      if (r.other) setOther(r.other);
+      setMessages(r.messages);
+      countRef.current = r.messages.length;
       setLoading(false);
       markRead();
     })();
@@ -116,10 +88,9 @@ export function XThread({ conversationId }: { conversationId: string }) {
     if (accessible !== true) return;
     let alive = true;
     const tick = async () => {
-      const myId = myIdRef.current;
-      if (!myId) return;
-      const msgs = await fetchMessages(myId);
-      if (!alive) return;
+      if (!myIdRef.current) return;
+      const msgs = await fetchMessages();
+      if (!alive || !msgs) return;
       if (msgs.length !== countRef.current) {
         const grewWithIncoming = msgs.length > countRef.current && msgs[msgs.length - 1] && !msgs[msgs.length - 1].mine;
         countRef.current = msgs.length;
@@ -145,16 +116,14 @@ export function XThread({ conversationId }: { conversationId: string }) {
     if (!body || sending || !myId) return;
     setSending(true);
     setError('');
-    const { data, error: insErr } = await sb
-      .from('x_messages')
-      .insert({ conversation_id: convNum, sender_profile_id: myId, body })
-      .select('id, body, created_at, sender_profile_id')
-      .single();
+    let res: Awaited<ReturnType<typeof sendXMessage>>;
+    try { res = await sendXMessage(convNum, body); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setSending(false);
-    if (insErr) {
-      setError(`送信できませんでした：${insErr.message}`);
+    if (!res.ok) {
+      setError(res.error);
       return;
     }
+    const data = { id: res.id, created_at: res.createdAt };
     // 楽観反映（last_message_at はトリガが更新するのでアプリは触らない）。
     setMessages((prev) => {
       const next = [

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
+import { sendXOfficialContact } from './xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 
-const sb = createClient();
 
 // 運営(official)アカウントのプロフィールで「メッセージ」を押したときに開くお問い合わせフォーム。
 // 通常のDM（スレッドへ遷移）ではなく、この中で完結させる：
@@ -58,24 +57,12 @@ export function XOfficialContactModal({
     setError('');
 
     // 1) 運営との会話を取得（無ければ作成）。運営宛はフォロー不要（DB側で免除）。
-    const { data: convId, error: convErr } = await sb.rpc('x_start_conversation', {
-      p_other: officialProfileId,
-    });
-    if (convErr || convId == null) {
-      setSending(false);
-      setError(convErr?.message ?? '送信できませんでした。時間をおいてお試しください。');
-      return;
-    }
-
-    // 2) 本文を1件送信。sender_profile_id は RLS 側でも本人チェックされる。
-    const { error: msgErr } = await sb.from('x_messages').insert({
-      conversation_id: convId,
-      sender_profile_id: myProfileId,
-      body: `${BODY_PREFIX}\n${body.trim()}`,
-    });
+    // ★ 第985便: 会話の作成と1通目の送信はサーバーでまとめて（送信者は本人のプロフィールにサーバーが固定）
+    let res: Awaited<ReturnType<typeof sendXOfficialContact>>;
+    try { res = await sendXOfficialContact(officialProfileId, `${BODY_PREFIX}\n${body.trim()}`); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setSending(false);
-    if (msgErr) {
-      setError(msgErr.message ?? '送信できませんでした。時間をおいてお試しください。');
+    if (!res.ok) {
+      setError(res.error);
       return;
     }
     setDone(true);

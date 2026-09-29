@@ -3,12 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+import { startXConversation } from '../xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import { VerifiedBadge } from '../VerifiedBadge';
 import type { OfferTherapist } from '../xOffers';
 import { useXToast } from '../useXToast';
 
-const sb = createClient();
 
 // オファー一覧（認証済みshop・official のみ閲覧）。お店タブのカードスタイルを踏襲し、CSS変数で紫/白テーマに追従。
 // カード本体タップで /x/u/[handle]、下部の「オファーを送る」ボタンで会話開始（フォロー不要＝x_start_conversation のオファー免除）。
@@ -109,13 +108,15 @@ function OfferStartButton({ targetId }: { targetId: string }) {
   const start = async () => {
     if (busy) return;
     setBusy(true);
-    const { data, error } = await sb.rpc('x_start_conversation', { p_other: targetId });
+    // ★ 第985便: 会話の開始はサーバー経由
+    let res: Awaited<ReturnType<typeof startXConversation>>;
+    try { res = await startXConversation(targetId); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setBusy(false);
-    if (error || data == null) {
-      showToast(error?.message ?? '会話を開始できませんでした');
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
-    router.push(`/x/messages/${data}`);
+    router.push(`/x/messages/${res.conversationId}`);
   };
 
   return (

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { markAllXNotificationsRead, markXNotificationRead } from './xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import { XTimeAgo } from './XTimeAgo';
 import { VerifiedBadge } from './VerifiedBadge';
 import { XListSkeleton } from './XSkeleton';
@@ -165,7 +166,7 @@ export function XNotifications() {
 
       // 一括既読化（裏で）。表示ハイライトは built の isRead スナップショットを保持＝どれが新着だったか分かる。
       // ヘッダーの未読バッジは即時クリア（遷移を待たない）。
-      await sb.rpc('x_mark_all_notifications_read');
+      try { await markAllXNotificationsRead(); } catch { /* 既読化の失敗は表示を妨げない */ } // ★ 第985便: サーバー経由
       if (alive) window.dispatchEvent(new Event(NOTIF_READ_EVENT));
     })();
     return () => {
@@ -176,7 +177,7 @@ export function XNotifications() {
   // 行タップ：個別既読RPC（冪等）→ 遷移。
   const onRowClick = async (n: XNotification) => {
     try {
-      await sb.rpc('x_mark_notification_read', { p_id: Number(n.id) });
+      await markXNotificationRead(Number(n.id)); // ★ 第985便: サーバー経由
     } catch {
       /* 既読化の失敗は遷移を妨げない */
     }

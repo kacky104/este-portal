@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { requestXAffiliation, cancelXAffiliationRequest, removeXAffiliation } from '../xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import type { TherapistMini } from '../xAffiliation';
 import { useXToast } from '../useXToast';
 
@@ -108,14 +109,15 @@ export function XShop({
   const requestAffiliation = async (therapist: TherapistMini) => {
     if (busy) return;
     setBusy(therapist.id);
-    const { data, error } = await supabase.rpc('x_affiliation_request_create', {
-      p_therapist_profile_id: therapist.id,
-    });
+    // ★ 第985便: サーバー経由
+    let res: Awaited<ReturnType<typeof requestXAffiliation>>;
+    try { res = await requestXAffiliation(therapist.id); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setBusy(null);
-    if (error) {
-      showToast(error.message);
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
+    const data = res.requestId;
     // 既に一覧にあれば追加しない（RPC は既存pendingのidを返すため重複し得る）。
     setPending((list) =>
       list.some((p) => p.therapist.id === therapist.id)
@@ -129,12 +131,11 @@ export function XShop({
   const cancelRequest = async (requestId: string) => {
     if (busy) return;
     setBusy(requestId);
-    const { error } = await supabase.rpc('x_affiliation_request_cancel', {
-      p_request_id: Number(requestId),
-    });
+    let res: Awaited<ReturnType<typeof cancelXAffiliationRequest>>;
+    try { res = await cancelXAffiliationRequest(Number(requestId)); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setBusy(null);
-    if (error) {
-      showToast(error.message);
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
     setPending((list) => list.filter((p) => p.requestId !== requestId));
@@ -146,12 +147,11 @@ export function XShop({
     if (busy) return;
     if (!window.confirm(`「${therapist.displayName}」の所属を解除しますか？`)) return;
     setBusy(therapist.id);
-    const { error } = await supabase.rpc('x_affiliation_remove', {
-      p_therapist_profile_id: therapist.id,
-    });
+    let res: Awaited<ReturnType<typeof removeXAffiliation>>;
+    try { res = await removeXAffiliation(therapist.id); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setBusy(null);
-    if (error) {
-      showToast(error.message);
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
     setAffiliated((list) => list.filter((a) => a.id !== therapist.id));

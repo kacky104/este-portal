@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
+import { startXConversation } from './xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import type { XProfile } from './xProfile';
 import { useXToast } from './useXToast';
 import { XOfficialContactModal } from './XOfficialContactModal';
@@ -80,13 +81,15 @@ export function XMessageButton({
       return;
     }
     setBusy(true);
-    const { data, error } = await sb.rpc('x_start_conversation', { p_other: target.id });
+    // ★ 第985便: 会話の開始はサーバー経由
+    let res: Awaited<ReturnType<typeof startXConversation>>;
+    try { res = await startXConversation(target.id); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setBusy(false);
-    if (error || data == null) {
-      showToast(error?.message ?? '会話を開始できませんでした');
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
-    router.push(`/x/messages/${data}`);
+    router.push(`/x/messages/${res.conversationId}`);
   };
 
   return (

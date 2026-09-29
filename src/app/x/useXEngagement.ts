@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { createClient } from '@/app/lib/supabase/client';
+// ★ 第985便: いいね・フォロー・保存もサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
+import { toggleXLike, toggleXFollow, toggleXSave } from './xEngagementActions';
 import { toggleRepost as toggleRepostAction } from './xRepostActions';
 import type { XProfile } from './xProfile';
 import type { XPost, XPostAuthor } from './xPosts';
 
 // fukuX のいいね／フォロー／リポストの状態管理＋楽観更新を、タイムライン・プロフィールページで共有するフック。
 // 権限判定（kind/status）も集約し、DB側RLSとUI出し分けを一致させる。
-const supabase = createClient();
+const NET_ERR = '通信できませんでした。電波のよい場所で、もう一度押してください。';
 
 type LikeState = { liked: boolean; count: number };
 type RepostState = { reposted: boolean; count: number };
@@ -170,18 +171,17 @@ export function useXEngagement(opts: {
       setLikes((m) => ({ ...m, [post.id]: next }));
       setLikePending((s) => new Set(s).add(post.id));
 
-      const { error } = next.liked
-        ? await supabase.from('x_likes').insert({ profile_id: me.id, post_id: post.id })
-        : await supabase.from('x_likes').delete().eq('profile_id', me.id).eq('post_id', post.id);
+      let res: Awaited<ReturnType<typeof toggleXLike>>;
+      try { res = await toggleXLike(post.id, next.liked); } catch { res = { ok: false, error: NET_ERR }; }
 
       setLikePending((s) => {
         const n = new Set(s);
         n.delete(post.id);
         return n;
       });
-      if (error) {
+      if (!res.ok) {
         setLikes((m) => ({ ...m, [post.id]: prev }));
-        onToast('いいねに失敗しました');
+        onToast(res.error);
       }
     },
     [me, canLike, likePending, likes, onToast, onAuthRequired]
@@ -244,27 +244,22 @@ export function useXEngagement(opts: {
       });
       setFollowPending((s) => new Set(s).add(authorId));
 
-      const { error } = wasFollowing
-        ? await supabase
-            .from('x_follows')
-            .delete()
-            .eq('follower_profile_id', me.id)
-            .eq('followee_profile_id', authorId)
-        : await supabase.from('x_follows').insert({ follower_profile_id: me.id, followee_profile_id: authorId });
+      let res: Awaited<ReturnType<typeof toggleXFollow>>;
+      try { res = await toggleXFollow(authorId, !wasFollowing); } catch { res = { ok: false, error: NET_ERR }; }
 
       setFollowPending((s) => {
         const n = new Set(s);
         n.delete(authorId);
         return n;
       });
-      if (error) {
+      if (!res.ok) {
         setFollowingSet((s) => {
           const n = new Set(s);
           if (wasFollowing) n.add(authorId);
           else n.delete(authorId);
           return n;
         });
-        onToast('フォロー操作に失敗しました');
+        onToast(res.error);
       }
     },
     [me, canFollow, followPending, followingSet, onToast, onAuthRequired]
@@ -292,23 +287,22 @@ export function useXEngagement(opts: {
       });
       setSavePending((s) => new Set(s).add(post.id));
 
-      const { error } = wasSaved
-        ? await supabase.from('x_post_saves').delete().eq('profile_id', me.id).eq('post_id', post.id)
-        : await supabase.from('x_post_saves').insert({ profile_id: me.id, post_id: post.id });
+      let res: Awaited<ReturnType<typeof toggleXSave>>;
+      try { res = await toggleXSave(post.id, !wasSaved); } catch { res = { ok: false, error: NET_ERR }; }
 
       setSavePending((s) => {
         const n = new Set(s);
         n.delete(post.id);
         return n;
       });
-      if (error) {
+      if (!res.ok) {
         setSavedSet((s) => {
           const n = new Set(s);
           if (wasSaved) n.add(post.id);
           else n.delete(post.id);
           return n;
         });
-        onToast(wasSaved ? '保存の解除に失敗しました' : '保存に失敗しました');
+        onToast(res.error);
       }
     },
     [me, canSave, savePending, savedSet, onToast, onAuthRequired]

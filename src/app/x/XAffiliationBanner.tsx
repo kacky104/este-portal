@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+import { respondXAffiliation } from './xDmActions'; // ★ 第985便: サーバー経由（アプリ内ブラウザ対策）
 import { VerifiedBadge } from './VerifiedBadge';
 import { useXToast } from './useXToast';
 
-const supabase = createClient();
 
 // 自分（セラピスト）宛に届いている所属申請（申請元店舗の最小情報つき）。
 export type IncomingRequest = {
@@ -37,13 +36,12 @@ export function XAffiliationBanner({
   const respond = async (requestId: string, accept: boolean) => {
     if (busy) return;
     setBusy(requestId);
-    const { error } = await supabase.rpc('x_affiliation_respond', {
-      p_request_id: Number(requestId),
-      p_accept: accept,
-    });
+    // ★ 第985便: サーバー経由
+    let res: Awaited<ReturnType<typeof respondXAffiliation>>;
+    try { res = await respondXAffiliation(Number(requestId), accept); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setBusy(null);
-    if (error) {
-      showToast(error.message);
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
     if (accept) {
