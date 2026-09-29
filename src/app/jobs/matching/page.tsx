@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { WorkMatchForm } from './WorkMatchForm';
+import { MatchingFlow } from './MatchingFlow';
 import { PageHero } from '@/app/components/PageHero';
 import { fetchPageHero } from '@/app/lib/pageHero';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
@@ -42,7 +43,10 @@ export default async function JobMatchingPage() {
   // ページ別ヒーロー画像（admin求人タブ「求人ページ別ヒーロー画像設定」で設定。未設定なら非表示）。
   const hero = await fetchPageHero('jobs-matching');
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8">
+    // ★ 第975便: 3ステップ（MatchingFlow）を画面の横幅いっぱいに出すため、main は幅を持たず、
+    //   上（パンくず・ヒーロー）と下（フォーム）をそれぞれ max-w-3xl の箱に入れる。
+    <main>
+      <div className="max-w-3xl mx-auto px-4 pt-8">
       {/* パンくず：フクエスワーク › お仕事マッチング */}
       {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
@@ -62,40 +66,12 @@ export default async function JobMatchingPage() {
       {/* ヒーロー画像（未設定なら何も出ない）。他ページ（口コミ等）と同じくパンくず直下・見出しの上。 */}
       <PageHero url={hero} alt="お仕事マッチング｜フクエスワーク" fullBleedMobile contentMax={768} />
 
-      <div className="mb-6">
-        <h1
-          className="text-2xl sm:text-3xl font-extrabold inline-block"
-          style={{
-            background: 'linear-gradient(95deg,#10B981,#84CC16)',
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            color: 'transparent',
-          }}
-        >
-          お仕事マッチング
-        </h1>
-        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-          希望を入力するだけで、あなたに合うお店を運営が無料でお探しします。<br className="hidden sm:block" />
-          条件に合うお店から、ご希望の連絡先にご連絡が届きます。まずはお気軽にどうぞ🐾
-        </p>
       </div>
 
-      {/* 3ステップの案内（安心してもらうための説明） */}
-      <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-6">
-        {[
-          { n: '1', t: '希望を入力', d: 'エリアや働き方など、気になる条件を選ぶだけ' },
-          { n: '2', t: '運営がお探し', d: 'ご希望に合うお店を運営が無料でピックアップ' },
-          { n: '3', t: 'お店からご連絡', d: '条件に合うお店からご連絡が届きます。話を進めるかはあなた次第' },
-        ].map((s) => (
-          <li key={s.n} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-black mb-1.5">{s.n}</span>
-            <p className="text-xs font-bold text-slate-700">{s.t}</p>
-            <p className="text-[11px] text-slate-500 leading-relaxed mt-0.5">{s.d}</p>
-          </li>
-        ))}
-      </ol>
+      {/* ★ 第975便: 見出し（h1）・説明・3ステップは MatchingFlow（いただいた実装用 ZIP のデザイン）。直後に入力フォーム。 */}
+      <MatchingFlow />
 
+      <div className="max-w-3xl mx-auto px-4 pt-6 pb-8">
       <WorkMatchForm />
 
       <p className="text-[11px] text-slate-400 leading-relaxed mt-4">
@@ -105,6 +81,7 @@ export default async function JobMatchingPage() {
         <Link href="/jobs/privacy" className="hover:underline" style={{ color: '#059669' }}>フクエスワークプライバシーポリシー</Link>
         をご確認ください。
       </p>
+      </div>
     </main>
   );
 }
