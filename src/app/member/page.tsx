@@ -179,7 +179,8 @@ export default async function MemberPage() {
             className="group flex flex-col justify-center gap-3 rounded-2xl border border-purple-100 bg-white p-4 sm:p-5 shadow-sm hover:border-purple-300 hover:shadow-md transition-all"
           >
             <div className="flex items-center gap-2">
-              <Image src="/logo-therapist.png" alt="" aria-hidden width={28} height={28} className="w-7 h-7 flex-shrink-0" />
+              {/* ★ 第967便: 肉球ロゴ → 保存ボタンと同じ星（保存済みの濃さ・SaveButton の STAR_SAVED_FILTER と同じ値） */}
+              <Image src="/save-star.png" alt="" aria-hidden width={28} height={28} className="w-7 h-7 flex-shrink-0 object-contain" style={{ filter: 'saturate(1.8) brightness(0.9) contrast(1.1) drop-shadow(0 1px 1.5px rgba(0,0,0,0.18))' }} />
               <span className="text-xs sm:text-sm font-medium text-slate-500">保存セラピスト</span>
             </div>
             <div className="flex items-baseline justify-center gap-3">
