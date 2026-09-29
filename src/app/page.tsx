@@ -69,7 +69,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes, salonCountRes, memberCountRes] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -117,6 +117,14 @@ export default async function Home() {
       .from('diary_posts')
       .select('id, salons!inner(id)', { count: 'exact', head: true })
       .eq('salons.is_hidden', false),
+    // ★ 第963便: 掲載店舗＝非表示でない店（通常掲載＋無料掲載枠の合計）。
+    supabase
+      .from('salons')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_hidden', false),
+    // ★ 第963便: 会員数＝ログインできるアカウントの合計（一般会員・オーナー・セラピスト・fukuX）。
+    //   SQL: supabase/migrations/20260929_public_member_count.sql（件数だけ返す関数）。★ 関数がまだ無い・失敗なら出さない。
+    supabase.rpc('public_member_count'),
   ]);
 
   // TOPに出すのは先頭3件だけ。続きは /reviews。
@@ -176,27 +184,33 @@ export default async function Home() {
 
             {/* ★ 第959便: 数字の帯（実数・10分ごとの ISR で自動的に増える）。数え取りに失敗した項目は出さない。 */}
             {(() => {
-              const stats = [
+              const memberCount = memberCountRes.error ? null : Number(memberCountRes.data);
+              const stats: { label: string; count: number | null; unit: string; href: string | null }[] = [
+                { label: '掲載店舗', count: salonCountRes.count, unit: '店', href: '/salons' },
                 { label: '福岡のセラピスト', count: therapistCountRes.count, unit: '人', href: '/therapists' },
                 { label: '口コミ', count: reviewCountRes.count, unit: '件', href: '/reviews' },
                 { label: '写メ日記', count: diaryCountRes.count, unit: '件', href: '/diary' },
+                { label: '会員', count: Number.isFinite(memberCount) ? memberCount : null, unit: '人', href: null },
               ].filter((x) => typeof x.count === 'number' && x.count > 0);
               if (stats.length === 0) return null;
               return (
                 <div className="mt-1.5 grid" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
-                  {stats.map((x) => (
-                    <Link
-                      key={x.label}
-                      href={x.href}
-                      className="py-[5px] px-1 hover:opacity-75 transition-opacity"
-                    >
+                  {stats.map((x) => {
+                    const body = (
+                      <>
                       <span className="block text-[18px] sm:text-[22px] font-bold leading-tight text-[#DB2777]">
                         {(x.count as number).toLocaleString('ja-JP')}
                         <span className="text-[11px] sm:text-xs font-bold ml-0.5">{x.unit}</span>
                       </span>
                       <span className="block text-[10px] sm:text-xs text-slate-500 leading-tight mt-0.5">{x.label}</span>
-                    </Link>
-                  ))}
+                      </>
+                    );
+                    return x.href ? (
+                      <Link key={x.label} href={x.href} className="py-[5px] px-1 hover:opacity-75 transition-opacity">{body}</Link>
+                    ) : (
+                      <div key={x.label} className="py-[5px] px-1">{body}</div>
+                    );
+                  })}
                 </div>
               );
             })()}
