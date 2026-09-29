@@ -3,6 +3,18 @@
 // エラーは日本語メッセージに整形して返す。
 import { createClient } from '@/app/lib/supabase/client';
 import type { Session } from '@supabase/supabase-js';
+// ★ 第987便: 8 秒たってもブラウザから返事が無いときだけ使う、サーバーからの予備の道
+import { serverSignIn, serverSignUp, serverRequestPasswordReset, serverSignOut } from '@/app/actions/authFallback';
+
+// ★★ 第987便（2026-09-29・カッキーさん）: LINE 等のアプリ内ブラウザでは、ブラウザの supabase-js が送る前に止まることがある。
+//   ふだんは今まで通りブラウザから送り、FALLBACK_MS たっても返事が無いときだけサーバーから送り直す。
+//   （全部サーバーにしないのは、Supabase の「同じ IP からのログイン回数の上限」に全員まとめて掛からないようにするため）
+const FALLBACK_MS = 8000;
+const TIMEOUT = Symbol('timeout');
+function withTimeout<T>(p: Promise<T>, ms = FALLBACK_MS): Promise<T | typeof TIMEOUT> {
+  return Promise.race([p, new Promise<typeof TIMEOUT>((r) => setTimeout(() => r(TIMEOUT), ms))]);
+}
+const NET_ERR = '通信できませんでした。電波のよい場所で、もう一度お試しください。';
 
 function jpAuthError(message: string): string {
   const m = (message || '').toLowerCase();
@@ -38,11 +50,23 @@ export async function signUpWithEmail(
     typeof window !== 'undefined'
       ? `${window.location.origin}/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`
       : undefined;
-  const { data, error } = await supabase.auth.signUp({
+  const r = await withTimeout(supabase.auth.signUp({
     email,
     password,
     options: emailRedirectTo ? { emailRedirectTo } : undefined,
-  });
+  }));
+  if (r === TIMEOUT) {
+    // ★ 予備の道。★ ブラウザ側が実は届いていた場合、サーバーの登録は「登録済み」扱いで返るため、
+    //   その場合も「確認メールをご確認ください」の案内にする（列挙対策の案内と同じ）。
+    try {
+      const f = await serverSignUp(email, password, typeof window !== 'undefined' ? window.location.origin : '', next);
+      if (!f.ok) return { ok: false, error: jpAuthError(f.message) };
+      return { ok: true, alreadyRegistered: false, needsConfirm: true };
+    } catch {
+      return { ok: false, error: NET_ERR };
+    }
+  }
+  const { data, error } = r;
   if (error) return { ok: false, error: jpAuthError(error.message) };
   // メール確認ON＋列挙対策により、既存メールでの signUp は user は返るが identities が空配列になる。
   // これを「登録済み」とみなす（実際には確認メールは送られない）。
@@ -56,15 +80,31 @@ export async function signInWithEmail(
   password: string
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { ok: false, error: jpAuthError(error.message) };
+  const r = await withTimeout(supabase.auth.signInWithPassword({ email, password }));
+  if (r === TIMEOUT) {
+    // ★ 予備の道: サーバーでログイン（ログインの cookie はサーバーの返事で付く）
+    try {
+      const f = await serverSignIn(email, password);
+      if (!f.ok) return { ok: false, error: jpAuthError(f.message) };
+      // ★ ブラウザ側にも知らせる（ログイン状態の見張りを動かすため）。止まっても待たない。
+      void supabase.auth.setSession({ access_token: f.accessToken, refresh_token: f.refreshToken }).catch(() => {});
+      return { ok: true };
+    } catch {
+      return { ok: false, error: NET_ERR };
+    }
+  }
+  if (r.error) return { ok: false, error: jpAuthError(r.error.message) };
   return { ok: true };
 }
 
 /** ログアウト。 */
 export async function signOut(): Promise<void> {
   const supabase = createClient();
-  await supabase.auth.signOut();
+  const r = await withTimeout(supabase.auth.signOut().then(() => true).catch(() => false));
+  // ★ 返事が無い・失敗したときはサーバーからもログアウト（cookie を消す）
+  if (r !== true) {
+    try { await serverSignOut(); } catch { /* 何もしない */ }
+  }
 }
 
 /**
@@ -84,11 +124,20 @@ export async function requestPasswordReset(
     typeof window !== 'undefined'
       ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`
       : undefined;
-  const { error } = await supabase.auth.resetPasswordForEmail(
+  const r = await withTimeout(supabase.auth.resetPasswordForEmail(
     email,
     redirectTo ? { redirectTo } : undefined
-  );
-  if (error) return { ok: false, error: jpAuthError(error.message) };
+  ));
+  if (r === TIMEOUT) {
+    try {
+      const f = await serverRequestPasswordReset(email, typeof window !== 'undefined' ? window.location.origin : '', next);
+      if (!f.ok) return { ok: false, error: jpAuthError(f.message) };
+      return { ok: true };
+    } catch {
+      return { ok: false, error: NET_ERR };
+    }
+  }
+  if (r.error) return { ok: false, error: jpAuthError(r.error.message) };
   return { ok: true };
 }
 
