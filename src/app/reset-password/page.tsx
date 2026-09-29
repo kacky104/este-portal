@@ -3,29 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getSession, onAuthChange, updatePassword } from '@/lib/auth';
-import { PASSWORD_HINT, PASSWORD_ERROR, validatePassword } from '@/lib/password';
+import { getSession, onAuthChange } from '@/lib/auth';
+import { setMyPassword } from '@/app/actions/memberAccount';
+import { PASSWORD_HINT, validatePassword } from '@/lib/password';
 
-// updateUser のサーバーエラーを種類ごとに日本語へ。
-// クライアントの形式検証（validatePassword）は送信前に済ませているため、
-// ここでの「形式不足」は基本的に出ない（保険として残す）。
-function passwordUpdateError(res: { error?: string; code?: string }): string {
-  const code = res.code ?? '';
-  const m = (res.error ?? '').toLowerCase();
-  if (code === 'same_password' || m.includes('different from the old') || m.includes('should be different')) {
-    return '新しいパスワードは、現在のパスワードと異なるものを設定してください。';
-  }
-  if (
-    code === 'weak_password' ||
-    m.includes('should be at least') ||
-    m.includes('should contain') ||
-    m.includes('weak password') ||
-    m.includes('password is too')
-  ) {
-    return PASSWORD_ERROR;
-  }
-  return 'パスワードの変更に失敗しました。時間をおいて再度お試しください。';
-}
+// ★ 第981便: 保存はサーバーアクション setMyPassword（アプリ内ブラウザで送る前に止まる事故の対策）。
+//   断られた理由は setMyPassword が日本語で返す（「時間をおいて」は出さない）。
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -42,14 +25,22 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let mounted = true;
+    // ★ 第981便: アプリ内ブラウザでは getSession() が返ってこないことがある。
+    //   4秒待っても分からなければフォームを出す（本当にログインが無ければ、保存のときにサーバーが理由を返す）。
+    const fallback = setTimeout(() => {
+      if (!mounted) return;
+      setHasSession(true);
+      setChecking(false);
+    }, 4000);
     getSession().then(s => {
       if (!mounted) return;
+      clearTimeout(fallback);
       setHasSession(!!s);
       setChecking(false);
-    });
+    }).catch(() => {});
     // PASSWORD_RECOVERY 等で後からセッションが入る場合に追従。
     const off = onAuthChange(s => { if (mounted) setHasSession(!!s); });
-    return () => { mounted = false; off(); };
+    return () => { mounted = false; clearTimeout(fallback); off(); };
   }, []);
 
   const submit = async (e: React.FormEvent) => {
@@ -60,13 +51,13 @@ export default function ResetPasswordPage() {
     if (password !== confirm) { setError('確認用パスワードが一致しません。'); return; }
     setLoading(true);
     try {
-      const res = await updatePassword(password);
-      if (!res.ok) { setError(passwordUpdateError(res)); return; }
+      const res = await setMyPassword(password);
+      if (!res.ok) { setError(res.error); return; }
       setDone(true);
       // 変更後はログイン済み状態。少し見せてからトップへ。
       setTimeout(() => { router.push('/'); router.refresh(); }, 1600);
     } catch {
-      setError('通信エラーが発生しました。時間をおいて再度お試しください。');
+      setError('通信できませんでした。電波のよい場所で、もう一度押してください。');
     } finally {
       setLoading(false);
     }

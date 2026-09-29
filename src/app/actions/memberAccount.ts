@@ -101,3 +101,37 @@ export async function deleteMyMemberAccount(confirmEmail: string): Promise<Delet
 
   return { ok: true };
 }
+
+// ★★ 第981便（2026-09-29・カッキーさん）: 会員の「新しいパスワードの設定」（/reset-password）を【サーバー側】で行う。
+// ★ 第962便（セラピストのパスワード）と同じ対策: メールのリンクを LINE・メールアプリの中のブラウザで開くと、
+//   ブラウザの supabase-js が PUT /user を送る前に止まり「変更に失敗しました」になる。
+// ★ サーバーでログイン中の本人（再設定リンクで入ったログイン）を getUser() で確かめてから、service_role でその人のパスワードだけ変える。
+//   ★ uid はクライアントから受け取らない（なりすまし防止）。
+export type SetMyPasswordResult = { ok: true } | { ok: false; error: string };
+
+export async function setMyPassword(password: string): Promise<SetMyPasswordResult> {
+  const { validatePassword, PASSWORD_ERROR } = await import('@/lib/password');
+  if (typeof password !== 'string' || validatePassword(password)) {
+    return { ok: false, error: PASSWORD_ERROR };
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      error: 'ログイン状態が切れています。届いたメールのリンクを、Safari や Chrome でもう一度開いてください。',
+    };
+  }
+  const svc = createServiceClient();
+  const { error } = await svc.auth.admin.updateUserById(user.id, { password });
+  if (error) {
+    const code = (error as { code?: string }).code ?? '';
+    console.error('[member] パスワードを設定できなかった', user.id, code, error.message);
+    if (code === 'weak_password') return { ok: false, error: PASSWORD_ERROR };
+    return {
+      ok: false,
+      error: 'パスワードを変更できませんでした。お手数ですが「再設定メールを送り直す」から、もう一度お試しください。',
+    };
+  }
+  return { ok: true };
+}

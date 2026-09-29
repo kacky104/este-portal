@@ -5,12 +5,13 @@
 // 最大の違いは「セラピストを選択させない＝本人の therapist.id に固定する」こと。
 // therapist_id / salon_id は props で受け取った本人の値のみを使い、クライアント入力やURLからは受け取らない
 // （改ざん経路を作らない＝二重防御。最終的な権限は本人用 RLS が保証する）。
-// クライアント直叩き（ブラウザの supabase＝anon＋本人セッション）。本人用 RLS により自分の日記のみ操作可能。
+// ★ 第981便: 読み書きはサーバーアクション（app/actions/castDiary.ts）。本人のログインのままサーバーで動かすので、本人用 RLS はそのまま効く。
+//   （LINE 等のアプリ内ブラウザで、ブラウザの supabase-js が送る前に止まって投稿できない事故の対策）
 
 import { CastCardTitle } from './CastCardTitle';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+import { listMyDiaries, createMyDiaryUploadUrl, postMyDiary, updateMyDiary, deleteMyDiary } from '@/app/actions/castDiary';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 // ★ 取り込んだ日記の印（第98便）。★ セラピスト様が「書いていない日記が載っている」と驚かないように
@@ -18,7 +19,36 @@ import { listImportedDiaries } from '@/app/actions/diaryImports';
 import { importedDiaryLabel, importedDiaryDeleteConfirm } from '@/lib/mediaOverview';
 import { providerLabel } from '@/lib/mediaAudit';
 
-const supabase = createClient();
+
+// ★ 第981便: サーバーが作った「本人フォルダ専用・一回限り」のアップロード先へ、画像をブラウザから直接送る。
+//   （Vercel はサーバーに送れる大きさに上限があるため、画像だけはサーバーを通さない。supabase-js も通さない）
+async function uploadDiaryImage(therapistId: string, file: File): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
+  let prep: Awaited<ReturnType<typeof createMyDiaryUploadUrl>>;
+  try {
+    prep = await createMyDiaryUploadUrl(therapistId, ext);
+  } catch {
+    return { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度選んでください。' };
+  }
+  if (!prep.ok) return prep;
+  try {
+    const fd = new FormData();
+    fd.append('cacheControl', STORAGE_CACHE_CONTROL);
+    fd.append('', file);
+    const r = await fetch(prep.signedUrl, {
+      method: 'PUT',
+      body: fd,
+      headers: { 'x-upsert': 'false', apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '' },
+    });
+    if (!r.ok) {
+      console.error('diary image upload failed:', r.status, await r.text().catch(() => ''));
+      return { ok: false, error: '画像を送れませんでした。もう一度選んでください。' };
+    }
+  } catch {
+    return { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度選んでください。' };
+  }
+  return { ok: true, url: prep.publicUrl };
+}
 const TITLE_MAX = 10;
 const PAGE_SIZE = 30; // 1ページあたりの投稿数（DBから range で30件だけ取得）
 
@@ -38,13 +68,6 @@ function formatDateTime(iso: string): string {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit',
   }).format(d);
-}
-
-// diary-images の公開URLからバケット内パスを取り出す（オーナー版と同じ）
-function storagePathFromUrl(url: string): string | null {
-  const marker = '/diary-images/';
-  const i = url.indexOf(marker);
-  return i === -1 ? null : url.slice(i + marker.length);
 }
 
 function validateImageFile(file: File): string | null {
@@ -110,39 +133,19 @@ export function CastDiary({
   }, [router, pathname]);
 
   const loadPosts = useCallback(async () => {
-    // 総件数（本人の therapist_id で絞る）
-    const { count } = await supabase
-      .from('diary_posts')
-      .select('id', { count: 'exact', head: true })
-      .eq('therapist_id', Number(therapistId));
-    const totalCount = count ?? 0;
-    setTotal(totalCount);
-
-    const pages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    let res: Awaited<ReturnType<typeof listMyDiaries>>;
+    try {
+      res = await listMyDiaries(therapistId, page);
+    } catch {
+      showToast('日記を読み込めませんでした。電波のよい場所で、ページを開き直してください。');
+      return;
+    }
+    if (!res.ok) { showToast(res.error); return; }
+    setTotal(res.total);
+    const pages = Math.max(1, Math.ceil(res.total / PAGE_SIZE));
     if (page > pages) { goTo(pages, pages); return; }
-
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-    const { data } = await supabase
-      .from('diary_posts')
-      .select('id, images, title, content, created_at')
-      .eq('therapist_id', Number(therapistId))
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    setPosts(
-      ((data ?? []) as unknown as Array<{
-        id: string | number; images: string[] | null; title: string | null;
-        content: string | null; created_at: string;
-      }>).map((r) => ({
-        id: String(r.id),
-        images: r.images ?? [],
-        title: r.title ?? null,
-        content: r.content ?? null,
-        createdAt: r.created_at,
-      }))
-    );
-  }, [therapistId, page, goTo]);
+    setPosts(res.posts);
+  }, [therapistId, page, goTo, showToast]);
 
   useEffect(() => { loadPosts(); }, [loadPosts]);
 
@@ -165,16 +168,10 @@ export function CastDiary({
     const err = validateImageFile(file);
     if (err) { showToast(err); return; }
     setDiaryUploading(true);
-    const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `${therapistId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('diary-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
-    if (error) {
-      showToast(`アップロードに失敗しました: ${error.message}`);
-      setDiaryUploading(false); e.target.value = ''; return;
-    }
-    const { data: { publicUrl } } = supabase.storage.from('diary-images').getPublicUrl(path);
-    setDiaryImage(publicUrl);
+    const up = await uploadDiaryImage(therapistId, file);
     setDiaryUploading(false); e.target.value = '';
+    if (!up.ok) { showToast(up.error); return; }
+    setDiaryImage(up.url);
   };
 
   // ── 投稿（therapist_id / salon_id は本人固定） ──
@@ -184,14 +181,26 @@ export function CastDiary({
       return;
     }
     setDiaryPosting(true);
-    const { data: posted, error } = await supabase.from('diary_posts').insert({
-      therapist_id: Number(therapistId),
-      salon_id:     salonId,
-      images:       diaryImage ? [diaryImage] : [],
-      title:        diaryTitle.trim() || null,
-      content:      diaryBody.trim() || null,
-    }).select('id').single();
-    if (error) { setDiaryPosting(false); showToast(`投稿に失敗しました: ${error.message}`); return; }
+    // ★ 第981便: 日記の保存と fukuX 同時投稿はサーバーで（本人のログインのまま＝RLS・x_posts のポリシーはそのまま効く）
+    let res: Awaited<ReturnType<typeof postMyDiary>>;
+    try {
+      res = await postMyDiary({
+        therapistId,
+        salonId,
+        image: diaryImage,
+        title: diaryTitle,
+        content: diaryBody,
+        crosspostX,
+        xProfileId,
+        xNoReplies: crosspostXNoReplies,
+      });
+    } catch {
+      setDiaryPosting(false);
+      showToast('通信できませんでした。電波のよい場所で、もう一度押してください。');
+      return;
+    }
+    if (!res.ok) { setDiaryPosting(false); showToast(res.error); return; }
+    const posted = { id: res.id };
 
     // ── 他媒体への転送（第36便・第2弾）────────────────────────────
     // 店舗の salons.diary_source が 'fukues' のときだけ、駅ちか・エスラブの投稿用アドレスへ送る。
@@ -214,27 +223,8 @@ export function CastDiary({
       }
     }
 
-    // ── fukuX 同時投稿（チェックON かつ連携あり時のみ・ワンタイムのフォーク）──
-    // 日記の保存は上で成功済み。fukuX への投稿は付随処理＝失敗しても日記投稿は成功扱い（best-effort）。
-    // 同じ認証クライアントで insert＝x_posts の INSERT ポリシー(author_profile_id = x_my_profile_id())を
-    // 正規に通る（service_role 不使用＝なりすまし不能）。編集・削除は同期しない。
-    if (crosspostX && xProfileId) {
-      const titlePart = diaryTitle.trim();
-      const contentPart = diaryBody.trim();
-      // body = タイトル行 + 改行 + 本文（片方のみ・両方空も許容）
-      const body =
-        titlePart && contentPart ? `${titlePart}\n\n${contentPart}` : (titlePart || contentPart);
-      const xImages = diaryImage ? [diaryImage] : [];
-      if (body.length > 0 || xImages.length > 0) {
-        const { error: xErr } = await supabase.from('x_posts').insert({
-          author_profile_id: xProfileId, // 本人の fukuX プロフィール id（uuid）
-          body: body || null,            // 空なら null（fukuX の画像のみ投稿と同じ作法）
-          images: xImages,               // diary と同じフルURL配列をそのままコピー
-          replies_disabled: crosspostXNoReplies, // リプライ禁止チェック（fukuX ON時のみ操作可・OFFなら false）
-        });
-        if (xErr) console.error('crosspost to x_posts failed:', xErr); // 握りつぶしてログのみ
-      }
-    }
+    // ── fukuX 同時投稿は postMyDiary の中で済ませた（第981便）──
+    if (res.xFailed) console.error('crosspost to x_posts failed');
 
     setDiaryPosting(false);
     setDiaryImage(null);
@@ -268,35 +258,24 @@ export function CastDiary({
     const err = validateImageFile(file);
     if (err) { showToast(err); return; }
     setEditUploading(true);
-    const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `${therapistId}/${Date.now()}.${ext}`; // 本人フォルダ固定
-    const { error } = await supabase.storage.from('diary-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
-    if (error) {
-      showToast(`アップロードに失敗しました: ${error.message}`);
-      setEditUploading(false); e.target.value = ''; return;
-    }
-    const { data: { publicUrl } } = supabase.storage.from('diary-images').getPublicUrl(path);
-    setEditImage(publicUrl);
+    const up = await uploadDiaryImage(therapistId, file); // 本人フォルダ固定（サーバーが決める）
     setEditUploading(false); e.target.value = '';
+    if (!up.ok) { showToast(up.error); return; }
+    setEditImage(up.url);
   };
 
   const handleSave = async (id: string) => {
     setSavingId(id);
-    const { data: updated, error } = await supabase
-      .from('diary_posts')
-      .update({
-        title: editTitle.trim() || null,
-        content: editBody.trim() || null,
-        images: editImage ? [editImage] : [],
-      })
-      .eq('id', id)
-      .select('id');
-    setSavingId(null);
-    if (error) { showToast(`保存に失敗しました: ${error.message}`); return; }
-    if (!updated || updated.length === 0) {
-      showToast('保存できませんでした（権限エラーの可能性があります）');
+    let res: Awaited<ReturnType<typeof updateMyDiary>>;
+    try {
+      res = await updateMyDiary(id, { title: editTitle, content: editBody, image: editImage });
+    } catch {
+      setSavingId(null);
+      showToast('通信できませんでした。電波のよい場所で、もう一度押してください。');
       return;
     }
+    setSavingId(null);
+    if (!res.ok) { showToast(res.error); return; }
     cancelEdit();
     revalidateSalon(salonId, { top: false });
     showToast('日記を更新しました');
@@ -313,15 +292,20 @@ export function CastDiary({
     setDeletingId(post.id);
 
     // 先にDB削除
-    const { error } = await supabase.from('diary_posts').delete().eq('id', post.id);
-    if (error) {
+    // ★ 第981便: 日記と画像の削除はサーバーで（画像の削除に失敗しても、日記の削除は成立）
+    let res: Awaited<ReturnType<typeof deleteMyDiary>>;
+    try {
+      res = await deleteMyDiary(post.id, post.images);
+    } catch {
       setDeletingId(null);
-      showToast(`削除に失敗しました: ${error.message}`);
+      showToast('通信できませんでした。電波のよい場所で、もう一度押してください。');
       return;
     }
-    // ストレージ画像も削除（失敗しても投稿削除は成立済み）
-    const paths = post.images.map(storagePathFromUrl).filter((p): p is string => !!p);
-    if (paths.length > 0) await supabase.storage.from('diary-images').remove(paths);
+    if (!res.ok) {
+      setDeletingId(null);
+      showToast(res.error);
+      return;
+    }
 
     setDeletingId(null);
     revalidateSalon(salonId, { top: false });
