@@ -15,7 +15,7 @@ import {
   type WorkExperience,
   type WorkPickup,
 } from '@/app/lib/workMatch';
-import { JOB_FEATURE_GROUPS, featureLabel, MAX_JOB_FEATURES } from '@/app/lib/jobs';
+import { JOB_FEATURE_GROUPS, featureLabel, featureTagColor, MAX_JOB_FEATURES } from '@/app/lib/jobs';
 
 // 求職マッチングのエントリーフォーム（/jobs/matching）。未ログインで送信可。
 // website はハニーポット（CSSで非表示・人間は空のまま）。送信成功で完了表示に切り替える。
@@ -177,20 +177,28 @@ export function WorkMatchForm() {
           <span className="ml-1 font-normal text-slate-400">選択中 {desiredFeatures.length}/{MAX_JOB_FEATURES}</span>
         </span>
         <div className="space-y-3 mt-1" role="group" aria-labelledby="wm-features-label">
+          {/* ★ 第969便: TOP の「特徴から探す」と同じカテゴリー別の色・角だけ丸い長方形。選ぶとその色で塗りつぶす。 */}
           {JOB_FEATURE_GROUPS.map((g) => (
             <div key={g.title}>
-              <p className="text-[11px] font-bold text-slate-400 mb-1">{g.title}</p>
+              <p className="text-[11px] font-bold mb-1" style={{ color: featureTagColor(g.slugs[0]).text }}>{g.title}</p>
               <div className="flex flex-wrap gap-2">
                 {g.slugs.map((slug) => {
                   const active = desiredFeatures.includes(slug);
                   const disabled = !active && desiredFeatures.length >= MAX_JOB_FEATURES;
+                  const c = featureTagColor(slug);
                   return (
                     <button
                       key={slug}
                       type="button"
                       onClick={() => toggleFeature(slug)}
                       disabled={disabled}
-                      className={`${chip(active)} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      aria-pressed={active}
+                      className={`px-3 py-1.5 rounded text-xs font-bold border transition-colors ${active ? 'shadow-sm' : ''} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      style={
+                        active
+                          ? { background: c.text, color: '#ffffff', borderColor: c.text }
+                          : { borderColor: c.border, color: c.text, backgroundColor: c.bg }
+                      }
                     >
                       {featureLabel(slug)}
                     </button>
