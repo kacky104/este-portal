@@ -3,18 +3,28 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+// ★ 第983便: 保存・所属解除・画像はサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
+import { createMyXImageUploadUrl, updateMyXProfile, leaveMyXShop } from '@/app/actions/xProfile';
+import { putToSignedUrl } from '@/app/lib/signedUpload';
 import { normalizeLinkUrl } from '../xLink';
 import { deleteMyXAccount } from '@/app/actions/xAccount';
 import type { XProfile } from '../xProfile';
 import { X_OFFER_AREAS } from '../xOfferAreas';
 import { XImageCropModal } from '../XImageCropModal';
 import type { ShopMini } from '../xAffiliation';
-import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { shopShowcaseLimit } from '../xShowcase';
 import { useXToast } from '../useXToast';
 
-const supabase = createClient();
+
+// ★ 第983便: x-images/本人UID/ へ画像を送る（置き場所はサーバーが決める）
+async function uploadXImage(file: Blob, ext: string, prefix?: 'header'): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  let prep: Awaited<ReturnType<typeof createMyXImageUploadUrl>>;
+  try { prep = await createMyXImageUploadUrl(ext, prefix); } catch { return { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度選んでください。' }; }
+  if (!prep.ok) return prep;
+  const up = await putToSignedUrl(prep.signedUrl, file);
+  if (!up.ok) return up;
+  return { ok: true, url: prep.publicUrl };
+}
 
 const DISPLAY_MAX = 30;
 const BIO_MAX = 160;
@@ -113,16 +123,12 @@ export function XSettingsForm({
     }
     setError('');
     const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `${profile.auth_user_id}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('x-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
-    if (upErr) {
-      setError(`画像のアップロードに失敗しました: ${upErr.message}`);
+    const up = await uploadXImage(file, ext);
+    if (!up.ok) {
+      setError(up.error);
       return null;
     }
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('x-images').getPublicUrl(path);
-    return publicUrl;
+    return up.url;
   };
 
   const onAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,18 +160,14 @@ export function XSettingsForm({
     setHeaderUploading(true);
     setError('');
     const ext = blob.type === 'image/jpeg' ? 'jpg' : 'webp';
-    const path = `${profile.auth_user_id}/header-${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('x-images').upload(path, blob, { cacheControl: STORAGE_CACHE_CONTROL });
-    if (upErr) {
-      setError(`画像のアップロードに失敗しました: ${upErr.message}`);
+    const up = await uploadXImage(blob, ext, 'header');
+    if (!up.ok) {
+      setError(up.error);
       setHeaderUploading(false);
       setHeaderCropFile(null);
       return;
     }
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('x-images').getPublicUrl(path);
-    setHeaderUrl(publicUrl);
+    setHeaderUrl(up.url);
     setHeaderUploading(false);
     setHeaderCropFile(null);
   };
@@ -232,9 +234,8 @@ export function XSettingsForm({
     setSaving(true);
     setError('');
     // 変更不可フィールド（handle/kind/status/is_verified/affiliated_shop_id）は送らない＝ガードに触れない。
-    const { error: upErr } = await supabase
-      .from('x_profiles')
-      .update({
+    // ★ 第983便: 保存はサーバーで（送ってよい項目だけサーバー側でも絞る）
+    const patch = {
         display_name: displayName.trim(),
         bio: bio.trim() || null,
         avatar_url: avatarUrl,
@@ -267,11 +268,18 @@ export function XSettingsForm({
               offer_areas: offerAreas,
             }
           : {}),
-      })
-      .eq('id', profile.id);
+    };
+    let res: Awaited<ReturnType<typeof updateMyXProfile>>;
+    try {
+      res = await updateMyXProfile(profile.id, patch);
+    } catch {
+      setSaving(false);
+      setError('通信できませんでした。電波のよい場所で、もう一度押してください。');
+      return;
+    }
     setSaving(false);
-    if (upErr) {
-      setError(`保存に失敗しました：${upErr.message}`);
+    if (!res.ok) {
+      setError(res.error);
       return;
     }
     showToast('保存しました');
@@ -284,12 +292,11 @@ export function XSettingsForm({
     if (removing || !shop) return;
     if (!window.confirm(`「${shop.displayName}」への所属を解除しますか？`)) return;
     setRemoving(true);
-    const { error: rpcErr } = await supabase.rpc('x_affiliation_remove', {
-      p_therapist_profile_id: profile.id,
-    });
+    let res: Awaited<ReturnType<typeof leaveMyXShop>>;
+    try { res = await leaveMyXShop(profile.id); } catch { res = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     setRemoving(false);
-    if (rpcErr) {
-      showToast(rpcErr.message);
+    if (!res.ok) {
+      showToast(res.error);
       return;
     }
     setShop(null);

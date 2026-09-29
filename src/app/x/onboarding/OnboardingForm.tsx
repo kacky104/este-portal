@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
+// ★ 第983便: 保存・ID確認・画像はサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
+import { createMyXImageUploadUrl, isXHandleTaken, createMyXProfile } from '@/app/actions/xProfile';
+import { putToSignedUrl } from '@/app/lib/signedUpload';
 import type { XKind } from '../xProfile';
-import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
-const supabase = createClient();
 
 // handle（@ID）：英数字とアンダースコア、3〜20文字。
 const HANDLE_RE = /^[A-Za-z0-9_]{3,20}$/;
@@ -108,7 +108,7 @@ function validateImageFile(file: File): string | null {
   return null;
 }
 
-export function OnboardingForm({ userId }: { userId: string }) {
+export function OnboardingForm(_props: { userId: string }) { // ★ 第983便: 本人UIDはサーバーが決めるので使わない
   const router = useRouter();
 
   const [step, setStep] = useState<1 | 2>(1); // 入力フローの2分割（URLは変えず同ページ内で切替）
@@ -137,9 +137,13 @@ export function OnboardingForm({ userId }: { userId: string }) {
     let cancelled = false;
     setHandleState('checking');
     const t = setTimeout(async () => {
-      const { data } = await supabase.from('x_profiles').select('handle').eq('handle', handle).maybeSingle();
+      let taken = false;
+      try {
+        const r = await isXHandleTaken(handle);
+        taken = r.ok ? r.taken : false; // ★ 確かめられないときは通す（本当に重複なら開設時に DB が断り、理由を出す）
+      } catch { /* 同上 */ }
       if (cancelled) return;
-      setHandleState(data ? 'taken' : 'ok');
+      setHandleState(taken ? 'taken' : 'ok');
     }, 350);
     return () => {
       cancelled = true;
@@ -160,18 +164,17 @@ export function OnboardingForm({ userId }: { userId: string }) {
     setError('');
     setAvatarUploading(true);
     const ext = file.name.split('.').pop() ?? 'jpg';
-    const path = `${userId}/${Date.now()}.${ext}`; // RLS が先頭フォルダ = 本人UID を要求
-    const { error: upErr } = await supabase.storage.from('x-images').upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
-    if (upErr) {
-      setError(`画像のアップロードに失敗しました: ${upErr.message}`);
+    // ★ 置き場所（x-images/本人UID/）はサーバーが決める
+    let prep: Awaited<ReturnType<typeof createMyXImageUploadUrl>>;
+    try { prep = await createMyXImageUploadUrl(ext); } catch { prep = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度選んでください。' }; }
+    const up = prep.ok ? await putToSignedUrl(prep.signedUrl, file) : prep;
+    if (!prep.ok || !up.ok) {
+      setError(!up.ok ? up.error : '画像を送れませんでした。もう一度選んでください。');
       setAvatarUploading(false);
       e.target.value = '';
       return;
     }
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('x-images').getPublicUrl(path);
-    setAvatarUrl(publicUrl);
+    setAvatarUrl(prep.publicUrl);
     setAvatarUploading(false);
     e.target.value = '';
   };
@@ -183,40 +186,24 @@ export function OnboardingForm({ userId }: { userId: string }) {
     if (!canSubmit || !kind) return;
     setSubmitting(true);
     setError('');
-    // status はトリガが自動設定するため送らない。auth_user_id は本人UID固定（RLSが auth.uid() 一致を要求）。
-    const { data, error: insErr } = await supabase
-      .from('x_profiles')
-      .insert({
-        auth_user_id: userId,
-        kind,
-        handle: handle.trim(),
-        display_name: displayName.trim(),
-        bio: bio.trim() || null,
-        avatar_url: avatarUrl,
-      })
-      .select('kind, status')
-      .single();
+    // ★ 第983便: 開設はサーバーで（auth_user_id はサーバーの本人UID。status はトリガが自動設定）
+    let res: Awaited<ReturnType<typeof createMyXProfile>>;
+    try {
+      res = await createMyXProfile({ kind, handle, displayName, bio, avatarUrl });
+    } catch {
+      setSubmitting(false);
+      setError('通信できませんでした。電波のよい場所で、もう一度押してください。');
+      return;
+    }
     setSubmitting(false);
-
-    if (insErr) {
-      const msg = insErr.message ?? '';
-      const isUnique = insErr.code === '23505' || /duplicate|unique/i.test(msg);
-      if (isUnique && /handle/i.test(msg)) {
-        setHandleState('taken');
-        setError('このIDは使われています。別のIDをお試しください。');
-        return;
-      }
-      if (isUnique) {
-        // auth_user_id の一意制約 = 既に開設済み。トップへ。
-        router.replace('/x');
-        return;
-      }
-      setError('開設に失敗しました。時間をおいて再度お試しください。');
+    if (!res.ok) {
+      if (res.reason === 'handle_taken') { setHandleState('taken'); setError(res.error); return; }
+      if (res.reason === 'already') { router.replace('/x'); return; } // 既に開設済み。トップへ。
+      setError(res.error);
       return;
     }
 
     // 新設計：全 kind が即 approved。承認待ちは無い。shop だけ認証バッジの案内を出す。
-    void data; // status は参照しない（承認ゲート廃止）
     setDone(kind);
     if (kind !== 'shop') {
       setTimeout(() => {
