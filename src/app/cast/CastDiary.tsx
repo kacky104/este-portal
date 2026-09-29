@@ -14,6 +14,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { listMyDiaries, createMyDiaryUploadUrl, postMyDiary, updateMyDiary, deleteMyDiary } from '@/app/actions/castDiary';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+import { compressImage } from '@/app/lib/compressImage'; // ★ 第999便: 送る前にスマホ側で縮める
 // ★ 取り込んだ日記の印（第98便）。★ セラピスト様が「書いていない日記が載っている」と驚かないように
 import { listImportedDiaries } from '@/app/actions/diaryImports';
 import { importedDiaryLabel, importedDiaryDeleteConfirm } from '@/lib/mediaOverview';
@@ -23,7 +24,8 @@ import { providerLabel } from '@/lib/mediaAudit';
 // ★ 第981便: サーバーが作った「本人フォルダ専用・一回限り」のアップロード先へ、画像をブラウザから直接送る。
 //   （Vercel はサーバーに送れる大きさに上限があるため、画像だけはサーバーを通さない。supabase-js も通さない）
 async function uploadDiaryImage(therapistId: string, file: File): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
+  const c = await compressImage(file); // ★ 第999便: 長辺1600px・WebP に縮めてから送る
+  const ext = c.ext;
   let prep: Awaited<ReturnType<typeof createMyDiaryUploadUrl>>;
   try {
     prep = await createMyDiaryUploadUrl(therapistId, ext);
@@ -34,7 +36,7 @@ async function uploadDiaryImage(therapistId: string, file: File): Promise<{ ok: 
   try {
     const fd = new FormData();
     fd.append('cacheControl', STORAGE_CACHE_CONTROL);
-    fd.append('', file);
+    fd.append('', c.blob);
     const r = await fetch(prep.signedUrl, {
       method: 'PUT',
       body: fd,
@@ -71,7 +73,7 @@ function formatDateTime(iso: string): string {
 }
 
 function validateImageFile(file: File): string | null {
-  if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
+  if (file.size > 20 * 1024 * 1024) return '20MB以下の画像を選択してください'; // ★ 第999便: 送る前に縮めるので上限を 5MB→20MB に
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
   return null;
 }
@@ -330,7 +332,7 @@ export function CastDiary({
         {/* 画像（1枚） */}
         <div>
           <label className="text-[11px] font-bold text-slate-500 block mb-1">画像（1枚）</label>
-          <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・5MB以下</p>
+          <p className="text-[10px] text-slate-400 mb-1.5">推奨：800×450px（横長）／ JPEG・PNG・WebP・20MB以下</p>
           {diaryImage ? (
             <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-pink-100 bg-slate-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}

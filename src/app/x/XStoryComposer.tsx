@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 // ★ 第984便: 画像とストーリー投稿はサーバー経由（アプリ内ブラウザ対策）
 import { createMyXPostImageUploadUrl, createMyXStory } from '@/app/actions/xPost';
 import { putToSignedUrl } from '@/app/lib/signedUpload';
+import { compressImage } from '@/app/lib/compressImage'; // ★ 第999便: 送る前にスマホ側で縮める
 import type { XProfile } from './xProfile';
 
 
@@ -12,7 +13,7 @@ const CAPTION_MAX = 200;
 
 // 画像バリデーション（XSettingsForm と同基準）。
 function validateImageFile(file: File): string | null {
-  if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
+  if (file.size > 20 * 1024 * 1024) return '20MB以下の画像を選択してください'; // ★ 第999便: 送る前に縮めるので上限を 5MB→20MB に
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
   return null;
 }
@@ -66,14 +67,15 @@ export function XStoryComposer({ me, onClose }: { me: XProfile; onClose: () => v
 
   // 画像アップロード（x-images バケットの本人フォルダ配下＝XSettingsForm と同パターン）。
   const uploadImage = async (f: File): Promise<string | null> => {
-    const ext = f.name.split('.').pop() ?? 'jpg';
+    const c = await compressImage(f); // ★ 第999便: 長辺1600px・WebP に縮めてから送る
+    const ext = c.ext;
     let prep: Awaited<ReturnType<typeof createMyXPostImageUploadUrl>>;
     try { prep = await createMyXPostImageUploadUrl(me.auth_user_id, ext); } catch { prep = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度押してください。' }; }
     if (!prep.ok) {
       setError(prep.error);
       return null;
     }
-    const up = await putToSignedUrl(prep.signedUrl, f);
+    const up = await putToSignedUrl(prep.signedUrl, c.blob);
     if (!up.ok) {
       setError(up.error);
       return null;
@@ -143,7 +145,7 @@ export function XStoryComposer({ me, onClose }: { me: XProfile; onClose: () => v
             <label className="h-[45dvh] rounded-xl border-2 border-dashed border-indigo-200 text-indigo-500 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 transition-colors">
               <span className="text-3xl leading-none">＋</span>
               <span className="text-xs font-bold mt-1">画像を選ぶ</span>
-              <span className="text-[10px] text-[color:var(--x-text-muted)] mt-0.5">JPEG・PNG・WebP・5MB以下</span>
+              <span className="text-[10px] text-[color:var(--x-text-muted)] mt-0.5">JPEG・PNG・WebP・20MB以下</span>
               <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onPick} className="hidden" />
             </label>
           )}

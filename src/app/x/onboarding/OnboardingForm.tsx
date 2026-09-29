@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 // ★ 第983便: 保存・ID確認・画像はサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
 import { createMyXImageUploadUrl, isXHandleTaken, createMyXProfile } from '@/app/actions/xProfile';
 import { putToSignedUrl } from '@/app/lib/signedUpload';
+import { compressImage } from '@/app/lib/compressImage'; // ★ 第999便: 送る前にスマホ側で縮める
 import type { XKind } from '../xProfile';
 
 
@@ -103,7 +104,7 @@ const KINDS: KindMeta[] = [
 type HandleState = 'idle' | 'bad' | 'checking' | 'ok' | 'taken';
 
 function validateImageFile(file: File): string | null {
-  if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
+  if (file.size > 20 * 1024 * 1024) return '20MB以下の画像を選択してください'; // ★ 第999便: 送る前に縮めるので上限を 5MB→20MB に
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
   return null;
 }
@@ -163,11 +164,12 @@ export function OnboardingForm(_props: { userId: string }) { // ★ 第983便: �
     }
     setError('');
     setAvatarUploading(true);
-    const ext = file.name.split('.').pop() ?? 'jpg';
+    const c = await compressImage(file); // ★ 第999便: 長辺1600px・WebP に縮めてから送る
+    const ext = c.ext;
     // ★ 置き場所（x-images/本人UID/）はサーバーが決める
     let prep: Awaited<ReturnType<typeof createMyXImageUploadUrl>>;
     try { prep = await createMyXImageUploadUrl(ext); } catch { prep = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度選んでください。' }; }
-    const up = prep.ok ? await putToSignedUrl(prep.signedUrl, file) : prep;
+    const up = prep.ok ? await putToSignedUrl(prep.signedUrl, c.blob) : prep;
     if (!prep.ok || !up.ok) {
       setError(!up.ok ? up.error : '画像を送れませんでした。もう一度選んでください。');
       setAvatarUploading(false);
@@ -376,7 +378,7 @@ export function OnboardingForm(_props: { userId: string }) { // ★ 第983便: �
             )}
           </div>
         </div>
-        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5">JPEG・PNG・WebP・5MB以下。あとから設定もできます。</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5">JPEG・PNG・WebP・20MB以下。あとから設定もできます。</p>
       </div>
 
       {/* ③ handle（@ID） */}

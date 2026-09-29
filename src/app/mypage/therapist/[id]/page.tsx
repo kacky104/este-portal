@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { loadOwnerTherapistForEdit, createOwnerTherapistPhotoUploadUrl, updateOwnerTherapist } from '@/app/actions/ownerTherapist'; // ★ 第988便
 import { putToSignedUrl } from '@/app/lib/signedUpload';
+import { compressImage } from '@/app/lib/compressImage'; // ★ 第999便: 送る前にスマホ側で縮める
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import {
   BADGE_CATEGORY_ORDER,
@@ -203,11 +204,12 @@ export default function TherapistEditPage() {
 
     setUploadingSlot(slot);
 
-    const ext = file.name.split('.').pop() ?? 'jpg';
+    const c = await compressImage(file); // ★ 第999便: 長辺1600px・WebP に縮めてから送る
+    const ext = c.ext;
     // ★ 第988便: 置き場所はサーバーが作り、画像はそこへ直接送る（写メ日記と同じやり方）
     let prep: Awaited<ReturnType<typeof createOwnerTherapistPhotoUploadUrl>>;
     try { prep = await createOwnerTherapistPhotoUploadUrl(String(therapist.id), ext); } catch { prep = { ok: false, error: '通信できませんでした。電波のよい場所で、もう一度選んでください。' }; }
-    const up = prep.ok ? await putToSignedUrl(prep.signedUrl, file) : prep;
+    const up = prep.ok ? await putToSignedUrl(prep.signedUrl, c.blob) : prep;
     if (!prep.ok || !up.ok) {
       showToast(!up.ok ? up.error : 'アップロードできませんでした。もう一度選んでください。');
       setUploadingSlot(null);

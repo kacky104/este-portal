@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 // ★ 第983便: 保存・所属解除・画像はサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
 import { createMyXImageUploadUrl, updateMyXProfile, leaveMyXShop } from '@/app/actions/xProfile';
 import { putToSignedUrl } from '@/app/lib/signedUpload';
+import { compressImage } from '@/app/lib/compressImage'; // ★ 第999便: 送る前にスマホ側で縮める
 import { normalizeLinkUrl } from '../xLink';
 import { deleteMyXAccount } from '@/app/actions/xAccount';
 import type { XProfile } from '../xProfile';
@@ -40,7 +41,7 @@ function toIntOrNull(s: string): number | null {
 }
 
 function validateImageFile(file: File): string | null {
-  if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
+  if (file.size > 20 * 1024 * 1024) return '20MB以下の画像を選択してください'; // ★ 第999便: 送る前に縮めるので上限を 5MB→20MB に
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
   return null;
 }
@@ -124,8 +125,8 @@ export function XSettingsForm({
       return null;
     }
     setError('');
-    const ext = file.name.split('.').pop() ?? 'jpg';
-    const up = await uploadXImage(file, ext);
+    const c = await compressImage(file); // ★ 第999便: 長辺1600px・WebP に縮めてから送る（アイコン・お店カード画像）
+    const up = await uploadXImage(c.blob, c.ext);
     if (!up.ok) {
       setError(up.error);
       return null;
@@ -378,7 +379,7 @@ export function XSettingsForm({
             )}
           </div>
         </div>
-        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5">JPEG・PNG・WebP・5MB以下。</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5">JPEG・PNG・WebP・20MB以下。</p>
       </div>
 
       {/* ── 表示名 ── */}
@@ -622,7 +623,7 @@ export function XSettingsForm({
               </label>
             )}
           </div>
-          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5 px-1">JPEG・PNG・WebP・5MB以下。</p>
+          <p className="text-[10px] text-[color:var(--x-text-muted)] mt-1.5 px-1">JPEG・PNG・WebP・20MB以下。</p>
         </div>
       )}
 

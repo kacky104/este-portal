@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 // ★ 第984便: 投稿・編集・下書き・画像はサーバー経由（アプリ内ブラウザで送る前に止まる事故の対策）
 import { createMyXPostImageUploadUrl, createMyXPost, editMyXPost, saveMyXDraft } from '@/app/actions/xPost';
 import { putToSignedUrl } from '@/app/lib/signedUpload';
+import { compressImage } from '@/app/lib/compressImage'; // ★ 第999便: 送る前にスマホ側で縮める
 import { normalizeLinkUrl } from './xLink';
 import type { XProfile } from './xProfile';
 import type { XPost } from './xPosts';
@@ -18,7 +19,7 @@ const MAX_IMAGES = 4;
 const SESSION_MISMATCH_MSG = 'アカウントが切り替わっています。ページを再読み込みしてください';
 
 function validateImageFile(file: File): string | null {
-  if (file.size > 5 * 1024 * 1024) return '5MB以下の画像を選択してください';
+  if (file.size > 20 * 1024 * 1024) return '20MB以下の画像を選択してください'; // ★ 第999便: 送る前に縮めるので上限を 5MB→20MB に
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return 'JPEG・PNG・WebPのみ対応しています';
   return null;
 }
@@ -101,7 +102,8 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
         setError(verr);
         continue;
       }
-      const ext = file.name.split('.').pop() ?? 'jpg';
+      const c = await compressImage(file); // ★ 第999便: 長辺1600px・WebP に縮めてから送る
+      const ext = c.ext;
       // ★ 置き場所（x-images/本人UID/）はサーバーが決める。アカウント切り替わりもサーバーが見つける。
       let prep: Awaited<ReturnType<typeof createMyXPostImageUploadUrl>>;
       try { prep = await createMyXPostImageUploadUrl(me.auth_user_id, ext); } catch { prep = { ok: false, error: NET_ERR }; }
@@ -110,7 +112,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
         if (prep.error === SESSION_MISMATCH_MSG) break;
         continue;
       }
-      const up = await putToSignedUrl(prep.signedUrl, file);
+      const up = await putToSignedUrl(prep.signedUrl, c.blob);
       if (!up.ok) {
         setError(up.error);
         continue;
