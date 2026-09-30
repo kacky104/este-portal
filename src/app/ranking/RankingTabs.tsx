@@ -364,6 +364,7 @@ export default function RankingTabs({
                           todayIsActive={t.todayIsActive}
                           todayStart={t.todayStart}
                           todayEnd={t.todayEnd}
+                          hasFukuX={t.hasFukuX}
                           prevRank={prevRanks.therapist[String(t.id)]}
                           theme={theme}
                           medalWallpaperUrl={wallpapers[t.rank === 1 ? 'gold' : t.rank === 2 ? 'silver' : t.rank === 3 ? 'yellow' : t.rank <= 6 ? 'purple' : 'green'] ?? null}
@@ -404,7 +405,13 @@ export default function RankingTabs({
                               </span>
                               <RankBadge rank={t.rank} theme={theme} />
                               <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-bold truncate" style={{ color: theme.heading }}>{t.name || '—'}</span>
+                                <span className="flex items-center gap-1 min-w-0">
+                                  <span className="block text-sm font-bold truncate" style={{ color: theme.heading }}>{t.name || '—'}</span>
+                                  {t.hasFukuX && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src="/fukux-mark.png" alt="fukuXアカウントあり" title="fukuXアカウントあり" className="w-3.5 h-3.5 flex-shrink-0" />
+                                  )}
+                                </span>
                                 {t.salonName && (
                                   <span className="block text-[11px] truncate" style={{ color: theme.body }}>{t.salonName}</span>
                                 )}

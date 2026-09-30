@@ -34,6 +34,7 @@ export function RankingTherapistShowcase({
   mini = false,
   micro = false,
   nano = false,
+  hasFukuX = false,
   medalWallpaperUrl = null,
 }: {
   rank: number;
@@ -60,6 +61,7 @@ export function RankingTherapistShowcase({
   mini?: boolean;
   micro?: boolean;
   nano?: boolean;
+  hasFukuX?: boolean; // 第1026便：fukuX アカウント開設済み（写真右下にマーク）
   /** ★ 1〜10位の地に敷くテーマ壁紙（1位=gold / 2位=silver / 3位=yellow / 4〜6位=purple / 7〜10位=green）。
    *  ★ どれを渡すかは呼ぶ側（RankingTabs）が決める。
    *  ★ 未設定（null）なら白のまま。 */
@@ -143,6 +145,17 @@ export function RankingTherapistShowcase({
             {cup && (
               <span className={`absolute flex items-center justify-center rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-white font-black leading-none shadow-lg ring-white/80 ${cupCls}`}>
                 {cup.toUpperCase()}
+              </span>
+            )}
+            {/* 第1026便：fukuX アカウント開設済みマーク（写真右下・白丸チップ）。カップ＝左下、出勤＝右上と重ならない位置。 */}
+            {hasFukuX && (
+              <span
+                className={`absolute flex items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/10 ${micro || nano ? 'bottom-1 right-1 w-5 h-5' : tight ? 'bottom-1.5 right-1.5 w-6 h-6' : 'bottom-2 right-2 w-8 h-8'}`}
+                title="fukuXアカウントあり"
+                aria-label="fukuXアカウントあり"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/fukux-mark.png" alt="" className={`${micro || nano ? 'w-3 h-3' : tight ? 'w-3.5 h-3.5' : 'w-5 h-5'}`} />
               </span>
             )}
             {/* 出勤バッジ（画像右上。11位以降は地域バッジ横に移動するためここでは非表示） */}

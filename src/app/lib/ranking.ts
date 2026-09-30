@@ -37,7 +37,11 @@ export type TherapistRankItem = {
   todayIsActive: boolean;
   todayStart: string | null;
   todayEnd: string | null;
+  hasFukuX: boolean; // 第1026便：承認済みの fukuX セラピストアカウントがある（カードにマーク表示）
 };
+
+// 第1026便：承認済み fukuX セラピストアカウントを持つセラピストは毎週この点数からスタート（週間アクセス数に上乗せ）。
+export const FUKUX_ACCOUNT_BONUS = 10;
 
 // 現在時刻(JST)が属する週の「月曜」の 'YYYY-MM-DD'。
 // Postgres の date_trunc('week') は月曜起点なので RPC 側と一致する。
@@ -187,7 +191,23 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
     .gt('ranking_bonus', 0);
   const bonusIds = ((bonusIdRows ?? []) as Array<{ id: number }>).map((r) => Number(r.id));
 
-  const candidateIds = [...new Set<number>([...viewMap.keys(), ...bonusIds])];
+  // 第1026便：承認済み fukuX セラピストアカウント（x_profiles kind='therapist' status='approved'）を
+  // therapists.user_id === x_profiles.auth_user_id で突き合わせ、該当セラピストに FUKUX_ACCOUNT_BONUS を加算。
+  // アクセス0でもアカウントがあれば母集団に入る（＝毎週10点からスタート）。
+  const [{ data: xRows }, { data: linkRows }] = await Promise.all([
+    supabase.from('x_profiles').select('auth_user_id').eq('kind', 'therapist').eq('status', 'approved'),
+    supabase.from('therapists').select('id, user_id').eq('is_active', true).not('user_id', 'is', null),
+  ]);
+  const xUserIds = new Set<string>(
+    ((xRows ?? []) as Array<{ auth_user_id: string | null }>).map((r) => String(r.auth_user_id ?? '')).filter(Boolean),
+  );
+  const fukuxIds = new Set<number>(
+    ((linkRows ?? []) as Array<{ id: number; user_id: string | null }>)
+      .filter((r) => r.user_id && xUserIds.has(String(r.user_id)))
+      .map((r) => Number(r.id)),
+  );
+
+  const candidateIds = [...new Set<number>([...viewMap.keys(), ...bonusIds, ...fukuxIds])];
   if (candidateIds.length === 0) return [];
 
   const { data: tRows } = await supabase
@@ -218,9 +238,11 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
 
   const scored = ((tRows ?? []) as unknown as TRow[])
     .map((t) => {
-      const effective = (viewMap.get(Number(t.id)) ?? 0) + Number(t.ranking_bonus ?? 0);
+      const hasFukuX = fukuxIds.has(Number(t.id));
+      const effective = (viewMap.get(Number(t.id)) ?? 0) + Number(t.ranking_bonus ?? 0) + (hasFukuX ? FUKUX_ACCOUNT_BONUS : 0);
       return {
         id: Number(t.id),
+        hasFukuX,
         name: t.name ?? '',
         salonId: t.salon_id != null ? Number(t.salon_id) : null,
         salonName: t.salons?.name ?? '',
@@ -286,6 +308,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
       todayIsActive: sch?.active ?? false,
       todayStart: sch?.start ?? null,
       todayEnd: sch?.end ?? null,
+      hasFukuX: x.hasFukuX,
     };
   });
 }
