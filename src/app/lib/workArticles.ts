@@ -1,5 +1,10 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { isValidArticleCategory } from '@/app/lib/articleCategories';
+import { getAllWorkColumnFiles, getWorkColumnFile } from '@/app/lib/workColumnFiles';
+
+// ★★ 第1033便（2026-10-01・カッキーさん）: コラムを「用語集型」（src/content/work-column/*.md）へ移していく。
+//   各 fetch は【md → DB】の順で合成する（mergeWithFiles）。同じ slug は md が勝つ。
+//   ★ DB の記事はそのまま残してよい（消さなくても md が優先される）。管理画面・プリセットも当面そのまま。
 
 // コラム記事（work_articles）の公開ページ用データ取得（段階3）。
 // 公開ページ専用のため anon クライアント（createPublicClient）で読む＝cookieを触らないので
@@ -62,6 +67,18 @@ function sortByEffectiveDateDesc<T extends { publishedAt: string | null; updated
   return [...items].sort((a, b) => effectiveDateMs(b) - effectiveDateMs(a));
 }
 
+// ── md 記事と DB 記事の合成：md を先に置き、同じ slug の DB 行は捨てる。 ──
+function mergeWithFiles<T extends { slug: string }>(files: T[], db: T[]): T[] {
+  const taken = new Set(files.map((f) => f.slug));
+  return [...files, ...db.filter((d) => !taken.has(d.slug))];
+}
+
+function fileListItems(category?: string): WorkArticleListItem[] {
+  return getAllWorkColumnFiles()
+    .filter((a) => !category || a.category === category)
+    .map((a) => { const { body, ...rest } = a; void body; return rest; });
+}
+
 // ── 一覧（published・published_at 降順）。limit 指定で件数制限（トップの新着枠など）。 ──
 export async function fetchPublishedArticles(limit?: number): Promise<WorkArticleListItem[]> {
   const supabase = createPublicClient();
@@ -72,7 +89,7 @@ export async function fetchPublishedArticles(limit?: number): Promise<WorkArticl
     .select(LIST_COLUMNS)
     .eq('status', 'published')
     .order('published_at', { ascending: false });
-  const sorted = sortByEffectiveDateDesc((data ?? []).map(mapListItem));
+  const sorted = sortByEffectiveDateDesc(mergeWithFiles(fileListItems(), (data ?? []).map(mapListItem)));
   return limit != null ? sorted.slice(0, limit) : sorted;
 }
 
@@ -88,13 +105,15 @@ export async function fetchPublishedArticlesByCategory(
     .eq('status', 'published')
     .eq('category', category)
     .order('published_at', { ascending: false });
-  return sortByEffectiveDateDesc((data ?? []).map(mapListItem));
+  return sortByEffectiveDateDesc(mergeWithFiles(fileListItems(category), (data ?? []).map(mapListItem)));
 }
 
 // ── slug 単体（published のみ）。存在しない／draft は null（呼び出し側で notFound）。 ──
 export async function fetchPublishedArticleBySlug(
   slug: string,
 ): Promise<WorkArticleDetail | null> {
+  const file = getWorkColumnFile(slug);
+  if (file) return file;
   const supabase = createPublicClient();
   const { data } = await supabase
     .from('work_articles')
@@ -116,7 +135,7 @@ export async function fetchPublishedArticlesForSitemap(): Promise<WorkArticleSit
     .from('work_articles')
     .select('slug, category, updated_at')
     .eq('status', 'published');
-  return (data ?? []).map((r) => {
+  const db = (data ?? []).map((r) => {
     const row = r as Record<string, unknown>;
     return {
       slug: String(row.slug ?? ''),
@@ -124,6 +143,8 @@ export async function fetchPublishedArticlesForSitemap(): Promise<WorkArticleSit
       updatedAt: (row.updated_at as string | null) ?? null,
     };
   });
+  const files = getAllWorkColumnFiles().map((a) => ({ slug: a.slug, category: a.category, updatedAt: a.updatedAt ?? a.publishedAt }));
+  return mergeWithFiles(files, db);
 }
 
 // ── generateStaticParams 用：published 記事の slug 一覧。 ──
@@ -133,7 +154,7 @@ export async function fetchPublishedArticleSlugs(): Promise<string[]> {
     .from('work_articles')
     .select('slug')
     .eq('status', 'published');
-  return (data ?? []).map((r) => String((r as { slug: unknown }).slug));
+  return [...new Set([...getAllWorkColumnFiles().map((a) => a.slug), ...(data ?? []).map((r) => String((r as { slug: unknown }).slug))])];
 }
 
 // ── 関連記事：同カテゴリの他の published 記事（現在の slug を除外・最大 limit 件）。 ──
@@ -152,5 +173,6 @@ export async function fetchRelatedArticles(
     .neq('slug', excludeSlug)
     .order('published_at', { ascending: false });
   // 関連記事も一覧と同じく「更新日を含めた新しい順」。limit はソート後に slice（クエリ側で先に切らない）。
-  return sortByEffectiveDateDesc((data ?? []).map(mapListItem)).slice(0, limit);
+  const files = fileListItems(category).filter((a) => a.slug !== excludeSlug);
+  return sortByEffectiveDateDesc(mergeWithFiles(files, (data ?? []).map(mapListItem))).slice(0, limit);
 }
