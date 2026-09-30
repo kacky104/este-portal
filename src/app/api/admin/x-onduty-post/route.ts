@@ -25,6 +25,13 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const OFFICIAL_HANDLE = 'fukues_info';
+
+// ★ 第1020便: お店の名前を短く（「AROMA-May-〜アロマメイ〜」→「AROMA-May」・「Aillis -アイリス-」→「Aillis」・「Mrs.AVANTI〜ミセス・アバンティ〜」→「Mrs.AVANTI」）。
+//   「〜」「～」「（」「(」「｜」「|」「【」「 -」より前だけを使い、末尾の「-」「 」「・」を落とす。短くなりすぎたら元の名前。
+function shortShopName(name: string): string {
+  const cut = name.split(/[〜～（(｜|【]| -/)[0].replace(/[-\s・]+$/, '').trim();
+  return cut.length >= 2 ? cut : name;
+}
 const PICK = 4;
 const LIST_URL = 'https://fukues.com/therapists';
 
@@ -130,19 +137,17 @@ export async function POST(req: Request) {
   if (picked.length === 0) return NextResponse.json({ ok: true, skipped: 'no_photo', slot, today, totalToday, onDutyNow });
 
   const marks = ['①', '②', '③', '④'];
+  // ★ 第1020便: スマホで1人1行に収めるため、出勤時間は入れない・お店は短い名前（写真タップで本人ページへ）。
+  //   本文は7行＝「続きを読む」（8行超で畳む）にならない。「▶ 出勤一覧」の行は下の fukues.com リンクが同じ役目なので省く。
   const lines = picked.map((r, i) => {
     const t = pub.get(r.id)!;
-    return `${marks[i]}${t.name}（${t.shop}）${buildDisplayHours(r.start, r.end)}`;
+    return `${marks[i]}${t.name}（${shortShopName(t.shop)}）`;
   });
-  // ★ 第1018便（カッキーさん）: 1行目の「日付・回」と「HH:MM現在 M人が出勤中」をやめ、シンプルに
-  // ★ 第1019便: 4人の行の上下に空行を入れて見やすく
   const bodyText =
     `本日は ${totalToday}人 が出勤予定🌸\n` +
-    `その中の${picked.length}人のセラピストをピックアップ！\n` +
+    `その中の${picked.length}人をピックアップ！\n` +
     `\n` +
-    `${lines.join('\n')}\n` +
-    `\n` +
-    `▶ 出勤一覧はこちら`;
+    `${lines.join('\n')}`;
   const images = picked.map((r) => pub.get(r.id)!.image!);
   // ★ 第1015便: 写真ごとのリンク先＝その子の fukuX アカウント（無ければフクエスのセラピストページ）
   const userIds = picked.map((r) => pub.get(r.id)!.userId).filter((v): v is string => !!v);
