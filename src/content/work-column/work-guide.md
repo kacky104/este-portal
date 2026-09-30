@@ -40,7 +40,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 - 施術用のウェア・ユニフォーム代
 - 出勤のための交通費
-- 講習・研修の受講費
+- [講習](/jobs/glossary/koshu)・研修の受講費
 - 仕事で使う消耗品（オイル類などを自己負担している場合）
 - 仕事用に使っている携帯電話代の一部（仕事とプライベートの割合に応じて）
 
