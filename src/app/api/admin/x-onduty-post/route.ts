@@ -115,8 +115,19 @@ export async function POST(req: Request) {
   if (totalToday === 0) return NextResponse.json({ ok: true, skipped: 'no_schedule', slot, today });
   if (candidates.length === 0) return NextResponse.json({ ok: true, skipped: 'no_photo', slot, today, totalToday, onDutyNow });
 
+  // ★ 第1019便: 「同じお店は1本につき1人まで」。ずらした先頭から順に見て、まだ載せていないお店の子だけ拾う。
+  //   （店が4つ未満なら、その分だけ少なくなる＝同じ店で埋めない）
   const off = rotationOffset(today, slot, candidates.length);
-  const picked = Array.from({ length: Math.min(PICK, candidates.length) }, (_, i) => candidates[(off + i) % candidates.length]);
+  const picked: typeof candidates = [];
+  const usedShops = new Set<string>();
+  for (let i = 0; i < candidates.length && picked.length < PICK; i++) {
+    const c = candidates[(off + i) % candidates.length];
+    const shop = pub.get(c.id)!.shop;
+    if (usedShops.has(shop)) continue;
+    usedShops.add(shop);
+    picked.push(c);
+  }
+  if (picked.length === 0) return NextResponse.json({ ok: true, skipped: 'no_photo', slot, today, totalToday, onDutyNow });
 
   const marks = ['①', '②', '③', '④'];
   const lines = picked.map((r, i) => {
@@ -124,10 +135,13 @@ export async function POST(req: Request) {
     return `${marks[i]}${t.name}（${t.shop}）${buildDisplayHours(r.start, r.end)}`;
   });
   // ★ 第1018便（カッキーさん）: 1行目の「日付・回」と「HH:MM現在 M人が出勤中」をやめ、シンプルに
+  // ★ 第1019便: 4人の行の上下に空行を入れて見やすく
   const bodyText =
     `本日は ${totalToday}人 が出勤予定🌸\n` +
     `その中の${picked.length}人のセラピストをピックアップ！\n` +
+    `\n` +
     `${lines.join('\n')}\n` +
+    `\n` +
     `▶ 出勤一覧はこちら`;
   const images = picked.map((r) => pub.get(r.id)!.image!);
   // ★ 第1015便: 写真ごとのリンク先＝その子の fukuX アカウント（無ければフクエスのセラピストページ）

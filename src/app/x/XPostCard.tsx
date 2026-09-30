@@ -42,7 +42,7 @@ function ImageGrid({
   // 1枚のときは正方形トリミングをやめ、元のアスペクト比のまま表示（縦長対策に max-h で頭打ち）。
   if (images.length === 1) {
     return (
-      <div className="mt-2 rounded-xl overflow-hidden">
+      <div className="mt-2 overflow-hidden" style={{ borderRadius: 12 }}>
         {linkOf(0) ? (
           <Link href={linkOf(0)!} onClick={(e) => e.stopPropagation()} className="relative bg-[color:var(--x-inset)] block w-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -69,7 +69,7 @@ function ImageGrid({
   // 複数枚（2〜4枚）は従来どおり正方形グリッド（3枚=先頭大）。
   const cls = 'grid-cols-2';
   return (
-    <div className={`mt-2 grid ${cls} gap-1 rounded-xl overflow-hidden`}>
+    <div className={`mt-2 grid ${cls} gap-1 overflow-hidden`} style={{ borderRadius: 12 }}>{/* ★ 第1019便: 投稿画像は角丸（直角化ルールの対象外） */}
       {images.slice(0, 4).map((src, i) => {
         const shape = images.length === 3 && i === 0 ? 'row-span-2 aspect-[1/2]' : 'aspect-square';
         const href = linkOf(i);
