@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { articleCategoryLabel } from '@/app/lib/articleCategories';
+import { articleCategoryLabel, articleCategoryBadge } from '@/app/lib/articleCategories';
 import type { WorkArticleListItem } from '@/app/lib/workArticles';
 import { formatColumnDate } from './format';
 
@@ -39,7 +39,7 @@ export function ArticleCard({ article }: { article: WorkArticleListItem }) {
       {/* テキスト */}
       <div className="min-w-0 flex-1 flex flex-col">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={articleCategoryBadge(article.category)}>
             {articleCategoryLabel(article.category)}
           </span>
           {(article.updatedAt ?? article.publishedAt) && (

@@ -20,6 +20,20 @@ export const ARTICLE_CATEGORIES: Record<ArticleCategory, string> = {
   'industry': '業界知識',
 };
 
+// キー → カテゴリバッジの色（2026-10-01 第1044便）。一覧カード・記事ページの両方がここを読む。
+// 働き方ガイド＝緑（従来色）／お金・給料＝オレンジ／面接・応募対策＝紫／業界知識＝青。
+export const ARTICLE_CATEGORY_BADGE: Record<ArticleCategory, { background: string; color: string }> = {
+  'work-guide': { background: 'rgba(16,185,129,0.12)', color: '#059669' },
+  'money': { background: 'rgba(249,115,22,0.12)', color: '#ea580c' },
+  'interview': { background: 'rgba(139,92,246,0.12)', color: '#7c3aed' },
+  'industry': { background: 'rgba(59,130,246,0.12)', color: '#2563eb' },
+};
+
+/** カテゴリバッジの色（未知キーは緑＝従来色）。 */
+export function articleCategoryBadge(key: string | null | undefined): { background: string; color: string } {
+  return ARTICLE_CATEGORY_BADGE[key as ArticleCategory] ?? ARTICLE_CATEGORY_BADGE['work-guide'];
+}
+
 // キー → カテゴリ別一覧ページの説明文（2026-08-18 第23便）。
 // ねらいと注意は本体側 mainArticleCategories.ts と同じ（文章はここ1か所・記事の存在を前提にしない）。
 export const ARTICLE_CATEGORY_DESCRIPTIONS: Record<ArticleCategory, string> = {

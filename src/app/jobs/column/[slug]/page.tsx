@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { articleCategoryLabel } from '@/app/lib/articleCategories';
+import { articleCategoryLabel, articleCategoryBadge } from '@/app/lib/articleCategories';
 import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, jobsAreaHref } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { truncateMarkdown } from '@/app/lib/markdownPlain';
@@ -175,8 +175,8 @@ export default async function ColumnDetailPage({
           <div className="mb-3">
             <Link
               href={`/jobs/column/category/${article.category}`}
-              className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full"
-              style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}
+              className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded"
+              style={articleCategoryBadge(article.category)}
             >
               {articleCategoryLabel(article.category)}
             </Link>
