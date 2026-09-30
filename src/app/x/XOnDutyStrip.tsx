@@ -12,12 +12,9 @@ export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
     <section className="x-card -mx-4 sm:mx-0 sm:rounded-2xl bg-[color:var(--x-surface)] px-4 pt-3 pb-2 mb-3 border-b border-[color:var(--x-border)] sm:border-0">
       <div className="flex items-baseline justify-between mb-2">
         <h2 className="text-sm font-black text-[color:var(--x-text-primary)]">
-          今日出勤のセラピスト
+          福岡の出勤中セラピスト
           {nowCount > 0 && <span className="ml-1.5 text-xs font-bold text-emerald-500">いま {nowCount}人</span>}
         </h2>
-        <Link href="/therapists" className="text-[11px] font-bold text-[color:var(--x-accent)] hover:underline">
-          フクエスで見る
-        </Link>
       </div>
       {/* ★ 第1006便: PC でもマウスでつかんで／ホイールで横に動かせる（スクロールバーは出さない） */}
       <XDragScroll className="flex gap-3 px-1 pb-1">
@@ -40,7 +37,6 @@ export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
               )}
             </span>
             <span className="mt-1 max-w-full truncate text-[11px] font-bold text-[color:var(--x-text-primary)]">{t.name}</span>
-            <span className="max-w-full truncate text-[10px] text-[color:var(--x-text-muted)] tabular-nums">{t.hours}</span>
           </Link>
         ))}
       </XDragScroll>
