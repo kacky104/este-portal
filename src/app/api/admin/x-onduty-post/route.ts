@@ -28,14 +28,6 @@ const OFFICIAL_HANDLE = 'fukues_info';
 const PICK = 4;
 const LIST_URL = 'https://fukues.com/therapists';
 
-function jstHHMM(): string {
-  const m = getNowJSTMinutes();
-  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-}
-function jstDateLabel(businessDate: string): string {
-  const [, mm, dd] = businessDate.split('-');
-  return `${Number(mm)}月${Number(dd)}日`;
-}
 // 日ごと・回ごとにずらす先頭位置（同じ子ばかりにならないように）
 function rotationOffset(businessDate: string, slot: string, n: number): number {
   if (n === 0) return 0;
@@ -67,13 +59,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: `運営アカウント @${OFFICIAL_HANDLE}（kind=official）が見つかりません` }, { status: 500 });
   }
 
-  // 重複防止: 同じ日・同じ回の投稿がすでにあるか（本文の先頭行で判定）
-  const head = `本日出勤のセラピスト（${jstDateLabel(today)}・${slot}時の回）`;
+  // 重複防止: 同じ日・同じ回の投稿がすでにあるか。
+  // ★ 第1018便: 本文に日付・回を書かなくなったので、投稿時刻の範囲で判定する。
+  //   12時の回＝営業日の 06:00〜15:00（JST）、18時の回＝15:00〜翌06:00。
+  const dayStartUtc = new Date(`${today}T06:00:00+09:00`).getTime();
+  const winFrom = new Date(slot === '12' ? dayStartUtc : dayStartUtc + 9 * 3600_000).toISOString();
+  const winTo = new Date(slot === '12' ? dayStartUtc + 9 * 3600_000 : dayStartUtc + 24 * 3600_000).toISOString();
   const { data: dup } = await svc
     .from('x_posts')
     .select('id')
     .eq('author_profile_id', official.id)
-    .like('body', `${head}%`)
+    .like('body', '本日は %人 が出勤予定%')
+    .gte('created_at', winFrom)
+    .lt('created_at', winTo)
     .limit(1);
   if ((dup ?? []).length > 0) {
     return NextResponse.json({ ok: true, skipped: 'already_posted', slot, today, postId: String(dup![0].id) });
@@ -120,15 +118,15 @@ export async function POST(req: Request) {
   const off = rotationOffset(today, slot, candidates.length);
   const picked = Array.from({ length: Math.min(PICK, candidates.length) }, (_, i) => candidates[(off + i) % candidates.length]);
 
-  const now = jstHHMM();
   const marks = ['①', '②', '③', '④'];
   const lines = picked.map((r, i) => {
     const t = pub.get(r.id)!;
     return `${marks[i]}${t.name}（${t.shop}）${buildDisplayHours(r.start, r.end)}`;
   });
+  // ★ 第1018便（カッキーさん）: 1行目の「日付・回」と「HH:MM現在 M人が出勤中」をやめ、シンプルに
   const bodyText =
-    `${head}\n` +
-    `本日は ${totalToday}人 が出勤予定（${now}現在 ${onDutyNow}人が出勤中）🌸\n` +
+    `本日は ${totalToday}人 が出勤予定🌸\n` +
+    `その中の${picked.length}人のセラピストをピックアップ！\n` +
     `${lines.join('\n')}\n` +
     `▶ 出勤一覧はこちら`;
   const images = picked.map((r) => pub.get(r.id)!.image!);
