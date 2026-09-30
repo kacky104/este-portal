@@ -88,22 +88,23 @@ export function XHeader() {
   // 未読件数の取得（recipient=自分・is_read=false の count）。時間/ログイン依存のためクライアントでマウント時に取得し、
   // 画面遷移（pathname 変化）のたびに再取得する。Realtime購読はしない（将来拡張）。
   const profileId = profile?.id;
-  useEffect(() => {
+  // ★ 第1002便: 通知とDMの未読を【1回のサーバー呼び出し】でまとめて取る（前は2回別々に取っていた）。
+  //   マウント時＋画面遷移（pathname）のたびに取り直す。DM_READ_EVENT（1会話の既読）でも取り直す（全体が0とは限らない）。
+  const fetchCounts = useCallback(async () => {
     if (!profileId) {
       setUnread(0);
+      setDmUnread(0);
       return;
     }
-    let alive = true;
-    (async () => {
-      try {
-        const c = await getMyXUnreadCounts();
-        if (alive) setUnread(c.notif);
-      } catch { /* バッジが出ないだけ */ }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [profileId, pathname]);
+    try {
+      const c = await getMyXUnreadCounts();
+      setUnread(c.notif);
+      setDmUnread(c.dm);
+    } catch { /* バッジが出ないだけ */ }
+  }, [profileId]);
+  useEffect(() => {
+    void fetchCounts();
+  }, [fetchCounts, pathname]);
 
   // 通知一覧ページで一括既読化したら、即座にバッジを消す（遷移を待たずに 0 化）。
   useEffect(() => {
@@ -111,27 +112,11 @@ export function XHeader() {
     window.addEventListener(NOTIF_READ_EVENT, clear);
     return () => window.removeEventListener(NOTIF_READ_EVENT, clear);
   }, []);
-
-  // DM未読総数（x_unread_dm_count RPC）。通知バッジと同方針でマウント時＋遷移時に取得。
-  // 1会話の既読では全体が0とは限らないため、DM_READ_EVENT では set(0) ではなく再取得する。
-  const fetchDmCount = useCallback(async () => {
-    if (!profileId) {
-      setDmUnread(0);
-      return;
-    }
-    try {
-      const c = await getMyXUnreadCounts();
-      setDmUnread(c.dm);
-    } catch { /* バッジが出ないだけ */ }
-  }, [profileId]);
   useEffect(() => {
-    fetchDmCount();
-  }, [fetchDmCount, pathname]);
-  useEffect(() => {
-    const refetch = () => fetchDmCount();
+    const refetch = () => { void fetchCounts(); };
     window.addEventListener(DM_READ_EVENT, refetch);
     return () => window.removeEventListener(DM_READ_EVENT, refetch);
-  }, [fetchDmCount]);
+  }, [fetchCounts]);
 
   const isAdmin = !!userId && userId === ADMIN_UUID;
   const isVerifiedShop = profile?.kind === 'shop' && profile.is_verified;

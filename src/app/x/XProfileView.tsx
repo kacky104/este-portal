@@ -22,6 +22,7 @@ import { safeHref, linkDomain } from './xLink';
 import { formatFukuxStartDate } from './xDate';
 import { useXEngagement } from './useXEngagement';
 import { reportPost } from './xModerationActions';
+import { useIncrementalList } from './useIncrementalList'; // ★ 第1002便: 30件ずつ描く
 
 const KIND_LABEL: Record<string, string> = {
   user: 'ユーザー',
@@ -84,6 +85,7 @@ export function XProfileView({
     const res = await reportPost({ targetProfileId: post.author.id, postId: post.id, reason });
     showToast(res.ok ? '通報を受け付けました。ご協力ありがとうございます' : res.error);
   };
+  const { visible: feedVisible, hasMore: feedHasMore, sentinelRef: feedSentinelRef } = useIncrementalList(feed); // ★ 第1002便
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null); // avatar/header の全体表示
   // 所属セラピスト一覧の展開状態。閉＝アイコンだけの横並び／開＝名前つき縦リスト（タップで切替）。
   const [therapistListOpen, setTherapistListOpen] = useState(false);
@@ -442,7 +444,7 @@ export function XProfileView({
               <p className="x-rescue-muted text-sm text-white/90 drop-shadow-sm">まだ投稿がありません</p>
             </div>
           ) : (
-            feed.map((item) => {
+            feedVisible.map((item) => {
               const p = item.post;
               const ls = eng.likeState(p);
               const rs = eng.repostState(p);
@@ -473,6 +475,7 @@ export function XProfileView({
               );
             })
           )}
+          {feedHasMore && <div ref={feedSentinelRef} className="py-6 text-center text-xs text-[color:var(--x-text-muted)]">読み込み中…</div>}
         </div>
       )}
 

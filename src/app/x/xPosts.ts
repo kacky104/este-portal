@@ -16,7 +16,7 @@ import type { XKind } from './xProfile';
 // 列名が異なる場合はこのファイルの定数/クエリのみ修正で済むよう集約している。
 
 // 将来の肥大に備え、おすすめ／フォロー中とも「直近この件数だけ」created_at desc で取得してから処理する。
-export const RECOMMENDED_LIMIT = 500;
+export const RECOMMENDED_LIMIT = 200; // ★ 第1002便: 500→200（画面は30件ずつ描くので、これで十分）
 
 // reply_count / replies_disabled はリプライ機能用（reply_count はトリガ自動増減・アプリは手動更新しない）。link_url は投稿の外部リンク。edited_at は編集済み表示用。
 // pinned_at はプロフィール固定（📌）用（本人が自分のプロフィール先頭に固定・null=非固定）。

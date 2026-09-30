@@ -11,6 +11,7 @@ import { XBannerSlider } from './XBannerSlider';
 import type { XBanner } from './xBanners';
 import { XAuthGateModal } from './XAuthGateModal';
 import { reportPost } from './xModerationActions';
+import { useIncrementalList } from './useIncrementalList'; // ★ 第1002便: 30件ずつ描く
 import { XFollowRows } from './XFollowRows';
 import { VerifiedBadge } from './VerifiedBadge';
 import { AutoFitName } from './AutoFitName';
@@ -113,6 +114,9 @@ export function XTimeline({
 
   const followingFeedView = followingFeed;
   const shopShowcasesView = shopShowcases;
+  // ★ 第1002便: 一覧は最初 30 件だけ描き、下まで来たら次の 30 件を足す（並びはそのまま）
+  const { visible: recVisible, hasMore: recHasMore, sentinelRef: recSentinelRef } = useIncrementalList(recommendedView);
+  const { visible: folVisible, hasMore: folHasMore, sentinelRef: folSentinelRef } = useIncrementalList(followingFeedView);
 
   // 1枚のカードを描画（repostLabel を渡せばカード上部にリポストラベルが出る）。
   const renderCard = (p: XPost, repostLabel?: string) => {
@@ -184,7 +188,8 @@ export function XTimeline({
           // X風の全幅行＋区切り線（2026-07-10 実機評価で本採用）。タイムラインのみこの方式で、
           // プロフィール・投稿詳細・検索などは従来の浮遊カードのまま。
           <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
-            {renderList(recommendedView)}
+            {renderList(recVisible)}
+            {recHasMore && <div ref={recSentinelRef} className="py-6 text-center text-xs text-[color:var(--x-text-muted)]">読み込み中…</div>}
           </div>
         )
       ) : tab === 'shops' ? (
@@ -282,7 +287,8 @@ export function XTimeline({
       ) : (
         // おすすめタブと同じ全幅行方式（本採用）。
         <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
-          {renderFeed(followingFeedView)}
+          {renderFeed(folVisible)}
+          {folHasMore && <div ref={folSentinelRef} className="py-6 text-center text-xs text-[color:var(--x-text-muted)]">読み込み中…</div>}
         </div>
       )}
 
