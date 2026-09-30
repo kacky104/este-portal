@@ -221,6 +221,15 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const fixedLinkUrl = linkedTherapist ? fukuesTherapistPageUrl(linkedTherapist.id) : null;
   // ★ 第1010便: fukuX のアイコンが空なら、フクエスに登録された写真を出す（自分で設定した画像があればそちら）
   if (!target.avatar_url && linkedTherapist?.imageUrl) target.avatar_url = linkedTherapist.imageUrl;
+  // ★ 第1014便: 所属セラピストのヘッダー画像が空なら、所属先のお店のヘッダー画像を出す（表示だけ・DB は変えない＝お店が変えれば追従）
+  if (target.kind === 'therapist' && !target.header_url && t.affiliated_shop_id) {
+    const { data: shopRow } = await supabase
+      .from('x_profiles')
+      .select('header_url')
+      .eq('id', t.affiliated_shop_id)
+      .maybeSingle();
+    if (shopRow?.header_url) target.header_url = shopRow.header_url as string;
+  }
 
   // ストーリーが無ければ null＝アバターは従来表示（リングなし・タップで全体表示）。
   const storyRows = (storyRes.data ?? []) as Array<{ id: number | string; image_url: string; caption: string | null; created_at: string }>;
