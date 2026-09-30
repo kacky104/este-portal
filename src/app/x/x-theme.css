@@ -160,3 +160,20 @@
   border-color: #fca5a5;
   background-color: #fef2f2; /* red-50 */
 }
+
+/* ★★ 第1008便（2026-09-30・カッキーさん）: fukuX のブロック（箱）の角をすべて直角に。
+   ★ 対象: div / section / article / li / ul / aside / nav / form / a.block（カード・枠・画像グリッド・モーダル・帯）。
+   ★ 対象外: ボタン・入力欄・span（丸アイコン・バッジ・ピル）・img（丸アイコンの中身）は今まで通り丸いまま。
+   ★ 個々の rounded-* クラスを直さず、ここで一括して打ち消す（新しい箱を足しても自動で直角になる）。 */
+#x-root :is(div, section, article, li, ul, ol, aside, nav, form, header, footer, a.block):is(
+  .rounded-2xl, .rounded-3xl, .rounded-xl, .rounded-lg, .rounded-md, .rounded,
+  .rounded-t-2xl, .rounded-t-xl, .rounded-b-2xl, .rounded-b-xl,
+  .rounded-l-2xl, .rounded-r-2xl,
+  .sm\:rounded-2xl, .sm\:rounded-xl, .sm\:rounded-3xl
+) {
+  border-radius: 0 !important;
+}
+/* ガイドページの rounded-[22px] のような任意値も対象（丸アイコンの rounded-full は含まれない） */
+#x-root :is(div, section, article, li, ul, ol, aside, nav, form, header, footer, a.block)[class*="rounded-["] {
+  border-radius: 0 !important;
+}
