@@ -132,7 +132,7 @@ export function XProfileView({
   return (
     <div>
       {/* ─── ヘッダー（浮遊カード） ★ 第992便: スマホは両端いっぱい（-mx-4・角なし）・PC は従来のカード ─── */}
-      <div className="x-card mt-3 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl overflow-hidden bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
+      <div className="x-card mt-3 -mx-4 rounded-none overflow-hidden bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
         {/* バナー（header_url があればタップで全体表示） */}
         {/* 高さ: スマホ=150px / PC=230px（★ 第993便: 少し縦に伸ばした。元は 123px / 202px。切り抜きは 3:1 のまま） */}
         <div className="h-[150px] sm:h-[230px] bg-gradient-to-br from-indigo-100 to-sky-100 relative">
@@ -361,7 +361,7 @@ export function XProfileView({
 
       {/* ─── 所属セラピスト一覧（店舗プロフィールのみ・浮遊カード） ─── */}
       {target.kind === 'shop' && (
-        <div className="x-card mt-3 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
+        <div className="x-card mt-3 -mx-4 rounded-none bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
           <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">
             所属セラピスト
             {affiliatedTherapists.length > 0 && (

@@ -48,7 +48,7 @@ export function XProfileSchedule({ therapistId }: { therapistId: number }) {
   };
 
   return (
-    <div className="x-card mt-3 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] overflow-hidden">
+    <div className="x-card mt-3 -mx-4 rounded-none bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] overflow-hidden">
       <button
         type="button"
         onClick={toggle}

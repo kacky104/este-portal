@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { XPostTime } from './XTimeAgo';
 import { deleteMyXPost, pinMyXPost } from '@/app/actions/xPost'; // ★ 第984便: 削除・固定はサーバー経由
 import { VerifiedBadge } from './VerifiedBadge';
 import { XImageLightbox } from './XImageLightbox';
@@ -20,20 +21,6 @@ const KIND_LABEL: Record<string, string> = {
   shop: 'お店',
   official: '運営',
 };
-
-// ヘッダー右端（…メニューの左隣）に出す投稿日（JST）。同年は「7/17」、年が違えば「2025/7/17」。
-// 決定的なフォーマット（相対時刻でない）のため SSR/クライアントで一致し hydration 安全。
-function formatPostDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  return new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    month: 'numeric',
-    day: 'numeric',
-    ...(sameYear ? {} : { year: 'numeric' }),
-  }).format(d);
-}
 
 // 画像1〜4枚のグリッド（写メ日記のグリッド作法を参考に。1枚=単独、2/4枚=2列、3枚=先頭大）。
 // 各画像クリックでライトボックス（全画面拡大）を開く。クリックした画像のインデックスを渡し、
@@ -310,10 +297,8 @@ export function XPostCard({
           )}
         </div>
 
-        {/* 投稿日（…メニューの左隣・2026-07-17 追加）。名前行の相対時刻（◯分前）とは別に、日付をひと目で分かるように。 */}
-        <span className="flex-shrink-0 text-[11px] text-[color:var(--x-text-muted)] mt-1">
-          {formatPostDate(post.createdAt)}
-        </span>
+        {/* 投稿日（…メニューの左隣）。★ 第1017便: 今日の投稿は「◯分前／◯時間前」、それ以外は日付。 */}
+        <XPostTime iso={post.createdAt} className="flex-shrink-0 text-[11px] text-[color:var(--x-text-muted)] mt-1" />
 
         {/* フォローボタンは投稿カードから廃止（2026-07-16 仕様変更）。フォロー/解除はドロワーまたはプロフィール画面から。 */}
         {/* 「…」メニュー（自分以外の投稿・moderation 指定時のみ）。X風のドロップダウン（ボタン直下・アイコン付き行）。
