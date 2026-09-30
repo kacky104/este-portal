@@ -288,7 +288,7 @@ export default function RankingTabs({
             <>
               <RankingHeading
                 title="セラピストランキング TOP150"
-                description={<>セラピスト個別ページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ人気セラピストランキングです</>}
+                description={<>セラピスト個別・fukuXページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ人気セラピストランキングです</>}
                 bodyColor={theme.body}
               />
               {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
