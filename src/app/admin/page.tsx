@@ -410,6 +410,13 @@ export default function AdminDashboard() {
             >
               請求書
             </Link>
+            {/* ★ 第1009便: fukuX の運営パネル（認証・凍結・通報・バナー）へ */}
+            <Link
+              href="/x/admin"
+              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold transition-colors"
+            >
+              fukuX管理
+            </Link>
             <Link
               href="/moderation"
               className="text-xs text-slate-400 hover:text-pink-600 font-medium transition-colors"
