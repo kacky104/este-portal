@@ -4,7 +4,7 @@ title: 写メ日記の見方・活用ガイド｜予約前にお店とセラピ�
 category: howto
 excerpt: セラピストが日々更新する「写メ日記」は、予約前に雰囲気を知れる貴重な情報源です。どこを見ると参考になるか、読み方のコツと活用方法を解説します。
 publishedAt: 2026-09-11
-updatedAt: 2026-09-29
+updatedAt: 2026-09-23
 heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/main-article-images/bfa2ea9e-428a-488d-b303-f5c92640f0eb/1789120143937.jpg
 ---
 

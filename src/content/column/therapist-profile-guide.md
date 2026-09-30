@@ -4,7 +4,7 @@ title: セラピストプロフィールの読み方｜特徴・出勤情報・�
 category: howto
 excerpt: セラピストのプロフィールページには、選ぶヒントがたくさん詰まっています。特徴の表示・出勤情報・口コミ・写メ日記など、どこをどう見ると良いかを解説します。
 publishedAt: 2026-09-18
-updatedAt: 2026-09-29
+updatedAt: 2026-09-26
 heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/main-article-images/c63c4f97-3f9e-43dc-924c-a81581fd125c/1789725985747.jpg
 ---
 

@@ -4,7 +4,7 @@ title: メンズエステとは？一般エステ・リラクゼーションと�
 category: beginner
 excerpt: 「メンズエステって普通のエステと何が違うの？」という疑問に答えます。一般エステ・リラクゼーション・整体との違いと、初めての方がメンズエステを選ぶときの考え方を解説します。
 publishedAt: 2026-08-27
-updatedAt: 2026-09-29
+updatedAt: 2026-09-20
 heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/main-article-images/aa5b8723-5301-4ea1-b0b5-258e1f626d9e/1787838176632.jpg
 ---
 
