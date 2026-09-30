@@ -21,7 +21,6 @@ import { HpDemoManager } from '@/app/components/HpDemoManager';
 import { HpSitesManager } from '@/app/components/HpSitesManager';
 import OwnerContactManager from '@/app/components/OwnerContactManager';
 import ImportSourceManager from '@/app/components/ImportSourceManager';
-import MainArticlesManager from '@/app/components/MainArticlesManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import JobBoostManager from '@/app/components/JobBoostManager';
@@ -956,9 +955,13 @@ export default function AdminDashboard() {
             <ReviewCampaignManager onToast={showToast} />
           </AccordionSection>
 
-          {/* ── 本体コラム記事（利用者向け・/column 配下） ── */}
+          {/* ★ 第1038便: 本体コラム（main_articles）の管理UIも撤去。全25本を src/content/column/*.md に移行済み。
+              同じ slug は md が優先（src/app/lib/mainArticles.ts）。DB は残置。 */}
           <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
-            <MainArticlesManager onToast={showToast} />
+            <div className="text-sm text-slate-600 leading-relaxed space-y-1">
+              <p>本体のコラムは <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">src/content/column/&lt;slug&gt;.md</code> で管理しています（用語集と同じ形）。</p>
+              <p>追加・修正は md を編集してコミット→PUSH。画像は <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">public/column/&lt;slug&gt;/</code> に置きます。この管理画面からは編集しません。</p>
+            </div>
           </AccordionSection>
 
         </div>
