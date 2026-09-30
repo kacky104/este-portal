@@ -4,7 +4,7 @@ title: メンズエステの応募写真・プロフィール写真の撮り方�
 category: interview
 excerpt: 応募時に送る写真やプロフィール写真は、何をどう撮ればいい？好印象につながる撮り方の基本と、身バレが心配な方のための工夫を解説します。
 publishedAt: 2026-09-29
-updatedAt: 2026-10-01
+updatedAt: 2026-10-02
 heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/work-article-images/d0eac455-aae9-406d-8a73-852a8f344acf/1790669599356.jpg
 ---
 

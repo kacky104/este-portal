@@ -4,7 +4,7 @@ title: メンズエステの研修・講習では何を教わる？未経験で�
 category: industry
 excerpt: 「技術がないと働けない？」という不安に答えます。メンズエステの研修・講習で教わる内容、期間の目安、講習にまつわる注意点を未経験の方向けに解説します。
 publishedAt: 2026-09-13
-updatedAt: 2026-09-29
+updatedAt: 2026-09-25
 heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/work-article-images/539ed716-e762-47a8-bb98-5ce031638a04/1789296741118.jpg
 ---
 

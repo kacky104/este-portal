@@ -4,7 +4,7 @@ title: メンズエステのお客様対応で困ったときの対処ガイド�
 category: work-guide
 excerpt: NG行為をお願いされた、連絡先を聞かれた――働くうえで困る場面への備えを解説。上手な断り方の例と、お店への相談・報告の大切さをまとめました。
 publishedAt: 2026-09-20
-updatedAt: 2026-09-29
+updatedAt: 2026-09-27
 heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/work-article-images/81bbd6f4-663e-49cd-8fe7-ba6f14532352/1789914192209.jpg
 ---
 
