@@ -148,6 +148,8 @@ export function XShop({
         <p className="text-[12px] text-[color:var(--x-text-muted)] mb-2 leading-relaxed">
           セラピスト本人から教わった <span className="font-bold">@ID</span> で検索し、所属申請を送ります。
           本人が承認すると所属が成立します。
+          <br />
+          ★ フクエスのセラピストページを持っている子は、fukuXアカウントを作ると<span className="font-bold">自動で所属</span>になります（申請は不要です）。
         </p>
         <div className="flex gap-2">
           <div className="flex-1 flex items-center rounded-xl border border-[color:var(--x-border-strong)] focus-within:border-indigo-300 px-3">
