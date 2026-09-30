@@ -86,6 +86,7 @@ export async function getLinkedXProfileForSalon(
 export type LinkedTherapist = {
   id: number;
   name: string;
+  imageUrl: string | null; // ★ 第1010便: フクエスに登録された写真（fukuX のアイコンが空のときの代わり）
 };
 
 // fukuX プロフィール(x_profiles.auth_user_id) → 連携している本体セラピスト。
@@ -98,7 +99,7 @@ export async function getLinkedTherapistForXProfile(
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from('therapists')
-    .select('id, name, is_active, user_id')
+    .select('id, name, is_active, user_id, profile_image_url')
     .eq('user_id', authUserId)
     .limit(1);
 
@@ -107,7 +108,7 @@ export async function getLinkedTherapistForXProfile(
   const t = data[0];
   if (t.is_active === false) return null; // 非公開セラピストはリンクしない
 
-  return { id: t.id as number, name: (t.name as string) ?? '' };
+  return { id: t.id as number, name: (t.name as string) ?? '', imageUrl: (t.profile_image_url as string | null) ?? null };
 }
 
 // ★★ 第996便（2026-09-30・カッキーさん）: フクエスに在籍（セラピストページ連携・公開中）のセラピストは、

@@ -219,6 +219,8 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const scheduleTherapistId = t.affiliated_shop_id ? (linkedTherapist?.id ?? null) : null; // 所属中＋紐づく therapist があるときだけ＝無ければブロック非表示
   // ★ 第996便: フクエスに在籍している子は、リンク先をフクエスの個別ページに固定
   const fixedLinkUrl = linkedTherapist ? fukuesTherapistPageUrl(linkedTherapist.id) : null;
+  // ★ 第1010便: fukuX のアイコンが空なら、フクエスに登録された写真を出す（自分で設定した画像があればそちら）
+  if (!target.avatar_url && linkedTherapist?.imageUrl) target.avatar_url = linkedTherapist.imageUrl;
 
   // ストーリーが無ければ null＝アバターは従来表示（リングなし・タップで全体表示）。
   const storyRows = (storyRes.data ?? []) as Array<{ id: number | string; image_url: string; caption: string | null; created_at: string }>;
