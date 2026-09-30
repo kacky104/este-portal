@@ -146,3 +146,19 @@ export async function updateOwnerTherapist(therapistId: string | number, patch: 
   if (!data || data.length === 0) return { error: { message: 'このセラピストは保存できませんでした（ご自分の店舗のセラピストではない可能性があります）', code: 'not_owner' } };
   return { error: null };
 }
+
+// ── 第1027便: セラピスト一覧の「fukuX 開設済み／未開設」表示用。
+//   渡した auth uid のうち、承認済み fukuX セラピストアカウント（x_profiles kind='therapist' status='approved'）
+//   を持つものだけ返す。公開読み取り（RLS は公開 select）。
+export async function loadFukuXLinkedUserIds(userIds: string[]): Promise<string[]> {
+  const ids = userIds.filter(Boolean);
+  if (ids.length === 0) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('x_profiles')
+    .select('auth_user_id')
+    .eq('kind', 'therapist')
+    .eq('status', 'approved')
+    .in('auth_user_id', ids);
+  return ((data ?? []) as Array<{ auth_user_id: string | null }>).map((r) => String(r.auth_user_id ?? '')).filter(Boolean);
+}

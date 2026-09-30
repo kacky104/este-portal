@@ -160,6 +160,21 @@ export default async function CastHomePage() {
         )}
         {therapist ? (
           <div className="space-y-5">
+            {/* ★ 第1027便: fukuX 未開設の子にだけ、加点の案内（開設済み＝xHandle あり＝非表示）。 */}
+            {!xHandle && (
+              <Link
+                href="/x"
+                className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-3.5 py-3 shadow-sm hover:-translate-y-0.5 transition-transform"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/fukux-mark.png" alt="fukuX" className="w-9 h-9 flex-shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-bold text-violet-800 leading-snug">fukuXを開設すると、人気セラピストランキングに毎週+10点</span>
+                  <span className="block text-[11px] text-violet-600/90 leading-snug mt-0.5">fukuXのアカウントページの閲覧もランキングに加算されます</span>
+                </span>
+                <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-bold whitespace-nowrap">開設する</span>
+              </Link>
+            )}
             {/* ★ 第516便: 挨拶カードを横長にして高さを約1/3に（スマホの1画面目にタブの中身まで入るように）。
                 左に写真・右に名前と店名。★ 第524便: 本日の出勤の札は「今日のまとめ」へ移した。 */}
             <div className="bg-white/90 backdrop-blur rounded-3xl border border-pink-100 shadow-sm px-2 py-3.5 flex items-center gap-3.5">

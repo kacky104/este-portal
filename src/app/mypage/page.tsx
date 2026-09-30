@@ -29,7 +29,7 @@ import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
 import { snapClockPair } from '@/lib/timeSnap';
 import { conecfLockMessage } from '@/lib/conecfLock';
 // ★ 第988便: 出勤・セラピスト追加・今すぐはサーバー経由（スマホのアプリ内ブラウザ対策）
-import { saveOwnerSchedules, addOwnerTherapist, saveOwnerAvailableNow } from '@/app/actions/ownerTherapist';
+import { saveOwnerSchedules, addOwnerTherapist, saveOwnerAvailableNow, loadFukuXLinkedUserIds } from '@/app/actions/ownerTherapist';
 import { therapistNameDupMessage } from '@/lib/therapistNameDup';
 import { isCastLiveRow, isOwnerLiveRow, isImportLiveRow, imasuguUntilISO, IMASUGU_WINDOW_MIN, imasuguMax, imasuguLimitNote } from '@/lib/imasugu';
 import { MyDiaryList } from './MyDiaryList';
@@ -741,6 +741,15 @@ export default function MyPage() {
   const router = useRouter();
   const [salon, setSalon] = useState<Salon | null>(null);
   const [therapists, setTherapists] = useState<Therapist[]>([]);
+  // ★ 第1027便: fukuX 開設済みのセラピスト（auth uid の集合）。一覧に「開設済み／未開設」を出す用。
+  const [xLinkedUserIds, setXLinkedUserIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const ids = therapists.map((t) => t.user_id).filter((v): v is string => !!v);
+    if (ids.length === 0) { setXLinkedUserIds(new Set()); return; }
+    let alive = true;
+    loadFukuXLinkedUserIds(ids).then((r) => { if (alive) setXLinkedUserIds(new Set(r)); }, () => {});
+    return () => { alive = false; };
+  }, [therapists]);
   const [salonForm, setSalonForm] = useState<Partial<Salon>>({});
   const [therapistForms, setTherapistForms] = useState<Record<string, Partial<Therapist>>>({});
   const [schedules, setSchedules] = useState<Record<string, Record<string, DaySchedule>>>({});
@@ -4812,6 +4821,18 @@ export default function MyPage() {
                         className="text-[10px] font-bold text-emerald-600 whitespace-nowrap overflow-hidden text-ellipsis"
                       >
                         {t.invited_email}
+                      </p>
+                    )}
+                    {/* ★ 第1027便: fukuX の開設状況。開設済みは紫で「開設済み」、未開設は加点の案内（お店から声をかけてもらう用） */}
+                    {xLinkedUserIds.has(t.user_id) ? (
+                      <p className="flex items-center gap-1 text-[10px] font-bold text-violet-600 whitespace-nowrap">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/fukux-mark.png" alt="" className="w-3 h-3" />
+                        fukuX 開設済み
+                      </p>
+                    ) : (
+                      <p className="text-[10px] font-bold text-amber-600 leading-snug">
+                        fukuX 未開設 — 開設するとセラピストランキングに毎週+10点
                       </p>
                     )}
                   </div>
