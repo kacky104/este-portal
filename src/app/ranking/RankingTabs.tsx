@@ -219,7 +219,7 @@ export default function RankingTabs({
             <>
               <RankingHeading
                 title="おすすめランキング TOP10"
-                description={<>お客様への情報発信や満足度で決まる<br className="sm:hidden" />おすすめのお店</>}
+                description={<>お客様への情報発信や顧客満足度で決まる<br />福岡のメンズエステ店舗の人気おすすめランキングです</>}
                 bodyColor={theme.body}
               />
               {/* 細い広告バナー（公開中からランダム1枚・ページを開くたびに入れ替わり） */}
