@@ -57,7 +57,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 お店に提出する情報と、公開される情報は分けて考えましょう。
 
-- 公開プロフィールは**源氏名で、特定されにくい範囲**にとどめる
+- 公開プロフィールは**[源氏名](/jobs/glossary/genjina)で、特定されにくい範囲**にとどめる
 - 身分証の提示は必要でも、**公開情報に本名や住所は載せない**
 - お店が個人情報をどう扱うか（保管・第三者提供など）を面接時に確認する
 
