@@ -345,7 +345,7 @@ export function XAdmin({
     created_at: string;
   };
   const [abuseReports, setAbuseReports] = useState<AbuseReport[]>([]);
-  const [abuseProfiles, setAbuseProfiles] = useState<Record<string, { handle: string; displayName: string }>>({});
+  const [abuseProfiles, setAbuseProfiles] = useState<Record<string, { handle: string; displayName: string; status: string }>>({});
   const [abusePostBodies, setAbusePostBodies] = useState<Record<string, string>>({});
   const [abuseLoaded, setAbuseLoaded] = useState(false);
   const [abuseBusyId, setAbuseBusyId] = useState<string | null>(null);
@@ -362,10 +362,10 @@ export function XAdmin({
       const profileIds = [...new Set(rows.flatMap((r) => [r.reporter_profile_id, r.target_profile_id]))];
       const postIds = [...new Set(rows.map((r) => r.post_id).filter((v): v is string => !!v))];
       const [profRes, postRes] = await Promise.all([
-        profileIds.length > 0 ? supabase.from('x_profiles').select('id, handle, display_name').in('id', profileIds) : Promise.resolve({ data: [] }),
+        profileIds.length > 0 ? supabase.from('x_profiles').select('id, handle, display_name, status').in('id', profileIds) : Promise.resolve({ data: [] }),
         postIds.length > 0 ? supabase.from('x_posts').select('id, body').in('id', postIds) : Promise.resolve({ data: [] }),
       ]);
-      setAbuseProfiles(Object.fromEntries(((profRes.data ?? []) as { id: string; handle: string; display_name: string }[]).map((p) => [p.id, { handle: p.handle, displayName: p.display_name }])));
+      setAbuseProfiles(Object.fromEntries(((profRes.data ?? []) as { id: string; handle: string; display_name: string; status: string }[]).map((p) => [p.id, { handle: p.handle, displayName: p.display_name, status: p.status ?? 'approved' }])));
       setAbusePostBodies(Object.fromEntries(((postRes.data ?? []) as { id: string; body: string | null }[]).map((p) => [p.id, p.body ?? ''])));
       setAbuseLoaded(true);
     })();
@@ -400,6 +400,28 @@ export function XAdmin({
   const abuseName = (id: string) => {
     const p = abuseProfiles[id];
     return p ? `${p.displayName}（@${p.handle}）` : id.slice(0, 8);
+  };
+
+  // ★ 第1003便: 通報の行から、対象アカウントを1タップで凍結（投稿は残る）。凍結後はその通報を対応済みに。
+  //   ★ 凍結の中身はアカウントタブの setBanned と同じ（status='rejected'）。
+  const banReportedAccount = async (r: AbuseReport) => {
+    const p = abuseProfiles[r.target_profile_id];
+    const name = p ? `${p.displayName}（@${p.handle}）` : r.target_profile_id.slice(0, 8);
+    if (!window.confirm(`「${name}」を凍結（BAN）しますか？\n投稿・フォロー不可になり、他ユーザーから見えなくなります。投稿は消しません。`)) return;
+    setAbuseBusyId(r.id);
+    const { error } = await supabase.from('x_profiles').update({ status: 'rejected' }).eq('id', r.target_profile_id);
+    if (error) {
+      setAbuseBusyId(null);
+      showToast(`凍結に失敗しました：${error.message}`);
+      return;
+    }
+    await supabase.from('x_reports').update({ status: 'done' }).eq('id', r.id);
+    setAbuseBusyId(null);
+    setAbuseProfiles((prev) => ({ ...prev, [r.target_profile_id]: { ...(prev[r.target_profile_id] ?? { handle: '', displayName: name }), status: 'rejected' } }));
+    setAbuseReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: 'done' } : x)));
+    setProfiles((list) => list.map((q) => (q.id === r.target_profile_id ? { ...q, status: 'rejected' } : q)));
+    setShops((list) => list.map((q) => (q.id === r.target_profile_id ? { ...q, status: 'rejected' } : q)));
+    showToast('凍結しました（通報は対応済みにしました）');
   };
 
   // 「報告」タブの未対応件数（タブの赤バッジ用）。対応済みトグルで即時に増減する。
@@ -475,6 +497,18 @@ export function XAdmin({
                   通報者: <span className="font-bold">{abuseName(r.reporter_profile_id)}</span>
                   <span className="mx-1.5">→</span>
                   対象: <span className="font-bold">{abuseName(r.target_profile_id)}</span>
+                  {abuseProfiles[r.target_profile_id]?.status === 'rejected' ? (
+                    <span className="ml-2 text-[10px] font-bold text-rose-500 bg-rose-50 rounded-full px-1.5 py-0.5">凍結中</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => banReportedAccount(r)}
+                      disabled={abuseBusyId === r.id}
+                      className="ml-2 text-[11px] font-bold text-rose-500 hover:underline disabled:opacity-40"
+                    >
+                      このアカウントを凍結する
+                    </button>
+                  )}
                 </p>
                 {r.post_id ? (
                   <>

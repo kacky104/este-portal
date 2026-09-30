@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
   const client = createPublicClient();
   const { data: p } = await client
     .from('x_profiles')
-    .select('handle, display_name, bio, avatar_url, header_url, status')
+    .select('handle, display_name, bio, avatar_url, header_url, status, kind, auth_user_id')
     .ilike('handle', escapeLike(decoded))
     .maybeSingle();
 
@@ -86,7 +86,13 @@ export async function generateMetadata({ params }: { params: Promise<{ handle: s
     ? bio.length > 110 ? bio.slice(0, 110) + '…' : bio
     : `${p.display_name}さんのfukuXプロフィール。メンズエステ専用SNS「fukuX」で投稿・出勤情報をチェック。`;
   const image = p.header_url ?? p.avatar_url ?? '/ogp-fukux.png';
-  const canonical = `/x/u/${encodeURIComponent(p.handle)}`; // DB上の実handle（大文字小文字ゆれをcanonicalで正規化）
+  let canonical = `/x/u/${encodeURIComponent(p.handle)}`; // DB上の実handle（大文字小文字ゆれをcanonicalで正規化）
+  // ★ 第1003便: フクエスに在籍（セラピストページ連携・公開中）のセラピストは、検索エンジンにはフクエスの個別ページを正とする。
+  //   fukuX のプロフィールと本体のセラピストページは内容が近いので、検索で食い合わないようにする（ページ自体は今まで通り見られる）。
+  if (p.kind === 'therapist') {
+    const linked = await getLinkedTherapistForXProfile(p.auth_user_id as string);
+    if (linked) canonical = fukuesTherapistPageUrl(linked.id);
+  }
 
   return {
     title,
