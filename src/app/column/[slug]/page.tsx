@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { mainArticleCategoryLabel } from '@/app/lib/mainArticleCategories';
+import { mainArticleCategoryLabel, mainArticleCategoryBadge } from '@/app/lib/mainArticleCategories';
 import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, areaHref } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { truncateMarkdown } from '@/app/lib/markdownPlain';
@@ -176,7 +176,7 @@ export default async function MainColumnDetailPage({
           <div className="mb-3">
             <Link
               href={`/column/category/${article.category}`}
-              className="inline-block text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200"
+              className={`inline-block text-[11px] font-bold px-2.5 py-0.5 rounded border ${mainArticleCategoryBadge(article.category)}`}
             >
               {mainArticleCategoryLabel(article.category)}
             </Link>

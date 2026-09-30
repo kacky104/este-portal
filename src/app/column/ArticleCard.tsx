@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { mainArticleCategoryLabel } from '@/app/lib/mainArticleCategories';
+import { mainArticleCategoryLabel, mainArticleCategoryBadge } from '@/app/lib/mainArticleCategories';
 import type { MainArticleListItem } from '@/app/lib/mainArticles';
 import { formatColumnDate } from './format';
 
@@ -38,7 +38,7 @@ export function ArticleCard({ article }: { article: MainArticleListItem }) {
       {/* テキスト */}
       <div className="min-w-0 flex-1 flex flex-col">
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${mainArticleCategoryBadge(article.category)}`}>
             {mainArticleCategoryLabel(article.category)}
           </span>
           {(article.updatedAt ?? article.publishedAt) && (

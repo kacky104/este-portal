@@ -20,6 +20,20 @@ export const MAIN_ARTICLE_CATEGORIES: Record<MainArticleCategory, string> = {
   'glossary': '用語解説',
 };
 
+// キー → カテゴリバッジの色（2026-10-01 第1043便）。一覧カード・記事ページの両方がここを読む。
+// 選び方ガイド＝赤／初めての方へ＝緑／楽しみ方・マナー＝オレンジ／用語解説＝青。
+export const MAIN_ARTICLE_CATEGORY_BADGE: Record<MainArticleCategory, string> = {
+  'howto': 'bg-red-50 text-red-600 border-red-200',
+  'beginner': 'bg-green-50 text-green-700 border-green-200',
+  'manner': 'bg-orange-50 text-orange-600 border-orange-200',
+  'glossary': 'bg-blue-50 text-blue-600 border-blue-200',
+};
+
+/** カテゴリバッジの色クラス（未知キーはピンク＝従来色）。 */
+export function mainArticleCategoryBadge(key: string | null | undefined): string {
+  return MAIN_ARTICLE_CATEGORY_BADGE[key as MainArticleCategory] ?? 'bg-pink-50 text-pink-600 border-pink-200';
+}
+
 // キー → カテゴリ別一覧ページの説明文（2026-08-18 第23便）。
 //
 // カテゴリ別一覧（/column/category/[key]）は見出ししか無く、検索エンジンから見ると
