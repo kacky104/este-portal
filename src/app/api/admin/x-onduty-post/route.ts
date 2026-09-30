@@ -98,14 +98,14 @@ export async function POST(req: Request) {
   // 公開中のセラピスト・掲載中の店舗だけ
   const { data: ths } = await svc
     .from('therapists')
-    .select('id, name, profile_image_url, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
+    .select('id, name, profile_image_url, user_id, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
     .in('id', rows.map((r) => r.id))
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
-  const pub = new Map<number, { name: string; shop: string; image: string | null }>();
-  for (const t of (ths ?? []) as unknown as { id: number; name: string; profile_image_url: string | null; salons: { name: string } | { name: string }[] | null }[]) {
+  const pub = new Map<number, { name: string; shop: string; image: string | null; userId: string | null }>();
+  for (const t of (ths ?? []) as unknown as { id: number; name: string; profile_image_url: string | null; user_id: string | null; salons: { name: string } | { name: string }[] | null }[]) {
     const sh = Array.isArray(t.salons) ? t.salons[0] : t.salons;
-    pub.set(Number(t.id), { name: t.name ?? '', shop: sh?.name ?? '', image: t.profile_image_url ?? null });
+    pub.set(Number(t.id), { name: t.name ?? '', shop: sh?.name ?? '', image: t.profile_image_url ?? null, userId: t.user_id ?? null });
   }
   const visible = rows.filter((r) => pub.has(r.id));
   const totalToday = visible.length;           // 本日の出勤予定（終わった子も含む）
@@ -132,9 +132,26 @@ export async function POST(req: Request) {
     `${lines.join('\n')}\n` +
     `▶ 出勤一覧はこちら`;
   const images = picked.map((r) => pub.get(r.id)!.image!);
+  // ★ 第1015便: 写真ごとのリンク先＝その子の fukuX アカウント（無ければフクエスのセラピストページ）
+  const userIds = picked.map((r) => pub.get(r.id)!.userId).filter((v): v is string => !!v);
+  const handleByUser = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: xs } = await svc
+      .from('x_profiles')
+      .select('auth_user_id, handle, kind, status')
+      .in('auth_user_id', userIds)
+      .eq('kind', 'therapist')
+      .eq('status', 'approved');
+    for (const x of (xs ?? []) as { auth_user_id: string; handle: string | null }[]) if (x.handle) handleByUser.set(x.auth_user_id, x.handle);
+  }
+  const imageLinks = picked.map((r) => {
+    const uid = pub.get(r.id)!.userId;
+    const h = uid ? handleByUser.get(uid) : undefined;
+    return h ? `/x/u/${encodeURIComponent(h)}` : `/therapist/${r.id}`;
+  });
 
   if (!apply) {
-    return NextResponse.json({ ok: true, dryRun: true, slot, today, totalToday, onDutyNow, picked: picked.map((r) => ({ id: r.id, name: pub.get(r.id)!.name, shop: pub.get(r.id)!.shop, hours: buildDisplayHours(r.start, r.end) })), body: bodyText, images });
+    return NextResponse.json({ ok: true, dryRun: true, slot, today, totalToday, onDutyNow, picked: picked.map((r) => ({ id: r.id, name: pub.get(r.id)!.name, shop: pub.get(r.id)!.shop, hours: buildDisplayHours(r.start, r.end) })), body: bodyText, images, imageLinks });
   }
 
   // 投稿（運営名義・service_role）。★ リンクカード（link_image/title）は付けない＝文字だけのリンクにして写真を主役に
@@ -144,6 +161,7 @@ export async function POST(req: Request) {
       author_profile_id: official.id,
       body: bodyText,
       images,
+      image_links: imageLinks,
       link_url: LIST_URL,
       link_image: null,
       link_title: null,

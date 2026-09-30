@@ -40,19 +40,28 @@ function formatPostDate(iso: string): string {
 // 複数枚なら拡大したまま左右ナビできる（XImageLightbox 側で対応）。
 function ImageGrid({
   images,
+  imageLinks,
   alt,
   onImageClick,
 }: {
   images: string[];
+  imageLinks?: (string | null)[] | null; // ★ 第1015便: 画像ごとのリンク先（あればタップで拡大ではなくそのページへ）
   alt: string;
   onImageClick: (index: number) => void;
 }) {
   if (images.length === 0) return null;
+  const linkOf = (i: number) => (imageLinks && imageLinks[i]) || null;
 
   // 1枚のときは正方形トリミングをやめ、元のアスペクト比のまま表示（縦長対策に max-h で頭打ち）。
   if (images.length === 1) {
     return (
       <div className="mt-2 rounded-xl overflow-hidden">
+        {linkOf(0) ? (
+          <Link href={linkOf(0)!} onClick={(e) => e.stopPropagation()} className="relative bg-[color:var(--x-inset)] block w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={images[0]} alt={`${alt}-1`} className="w-full h-auto max-h-[80vh] object-contain" />
+          </Link>
+        ) : (
         <button
           type="button"
           onClick={(e) => {
@@ -65,6 +74,7 @@ function ImageGrid({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={images[0]} alt={`${alt}-1`} className="w-full h-auto max-h-[80vh] object-contain" />
         </button>
+        )}
       </div>
     );
   }
@@ -73,7 +83,19 @@ function ImageGrid({
   const cls = 'grid-cols-2';
   return (
     <div className={`mt-2 grid ${cls} gap-1 rounded-xl overflow-hidden`}>
-      {images.slice(0, 4).map((src, i) => (
+      {images.slice(0, 4).map((src, i) => {
+        const shape = images.length === 3 && i === 0 ? 'row-span-2 aspect-[1/2]' : 'aspect-square';
+        const href = linkOf(i);
+        if (href) {
+          // ★ 第1015便: リンク付きの画像はタップでそのページへ（拡大はしない）
+          return (
+            <Link key={i} href={href} onClick={(e) => e.stopPropagation()} className={`relative bg-[color:var(--x-inset)] block w-full ${shape}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={`${alt}-${i + 1}`} className="absolute inset-0 w-full h-full object-cover" />
+            </Link>
+          );
+        }
+        return (
         <button
           type="button"
           key={i}
@@ -82,14 +104,13 @@ function ImageGrid({
             onImageClick(i);
           }}
           aria-label={`${alt}の画像${i + 1}を拡大表示`}
-          className={`relative bg-[color:var(--x-inset)] cursor-zoom-in p-0 border-0 block w-full ${
-            images.length === 3 && i === 0 ? 'row-span-2 aspect-[1/2]' : 'aspect-square'
-          }`}
+          className={`relative bg-[color:var(--x-inset)] cursor-zoom-in p-0 border-0 block w-full ${shape}`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt={`${alt}-${i + 1}`} className="absolute inset-0 w-full h-full object-cover" />
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -511,7 +532,7 @@ export function XPostCard({
 
       {/* 画像 */}
       <div className="ml-[50px]">
-        <ImageGrid images={view.images} alt={a.displayName} onImageClick={setLightboxIndex} />
+        <ImageGrid images={view.images} imageLinks={post.imageLinks} alt={a.displayName} onImageClick={setLightboxIndex} />
       </div>
 
       {/* いいね・リプライ */}

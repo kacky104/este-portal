@@ -11,7 +11,7 @@ const LIMIT = 50;
 
 
 const POST_COLS =
-  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
+  'id, author_profile_id, body, images, image_links, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
 
 // ilike のワイルドカード（% _ \）をエスケープし、入力を「部分一致の literal」として扱う。
 // .or() は使わず handle / display_name を別々の .ilike() で引いてマージするため、
@@ -153,6 +153,7 @@ export async function searchXPosts(raw: string): Promise<XPost[]> {
       id: String(r.id),
       body: r.body ?? null,
       images: r.images ?? [],
+      imageLinks: (r as { image_links?: (string | null)[] | null }).image_links ?? null,
       likeCount: r.like_count ?? 0,
       replyCount: r.reply_count ?? 0,
       repliesDisabled: Boolean(r.replies_disabled),

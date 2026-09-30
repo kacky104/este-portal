@@ -9,7 +9,7 @@ import type { XPost } from './xPosts';
 // ★ 中身は XPostDetail.tsx にあった処理そのまま（アプリ内ブラウザで読み込みが止まる事故の対策）。
 
 const REPLY_COLS =
-  'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
+  'id, author_profile_id, body, images, image_links, like_count, reply_count, replies_disabled, link_url, edited_at, created_at';
 
 type ReplyRow = {
   id: string | number;
@@ -83,6 +83,7 @@ export async function fetchXReplyThread(parentId: string): Promise<XPost[]> {
       id: String(r.id),
       body: r.body ?? null,
       images: r.images ?? [],
+      imageLinks: (r as { image_links?: (string | null)[] | null }).image_links ?? null,
       likeCount: r.like_count ?? 0,
       replyCount: r.reply_count ?? 0,
       repliesDisabled: Boolean(r.replies_disabled),

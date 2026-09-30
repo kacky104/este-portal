@@ -21,7 +21,7 @@ export const RECOMMENDED_LIMIT = 200; // ★ 第1002便: 500→200（画面は30
 // reply_count / replies_disabled はリプライ機能用（reply_count はトリガ自動増減・アプリは手動更新しない）。link_url は投稿の外部リンク。edited_at は編集済み表示用。
 // pinned_at はプロフィール固定（📌）用（本人が自分のプロフィール先頭に固定・null=非固定）。
 // link_image / link_title / link_description はリンクプレビュー（OGPカード）用（fukues.com のみ・null=カード無し）。
-const POST_COLS = 'id, author_profile_id, body, images, like_count, reply_count, replies_disabled, link_url, edited_at, created_at, pinned_at, link_image, link_title, link_description';
+const POST_COLS = 'id, author_profile_id, body, images, image_links, like_count, reply_count, replies_disabled, link_url, edited_at, created_at, pinned_at, link_image, link_title, link_description';
 
 export type XPostAuthor = {
   id: string;
@@ -39,6 +39,8 @@ export type XPost = {
   id: string;
   body: string | null;
   images: string[];
+  // ★ 第1015便: 画像ごとのリンク先（運営の出勤自動投稿で使う。あればタップで拡大ではなくそのページへ）。普通の投稿は無し。
+  imageLinks?: (string | null)[] | null;
   likeCount: number;
   replyCount: number; // この投稿が持つリプライ数（トリガ自動更新）
   repliesDisabled: boolean; // リプライ受付不可（therapist/shop が自投稿で設定可）
@@ -61,6 +63,7 @@ type PostRow = {
   author_profile_id: string;
   body: string | null;
   images: string[] | null;
+  image_links?: (string | null)[] | null;
   like_count: number | null;
   reply_count: number | null;
   replies_disabled: boolean | null;
@@ -126,6 +129,7 @@ async function attachAuthors(client: AnyClient, rows: PostRow[]): Promise<XPost[
       id: String(r.id),
       body: r.body ?? null,
       images: r.images ?? [],
+      imageLinks: r.image_links ?? null,
       likeCount: r.like_count ?? 0,
       replyCount: r.reply_count ?? 0,
       repliesDisabled: Boolean(r.replies_disabled),
