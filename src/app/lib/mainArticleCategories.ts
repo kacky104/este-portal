@@ -34,6 +34,21 @@ export function mainArticleCategoryBadge(key: string | null | undefined): string
   return MAIN_ARTICLE_CATEGORY_BADGE[key as MainArticleCategory] ?? 'bg-pink-50 text-pink-600 border-pink-200';
 }
 
+// キー → 絞り込みチップの色（2026-10-01 第1045便）。バッジと同じ色相で、選択中は塗り・未選択は白地。
+export const MAIN_ARTICLE_CATEGORY_CHIP: Record<MainArticleCategory, { active: string; inactive: string }> = {
+  'howto': { active: 'bg-red-600 text-white border-transparent shadow-sm shadow-red-500/25', inactive: 'bg-white text-red-600 border-red-200 hover:border-red-300' },
+  'beginner': { active: 'bg-green-600 text-white border-transparent shadow-sm shadow-green-500/25', inactive: 'bg-white text-green-700 border-green-200 hover:border-green-300' },
+  'manner': { active: 'bg-orange-500 text-white border-transparent shadow-sm shadow-orange-500/25', inactive: 'bg-white text-orange-600 border-orange-200 hover:border-orange-300' },
+  'glossary': { active: 'bg-blue-600 text-white border-transparent shadow-sm shadow-blue-500/25', inactive: 'bg-white text-blue-600 border-blue-200 hover:border-blue-300' },
+};
+
+/** 絞り込みチップの色クラス（未知キーはピンク＝「すべて」と同じ）。 */
+export function mainArticleCategoryChip(key: string | null | undefined, active: boolean): string {
+  const c = MAIN_ARTICLE_CATEGORY_CHIP[key as MainArticleCategory];
+  if (!c) return active ? 'bg-pink-600 text-white border-transparent shadow-sm shadow-pink-500/25' : 'bg-white text-pink-600 border-pink-200 hover:border-pink-300';
+  return active ? c.active : c.inactive;
+}
+
 // キー → カテゴリ別一覧ページの説明文（2026-08-18 第23便）。
 //
 // カテゴリ別一覧（/column/category/[key]）は見出ししか無く、検索エンジンから見ると

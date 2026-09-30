@@ -1,3 +1,4 @@
+import type React from 'react';
 // コラム記事（work_articles）のカテゴリ：DB値（キー）→ 画面表示ラベルの変換を一元管理する。
 // areaLabel.ts と同じ設計＝DBに入るキー（'work-guide' 等）は不変、日本語ラベルはコード側でのみ持つ。
 // フィルタ・保存・check制約はキーで行い、表示時のみ articleCategoryLabel() を通す。
@@ -32,6 +33,32 @@ export const ARTICLE_CATEGORY_BADGE: Record<ArticleCategory, { background: strin
 /** カテゴリバッジの色（未知キーは緑＝従来色）。 */
 export function articleCategoryBadge(key: string | null | undefined): { background: string; color: string } {
   return ARTICLE_CATEGORY_BADGE[key as ArticleCategory] ?? ARTICLE_CATEGORY_BADGE['work-guide'];
+}
+
+// キー → 絞り込みチップの色（2026-10-01 第1045便）。選択中は塗り・未選択は白地に色文字。働き方ガイドは従来の緑グラデ。
+export const ARTICLE_CATEGORY_CHIP: Record<ArticleCategory, { active: React.CSSProperties; inactive: React.CSSProperties }> = {
+  'work-guide': {
+    active: { background: 'linear-gradient(to right,#10B981,#84CC16)', color: '#fff', borderColor: 'transparent' },
+    inactive: { color: '#059669', borderColor: '#A7F3D0', background: '#fff' },
+  },
+  'money': {
+    active: { background: '#f97316', color: '#fff', borderColor: 'transparent' },
+    inactive: { color: '#ea580c', borderColor: '#fed7aa', background: '#fff' },
+  },
+  'interview': {
+    active: { background: '#8b5cf6', color: '#fff', borderColor: 'transparent' },
+    inactive: { color: '#7c3aed', borderColor: '#ddd6fe', background: '#fff' },
+  },
+  'industry': {
+    active: { background: '#3b82f6', color: '#fff', borderColor: 'transparent' },
+    inactive: { color: '#2563eb', borderColor: '#bfdbfe', background: '#fff' },
+  },
+};
+
+/** 絞り込みチップの色（未知キー＝「すべて」は働き方ガイドと同じ緑）。 */
+export function articleCategoryChip(key: string | null | undefined, active: boolean): React.CSSProperties {
+  const c = ARTICLE_CATEGORY_CHIP[key as ArticleCategory] ?? ARTICLE_CATEGORY_CHIP['work-guide'];
+  return active ? c.active : c.inactive;
 }
 
 // キー → カテゴリ別一覧ページの説明文（2026-08-18 第23便）。
