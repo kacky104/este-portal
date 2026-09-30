@@ -9,15 +9,17 @@ export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
   if (items.length === 0) return null;
   const nowCount = items.filter((t) => t.onDutyNow).length;
   return (
-    <section className="x-card -mx-4 sm:mx-0 sm:rounded-2xl bg-[color:var(--x-surface)] px-4 pt-3 pb-2 mb-3 border-b border-[color:var(--x-border)] sm:border-0">
-      <div className="flex items-baseline justify-between mb-2">
+    // ★ 第1021便: 幅は下のタブ・投稿の行と同じ（-mx-4 で両端いっぱい・PC も同じ）。
+    //   スマホでは丸アイコンの列に左右の余白を付けず、画面の端から端まで見える（見出しだけ px-4）。
+    <section className="x-card -mx-4 bg-[color:var(--x-surface)] pt-3 pb-2 mb-3 border-b border-[color:var(--x-border)]">
+      <div className="flex items-baseline justify-between mb-2 px-4">
         <h2 className="text-sm font-black text-[color:var(--x-text-primary)]">
           福岡の出勤中セラピスト
           {nowCount > 0 && <span className="ml-1.5 text-xs font-bold text-emerald-500">いま {nowCount}人</span>}
         </h2>
       </div>
       {/* ★ 第1006便: PC でもマウスでつかんで／ホイールで横に動かせる（スクロールバーは出さない） */}
-      <XDragScroll className="flex gap-3 px-1 pb-1">
+      <XDragScroll className="flex gap-3 px-0 pb-1">
         {items.map((t) => (
           <Link key={t.id} href={t.href} className="flex flex-col items-center w-[72px] flex-shrink-0 group">
             <span className="relative w-[64px] h-[64px] rounded-full p-[3px] bg-[color:var(--x-border-strong)] group-hover:bg-indigo-300 transition-colors">
