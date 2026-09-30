@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateJST, getScheduleWindowStatus, getNowJSTMinutes } from '@/lib/dutyStatus';
 import { buildDisplayHours } from '@/lib/scheduleFormat';
-import { fetchFukuesOgp } from '@/app/x/xOgp';
 
 // ★★ 第1004便（2026-09-30・カッキーさん）: fukuX に「本日出勤のセラピスト」を運営（@fukues_info）名義で自動投稿する周。
 //   POST /api/admin/x-onduty-post  (Authorization: Bearer <CRON_SECRET>)
@@ -11,7 +10,8 @@ import { fetchFukuesOgp } from '@/app/x/xOgp';
 // ★ 何を出すか（カッキーさん決定・2026-09-30）
 //   ・写真4枚: 【出勤中＋これから出勤する子】から4人（写真がある子だけ）。★ 終わった子は外す。
 //     ★ ランダムではなく日ごと・回ごとにずらして順番に回す（20時出勤の子も 18:05 の回で載る）。
-//   ・本文: 「本日は N人 が出勤予定（HH:MM現在 M人が出勤中）」＋載せた4人の名前と出勤時間＋フクエスの出勤一覧へのリンク。
+//   ・本文: 「本日は N人 が出勤予定（HH:MM現在 M人が出勤中）」＋写真の順に「①名前（お店）出勤時間」＋フクエスの出勤一覧へのリンク（文字だけ）。
+//   ★ リンクカード（OGP のサムネイル）は付けない: 付けると写真4枚よりカードが目立ってしまう（第1005便・実機で確認）。
 //   ・時刻: 12:05 と 18:05（JST）。キリのよい時刻から外して、他の自動投稿と重ねない。
 // ★ 重複防止: 同じ日・同じ回の投稿がすでにあれば何もしない（周が2回動いても1本）。
 // ★ 今日の出勤が0人、または写真のある子が0人なら投稿しない。
@@ -98,13 +98,14 @@ export async function POST(req: Request) {
   // 公開中のセラピスト・掲載中の店舗だけ
   const { data: ths } = await svc
     .from('therapists')
-    .select('id, name, profile_image_url, salons!therapists_salon_id_fkey!inner(is_hidden)')
+    .select('id, name, profile_image_url, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
     .in('id', rows.map((r) => r.id))
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
-  const pub = new Map<number, { name: string; image: string | null }>();
-  for (const t of (ths ?? []) as unknown as { id: number; name: string; profile_image_url: string | null }[]) {
-    pub.set(Number(t.id), { name: t.name ?? '', image: t.profile_image_url ?? null });
+  const pub = new Map<number, { name: string; shop: string; image: string | null }>();
+  for (const t of (ths ?? []) as unknown as { id: number; name: string; profile_image_url: string | null; salons: { name: string } | { name: string }[] | null }[]) {
+    const sh = Array.isArray(t.salons) ? t.salons[0] : t.salons;
+    pub.set(Number(t.id), { name: t.name ?? '', shop: sh?.name ?? '', image: t.profile_image_url ?? null });
   }
   const visible = rows.filter((r) => pub.has(r.id));
   const totalToday = visible.length;           // 本日の出勤予定（終わった子も含む）
@@ -120,20 +121,23 @@ export async function POST(req: Request) {
   const picked = Array.from({ length: Math.min(PICK, candidates.length) }, (_, i) => candidates[(off + i) % candidates.length]);
 
   const now = jstHHMM();
-  const lines = picked.map((r) => `${pub.get(r.id)!.name} ${buildDisplayHours(r.start, r.end)}`);
+  const marks = ['①', '②', '③', '④'];
+  const lines = picked.map((r, i) => {
+    const t = pub.get(r.id)!;
+    return `${marks[i]}${t.name}（${t.shop}）${buildDisplayHours(r.start, r.end)}`;
+  });
   const bodyText =
     `${head}\n` +
     `本日は ${totalToday}人 が出勤予定（${now}現在 ${onDutyNow}人が出勤中）🌸\n` +
-    `写真: ${lines.join(' ／ ')}\n` +
+    `${lines.join('\n')}\n` +
     `▶ 出勤一覧はこちら`;
   const images = picked.map((r) => pub.get(r.id)!.image!);
 
   if (!apply) {
-    return NextResponse.json({ ok: true, dryRun: true, slot, today, totalToday, onDutyNow, picked: picked.map((r) => ({ id: r.id, name: pub.get(r.id)!.name, hours: buildDisplayHours(r.start, r.end) })), body: bodyText, images });
+    return NextResponse.json({ ok: true, dryRun: true, slot, today, totalToday, onDutyNow, picked: picked.map((r) => ({ id: r.id, name: pub.get(r.id)!.name, shop: pub.get(r.id)!.shop, hours: buildDisplayHours(r.start, r.end) })), body: bodyText, images });
   }
 
-  // 投稿（運営名義・service_role）。リンクは fukues.com なので OGP カードも付ける（失敗しても投稿は成立）
-  const ogp = await fetchFukuesOgp(LIST_URL).catch(() => null);
+  // 投稿（運営名義・service_role）。★ リンクカード（link_image/title）は付けない＝文字だけのリンクにして写真を主役に
   const { data: inserted, error } = await svc
     .from('x_posts')
     .insert({
@@ -141,9 +145,9 @@ export async function POST(req: Request) {
       body: bodyText,
       images,
       link_url: LIST_URL,
-      link_image: ogp?.image ?? null,
-      link_title: ogp?.title ?? null,
-      link_description: ogp?.description ?? null,
+      link_image: null,
+      link_title: null,
+      link_description: null,
     })
     .select('id')
     .single();
