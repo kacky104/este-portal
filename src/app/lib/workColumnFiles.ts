@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isValidArticleCategory } from '@/app/lib/articleCategories';
+import { isValidMainArticleCategory } from '@/app/lib/mainArticleCategories';
 import type { WorkArticleDetail } from '@/app/lib/workArticles';
 
 // ★★★ フクエスワークのコラムを「用語集型」（リポジトリの md）で持つ（第1033便・2026-10-01・カッキーさん）
@@ -21,29 +22,32 @@ import type { WorkArticleDetail } from '@/app/lib/workArticles';
 //   updatedAt   任意・YYYY-MM-DD（公開日より後なら「更新:」として表示される）
 //   heroImage   任意・/ から始まるパス（public/ 配下）か https:// の URL（Supabase Storage の既存画像もそのまま使える）
 
-const CONTENT_DIR = path.join(process.cwd(), 'src', 'content', 'work-column');
+// ★ 第1037便: 本体コラム（/column・src/content/column）も同じ読み取りを使う。makeColumnFiles で置き場所と
+//   カテゴリ判定だけ差し替える（返す型は同じ形なので WorkArticleDetail を共用）。
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EXCERPT_MAX = 200;
 
-function fail(fileSlug: string, reason: string): never {
-  throw new Error(`work-column ${fileSlug}: ${reason}`);
+type ColumnSource = { label: string; dir: string; isValidCategory: (v: unknown) => boolean };
+
+function fail(label: string, fileSlug: string, reason: string): never {
+  throw new Error(`${label} ${fileSlug}: ${reason}`);
 }
 
-function parseFrontmatter(raw: string, fileSlug: string): { meta: Record<string, string>; body: string } {
+function parseFrontmatter(raw: string, fileSlug: string, label: string): { meta: Record<string, string>; body: string } {
   const lines = raw.replace(/\r\n/g, '\n').split('\n');
-  if (lines[0]?.trim() !== '---') fail(fileSlug, '先頭が --- で始まっていない（frontmatter が無い）');
+  if (lines[0]?.trim() !== '---') fail(label, fileSlug, '先頭が --- で始まっていない（frontmatter が無い）');
   let end = -1;
   for (let i = 1; i < lines.length; i += 1) {
     if (lines[i].trim() === '---') { end = i; break; }
   }
-  if (end < 0) fail(fileSlug, 'frontmatter が --- で閉じていない');
+  if (end < 0) fail(label, fileSlug, 'frontmatter が --- で閉じていない');
   const meta: Record<string, string> = {};
   for (let i = 1; i < end; i += 1) {
     const line = lines[i];
     if (line.trim() === '') continue;
     const m = /^([A-Za-z_][A-Za-z0-9_]*):(?:\s+(.*))?$/.exec(line);
-    if (!m) fail(fileSlug, `frontmatter ${i + 1}行目を読めない: ${line}`);
-    if (m[1] in meta) fail(fileSlug, `frontmatter の ${m[1]} が2回ある`);
+    if (!m) fail(label, fileSlug, `frontmatter ${i + 1}行目を読めない: ${line}`);
+    if (m[1] in meta) fail(label, fileSlug, `frontmatter の ${m[1]} が2回ある`);
     meta[m[1]] = (m[2] ?? '').trim();
   }
   return { meta, body: lines.slice(end + 1).join('\n').trim() };
@@ -54,33 +58,34 @@ function toIsoJst(d: string): string {
   return `${d}T00:00:00+09:00`;
 }
 
-function readOne(slug: string): WorkArticleDetail {
-  const raw = fs.readFileSync(path.join(CONTENT_DIR, `${slug}.md`), 'utf8');
-  const { meta, body } = parseFrontmatter(raw, slug);
+function readOne(src: ColumnSource, slug: string): WorkArticleDetail {
+  const raw = fs.readFileSync(path.join(src.dir, `${slug}.md`), 'utf8');
+  const { meta, body } = parseFrontmatter(raw, slug, src.label);
+  const fail_ = (reason: string) => fail(src.label, slug, reason);
   const need = (k: string) => {
     const v = meta[k];
-    if (!v) fail(slug, `frontmatter に ${k} が無い`);
+    if (!v) fail_(`frontmatter に ${k} が無い`);
     return v;
   };
   const fmSlug = need('slug');
-  if (fmSlug !== slug) fail(slug, `slug（${fmSlug}）がファイル名（${slug}）と違う`);
+  if (fmSlug !== slug) fail_(`slug（${fmSlug}）がファイル名（${slug}）と違う`);
   const title = need('title');
   const category = need('category');
-  if (!isValidArticleCategory(category)) fail(slug, `category が未知: ${category}`);
+  if (!src.isValidCategory(category)) fail_(`category が未知: ${category}`);
   const excerpt = need('excerpt');
-  if (excerpt.length > EXCERPT_MAX) fail(slug, `excerpt が ${EXCERPT_MAX} 字を超えている（${excerpt.length} 字）`);
+  if (excerpt.length > EXCERPT_MAX) fail_(`excerpt が ${EXCERPT_MAX} 字を超えている（${excerpt.length} 字）`);
   const publishedAt = need('publishedAt');
-  if (!DATE_RE.test(publishedAt)) fail(slug, `publishedAt は YYYY-MM-DD で書く: ${publishedAt}`);
+  if (!DATE_RE.test(publishedAt)) fail_(`publishedAt は YYYY-MM-DD で書く: ${publishedAt}`);
   const updatedAt = meta.updatedAt ?? '';
-  if (updatedAt && !DATE_RE.test(updatedAt)) fail(slug, `updatedAt は YYYY-MM-DD で書く: ${updatedAt}`);
+  if (updatedAt && !DATE_RE.test(updatedAt)) fail_(`updatedAt は YYYY-MM-DD で書く: ${updatedAt}`);
   const heroImage = meta.heroImage ?? '';
   if (heroImage && !heroImage.startsWith('/') && !heroImage.startsWith('https://')) {
-    fail(slug, 'heroImage は / から始まるパスか https:// の URL で書く');
+    fail_('heroImage は / から始まるパスか https:// の URL で書く');
   }
   if (heroImage.startsWith('/') && !fs.existsSync(path.join(process.cwd(), 'public', heroImage.replace(/^\//, '')))) {
-    fail(slug, `heroImage の画像が public に無い: ${heroImage}`);
+    fail_(`heroImage の画像が public に無い: ${heroImage}`);
   }
-  if (!body) fail(slug, '本文が空');
+  if (!body) fail_('本文が空');
   return {
     id: `file:${slug}`,
     slug,
@@ -94,21 +99,38 @@ function readOne(slug: string): WorkArticleDetail {
   };
 }
 
-let cache: WorkArticleDetail[] | null = null;
-
-/** md 記事の全件（ビルド／ISR 中はメモリにキャッシュ）。壊れた記事があれば throw。 */
-export function getAllWorkColumnFiles(): WorkArticleDetail[] {
-  if (cache) return cache;
-  if (!fs.existsSync(CONTENT_DIR)) { cache = []; return cache; }
-  const slugs = fs
-    .readdirSync(CONTENT_DIR)
-    .filter((f) => f.endsWith('.md') && !f.startsWith('_'))
-    .map((f) => f.slice(0, -3))
-    .sort();
-  cache = slugs.map(readOne);
-  return cache;
+function makeColumnFiles(src: ColumnSource) {
+  let cache: WorkArticleDetail[] | null = null;
+  /** md 記事の全件（ビルド／ISR 中はメモリにキャッシュ）。壊れた記事があれば throw。 */
+  const getAll = (): WorkArticleDetail[] => {
+    if (cache) return cache;
+    if (!fs.existsSync(src.dir)) { cache = []; return cache; }
+    const slugs = fs
+      .readdirSync(src.dir)
+      .filter((f) => f.endsWith('.md') && !f.startsWith('_'))
+      .map((f) => f.slice(0, -3))
+      .sort();
+    cache = slugs.map((slug) => readOne(src, slug));
+    return cache;
+  };
+  const getOne = (slug: string): WorkArticleDetail | null => getAll().find((a) => a.slug === slug) ?? null;
+  return { getAll, getOne };
 }
 
-export function getWorkColumnFile(slug: string): WorkArticleDetail | null {
-  return getAllWorkColumnFiles().find((a) => a.slug === slug) ?? null;
-}
+// フクエスワーク（/jobs/column）
+const work = makeColumnFiles({
+  label: 'work-column',
+  dir: path.join(process.cwd(), 'src', 'content', 'work-column'),
+  isValidCategory: isValidArticleCategory,
+});
+export const getAllWorkColumnFiles = work.getAll;
+export const getWorkColumnFile = work.getOne;
+
+// 本体フクエス（/column）・第1037便
+const main = makeColumnFiles({
+  label: 'column',
+  dir: path.join(process.cwd(), 'src', 'content', 'column'),
+  isValidCategory: isValidMainArticleCategory,
+});
+export const getAllMainColumnFiles = main.getAll;
+export const getMainColumnFile = main.getOne;
