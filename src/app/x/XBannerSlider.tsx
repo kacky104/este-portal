@@ -59,7 +59,7 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
 
   return (
     // x-banner-frame: 枠線リングだけのグラデキラリ（5秒に1回一周・globals.css）。radius は inherit のため rounded-xl をここに持つ。
-    <div className="mt-3 relative rounded-xl x-banner-frame">
+    <div className="mt-3 relative x-banner-frame" style={{ borderRadius: 12 }}>
       <div
         ref={trackRef}
         onScroll={onScroll}
@@ -77,10 +77,11 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
         onPointerLeave={() => {
           pausedRef.current = false;
         }}
-        className="flex gap-2 overflow-x-auto snap-x snap-mandatory rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-2 overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {banners.map((b) => (
-          <div key={b.slot} className="w-[82%] flex-shrink-0 snap-start aspect-[64/27] overflow-hidden bg-[color:var(--x-inset)]">
+          // ★ 第1012便: バナーは1枚ずつ角を丸く（x-theme.css の「箱は直角」ルールに負けないよう inline style で指定）
+          <div key={b.slot} className="w-[82%] flex-shrink-0 snap-start aspect-[64/27] overflow-hidden bg-[color:var(--x-inset)]" style={{ borderRadius: 12 }}>
             {b.linkUrl ? (
               b.linkUrl.startsWith('/') ? (
                 <Link href={b.linkUrl} className="block w-full h-full">
