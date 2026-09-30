@@ -1,11 +1,11 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getScheduleWindowStatus, toBusinessElapsed } from '@/lib/dutyStatus';
 import { buildDisplayHours } from '@/lib/scheduleFormat';
 
 // ★★ 第1001便（2026-09-30・カッキーさん）: fukuX タイムラインの上に出す「今日出勤のセラピスト」の帯。
 // ★ データは本体の therapist_schedules（今日の営業日・出勤あり）＋ therapists（公開中・掲載中の店舗）。新しい入力は要らない。
 // ★ 行き先: fukuX のアカウントがあれば fukuX のプロフィール、無ければフクエスのセラピストページ。
-// ★ 並び: いま出勤中 → これから出勤（開始が早い順）。終わった人は出さない。
+// ★ 並び: いま出勤中 → これから出勤。どちらも【朝6時起点】で開始が早い順（★ 第1006便: 0:00〜 の深夜の子は最後に来る）。終わった人は出さない。
 export type OnDutyTherapist = {
   id: number;
   name: string;
@@ -18,6 +18,13 @@ export type OnDutyTherapist = {
 };
 
 const LIMIT = 30;
+
+// "HH:MM" → 朝6時からの経過分（0:00 は 1080＝深夜扱いで後ろに並ぶ）
+function startElapsed(hhmm: string | null): number {
+  if (!hhmm) return 99999;
+  const [h, m] = hhmm.split(':').map(Number);
+  return toBusinessElapsed(h * 60 + (m || 0));
+}
 
 export async function fetchOnDutyTherapists(): Promise<OnDutyTherapist[]> {
   const supabase = createPublicClient();
@@ -43,7 +50,7 @@ export async function fetchOnDutyTherapists(): Promise<OnDutyTherapist[]> {
     .filter((r) => r.status === 'onDuty' || r.status === 'before')
     .sort((a, b) => {
       if (a.status !== b.status) return a.status === 'onDuty' ? -1 : 1;
-      return (a.start ?? '').localeCompare(b.start ?? '');
+      return startElapsed(a.start) - startElapsed(b.start);
     });
   if (picked.length === 0) return [];
 

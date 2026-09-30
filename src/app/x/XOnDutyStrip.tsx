@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { OnDutyTherapist } from './xOnDuty';
+import { XDragScroll } from './XDragScroll';
 
 // ★★ 第1001便（2026-09-30・カッキーさん）: 「今日出勤のセラピスト」の帯（タイムラインのタブの上・全タブ共通）。
 // ★ ストーリーバーと同じ横スクロールの丸アイコン。いま出勤中は緑の点、これからは時間だけ。
@@ -18,14 +19,15 @@ export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
           フクエスで見る
         </Link>
       </div>
-      <div className="flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* ★ 第1006便: PC でもマウスでつかんで／ホイールで横に動かせる（スクロールバーは出さない） */}
+      <XDragScroll className="flex gap-3 px-1 pb-1">
         {items.map((t) => (
           <Link key={t.id} href={t.href} className="flex flex-col items-center w-[72px] flex-shrink-0 group">
             <span className="relative w-[64px] h-[64px] rounded-full p-[3px] bg-[color:var(--x-border-strong)] group-hover:bg-indigo-300 transition-colors">
               <span className="block w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center">
                 {t.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={t.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  <img src={t.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" draggable={false} />
                 ) : (
                   <span className="text-white font-bold text-lg">{t.name.charAt(0) || '?'}</span>
                 )}
@@ -41,7 +43,7 @@ export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
             <span className="max-w-full truncate text-[10px] text-[color:var(--x-text-muted)] tabular-nums">{t.hours}</span>
           </Link>
         ))}
-      </div>
+      </XDragScroll>
     </section>
   );
 }

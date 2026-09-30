@@ -74,7 +74,7 @@ export function getNowJSTMinutes(): number {
 }
 
 /** 0時起点の分を「営業日（午前6時始まり）の経過分」に変換する（0 = 06:00）。 */
-function toBusinessElapsed(minutes: number): number {
+export function toBusinessElapsed(minutes: number): number {
   return (minutes - DAY_START_HOUR * 60 + 1440) % 1440;
 }
 
