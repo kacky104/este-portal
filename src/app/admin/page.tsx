@@ -28,7 +28,6 @@ import JobBoostManager from '@/app/components/JobBoostManager';
 import AreaBannerManager from '@/app/components/AreaBannerManager';
 import AreaIconManager from '@/app/components/AreaIconManager';
 import FeatureIconManager from '@/app/components/FeatureIconManager';
-import WorkArticlesManager from '@/app/components/WorkArticlesManager';
 import AdminDocumentsManager from '@/app/components/AdminDocumentsManager';
 import AdminImagesManager from '@/app/components/AdminImagesManager';
 import RankingHandicapManager from '@/app/components/RankingHandicapManager';
@@ -1076,9 +1075,14 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          {/* コラム管理（work_articles）：求職者向けSEO記事。draft含む全件を管理（公開ページは段階3）。 */}
+          {/* ★ 第1036便: コラム管理（work_articles）は撤去。フクエスワークのコラムは第1033〜1034便で
+              「用語集型」（リポジトリの src/content/work-column/*.md）へ全27本を移行済み。追加・修正は md を直してコミット。
+              DB の work_articles は残っているが、同じ slug は md が優先される（src/app/lib/workArticles.ts）。 */}
           <AccordionSection id="work-articles" title="コラム管理（フクエスワーク）" expanded={expandedSections} onToggle={toggleSection}>
-            <WorkArticlesManager onToast={showToast} />
+            <div className="text-sm text-slate-600 leading-relaxed space-y-1">
+              <p>フクエスワークのコラムは <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">src/content/work-column/&lt;slug&gt;.md</code> で管理しています（用語集と同じ形）。</p>
+              <p>追加・修正は md を編集してコミット→PUSH。画像は <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">public/work-column/&lt;slug&gt;/</code> に置きます。この管理画面からは編集しません。</p>
+            </div>
           </AccordionSection>
 
           {/* 求人管理（フクエスワーク）。件数・新規応募バッジは折りたたみ時も見えるよう見出しに表示。 */}
