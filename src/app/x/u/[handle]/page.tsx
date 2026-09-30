@@ -22,6 +22,7 @@ import { countVerifiedProfiles } from '../../xFollows';
 import { XProfileView } from '../../XProfileView';
 import { getLinkedTherapistForXProfile, fukuesTherapistPageUrl } from '@/app/lib/xLink';
 import type { StoryGroup } from '../../xStories';
+import PageViewLogger from '@/app/components/PageViewLogger';
 
 // 閲覧者のログイン状態でフォロー状態が変わるため動的レンダリング。
 export const dynamic = 'force-dynamic';
@@ -348,6 +349,8 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
     <>
       {/* h1（従来は無し）。プロフィールヘッダーの見た目を変えないため sr-only で出す。文言は title と揃える。 */}
       <h1 className="sr-only">{target.display_name}(@{target.handle})のfukuXプロフィール</h1>
+      {/* 第1023便：本体セラピストに紐づくアカウントの閲覧は、本体のセラピストページと同じ週間アクセス数に合算する（セラピストランキング用）。 */}
+      {linkedTherapist ? <PageViewLogger itemType="therapist" itemId={Number(linkedTherapist.id)} /> : null}
       <XProfileView
         target={target}
         storyGroup={storyGroup}
