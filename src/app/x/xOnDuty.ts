@@ -1,11 +1,12 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { getBusinessDateJST, getScheduleWindowStatus, toBusinessElapsed } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
+import { seededWeightedShuffle, thirtyMinSeed } from '@/lib/shuffle'; // ★ タイムラインのおすすめと同じ30分シャッフル
 import { buildDisplayHours } from '@/lib/scheduleFormat';
 
 // ★★ 第1001便（2026-09-30・カッキーさん）: fukuX タイムラインの上に出す「今日出勤のセラピスト」の帯。
 // ★ データは本体の therapist_schedules（今日の営業日・出勤あり）＋ therapists（公開中・掲載中の店舗）。新しい入力は要らない。
 // ★ 行き先: fukuX のアカウントがあれば fukuX のプロフィール、無ければフクエスのセラピストページ。
-// ★ 並び: いま出勤中 → これから出勤。どちらも【朝6時起点】で開始が早い順（★ 第1006便: 0:00〜 の深夜の子は最後に来る）。終わった人は出さない。
+// ★ 第1007便（カッキーさん決定）: 出すのは【いま出勤中の子だけ】。並びは【30分ごとに変わるランダム】（同じ30分の間は固定＝リロードで暴れない）。最大100人。
 export type OnDutyTherapist = {
   id: number;
   name: string;
@@ -17,14 +18,7 @@ export type OnDutyTherapist = {
   xHandle: string | null; // fukuX があれば @ID
 };
 
-const LIMIT = 30;
-
-// "HH:MM" → 朝6時からの経過分（0:00 は 1080＝深夜扱いで後ろに並ぶ）
-function startElapsed(hhmm: string | null): number {
-  if (!hhmm) return 99999;
-  const [h, m] = hhmm.split(':').map(Number);
-  return toBusinessElapsed(h * 60 + (m || 0));
-}
+const LIMIT = 100;
 
 export async function fetchOnDutyTherapists(): Promise<OnDutyTherapist[]> {
   const supabase = createPublicClient();
@@ -39,20 +33,18 @@ export async function fetchOnDutyTherapists(): Promise<OnDutyTherapist[]> {
   const rows = (sched ?? []) as { therapist_id: number; start_time: string | null; end_time: string | null }[];
   if (rows.length === 0) return [];
 
-  // いま出勤中／これから、に絞る（終わった人は外す）
-  const picked = rows
+  // いま出勤中の子だけ（これから・終わった子は外す）→ 30分ごとのランダム並び
+  const onDuty = rows
     .map((r) => {
       const start = r.start_time ? String(r.start_time).slice(0, 5) : null;
       const end = r.end_time ? String(r.end_time).slice(0, 5) : null;
       const status = getScheduleWindowStatus(start, end);
       return { id: Number(r.therapist_id), start, end, status };
     })
-    .filter((r) => r.status === 'onDuty' || r.status === 'before')
-    .sort((a, b) => {
-      if (a.status !== b.status) return a.status === 'onDuty' ? -1 : 1;
-      return startElapsed(a.start) - startElapsed(b.start);
-    });
-  if (picked.length === 0) return [];
+    .filter((r) => r.status === 'onDuty')
+    .sort((a, b) => a.id - b.id); // ★ シャッフル前の並びを固定（DB の返す順に左右されない）
+  if (onDuty.length === 0) return [];
+  const picked = seededWeightedShuffle(onDuty, thirtyMinSeed(), () => 1.0);
 
   const ids = picked.map((r) => r.id);
   const { data: ths } = await supabase

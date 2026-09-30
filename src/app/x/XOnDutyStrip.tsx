@@ -3,7 +3,7 @@ import type { OnDutyTherapist } from './xOnDuty';
 import { XDragScroll } from './XDragScroll';
 
 // ★★ 第1001便（2026-09-30・カッキーさん）: 「今日出勤のセラピスト」の帯（タイムラインのタブの上・全タブ共通）。
-// ★ ストーリーバーと同じ横スクロールの丸アイコン。いま出勤中は緑の点、これからは時間だけ。
+// ★ ストーリーバーと同じ横スクロールの丸アイコン。★ 第1007便: 出すのは出勤中の子だけ（緑の点は全員に付く）。
 // ★ タップで fukuX のプロフィール（無ければフクエスのセラピストページ）へ。
 export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
   if (items.length === 0) return null;
