@@ -6,8 +6,18 @@ import type { XBanner } from './xBanners';
 
 const AUTO_MS = 3500;
 
-// タイムラインのタブバー直下に出すバナースライダー（全タブ共通・最大5枠・16:9）。
+// タイムラインのタブバー直下に出すバナースライダー（全タブ共通・最大5枠・64:27）。
 // scroll-snap ベースの手動スワイプ＋3.5秒間隔の自動送り（ループ）。操作中は自動送りを一時停止。
+// ★ 第1011便（2026-09-30・カッキーさん）: 1画面に「1枚＋次の0.2枚」が見える幅に（画像の比率はそのまま＝高さも小さくなる）。
+//   1枚の幅 = 枠の 82%・すき間 8px。スクロールの1歩は「1枚の幅＋すき間」。
+const SLIDE_W = 0.82; // 枠に対する1枚の幅
+const GAP_PX = 8;
+
+// 1歩ぶんの幅（1枚＋すき間）
+function stepOf(el: HTMLDivElement): number {
+  const first = el.firstElementChild as HTMLElement | null;
+  return (first?.offsetWidth ?? el.clientWidth * SLIDE_W) + GAP_PX;
+}
 export function XBannerSlider({ banners }: { banners: XBanner[] }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [index, setIndex] = useState(0);
@@ -18,7 +28,7 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
   const onScroll = () => {
     const el = trackRef.current;
     if (!el || el.clientWidth === 0) return;
-    const i = Math.round(el.scrollLeft / el.clientWidth);
+    const i = Math.round(el.scrollLeft / stepOf(el));
     indexRef.current = i;
     setIndex(i);
   };
@@ -26,7 +36,7 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
   const scrollTo = (i: number) => {
     const el = trackRef.current;
     if (!el) return;
-    el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+    el.scrollTo({ left: i * stepOf(el), behavior: 'smooth' });
   };
 
   // 自動送り（2枚以上のときだけ）。タブ非表示中は進めない。
@@ -67,10 +77,10 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
         onPointerLeave={() => {
           pausedRef.current = false;
         }}
-        className="flex overflow-x-auto snap-x snap-mandatory rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-2 overflow-x-auto snap-x snap-mandatory rounded-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {banners.map((b) => (
-          <div key={b.slot} className="w-full flex-shrink-0 snap-center aspect-[64/27] overflow-hidden bg-[color:var(--x-inset)]">
+          <div key={b.slot} className="w-[82%] flex-shrink-0 snap-start aspect-[64/27] overflow-hidden bg-[color:var(--x-inset)]">
             {b.linkUrl ? (
               b.linkUrl.startsWith('/') ? (
                 <Link href={b.linkUrl} className="block w-full h-full">
