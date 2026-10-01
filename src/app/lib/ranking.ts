@@ -42,6 +42,9 @@ export type TherapistRankItem = {
 
 // 第1026便：承認済み fukuX セラピストアカウントを持つセラピストは毎週この点数からスタート（週間アクセス数に上乗せ）。
 export const FUKUX_ACCOUNT_BONUS = 10;
+// ★ 第1058便（2026-10-01・カッキーさん）：fukuX の赤い認証バッジ（x_profiles.is_verified・セラピストは所属＋画像付き投稿10件で自動付与）
+//   が付いていると、さらに毎週この点数を上乗せ（開設10＋赤バッジ5＝最大15）。
+export const FUKUX_VERIFIED_BONUS = 5;
 
 // 現在時刻(JST)が属する週の「月曜」の 'YYYY-MM-DD'。
 // Postgres の date_trunc('week') は月曜起点なので RPC 側と一致する。
@@ -195,16 +198,21 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
   // therapists.user_id === x_profiles.auth_user_id で突き合わせ、該当セラピストに FUKUX_ACCOUNT_BONUS を加算。
   // アクセス0でもアカウントがあれば母集団に入る（＝毎週10点からスタート）。
   const [{ data: xRows }, { data: linkRows }] = await Promise.all([
-    supabase.from('x_profiles').select('auth_user_id').eq('kind', 'therapist').eq('status', 'approved'),
+    supabase.from('x_profiles').select('auth_user_id, is_verified').eq('kind', 'therapist').eq('status', 'approved'),
     supabase.from('therapists').select('id, user_id').eq('is_active', true).not('user_id', 'is', null),
   ]);
-  const xUserIds = new Set<string>(
-    ((xRows ?? []) as Array<{ auth_user_id: string | null }>).map((r) => String(r.auth_user_id ?? '')).filter(Boolean),
+  const xProfileRows = (xRows ?? []) as Array<{ auth_user_id: string | null; is_verified: boolean | null }>;
+  const xUserIds = new Set<string>(xProfileRows.map((r) => String(r.auth_user_id ?? '')).filter(Boolean));
+  // ★ 第1058便：赤バッジ（is_verified）付きの auth uid。
+  const xVerifiedUserIds = new Set<string>(
+    xProfileRows.filter((r) => r.is_verified).map((r) => String(r.auth_user_id ?? '')).filter(Boolean),
   );
+  const links = (linkRows ?? []) as Array<{ id: number; user_id: string | null }>;
   const fukuxIds = new Set<number>(
-    ((linkRows ?? []) as Array<{ id: number; user_id: string | null }>)
-      .filter((r) => r.user_id && xUserIds.has(String(r.user_id)))
-      .map((r) => Number(r.id)),
+    links.filter((r) => r.user_id && xUserIds.has(String(r.user_id))).map((r) => Number(r.id)),
+  );
+  const fukuxVerifiedIds = new Set<number>(
+    links.filter((r) => r.user_id && xVerifiedUserIds.has(String(r.user_id))).map((r) => Number(r.id)),
   );
 
   const candidateIds = [...new Set<number>([...viewMap.keys(), ...bonusIds, ...fukuxIds])];
@@ -239,7 +247,12 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
   const scored = ((tRows ?? []) as unknown as TRow[])
     .map((t) => {
       const hasFukuX = fukuxIds.has(Number(t.id));
-      const effective = (viewMap.get(Number(t.id)) ?? 0) + Number(t.ranking_bonus ?? 0) + (hasFukuX ? FUKUX_ACCOUNT_BONUS : 0);
+      const hasFukuXVerified = fukuxVerifiedIds.has(Number(t.id));
+      const effective =
+        (viewMap.get(Number(t.id)) ?? 0) +
+        Number(t.ranking_bonus ?? 0) +
+        (hasFukuX ? FUKUX_ACCOUNT_BONUS : 0) +
+        (hasFukuXVerified ? FUKUX_VERIFIED_BONUS : 0);
       return {
         id: Number(t.id),
         hasFukuX,

@@ -35,10 +35,12 @@ export default async function CastHomePage() {
   // 非連携（user_id に対応する x_profiles が無い／非approved）なら null＝チェックボックス自体を出さない。
   let xProfileId: string | null = null;
   let xHandle: string | null = null; // 連携 fukuX の handle（タブ「fukuX」のリンク先。未連携/未設定は null＝タブを出さない）
+  let xVerified = false; // ★ 第1058便: 赤い認証バッジ（is_verified）。開設済みで未取得の子にだけ加点の案内を出す
   if (therapist) {
     const linked = await getLinkedXProfileForTherapist(user.id);
     xProfileId = linked?.profileId ?? null;
     xHandle = linked?.handle ?? null;
+    xVerified = linked?.isVerified ?? false;
   }
 
   // 所属サロン名（挨拶ブロックのサブ情報）。本人セッションのクライアントで salons から取得。
@@ -173,6 +175,27 @@ export default async function CastHomePage() {
                   <span className="block text-[11px] text-violet-600/90 leading-snug mt-0.5">fukuXのアカウントページの閲覧もランキングに加算されます</span>
                 </span>
                 <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-bold whitespace-nowrap">開設する</span>
+              </Link>
+            )}
+            {/* ★ 第1058便: 開設済みで赤バッジがまだの子にだけ、赤バッジの加点の案内（赤バッジ取得＝xVerified で非表示）。
+                行き先は fukuX のセラピスト向けガイド STEP4（所属と赤い認証バッジ）。 */}
+            {xHandle && !xVerified && (
+              <Link
+                href="/x/guide/therapist"
+                className="flex items-center gap-3 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 px-3.5 py-3 shadow-sm hover:-translate-y-0.5 transition-transform"
+              >
+                {/* 実物と同じ赤い認証バッジ（VerifiedBadge kind='therapist' の形・#EF4444） */}
+                <span className="w-9 h-9 flex-shrink-0 inline-flex items-center justify-center" aria-hidden>
+                  <svg viewBox="0 0 24 24" width="30" height="30">
+                    <path fill="#EF4444" d="M12 1.5l2.5 2.1 3.3-.3.9 3.2 2.8 1.8-1.3 3 1.3 3-2.8 1.8-.9 3.2-3.3-.3L12 22.5l-2.5-2.1-3.3.3-.9-3.2L2.5 15.7l1.3-3-1.3-3 2.8-1.8.9-3.2 3.3.3z" />
+                    <path fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" d="M8.2 12.2l2.6 2.6 5-5.4" />
+                  </svg>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-bold text-red-700 leading-snug">fukuXで赤い認証バッジが付くと、人気セラピストランキングにさらに毎週+5点</span>
+                  <span className="block text-[11px] text-red-600/90 leading-snug mt-0.5">お店に所属して、画像付きの投稿が10件になると自動で付きます</span>
+                </span>
+                <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-red-500 text-white text-[11px] font-bold whitespace-nowrap">やり方を見る</span>
               </Link>
             )}
             {/* ★ 第516便: 挨拶カードを横長にして高さを約1/3に（スマホの1画面目にタブの中身まで入るように）。
