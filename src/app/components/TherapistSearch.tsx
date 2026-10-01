@@ -16,6 +16,8 @@
 // - シャッフルseedは initialSeed（サーバー計算）を優先し、SSRとhydrationの並び不一致を防ぐ。
 
 import { useEffect, useMemo, useState } from 'react';
+
+const PAGE_STEP = 60;
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
@@ -64,6 +66,9 @@ export function TherapistSearch({
   // ── フィルタ状態（?area= / ?b=）。初期描画は常に「絞り込みなし」で、マウント後にURLから復元。 ──
   const [area, setAreaState] = useState<string>(ALL_AREA);
   const [selectedBadges, setSelectedBadges] = useState<string[]>([]);
+  // ★ 第1078便: 一度に出す枚数。461人を全部 SSR すると HTML 2MB・DOM 5,000ノードになるので 60人ずつ。
+  //   ★ 条件（エリア・バッジ）を変えたら先頭に戻す。★ SEO: セラピストの個別ページは sitemap と店舗ページから届く。
+  const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const a = p.get('area');
@@ -176,6 +181,7 @@ export function TherapistSearch({
   };
   const setArea = (a: string) => {
     setAreaState(a);
+    setVisibleCount(PAGE_STEP);
     syncUrl(a, selectedBadges);
   };
   const toggleBadge = (badge: string) => {
@@ -185,11 +191,13 @@ export function TherapistSearch({
     else set.add(badge);
     const next = Array.from(set);
     setSelectedBadges(next);
+    setVisibleCount(PAGE_STEP);
     syncUrl(area, next);
   };
   const resetAll = () => {
     setAreaState(ALL_AREA);
     setSelectedBadges([]);
+    setVisibleCount(PAGE_STEP);
     syncUrl(ALL_AREA, []);
   };
 
@@ -324,9 +332,20 @@ export function TherapistSearch({
         </div>
       ) : (
         <div className="grid grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-3 justify-items-center max-sm:[&>a]:!w-full max-sm:[&>a]:!h-auto max-sm:[&>a]:!aspect-[105/153]">
-          {ordered.map((t, i) => (
+          {ordered.slice(0, visibleCount).map((t, i) => (
             <Card key={t.id} therapist={t} index={i} showAge />
           ))}
+        </div>
+      )}
+      {loaded && ordered.length > visibleCount && (
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((n) => n + PAGE_STEP)}
+            className="px-6 py-2.5 rounded-full text-sm font-bold text-pink-600 border border-pink-200 bg-white hover:bg-pink-50 transition-colors"
+          >
+            もっと見る（残り {ordered.length - visibleCount} 名）
+          </button>
         </div>
       )}
 
