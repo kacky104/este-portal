@@ -955,14 +955,7 @@ export default function AdminDashboard() {
             <ReviewCampaignManager onToast={showToast} />
           </AccordionSection>
 
-          {/* ★ 第1038便: 本体コラム（main_articles）の管理UIも撤去。全25本を src/content/column/*.md に移行済み。
-              同じ slug は md が優先（src/app/lib/mainArticles.ts）。DB は残置。 */}
-          <AccordionSection id="main-articles" title="コラム記事（本体・利用者向け）" expanded={expandedSections} onToggle={toggleSection}>
-            <div className="text-sm text-slate-600 leading-relaxed space-y-1">
-              <p>本体のコラムは <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">src/content/column/&lt;slug&gt;.md</code> で管理しています（用語集と同じ形）。</p>
-              <p>追加・修正は md を編集してコミット→PUSH。画像は <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">public/column/&lt;slug&gt;/</code> に置きます。この管理画面からは編集しません。</p>
-            </div>
-          </AccordionSection>
+          {/* ★ 第1062便: 本体コラムの案内枠も撤去。コラムは src/content/column/*.md（DB の main_articles は削除予定）。 */}
 
         </div>
 
@@ -1078,15 +1071,7 @@ export default function AdminDashboard() {
             />
           </AccordionSection>
 
-          {/* ★ 第1036便: コラム管理（work_articles）は撤去。フクエスワークのコラムは第1033〜1034便で
-              「用語集型」（リポジトリの src/content/work-column/*.md）へ全27本を移行済み。追加・修正は md を直してコミット。
-              DB の work_articles は残っているが、同じ slug は md が優先される（src/app/lib/workArticles.ts）。 */}
-          <AccordionSection id="work-articles" title="コラム管理（フクエスワーク）" expanded={expandedSections} onToggle={toggleSection}>
-            <div className="text-sm text-slate-600 leading-relaxed space-y-1">
-              <p>フクエスワークのコラムは <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">src/content/work-column/&lt;slug&gt;.md</code> で管理しています（用語集と同じ形）。</p>
-              <p>追加・修正は md を編集してコミット→PUSH。画像は <code className="px-1 py-0.5 rounded bg-slate-100 text-[12px]">public/work-column/&lt;slug&gt;/</code> に置きます。この管理画面からは編集しません。</p>
-            </div>
-          </AccordionSection>
+          {/* ★ 第1062便: ワークのコラム案内枠も撤去。コラムは src/content/work-column/*.md（DB の work_articles は削除予定）。 */}
 
           {/* 求人管理（フクエスワーク）。件数・新規応募バッジは折りたたみ時も見えるよう見出しに表示。 */}
           <AccordionSection
