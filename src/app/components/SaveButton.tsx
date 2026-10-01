@@ -13,6 +13,7 @@ import {
   toggleJobSalon,
   SAVED_JOB_SALONS_EVENT,
 } from '@/lib/savedJobSalons';
+import { useHydrated } from '@/lib/useHydrated';
 
 // ── 演出スタイルをコンポーネントに同梱（どのページで使っても効くようにする） ──
 // globals.css 等のページ別CSSに依存せず、SaveButton が初めて使われた時点で <style> を head へ1度だけ注入する。
@@ -160,7 +161,7 @@ export function SaveButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   // ハイドレーション対策：初期は未保存扱いで描画し、マウント後に反映する。
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [saved, setSaved] = useState(false);
   // 保存した瞬間のクリック演出。保存済みに切り替わったときだけ +1。
   const [fxKey, setFxKey] = useState(0);
@@ -173,7 +174,6 @@ export function SaveButton({
 
   useEffect(() => {
     ensureFxStyles();
-    setMounted(true);
     const check = () =>
       kind === 'salon' ? isSalonSaved(item.id)
       : kind === 'therapist' ? isTherapistSaved(item.id)

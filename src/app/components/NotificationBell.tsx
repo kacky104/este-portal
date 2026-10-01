@@ -4,17 +4,17 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getNotificationFeed } from '@/app/lib/notifications';
+import { useHydrated } from '@/lib/useHydrated';
 
 // ヘッダーの通知ベル。ログイン会員のときのみ表示し、未読数をバッジで出す。
 // 未読の計算は必ずクライアント側（マウント後）で行う。これにより ISR キャッシュ済みページ
 // （トップ・サロン詳細）のサーバーレンダリングに会員個別計算を持ち込まず、キャッシュを壊さない。
 export function NotificationBell() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [loggedIn, setLoggedIn] = useState(false);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
     let active = true;
     (async () => {
       try {

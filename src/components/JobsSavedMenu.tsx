@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { STAR_SRC, STAR_SAVED_FILTER } from '@/app/components/SaveButton';
 import Image from 'next/image';
 import { getJobSavedCount, SAVED_JOB_SALONS_EVENT } from '@/lib/savedJobSalons';
+import { useHydrated } from '@/lib/useHydrated';
 
 // フクエスワーク専用ヘッダーの保存メニュー（本体 SavedSalonsMenu を参考にした簡易版）。
 // 緑肉球アイコン＋保存店舗数バッジ。クリックで /jobs/saved へ。
@@ -12,11 +13,10 @@ import { getJobSavedCount, SAVED_JOB_SALONS_EVENT } from '@/lib/savedJobSalons';
 // 0件時はアイコンのみ表示・バッジ非表示（本体と同じ挙動：アイコンは常時／バッジは>0のみ）。
 export function JobsSavedMenu() {
   // ハイドレーション対策：初期は0件で描画し、マウント後に反映。
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
     const sync = () => setCount(getJobSavedCount());
     sync();
     window.addEventListener(SAVED_JOB_SALONS_EVENT, sync);

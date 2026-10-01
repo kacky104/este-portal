@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useHydrated } from '@/lib/useHydrated';
 
 const NEW_WINDOW_MS = 48 * 60 * 60 * 1000; // 48時間
 
@@ -9,8 +9,7 @@ const NEW_WINDOW_MS = 48 * 60 * 60 * 1000; // 48時間
 // クライアントのマウント後に現在時刻（Date.now）で判定する（ハイドレーション不一致回避）。
 // 判定は絶対時間のミリ秒差（カレンダー日数ではない）。色は新顔セラピストの NewBadge と同じ緑で統一。
 export function DiaryNewBadge({ iso, className }: { iso: string; className?: string }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   if (!mounted) return null;
 
   const t = new Date(iso).getTime();

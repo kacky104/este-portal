@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { submitReview } from '@/app/actions/reviews';
 import { StarRatingInput } from '@/app/components/StarRatingInput';
+import { useHydrated } from '@/lib/useHydrated';
 
 // 店舗単位の口コミ投稿フォーム（クライアント）。components/ReviewForm.tsx とは別物。
 // マウント時にログイン判定し、未ログインなら案内＋導線、ログイン済みならフォームを表示。
@@ -29,7 +30,7 @@ export function SalonReviewForm({
   /** 無料掲載枠（第368便）＝セラピスト選択なしの店舗宛て口コミ。 */
   storeLevel?: boolean;
 }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [loggedIn, setLoggedIn] = useState(false);
 
   const [therapistId, setTherapistId] = useState<number | ''>('');
@@ -46,7 +47,6 @@ export function SalonReviewForm({
   const today = todayJST();
 
   useEffect(() => {
-    setMounted(true);
     let active = true;
     (async () => {
       try {

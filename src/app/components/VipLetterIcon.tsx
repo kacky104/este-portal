@@ -4,20 +4,20 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getVipUnreadCount } from '@/app/lib/vipLetters';
+import { useHydrated } from '@/lib/useHydrated';
 
 // ヘッダーのVIPレター専用アイコン（封筒）。ログイン会員のときのみ表示し、未読数をバッジで出す。
 // 未読の計算は必ずクライアント側（マウント後）で行う。これにより ISR キャッシュ済みページ
 // （トップ・サロン詳細）のサーバーレンダリングに会員個別計算を持ち込まず、キャッシュを壊さない。
 // （NotificationBell と同じ設計。こちらは VIPレターの未読＝vip_letter_recipients.read_at=null のみ）
 export function VipLetterIcon() {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [loggedIn, setLoggedIn] = useState(false);
   const [unread, setUnread] = useState(0);
   // ★ 未読数を読み取れなかった。★ 0件と混ぜず「?」を出す（第179便）
   const [unknown, setUnknown] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     let active = true;
     (async () => {
       try {

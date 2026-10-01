@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { getSession, onAuthChange, signOut } from '@/lib/auth';
 import { createClient } from '@/app/lib/supabase/client';
+import { useHydrated } from '@/lib/useHydrated';
 
 // 共通ヘッダーの会員ログイン状態UI。
 // 未ログイン: 「ログイン」リンク（→ /login）。
@@ -15,7 +16,7 @@ import { createClient } from '@/app/lib/supabase/client';
 //   ★ 判定は salons.owner_id / therapists.user_id を1回ずつ引くだけ（★ 新しい列・表は作らない）。
 export function AccountMenu() {
   // ハイドレーション対策：初期は未ログイン表示。マウント後に反映。
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [email, setEmail] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -24,7 +25,6 @@ export function AccountMenu() {
   const [isCast, setIsCast] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     let active = true;
     // ★ ログインしている人の id から、店舗オーナーか／セラピスト本人かを引く。
     //   ★ 失敗しても黙って false（★ メニューが壊れるより、入口が1つ出ないほうがまし）。

@@ -88,8 +88,8 @@ export default function ScrollPopupImage({
 
   const closedRef = useRef(false);
   const visibleRef = useRef(false);
-  closedRef.current = closed;
-  visibleRef.current = visible;
+  // ★ 第1073便: 描画中に ref へ書き込まない（eslint react-hooks/refs のエラー）。
+  //   ★ 状態を変えるその場（スクロール・✕）で ref も一緒に書き換える＝値は常に最新。
 
   // src が空なら何も表示しない（設定を空にすればポップアップを止められる）
   const enabled = Boolean(src);
@@ -101,11 +101,13 @@ export default function ScrollPopupImage({
       if (y <= hideBefore) {
         // 最上部付近 → 消す（閉じたわけではないので再度下げれば出る）
         if (visibleRef.current) {
+          visibleRef.current = false;
           setLeaving(true);
           setVisible(false);
         }
       } else if (y > showAfter) {
         if (!closedRef.current && !visibleRef.current) {
+          visibleRef.current = true;
           setLeaving(false);
           setVisible(true);
         }
@@ -119,6 +121,8 @@ export default function ScrollPopupImage({
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
+    closedRef.current = true;
+    visibleRef.current = false;
     setClosed(true);
     setLeaving(true);
     setVisible(false);

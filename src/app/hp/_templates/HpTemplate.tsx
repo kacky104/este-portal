@@ -139,7 +139,6 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         {heroSlides.length === 0 ? null : heroSlides.length === 1 ? (
           <picture>
             {heroSlides[0].sp && <source media="(max-width: 639px)" srcSet={heroSlides[0].sp} />}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="hp-hero-img" src={heroSlides[0].pc} alt={salon.name} />
           </picture>
         ) : (
@@ -149,7 +148,6 @@ export function HpTemplate({ data }: { data: HpPageData }) {
                 {slide.sp && <source media="(max-width: 639px)" srcSet={slide.sp} />}
                 {/* 1枚目はLCPになるので通常読み込み。2枚目以降は遅延（初回表示を遅らせない）。
                     alt は1枚目だけ店名にする（同じ店名を3回読み上げても意味が無い）。 */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   className="hp-hero-img"
                   src={slide.pc}

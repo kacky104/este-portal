@@ -52,7 +52,6 @@ export function AutoFitName({
     const ro = new ResizeObserver(fit);
     ro.observe(c);
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, max, min, step]);
 
   const TextTag = textTag;

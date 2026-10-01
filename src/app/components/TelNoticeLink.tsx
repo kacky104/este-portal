@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useHydrated } from '@/lib/useHydrated';
 
 export function TelNoticeLink({
   phone,
@@ -28,8 +29,7 @@ export function TelNoticeLink({
 }) {
   const isWork = brand === 'work';
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const mounted = useHydrated();
 
   // Esc で閉じる
   useEffect(() => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
+import { useHydrated } from '@/lib/useHydrated';
 
 // 共通ヘッダー右端のメニュー（ハンバーガー）。
 // サイト内の主要コンテンツ導線（人気ランキング/特徴で探す/写メ日記/口コミ/新人/SNS）をまとめる。
@@ -44,9 +45,8 @@ const TONES = {
 export function HamburgerMenu({ items = ITEMS, tone = 'pink' }: { items?: MenuItem[]; tone?: keyof typeof TONES } = {}) {
   const t = TONES[tone];
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
 
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;

@@ -4,18 +4,18 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getSavedCount, SAVED_SALONS_EVENT } from '@/lib/savedSalons';
 import { getSavedTherapistCount, SAVED_THERAPISTS_EVENT } from '@/lib/savedTherapists';
+import { useHydrated } from '@/lib/useHydrated';
 
 // 共通ヘッダー右側のお気に入りブックマーク。クリックで /saved へ遷移。
 // 件数バッジは「店舗（ピンク #EC4899）」「セラピスト（紫 #A855F7）」の2つを縦に表示。
 // 各0件で非表示、各イベント／storage でライブ更新（保存は店舗/セラピストで別管理）。
 export function SavedSalonsMenu() {
   // ハイドレーション対策：初期は0件で描画し、マウント後に反映。
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [salonCount, setSalonCount] = useState(0);
   const [therapistCount, setTherapistCount] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
     const sync = () => {
       setSalonCount(getSavedCount());
       setTherapistCount(getSavedTherapistCount());

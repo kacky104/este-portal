@@ -3,16 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getSession, onAuthChange } from '@/lib/auth';
+import { useHydrated } from '@/lib/useHydrated';
 
 // /join のCTA。ページ本体は ISR（静的）のままにしたいので、ログイン状態の出し分けはここだけで行う。
 // ハイドレーション対策：初期描画は必ず未ログイン表示（＝新規登録CTA）。マウント後に差し替える。
 // SEO上も、クローラが見る初期HTMLに「無料で会員登録する」が入るのは正しい状態。
 export function JoinCta({ variant = 'hero' }: { variant?: 'hero' | 'footer' }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     let active = true;
     getSession().then((s) => { if (active) setLoggedIn(!!s); });
     const off = onAuthChange((s) => { if (active) setLoggedIn(!!s); });
