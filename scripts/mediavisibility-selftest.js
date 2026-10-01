@@ -19,23 +19,14 @@ const ADMIN = '63aca737-b399-4fb2-bf92-8a3816955d69';
 const SHOP = '11111111-2222-3333-4444-555555555555';
 const see = (o) => v.canSeeMedia(Object.assign({ ownerId: SHOP, adminUuid: ADMIN, unlocked: false }, o || {}));
 
-console.log('── 1. ★★ 既定は出さない（倒れる向き）──');
-eq('★ ふつうの店舗には出さない', see({}), false);
-eq('★ owner_id が無いときは出さない', see({ ownerId: null }), false);
-eq('★ owner_id が空文字でも出さない', see({ ownerId: '' }), false);
-eq('★ 運営UUIDが空なら出さない', see({ ownerId: '', adminUuid: '' }), false);
-// ★★ ここが罠。両方とも空だと「一致」してしまう作りにしない
-eq('★★ 空同士を一致とみなさない', v.canSeeMedia({ ownerId: '', adminUuid: '', unlocked: false }), false);
-eq('★ null 同士も一致とみなさない', v.canSeeMedia({ ownerId: null, adminUuid: '', unlocked: false }), false);
-
-console.log('\n── 2. 出す条件は2つ ──');
-eq('① 持ち主が運営アカウントなら出す', see({ ownerId: ADMIN }), true);
-eq('② 目隠しを外していれば出す', see({ unlocked: true }), true);
-eq('★ 両方でも出す', see({ ownerId: ADMIN, unlocked: true }), true);
-eq('★ 別のUUIDでは出さない', see({ ownerId: SHOP }), false);
-// ★ unlocked は真偽値のみ。文字列 'false' などで通らないこと
-eq("★ 'true' という文字列では通さない", v.canSeeMedia({ ownerId: SHOP, adminUuid: ADMIN, unlocked: 'true' }), false);
-eq('★ 1 では通さない', v.canSeeMedia({ ownerId: SHOP, adminUuid: ADMIN, unlocked: 1 }), false);
+// ★★★ 第393便a（2026-09-15・カッキーさん）で【目隠しを外した】。canSeeMedia は常に true。
+//   ★ 第1067便で点検を追随。★ また隠すときは src/lib/mediaVisibility.ts の戻し方どおりに戻し、
+//     ここも git の履歴（第54便の版）に戻すこと。
+console.log('── 1. ★★★ 目隠しは外してある（第393便a）──');
+eq('★ ふつうの店舗にも出す', see({}), true);
+eq('★ owner_id が無くても出す（ログインしている店舗の画面なので）', see({ ownerId: null }), true);
+eq('★ 目隠しの状態に関係なく出す', see({ unlocked: false }), true);
+eq('★ 運営の店舗にも出す', see({ ownerId: ADMIN }), true);
 
 console.log('\n── 3. URL の読み取り ──');
 eq('指定が無ければ none', v.readUnlockIntent('?a=1'), 'none');
@@ -61,11 +52,7 @@ eq('★★ 目隠しを外していても、読み込み前は wait', page({ unl
 eq('★★ 目隠しを外していて、読み込み後なら show', page({ unlocked: true, ready: true }), 'show');
 // ★★★ もう1組。読み込み前の「ふつうの店舗」を leave にしない（毎回弾かれる事故の防止）
 eq('★★ ふつうの店舗も、読み込み前は leave にしない', page({ ready: false }) === 'leave', false);
-eq('★★ ふつうの店舗は、読み込み後なら leave', page({ ready: true }), 'leave');
-
-eq('① 持ち主が運営アカウントなら show', page({ ownerId: ADMIN }), 'show');
-eq('★ 持ち主が空なら leave', page({ ownerId: '' }), 'leave');
-eq('★★ 空同士でも show にしない', v.decideMediaPage({ ownerId: '', adminUuid: '', unlocked: false, ready: true }), 'leave');
+eq('★★ ふつうの店舗も、読み込み後なら show（第393便a）', page({ ready: true }), 'show');
 // ★ ready も真偽値のみ（unlocked と同じ扱い）。★ 文字列で通ると読み込み前に描いてしまう
 eq("★ ready が 'true' という文字列なら wait", v.decideMediaPage({ ownerId: ADMIN, adminUuid: ADMIN, unlocked: false, ready: 'true' }), 'wait');
 eq('★ ready が 1 なら wait', v.decideMediaPage({ ownerId: ADMIN, adminUuid: ADMIN, unlocked: false, ready: 1 }), 'wait');

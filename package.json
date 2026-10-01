@@ -47,7 +47,7 @@
     "check:diarystall": "tsc src/lib/diaryStall.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/diarystall-selftest.js",
     "check:notificationfeed": "tsc src/lib/notificationFeed.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/notificationfeed-selftest.js",
     "check:relaymultipart": "tsc src/lib/relayMultipart.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/relaymultipart-selftest.js",
-    "check:photoflow": "tsc src/lib/relayFlow.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/photoflow-selftest.js",
+    "check:photoflow": "tsc src/lib/relayFlow.ts src/lib/imageSize.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/photoflow-selftest.js",
     "check:esutama": "tsc src/lib/esutamaPlan.ts src/lib/esutamaRequests.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutama-selftest.js",
     "check:esutamaflow": "tsc src/lib/relayFlow.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutamaflow-selftest.js",
     "check:duplicates": "tsc src/lib/therapistDuplicates.ts src/lib/mediaMatch.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/duplicates-selftest.js",

@@ -110,7 +110,8 @@ eq('★ 空文字も null', v.findMediaSite(''), null);
 eq('★ 数字を渡しても null', v.findMediaSite(1), null);
 
 console.log('\n── 4. 枠 ──');
-eq('駅ちかは3枠', v.mediaSiteSlots(v.findMediaSite('ekichika')), [1, 2, 3]);
+// ★ 第937便（2026-09-28・カッキーさん）で 3→2 枠。点検は第1067便で追随
+eq('駅ちかは2枠（第937便）', v.mediaSiteSlots(v.findMediaSite('ekichika')), [1, 2]);
 eq('エステラブは2枠', v.mediaSiteSlots(v.findMediaSite('esulove')), [1, 2]);
 eq('★ 0枠でも1枠は出す（登録の口を消さない）', v.mediaSiteSlots({ slots: 0 }), [1]);
 eq('★ 壊れていても1枠', v.mediaSiteSlots({ slots: NaN }), [1]);

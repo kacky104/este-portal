@@ -138,12 +138,12 @@ eq('★ 「各サイトへ送るようにする」は使わない',
 // ★★ 1回押すだけで変わる。★ だから【止まるほう】を押した直後に必ず言う
 eq('★★ write へ → 止まるのは取り込み',
    v.switchDoneText('write', '駅ちか', EKI).includes('取り込みは止まります'), true);
-eq('★★ read へ → 更新しないことを言う',
-   v.switchDoneText('read', '駅ちか', EKI).includes('フクエスからは更新しません'), true);
+// ★ 第1067便: 点検を今の文言に追随（第690便・カッキーさん: 押したあとの知らせは1文に）
+eq('★★ read へ → 「駅ちかから反映するようにしました。」（第690便）',
+   v.switchDoneText('read', '駅ちか', EKI), '駅ちかから反映するようにしました。');
 // ★★★ 第192便: 「どのサイトへも」と書かない。★ この枠しか変わらないのに全体のように書いていた（嘘）
-eq('★★★ none へ → その媒体を更新しないことと取り込まないことの両方を言う',
-   v.switchDoneText('none', '駅ちか', EKI).includes('駅ちかは更新せず')
-   && v.switchDoneText('none', '駅ちか', EKI).includes('駅ちかからの取り込みもしません'), true);
+eq('★★★ none へ → 「駅ちかからの反映を止めました」（第690便・その媒体の名前で言う）',
+   v.switchDoneText('none', '駅ちか', EKI), '駅ちかからの反映を止めました');
 eq('★★★ none へ → 「どのサイトへも」と書かない（第192便）',
    v.switchDoneText('none', '駅ちか', EKI).includes('どのサイト'), false);
 eq('★ どの行き先でも文が空にならない',
@@ -171,7 +171,8 @@ eq('★ どの状態でも1行が空にならない',
 eq('write の問い', v.switchAskText('write', '駅ちか', EKI).title, 'フクエスから反映しますか？');
 eq('read の問い', v.switchAskText('read', '駅ちか', EKI).title, '駅ちかから反映しますか？');
 // ★★★ 第192便: 見出しを「どのサイトにも」にしない。★ 一括ボタン（bulkAskText）と同じ言葉にすると押した範囲が混ざる
-eq('none の問い', v.switchAskText('none', '駅ちか', EKI).title, '駅ちかへ反映しないようにしますか？');
+// ★ 第1067便: 点検を今の文言に追随（第684便）
+eq('none の問い（第684便）', v.switchAskText('none', '駅ちか', EKI).title, '駅ちかからの反映を止めますか？');
 eq('★★★ 1枠の none の問いは、一括の問いと見出しが違う（第192便）',
    v.switchAskText('none', '駅ちか', EKI).title !== v.bulkAskText(v.bulkPlan([{ provider: EKI, slot: 1, label: '駅ちか', direction: 'read', hasCredential: true }], 'none')).title, true);
 eq('★ 媒体の名前は決め打ちにしない', v.switchAskText('read', 'エステ魂', EKI).title, 'エステ魂から反映しますか？');
@@ -185,18 +186,20 @@ eq('★★ 問いは必ず「？」で終わる',
 // ★★★ 押す前の本文には【止まるほう】を必ず書く。★ 押したあとの文と対にする
 eq('★★★ write の本文は取り込みが止まると書く',
    v.switchAskText('write', '駅ちか', EKI).body.includes('取り込みは止まります'), true);
-eq('★★★ read の本文は更新しなくなると書く',
-   v.switchAskText('read', '駅ちか', EKI).body.includes('しなくなります'), true);
-eq('★★★ none の本文は両方とも止まると書く（★ その媒体の範囲で）',
-   v.switchAskText('none', '駅ちか', EKI).body.includes('駅ちかは更新せず')
-   && v.switchAskText('none', '駅ちか', EKI).body.includes('駅ちかからの取り込みもしません'), true);
+// ★ 第1067便: 点検を今の文言に追随（第687便: read の本文は1文に。第684便: none の問いは見出しだけで本文は空・画面は空なら出さない）
+eq('★★★ read の本文（第687便）',
+   v.switchAskText('read', '駅ちか', EKI).body, '駅ちかに入れた出勤情報などが、フクエスにも反映されます。');
+eq('★★★ none の本文は空（第684便・画面は見出しだけ出す）', v.switchAskText('none', '駅ちか', EKI).body, '');
 eq('★★★ 1枠の none の本文に「どのサイト」と書かない（第192便）',
    v.switchAskText('none', '駅ちか', EKI).body.includes('どのサイト'), false);
 // ★★ 第192便: read の本文は写メ日記も送らないと書く（カッキーさんの方針）
-eq('★★ read の本文は「写メ日記も」止まると書く（第192便・第335便で言い方を更新／投稿に）',
-   v.switchAskText('read', '駅ちか', EKI).body.includes('出勤の更新も写メ日記の投稿もしなくなります'), true);
-eq('★ どの行き先でも本文が空にならない',
-   ['read', 'write', 'none'].every((m) => v.switchAskText(m, '駅ちか', EKI).body.length > 0), true);
+// ★ 「写メ日記も止まる」の一文は第687便で消した（書き込みはコネックエフへ移った・第668便）
+eq('★ read と write の本文は空にならない（none だけ空）',
+   ['read', 'write'].every((m) => v.switchAskText(m, '駅ちか', EKI).body.length > 0), true);
+// ★★ 画面は本文が空なら <p> を出さない（第684便）
+eq('★★ 画面は本文が空の問いで本文を出さない',
+   /switchAskText\(ask\.choice\.mode, ask\.site\.label, ask\.site\.provider\)\.body &&/.test(
+     require('fs').readFileSync(require('path').join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8')), true);
 
 console.log('\n── 4-4. ★ ボタンの下に置く短い説明（第90便）──');
 eq('★ 媒体名とフクエスの両方が入る',
@@ -631,7 +634,8 @@ console.log('\n── ★★★ 第189便: 「反映しない」の行に添え�
   const src3 = fs3.readFileSync(require('path').join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8');
   const jsx3 = src3.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   eq('★★★ 画面に「どこにも送らず」が残っていない', /どこにも送らず/.test(jsx3), false);
-  eq('★★ 画面は offRowNote を呼んでいる', /offRowNote\(/.test(jsx3), true);
+  // ★ 第682便（カッキーさん）でホームから駅ちかの行（チップ・状態の札・反映しないボタン）を撤去したので、画面側の配線は無い（第1067便で点検を追随）
+  eq('★★ 画面は offRowNote を呼ばない（第682便で行ごと撤去）', /offRowNote\(/.test(jsx3), false);
 }
 
 console.log('\n── ★★★ 第190便: ほかの媒体へフクエスから反映しているあいだは read を出さない（第127便の逆側）──');
@@ -711,9 +715,9 @@ console.log('\n── ★★★ 第190便: ほかの媒体へフクエスから�
   const fs4 = require('fs');
   const src4 = fs4.readFileSync(require('path').join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8');
   const jsx4 = src4.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  eq('★★ 画面は switchChoices に5つ目（writingElsewhere）を渡している', /switchChoices\([^)]*,\s*writingElsewhere\)/.test(jsx4), true);
+  // ★ 第682便（カッキーさん）でホームから駅ちかの行（チップ・状態の札・反映しないボタン）を撤去したので、画面側の配線は無い（第1067便で点検を追随）
+  //   ★★★ 守り（駅ちかから反映中は他へフクエスから書かない）は受け口（setMediaLinkMode）で効いている（下の点検）
   eq('★★ 画面は readBlockedNote を呼んでいる', /readBlockedNote\(/.test(jsx4), true);
-  eq('★★ 画面は doubleWriteNote を呼んでいる', /doubleWriteNote\(/.test(jsx4), true);
   // ★★★ 受け口（サーバー）にも逆側のガードがある（画面だけで守らない）
   const act = fs4.readFileSync(require('path').join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
   eq('★★★ setMediaLinkMode は read にするときも、ほかの write / write_auto を見ている',
@@ -856,8 +860,7 @@ console.log('\n── ★★★ 第192便: ホームを「3つの設定」にす
   eq('★★ 画面は bulkAskText / bulkDoneText / bulkLabel / readLinkLabel を呼んでいる',
      ['bulkAskText(', 'bulkDoneText(', 'bulkLabel(', 'readLinkLabel('].every((f) => jsx5.includes(f)), true);
   eq('★★★ 画面に「どのサイトへも送りません」の直書きが無い', jsx5.includes('どのサイトへも'), false);
-  eq('★★ 第347便: どの行も none だけ（read/write は上の3つの設定へ）',
-     /const choices = all\.filter\(\(c\) => c\.mode === 'none'\);/.test(jsx5), true);
+  // ★ 第347便の「行は none だけ」は、第682便で行そのものを撤去したので点検不要（第1067便）
   eq('★★★ 第347便: 行に write の選択肢を戻していない（媒体ごとに出し分けない）',
      /canReadProvider\(s\.provider\) \?\s*all\.filter/.test(jsx5), false);
   const act5 = fs5.readFileSync(path5.join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
@@ -877,7 +880,7 @@ console.log('\n── ★ 第193便: ホームのサイト名の右に「送れ�
   const fs6 = require('fs');
   const path6 = require('path');
   const jsx6 = fs6.readFileSync(path6.join(__dirname, '..', 'src/app/mypage/media/MediaHome.tsx'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  eq('★★ 画面は capabilities を並べている', /s\.capabilities \?\? \[\]\)\.map\(/.test(jsx6), true);
+  // ★ 第682便でホームの駅ちかの行（送れるもののチップを含む）を撤去（第1067便で点検を追随）
   eq('★★ 「送れるもの：」の文字は出さない（右の「反映中」と重なる）', jsx6.includes('送れるもの'), false);
   const act6 = fs6.readFileSync(path6.join(__dirname, '..', 'src/app/actions/mediaCredentials.ts'), 'utf8');
   eq('★★ 受け口はログイン情報と同じ元（sendableCapabilities → capabilityLabel）を使う（別の表を持たない）',
