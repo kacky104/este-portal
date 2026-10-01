@@ -242,6 +242,7 @@ export default function ScrollPopupImage({
             ✕
           </button>
           {/* next/image を使いたい場合はここを差し替えてください */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- ★ 第1074便: 大きさが画像しだいのポップアップ（CSS で大きさを決めている） */}
           <img src={src} alt={alt} />
         </div>
       )}

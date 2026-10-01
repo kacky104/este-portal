@@ -718,7 +718,6 @@ export function SalonTherapists({ salonId }: { salonId: number }) {
       const mapped: Therapist[] = (rows ?? []).map(t => {
         const key = String(t.id);
         const todaySchedule = schedMap[key] ?? { is_active: false, start_time: null, end_time: null };
-        const status = getScheduleStatus(todaySchedule);
         return {
           id:              key,
           name:            (t.name as string) ?? '',

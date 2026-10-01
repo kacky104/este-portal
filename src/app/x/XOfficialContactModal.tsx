@@ -23,7 +23,6 @@ export function XOfficialContactModal({
   open,
   onClose,
   officialProfileId,
-  myProfileId,
   myHandle,
 }: {
   open: boolean;

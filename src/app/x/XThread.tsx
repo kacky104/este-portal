@@ -81,6 +81,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ★ 第1074便: わざと依存を外している（足すと毎回作り直される関数／クライアントで読み直しが止まらなくなる）
   }, [convNum, me, meLoading]);
 
   // 軽いポーリング：新着があれば反映。相手からの新着が来たら既読化。
@@ -103,6 +104,7 @@ export function XThread({ conversationId }: { conversationId: string }) {
       alive = false;
       window.clearInterval(iv);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ★ 第1074便: わざと依存を外している（足すと毎回作り直される関数／クライアントで読み直しが止まらなくなる）
   }, [accessible]);
 
   // 新着で最下部へスクロール。

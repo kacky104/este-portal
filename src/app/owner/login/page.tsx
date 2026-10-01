@@ -99,6 +99,7 @@ function OwnerLoginInner() {
         <div className="text-center mb-8">
           {/* ★ 第937便: ダイヤ（◆）→ フクエスのロゴ（/logo.png） */}
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-pink-50 border border-pink-200 mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- ★ 第1074便: 28px の小さなロゴ（最適化の効果がない） */}
             <img src="/logo.png" alt="フクエス" width={28} height={28} className="w-7 h-7" />
           </div>
           <h1 className="text-xl font-bold text-slate-900">店舗オーナーログイン</h1>

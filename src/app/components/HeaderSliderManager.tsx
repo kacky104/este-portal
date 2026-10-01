@@ -282,6 +282,7 @@ export default function HeaderSliderManager() {
             {/* PC用プレビュー */}
             <div>
               <p className="text-[11px] text-gray-400 mb-0.5">PC用</p>
+              {/* eslint-disable-next-line @next/next/no-img-element -- ★ 第1074便: 管理画面のプレビュー（最適化は不要） */}
               <img src={img.image_url} alt="" className="w-full h-24 object-cover rounded" />
             </div>
 
@@ -291,7 +292,10 @@ export default function HeaderSliderManager() {
                 SP用（任意・4:3 例 1086×815）
               </p>
               {img.image_url_sp ? (
-                <img src={img.image_url_sp} alt="" className="w-full h-24 object-cover rounded" />
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- ★ 第1074便: 管理画面のプレビュー（最適化は不要） */}
+                  <img src={img.image_url_sp} alt="" className="w-full h-24 object-cover rounded" />
+                </>
               ) : (
                 <div className="w-full h-24 flex items-center justify-center rounded bg-gray-50 text-[11px] text-gray-400 text-center px-1">
                   未設定<br />スマホでもPC用を表示

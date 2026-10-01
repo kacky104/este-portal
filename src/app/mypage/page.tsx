@@ -65,7 +65,6 @@ import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 const supabase = createClient();
 
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ★ ここにあった isAvailableNowLive() は src/lib/imasugu.ts の isOwnerLiveRow() の複製だった（第40便で撤去）。
 //   ヘルパーの外にある複製は、枠が増えても追随しない。判定は必ず src/lib/imasugu.ts を通すこと。
@@ -1045,7 +1044,7 @@ export default function MyPage() {
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   };
@@ -1317,7 +1316,7 @@ export default function MyPage() {
         setSchedules(schedMap);
       }
     })();
-  }, [router]);
+  }, [router, sevenDays]); // ★ 第1074便: sevenDays は useMemo([]) で不変＝足しても読み直しは増えない
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);

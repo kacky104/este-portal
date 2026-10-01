@@ -167,7 +167,7 @@ export function BannerPerkPanel({ salonId }: { salonId: number | null }) {
   const toggleSite = (key: SiteKey) => {
     setSites((prev) => {
       const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
     setDone(false);

@@ -6,7 +6,6 @@ import {
   listSalonsWithoutSite,
   createHpSite,
   updateHpSiteOperator,
-  revalidateHpSitePages,
   deleteHpSite,
   type OperatorSite,
   type OperatorSitePatch,
@@ -106,14 +105,6 @@ export function HpSitesManager({ onToast }: { onToast: (msg: string) => void }) 
     setEditingId(null);
     setPatch(null);
     load();
-  };
-
-  const handleRevalidate = async (salonId: number) => {
-    setBusy(true);
-    const res = await revalidateHpSitePages(salonId);
-    setBusy(false);
-    if (!res.ok) { onToast(res.error); return; }
-    onToast(`公開ページのキャッシュを更新しました（${res.paths.join(' / ')}）`);
   };
 
   const handleDelete = async (s: OperatorSite) => {

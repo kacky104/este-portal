@@ -15,7 +15,6 @@ import {
 import {
   fetchShopMini,
   fetchAffiliatedTherapists,
-  type ShopMini,
   type TherapistMini,
 } from '../../xAffiliation';
 import { countVerifiedProfiles } from '../../xFollows';

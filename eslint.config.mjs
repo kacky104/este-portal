@@ -10,7 +10,8 @@ const eslintConfig = defineConfig([
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/purity': 'warn',
-'@typescript-eslint/no-unused-vars': 'warn',
+      // ★ 第1074便: `_` で始まる名前は「わざと捨てている値」として対象外（{ id: _id, ...rest } など）
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true }],
       '@typescript-eslint/no-unused-expressions': 'warn',
       '@next/next/no-img-element': 'warn',
     },

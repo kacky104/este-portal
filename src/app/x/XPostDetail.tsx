@@ -88,7 +88,7 @@ export function XPostDetail({ parent }: { parent: XPost }) {
       registerPost(reply);
       showToast('リプライしました');
     },
-    [registerPost]
+    [registerPost, showToast]
   );
 
   const cardProps = (p: XPost) => {

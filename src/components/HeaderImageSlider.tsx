@@ -42,6 +42,7 @@ export default function HeaderImageSlider() {
       }
     };
     fetchSlides();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ★ 第1074便: わざと依存を外している（足すと毎回作り直される関数／クライアントで読み直しが止まらなくなる）（初回だけ読む）
   }, []);
 
   const goTo = useCallback((index: number) => {

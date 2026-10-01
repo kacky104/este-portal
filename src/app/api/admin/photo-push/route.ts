@@ -273,7 +273,6 @@ export async function POST(req: Request) {
     path: typeof body.path === 'string' ? body.path : undefined,
   });
   if (!got.ok) return NextResponse.json({ ok: false, error: got.error }, { status: got.status });
-  const { path, filename } = got.file;
   const size = { width: got.file.width, height: got.file.height, type: got.file.contentType };
 
   const mainRect = readRect(body.mainRect) ?? centeredMainCrop(size.width, size.height);

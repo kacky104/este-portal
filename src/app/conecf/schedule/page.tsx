@@ -146,6 +146,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                 <th className="sticky left-0 z-10 bg-white text-left px-1.5 sm:px-3 py-2 font-bold text-slate-700">
                   <span className="flex flex-col items-center gap-1 sm:flex-row sm:items-center sm:gap-2">
                     {r.imageUrl
+                      // eslint-disable-next-line @next/next/no-img-element -- ★ 第1074便: 他サイトの小さな顔写真（next/image の許可ドメイン外）
                       ? <img src={r.imageUrl} alt="" width={40} height={54} className="w-9 h-12 sm:w-10 sm:h-[54px] object-cover border border-slate-200 bg-slate-100 shrink-0" loading="lazy" />
                       : <span className="w-9 h-12 sm:w-10 sm:h-[54px] border border-slate-200 bg-slate-50 shrink-0" aria-hidden />}
                     <span className="min-w-0 w-full sm:w-auto text-center sm:text-left">
