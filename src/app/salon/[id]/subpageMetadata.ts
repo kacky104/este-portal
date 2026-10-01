@@ -15,7 +15,7 @@ export async function buildSalonSubpageMetadata(
   id: string,
   sub: string,
   label: string,
-  opts?: { noindex?: boolean },
+  opts?: { noindex?: boolean; /** ★ 第1077便: 中身が0件 → index しない（follow は残す・canonical なし） */ emptyNoindex?: boolean },
 ): Promise<Metadata> {
   const supabase = createPublicClient();
   const { data: row } = await supabase
@@ -37,6 +37,9 @@ export async function buildSalonSubpageMetadata(
 
   if (opts?.noindex) {
     return { title, description, robots: { index: false, follow: false } };
+  }
+  if (opts?.emptyNoindex) {
+    return { title, description, robots: { index: false, follow: true } };
   }
 
   const path = `/salon/${id}/${sub}`;

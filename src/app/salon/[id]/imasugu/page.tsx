@@ -25,7 +25,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return buildSalonSubpageMetadata(id, "imasugu", "今すぐ案内");
+  // ★ 第1077便: 「今すぐ案内」は45分単位で入れ替わる生もの＝検索結果に出す意味が薄く、ほぼ常に0件。常に noindex（follow は残す）。
+  return buildSalonSubpageMetadata(id, "imasugu", "今すぐ案内", { emptyNoindex: true });
 }
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。

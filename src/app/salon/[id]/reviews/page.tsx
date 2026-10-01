@@ -14,6 +14,7 @@ import { ReviewList } from "@/app/components/ReviewList";
 import { PaginatedReviewList } from "@/app/components/PaginatedReviewList";
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
+import { countSalonReviews } from "../subpageEmpty";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { SalonMobileNav } from '../SalonMobileNav';
@@ -26,7 +27,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return buildSalonSubpageMetadata(id, "reviews", "口コミ");
+  // ★ 第1077便: 口コミ0件なら noindex（1件でも入れば index 可に戻る）
+  const n = await countSalonReviews(Number(id));
+  return buildSalonSubpageMetadata(id, "reviews", "口コミ", { emptyNoindex: n === 0 });
 }
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。

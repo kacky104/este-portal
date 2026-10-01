@@ -17,6 +17,7 @@ import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
 import type { Metadata } from 'next';
 import { buildSalonSubpageMetadata } from '../subpageMetadata';
+import { countSalonDiary } from '../subpageEmpty';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { SalonMobileNav } from '../SalonMobileNav';
@@ -29,7 +30,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return buildSalonSubpageMetadata(id, 'diary', '写メ日記');
+  // ★ 第1077便: 写メ日記0件なら noindex（1件でも入れば index 可に戻る）
+  const n = await countSalonDiary(Number(id));
+  return buildSalonSubpageMetadata(id, 'diary', '写メ日記', { emptyNoindex: n === 0 });
 }
 
 const PAGE_SIZE = 32;

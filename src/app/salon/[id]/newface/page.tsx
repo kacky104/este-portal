@@ -12,6 +12,7 @@ import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
+import { countSalonNewFace } from "../subpageEmpty";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { SalonMobileNav } from '../SalonMobileNav';
@@ -24,7 +25,9 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return buildSalonSubpageMetadata(id, "newface", "新人紹介");
+  // ★ 第1077便: いま新人紹介中の子が0人なら noindex（新人が入れば index 可に戻る）
+  const n = await countSalonNewFace(Number(id));
+  return buildSalonSubpageMetadata(id, "newface", "新人紹介", { emptyNoindex: n === 0 });
 }
 
 // ISR：10分ごとに再生成（保存時は /api/revalidate で即時無効化）。
