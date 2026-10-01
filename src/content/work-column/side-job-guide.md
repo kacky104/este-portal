@@ -51,7 +51,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 ## お金・税金の注意点（確定申告）
 
-副業として働くうえで見落とせないのが税金です。業務委託の場合、収入は自分で管理する必要があります。
+副業として働くうえで見落とせないのが税金です（健康保険や年金は本業の分でカバーされます。[保険](/jobs/glossary/hoken)の記事も参考にしてください）。業務委託の場合、収入は自分で管理する必要があります。
 
 - 業務委託の報酬は、**自分で[確定申告](/jobs/glossary/kakutei-shinkoku)が必要になる**場合が多い
 - 一定額を超える副業収入があると申告義務が生じる

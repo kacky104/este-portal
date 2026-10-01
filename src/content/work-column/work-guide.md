@@ -38,8 +38,8 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 業務委託の場合、仕事のためにかかった費用は経費として収入から差し引けます。仕事との関連性が説明できることが前提ですが、たとえば次のようなものが考えられます。
 
-- 施術用のウェア・ユニフォーム代
-- 出勤のための交通費
+- 施術用のウェア・ユニフォーム代（[施術着](/jobs/glossary/sejutsugi)）
+- 出勤のための[交通費](/jobs/glossary/kotsuhi)
 - [講習](/jobs/glossary/koshu)・研修の受講費
 - 仕事で使う消耗品（オイル類などを自己負担している場合）
 - 仕事用に使っている携帯電話代の一部（仕事とプライベートの割合に応じて）

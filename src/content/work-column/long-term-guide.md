@@ -55,7 +55,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 - 収入の波に一喜一憂しすぎない
 - 他のセラピストと比べすぎない
-- 生活や体調を最優先にする
+- 生活や体調を最優先にする（年1回の[健康診断](/jobs/glossary/kenko-shindan)も忘れずに）
 - [掛け持ち](/jobs/glossary/kakemochi)・副業なら本業とのバランスを保つ（[掛け持ち・副業ガイド](https://fukues.com/jobs/column/side-job-guide)）
 
 自分のペースを守ることは、サボりではなく「長く働くための戦略」です。
