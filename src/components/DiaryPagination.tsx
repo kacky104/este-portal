@@ -20,13 +20,16 @@ export function DiaryPagination({
   basePath,
   page,
   totalPages,
+  pathMode = false,
 }: {
   basePath: string;
   page: number;
   totalPages: number;
+  /** ★ 第1082便: true なら 2ページ目以降を `${basePath}/page/${n}`（パス）にする。false は従来の ?page=n */
+  pathMode?: boolean;
 }) {
   if (totalPages <= 1) return null;
-  const href = (p: number) => (p <= 1 ? basePath : `${basePath}?page=${p}`);
+  const href = (p: number) => (p <= 1 ? basePath : pathMode ? `${basePath}/page/${p}` : `${basePath}?page=${p}`);
   const items = pageList(page, totalPages);
   const btn = 'inline-flex items-center justify-center min-w-9 h-9 px-3 rounded-full text-sm font-bold transition-colors';
   const link = `${btn} bg-white text-slate-600 border border-slate-200 hover:border-pink-300 hover:text-pink-600`;

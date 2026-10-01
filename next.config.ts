@@ -39,6 +39,10 @@ const nextConfig: NextConfig = {
         destination: '/working/:area',
         permanent: true,
       },
+      // ★ 第1082便: 写メ日記の ?page=N → /page/N（同じ理由。N=1 は各 page/[n] が 1ページ目へ 308）
+      { source: '/diary', has: [{ type: 'query', key: 'page', value: '(?<page>\\d+)' }], destination: '/diary/page/:page', permanent: true },
+      { source: '/salon/:id/diary', has: [{ type: 'query', key: 'page', value: '(?<page>\\d+)' }], destination: '/salon/:id/diary/page/:page', permanent: true },
+      { source: '/therapist/:id/diary', has: [{ type: 'query', key: 'page', value: '(?<page>\\d+)' }], destination: '/therapist/:id/diary/page/:page', permanent: true },
     ];
   },
   async headers() {

@@ -1,0 +1,217 @@
+import Link from 'next/link';
+import { Logo } from '@/app/components/Logo';
+import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
+import { AccountMenu } from '@/app/components/AccountMenu';
+import { HamburgerMenu } from '@/app/components/HamburgerMenu';
+import { NotificationBell } from '@/app/components/NotificationBell';
+import { VipLetterIcon } from '@/app/components/VipLetterIcon';
+import { notFound } from 'next/navigation';
+import { createPublicClient } from '@/app/lib/supabase/public';
+import { notFoundIfFreeListing } from "../freeListingGuard";
+import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
+import { pickWithTable } from '@/lib/therapistPlaceholder';
+import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
+import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
+import { DiaryNewBadge } from '@/components/DiaryNewBadge';
+import { DiaryPagination } from '@/components/DiaryPagination';
+import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { SalonMobileNav } from '../SalonMobileNav';
+import { fetchSalonNavItems } from '../salonNavItems';
+
+
+const PAGE_SIZE = 32;
+
+type TherapistRef = { name: string | null; profile_image_url: string | null };
+type DiaryRow = {
+  id: number | string;
+  images: string[] | null;
+  title: string | null;
+  created_at: string;
+  therapists: TherapistRef | TherapistRef[] | null;
+};
+
+
+// ★ 第1082便（2026-10-01）: 本体。/salon/[id]/diary（1ページ目）と /salon/[id]/diary/page/[n]（2ページ目以降）から使う。
+//   それまで ?page= を searchParams で読んでいたため force-dynamic（毎回サーバーで組み立て）だった。
+//   ページ番号をパスにしたので、どちらも ISR 600 で配れる（保存時は /api/revalidate で即時）。
+export async function SalonDiaryBody({ id, page }: { id: string; page: number }) {
+  const offset = (page - 1) * PAGE_SIZE;
+  const supabase = createPublicClient();
+  await notFoundIfFreeListing(supabase, Number(id));
+
+  // salons と写メ日記一覧は互いに独立なので並列取得。
+  // 日記は range で1ページ32件＋count: 'exact' で総件数を同時取得。
+  const [
+    { data: salonRow, error },
+    { data: diaryRows, count },
+  ] = await Promise.all([
+    supabase
+      .from('salons')
+      .select('id, name, theme')
+      .eq('id', Number(id))
+      .single(),
+    supabase
+      .from('diary_posts')
+      .select('id, images, title, created_at, therapists(name, profile_image_url)', { count: 'exact' })
+      .eq('salon_id', Number(id))
+      .order('created_at', { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1),
+  ]);
+  if (error || !salonRow) notFound();
+
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
+  if (page > totalPages) notFound(); // ★ 第1082便: 無い番号のページは 404（空ページを作らない）
+
+  const theme = getTheme(salonRow.theme as string | null);
+  const { data: wallpaperRow } = await supabase
+    .from('theme_wallpapers')
+    .select('image_url')
+    .eq('theme_key', theme.key)
+    .maybeSingle();
+  const wallpaperUrl = (wallpaperRow?.image_url as string | undefined) ?? null;
+
+  const bgLayerStyle: React.CSSProperties = {
+    backgroundColor: theme.bg,
+    ...(wallpaperUrl
+      ? {
+          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : {}),
+  };
+
+  // そのサロンの全セラピストの写メ日記（新しい順）。第1段で取得済み。
+  // ★ 既定画像（第217便）: 日記の横の顔。★ 本人 → 店舗 → 運営。
+  const phTable = await loadTherapistPlaceholders(supabase, [Number(id)]);
+  const diaries = ((diaryRows ?? []) as unknown as DiaryRow[]).map((r) => {
+    const t = Array.isArray(r.therapists) ? r.therapists[0] : r.therapists;
+    return {
+      id: r.id,
+      image: (r.images ?? [])[0] ?? null,
+      title: r.title ?? '',
+      createdAt: r.created_at,
+      therapistName: t?.name ?? '',
+      therapistImage: pickWithTable(t?.profile_image_url ?? null, Number(id), phTable),
+    };
+  });
+
+  const salonName = (salonRow.name as string) ?? '';
+
+  // ★ スマホ右ドロワーの中身（第219便）。★ 数字は店舗トップと同じ数え方（salonNavItems.ts）。
+  const salonNavItems = await fetchSalonNavItems(Number(id));
+
+  return (
+    <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
+
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
+        <div className="max-w-4xl mx-auto px-2 h-14 flex items-center justify-between">
+          <Logo />
+          <div className="flex items-center gap-2"><SavedSalonsMenu /><VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu /></div>
+        </div>
+      </header>
+      <SiteNoticeBanner />
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* パンくず：トップ › サロン名 › 写メ日記 */}
+        {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
+          { name: 'トップ', path: '/' },
+          { name: salonName || '店舗', path: `/salon/${id}` },
+          { name: '写メ日記', path: `/salon/${id}/diary` },
+        ])) }} />
+        <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
+          <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>トップ</Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <Link href={`/salon/${id}`} className="hover:opacity-80 transition-opacity inline-block max-w-[40%] truncate align-middle" style={{ color: '#ec4899' }}>{salonName || '店舗'}</Link>
+          <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
+          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>写メ日記</span>
+        </nav>
+
+        {/* タイトル（店名＋ページ名）。★ 第219便: スマホは右に三本線・スクロールで店名バー・右ドロワー（SalonMobileNav）。
+            ★ h1 の見た目は今までと同じ（部品の中で描いている）。 */}
+        <SalonMobileNav
+          mode="subpage"
+          salonName={salonName}
+          pageLabel="写メ日記一覧"
+          items={salonNavItems}
+          colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
+        />
+
+        {diaries.length === 0 ? (
+          <p className="text-center text-sm py-10 rounded-2xl border border-dashed" style={{ color: theme.body, borderColor: theme.cardBorder }}>
+            写メ日記はまだありません
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-[3px] sm:gap-3">
+            {diaries.map((d) => (
+              <Link key={d.id} href={`/diary/${d.id}?from=salon`} className="group bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                <div className="aspect-square bg-slate-100 relative">
+                  {d.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={d.image} alt={d.title || d.therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
+                      {d.therapistName.charAt(0)}
+                    </div>
+                  )}
+                  {/* スマホのみ：画像内オーバーレイ（下部スクリム＋白文字）。sm以上は非表示。 */}
+                  <div className="sm:hidden absolute inset-x-0 bottom-0 px-2 pt-6 pb-2 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
+                    <div className="flex items-start gap-1.5">
+                      <DiaryTherapistAvatar src={d.therapistImage} name={d.therapistName} size={28} />
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-baseline gap-1 min-w-0" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                          <span className="text-[10px] font-bold text-white truncate">{d.therapistName}</span>
+                          <span className="flex-shrink-0 text-[10px] text-white/85">{formatDiaryDate(d.createdAt)}</span>
+                          <DiaryNewBadge iso={d.createdAt} />
+                        </p>
+                        {d.title && (
+                          <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                            {d.title}
+                          </h2>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* sm以上：従来どおり画像下にテキスト（スクリムなし）。スマホでは非表示。 */}
+                <div className="p-2.5 hidden sm:block">
+                  <div className="flex items-start gap-2">
+                    <DiaryTherapistAvatar src={d.therapistImage} name={d.therapistName} size={32} />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-baseline gap-1.5 min-w-0">
+                        <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
+                        <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</span>
+                        <DiaryNewBadge iso={d.createdAt} />
+                      </p>
+                      {d.title && (
+                        <h2
+                          className="text-sm font-bold line-clamp-2 mt-0.5 break-all"
+                          style={{
+                            background: 'linear-gradient(to right, #ec4899, #f97316)',
+                            WebkitBackgroundClip: 'text',
+                            backgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            color: 'transparent',
+                          }}
+                        >
+                          {d.title}
+                        </h2>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <DiaryPagination basePath={`/salon/${id}/diary`} page={page} totalPages={totalPages} pathMode />
+      </main>
+    </div>
+  );
+}
