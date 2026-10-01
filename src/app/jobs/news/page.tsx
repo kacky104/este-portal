@@ -56,7 +56,6 @@ export default async function WorkNewsIndexPage() {
       </nav>
 
       <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-1 h-5 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h1 className="font-bold text-slate-900">{PAGE_TITLE}</h1>
       </div>
 

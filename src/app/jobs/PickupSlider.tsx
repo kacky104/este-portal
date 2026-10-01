@@ -132,7 +132,6 @@ export function PickupSlider({ jobs, title = 'おすすめ求人' }: { jobs: Pic
     <section className="mb-8">
       {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム） */}
       <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h2
           className="text-lg font-extrabold inline-block"
           style={{

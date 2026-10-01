@@ -29,7 +29,6 @@ export function FeatureBrowseClient({
   return (
     <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2.5 mb-3">
-        <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h2 className="font-bold text-slate-900 text-sm">{title}</h2>
       </div>
 

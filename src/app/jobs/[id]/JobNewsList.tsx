@@ -49,7 +49,6 @@ export function JobNewsList({ rows }: { rows: WorkNewsItem[] }) {
 
             {/* タイトル */}
             <div className="flex items-center gap-2.5 mb-2">
-              <span className="w-1 h-5 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
               <h3 className="font-bold text-slate-900 leading-snug break-words min-w-0">{n.title}</h3>
             </div>
 

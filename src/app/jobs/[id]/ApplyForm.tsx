@@ -80,7 +80,6 @@ export function ApplyForm({ jobId }: { jobId: number }) {
       ) : (
         <form onSubmit={handleSubmit} className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5">
-            <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
             <h2 className="font-bold text-slate-900">WEBで応募する</h2>
           </div>
 

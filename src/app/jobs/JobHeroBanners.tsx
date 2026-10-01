@@ -52,7 +52,6 @@ export function JobHeroBanners({
     <section className="mb-8">
       {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム）。h1 は常に描画する（バナー0枚でも）。 */}
       <div className="flex items-center gap-2.5">
-        <span className="w-1 h-5 rounded-full shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <h1
           className={`${h1SizeClass} font-extrabold inline-block`}
           style={{

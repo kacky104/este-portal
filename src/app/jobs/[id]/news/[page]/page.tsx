@@ -116,7 +116,6 @@ export default async function JobNewsArchivePage({
       {/* 見出し */}
       <div className="mb-6">
         <div className="flex items-center gap-2.5">
-          <span className="w-1 h-6 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
           <h1 className="text-lg font-extrabold text-slate-900 break-words min-w-0">
             {job.salon.name}の新着情報
           </h1>

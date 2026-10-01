@@ -11,7 +11,6 @@ export function ArticleToc({ headings }: { headings: ArticleHeading[] }) {
   return (
     <nav aria-label="目次" className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5">
       <div className="flex items-center gap-2.5">
-        <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         <p className="text-sm font-bold text-slate-900">目次</p>
       </div>
       <ol className="mt-3 space-y-2 list-decimal pl-6 marker:text-emerald-500 marker:font-bold marker:text-sm">

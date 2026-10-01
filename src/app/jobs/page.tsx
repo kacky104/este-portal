@@ -14,7 +14,6 @@ import { JobListHeading } from './JobListHeading';
 import { deriveHeroBanners } from '@/app/lib/heroBanners';
 import { fetchPublishedArticles } from '@/app/lib/workArticles';
 import { ArticleCard } from './column/ArticleCard';
-import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchLatestWorkNews, WORK_NEWS_FEED_TOP } from '@/app/lib/workNewsFeed';
 import { WorkNewsFeedList } from './WorkNewsFeedList';
@@ -132,7 +131,6 @@ export default async function JobsPage() {
         <section className="mb-6">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-5 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
               <h2 className="font-bold text-slate-900">店舗新着情報</h2>
             </div>
             <Link href="/jobs/news" className="flex-shrink-0 text-xs font-bold hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
@@ -160,28 +158,12 @@ export default async function JobsPage() {
           JobHeroBanners の段階縮小（15〜20字＝SPのみ text-base・nowrap）で1行に収まる。 */}
       <JobHeroBanners banners={heroBanners} title="福岡メンズエステのセラピスト求人" />
 
-      {/* パンくず：フクエスワーク › 求人一覧（本体トップへの導線はヘッダー/フッターに任せる） */}
-      {/* BreadcrumbList 構造化データ（可視パンくずと同一内容。2026-08-05） */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
-        { name: 'フクエスワーク', path: '/jobs' },
-        { name: '求人一覧', path: '/jobs' },
-      ])) }} />
-      <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
-        <Link href="/jobs" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#059669' }}>
-          フクエスワーク
-        </Link>
-        <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-        <span aria-current="page" className="font-semibold" style={{ color: '#4D7C0F' }}>
-          求人一覧
-        </span>
-      </nav>
 
       {/* お仕事コラム（work_articles の新着3件）。0件時はセクションごと非表示。見出しは h2（h1は上部バナーブロック）。 */}
       {columnArticles.length > 0 && (
         <section className="mt-10">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-1 h-5 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
               <h2 className="font-bold text-slate-900">お仕事コラム</h2>
             </div>
             <Link href="/jobs/column" className="flex-shrink-0 text-xs font-bold hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>

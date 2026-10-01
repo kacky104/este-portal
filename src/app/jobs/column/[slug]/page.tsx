@@ -246,7 +246,6 @@ export default async function ColumnDetailPage({
         {related.length > 0 && (
           <section className="mt-10">
             <div className="flex items-center gap-2.5 mb-3">
-              <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
               <h2 className="font-bold text-slate-900">同じカテゴリのコラム</h2>
             </div>
             <ul className="space-y-3">
@@ -262,7 +261,6 @@ export default async function ColumnDetailPage({
         {/* 求人への導線：/jobs CTA ＋ エリア別求人ページ */}
         <section className="mt-10 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2.5 mb-3">
-            <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
             <h2 className="font-bold text-slate-900">福岡のセラピスト求人を探す</h2>
           </div>
           <Link

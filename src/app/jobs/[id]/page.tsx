@@ -255,7 +255,6 @@ export default async function JobDetailPage({
           details={
             <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
               <div className="flex items-center gap-2.5 mb-3">
-                <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
                 <h2 className="font-bold text-slate-900">募集要項</h2>
               </div>
               <dl className="divide-y divide-slate-100">
@@ -304,7 +303,6 @@ export default async function JobDetailPage({
         {job.features.length > 0 && (
           <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
             <div className="flex items-center gap-2.5 mb-3">
-              <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
               <h2 className="font-bold text-slate-900">この求人の特徴</h2>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -330,7 +328,6 @@ export default async function JobDetailPage({
         {job.description && (
           <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm mt-4">
             <div className="flex items-center gap-2.5 mb-3">
-              <span className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
               <h2 className="font-bold text-slate-900">仕事内容</h2>
             </div>
             <JobDescriptionCollapse text={job.description} />

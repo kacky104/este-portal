@@ -65,7 +65,6 @@ function buildComponents(seen: Map<string, number>): Components {
         id={headingId(nodeText(node), seen)}
         className="scroll-mt-20 text-xl sm:text-2xl font-extrabold text-slate-900 mt-10 mb-4 pb-2 border-b border-emerald-100 flex items-center gap-2.5"
       >
-        <span className="w-1.5 h-6 rounded-full flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
         {children}
       </h2>
     ),
