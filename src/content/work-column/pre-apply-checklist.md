@@ -25,7 +25,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 - **[バック率](/jobs/glossary/back-ritsu)の条件**：全コース一律か、コースや在籍期間で変わるか
 - **日給・月収例の根拠**：何件接客した場合の金額か。平均か上位者の実績か
 - **指名料・[オプション](/jobs/glossary/option)の扱い**：セラピストに何%入るか
-- **雑費などの控除**：部屋代・[送迎](/jobs/glossary/sogei)費・講習費など、引かれるものは何か
+- **雑費などの控除**：部屋代・[送迎](/jobs/glossary/sogei)費・[講習費](/jobs/glossary/koshu)など、引かれるものは何か
 - **保証制度**：未経験向けの最低保証があるか。期間・条件は
 - **勤務条件**：最低出勤日数・時間、シフトの自由度
 - **立地・[客層](/jobs/glossary/kyakuso)**：通いやすいエリアか（[エリア別の解説](https://fukues.com/jobs/column/area-guide)も参考に）

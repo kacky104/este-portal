@@ -44,7 +44,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 - **[雑費](/jobs/glossary/zappi-bihinhi)・部屋代**: 1件ごと、または1日ごとに数百〜千円程度を徴収するサロンがあります
 - **[送迎](/jobs/glossary/sogei)費**: 送迎サービスを利用する場合の実費
-- **講習費**: 入店時の研修が有料のサロンも一部あります
+- **[講習費](/jobs/glossary/koshu)**: 入店時の研修が有料のサロンも一部あります
 
 「バック率は高いのに雑費が多くて手取りが少ない」というケースもあるため、**バック率の数字だけでなく、引かれるものを含めた手取り額**で考えることが大切です。
 
