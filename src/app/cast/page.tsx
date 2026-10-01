@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { createClient } from '@/app/lib/supabase/server';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { CastSignOutButton } from './CastSignOutButton';
+import { CastHintPopover } from './CastHintPopover';
 import { CastThemeProvider } from './CastTheme';
 import { CastTabs } from './CastTabs';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
@@ -131,6 +132,11 @@ export default async function CastHomePage() {
             <span className="font-bold text-[20px] tracking-wide leading-none inline-block" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>フクエス</span>
           </span>
           <div className="flex items-center gap-2">
+            {/* ★ 第1061便（カッキーさん）: fukuX の加点の案内は「？」アイコンから。
+                未開設の子＝「サイトを見る」の左（紫・開設+10）／開設済みで赤バッジがまだの子＝fukuX アイコンの左（赤・赤バッジ+5）。
+                赤バッジを取ったら「？」は出ない。 */}
+            {therapist && !xHandle && <CastHintPopover kind="open" />}
+            {xHandle && !xVerified && <CastHintPopover kind="badge" />}
             {/* ★ 第516便: fukuX はタブから外してヘッダーの丸いアイコンに（スマホの下タブを5つに収めるため）。連携 handle があるときだけ */}
             {xHandle && <CastXIcon handle={xHandle} profileId={xProfileId} />}
             <Link
@@ -162,44 +168,7 @@ export default async function CastHomePage() {
         )}
         {therapist ? (
           <div className="space-y-5">
-            {/* ★ 第1027便: fukuX 未開設の子にだけ、加点の案内（開設済み＝xHandle あり＝非表示）。 */}
-            {!xHandle && (
-              <Link
-                href="/x"
-                className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-3.5 py-3 shadow-sm hover:-translate-y-0.5 transition-transform"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/fukux-mark.png" alt="fukuX" className="w-9 h-9 flex-shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-bold text-violet-800 leading-snug">fukuXを開設すると、人気セラピストランキングに毎週+10点</span>
-                  <span className="block text-[11px] text-violet-600/90 leading-snug mt-0.5">fukuXのアカウントページの閲覧もランキングに加算されます</span>
-                </span>
-                <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-bold whitespace-nowrap">開設する</span>
-              </Link>
-            )}
-            {/* ★ 第1058便: 開設済みで赤バッジがまだの子にだけ、赤バッジの加点の案内（赤バッジ取得＝xVerified で非表示）。
-                行き先は fukuX のセラピスト向けガイド STEP4（所属と赤い認証バッジ）。
-                ★★ 第1059便（カッキーさん）: 赤バッジの条件（画像付き投稿10件）は【秘密】。画面には「投稿をがんばると」とだけ書く
-                （件数を書くと、適当な画像付き投稿10件で取られてしまう）。ガイドページも同じ伝え方。 */}
-            {xHandle && !xVerified && (
-              <Link
-                href="/x/guide/therapist#step4"
-                className="flex items-center gap-3 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 px-3.5 py-3 shadow-sm hover:-translate-y-0.5 transition-transform"
-              >
-                {/* 実物と同じ赤い認証バッジ（VerifiedBadge kind='therapist' の形・#EF4444） */}
-                <span className="w-9 h-9 flex-shrink-0 inline-flex items-center justify-center" aria-hidden>
-                  <svg viewBox="0 0 24 24" width="30" height="30">
-                    <path fill="#EF4444" d="M12 1.5l2.5 2.1 3.3-.3.9 3.2 2.8 1.8-1.3 3 1.3 3-2.8 1.8-.9 3.2-3.3-.3L12 22.5l-2.5-2.1-3.3.3-.9-3.2L2.5 15.7l1.3-3-1.3-3 2.8-1.8.9-3.2 3.3.3z" />
-                    <path fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" d="M8.2 12.2l2.6 2.6 5-5.4" />
-                  </svg>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-bold text-red-700 leading-snug">fukuXで赤い認証バッジが付くと、人気セラピストランキングにさらに毎週+5点</span>
-                  <span className="block text-[11px] text-red-600/90 leading-snug mt-0.5">お店に所属して、fukuXの投稿をがんばると付きます</span>
-                </span>
-                <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-red-500 text-white text-[11px] font-bold whitespace-nowrap">やり方を見る</span>
-              </Link>
-            )}
+            {/* ★ 第1061便: fukuX の加点の案内カード（開設+10／赤バッジ+5）は、本文からヘッダーの「？」（CastHintPopover）へ移した。 */}
             {/* ★ 第516便: 挨拶カードを横長にして高さを約1/3に（スマホの1画面目にタブの中身まで入るように）。
                 左に写真・右に名前と店名。★ 第524便: 本日の出勤の札は「今日のまとめ」へ移した。 */}
             <div className="bg-white/90 backdrop-blur rounded-3xl border border-pink-100 shadow-sm px-2 py-3.5 flex items-center gap-3.5">
