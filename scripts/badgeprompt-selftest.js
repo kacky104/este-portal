@@ -23,7 +23,7 @@ const eq = (name, got, want) => {
 console.log('── 1. ★★★ AIに選ばせない語（いちばん大事）──');
 // ★★★ 実績・経験・施術は写真から分からない。★ 選択肢に入っていないこと自体が守り
 const forbidden = [
-  ...B.BADGES_BY_CATEGORY.rank,     // NO.1 プレミア 殿堂入り 人気急上昇 指名多数 リピーター多数
+  ...B.BADGES_BY_CATEGORY.rank,     // NO.1 プレミア 殿堂入り 人気急上昇 指名多数 リピーター多数 店長おすすめ 要予約
   ...B.BADGES_BY_CATEGORY.career,   // 未経験 経験者 新人 ベテラン 女子大生 OL お嬢様
   ...B.BADGES_BY_CATEGORY.skill,    // 丁寧な施術 アロマ得意 施術上手 密着施術 リンパ得意 サービス抜群
 ];

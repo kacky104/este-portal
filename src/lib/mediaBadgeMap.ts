@@ -5,7 +5,7 @@
 //   ★ メモの表が正本。★ 二重管理に見えるが、決めたのは人で、ここはその写しだという順番を守る。
 //
 // ★★ 語彙の数（2026-09-09 実測）:
-//   フクエス  42種（src/lib/therapistBadges.ts・1人6つまで）
+//   フクエス  44種（src/lib/therapistBadges.ts・1人6つまで）★ 第1065便で 42→44（店長おすすめ・要予約）
 //   駅ちか    61種（POST の `genre[<id>]`・1人19個まで）★ id は**添字**。value は常に 1
 //   エステ魂  27種（POST の `type[]`）★ **1人4つまで**
 //
@@ -59,7 +59,7 @@ export type MediaBadgeRow = {
 /**
  * ★★★ 正本の写し（設計メモ §6-2）。★ **並びはフクエスのバッジの並びのまま**
  *   （ランク・人気 → 経験・キャリア → 外見 → 雰囲気 → スキル）。
- *   ★ 自己点検が「42行あるか」「並びが therapistBadges.ts と同じか」を見張っている。
+ *   ★ 自己点検が「44行あるか」「並びが therapistBadges.ts と同じか」を見張っている。
  */
 export const MEDIA_BADGE_ROWS: readonly MediaBadgeRow[] = [
   // ── ランク・人気 ──
@@ -69,6 +69,10 @@ export const MEDIA_BADGE_ROWS: readonly MediaBadgeRow[] = [
   { badge: '人気急上昇',     ekichika: null, ekichikaLabel: null,          esutama: null, esutamaLabel: null },
   { badge: '指名多数',       ekichika: null, ekichikaLabel: null,          esutama: null, esutamaLabel: null },
   { badge: 'リピーター多数', ekichika: 89, ekichikaLabel: 'リピート高確率', esutama: null, esutamaLabel: null },
+  // ★ 第1065便: 駅ちかの「店長オススメ」(5)・「要予約」(51) にそのまま当たる。エステ魂には該当なし。
+  //   ★ 5 は「バッジが無いときの既定」でもある（EKICHIKA_DEFAULT_GENRE_ID）。バッジで選んだときも同じ 5 を送る。
+  { badge: '店長おすすめ',   ekichika: 5,  ekichikaLabel: '店長オススメ',  esutama: null, esutamaLabel: null },
+  { badge: '要予約',         ekichika: 51, ekichikaLabel: '要予約',        esutama: null, esutamaLabel: null },
   // ── 経験・キャリア ──
   // ★ 「未経験」は 78 エステ未経験のみ。★ 40 未経験 は使わない（設計メモ §6-1 の5・意味が正確なほう）
   { badge: '未経験',   ekichika: 78, ekichikaLabel: 'エステ未経験', esutama: 3,  esutamaLabel: '業界未経験' },

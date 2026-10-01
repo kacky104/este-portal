@@ -13,6 +13,8 @@ export const BADGE_TO_SLUG: Record<string, string> = {
   '人気急上昇': 'rising',
   '指名多数': 'popular',
   'リピーター多数': 'repeater',
+  '店長おすすめ': 'recommended', // 第1065便
+  '要予約': 'reservation',       // 第1065便
   // career
   '未経験': 'beginner',
   '経験者': 'experienced',

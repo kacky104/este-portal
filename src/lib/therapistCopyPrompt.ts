@@ -305,7 +305,7 @@ function buildSystemPromptFrom(samplesText: string): string {
 - ★ 実績・人気・口コミを勝手に作らない。
   「多くのお客様の心を掴んでいる」「リピート指名が絶えない」「予約が取れない」「〜と評判」
   のような、客数・人気・口コミの実績にあたる記述は、バッジに
-  「NO.1」「プレミア」「殿堂入り」「人気急上昇」「指名多数」「リピーター多数」の
+  「NO.1」「プレミア」「殿堂入り」「人気急上昇」「指名多数」「リピーター多数」「店長おすすめ」「要予約」の
   いずれかがあるときにだけ書いてよい。それ以外では一切書かない。
   特に「未経験」「新人」のバッジがある人に実績を書くのは矛盾なので絶対にしない。
 - ★ 施術メニューや技法の固有名称（部位名を含む）を勝手に書かない。
@@ -371,7 +371,7 @@ export const SYSTEM_PROMPT = buildSystemPromptFrom(ALL_SAMPLES_TEXT);
  *   あちらを import しないのは、このファイルを純粋関数だけに保つため（禁則180）。
  *   バッジを増やしたときはこちらも合わせること。
  */
-const RANK_BADGES = ['NO.1', 'プレミア', '殿堂入り', '人気急上昇', '指名多数', 'リピーター多数'];
+const RANK_BADGES = ['NO.1', 'プレミア', '殿堂入り', '人気急上昇', '指名多数', 'リピーター多数', '店長おすすめ', '要予約']; // 第1065便で+2
 
 export function hasRankBadge(badges: string[]): boolean {
   return badges.some((b) => RANK_BADGES.includes(b));
