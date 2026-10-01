@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from '@/app/components/Logo';
-import { ShuffledSalons } from "./components/ShuffledSalons";
+import { ShuffledSalons, AreaLinkTabsBlock } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
 import { createPublicClient } from "./lib/supabase/public";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
@@ -231,6 +231,46 @@ export default async function Home() {
           </section>
         )}
 
+        {/* ─── エリアから探す（★ 第1071便・カッキーさん: 店舗新着情報の【上】へ移動） ─────────────
+            見出し＋エリアのタブ（リンク）＋検索＋クイックメニュー。並び・見た目は移動前（店舗一覧の頭）と同じ。
+            ★ PC(lg)で新着があるときは、検索・メニューは新着情報の右列に出すので、ここでは lg:hidden（従来どおり）。 */}
+        <section className="pt-4 bg-white">
+          <div className="max-w-5xl mx-auto px-1 lg:px-4">
+            <AreaLinkTabsBlock areas={[...AREA_ORDER]} currentArea={ALL_AREA} />
+            {/* 店名・セラピスト名のリアルタイム検索＋クイック導線。エリアタブの直下に配置。 */}
+            {/* PC(lg)では検索・クイックメニューを店舗新着情報の右列へ移設済みのため非表示。
+                新着0件（＝右列ごと出ない）ときは従来どおりPCでもここに表示する。 */}
+            <div className={`bg-white pt-1 pb-4 mb-2${salonNews.length > 0 ? ' lg:hidden' : ''}`}>
+              {/* PC(lg)は「アイコン行＝左／検索バー＝右」の1行。モバイルは縦積み（検索→アイコン）。 */}
+              <div className="flex flex-col lg:flex-row-reverse lg:items-center lg:gap-4">
+                <div className="lg:flex-1 lg:min-w-0">
+                  <HomeSearchBar />
+                </div>
+                <nav aria-label="クイックメニュー" className="w-full px-4 mt-3 lg:mt-0 lg:px-0 lg:w-[420px] lg:flex-shrink-0">
+                <div className="space-y-1.5">
+                  {/* 1段目：特徴で探す＋ランキング（2分割）／2段目：写メ日記・口コミ・新人・SNS（4分割）。
+                      リンク定義は QUICK_LINKS（店舗新着情報の右列と共通）に一元化。 */}
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {QUICK_LINKS.slice(0, 2).map((l) => (
+                      <Link key={l.href} href={l.href} className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
+                        <span className="text-[11px] font-bold whitespace-nowrap leading-none">{l.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {QUICK_LINKS.slice(2).map((l) => (
+                      <Link key={l.href} href={l.href} className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
+                        <span className="text-[11px] font-bold whitespace-nowrap leading-none">{l.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </nav>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ─── Salon News（ピックアップ直下・最新5件） ─────────────
             見出しは「掲載サロン一覧」と同じグラデ帯（角丸なし＝直角方針）。右端に「もっと見る→」。 */}
         {salonNews.length > 0 && (
@@ -339,7 +379,7 @@ export default async function Home() {
               areas={[...AREA_ORDER]}
               currentArea={ALL_AREA}
               tabsAsLinks
-              showAreaTitle
+              hideAreaTabs
               showAge
               areaNextToDuty
               ratingAtBottom
@@ -375,37 +415,6 @@ export default async function Home() {
               ]}
               heading={
                 <>
-                  {/* 店名・セラピスト名のリアルタイム検索＋クイック導線。エリアタブの直下に配置。 */}
-                  {/* PC(lg)では検索・クイックメニューを店舗新着情報の右列へ移設済みのため非表示。
-                      新着0件（＝右列ごと出ない）ときは従来どおりPCでもここに表示する。 */}
-                  <div className={`bg-white pt-1 pb-4 mb-2${salonNews.length > 0 ? ' lg:hidden' : ''}`}>
-                    {/* PC(lg)は「アイコン行＝左／検索バー＝右」の1行。モバイルは縦積み（検索→アイコン）。 */}
-                    <div className="flex flex-col lg:flex-row-reverse lg:items-center lg:gap-4">
-                      <div className="lg:flex-1 lg:min-w-0">
-                        <HomeSearchBar />
-                      </div>
-                      <nav aria-label="クイックメニュー" className="w-full px-4 mt-3 lg:mt-0 lg:px-0 lg:w-[420px] lg:flex-shrink-0">
-                      <div className="space-y-1.5">
-                        {/* 1段目：特徴で探す＋ランキング（2分割）／2段目：写メ日記・口コミ・新人・SNS（4分割）。
-                            リンク定義は QUICK_LINKS（店舗新着情報の右列と共通）に一元化。 */}
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {QUICK_LINKS.slice(0, 2).map((l) => (
-                            <Link key={l.href} href={l.href} className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                              <span className="text-[11px] font-bold whitespace-nowrap leading-none">{l.label}</span>
-                            </Link>
-                          ))}
-                        </div>
-                        <div className="grid grid-cols-4 gap-1.5">
-                          {QUICK_LINKS.slice(2).map((l) => (
-                            <Link key={l.href} href={l.href} className="flex flex-col items-center justify-center gap-0.5 bg-white border border-slate-200 text-slate-600 px-2 py-2 hover:bg-slate-50 transition-colors">
-                              <span className="text-[11px] font-bold whitespace-nowrap leading-none">{l.label}</span>
-                            </Link>
-                          ))}
-                        </div>
-                      </div>
-                    </nav>
-                    </div>
-                  </div>
                   {/* バナー縦幅 py-1・下余白 mb-1 はサロン新着情報と統一の圧縮のまま。
                       エリアページと同方式：タイトルバー自体を summary にしたアコーディオンで、
                       クリックで福岡市の紹介文（SSR済み＝閉じていてもSEO評価される）を開閉。初期は閉。

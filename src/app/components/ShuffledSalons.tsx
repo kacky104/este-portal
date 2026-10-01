@@ -580,7 +580,42 @@ function SalonCardSkeleton() {
 
 // ── ShuffledSalons ────────────────────────────────────────────
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, insertBlocks, sideNode, moreImageUrl = null }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null }) {
+/**
+ * ★ 第1071便（2026-10-01・カッキーさん）: 「エリアから探す」の見出し＋エリアのタブ（リンク）だけを単独で出す。
+ *   トップでは店舗新着情報の【上】に置くため、ShuffledSalons から切り出した（ShuffledSalons 側は hideAreaTabs）。
+ *   ★ 見た目は ShuffledSalons の areaSectionTitle ＋ tabs（tabsAsLinks）と同じ。片方を変えたらもう片方も。
+ */
+export function AreaLinkTabsBlock({ areas, currentArea }: { areas: string[]; currentArea: string }) {
+  return (
+    <>
+      <div className="flex items-center gap-3 mb-4 pl-3 lg:pl-0">
+        <h2 className="text-xl font-bold text-slate-900">エリアから探す</h2>
+      </div>
+      <div className="mb-2">
+        <div
+          className="flex flex-wrap justify-center gap-1 pb-2 sm:flex-nowrap sm:justify-start sm:gap-2 sm:overflow-x-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+        >
+          {areas.map((area) => {
+            const active = currentArea === area;
+            const cls = `flex-shrink-0 flex items-center px-2 py-1 rounded-full text-sm font-medium transition-all sm:gap-1.5 sm:px-4 sm:py-2 ${
+              active
+                ? 'bg-pink-600 text-white shadow-md shadow-pink-500/25'
+                : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
+            }`;
+            return (
+              <Link key={area} href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
+                {areaLabel(area)}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
   // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
@@ -652,10 +687,11 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   ) : null;
 
   // 地域見出し→地域バッジ列（tabs）を最上部に置き、その下に見出し（heading）→ カード一覧の順で表示する。
+  // ★ 第1071便: hideAreaTabs のときは見出し・タブを出さない（トップは AreaLinkTabsBlock で新着情報の上に出す）。
   const tabsAndHeading = (
     <>
-      {areaSectionTitle}
-      {tabs}
+      {!hideAreaTabs && areaSectionTitle}
+      {!hideAreaTabs && tabs}
       {heading}
     </>
   );
