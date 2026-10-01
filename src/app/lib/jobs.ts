@@ -20,6 +20,16 @@ export const JOB_BOOST_WEIGHT = 1.5;
 export const APPLICATION_STATUSES = ['new', 'contacted', 'closed'] as const;
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
 
+// ★ 第1064便（カッキーさん）: 応募者の希望の連絡方法。tel/sms は tel 列を使う。line/email は contact_value に ID・アドレス。
+export const CONTACT_METHODS = ['tel', 'sms', 'line', 'email'] as const;
+export type ContactMethod = (typeof CONTACT_METHODS)[number];
+export const CONTACT_METHOD_LABEL: Record<ContactMethod, string> = {
+  tel: '電話',
+  sms: 'SMS（ショートメール）',
+  line: 'LINE',
+  email: 'メール',
+};
+
 // ── 特徴タグ マスタ ───────────────────────────────────
 // DB（salon_jobs.features text[]）には slug のみ保存。表示は常にこのマスタ経由（表記ゆれ防止）。
 export const JOB_FEATURES = [

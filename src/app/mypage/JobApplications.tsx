@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getJobApplications, updateApplicationStatus, deleteApplication, type JobApplication } from '@/app/actions/jobs';
+import { CONTACT_METHOD_LABEL } from '@/app/lib/jobs';
 
 // mypage 求人タブ内の「応募一覧」セクション。予約カードの作法を踏襲
 // （service_role 取得はサーバーアクション側・ここは表示と操作のみ）。
@@ -98,6 +99,10 @@ export function JobApplications({ salonId }: { salonId: number }) {
                     <span className="font-bold text-slate-800 text-sm break-words">{a.name}</span>
                     {a.age != null && <span className="text-xs text-slate-400">{a.age}歳</span>}
                     <span className={`text-[10px] px-2 py-0.5 rounded-none border font-bold ${st.cls}`}>{st.label}</span>
+                    {/* ★ 第1064便: 体入希望は優先して対応できるよう赤で目立たせる */}
+                    {a.wantsTrial && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-none border font-bold bg-rose-50 text-rose-600 border-rose-200">体入希望</span>
+                    )}
                   </div>
                   <span className="text-[11px] text-slate-400 flex-shrink-0">{formatAppliedAt(a.createdAt)}</span>
                 </div>
@@ -108,6 +113,18 @@ export function JobApplications({ salonId }: { salonId: number }) {
                   </svg>
                   {a.tel}
                 </a>
+
+                {/* ★ 第1064便: 希望の連絡方法。LINE ID・メールはコピーしやすいよう選択可能なテキストで出す */}
+                <p className="text-xs text-slate-600">
+                  希望の連絡方法：<span className="font-bold text-slate-800">{CONTACT_METHOD_LABEL[a.contactMethod]}</span>
+                  {a.contactValue && (
+                    a.contactMethod === 'email' ? (
+                      <a href={`mailto:${a.contactValue}`} className="ml-1.5 font-bold break-all select-all" style={{ color: '#059669' }}>{a.contactValue}</a>
+                    ) : (
+                      <span className="ml-1.5 font-bold text-slate-800 break-all select-all">{a.contactValue}</span>
+                    )
+                  )}
+                </p>
 
                 {a.note && (
                   <p className="text-xs text-slate-600 whitespace-pre-wrap break-words bg-white rounded-none border border-slate-100 p-2.5">{a.note}</p>

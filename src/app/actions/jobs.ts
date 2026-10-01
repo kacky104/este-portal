@@ -9,6 +9,8 @@ import { normalizePhone, isValidPhone } from '@/app/lib/validation/phone';
 // 'use server' ファイルは async 関数以外を export できないため、定数・型は非serverモジュールから import する。
 import {
   APPLICATION_STATUSES,
+  CONTACT_METHODS,
+  type ContactMethod,
   type ApplicationStatus,
   MAX_JOB_FEATURES,
   MAX_JOB_HERO_IMAGES,
@@ -1005,6 +1007,10 @@ export type JobApplication = {
   tel: string;
   age: number | null;
   note: string | null;
+  // ★ 第1064便: 希望の連絡方法・LINE ID/メール・体入希望
+  contactMethod: ContactMethod;
+  contactValue: string | null;
+  wantsTrial: boolean;
   status: string;
   createdAt: string;
 };
@@ -1014,6 +1020,9 @@ export type JobApplicationInput = {
   tel: string;
   age: string | number | null;
   note: string;
+  contactMethod?: string;
+  contactValue?: string;
+  wantsTrial?: boolean;
 };
 
 function mapApplication(row: Record<string, unknown>): JobApplication {
@@ -1025,6 +1034,11 @@ function mapApplication(row: Record<string, unknown>): JobApplication {
     tel: (row.tel as string | null) ?? '',
     age: row.age == null ? null : Number(row.age),
     note: (row.note as string | null) ?? null,
+    contactMethod: (CONTACT_METHODS as readonly string[]).includes(String(row.contact_method))
+      ? (row.contact_method as ContactMethod)
+      : 'tel',
+    contactValue: (row.contact_value as string | null) ?? null,
+    wantsTrial: row.wants_trial === true,
     status: (row.status as string | null) ?? 'new',
     createdAt: String(row.created_at),
   };
@@ -1058,6 +1072,26 @@ export async function createJobApplication(
     if (a < 18 || a > 99) return { ok: false, error: '年齢は18〜99の範囲で入力してください' };
     age = a;
   }
+
+  // ★ 第1064便: 希望の連絡方法。未指定は電話。LINE・メールは ID／アドレスが必須。
+  const cm = String(input.contactMethod ?? 'tel');
+  if (!(CONTACT_METHODS as readonly string[]).includes(cm)) {
+    return { ok: false, error: '連絡方法を選んでください' };
+  }
+  const contactMethod = cm as ContactMethod;
+  let contactValue: string | null = null;
+  if (contactMethod === 'line' || contactMethod === 'email') {
+    const v = String(input.contactValue ?? '').trim();
+    if (contactMethod === 'line') {
+      if (!v) return { ok: false, error: 'LINE ID を入力してください' };
+      if (v.length > 50) return { ok: false, error: 'LINE ID が長すぎます' };
+    } else {
+      if (!v) return { ok: false, error: 'メールアドレスを入力してください' };
+      if (v.length > 254 || !isValidEmailFormat(v)) return { ok: false, error: 'メールアドレスの形式が正しくありません' };
+    }
+    contactValue = v;
+  }
+  const wantsTrial = input.wantsTrial === true;
 
   const svc = createServiceClient();
 
@@ -1096,7 +1130,10 @@ export async function createJobApplication(
   const { error: insErr } = await svc
     .from('job_applications')
     // salon_id は NOT NULL。求人から辿った salon_id を必ず入れる。
-    .insert({ job_id: jobId, salon_id: Number(job.salon_id), name, tel, age, note: note || null, status: 'new' });
+    .insert({
+      job_id: jobId, salon_id: Number(job.salon_id), name, tel, age, note: note || null, status: 'new',
+      contact_method: contactMethod, contact_value: contactValue, wants_trial: wantsTrial,
+    });
   if (insErr) return { ok: false, error: insErr.message };
 
   // 通知メール：notify_email → salons.booking_email → 両方空ならスキップ（応募はDBに残る）。
@@ -1112,6 +1149,9 @@ export async function createJobApplication(
     tel,
     age,
     note: note || null,
+    contactMethod,
+    contactValue,
+    wantsTrial,
   });
 
   return { ok: true };
@@ -1174,7 +1214,7 @@ export async function getJobApplications(
 
   const { data, error } = await svc
     .from('job_applications')
-    .select('id, job_id, salon_id, name, tel, age, note, status, created_at')
+    .select('id, job_id, salon_id, name, tel, age, note, contact_method, contact_value, wants_trial, status, created_at')
     .in('job_id', jobIds)
     .order('created_at', { ascending: false });
   if (error) return { ok: false, error: error.message };

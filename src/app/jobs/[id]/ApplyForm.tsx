@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { createJobApplication } from '@/app/actions/jobs';
 import { isValidPhone } from '@/app/lib/validation/phone';
+import { CONTACT_METHODS, type ContactMethod } from '@/app/lib/jobs';
+
+// ★ 第1064便（カッキーさん）: 希望の連絡方法と体入希望。電話番号は必須のまま、体入は希望の有無だけ（日程は聞かない）。
+const CONTACT_CHOICES: Record<ContactMethod, string> = { tel: '電話', sms: 'SMS', line: 'LINE', email: 'メール' };
 
 // フクエスワーク 求人応募フォーム（公開・ISRページ内で使えるクライアントコンポーネント）。
 // 時間依存レンダリングは無し（マウント後のユーザー操作のみ）＝ISRキャッシュを壊さない。
@@ -13,7 +17,11 @@ export function ApplyForm({ jobId }: { jobId: number }) {
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ name: '', tel: '', age: '', note: '' });
+  const [form, setForm] = useState({
+    name: '', tel: '', age: '', note: '',
+    contactMethod: 'tel' as ContactMethod, contactValue: '', wantsTrial: false,
+  });
+  const needsValue = form.contactMethod === 'line' || form.contactMethod === 'email';
 
   const patch = (p: Partial<typeof form>) => setForm((prev) => ({ ...prev, ...p }));
 
@@ -25,12 +33,19 @@ export function ApplyForm({ jobId }: { jobId: number }) {
       setError('電話番号は数字10〜13桁で入力してください');
       return;
     }
+    if (needsValue && !form.contactValue.trim()) {
+      setError(form.contactMethod === 'line' ? 'LINE ID を入力してください' : 'メールアドレスを入力してください');
+      return;
+    }
     setSubmitting(true);
     const res = await createJobApplication(jobId, {
       name: form.name,
       tel: form.tel,
       age: form.age,
       note: form.note,
+      contactMethod: form.contactMethod,
+      contactValue: needsValue ? form.contactValue : '',
+      wantsTrial: form.wantsTrial,
     });
     setSubmitting(false);
     if (!res.ok) {
@@ -52,7 +67,7 @@ export function ApplyForm({ jobId }: { jobId: number }) {
         </div>
         <p className="font-bold text-emerald-800">応募を受け付けました</p>
         <p className="text-xs text-emerald-700 mt-2 leading-relaxed">
-          お店から折り返しお電話でご連絡します。<br />
+          ご希望の方法でお店からご連絡します。<br />
           応募の時点で採用が確定するものではありません。
         </p>
       </div>
@@ -91,6 +106,61 @@ export function ApplyForm({ jobId }: { jobId: number }) {
             <label htmlFor="job-apply-tel" className="text-[11px] font-bold text-slate-400 block mb-1">電話番号 <span className="text-rose-400">*</span></label>
             <input id="job-apply-tel" name="tel" type="tel" autoComplete="tel" inputMode="numeric" className={inputClass} placeholder="例）090-1234-5678" value={form.tel} onChange={(e) => patch({ tel: e.target.value })} />
           </div>
+          {/* ★ 第1064便: 希望の連絡方法（4択・既定は電話）。LINE・メールのときだけ ID／アドレス欄を出す。 */}
+          <fieldset>
+            <legend className="text-[11px] font-bold text-slate-400 block mb-1">希望の連絡方法 <span className="text-rose-400">*</span></legend>
+            <div className="grid grid-cols-4 gap-1.5">
+              {CONTACT_METHODS.map((m) => {
+                const on = form.contactMethod === m;
+                return (
+                  <label
+                    key={m}
+                    className={`flex items-center justify-center py-2 rounded-lg border text-xs font-bold cursor-pointer transition-colors ${
+                      on ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="contactMethod"
+                      value={m}
+                      checked={on}
+                      onChange={() => patch({ contactMethod: m })}
+                      className="sr-only"
+                    />
+                    {CONTACT_CHOICES[m]}
+                  </label>
+                );
+              })}
+            </div>
+            {needsValue && (
+              <div className="mt-2">
+                <label htmlFor="job-apply-contact" className="sr-only">
+                  {form.contactMethod === 'line' ? 'LINE ID' : 'メールアドレス'}
+                </label>
+                <input
+                  id="job-apply-contact"
+                  name="contactValue"
+                  type={form.contactMethod === 'email' ? 'email' : 'text'}
+                  autoComplete={form.contactMethod === 'email' ? 'email' : 'off'}
+                  className={inputClass}
+                  placeholder={form.contactMethod === 'line' ? 'LINE ID（例）fukues123' : 'メールアドレス（例）name@example.com'}
+                  value={form.contactValue}
+                  onChange={(e) => patch({ contactValue: e.target.value })}
+                />
+              </div>
+            )}
+          </fieldset>
+
+          <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5 cursor-pointer hover:bg-slate-50 transition-colors">
+            <input
+              type="checkbox"
+              checked={form.wantsTrial}
+              onChange={(e) => patch({ wantsTrial: e.target.checked })}
+              className="w-4 h-4 accent-emerald-500"
+            />
+            <span className="text-sm font-bold text-slate-700">体験入店を希望する</span>
+          </label>
+
           <div>
             <label htmlFor="job-apply-age" className="text-[11px] font-bold text-slate-400 block mb-1">年齢（任意）</label>
             <input id="job-apply-age" name="age" type="number" min={18} max={99} className={`${inputClass} w-28`} placeholder="例）25" value={form.age} onChange={(e) => patch({ age: e.target.value })} />
@@ -102,7 +172,7 @@ export function ApplyForm({ jobId }: { jobId: number }) {
 
           {/* 注意書き（予約と同思想：まだ確定ではない） */}
           <ul className="text-[10px] text-slate-400 leading-relaxed space-y-1 list-disc pl-4">
-            <li>お店から折り返しお電話でご連絡します（メールアドレスは取得しません）。</li>
+            <li>ご希望の方法でお店からご連絡します（つながらないときはお電話することがあります）。</li>
             <li>応募の時点で採用が確定するものではありません。</li>
           </ul>
 

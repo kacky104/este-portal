@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { CONTACT_METHOD_LABEL, type ContactMethod } from '@/app/lib/jobs';
 
 // 求人応募が入ったとき、店の通知先メールへ送る応募通知メール（フクエスワーク）。
 // sendBookingMail.ts をベースに改修。サーバー専用ヘルパー。
@@ -13,7 +14,25 @@ type ApplicationMailInput = {
   tel: string;
   age: number | null; // 未入力なら省略
   note: string | null; // 応募者メッセージ（DBカラム名 note）
+  // ★ 第1064便: 希望の連絡方法・LINE ID/メール・体入希望
+  contactMethod: ContactMethod;
+  contactValue: string | null;
+  wantsTrial: boolean;
 };
+
+// 「希望の連絡方法」の1行。LINE・メールは ID／アドレスも続ける。
+function contactLine(input: ApplicationMailInput): string {
+  const label = CONTACT_METHOD_LABEL[input.contactMethod];
+  return input.contactValue ? `${label}（${input.contactValue}）` : label;
+}
+
+// 冒頭の「ご連絡ください」の文。希望の方法に合わせる。
+function leadSentence(m: ContactMethod): string {
+  if (m === 'sms') return '応募者へ SMS（ショートメール）でご連絡ください。';
+  if (m === 'line') return '応募者へ LINE でご連絡ください（LINE ID は下記）。';
+  if (m === 'email') return '応募者へメールでご連絡ください（アドレスは下記）。';
+  return '応募者へ折り返しお電話にてご連絡ください。';
+}
 
 // メールHTMLに差し込むユーザー入力の簡易エスケープ（XSS/表示崩れ対策）。
 function esc(s: string): string {
@@ -51,25 +70,30 @@ export async function sendApplicationMail(input: ApplicationMailInput): Promise<
   const resend = new Resend(apiKey);
 
   const appliedAt = appliedAtLabelJST(new Date());
-  const subject = `【フクエスワーク】新しい求人応募（${input.salonName}）`;
+  // ★ 体入希望はメール一覧で目に入るよう件名にも出す。
+  const subject = `【フクエスワーク】新しい求人応募${input.wantsTrial ? '・体験入店希望' : ''}（${input.salonName}）`;
+  const lead = leadSentence(input.contactMethod);
+  const contact = contactLine(input);
 
   const html = `
     <div style="font-family:sans-serif;color:#334155;line-height:1.7;max-width:560px">
       <p>${esc(input.salonName)} 御中</p>
-      <p>フクエスワークの求人に新しい応募が入りました。応募者へ折り返しお電話にてご連絡ください。</p>
+      <p>フクエスワークの求人に新しい応募が入りました。${esc(lead)}</p>
       <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin:16px 0">
         <p style="margin:0 0 8px;font-weight:bold;color:#059669">■ 応募求人</p>
         <p style="margin:2px 0">${esc(input.jobTitle)}</p>
         <p style="margin:12px 0 8px;font-weight:bold;color:#059669">■ 応募者</p>
         <p style="margin:2px 0">お名前：${esc(input.name)}</p>
         <p style="margin:2px 0">電話番号：${esc(input.tel)}</p>
+        <p style="margin:2px 0">希望の連絡方法：<strong>${esc(contact)}</strong></p>
+        ${input.wantsTrial ? `<p style="margin:2px 0;color:#dc2626;font-weight:bold">体験入店を希望しています</p>` : ''}
         ${input.age != null ? `<p style="margin:2px 0">年齢：${input.age}</p>` : ''}
         ${input.note ? `<p style="margin:2px 0">メッセージ：${esc(input.note)}</p>` : ''}
         <p style="margin:2px 0">応募日時：${esc(appliedAt)}</p>
       </div>
       <p style="font-size:12px;color:#94a3b8">
         ※mypageの「求人」タブから応募一覧を確認できます。<br>
-        ※本メールは通知専用です。応募者への連絡はお電話でお願いします。
+        ※本メールは通知専用です。応募者へは上記の連絡方法でご連絡ください。
       </p>
     </div>
   `;
@@ -77,7 +101,7 @@ export async function sendApplicationMail(input: ApplicationMailInput): Promise<
   const text = [
     `${input.salonName} 御中`,
     ``,
-    `フクエスワークの求人に新しい応募が入りました。応募者へ折り返しお電話にてご連絡ください。`,
+    `フクエスワークの求人に新しい応募が入りました。${lead}`,
     ``,
     `■ 応募求人`,
     `${input.jobTitle}`,
@@ -85,12 +109,14 @@ export async function sendApplicationMail(input: ApplicationMailInput): Promise<
     `■ 応募者`,
     `お名前：${input.name}`,
     `電話番号：${input.tel}`,
+    `希望の連絡方法：${contact}`,
+    ...(input.wantsTrial ? ['★ 体験入店を希望しています'] : []),
     ...(input.age != null ? [`年齢：${input.age}`] : []),
     ...(input.note ? [`メッセージ：${input.note}`] : []),
     `応募日時：${appliedAt}`,
     ``,
     `※mypageの「求人」タブから応募一覧を確認できます。`,
-    `※本メールは通知専用です。応募者への連絡はお電話でお願いします。`,
+    `※本メールは通知専用です。応募者へは上記の連絡方法でご連絡ください。`,
   ].join('\n');
 
   try {
