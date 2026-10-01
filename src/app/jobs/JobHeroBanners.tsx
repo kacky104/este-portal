@@ -24,10 +24,13 @@ export type { HeroBanner };
 export function JobHeroBanners({
   banners,
   title = '注目の求人',
+  headingLevel = 'h1',
   priority = false,
 }: {
   banners: HeroBanner[];
   title?: string;
+  // ★ 第1056便: /jobs トップだけ h2 にする（h1 はページ上部に置く）。他ページは従来どおり h1。
+  headingLevel?: 'h1' | 'h2';
   priority?: boolean;
 }) {
   const hasBanners = banners.length > 0;
@@ -40,6 +43,7 @@ export function JobHeroBanners({
   // PC(md:)は常に text-lg 相当を維持し、既存ページの見た目を一切変えない（可用幅≈722pxで最長でも余裕）。
   // ≤20字の2階層は確実に1行内に収まるため whitespace-nowrap で1行を保証。極端に長い想定外タイトルは
   // はみ出し（横スクロール）よりも折り返しを許容するフォールバックとし、最小階層には nowrap を付けない。
+  const Heading = headingLevel;
   const titleLen = [...title].length;
   const h1SizeClass =
     titleLen <= 14
@@ -52,7 +56,7 @@ export function JobHeroBanners({
     <section className="mb-8">
       {/* 見出し（フクエスワークのブランドグラデ グリーン→ライム）。h1 は常に描画する（バナー0枚でも）。 */}
       <div className="flex items-center gap-2.5">
-        <h1
+        <Heading
           className={`${h1SizeClass} font-extrabold inline-block`}
           style={{
             background: 'linear-gradient(95deg,#10B981,#84CC16)',
@@ -63,7 +67,7 @@ export function JobHeroBanners({
           }}
         >
           {title}
-        </h1>
+        </Heading>
       </div>
       {/* ★ 第926便（カッキーさん）: 「表示順は30分ごとに入れ替わります」の注記は消した（並びは第386便から毎朝6時に1回だけ入れ替わる＝shuffleJobs・dailySeedJST）。
           見出しとバナーの間は、注記があったときと同じくらい空ける。 */}

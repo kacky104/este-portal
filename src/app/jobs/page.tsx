@@ -77,6 +77,10 @@ export default async function JobsPage() {
       </div>
 
     <main className="max-w-3xl mx-auto px-4 py-8">
+      {/* ★ 第1056便: h1 をページ上部に（以前は「店舗新着情報」など h2 が4つ先に来てから h1 だった）。
+          見た目は変えない（ヒーロー画像がその役を担うので sr-only）。下の JobHeroBanners は h2 に落とした。 */}
+      <h1 className="sr-only">福岡メンズエステのセラピスト求人｜フクエスワーク</h1>
+
 
       {/* お仕事マッチングへの導線（/jobs/matching）。希望を入力→運営が合うお店を無料で紹介・斡旋する入口。
           ★ 第351便（2026-09-13・カッキーさんの指示）: コードで組んだグラデのカードをやめ、
@@ -136,7 +140,7 @@ export default async function JobsPage() {
           /jobsトップのみ見出しを「福岡メンズエステのセラピスト求人」に差し替え（他ページで使う場合の既定は「注目の求人」）。
           h1 に主要KW「福岡メンズエステ」を含める（/reviews・/diary・/x-shops と同方針）。16字のため
           JobHeroBanners の段階縮小（15〜20字＝SPのみ text-base・nowrap）で1行に収まる。 */}
-      <JobHeroBanners banners={heroBanners} title="福岡メンズエステのセラピスト求人" />
+      <JobHeroBanners banners={heroBanners} title="福岡メンズエステのセラピスト求人" headingLevel="h2" />
 
 
       {/* お仕事コラム（work_articles の新着3件）。0件時はセクションごと非表示。見出しは h2（h1は上部バナーブロック）。 */}

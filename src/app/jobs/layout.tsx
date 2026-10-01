@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { JobsLogo } from '@/components/JobsLogo';
 import { JobsSavedMenu } from '@/components/JobsSavedMenu';
+import { JobsNav } from '@/components/JobsNav';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { getTheme } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
@@ -71,6 +72,10 @@ export default async function JobsLayout({ children }: { children: React.ReactNo
         <div className="max-w-3xl mx-auto px-2 h-14 flex items-center justify-between">
           <JobsLogo />
           <JobsSavedMenu />
+        </div>
+        {/* ★ 第1056便: 簡易ナビ（求人・コラム・用語集・マッチング）。ロゴ行の下に1行。 */}
+        <div className="border-t" style={{ borderColor: '#EAF7EF' }}>
+          <JobsNav />
         </div>
       </header>
       <SiteNoticeBanner variant="work" />
