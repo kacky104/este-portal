@@ -30,6 +30,17 @@ const nextConfig: NextConfig = {
   // 埋め込みウィジェット（/embed/ 配下）だけ、どのサイトからでも iframe で読み込めることを明示する。
   // 現状サイト全体に X-Frame-Options は付けていないが、将来全体を DENY にしても
   // 埋め込みが壊れないよう、許可をこのパスに限定して宣言しておく（2026-08-06）。
+  async redirects() {
+    return [
+      // ★ 第1081便: 旧 /working?area=<slug> → /working/<slug>（searchParams を読むと ISR が効かないため、エリアをパスにした）
+      {
+        source: '/working',
+        has: [{ type: 'query', key: 'area', value: '(?<area>[a-z0-9-]+)' }],
+        destination: '/working/:area',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

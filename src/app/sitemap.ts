@@ -78,6 +78,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/x-shops`, changeFrequency: 'daily', priority: 0.6 },
     // 出勤中一覧・新人一覧・サロン新着情報（2026-07-12 canonical 明示とセットで sitemap 掲載）。
     { url: `${SITE_URL}/working`, changeFrequency: 'daily', priority: 0.6 },
+    // ★ 第1081便: エリア別の出勤中（/working/[area]・6本）
+    ...AREA_SLUGS_LIST.map((slug) => ({ url: `${SITE_URL}/working/${slug}`, changeFrequency: 'daily' as const, priority: 0.5 })),
     // 特徴バッジ・エリアでのセラピスト検索ページ。
     { url: `${SITE_URL}/therapists`, changeFrequency: 'daily', priority: 0.7 },
     // 人気ランキング（トップ・ハンバーガーメニューから導線があり実在するが、

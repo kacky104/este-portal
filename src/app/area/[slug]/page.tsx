@@ -163,7 +163,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-xl font-bold text-slate-900"><span className="text-pink-600">{area === DISPATCH_AREA ? '出張対応' : label}</span>で現在出勤中</h2>
           </div>
-          <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working?area=${slug}`} bleedMobile largeMobile moreImageUrl={moreCardImage} />
+          <TherapistScroller showAge filterSalonIds={areaSalonIds} workingHref={`/working/${slug}`} bleedMobile largeMobile moreImageUrl={moreCardImage} />
         </section>
 
         {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
