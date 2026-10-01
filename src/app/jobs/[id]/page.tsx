@@ -439,7 +439,7 @@ export default async function JobDetailPage({
             募集要項直下と同一表示にするため共通の JobSalonSaveBlock を使用。 */}
         <JobSalonSaveBlock salonId={job.salon.id} salonName={job.salon.name} />
 
-        {/* ★ 第1055便: 同じエリアの求人・関連コラム・用語集（内部リンク／回遊） */}
+        {/* ★ 第1055便: 関連コラム・用語集（内部リンク／回遊）。★ 第1063便: 同じエリアの他店の求人は撤去 */}
         <JobRelatedLinks job={job} />
 
         <div className="mt-8 text-center">

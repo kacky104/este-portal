@@ -1,20 +1,17 @@
 import Link from 'next/link';
-import { fetchActiveJobsByArea, type JobDetail } from '@/app/lib/jobs';
-import { areaLabel } from '@/app/lib/areaLabel';
-import { jobsAreaHref, ALL_AREA, DISPATCH_AREA } from '@/app/lib/areas';
+import { type JobDetail } from '@/app/lib/jobs';
 import { getWorkColumnFile } from '@/app/lib/workColumnFiles';
 import { getWorkGlossaryEntry } from '@/app/lib/workGlossary';
-import { JobCard } from '../JobCard';
 import { ArticleCard } from '../column/ArticleCard';
 
 // ★ 第1055便（2026-10-01・カッキーさん）: 求人詳細の下に「次に行く場所」を置く。
-//   1) 同じエリアの他の求人（最大4件・自分は除く）
+//   1) 同じエリアの他の求人 → ★ 第1063便で撤去（カッキーさん「自店のページに他店の広告は反感を買う」）。
+//      求人詳細＝そのお店のページなので、他店の求人は出さない。
 //   2) 応募前に読んでおきたいコラム（3本・求人の特徴タグから選ぶ）
 //   3) この求人でよく出る用語（3語・特徴タグから選ぶ）
 //   求人同士・コラム・用語集のつながり（内部リンク）を検索エンジンにも伝える。
-//   コラム・用語は md（リポジトリ）から読むので DB は増えない。求人は fetchActiveJobsByArea（既存）を1回。
+//   コラム・用語は md（リポジトリ）から読むので DB は増えない。DB は読まない。
 
-const MAX_SAME_AREA = 4;
 const MAX_COLUMNS = 3;
 const MAX_TERMS = 3;
 
@@ -57,13 +54,7 @@ function pickSlugs(features: string[], map: Record<string, string>, defaults: st
   return out;
 }
 
-export async function JobRelatedLinks({ job }: { job: JobDetail }) {
-  const area = job.salon.area;
-  const canListArea = !!area && area !== ALL_AREA && area !== DISPATCH_AREA;
-  const sameArea = canListArea
-    ? (await fetchActiveJobsByArea(area)).filter((j) => j.id !== job.id).slice(0, MAX_SAME_AREA)
-    : [];
-
+export function JobRelatedLinks({ job }: { job: JobDetail }) {
   const columns = pickSlugs(job.features, FEATURE_TO_COLUMN, DEFAULT_COLUMNS, MAX_COLUMNS)
     .map((slug) => getWorkColumnFile(slug))
     .filter((a): a is NonNullable<typeof a> => a !== null)
@@ -75,26 +66,6 @@ export async function JobRelatedLinks({ job }: { job: JobDetail }) {
 
   return (
     <>
-      {sameArea.length > 0 && (
-        <section className="mt-8" aria-labelledby="same-area-jobs">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h2 id="same-area-jobs" className="font-bold text-slate-900">
-              {areaLabel(area)}の他の求人
-            </h2>
-            <Link href={jobsAreaHref(area)} className="flex-shrink-0 text-xs font-bold hover:opacity-80 transition-opacity" style={{ color: '#059669' }}>
-              もっと見る →
-            </Link>
-          </div>
-          <ul className="space-y-3">
-            {sameArea.map((j) => (
-              <li key={j.id}>
-                <JobCard job={j} />
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {columns.length > 0 && (
         <section className="mt-8" aria-labelledby="related-columns">
           <div className="flex items-center justify-between gap-3 mb-3">
