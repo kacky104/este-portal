@@ -39,7 +39,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 ## Q. ノルマや罰金はありますか？
 
-サロンによって異なります。**ノルマや[罰金](/jobs/glossary/bakkin)の有無は、面接で必ず確認しておきたいポイント**です。条件があいまいなお店より、ルールを明確に説明してくれるお店のほうが安心して働けます。確認すべき項目は[応募前チェックリスト](https://fukues.com/jobs/column/pre-apply-checklist)を参考にしてください。
+サロンによって異なります。**[ノルマ](/jobs/glossary/noruma)や[罰金](/jobs/glossary/bakkin)の有無は、面接で必ず確認しておきたいポイント**です。条件があいまいなお店より、ルールを明確に説明してくれるお店のほうが安心して働けます。確認すべき項目は[応募前チェックリスト](https://fukues.com/jobs/column/pre-apply-checklist)を参考にしてください。
 
 ## Q. 身バレが心配です
 

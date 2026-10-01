@@ -28,7 +28,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 - **雑費などの控除**：部屋代・[送迎](/jobs/glossary/sogei)費・講習費など、引かれるものは何か
 - **保証制度**：未経験向けの最低保証があるか。期間・条件は
 - **勤務条件**：最低出勤日数・時間、シフトの自由度
-- **立地・客層**：通いやすいエリアか（[エリア別の解説](https://fukues.com/jobs/column/area-guide)も参考に）
+- **立地・[客層](/jobs/glossary/kyakuso)**：通いやすいエリアか（[エリア別の解説](https://fukues.com/jobs/column/area-guide)も参考に）
 - **お店の連絡先・情報が明確か**：問い合わせ先がはっきりしているか
 
 ## ② 面接で必ず聞きたい質問

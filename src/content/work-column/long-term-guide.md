@@ -29,7 +29,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 目標は「結果」だけでなく「行動」で立てると、達成しやすくなります。
 
-- 結果の目標: 今月の本指名を2人にする
+- 結果の目標: 今月の[本指名](/jobs/glossary/free-hon-shimei)を2人にする
 - 行動の目標: 出勤した日は写メ日記を1回書く、施術後に一言メモを残す
 
 行動の目標なら、予約の入り方に左右されずに「できた」を積み重ねられます。指名につながる接客は[指名を増やすには](/jobs/column/shimei-repeat-tips)で解説しています。

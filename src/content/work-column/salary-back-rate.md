@@ -42,7 +42,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 歩合制の収入からは、サロンによって次のような費用が引かれる場合があります。
 
-- **雑費・部屋代**: 1件ごと、または1日ごとに数百〜千円程度を徴収するサロンがあります
+- **[雑費](/jobs/glossary/zappi-bihinhi)・部屋代**: 1件ごと、または1日ごとに数百〜千円程度を徴収するサロンがあります
 - **[送迎](/jobs/glossary/sogei)費**: 送迎サービスを利用する場合の実費
 - **講習費**: 入店時の研修が有料のサロンも一部あります
 
