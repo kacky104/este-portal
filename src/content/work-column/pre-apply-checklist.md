@@ -61,7 +61,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 面接後、体験入店や本入店に進む前には、次の点を最終確認しておきましょう。
 
-- **契約形態**：業務委託か雇用か（多くは業務委託）
+- **契約形態**：[業務委託](/jobs/glossary/gyomu-itaku)か雇用か（多くは業務委託）
 - **初日の持ち物・服装**：当日必要なもの
 - **料金・バックの認識に相違がないか**：面接で聞いた条件と同じか
 - **確定申告など税金の扱い**：業務委託なら自分で管理が必要（[確定申告の基礎知識](https://fukues.com/jobs/column/work-guide)を参照）

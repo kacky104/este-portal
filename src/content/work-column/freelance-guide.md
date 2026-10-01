@@ -12,7 +12,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 ## そもそも「業務委託」と「独立」の違い
 
-メンズエステのセラピストは、もともと**業務委託（個人事業主）として働くケースが多い**働き方です。お店に所属しつつ、雇用ではなく委託契約で働く形が一般的です。ここでいう「独立・フリーランス」は、そこからさらに一歩進んで、**特定の店舗に縛られず自分で活動の主導権を持つ**イメージです。まずは今の働き方との違いを理解しておきましょう。出張型・店舗型の違いは[出張型と店舗型の違い](https://fukues.com/jobs/column/dispatch-vs-store-type)も参考になります。
+メンズエステのセラピストは、もともと**[業務委託](/jobs/glossary/gyomu-itaku)（個人事業主）として働くケースが多い**働き方です。お店に所属しつつ、雇用ではなく委託契約で働く形が一般的です。ここでいう「独立・フリーランス」は、そこからさらに一歩進んで、**特定の店舗に縛られず自分で活動の主導権を持つ**イメージです。まずは今の働き方との違いを理解しておきましょう。出張型・店舗型の違いは[出張型と店舗型の違い](https://fukues.com/jobs/column/dispatch-vs-store-type)も参考になります。
 
 ### 今の契約を確認しておこう
 
@@ -20,7 +20,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 - 雇用なのか、業務委託なのか
 - 報酬の決まり方（[バック率](/jobs/glossary/back-ritsu)や[歩合制](/jobs/glossary/buai)など）
-- 契約書やお店の規約に、辞めるときや辞めたあとの決まりがあるか
+- 契約書やお店の規約に、[辞めるとき](/jobs/glossary/taiten)や辞めたあとの決まりがあるか
 
 契約の中身で分からないことがあれば、お店に確認したうえで、必要に応じて専門家に相談しましょう。
 
