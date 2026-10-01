@@ -183,7 +183,7 @@ export default async function CastHomePage() {
                 （件数を書くと、適当な画像付き投稿10件で取られてしまう）。ガイドページも同じ伝え方。 */}
             {xHandle && !xVerified && (
               <Link
-                href="/x/guide/therapist"
+                href="/x/guide/therapist#step4"
                 className="flex items-center gap-3 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 px-3.5 py-3 shadow-sm hover:-translate-y-0.5 transition-transform"
               >
                 {/* 実物と同じ赤い認証バッジ（VerifiedBadge kind='therapist' の形・#EF4444） */}
