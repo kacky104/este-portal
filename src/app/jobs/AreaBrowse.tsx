@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { ResponsivePicture } from '@/app/components/ResponsivePicture';
 import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, jobsAreaHref } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { fetchAreaBrowseIcons } from '@/app/lib/areaIcons';
@@ -61,23 +62,37 @@ export async function AreaBrowse({
                   active ? 'border-transparent ring-2 ring-emerald-500' : 'border-emerald-100'
                 }`}
               >
-                {mobileUrl && (
-                  <Image
-                    src={mobileUrl}
+                {/* ★ 第1054便: 両方あるときは <picture> で片方だけ転送。片方だけなら従来の md 出し分け。 */}
+                {mobileUrl && desktopUrl ? (
+                  <ResponsivePicture
+                    sp={{ src: mobileUrl, width: 800, height: 200 }}
+                    pc={{ src: desktopUrl, width: 800, height: 400 }}
                     alt={label}
                     fill
                     sizes="(max-width: 768px) 50vw, 33vw"
-                    className="object-cover md:hidden"
+                    className="object-cover"
                   />
-                )}
-                {desktopUrl && (
-                  <Image
-                    src={desktopUrl}
-                    alt={label}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 33vw"
-                    className="object-cover hidden md:block"
-                  />
+                ) : (
+                  <>
+                    {mobileUrl && (
+                      <Image
+                        src={mobileUrl}
+                        alt={label}
+                        fill
+                        sizes="(max-width: 768px) 50vw, 33vw"
+                        className="object-cover md:hidden"
+                      />
+                    )}
+                    {desktopUrl && (
+                      <Image
+                        src={desktopUrl}
+                        alt={label}
+                        fill
+                        sizes="(max-width: 768px) 50vw, 33vw"
+                        className="object-cover hidden md:block"
+                      />
+                    )}
+                  </>
                 )}
                 {/* エリア名は画像自体に含める運用のため、下部グラデ＋白文字ラベルは表示しない
                     （alt にはエリア表示名を維持＝アクセシビリティ/SEO用）。 */}

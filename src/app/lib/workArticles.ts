@@ -1,15 +1,11 @@
-import { createPublicClient } from '@/app/lib/supabase/public';
 import { isValidArticleCategory } from '@/app/lib/articleCategories';
 import { getAllWorkColumnFiles, getWorkColumnFile } from '@/app/lib/workColumnFiles';
 
-// ★★ 第1033便（2026-10-01・カッキーさん）: コラムを「用語集型」（src/content/work-column/*.md）へ移していく。
-//   各 fetch は【md → DB】の順で合成する（mergeWithFiles）。同じ slug は md が勝つ。
-//   ★ DB の記事はそのまま残してよい（消さなくても md が優先される）。管理画面・プリセットも当面そのまま。
-
-// コラム記事（work_articles）の公開ページ用データ取得（段階3）。
-// 公開ページ専用のため anon クライアント（createPublicClient）で読む＝cookieを触らないので
-// ISR（revalidate）が有効。RLS の公開SELECT（status='published'）で守られるが、多重防御として
-// クエリ側でも .eq('status', 'published') を明示する（draft を公開ページに一切出さない）。
+// ★★ 第1054便（2026-10-01・カッキーさん）: コラムは【md だけ】を読む（src/content/work-column/*.md）。
+//   第1033便〜で md→DB の合成（mergeWithFiles）にしていたが、全記事の md 化が済んだので
+//   DB（work_articles）の読み取りをやめた。これでコラムのページは Supabase を一切読まない。
+//   ★ 関数名・引数・返す型は以前のまま（呼び出し側は変更なし）。async のままにしてある。
+//   ★ DB の work_articles テーブルと管理画面は当面そのまま（公開ページからは参照しない）。
 
 export type WorkArticleListItem = {
   id: string;
@@ -20,7 +16,6 @@ export type WorkArticleListItem = {
   category: string;
   publishedAt: string | null;
   // 一覧の並び順（公開日と更新日の新しい方＝実質の最終更新日で降順）に使う。
-  // 詳細ページの日付表示（isMeaningfulUpdate 等）は従来どおり WorkArticleDetail 経由でこの値を利用する。
   updatedAt: string | null;
 };
 
@@ -28,49 +23,16 @@ export type WorkArticleDetail = WorkArticleListItem & {
   body: string;
 };
 
-const LIST_COLUMNS = 'id, slug, title, excerpt, hero_image_url, category, published_at, updated_at';
-const DETAIL_COLUMNS = `${LIST_COLUMNS}, body`;
-
-function mapListItem(row: Record<string, unknown>): WorkArticleListItem {
-  return {
-    id: String(row.id),
-    slug: (row.slug as string | null) ?? '',
-    title: (row.title as string | null) ?? '',
-    excerpt: (row.excerpt as string | null) ?? '',
-    heroImageUrl: (row.hero_image_url as string | null) ?? null,
-    category: (row.category as string | null) ?? 'work-guide',
-    publishedAt: (row.published_at as string | null) ?? null,
-    updatedAt: (row.updated_at as string | null) ?? null,
-  };
-}
-
-function mapDetail(row: Record<string, unknown>): WorkArticleDetail {
-  return {
-    ...mapListItem(row),
-    body: (row.body as string | null) ?? '',
-  };
-}
-
-// 一覧の並び順キー：published_at と updated_at の「新しい方」のミリ秒。updated_at が null なら published_at のみ。
-// 記事を更新すると updated_at が上がり、一覧の先頭に来る（GREATEST 相当をアプリ側で実現）。
+// 一覧の並び順キー：publishedAt と updatedAt の「新しい方」のミリ秒。
 function effectiveDateMs(a: { publishedAt: string | null; updatedAt: string | null }): number {
   const p = a.publishedAt ? new Date(a.publishedAt).getTime() : 0;
   const u = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
   return Math.max(Number.isNaN(p) ? 0 : p, Number.isNaN(u) ? 0 : u);
 }
 
-// effectiveDateMs の降順（新しい順）で安定ソート。呼び出し側はクエリで published_at 降順を付けておくと
-// 同値時のタイブレークが決定的になる（Array.prototype.sort は安定ソート）。入力は破壊しない。
-function sortByEffectiveDateDesc<T extends { publishedAt: string | null; updatedAt: string | null }>(
-  items: T[],
-): T[] {
+// effectiveDateMs の降順（新しい順）で安定ソート。入力は破壊しない。
+function sortByEffectiveDateDesc<T extends { publishedAt: string | null; updatedAt: string | null }>(items: T[]): T[] {
   return [...items].sort((a, b) => effectiveDateMs(b) - effectiveDateMs(a));
-}
-
-// ── md 記事と DB 記事の合成：md を先に置き、同じ slug の DB 行は捨てる。 ──
-function mergeWithFiles<T extends { slug: string }>(files: T[], db: T[]): T[] {
-  const taken = new Set(files.map((f) => f.slug));
-  return [...files, ...db.filter((d) => !taken.has(d.slug))];
 }
 
 function fileListItems(category?: string): WorkArticleListItem[] {
@@ -79,100 +41,37 @@ function fileListItems(category?: string): WorkArticleListItem[] {
     .map((a) => { const { body, ...rest } = a; void body; return rest; });
 }
 
-// ── 一覧（published・published_at 降順）。limit 指定で件数制限（トップの新着枠など）。 ──
+// ── 一覧（新しい順）。limit 指定で件数制限（トップの新着枠など）。 ──
 export async function fetchPublishedArticles(limit?: number): Promise<WorkArticleListItem[]> {
-  const supabase = createPublicClient();
-  // limit はクエリ側で掛けない：published_at 降順で先に切ると「更新で先頭に来るべき記事」が漏れるため、
-  // 全 published を取得→effectiveDate（公開日/更新日の新しい方）でソート→slice の順にする（記事数が少なくコスト無視可）。
-  const { data } = await supabase
-    .from('work_articles')
-    .select(LIST_COLUMNS)
-    .eq('status', 'published')
-    .order('published_at', { ascending: false });
-  const sorted = sortByEffectiveDateDesc(mergeWithFiles(fileListItems(), (data ?? []).map(mapListItem)));
+  const sorted = sortByEffectiveDateDesc(fileListItems());
   return limit != null ? sorted.slice(0, limit) : sorted;
 }
 
-// ── カテゴリ別一覧（published・published_at 降順）。不正キーは空配列。 ──
-export async function fetchPublishedArticlesByCategory(
-  category: string,
-): Promise<WorkArticleListItem[]> {
+// ── カテゴリ別一覧（新しい順）。不正キーは空配列。 ──
+export async function fetchPublishedArticlesByCategory(category: string): Promise<WorkArticleListItem[]> {
   if (!isValidArticleCategory(category)) return [];
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('work_articles')
-    .select(LIST_COLUMNS)
-    .eq('status', 'published')
-    .eq('category', category)
-    .order('published_at', { ascending: false });
-  return sortByEffectiveDateDesc(mergeWithFiles(fileListItems(category), (data ?? []).map(mapListItem)));
+  return sortByEffectiveDateDesc(fileListItems(category));
 }
 
-// ── slug 単体（published のみ）。存在しない／draft は null（呼び出し側で notFound）。 ──
-export async function fetchPublishedArticleBySlug(
-  slug: string,
-): Promise<WorkArticleDetail | null> {
-  const file = getWorkColumnFile(slug);
-  if (file) return file;
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('work_articles')
-    .select(DETAIL_COLUMNS)
-    .eq('status', 'published')
-    .eq('slug', slug)
-    .maybeSingle();
-  return data ? mapDetail(data) : null;
+// ── slug 単体。存在しなければ null（呼び出し側で notFound）。 ──
+export async function fetchPublishedArticleBySlug(slug: string): Promise<WorkArticleDetail | null> {
+  return getWorkColumnFile(slug);
 }
 
-// ── sitemap 用：published 記事の slug / category / updated_at。 ──
-// category は「公開記事が1件以上あるカテゴリだけ sitemap に載せる」判定に、
-// updatedAt は詳細URLの lastModified に使う。
+// ── sitemap 用：slug / category / updatedAt（無ければ publishedAt）。 ──
 export type WorkArticleSitemapRow = { slug: string; category: string; updatedAt: string | null };
 
 export async function fetchPublishedArticlesForSitemap(): Promise<WorkArticleSitemapRow[]> {
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('work_articles')
-    .select('slug, category, updated_at')
-    .eq('status', 'published');
-  const db = (data ?? []).map((r) => {
-    const row = r as Record<string, unknown>;
-    return {
-      slug: String(row.slug ?? ''),
-      category: String(row.category ?? ''),
-      updatedAt: (row.updated_at as string | null) ?? null,
-    };
-  });
-  const files = getAllWorkColumnFiles().map((a) => ({ slug: a.slug, category: a.category, updatedAt: a.updatedAt ?? a.publishedAt }));
-  return mergeWithFiles(files, db);
+  return getAllWorkColumnFiles().map((a) => ({ slug: a.slug, category: a.category, updatedAt: a.updatedAt ?? a.publishedAt }));
 }
 
-// ── generateStaticParams 用：published 記事の slug 一覧。 ──
+// ── generateStaticParams 用：slug 一覧。 ──
 export async function fetchPublishedArticleSlugs(): Promise<string[]> {
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('work_articles')
-    .select('slug')
-    .eq('status', 'published');
-  return [...new Set([...getAllWorkColumnFiles().map((a) => a.slug), ...(data ?? []).map((r) => String((r as { slug: unknown }).slug))])];
+  return getAllWorkColumnFiles().map((a) => a.slug);
 }
 
-// ── 関連記事：同カテゴリの他の published 記事（現在の slug を除外・最大 limit 件）。 ──
-export async function fetchRelatedArticles(
-  category: string,
-  excludeSlug: string,
-  limit = 3,
-): Promise<WorkArticleListItem[]> {
+// ── 関連記事：同カテゴリの他の記事（現在の slug を除外・新しい順・最大 limit 件）。 ──
+export async function fetchRelatedArticles(category: string, excludeSlug: string, limit = 3): Promise<WorkArticleListItem[]> {
   if (!isValidArticleCategory(category)) return [];
-  const supabase = createPublicClient();
-  const { data } = await supabase
-    .from('work_articles')
-    .select(LIST_COLUMNS)
-    .eq('status', 'published')
-    .eq('category', category)
-    .neq('slug', excludeSlug)
-    .order('published_at', { ascending: false });
-  // 関連記事も一覧と同じく「更新日を含めた新しい順」。limit はソート後に slice（クエリ側で先に切らない）。
-  const files = fileListItems(category).filter((a) => a.slug !== excludeSlug);
-  return sortByEffectiveDateDesc(mergeWithFiles(files, (data ?? []).map(mapListItem))).slice(0, limit);
+  return sortByEffectiveDateDesc(fileListItems(category).filter((a) => a.slug !== excludeSlug)).slice(0, limit);
 }

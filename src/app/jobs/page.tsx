@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { ResponsivePicture } from '@/app/components/ResponsivePicture';
 import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
 import { fetchActiveJobs, getFeaturedJobs, JOB_BOOST_WEIGHT } from '@/app/lib/jobs';
@@ -64,25 +65,14 @@ export default async function JobsPage() {
           server component 内での描画のため localStorage/state は使わず、SSRとクライアントで一致（ハイドレーション不整合なし）。
           .hero-shine-loop：斜めの白帯が画像上を4秒に1回横切る（純CSS・reduced-motionで無効）。 */}
       <div className="hero-shine-loop">
-        {/* PC */}
-        <Image
-          src={heroPc}
+        {/* ★ 第1054便: PC／SP の2枚出し（hidden md:block）をやめ、<picture> で片方だけ転送する。 */}
+        <ResponsivePicture
+          pc={{ src: heroPc, width: 2109, height: 746 }}
+          sp={{ src: heroSp, width: 1080, height: 1920 }}
           alt="フクエスワーク｜福岡メンズエステのセラピスト求人サイト"
-          width={2109}
-          height={746}
           priority
           sizes="100vw"
-          className="hidden md:block w-full h-auto"
-        />
-        {/* SP */}
-        <Image
-          src={heroSp}
-          alt="フクエスワーク｜福岡メンズエステのセラピスト求人サイト"
-          width={1080}
-          height={1920}
-          priority
-          sizes="100vw"
-          className="md:hidden w-full h-auto"
+          className="w-full h-auto"
         />
       </div>
 
@@ -101,23 +91,13 @@ export default async function JobsPage() {
         className="hero-shine-loop group relative block mb-6 overflow-hidden rounded-3xl transition-transform duration-300 hover:-translate-y-1"
         style={{ '--hero-shine-duration': '6s' } as CSSProperties}
       >
-        {/* PC */}
-        <Image
-          src="/matching-banner-pc-v4.webp"
+        {/* ★ 第1054便: PC／SP の2枚出しをやめ、<picture> で片方だけ転送する。 */}
+        <ResponsivePicture
+          pc={{ src: '/matching-banner-pc-v4.webp', width: 2172, height: 724 }}
+          sp={{ src: '/matching-banner-sp-v4.webp', width: 1495, height: 1052 }}
           alt="フクエスワーク公式マッチング｜あなたとお店をマッチング！希望のエリアや条件から、あなたにぴったりのお店探しをお手伝いします。相談無料・未経験OK・条件から探せる。無料で相談"
-          width={2172}
-          height={724}
           sizes="(max-width: 768px) 100vw, 768px"
-          className="hidden md:block w-full h-auto"
-        />
-        {/* SP */}
-        <Image
-          src="/matching-banner-sp-v4.webp"
-          alt="フクエスワーク公式マッチング｜あなたとお店をマッチング！希望のエリアや条件から、あなたにぴったりのお店探しをお手伝いします。相談無料・未経験OK・条件から探せる。無料で相談"
-          width={1495}
-          height={1052}
-          sizes="100vw"
-          className="md:hidden w-full h-auto"
+          className="w-full h-auto"
         />
       </Link>
 

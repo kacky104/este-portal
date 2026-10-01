@@ -28,7 +28,9 @@ const AUTHOR_NAME = 'フクエス編集部';
 // 抜粋（管理画面の目安150字）が空のときの本文フォールバックもここに合わせる（第24便）。
 const DESCRIPTION_MAX = 120;
 
-export const revalidate = 600;
+// ★ 第1054便: 記事は md だけなので完全静的（ISR なし）。md に無い slug は 404（dynamicParams=false）。
+//   新しい記事は md を追加して push → ビルドで生成される（用語集と同じ）。
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const slugs = await fetchPublishedMainArticleSlugs();

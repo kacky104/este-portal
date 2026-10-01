@@ -25,10 +25,10 @@ const AUTHOR_NAME = 'フクエスワーク編集部';
 // 抜粋（管理画面の目安150字）が空のときの本文フォールバックもここに合わせる（第24便）。
 const DESCRIPTION_MAX = 120;
 
-// ISR：一覧・詳細とも10分。
-export const revalidate = 600;
+// ★ 第1054便: 記事は md だけなので完全静的（ISR なし）。md に無い slug は 404（dynamicParams=false）。
+//   新しい記事は md を追加して push → ビルドで生成される（用語集と同じ）。
+export const dynamicParams = false;
 
-// published 記事の slug を事前生成（未公開・新規は dynamicParams 既定 true でオンデマンドISR）。
 export async function generateStaticParams() {
   const slugs = await fetchPublishedArticleSlugs();
   return slugs.map((slug) => ({ slug }));

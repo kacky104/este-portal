@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { ResponsivePicture } from '@/app/components/ResponsivePicture';
 import type { AreaHeroBannerUrls } from '@/app/lib/areaBanners';
 
 // エリア別ヒーローバナー（表示専任）。URL は area_hero_banners から fetch した値を page.tsx が props で渡す。
@@ -20,6 +21,23 @@ export function AreaHeroBanner({ banner, areaLabel }: { banner: AreaHeroBannerUr
   // 斜めの白帯が4秒に1回横切るシャイン演出を適用。overflow:hidden はクラス側が内蔵するため、
   // ここでは角丸のみ rounded-xl をラッパにも付けて帯を画像の角丸内にクリップする（画像側 rounded-xl は据え置き）。
   // SP/PC は md 出し分けで常に片方だけ表示されるため、ラッパ1つへの付与で両画面に効く。
+  // ★ 第1054便: sp/pc が両方あるときは <picture> で片方だけ転送（2枚出しは display:none 側も取得されていた）。
+  //   片方しか無いときは従来どおり md 出し分けの <Image> 1枚（転送は1枚なので無駄なし）。
+  if (banner.sp && banner.pc) {
+    return (
+      <div className="mb-6 rounded-xl hero-shine-loop">
+        <ResponsivePicture
+          sp={{ src: banner.sp, width: SP_W, height: SP_H }}
+          pc={{ src: banner.pc, width: PC_W, height: PC_H }}
+          alt={alt}
+          priority
+          sizes="(max-width: 768px) 100vw, 768px"
+          className="w-full h-auto rounded-xl"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mb-6 rounded-xl hero-shine-loop">
       {banner.sp && (
