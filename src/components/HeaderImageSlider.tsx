@@ -1,49 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Image from 'next/image';
-import { createClient } from '@/app/lib/supabase/client';
-import { MAX_HEADER_SLIDER_IMAGES } from '@/app/lib/headerSlider';
+import { ResponsivePicture } from '@/app/components/ResponsivePicture';
+import type { HeaderSlide } from '@/app/lib/headerSlider';
 
 const AUTOPLAY_INTERVAL = 3000;
 
-type Slide = {
-  /** PC用画像URL（必須）。 */
-  url: string;
-  /** SP用画像URL。未登録(null)なら PC 用にフォールバックする。 */
-  urlSp: string;
-};
-
-export default function HeaderImageSlider() {
-  const supabase = createClient();
-  const [slides, setSlides] = useState<Slide[]>([]);
+// ★ 第1076便（2026-10-01）: 画像の一覧はサーバー（page.tsx → fetchHeaderSlides）から props で受ける。
+//   ★ ブラウザで Supabase を読まない＝初期 HTML に hero が入り、画像要求が約1秒早くなる（LCP）。
+//   ★ PC/SP の2枚出し（<Image> 2つ＋hidden）もやめ、ResponsivePicture（<picture>）で1枚だけ取る（第1054便の禁則）。
+export default function HeaderImageSlider({ slides }: { slides: HeaderSlide[] }) {
   const [current, setCurrent] = useState(0);
-
-  useEffect(() => {
-    const fetchSlides = async () => {
-      const { data } = await supabase
-        .from('header_slider_images')
-        .select('image_url, image_url_sp')
-        .order('display_order', { ascending: true })
-        // ★ 上限は lib/headerSlider.ts の1本（2026-08-20 第25便で3枚に制限）。
-        //   /admin 側でも同じ数で追加を止めているが、【表示側でも必ず切る】こと。
-        //   上限導入前に登録された行やSQLで直接入れた行が残っていても、
-        //   トップには先頭3枚しか出ないようにするため。
-        .limit(MAX_HEADER_SLIDER_IMAGES);
-
-      if (data) {
-        setSlides(
-          data.map((row) => ({
-            url: row.image_url,
-            // SP用が未登録なら PC 用画像をSPでも表示（フォールバック）。
-            urlSp: row.image_url_sp ?? row.image_url,
-          })),
-        );
-      }
-    };
-    fetchSlides();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ★ 第1074便: わざと依存を外している（足すと毎回作り直される関数／クライアントで読み直しが止まらなくなる）（初回だけ読む）
-  }, []);
 
   const goTo = useCallback((index: number) => {
     setCurrent((index + slides.length) % slides.length);
@@ -69,27 +36,17 @@ export default function HeaderImageSlider() {
             index === current ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          {/* PC用（sm 以上）。全幅＋約2.6:1のアスペクト比（幅に応じて高さが伸縮）+ object-cover。超ワイド時のみ max-h-[600px] で頭打ち＝上下トリミング。
-              sizes（2026-08-05）: PC用とSP用は両方DOMにあり両方 priority=preload されるため、
-              media query 付き sizes で「表示されない側は最小サイズを選ばせて」転送の無駄を抑える
-              （PC用はスマホで 1px 相当＝最小画像、SP用はPCで 1px 相当）。alt も「スライドN」から
-              サイト内容を表す文言に変更。 */}
-          <Image
-            src={slide.url}
-            alt={`福岡メンズエステ フクエス メインビジュアル ${index + 1}`}
+          {/* ★ 第1076便: PC用（sm 以上・約2.6:1）／SP用（4:3）を <picture> で出し分け。1枚目だけ priority（fetchpriority=high）。
+              hero は object-cover で枠いっぱいに敷くので fill。sizes は 100vw（表示される側しか取らないので 1px の小細工は不要）。 */}
+          <ResponsivePicture
             fill
-            sizes="(max-width: 639px) 1px, 100vw"
-            className="hidden sm:block object-cover"
-            priority={index === 0}
-          />
-          {/* SP用（sm 未満）。SP用URLが無ければ PC 用にフォールバック。 */}
-          <Image
-            src={slide.urlSp}
+            spMax={639.98}
+            sp={{ src: slide.urlSp, width: 1200, height: 900 }}
+            pc={{ src: slide.url, width: 1600, height: 620 }}
             alt={`福岡メンズエステ フクエス メインビジュアル ${index + 1}`}
-            fill
-            sizes="(min-width: 640px) 1px, 100vw"
-            className="sm:hidden object-cover"
+            sizes="100vw"
             priority={index === 0}
+            className="object-cover"
           />
         </div>
       ))}

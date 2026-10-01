@@ -4,6 +4,7 @@ import { ShuffledSalons, AreaLinkTabsBlock } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
 import { createPublicClient } from "./lib/supabase/public";
 import HeaderImageSlider from "@/components/HeaderImageSlider";
+import { fetchHeaderSlides } from "@/app/lib/headerSlider";
 import { FeaturedSalonSlider } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
 import { AccountMenu } from "./components/AccountMenu";
@@ -69,7 +70,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes, salonCountRes, memberCountRes] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes, salonCountRes, memberCountRes, headerSlides] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -125,6 +126,8 @@ export default async function Home() {
     // ★ 第963便: 会員数＝ログインできるアカウントの合計（一般会員・オーナー・セラピスト・fukuX）。
     //   SQL: supabase/migrations/20260929_public_member_count.sql（件数だけ返す関数）。★ 関数がまだ無い・失敗なら出さない。
     supabase.rpc('public_member_count'),
+    // ★ 第1076便: hero スライダー（サーバーで読む・LCP）。読めなければ空＝hero 無し。
+    fetchHeaderSlides(supabase).catch(() => []),
   ]);
 
   // TOPに出すのは先頭3件だけ。続きは /reviews。
@@ -168,7 +171,7 @@ export default async function Home() {
         {/* ─── Header Image Slider ─────────────────────────────── */}
         {/* PCは全幅（フルブリード）表示。スマホは従来どおり左右余白つき（px-4）。 */}
         <section className="px-4 pt-6 pb-2 sm:px-0">
-          <HeaderImageSlider />
+          <HeaderImageSlider slides={headerSlides} />
         </section>
 
         {/* ─── Hero ────────────────────────────────────────────── */}

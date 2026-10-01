@@ -15,3 +15,29 @@
 //
 // 2026-08-20（第25便・オーナー要望）: 上限なし → 3枚に制限。
 export const MAX_HEADER_SLIDER_IMAGES = 3;
+
+export type HeaderSlide = {
+  /** PC用画像URL（必須）。 */
+  url: string;
+  /** SP用画像URL。未登録(null)なら PC 用にフォールバックする。 */
+  urlSp: string;
+};
+
+// ★ 第1076便（2026-10-01）: トップの hero はサーバーで読む。
+//   それまで表示側（HeaderImageSlider）がブラウザで Supabase を読んでから画像を取りに行っていたので、
+//   hero（LCP）の画像要求が約1秒遅れていた（本番実測: 読み取り 725→986ms・画像要求 995ms〜）。
+//   トップは ISR 600 ＋ /admin 保存時の revalidateTop で即時更新なので、サーバー読みで鮮度は変わらない。
+//   ★ 読めなかったら空配列（hero 無しでページは出す）。
+export async function fetchHeaderSlides(
+  supabase: { from: (t: string) => any }, // eslint-disable-line @typescript-eslint/no-explicit-any -- createPublicClient の型をそのまま受ける
+): Promise<HeaderSlide[]> {
+  const { data } = await supabase
+    .from('header_slider_images')
+    .select('image_url, image_url_sp')
+    .order('display_order', { ascending: true })
+    .limit(MAX_HEADER_SLIDER_IMAGES);
+  return ((data ?? []) as { image_url: string; image_url_sp: string | null }[]).map((row) => ({
+    url: row.image_url,
+    urlSp: row.image_url_sp ?? row.image_url,
+  }));
+}

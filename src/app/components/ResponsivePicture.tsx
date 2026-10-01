@@ -9,6 +9,7 @@ import type { CSSProperties } from 'react';
 //   境目は Tailwind の md（768px）に合わせる。
 
 const SP_MAX = 767.98;
+// ★ 第1076便: 境目を変えたい部品（トップの hero は sm=640px）のため spMax を受ける。既定は md。
 
 type Source = { src: string; width: number; height: number };
 
@@ -21,6 +22,7 @@ export function ResponsivePicture({
   className,
   style,
   fill = false,
+  spMax = SP_MAX,
 }: {
   sp: Source;
   pc: Source;
@@ -33,6 +35,8 @@ export function ResponsivePicture({
   style?: CSSProperties;
   /** 親（position:relative）いっぱいに敷く（next/image の fill 相当） */
   fill?: boolean;
+  /** SP とみなす最大幅（px）。既定 767.98（md）。sm で分けるなら 639.98 */
+  spMax?: number;
 }) {
   const common = { alt, sizes, priority } as const;
   const spProps = fill
@@ -44,8 +48,8 @@ export function ResponsivePicture({
 
   return (
     <picture>
-      <source media={`(max-width: ${SP_MAX}px)`} srcSet={spProps.srcSet} {...(fill ? {} : { width: sp.width, height: sp.height })} />
-      <source media={`(min-width: ${SP_MAX + 0.02}px)`} srcSet={pcSrcSet} {...(fill ? {} : { width: pc.width, height: pc.height })} />
+      <source media={`(max-width: ${spMax}px)`} srcSet={spProps.srcSet} {...(fill ? {} : { width: sp.width, height: sp.height })} />
+      <source media={`(min-width: ${spMax + 0.02}px)`} srcSet={pcSrcSet} {...(fill ? {} : { width: pc.width, height: pc.height })} />
       {/* eslint-disable-next-line jsx-a11y/alt-text -- alt は imgProps に含まれている */}
       <img
         {...imgProps}
