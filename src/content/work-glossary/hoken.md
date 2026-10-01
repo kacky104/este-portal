@@ -7,7 +7,7 @@ summary: 病気・けが・老後などに備える公的なしくみ。業務�
 description: 保険とは、病気・けが・老後などに備える公的なしくみ。業務委託で働くメンズエステのセラピストは、国民健康保険・国民年金に自分で入る形が基本です。雇用との違い、手続きの流れ、求人で確かめることを、働く前に知りたい目線で解説します。
 publishedAt: 2026-10-02
 heroImage: /work-glossary/hoken/hero.webp
-heroAlt: 昼下がりのカフェの窓際で、保険証と封筒をテーブルに置いて店員と話している女性を、カウンターの奥から広めに
+heroAlt: 昼下がりの日の差すカフェの窓際の席で、店員と笑顔で話している女性を、カウンターの奥から広めに
 related: [gyomu-itaku, kakutei-shinkoku, kakemochi, kenko-shindan]
 faq:
   - q: メンズエステで働くと、お店の社会保険に入れますか？
