@@ -14,6 +14,11 @@ import { useHydrated } from '@/lib/useHydrated';
 //   ★ 会員と同じID/PWなので、ヘッダーの「ログイン」から入ってしまい、会員のマイページが出て
 //     戸惑う、が実際に起きたため。★ 該当しない人には何も出ない（会員だけの人の画面は変わらない）。
 //   ★ 判定は salons.owner_id / therapists.user_id を1回ずつ引くだけ（★ 新しい列・表は作らない）。
+// ★ 第1083便: 立場（オーナー／セラピスト）の答えをブラウザのセッション内で覚える表。★ ログアウトで空にする。
+type Roles = { isOwner: boolean; isCast: boolean };
+const ROLE_CACHE = new Map<string, Roles>();
+const ROLE_INFLIGHT = new Map<string, Promise<Roles>>();
+
 export function AccountMenu() {
   // ハイドレーション対策：初期は未ログイン表示。マウント後に反映。
   const mounted = useHydrated();
@@ -28,19 +33,35 @@ export function AccountMenu() {
     let active = true;
     // ★ ログインしている人の id から、店舗オーナーか／セラピスト本人かを引く。
     //   ★ 失敗しても黙って false（★ メニューが壊れるより、入口が1つ出ないほうがまし）。
+    // ★ 第1083便: 同じ人の分は1回だけ引く。
+    //   ★ getSession と onAuthChange（INITIAL_SESSION・SIGNED_IN・TOKEN_REFRESHED）が同じ人で続けて呼ぶので、
+    //     本番実測で1ページにつき salons・therapists へ3回ずつ問い合わせていた。
+    //   ★ 答えはモジュール内の表（ROLE_CACHE）に持つ＝ページを移っても引き直さない（立場は滅多に変わらない）。
+    //     ★ ログアウト（userId が null）で表を空にする。
     const loadRoles = async (userId: string | null) => {
-      if (!userId) { if (active) { setIsOwner(false); setIsCast(false); } return; }
-      try {
+      if (!userId) { ROLE_CACHE.clear(); if (active) { setIsOwner(false); setIsCast(false); } return; }
+      const cached = ROLE_CACHE.get(userId);
+      if (cached) { if (active) { setIsOwner(cached.isOwner); setIsCast(cached.isCast); } return; }
+      if (ROLE_INFLIGHT.has(userId)) { const r = await ROLE_INFLIGHT.get(userId)!; if (active) { setIsOwner(r.isOwner); setIsCast(r.isCast); } return; }
+      const job = (async () => {
         const supabase = createClient();
         const [o, c] = await Promise.all([
           supabase.from('salons').select('id').eq('owner_id', userId).limit(1),
           supabase.from('therapists').select('id').eq('user_id', userId).limit(1),
         ]);
-        if (!active) return;
-        setIsOwner(!o.error && (o.data?.length ?? 0) > 0);
-        setIsCast(!c.error && (c.data?.length ?? 0) > 0);
+        const r = { isOwner: !o.error && (o.data?.length ?? 0) > 0, isCast: !c.error && (c.data?.length ?? 0) > 0 };
+        // ★ 読めなかった（error）ときは表に入れない＝次の機会にもう一度引く
+        if (!o.error && !c.error) ROLE_CACHE.set(userId, r);
+        return r;
+      })();
+      ROLE_INFLIGHT.set(userId, job);
+      try {
+        const r = await job;
+        if (active) { setIsOwner(r.isOwner); setIsCast(r.isCast); }
       } catch {
         if (active) { setIsOwner(false); setIsCast(false); }
+      } finally {
+        ROLE_INFLIGHT.delete(userId);
       }
     };
     getSession().then(s => {
