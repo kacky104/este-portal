@@ -32,7 +32,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 ### オプションバック
 
-延長や[オプション](/jobs/glossary/option)メニューの料金も、バック対象になることが多い項目です。どこまでがバック対象かはサロンごとに違うため、確認が必要です。
+延長や[オプション](/jobs/glossary/option)メニューの料金も、バック対象になることが多い項目です。どこまでがバック対象かはサロンごとに違うため、確認が必要です。お客様が新規割やクーポンを使ったとき、割引前と割引後のどちらの料金で計算するかも、サロンによって違います（[割引](/jobs/glossary/waribiki)）。
 
 ### 入店祝い金・保証制度
 
