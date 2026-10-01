@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { JobsLogo } from '@/components/JobsLogo';
 import { JobsSavedMenu } from '@/components/JobsSavedMenu';
-import { JobsNav } from '@/components/JobsNav';
+import { HamburgerMenu, type MenuItem } from '@/app/components/HamburgerMenu';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { getTheme } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
@@ -14,6 +14,15 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 // Wallpaper 側で /jobs を除外する（fukuX(/x) と同じ考え方）。root の Cookie/フォント等は継承。
 
 const SITE_URL = 'https://fukues.com';
+
+// ★ 第1072便（2026-10-01・カッキーさん）: ヘッダーの簡易ナビ（第1056便の JobsNav）をやめ、
+//   右端のハンバーガー → 右からドロワー（フクエス本体と同じ部品・緑）に入れる。
+const JOBS_MENU: MenuItem[] = [
+  { href: '/jobs', label: '求人' },
+  { href: '/jobs/column', label: 'コラム' },
+  { href: '/jobs/glossary', label: '用語集' },
+  { href: '/jobs/matching', label: 'マッチング' },
+];
 // /jobs トップ（page.tsx）でも absolute 指定に流用するため export。
 // ※ title.template は「子セグメント」にのみ適用され、同一セグメントの page.js の title には
 //   効かない（Next仕様）。そのため /jobs トップは page.tsx 側でこのブランドタイトルを明示する。
@@ -68,14 +77,14 @@ export default async function JobsLayout({ children }: { children: React.ReactNo
       <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
       {/* ─── フクエスワーク専用ヘッダー（左=ロゴ→/jobs、右=本体TOPへのテキストリンク） ─── */}
       <header className="sticky top-0 z-50 bg-white/85 backdrop-blur-md border-b" style={{ borderColor: '#D6EFE0' }}>
-        {/* 左＝ロゴ／右＝保存メニュー（緑肉球＋件数バッジ→/jobs/saved）。「フクエスTOPへ」はフッターに存置。 */}
+        {/* 左＝ロゴ／右＝保存メニュー（緑肉球＋件数バッジ→/jobs/saved）＋ハンバーガー。「フクエスTOPへ」はフッターに存置。 */}
         <div className="max-w-3xl mx-auto px-2 h-14 flex items-center justify-between">
           <JobsLogo />
-          <JobsSavedMenu />
-        </div>
-        {/* ★ 第1056便: 簡易ナビ（求人・コラム・用語集・マッチング）。ロゴ行の下に1行。 */}
-        <div className="border-t" style={{ borderColor: '#EAF7EF' }}>
-          <JobsNav />
+          {/* 右＝保存メニュー（★）→ いちばん右にハンバーガー（第1072便） */}
+          <div className="flex items-center gap-2">
+            <JobsSavedMenu />
+            <HamburgerMenu items={JOBS_MENU} tone="green" />
+          </div>
         </div>
       </header>
       <SiteNoticeBanner variant="work" />

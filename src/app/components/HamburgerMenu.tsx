@@ -18,7 +18,9 @@ import Link from 'next/link';
 // /working・/column は導線が無く孤立していたため追加（2026-08-06）。
 // ※/salons（店舗一覧）はここに載せない：無料バナー特典で契約外の店舗も掲載する
 //   ページのため、利用者の主動線に置くと契約店舗が埋もれてしまう（2026-08-06 運用判断）。
-const ITEMS: { href: string; label: string }[] = [
+export type MenuItem = { href: string; label: string };
+
+const ITEMS: MenuItem[] = [
   { href: '/news', label: '店舗新着情報' },
   { href: '/ranking', label: '人気ランキング' },
   { href: '/therapists', label: '特徴で探す' },
@@ -31,7 +33,16 @@ const ITEMS: { href: string; label: string }[] = [
   { href: '/join', label: '会員登録について' },
 ];
 
-export function HamburgerMenu() {
+// ★ 第1072便（2026-10-01・カッキーさん）: フクエスワークでも同じドロワーを使う。
+//   items＝並べる項目（既定はフクエス本体の ITEMS）／tone＝色（'pink'＝本体・'green'＝ワーク）。
+//   ★ 見た目・開閉・SSR用の sr-only 導線は本体と同じ。色だけ変わる。
+const TONES = {
+  pink: { button: 'text-pink-600 hover:text-pink-700', hover: 'hover:bg-pink-50/70' },
+  green: { button: 'text-emerald-600 hover:text-emerald-700', hover: 'hover:bg-emerald-50/70' },
+} as const;
+
+export function HamburgerMenu({ items = ITEMS, tone = 'pink' }: { items?: MenuItem[]; tone?: keyof typeof TONES } = {}) {
+  const t = TONES[tone];
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -52,7 +63,7 @@ export function HamburgerMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="メニュー"
-        className="flex flex-col items-center justify-center gap-0.5 flex-shrink-0 px-1 text-pink-600 hover:text-pink-700 transition-colors"
+        className={`flex flex-col items-center justify-center gap-0.5 flex-shrink-0 px-1 ${t.button} transition-colors`}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 7h16M4 12h16M4 17h16" />
@@ -70,7 +81,7 @@ export function HamburgerMenu() {
           クローキングにはあたらない（表示メニューと同じ項目・同じリンク先）。 */}
       {!mounted && (
         <nav aria-label="サイト内メニュー" className="sr-only">
-          {ITEMS.map((item) => (
+          {items.map((item) => (
             <Link key={item.href} href={item.href}>{item.label}</Link>
           ))}
         </nav>
@@ -105,12 +116,12 @@ export function HamburgerMenu() {
               </button>
             </div>
             <nav>
-              {ITEMS.map((item) => (
+              {items.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="flex items-center px-4 py-3.5 text-sm font-semibold text-slate-700 border-b border-slate-50 hover:bg-pink-50/70 transition-colors"
+                  className={`flex items-center px-4 py-3.5 text-sm font-semibold text-slate-700 border-b border-slate-50 ${t.hover} transition-colors`}
                 >
                   {item.label}
                 </Link>
