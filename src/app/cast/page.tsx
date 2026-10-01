@@ -97,7 +97,7 @@ export default async function CastHomePage() {
     diaryToday = diary.count ?? 0;
   }
 
-  // ★ 第916便（カッキーさん）: セラピストランキング（/ranking と同じ今週の順位・TOP150）。圏外は null＝何も出さない。
+  // ★ 第916便（カッキーさん）: セラピストランキング（/ranking と同じ今週の順位・TOP200 ※第1070便で150→200）。圏外は null＝何も出さない。
   //   ★ 読めなくてもページは出す。
   // ★ 第917便: 口コミ数ランキング（/reviews のセラピストタブ・TOP50）と殿堂入り（口コミ21件以上）も。
   //   ★ 殿堂入りの人はランキングから外れる（/reviews と同じ）＝どちらか一方だけが出る。圏外・口コミなしは出さない。
@@ -107,7 +107,7 @@ export default async function CastHomePage() {
   if (therapist?.id != null) {
     const tid = Number(therapist.id);
     const [pop, rev] = await Promise.all([
-      fetchTherapistWeeklyRanking(150).catch(() => null),
+      fetchTherapistWeeklyRanking(200).catch(() => null),
       getTherapistReviewRanking().catch(() => null),
     ]);
     weeklyRank = pop?.find((t) => t.id === tid)?.rank ?? null;
@@ -195,7 +195,7 @@ export default async function CastHomePage() {
                 <h1 className="mt-1 text-lg font-black text-slate-800 leading-tight truncate">{therapist.name ?? '(名前未設定)'} さん</h1>
                 {salonName && <p className="mt-0.5 text-[11px] text-slate-400 font-medium truncate">{salonName}</p>}
               </div>
-              {/* ★ 第916便: セラピストランキングの順位（TOP150 に入っているときだけ）。押すと /ranking のセラピストタブ
+              {/* ★ 第916便: セラピストランキングの順位（TOP200 に入っているときだけ）。押すと /ranking のセラピストタブ
                   ★ 第917便: 右に口コミ数ランキング（TOP50）か殿堂入り。★ どれも該当しないときは何も出さない */}
               {(weeklyRank != null || reviewRank != null || hallOfFameCount != null) && (
                 <div className="shrink-0 flex items-stretch gap-1">

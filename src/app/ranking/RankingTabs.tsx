@@ -287,7 +287,7 @@ export default function RankingTabs({
           <div className={tab === 'therapist' ? '' : 'hidden'}>
             <>
               <RankingHeading
-                title="セラピストランキング TOP150"
+                title="セラピストランキング TOP200"
                 description={<>セラピスト個別・fukuXページへの週間アクセスによる<br className="sm:hidden" />福岡のメンズエステ人気セラピストランキングです</>}
                 bodyColor={theme.body}
               />
@@ -322,7 +322,8 @@ export default function RankingTabs({
                   <div className="lg:relative lg:left-1/2 lg:-translate-x-1/2 lg:w-[min(1150px,calc(100vw-32px))]">
                     {/* ★★ 第912便（2026-09-27・カッキーさん）: TOP50 → TOP150。カードの段を1段ずつ下へ広げた。
                          1〜10位＝大（旧1〜3位）／11〜30位＝compact（旧4〜10位）／31〜50位＝mini（旧11〜20位）／
-                         51〜70位＝micro（旧21〜30位）／71〜100位＝nano（旧31〜40位）／101〜150位＝リスト（旧41〜50位）。 */}
+                         51〜70位＝micro（旧21〜30位）／71〜100位＝nano（旧31〜40位）／101〜150位＝リスト（旧41〜50位）。
+                         ★ 第1070便（2026-10-01・カッキーさん）: TOP200 へ。151〜200位も101〜150位と同じリスト（slice(100) がそのまま受ける）。 */}
                     {([
                       [0, 10, ''],
                       [10, 30, 'lg:grid lg:grid-cols-2 lg:gap-x-3.5 lg:items-start'],
