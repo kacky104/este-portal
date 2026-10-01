@@ -32,17 +32,8 @@ const nextConfig: NextConfig = {
   // 埋め込みが壊れないよう、許可をこのパスに限定して宣言しておく（2026-08-06）。
   async redirects() {
     return [
-      // ★ 第1081便: 旧 /working?area=<slug> → /working/<slug>（searchParams を読むと ISR が効かないため、エリアをパスにした）
-      {
-        source: '/working',
-        has: [{ type: 'query', key: 'area', value: '(?<area>[a-z0-9-]+)' }],
-        destination: '/working/:area',
-        permanent: true,
-      },
-      // ★ 第1082便: 写メ日記の ?page=N → /page/N（同じ理由。N=1 は各 page/[n] が 1ページ目へ 308）
-      { source: '/diary', has: [{ type: 'query', key: 'page', value: '(?<page>\\d+)' }], destination: '/diary/page/:page', permanent: true },
-      { source: '/salon/:id/diary', has: [{ type: 'query', key: 'page', value: '(?<page>\\d+)' }], destination: '/salon/:id/diary/page/:page', permanent: true },
-      { source: '/therapist/:id/diary', has: [{ type: 'query', key: 'page', value: '(?<page>\\d+)' }], destination: '/therapist/:id/diary/page/:page', permanent: true },
+      // ★ 第1084便: 旧 /working?area=・…/diary?page=N の転送は src/proxy.ts（rewriteLegacyQueryUrl）へ移した。
+      //   ここ（redirects）だと has で取ったクエリが転送先に残る（/diary/page/2?page=2）ため。
     ];
   },
   async headers() {

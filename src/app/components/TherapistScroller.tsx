@@ -10,6 +10,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
+import { useHydrated } from '@/lib/useHydrated';
 import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
 import { ImpressionMark } from './ImpressionMark';
 import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
@@ -77,8 +78,10 @@ export type TherapistItem = {
 
 export function Card({ therapist, index, showAge = false, large = false }: { therapist: TherapistItem; index: number; showAge?: boolean; large?: boolean }) {
   const grad = GRADIENTS[index % GRADIENTS.length];
-  const [ss, setSS] = useState<StatusResult | null>(null);
-  useEffect(() => { setSS(getScheduleStatus(therapist.today)); }, [therapist.today]);
+  // ★ 第1084便: 出勤状態は「今の時刻」で決まるので SSR と合わせられない → hydration 後にだけ計算（useHydrated・第1073便の型）。
+  //   以前の useState＋useEffect（set-state-in-effect の警告）をやめた。
+  const hydrated = useHydrated();
+  const ss: StatusResult | null = hydrated ? getScheduleStatus(therapist.today) : null;
 
   const displayHours = buildDisplayHours(therapist.today.start_time, therapist.today.end_time);
 
@@ -162,8 +165,10 @@ export function MoreCard({ href, imageUrl, className = 'w-[105px] h-[153px]' }: 
     >
       {imageUrl ? (
         // ★ 画像は文字入りで作る前提。★ こちらからは矢印も「一覧を見る」も重ねない（2026-09-08・カッキーさんの指示）。
+        // ★ 第1084便: loading="lazy" を付ける。React は lazy でない <img> を SSR 時に自動で <link rel=preload> にする（先頭10枚）ため、
+        //   付けないと生の Supabase URL が hero より先に preload され、LCP の帯域を食う。
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="一覧を見る" className="absolute inset-0 w-full h-full object-cover" />
+        <img src={imageUrl} alt="一覧を見る" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
       ) : (
         <>
           <span className="relative flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20">

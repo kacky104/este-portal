@@ -14,7 +14,8 @@ export function buildDiaryListMetadata(page: number): Metadata {
   // 1ページ目は素のパス。★ 第1082便: 2ページ目以降は /diary/page/[n]（?page= から変更・ISR を効かせるため）。
   const path = page <= 1 ? '/diary' : `/diary/page/${page}`;
   const suffix = page <= 1 ? '' : `（${page}ページ目）`;
-  const title = page <= 1 ? PAGE_TITLE : `福岡メンズエステの写メ日記${suffix}｜フクエス`;
+  // ★ 第1084便: 2ページ目以降も1ページ目と同じ「…【フクエス】」の形に揃える
+  const title = page <= 1 ? PAGE_TITLE : `福岡メンズエステの写メ日記${suffix}【フクエス】`;
   const description = page <= 1 ? PAGE_DESC : `${PAGE_DESC}${suffix}`;
 
   return {

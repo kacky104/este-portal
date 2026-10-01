@@ -42,6 +42,30 @@ function isAppHost(host: string): boolean {
   return false;
 }
 
+/** 旧クエリ URL（/working?area=・…/diary?page=N）を新しいパスにしたものを返す。該当しなければ null。 */
+export function rewriteLegacyQueryUrl(nextUrl: NextRequest["nextUrl"]): URL | null {
+  const { pathname, searchParams } = nextUrl;
+  let target: string | null = null;
+  let dropKey: string | null = null;
+  if (pathname === "/working") {
+    const area = searchParams.get("area");
+    if (area && /^[a-z0-9-]+$/.test(area)) { target = `/working/${area}`; dropKey = "area"; }
+  } else {
+    const m = pathname.match(/^(\/diary|\/salon\/\d+\/diary|\/therapist\/\d+\/diary)$/);
+    const page = searchParams.get("page");
+    if (m && page && /^\d+$/.test(page)) {
+      // ★ page=1 は 1ページ目そのもの（/diary/page/1 が 308 で戻すのと同じ結果を1回で）
+      target = Number(page) <= 1 ? m[1] : `${m[1]}/page/${Number(page)}`;
+      dropKey = "page";
+    }
+  }
+  if (!target || !dropKey) return null;
+  const url = nextUrl.clone();
+  url.pathname = target;
+  url.searchParams.delete(dropKey);
+  return url;
+}
+
 export async function proxy(request: NextRequest) {
   // ── ファビコン（2026-08-09 段階4）──
   // matcher から favicon.ico の除外を外し、ここで最短経路で処理する（Supabase 初期化前）。
@@ -69,6 +93,18 @@ export async function proxy(request: NextRequest) {
       return NextResponse.rewrite(url);
     }
     return NextResponse.next();
+  }
+
+  // ── 旧クエリ URL → パス（第1084便・2026-10-01）──
+  //   第1081便・第1082便で next.config の redirects に置いていたが、Next の redirects は
+  //   has で取ったクエリを転送先にも付けたまま残す（/diary?page=2 → /diary/page/2?page=2）。
+  //   ここで組み立て直せばクエリを落とせる。★ 旧クエリは捨てる（他のクエリは残す）。
+  //   ★ Supabase の初期化より前に返す（ログイン状態に関係なく転送するだけ）。
+  //   ★ 本体ホストだけ（店舗の独自ドメイン・conecf・CRM では何もしない）。
+  const legacyHostRaw = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (isAppHost(normalizeHost(legacyHostRaw)) && !isConecfHost(legacyHostRaw) && !isCrmHost(legacyHostRaw)) {
+    const legacy = rewriteLegacyQueryUrl(request.nextUrl);
+    if (legacy) return NextResponse.redirect(legacy, 308);
   }
 
   // ★ 第821便（カッキーさん）: 開こうとしたページを、サーバー側（/mypage の layout）へ伝える。

@@ -50,7 +50,7 @@ function ReviewMiniCard({
           <span className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
             {r.therapistImage ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={r.therapistImage} alt={r.therapistName} className="w-full h-full object-cover" />
+              <img src={r.therapistImage} alt={r.therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
             ) : (
               <span className="text-white text-xs font-bold">{r.therapistName.charAt(0)}</span>
             )}
