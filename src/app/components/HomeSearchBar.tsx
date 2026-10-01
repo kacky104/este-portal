@@ -205,7 +205,7 @@ export function HomeSearchBar() {
               >
                 <span className="relative w-11 h-11 overflow-hidden bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center flex-shrink-0">
                   {s.imageUrl ? (
-                    <Image src={s.imageUrl} alt={s.name} fill className="object-cover" sizes="44px" />
+                    <Image src={s.imageUrl} alt={s.name} width={44} height={44} className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-pink-400"><path d="M3 9l1-5h16l1 5" /><path d="M4 9v11h16V9" /><path d="M9 20v-6h6v6" /></svg>
                   )}
@@ -226,7 +226,7 @@ export function HomeSearchBar() {
               >
                 <span className="relative w-11 h-11 overflow-hidden bg-gradient-to-br from-pink-200 to-fuchsia-300 flex items-center justify-center flex-shrink-0">
                   {t.imageUrl ? (
-                    <Image src={t.imageUrl} alt={t.name} fill className="object-cover" sizes="44px" />
+                    <Image src={t.imageUrl} alt={t.name} width={44} height={44} className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
                     <span className="text-white font-bold text-sm">{t.name.charAt(0)}</span>
                   )}

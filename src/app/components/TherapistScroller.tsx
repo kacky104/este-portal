@@ -91,13 +91,14 @@ export function Card({ therapist, index, showAge = false, large = false }: { the
       <ImpressionMark salonId={therapist.salonId} surface="therapist" />
 
       {/* background: photo or gradient fallback */}
+      {/* ★ 第1078便: fill＋px の sizes だと srcset が15本出る（img 1個 2.9KB）。固定サイズのサムネは width/height 指定＝srcset 2本（1x/2x）。見た目は CSS（absolute inset-0 w-full h-full object-cover）で fill と同じ */}
       {therapist.profileImageUrl ? (
         <Image
           src={therapist.profileImageUrl}
           alt={therapist.name}
-          fill
-          className="object-cover"
-          sizes="(max-width: 640px) 105px, 176px"
+          width={176}
+          height={256}
+          className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>

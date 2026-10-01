@@ -72,7 +72,7 @@ function TherapistMiniCard({ therapist, index, showAge = false, compact = false,
     >
       {/* background */}
       {therapist.imageUrl ? (
-        <Image src={therapist.imageUrl} alt={therapist.name} fill className="object-cover" sizes="120px" />
+        <Image src={therapist.imageUrl} alt={therapist.name} width={120} height={175} className="absolute inset-0 w-full h-full object-cover" />
       ) : (
         <div className={`absolute inset-0 bg-gradient-to-br ${grad} flex items-center justify-center`}>
           <span className="text-white/30 font-bold text-3xl">{therapist.name.charAt(0)}</span>

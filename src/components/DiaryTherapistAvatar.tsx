@@ -18,7 +18,7 @@ export function DiaryTherapistAvatar({
       style={{ width: size, height: size }}
     >
       {src ? (
-        <Image src={src} alt={name} fill className="object-cover" sizes={`${size}px`} />
+        <Image src={src} alt={name} width={size} height={size} className="absolute inset-0 w-full h-full object-cover" />
       ) : (
         <span className="text-white font-bold leading-none" style={{ fontSize: Math.round(size * 0.45) }}>
           {name.charAt(0) || '♡'}

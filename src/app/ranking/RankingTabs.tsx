@@ -397,7 +397,7 @@ export default function RankingTabs({
                             >
                               <span className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden bg-slate-100 relative">
                                 {t.profileImageUrl ? (
-                                  <Image src={t.profileImageUrl} alt={t.name} fill className="object-cover" sizes="44px" />
+                                  <Image src={t.profileImageUrl} alt={t.name} width={44} height={44} className="absolute inset-0 w-full h-full object-cover" />
                                 ) : (
                                   <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold">
                                     {t.name.charAt(0) || '—'}

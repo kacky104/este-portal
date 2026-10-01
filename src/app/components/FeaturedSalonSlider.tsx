@@ -147,7 +147,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
                     <div className="flex -space-x-2">
                       {salon.therapistImages.slice(0, 4).map((img, j) => (
                         <div key={j} className="relative w-8 h-8 rounded-full border-2 border-white/80 overflow-hidden shadow-sm">
-                          <Image src={img} alt={salon.salonName} fill className="object-cover" sizes="32px" />
+                          <Image src={img} alt={salon.salonName} width={32} height={32} className="absolute inset-0 w-full h-full object-cover" />
                         </div>
                       ))}
                       {salon.therapistImages.length === 0 && (

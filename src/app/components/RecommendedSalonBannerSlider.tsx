@@ -98,7 +98,7 @@ export function RecommendedSalonBannerSlider({ banners, hideTitle = false }: { b
                 <div className="flex -space-x-2">
                   {b.therapistImages.slice(0, 4).map((img, j) => (
                     <div key={j} className="relative w-8 h-8 rounded-full border-2 border-white/80 overflow-hidden shadow-sm">
-                      <Image src={img} alt={b.salonName} fill className="object-cover" sizes="32px" />
+                      <Image src={img} alt={b.salonName} width={32} height={32} className="absolute inset-0 w-full h-full object-cover" />
                     </div>
                   ))}
                   {b.therapistImages.length === 0 && (

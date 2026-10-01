@@ -20,9 +20,9 @@ export function ArticleCard({ article }: { article: WorkArticleListItem }) {
           <Image
             src={article.heroImageUrl}
             alt={article.title}
-            fill
-            sizes="(max-width: 640px) 112px, 160px"
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            width={160}
+            height={90}
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
           <div
