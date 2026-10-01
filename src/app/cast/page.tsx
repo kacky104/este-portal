@@ -178,7 +178,9 @@ export default async function CastHomePage() {
               </Link>
             )}
             {/* ★ 第1058便: 開設済みで赤バッジがまだの子にだけ、赤バッジの加点の案内（赤バッジ取得＝xVerified で非表示）。
-                行き先は fukuX のセラピスト向けガイド STEP4（所属と赤い認証バッジ）。 */}
+                行き先は fukuX のセラピスト向けガイド STEP4（所属と赤い認証バッジ）。
+                ★★ 第1059便（カッキーさん）: 赤バッジの条件（画像付き投稿10件）は【秘密】。画面には「投稿をがんばると」とだけ書く
+                （件数を書くと、適当な画像付き投稿10件で取られてしまう）。ガイドページも同じ伝え方。 */}
             {xHandle && !xVerified && (
               <Link
                 href="/x/guide/therapist"
@@ -193,7 +195,7 @@ export default async function CastHomePage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-bold text-red-700 leading-snug">fukuXで赤い認証バッジが付くと、人気セラピストランキングにさらに毎週+5点</span>
-                  <span className="block text-[11px] text-red-600/90 leading-snug mt-0.5">お店に所属して、画像付きの投稿が10件になると自動で付きます</span>
+                  <span className="block text-[11px] text-red-600/90 leading-snug mt-0.5">お店に所属して、fukuXの投稿をがんばると付きます</span>
                 </span>
                 <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-red-500 text-white text-[11px] font-bold whitespace-nowrap">やり方を見る</span>
               </Link>
