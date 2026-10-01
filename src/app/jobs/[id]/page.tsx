@@ -12,6 +12,7 @@ import { JobApplyBar } from './JobApplyBar';
 import { JobDescriptionCollapse } from './JobDescriptionCollapse';
 import { JobDetailTabs } from './JobDetailTabs';
 import { JobNewsList } from './JobNewsList';
+import { JobRelatedLinks } from './JobRelatedLinks';
 import { SaveButton } from '@/app/components/SaveButton';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
 
@@ -82,6 +83,18 @@ export async function generateMetadata({
   };
 }
 
+// ★ 第1055便: エリア値（salons.area）→ JobPosting の addressLocality（市区町村）。
+//   「中洲・天神・薬院」は博多区と中央区にまたがるので市までにする。対応表に無い値（福岡県その他・出張など）は省略。
+const AREA_TO_LOCALITY: Record<string, string> = {
+  '博多・住吉': '福岡市博多区',
+  '中洲・天神・薬院': '福岡市',
+  '北九州・小倉': '北九州市',
+  '久留米': '久留米市',
+};
+function localityFromArea(area: string | null | undefined): string | undefined {
+  return area ? AREA_TO_LOCALITY[area] : undefined;
+}
+
 // 日本の郵便番号「NNN-NNNN」形式かどうか。JSON-LD へ出す前の最終ゲート。
 function isValidPostalCode(v: string | null): boolean {
   return !!v && /^\d{3}-\d{4}$/.test(v);
@@ -97,6 +110,12 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
     title: job.title,
     // description は改行を <br> に変換（schema.org は description に HTML を許容）。
     description: (job.description ?? '').replace(/\n/g, '<br>'),
+    // ★ 第1055便: identifier（Google 推奨）。店ID＋求人ID で一意。
+    identifier: {
+      '@type': 'PropertyValue',
+      name: job.salon.name,
+      value: `fukues-work-${job.salon.id}-${job.id}`,
+    },
     hiringOrganization: {
       '@type': 'Organization',
       name: job.salon.name,
@@ -107,7 +126,9 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
       address: {
         '@type': 'PostalAddress',
         addressRegion: '福岡県',
-        addressLocality: job.salon.area || undefined,
+        // ★ 第1055便: addressLocality は市区町村。以前はエリア名（博多・住吉 など）を入れていたが、
+        //   schema.org の locality は市区町村なので、エリア値→市区の対応表で変換する（対応表に無ければ省略）。
+        addressLocality: localityFromArea(job.salon.area),
         streetAddress: job.salon.address || undefined,
         // postalCode は salons.postal_code が「NNN-NNNN」形式のときだけ出力する。
         // 未入力・書式不正の店は項目ごと省略（誤った郵便番号を出す方が有害なため）。
@@ -124,19 +145,24 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
     ld.datePosted = job.publishedAt.slice(0, 10);
   }
 
-  // baseSalary：salary_min / salary_max が両方入っている場合のみ出力。
+  // baseSalary：salary_min / salary_max のどちらかが入っていれば出力（★ 第1055便: 以前は両方必須だった）。
   // 単位は日給想定で DAY 固定（フェーズ2で単位カラム追加を検討）。
-  if (job.salaryMin !== null && job.salaryMax !== null) {
+  if (job.salaryMin !== null || job.salaryMax !== null) {
     ld.baseSalary = {
       '@type': 'MonetaryAmount',
       currency: 'JPY',
       value: {
         '@type': 'QuantitativeValue',
-        minValue: job.salaryMin,
-        maxValue: job.salaryMax,
+        ...(job.salaryMin !== null ? { minValue: job.salaryMin } : {}),
+        ...(job.salaryMax !== null ? { maxValue: job.salaryMax } : {}),
         unitText: 'DAY',
       },
     };
+  }
+
+  // ★ 第1055便: image（バナー1枚目があるときだけ）。OGP と同じ画像。
+  if (job.heroImageUrls[0]) {
+    ld.image = job.heroImageUrls[0];
   }
 
   return ld;
@@ -412,6 +438,9 @@ export default async function JobDetailPage({
             ワーク版の緑肉球画像＋緑の粒色を prop で差し替え（本体 SaveButton は default で不変）。
             募集要項直下と同一表示にするため共通の JobSalonSaveBlock を使用。 */}
         <JobSalonSaveBlock salonId={job.salon.id} salonName={job.salon.name} />
+
+        {/* ★ 第1055便: 同じエリアの求人・関連コラム・用語集（内部リンク／回遊） */}
+        <JobRelatedLinks job={job} />
 
         <div className="mt-8 text-center">
           <Link href="/jobs" className="text-sm text-slate-500 hover:text-emerald-600 transition-colors">
