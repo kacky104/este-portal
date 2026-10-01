@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import {
   buildNotificationFeed,
   FEED_WINDOW_DAYS,
@@ -48,8 +48,9 @@ export type NotificationFeed = {
 
 const EMPTY: NotificationFeed = { items: [], unreadCount: 0, lastCheckedAt: null, cappedSalons: 0 };
 
-export async function getNotificationFeed(supabase: SupabaseClient): Promise<NotificationFeed> {
-  const { data: { user } } = await supabase.auth.getUser();
+// ★ 第1085便: knownUser を渡されたら getUser を引き直さない（ブラウザ側で既に検証済みの人を使い回す）。サーバーは従来どおり。
+export async function getNotificationFeed(supabase: SupabaseClient, knownUser?: User | null): Promise<NotificationFeed> {
+  const user = knownUser !== undefined ? knownUser : (await supabase.auth.getUser()).data.user;
   if (!user) return EMPTY; // 未ログインは通知なし
 
   // 保存サロン（item_type='salon'）と各々の保存日時。

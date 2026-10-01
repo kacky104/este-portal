@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { getBrowserUser } from '@/lib/browserUser';
 import { getVipUnreadCount } from '@/app/lib/vipLetters';
 import { useHydrated } from '@/lib/useHydrated';
 
@@ -22,11 +23,12 @@ export function VipLetterIcon() {
     (async () => {
       try {
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        // ★ 第1085便: getUser は共有（getBrowserUser）。count 側にも user を渡して二重に引かない
+        const user = await getBrowserUser();
         if (!active) return;
         if (!user) { setLoggedIn(false); return; }
         setLoggedIn(true);
-        const res = await getVipUnreadCount(supabase);
+        const res = await getVipUnreadCount(supabase, user);
         if (!active) return;
         if ('count' in res) { setUnread(res.count); setUnknown(false); }
         else setUnknown(true);

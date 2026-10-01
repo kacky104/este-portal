@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { isVipLetterVisible } from '@/lib/vipLetterWindow';
 
 // VIPレター：会員受信側の型・取得ロジック・未読数。
@@ -105,8 +105,9 @@ export type VipUnreadResult = { count: number } | { error: string };
  *   ★ 受信箱に出さないものを未読として数えると、**開きに行けない未読**がベルに残る。
  *   ★ ベルと一覧をずらさない（notificationFeed.ts と同じ考え方）。
  */
-export async function getVipUnreadCount(supabase: SupabaseClient): Promise<VipUnreadResult> {
-  const { data: { user } } = await supabase.auth.getUser();
+// ★ 第1085便: knownUser を渡されたら getUser を引き直さない（ブラウザ側で既に検証済みの人を使い回す）。
+export async function getVipUnreadCount(supabase: SupabaseClient, knownUser?: User | null): Promise<VipUnreadResult> {
+  const user = knownUser !== undefined ? knownUser : (await supabase.auth.getUser()).data.user;
   if (!user) return { count: 0 }; // ★ 未ログインは「未読なし」で正しい（読めなかった、ではない）
   // ★ 期間で絞るため、件数だけ（head)ではなく行を取って数える。★ 未読は多くならない
   const { data, error } = await supabase

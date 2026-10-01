@@ -11,8 +11,70 @@ import { pickWithTable, THERAPIST_PLACEHOLDER_KEY, type PlaceholderTable } from 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyClient = SupabaseClient<any, any, any>;
 
+// ★ 第1085便（2026-10-01）: ブラウザでは引いた結果を使い回す。
+//   本番実測で TOP を開くと、出勤中スクロール（TherapistScroller）と店舗カード（useSalonTherapists）が
+//   それぞれ page_heroes・salons を引いて 2回ずつ（計4回）になっていた。
+//   ★ 運営の既定画像（page_heroes）は1本の問い合わせを共有（同時実行も1本）。店舗の既定画像は店舗IDごとに覚え、足りない分だけ引く。
+//   ★ 10分で捨てる（TOP の ISR 600 と同じ鮮度・/admin や /mypage で変えても次の読み込みで反映）。
+//   ★ サーバー（window 無し）では使わない＝リクエスト間で混ざらない。
+const BROWSER_CACHE_TTL_MS = 10 * 60 * 1000;
+let adminCache: { value: string | null; at: number } | null = null;
+let adminInflight: Promise<string | null> | null = null;
+const salonCache = new Map<number, { value: string | null; at: number }>();
+
+function isBrowser(): boolean {
+  return typeof window !== 'undefined';
+}
+
+async function loadAdminPlaceholder(supabase: AnyClient): Promise<string | null> {
+  const now = Date.now();
+  if (isBrowser()) {
+    if (adminCache && now - adminCache.at < BROWSER_CACHE_TTL_MS) return adminCache.value;
+    if (adminInflight) return adminInflight;
+  }
+  const job = (async () => {
+    const res = await supabase.from('page_heroes').select('image_url').eq('page_key', THERAPIST_PLACEHOLDER_KEY).maybeSingle();
+    const value = res.error ? null : ((res.data?.image_url as string | null) ?? null);
+    // ★ 読めなかった（error）ときは覚えない＝次の機会にもう一度引く
+    if (isBrowser() && !res.error) adminCache = { value, at: Date.now() };
+    return value;
+  })();
+  if (isBrowser()) {
+    adminInflight = job;
+    job.finally(() => { if (adminInflight === job) adminInflight = null; }).catch(() => {});
+  }
+  return job;
+}
+
+async function loadSalonPlaceholders(supabase: AnyClient, ids: number[]): Promise<Map<number, string | null>> {
+  const bySalon = new Map<number, string | null>();
+  if (ids.length === 0) return bySalon;
+  const now = Date.now();
+  const missing: number[] = [];
+  for (const id of ids) {
+    const hit = isBrowser() ? salonCache.get(id) : undefined;
+    if (hit && now - hit.at < BROWSER_CACHE_TTL_MS) bySalon.set(id, hit.value);
+    else missing.push(id);
+  }
+  if (missing.length === 0) return bySalon;
+  const res = await supabase.from('salons').select('id, therapist_placeholder_url').in('id', missing);
+  if (!res.error) {
+    const seen = new Set<number>();
+    for (const r of (res.data ?? []) as Array<{ id: number; therapist_placeholder_url: string | null }>) {
+      const id = Number(r.id);
+      const value = r.therapist_placeholder_url ?? null;
+      bySalon.set(id, value);
+      seen.add(id);
+      if (isBrowser()) salonCache.set(id, { value, at: Date.now() });
+    }
+    // ★ 行が無かった店舗（非表示など）も「無し」で覚えて、引き直さない
+    if (isBrowser()) for (const id of missing) if (!seen.has(id)) salonCache.set(id, { value: null, at: Date.now() });
+  }
+  return bySalon;
+}
+
 /**
- * 既定画像の表を引く（運営1つ＋店舗ごと）。★ 2クエリ。★ salonIds が空でも運営の分は引く。
+ * 既定画像の表を引く（運営1つ＋店舗ごと）。★ 2クエリ（ブラウザでは覚えている分を引かない）。★ salonIds が空でも運営の分は引く。
  */
 export async function loadTherapistPlaceholders(
   supabase: AnyClient,
@@ -20,19 +82,7 @@ export async function loadTherapistPlaceholders(
 ): Promise<PlaceholderTable> {
   const ids = [...new Set(salonIds.map((v) => Number(v)).filter((n) => Number.isFinite(n) && n > 0))];
   try {
-    const [adminRes, salonRes] = await Promise.all([
-      supabase.from('page_heroes').select('image_url').eq('page_key', THERAPIST_PLACEHOLDER_KEY).maybeSingle(),
-      ids.length > 0
-        ? supabase.from('salons').select('id, therapist_placeholder_url').in('id', ids)
-        : Promise.resolve({ data: [] as Array<{ id: number; therapist_placeholder_url: string | null }>, error: null }),
-    ]);
-    const admin = adminRes.error ? null : ((adminRes.data?.image_url as string | null) ?? null);
-    const bySalon = new Map<number, string | null>();
-    if (!salonRes.error) {
-      for (const r of (salonRes.data ?? []) as Array<{ id: number; therapist_placeholder_url: string | null }>) {
-        bySalon.set(Number(r.id), r.therapist_placeholder_url ?? null);
-      }
-    }
+    const [admin, bySalon] = await Promise.all([loadAdminPlaceholder(supabase), loadSalonPlaceholders(supabase, ids)]);
     return { admin, bySalon };
   } catch {
     return { admin: null, bySalon: new Map() };

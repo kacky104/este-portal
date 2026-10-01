@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
+import { getBrowserUser } from '@/lib/browserUser';
 import { getNotificationFeed } from '@/app/lib/notifications';
 import { useHydrated } from '@/lib/useHydrated';
 
@@ -19,11 +20,12 @@ export function NotificationBell() {
     (async () => {
       try {
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        // ★ 第1085便: getUser は共有（getBrowserUser）。feed 側にも user を渡して二重に引かない
+        const user = await getBrowserUser();
         if (!active) return;
         if (!user) { setLoggedIn(false); return; }
         setLoggedIn(true);
-        const feed = await getNotificationFeed(supabase);
+        const feed = await getNotificationFeed(supabase, user);
         if (active) setUnread(feed.unreadCount);
       } catch {
         // 失敗時はバッジを出さないだけ（操作を妨げない）。
