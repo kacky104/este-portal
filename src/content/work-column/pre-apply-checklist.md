@@ -47,7 +47,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 - 最低出勤日数やシフトの決め方は？
 - 未経験の場合、研修やサポートはありますか？
 - 送迎はありますか？（ある場合は費用も）
-- 罰金制度はありますか？（遅刻・欠勤などのルール）
+- [罰金](/jobs/glossary/bakkin)制度はありますか？（遅刻・欠勤などのルール）
 
 ### 安心・プライバシーについて
 

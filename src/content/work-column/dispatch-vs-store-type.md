@@ -8,7 +8,7 @@ updatedAt: 2026-07-07
 heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/work-article-images/15d01086-f375-4a50-a358-d277aeeb56a9/1783335870264.jpg
 ---
 
-メンズエステの求人を見ていると、「店舗型」「出張専門」「出張あり」といった言葉を目にします。同じセラピストの仕事でも、営業形態によって働き方は大きく変わります。この記事では、店舗型と[出張型](/jobs/glossary/shuccho-gata)それぞれの特徴を、セラピスト目線で比較します。
+メンズエステの求人を見ていると、「[店舗型](/jobs/glossary/tenpo-gata)」「出張専門」「出張あり」といった言葉を目にします。同じセラピストの仕事でも、営業形態によって働き方は大きく変わります。この記事では、店舗型と[出張型](/jobs/glossary/shuccho-gata)それぞれの特徴を、セラピスト目線で比較します。
 
 ## 2つの営業形態
 
