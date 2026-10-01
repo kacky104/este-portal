@@ -1061,38 +1061,19 @@
 
 
 /* ══════════════════════════════════════════════════════════════════════════
-   ★ 第977便（2026-09-29・カッキーさん）: スマホの写真（右上に小さく・端をぼかす）。★ 第979便から各用語（.termHero）だけ（一覧 .hero は全面の背景に戻した）。
-   ★ 上の「.hero::before, .hero::after { display: none; }」より後ろに置くこと（ここで出し直している）。
+   ★ 第1053便（2026-10-01・カッキーさん）: スマホは、お客様向け用語集の各語ページと同じ形に。
+   ★ 女性の写真（hero-bg-sp.webp・そのまま）をカードの【下側】に背景として敷く。文字は上から普通に始める。
+   ★ 上に白のグラデーションを重ねて、文字の読みやすさを保つ（右上の小さな写真・上の大きな余白はやめた）。
    ══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 767px) {
-  .termHero::before {
-    display: block;
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: auto;
-    left: auto;
-    width: 62%;
-    height: auto;
-    aspect-ratio: 1190 / 1322;
-    border-radius: 0;
-    background: url('/work-glossary/hero-bg-sp.webp') right top / 100% auto no-repeat;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 35%), linear-gradient(to bottom, #000 42%, transparent 66%);
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to right, transparent 0%, #000 35%), linear-gradient(to bottom, #000 42%, transparent 66%);
-    mask-composite: intersect;
-    pointer-events: none;
-    z-index: 0;
-  }
-}
-
-/* ★ 第977便: 各用語ページの定義カード（.termHero）にも同じ写真。
-   ★ スマホ: 右上に小さく（上の ::before）・文字はその下から。★ 768px 以上: PC の写真（右に女性）・文字は左 58%。 */
 .termHero {
   background-color: #eef6f0;
-  background-image: linear-gradient(to bottom, #f5faf6 0%, #eef6f0 100%);
-  padding-top: calc((100vw - 32px) * 0.36);
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.55) 45%, rgba(255, 255, 255, 0) 80%),
+    url('/work-glossary/hero-bg-sp.webp'),
+    linear-gradient(135deg, #ffffff 0%, #ecfaf2 62%, #f7fdf2 100%);
+  background-size: cover, 100% auto, cover;
+  background-position: center, right bottom, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
 }
 @media (min-width: 768px) {
   .termHero {
