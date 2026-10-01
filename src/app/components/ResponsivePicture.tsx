@@ -1,4 +1,5 @@
 import { getImageProps } from 'next/image';
+import { preload } from 'react-dom';
 import type { CSSProperties } from 'react';
 
 // ★ 第1054便（2026-10-01）: PC／SP で別画像を出すときの共通部品。
@@ -38,13 +39,22 @@ export function ResponsivePicture({
   /** SP とみなす最大幅（px）。既定 767.98（md）。sm で分けるなら 639.98 */
   spMax?: number;
 }) {
-  const common = { alt, sizes, priority } as const;
+  // ★ 第1080便: Next 16 の getImageProps は priority を渡しても fetchpriority を付けず、preload も出さない
+  //   （<Image> 本体だけがやる）。LCP 画像のときは自分で fetchpriority=high と、media 付きの preload を出す。
+  const common = { alt, sizes, priority, ...(priority ? { fetchPriority: 'high' as const } : {}) } as const;
   const spProps = fill
     ? getImageProps({ ...common, src: sp.src, fill: true }).props
     : getImageProps({ ...common, src: sp.src, width: sp.width, height: sp.height }).props;
   const { srcSet: pcSrcSet, ...imgProps } = fill
     ? getImageProps({ ...common, src: pc.src, fill: true }).props
     : getImageProps({ ...common, src: pc.src, width: pc.width, height: pc.height }).props;
+
+  if (priority) {
+    const spMedia = `(max-width: ${spMax}px)`;
+    const pcMedia = `(min-width: ${spMax + 0.02}px)`;
+    if (spProps.srcSet) preload(spProps.src as string, { as: 'image', imageSrcSet: spProps.srcSet, imageSizes: sizes, media: spMedia, fetchPriority: 'high' });
+    if (pcSrcSet) preload(imgProps.src as string, { as: 'image', imageSrcSet: pcSrcSet, imageSizes: sizes, media: pcMedia, fetchPriority: 'high' });
+  }
 
   return (
     <picture>

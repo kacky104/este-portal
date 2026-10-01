@@ -48,7 +48,7 @@ export async function generateMetadata({
   const path = `/therapist/${id}/reviews`;
   // ★ 第1077便: 口コミ0件なら noindex（459人ぶんの「まだ口コミはありません」を index させない）。1件でも入れば index 可に戻る。
   if ((await countTherapistReviews(Number(id))) === 0) {
-    return { title, description, robots: { index: false, follow: true } };
+    return { title, description, robots: { index: false, follow: true }, alternates: { canonical: path } };
   }
   // canonical に ?page= を付けないのは意図的（詳細は salon/[id]/subpageMetadata.ts のコメント）。
   // ページ送りはクライアント側（PaginatedReviewList）で、?page=2 でも初期HTMLは1ページ目と同一。

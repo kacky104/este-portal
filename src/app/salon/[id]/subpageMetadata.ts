@@ -38,11 +38,12 @@ export async function buildSalonSubpageMetadata(
   if (opts?.noindex) {
     return { title, description, robots: { index: false, follow: false } };
   }
+  const path = `/salon/${id}/${sub}`;
   if (opts?.emptyNoindex) {
-    return { title, description, robots: { index: false, follow: true } };
+    // ★ 第1080便: canonical を付けないと root の '/' を継承してしまう（本番で確認）ので自己参照を付ける
+    return { title, description, robots: { index: false, follow: true }, alternates: { canonical: path } };
   }
 
-  const path = `/salon/${id}/${sub}`;
   // canonical は ?page= を付けない素のパスで正しい（2026-08-06 に再確認）。
   // 口コミのページ送りは PaginatedReviewList（クライアント）が担当し、サーバーは
   // searchParams を読まない＝ ?page=2 でも初期HTMLは1ページ目と完全に同一。
