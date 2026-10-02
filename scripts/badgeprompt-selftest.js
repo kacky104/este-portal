@@ -356,5 +356,16 @@ eq('★★ 写真もサイズも無い方は対象外（材料が入るまで待
 eq('★ サイズが無くても写真があれば対象', [tg({ body_type: null, profile_image_url: 'https://x/y.jpg' }), tg({ body_type: null, profile_images: ['https://x/y.jpg'] })], [true, true]);
 eq('★★ 配列でも null でもない値は「空」と決めつけない', tg({ feature_badges: 'x' }), false);
 
+console.log('\n── 紹介文を自動で作る対象と材料（第1104便・カッキーさん）──');
+const ct = (o) => Tg.isAutoCopyTarget({ feature_badges_auto_at: '2026-10-02T09:37:00Z', profile_copy_auto_at: null, profile_text: '', ...o }, 150);
+eq('★ 自動バッジが付いた・まだ作っていない・紹介文が空 → 対象', ct({}), true);
+eq('★★★ 自動バッジが付いていない方は対象外', ct({ feature_badges_auto_at: null }), false);
+eq('★★★ 一度作った方は対象外（1人1回だけ）', ct({ profile_copy_auto_at: '2026-10-02T10:12:00Z' }), false);
+eq('★★★ 紹介文が150字以上ある方は対象外（店舗様が書いた文を上書きしない）', [ct({ profile_text: 'あ'.repeat(150) }), ct({ profile_text: 'あ'.repeat(149) })], [false, true]);
+eq('★ 空白は字数に数えない／null は 0字', [Tg.profileTextLen(' あ い\n う '), Tg.profileTextLen(null)], [3, 0]);
+eq('★★★ 材料にするのは外見・タイプだけ（くじで付けた語＝ランク・雰囲気・スキルは外す）',
+   ['要予約', 'キレイ', 'お姉さん系', '高身長', '天然', '丁寧な施術', '未経験'].filter(Tg.copyMaterialBadge), ['キレイ', 'お姉さん系', '高身長']);
+eq('★★ くじの語は、どれも材料にならない', [...v.RANK_PICKABLE, ...v.MOOD_PICKABLE, ...v.SKILL_PICKABLE].filter(Tg.copyMaterialBadge), []);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

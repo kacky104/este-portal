@@ -1,6 +1,8 @@
 // 特徴バッジを自動で選ぶ【対象の決め方】（第113便の運営の口から切り出し・第1098便）。★ 純粋関数のみ。
 //   運営の口（therapist-badge-batch）と、自動の口（therapist-badge-auto）が同じ決めごとを見る。
 
+import { getBadgeCategory } from './therapistBadges';
+
 export type BadgeTargetRow = {
   feature_badges: unknown;
   body_type: string | null;
@@ -34,4 +36,34 @@ export function hasBadgeMaterial(r: Pick<BadgeTargetRow, 'body_type' | 'profile_
  */
 export function isAutoBadgeTarget(r: BadgeTargetRow & { feature_badges_auto_at: string | null; hasCastId: boolean }): boolean {
   return r.hasCastId && r.feature_badges_auto_at === null && isEmptyBadges(r.feature_badges) && hasBadgeMaterial(r);
+}
+
+// ───────────── キャッチフレーズ・紹介文の自動作成（第1104便・2026-10-02・カッキーさん）─────────────
+
+/** 空白を除いた字数（運営の口 therapist-copy-batch と同じ数え方） */
+export function profileTextLen(s: unknown): number {
+  return (typeof s === 'string' ? s : '').replace(/\s/g, '').length;
+}
+
+/**
+ * ★★★ 紹介文を自動で作る対象か。
+ *   ① 特徴バッジを自動で付けた方（feature_badges_auto_at が入っている＝駅ちかから取り込んだ方）
+ *   ② まだ一度も自動で作っていない（profile_copy_auto_at が null・★ 1人1回だけ）
+ *   ③ 紹介文が minLen 字未満（★ 店舗様が書いた紹介文は上書きしない）
+ */
+export function isAutoCopyTarget(
+  r: { feature_badges_auto_at: string | null; profile_copy_auto_at: string | null; profile_text: unknown },
+  minLen: number,
+): boolean {
+  return r.feature_badges_auto_at !== null && r.profile_copy_auto_at === null && profileTextLen(r.profile_text) < minLen;
+}
+
+/**
+ * ★★★ 自動で作る文章の【材料にするバッジ】（カッキーさんの決定: くじで付けた語は材料にしない）。
+ *   ★ 外見・タイプ（数値＋AI が写真から選んだ語）だけを残す。
+ *   ★ ランク・人気／雰囲気・性格／スキルは、自動ではくじで付けた語（実績や性格を見て付けた語ではない）。
+ *     ★ 文章に書くと、バッジを外しても文章に残る。→ 材料から外す。
+ */
+export function copyMaterialBadge(badge: string): boolean {
+  return getBadgeCategory(badge) === 'look';
 }

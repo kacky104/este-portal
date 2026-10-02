@@ -39,6 +39,8 @@ export type CoreResult =
       tries: number;
       short: boolean;
       usedImage: boolean;
+      /** ★ 第1104便: 文章の材料にしたバッジ（絞ったあと） */
+      materialBadges: string[];
       /** ★ キャッチにサイズ表現が残ったので空にした（第122便）。★ 黙って消さないための印。 */
       catchDropped: boolean;
       /** ★ やり直しても紹介文に残った「使わないと決めた語」（第123便）。★ 空なら守られた。 */
@@ -129,11 +131,21 @@ export async function callClaude(
  * セラピスト1人分のキャッチ・紹介文を生成する。DBへの保存はしない。
  * 素材はここで引き直す（呼び出し側から渡された値は信用しない）。
  */
+export type CopyGenOptions = {
+  /** ★ 第1104便: 文章の材料にするバッジを絞る（自動の口は外見・タイプだけ＝くじで付けた語を材料にしない） */
+  badgeFilter?: (badge: string) => boolean;
+  /** ★ バッジの最低個数。既定 3（第880便・画面と同じ）。★ 自動の口は 0（カッキーさんの決定: 2個でも作る） */
+  minBadges?: number;
+  /** ★ 写真も材料のバッジも無くても作る。既定 false。★ 自動の口は true（年齢・サイズだけから書くことになる） */
+  allowNoMaterial?: boolean;
+};
+
 export async function generateCopyForTherapist(
   svc: Svc,
   salonId: number,
   therapistId: number,
   useImage: boolean,
+  opts?: CopyGenOptions,
 ): Promise<CoreResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { ok: false, error: 'AI機能が未設定です（管理者にお問い合わせください）' };
@@ -148,9 +160,12 @@ export async function generateCopyForTherapist(
 
   const { data: salon } = await svc.from('salons').select('name').eq('id', salonId).maybeSingle();
 
-  const badges = Array.isArray(t.feature_badges)
+  const allBadges = Array.isArray(t.feature_badges)
     ? (t.feature_badges as unknown[]).filter((b): b is string => typeof b === 'string')
     : [];
+  // ★ 第1104便: 材料にするバッジ（★ 省けば全部＝今までどおり）
+  const badges = opts?.badgeFilter ? allBadges.filter(opts.badgeFilter) : allBadges;
+  const minBadges = opts?.minBadges ?? 3;
 
   const input: CopyInput = {
     name: String(t.name ?? ''),
@@ -176,10 +191,10 @@ export async function generateCopyForTherapist(
   // 素材ゼロなら叩かない。年齢・サイズだけでは誰にでも当てはまる文章にしかならない。
   // ★ 第880便（カッキーさん）: 特徴バッジは【3つ以上】必須（写真の有無にかかわらず）。
   //   ★ 画面（/mypage/therapist/[id] の AI_MIN_BADGES）と同じ数。★ 変えるときは両方
-  if (badges.length < 3) {
-    return { ok: false, error: `特徴バッジを3つ以上選んで保存してから作成してください（現在${badges.length}つ）` };
+  if (badges.length < minBadges) {
+    return { ok: false, error: `特徴バッジを${minBadges}つ以上選んで保存してから作成してください（現在${badges.length}つ）` };
   }
-  if (!hasImage && badges.length === 0) {
+  if (!hasImage && badges.length === 0 && !opts?.allowNoMaterial) {
     return { ok: false, error: 'プロフィール写真を登録するか、特徴バッジを選んでから作成してください' };
   }
 
@@ -272,5 +287,6 @@ export async function generateCopyForTherapist(
     tries,
     short: !isLongEnough(last.profileText),
     usedImage: hasImage,
+    materialBadges: badges,
   };
 }
