@@ -191,6 +191,8 @@ export async function POST(req: Request) {
       // ★ 第1098便: ランク・人気のくじ（30%・5語のどれか1つ・id で決まる）
       くじ: gen.fromRank,
       AIが選んだ: gen.fromAI,
+      // ★ 第1099便: 3個に届かず、AI の次点から足した語
+      次点から足した語: gen.fromNext,
       // ★ 第1096便: 写真から読んだ髪の色と、髪の色の決まり（ギャル・キャバ嬢＝金髪／清楚＝黒髪）で外した語
       髪の色: gen.hair,
       髪の色で外した語: gen.droppedByHair,

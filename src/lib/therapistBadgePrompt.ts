@@ -159,6 +159,49 @@ export function filterAIBadges(fromAI: readonly string[], hair: HairColor, hasIm
     .filter((b) => hasImage || !NO_PHOTO_EXCLUDED.includes(b));
 }
 
+// ────────────────────────────── 写真がある方は最低3個（次点で足す） ──────────────────────────────
+//
+// ★★★ 第1099便（2026-10-02・カッキーさんの決定「B. 最低3個」）
+//   紹介文の自動作成は「特徴バッジ3つ以上」が条件（第880便）。★ 試し打ちでは8人中5人が2個以下だった。
+//   「必ず6個」にはしない（★ 16語から6個を毎回選ぶと全員が似たバッジになる・第113便のスレンダー59%に戻る）。
+//   → AI には今までどおり【確かな語】だけを badges に入れさせ、別に【次点】（next）を近い順に3個まで出させる。
+//     くじ・数値・AI の合計が MIN_BADGES_WITH_PHOTO に届かないときだけ、足りないぶんを次点の上から足す。
+//   ★ 足すのは写真がある方だけ（★ 写真が無い方にサイズだけから語を足さない）。
+//   ★ 次点にも同じ決まり（選んでよい語だけ・髪の色）をかける。★ 噛み合わない語（BADGE_CONFLICTS）は足さない。
+//   ★ 1回の呼び出しで済む（★ 足りないときにもう一度 AI を呼ばない＝時間も費用も増やさない）。
+
+/** ★ 写真がある方に付ける最低の個数（紹介文の条件「3つ以上」と同じ数） */
+export const MIN_BADGES_WITH_PHOTO = 3;
+/** ★ AI に出させる次点の個数 */
+export const MAX_NEXT_PICK = 3;
+/** ★ 同時に付けない組み合わせ（次点を足すときに見る） */
+export const BADGE_CONFLICTS: ReadonlyArray<readonly [string, string]> = [['お姉さん系', '妹系']];
+
+/**
+ * 足りないぶんを次点から足す。★ 足した語だけを返す（並びは次点の順）。
+ * @param current いま決まっている語（くじ・数値・AI の確かな語）
+ * @param next    AI の次点（生のまま渡してよい。ここで決まりに照らす）
+ */
+export function pickTopUpBadges(
+  current: readonly string[],
+  next: readonly string[],
+  hair: HairColor,
+  hasImage: boolean,
+): string[] {
+  if (!hasImage) return [];
+  const have = new Set(current);
+  const added: string[] = [];
+  for (const b of filterAIBadges(next, hair, hasImage)) {
+    if (have.size >= MIN_BADGES_WITH_PHOTO) break;
+    if (have.has(b)) continue;
+    const clash = BADGE_CONFLICTS.some(([x, y]) => (b === x && have.has(y)) || (b === y && have.has(x)));
+    if (clash) continue;
+    have.add(b);
+    added.push(b);
+  }
+  return added;
+}
+
 /**
  * ★★★ ありふれた語（2026-09-03・AROMAMay 様101人へ流し切ったあとの実測で確定）。
  *
@@ -292,9 +335,16 @@ ${PHOTO_BADGES.join(' / ')}
 - 不明 … 写真が無い・髪が写っていない・光や加工で色が分からない
 ★ 迷ったら「その他」か「不明」にする。金髪・黒髪は、はっきり分かるときだけ。
 
+## 次点（next）
+badges に入れなかった語のうち、写真にいちばん近いと思う順に、最大${MAX_NEXT_PICK}個を next に入れる。
+- こちらで、バッジが${MIN_BADGES_WITH_PHOTO}個に届かないときだけ、足りないぶんを next の上から使います。
+- ★ badges は今までどおり【確かに言える語だけ】。数を増やすために badges へ入れない。迷う語は next に回す。
+- next も「選べる語」の一覧からだけ選ぶ。髪の色の決まりも同じ。似た語・badges と噛み合わない語は入れない。
+- 写真が無いときは、next は空の配列にする。
+
 ## 出力形式
 必ず次のJSONだけを出力する。前後に説明文やコードフェンスを付けない。
-{"hair":"金髪・黒髪・その他・不明のどれか1つ","badges":["語","語"]}`;
+{"hair":"金髪・黒髪・その他・不明のどれか1つ","badges":["語","語"],"next":["語","語"]}`;
 
 /** 素材から user メッセージ本文を組み立てる。写真は呼び出し側が image ブロックとして足す。 */
 export function buildBadgeUserPrompt(
@@ -343,6 +393,19 @@ export function parseBadgeHair(raw: string): HairColor {
   const o = readBadgeJson(raw);
   const h = o && typeof o.hair === 'string' ? o.hair.trim() : '';
   return (HAIR_COLORS as readonly string[]).includes(h) ? (h as HairColor) : '不明';
+}
+
+/**
+ * モデルの返答から次点（next）を取り出す（第1099便）。★ 取り出すだけ（決まりに照らすのは pickTopUpBadges）。
+ * ★ 書いていない・配列でない・読めない ＝ 空の配列（＝何も足さない）。
+ */
+export function parseBadgeNext(raw: string): string[] {
+  const o = readBadgeJson(raw);
+  if (!o || !Array.isArray(o.next)) return [];
+  return (o.next as unknown[])
+    .filter((b): b is string => typeof b === 'string')
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0);
 }
 
 /** 返答の中から、badges が配列になっている JSON を探す。★ 見つからなければ null */

@@ -184,6 +184,8 @@ export async function POST(req: Request) {
       くじ: gen.fromRank,
       数値から: gen.fromNumbers,
       AIが選んだ: gen.fromAI,
+      // ★ 第1099便: 3個に届かず、AI の次点から足した語
+      次点から足した語: gen.fromNext,
       髪の色: gen.hair,
       保存する内容: gen.badges,
     });

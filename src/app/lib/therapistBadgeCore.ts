@@ -9,6 +9,8 @@ import {
   parseBadgeHair,
   filterAIBadges,
   pickRankBadge,
+  parseBadgeNext,
+  pickTopUpBadges,
   HAIR_REQUIRED,
   type HairColor,
   MAX_RETRY_BADGE,
@@ -37,7 +39,7 @@ const MAX_TOKENS_BADGE = 300;
 type Svc = ReturnType<typeof createServiceClient>;
 
 export type BadgeResult =
-  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; fromRank: string[]; hair: HairColor; droppedByHair: string[]; tries: number; usedImage: boolean }
+  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; fromRank: string[]; fromNext: string[]; hair: HairColor; droppedByHair: string[]; tries: number; usedImage: boolean }
   | { ok: false; error: string };
 
 /**
@@ -93,6 +95,7 @@ export async function generateBadgesForTherapist(
 
   let fromAI: string[] | null = null;
   let hair: HairColor = '不明';
+  let next: string[] = [];
   let tries = 0;
   let retryReason: string | undefined;
 
@@ -116,7 +119,7 @@ export async function generateBadgesForTherapist(
 
     const parsed = parseBadgeResponse(r.text);
     // ★ 第1096便: 髪の色も読む。★ 写真を渡していないときは、AIが何と答えても「不明」
-    if (parsed) { fromAI = parsed; hair = hasImage ? parseBadgeHair(r.text) : '不明'; break; }
+    if (parsed) { fromAI = parsed; hair = hasImage ? parseBadgeHair(r.text) : '不明'; next = parseBadgeNext(r.text); break; }
     retryReason = '前回の出力がJSON形式ではありませんでした。指定のJSONだけを返してください。';
   }
 
@@ -130,13 +133,17 @@ export async function generateBadgesForTherapist(
   // ★★★ 第1098便: ランク・人気は AI に選ばせず、くじ（30%・5語のどれか1つ・id で決まる＝何度引いても同じ）
   const rank = pickRankBadge(Number(t.id));
   const fromRank = rank ? [rank] : [];
-  const badges = sanitizeBadges([...fromRank, ...fromNumbers, ...allowedAI]);
+  // ★★★ 第1099便: 写真がある方は最低3個（紹介文の条件と同じ数）。★ 足りないぶんだけ、AI の次点から足す
+  const fromNext = pickTopUpBadges(sanitizeBadges([...fromRank, ...fromNumbers, ...allowedAI]), next, hair, hasImage);
+  const badges = sanitizeBadges([...fromRank, ...fromNumbers, ...allowedAI, ...fromNext]);
 
   return {
     ok: true,
     badges,
     fromNumbers,
     fromRank,
+    // ★ 第1099便: 3個に届かなかったので次点から足した語（足していなければ空）
+    fromNext,
     // ★ AIが返した生の語も返す。★ 落ちた語を運営が目で見られるようにする
     fromAI,
     // ★ 第1096便: 読んだ髪の色と、その決まりで落とした語（運営が試し打ちで目で見られるように）

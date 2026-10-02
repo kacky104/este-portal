@@ -296,6 +296,23 @@ eq('★★ 数でない id は外れ', [v.pickRankBadge(NaN), v.pickRankBadge(In
 eq('★ くじの結果は sanitizeBadges を通り、先頭（ランク・人気）に並ぶ',
    B.sanitizeBadges(['キレイ', '低身長', '要予約'])[0], '要予約');
 
+console.log('\n── 写真がある方は最低3個（第1099便・カッキーさん「B. 最低3個」）──');
+eq('★★★ 最低は3個・次点も3個まで', [v.MIN_BADGES_WITH_PHOTO, v.MAX_NEXT_PICK], [3, 3]);
+eq('★★★ 1個しか無ければ、次点の上から2個足す', v.pickTopUpBadges(['キレイ'], ['美脚', 'スレンダー', '癒し系'], 'その他', true), ['美脚', 'スレンダー']);
+eq('★★★ すでに3個あれば何も足さない', v.pickTopUpBadges(['キレイ', '美脚', '低身長'], ['スレンダー'], 'その他', true), []);
+eq('★★ くじ・数値の語も個数に数える', v.pickTopUpBadges(['要予約', '低身長'], ['かわいい', '童顔'], 'その他', true), ['かわいい']);
+eq('★★★ 写真が無い方には足さない', v.pickTopUpBadges(['美脚'], ['スレンダー', '癒し系'], '不明', false), []);
+eq('★★★ 次点にも髪の色の決まりがかかる', v.pickTopUpBadges([], ['ギャル', '清楚', 'キレイ', '美脚'], '黒髪', true), ['清楚', 'キレイ', '美脚']);
+eq('★★★ 次点にランク・経験・スキル・作った語が来ても足さない', v.pickTopUpBadges([], ['NO.1', '人気急上昇', '未経験', '施術上手', '美少女系', '童顔'], 'その他', true), ['童顔']);
+eq('★★ 噛み合わない語（お姉さん系×妹系）は足さない', [v.pickTopUpBadges(['お姉さん系'], ['妹系', '美脚', '癒し系'], 'その他', true), v.pickTopUpBadges(['妹系'], ['お姉さん系', '童顔', '明るい'], 'その他', true)], [['美脚', '癒し系'], ['童顔', '明るい']]);
+eq('★ 同じ語は二重に足さない', v.pickTopUpBadges(['キレイ'], ['キレイ', '美脚', '美脚', '癒し系'], 'その他', true), ['美脚', '癒し系']);
+eq('★ 次点が足りなければ、ある分だけ（無理に埋めない）', v.pickTopUpBadges(['キレイ'], ['美脚'], 'その他', true), ['美脚']);
+eq('次点を読む', v.parseBadgeNext('{"hair":"その他","badges":["キレイ"],"next":["美脚"," 癒し系 "]}'), ['美脚', '癒し系']);
+eq('★★ next が無い・配列でない・読めない ＝ 空', [v.parseBadgeNext('{"badges":[]}'), v.parseBadgeNext('{"badges":[],"next":"美脚"}'), v.parseBadgeNext('わかりません')], [[], [], []]);
+eq('★ next が付いても badges は今までどおり読める', v.parseBadgeResponse('{"hair":"その他","badges":["キレイ"],"next":["美脚"]}'), ['キレイ']);
+eq('★ プロンプトに次点の出し方が書いてある', ['"next"', '次点'].every((w) => v.SYSTEM_PROMPT_BADGE.includes(w)), true);
+eq('★★ 「確かな語だけ」の戒めは残っている（数を増やすために badges へ入れない）', v.SYSTEM_PROMPT_BADGE.includes('迷ったら選ばない'), true);
+
 console.log('\n── 自動で選ぶ対象（第1098便・src/lib/badgeTargets.ts）──');
 const Tg = require(path.join(__dirname, '..', '_tmpcheck', 'badgeTargets.js'));
 const tg = (o) => Tg.isAutoBadgeTarget({ feature_badges: [], body_type: 'T160 B86(E) W55 H86', profile_image_url: null, profile_images: null, feature_badges_auto_at: null, hasCastId: true, ...o });
