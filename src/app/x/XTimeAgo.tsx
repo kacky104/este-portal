@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { formatDiaryAge } from '@/lib/diaryDate';
 
 // 「◯分前」相対表示。サーバーは created_at(絶対時刻)を渡し、クライアントのマウント時に現在時刻で算出する
 // （ISRキャッシュ焼き付き＆ハイドレーション不一致を回避。既存 DiaryNewBadge と同方針）。
@@ -37,22 +38,16 @@ export function XTimeAgo({ iso, className }: { iso: string; className?: string }
 }
 
 // ★ 第1017便（2026-09-30・カッキーさん）: 投稿カードの右上の日付。
-//   今日の投稿＝「◯分前」、1時間を超えたら「◯時間前」。今日でなければ日付（同年「9/30」・年違い「2025/9/30」）。
-//   ★ 日付は日本時間で「今日かどうか」を見る。マウント後に現在時刻で算出（hydration 不一致回避）。
-function jstYmd(ms: number): string {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
-}
+// ★ 第1092便（2026-10-02・カッキーさん）: 写メ日記（DiaryDate）と同じ決まりに揃えた。
+//   投稿から24時間以内＝「たった今」「◯分前」「◯時間前」。それ以降は日付（同年「9/30」・年違い「2025/9/30」）。
+//   それまでは「日本時間で今日の投稿だけ」だったので、深夜の投稿は日付が変わったとたん日付表示に戻っていた。
+//   ★ 判定は写メ日記と同じ formatDiaryAge（src/lib/diaryDate.ts）。マウント後に現在時刻で算出（hydration 不一致回避）。
 function postTime(iso: string): string {
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return '';
   const now = Date.now();
-  if (jstYmd(t) === jstYmd(now)) {
-    const sec = Math.max(0, Math.floor((now - t) / 1000));
-    if (sec < 60) return 'たった今';
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}分前`;
-    return `${Math.floor(min / 60)}時間前`;
-  }
+  const age = formatDiaryAge(iso, now);
+  if (age) return age;
   const d = new Date(t);
   const sameYear = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric' }).format(d)
     === new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric' }).format(new Date(now));
@@ -63,7 +58,7 @@ export function XPostTime({ iso, className }: { iso: string; className?: string 
   const [text, setText] = useState('');
   useEffect(() => {
     setText(postTime(iso));
-    // 今日の投稿は「◯分前」が動くので、1分ごとに更新
+    // 24時間以内の投稿は「◯分前」が動くので、1分ごとに更新
     const id = window.setInterval(() => setText(postTime(iso)), 60_000);
     return () => window.clearInterval(id);
   }, [iso]);
