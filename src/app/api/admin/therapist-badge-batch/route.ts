@@ -4,6 +4,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateBadgesForTherapist } from '@/app/lib/therapistBadgeCore';
 import { parseAdminBody, truthy, num } from '@/lib/adminBody';
 import { tallyBadges } from '@/lib/therapistBadgePrompt';
+import { isEmptyBadges, hasBadgeMaterial } from '@/lib/badgeTargets';
 
 // ── 運営用: 特徴バッジの一括生成（第113便・2026-09-03）────────────────
 //
@@ -61,22 +62,8 @@ type Row = {
   profile_images: unknown;
 };
 
-/**
- * ★★★ バッジが空か。★ null と [] の【両方】を空として扱う。
- *   ★ ここを `is null` だけにすると、default '[]' の行が1つも当たらない（2026-09-03 実測）。
- */
-function isEmptyBadges(v: unknown): boolean {
-  if (v === null || v === undefined) return true;
-  if (Array.isArray(v)) return v.filter(Boolean).length === 0;
-  // ★ 配列でも null でもない値が入っていたら、空と決めつけない（触らない側に倒す）
-  return false;
-}
-
-/** 判断する材料（写真かサイズ）を持っているか。 */
-function hasMaterial(r: Row): boolean {
-  const imgs = Array.isArray(r.profile_images) ? r.profile_images.filter(Boolean) : [];
-  return imgs.length > 0 || !!r.profile_image_url || !!r.body_type;
-}
+// ★ 第1098便: 「バッジが空か」「材料があるか」は src/lib/badgeTargets.ts へ（自動の口と同じ決めごとを見る）
+const hasMaterial = hasBadgeMaterial;
 
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -201,6 +188,8 @@ export async function POST(req: Request) {
       記録: logErr === null,
       サイズ: t.body_type,
       数値から: gen.fromNumbers,
+      // ★ 第1098便: ランク・人気のくじ（30%・5語のどれか1つ・id で決まる）
+      くじ: gen.fromRank,
       AIが選んだ: gen.fromAI,
       // ★ 第1096便: 写真から読んだ髪の色と、髪の色の決まり（ギャル・キャバ嬢＝金髪／清楚＝黒髪）で外した語
       髪の色: gen.hair,

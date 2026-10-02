@@ -101,10 +101,9 @@ eq('★ 選べる語が全部書いてある',
 // ★★★ 選ばせない語を、うっかり一覧に混ぜていないこと
 eq('★★★ ランクの語が一覧に出ていない',
    B.BADGES_BY_CATEGORY.rank.filter((b) => v.SYSTEM_PROMPT_BADGE.split('## 守ること')[0].includes(b)), []);
-// ★ 第1097便: 選んでよい5つは別の節に書いてある。★ 選ばせない3つ・経験・スキルはプロンプトのどこにも出さない
-eq('★ 選んでよいランク・人気の5つが書いてある', v.RANK_PICKABLE.filter((b) => !v.SYSTEM_PROMPT_BADGE.includes(b)), []);
-eq('★★★ NO.1・殿堂入り・指名多数・経験・スキルはプロンプトに出てこない',
-   ['NO.1', '殿堂入り', '指名多数', ...B.BADGES_BY_CATEGORY.career, ...B.BADGES_BY_CATEGORY.skill].filter((b) => v.SYSTEM_PROMPT_BADGE.includes(b)), []);
+// ★ 第1098便: ランク・人気は AI に選ばせない（くじで決める）。★ ランク・経験・スキルの語はプロンプトのどこにも出さない
+eq('★★★ ランク・経験・スキルの語はプロンプトに1語も出てこない',
+   [...B.BADGES_BY_CATEGORY.rank, ...B.BADGES_BY_CATEGORY.career, ...B.BADGES_BY_CATEGORY.skill].filter((b) => v.SYSTEM_PROMPT_BADGE.includes(b)), []);
 eq('★★ 上限の数が書いてある', v.SYSTEM_PROMPT_BADGE.includes(String(v.MAX_PICK)), true);
 // ★★ 「無理に埋めない」と「空でよい」の両方を書く。★ 片方だけだと6個埋めにくる
 eq('★★ 無理に埋めないと書いてある', v.SYSTEM_PROMPT_BADGE.includes('無理に'), true);
@@ -268,14 +267,46 @@ eq('★ hair が付いても badges は今までどおり読める', v.parseBadg
 eq('★ プロンプトに髪の色の決まりと出力が書いてある',
    ['金髪', '黒髪', '"hair"'].every((w) => v.SYSTEM_PROMPT_BADGE.includes(w)), true);
 
-console.log('\n── AI の返事を決まりで絞る（第1097便・カッキーさん）──');
-eq('★★★ 選んでよい5つは通る（1個まで）', v.filterAIBadges(['プレミア', 'キレイ'], '黒髪'), ['プレミア', 'キレイ']);
-eq('★★★ ランク・人気は1個まで（先に挙げた語が残る）', [v.MAX_RANK_PICK, v.filterAIBadges(['人気急上昇', '要予約', '店長おすすめ', '美脚'], 'その他')], [1, ['人気急上昇', '美脚']]);
-eq('★★★ NO.1・殿堂入り・指名多数は返ってきても落とす', v.filterAIBadges(['NO.1', '殿堂入り', '指名多数', 'モデル系'], 'その他'), ['モデル系']);
-eq('★★★ 経験・キャリアは返ってきても落とす', v.filterAIBadges([...B.BADGES_BY_CATEGORY.career, '美脚'], 'その他'), ['美脚']);
-eq('★★ スキル・数値の語・AIが作った語も落とす', v.filterAIBadges(['施術上手', '巨乳', '高身長', '美少女系', '童顔'], 'その他'), ['童顔']);
-eq('★★ 髪の色の決まりも一緒にかかる', v.filterAIBadges(['ギャル', '清楚', 'リピーター多数'], '金髪'), ['ギャル', 'リピーター多数']);
-eq('★ 絞ったあとも全部 sanitizeBadges を通る', B.sanitizeBadges(v.filterAIBadges(['要予約', 'キレイ', '清楚'], '黒髪')), ['要予約', '清楚', 'キレイ']);
+console.log('\n── AI の返事を決まりで絞る（第1097便・第1098便・カッキーさん）──');
+eq('★★★ ランク・人気は AI が返してきても全部落とす（くじで決める）', v.filterAIBadges([...B.BADGES_BY_CATEGORY.rank, 'モデル系'], 'その他', true), ['モデル系']);
+eq('★★★ 経験・キャリアは返ってきても落とす', v.filterAIBadges([...B.BADGES_BY_CATEGORY.career, '美脚'], 'その他', true), ['美脚']);
+eq('★★ スキル・数値の語・AIが作った語も落とす', v.filterAIBadges(['施術上手', '巨乳', '高身長', '美少女系', '童顔'], 'その他', true), ['童顔']);
+eq('★★ 髪の色の決まりも一緒にかかる', v.filterAIBadges(['ギャル', '清楚', 'キレイ'], '金髪', true), ['ギャル', 'キレイ']);
+eq('★★★ 写真が無いときは ギャル・キャバ嬢・清楚・妹系・お姉さん系 を落とす（第1098便）',
+   [v.NO_PHOTO_EXCLUDED, v.filterAIBadges(['ギャル', 'キャバ嬢', '清楚', '妹系', 'お姉さん系', 'スレンダー', '美脚'], '不明', false)],
+   [['ギャル', 'キャバ嬢', '清楚', '妹系', 'お姉さん系'], ['スレンダー', '美脚']]);
+eq('★★ 写真が無いのに髪の色が返ってきても通さない', v.filterAIBadges(['ギャル', '清楚'], '金髪', false), []);
+eq('★ 写真があれば 妹系・お姉さん系 は通る', v.filterAIBadges(['妹系', 'お姉さん系'], 'その他', true), ['妹系', 'お姉さん系']);
+eq('★ 写真なしの決まりがプロンプトに書いてある', v.NO_PHOTO_EXCLUDED.every((w) => v.SYSTEM_PROMPT_BADGE.includes(w)), true);
+eq('★ user プロンプト（写真なし）にも書いてある',
+   v.buildBadgeUserPrompt({ name: 'x', age: null, bodyType: 'T160 B86(E) W55 H86', salonName: null }, { hasImage: false }).includes('妹系'), true);
+
+console.log('\n── ランク・人気のくじ（第1098便・カッキーさん: 30% の人に5語のどれか1つ）──');
+const picks = [];
+for (let id = 1; id <= 20000; id++) picks.push(v.pickRankBadge(id));
+const hit = picks.filter((p) => p !== null);
+const pct = Math.round((hit.length / picks.length) * 100);
+eq('★★★ 付くのは約30%（29〜31%に収まる）', [v.RANK_PICK_PERCENT, pct >= 29 && pct <= 31], [30, true]);
+eq('★★★ 付く語は5つの中だけ', [...new Set(hit)].sort(), [...v.RANK_PICKABLE].sort());
+eq('★★ 5つがほぼ均等（どれも当たりの 17〜23%）',
+   v.RANK_PICKABLE.every((w) => { const r = hit.filter((p) => p === w).length / hit.length; return r >= 0.17 && r <= 0.23; }), true);
+eq('★★★ 同じ人は何度引いても同じ（試し打ちと保存が食い違わない）',
+   [1, 6, 187, 478, 603, 657].every((id) => v.pickRankBadge(id) === v.pickRankBadge(id)), true);
+eq('★★ 数でない id は外れ', [v.pickRankBadge(NaN), v.pickRankBadge(Infinity)], [null, null]);
+eq('★ くじの結果は sanitizeBadges を通り、先頭（ランク・人気）に並ぶ',
+   B.sanitizeBadges(['キレイ', '低身長', '要予約'])[0], '要予約');
+
+console.log('\n── 自動で選ぶ対象（第1098便・src/lib/badgeTargets.ts）──');
+const Tg = require(path.join(__dirname, '..', '_tmpcheck', 'badgeTargets.js'));
+const tg = (o) => Tg.isAutoBadgeTarget({ feature_badges: [], body_type: 'T160 B86(E) W55 H86', profile_image_url: null, profile_images: null, feature_badges_auto_at: null, hasCastId: true, ...o });
+eq('★ 駅ちかの方・バッジが空・まだ選んでいない・材料あり → 対象', tg({}), true);
+eq('★★ null も [] も「空」', [tg({ feature_badges: null }), tg({ feature_badges: [] })], [true, true]);
+eq('★★★ バッジが1個でも入っていれば対象外（上書きしない）', tg({ feature_badges: ['清楚'] }), false);
+eq('★★★ 一度選んだ方は対象外（1人1回だけ）', tg({ feature_badges_auto_at: '2026-10-02T00:00:00Z' }), false);
+eq('★★★ 駅ちかの castId が無い方は対象外', tg({ hasCastId: false }), false);
+eq('★★ 写真もサイズも無い方は対象外（材料が入るまで待つ）', tg({ body_type: null }), false);
+eq('★ サイズが無くても写真があれば対象', [tg({ body_type: null, profile_image_url: 'https://x/y.jpg' }), tg({ body_type: null, profile_images: ['https://x/y.jpg'] })], [true, true]);
+eq('★★ 配列でも null でもない値は「空」と決めつけない', tg({ feature_badges: 'x' }), false);
 
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

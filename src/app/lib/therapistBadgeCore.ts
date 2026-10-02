@@ -8,6 +8,7 @@ import {
   badgesFromNumbers,
   parseBadgeHair,
   filterAIBadges,
+  pickRankBadge,
   HAIR_REQUIRED,
   type HairColor,
   MAX_RETRY_BADGE,
@@ -36,7 +37,7 @@ const MAX_TOKENS_BADGE = 300;
 type Svc = ReturnType<typeof createServiceClient>;
 
 export type BadgeResult =
-  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; hair: HairColor; droppedByHair: string[]; tries: number; usedImage: boolean }
+  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; fromRank: string[]; hair: HairColor; droppedByHair: string[]; tries: number; usedImage: boolean }
   | { ok: false; error: string };
 
 /**
@@ -123,15 +124,19 @@ export async function generateBadgesForTherapist(
 
   // ★★★ 数値ぶんを先に置く。★ sanitizeBadges が並べ替えと上限6の切り詰めをする。
   //   ★ 知らない語（AIが作った語）はここで落ちる。★ 語彙を持つ場所を増やさない。
-  // ★★★ 第1096便・第1097便: 決まりに照らして絞る（選んでよい語だけ／髪の色／ランク・人気は5語から1個まで）
-  const allowedAI = filterAIBadges(fromAI, hair);
+  // ★★★ 第1096便〜第1098便: 決まりに照らして絞る（選んでよい語だけ／髪の色／写真が無いときに選ばせない語）
+  const allowedAI = filterAIBadges(fromAI, hair, hasImage);
   const droppedByHair = fromAI.filter((b) => HAIR_REQUIRED[b] !== undefined && !allowedAI.includes(b));
-  const badges = sanitizeBadges([...fromNumbers, ...allowedAI]);
+  // ★★★ 第1098便: ランク・人気は AI に選ばせず、くじ（30%・5語のどれか1つ・id で決まる＝何度引いても同じ）
+  const rank = pickRankBadge(Number(t.id));
+  const fromRank = rank ? [rank] : [];
+  const badges = sanitizeBadges([...fromRank, ...fromNumbers, ...allowedAI]);
 
   return {
     ok: true,
     badges,
     fromNumbers,
+    fromRank,
     // ★ AIが返した生の語も返す。★ 落ちた語を運営が目で見られるようにする
     fromAI,
     // ★ 第1096便: 読んだ髪の色と、その決まりで落とした語（運営が試し打ちで目で見られるように）

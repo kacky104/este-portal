@@ -69,19 +69,42 @@ export const PHOTO_BADGES: readonly string[] = [
   '癒し系', '笑顔が素敵', '明るい', 'おしとやか',
 ];
 
-// ────────────────────────────── ランク・人気の語（5つだけ） ──────────────────────────────
+// ────────────────────────────── ランク・人気の語（5つだけ・くじで決める） ──────────────────────────────
 //
-// ★★★ 第1097便（2026-10-02・カッキーさんの決定）
-//   ランク・人気のうち、次の5つは AI が選んでよい。★ NO.1・殿堂入り・指名多数 は選ばせない。
-//   ★ それまでは「実績はこちらが知らない」ので1語も選ばせていなかった（このファイル冒頭）。
-//     ★ 写真とサイズに実績の材料は無い。★ それを伝えたうえでの、カッキーさんの決め。
-//   ★ 1人に付けるのは MAX_RANK_PICK 個まで（★ カードは並び順でランクが先頭に来るので、全部付くとほかの語が押し出される）。
-//   ★ 経験・キャリア・スキルは今までどおり選ばせない。
+// ★★★ 第1097便・第1098便（2026-10-02・カッキーさんの決定）
+//   ランク・人気のうち、付けてよいのは次の5つだけ。★ NO.1・殿堂入り・指名多数 は付けない。
+//   ★★ 第1098便: AI には選ばせない。★ 試し打ち（2店舗8人）で AI は1個も選ばなかった
+//     （写真とサイズに実績の材料が無いので、選ばないのが正しい答えだった）。
+//   → カッキーさんの決め: **30% の人に、5つのうちどれか1つをくじで付ける**（RANK_PICK_PERCENT）。
+//   ★ くじはセラピストの id から決める（pickRankBadge）。★ Math.random は使わない。
+//     ＝ 同じ人は何度引いても同じ結果。★ 試し打ちで見た結果と、保存される結果が食い違わない。点検でも固定できる。
+//   ★ 実績を見て付けている語ではない。★ 実態と合わないときは、店舗様がマイページで外す。
+//   ★ 経験・キャリア・スキルは今までどおり付けない。
 
-/** ★ AI が選んでよいランク・人気の語（この5つだけ） */
+/** ★ くじで付けてよいランク・人気の語（この5つだけ） */
 export const RANK_PICKABLE: readonly string[] = ['プレミア', '人気急上昇', '店長おすすめ', 'リピーター多数', '要予約'];
-/** ★ ランク・人気の語は1人いくつまでか。★ 超えたぶんはコード側で落とす */
-export const MAX_RANK_PICK = 1;
+/** ★ 何%の人に付けるか */
+export const RANK_PICK_PERCENT = 30;
+
+/** 文字列から 0 以上の整数を作る（FNV-1a・32bit）。★ 同じ文字列なら必ず同じ数 */
+function hash32(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/**
+ * ★★★ ランク・人気の語のくじ。★ RANK_PICK_PERCENT% の人に、RANK_PICKABLE のどれか1つ。外れは null。
+ * @param therapistId セラピストの id（★ これだけで結果が決まる）
+ */
+export function pickRankBadge(therapistId: number): string | null {
+  if (!Number.isFinite(therapistId)) return null;
+  if (hash32('rank-hit:' + therapistId) % 100 >= RANK_PICK_PERCENT) return null;
+  return RANK_PICKABLE[hash32('rank-which:' + therapistId) % RANK_PICKABLE.length];
+}
 
 // ────────────────────────────── 髪の色で決まる語 ──────────────────────────────
 //
@@ -115,22 +138,25 @@ export function applyHairRules(badges: readonly string[], hair: HairColor): stri
 }
 
 /**
- * ★★★ AI の返事を、決まりに照らして絞る（第1097便）。★ ここを通った語だけが保存の候補になる。
- *   ① AI が選んでよい語（PHOTO_BADGES と RANK_PICKABLE）以外は落とす。
- *      ★ NO.1・殿堂入り・指名多数、経験・キャリア、スキル、AI が作った語は、返ってきてもここで落ちる
+ * ★★★ 写真が無いときは選ばせない語（第1098便・カッキーさんの決定）。
+ *   ★ ギャル・キャバ嬢・清楚は髪の色の決まりでも落ちる（写真なし＝不明）が、ここにも書いて1か所で読めるようにする。
+ *   ★ 妹系・お姉さん系は見た目の印象の語。★ サイズの数字からは言えない。
+ */
+export const NO_PHOTO_EXCLUDED: readonly string[] = ['ギャル', 'キャバ嬢', '清楚', '妹系', 'お姉さん系'];
+
+/**
+ * ★★★ AI の返事を、決まりに照らして絞る（第1097便・第1098便）。★ ここを通った語だけが保存の候補になる。
+ *   ① AI が選んでよい語（PHOTO_BADGES）以外は落とす。
+ *      ★ ランク・人気（くじで決める）、経験・キャリア、スキル、数値の語、AI が作った語は、返ってきてもここで落ちる
  *        （★ それまでは「一覧に載せない」だけが守りで、返ってくればそのまま保存されていた）。
  *   ② 髪の色の決まり（applyHairRules）。
- *   ③ ランク・人気の語は MAX_RANK_PICK 個まで（AI が先に挙げた順に残す）。
+ *   ③ 写真が無いときは NO_PHOTO_EXCLUDED を落とす。
  * ★ 並びは変えない（並べ替えと上限6は sanitizeBadges の仕事）。
  */
-export function filterAIBadges(fromAI: readonly string[], hair: HairColor): string[] {
-  const selectable = fromAI.filter((b) => PHOTO_BADGES.includes(b) || RANK_PICKABLE.includes(b));
-  let rank = 0;
-  return applyHairRules(selectable, hair).filter((b) => {
-    if (!RANK_PICKABLE.includes(b)) return true;
-    rank++;
-    return rank <= MAX_RANK_PICK;
-  });
+export function filterAIBadges(fromAI: readonly string[], hair: HairColor, hasImage: boolean): string[] {
+  const selectable = fromAI.filter((b) => PHOTO_BADGES.includes(b));
+  return applyHairRules(selectable, hasImage ? hair : '不明')
+    .filter((b) => hasImage || !NO_PHOTO_EXCLUDED.includes(b));
 }
 
 /**
@@ -237,7 +263,7 @@ ${PHOTO_BADGES.join(' / ')}
 - 最大${MAX_PICK}個。★ 無理に${MAX_PICK}個埋めない。確かに言えるものだけを選ぶ。
 - 1個も確かに言えなければ、空の配列を返してよい。★ 迷ったら選ばない。
 - 写真から読み取れる見た目と、与えられたサイズだけを根拠にする。
-- ★ 性格・経験・施術の腕は【選ばない】。写真からは分からない。
+- ★ 性格・経験・人気・施術の腕は【選ばない】。写真からは分からない。
   上の一覧にそれらの語は入っていないので、一覧から出ないこと自体が守りになっている。
 - ★ 「低身長」「高身長」「巨乳」は選ばない。こちらが数値から決めるので一覧に入れていない。
 - ★ 似た語を重ねない（「かわいい」と「アイドル系」と「妹系」を全部付けない）。
@@ -251,17 +277,12 @@ ${PHOTO_BADGES.join(' / ')}
   ★ 選べる語が1〜2個しかなくてよい。★ 数を増やすことより、見分けられることが大事。
 - ★ 写真が無いときは、サイズだけで確かに言えるものに限る。無理なら空でよい。
   ★★ 材料が無いからといって、上の【誰にでも当てはまる語】で埋めない。
+  ★★ 写真が無いときは、次の語は選ばない（こちらでも外します）: ${NO_PHOTO_EXCLUDED.join(' / ')}
 - ★★★ 髪の色で決まる語（こちらでも髪の色と照らして、合わない語は外します）
   - 「ギャル」「キャバ嬢」は、写真の髪が【金髪】とはっきり分かるときだけ選ぶ。
     茶髪・暗い色・判断に迷う色のときは選ばない。
   - 「清楚」は、写真の髪が【黒髪】とはっきり分かるときだけ選ぶ。
   - 写真が無い・髪が写っていないときは、この3語は選ばない。
-
-## ランク・人気の語（選ぶなら次の${RANK_PICKABLE.length}つからだけ）
-${RANK_PICKABLE.join(' / ')}
-- 写真の印象から、いちばん合うと思うものを最大${MAX_RANK_PICK}個だけ選んでよい。合うものが無ければ選ばない。
-- ★ ここに無いランク・人気の語は選ばない。
-- ★ 選ぶときは、上の「選べる語」と同じ badges の配列に入れる。
 
 ## 髪の色（hair）
 写真の髪の色を、次の4つから1つだけ答える。
@@ -291,7 +312,7 @@ export function buildBadgeUserPrompt(
   lines.push(
     opts?.hasImage
       ? '- プロフィール写真: 添付（これが主な根拠。写り込んだ文字・ロゴ・他店名には触れない）'
-      : '- プロフィール写真: なし（★ サイズだけで確かに言えるものに限る。無理なら空の配列）',
+      : `- プロフィール写真: なし（★ サイズだけで確かに言えるものに限る。無理なら空の配列。${NO_PHOTO_EXCLUDED.join('・')} は選ばない）`,
   );
   if (opts?.retryReason) {
     lines.push('');
