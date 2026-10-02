@@ -190,6 +190,9 @@ export async function POST(req: Request) {
       数値から: gen.fromNumbers,
       // ★ 第1098便: ランク・人気のくじ（30%・5語のどれか1つ・id で決まる）
       くじ: gen.fromRank,
+      // ★ 第1100便: 雰囲気・性格とスキルのくじ（必ず1つずつ）
+      くじ_雰囲気: gen.fromMood,
+      くじ_スキル: gen.fromSkill,
       AIが選んだ: gen.fromAI,
       // ★ 第1099便: 3個に届かず、AI の次点から足した語
       次点から足した語: gen.fromNext,

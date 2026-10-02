@@ -104,7 +104,7 @@ eq('★★★ ランクの語が一覧に出ていない',
 // ★ 第1098便: ランク・人気は AI に選ばせない（くじで決める）。★ ランク・経験・スキルの語はプロンプトのどこにも出さない
 eq('★★★ ランク・経験・スキルの語はプロンプトに1語も出てこない',
    [...B.BADGES_BY_CATEGORY.rank, ...B.BADGES_BY_CATEGORY.career, ...B.BADGES_BY_CATEGORY.skill].filter((b) => v.SYSTEM_PROMPT_BADGE.includes(b)), []);
-eq('★★ 上限の数が書いてある', v.SYSTEM_PROMPT_BADGE.includes(String(v.MAX_PICK)), true);
+eq('★★ 上限の数が書いてある（第1100便: AI に選ばせるのは外見・タイプ4個まで）', [v.MAX_LOOK_PICK, v.SYSTEM_PROMPT_BADGE.includes('最大' + v.MAX_LOOK_PICK + '個')], [4, true]);
 // ★★ 「無理に埋めない」と「空でよい」の両方を書く。★ 片方だけだと6個埋めにくる
 eq('★★ 無理に埋めないと書いてある', v.SYSTEM_PROMPT_BADGE.includes('無理に'), true);
 eq('★★ 空でよいと書いてある', v.SYSTEM_PROMPT_BADGE.includes('空の配列'), true);
@@ -304,14 +304,45 @@ eq('★★ くじ・数値の語も個数に数える', v.pickTopUpBadges(['要�
 eq('★★★ 写真が無い方には足さない', v.pickTopUpBadges(['美脚'], ['スレンダー', '癒し系'], '不明', false), []);
 eq('★★★ 次点にも髪の色の決まりがかかる', v.pickTopUpBadges([], ['ギャル', '清楚', 'キレイ', '美脚'], '黒髪', true), ['清楚', 'キレイ', '美脚']);
 eq('★★★ 次点にランク・経験・スキル・作った語が来ても足さない', v.pickTopUpBadges([], ['NO.1', '人気急上昇', '未経験', '施術上手', '美少女系', '童顔'], 'その他', true), ['童顔']);
-eq('★★ 噛み合わない語（お姉さん系×妹系）は足さない', [v.pickTopUpBadges(['お姉さん系'], ['妹系', '美脚', '癒し系'], 'その他', true), v.pickTopUpBadges(['妹系'], ['お姉さん系', '童顔', '明るい'], 'その他', true)], [['美脚', '癒し系'], ['童顔', '明るい']]);
-eq('★ 同じ語は二重に足さない', v.pickTopUpBadges(['キレイ'], ['キレイ', '美脚', '美脚', '癒し系'], 'その他', true), ['美脚', '癒し系']);
+eq('★★ 噛み合わない語（お姉さん系×妹系）は足さない', [v.pickTopUpBadges(['お姉さん系'], ['妹系', '美脚', 'キレイ'], 'その他', true), v.pickTopUpBadges(['妹系'], ['お姉さん系', '童顔', 'かわいい'], 'その他', true)], [['美脚', 'キレイ'], ['童顔', 'かわいい']]);
+eq('★ 同じ語は二重に足さない', v.pickTopUpBadges(['キレイ'], ['キレイ', '美脚', '美脚', '童顔'], 'その他', true), ['美脚', '童顔']);
 eq('★ 次点が足りなければ、ある分だけ（無理に埋めない）', v.pickTopUpBadges(['キレイ'], ['美脚'], 'その他', true), ['美脚']);
 eq('次点を読む', v.parseBadgeNext('{"hair":"その他","badges":["キレイ"],"next":["美脚"," 癒し系 "]}'), ['美脚', '癒し系']);
 eq('★★ next が無い・配列でない・読めない ＝ 空', [v.parseBadgeNext('{"badges":[]}'), v.parseBadgeNext('{"badges":[],"next":"美脚"}'), v.parseBadgeNext('わかりません')], [[], [], []]);
 eq('★ next が付いても badges は今までどおり読める', v.parseBadgeResponse('{"hair":"その他","badges":["キレイ"],"next":["美脚"]}'), ['キレイ']);
 eq('★ プロンプトに次点の出し方が書いてある', ['"next"', '次点'].every((w) => v.SYSTEM_PROMPT_BADGE.includes(w)), true);
 eq('★★ 「確かな語だけ」の戒めは残っている（数を増やすために badges へ入れない）', v.SYSTEM_PROMPT_BADGE.includes('迷ったら選ばない'), true);
+
+console.log('\n── 雰囲気・性格とスキルは必ず1つずつ・くじ（第1100便・カッキーさん）──');
+eq('★★★ 雰囲気・性格は7語ぜんぶ・スキルは6語ぜんぶから', [v.MOOD_PICKABLE, v.SKILL_PICKABLE], [B.BADGES_BY_CATEGORY.mood, B.BADGES_BY_CATEGORY.skill]);
+const moods = [], skills = [];
+for (let id = 1; id <= 20000; id++) { moods.push(v.pickMoodBadge(id)); skills.push(v.pickSkillBadge(id)); }
+eq('★★★ 全員に必ず1つずつ付く（外れが無い）', [moods.every((m) => v.MOOD_PICKABLE.includes(m)), skills.every((s) => v.SKILL_PICKABLE.includes(s))], [true, true]);
+eq('★★ 雰囲気の7語がほぼ均等（12〜17%）', v.MOOD_PICKABLE.every((w) => { const r = moods.filter((m) => m === w).length / moods.length; return r >= 0.12 && r <= 0.17; }), true);
+eq('★★ スキルの6語がほぼ均等（14〜19%）', v.SKILL_PICKABLE.every((w) => { const r = skills.filter((m) => m === w).length / skills.length; return r >= 0.14 && r <= 0.19; }), true);
+eq('★★★ 同じ人は何度引いても同じ', [187, 478, 603].every((id) => v.pickMoodBadge(id) === v.pickMoodBadge(id) && v.pickSkillBadge(id) === v.pickSkillBadge(id)), true);
+eq('★★★ 雰囲気・性格は AI に選ばせない（返ってきても落とす）', [B.BADGES_BY_CATEGORY.mood.filter((b) => v.PHOTO_BADGES.includes(b)), v.filterAIBadges([...B.BADGES_BY_CATEGORY.mood, 'キレイ'], 'その他', true)], [[], ['キレイ']]);
+eq('★ 雰囲気・性格の語はプロンプトの「選べる語」に出てこない', B.BADGES_BY_CATEGORY.mood.filter((b) => v.SYSTEM_PROMPT_BADGE.split('## 守ること')[0].includes(b)), []);
+
+console.log('\n── 1人ぶんを組み立てる（composeAutoBadges・第1100便）──');
+const cat = (b) => B.getBadgeCategory(b);
+const compose = (id, o) => v.composeAutoBadges({ therapistId: id, fromNumbers: [], aiBadges: [], aiNext: [], hair: 'その他', hasImage: true, ...o });
+const many = [];
+for (let id = 1; id <= 3000; id++) many.push(compose(id, { fromNumbers: ['低身長', '巨乳'], aiBadges: ['キレイ', 'モデル系', '美脚', 'スレンダー'], aiNext: ['童顔'] }));
+eq('★★★ 外見が6個あっても、雰囲気・性格とスキルは必ず1つずつ残る（切り落とされない）',
+   many.every((p) => p.badges.filter((b) => cat(b) === 'mood').length === 1 && p.badges.filter((b) => cat(b) === 'skill').length === 1), true);
+eq('★★★ 全体は6個まで', many.every((p) => p.badges.length <= 6), true);
+eq('★★ ランク・人気は多くても1個', many.every((p) => p.badges.filter((b) => cat(b) === 'rank').length <= 1), true);
+eq('★★ 経験・キャリアは1つも入らない', many.every((p) => p.badges.every((b) => cat(b) !== 'career')), true);
+eq('★★ 外見の枠は、数値の語が先（AI の語より優先して残る）', many.every((p) => p.badges.includes('低身長') && p.badges.includes('巨乳')), true);
+const lone = [];
+for (let id = 1; id <= 3000; id++) lone.push(compose(id, { aiBadges: [], aiNext: ['美脚', 'キレイ'] }));
+eq('★★★ 写真あり・外見0個でも3個以上になる（くじ2個＋次点1個）', lone.every((p) => p.badges.length >= 3), true);
+eq('★★ 次点は足りないぶんだけ（くじが3個の人には足さない）', lone.every((p) => p.fromNext.length === (p.fromRank.length === 1 ? 0 : 1)), true);
+const noPhoto = compose(586, { hasImage: false, hair: '不明', aiBadges: ['美脚', 'お姉さん系', '清楚'], aiNext: ['スレンダー'] });
+eq('★★★ 写真なし: くじ2個は入る・お姉さん系と清楚は落ちる・次点は足さない',
+   [noPhoto.fromMood.length, noPhoto.fromSkill.length, noPhoto.fromLook, noPhoto.fromNext], [1, 1, ['美脚'], []]);
+eq('★ 保存する内容はカテゴリ順（sanitizeBadges を通した形）', many.every((p) => JSON.stringify(p.badges) === JSON.stringify(B.sanitizeBadges(p.badges))), true);
 
 console.log('\n── 自動で選ぶ対象（第1098便・src/lib/badgeTargets.ts）──');
 const Tg = require(path.join(__dirname, '..', '_tmpcheck', 'badgeTargets.js'));

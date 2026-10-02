@@ -24,7 +24,7 @@
 //   （copyPrompt は RANK_BADGES を書き写しているが、それは6語で済むため。
 //     42語を書き写すと、増やした日に必ず片方が古くなる）。
 
-import { BADGES_BY_CATEGORY } from './therapistBadges';
+import { BADGES_BY_CATEGORY, MAX_BADGES, sanitizeBadges } from './therapistBadges';
 // ★★★ 紹介文のプロンプトから【戒め】を持ち込む（第114便）。★ 素材だけ写して注意書きを写さない、を防ぐ
 import { CLICHE_WORDS } from './therapistCopyPrompt';
 
@@ -65,8 +65,7 @@ export const PHOTO_BADGES: readonly string[] = [
   ...BADGES_BY_CATEGORY.look.filter(
     (b) => !NUMERIC_BADGES.includes(b) && b !== '熟女',
   ),
-  // 雰囲気・性格（★ 写真の表情・雰囲気から言えるものだけ）
-  '癒し系', '笑顔が素敵', '明るい', 'おしとやか',
+  // ★ 第1100便: 雰囲気・性格（癒し系・笑顔が素敵・明るい・おしとやか）は AI に選ばせない。★ くじで必ず1つ付ける（下の MOOD_PICKABLE）
 ];
 
 // ────────────────────────────── ランク・人気の語（5つだけ・くじで決める） ──────────────────────────────
@@ -94,6 +93,30 @@ function hash32(text: string): number {
     h = Math.imul(h, 0x01000193);
   }
   return h >>> 0;
+}
+
+// ★★★ 第1100便（2026-10-02・カッキーさんの決定）: 雰囲気・性格とスキルは【必ず1つずつ】くじで付ける。
+//   ★ 雰囲気・性格は7語ぜんぶ（天然・トーク上手・ツンデレも含む）、スキルは6語ぜんぶから、どれか1つ。
+//   ★ それまで: 雰囲気は4語だけ AI が写真から選び（試し打ちでは1人も選ばれなかった）、スキルは1語も付けていなかった。
+//   ★ 性格も施術の腕も、写真とサイズからは分からない。★ それを伝えたうえでの、カッキーさんの決め。
+//     ★ 実態と合わないときは、店舗様がマイページで外す（ランク・人気のくじと同じ）。
+//   ★ くじは id から決まる（何度引いても同じ）。★ AI には雰囲気・性格を選ばせない（くじの語と噛み合わない語が並ぶのを防ぐ）。
+
+/** ★ くじで付ける雰囲気・性格の語（7語ぜんぶ） */
+export const MOOD_PICKABLE: readonly string[] = BADGES_BY_CATEGORY.mood;
+/** ★ くじで付けるスキルの語（6語ぜんぶ） */
+export const SKILL_PICKABLE: readonly string[] = BADGES_BY_CATEGORY.skill;
+
+/** ★★★ 雰囲気・性格のくじ。★ 必ず1つ返す（id が数でないときだけ null） */
+export function pickMoodBadge(therapistId: number): string | null {
+  if (!Number.isFinite(therapistId) || MOOD_PICKABLE.length === 0) return null;
+  return MOOD_PICKABLE[hash32('mood:' + therapistId) % MOOD_PICKABLE.length];
+}
+
+/** ★★★ スキルのくじ。★ 必ず1つ返す（id が数でないときだけ null） */
+export function pickSkillBadge(therapistId: number): string | null {
+  if (!Number.isFinite(therapistId) || SKILL_PICKABLE.length === 0) return null;
+  return SKILL_PICKABLE[hash32('skill:' + therapistId) % SKILL_PICKABLE.length];
 }
 
 /**
@@ -202,6 +225,51 @@ export function pickTopUpBadges(
   return added;
 }
 
+// ────────────────────────────── 1人ぶんを組み立てる ──────────────────────────────
+
+export type AutoBadgeParts = {
+  /** 保存する内容（カテゴリ順・最大 MAX_BADGES 個） */
+  badges: string[];
+  fromRank: string[];
+  fromMood: string[];
+  fromSkill: string[];
+  /** 外見・タイプ（数値＋AI）のうち、枠に入ったぶん */
+  fromLook: string[];
+  /** 3個に届かず、次点から足した語 */
+  fromNext: string[];
+};
+
+/**
+ * ★★★ くじ・数値・AI を合わせて、1人ぶんのバッジを組み立てる（第1100便）。
+ *   ① くじ: ランク・人気（30%）／雰囲気・性格（必ず1つ）／スキル（必ず1つ）。★ ここは必ず入れる。
+ *   ② 残りの枠（MAX_BADGES − くじの個数 ＝ 3〜4個）に、外見・タイプを入れる。★ 数値の語が先、AI の語があと。
+ *      ★★ 先に枠を決めるのが大事。★ sanitizeBadges はカテゴリ順に並べて6個で切るので、
+ *        外見を5個入れると、後ろに並ぶ雰囲気・スキルが切り落とされる（「必ず入れる」が守れない）。
+ *   ③ 写真がある方で3個に届かなければ、AI の次点から足す（pickTopUpBadges）。
+ * @param aiBadges AI の返事の badges（生のまま渡してよい。ここで決まりに照らす）
+ */
+export function composeAutoBadges(input: {
+  therapistId: number;
+  fromNumbers: readonly string[];
+  aiBadges: readonly string[];
+  aiNext: readonly string[];
+  hair: HairColor;
+  hasImage: boolean;
+}): AutoBadgeParts {
+  const one = (b: string | null) => (b ? [b] : []);
+  const fromRank = one(pickRankBadge(input.therapistId));
+  const fromMood = one(pickMoodBadge(input.therapistId));
+  const fromSkill = one(pickSkillBadge(input.therapistId));
+  const fixed = [...fromRank, ...fromMood, ...fromSkill];
+
+  const room = Math.max(0, MAX_BADGES - fixed.length);
+  const fromLook = Array.from(new Set([...input.fromNumbers, ...filterAIBadges(input.aiBadges, input.hair, input.hasImage)])).slice(0, room);
+
+  const base = [...fixed, ...fromLook];
+  const fromNext = pickTopUpBadges(base, input.aiNext, input.hair, input.hasImage);
+  return { badges: sanitizeBadges([...base, ...fromNext]), fromRank, fromMood, fromSkill, fromLook, fromNext };
+}
+
 /**
  * ★★★ ありふれた語（2026-09-03・AROMAMay 様101人へ流し切ったあとの実測で確定）。
  *
@@ -234,7 +302,8 @@ export const OVERUSED_BADGES: readonly string[] = [
  * ★ 「色白」「透明感」はバッジの語彙に無いので、ここには入らない（filter で落ちる）。
  */
 export const COMMON_BADGES: readonly string[] = Array.from(
-  new Set([...OVERUSED_BADGES, ...CLICHE_WORDS.filter((w) => PHOTO_BADGES.includes(w))]),
+  // ★ 第1100便: AI に選ばせなくなった語（癒し系）は、ここからも外す（選べない語を「確かなときだけ」と書かない）
+  new Set([...OVERUSED_BADGES, ...CLICHE_WORDS].filter((w) => PHOTO_BADGES.includes(w))),
 );
 
 /** ★ ありふれた語をいくつまで許すか。★ プロンプトに書く数（コードでは切り落とさない） */
@@ -245,6 +314,8 @@ export const COMMON_RATIO = 30;
 
 /** 1人あたりの上限（sanitizeBadges と同じ 6 に揃うが、プロンプトにも書く） */
 export const MAX_PICK = 6;
+/** ★ 第1100便: AI に選ばせる外見・タイプの上限。★ くじ（雰囲気・スキル）の2個ぶんを空けておく */
+export const MAX_LOOK_PICK = 4;
 /** 返答がJSONでなかったときの作り直し回数 */
 export const MAX_RETRY_BADGE = 1;
 
@@ -303,7 +374,7 @@ export const SYSTEM_PROMPT_BADGE = `あなたはメンズエステ情報サイ�
 ${PHOTO_BADGES.join(' / ')}
 
 ## 守ること
-- 最大${MAX_PICK}個。★ 無理に${MAX_PICK}個埋めない。確かに言えるものだけを選ぶ。
+- 最大${MAX_LOOK_PICK}個。★ 無理に${MAX_LOOK_PICK}個埋めない。確かに言えるものだけを選ぶ。
 - 1個も確かに言えなければ、空の配列を返してよい。★ 迷ったら選ばない。
 - 写真から読み取れる見た目と、与えられたサイズだけを根拠にする。
 - ★ 性格・経験・人気・施術の腕は【選ばない】。写真からは分からない。

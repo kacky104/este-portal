@@ -1,16 +1,13 @@
 import type { createServiceClient } from '@/app/lib/supabase/service';
 import { fetchImageAsBase64, callClaude, type AnthropicBlock } from './therapistCopyCore';
-import { sanitizeBadges } from '@/lib/therapistBadges';
 import {
   SYSTEM_PROMPT_BADGE,
   buildBadgeUserPrompt,
   parseBadgeResponse,
   badgesFromNumbers,
   parseBadgeHair,
-  filterAIBadges,
-  pickRankBadge,
+  composeAutoBadges,
   parseBadgeNext,
-  pickTopUpBadges,
   HAIR_REQUIRED,
   type HairColor,
   MAX_RETRY_BADGE,
@@ -39,7 +36,7 @@ const MAX_TOKENS_BADGE = 300;
 type Svc = ReturnType<typeof createServiceClient>;
 
 export type BadgeResult =
-  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; fromRank: string[]; fromNext: string[]; hair: HairColor; droppedByHair: string[]; tries: number; usedImage: boolean }
+  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; fromRank: string[]; fromMood: string[]; fromSkill: string[]; fromNext: string[]; hair: HairColor; droppedByHair: string[]; tries: number; usedImage: boolean }
   | { ok: false; error: string };
 
 /**
@@ -127,21 +124,23 @@ export async function generateBadgesForTherapist(
 
   // ★★★ 数値ぶんを先に置く。★ sanitizeBadges が並べ替えと上限6の切り詰めをする。
   //   ★ 知らない語（AIが作った語）はここで落ちる。★ 語彙を持つ場所を増やさない。
-  // ★★★ 第1096便〜第1098便: 決まりに照らして絞る（選んでよい語だけ／髪の色／写真が無いときに選ばせない語）
-  const allowedAI = filterAIBadges(fromAI, hair, hasImage);
-  const droppedByHair = fromAI.filter((b) => HAIR_REQUIRED[b] !== undefined && !allowedAI.includes(b));
-  // ★★★ 第1098便: ランク・人気は AI に選ばせず、くじ（30%・5語のどれか1つ・id で決まる＝何度引いても同じ）
-  const rank = pickRankBadge(Number(t.id));
-  const fromRank = rank ? [rank] : [];
-  // ★★★ 第1099便: 写真がある方は最低3個（紹介文の条件と同じ数）。★ 足りないぶんだけ、AI の次点から足す
-  const fromNext = pickTopUpBadges(sanitizeBadges([...fromRank, ...fromNumbers, ...allowedAI]), next, hair, hasImage);
-  const badges = sanitizeBadges([...fromRank, ...fromNumbers, ...allowedAI, ...fromNext]);
+  // ★★★ 第1096便〜第1100便: 決まりに照らして組み立てる（決めごとは therapistBadgePrompt.composeAutoBadges の1か所）
+  //   くじ（ランク・人気30%／雰囲気・性格を必ず1つ／スキルを必ず1つ）＋ 外見・タイプ（数値＋AI・残りの枠まで）＋ 次点（3個に届かないとき）
+  const parts = composeAutoBadges({
+    therapistId: Number(t.id), fromNumbers, aiBadges: fromAI, aiNext: next, hair, hasImage,
+  });
+  const badges = parts.badges;
+  const { fromRank, fromMood, fromSkill, fromNext } = parts;
+  const droppedByHair = fromAI.filter((b) => HAIR_REQUIRED[b] !== undefined && !badges.includes(b));
 
   return {
     ok: true,
     badges,
     fromNumbers,
     fromRank,
+    // ★ 第1100便: 雰囲気・性格とスキルのくじ（必ず1つずつ）
+    fromMood,
+    fromSkill,
     // ★ 第1099便: 3個に届かなかったので次点から足した語（足していなければ空）
     fromNext,
     // ★ AIが返した生の語も返す。★ 落ちた語を運営が目で見られるようにする
