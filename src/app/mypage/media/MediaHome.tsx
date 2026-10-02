@@ -451,6 +451,10 @@ export function MediaHome({ salonId, onToast }: {
       {!loading && !error && reading && (
         <p className="px-1 text-[12px] leading-relaxed text-slate-400">
           ※セラピストの特徴や紹介文は、写真とスリーサイズを元に作成しています。セラピストイメージと違う場合は修正をお願いします。
+          {/* ★ 第1103便: 外した枠にあった入口（第848便の「セラピストを入力する →」）を、文言を変えて残す */}
+          <Link href="/mypage?tab=profile" className="ml-1.5 whitespace-nowrap font-bold text-slate-500 underline hover:text-indigo-600">
+            セラピストを修正する →
+          </Link>
         </p>
       )}
 
