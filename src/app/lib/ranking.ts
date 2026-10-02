@@ -7,6 +7,7 @@ import { sanitizeBadges } from '@/lib/therapistBadges';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
+import { CAST_LINK_BONUS } from '@/lib/rankingPoints';
 
 export type SalonRankItem = {
   rank: number;
@@ -45,6 +46,9 @@ export const FUKUX_ACCOUNT_BONUS = 10;
 // ★ 第1058便（2026-10-01・カッキーさん）：fukuX の赤い認証バッジ（x_profiles.is_verified・セラピストは所属＋画像付き投稿10件で自動付与）
 //   が付いていると、さらに毎週この点数を上乗せ（開設10＋赤バッジ5＝最大15）。
 export const FUKUX_VERIFIED_BONUS = 5;
+// ★ 第1093便（2026-10-02・カッキーさん）：お店と連携してセラピストページを開設している（therapists.user_id あり）と、
+//   毎週 CAST_LINK_BONUS（5点）を上乗せ（連携5＋fukuX開設10＋赤バッジ5＝最大20）。数字は src/lib/rankingPoints.ts。
+export { CAST_LINK_BONUS };
 
 // 現在時刻(JST)が属する週の「月曜」の 'YYYY-MM-DD'。
 // Postgres の date_trunc('week') は月曜起点なので RPC 側と一致する。
@@ -214,8 +218,11 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
   const fukuxVerifiedIds = new Set<number>(
     links.filter((r) => r.user_id && xVerifiedUserIds.has(String(r.user_id))).map((r) => Number(r.id)),
   );
+  // ★ 第1093便：セラピストページ連携済み（user_id あり・公開中）の id。上の links と同じ行を使う（読み取りは増やさない）。
+  //   アクセス0でも連携していれば母集団に入る（＝毎週5点からスタート）。
+  const castLinkedIds = new Set<number>(links.filter((r) => r.user_id).map((r) => Number(r.id)));
 
-  const candidateIds = [...new Set<number>([...viewMap.keys(), ...bonusIds, ...fukuxIds])];
+  const candidateIds = [...new Set<number>([...viewMap.keys(), ...bonusIds, ...fukuxIds, ...castLinkedIds])];
   if (candidateIds.length === 0) return [];
 
   const { data: tRows } = await supabase
@@ -251,6 +258,7 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
       const effective =
         (viewMap.get(Number(t.id)) ?? 0) +
         Number(t.ranking_bonus ?? 0) +
+        (castLinkedIds.has(Number(t.id)) ? CAST_LINK_BONUS : 0) +
         (hasFukuX ? FUKUX_ACCOUNT_BONUS : 0) +
         (hasFukuXVerified ? FUKUX_VERIFIED_BONUS : 0);
       return {

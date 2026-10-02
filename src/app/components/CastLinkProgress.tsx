@@ -5,11 +5,13 @@ import { useEffect, useState } from 'react';
 import { getSalonCastLinkRoster } from '@/app/actions/castInvite';
 // ★ 第893便: 「招待する」の左横に「QR」（リンク・QRで招待の小窓）
 import { CastInviteLinkButton } from './CastInviteLinkButton';
+import { CAST_LINK_BONUS } from '@/lib/rankingPoints';
 
 // ★ 第884便（カッキーさん）: 「セラピストページ連携」の連携率と、まだ連携していない方の一覧。
 // ★ 第885便: コネックエフのホームとフクエスのマイページ（今すぐの画面）で同じ部品を使う（tone で色だけ変える）。
 // ★ ねらい: オーナー様が数字を見て、未連携の方を招待したくなるように。
 // ★ 数えるのは【公開中】のセラピストだけ（★ 非公開＝お休み・退店予定の方で率を下げない）。
+// ★ 第1093便（カッキーさん）: 連携したセラピストは、セラピストランキングに毎週 +5 ポイント（説明の上に目立つ1行で出す）。
 // ★ 招待そのものは各セラピストの編集ページで行う（★ ここは入口だけ。招待の処理を2つ持たない）。
 
 const SHOW = 8;
@@ -22,12 +24,16 @@ const TONES = {
     num: 'text-indigo-700',
     bar: 'bg-gradient-to-r from-indigo-500 to-indigo-700',
     btn: 'border-indigo-300 text-indigo-700 hover:bg-indigo-50',
+    note: 'border-indigo-200 bg-indigo-50 text-indigo-800',
+    point: 'text-indigo-700',
   },
   pink: {
     card: 'bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3',
     num: 'text-pink-600',
     bar: 'bg-gradient-to-r from-pink-500 to-orange-400',
     btn: 'border-pink-300 text-pink-600 hover:bg-pink-50',
+    note: 'border-pink-200 bg-pink-50 text-pink-700',
+    point: 'text-pink-600',
   },
 } as const;
 
@@ -80,6 +86,12 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast }
       <div className="h-2.5 bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className={`h-full ${T.bar} transition-all`} style={{ width: `${pct}%` }} />
       </div>
+      {/* ★ 第1093便: ランキングの加点（数字は src/lib/rankingPoints.ts＝計算と同じ） */}
+      <p className={`border px-3 py-2 text-[13.5px] font-bold leading-relaxed ${T.note}`}>
+        連携したセラピストは、セラピストランキングのポイントが
+        <span className="whitespace-nowrap">毎週<b className={`mx-0.5 text-[17px] font-black tabular-nums ${T.point}`}>+{CAST_LINK_BONUS}</b>ポイント</span>
+        加点されます。
+      </p>
       <p className="text-[13px] text-slate-500 leading-relaxed">
         連携したセラピストは、写メ日記と今すぐを自分のスマホから更新できます。お店の入力が減り、写メ日記の転送にも連携が必要です。
         <span className="text-slate-400">（公開中の方だけ数えています）</span>
