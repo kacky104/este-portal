@@ -29,6 +29,12 @@ const forbidden = [
 ];
 eq('★★★ ランク・経験・スキルは1語も入らない',
    forbidden.filter((b) => v.PHOTO_BADGES.includes(b)), []);
+// ★★★ 第1097便（カッキーさん）: ランク・人気は【この5つだけ】AI が選んでよい。★ NO.1・殿堂入り・指名多数は選ばせない
+eq('★★★ 選んでよいランク・人気はこの5つ', v.RANK_PICKABLE, ['プレミア', '人気急上昇', '店長おすすめ', 'リピーター多数', '要予約']);
+eq('★★★ NO.1・殿堂入り・指名多数は入らない', ['NO.1', '殿堂入り', '指名多数'].filter((b) => v.RANK_PICKABLE.includes(b)), []);
+eq('★ 5つともフクエスのランク・人気の語', v.RANK_PICKABLE.filter((b) => !B.BADGES_BY_CATEGORY.rank.includes(b)), []);
+eq('★★★ 経験・キャリアとスキルは今までどおり1語も選ばせない',
+   [...B.BADGES_BY_CATEGORY.career, ...B.BADGES_BY_CATEGORY.skill].filter((b) => v.PHOTO_BADGES.includes(b) || v.RANK_PICKABLE.includes(b)), []);
 // ★★ 会話を見ていないので性格の断定はしない
 eq('★★ トーク上手・天然・ツンデレは入らない',
    ['トーク上手', '天然', 'ツンデレ'].filter((b) => v.PHOTO_BADGES.includes(b)), []);
@@ -95,6 +101,10 @@ eq('★ 選べる語が全部書いてある',
 // ★★★ 選ばせない語を、うっかり一覧に混ぜていないこと
 eq('★★★ ランクの語が一覧に出ていない',
    B.BADGES_BY_CATEGORY.rank.filter((b) => v.SYSTEM_PROMPT_BADGE.split('## 守ること')[0].includes(b)), []);
+// ★ 第1097便: 選んでよい5つは別の節に書いてある。★ 選ばせない3つ・経験・スキルはプロンプトのどこにも出さない
+eq('★ 選んでよいランク・人気の5つが書いてある', v.RANK_PICKABLE.filter((b) => !v.SYSTEM_PROMPT_BADGE.includes(b)), []);
+eq('★★★ NO.1・殿堂入り・指名多数・経験・スキルはプロンプトに出てこない',
+   ['NO.1', '殿堂入り', '指名多数', ...B.BADGES_BY_CATEGORY.career, ...B.BADGES_BY_CATEGORY.skill].filter((b) => v.SYSTEM_PROMPT_BADGE.includes(b)), []);
 eq('★★ 上限の数が書いてある', v.SYSTEM_PROMPT_BADGE.includes(String(v.MAX_PICK)), true);
 // ★★ 「無理に埋めない」と「空でよい」の両方を書く。★ 片方だけだと6個埋めにくる
 eq('★★ 無理に埋めないと書いてある', v.SYSTEM_PROMPT_BADGE.includes('無理に'), true);
@@ -257,6 +267,15 @@ eq('★★ 読めない返答は 不明', v.parseBadgeHair('わかりません')
 eq('★ hair が付いても badges は今までどおり読める', v.parseBadgeResponse('{"hair":"金髪","badges":["ギャル"]}'), ['ギャル']);
 eq('★ プロンプトに髪の色の決まりと出力が書いてある',
    ['金髪', '黒髪', '"hair"'].every((w) => v.SYSTEM_PROMPT_BADGE.includes(w)), true);
+
+console.log('\n── AI の返事を決まりで絞る（第1097便・カッキーさん）──');
+eq('★★★ 選んでよい5つは通る（1個まで）', v.filterAIBadges(['プレミア', 'キレイ'], '黒髪'), ['プレミア', 'キレイ']);
+eq('★★★ ランク・人気は1個まで（先に挙げた語が残る）', [v.MAX_RANK_PICK, v.filterAIBadges(['人気急上昇', '要予約', '店長おすすめ', '美脚'], 'その他')], [1, ['人気急上昇', '美脚']]);
+eq('★★★ NO.1・殿堂入り・指名多数は返ってきても落とす', v.filterAIBadges(['NO.1', '殿堂入り', '指名多数', 'モデル系'], 'その他'), ['モデル系']);
+eq('★★★ 経験・キャリアは返ってきても落とす', v.filterAIBadges([...B.BADGES_BY_CATEGORY.career, '美脚'], 'その他'), ['美脚']);
+eq('★★ スキル・数値の語・AIが作った語も落とす', v.filterAIBadges(['施術上手', '巨乳', '高身長', '美少女系', '童顔'], 'その他'), ['童顔']);
+eq('★★ 髪の色の決まりも一緒にかかる', v.filterAIBadges(['ギャル', '清楚', 'リピーター多数'], '金髪'), ['ギャル', 'リピーター多数']);
+eq('★ 絞ったあとも全部 sanitizeBadges を通る', B.sanitizeBadges(v.filterAIBadges(['要予約', 'キレイ', '清楚'], '黒髪')), ['要予約', '清楚', 'キレイ']);
 
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

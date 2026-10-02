@@ -7,7 +7,8 @@ import {
   parseBadgeResponse,
   badgesFromNumbers,
   parseBadgeHair,
-  applyHairRules,
+  filterAIBadges,
+  HAIR_REQUIRED,
   type HairColor,
   MAX_RETRY_BADGE,
   MAX_PICK,
@@ -122,9 +123,9 @@ export async function generateBadgesForTherapist(
 
   // ★★★ 数値ぶんを先に置く。★ sanitizeBadges が並べ替えと上限6の切り詰めをする。
   //   ★ 知らない語（AIが作った語）はここで落ちる。★ 語彙を持つ場所を増やさない。
-  // ★★★ 第1096便: 髪の色の決まり（ギャル・キャバ嬢＝金髪だけ／清楚＝黒髪だけ）に合わない語を先に落とす
-  const allowedAI = applyHairRules(fromAI, hair);
-  const droppedByHair = fromAI.filter((b) => !allowedAI.includes(b));
+  // ★★★ 第1096便・第1097便: 決まりに照らして絞る（選んでよい語だけ／髪の色／ランク・人気は5語から1個まで）
+  const allowedAI = filterAIBadges(fromAI, hair);
+  const droppedByHair = fromAI.filter((b) => HAIR_REQUIRED[b] !== undefined && !allowedAI.includes(b));
   const badges = sanitizeBadges([...fromNumbers, ...allowedAI]);
 
   return {
