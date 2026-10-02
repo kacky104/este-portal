@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { ExpandableText } from './ExpandableText';
 import { fetchDiaryFeed, type DiaryEntry } from './feedShared';
-import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryDate } from '@/components/DiaryDate';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 
 // 写メ日記フィード（縦に連続表示）。
@@ -70,7 +70,7 @@ export function DiaryFeed({
                 <Link href={`/therapist/${d.therapistId}`} className="text-sm font-bold text-pink-600 hover:underline truncate min-w-0">
                   {d.therapistName || 'セラピスト'}
                 </Link>
-                <p className="flex-shrink-0" style={{ fontSize: '13px', color: '#999' }}>📅 {formatDiaryDate(d.createdAt)}<DiaryNewBadge iso={d.createdAt} /></p>
+                <p className="flex-shrink-0" style={{ fontSize: '13px', color: '#999' }}>📅 <DiaryDate iso={d.createdAt} /><DiaryNewBadge iso={d.createdAt} /></p>
               </div>
             </div>
 

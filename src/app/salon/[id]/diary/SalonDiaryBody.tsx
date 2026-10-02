@@ -11,7 +11,7 @@ import { notFoundIfFreeListing } from "../freeListingGuard";
 import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
 import { pickWithTable } from '@/lib/therapistPlaceholder';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
-import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryDate } from '@/components/DiaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
@@ -166,7 +166,7 @@ export async function SalonDiaryBody({ id, page }: { id: string; page: number })
                       <div className="min-w-0 flex-1">
                         <p className="flex items-baseline gap-1 min-w-0" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
                           <span className="text-[10px] font-bold text-white truncate">{d.therapistName}</span>
-                          <span className="flex-shrink-0 text-[10px] text-white/85">{formatDiaryDate(d.createdAt)}</span>
+                          <DiaryDate iso={d.createdAt} className="flex-shrink-0 text-[10px] text-white/85" />
                           <DiaryNewBadge iso={d.createdAt} />
                         </p>
                         {d.title && (
@@ -185,7 +185,7 @@ export async function SalonDiaryBody({ id, page }: { id: string; page: number })
                     <div className="min-w-0 flex-1">
                       <p className="flex items-baseline gap-1.5 min-w-0">
                         <span className="text-[11px] text-pink-600 font-bold truncate">{d.therapistName}</span>
-                        <span className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}</span>
+                        <DiaryDate iso={d.createdAt} className="flex-shrink-0" style={{ fontSize: '11px', color: '#999' }} />
                         <DiaryNewBadge iso={d.createdAt} />
                       </p>
                       {d.title && (

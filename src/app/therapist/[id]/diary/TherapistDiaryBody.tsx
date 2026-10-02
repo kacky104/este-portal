@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { resolveTherapistImage } from '@/app/lib/therapistPlaceholder';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
-import { formatDiaryDate } from '@/lib/diaryDate';
+import { DiaryDate } from '@/components/DiaryDate';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
@@ -153,7 +153,7 @@ export async function TherapistDiaryBody({ id, page }: { id: string; page: numbe
                     <div className="flex items-start gap-1.5">
                       <DiaryTherapistAvatar src={therapistImage} name={therapistName} size={28} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[10px] text-white/85" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>{formatDiaryDate(d.createdAt)}<DiaryNewBadge iso={d.createdAt} /></p>
+                        <p className="text-[10px] text-white/85" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}><DiaryDate iso={d.createdAt} /><DiaryNewBadge iso={d.createdAt} /></p>
                         {d.title && (
                           <h2 className="text-[11px] font-bold text-white line-clamp-2 mt-0.5 break-all" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
                             {d.title}
@@ -168,7 +168,7 @@ export async function TherapistDiaryBody({ id, page }: { id: string; page: numbe
                   <div className="flex items-start gap-2">
                     <DiaryTherapistAvatar src={therapistImage} name={therapistName} size={32} />
                     <div className="min-w-0 flex-1">
-                      <p style={{ fontSize: '11px', color: '#999' }}>{formatDiaryDate(d.createdAt)}<DiaryNewBadge iso={d.createdAt} /></p>
+                      <p style={{ fontSize: '11px', color: '#999' }}><DiaryDate iso={d.createdAt} /><DiaryNewBadge iso={d.createdAt} /></p>
                       {d.title && (
                         <h2
                           className="text-sm font-bold line-clamp-2 mt-0.5 break-all"
