@@ -367,5 +367,9 @@ eq('★★★ 材料にするのは外見・タイプだけ（くじで付けた
    ['要予約', 'キレイ', 'お姉さん系', '高身長', '天然', '丁寧な施術', '未経験'].filter(Tg.copyMaterialBadge), ['キレイ', 'お姉さん系', '高身長']);
 eq('★★ くじの語は、どれも材料にならない', [...v.RANK_PICKABLE, ...v.MOOD_PICKABLE, ...v.SKILL_PICKABLE].filter(Tg.copyMaterialBadge), []);
 
+eq('★★★ 写真から選ばれた外見の語があるときだけ、紹介文で写真を見せる（第1105便）',
+   [Tg.hasPhotoLookBadge(['店長おすすめ', 'キレイ', '明るい', '施術上手'], v.NUMERIC_BADGES), Tg.hasPhotoLookBadge(['リピーター多数', '癒し系', 'アロマ得意'], v.NUMERIC_BADGES)], [true, false]);
+eq('★★ 数値の語（低身長・高身長・巨乳）だけでは「写真から選ばれた」とみなさない', [Tg.hasPhotoLookBadge(['高身長', 'トーク上手', '密着施術'], v.NUMERIC_BADGES), Tg.hasPhotoLookBadge(null, v.NUMERIC_BADGES)], [false, false]);
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

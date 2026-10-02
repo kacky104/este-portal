@@ -67,3 +67,17 @@ export function isAutoCopyTarget(
 export function copyMaterialBadge(badge: string): boolean {
   return getBadgeCategory(badge) === 'look';
 }
+
+/**
+ * ★★ 写真から選ばれた外見のバッジが1つでもあるか（第1105便）。
+ *   ★ 自動の口で、紹介文を書くときに【写真を AI に見せるか】を決める。
+ *   ★ きっかけ: お店が「No photo」の画像を写真として登録していた方（Amateras ゆゆさん）の試し打ちで、
+ *     AI が「柔らかな笑みを浮かべた写真が印象的」と、写っていない写真の描写を書いた。
+ *   → 自動バッジのときに AI が写真から外見の語を1つも選べなかった方（＝人物が写っていない画像）は、
+ *     写真を見せずに書かせる（「写真が印象的」のように、無い写真のことを書かせない）。
+ * @param numeric 数値で決まる語（低身長・高身長・巨乳）。★ これは写真から選んだ語ではないので数えない
+ */
+export function hasPhotoLookBadge(badges: unknown, numeric: readonly string[]): boolean {
+  if (!Array.isArray(badges)) return false;
+  return badges.some((b) => typeof b === 'string' && copyMaterialBadge(b) && !numeric.includes(b));
+}

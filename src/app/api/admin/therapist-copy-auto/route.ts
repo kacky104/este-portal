@@ -4,7 +4,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateCopyForTherapist } from '@/app/lib/therapistCopyCore';
 import { MIN_PROFILE_LEN } from '@/lib/therapistCopyPrompt';
 import { parseAdminBody, truthy, num } from '@/lib/adminBody';
-import { isAutoCopyTarget, copyMaterialBadge, profileTextLen } from '@/lib/badgeTargets';
+import { isAutoCopyTarget, copyMaterialBadge, profileTextLen, hasPhotoLookBadge } from '@/lib/badgeTargets';
+import { NUMERIC_BADGES } from '@/lib/therapistBadgePrompt';
 
 // ── キャッチフレーズ・紹介文の自動作成（第1104便・2026-10-02・カッキーさん）────────────────
 //
@@ -27,6 +28,8 @@ import { isAutoCopyTarget, copyMaterialBadge, profileTextLen } from '@/lib/badge
 //   ・バッジが3つ未満（写真が無くて2個の方）でも作る（★ 画面の「3つ以上」の条件は、自動の口では外す）。
 //   ・くじで付けた語（ランク・人気／雰囲気・性格／スキル）は文章の材料にしない。★ 材料は外見・タイプのバッジ＋写真＋年齢・サイズ。
 //     ★ 写真も外見のバッジも無い方は、年齢とサイズだけから書くことになる（allowNoMaterial）。
+//     ★ 試し打ちで「想像で書いた文になる」ことを見たうえでの決め（業界では許容範囲・違うときは店舗様が直す・フクエスリンクに案内あり）。
+//   ・★ 第1105便: 写真から外見の語が選ばれなかった方（No photo の画像など）には、写真を見せずに書かせる（無い写真の描写を書かせない）。
 //
 // ★★★ 保存するもの
 //   ・紹介文（profile_text）。★ 保存の直前に見直して、店舗様が書き足していたら触らない。
@@ -52,6 +55,7 @@ type Row = {
   name: string | null;
   catchphrase: string | null;
   profile_text: string | null;
+  feature_badges: unknown;
   feature_badges_auto_at: string | null;
   profile_copy_auto_at: string | null;
   salons: { name: string | null; is_hidden: boolean | null } | Array<{ name: string | null; is_hidden: boolean | null }> | null;
@@ -77,7 +81,7 @@ export async function POST(req: Request) {
   // 1. 自動でバッジを付けた・まだ紹介文を自動で作っていない・公開中の方を、新しい順に読む
   const { data, error } = await svc
     .from('therapists')
-    .select('id, salon_id, name, catchphrase, profile_text, feature_badges_auto_at, profile_copy_auto_at, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
+    .select('id, salon_id, name, catchphrase, profile_text, feature_badges, feature_badges_auto_at, profile_copy_auto_at, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
     .eq('is_active', true)
     .not('feature_badges_auto_at', 'is', null)
     .is('profile_copy_auto_at', null)
@@ -110,7 +114,10 @@ export async function POST(req: Request) {
     const rel = Array.isArray(t.salons) ? t.salons[0] : t.salons;
     const base = { id: t.id, name: t.name, 店舗: rel?.name ?? null };
 
-    const gen = await generateCopyForTherapist(svc, salonId, Number(t.id), true, {
+    // ★★ 第1105便: 写真から外見の語が1つも選ばれなかった方（＝人物が写っていない画像・No photo など）には、写真を見せない。
+    //   ★ 見せると「柔らかな笑みを浮かべた写真が印象的」のように、写っていない写真の描写を書く（試し打ちで実測）。
+    const showPhoto = hasPhotoLookBadge(t.feature_badges, NUMERIC_BADGES);
+    const gen = await generateCopyForTherapist(svc, salonId, Number(t.id), showPhoto, {
       badgeFilter: copyMaterialBadge,   // ★ くじで付けた語は材料にしない（外見・タイプだけ）
       minBadges: 0,                     // ★ 3つ未満でも作る
       allowNoMaterial: true,            // ★ 写真も外見のバッジも無い方も作る（年齢・サイズだけ）
