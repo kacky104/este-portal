@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { acceptCastInviteLink, getCastInviteLinkInfo } from '@/app/actions/castInvite';
+import { CAST_LINK_BONUS } from '@/lib/rankingPoints';
 
 // ★ 第887便（カッキーさん）: 「リンク・QRで招待」の着地ページ。
 // ★ セラピスト本人が自分のメールを入れる → 今までと同じ招待メールが届く → メールのリンクからパスワードを決めて連携。
@@ -103,7 +104,8 @@ export default function CastJoinPage() {
                 placeholder="example@mail.com"
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition"
               />
-              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">ご自分で確認できるメールアドレスを入れてください。招待メールが届きます。</p>
+              {/* ★ 第1094便（カッキーさん）: ランキングの加点は、目立たせずにこの注意書きの続きに書く（数字は src/lib/rankingPoints.ts＝計算と同じ） */}
+              <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">ご自分で確認できるメールアドレスを入れてください。招待メールが届きます。連携すると、セラピストランキングに毎週+{CAST_LINK_BONUS}ポイント加点されます。</p>
             </div>
             {formError && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{formError}</p>}
             <button
