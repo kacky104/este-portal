@@ -444,27 +444,14 @@ export function MediaHome({ salonId, onToast }: {
       {/* ── ★ 第895便（カッキーさん）: 写メ日記の書き方。★ 駅ちかから反映中のときだけ ── */}
       {!loading && !error && reading && salonId != null && <DiaryWriteChoice salonId={salonId} onToast={onToast} />}
 
-      {/* ── セラピストで反映されないもの（第848便・2026-09-25）──────────
-          ★ キャッチ・紹介文・特徴バッジは駅ちかから来ない＝フクエスで直接入力。★ AIの下書きは特徴バッジを選んでからが良い。 */}
-      {/* ★ 第852便: 駅ちかから反映中のときだけ */}
+      {/* ── ★ 第1102便（2026-10-02・カッキーさん）: 特徴バッジ・紹介文を自動で作っていることの案内 ──────────
+          ★ ここには「以下のセラピスト情報は、入力が必要です」の枠（第848便・第894便）があったが、
+            特徴バッジを自動で付けるようにした（第1098便〜）ので外した。★ 目立たない注意書き1行だけにする。
+          ★ 駅ちかから反映中のときだけ（第852便と同じ条件）。 */}
       {!loading && !error && reading && (
-      <div className="bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)] p-5">
-        {/* ★ 第894便（カッキーさん）: 見出しを「入力が必要」と言い切る形に・本文は2行（案A）。★ AIはバッジ3つ以上が条件（第880便） */}
-        <p className="text-[14px] font-bold text-slate-800 text-center">以下のセラピスト情報は、入力が必要です</p>
-        <div className="mt-3 border border-amber-200 bg-amber-50 px-4 py-3 text-[14px] leading-relaxed text-slate-700 space-y-1.5">
-          <p>
-            <b>キャッチ・紹介文・特徴バッジ</b>は駅ちかから反映されません。マイページの「セラピスト」で入力してください。
-          </p>
-          <p>
-            特徴バッジを3つ以上選ぶと、キャッチと紹介文は<b>「AIで下書きを作る」</b>で作れます。
-          </p>
-        </div>
-        <div className="mt-3 text-center">
-          <Link href="/mypage?tab=profile" className="text-[14px] font-bold text-indigo-600 underline">
-            セラピストを入力する →
-          </Link>
-        </div>
-      </div>
+        <p className="px-1 text-[12px] leading-relaxed text-slate-400">
+          ※セラピストの特徴や紹介文は、写真とスリーサイズを元に作成しています。セラピストイメージと違う場合は修正をお願いします。
+        </p>
       )}
 
       {/* ★ 反映の早見表（折りたたみ）はここにあったが、第299便で /mypage/media/matrix へ移した。 */}
