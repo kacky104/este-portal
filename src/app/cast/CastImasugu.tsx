@@ -61,8 +61,10 @@ export function CastImasugu({
   }, []);
 
   const live = until != null && new Date(until).getTime() > now;
+  // ★ 第1110便（カッキーさん）: 上限を 30 → IMASUGU_WINDOW_MIN に。★ 第326便で有効時間を45分にしたのに、ここの上限だけ 30 のまま残っていた
+  //   （★ 設定した直後から15分間「あと 30 分」と出て、そのあと減り始めていた。「◯時◯分 まで有効」の時刻は正しかった）。
   const remainingMin = live
-    ? Math.min(30, Math.max(0, Math.ceil((new Date(until!).getTime() - now) / 60000)))
+    ? Math.min(IMASUGU_WINDOW_MIN, Math.max(0, Math.ceil((new Date(until!).getTime() - now) / 60000)))
     : 0;
   // 排他制御：オーナー枠がライブなら本人は設定できない（お店が設定中）。
   const ownerLive = isFrameLive(ownerOn, ownerUntil, new Date(now));
