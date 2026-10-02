@@ -6,6 +6,9 @@ import {
   buildBadgeUserPrompt,
   parseBadgeResponse,
   badgesFromNumbers,
+  parseBadgeHair,
+  applyHairRules,
+  type HairColor,
   MAX_RETRY_BADGE,
   MAX_PICK,
   type BadgeInput,
@@ -32,7 +35,7 @@ const MAX_TOKENS_BADGE = 300;
 type Svc = ReturnType<typeof createServiceClient>;
 
 export type BadgeResult =
-  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; tries: number; usedImage: boolean }
+  | { ok: true; badges: string[]; fromNumbers: string[]; fromAI: string[]; hair: HairColor; droppedByHair: string[]; tries: number; usedImage: boolean }
   | { ok: false; error: string };
 
 /**
@@ -87,6 +90,7 @@ export async function generateBadgesForTherapist(
   }
 
   let fromAI: string[] | null = null;
+  let hair: HairColor = '不明';
   let tries = 0;
   let retryReason: string | undefined;
 
@@ -109,7 +113,8 @@ export async function generateBadgesForTherapist(
     }
 
     const parsed = parseBadgeResponse(r.text);
-    if (parsed) { fromAI = parsed; break; }
+    // ★ 第1096便: 髪の色も読む。★ 写真を渡していないときは、AIが何と答えても「不明」
+    if (parsed) { fromAI = parsed; hair = hasImage ? parseBadgeHair(r.text) : '不明'; break; }
     retryReason = '前回の出力がJSON形式ではありませんでした。指定のJSONだけを返してください。';
   }
 
@@ -117,7 +122,10 @@ export async function generateBadgesForTherapist(
 
   // ★★★ 数値ぶんを先に置く。★ sanitizeBadges が並べ替えと上限6の切り詰めをする。
   //   ★ 知らない語（AIが作った語）はここで落ちる。★ 語彙を持つ場所を増やさない。
-  const badges = sanitizeBadges([...fromNumbers, ...fromAI]);
+  // ★★★ 第1096便: 髪の色の決まり（ギャル・キャバ嬢＝金髪だけ／清楚＝黒髪だけ）に合わない語を先に落とす
+  const allowedAI = applyHairRules(fromAI, hair);
+  const droppedByHair = fromAI.filter((b) => !allowedAI.includes(b));
+  const badges = sanitizeBadges([...fromNumbers, ...allowedAI]);
 
   return {
     ok: true,
@@ -125,6 +133,9 @@ export async function generateBadgesForTherapist(
     fromNumbers,
     // ★ AIが返した生の語も返す。★ 落ちた語を運営が目で見られるようにする
     fromAI,
+    // ★ 第1096便: 読んだ髪の色と、その決まりで落とした語（運営が試し打ちで目で見られるように）
+    hair,
+    droppedByHair,
     tries,
     usedImage: hasImage,
   };

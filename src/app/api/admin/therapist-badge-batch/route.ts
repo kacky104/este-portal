@@ -202,6 +202,9 @@ export async function POST(req: Request) {
       サイズ: t.body_type,
       数値から: gen.fromNumbers,
       AIが選んだ: gen.fromAI,
+      // ★ 第1096便: 写真から読んだ髪の色と、髪の色の決まり（ギャル・キャバ嬢＝金髪／清楚＝黒髪）で外した語
+      髪の色: gen.hair,
+      髪の色で外した語: gen.droppedByHair,
       // ★ 落ちた語（フクエスの語彙に無い＝AIが作った語）。★ 黙って消さずに見せる
       落ちた語: gen.fromAI.filter((b) => !gen.badges.includes(b)),
       保存する内容: gen.badges,

@@ -49,8 +49,12 @@ export const NUMERIC_BADGES: readonly string[] = ['低身長', '高身長', '巨
  *   ★★ **試し打ちを見ずに101人へ流していたら、6割に同じバッジが並んでいた。**
  *
  * ★ 変えるときはここ3行。★ 画面にも文言にも焼き付けない。★ 点検が境目を固定している。
+ *
+ * ★★ 第1096便（2026-10-02・カッキーさんの決定）: 低身長を 150 → **153cm 未満** に。
+ *   ★ 高身長 165 以上・巨乳 G 以上は変えない（カッキーさんが数字を見たうえで据え置き）。
+ *   ★ 153 にしたあとの人数は数え直していない（上の 6人 は 150 のときの数）。
  */
-export const SHORT_CM = 150;   // これ未満なら 低身長   … 6人（5.9%）
+export const SHORT_CM = 153;   // これ未満なら 低身長   … 150 のとき 6人（5.9%）。153 では未計測
 export const TALL_CM = 165;    // これ以上なら 高身長   … 6人（5.9%）
 /** ★ このカップ以上なら 巨乳。★ 'G' なら G・H… が当たる … 12人（11.9%） */
 export const BUST_CUP_FROM = 'G';
@@ -64,6 +68,37 @@ export const PHOTO_BADGES: readonly string[] = [
   // 雰囲気・性格（★ 写真の表情・雰囲気から言えるものだけ）
   '癒し系', '笑顔が素敵', '明るい', 'おしとやか',
 ];
+
+// ────────────────────────────── 髪の色で決まる語 ──────────────────────────────
+//
+// ★★★ 第1096便（2026-10-02・カッキーさんの決定）
+//   ギャル・キャバ嬢 … 写真の髪が【金髪】のときだけ付ける。
+//   清楚           … 写真の髪が【黒髪】のときだけ付ける。
+// ★★ プロンプトに書くだけにしない。★ AIには髪の色も一緒に答えさせ、こちらで照らして落とす。
+//   ★ 「書いたのに付いてきた」を防ぐ。★ 決まりはコード側に置く＝点検で固定できる。
+// ★ 写真が無い・髪が見えない＝「不明」＝この3語は付かない（分からないときは付けない側に倒す）。
+
+/** AIに答えさせる髪の色。★ 茶髪・染めた色などは全部「その他」 */
+export const HAIR_COLORS = ['金髪', '黒髪', 'その他', '不明'] as const;
+export type HairColor = (typeof HAIR_COLORS)[number];
+
+/** ★ その語を付けてよい髪の色。★ ここに無い語は髪の色を問わない */
+export const HAIR_REQUIRED: Readonly<Record<string, HairColor>> = {
+  'ギャル': '金髪',
+  'キャバ嬢': '金髪',
+  '清楚': '黒髪',
+};
+
+/**
+ * 髪の色の決まりに合わない語を落とす。★ 並びは変えない。
+ * @param hair 写真から読んだ髪の色。★ 写真が無いときは呼ぶ側が '不明' を渡す
+ */
+export function applyHairRules(badges: readonly string[], hair: HairColor): string[] {
+  return badges.filter((b) => {
+    const need = HAIR_REQUIRED[b];
+    return need === undefined || need === hair;
+  });
+}
 
 /**
  * ★★★ ありふれた語（2026-09-03・AROMAMay 様101人へ流し切ったあとの実測で確定）。
@@ -183,10 +218,23 @@ ${PHOTO_BADGES.join(' / ')}
   ★ 選べる語が1〜2個しかなくてよい。★ 数を増やすことより、見分けられることが大事。
 - ★ 写真が無いときは、サイズだけで確かに言えるものに限る。無理なら空でよい。
   ★★ 材料が無いからといって、上の【誰にでも当てはまる語】で埋めない。
+- ★★★ 髪の色で決まる語（こちらでも髪の色と照らして、合わない語は外します）
+  - 「ギャル」「キャバ嬢」は、写真の髪が【金髪】とはっきり分かるときだけ選ぶ。
+    茶髪・暗い色・判断に迷う色のときは選ばない。
+  - 「清楚」は、写真の髪が【黒髪】とはっきり分かるときだけ選ぶ。
+  - 写真が無い・髪が写っていないときは、この3語は選ばない。
+
+## 髪の色（hair）
+写真の髪の色を、次の4つから1つだけ答える。
+- 金髪 … ブリーチした金色・明るい黄色の髪
+- 黒髪 … 黒い髪
+- その他 … 茶髪・暗めの茶色・ピンクや青などの色
+- 不明 … 写真が無い・髪が写っていない・光や加工で色が分からない
+★ 迷ったら「その他」か「不明」にする。金髪・黒髪は、はっきり分かるときだけ。
 
 ## 出力形式
 必ず次のJSONだけを出力する。前後に説明文やコードフェンスを付けない。
-{"badges":["語","語"]}`;
+{"hair":"金髪・黒髪・その他・不明のどれか1つ","badges":["語","語"]}`;
 
 /** 素材から user メッセージ本文を組み立てる。写真は呼び出し側が image ブロックとして足す。 */
 export function buildBadgeUserPrompt(
@@ -219,6 +267,26 @@ export function buildBadgeUserPrompt(
  *   ★ ここでも落とすと、2か所で語彙を持つことになる。
  */
 export function parseBadgeResponse(raw: string): string[] | null {
+  const o = readBadgeJson(raw);
+  if (!o) return null;
+  return (o.badges as unknown[])
+    .filter((b): b is string => typeof b === 'string')
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0);
+}
+
+/**
+ * モデルの返答から髪の色を取り出す（第1096便）。
+ * ★★ 読めない・書いていない・4つ以外の言葉 ＝ '不明'。★ 不明なら髪の色で決まる語は付かない（付けない側に倒す）。
+ */
+export function parseBadgeHair(raw: string): HairColor {
+  const o = readBadgeJson(raw);
+  const h = o && typeof o.hair === 'string' ? o.hair.trim() : '';
+  return (HAIR_COLORS as readonly string[]).includes(h) ? (h as HairColor) : '不明';
+}
+
+/** 返答の中から、badges が配列になっている JSON を探す。★ 見つからなければ null */
+function readBadgeJson(raw: string): Record<string, unknown> | null {
   const text = String(raw ?? '').trim();
   const candidates: string[] = [text];
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -230,10 +298,7 @@ export function parseBadgeResponse(raw: string): string[] | null {
     try {
       const o = JSON.parse(c) as Record<string, unknown>;
       if (!Array.isArray(o.badges)) continue;
-      return (o.badges as unknown[])
-        .filter((b): b is string => typeof b === 'string')
-        .map((b) => b.trim())
-        .filter((b) => b.length > 0);
+      return o;
     } catch {
       // 次の候補へ
     }

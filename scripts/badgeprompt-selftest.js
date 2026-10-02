@@ -68,14 +68,17 @@ eq('★ Hカップは巨乳', v.badgesFromNumbers('T160 B98(H) W55 H84'), ['巨�
 eq('低身長＋巨乳は両方', v.badgesFromNumbers('T149 B95(G) W55 H84'), ['低身長', '巨乳']);
 // ★★★ 線引きは【ここ1か所】。★ 境目をまたいだ瞬間に変わることを固定する
 eq('★★★ 線引きの境目（低身長）', [v.SHORT_CM, v.badgesFromNumbers('T' + v.SHORT_CM + ' B80(C) W55 H84')],
-   [150, []]);
+   [153, []]);
+// ★ 第1096便（カッキーさん）: 低身長は 153cm 未満
+eq('★ 152cm は低身長（第1096便）', v.badgesFromNumbers('T152 B80(C) W55 H84'), ['低身長']);
+eq('★ 153cm は低身長にしない（第1096便）', v.badgesFromNumbers('T153 B80(C) W55 H84'), []);
 eq('★★★ 線引きの境目（高身長）', [v.TALL_CM, v.badgesFromNumbers('T' + (v.TALL_CM - 1) + ' B80(C) W55 H84')],
    [165, []]);
 eq('★ 境目ちょうどは高身長に入る', v.badgesFromNumbers('T165 B80(C) W55 H84'), ['高身長']);
 eq('★ Dカップは巨乳にしない', v.badgesFromNumbers('T160 B88(D) W55 H84'), []);
 // ★★★ 線引きは【何人に付くか】で決めた。★ 3つとも 5〜12% に収まっている（101人で6〜12人）
 eq('★★★ 巨乳の線は G', v.BUST_CUP_FROM, 'G');
-eq('★★★ 低身長 150 / 高身長 165', [v.SHORT_CM, v.TALL_CM], [150, 165]);
+eq('★★★ 低身長 153 / 高身長 165', [v.SHORT_CM, v.TALL_CM], [153, 165]);
 // ★★ 読めないときは何も出さない（分からないときは付けない側へ倒す）
 eq('★★ 読めないサイズからは何も出さない', v.badgesFromNumbers('サイズ非公開'), []);
 eq('★★ null からも何も出さない', v.badgesFromNumbers(null), []);
@@ -237,6 +240,23 @@ eq('★ 数は文字列でも数でも読む', [A.num('12'), A.num(12)], [12, 12
 eq('★★ 読めなければ null（0 にしない）', [A.num('abc'), A.num(''), A.num(null), A.num(undefined)],
    [null, null, null, null]);
 eq('★ 0 は 0（null にしない）', A.num('0'), 0);
+
+console.log('\n── 髪の色で決まる語（第1096便・カッキーさん）──');
+eq('★★★ 金髪のときだけ ギャル・キャバ嬢', v.applyHairRules(['ギャル', 'キャバ嬢', 'キレイ'], '金髪'), ['ギャル', 'キャバ嬢', 'キレイ']);
+eq('★★★ 黒髪なら ギャル・キャバ嬢は落ちる', v.applyHairRules(['ギャル', 'キャバ嬢', 'キレイ'], '黒髪'), ['キレイ']);
+eq('★★★ 茶髪（その他）でも ギャル・キャバ嬢は落ちる', v.applyHairRules(['ギャル', 'キャバ嬢'], 'その他'), []);
+eq('★★★ 黒髪のときだけ 清楚', v.applyHairRules(['清楚', 'スレンダー'], '黒髪'), ['清楚', 'スレンダー']);
+eq('★★★ 金髪・その他なら 清楚は落ちる', [v.applyHairRules(['清楚'], '金髪'), v.applyHairRules(['清楚'], 'その他')], [[], []]);
+eq('★★★ 不明（写真なし）なら3語とも落ちる。ほかの語は残る', v.applyHairRules(['ギャル', 'キャバ嬢', '清楚', '美脚'], '不明'), ['美脚']);
+eq('★ 髪の色を問うのはこの3語だけ', Object.keys(v.HAIR_REQUIRED).sort(), ['ギャル', 'キャバ嬢', '清楚'].sort());
+eq('髪の色を読む', v.parseBadgeHair('{"hair":"金髪","badges":["ギャル"]}'), '金髪');
+eq('★ コードフェンス付きでも読む', v.parseBadgeHair('```json\n{"hair":"黒髪","badges":[]}\n```'), '黒髪');
+eq('★★ hair が無ければ 不明', v.parseBadgeHair('{"badges":["清楚"]}'), '不明');
+eq('★★ 4つ以外の言葉は 不明（茶髪と書かれても通さない）', v.parseBadgeHair('{"hair":"茶髪","badges":[]}'), '不明');
+eq('★★ 読めない返答は 不明', v.parseBadgeHair('わかりません'), '不明');
+eq('★ hair が付いても badges は今までどおり読める', v.parseBadgeResponse('{"hair":"金髪","badges":["ギャル"]}'), ['ギャル']);
+eq('★ プロンプトに髪の色の決まりと出力が書いてある',
+   ['金髪', '黒髪', '"hair"'].every((w) => v.SYSTEM_PROMPT_BADGE.includes(w)), true);
 
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);
