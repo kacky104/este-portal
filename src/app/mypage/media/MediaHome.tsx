@@ -449,13 +449,17 @@ export function MediaHome({ salonId, onToast }: {
             特徴バッジを自動で付けるようにした（第1098便〜）ので外した。★ 目立たない注意書き1行だけにする。
           ★ 駅ちかから反映中のときだけ（第852便と同じ条件）。 */}
       {!loading && !error && reading && (
-        <p className="px-1 text-[12px] leading-relaxed text-slate-400">
-          ※セラピストの特徴や紹介文は、写真とスリーサイズを元に作成しています。セラピストイメージと違う場合は修正をお願いします。
-          {/* ★ 第1103便: 外した枠にあった入口（第848便の「セラピストを入力する →」）を、文言を変えて残す */}
-          <Link href="/mypage?tab=profile" className="ml-1.5 whitespace-nowrap font-bold text-slate-500 underline hover:text-indigo-600">
-            セラピストを修正する →
-          </Link>
-        </p>
+        <div className="px-1 space-y-1 text-[12px] leading-relaxed text-slate-400">
+          {/* ★ 第1106便（カッキーさん）: 写メ日記の書き方のおすすめ（上の「写メ日記の書き方」の補足）。★ 同じく目立たない1行 */}
+          <p>※フクエスのセラピストページを使う子が増えたら、写メ日記は「フクエスで書く」をおすすめします。</p>
+          <p>
+            ※セラピストの特徴や紹介文は、写真とスリーサイズを元に作成しています。セラピストイメージと違う場合は修正をお願いします。
+            {/* ★ 第1103便: 外した枠にあった入口（第848便の「セラピストを入力する →」）を、文言を変えて残す */}
+            <Link href="/mypage?tab=profile" className="ml-1.5 whitespace-nowrap font-bold text-slate-500 underline hover:text-indigo-600">
+              セラピストを修正する →
+            </Link>
+          </p>
+        </div>
       )}
 
       {/* ★ 反映の早見表（折りたたみ）はここにあったが、第299便で /mypage/media/matrix へ移した。 */}

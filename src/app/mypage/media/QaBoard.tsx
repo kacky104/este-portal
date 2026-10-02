@@ -1,11 +1,22 @@
 'use client';
 
+import Link from 'next/link';
 import { FUKUES_LINK_GUIDE, type GuideContent } from '@/lib/mediaGuide';
 import { useMediaBrand } from './mediaBrand';
 import { guideCard, SectionTitle, GoLink } from './GuideBoard';
 
 // よくあるご質問（Q&A）（第394便b・2026-09-16・カッキーさん）。★ 使い方のページから分けた。
 // ★ <details> で畳む（★ 知りたい問いだけ開ける。JS の状態を持たない）。★ 文言は lib/mediaGuide.ts。
+
+// ★ 第1106便: 答えの文の中の [[ラベル|行き先]] をリンクにする（★ 文言は lib/mediaGuide.ts のまま・ここは見た目だけ）
+function renderLine(line: string) {
+  const parts = line.split(/(\[\[[^|\]]+\|[^\]]+\]\])/);
+  return parts.map((part, i) => {
+    const m = part.match(/^\[\[([^|\]]+)\|([^\]]+)\]\]$/);
+    if (!m) return part;
+    return <Link key={i} href={m[2]} className="font-bold text-indigo-600 underline">{m[1]}</Link>;
+  });
+}
 
 export function QaBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideContent } = {}) {
   const { link } = useMediaBrand();
@@ -33,8 +44,8 @@ export function QaBoard({ content = FUKUES_LINK_GUIDE }: { content?: GuideConten
                       {/* ★ 第712便: 先頭が「!」の行は赤字（大事な注意）。★ 印は表示しない */}
                       {qa.a.map((line) => (
                         line.startsWith('!')
-                          ? <p key={line} className="text-[14px] font-bold text-rose-600 leading-relaxed">{line.slice(1)}</p>
-                          : <p key={line} className="text-[14px] text-slate-600 leading-relaxed">{line}</p>
+                          ? <p key={line} className="text-[14px] font-bold text-rose-600 leading-relaxed">{renderLine(line.slice(1))}</p>
+                          : <p key={line} className="text-[14px] text-slate-600 leading-relaxed">{renderLine(line)}</p>
                       ))}
                       {qa.link && qa.linkLabel && <GoLink href={link(qa.link)}>{qa.linkLabel}</GoLink>}
                     </div>
