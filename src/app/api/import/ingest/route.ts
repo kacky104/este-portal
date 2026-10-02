@@ -4,7 +4,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { parseEkichikaCast, normalizeName } from '@/lib/ekichikaParse';
 import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
 import { acceptsFirstImport, pickFirstImportSchedule, fillEmptyProfile } from '@/lib/conecfFirstImport';
-import { extractCastPhotos } from '@/lib/ekichikaCastPhotos';
+import { extractCastPhotos, planCastPhotoFollow, allowCastPhotoClear } from '@/lib/ekichikaCastPhotos';
 import { importEkichikaCastPhotos } from '@/app/lib/media/ekichikaCastPhotoImport';
 
 // ── 外部媒体取り込み: 個人ページHTMLを受けて解析・照合・反映（第28便）──────
@@ -218,6 +218,9 @@ export async function POST(req: Request) {
   const PHOTO_BUDGET_MS = 40_000;
   let photoPeople = 0;
   let photoSaved = 0;
+  // ★ 第1101便: 駅ちか側の写真が変わって取り込み直した人数／0枚になって消した人数
+  let photoRefreshed = 0;
+  let photoCleared = 0;
   const photoNotes: string[] = [];
   // ★★ 第777便（カッキーさん）: フクエスリンク（駅ちかから反映）の周でも、写真が0枚の子は駅ちかの写真を取り込む。
   //   ★ 新人（この周で作った子）も、すでに既定画像で出ている子も（カッキーさんの決定 B）。
@@ -225,14 +228,17 @@ export async function POST(req: Request) {
   //   ★ 1枚でもフクエスに写真がある子は触らない（importEkichikaCastPhotos が直前にもう一度確かめる）。
   //   ★ 個人ページを読むのは1日1回の周だけ（毎時の list の周は ingest-list で、ここを通らない）。
   const readPhotoQueue: Array<{ therapistId: number; html: string; castId: string | undefined; name: string }> = [];
-  const takePhotos = async (therapistId: number, html: string, castId: string | undefined, name: string) => {
+  const takePhotos = async (therapistId: number, html: string, castId: string | undefined, name: string, opt?: { follow?: boolean; allowClear?: boolean }) => {
     if (Date.now() - startedMs > PHOTO_BUDGET_MS) {
       photoNotes.push(name + (firstImport || photoOnly ? '（時間切れ・もう一度「写真を取り込む」で入ります）' : '（時間切れ・次の周で入ります）'));
       return;
     }
-    const r = await importEkichikaCastPhotos(supabase, { therapistId, provider, slot, photos: extractCastPhotos(html, castId ?? null) });
-    if (r.kind === 'saved') {
+    const r = await importEkichikaCastPhotos(supabase, { therapistId, provider, slot, photos: extractCastPhotos(html, castId ?? null), follow: opt?.follow, allowClear: opt?.allowClear });
+    if (r.kind === 'cleared') {
+      photoCleared++;
+    } else if (r.kind === 'saved') {
       photoPeople++; photoSaved += r.saved;
+      if (r.refreshed) photoRefreshed++;
       if (r.failed.length > 0) photoNotes.push(name + '（枠' + r.failed.join('・') + 'は取れませんでした）');
       if (r.recordError) photoNotes.push(name + '（送った記録を書けませんでした: ' + r.recordError.slice(0, 60) + '）');
     } else if (r.kind === 'failed') {
@@ -394,7 +400,36 @@ export async function POST(req: Request) {
   }
 
   // ★★ 第777便: フクエスリンクの周の写真（★ 写真が0枚の子だけ・時間の上限は最初の1回と同じ）
-  for (const q of readPhotoQueue) await takePhotos(q.therapistId, q.html, q.castId, q.name);
+  // ★★ 第1101便（2026-10-02・カッキーさん）: この周では、駅ちか側の写真が変わった人は取り込み直し、0枚になった人は消す。
+  //   ★ フクエスの写真が【すべて駅ちかから取り込んだもの】の人だけ（店舗様が入れた写真が1枚でもあれば触らない）。
+  //   ★ 決めごとは src/lib/ekichikaCastPhotos.ts（planCastPhotoFollow）。★ 最初の1回・写真だけ取り込む の道は今までどおり（0枚の人だけ）。
+  //   ★★ 安全弁: 「0枚になった」が多すぎる回は、誰も消さない（★ 駅ちかのページの作りが変わって写真を抜けなくなった疑い）。
+  let allowClear = true;
+  if (readPhotoQueue.length > 0) {
+    const { data: curRows } = await supabase
+      .from('therapists')
+      .select('id, profile_images, profile_image_url')
+      .in('id', readPhotoQueue.map((q) => q.therapistId));
+    const curOf = new Map<number, { profile_images: unknown; profile_image_url: unknown }>();
+    for (const r of curRows ?? []) curOf.set(Number(r.id), r);
+    let imported = 0;
+    let clears = 0;
+    for (const q of readPhotoQueue) {
+      const cur = curOf.get(q.therapistId);
+      if (!cur || !q.castId) continue;
+      const plan = planCastPhotoFollow(
+        { profileImages: cur.profile_images, profileImageUrl: cur.profile_image_url },
+        extractCastPhotos(q.html, q.castId ?? null),
+        q.therapistId,
+      );
+      if (plan.action === 'clear') { imported++; clears++; }
+      else if (plan.action === 'refresh' || (plan.action === 'none' && plan.reason === 'unchanged')) imported++;
+    }
+    allowClear = allowCastPhotoClear({ imported, clears });
+    if (!allowClear) photoNotes.push(`駅ちかの写真が0枚に見える人が多すぎる（${clears}/${imported}人）ので、この回は写真を消しませんでした`);
+  }
+  // ★ castId が分からない人は追いかけない（★ extractCastPhotos が「ページで一番多い子」を本人とみなすので、ほかの子の写真で入れ替える危険がある）
+  for (const q of readPhotoQueue) await takePhotos(q.therapistId, q.html, q.castId, q.name, { follow: !!q.castId, allowClear });
 
   // ★★★ 第153便: 日付がずれていたら、静かに済ませない。
   //   ★ 正常なら1件も出ない。★ 出たら「こちらの今日」の決め方（import.sh の TODAY）を疑う。
@@ -445,6 +480,8 @@ export async function POST(req: Request) {
     photoOnly,
     photoPeople,
     photoSaved,
+    photoRefreshed,
+    photoCleared,
     photoNotes: photoNotes.slice(0, 30),
     schedulesKept,
     created: createdNames.length,
