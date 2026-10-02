@@ -5,7 +5,7 @@
 //   ★ メモの表が正本。★ 二重管理に見えるが、決めたのは人で、ここはその写しだという順番を守る。
 //
 // ★★ 語彙の数（2026-09-09 実測）:
-//   フクエス  44種（src/lib/therapistBadges.ts・1人6つまで）★ 第1065便で 42→44（店長おすすめ・要予約）
+//   フクエス  46種（src/lib/therapistBadges.ts・1人6つまで）★ 第1065便で 42→44（店長おすすめ・要予約）・第1109便で 44→46（ほぐし上手・しっかり圧）
 //   駅ちか    61種（POST の `genre[<id>]`・1人19個まで）★ id は**添字**。value は常に 1
 //   エステ魂  27種（POST の `type[]`）★ **1人4つまで**
 //
@@ -59,7 +59,7 @@ export type MediaBadgeRow = {
 /**
  * ★★★ 正本の写し（設計メモ §6-2）。★ **並びはフクエスのバッジの並びのまま**
  *   （ランク・人気 → 経験・キャリア → 外見 → 雰囲気 → スキル）。
- *   ★ 自己点検が「44行あるか」「並びが therapistBadges.ts と同じか」を見張っている。
+ *   ★ 自己点検が「46行あるか」「並びが therapistBadges.ts と同じか」を見張っている。
  */
 export const MEDIA_BADGE_ROWS: readonly MediaBadgeRow[] = [
   // ── ランク・人気 ──
@@ -116,6 +116,9 @@ export const MEDIA_BADGE_ROWS: readonly MediaBadgeRow[] = [
   { badge: '密着施術',   ekichika: null, ekichikaLabel: null,       esutama: null, esutamaLabel: null },
   { badge: 'リンパ得意', ekichika: null, ekichikaLabel: null,       esutama: null, esutamaLabel: null },
   { badge: 'サービス抜群', ekichika: 41, ekichikaLabel: 'サービス抜群', esutama: null, esutamaLabel: null },
+  // ★ 第1109便: ほぐし上手 → 駅ちかの 79「マッサージが得意」（★ それまで「使わないタグ」だった）。しっかり圧は該当なし。
+  { badge: 'ほぐし上手',   ekichika: 79, ekichikaLabel: 'マッサージが得意', esutama: null, esutamaLabel: null },
+  { badge: 'しっかり圧',   ekichika: null, ekichikaLabel: null,       esutama: null, esutamaLabel: null },
 ];
 
 /** ラベル → 行 の逆引き。★ 未知のバッジは引けない（＝送らない） */

@@ -314,12 +314,12 @@ eq('★ プロンプトに次点の出し方が書いてある', ['"next"', '次
 eq('★★ 「確かな語だけ」の戒めは残っている（数を増やすために badges へ入れない）', v.SYSTEM_PROMPT_BADGE.includes('迷ったら選ばない'), true);
 
 console.log('\n── 雰囲気・性格とスキルは必ず1つずつ・くじ（第1100便・カッキーさん）──');
-eq('★★★ 雰囲気・性格は7語ぜんぶ・スキルは6語ぜんぶから', [v.MOOD_PICKABLE, v.SKILL_PICKABLE], [B.BADGES_BY_CATEGORY.mood, B.BADGES_BY_CATEGORY.skill]);
+eq('★★★ 雰囲気・性格は7語ぜんぶ・スキルは全語（8語）から', [v.MOOD_PICKABLE, v.SKILL_PICKABLE], [B.BADGES_BY_CATEGORY.mood, B.BADGES_BY_CATEGORY.skill]);
 const moods = [], skills = [];
 for (let id = 1; id <= 20000; id++) { moods.push(v.pickMoodBadge(id)); skills.push(v.pickSkillBadge(id)); }
 eq('★★★ 全員に必ず1つずつ付く（外れが無い）', [moods.every((m) => v.MOOD_PICKABLE.includes(m)), skills.every((s) => v.SKILL_PICKABLE.includes(s))], [true, true]);
 eq('★★ 雰囲気の7語がほぼ均等（12〜17%）', v.MOOD_PICKABLE.every((w) => { const r = moods.filter((m) => m === w).length / moods.length; return r >= 0.12 && r <= 0.17; }), true);
-eq('★★ スキルの6語がほぼ均等（14〜19%）', v.SKILL_PICKABLE.every((w) => { const r = skills.filter((m) => m === w).length / skills.length; return r >= 0.14 && r <= 0.19; }), true);
+eq('★★ スキルの8語がほぼ均等（10〜15%・第1109便で 6 → 8語）', [v.SKILL_PICKABLE.length, v.SKILL_PICKABLE.every((w) => { const r = skills.filter((m) => m === w).length / skills.length; return r >= 0.10 && r <= 0.15; })], [8, true]);
 eq('★★★ 同じ人は何度引いても同じ', [187, 478, 603].every((id) => v.pickMoodBadge(id) === v.pickMoodBadge(id) && v.pickSkillBadge(id) === v.pickSkillBadge(id)), true);
 eq('★★★ 雰囲気・性格は AI に選ばせない（返ってきても落とす）', [B.BADGES_BY_CATEGORY.mood.filter((b) => v.PHOTO_BADGES.includes(b)), v.filterAIBadges([...B.BADGES_BY_CATEGORY.mood, 'キレイ'], 'その他', true)], [[], ['キレイ']]);
 eq('★ 雰囲気・性格の語はプロンプトの「選べる語」に出てこない', B.BADGES_BY_CATEGORY.mood.filter((b) => v.SYSTEM_PROMPT_BADGE.split('## 守ること')[0].includes(b)), []);

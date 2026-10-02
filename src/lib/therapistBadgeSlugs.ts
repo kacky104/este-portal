@@ -55,6 +55,8 @@ export const BADGE_TO_SLUG: Record<string, string> = {
   '密着施術': 'mitchaku',
   'リンパ得意': 'lymph',
   'サービス抜群': 'service',
+  'ほぐし上手': 'hogushi',     // 第1109便
+  'しっかり圧': 'firm',        // 第1109便
 };
 
 // スラッグ → ラベル（逆引き）。
