@@ -149,16 +149,21 @@ export async function POST(req: Request) {
   // 3. フクエスの在籍と索引（ingest と同じ規則。castId → 名前 の順で引く）
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
-    .select('id, name, import_aliases, import_cast_id')
+    .select('id, name, import_aliases, import_cast_id, age, body_type, is_available_now_import')
     .eq('salon_id', source.salon_id);
   if (thErr) return NextResponse.json({ ok: false, error: thErr.message }, { status: 500 });
 
   const byName = new Map<string, number>();
   const dupNames = new Set<string>();
   const nameOf = new Map<number, string>();
+  // ★ 第1119便: いまの年齢・体型・取り込み枠の即ヒメ旗（★ 変わっていなければ書かない・再生成しないため）
+  const curProfile = new Map<number, { age: string | null; bodyType: string | null }>();
+  const curImasugu = new Set<number>();
   for (const t of therapists ?? []) {
     const id = t.id as number;
     nameOf.set(id, t.name as string);
+    curProfile.set(id, { age: (t.age as string | null) ?? null, bodyType: (t.body_type as string | null) ?? null });
+    if ((t as { is_available_now_import?: boolean | null }).is_available_now_import === true) curImasugu.add(id);
     for (const raw of [t.name as string, ...((t.import_aliases as string[] | null) ?? [])]) {
       const key = normalizeName(raw);
       if (!key) continue;
@@ -334,9 +339,11 @@ export async function POST(req: Request) {
     if (現在 !== 新規) diffs.push({ id, name: nameOf.get(id) ?? c.name, 現在, 新規 });
 
     if (source.import_profile) {
+      // ★ 第1119便: いまの値と同じなら書かない（★ 以前は15分ごとに全員の年齢・体型を毎回 update していた）
+      const cp = curProfile.get(id);
       const patch: { id: number; age?: string; body_type?: string } = { id };
-      if (c.age) patch.age = c.age;
-      if (c.bodyType) patch.body_type = c.bodyType;
+      if (c.age && c.age !== cp?.age) patch.age = c.age;
+      if (c.bodyType && c.bodyType !== cp?.bodyType) patch.body_type = c.bodyType;
       if (patch.age || patch.body_type) profilePatches.push(patch);
     }
   }
@@ -379,6 +386,7 @@ export async function POST(req: Request) {
   // 7. 書き込み（apply のときだけ）
   let upserted = 0, swept = 0, profilesUpdated = 0, castIdWritten = 0;
   let imasuguSet = 0, imasuguCleared = 0;
+  let regenerated = false;   // ★ 第1119便: 公開ページを作り直したか
   if (apply) {
     if (rowsSafe.length > 0) {
       const { error } = await supabase.from('therapist_schedules').upsert(rowsSafe, { onConflict: 'therapist_id,schedule_date' });
@@ -429,7 +437,15 @@ export async function POST(req: Request) {
       const { error } = await supabase.from('therapists').update(patch).eq('id', id);
       if (!error) profilesUpdated++;
     }
-    if (upserted > 0 || swept > 0 || imasuguSet > 0 || imasuguCleared > 0) {
+    // ★★ 第1119便: 公開ページの作り直しは【実際に何かが変わったとき】だけ。
+    //   ★ 以前は upserted > 0（＝一覧に居た全員を毎回 upsert するので常に真）で、15分ごと・店ごとに
+    //     サイト全体（/・/salon・/therapist・/area・/hp）のキャッシュを捨てていた。
+    //   ★ 変わった＝出勤の差分（行なし→行あり も含む）・掃除で倒した・即ヒメを新しく立てた／落とした。
+    //   ★ 即ヒメの期限（available_until_import）の延長だけなら作り直さない（★ 公開ページは revalidate 60〜600 秒で
+    //     自分で読み直すので、50分の期限より先に古くなることはない）。
+    const imasuguNewlySet = sokuhimeSafe.filter((id) => !curImasugu.has(id)).length;
+    regenerated = diffsSafe.length > 0 || swept > 0 || (imasuguSet > 0 && imasuguNewlySet > 0) || imasuguCleared > 0;
+    if (regenerated) {
       revalidatePath('/salon/[id]', 'layout');
       revalidatePath('/hp/[slug]', 'layout');
       revalidatePath('/therapist/[id]', 'layout');
@@ -469,6 +485,7 @@ export async function POST(req: Request) {
       注意: '取り込み枠のみ。店舗が押した今すぐには触っていない',
     },
     書込: { 出勤行: upserted, プロフィール: profilesUpdated, castId埋め: castIdWritten },
+    再生成: regenerated,
     castIdを埋める予定: castIdFills.map((f) => `${f.name}=${f.castId}`),
     差分: diffsSafe.map(({ id: _id, ...rest }) => rest),
   }, { headers: { 'content-type': 'application/json; charset=utf-8' } });
