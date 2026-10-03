@@ -4,7 +4,8 @@ import { buildTabCounts, todayJstOf, type SalonCardTabCounts } from '@/lib/salon
 
 // 店舗カードのタブに出す数（写メ日記・クーポン）を、全店ぶんまとめて読む（第1126便）。
 //   ★ TOP の作り直し（ISR・revalidate 600）のときに1回だけ。2本を同時に読む。
-//   ★ 行は salon_id だけ（クーポンは期限も）。数えるのはこちら側（PostgREST は店舗ごとの集計を返せない）。
+//   ★ クーポンの行は salon_id と期限だけ。数えるのはこちら側（PostgREST は店舗ごとの集計を返せない）。
+//   ★ 第1128便: 写メ日記の行は、各店の新しい順2件を HTML に入れるために タイトル・本文・セラピスト名 も読む（本数は同じ2本のまま）。
 //   ★ 写メ日記は48時間以内だけ＝行数は少ない。
 //   ★ 読めなかったときは空を返す（タブは 0 件＝薄く出るだけ。TOP は止めない）。
 //   ★ 口コミの数は salons.review_count、新人の数はカードが読んでいるセラピストから出すので、ここでは読まない。
@@ -12,7 +13,13 @@ export async function fetchSalonCardTabCounts(supabase: SupabaseClient, nowMs: n
   try {
     const since = new Date(nowMs - DIARY_NEW_WINDOW_MS).toISOString();
     const [diaryRes, couponRes] = await Promise.all([
-      supabase.from('diary_posts').select('salon_id').gte('created_at', since).limit(5000),
+      // ★ 第1128便: 数える行に、行に出すもの（タイトル・本文・セラピスト名）も足して読む。新しい順（先頭2件を HTML に入れる）
+      supabase
+        .from('diary_posts')
+        .select('id, salon_id, title, content, created_at, therapists(name)')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(5000),
       supabase.from('coupons').select('salon_id, valid_until').eq('is_published', true).limit(5000),
     ]);
     if (diaryRes.error) console.error('[card-tabs] 写メ日記の数を読めなかった', diaryRes.error.message);

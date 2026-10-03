@@ -18,10 +18,16 @@ import type { TherapistThumb } from './useSalonTherapists';
 //   ★ 数は親から受け取る（写メ日記・クーポン＝TOP の作り直しのときに読んだ数／口コミ＝salon.reviewCount／新人＝therapists から）。
 //   ★ 中身は【押したとき】に、その店のぶんだけ読む（一度読んだタブは持っておく＝開け閉めで読み直さない）。
 //     新人は親が読んでいるセラピストから出すので、読まない。
+//   ★ 第1128便: 写メ日記の2件は親から受け取り（counts.diaryRows）、【閉じていても HTML に入れておく】（hidden）。
+//     見た目は変えない。検索エンジンは閉じてあるタブの中身も読む＝TOP に写メ日記のタイトルと個別ページへのリンクが載る。
+//     ★ 「◯時間前」は今の時刻で決まるので、HTML（ISR）には日付（MM/DD）で入れ、押したときの時刻で言い換える。
 //   ★ カード全体が店舗ページへのリンク（onClick）なので、ここの中の操作は親へ伝えない（stopPropagation）。
 
 type Row = { key: string; href: string; lead: ReactNode; text: string; tail: string };
 type Loaded = { status: 'loading' } | { status: 'ready'; rows: Row[] } | { status: 'error' };
+
+/** 今の時刻。★ 押したとき（イベントの中）にだけ呼ぶ。描画の中では呼ばない */
+const clockNow = () => Date.now();
 
 /** 'YYYY-MM-DD' → 'MM/DD' */
 const mmdd = (ymd: string) => (/^\d{4}-\d{2}-\d{2}/.test(ymd) ? `${ymd.slice(5, 7)}/${ymd.slice(8, 10)}` : '');
@@ -133,6 +139,18 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
 }) {
   const [open, setOpen] = useState<CardTabKey | null>(null);
   const [data, setData] = useState<Partial<Record<CardTabKey, Loaded>>>({});
+  // ★ タブを押したときの時刻（「◯時間前」用）。押すまでは null＝日付で出す（HTML に今の時刻を焼き付けない）
+  const [pickedAt, setPickedAt] = useState<number | null>(null);
+
+  // ★ 第1128便: HTML に入れておく写メ日記の行（親が TOP の作り直しのときに読んだもの）
+  const diaryRows: Row[] = (counts.diaryRows ?? []).map((r) => ({
+    key: r.id,
+    href: `/diary/${r.id}`,
+    lead: r.name ? namePill(r.name) : null,
+    text: r.text,
+    tail: (pickedAt !== null ? formatDiaryAge(r.at, pickedAt) : null) ?? formatDiaryDate(r.at),
+  }));
+  const hasDiaryRows = diaryRows.length > 0;
 
   // 新人: 入店が新しい順（/salon/{id}/newface と同じ判定・並び）
   const newFaces = therapists
@@ -162,6 +180,9 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
     if (countOf[key] <= 0) return;
     if (open === key) { setOpen(null); return; }
     setOpen(key);
+    setPickedAt(clockNow());
+    // ★ 写メ日記は、親から行をもらっているときは読まない（もらっていないときだけ、今までどおり読む）
+    if (key === 'diary' && hasDiaryRows) return;
     if (key !== 'newface' && data[key]?.status !== 'ready' && data[key]?.status !== 'loading') void load(key);
   };
 
@@ -181,11 +202,46 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
         };
       }),
     };
+  } else if (open === 'diary' && hasDiaryRows) {
+    loaded = { status: 'ready', rows: diaryRows };
   } else if (open) {
     loaded = data[open] ?? { status: 'loading' };
   }
   const tab = open ? CARD_TABS.find((t) => t.key === open) ?? null : null;
   const panelId = `salon-card-tab-${salonId}`;
+  const diaryTab = CARD_TABS[0];
+
+  /** 開いた中身（2件＋すべて見る）。isHidden のときは HTML には入れるが見せない */
+  const renderPanel = (t: (typeof CARD_TABS)[number], l: Loaded, isHidden: boolean) => (
+    <div id={isHidden ? undefined : panelId} hidden={isHidden} className="px-2 pb-1">
+      <div className="min-h-[56px]">
+        {l.status === 'loading' && <p className="h-14 flex items-center text-xs text-slate-500">読み込み中…</p>}
+        {l.status === 'error' && <p className="h-14 flex items-center text-xs text-slate-500">読み込めませんでした。下のリンクからご覧ください。</p>}
+        {l.status === 'ready' && l.rows.length === 0 && <p className="h-14 flex items-center text-xs text-slate-500">下のリンクからご覧ください。</p>}
+        {l.status === 'ready' && l.rows.map((r) => (
+          <Link
+            key={r.key}
+            href={r.href}
+            onClick={(e) => e.stopPropagation()}
+            className="flex h-7 min-w-0 items-center gap-1.5 border-b border-slate-100 last:border-b-0"
+          >
+            {r.lead}
+            <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{r.text}</span>
+            {r.tail && <span className="flex-shrink-0 text-[11px] text-slate-500">{r.tail}</span>}
+          </Link>
+        ))}
+      </div>
+      <div className="flex h-7 items-center justify-end">
+        <Link
+          href={`/salon/${salonId}/${t.path}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-xs font-bold text-pink-700 hover:text-pink-600"
+        >
+          {t.more} ›
+        </Link>
+      </div>
+    </div>
+  );
 
   return (
     <div className="-mx-2 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
@@ -222,36 +278,9 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
         })}
       </div>
 
-      {tab && loaded && (
-        <div id={panelId} className="px-2 pb-1">
-          <div className="min-h-[56px]">
-            {loaded.status === 'loading' && <p className="h-14 flex items-center text-xs text-slate-500">読み込み中…</p>}
-            {loaded.status === 'error' && <p className="h-14 flex items-center text-xs text-slate-500">読み込めませんでした。下のリンクからご覧ください。</p>}
-            {loaded.status === 'ready' && loaded.rows.length === 0 && <p className="h-14 flex items-center text-xs text-slate-500">下のリンクからご覧ください。</p>}
-            {loaded.status === 'ready' && loaded.rows.map((r) => (
-              <Link
-                key={r.key}
-                href={r.href}
-                onClick={(e) => e.stopPropagation()}
-                className="flex h-7 min-w-0 items-center gap-1.5 border-b border-slate-100 last:border-b-0"
-              >
-                {r.lead}
-                <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{r.text}</span>
-                {r.tail && <span className="flex-shrink-0 text-[11px] text-slate-500">{r.tail}</span>}
-              </Link>
-            ))}
-          </div>
-          <div className="flex h-7 items-center justify-end">
-            <Link
-              href={`/salon/${salonId}/${tab.path}`}
-              onClick={(e) => e.stopPropagation()}
-              className="text-xs font-bold text-pink-700 hover:text-pink-600"
-            >
-              {tab.more} ›
-            </Link>
-          </div>
-        </div>
-      )}
+      {/* ★ 第1128便: 写メ日記は閉じていても HTML に入れておく（hidden）。開いたらそのまま見せる */}
+      {hasDiaryRows && renderPanel(diaryTab, { status: 'ready', rows: diaryRows }, open !== 'diary')}
+      {tab && loaded && !(open === 'diary' && hasDiaryRows) && renderPanel(tab, loaded, false)}
     </div>
   );
 }

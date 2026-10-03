@@ -12,6 +12,7 @@
 // ★★★ 読み取り
 //   数は TOP の作り直し（ISR）のときにまとめて2本だけ読む（写メ日記・クーポン）。口コミと新人は今ある値から出す。
 //   中身（2件）は【押した店のぶんだけ】そのとき読む。
+//   ★ 第1128便: 写メ日記の2件だけは、数を数える行と一緒に読んで TOP の HTML に入れておく（本数は増えない・押しても読まない）。
 
 export type CardTabKey = 'diary' | 'review' | 'newface' | 'coupon';
 
@@ -26,8 +27,15 @@ export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: st
 /** 開いたときに出す件数 */
 export const CARD_TAB_ROWS = 2;
 
-/** TOP の作り直しのときに読む数（店舗ごと）。口コミ・新人はここに入れない（今ある値から出す） */
-export type SalonCardTabCount = { diary: number; coupon: number };
+/** 写メ日記の1行ぶん（TOP の HTML に入れておく・第1128便） */
+export type CardDiaryRow = { id: string; name: string; text: string; at: string };
+
+/**
+ * TOP の作り直しのときに読む数（店舗ごと）。口コミ・新人はここに入れない（今ある値から出す）。
+ * ★ 第1128便: diaryRows ＝ 48時間以内の写メ日記の新しい順2件。★ 見た目は閉じたまま、中身だけ HTML に入れる
+ *   （検索エンジンは、閉じてあるタブの中身も HTML にあれば読む。写メ日記の個別ページへのリンクも TOP に載る）。
+ */
+export type SalonCardTabCount = { diary: number; coupon: number; diaryRows?: CardDiaryRow[] };
 export type SalonCardTabCounts = Record<number, SalonCardTabCount>;
 
 /** バッジに出す数。★ 0 は出さない（''）・100 以上は 99+ */
@@ -57,19 +65,52 @@ export function countBySalon(rows: ReadonlyArray<{ salon_id?: unknown }> | null 
   return out;
 }
 
-/** 写メ日記の行とクーポンの行から、店舗ごとの数を作る */
+/** 写メ日記の行（読んだまま）。★ 新しい順に並んでいること（呼ぶ側が order する） */
+export type DiaryRowIn = { id?: unknown; salon_id?: unknown; title?: unknown; content?: unknown; created_at?: unknown; therapists?: unknown };
+
+/** 取り込んだセラピスト（1件 or 配列で返ってくる）から名前を取る */
+function therapistNameOf(v: unknown): string {
+  const one = Array.isArray(v) ? v[0] : v;
+  const name = one && typeof one === 'object' ? (one as { name?: unknown }).name : null;
+  return typeof name === 'string' ? name : '';
+}
+
+/**
+ * 店舗ごとに、写メ日記の先頭 CARD_TAB_ROWS 件を行の形にする。★ 並びは渡された順（＝新しい順）。
+ *   ★ id が無い行は入れない（リンクを作れない）。★ 本文は1行ぶんだけにして渡す（長い本文をそのまま画面へ運ばない）。
+ */
+export function topDiaryRowsBySalon(rows: ReadonlyArray<DiaryRowIn> | null | undefined): Record<number, CardDiaryRow[]> {
+  const out: Record<number, CardDiaryRow[]> = {};
+  for (const r of rows ?? []) {
+    const sid = Number(r?.salon_id);
+    if (r?.salon_id == null || !Number.isFinite(sid)) continue;
+    if (typeof r.id !== 'string' && typeof r.id !== 'number') continue;
+    const list = out[sid] ?? (out[sid] = []);
+    if (list.length >= CARD_TAB_ROWS) continue;
+    list.push({
+      id: String(r.id),
+      name: therapistNameOf(r.therapists),
+      text: diaryLine(r.title, r.content),
+      at: typeof r.created_at === 'string' ? r.created_at : '',
+    });
+  }
+  return out;
+}
+
+/** 写メ日記の行とクーポンの行から、店舗ごとの数（と、写メ日記の先頭2件）を作る */
 export function buildTabCounts(
-  diaryRows: ReadonlyArray<{ salon_id?: unknown }> | null | undefined,
+  diaryRows: ReadonlyArray<DiaryRowIn> | null | undefined,
   couponRows: ReadonlyArray<{ salon_id?: unknown; valid_until?: unknown }> | null | undefined,
   todayJst: string,
 ): SalonCardTabCounts {
   const diary = countBySalon(diaryRows);
+  const top = topDiaryRowsBySalon(diaryRows);
   const coupon = countBySalon(
     (couponRows ?? []).filter((r) => isCouponValid(typeof r.valid_until === 'string' ? r.valid_until : null, todayJst)),
   );
   const out: SalonCardTabCounts = {};
   for (const id of new Set([...Object.keys(diary), ...Object.keys(coupon)].map(Number))) {
-    out[id] = { diary: diary[id] ?? 0, coupon: coupon[id] ?? 0 };
+    out[id] = { diary: diary[id] ?? 0, coupon: coupon[id] ?? 0, ...(top[id] && top[id].length > 0 ? { diaryRows: top[id] } : {}) };
   }
   return out;
 }
