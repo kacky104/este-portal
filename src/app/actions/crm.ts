@@ -516,6 +516,24 @@ export async function getCrmTherapists(
  *   ボードの窓は「その日 0:00〜翌7:00」。画面側で 6:00 より前（前日営業日の続き）は見せない。
  * ★ 見られる日付もボードと同じ（過去90日〜7日先）。
  */
+/**
+ * ★ 第1116便（2026-10-03）: 店舗の「変更マーク」（最後に何かが変わった時刻）を読む。
+ *   スケジュール画面は60秒ごとに【これだけ】読み、前回と同じなら全量（getCrmSchedule）を読まない。
+ *   ★ 店舗様本人の権限（RLS）で読む＝service_role の認証の往復を増やさない。
+ *   ★ 読めないとき（表が無い＝SQL を流す前／運営が別の店舗を見ている）は null → 画面側は今までどおり毎回読む。
+ */
+export async function getCrmChangeMark(salonId: number): Promise<string | null> {
+  if (!Number.isInteger(salonId) || salonId <= 0) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('crm_change_marks')
+    .select('bumped_at')
+    .eq('salon_id', salonId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return String(data.bumped_at);
+}
+
 /** ★ 第1113便: 自動更新（lite）で返す形＝設定・料金表を除いたもの。画面側が前回の値と合わせて使う */
 export type CrmScheduleLiteData = Omit<CrmScheduleData, 'settings' | 'priceItems'>;
 

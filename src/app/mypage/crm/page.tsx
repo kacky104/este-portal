@@ -8,6 +8,7 @@ import {
   confirmCrmPay,
   addCrmMoneyMove,
   cancelCrmMoneyMove,
+  getCrmChangeMark,
   getCrmDaySummary,
   getCrmMoneyDay,
   getCrmSchedule,
@@ -93,6 +94,8 @@ const ROW_H = 66;
 const DAY_START_MIN = 6 * 60;  // 営業日の始まり（6:00）
 const WINDOW_END_MIN = 31 * 60; // 予約ボードの窓の終わり（翌7:00）
 const REFRESH_MS = 60_000;
+// ★ 第1116便: 変更マークが同じでも、これだけ経ったら読み直す（「これから → 利用」のように時間で変わる表示のため）
+const FORCE_RELOAD_MS = 10 * 60_000;
 const CLICK_STEP_MIN = 15;   // 空きを押したときの開始時刻の刻み
 const FORM_STEP_MIN = 5;     // フォームで選べる開始時刻の刻み（CTIv2 と同じ5分）
 const INTERVAL_OPTIONS = [0, 15, 30, 45, 60] as const;
@@ -195,6 +198,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const dataRef = useRef<CrmScheduleData | null>(null);
   useEffect(() => { dataRef.current = data; }, [data]);
   const fullNextRef = useRef(true);
+  // ★ 第1116便: 前回読んだときの変更マークと時刻。★ マークが同じ（＝何も変わっていない）なら全量を読まない
+  const markRef = useRef<{ mark: string; at: number } | null>(null);
 
   // 読み込み（日付が変わったとき・自動更新のとき）
   useEffect(() => {
@@ -202,7 +207,20 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     const prev = dataRef.current;
     const full = fullNextRef.current || !prev || prev.date !== date;
     fullNextRef.current = false;
-    getCrmSchedule(salonId, date, full ? undefined : { lite: true }).then((res) => {
+    (async () => {
+      // ★ 第1116便: 先に変更マーク（1行）だけ読む（★ 全量より【先に】読む＝読んでいる最中の変化を次の回で拾える）。
+      //   自動更新で、マークが前回と同じ、かつ前回から10分経っていなければ、ここで終わり（全量を読まない）。
+      //   ★ マークを読めないとき（SQL 前・運営が別の店舗を見ている）は null → 今までどおり毎回読む。
+      const mark = await getCrmChangeMark(salonId);
+      if (!alive) return;
+      if (!full) {
+        const last = markRef.current;
+        if (mark !== null && last && last.mark === mark && Date.now() - last.at < FORCE_RELOAD_MS) {
+          setNowMs(Date.now());
+          return;
+        }
+      }
+      const res = await getCrmSchedule(salonId, date, full ? undefined : { lite: true });
       if (!alive) return;
       if (!res.ok) { setErr(res.error); setData(null); return; }
       setErr('');
@@ -214,8 +232,9 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       } else {
         setData(res.data);
       }
+      markRef.current = mark !== null ? { mark, at: Date.now() } : null;
       setNowMs(Date.now());
-    });
+    })();
     return () => { alive = false; };
   }, [salonId, date, tick]);
 
@@ -1855,9 +1874,16 @@ function AlarmCenter({
     if (isToday || alarms.length === 0) return;
     let alive = true;
     // ★ 第1113便: アラームに要るのは予約と出勤だけ → lite で読む（設定・料金表は読まない）
-    const load = () => getCrmSchedule(salonId, businessTodayJST(), { lite: true }).then((r) => {
-      if (alive && r.ok) setOwn({ bookings: r.data.bookings, therapists: r.data.therapists });
-    });
+    // ★ 第1116便: 変更マークが前回と同じなら読まない（マークを読めないときは毎回読む）
+    let lastMark: string | null = null;
+    const load = async () => {
+      const mark = await getCrmChangeMark(salonId);
+      if (!alive) return;
+      if (mark !== null && lastMark !== null && mark === lastMark) return;
+      const r = await getCrmSchedule(salonId, businessTodayJST(), { lite: true });
+      if (!alive) return;
+      if (r.ok) { setOwn({ bookings: r.data.bookings, therapists: r.data.therapists }); lastMark = mark; }
+    };
     load();
     const t = setInterval(load, REFRESH_MS);
     return () => { alive = false; clearInterval(t); };
