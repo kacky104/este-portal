@@ -9,7 +9,8 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DIARY_NEW_WINDOW_MS } from '@/lib/diaryNew';
 import {
-  CARD_TABS, CARD_TAB_ROWS, CARD_DIARY_ROWS, CARD_REVIEW_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating, therapistRefOf, todayJstOf,
+  CARD_TABS, CARD_TAB_ROWS, CARD_DIARY_ROWS, CARD_NEWFACE_ROWS, CARD_REVIEW_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating,
+  therapistRefOf, threeSizes, todayJstOf,
   type CardTabKey, type SalonCardTabCount,
 } from '@/lib/salonCardTabs';
 import type { TherapistThumb } from './useSalonTherapists';
@@ -204,14 +205,23 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
   if (open === 'newface') {
     loaded = {
       status: 'ready',
-      rows: newFaces.slice(0, CARD_TAB_ROWS).map((t) => {
+      // ★ 第1135便（カッキーさん）: 丸い写真 → NEW → 名前（年齢）→ 入店日 → スリーサイズ。3件（3件目は「新人をすべて見る」の行）
+      rows: newFaces.slice(0, CARD_NEWFACE_ROWS).map((t) => {
         const since = t.newFaceSince ? formatDiaryDate(t.newFaceSince) : '';
         return {
           key: t.id,
           href: `/therapist/${t.id}`,
-          lead: <NewBadge />,
-          text: t.age ? `${t.name}（${t.age}）` : t.name,
-          tail: since ? `${since} 入店` : '',
+          lead: (
+            <>
+              <DiaryTherapistAvatar src={t.imageUrl} name={t.name} size={22} />
+              <NewBadge />
+              <span className="flex-shrink-0 max-w-[120px] truncate text-xs text-slate-700">{t.age ? `${t.name}（${t.age}）` : t.name}</span>
+              {since && <span className="flex-shrink-0 text-[11px] text-slate-500">{since} 入店</span>}
+            </>
+          ),
+          // ★ スリーサイズは残りの幅に出す（収まらなければ「…」。3件目の行はリンクがあるぶん狭い）
+          text: threeSizes(t.bodyType),
+          tail: '',
         };
       }),
     };

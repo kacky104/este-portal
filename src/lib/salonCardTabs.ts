@@ -36,6 +36,8 @@ export const CARD_TAB_ROWS = 2;
  *   1〜2行目の「◯時間前」は出さない。
  */
 export const CARD_DIARY_ROWS = 3;
+/** ★ 第1135便（カッキーさん）: 新人も3件。3件目は「新人をすべて見る」と同じ行 */
+export const CARD_NEWFACE_ROWS = 3;
 /**
  * ★ 第1133便（カッキーさん）: 口コミは2件に戻す。3行目（「すべて見る」の行）の左には、お店の総合評価（ピンクの ★・点数・件数）を出す。
  *   ★ そのぶん、カードの下の枠の ★（と「口コミなし」）は TOP では出さない。右端のセラピスト名は出さない（左に丸い写真）。
@@ -150,6 +152,23 @@ export function oneLine(text: unknown, max = 60): string {
 /** 写メ日記の行に出す文。タイトル → 本文の頭 → どちらも無ければ「写真を投稿しました」 */
 export function diaryLine(title: unknown, content: unknown): string {
   return oneLine(title) || oneLine(content) || '写真を投稿しました';
+}
+
+/**
+ * スリーサイズ（B・W・H）だけを取り出す。'T149 B86(E) W55 H84' → 'B86(E) W55 H84'。
+ *   ★ 身長（T）は出さない（カッキーさんの指定は「スリーサイズ」）。
+ *   ★ 読めた部分だけを並べる。1つも読めなければ ''（手入力の文をそのまま出さない）。
+ */
+export function threeSizes(bodyType: unknown): string {
+  const s = typeof bodyType === 'string' ? bodyType : '';
+  const b = s.match(/B\s*(\d{2,3})\s*(?:[(（]\s*([A-Za-z]{1,3})\s*[)）])?/i);
+  const w = s.match(/W\s*(\d{2,3})/i);
+  const h = s.match(/H\s*(\d{2,3})/i);
+  const out: string[] = [];
+  if (b) out.push(b[2] ? `B${b[1]}(${b[2].toUpperCase()})` : `B${b[1]}`);
+  if (w) out.push(`W${w[1]}`);
+  if (h) out.push(`H${h[1]}`);
+  return out.join(' ');
 }
 
 /** 口コミの総合点（3つの平均・小数1位）。★ app/lib/reviews.ts の overallOf と同じ式 */

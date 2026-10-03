@@ -17,7 +17,7 @@ console.log('── 1. タブの並びと窓 ──');
 eq('★★★ 並びは 写メ日記 → 口コミ → 新人 → クーポン', T.CARD_TABS.map((t) => t.label), ['写メ日記', '口コミ', '新人', 'クーポン']);
 eq('★ 「すべて見る」の行き先', T.CARD_TABS.map((t) => t.path), ['diary', 'reviews', 'newface', 'coupon']);
 eq('★★★ 写メ日記の窓は48時間（NEW と同じ）', D.DIARY_NEW_WINDOW_MS, 48 * 60 * 60 * 1000);
-eq('★ 開いたときは2件（写メ日記だけ3件。口コミは2件＋総合評価・第1133便）', [T.CARD_TAB_ROWS, T.CARD_DIARY_ROWS, T.CARD_REVIEW_ROWS], [2, 3, 2]);
+eq('★ 開いたときの件数（写メ日記3・口コミ2＋総合評価・新人3・クーポン2）', [T.CARD_DIARY_ROWS, T.CARD_REVIEW_ROWS, T.CARD_NEWFACE_ROWS, T.CARD_TAB_ROWS], [3, 2, 3, 2]);
 eq('★ 第1134便: リンクの文字（「すべて見る」に縮めない）', T.CARD_TABS.map((t) => t.more), ['写メ日記をすべて見る', '口コミをすべて見る', '新人をすべて見る', 'クーポンを見る']);
 eq('★★ 読み上げ用の文は、画面の文字を含む・何の一覧かが分かる', T.CARD_TABS.map((t) => t.moreFull.includes(t.more) && t.moreFull.length > 5), [true, true, true, true]);
 
@@ -70,6 +70,8 @@ console.log('── 5. 行に出す文 ──');
 eq('★ タイトル → 本文の頭 → 決まり文句', [T.diaryLine('今日も出勤', '本文'), T.diaryLine('', '本文です\nつづき'), T.diaryLine(null, '  '), T.diaryLine(null, null)],
    ['今日も出勤', '本文です つづき', '写真を投稿しました', '写真を投稿しました']);
 eq('★ 長すぎる文は 60 字で落とす', T.oneLine('あ'.repeat(80)).length, 60);
+eq('★★ 第1135便: スリーサイズだけ（身長は出さない）', [T.threeSizes('T149 B86(E) W55 H84'), T.threeSizes('T158'), T.threeSizes('B88 W58 H86'), T.threeSizes('t160 b90（g） w60 h88')], ['B86(E) W55 H84', '', 'B88 W58 H86', 'B90(G) W60 H88']);
+eq('★ 読めなければ空（手入力の文をそのまま出さない）・null でも落ちない', [T.threeSizes('スレンダー体型です'), T.threeSizes(null), T.threeSizes('')], ['', '', '']);
 eq('★ 口コミの総合点（3つの平均・小数1位）', [T.overallRating(5, 5, 5), T.overallRating(5, 4, 4), T.overallRating('5', '4', '5'), T.overallRating(null, 'x', 1)], [5, 4.3, 4.7, 0]);
 
 console.log(fail === 0 ? '\n全部 ok' : `\n★★★ NG ${fail} 件`);
