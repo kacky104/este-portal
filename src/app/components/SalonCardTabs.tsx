@@ -124,6 +124,8 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
       .filter((r) => isCouponValid((r.valid_until as string | null) ?? null, today))
       .slice(0, CARD_TAB_ROWS)
       .map((r) => {
+        // ★ 第1137便（カッキーさん）: 黄色の枠（割引の文）を優先して出す。幅の上限（行の62%）をやめ、行に収まるかぎり最後まで出す。
+        //   後ろの文は残った幅だけ（残らなければ出ない）。行より長いときだけ黄色の枠が「…」になる。
         // ★ 第1127便: 割引の文（「90分 14,000円 ⇨10,000円」など）は字数で切らない。途中で切れると金額が変わって見える。幅に収まらないときだけ画面側で「…」にする
         const discount = oneLine(r.discount, 40);
         const until = mmdd(String(r.valid_until ?? ''));
@@ -131,7 +133,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
           key: String(r.id),
           href: `/salon/${salonId}/coupon`,
           lead: discount ? (
-            <span className="flex-shrink-0 max-w-[62%] truncate rounded bg-amber-100 px-1.5 text-[11px] font-bold leading-4 text-amber-800">
+            <span className="min-w-0 shrink truncate rounded bg-amber-100 px-1.5 text-[11px] font-bold leading-4 text-amber-800">
               {discount}
             </span>
           ) : null,
