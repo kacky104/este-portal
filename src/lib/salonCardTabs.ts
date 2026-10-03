@@ -16,12 +16,17 @@
 
 export type CardTabKey = 'diary' | 'review' | 'newface' | 'coupon';
 
-/** タブの並びと文言（★ 順番はカッキーさんの指定） */
-export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: string; more: string; path: string }> = [
-  { key: 'diary', label: '写メ日記', unit: '件', more: '写メ日記をすべて見る', path: 'diary' },
-  { key: 'review', label: '口コミ', unit: '件', more: '口コミをすべて見る', path: 'reviews' },
-  { key: 'newface', label: '新人', unit: '名', more: '新人をすべて見る', path: 'newface' },
-  { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポンを見る', path: 'coupon' },
+/**
+ * タブの並びと文言（★ 順番はカッキーさんの指定）。
+ *   more     … 画面に出すリンクの文字
+ *   moreFull … 読み上げ用（aria-label）。★ 「すべて見る」だけでは何の一覧か分からないので、こちらは省かない
+ * ★ 第1132便（カッキーさん）: 写メ日記と口コミは3件目を同じ行に出すので、リンクの文字を「すべて見る」に縮めた。
+ */
+export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: string; more: string; moreFull: string; path: string }> = [
+  { key: 'diary', label: '写メ日記', unit: '件', more: 'すべて見る', moreFull: '写メ日記をすべて見る', path: 'diary' },
+  { key: 'review', label: '口コミ', unit: '件', more: 'すべて見る', moreFull: '口コミをすべて見る', path: 'reviews' },
+  { key: 'newface', label: '新人', unit: '名', more: '新人をすべて見る', moreFull: '新人をすべて見る', path: 'newface' },
+  { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポンを見る', moreFull: 'クーポンを見る', path: 'coupon' },
 ];
 
 /** 開いたときに出す件数（口コミ・新人・クーポン） */
@@ -31,6 +36,8 @@ export const CARD_TAB_ROWS = 2;
  *   1〜2行目の「◯時間前」は出さない。
  */
 export const CARD_DIARY_ROWS = 3;
+/** ★ 第1132便（カッキーさん）: 口コミも3件。3件目は「すべて見る」と同じ行。右端のセラピスト名は出さない（左に丸い写真） */
+export const CARD_REVIEW_ROWS = 3;
 
 /** 写メ日記の1行ぶん（TOP の HTML に入れておく・第1128便） */
 //   ★ 第1129便: 名前の左に出す丸い写真のために、セラピストの id と写真も持つ（写真が無ければ null）

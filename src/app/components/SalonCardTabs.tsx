@@ -9,7 +9,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DIARY_NEW_WINDOW_MS } from '@/lib/diaryNew';
 import {
-  CARD_TABS, CARD_TAB_ROWS, CARD_DIARY_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating, therapistRefOf, todayJstOf,
+  CARD_TABS, CARD_TAB_ROWS, CARD_DIARY_ROWS, CARD_REVIEW_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating, therapistRefOf, todayJstOf,
   type CardTabKey, type SalonCardTabCount,
 } from '@/lib/salonCardTabs';
 import type { TherapistThumb } from './useSalonTherapists';
@@ -82,27 +82,31 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
       // ★ セラピストがまだ読めていない。null を返す＝持っておかない（次に押したときにもう一度読む）
       return null;
     }
-    const nameOf = new Map(therapists.map((t) => [Number(t.id), t.name]));
+    // ★ 第1132便（カッキーさん）: ★ の左にセラピストの丸い写真。右端の「◯◯さん」は出さない。3件（3件目は「すべて見る」の行）
+    const byId = new Map(therapists.map((t) => [Number(t.id), t]));
     const { data: got, error } = await supabase
       .from('therapist_reviews')
       .select('id, therapist_id, rating_service, rating_technique, rating_reception, body, created_at')
       .in('therapist_id', ids)
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
-      .limit(CARD_TAB_ROWS);
+      .limit(CARD_REVIEW_ROWS);
     if (error) throw error;
     rows = (got ?? []).map((r) => {
-      const name = nameOf.get(Number(r.therapist_id)) ?? '';
+      const th = byId.get(Number(r.therapist_id));
       return {
         key: String(r.id),
         href: `/salon/${salonId}/reviews`,
         lead: (
-          <span className="flex-shrink-0 text-[11px] font-bold text-amber-700">
-            ★{overallRating(r.rating_service, r.rating_technique, r.rating_reception).toFixed(1)}
-          </span>
+          <>
+            <DiaryTherapistAvatar src={th?.imageUrl ?? null} name={th?.name ?? ''} size={22} />
+            <span className="flex-shrink-0 text-[11px] font-bold text-amber-700">
+              ★{overallRating(r.rating_service, r.rating_technique, r.rating_reception).toFixed(1)}
+            </span>
+          </>
         ),
         text: oneLine(r.body) || '口コミが届いています',
-        tail: name ? `${name}さん` : '',
+        tail: '',
       };
     });
   } else {
@@ -260,6 +264,7 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
         <Link
           href={`/salon/${salonId}/${t.path}`}
           onClick={(e) => e.stopPropagation()}
+          aria-label={t.moreFull}
           className="flex-shrink-0 text-xs font-bold text-pink-700 hover:text-pink-600"
         >
           {t.more} ›
