@@ -24,6 +24,7 @@ import {
   startMediaConnectionTest,
 } from '@/app/actions/mediaCredentials';
 import { useConecfHref } from '../ConecfBase';
+import { useConecfSession } from '../ConecfSession';
 
 // コネックエフ「ID・PASS登録」（第412便・2026-09-17・カッキーさん）。
 //
@@ -83,6 +84,8 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
   const [busy, setBusy] = useState('');
   const [ask, setAsk] = useState<'' | 'delete' | 'pause' | 'resume'>('');
 
+  // ★ 第1117便: ID・PASS を変えたら、外枠（赤帯・ココアの出し分け）も読み直す
+  const { refresh: refreshShell } = useConecfSession();
   const load = useCallback(async () => {
     if (salonId == null) return;
     const res = await getMediaCredentials({ salonId, service: 'conecf' });   // ★ 第716便: コネックエフの版で見る（厳密）
@@ -131,6 +134,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
     await load();
+    void refreshShell();
     onToast(`${edit.name}${mediaSiteSlots(edit).length > 1 ? `（枠${slot}）` : ''}を保存しました`);
     close();
   };
@@ -151,6 +155,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
     setAsk('');
     if (!res.ok) { onToast(res.error); return; }
     await load();
+    void refreshShell();
     onToast(credentialPauseDoneText(next ? 'resume' : 'pause', edit.name, canReadProvider(edit.provider)));
   };
 
@@ -162,6 +167,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
     setAsk('');
     if (!res.ok) { onToast(res.error); return; }
     await load();
+    void refreshShell();
     focusSlot(edit, slot);
     onToast('登録を解除しました');
   };

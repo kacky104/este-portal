@@ -4,6 +4,7 @@ import { getTheme } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { conecfBaseFor } from '@/lib/conecfHost';
 import { ConecfBaseProvider } from './ConecfBase';
+import { ConecfSessionProvider } from './ConecfSession';
 
 // コネックエフ（conecf.com）の共通レイアウト（第395便・1a・2026-09-17・カッキーさん）。
 //
@@ -53,7 +54,10 @@ export default async function ConecfLayout({ children }: { children: React.React
 
   return (
     <ConecfBaseProvider base={base}>
-      <div className="conecf-venrey min-h-screen" style={bgStyle}>{children}</div>
+      {/* ★ 第1117便: 外枠の状態（権限・赤帯・ココア）は layout の下で1回読む（画面を行き来しても読み直さない） */}
+      <ConecfSessionProvider>
+        <div className="conecf-venrey min-h-screen" style={bgStyle}>{children}</div>
+      </ConecfSessionProvider>
     </ConecfBaseProvider>
   );
 }

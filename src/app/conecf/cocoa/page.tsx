@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
+import { useConecfSession } from '../ConecfSession';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -102,6 +103,8 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   const [editing, setEditing] = useState<CocoaTemplateRow | null | 'new'>(null);
   const [busy, setBusy] = useState('');
 
+  // ★ 第1117便: 自動投稿のオン・オフを変えたら、外枠（メニューの「ココア店長ブログ」の出し分け）も読み直す
+  const { refresh: refreshShell } = useConecfSession();
   const load = useCallback(async () => {
     const res = await getConecfCocoa();
     if (!res.ok) { setError(res.error); return; }
@@ -121,6 +124,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     onToast('保存しました'); await load();
+    void refreshShell();
   };
 
   const toggleActive = async (t: CocoaTemplateRow) => {

@@ -5,6 +5,9 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import { providerLabel } from '@/lib/mediaAudit';
+import { computeMediaLinkAlerts } from '@/app/lib/media/linkAlerts';
+import { hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
+import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 
 // コネックエフ（conecf.com）の入口の権限（第395便・1a・2026-09-17）。
 //
@@ -52,6 +55,39 @@ export async function getConecfAccess(): Promise<ConecfAccess> {
   }
 
   return { ok: false, reason: 'no_salon', email };
+}
+
+/**
+ * ★★ 外枠（ConecfShell）が最初に要るものを【1回】で返す（第1117便・2026-10-03）。
+ *
+ * ★ もとは画面が3本の server action を別々に呼んでいた:
+ *   getConecfAccess（ログイン＋店）／getMediaLinkAlerts（ログイン＋店＋4〜5本）／getConecfCocoaNavVisible（ログイン＋店＋2本）
+ *   → ログインの確認と店の読みが毎ページ3回ずつ重なっていた。★ ここでは1回にして、残りを同時に出す。
+ * ★ 権限は getConecfAccess がそのまま決める（★ 店が取れた＝自分の店。赤帯の計算は権限確認を二重にしない）。
+ * ★ 店が無いとき（運営の店なし・未ログイン）は赤帯なし・ココア非表示（★ 今までどおり）。
+ * ★ ココアの出し分け: 駅ちかの ID・PASS がある店、または自動投稿がオンの店（第474便）。
+ *   ★ 読めなければ出す（★ 止める道を隠さない）。★ 赤帯は読めなければ空（★ 画面は止めない）。
+ */
+export type ConecfShellState = { access: ConecfAccess; alerts: MediaLinkAlert[]; cocoaNav: boolean };
+
+export async function getConecfShellState(): Promise<ConecfShellState> {
+  const access = await getConecfAccess();
+  if (!access.ok || access.salonId == null) return { access, alerts: [], cocoaNav: false };
+  const svc = createServiceClient();
+  const salonId = access.salonId;
+  const [alerts, cocoaNav] = await Promise.all([
+    computeMediaLinkAlerts(svc, salonId).then((r) => (r.ok ? r.data : [])).catch(() => [] as MediaLinkAlert[]),
+    (async () => {
+      try {
+        if (await hasEkichikaLogin(svc, salonId)) return true;
+        const { data: st } = await svc.from('conecf_cocoa_settings').select('enabled').eq('salon_id', salonId).maybeSingle();
+        return st?.enabled === true;
+      } catch {
+        return true;
+      }
+    })(),
+  ]);
+  return { access, alerts, cocoaNav };
 }
 
 /**

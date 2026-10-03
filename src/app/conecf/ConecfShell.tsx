@@ -3,19 +3,18 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { getConecfAccess, type ConecfAccess } from '@/app/actions/conecf';
-import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
-import { getConecfCocoaNavVisible } from '@/app/actions/conecfCocoa';
-import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
+import type { ConecfAccess } from '@/app/actions/conecf';
 import { MediaBrandProvider, brandText, type MediaBrandValue } from '@/app/mypage/media/mediaBrand';
 import { signOut } from '@/lib/auth';
 import { useConecfHref } from './ConecfBase';
+import { useConecfSession } from './ConecfSession';
 import { CONECF_NAV, type ConecfNavKey } from './conecfNav';
 
 // コネックエフの外枠（第395便・1a・2026-09-17）。
 // ★ 骨格はフクエスリンク（MediaShell）と同じ：左サイドバー・1画面1機能・スマホは三本線→ドロワー。
 // ★ 色は紺（indigo）を引き継ぐ（カッキーさんの決定）。
 // ★ 権限はサーバー（getConecfAccess）で決める。★ ログインしていなければログイン画面へ。
+// ★ 第1117便: 権限・赤帯・ココアの出し分けは ConecfSession（layout の下）が1回で読む。ここは受け取って描くだけ。
 
 export function ConecfLogo({ size = 36 }: { size?: number }) {
   // ★ コネックエフの新ロゴ（青いF・透過）。第405便・2026-09-17・カッキーさん。
@@ -71,12 +70,15 @@ export function ConecfShell({
   children: (access: Extract<ConecfAccess, { ok: true }>) => React.ReactNode;
 }) {
   const href = useConecfHref();
-  const [access, setAccess] = useState<ConecfAccess | null>(null);
-  const [error, setError] = useState('');
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [alerts, setAlerts] = useState<MediaLinkAlert[]>([]);
+  const session = useConecfSession();
+  const access: ConecfAccess | null = session.state?.access ?? null;
+  // ★ 止まっている連携の赤帯（MediaShell と同じ）。★ 失敗しても画面は止めない（空になるだけ）
+  const alerts = session.state?.alerts ?? [];
   // ★ 第474便: 「ココア店長ブログ」を出すか（駅ちかのID・PASSがある店＋自動投稿がオンの店）。★ 分かるまでは出さない
-  const [cocoaNav, setCocoaNav] = useState(false);
+  const cocoaNav = session.state?.cocoaNav ?? false;
+  // ★ 一度も読めていないときだけ、読めなかった案内を出す
+  const error = session.error && !session.state ? '読み込めませんでした。しばらくしてから開き直してください。' : '';
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // ★ 第396便（1b）: フクエスリンクの画面を中で使うので、行き先と名前をコネックエフに差し替える
   const brand: MediaBrandValue = {
@@ -88,37 +90,16 @@ export function ConecfShell({
     },
   };
 
-  // ★ 止まっている連携の赤帯（MediaShell と同じ）。★ 失敗しても画面は止めない
-  const salonIdForAlerts = access && access.ok ? access.salonId : null;
-  useEffect(() => {
-    if (salonIdForAlerts == null) { setAlerts([]); return; }
-    let alive = true;
-    getMediaLinkAlerts({ salonId: salonIdForAlerts }).then((res) => { if (alive && res.ok) setAlerts(res.data); }).catch(() => {});
-    return () => { alive = false; };
-  }, [salonIdForAlerts]);
+  // ★ 第1117便: 画面を開いたとき、外枠の状態が5分より古ければ読み直す（★ 新しければ何も読まない）
+  const { ensureFresh } = session;
+  useEffect(() => { ensureFresh(); }, [ensureFresh]);
 
+  // ★ ログインしていなければログイン画面へ
+  const needLogin = access != null && !access.ok && access.reason === 'login';
   useEffect(() => {
-    if (salonIdForAlerts == null) return;
-    let alive = true;
-    getConecfCocoaNavVisible().then((v) => { if (alive) setCocoaNav(v); }).catch(() => { if (alive) setCocoaNav(true); });
-    return () => { alive = false; };
-  }, [salonIdForAlerts]);
-
-  useEffect(() => {
-    let alive = true;
-    getConecfAccess()
-      .then((a) => {
-        if (!alive) return;
-        if (!a.ok && a.reason === 'login') {
-          window.location.replace(href('/login'));
-          return;
-        }
-        setAccess(a);
-      })
-      .catch(() => { if (alive) setError('読み込めませんでした。しばらくしてから開き直してください。'); });
-    return () => { alive = false; };
+    if (needLogin) window.location.replace(href('/login'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [needLogin]);
 
   useEffect(() => {
     if (!drawerOpen) return;
