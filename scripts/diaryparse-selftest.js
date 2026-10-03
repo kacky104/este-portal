@@ -579,5 +579,42 @@ console.log('\n── 11. 実物との突き合わせ（_fixtures/） ──');
   }
 }
 
+// ───────────── 移行期間の取り込み（第1140便）─────────────
+console.log('\n── 移行期間の取り込み: フクエスで書いた日記の写しを取り込まない ──');
+{
+  const FIRST = '2026-10-05T20:10:30+09:00'; // このセラピストがフクエスで書いた最初の日記
+  eq('★★★ フクエスでまだ書いていない人は取り込む（境目が無い）',
+    [m.isFukuesWrittenCopy('2026-10-06T12:00:00+09:00', null), m.isFukuesWrittenCopy(null, null), m.isFukuesWrittenCopy('2026-10-06T12:00:00+09:00', '')], [false, false, false]);
+  eq('★★★ 境目より後に駅ちかへ載った日記は取り込まない（フクエスから送った写し）',
+    [m.isFukuesWrittenCopy('2026-10-05T20:11:00+09:00', FIRST), m.isFukuesWrittenCopy('2026-10-07T09:00:00+09:00', FIRST)], [true, true]);
+  eq('★★ 同じ日の、フクエスで書く前に駅ちかで書いた日記は取り込む',
+    [m.isFukuesWrittenCopy('2026-10-05T12:00:00+09:00', FIRST), m.isFukuesWrittenCopy('2026-10-05T20:05:00+09:00', FIRST)], [false, false]);
+  eq('★ 境目の余裕は5分（駅ちかの時刻は分までしか読めない＝少し早く見える）',
+    [m.DIARY_COPY_MARGIN_MIN, m.isFukuesWrittenCopy('2026-10-05T20:10:00+09:00', FIRST), m.isFukuesWrittenCopy('2026-10-05T20:06:00+09:00', FIRST), m.isFukuesWrittenCopy('2026-10-05T20:05:00+09:00', FIRST)],
+    [5, true, true, false]);
+  eq('★★★ 投稿日時が読めない＋フクエスで書いたことがある → 取り込まない（二重になるほうへ倒さない）',
+    [m.isFukuesWrittenCopy(null, FIRST), m.isFukuesWrittenCopy('読めない', FIRST)], [true, true]);
+
+  const posts = [
+    { id: 'imp1', created_at: '2026-10-04T10:00:00+09:00' }, // 駅ちかから取り込んだ日記
+    { id: 'own2', created_at: '2026-10-06T09:00:00+09:00' },
+    { id: 'own1', created_at: '2026-10-05T20:10:30+09:00' },
+    { id: 'bad', created_at: null },
+  ];
+  eq('★★★ フクエスで書いた最初の日記（取り込んだ日記は数えない・並びに頼らない）', m.firstFukuesWrittenAt(posts, new Set(['imp1'])), '2026-10-05T20:10:30+09:00');
+  eq('★ 取り込んだ日記しか無ければ null（＝全部取り込む）', m.firstFukuesWrittenAt([posts[0]], new Set(['imp1'])), null);
+  eq('★ 空・null でも落ちない', [m.firstFukuesWrittenAt([], new Set()), m.firstFukuesWrittenAt(null, new Set())], [null, null]);
+
+  eq('★ 写しの記録の名前', m.DIARY_STATUS_FUKUES_COPY, 'skipped:fukues_copy');
+  eq('★★★ 写しは二度と開かない（1日たっても開き直さない）',
+    m.shouldRecheckDiary({ diaryId: '9', status: m.DIARY_STATUS_FUKUES_COPY, checkedAt: '2026-09-01T00:00:00+09:00' }, '2026-10-03T00:00:00+09:00'), false);
+  eq('★ ほかの見送りは今までどおり1日で開き直す',
+    m.shouldRecheckDiary({ diaryId: '9', status: 'skipped:no_match', checkedAt: '2026-09-01T00:00:00+09:00' }, '2026-10-03T00:00:00+09:00'), true);
+  const plan = m.selectDiariesToFetch(
+    { rows: [{ diaryId: '9', postedAt: '2026-10-06T09:01:00+09:00', postedAtText: null }, { diaryId: '10', postedAt: '2026-10-06T10:00:00+09:00', postedAtText: null }], pageNumbers: [], problems: [] },
+    { known: [{ diaryId: '9', status: m.DIARY_STATUS_FUKUES_COPY, checkedAt: '2026-09-01T00:00:00+09:00' }], now: '2026-10-07T00:00:00+09:00' });
+  eq('★★ 一覧に残っていても、写しは開かず、新しい日記だけ開く', [plan.fetch.map((r) => r.diaryId), plan.skippedDone], [['10'], ['9']]);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

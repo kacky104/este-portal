@@ -39,6 +39,10 @@ import {
   planDiaryPaging,
   diaryDetailUsable,
   DIARY_MAX_PAGES,
+  // ★ 第1140便: 移行期間の取り込み（フクエスで書いた日記の写しを取り込まない）
+  DIARY_STATUS_FUKUES_COPY,
+  isFukuesWrittenCopy,
+  firstFukuesWrittenAt,
   type EkichikaDiaryListPage,
   type EkichikaDiaryDetail,
   type KnownDiary,
@@ -151,6 +155,11 @@ export async function startRelayFlow(params: {
   diaryUntil?: string | null;
   /** ★ 第897便: 自動の遡りの周（入りきったら salons.diary_backfill_* を空に戻す） */
   diaryBackfill?: boolean;
+  /**
+   * ★ 第1140便: 移行期間の取り込み（salons.diary_mixed_since の値）。★ 入口が 'fukues' の店を回すときだけ渡す。
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
+   */
+  diaryMixedSince?: string | null;
   /**
    * intent='photo_push' のときだけ（第107便）。★ 写真の在処・枠・切り抜きの範囲。
    * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
@@ -416,6 +425,8 @@ export async function startRelayFlow(params: {
     // ★ 第897便: 自動の遡り（上限の時刻・終わったら列を空に戻す印）
     ...(params.diaryUntil ? { diaryUntil: params.diaryUntil } : {}),
     ...(params.diaryBackfill ? { diaryBackfill: true } : {}),
+    // ★ 第1140便: 移行期間の取り込み。★ 渡されたときだけ入れる
+    ...(params.diaryMixedSince ? { diaryMixedSince: params.diaryMixedSince } : {}),
     // ★ 写真の送信（第107便）。★ 渡されたときだけ入れる
     ...(params.photo
       ? {
@@ -2235,6 +2246,7 @@ function shopFacingReason(
 //   skipped:private   … 駅ちかで非公開        → 1日1回だけ開き直す（§375）
 //   skipped:no_match  … 当たるセラピストが居ない → 1日1回だけ開き直す
 //   skipped:unreadable… 読み取れなかった1件    → 1日1回だけ開き直す（★ 第94便で足した）
+//   skipped:fukues_copy… フクエスで書いて駅ちかへ送った日記の写し → ★ 二度と開かない（★ 第1140便・移行期間の取り込み）
 
 /** 写メ日記の上限。★ メール受信の口（resend-inbound）と同じ値にそろえる。別の上限を作らない。 */
 const DIARY_MAX_TITLE_LEN = 100;
@@ -2579,6 +2591,42 @@ async function saveDiaryDetail(
       '日記 ' + diaryId + ' に当たるセラピストがフクエスに居ない（1日後にもう一度見る）' +
         (err ? '。★ 記録を残せなかった: ' + err.slice(0, 80) : ''),
     );
+  }
+
+  // ③b ★★★ 第1140便: 移行期間の取り込み（入口が 'fukues' の店・salons.diary_mixed_since が入っている店だけ）。
+  //   このセラピストが、移行期間の始まり以降にフクエスで書いた最初の日記より【後】に駅ちかへ載った日記は、
+  //   フクエスから送ったものの写しとみなして取り込まない（★ 取り込むと同じ日記が2件並ぶ）。
+  //   ★ 写真を取りに行く前に決める（要らない読み取りをしない）。
+  if (ctx.diaryMixedSince) {
+    const { data: own, error: ownErr } = await supabase
+      .from('diary_posts')
+      .select('id, created_at')
+      .eq('therapist_id', therapistId)
+      .gte('created_at', ctx.diaryMixedSince)
+      .order('created_at', { ascending: true })
+      .limit(200);
+    // ★★ 読めないまま進むと二重に入れてしまう。★ 記録を残さず保留（次の周でもう一度）
+    if (ownErr) return done('★ フクエスで書いた日記を引けなかったので日記 ' + diaryId + ' は保留: ' + ownErr.message.slice(0, 80));
+    const ownRows = ((own ?? []) as Array<{ id: string; created_at: string | null }>).map((r) => ({ id: String(r.id), created_at: r.created_at }));
+    let importedIds = new Set<string>();
+    if (ownRows.length > 0) {
+      const { data: imp, error: impErr } = await supabase
+        .from('salon_diary_imports').select('diary_post_id')
+        .in('diary_post_id', ownRows.map((r) => r.id));
+      if (impErr) return done('★ 取り込みの記録を引けなかったので日記 ' + diaryId + ' は保留: ' + impErr.message.slice(0, 80));
+      importedIds = new Set(
+        ((imp ?? []) as Array<{ diary_post_id: string | null }>).map((r) => String(r.diary_post_id ?? '')).filter((x) => x.length > 0),
+      );
+    }
+    const firstAt = firstFukuesWrittenAt(ownRows, importedIds);
+    if (isFukuesWrittenCopy(postedAt, firstAt)) {
+      const err = await markDiary(params, { diaryId, status: DIARY_STATUS_FUKUES_COPY, therapistId, postedAt });
+      return done(
+        '日記 ' + diaryId + ' は、フクエスで書いて駅ちかへ送った日記の写しとみなして取り込まなかった（このセラピストは ' +
+          String(firstAt) + ' からフクエスで書いている）' +
+          (err ? '。★ 記録を残せなかった: ' + err.slice(0, 80) : ''),
+      );
+    }
   }
 
   // ④ 写真（★ 取れなくても本文は入れる）

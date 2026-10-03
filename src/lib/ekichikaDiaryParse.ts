@@ -632,6 +632,69 @@ export type KnownDiary = {
  */
 export const DIARY_RECHECK_HOURS = 24;
 
+// ───────────── 移行期間の取り込み（第1140便・2026-10-03・カッキーさん）─────────────
+//
+// ★★★ 何のためか
+//   店が「写メ日記はフクエスで書く」に切り替えても、セラピストは出勤日に1人ずつ切り替えていく。
+//   ＝ 1週間ほど、フクエスで書く人と、駅ちかで書く人が混じる。
+//   ★ 入口が 'fukues' の店は取り込みが止まるので、駅ちかで書いた人の日記がフクエスに載らなくなる。
+//   ★ かといって取り込みを回すと、フクエスで書いて駅ちかへ送った日記が【駅ちかの新しい日記】に見えて、二重に入る
+//     （二重を見分ける鍵は駅ちかの日記IDだけ）。
+// ★★★ 見分け方（セラピストごとに線を引く）
+//   そのセラピストが、移行期間の始まり以降にフクエスで書いた【最初の日記】の時刻を境目にする。
+//     境目より前に駅ちかへ載った日記 … 駅ちかで書いたもの → 取り込む
+//     境目以降に駅ちかへ載った日記   … フクエスから送ったものとみなす → 取り込まない（★ 二度と開かない）
+//   ★ フクエスでまだ1件も書いていない人は、境目が無い＝全部取り込む。
+//   ★ 動くのは salons.diary_mixed_since が入っていて、入口が 'fukues' の店だけ（運営が店ごとに入れる）。
+
+/** ★ フクエスで書いた日記の写し（駅ちか側に載ったもの）。★ 取り込まない。'imported' と同じく【二度と開かない】 */
+export const DIARY_STATUS_FUKUES_COPY = 'skipped:fukues_copy';
+
+/**
+ * ★ 境目の余裕（分）。駅ちかの投稿日時は【分】までしか読めない（'HH:mm:00'）＝最大59秒早く見える。
+ *   メールで送ってから載るまでの遅れは後ろへずれるだけなので、前へ5分みておけば足りる。
+ */
+export const DIARY_COPY_MARGIN_MIN = 5;
+
+/**
+ * ★★★ この駅ちかの日記は、フクエスで書いて送ったものの写しか（＝取り込まない）。
+ * @param postedAt       駅ちかに載った日時（ISO）。★ 読めなければ null
+ * @param firstFukuesAt  そのセラピストが、移行期間の始まり以降にフクエスで書いた最初の日記の時刻（ISO）。無ければ null
+ *
+ *   firstFukuesAt が無い           … まだフクエスで書いていない人 → false（取り込む）
+ *   postedAt が読めない            … ★ true（取り込まない）。★ 二重になるほうへ倒さない（第897便の until と同じ作法）
+ *   postedAt が 境目−余裕 以降     … true（取り込まない）
+ *   それより前                     … false（取り込む）
+ */
+export function isFukuesWrittenCopy(postedAt: string | null | undefined, firstFukuesAt: string | null | undefined): boolean {
+  const first = firstFukuesAt ? Date.parse(firstFukuesAt) : Number.NaN;
+  if (Number.isNaN(first)) return false;
+  const posted = postedAt ? Date.parse(postedAt) : Number.NaN;
+  if (Number.isNaN(posted)) return true;
+  return posted >= first - DIARY_COPY_MARGIN_MIN * 60 * 1000;
+}
+
+/**
+ * ★ フクエスで書いた最初の日記の時刻を選ぶ（純粋関数）。
+ * @param posts        そのセラピストの、移行期間の始まり以降の日記（id と created_at）
+ * @param importedIds  そのうち、駅ちかから取り込んだ日記の id（＝フクエスで書いたものではない）
+ * @returns いちばん早い「フクエスで書いた日記」の時刻。1件も無ければ null
+ */
+export function firstFukuesWrittenAt(
+  posts: ReadonlyArray<{ id: string; created_at: string | null }> | null | undefined,
+  importedIds: ReadonlySet<string>,
+): string | null {
+  let best: string | null = null;
+  let bestMs = Number.POSITIVE_INFINITY;
+  for (const p of posts ?? []) {
+    if (!p || importedIds.has(String(p.id))) continue;
+    const ms = p.created_at ? Date.parse(p.created_at) : Number.NaN;
+    if (Number.isNaN(ms)) continue;
+    if (ms < bestMs) { bestMs = ms; best = p.created_at; }
+  }
+  return best;
+}
+
 /**
  * 1周で詳細を開く上限（第97便）。
  *
@@ -684,6 +747,8 @@ function normalizeKnown(v: string | KnownDiary): KnownDiary {
  */
 export function shouldRecheckDiary(known: KnownDiary, nowIso?: string | null): boolean {
   if (known.status === 'imported') return false;
+  // ★ 第1140便: フクエスで書いた日記の写しも、二度と開かない（開き直しても答えは変わらない）
+  if (known.status === DIARY_STATUS_FUKUES_COPY) return false;
   const last = known.checkedAt ? Date.parse(known.checkedAt) : Number.NaN;
   if (Number.isNaN(last)) return true;
   const now = nowIso ? Date.parse(nowIso) : Date.now();
@@ -743,7 +808,7 @@ export function selectDiariesToFetch(
     const rec = known.get(row.diaryId);
     if (rec) {
       if (!shouldRecheckDiary(rec, options?.now)) {
-        if (rec.status === 'imported') skippedDone.push(row.diaryId);
+        if (rec.status === 'imported' || rec.status === DIARY_STATUS_FUKUES_COPY) skippedDone.push(row.diaryId);
         else skippedWaiting.push(row.diaryId);
         continue;
       }

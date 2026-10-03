@@ -25,6 +25,12 @@ import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
 // ★★ apply 既定 false（試し打ち）。★ 何店ぶん積むつもりかだけ返す。
 //   ★ media-auto-push・relay-purge と同じ作法。★ 最初は apply なしで数を見ること。
 //
+// ★★★ 第1140便（2026-10-03・カッキーさん）: 移行期間の取り込み。
+//   salons.diary_mixed_since が入っている店は、入口が 'fukues'（写メ日記はフクエスで書く）でも回す。
+//   ★ セラピストは出勤日に1人ずつ切り替えるので、しばらく「フクエスで書く人」と「駅ちかで書く人」が混じる。
+//   ★ 駅ちかで書かれた日記だけを取り込む（見分けは relayFlow の saveDiaryDetail ③b・セラピストごとに線を引く）。
+//   ★ 運営が店ごとに入れる（追加SQL_第1140便）。列が無い・空の店は今までどおり。
+//
 // ★ since を渡すと【初回の遡り】になる（それより古い投稿は開かない・ページを遡る）。
 //   ★ 渡さなければ通常運転＝一覧の1ページ目だけを見て、新着だけ開く（§371）。
 //
@@ -90,6 +96,17 @@ export async function POST(req: Request) {
   const sourceOf = new Map<number, string>();
   // ★ 第897便: 自動の遡り（はじめて ID・PW を入れた店・60日）。★ since が入っている間だけ
   const backfillOf = new Map<number, { since: string; until: string | null }>();
+  // ★ 第1140便: 移行期間の取り込み（運営が入れた店だけ・値は始まりの時刻）
+  const mixedSinceOf = new Map<number, string>();
+  if (salonIds.length > 0) {
+    // ★ 列がまだ無くても止めない（SQL と push の順番を問わない）。読めなければ「移行期間の店は無い」として進む
+    const { data: mixedRows, error: mixedErr } = await svc.from('salons').select('id, diary_mixed_since').in('id', salonIds);
+    if (mixedErr) console.warn('[diary-import] diary_mixed_since を読めなかった（列が無い？）', mixedErr.message);
+    for (const r of mixedRows ?? []) {
+      const row = r as { id: number; diary_mixed_since?: string | null };
+      if (typeof row.diary_mixed_since === 'string' && row.diary_mixed_since) mixedSinceOf.set(Number(row.id), row.diary_mixed_since);
+    }
+  }
   if (salonIds.length > 0) {
     const { data: salonRows, error: salonErr } = await svc
       .from('salons').select('id, diary_source, diary_backfill_since, diary_backfill_until').in('id', salonIds);
@@ -102,8 +119,12 @@ export async function POST(req: Request) {
   }
 
   // ★★ 回すのは: 入口が ekichika の店 ＋【遡りの途中で「フクエスで書く」にした店】（★ until があるときだけ＝切り替え前の日記だけ取り込む）
+  // ★ 第1140便: 移行期間の取り込みで回す店か（入口が 'fukues' ＋ 運営が始まりの時刻を入れている）。
+  //   ★ 入口が 'ekichika' の店は今までどおりの取り込み（見分けは使わない。フクエスで書いても駅ちかへ送らないので写しが無い）
+  const isMixed = (salonId: number): boolean => sourceOf.get(salonId) === 'fukues' && mixedSinceOf.has(salonId);
   const canRun = (salonId: number): boolean => {
     if (importsDiaryFromEkichika(sourceOf.get(salonId))) return true;
+    if (isMixed(salonId)) return true;
     const b = backfillOf.get(salonId);
     return !!(b && b.until);
   };
@@ -119,12 +140,18 @@ export async function POST(req: Request) {
       diarySource: sourceOf.get(Number((c as { salon_id: number }).salon_id)) ?? '★ 店舗が引けなかった',
       note: '★ 入口が ekichika ではないため回さない',
     }));
+  // ★ 第1140便: 移行期間の取り込みで回す店（試し打ちでも見えるように返す）
+  const mixedTargets = targets
+    .map((c) => Number((c as { salon_id: number }).salon_id))
+    .filter((id) => isMixed(id))
+    .map((id) => ({ salonId: id, since: mixedSinceOf.get(id) }));
 
   if (!apply) {
     return NextResponse.json({
       ok: true,
       applied: false,
       targets: targets.length,
+      移行期間の取り込み: mixedTargets,
       skipped,
       noConsent,
       note: '試し打ち。★ apply:true で実際に積みます',
@@ -150,6 +177,8 @@ export async function POST(req: Request) {
           : backfillOf.has(salonId)
             ? diaryBackfillContext({ since: backfillOf.get(salonId)!.since, until: backfillOf.get(salonId)!.until, backfill: true })
             : {}),
+        // ★ 第1140便: 移行期間の店は、日記を保存する前に「フクエスで書いたものの写しか」を見る
+        ...(isMixed(salonId) ? { diaryMixedSince: mixedSinceOf.get(salonId) } : {}),
       });
       started.push({ salonId, slot, jobId: r.ok ? r.jobId : undefined, note: r.note });
       // ★★ 積めた【後】に心拍を刻む（第100便）。★ 前に刻むと、積めていないのに新しくなる

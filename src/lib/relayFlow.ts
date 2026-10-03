@@ -728,6 +728,11 @@ export type RelayFlowContext = {
   /** ★ 第897便: 自動の遡り（salons.diary_backfill_since）の周か。★ 入りきったら列を空に戻す */
   diaryBackfill?: boolean;
   /**
+   * ★ 第1140便: 移行期間の取り込み（salons.diary_mixed_since）。★ 入口が 'fukues' の店で、駅ちかで書かれた日記だけ取り込む周。
+   *   ★ 入っているときだけ、日記を保存する前に「フクエスで書いたものの写しか」をセラピストごとに見る。
+   */
+  diaryMixedSince?: string | null;
+  /**
    * ★★★ いま開きに行っている日記ID。
    *   ★ 応答を読むときに **パーサへ渡して突き合わせる**。★ 別の日記が返っていたら止めるため。
    */
