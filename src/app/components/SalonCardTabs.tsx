@@ -38,8 +38,10 @@ const diaryLead = (name: string, age: string, image: string | null) => (
   <>
     <DiaryTherapistAvatar src={image} name={name} size={22} />
     {name && (
-      <span className="flex-shrink-0 max-w-[132px] truncate text-xs font-bold text-slate-700">
-        {age ? `${name}（${age}）` : name}
+      // ★ 第1138便（カッキーさん）: 太字は名前だけ。年齢「（42）」は普通の太さ
+      <span className="flex-shrink-0 max-w-[132px] truncate text-xs text-slate-700">
+        <span className="font-bold">{name}</span>
+        {age && `（${age}）`}
       </span>
     )}
   </>
