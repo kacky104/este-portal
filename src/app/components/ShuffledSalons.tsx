@@ -15,6 +15,8 @@ import { ImpressionMark } from './ImpressionMark';
 import { areaLabel } from '../lib/areaLabel';
 import { areaHref, DISPATCH_AREA } from '../lib/areas';
 import { type Salon } from '@/app/lib/salons';
+import { SalonCardTabs } from './SalonCardTabs';
+import { type SalonCardTabCount, type SalonCardTabCounts } from '@/lib/salonCardTabs';
 
 export type { Salon };
 
@@ -317,7 +319,7 @@ function AutoFitAreaBadges({ labels, dispatchOnly }: { labels: string[]; dispatc
 
 // ── Salon card ────────────────────────────────────────────────
 
-export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, bleedTherapists = false, largeThumbs = false, moreImageUrl = null }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; moreImageUrl?: string | null }) {
+export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, nameBanner = false, bleedTherapists = false, largeThumbs = false, moreImageUrl = null, tabCounts }: { salon: Salon; therapists: TherapistThumb[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; nameBanner?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; moreImageUrl?: string | null; tabCounts?: SalonCardTabCount }) {
   const router = useRouter();
   const onDutyCount = therapists.filter(t => t.onDuty).length;
 
@@ -403,6 +405,12 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
     </div>
   ) : null;
 
+  // ★ 第1126便: タブ（写メ日記・口コミ・新人・クーポン）。tabCounts を渡した画面（TOP）だけ出す。
+  //   スマホ／PC の2つのレイアウトにそれぞれ置く（片方は非表示。読むのは押したときだけなので二重には読まない）。
+  const cardTabs = tabCounts ? (
+    <SalonCardTabs salonId={salon.id} reviewCount={salon.reviewCount} counts={tabCounts} therapists={therapists} />
+  ) : null;
+
   // ── 従来（モバイル/タブレット）の縦積みレイアウト ──
   const stackedLayout = (
     <div className={`flex flex-col flex-1${wideDesktop ? ' lg:hidden' : ''}`}>
@@ -450,6 +458,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
 
       {/* 3. セラピスト写真の横スクロール */}
       {therapistThumbs}
+
+      {/* 3b. タブ（第1126便・TOP だけ）。下の料金の行の区切り線が、閉じたときの下の線を兼ねる */}
+      {cardTabs}
 
       {/* Rating (top page) or Price + CTA */}
       <div className={`flex items-center justify-between ${compactTherapists ? 'pt-[5px]' : 'pt-3.5'} border-t border-slate-200 mt-auto`}>
@@ -503,6 +514,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
 
       {/* 3段目: セラピストサムネ列 */}
       {therapistThumbs}
+
+      {/* 4段目: タブ（第1126便・TOP だけ） */}
+      {cardTabs}
     </div>
   );
 
@@ -615,7 +629,7 @@ export function AreaLinkTabsBlock({ areas, currentArea }: { areas: string[]; cur
   );
 }
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null, cardTabCounts }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null; cardTabCounts?: SalonCardTabCounts }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
   // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
@@ -746,6 +760,8 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       bleedTherapists={bleedTherapists}
       largeThumbs={largeThumbs}
       moreImageUrl={moreImageUrl}
+      // ★ 第1126便: 数を渡した画面（TOP）だけタブを出す。数が無い店は 0 件（薄く出る）
+      tabCounts={cardTabCounts ? (cardTabCounts[salon.id] ?? { diary: 0, coupon: 0 }) : undefined}
     />
   ));
 

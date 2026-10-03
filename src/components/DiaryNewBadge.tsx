@@ -1,8 +1,8 @@
 'use client';
 
 import { useHydrated } from '@/lib/useHydrated';
-
-const NEW_WINDOW_MS = 48 * 60 * 60 * 1000; // 48時間
+// ★ 第1126便: 48時間の窓は lib/diaryNew.ts が唯一の正（店舗カードのタブの数も同じ窓を見る）
+import { DIARY_NEW_WINDOW_MS as NEW_WINDOW_MS } from '@/lib/diaryNew';
 
 // 写メ日記の「NEW」バッジ。更新（created_at）から48時間以内のときだけ更新日の右横に表示する。
 // 時刻依存判定は ISR キャッシュへの焼き付きを避けるため、サーバー初期描画では出さず、

@@ -12,6 +12,7 @@ import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from "./components/NotificationBell";
 import { VipLetterIcon } from "./components/VipLetterIcon";
 import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst, fetchFreeListings } from "./lib/salons";
+import { fetchSalonCardTabCounts } from "./lib/salonCardTabCounts";
 import { FreeListingCards } from "./components/FreeListingCards";
 import { weightedShuffleDaily } from "@/lib/shuffle";
 import { getBusinessDateJST } from "@/lib/dutyStatus";
@@ -70,7 +71,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes, salonCountRes, memberCountRes, headerSlides] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes, salonCountRes, memberCountRes, headerSlides, cardTabCounts] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -128,6 +129,8 @@ export default async function Home() {
     supabase.rpc('public_member_count'),
     // ★ 第1076便: hero スライダー（サーバーで読む・LCP）。読めなければ空＝hero 無し。
     fetchHeaderSlides(supabase).catch(() => []),
+    // ★ 第1126便: 店舗カードのタブの数（写メ日記48時間以内・公開中のクーポン）。全店ぶんを2本で読む。読めなければ空＝0件扱い。
+    fetchSalonCardTabCounts(supabase),
   ]);
 
   // TOPに出すのは先頭3件だけ。続きは /reviews。
@@ -378,6 +381,7 @@ export default async function Home() {
                   【要素そのものは truthy】なので、?? のフォールバックが効かず枠が消える。 */}
             <ShuffledSalons
               moreImageUrl={moreCardImage}
+              cardTabCounts={cardTabCounts}
               salons={withBumpedFirst(weightedShuffleDaily(salons, 'home', (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
               areas={[...AREA_ORDER]}
               currentArea={ALL_AREA}
