@@ -56,9 +56,10 @@ export function CrmIntro({ salonName, publicPage = false }: { salonName?: string
         <SectionTitle>できること</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {c.features.map((f) => (
-            <div key={f.name} className="border border-slate-200 p-3.5">
-              <b className="text-[15px] font-black text-slate-800">{f.name}</b>
-              <p className="mt-1 text-[13.5px] text-slate-600 leading-relaxed">{f.body}</p>
+            // ★ 第1148便（カッキーさん）: accent の札はピンク（来店時の同意書・セラピストへの公開）
+            <div key={f.name} className={`border p-3.5 ${f.accent ? 'border-pink-200 bg-pink-50' : 'border-slate-200'}`}>
+              <b className={`text-[15px] font-black ${f.accent ? 'text-pink-700' : 'text-slate-800'}`}>{f.name}</b>
+              <p className={`mt-1 text-[13.5px] leading-relaxed ${f.accent ? 'text-pink-900/80' : 'text-slate-600'}`}>{f.body}</p>
             </div>
           ))}
         </div>

@@ -7,7 +7,8 @@
 // ★ 料金はここに書かない（第2条が保留のため）。「運営事務局へ」に留める。
 
 export type CrmIntroFlowBox = { caption: string; name: string };
-export type CrmIntroFeature = { name: string; body: string };
+/** ★ 第1148便: accent … 札をピンクで目立たせる（カッキーさんの指定） */
+export type CrmIntroFeature = { name: string; body: string; accent?: boolean };
 export type CrmIntroCompareRow = { item: string; free: string; crm: string };
 export type CrmIntroStep = { title: string; body: string };
 
@@ -46,8 +47,8 @@ export const CRM_INTRO: CrmIntroContent = {
     { name: '日報・レポート', body: '締め作業でその日の売上・報酬・経費を日報に。月ごとの売上・本数・お客様の数も集計します。' },
     { name: '金銭授受', body: 'セラピストとのお金のやりとり（精算・釣銭・前借り）と残高を、通算で持ちます。' },
     { name: '料金設定', body: 'コース・指名・延長・オプション・割引の料金表。項目ごとに料金と女子報酬を入れておけば、受付で選ぶだけです。' },
-    { name: '来店時の同意書（QR）', body: '部屋ごとのQRをお客様のスマホで読んでサイン。紙でもらったときも記録できます。' },
-    { name: 'セラピストへの公開', body: 'ONにすると、セラピスト本人のページに自分の出勤と予約だけが出ます。お客様の電話番号は見せません。' },
+    { name: '来店時の同意書（QR）', body: '部屋ごとのQRをお客様のスマホで読んでサイン。紙でもらったときも記録できます。', accent: true },
+    { name: 'セラピストへの公開', body: 'ONにすると、セラピスト本人のページに自分の出勤と予約だけが出ます。お客様の電話番号は見せません。', accent: true },
   ],
   compare: {
     freeLabel: '予約ボード（無料）',
