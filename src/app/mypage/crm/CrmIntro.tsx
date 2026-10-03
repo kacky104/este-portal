@@ -14,12 +14,14 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="text-[16px] font-black text-slate-800 border-l-4 border-indigo-500 pl-2.5">{children}</h3>;
 }
 
-export function CrmIntro({ salonName }: { salonName: string }) {
+// ★ 第1145便: ログイン不要のご案内ページ（fukuescrm.com/about）でも使う。★ salonName は無ければ出さない。
+//   publicPage のときは「契約店舗様はこちらからログイン」のボタンを出す（ログイン後は契約店ならそのまま使える・未契約ならこの案内に戻る）。
+export function CrmIntro({ salonName, publicPage = false }: { salonName?: string; publicPage?: boolean }) {
   const links = useCrmLinks();
   const c = CRM_INTRO;
   return (
     <div className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8 space-y-4">
-      <p className="text-[12px] font-bold text-indigo-500">{salonName}</p>
+      {salonName && <p className="text-[12px] font-bold text-indigo-500">{salonName}</p>}
 
       {/* ── とは ── */}
       <section className={`${card} space-y-3`}>
@@ -106,6 +108,11 @@ export function CrmIntro({ salonName }: { salonName: string }) {
         <SectionTitle>{c.apply.title}</SectionTitle>
         <p className="text-[14px] text-slate-600 leading-relaxed">{c.apply.body}</p>
         <div className="flex flex-wrap gap-2">
+          {publicPage && (
+            <a href={links.special('login')} className="inline-block bg-indigo-600 px-4 py-2 text-[13px] font-bold text-white">
+              ご契約店舗様はこちらからログイン
+            </a>
+          )}
           <a href={links.special('guide')} target="_blank" rel="noopener" className="inline-block border border-indigo-300 bg-white px-4 py-2 text-[13px] font-bold text-indigo-700">
             使い方・よくある質問を見る
           </a>

@@ -25,7 +25,7 @@ import { VipLetterForm } from '@/app/components/VipLetterForm';
 import { VipLetterSentList } from '@/app/components/VipLetterSentList';
 import { BookingBoard } from '@/app/mypage/BookingBoard';
 import { SupportTab } from '@/app/mypage/SupportTab';
-import { getBusinessDateJST, getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getBusinessDateRangeJST, getCalendarDateJST } from '@/lib/dutyStatus';
 import { snapClockPair } from '@/lib/timeSnap';
 import { conecfLockMessage } from '@/lib/conecfLock';
 // ★ 第988便: 出勤・セラピスト追加・今すぐはサーバー経由（スマホのアプリ内ブラウザ対策）
@@ -919,6 +919,8 @@ export default function MyPage() {
   const [newTherapistName, setNewTherapistName] = useState('');
   // ★ 第398便（コネックエフ 1c・案B）: コネックエフを使う店は、セラピストの追加をコネックエフで行う
   const [conecfOn, setConecfOn] = useState(false);
+  // ★ 第1145便: フクエスCRM を契約している店か（crm_until が今日以降）。★ 未契約の店はバナーの行き先を「ご案内」（ログイン不要）にする
+  const [crmOn, setCrmOn] = useState(false);
   // ★ 第889便: 追加した直後のセラピスト（招待の小窓を開く）
   const [justAdded, setJustAdded] = useState<{ id: string; name: string } | null>(null);
   const [newTherapistIsNew, setNewTherapistIsNew] = useState(false);
@@ -1190,10 +1192,15 @@ export default function MyPage() {
       // ★ コネックエフを使っている店か（第398便）。★ 読めなければ false（今までどおり）
       supabase
         .from('salons')
-        .select('conecf_enabled_at')
+        .select('conecf_enabled_at, crm_until')
         .eq('id', salonData.id)
         .maybeSingle()
-        .then(({ data }) => setConecfOn(!!((data as { conecf_enabled_at?: string | null } | null)?.conecf_enabled_at)));
+        .then(({ data }) => {
+          const row = data as { conecf_enabled_at?: string | null; crm_until?: string | null } | null;
+          setConecfOn(!!row?.conecf_enabled_at);
+          // ★ 第1145便: 判定は actions/crm.ts の isCrmActive と同じ（crm_until の日付が今日（JST）以降）
+          setCrmOn(!!row?.crm_until && String(row.crm_until).slice(0, 10) >= getCalendarDateJST());
+        });
       supabase
         .from('salons')
         .select('therapist_placeholder_url')
@@ -2935,10 +2942,15 @@ export default function MyPage() {
   //   ★ 関数名は差し替えの手間を減らすため renderCrmSoon のまま。
   //   ★ 第631便: fukues.com からの転送を ON にしたら、入口も fukuescrm.com へ直接飛ばす（lib/crmHost.ts のスイッチ）。
   //   ★ 第679便（2026-09-23・カッキーさんの指示）: 文字リンクを画像バナーに（./SidebarBanner.tsx）。行き先・別タブは今までどおり。
+  // ★ 第1145便（カッキーさん「バナーを押すとログイン画面になる」）: fukuescrm.com は別のドメインなのでログインが要る。
+  //   未契約の店はログインの前に「何ができるか」を見せたいので、行き先を ご案内（/about・ログイン不要）にする。契約店は今までどおり。
+  const crmBannerHref = crmOn
+    ? (CRM_REDIRECT_FROM_FUKUES ? CRM_ORIGIN : '/mypage/crm')
+    : (CRM_REDIRECT_FROM_FUKUES ? CRM_ORIGIN + '/about' : '/crm/about');
   const renderCrmSoon = (pc: boolean) => (
     <SidebarBanner
       pc={pc}
-      href={CRM_REDIRECT_FROM_FUKUES ? CRM_ORIGIN : '/mypage/crm'}
+      href={crmBannerHref}
       src="/mypage/sidebar/crm-v2.webp"
       alt="フクエスCRM　顧客管理、セラピスト管理を効率化"
     />

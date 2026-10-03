@@ -40,6 +40,7 @@ const CRM_SPECIAL: Readonly<Record<string, string>> = {
   '/terms': '/crm/terms',
   '/data': '/crm/data',
   '/guide': '/crm/guide',   // ★ 第648便: 使い方・よくある質問
+  '/about': '/crm/about',   // ★ 第1145便: ご案内（未契約の店舗様向け・ログイン不要）
 };
 
 /** フクエス本番のホスト。★ ここで /mypage/crm を開かれたら fukuescrm.com へ送る */
@@ -108,7 +109,8 @@ export function crmHref(base: string, path: string): string {
 }
 
 /** ログイン画面・規約のリンク（CRM ドメインなら短いパス、それ以外は本体のパス） */
-export function crmSpecialHref(base: string, key: 'login' | 'terms' | 'data' | 'guide'): string {
+export type CrmSpecialKey = 'login' | 'terms' | 'data' | 'guide' | 'about';
+export function crmSpecialHref(base: string, key: CrmSpecialKey): string {
   if (base === '') return '/' + key;
   return key === 'login' ? '/owner/login?redirectTo=%2Fmypage%2Fcrm' : '/crm/' + key;
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext } from 'react';
-import { crmHref, crmSpecialHref, fukuesHref } from '@/lib/crmHost';
+import { crmHref, crmSpecialHref, fukuesHref, type CrmSpecialKey } from '@/lib/crmHost';
 
 // ★ リンクの頭（fukuescrm.com なら ''、fukues.com・プレビューなら '/mypage/crm'）を画面に配る（第631便）。
 // ★ 値は layout.tsx がリクエストのホストから決める（★ 画面側で window を見ない＝描画のずれを作らない）。ConecfBase と同じ形。
@@ -16,7 +16,7 @@ export function CrmBaseProvider({ base, children }: { base: string; children: Re
 export function useCrmLinks(): {
   base: string;
   href: (path: string) => string;
-  special: (key: 'login' | 'terms' | 'data' | 'guide') => string;
+  special: (key: CrmSpecialKey) => string;
   fukues: (path: string) => string;
 } {
   const base = useContext(BaseContext);
