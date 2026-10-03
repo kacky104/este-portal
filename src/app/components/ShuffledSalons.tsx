@@ -466,11 +466,8 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       {/* 3. セラピスト写真の横スクロール */}
       {therapistThumbs}
 
-      {/* 3b. タブ（第1126便・TOP だけ）。下の料金の行の区切り線が、閉じたときの下の線を兼ねる */}
-      {cardTabs}
-
-      {/* Rating (top page) or Price + CTA */}
-      <div className={`flex items-center justify-between ${compactTherapists ? 'pt-[5px]' : 'pt-3.5'} border-t border-slate-200 mt-auto`}>
+      {/* Rating (top page) or Price + CTA。★ 第1139便: 下にタブが来るときは、タブの線との間を少しあける（pb） */}
+      <div className={`flex items-center justify-between ${compactTherapists ? 'pt-[5px]' : 'pt-3.5'}${cardTabs ? ' pb-[6px]' : ''} border-t border-slate-200 mt-auto`}>
         {ratingAtBottom ? (
           <div className="min-w-0">
             {/* ★ 第1133便（カッキーさん）: タブがある画面（TOP）では、ここの ★・「口コミなし」は出さない（口コミのタブの中に出す） */}
@@ -493,6 +490,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         )}
         {detailBtn}
       </div>
+
+      {/* 4. タブ（第1126便・TOP だけ）。★ 第1139便（カッキーさん）: 料金の行と入れ替えて、カードのいちばん下に置く（開くと下へ伸びる） */}
+      {cardTabs}
     </div>
   );
 
