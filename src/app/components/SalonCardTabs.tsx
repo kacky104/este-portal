@@ -29,16 +29,16 @@ type Row = { key: string; href: string; lead: ReactNode; text: string; tail: str
 type Loaded = { status: 'loading' } | { status: 'ready'; rows: Row[] } | { status: 'error' };
 
 /**
- * ★ 第1150便（カッキーさん「小さすぎて見えなかった」）: タブの行のセラピストの写真は、丸（22px・白枠）ではなく【行の高さいっぱいの正方形】（28px＝h-7）。
+ * ★ 第1150便（カッキーさん「小さすぎて見えなかった」）: タブの行のセラピストの写真は、丸（22px・白枠）ではなく【行の高さいっぱいの正方形】（第1151便: 32px＝h-8。行の高さも 28→32px・文字も 12→13.5px）。
  *   ★ 白枠を外して、見える面積をできるだけ広く。角だけ少し丸める。写真が無い方は頭文字。
  */
 function TabAvatar({ src, name }: { src: string | null; name: string }) {
   return (
-    <span className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded-[3px] bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
+    <span className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-[3px] bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
       {src ? (
-        <Image src={src} alt={name} width={28} height={28} className="absolute inset-0 h-full w-full object-cover" />
+        <Image src={src} alt={name} width={32} height={32} className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <span className="text-[12px] font-bold leading-none text-white">{name.charAt(0) || '♡'}</span>
+        <span className="text-[13px] font-bold leading-none text-white">{name.charAt(0) || '♡'}</span>
       )}
     </span>
   );
@@ -55,7 +55,7 @@ const diaryLead = (name: string, age: string, image: string | null) => (
     <TabAvatar src={image} name={name} />
     {name && (
       // ★ 第1138便（カッキーさん）: 太字は名前だけ。年齢「（42）」は普通の太さ
-      <span className="flex-shrink-0 max-w-[132px] truncate text-xs text-slate-700">
+      <span className="flex-shrink-0 max-w-[140px] truncate text-[13.5px] text-slate-700">
         <span className="font-bold">{name}</span>
         {age && `（${age}）`}
       </span>
@@ -119,7 +119,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
         lead: (
           <>
             <TabAvatar src={th?.imageUrl ?? null} name={th?.name ?? ''} />
-            <span className="flex-shrink-0 text-[11px] font-bold text-amber-700">
+            <span className="flex-shrink-0 text-[12px] font-bold text-amber-700">
               ★{overallRating(r.rating_service, r.rating_technique, r.rating_reception).toFixed(1)}
             </span>
           </>
@@ -151,7 +151,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
           key: String(r.id),
           href: `/salon/${salonId}/coupon`,
           lead: discount ? (
-            <span className="min-w-0 shrink truncate rounded bg-amber-100 px-1.5 text-[11px] font-bold leading-4 text-amber-800">
+            <span className="min-w-0 shrink truncate rounded bg-amber-100 px-1.5 text-[12px] font-bold leading-5 text-amber-800">
               {discount}
             </span>
           ) : null,
@@ -236,8 +236,8 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
             <>
               <TabAvatar src={t.imageUrl} name={t.name} />
               <NewBadge />
-              <span className="flex-shrink-0 max-w-[120px] truncate text-xs text-slate-700">{t.age ? `${t.name}（${t.age}）` : t.name}</span>
-              {since && <span className="flex-shrink-0 text-[11px] text-slate-500">{since} 入店</span>}
+              <span className="flex-shrink-0 max-w-[128px] truncate text-[13.5px] text-slate-700">{t.age ? `${t.name}（${t.age}）` : t.name}</span>
+              {since && <span className="flex-shrink-0 text-[12px] text-slate-500">{since} 入店</span>}
             </>
           ),
           text: '',
@@ -258,8 +258,8 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
   const rowInner = (r: Row) => (
     <>
       {r.lead}
-      <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{r.text}</span>
-      {r.tail && <span className="flex-shrink-0 text-[11px] text-slate-500">{r.tail}</span>}
+      <span className="min-w-0 flex-1 truncate text-[13.5px] text-slate-700">{r.text}</span>
+      {r.tail && <span className="flex-shrink-0 text-[12px] text-slate-500">{r.tail}</span>}
     </>
   );
 
@@ -273,35 +273,35 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
     const third = rows[CARD_TAB_ROWS] ?? null;
     return (
     <div id={isHidden ? undefined : panelId} hidden={isHidden} className="px-2 pb-1">
-      <div className="min-h-[56px]">
-        {l.status === 'loading' && <p className="h-14 flex items-center text-xs text-slate-500">読み込み中…</p>}
-        {l.status === 'error' && <p className="h-14 flex items-center text-xs text-slate-500">読み込めませんでした。下のリンクからご覧ください。</p>}
-        {l.status === 'ready' && l.rows.length === 0 && <p className="h-14 flex items-center text-xs text-slate-500">下のリンクからご覧ください。</p>}
+      <div className="min-h-[64px]">
+        {l.status === 'loading' && <p className="h-16 flex items-center text-[13.5px] text-slate-500">読み込み中…</p>}
+        {l.status === 'error' && <p className="h-16 flex items-center text-[13.5px] text-slate-500">読み込めませんでした。下のリンクからご覧ください。</p>}
+        {l.status === 'ready' && l.rows.length === 0 && <p className="h-16 flex items-center text-[13.5px] text-slate-500">下のリンクからご覧ください。</p>}
         {rows.slice(0, CARD_TAB_ROWS).map((r) => (
           <Link
             key={r.key}
             href={r.href}
             onClick={(e) => e.stopPropagation()}
-            className="flex h-7 min-w-0 items-center gap-1.5 border-b border-slate-100"
+            className="flex h-8 min-w-0 items-center gap-2 border-b border-slate-100"
           >
             {rowInner(r)}
           </Link>
         ))}
       </div>
-      <div className="flex h-7 min-w-0 items-center justify-end gap-2">
+      <div className="flex h-8 min-w-0 items-center justify-end gap-2">
         {third && (
-          <Link href={third.href} onClick={(e) => e.stopPropagation()} className="flex h-7 min-w-0 flex-1 items-center gap-1.5">
+          <Link href={third.href} onClick={(e) => e.stopPropagation()} className="flex h-8 min-w-0 flex-1 items-center gap-2">
             {rowInner(third)}
           </Link>
         )}
         {t.key === 'review' && ratingNode && (
-          <div className="flex h-7 min-w-0 flex-1 items-center gap-1.5 overflow-hidden">{ratingNode}</div>
+          <div className="flex h-8 min-w-0 flex-1 items-center gap-1.5 overflow-hidden">{ratingNode}</div>
         )}
         <Link
           href={`/salon/${salonId}/${t.path}`}
           onClick={(e) => e.stopPropagation()}
           aria-label={t.moreFull}
-          className="flex-shrink-0 text-xs font-bold text-pink-700 hover:text-pink-600"
+          className="flex-shrink-0 text-[13px] font-bold text-pink-700 hover:text-pink-600"
         >
           {t.more} ›
         </Link>
