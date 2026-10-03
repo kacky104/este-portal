@@ -24,8 +24,6 @@ export type TherapistThumb = {
   availableUntilImport: string | null;
   isNewFace:      boolean;
   newFaceSince:   string | null;
-  // ★ 第1135便: 店舗カードの「新人」タブでスリーサイズを出すため（無ければ ''）
-  bodyType:       string;
 };
 
 // サロンごとのセラピストサムネイルをクライアントで取得する共有フック。
@@ -47,7 +45,7 @@ export function useSalonTherapists(
 
       const { data: therapistRowsWithAvail, error: tErr } = await supabase
         .from('therapists')
-        .select(`id, name, age, salon_id, profile_image_url, work_hours, ${IMASUGU_COLUMNS}, is_new_face, new_face_since, body_type`)
+        .select(`id, name, age, salon_id, profile_image_url, work_hours, ${IMASUGU_COLUMNS}, is_new_face, new_face_since`)
         // ★ 非公開（is_active=false）は出さない（第216便の方針）。★ 本人ページは404なので、出すとリンク切れになる。
         .eq('is_active', true)
         .in('salon_id', salonIds);
@@ -60,7 +58,7 @@ export function useSalonTherapists(
           .eq('is_active', true)
           .in('salon_id', salonIds);
         // ★ 列が無い環境へのフォールバック。3枠すべてを明示的に埋めること（枠を増やしたらここも増やす）。
-        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, is_new_face: false, new_face_since: null, body_type: null }));
+        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, is_new_face: false, new_face_since: null }));
       }
 
       if (!therapistRows || therapistRows.length === 0) {
@@ -112,7 +110,6 @@ export function useSalonTherapists(
           availableUntilImport: ((t as { available_until_import?: unknown }).available_until_import as string | null) ?? null,
           isNewFace:      Boolean((t as { is_new_face?: unknown }).is_new_face),
           newFaceSince:   ((t as { new_face_since?: unknown }).new_face_since as string | null) ?? null,
-          bodyType:       ((t as { body_type?: unknown }).body_type as string | null) ?? '',
         });
       }
 

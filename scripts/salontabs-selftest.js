@@ -70,8 +70,6 @@ console.log('── 5. 行に出す文 ──');
 eq('★ タイトル → 本文の頭 → 決まり文句', [T.diaryLine('今日も出勤', '本文'), T.diaryLine('', '本文です\nつづき'), T.diaryLine(null, '  '), T.diaryLine(null, null)],
    ['今日も出勤', '本文です つづき', '写真を投稿しました', '写真を投稿しました']);
 eq('★ 長すぎる文は 60 字で落とす', T.oneLine('あ'.repeat(80)).length, 60);
-eq('★★ 第1135便: スリーサイズだけ（身長は出さない）', [T.threeSizes('T149 B86(E) W55 H84'), T.threeSizes('T158'), T.threeSizes('B88 W58 H86'), T.threeSizes('t160 b90（g） w60 h88')], ['B86(E) W55 H84', '', 'B88 W58 H86', 'B90(G) W60 H88']);
-eq('★ 読めなければ空（手入力の文をそのまま出さない）・null でも落ちない', [T.threeSizes('スレンダー体型です'), T.threeSizes(null), T.threeSizes('')], ['', '', '']);
 eq('★ 口コミの総合点（3つの平均・小数1位）', [T.overallRating(5, 5, 5), T.overallRating(5, 4, 4), T.overallRating('5', '4', '5'), T.overallRating(null, 'x', 1)], [5, 4.3, 4.7, 0]);
 
 console.log(fail === 0 ? '\n全部 ok' : `\n★★★ NG ${fail} 件`);

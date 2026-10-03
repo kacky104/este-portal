@@ -154,23 +154,6 @@ export function diaryLine(title: unknown, content: unknown): string {
   return oneLine(title) || oneLine(content) || '写真を投稿しました';
 }
 
-/**
- * スリーサイズ（B・W・H）だけを取り出す。'T149 B86(E) W55 H84' → 'B86(E) W55 H84'。
- *   ★ 身長（T）は出さない（カッキーさんの指定は「スリーサイズ」）。
- *   ★ 読めた部分だけを並べる。1つも読めなければ ''（手入力の文をそのまま出さない）。
- */
-export function threeSizes(bodyType: unknown): string {
-  const s = typeof bodyType === 'string' ? bodyType : '';
-  const b = s.match(/B\s*(\d{2,3})\s*(?:[(（]\s*([A-Za-z]{1,3})\s*[)）])?/i);
-  const w = s.match(/W\s*(\d{2,3})/i);
-  const h = s.match(/H\s*(\d{2,3})/i);
-  const out: string[] = [];
-  if (b) out.push(b[2] ? `B${b[1]}(${b[2].toUpperCase()})` : `B${b[1]}`);
-  if (w) out.push(`W${w[1]}`);
-  if (h) out.push(`H${h[1]}`);
-  return out.join(' ');
-}
-
 /** 口コミの総合点（3つの平均・小数1位）。★ app/lib/reviews.ts の overallOf と同じ式 */
 export function overallRating(service: unknown, technique: unknown, reception: unknown): number {
   const v = (Number(service) + Number(technique) + Number(reception)) / 3;
