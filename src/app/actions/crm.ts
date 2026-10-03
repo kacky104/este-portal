@@ -15,7 +15,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { normalizePhone } from '@/app/lib/validation/phone';
-import { getBookingBoardData } from '@/app/actions/booking';
+// ★ 第1113便: 予約ボードの読む部分を直接使う（getBookingBoardData を呼ぶと認証が二重・予約を2回読むため）
+import { loadBookingBoard, normalizeIntervalMin } from '@/app/lib/booking/boardData';
 import { scheduleWindowUtc } from '@/app/lib/booking/slots';
 import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
 import { headers } from 'next/headers';
@@ -118,7 +119,9 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
 }
 
 /** 有料CRMを使ってよいか確かめてから service_role を返す */
-async function assertCrm(salonId: number): Promise<{ ok: true; svc: Svc; userId: string } | { ok: false; error: string }> {
+// ★ 第1113便: 予約ボードの読み込みに要る店舗の値も一緒に返す（★ getCrmSchedule が salons を読み直さないため）
+type CrmAuthOk = { ok: true; svc: Svc; userId: string; bookingCoursesRaw: unknown; defaultIntervalMin: number };
+async function assertCrm(salonId: number): Promise<CrmAuthOk | { ok: false; error: string }> {
   if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗が不正です' };
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -126,7 +129,7 @@ async function assertCrm(salonId: number): Promise<{ ok: true; svc: Svc; userId:
   const svc = createServiceClient();
   const { data: salon, error } = await svc
     .from('salons')
-    .select('owner_id, crm_until')
+    .select('owner_id, crm_until, booking_courses, default_interval_min')
     .eq('id', salonId)
     .maybeSingle();
   if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
@@ -137,7 +140,7 @@ async function assertCrm(salonId: number): Promise<{ ok: true; svc: Svc; userId:
   if (!isAdmin && !isCrmActive((salon.crm_until as string | null) ?? null)) {
     return { ok: false, error: 'フクエスCRMのご契約期間外です' };
   }
-  return { ok: true, svc, userId: user.id };
+  return { ok: true, svc, userId: user.id, bookingCoursesRaw: salon.booking_courses, defaultIntervalMin: normalizeIntervalMin(salon.default_interval_min) };
 }
 
 function emptyStats(): CrmStats {
@@ -494,103 +497,114 @@ export async function getCrmTherapists(
  *   ボードの窓は「その日 0:00〜翌7:00」。画面側で 6:00 より前（前日営業日の続き）は見せない。
  * ★ 見られる日付もボードと同じ（過去90日〜7日先）。
  */
+/** ★ 第1113便: 自動更新（lite）で返す形＝設定・料金表を除いたもの。画面側が前回の値と合わせて使う */
+export type CrmScheduleLiteData = Omit<CrmScheduleData, 'settings' | 'priceItems'>;
+
 export async function getCrmSchedule(
   salonId: number,
   dateISO: string,
-): Promise<{ ok: true; data: CrmScheduleData } | { ok: false; error: string }> {
+  opts?: { lite?: boolean },
+): Promise<
+  | { ok: true; lite: false; data: CrmScheduleData }
+  | { ok: true; lite: true; data: CrmScheduleLiteData }
+  | { ok: false; error: string }
+> {
+  // ★ 第1113便（2026-10-03）: 読み取りを減らした。
+  //   ① 認証は1回（それまで assertCrm ＋ 予約ボードの assertSalonOwner で auth・salons を2回ずつ読んでいた）
+  //   ② 予約は1回（それまでボード用と CRM の列用で salon_bookings を2回読んでいた → extraBookingCols で一緒に読む）
+  //   ③ 互いに依存しない読み取りは Promise.all で同時に（それまで6本を順番に待っていた＝ソウルまで6往復）
+  //   ④ lite: 60秒ごとの自動更新では、滅多に変わらない 設定・料金表 を読まない（★ 画面側が前回の値を使い回す）
+  //   ★ lite のときは settings・priceItems を【返さない】（型で分ける＝画面側が前回の値を使うことを忘れられない）。
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return { ok: false, error: '日付が不正です' };
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   const svc = auth.svc;
+  const lite = opts?.lite === true;
 
-  const board = await getBookingBoardData(salonId, dateISO);
+  // 予約 → 顧客のひも付けと悪質・入り口・料金（★ ボードの列に足して1回で読む）
+  const board = await loadBookingBoard(svc, salonId, dateISO,
+    { bookingCoursesRaw: auth.bookingCoursesRaw, defaultIntervalMin: auth.defaultIntervalMin },
+    { extraBookingCols: 'customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method, play_status, received_by' },
+  );
   if (!board.ok) return board;
   const { therapists, bookings } = board.data;
 
-  // 予約 → 顧客のひも付けと悪質・入り口（ボードの返り値には無い列）
-  const bookingIds = bookings.map((b) => b.id);
   type Extra = {
     customerId: number | null; cancelBad: boolean; source: string;
     items: CrmBookingItem[]; priceAdjust: number; payAdjust: number;
     priceTotal: number | null; payTotal: number | null; paymentMethod: string; playStatus: string; receivedBy: string;
   };
   const extra = new Map<string, Extra>();
-  if (bookingIds.length > 0) {
-    const { data } = await svc
-      .from('salon_bookings')
-      .select('id, customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method, play_status, received_by')
-      .eq('salon_id', salonId)
-      .in('id', bookingIds);
-    for (const r of data ?? []) {
-      extra.set(String(r.id), {
-        customerId: r.customer_id == null ? null : Number(r.customer_id),
-        cancelBad: Boolean(r.cancel_bad),
-        source: String(r.source ?? ''),
-        items: parseItems(r.crm_items),
-        priceAdjust: Number(r.price_adjust) || 0,
-        payAdjust: Number(r.pay_adjust) || 0,
-        priceTotal: r.price_total == null ? null : Number(r.price_total),
-        payTotal: r.pay_total == null ? null : Number(r.pay_total),
-        paymentMethod: String(r.payment_method ?? ''),
-        playStatus: String(r.play_status ?? ''),
-        receivedBy: String(r.received_by ?? ''),
-      });
-    }
+  for (const [id, r] of board.extra) {
+    extra.set(id, {
+      customerId: r.customer_id == null ? null : Number(r.customer_id),
+      cancelBad: Boolean(r.cancel_bad),
+      source: String(r.source ?? ''),
+      items: parseItems(r.crm_items),
+      priceAdjust: Number(r.price_adjust) || 0,
+      payAdjust: Number(r.pay_adjust) || 0,
+      priceTotal: r.price_total == null ? null : Number(r.price_total),
+      payTotal: r.pay_total == null ? null : Number(r.pay_total),
+      paymentMethod: String(r.payment_method ?? ''),
+      playStatus: String(r.play_status ?? ''),
+      receivedBy: String(r.received_by ?? ''),
+    });
   }
 
-  // 同意書（第560便）：有効な同意の時刻
-  const consentAt = new Map<string, string>();
-  if (bookingIds.length > 0) {
-    const { data: cs } = await svc
-      .from('crm_consents').select('booking_id, created_at')
-      .eq('salon_id', salonId).is('superseded_at', null).in('booking_id', bookingIds);
-    for (const c of cs ?? []) consentAt.set(String(c.booking_id), String(c.created_at));
-  }
-
-  // 女子メモ（crm_therapist_memos・2026-09-19）
-  const memos = new Map<number, string>();
-  if (therapists.length > 0) {
-    const { data: ms } = await svc
-      .from('crm_therapist_memos')
-      .select('therapist_id, memo')
-      .eq('salon_id', salonId)
-      .in('therapist_id', therapists.map((t) => t.id));
-    for (const m of ms ?? []) memos.set(Number(m.therapist_id), String(m.memo ?? ''));
-  }
-
+  const bookingIds = bookings.map((b) => b.id);
+  const therapistIds = therapists.map((t) => t.id);
   const customerIds = [...new Set([...extra.values()].map((e) => e.customerId).filter((v): v is number => v != null))];
+
+  // ★ ここから先は互いに依存しない → 同時に読む
+  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays] = await Promise.all([
+    // 同意書（第560便）：有効な同意の時刻
+    bookingIds.length > 0
+      ? svc.from('crm_consents').select('booking_id, created_at')
+          .eq('salon_id', salonId).is('superseded_at', null).in('booking_id', bookingIds).then((r) => r.data ?? [])
+      : Promise.resolve([] as Array<{ booking_id: unknown; created_at: unknown }>),
+    // 女子メモ（crm_therapist_memos・2026-09-19）
+    therapistIds.length > 0
+      ? svc.from('crm_therapist_memos').select('therapist_id, memo')
+          .eq('salon_id', salonId).in('therapist_id', therapistIds).then((r) => r.data ?? [])
+      : Promise.resolve([] as Array<{ therapist_id: unknown; memo: unknown }>),
+    customerIds.length > 0
+      ? svc.from('salon_customers').select('id, name, category, caution_memo, ng_therapist_ids')
+          .eq('salon_id', salonId).in('id', customerIds).then((r) => r.data ?? [])
+      : Promise.resolve([] as Array<Record<string, unknown>>),
+    statsFor(svc, salonId, customerIds),
+    // ★ lite のときは読まない（画面側が前回の値を使う）
+    lite ? Promise.resolve([] as CrmPriceItem[]) : readPriceItems(svc, salonId).then((xs) => xs.filter((p) => p.isActive)),
+    readConfirms(svc, salonId, dateISO),
+    readReport(svc, salonId, dateISO),
+    lite ? Promise.resolve(null) : readSettings(svc, salonId),
+    readWorkEnds(svc, salonId, dateISO),
+    readWorkDays(svc, salonId, dateISO),
+  ]);
+
+  const consentAt = new Map<string, string>();
+  for (const c of consentRows) consentAt.set(String(c.booking_id), String(c.created_at));
+  const memos = new Map<number, string>();
+  for (const m of memoRows) memos.set(Number(m.therapist_id), String(m.memo ?? ''));
   const customers = new Map<number, CrmScheduleCustomer>();
-  if (customerIds.length > 0) {
-    const [{ data: cs }, stats] = await Promise.all([
-      svc.from('salon_customers')
-        .select('id, name, category, caution_memo, ng_therapist_ids')
-        .eq('salon_id', salonId)
-        .in('id', customerIds),
-      statsFor(svc, salonId, customerIds),
-    ]);
-    for (const c of cs ?? []) {
-      const id = Number(c.id);
-      customers.set(id, {
-        id,
-        name: (c.name as string | null) ?? '',
-        category: toCrmCategory(c.category),
-        cautionMemo: (c.caution_memo as string | null) ?? '',
-        ngTherapistIds: ((c.ng_therapist_ids as number[] | null) ?? []).map(Number),
-        stats: stats.get(id) ?? emptyStats(),
-      });
-    }
+  for (const c of customerRows as Array<Record<string, unknown>>) {
+    const id = Number(c.id);
+    customers.set(id, {
+      id,
+      name: (c.name as string | null) ?? '',
+      category: toCrmCategory(c.category),
+      cautionMemo: (c.caution_memo as string | null) ?? '',
+      ngTherapistIds: ((c.ng_therapist_ids as number[] | null) ?? []).map(Number),
+      stats: stats.get(id) ?? emptyStats(),
+    });
   }
 
-  return {
-    ok: true,
-    data: {
+  const base: CrmScheduleLiteData = {
       date: dateISO,
       courses: board.data.courses,
-      priceItems: (await readPriceItems(svc, salonId)).filter((p) => p.isActive),
-      confirms: await readConfirms(svc, salonId, dateISO),
-      report: await readReport(svc, salonId, dateISO),
-      settings: await readSettings(svc, salonId),
-      workEnds: await readWorkEnds(svc, salonId, dateISO),
-      workDays: await readWorkDays(svc, salonId, dateISO),
+      confirms,
+      report,
+      workEnds,
+      workDays,
       defaultIntervalMin: board.data.defaultIntervalMin,
       therapists: therapists.map((t) => ({
         id: t.id,
@@ -626,8 +640,9 @@ export async function getCrmSchedule(
           consentAt: consentAt.get(String(b.id)) ?? null,
         };
       }),
-    },
   };
+  if (lite || settings === null) return { ok: true, lite: true, data: base };
+  return { ok: true, lite: false, data: { ...base, settings, priceItems } };
 }
 
 /**

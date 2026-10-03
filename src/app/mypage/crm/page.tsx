@@ -190,14 +190,30 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [tick, setTick] = useState(0);
 
+  // ★ 第1113便: 60秒ごとの自動更新は lite（設定・料金表を読まない＝前回の値を使い回す）。
+  //   日付を変えたとき・「画面を更新」を押したとき・まだ何も持っていないときは全部読む。
+  const dataRef = useRef<CrmScheduleData | null>(null);
+  useEffect(() => { dataRef.current = data; }, [data]);
+  const fullNextRef = useRef(true);
+
   // 読み込み（日付が変わったとき・自動更新のとき）
   useEffect(() => {
     let alive = true;
-    getCrmSchedule(salonId, date).then((res) => {
+    const prev = dataRef.current;
+    const full = fullNextRef.current || !prev || prev.date !== date;
+    fullNextRef.current = false;
+    getCrmSchedule(salonId, date, full ? undefined : { lite: true }).then((res) => {
       if (!alive) return;
       if (!res.ok) { setErr(res.error); setData(null); return; }
       setErr('');
-      setData(res.data);
+      if (res.lite) {
+        // ★ lite の返事に設定・料金表は無い → 前回の値と合わせる（前回が無ければ次は全部読む）
+        const cur = dataRef.current;
+        if (!cur) { fullNextRef.current = true; setTick((v) => v + 1); return; }
+        setData({ ...res.data, settings: cur.settings, priceItems: cur.priceItems });
+      } else {
+        setData(res.data);
+      }
       setNowMs(Date.now());
     });
     return () => { alive = false; };
@@ -219,6 +235,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       e.preventDefault();
       setPicked(null); setForm(null); setMemoEdit(null); setConfirmFor(null); setClosing(false); setWorkFor(null);
       setErr('');
+      fullNextRef.current = true;   // ★ 第1113便: 「画面を更新」は設定・料金表も読み直す
       reload();
       setRefreshedAt(Date.now());
     };
@@ -1837,7 +1854,8 @@ function AlarmCenter({
   useEffect(() => {
     if (isToday || alarms.length === 0) return;
     let alive = true;
-    const load = () => getCrmSchedule(salonId, businessTodayJST()).then((r) => {
+    // ★ 第1113便: アラームに要るのは予約と出勤だけ → lite で読む（設定・料金表は読まない）
+    const load = () => getCrmSchedule(salonId, businessTodayJST(), { lite: true }).then((r) => {
       if (alive && r.ok) setOwn({ bookings: r.data.bookings, therapists: r.data.therapists });
     });
     load();

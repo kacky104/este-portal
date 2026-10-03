@@ -6,6 +6,11 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { buildSlots, scheduleWindowUtc, jstWallToUtc, SLOT_STEP_MIN, type Slot } from '@/app/lib/booking/slots';
+// ★ 第1113便: 予約ボードの「読む」部分と型は src/app/lib/booking/boardData.ts へ（フクエスCRM と共有・認証はこちら）
+import {
+  loadBookingBoard, parseBookingCourses, normalizeIntervalMin, shiftDateStr, INTERVAL_OPTIONS_MIN,
+  type BookingCourse, type OwnerBooking, type BoardBooking, type BoardScheduleWindow, type BoardTherapist, type BookingBoardData,
+} from '@/app/lib/booking/boardData';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
 import { BOOKING_SOURCE_WEB, BOOKING_SOURCE_MANUAL } from '@/app/lib/booking/source';
@@ -26,20 +31,8 @@ import { breakBlocks, breakConflict } from '@/app/lib/crm/breakGuard';
 
 export type BookableTherapist = { id: number; name: string; profileImageUrl: string | null };
 export type ScheduleDay = { date: string; start: string; end: string };
-export type BookingCourse = { name: string; durationMin: number; price: string };
-
-// salons.booking_courses(JSON) → 型付き配列（不正な要素は除外）。
-function parseBookingCourses(raw: unknown): BookingCourse[] {
-  if (!Array.isArray(raw)) return [];
-  const out: BookingCourse[] = [];
-  for (const c of raw as Record<string, unknown>[]) {
-    const name = String(c?.name ?? '').trim();
-    const durationMin = Number(c?.duration_min);
-    if (!name || !Number.isInteger(durationMin) || durationMin <= 0) continue;
-    out.push({ name, durationMin, price: String(c?.price ?? '') });
-  }
-  return out;
-}
+// ★ 第1113便: BookingCourse・parseBookingCourses は boardData.ts へ
+export type { BookingCourse };
 
 /** そのサロンで指名予約できるセラピスト一覧（is_active のみ）。公開情報。 */
 export async function getBookableTherapists(salonId: number): Promise<BookableTherapist[]> {
@@ -126,10 +119,7 @@ async function fetchOverlappingBookings(
 
 // 施術後のインターバル（分）を安全な値に正規化する（2026-08-15）。
 // 許可値以外・null・未設定はすべて 0（＝インターバルなし＝従来と同じ挙動）。
-function normalizeIntervalMin(raw: unknown): number {
-  const n = Number(raw ?? 0);
-  return (INTERVAL_OPTIONS_MIN as readonly number[]).includes(n) ? n : 0;
-}
+// ★ 第1113便: normalizeIntervalMin は boardData.ts へ
 
 // supabase-js のネスト結合（therapists!inner(salons!inner(...))）は、型の上では
 // オブジェクトにも配列にもなり得る。どちらでも先頭を取り出せるようにする。
@@ -432,20 +422,8 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
 
 // ── /mypage 予約一覧（オーナー本人 or 運営のみ・service_role 取得） ──
 
-export type OwnerBooking = {
-  id: string;
-  slotStart: string;
-  slotEnd: string;
-  therapistName: string;
-  courseName: string;
-  courseMin: number;
-  customerName: string;
-  customerTel: string;
-  note: string | null;
-  callbackPref: string | null;
-  status: string;
-  createdAt: string;
-};
+// ★ 第1113便: OwnerBooking は boardData.ts へ（ここからも同じ名前で使える）
+export type { OwnerBooking };
 
 /**
  * ログインオーナーの自店の【ネット予約】一覧を新しい順で返す。
@@ -672,26 +650,8 @@ async function assertSalonOwner(
 //    開始30分前や終了時間超えの受付など、受付可能時間は店の判断でその都度変わるため。
 //    出勤枠はボード上で薄青の目安表示のみ。客向けネット予約（createBooking）は従来どおり枠内のみ。
 
-// therapistId=null はフリー客（担当未定）の予約＝ボード最上段のフリー客レーンに表示（2026-08-14）。
-export type BoardBooking = OwnerBooking & { therapistId: number | null };
-// fromPrevDay=true は「前日の夜跨ぎシフトの尻尾」（例：前日18:00〜翌2:00 の 0:00〜2:00 部分）。
-export type BoardScheduleWindow = { start: string; end: string; startISO: string; endISO: string; fromPrevDay: boolean };
-export type BoardTherapist = { id: number; name: string; profileImageUrl: string | null; schedules: BoardScheduleWindow[] };
-export type BookingBoardData = {
-  date: string;                 // "YYYY-MM-DD"（JSTの暦日。ボード窓は 0:00〜翌7:00 固定・2026-08-14仕様変更）
-  therapists: BoardTherapist[]; // 行＝当日出勤（前日尻尾含む）のセラピスト（＋予約だけ残っているセラピスト）
-  bookings: BoardBooking[];     // 窓（0:00〜翌7:00）に重なる全予約（cancelled 含む）。翌0:00〜7:00は翌日のボードにも出る
-  courses: BookingCourse[];     // 手入力フォームのコース候補（booking_courses）
-  defaultIntervalMin: number;   // 施術後インターバルの店舗設定（受付フォームの初期値・2026-08-15）
-};
-
-// "YYYY-MM-DD" を days 日ずらす（UTC正午基準で月跨ぎ安全）。
-function shiftDateStr(dateStr: string, days: number): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const base = new Date(Date.UTC(y, m - 1, d));
-  base.setUTCDate(base.getUTCDate() + days);
-  return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`;
-}
+// ★ 第1113便: BoardBooking・BoardScheduleWindow・BoardTherapist・BookingBoardData・shiftDateStr は boardData.ts へ
+export type { BoardBooking, BoardScheduleWindow, BoardTherapist, BookingBoardData };
 
 // JSTの今日（暦日・0:00切替）。ボードの「今日」は営業日（朝6時切替）ではなくこちらを使う。
 function todayJstCalendar(): string {
@@ -732,136 +692,13 @@ export async function getBookingBoardData(
   const auth = await assertSalonOwner(salonId);
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const svc = createServiceClient();
-
-  // 在籍セラピスト（is_active）。列順は id 昇順（出勤設定タブと同じ並び感）。
-  const { data: ths, error: thErr } = await svc
-    .from('therapists')
-    .select('id, name, profile_image_url')
-    .eq('salon_id', salonId)
-    .eq('is_active', true)
-    .order('id', { ascending: true });
-  if (thErr) return { ok: false, error: thErr.message };
-  const therapistRows = ths ?? [];
-  const nameById = new Map<number, string>(
-    therapistRows.map((t) => [Number(t.id), (t.name as string | null) ?? '(名前未設定)']),
-  );
-  // 名前列の丸アイコン用（2026-08-14 追加）。
-  const imageById = new Map<number, string | null>(
-    therapistRows.map((t) => [Number(t.id), (t.profile_image_url as string | null) ?? null]),
-  );
-
-  // ボード窓：当日 0:00〜翌7:00（JST）固定。出勤の有無では変えない（2026-08-14仕様変更）。
-  const windowStart = jstWallToUtc(dateISO, '00:00');
-  const windowEnd = jstWallToUtc(dateISO, '07:00', 1);
-
-  // 出勤枠：当日分＋前日分（夜跨ぎの尻尾が 0:00 以降に掛かるもの）。
-  const ids = therapistRows.map((t) => Number(t.id));
-  const prevDate = shiftDateStr(dateISO, -1);
-  const windowsByTherapist = new Map<number, BoardScheduleWindow[]>();
-  if (ids.length > 0) {
-    const { data: sch, error: schErr } = await svc
-      .from('therapist_schedules')
-      .select('therapist_id, schedule_date, start_time, end_time, is_active')
-      .in('therapist_id', ids)
-      .in('schedule_date', [prevDate, dateISO])
-      .eq('is_active', true);
-    if (schErr) return { ok: false, error: schErr.message };
-    for (const r of sch ?? []) {
-      if (!r.start_time || !r.end_time) continue;
-      const schedDate = r.schedule_date as string;
-      const fromPrevDay = schedDate === prevDate;
-      const start = String(r.start_time).slice(0, 5);
-      const end = String(r.end_time).slice(0, 5);
-      const { startUtc, endUtc } = scheduleWindowUtc(schedDate, start, end);
-      // 前日分は夜跨ぎで 0:00 を越えるものだけ（尻尾）。当日分は必ず窓内。
-      if (fromPrevDay && endUtc <= windowStart) continue;
-      const list = windowsByTherapist.get(Number(r.therapist_id)) ?? [];
-      list.push({ start, end, startISO: startUtc.toISOString(), endISO: endUtc.toISOString(), fromPrevDay });
-      windowsByTherapist.set(Number(r.therapist_id), list);
-    }
-    // 前日尻尾→当日の順（時系列）に並べる。
-    for (const list of windowsByTherapist.values()) {
-      list.sort((a, b) => new Date(a.startISO).getTime() - new Date(b.startISO).getTime());
-    }
-  }
-
-  // 窓に重なる予約（cancelled も返す＝ボードで薄く表示して履歴が追えるように）。
-  // ★ ボードは source で絞らない。ネット予約も手入力もすべて出す（2026-08-16）。
-  //   絞っているのはネット予約タブの一覧（getSalonBookings）だけ。
-  const { data: rows, error: bErr } = await svc
-    .from('salon_bookings')
-    .select('id, therapist_id, slot_start, slot_end, course_name, course_min, customer_name, customer_tel, note, callback_pref, status, created_at')
-    .eq('salon_id', salonId)
-    .lt('slot_start', windowEnd.toISOString())
-    .gt('slot_end', windowStart.toISOString())
-    .order('slot_start', { ascending: true });
-  if (bErr) return { ok: false, error: bErr.message };
-
-  const bookings: BoardBooking[] = (rows ?? []).map((b) => ({
-    id: String(b.id),
-    therapistId: b.therapist_id == null ? null : Number(b.therapist_id),
-    slotStart: b.slot_start as string,
-    slotEnd: b.slot_end as string,
-    therapistName: b.therapist_id == null ? 'フリー客' : nameById.get(Number(b.therapist_id)) ?? '(不明)',
-    courseName: (b.course_name as string | null) ?? '',
-    courseMin: Number(b.course_min) || 0,
-    customerName: (b.customer_name as string | null) ?? '',
-    customerTel: (b.customer_tel as string | null) ?? '',
-    note: (b.note as string | null) ?? null,
-    callbackPref: (b.callback_pref as string | null) ?? null,
-    status: (b.status as string | null) ?? 'new',
-    createdAt: b.created_at as string,
-  }));
-
-  // 行＝出勤枠（前日尻尾含む）があるセラピストのみ（出勤なしの人は行を出さない）。
-  // ただし行の中は出勤時間に縛られず受付できる（白ボード＋青帯は目安・2026-08-14仕様）。
-  // 予約だけ残っているセラピストは末尾に足して、予約がボードから迷子にならないようにする。
-  const rowIds = ids.filter((id) => windowsByTherapist.has(id));
-  // フリー客（therapistId=null）はセラピスト行を作らない（クライアント側の固定レーンに出す）。
-  const extraIds = [...new Set(bookings.map((b) => b.therapistId))]
-    .filter((id): id is number => id !== null)
-    .filter((id) => !rowIds.includes(id));
-  // extra に在籍外（is_active=false）のセラピストが混ざる場合は名前を別途引く。
-  const unknownIds = extraIds.filter((id) => !nameById.has(id));
-  if (unknownIds.length > 0) {
-    const { data: exThs } = await svc.from('therapists').select('id, name, profile_image_url').in('id', unknownIds);
-    (exThs ?? []).forEach((t) => {
-      nameById.set(Number(t.id), (t.name as string | null) ?? '(名前未設定)');
-      imageById.set(Number(t.id), (t.profile_image_url as string | null) ?? null);
-    });
-    // 予約側の表示名も補完しておく。
-    for (const b of bookings) {
-      if (b.therapistName === '(不明)' && b.therapistId !== null) {
-        b.therapistName = nameById.get(b.therapistId) ?? '(不明)';
-      }
-    }
-  }
-  const therapists: BoardTherapist[] = [
-    ...rowIds.map((id) => ({
-      id,
-      name: nameById.get(id) ?? '(不明)',
-      profileImageUrl: imageById.get(id) ?? null,
-      schedules: windowsByTherapist.get(id) ?? [],
-    })),
-    ...extraIds.map((id) => ({
-      id,
-      name: nameById.get(id) ?? '(不明)',
-      profileImageUrl: imageById.get(id) ?? null,
-      schedules: [],
-    })),
-  ];
-
-  return {
-    ok: true,
-    data: {
-      date: dateISO,
-      therapists,
-      bookings,
-      courses: parseBookingCourses(auth.bookingCoursesRaw),
-      defaultIntervalMin: auth.defaultIntervalMin,
-    },
-  };
+  // ★ 第1113便: 読む部分は boardData.ts（フクエスCRM と共有）。★ ここは認証と範囲の確認だけ
+  const r = await loadBookingBoard(createServiceClient(), salonId, dateISO, {
+    bookingCoursesRaw: auth.bookingCoursesRaw,
+    defaultIntervalMin: auth.defaultIntervalMin,
+  });
+  if (!r.ok) return r;
+  return { ok: true, data: r.data };
 }
 
 export type ManualBookingInput = {
@@ -879,7 +716,7 @@ export type ManualBookingInput = {
 // インターバルは列を持たず slot_end に織り込む（slot_end = slot_start + course_min + interval）。
 // 復元は (slot_end - slot_start) - course_min で行う（マイグレーション不要）。
 
-const INTERVAL_OPTIONS_MIN = [0, 15, 30, 45, 60] as const;
+// ★ 第1113便: INTERVAL_OPTIONS_MIN は boardData.ts へ
 
 /**
  * 電話予約の手入力（オーナー本人 or 運営のみ）。
