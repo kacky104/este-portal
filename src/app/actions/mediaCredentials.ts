@@ -2058,6 +2058,12 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
     forwards: Array<{ therapistId: string; provider: string; slot: number; addressMask: string; isEnabled: boolean }>;
     /** ★ 最後に読み取った記録（無ければ null）。★ 「0件」と「まだ読んでいない」を混ぜない */
     lastRead: { at: string; applied: boolean; created: number; updated: number; unchanged: number; unmatched: number } | null;
+    /**
+     * ★ 第1121便: 写メ日記を受け取れる媒体の枠と「使えるログイン情報があるか」。
+     *   ★ 以前は画面（DiaryTargets）がこのためだけに getMediaOverview（ログイン＋店＋7本）を別に呼んでいた。
+     *   ★ hasCredential の判定は getMediaOverview と同じ（止めてある枠・パスワードが無い枠は持っていない扱い）
+     */
+    sites: Array<{ provider: string; slot: number; label: string; hasCredential: boolean }>;
   }>
 > {
   const salonId = Number(input.salonId);
@@ -2067,14 +2073,31 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
 
   const svc = createServiceClient();
 
+  // ★ 第1121便: 互いに依存しない読みは同時に出す（★ 以前は6本を1本ずつ待っていた）
   // ★ 第371便: profile_image_url を足した（投稿先の一覧に顔のバッジを出すため）。
   //   ★ 写真は公開ページにも出ているものなので秘密値ではない（getSalonTherapists と同じ扱い）
-  const { data: ths, error: thErr } = await svc
-    .from('therapists')
-    .select('id, name, profile_image_url')
-    .eq('salon_id', salonId)
-    .order('id', { ascending: true });
+  const [thRes, auRes, salonRes, srcRes, crRes] = await Promise.all([
+    svc.from('therapists').select('id, name, profile_image_url').eq('salon_id', salonId).order('id', { ascending: true }),
+    // ★ 最後の読み取り（read_maillist）。★ 見つからない＝「0件」ではなく「まだ読んでいない」
+    svc.from('salon_media_audit').select('detail, created_at, outcome').eq('salon_id', salonId)
+      .eq('event', 'read_maillist').eq('outcome', 'ok').order('created_at', { ascending: false }).limit(1),
+    svc.from('salons').select('diary_source').eq('id', salonId).maybeSingle(),
+    svc.from('salon_import_sources').select('provider, slot').eq('salon_id', salonId),
+    svc.from('salon_media_credentials').select('provider, slot, is_enabled, password_enc').eq('salon_id', salonId),
+  ]);
+  const { data: ths, error: thErr } = thRes;
   if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+  const { data: audit } = auRes;
+  const { data: salon } = salonRes;
+  const usableCred = new Set<string>();
+  for (const c of crRes.data ?? []) {
+    if (c.is_enabled !== false && Boolean(c.password_enc)) usableCred.add(String(c.provider) + '#' + Number(c.slot ?? 1));
+  }
+  const sites = (srcRes.data ?? []).map((r) => {
+    const provider = String(r.provider);
+    const slot = Number(r.slot ?? 1);
+    return { provider, slot, label: providerLabel(provider), hasCredential: usableCred.has(provider + '#' + slot) };
+  });
 
   // ★★ 第372便: 写真が無い人には【店舗の既定画像 → 運営の既定画像】を当てる（第217便）。
   //   ★ DBには書かない。★ 画面に出す直前に差し込むだけ（therapists.profile_image_url は触らない）
@@ -2104,15 +2127,6 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
     }));
   }
 
-  // ★ 最後の読み取り（read_maillist）。★ 見つからない＝「0件」ではなく「まだ読んでいない」
-  const { data: audit } = await svc
-    .from('salon_media_audit')
-    .select('detail, created_at, outcome')
-    .eq('salon_id', salonId)
-    .eq('event', 'read_maillist')
-    .eq('outcome', 'ok')
-    .order('created_at', { ascending: false })
-    .limit(1);
   const a0 = (audit ?? [])[0];
   const d = (a0?.detail as Record<string, unknown> | null) ?? null;
   const num = (k: string) => {
@@ -2130,8 +2144,6 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
       }
     : null;
 
-  const { data: salon } = await svc.from('salons').select('diary_source').eq('id', salonId).maybeSingle();
-
   return {
     ok: true,
     data: {
@@ -2143,6 +2155,7 @@ export async function getSalonDiaryForwards(input: { salonId: string | number })
       })),
       forwards,
       lastRead,
+      sites,
     },
   };
 }

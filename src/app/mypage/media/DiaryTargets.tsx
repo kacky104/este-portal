@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useMediaBrand } from './mediaBrand';
 import {
   getSalonDiaryForwards,
-  getMediaOverview,
   startMediaMailImport,
 } from '@/app/actions/mediaCredentials';
 // ★ 第370便: エステ魂のタブに「了承あり／在籍」の人数を出すため（DiaryConsent と同じ読み口）
@@ -102,14 +101,12 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
 
   const load = useCallback(async () => {
     if (salonId == null) return;
-    const [d, ov] = await Promise.all([
-      getSalonDiaryForwards({ salonId }),
-      getMediaOverview({ salonId }),
-    ]);
+    // ★ 第1121便: 枠とログイン情報の有無は getSalonDiaryForwards が一緒に返す（★ getMediaOverview を別に呼ばない）
+    const d = await getSalonDiaryForwards({ salonId });
     if (!d.ok) { setError(d.error); setLoading(false); return; }
     setData(d.data);
     // ★ 写メ日記を受け取れる媒体だけ並べる。★ 連携していない媒体も「未設定」で出す
-    const known = ov.ok ? ov.data.sites : [];
+    const known = d.data.sites;
     setSites(
       SITE_TABS.map((p) => {
         const hit = known.find((s) => s.provider === p);
@@ -129,7 +126,8 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
   // ★ 第370便: エステ魂の了承の人数。★ 投稿先（forwards）とは別に読む——了承を押すたびにこちらだけ読み直す。
   //   ★ 読めなかったときは null のまま＝タブに人数を出さない（★ 0/40 と書かない。読めていないことと0名は違う）
   useEffect(() => {
-    if (salonId == null) return;
+    // ★ 第1121便: 駅ちかだけの画面（フクエスリンク）ではエステ魂のタブを出さないので、人数も読まない
+    if (salonId == null || onlyEkichika) return;
     let live = true;
     void (async () => {
       const res = await getSalonDiaryConsents({ salonId, provider: 'esutama' });
@@ -140,7 +138,7 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
       setEsutamaAgreed(res.data.therapists.filter((t) => (of.get(t.id) ?? 'unknown') === 'agreed').length);
     })();
     return () => { live = false; };
-  }, [salonId, consentVersion]);
+  }, [salonId, consentVersion, onlyEkichika]);
 
   const onImport = async (apply: boolean) => {
     if (salonId == null) return;
