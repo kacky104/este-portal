@@ -24,8 +24,13 @@ export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: st
   { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポンを見る', path: 'coupon' },
 ];
 
-/** 開いたときに出す件数 */
+/** 開いたときに出す件数（口コミ・新人・クーポン） */
 export const CARD_TAB_ROWS = 2;
+/**
+ * ★ 第1131便（カッキーさん）: 写メ日記は3件。3件目は「写メ日記をすべて見る」と同じ行に出す（高さは増やさない）。
+ *   1〜2行目の「◯時間前」は出さない。
+ */
+export const CARD_DIARY_ROWS = 3;
 
 /** 写メ日記の1行ぶん（TOP の HTML に入れておく・第1128便） */
 //   ★ 第1129便: 名前の左に出す丸い写真のために、セラピストの id と写真も持つ（写真が無ければ null）
@@ -83,7 +88,7 @@ export function therapistRefOf(v: unknown): { name: string; age: string; image: 
 }
 
 /**
- * 店舗ごとに、写メ日記の先頭 CARD_TAB_ROWS 件を行の形にする。★ 並びは渡された順（＝新しい順）。
+ * 店舗ごとに、写メ日記の先頭 CARD_DIARY_ROWS 件を行の形にする。★ 並びは渡された順（＝新しい順）。
  *   ★ id が無い行は入れない（リンクを作れない）。★ 本文は1行ぶんだけにして渡す（長い本文をそのまま画面へ運ばない）。
  */
 export function topDiaryRowsBySalon(rows: ReadonlyArray<DiaryRowIn> | null | undefined): Record<number, CardDiaryRow[]> {
@@ -93,7 +98,7 @@ export function topDiaryRowsBySalon(rows: ReadonlyArray<DiaryRowIn> | null | und
     if (r?.salon_id == null || !Number.isFinite(sid)) continue;
     if (typeof r.id !== 'string' && typeof r.id !== 'number') continue;
     const list = out[sid] ?? (out[sid] = []);
-    if (list.length >= CARD_TAB_ROWS) continue;
+    if (list.length >= CARD_DIARY_ROWS) continue;
     const th = therapistRefOf(r.therapists);
     list.push({
       id: String(r.id),

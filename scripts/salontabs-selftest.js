@@ -17,7 +17,7 @@ console.log('── 1. タブの並びと窓 ──');
 eq('★★★ 並びは 写メ日記 → 口コミ → 新人 → クーポン', T.CARD_TABS.map((t) => t.label), ['写メ日記', '口コミ', '新人', 'クーポン']);
 eq('★ 「すべて見る」の行き先', T.CARD_TABS.map((t) => t.path), ['diary', 'reviews', 'newface', 'coupon']);
 eq('★★★ 写メ日記の窓は48時間（NEW と同じ）', D.DIARY_NEW_WINDOW_MS, 48 * 60 * 60 * 1000);
-eq('★ 開いたときは2件', T.CARD_TAB_ROWS, 2);
+eq('★ 開いたときは2件（写メ日記は3件・第1131便）', [T.CARD_TAB_ROWS, T.CARD_DIARY_ROWS], [2, 3]);
 
 console.log('── 2. バッジの数 ──');
 eq('★★ 0件はバッジを出さない', [T.badgeText(0), T.badgeText(-1), T.badgeText(NaN)], ['', '', '']);
@@ -47,18 +47,19 @@ console.log('── 4b. HTML に入れておく写メ日記の2件（第1128便�
     { id: 'a', salon_id: 6, therapist_id: 41, title: '出勤しました', content: '本文', created_at: '2026-10-03T02:00:00Z', therapists: { name: 'アイ', age: 42, profile_image_url: 'https://example.com/a.jpg' } },
     { id: 'b', salon_id: 6, title: null, content: '本文だけ\nの日記', created_at: '2026-10-02T15:00:00Z', therapists: [{ name: 'レミ' }] },
     { id: 'c', salon_id: 6, title: '3件目', content: '', created_at: '2026-10-02T10:00:00Z', therapists: null },
+    { id: 'e', salon_id: 6, title: '4件目', content: '', created_at: '2026-10-02T09:30:00Z', therapists: null },
     { id: 'd', salon_id: 3, title: '', content: '', created_at: '2026-10-02T09:00:00Z', therapists: { name: 'まむ' } },
     { salon_id: 3, title: 'id が無い行' },
     { id: 'x', salon_id: null, title: '店が無い行' },
   ];
   const top = T.topDiaryRowsBySalon(rows);
-  eq('★★★ 店ごとに先頭2件だけ（渡された順＝新しい順）', top[6].map((r) => r.id), ['a', 'b']);
-  eq('★ 名前は1件でも配列でも読む・タイトルが無ければ本文の頭', top[6].map((r) => [r.name, r.text]), [['アイ', '出勤しました'], ['レミ', '本文だけ の日記']]);
+  eq('★★★ 店ごとに先頭3件だけ（渡された順＝新しい順）', top[6].map((r) => r.id), ['a', 'b', 'c']);
+  eq('★ 名前は1件でも配列でも読む・タイトルが無ければ本文の頭', top[6].slice(0, 2).map((r) => [r.name, r.text]), [['アイ', '出勤しました'], ['レミ', '本文だけ の日記']]);
   eq('★ タイトルも本文も無ければ決まり文句・id が無い行は入れない', top[3], [{ id: 'd', name: 'まむ', age: '', text: '写真を投稿しました', at: '2026-10-02T09:00:00Z', therapistId: '', image: null }]);
   eq('★ 第1130便: 年齢は数でも文字でも受ける・無ければ空', [top[6][0].age, top[6][1].age, T.therapistRefOf({ name: 'x', age: '28' }).age, T.therapistRefOf({ name: 'x', age: 0 }).age, T.therapistRefOf(null).age], ['42', '', '28', '', '']);
   eq('★ 第1129便: 丸い写真のために、セラピストの id と写真を持つ（無ければ null）', [top[6][0].therapistId, top[6][0].image, top[6][1].image], ['41', 'https://example.com/a.jpg', null]);
   const c = T.buildTabCounts(rows, [], '2026-10-03');
-  eq('★★ 数は全件（3件）・行は2件', [c[6].diary, c[6].diaryRows.length, c[3].diary, c[3].diaryRows.length], [3, 2, 2, 1]);
+  eq('★★ 数は全件（4件）・行は3件', [c[6].diary, c[6].diaryRows.length, c[3].diary, c[3].diaryRows.length], [4, 3, 2, 1]);
   eq('★ 行が無い店には diaryRows を付けない', 'diaryRows' in T.buildTabCounts([], [{ salon_id: 12, valid_until: null }], '2026-10-03')[12], false);
   eq('★ null でも落ちない', T.topDiaryRowsBySalon(null), {});
 }

@@ -6,10 +6,10 @@ import { createClient } from '@/app/lib/supabase/client';
 import { NewBadge } from '@/components/NewBadge';
 import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { isNewFaceActive } from '@/lib/newFace';
-import { formatDiaryAge, formatDiaryDate } from '@/lib/diaryDate';
+import { formatDiaryDate } from '@/lib/diaryDate';
 import { DIARY_NEW_WINDOW_MS } from '@/lib/diaryNew';
 import {
-  CARD_TABS, CARD_TAB_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating, therapistRefOf, todayJstOf,
+  CARD_TABS, CARD_TAB_ROWS, CARD_DIARY_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating, therapistRefOf, todayJstOf,
   type CardTabKey, type SalonCardTabCount,
 } from '@/lib/salonCardTabs';
 import type { TherapistThumb } from './useSalonTherapists';
@@ -21,14 +21,11 @@ import type { TherapistThumb } from './useSalonTherapists';
 //     新人は親が読んでいるセラピストから出すので、読まない。
 //   ★ 第1128便: 写メ日記の2件は親から受け取り（counts.diaryRows）、【閉じていても HTML に入れておく】（hidden）。
 //     見た目は変えない。検索エンジンは閉じてあるタブの中身も読む＝TOP に写メ日記のタイトルと個別ページへのリンクが載る。
-//     ★ 「◯時間前」は今の時刻で決まるので、HTML（ISR）には日付（MM/DD）で入れ、押したときの時刻で言い換える。
+//   ★ 第1131便（カッキーさん）: 写メ日記は3件。「◯時間前」は出さない。3件目は「写メ日記をすべて見る」と同じ行（高さは2件のときと同じ）。
 //   ★ カード全体が店舗ページへのリンク（onClick）なので、ここの中の操作は親へ伝えない（stopPropagation）。
 
 type Row = { key: string; href: string; lead: ReactNode; text: string; tail: string };
 type Loaded = { status: 'loading' } | { status: 'ready'; rows: Row[] } | { status: 'error' };
-
-/** 今の時刻。★ 押したとき（イベントの中）にだけ呼ぶ。描画の中では呼ばない */
-const clockNow = () => Date.now();
 
 /** 'YYYY-MM-DD' → 'MM/DD' */
 const mmdd = (ymd: string) => (/^\d{4}-\d{2}-\d{2}/.test(ymd) ? `${ymd.slice(5, 7)}/${ymd.slice(8, 10)}` : '');
@@ -63,11 +60,10 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
       .eq('salon_id', salonId)
       .gte('created_at', new Date(now - DIARY_NEW_WINDOW_MS).toISOString())
       .order('created_at', { ascending: false })
-      .limit(CARD_TAB_ROWS);
+      .limit(CARD_DIARY_ROWS);
     if (error) throw error;
     rows = (got ?? []).map((r) => {
       const th = therapistRefOf(r.therapists);
-      const at = String(r.created_at ?? '');
       return {
         key: String(r.id),
         href: `/diary/${r.id}`,
@@ -76,7 +72,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
           return diaryLead(th.name, t?.age || th.age, t?.imageUrl ?? th.image);
         })(),
         text: diaryLine(r.title, r.content),
-        tail: formatDiaryAge(at, now) ?? formatDiaryDate(at),
+        tail: '',
       };
     });
   } else if (key === 'review') {
@@ -150,9 +146,6 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
 }) {
   const [open, setOpen] = useState<CardTabKey | null>(null);
   const [data, setData] = useState<Partial<Record<CardTabKey, Loaded>>>({});
-  // ★ タブを押したときの時刻（「◯時間前」用）。押すまでは null＝日付で出す（HTML に今の時刻を焼き付けない）
-  const [pickedAt, setPickedAt] = useState<number | null>(null);
-
   // ★ 第1128便: HTML に入れておく写メ日記の行（親が TOP の作り直しのときに読んだもの）
   const diaryRows: Row[] = (counts.diaryRows ?? []).map((r) => {
     // ★ カードが読んでいるセラピスト（既定画像が当たった写真・年齢）があればそちらを使う
@@ -162,7 +155,7 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
       href: `/diary/${r.id}`,
       lead: diaryLead(r.name, t?.age || r.age, t?.imageUrl ?? r.image),
       text: r.text,
-      tail: (pickedAt !== null ? formatDiaryAge(r.at, pickedAt) : null) ?? formatDiaryDate(r.at),
+      tail: '',
     };
   });
   const hasDiaryRows = diaryRows.length > 0;
@@ -195,7 +188,6 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
     if (countOf[key] <= 0) return;
     if (open === key) { setOpen(null); return; }
     setOpen(key);
-    setPickedAt(clockNow());
     // ★ 写メ日記は、親から行をもらっているときは読まない（もらっていないときだけ、今までどおり読む）
     if (key === 'diary' && hasDiaryRows) return;
     if (key !== 'newface' && data[key]?.status !== 'ready' && data[key]?.status !== 'loading') void load(key);
@@ -226,37 +218,56 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
   const panelId = `salon-card-tab-${salonId}`;
   const diaryTab = CARD_TABS[0];
 
-  /** 開いた中身（2件＋すべて見る）。isHidden のときは HTML には入れるが見せない */
-  const renderPanel = (t: (typeof CARD_TABS)[number], l: Loaded, isHidden: boolean) => (
+  /** 1行ぶんの中身（写真やバッジ＋文＋右端の小さい文字） */
+  const rowInner = (r: Row) => (
+    <>
+      {r.lead}
+      <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{r.text}</span>
+      {r.tail && <span className="flex-shrink-0 text-[11px] text-slate-500">{r.tail}</span>}
+    </>
+  );
+
+  /**
+   * 開いた中身。上の2行＋いちばん下の行（右端に「すべて見る」）。isHidden のときは HTML には入れるが見せない。
+   * ★ 第1131便: 3件目がある（写メ日記）ときは、いちばん下の行の左に出す＝高さは2件のときと同じ。
+   */
+  const renderPanel = (t: (typeof CARD_TABS)[number], l: Loaded, isHidden: boolean) => {
+    const rows = l.status === 'ready' ? l.rows : [];
+    const third = rows[CARD_TAB_ROWS] ?? null;
+    return (
     <div id={isHidden ? undefined : panelId} hidden={isHidden} className="px-2 pb-1">
       <div className="min-h-[56px]">
         {l.status === 'loading' && <p className="h-14 flex items-center text-xs text-slate-500">読み込み中…</p>}
         {l.status === 'error' && <p className="h-14 flex items-center text-xs text-slate-500">読み込めませんでした。下のリンクからご覧ください。</p>}
         {l.status === 'ready' && l.rows.length === 0 && <p className="h-14 flex items-center text-xs text-slate-500">下のリンクからご覧ください。</p>}
-        {l.status === 'ready' && l.rows.map((r) => (
+        {rows.slice(0, CARD_TAB_ROWS).map((r) => (
           <Link
             key={r.key}
             href={r.href}
             onClick={(e) => e.stopPropagation()}
-            className="flex h-7 min-w-0 items-center gap-1.5 border-b border-slate-100 last:border-b-0"
+            className="flex h-7 min-w-0 items-center gap-1.5 border-b border-slate-100"
           >
-            {r.lead}
-            <span className="min-w-0 flex-1 truncate text-xs text-slate-700">{r.text}</span>
-            {r.tail && <span className="flex-shrink-0 text-[11px] text-slate-500">{r.tail}</span>}
+            {rowInner(r)}
           </Link>
         ))}
       </div>
-      <div className="flex h-7 items-center justify-end">
+      <div className="flex h-7 min-w-0 items-center justify-end gap-2">
+        {third && (
+          <Link href={third.href} onClick={(e) => e.stopPropagation()} className="flex h-7 min-w-0 flex-1 items-center gap-1.5">
+            {rowInner(third)}
+          </Link>
+        )}
         <Link
           href={`/salon/${salonId}/${t.path}`}
           onClick={(e) => e.stopPropagation()}
-          className="text-xs font-bold text-pink-700 hover:text-pink-600"
+          className="flex-shrink-0 text-xs font-bold text-pink-700 hover:text-pink-600"
         >
           {t.more} ›
         </Link>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="-mx-2 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
