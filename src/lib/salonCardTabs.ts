@@ -26,7 +26,8 @@ export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: st
   { key: 'diary', label: '写メ日記', unit: '件', more: '写メ日記をすべて見る', moreFull: '写メ日記をすべて見る', path: 'diary' },
   { key: 'review', label: '口コミ', unit: '件', more: '口コミをすべて見る', moreFull: '口コミをすべて見る', path: 'reviews' },
   { key: 'newface', label: '新人', unit: '名', more: '新人をすべて見る', moreFull: '新人をすべて見る', path: 'newface' },
-  { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポンを見る', moreFull: 'クーポンを見る', path: 'coupon' },
+  // ★ 第1153便（カッキーさん）: 「クーポンを見る」→「クーポンをすべて見る」（ほかのタブと同じ言い方）
+  { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポンをすべて見る', moreFull: 'クーポンをすべて見る', path: 'coupon' },
 ];
 
 /** 開いたときに出す件数（口コミ・新人・クーポン） */
