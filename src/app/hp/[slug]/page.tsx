@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { fetchHpPageData } from '@/app/hp/_lib/data';
 import { buildHpMetadata, HP_NOT_PUBLIC_METADATA } from '@/app/hp/_lib/meta';
 import { HpTemplate } from '@/app/hp/_templates/HpTemplate';
+import { hpTopTitle, hpTopDescription } from '@/lib/hpSeo';
 
 // 掲載店舗の公式ホームページ（2026-08-08 段階2 → 2026-08-09 段階3で独自ドメイン対応）。
 //
@@ -27,13 +28,19 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const data = await fetchHpPageData(slug);
   if (!data || data.site.status !== 'live') return HP_NOT_PUBLIC_METADATA;
 
-  const description =
-    data.site.hero_catch ||
-    (data.site.concept_text ? data.site.concept_text.slice(0, 80) : `${data.salon.name}の公式サイト`);
+  // ★ 第1143便（カッキーさん）: トップの title は「店名｜（地域）のメンズエステ【公式】」。地域はフクエスに登録してある地域から自動で作る。
+  //   説明文にも地域・業種・店名・アクセスを入れる（それまではお店の一言だけ＝短すぎた）。作り方は src/lib/hpSeo.ts。
+  const description = hpTopDescription({
+    salonName: data.salon.name,
+    area: data.salon.area,
+    access: data.salon.access,
+    heroCatch: data.site.hero_catch,
+    concept: data.site.concept_text,
+  });
 
   // index/noindex・canonical・ファビコンの判定は _lib/meta.ts に集約（下層ページと共通）。
   return buildHpMetadata(data, slug, {
-    title: `${data.salon.name}｜公式サイト`,
+    title: hpTopTitle(data.salon.name, data.salon.area),
     description,
     path: '',
   });
