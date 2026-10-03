@@ -11,7 +11,7 @@ import { notFoundIfFreeListing } from "../freeListingGuard";
 import { getTheme, breadcrumbCurrentColor } from "@/app/lib/themes";
 import { getBookableTherapists } from "@/app/actions/booking";
 import { BookingFlow } from "./BookingFlow";
-import type { BookingCourse } from "@/app/actions/booking";
+import type { BookingCourse } from "@/app/lib/booking/boardData";   // ★ 第1114便: 型は boardData.ts から
 import type { Metadata } from "next";
 import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';

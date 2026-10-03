@@ -9,7 +9,7 @@ import { buildSlots, scheduleWindowUtc, jstWallToUtc, SLOT_STEP_MIN, type Slot }
 // ★ 第1113便: 予約ボードの「読む」部分と型は src/app/lib/booking/boardData.ts へ（フクエスCRM と共有・認証はこちら）
 import {
   loadBookingBoard, parseBookingCourses, normalizeIntervalMin, shiftDateStr, INTERVAL_OPTIONS_MIN,
-  type BookingCourse, type OwnerBooking, type BoardBooking, type BoardScheduleWindow, type BoardTherapist, type BookingBoardData,
+  type BookingCourse, type OwnerBooking, type BookingBoardData,
 } from '@/app/lib/booking/boardData';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
@@ -31,8 +31,7 @@ import { breakBlocks, breakConflict } from '@/app/lib/crm/breakGuard';
 
 export type BookableTherapist = { id: number; name: string; profileImageUrl: string | null };
 export type ScheduleDay = { date: string; start: string; end: string };
-// ★ 第1113便: BookingCourse・parseBookingCourses は boardData.ts へ
-export type { BookingCourse };
+// ★ 第1113便: BookingCourse・parseBookingCourses は boardData.ts へ（★ 'use server' のファイルでは型の再エクスポート（export type { }）も弾かれるので、使う側は boardData.ts から import する）
 
 /** そのサロンで指名予約できるセラピスト一覧（is_active のみ）。公開情報。 */
 export async function getBookableTherapists(salonId: number): Promise<BookableTherapist[]> {
@@ -422,8 +421,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
 
 // ── /mypage 予約一覧（オーナー本人 or 運営のみ・service_role 取得） ──
 
-// ★ 第1113便: OwnerBooking は boardData.ts へ（ここからも同じ名前で使える）
-export type { OwnerBooking };
+// ★ 第1113便: OwnerBooking は boardData.ts へ（使う側は boardData.ts から import）
 
 /**
  * ログインオーナーの自店の【ネット予約】一覧を新しい順で返す。
@@ -651,7 +649,6 @@ async function assertSalonOwner(
 //    出勤枠はボード上で薄青の目安表示のみ。客向けネット予約（createBooking）は従来どおり枠内のみ。
 
 // ★ 第1113便: BoardBooking・BoardScheduleWindow・BoardTherapist・BookingBoardData・shiftDateStr は boardData.ts へ
-export type { BoardBooking, BoardScheduleWindow, BoardTherapist, BookingBoardData };
 
 // JSTの今日（暦日・0:00切替）。ボードの「今日」は営業日（朝6時切替）ではなくこちらを使う。
 function todayJstCalendar(): string {

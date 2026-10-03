@@ -9,10 +9,9 @@ import {
   updateBookingDetails,
   updateBookingStatus,
   deleteBooking,
-  type BookingBoardData,
-  type BoardBooking,
-  type BoardTherapist,
 } from '@/app/actions/booking';
+// ★ 第1114便: ボードの型は boardData.ts から（'use server' のファイルからは型を再エクスポートできないため）
+import type { BookingBoardData, BoardBooking, BoardTherapist } from '@/app/lib/booking/boardData';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { useToast } from '@/app/components/useToast';
 

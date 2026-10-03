@@ -6,9 +6,10 @@ import {
   getSlots,
   createBooking,
   type BookableTherapist,
-  type BookingCourse,
   type ScheduleDay,
 } from '@/app/actions/booking';
+// ★ 第1114便: 型は boardData.ts から（'use server' のファイルからは型を再エクスポートできないため）
+import type { BookingCourse } from '@/app/lib/booking/boardData';
 import type { Slot } from '@/app/lib/booking/slots';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { CALLBACK_PREF_OPTIONS, callbackPrefLabel } from '@/app/lib/booking/callbackPref';

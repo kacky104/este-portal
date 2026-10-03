@@ -37,7 +37,8 @@ import { inviteCast, resendCastInvite, unlinkCast, cancelCastInvite } from '@/ap
 import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
 import { PAYMENT_CARD_OPTIONS } from '@/app/lib/paymentCards';
 import { PAYMENT_METHOD_OPTIONS } from '@/app/lib/paymentMethods';
-import { getSalonBookings, updateBookingStatus, deleteBooking, sendBookingTestMailForSalon, type OwnerBooking } from '@/app/actions/booking';
+import { getSalonBookings, updateBookingStatus, deleteBooking, sendBookingTestMailForSalon } from '@/app/actions/booking';
+import type { OwnerBooking } from '@/app/lib/booking/boardData';   // ★ 第1114便: 型は boardData.ts から
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
 import { isValidEmail, normalizeEmail, suggestEmailDomain } from '@/app/lib/validation/email';
