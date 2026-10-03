@@ -16,7 +16,7 @@ export async function fetchSalonCardTabCounts(supabase: SupabaseClient, nowMs: n
       // ★ 第1128便: 数える行に、行に出すもの（タイトル・本文・セラピスト名）も足して読む。新しい順（先頭2件を HTML に入れる）
       supabase
         .from('diary_posts')
-        .select('id, salon_id, therapist_id, title, content, created_at, therapists(name, profile_image_url)')
+        .select('id, salon_id, therapist_id, title, content, created_at, therapists(name, age, profile_image_url)')
         .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(5000),

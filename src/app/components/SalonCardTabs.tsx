@@ -35,10 +35,15 @@ const mmdd = (ymd: string) => (/^\d{4}-\d{2}-\d{2}/.test(ymd) ? `${ymd.slice(5, 
 
 // ★ 第1129便（カッキーさん）: 写メ日記の行の先頭は【丸い写真＋名前の文字】（名前はバッジにしない・新人の行と同じ文字）。
 //   写真は、カードが読んでいるセラピスト（既定画像が当たったもの）→ 日記と一緒に読んだ写真 → 無ければ頭文字の丸。
-const diaryLead = (name: string, image: string | null) => (
+// ★ 第1130便（カッキーさん）: 名前の隣に年齢も出す（「アイ（42）」・新人の行と同じ形）。年齢が無ければ名前だけ。
+const diaryLead = (name: string, age: string, image: string | null) => (
   <>
     <DiaryTherapistAvatar src={image} name={name} size={22} />
-    {name && <span className="flex-shrink-0 max-w-[96px] truncate text-xs font-bold text-slate-700">{name}</span>}
+    {name && (
+      <span className="flex-shrink-0 max-w-[132px] truncate text-xs font-bold text-slate-700">
+        {age ? `${name}（${age}）` : name}
+      </span>
+    )}
   </>
 );
 
@@ -54,7 +59,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
     const now = Date.now();
     const { data: got, error } = await supabase
       .from('diary_posts')
-      .select('id, therapist_id, title, content, created_at, therapists(name, profile_image_url)')
+      .select('id, therapist_id, title, content, created_at, therapists(name, age, profile_image_url)')
       .eq('salon_id', salonId)
       .gte('created_at', new Date(now - DIARY_NEW_WINDOW_MS).toISOString())
       .order('created_at', { ascending: false })
@@ -66,7 +71,10 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
       return {
         key: String(r.id),
         href: `/diary/${r.id}`,
-        lead: diaryLead(th.name, therapists.find((t) => t.id === String(r.therapist_id))?.imageUrl ?? th.image),
+        lead: (() => {
+          const t = therapists.find((x) => x.id === String(r.therapist_id));
+          return diaryLead(th.name, t?.age || th.age, t?.imageUrl ?? th.image);
+        })(),
         text: diaryLine(r.title, r.content),
         tail: formatDiaryAge(at, now) ?? formatDiaryDate(at),
       };
@@ -146,13 +154,17 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
   const [pickedAt, setPickedAt] = useState<number | null>(null);
 
   // ★ 第1128便: HTML に入れておく写メ日記の行（親が TOP の作り直しのときに読んだもの）
-  const diaryRows: Row[] = (counts.diaryRows ?? []).map((r) => ({
-    key: r.id,
-    href: `/diary/${r.id}`,
-    lead: diaryLead(r.name, therapists.find((t) => t.id === r.therapistId)?.imageUrl ?? r.image),
-    text: r.text,
-    tail: (pickedAt !== null ? formatDiaryAge(r.at, pickedAt) : null) ?? formatDiaryDate(r.at),
-  }));
+  const diaryRows: Row[] = (counts.diaryRows ?? []).map((r) => {
+    // ★ カードが読んでいるセラピスト（既定画像が当たった写真・年齢）があればそちらを使う
+    const t = therapists.find((x) => x.id === r.therapistId);
+    return {
+      key: r.id,
+      href: `/diary/${r.id}`,
+      lead: diaryLead(r.name, t?.age || r.age, t?.imageUrl ?? r.image),
+      text: r.text,
+      tail: (pickedAt !== null ? formatDiaryAge(r.at, pickedAt) : null) ?? formatDiaryDate(r.at),
+    };
+  });
   const hasDiaryRows = diaryRows.length > 0;
 
   // 新人: 入店が新しい順（/salon/{id}/newface と同じ判定・並び）

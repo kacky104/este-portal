@@ -29,7 +29,8 @@ export const CARD_TAB_ROWS = 2;
 
 /** 写メ日記の1行ぶん（TOP の HTML に入れておく・第1128便） */
 //   ★ 第1129便: 名前の左に出す丸い写真のために、セラピストの id と写真も持つ（写真が無ければ null）
-export type CardDiaryRow = { id: string; name: string; text: string; at: string; therapistId: string; image: string | null };
+//   ★ 第1130便: 名前の隣に年齢も出す（無ければ ''）
+export type CardDiaryRow = { id: string; name: string; age: string; text: string; at: string; therapistId: string; image: string | null };
 
 /**
  * TOP の作り直しのときに読む数（店舗ごと）。口コミ・新人はここに入れない（今ある値から出す）。
@@ -69,12 +70,14 @@ export function countBySalon(rows: ReadonlyArray<{ salon_id?: unknown }> | null 
 /** 写メ日記の行（読んだまま）。★ 新しい順に並んでいること（呼ぶ側が order する） */
 export type DiaryRowIn = { id?: unknown; salon_id?: unknown; therapist_id?: unknown; title?: unknown; content?: unknown; created_at?: unknown; therapists?: unknown };
 
-/** 取り込んだセラピスト（1件 or 配列で返ってくる）から、名前と写真を取る */
-export function therapistRefOf(v: unknown): { name: string; image: string | null } {
+/** 取り込んだセラピスト（1件 or 配列で返ってくる）から、名前・年齢・写真を取る */
+export function therapistRefOf(v: unknown): { name: string; age: string; image: string | null } {
   const one = Array.isArray(v) ? v[0] : v;
-  const o = one && typeof one === 'object' ? (one as { name?: unknown; profile_image_url?: unknown }) : null;
+  const o = one && typeof one === 'object' ? (one as { name?: unknown; age?: unknown; profile_image_url?: unknown }) : null;
   return {
     name: typeof o?.name === 'string' ? o.name : '',
+    // ★ 年齢は文字でも数でも受ける。空・0 は出さない
+    age: (typeof o?.age === 'string' || typeof o?.age === 'number') && String(o.age).trim() !== '' && String(o.age).trim() !== '0' ? String(o.age).trim() : '',
     image: typeof o?.profile_image_url === 'string' && o.profile_image_url ? o.profile_image_url : null,
   };
 }
@@ -95,6 +98,7 @@ export function topDiaryRowsBySalon(rows: ReadonlyArray<DiaryRowIn> | null | und
     list.push({
       id: String(r.id),
       name: th.name,
+      age: th.age,
       text: diaryLine(r.title, r.content),
       at: typeof r.created_at === 'string' ? r.created_at : '',
       therapistId: r.therapist_id == null ? '' : String(r.therapist_id),
