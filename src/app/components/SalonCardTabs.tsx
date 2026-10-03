@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { NewBadge } from '@/components/NewBadge';
-import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
+import Image from 'next/image';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatDiaryDate } from '@/lib/diaryDate';
 import { DIARY_NEW_WINDOW_MS } from '@/lib/diaryNew';
@@ -28,6 +28,22 @@ import type { TherapistThumb } from './useSalonTherapists';
 type Row = { key: string; href: string; lead: ReactNode; text: string; tail: string };
 type Loaded = { status: 'loading' } | { status: 'ready'; rows: Row[] } | { status: 'error' };
 
+/**
+ * ★ 第1150便（カッキーさん「小さすぎて見えなかった」）: タブの行のセラピストの写真は、丸（22px・白枠）ではなく【行の高さいっぱいの正方形】（28px＝h-7）。
+ *   ★ 白枠を外して、見える面積をできるだけ広く。角だけ少し丸める。写真が無い方は頭文字。
+ */
+function TabAvatar({ src, name }: { src: string | null; name: string }) {
+  return (
+    <span className="relative h-7 w-7 flex-shrink-0 overflow-hidden rounded-[3px] bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
+      {src ? (
+        <Image src={src} alt={name} width={28} height={28} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <span className="text-[12px] font-bold leading-none text-white">{name.charAt(0) || '♡'}</span>
+      )}
+    </span>
+  );
+}
+
 /** 'YYYY-MM-DD' → 'MM/DD' */
 const mmdd = (ymd: string) => (/^\d{4}-\d{2}-\d{2}/.test(ymd) ? `${ymd.slice(5, 7)}/${ymd.slice(8, 10)}` : '');
 
@@ -36,7 +52,7 @@ const mmdd = (ymd: string) => (/^\d{4}-\d{2}-\d{2}/.test(ymd) ? `${ymd.slice(5, 
 // ★ 第1130便（カッキーさん）: 名前の隣に年齢も出す（「アイ（42）」・新人の行と同じ形）。年齢が無ければ名前だけ。
 const diaryLead = (name: string, age: string, image: string | null) => (
   <>
-    <DiaryTherapistAvatar src={image} name={name} size={22} />
+    <TabAvatar src={image} name={name} />
     {name && (
       // ★ 第1138便（カッキーさん）: 太字は名前だけ。年齢「（42）」は普通の太さ
       <span className="flex-shrink-0 max-w-[132px] truncate text-xs text-slate-700">
@@ -102,7 +118,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
         href: `/salon/${salonId}/reviews`,
         lead: (
           <>
-            <DiaryTherapistAvatar src={th?.imageUrl ?? null} name={th?.name ?? ''} size={22} />
+            <TabAvatar src={th?.imageUrl ?? null} name={th?.name ?? ''} />
             <span className="flex-shrink-0 text-[11px] font-bold text-amber-700">
               ★{overallRating(r.rating_service, r.rating_technique, r.rating_reception).toFixed(1)}
             </span>
@@ -218,7 +234,7 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
           href: `/therapist/${t.id}`,
           lead: (
             <>
-              <DiaryTherapistAvatar src={t.imageUrl} name={t.name} size={22} />
+              <TabAvatar src={t.imageUrl} name={t.name} />
               <NewBadge />
               <span className="flex-shrink-0 max-w-[120px] truncate text-xs text-slate-700">{t.age ? `${t.name}（${t.age}）` : t.name}</span>
               {since && <span className="flex-shrink-0 text-[11px] text-slate-500">{since} 入店</span>}
