@@ -10,7 +10,8 @@ export type CrmIntroFlowBox = { caption: string; name: string };
 /** ★ 第1148便: accent … 札をピンクで目立たせる（カッキーさんの指定） */
 export type CrmIntroFeature = { name: string; body: string; accent?: boolean };
 export type CrmIntroCompareRow = { item: string; free: string; crm: string };
-export type CrmIntroStep = { title: string; body: string };
+/** ★ 第1149便（カッキーさん）: 説明の文は出さない（見出しだけ）。body は残してあるが空 */
+export type CrmIntroStep = { title: string; body?: string };
 
 export type CrmIntroContent = {
   intro: { title: string; lead: string; points: readonly string[] };
@@ -18,8 +19,6 @@ export type CrmIntroContent = {
   features: readonly CrmIntroFeature[];
   compare: { freeLabel: string; crmLabel: string; rows: readonly CrmIntroCompareRow[] };
   steps: readonly CrmIntroStep[];
-  /** 契約していなくても、いま起きていること（押しどころ） */
-  already: string;
   apply: { title: string; body: string };
 };
 
@@ -63,13 +62,13 @@ export const CRM_INTRO: CrmIntroContent = {
       { item: '来店時の同意書（QR）', free: '—', crm: '○' },
     ],
   },
+  // ★ 第1149便（カッキーさん）: 各段の説明の文と、その下の「今も自動で記録されています」の枠を消した（見出しだけ）
   steps: [
-    { title: '運営事務局にお申し込み', body: 'お申し込みをいただくと、運営がこの店舗のフクエスCRMをONにします。' },
-    { title: '利用規約に同意する', body: 'はじめて開いたときに、利用規約と顧客データの取り扱いをお読みいただき、同意をお願いします。' },
-    { title: '料金表を入れる', body: '「料金設定」でコースや指名の料金と女子報酬を入れます。受付のときに選ぶだけになります。' },
-    { title: '受付を始める', body: 'スケジュールの空いているところを押して、電話番号と名前を入れるだけ。これまでの予約の記録もすぐに見られます。' },
+    { title: '運営事務局にお申し込み' },
+    { title: '利用規約に同意する' },
+    { title: '料金表を入れる' },
+    { title: '受付を始める' },
   ],
-  already: '予約ボード・ネット予約に入ったお客様は、今も電話番号で自動で記録されています。お申し込みいただくと、これまでの記録もそのままご覧いただけます。',
   apply: {
     title: 'お申し込み・料金',
     body: 'お申し込み・料金は運営事務局までお問い合わせください。',

@@ -98,14 +98,13 @@ export function CrmIntro({ salonName, publicPage = false }: { salonName?: string
           {c.steps.map((s, i) => (
             <li key={s.title} className="flex gap-3">
               <span className="flex-none w-7 h-7 rounded-full bg-indigo-600 text-white text-[13px] font-black flex items-center justify-center">{i + 1}</span>
-              <div className="min-w-0">
+              <div className="min-w-0 flex items-center min-h-[28px]">
                 <b className="text-[14.5px] font-black text-slate-800">{s.title}</b>
-                <p className="mt-0.5 text-[13.5px] text-slate-600 leading-relaxed">{s.body}</p>
+                {s.body && <p className="mt-0.5 text-[13.5px] text-slate-600 leading-relaxed">{s.body}</p>}
               </div>
             </li>
           ))}
         </ol>
-        <p className="border-l-4 border-indigo-300 bg-indigo-50 px-3 py-2 text-[13px] leading-relaxed text-indigo-900">{c.already}</p>
       </section>
 
       {/* ── お申し込み ── */}
