@@ -18,7 +18,7 @@ eq('★★★ 並びは 写メ日記 → 口コミ → 新人 → クーポン',
 eq('★ 「すべて見る」の行き先', T.CARD_TABS.map((t) => t.path), ['diary', 'reviews', 'newface', 'coupon']);
 eq('★★★ 写メ日記の窓は48時間（NEW と同じ）', D.DIARY_NEW_WINDOW_MS, 48 * 60 * 60 * 1000);
 eq('★ 開いたときは2件（写メ日記だけ3件。口コミは2件＋総合評価・第1133便）', [T.CARD_TAB_ROWS, T.CARD_DIARY_ROWS, T.CARD_REVIEW_ROWS], [2, 3, 2]);
-eq('★ 第1132便: リンクの文字（写メ日記・口コミは「すべて見る」）', T.CARD_TABS.map((t) => t.more), ['すべて見る', 'すべて見る', '新人をすべて見る', 'クーポンを見る']);
+eq('★ 第1134便: リンクの文字（「すべて見る」に縮めない）', T.CARD_TABS.map((t) => t.more), ['写メ日記をすべて見る', '口コミをすべて見る', '新人をすべて見る', 'クーポンを見る']);
 eq('★★ 読み上げ用の文は、画面の文字を含む・何の一覧かが分かる', T.CARD_TABS.map((t) => t.moreFull.includes(t.more) && t.moreFull.length > 5), [true, true, true, true]);
 
 console.log('── 2. バッジの数 ──');
