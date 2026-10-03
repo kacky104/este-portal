@@ -7,6 +7,7 @@ import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
 import type { CrmAccess } from '@/app/lib/crm/types';
 import { isCrmHost } from '@/lib/crmHost';
 import { useCrmLinks } from './CrmBase';
+import { CrmIntro } from './CrmIntro';
 
 // フクエスCRM の外枠（2026-09-19）。★ 画面が増えても、入口の判定と上の帯はここ1か所。
 //   ・未ログイン → オーナーログインへ
@@ -50,36 +51,7 @@ export function useCrmAccess(): { access: CrmAccess | null; adminSalonQuery: str
   return { access, adminSalonQuery };
 }
 
-function Upsell({ salonName }: { salonName: string }) {
-  const links = useCrmLinks();
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <div className="border border-indigo-200 bg-white p-6 shadow-sm">
-        <p className="text-[12px] font-bold text-indigo-500">{salonName}</p>
-        <h2 className="mt-1 text-[20px] font-black text-slate-800">フクエスCRMは有料機能です</h2>
-        <p className="mt-3 text-[14px] leading-relaxed text-slate-600">
-          予約ボードは今までどおり無料でお使いいただけます。フクエスCRMをお申し込みいただくと、
-          次のことができるようになります。
-        </p>
-        <ul className="mt-3 space-y-1.5 text-[14px] text-slate-700">
-          <li>・その日の出勤と予約を、お客様の情報（分類・要注意・女子NG・利用回数）つきで一覧する</li>
-          <li>・電話番号で同じお客様をまとめ、利用回数・キャンセル回数・最終利用日を見る</li>
-          <li>・分類（一般／会員／常連／VIP／NG）・女子NG・要注意メモを残す</li>
-          <li>・悪質キャンセル（無断キャンセルなど）を記録する</li>
-          <li>・お客様ごとの予約の履歴を見る</li>
-        </ul>
-        <p className="mt-4 border-l-4 border-indigo-300 bg-indigo-50 px-3 py-2 text-[13px] leading-relaxed text-indigo-900">
-          予約ボード・ネット予約に入ったお客様は、今も自動で記録されています。
-          お申し込みいただくと、これまでの記録もすぐにご覧いただけます。
-        </p>
-        <p className="mt-4 text-[13px] text-slate-500">お申し込み・料金は運営事務局までお問い合わせください。</p>
-        <a href={links.fukues('/mypage')} className="mt-5 inline-block bg-slate-800 px-4 py-2 text-[13px] font-bold text-white">
-          マイページへ戻る
-        </a>
-      </div>
-    </div>
-  );
-}
+// ★ 第1144便: 未契約の店舗様へのご案内は CrmIntro.tsx（とは → 流れ → できること → 無料との違い → はじめかた）。★ ここにあった Upsell は置き換えた
 
 export function CrmShell({
   access, adminSalonQuery, current, children,
@@ -157,7 +129,7 @@ export function CrmShell({
           <div className="h-3" />
         )}
       </header>
-      {!access.active ? <Upsell salonName={access.salonName} />
+      {!access.active ? <CrmIntro salonName={access.salonName} />
         : !access.termsOk ? <TermsGate salonId={access.salonId} />
         : children(access)}
     </>
