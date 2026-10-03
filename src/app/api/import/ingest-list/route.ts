@@ -325,18 +325,26 @@ export async function POST(req: Request) {
     if (!source.import_schedule) continue;
 
     const active = c.status === 'work';
-    rows.push({
-      therapist_id: id, schedule_date: todayISO,
-      is_active: active,
-      start_time: active ? c.start : null,
-      end_time: active ? c.end : null,
-      imported_at: importedAt,
-    });
-
     const cur = current.get(id);
     const 現在 = cur ? show(cur.is_active, cur.start, cur.end) : '（行なし）';
     const 新規 = show(active, c.start, c.end);
     if (現在 !== 新規) diffs.push({ id, name: nameOf.get(id) ?? c.name, 現在, 新規 });
+
+    // ★★ 第1124便: 書くのは【変わった行】だけ（フクエスリンク精査の 1c）。
+    //   ★ 以前は一覧に居た全員を毎回 upsert していた（15分 × 全店 × 全員 ＝ 中身が同じでも imported_at だけ新しくなる）。
+    //   ★ 書く条件: 行が無い／出勤・開始・終了のどれかが違う／行はあるが取り込みの印（imported_at）が無い
+    //     （★ 人が入れた行と同じ値でも、一度は取り込みの印を付けておく＝下の「一覧に居ない子」の掃除の対象にできる）。
+    //   ★ 当日の「一覧に居ない子」の掃除は imported_at の時刻ではなく「一覧に居た／居ない」で決めている（seenIds）ので、
+    //     書かない行の imported_at が古くなっても倒されない。★ targets の full 周の掃除は第1124便で「明日以降」だけ見る。
+    if (!cur || 現在 !== 新規 || !cur.imported) {
+      rows.push({
+        therapist_id: id, schedule_date: todayISO,
+        is_active: active,
+        start_time: active ? c.start : null,
+        end_time: active ? c.end : null,
+        imported_at: importedAt,
+      });
+    }
 
     if (source.import_profile) {
       // ★ 第1119便: いまの値と同じなら書かない（★ 以前は15分ごとに全員の年齢・体型を毎回 update していた）

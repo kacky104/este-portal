@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
+import { addDaysISO } from '@/lib/workPlan';
 import { firstImportPhase, targetsStep } from '@/lib/conecfFirstImport';
 
 // ── 外部媒体取り込み: 取得対象の一覧を返す＋前周ぶんの掃除（第28便／掃除は第34便）──────
@@ -137,6 +138,13 @@ export async function GET(req: Request) {
       //   当日ぶんは ingest-list が「一覧に居ない＝在籍から消えた」で直接倒している。
       if (mode === 'list' && t.listMode) { log.skipped = 'list mode（当日ぶんは ingest-list が掃除する）'; sweep.push(log); continue; }
 
+      // ★★ 第1124便: girlslist方式の店は、full の周でも【当日ぶんは見ない】（明日以降だけ）。
+      //   ★ 当日の行は ingest-list（15分ごと）が「変わった行だけ」書くようになった（第1124便）。
+      //     ★ 書かれなかった行の imported_at は朝の full 周のままなので、ここで imported_at の時刻で見ると
+      //       「変わっていないだけの子」を古いと誤認して倒す。★ 当日ぶんの「消えた子」は ingest-list が一覧で判定する。
+      //   ★ 明日以降の行は full 周（1日1回・全員ぶん書く）しか書かないので、今までどおり時刻で見てよい。
+      const fromISO = t.listMode ? addDaysISO(todayISO, 1) : todayISO;
+
       // 安全弁1: 直近1時間に成功した回があり、失敗した回が無いこと。
       // 取得に失敗した周のあとで倒すと、届かなかったのを「消えた」と誤認する。
       const { data: runs } = await supabase
@@ -160,7 +168,7 @@ export async function GET(req: Request) {
         .from('therapist_schedules')
         .select('imported_at')
         .in('therapist_id', ids)
-        .gte('schedule_date', todayISO)
+        .gte('schedule_date', fromISO)
         .not('imported_at', 'is', null)
         .order('imported_at', { ascending: false })
         .limit(1);
@@ -181,7 +189,7 @@ export async function GET(req: Request) {
         .from('therapist_schedules')
         .select('id')
         .in('therapist_id', ids)
-        .gte('schedule_date', todayISO)
+        .gte('schedule_date', fromISO)
         .not('imported_at', 'is', null)
         .lt('imported_at', cutoff)
         .eq('is_active', true);
@@ -193,7 +201,7 @@ export async function GET(req: Request) {
         .from('therapist_schedules')
         .select('id', { count: 'exact', head: true })
         .in('therapist_id', ids)
-        .gte('schedule_date', todayISO)
+        .gte('schedule_date', fromISO)
         .eq('is_active', true);
       const live = count ?? 0;
       if (live > 0 && staleIds.length / live > SWEEP_MAX_RATIO) {
