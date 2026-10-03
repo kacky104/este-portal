@@ -29,6 +29,20 @@ function AxisMini({ label, value }: { label: string; value: number }) {
   );
 }
 
+// 口コミの対象セラピストの丸い写真（写真が無ければ頭文字）。
+function ReviewAvatar({ name, image }: { name: string; image: string | null }) {
+  return (
+    <span className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt={name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-white text-xs font-bold">{name.charAt(0)}</span>
+      )}
+    </span>
+  );
+}
+
 // 承認済み口コミの一覧（サーバーコンポーネント）。
 // 各口コミ：総合星＋3軸の小内訳＋来店日＋nickname＋投稿日＋本文。
 // 0件なら何も出さない（Summary 側で「まだ口コミはありません」を出すので重複させない）。
@@ -43,14 +57,14 @@ export function ReviewList({ reviews }: { reviews: ApprovedReview[] }) {
               全店舗一覧（/reviews）では salonName が付くので、セラピスト名・店名をリンク表示する。 */}
           {r.therapistName && (
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
-                {r.therapistImage ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.therapistImage} alt={r.therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-white text-xs font-bold">{r.therapistName.charAt(0)}</span>
-                )}
-              </span>
+              {/* ★ 第1141便: 丸い写真も同じ行き先（その子の個別ページ）。店舗あての口コミ（therapistId なし）はリンクにしない */}
+              {r.therapistId != null ? (
+                <Link href={`/therapist/${r.therapistId}`} className="flex-shrink-0" aria-label={`${r.therapistName}さんのページへ`}>
+                  <ReviewAvatar name={r.therapistName} image={r.therapistImage ?? null} />
+                </Link>
+              ) : (
+                <ReviewAvatar name={r.therapistName} image={r.therapistImage ?? null} />
+              )}
               {r.salonName ? (
                 <p className="text-[12px] min-w-0 truncate">
                   <Link href={`/therapist/${r.therapistId}`} className="font-bold text-pink-600 hover:underline">{r.therapistName}</Link>
@@ -62,7 +76,14 @@ export function ReviewList({ reviews }: { reviews: ApprovedReview[] }) {
                   )}
                 </p>
               ) : (
-                <p className="text-[12px] font-bold text-pink-600">{r.therapistName}さんへの口コミ</p>
+                // ★ 第1141便（カッキーさん）: 「◯◯さんへの口コミ」を押すと、その子の個別ページへ（店舗あての口コミ＝therapistId なしは文字のまま）
+                r.therapistId != null ? (
+                  <Link href={`/therapist/${r.therapistId}`} className="text-[12px] font-bold text-pink-600 hover:underline">
+                    {r.therapistName}さんへの口コミ
+                  </Link>
+                ) : (
+                  <p className="text-[12px] font-bold text-pink-600">{r.therapistName}さんへの口コミ</p>
+                )
               )}
             </div>
           )}
