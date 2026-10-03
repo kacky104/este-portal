@@ -1,5 +1,6 @@
 import { getTheme } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
+import { MediaSessionProvider } from './MediaSession';
 
 // フクエスリンク（/mypage/media 配下）の地の色（第296便・2026-09-12・カッキーさんの指示）。
 //
@@ -46,5 +47,10 @@ export default async function MypageMediaLayout({ children }: { children: React.
   //   ★ Tailwind v4 の色は CSS 変数（--color-indigo-600 など）を読むので、ここで変数を上書きすれば全部の部品が黄色系になる。
   //   ★ 部品（MediaShell・MediaHome など）はコネックエフと共用なので、クラス名は書き換えない（★ コネックエフは紺のまま）。
   //   ★ 白い文字を載せる 600・700 は濃いめの琥珀（白文字が読める濃さ）。
-  return <div className="min-h-screen" style={{ ...bgStyle, ...FUKUES_LINK_COLORS }}>{children}</div>;
+  // ★ 第1120便: 外枠の状態（ログイン・店・赤帯）は layout の下で1回読む（画面を行き来しても読み直さない）
+  return (
+    <MediaSessionProvider>
+      <div className="min-h-screen" style={{ ...bgStyle, ...FUKUES_LINK_COLORS }}>{children}</div>
+    </MediaSessionProvider>
+  );
 }

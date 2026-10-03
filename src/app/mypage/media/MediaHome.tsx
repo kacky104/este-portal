@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMediaOverview, setMediaLinkMode, setAllLinkModes } from '@/app/actions/mediaCredentials';
+import { useMediaSession } from './MediaSession';
 import {
   switchChoices, switchDoneText, switchAskText, homeHeadline, isReadingElsewhere,
   isWritingElsewhere, writingElsewhereLabels, readBlockedNote,
@@ -145,6 +146,8 @@ export function MediaHome({ salonId, onToast }: {
    * ★ 自動で反映しているあいだは出さない。★ 一度に2つ変えると、
    *   どちらのつもりで押したのかが分からなくなる（WorkSend.onSwitchAuto と同じ理由）。
    */
+  // ★ 第1120便: 向きを変えたら、外枠（赤帯）も読み直す
+  const { refresh: refreshShell } = useMediaSession();
   const onSwitch = async (s: Site, mode: 'read' | 'write' | 'none') => {
     if (salonId == null) return;
     setSwitching(s.provider + '#' + s.slot);
@@ -152,6 +155,7 @@ export function MediaHome({ salonId, onToast }: {
     if (!res.ok) { setSwitching(''); onToast(res.error); return; }
     const back = await getMediaOverview({ salonId });
     if (back.ok) setData(back.data);
+    void refreshShell();
     setSwitching('');
     onToast(switchDoneText(mode, s.label, s.provider));
   };
@@ -166,6 +170,7 @@ export function MediaHome({ salonId, onToast }: {
     const res = await setAllLinkModes({ salonId, to });
     const back = await getMediaOverview({ salonId });
     if (back.ok) setData(back.data);
+    void refreshShell();
     setBulking(false);
     onToast(res.ok ? bulkDoneText(res.data) : res.error);
   };

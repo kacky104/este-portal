@@ -2,10 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getMediaLinkAlerts } from '@/app/actions/mediaCredentials';
-import { createClient } from '@/app/lib/supabase/client';
-import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import type { MediaPageDecision } from '@/lib/mediaVisibility';
+import { useMediaSession } from './MediaSession';
 
 // 媒体連携のページの外枠 ——【フクエスリンク】（第60便で見た目を差し替え）。
 //
@@ -114,29 +112,16 @@ export function MediaShell({
   toast?: string;
   children: React.ReactNode;
 }) {
-  const [alerts, setAlerts] = useState<MediaLinkAlert[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // ★ 第1120便: 赤帯と「コネックエフに切り替え済みか」は MediaSession（layout の下・1回だけ）から受け取る。
+  //   ★ 以前はこの外枠が画面ごとに salons と getMediaLinkAlerts（ログイン＋店＋4〜5本）を読んでいた。
+  //   ★ 出す相手（decision === 'show'）にしか見せない（取りに行くこと自体が媒体連携の存在を明かすため）。
+  //   ★ 赤帯は読めなければ空＝画面は止めない。警告が出せないことを「異常なし」と見せないだけ。
+  const session = useMediaSession();
+  const st = session.state && session.state.ok ? session.state : null;
+  const alerts = decision === 'show' && salonId != null && st ? st.alerts : [];
   // ★ 第402便（コネックエフ 1f）: コネックエフに切り替えた店には、案内だけを出す（★ 読めなければ今までどおり）
-  const [conecfAt, setConecfAt] = useState<string | null>(null);
-  useEffect(() => {
-    if (salonId == null) return;
-    let alive = true;
-    createClient().from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle()
-      .then(({ data }) => { if (alive) setConecfAt(((data as { conecf_enabled_at?: string | null } | null)?.conecf_enabled_at) ?? null); });
-    return () => { alive = false; };
-  }, [salonId]);
-
-  // ★ 出す相手にしか取りに行かない（取りに行くこと自体が媒体連携の存在を明かすため）。
-  //   ★ 失敗しても画面は止めない。警告が出せないことを「異常なし」と見せないだけ。
-  useEffect(() => {
-    if (decision !== 'show' || salonId == null) { setAlerts([]); return; }
-    let alive = true;
-    (async () => {
-      const res = await getMediaLinkAlerts({ salonId });
-      if (alive && res.ok) setAlerts(res.data);
-    })();
-    return () => { alive = false; };
-  }, [decision, salonId]);
+  const conecfAt = st?.salon?.conecfEnabledAt ?? null;
 
   // ★★ スマホの左ドロワー（第296便・2026-09-12・カッキーさんの指示）。
   //   ★ フクエスワーク（WorkShell）・公式HP管理（HpShell）と同じ作り。

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMediaBrand } from './mediaBrand';
+import { useMediaSession } from './MediaSession';
 import {
   MEDIA_SITES,
   mediaSiteSlots,
@@ -129,6 +130,8 @@ export function LoginBoard({
   const [askPause, setAskPause] =
     useState<{ site: MediaSite; slot: number; to: 'pause' | 'resume' } | null>(null);
 
+  // ★ 第1120便: ID・PW を変えたら、外枠（赤帯）も読み直す
+  const { refresh: refreshShell } = useMediaSession();
   const load = useCallback(async () => {
     if (salonId == null) return;
     // ★ ここで setLoading(true) をしない。初回は loading=true で始まり、
@@ -219,6 +222,7 @@ export function LoginBoard({
     setPassword('');
     setAgreed(false);
     await load();
+    void refreshShell();
     onToast(`${site.name}（枠${slot}）を保存しました`);
   };
 
@@ -239,6 +243,7 @@ export function LoginBoard({
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     await load();
+    void refreshShell();
     // ★★ このボタンが倒すのは【鍵】の旗であって、連携そのものではない（第87便で確かめた）。
     //   ★ 「連携を停止しました」と書くと、取り込みまで止まったと読める。★ 止まらない
     //   ★★ 文言は mediaOverview に集めた（第89便）。★ 押す前の問いと【対】（点検で見張る）
@@ -255,6 +260,7 @@ export function LoginBoard({
     setConfirmDelete('');
     if (!res.ok) { onToast(res.error); return; }
     await load();
+    void refreshShell();
     focusSlot(site, slot);
     onToast('ログイン情報を削除しました');
   };

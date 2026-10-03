@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/app/lib/supabase/client';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { decideMediaPage, readUnlockIntent, MEDIA_UNLOCK_KEY, type MediaPageDecision } from '@/lib/mediaVisibility';
+import { useMediaSession } from './MediaSession';
 
 // 媒体連携のページに共通の入口の判定（第56便で /mypage/media から切り出した）。
 //
@@ -16,8 +16,8 @@ import { decideMediaPage, readUnlockIntent, MEDIA_UNLOCK_KEY, type MediaPageDeci
 //
 // ★ 判定そのものは src/lib/mediaVisibility.ts の decideMediaPage（純粋関数・3値）が持つ。
 //   ★ 'wait'（まだ分からない）で追い出さないことが要（設計メモ §144）。
-
-const supabase = createClient();
+// ★ 第1120便: ログインと店の読みは MediaSession（layout の下・1回だけ）から受け取る。
+//   ★ 以前はページごとに auth.getUser ＋ salons を読んでいた（/mypage/layout のログイン確認と合わせて3重）。
 
 export type SalonLite = { id: number | string; name: string | null };
 
@@ -27,15 +27,11 @@ export function useMediaGate(): {
   loadError: string;
 } {
   const router = useRouter();
+  const session = useMediaSession();
 
-  const [salon, setSalon] = useState<SalonLite | null>(null);
-  const [loadError, setLoadError] = useState('');
-  const [userId, setUserId] = useState<string | null>(null);
   const [mediaUnlocked, setMediaUnlocked] = useState(false);
   /** ★ 目隠しの読み取りが済んだか。★ 済む前の false を「出さない」と読まないため */
   const [unlockReady, setUnlockReady] = useState(false);
-  /** ★ 店舗の読み込みが済んだか（見つからなかった場合も済んだ扱い） */
-  const [salonReady, setSalonReady] = useState(false);
 
   // ★★ 目隠しの読み書き（第54便と同じ鍵）。どのページに ?media=1 を付けても外せる。
   useEffect(() => {
@@ -51,34 +47,25 @@ export function useMediaGate(): {
     setUnlockReady(true);
   }, []);
 
+  // ★ 画面を開いたとき、外枠の状態が5分より古ければ読み直す（★ 新しければ何も読まない）
+  const { ensureFresh } = session;
+  useEffect(() => { ensureFresh(); }, [ensureFresh]);
+
+  const st = session.state;
+
+  // ★ ログインしていなければログイン画面へ（★ 戻り先は今のページ）
+  const needLogin = st != null && !st.ok;
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname));
-        return;
-      }
-      setUserId(user.id);
+    if (needLogin) router.push('/owner/login?redirectTo=' + encodeURIComponent(window.location.pathname));
+  }, [needLogin, router]);
 
-      // ★ /mypage と同じ引き方。★ .single() を使わない理由も同じ（同じオーナーで2件ヒットしうる）
-      const { data: salonData, error: salonError } = await supabase
-        .from('salons')
-        .select('id, name')
-        .eq('owner_id', user.id)
-        .order('is_hidden', { ascending: true })
-        .order('id', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (salonError || !salonData) {
-        setLoadError(`店舗情報が見つかりません\nログイン中: ${user.email ?? user.id}`);
-        setSalonReady(true);
-        return;
-      }
-      setSalon(salonData as SalonLite);
-      setSalonReady(true);
-    })();
-  }, [router]);
+  const userId = st && st.ok ? st.userId : null;
+  const salon: SalonLite | null = st && st.ok && st.salon ? { id: st.salon.id, name: st.salon.name } : null;
+  // ★ 店が見つからなかった場合も「読み込み済み」扱い（★ 'wait' のまま止めない）
+  const salonReady = st != null && st.ok;
+  const loadError = st && st.ok && !st.salon
+    ? `店舗情報が見つかりません\nログイン中: ${st.email || st.userId}`
+    : session.error && !st ? '読み込めませんでした。しばらくしてから開き直してください。' : '';
 
   const decision = decideMediaPage({
     ownerId: userId,
