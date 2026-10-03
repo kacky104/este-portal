@@ -107,6 +107,24 @@ export async function POST(req: Request) {
       if (typeof row.diary_mixed_since === 'string' && row.diary_mixed_since) mixedSinceOf.set(Number(row.id), row.diary_mixed_since);
     }
   }
+  // ★★★ 第1142便: 移行期間の取り込みは、駅ちかが【駅ちかから反映（read）】のあいだだけ回す。
+  //   ★ 店舗様がホームで「駅ちかからの反映を止める」を押したら（link_mode='none'）、写メ日記の取り込みも止める。
+  //     ★ 入口が 'ekichika' の店は、止めた瞬間に入口が 'benry' に変わるので元から止まる。
+  //       ★ 「フクエスで書く」の店は入口が 'fukues' のまま変わらないので、ここで向きを見ないと回り続けてしまう。
+  //   ★ 読めなかったときは回さない（★「分からない」を「回してよい」と読まない）。
+  const mixedReadSlots = new Set<string>();
+  if (mixedSinceOf.size > 0) {
+    const { data: srcRows, error: srcErr } = await svc
+      .from('salon_import_sources')
+      .select('salon_id, slot, link_mode, is_enabled')
+      .eq('provider', 'ekichika')
+      .in('salon_id', [...mixedSinceOf.keys()]);
+    if (srcErr) console.warn('[diary-import] 移行期間の店の向きを読めなかった（回さない）', srcErr.message);
+    for (const r of srcRows ?? []) {
+      const row = r as { salon_id: number; slot: number | null; link_mode: string | null; is_enabled: boolean | null };
+      if (row.link_mode === 'read' && row.is_enabled !== false) mixedReadSlots.add(Number(row.salon_id) + '#' + Number(row.slot ?? 1));
+    }
+  }
   if (salonIds.length > 0) {
     const { data: salonRows, error: salonErr } = await svc
       .from('salons').select('id, diary_source, diary_backfill_since, diary_backfill_until').in('id', salonIds);
@@ -121,19 +139,22 @@ export async function POST(req: Request) {
   // ★★ 回すのは: 入口が ekichika の店 ＋【遡りの途中で「フクエスで書く」にした店】（★ until があるときだけ＝切り替え前の日記だけ取り込む）
   // ★ 第1140便: 移行期間の取り込みで回す店か（入口が 'fukues' ＋ 運営が始まりの時刻を入れている）。
   //   ★ 入口が 'ekichika' の店は今までどおりの取り込み（見分けは使わない。フクエスで書いても駅ちかへ送らないので写しが無い）
-  const isMixed = (salonId: number): boolean => sourceOf.get(salonId) === 'fukues' && mixedSinceOf.has(salonId);
-  const canRun = (salonId: number): boolean => {
+  //   ★ 第1142便: その枠が「駅ちかから反映（read）」のときだけ（止めた店・止めた枠は回さない）
+  const isMixed = (salonId: number, slot: number): boolean =>
+    sourceOf.get(salonId) === 'fukues' && mixedSinceOf.has(salonId) && mixedReadSlots.has(salonId + '#' + slot);
+  const canRun = (salonId: number, slot: number): boolean => {
     if (importsDiaryFromEkichika(sourceOf.get(salonId))) return true;
-    if (isMixed(salonId)) return true;
+    if (isMixed(salonId, slot)) return true;
     const b = backfillOf.get(salonId);
     return !!(b && b.until);
   };
-  const targets = consented.filter((c) => canRun(Number((c as { salon_id: number }).salon_id)));
+  const slotOf = (c: unknown): number => Number((c as { slot?: number | null }).slot ?? 1);
+  const targets = consented.filter((c) => canRun(Number((c as { salon_id: number }).salon_id), slotOf(c)));
 
   // ★★ 「0件」の理由が読み取れる形で返す（第35便の反省6）。
   //   ★ 鍵はあるのに回らない店を、黙って数から消さない。
   const skipped = consented
-    .filter((c) => !canRun(Number((c as { salon_id: number }).salon_id)))
+    .filter((c) => !canRun(Number((c as { salon_id: number }).salon_id), slotOf(c)))
     .map((c) => ({
       salonId: Number((c as { salon_id: number }).salon_id),
       slot: Number((c as { slot: number }).slot),
@@ -142,9 +163,9 @@ export async function POST(req: Request) {
     }));
   // ★ 第1140便: 移行期間の取り込みで回す店（試し打ちでも見えるように返す）
   const mixedTargets = targets
-    .map((c) => Number((c as { salon_id: number }).salon_id))
-    .filter((id) => isMixed(id))
-    .map((id) => ({ salonId: id, since: mixedSinceOf.get(id) }));
+    .map((c) => ({ salonId: Number((c as { salon_id: number }).salon_id), slot: slotOf(c) }))
+    .filter((t) => isMixed(t.salonId, t.slot))
+    .map((t) => ({ ...t, since: mixedSinceOf.get(t.salonId) }));
 
   if (!apply) {
     return NextResponse.json({
@@ -178,7 +199,7 @@ export async function POST(req: Request) {
             ? diaryBackfillContext({ since: backfillOf.get(salonId)!.since, until: backfillOf.get(salonId)!.until, backfill: true })
             : {}),
         // ★ 第1140便: 移行期間の店は、日記を保存する前に「フクエスで書いたものの写しか」を見る
-        ...(isMixed(salonId) ? { diaryMixedSince: mixedSinceOf.get(salonId) } : {}),
+        ...(isMixed(salonId, slot) ? { diaryMixedSince: mixedSinceOf.get(salonId) } : {}),
       });
       started.push({ salonId, slot, jobId: r.ok ? r.jobId : undefined, note: r.note });
       // ★★ 積めた【後】に心拍を刻む（第100便）。★ 前に刻むと、積めていないのに新しくなる
