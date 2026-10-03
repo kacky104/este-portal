@@ -152,6 +152,25 @@ async function statsFor(svc: Svc, salonId: number, ids: number[]): Promise<Map<n
   const out = new Map<number, CrmStats>();
   ids.forEach((id) => out.set(id, emptyStats()));
   if (ids.length === 0) return out;
+
+  // ★ 第1115便（2026-10-03）: 数えるのは DB 側（crm_customer_stats・お客様1人につき1行）。
+  //   ★ それまで お客様ごとの過去の予約を【全件】（最大5,000行）読んで JS で数えていた＝CRM の読み取り量の大半。
+  //   ★ 関数がまだ無い（SQL を流す前）・読めないときは、今までの読み方に戻る（画面を空にしない）。
+  const { data: agg, error } = await svc.rpc('crm_customer_stats', { p_salon_id: salonId, p_ids: ids });
+  if (!error && Array.isArray(agg)) {
+    for (const r of agg as Array<Record<string, unknown>>) {
+      const s = out.get(Number(r.customer_id));
+      if (!s) continue;
+      s.visits = Number(r.visits) || 0;
+      s.upcoming = Number(r.upcoming) || 0;
+      s.cancels = Number(r.cancels) || 0;
+      s.badCancels = Number(r.bad_cancels) || 0;
+      s.lastVisitISO = r.last_visit ? new Date(String(r.last_visit)).toISOString() : null;
+    }
+    return out;
+  }
+  if (error) console.error('[crm] crm_customer_stats を読めませんでした（今までの読み方で数えます）:', error.message);
+
   const { data } = await svc
     .from('salon_bookings')
     .select('customer_id, slot_start, status, cancel_bad')
