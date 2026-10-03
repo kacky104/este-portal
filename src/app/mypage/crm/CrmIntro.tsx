@@ -21,6 +21,10 @@ export function CrmIntro({ salonName, publicPage = false }: { salonName?: string
   const c = CRM_INTRO;
   return (
     <div className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8 space-y-4">
+      {/* ★ 第1147便（カッキーさん）: コネックエフのご案内と同じく、いちばん上にバナー（3:1）。
+          ★ 画像は /public/mypage/sidebar/crm-intro.webp。★ いまはマイページの横のバナー（600×200）の写し。1200×400 の絵に差し替えるときはファイルを置き換えるだけ */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/mypage/sidebar/crm-intro.webp" alt="フクエスCRM　顧客管理、セラピスト管理を効率化" width={1200} height={400} className="block w-full h-auto border border-slate-200" />
       {salonName && <p className="text-[12px] font-bold text-indigo-500">{salonName}</p>}
 
       {/* ── とは ── */}
