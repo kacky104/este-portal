@@ -10,6 +10,7 @@ import { DiaryNewBadge } from '@/components/DiaryNewBadge';
 import { DiaryPagination } from '@/components/DiaryPagination';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
+import { DiaryThumb } from '@/components/DiaryThumb';
 
 const PAGE_SIZE = 32;
 
@@ -141,8 +142,7 @@ export async function TherapistDiaryBody({ id, page }: { id: string; page: numbe
               <Link key={d.id} href={`/diary/${d.id}`} className="group bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <div className="aspect-square bg-slate-100 relative">
                   {d.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={d.image} alt={d.title || therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <DiaryThumb src={d.image} alt={d.title || therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
                       {therapistName.charAt(0)}

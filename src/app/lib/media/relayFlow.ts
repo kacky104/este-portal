@@ -2243,6 +2243,10 @@ const DIARY_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const DIARY_BUCKET = 'diary-images';
 /** ★ 第903便: diary-images バケットの上限（20260618_diary_posts_storage.sql の 5MB）。★ 少し余裕を見る */
 const DIARY_STORAGE_MAX_BYTES = Math.floor(4.8 * 1024 * 1024);
+// ★ 第1123便: これより大きい写真は縮めてから置く（長い辺・品質も）。★ 一覧の転送量を抑えるため
+const DIARY_SHRINK_FROM_BYTES = 300 * 1024;
+const DIARY_MAX_EDGE_PX = 1600;
+const DIARY_JPEG_QUALITY = 82;
 const DIARY_IMAGE_EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
@@ -2472,18 +2476,29 @@ async function fetchDiaryImage(
 
       // ★★ 第903便: diary-images の上限（5MB）を超える写真は縮めてから保存する。
       //   ★ サラ様の4件は「The object exceeded the maximum allowed size」で落ちていた（第902便の記録で判明）。
-      //   ★ バケットの上限は変えない（★ 他の口の約束も5MB）。★ 長い辺2000px・JPEG 品質85 で作り直す。
+      //   ★ バケットの上限は変えない（★ 他の口の約束も5MB）。
+      // ★★ 第1123便: 上限を超えていなくても、大きい写真は縮めてから保存する（フクエスリンク精査の 4）。
+      //   ★ 実測（2026-10-03）: diary-images は 205 枚・平均 345kB。★ 写メ日記は一覧で 20 枚並ぶので、元の大きさのまま置くと転送量に効く。
+      //   ★ セラピスト本人が「フクエスで書く」ときは送る前に縮めている（第999便）。★ 駅ちかからの取り込みだけが元のままだった。
+      //   ★ 長い辺 1600px・JPEG 品質 82（スマホ2列〜PC4列の一覧と、詳細ページの幅には十分）。
+      //   ★ 縮めても小さくならないとき（もともと小さい写真）は元のまま置く。★ 縮められなくても、5MB 以内なら元のまま置く（落とさない）。
       let shrunk = '';
-      if (buf.byteLength > DIARY_STORAGE_MAX_BYTES) {
+      const needShrink = buf.byteLength > DIARY_SHRINK_FROM_BYTES || buf.byteLength > DIARY_STORAGE_MAX_BYTES;
+      if (needShrink) {
         try {
           const sharp = (await import('sharp')).default;
           const out = await sharp(buf).rotate()
-            .resize({ width: 2000, height: 2000, fit: 'inside', withoutEnlargement: true })
-            .jpeg({ quality: 85 }).toBuffer();
-          shrunk = '（' + Math.round(buf.byteLength / 1024) + 'KB→' + Math.round(out.byteLength / 1024) + 'KB に縮めた）';
-          buf = out; ext = 'jpg'; saveType = 'image/jpeg';
+            .resize({ width: DIARY_MAX_EDGE_PX, height: DIARY_MAX_EDGE_PX, fit: 'inside', withoutEnlargement: true })
+            .jpeg({ quality: DIARY_JPEG_QUALITY, mozjpeg: true }).toBuffer();
+          if (out.byteLength < buf.byteLength) {
+            shrunk = '（' + Math.round(buf.byteLength / 1024) + 'KB→' + Math.round(out.byteLength / 1024) + 'KB に縮めた）';
+            buf = out; ext = 'jpg'; saveType = 'image/jpeg';
+          }
         } catch (e) {
-          return { publicUrl: null, note: '写真を縮められなかった: ' + String((e as Error).message).slice(0, 80) };
+          // ★ 5MB を超えているときだけ致命（置けない）。★ それ以外は元のまま置く
+          if (buf.byteLength > DIARY_STORAGE_MAX_BYTES) {
+            return { publicUrl: null, note: '写真を縮められなかった: ' + String((e as Error).message).slice(0, 80) };
+          }
         }
         if (buf.byteLength > DIARY_STORAGE_MAX_BYTES) {
           return { publicUrl: null, note: '写真を縮めても大きすぎた（' + buf.byteLength + 'バイト）' };
