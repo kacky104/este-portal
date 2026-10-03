@@ -44,7 +44,7 @@ eq('★ 読めなかった（null）ときは空', T.buildTabCounts(null, null, 
 console.log('── 4b. HTML に入れておく写メ日記の2件（第1128便）──');
 {
   const rows = [
-    { id: 'a', salon_id: 6, title: '出勤しました', content: '本文', created_at: '2026-10-03T02:00:00Z', therapists: { name: 'アイ' } },
+    { id: 'a', salon_id: 6, therapist_id: 41, title: '出勤しました', content: '本文', created_at: '2026-10-03T02:00:00Z', therapists: { name: 'アイ', profile_image_url: 'https://example.com/a.jpg' } },
     { id: 'b', salon_id: 6, title: null, content: '本文だけ\nの日記', created_at: '2026-10-02T15:00:00Z', therapists: [{ name: 'レミ' }] },
     { id: 'c', salon_id: 6, title: '3件目', content: '', created_at: '2026-10-02T10:00:00Z', therapists: null },
     { id: 'd', salon_id: 3, title: '', content: '', created_at: '2026-10-02T09:00:00Z', therapists: { name: 'まむ' } },
@@ -54,7 +54,8 @@ console.log('── 4b. HTML に入れておく写メ日記の2件（第1128便�
   const top = T.topDiaryRowsBySalon(rows);
   eq('★★★ 店ごとに先頭2件だけ（渡された順＝新しい順）', top[6].map((r) => r.id), ['a', 'b']);
   eq('★ 名前は1件でも配列でも読む・タイトルが無ければ本文の頭', top[6].map((r) => [r.name, r.text]), [['アイ', '出勤しました'], ['レミ', '本文だけ の日記']]);
-  eq('★ タイトルも本文も無ければ決まり文句・id が無い行は入れない', top[3], [{ id: 'd', name: 'まむ', text: '写真を投稿しました', at: '2026-10-02T09:00:00Z' }]);
+  eq('★ タイトルも本文も無ければ決まり文句・id が無い行は入れない', top[3], [{ id: 'd', name: 'まむ', text: '写真を投稿しました', at: '2026-10-02T09:00:00Z', therapistId: '', image: null }]);
+  eq('★ 第1129便: 丸い写真のために、セラピストの id と写真を持つ（無ければ null）', [top[6][0].therapistId, top[6][0].image, top[6][1].image], ['41', 'https://example.com/a.jpg', null]);
   const c = T.buildTabCounts(rows, [], '2026-10-03');
   eq('★★ 数は全件（3件）・行は2件', [c[6].diary, c[6].diaryRows.length, c[3].diary, c[3].diaryRows.length], [3, 2, 2, 1]);
   eq('★ 行が無い店には diaryRows を付けない', 'diaryRows' in T.buildTabCounts([], [{ salon_id: 12, valid_until: null }], '2026-10-03')[12], false);

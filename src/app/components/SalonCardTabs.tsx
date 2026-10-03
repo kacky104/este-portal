@@ -4,11 +4,12 @@ import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { NewBadge } from '@/components/NewBadge';
+import { DiaryTherapistAvatar } from '@/components/DiaryTherapistAvatar';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatDiaryAge, formatDiaryDate } from '@/lib/diaryDate';
 import { DIARY_NEW_WINDOW_MS } from '@/lib/diaryNew';
 import {
-  CARD_TABS, CARD_TAB_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating, todayJstOf,
+  CARD_TABS, CARD_TAB_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating, therapistRefOf, todayJstOf,
   type CardTabKey, type SalonCardTabCount,
 } from '@/lib/salonCardTabs';
 import type { TherapistThumb } from './useSalonTherapists';
@@ -32,10 +33,13 @@ const clockNow = () => Date.now();
 /** 'YYYY-MM-DD' → 'MM/DD' */
 const mmdd = (ymd: string) => (/^\d{4}-\d{2}-\d{2}/.test(ymd) ? `${ymd.slice(5, 7)}/${ymd.slice(8, 10)}` : '');
 
-const namePill = (name: string) => (
-  <span className="flex-shrink-0 max-w-[84px] truncate rounded-full border border-pink-200 bg-pink-50 px-2 text-[11px] font-bold leading-4 text-pink-700">
-    {name}
-  </span>
+// ★ 第1129便（カッキーさん）: 写メ日記の行の先頭は【丸い写真＋名前の文字】（名前はバッジにしない・新人の行と同じ文字）。
+//   写真は、カードが読んでいるセラピスト（既定画像が当たったもの）→ 日記と一緒に読んだ写真 → 無ければ頭文字の丸。
+const diaryLead = (name: string, image: string | null) => (
+  <>
+    <DiaryTherapistAvatar src={image} name={name} size={22} />
+    {name && <span className="flex-shrink-0 max-w-[96px] truncate text-xs font-bold text-slate-700">{name}</span>}
+  </>
 );
 
 /**
@@ -50,20 +54,19 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
     const now = Date.now();
     const { data: got, error } = await supabase
       .from('diary_posts')
-      .select('id, title, content, created_at, therapists(name)')
+      .select('id, therapist_id, title, content, created_at, therapists(name, profile_image_url)')
       .eq('salon_id', salonId)
       .gte('created_at', new Date(now - DIARY_NEW_WINDOW_MS).toISOString())
       .order('created_at', { ascending: false })
       .limit(CARD_TAB_ROWS);
     if (error) throw error;
     rows = (got ?? []).map((r) => {
-      const th = r.therapists as unknown as { name?: string | null } | { name?: string | null }[] | null;
-      const name = (Array.isArray(th) ? th[0]?.name : th?.name) ?? '';
+      const th = therapistRefOf(r.therapists);
       const at = String(r.created_at ?? '');
       return {
         key: String(r.id),
         href: `/diary/${r.id}`,
-        lead: name ? namePill(name) : null,
+        lead: diaryLead(th.name, therapists.find((t) => t.id === String(r.therapist_id))?.imageUrl ?? th.image),
         text: diaryLine(r.title, r.content),
         tail: formatDiaryAge(at, now) ?? formatDiaryDate(at),
       };
@@ -146,7 +149,7 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
   const diaryRows: Row[] = (counts.diaryRows ?? []).map((r) => ({
     key: r.id,
     href: `/diary/${r.id}`,
-    lead: r.name ? namePill(r.name) : null,
+    lead: diaryLead(r.name, therapists.find((t) => t.id === r.therapistId)?.imageUrl ?? r.image),
     text: r.text,
     tail: (pickedAt !== null ? formatDiaryAge(r.at, pickedAt) : null) ?? formatDiaryDate(r.at),
   }));

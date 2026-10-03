@@ -28,7 +28,8 @@ export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: st
 export const CARD_TAB_ROWS = 2;
 
 /** 写メ日記の1行ぶん（TOP の HTML に入れておく・第1128便） */
-export type CardDiaryRow = { id: string; name: string; text: string; at: string };
+//   ★ 第1129便: 名前の左に出す丸い写真のために、セラピストの id と写真も持つ（写真が無ければ null）
+export type CardDiaryRow = { id: string; name: string; text: string; at: string; therapistId: string; image: string | null };
 
 /**
  * TOP の作り直しのときに読む数（店舗ごと）。口コミ・新人はここに入れない（今ある値から出す）。
@@ -66,13 +67,16 @@ export function countBySalon(rows: ReadonlyArray<{ salon_id?: unknown }> | null 
 }
 
 /** 写メ日記の行（読んだまま）。★ 新しい順に並んでいること（呼ぶ側が order する） */
-export type DiaryRowIn = { id?: unknown; salon_id?: unknown; title?: unknown; content?: unknown; created_at?: unknown; therapists?: unknown };
+export type DiaryRowIn = { id?: unknown; salon_id?: unknown; therapist_id?: unknown; title?: unknown; content?: unknown; created_at?: unknown; therapists?: unknown };
 
-/** 取り込んだセラピスト（1件 or 配列で返ってくる）から名前を取る */
-function therapistNameOf(v: unknown): string {
+/** 取り込んだセラピスト（1件 or 配列で返ってくる）から、名前と写真を取る */
+export function therapistRefOf(v: unknown): { name: string; image: string | null } {
   const one = Array.isArray(v) ? v[0] : v;
-  const name = one && typeof one === 'object' ? (one as { name?: unknown }).name : null;
-  return typeof name === 'string' ? name : '';
+  const o = one && typeof one === 'object' ? (one as { name?: unknown; profile_image_url?: unknown }) : null;
+  return {
+    name: typeof o?.name === 'string' ? o.name : '',
+    image: typeof o?.profile_image_url === 'string' && o.profile_image_url ? o.profile_image_url : null,
+  };
 }
 
 /**
@@ -87,11 +91,14 @@ export function topDiaryRowsBySalon(rows: ReadonlyArray<DiaryRowIn> | null | und
     if (typeof r.id !== 'string' && typeof r.id !== 'number') continue;
     const list = out[sid] ?? (out[sid] = []);
     if (list.length >= CARD_TAB_ROWS) continue;
+    const th = therapistRefOf(r.therapists);
     list.push({
       id: String(r.id),
-      name: therapistNameOf(r.therapists),
+      name: th.name,
       text: diaryLine(r.title, r.content),
       at: typeof r.created_at === 'string' ? r.created_at : '',
+      therapistId: r.therapist_id == null ? '' : String(r.therapist_id),
+      image: th.image,
     });
   }
   return out;
