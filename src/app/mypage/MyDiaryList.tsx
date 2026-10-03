@@ -11,7 +11,8 @@ import { importedDiaryLabel, importedDiaryDeleteConfirm, importedDiaryEditNote }
 import { providerLabel } from '@/lib/mediaAudit';
 
 const supabase = createClient();
-const TITLE_MAX = 10;
+// ★ 第1152便（カッキーさん）: 10 → 11 文字（セラピスト側 CastDiary と同じ値）
+const TITLE_MAX = 11;
 const PAGE_SIZE = 30; // 1ページあたりの投稿数（DBから range で30件だけ取得）
 
 type MyDiaryPost = {

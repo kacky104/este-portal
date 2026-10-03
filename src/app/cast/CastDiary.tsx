@@ -51,7 +51,8 @@ async function uploadDiaryImage(therapistId: string, file: File): Promise<{ ok: 
   }
   return { ok: true, url: prep.publicUrl };
 }
-const TITLE_MAX = 10;
+// ★ 第1152便（カッキーさん）: 10 → 11 文字（一覧のサムネで11文字でも1行に収まる）
+const TITLE_MAX = 11;
 const PAGE_SIZE = 30; // 1ページあたりの投稿数（DBから range で30件だけ取得）
 
 type CastDiaryPost = {
@@ -365,7 +366,7 @@ export function CastDiary({
           )}
         </div>
 
-        {/* タイトル（最大10文字） */}
+        {/* タイトル（最大 TITLE_MAX 文字） */}
         <div>
           <label className="text-[11px] font-bold text-slate-500 block mb-1">タイトル（最大{TITLE_MAX}文字）</label>
           <input
