@@ -82,7 +82,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
       // ★ セラピストがまだ読めていない。null を返す＝持っておかない（次に押したときにもう一度読む）
       return null;
     }
-    // ★ 第1132便（カッキーさん）: ★ の左にセラピストの丸い写真。右端の「◯◯さん」は出さない。3件（3件目は「すべて見る」の行）
+    // ★ 第1132便・第1133便（カッキーさん）: ★ の左にセラピストの丸い写真。右端の「◯◯さん」は出さない。2件
     const byId = new Map(therapists.map((t) => [Number(t.id), t]));
     const { data: got, error } = await supabase
       .from('therapist_reviews')
@@ -142,9 +142,11 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
   return rows;
 }
 
-export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
+export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therapists }: {
   salonId: number;
   reviewCount: number;
+  /** ★ 第1133便: お店の総合評価（ピンクの ★・点数・件数）。口コミのタブの3行目の左に出す（親が今までの部品をそのまま渡す） */
+  ratingNode?: ReactNode;
   counts: SalonCardTabCount;
   therapists: TherapistThumb[];
 }) {
@@ -234,6 +236,7 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
   /**
    * 開いた中身。上の2行＋いちばん下の行（右端に「すべて見る」）。isHidden のときは HTML には入れるが見せない。
    * ★ 第1131便: 3件目がある（写メ日記）ときは、いちばん下の行の左に出す＝高さは2件のときと同じ。
+   * ★ 第1133便: 口コミのタブは、いちばん下の行の左にお店の総合評価（ratingNode）を出す。
    */
   const renderPanel = (t: (typeof CARD_TABS)[number], l: Loaded, isHidden: boolean) => {
     const rows = l.status === 'ready' ? l.rows : [];
@@ -260,6 +263,9 @@ export function SalonCardTabs({ salonId, reviewCount, counts, therapists }: {
           <Link href={third.href} onClick={(e) => e.stopPropagation()} className="flex h-7 min-w-0 flex-1 items-center gap-1.5">
             {rowInner(third)}
           </Link>
+        )}
+        {t.key === 'review' && ratingNode && (
+          <div className="flex h-7 min-w-0 flex-1 items-center gap-1.5 overflow-hidden">{ratingNode}</div>
         )}
         <Link
           href={`/salon/${salonId}/${t.path}`}

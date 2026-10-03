@@ -408,7 +408,14 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // ★ 第1126便: タブ（写メ日記・口コミ・新人・クーポン）。tabCounts を渡した画面（TOP）だけ出す。
   //   スマホ／PC の2つのレイアウトにそれぞれ置く（片方は非表示。読むのは押したときだけなので二重には読まない）。
   const cardTabs = tabCounts ? (
-    <SalonCardTabs salonId={salon.id} reviewCount={salon.reviewCount} counts={tabCounts} therapists={therapists} />
+    <SalonCardTabs
+      salonId={salon.id}
+      reviewCount={salon.reviewCount}
+      // ★ 第1133便: お店の総合評価は口コミのタブの中（3行目の左）に出す
+      ratingNode={<RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />}
+      counts={tabCounts}
+      therapists={therapists}
+    />
   ) : null;
 
   // ── 従来（モバイル/タブレット）の縦積みレイアウト ──
@@ -466,9 +473,12 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       <div className={`flex items-center justify-between ${compactTherapists ? 'pt-[5px]' : 'pt-3.5'} border-t border-slate-200 mt-auto`}>
         {ratingAtBottom ? (
           <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
-            </div>
+            {/* ★ 第1133便（カッキーさん）: タブがある画面（TOP）では、ここの ★・「口コミなし」は出さない（口コミのタブの中に出す） */}
+            {!cardTabs && (
+              <div className="flex items-center gap-2 mb-0.5">
+                <RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />
+              </div>
+            )}
             {/* 料金の右隣に営業時間（1行固定：料金はフル表示、営業時間が縮む/省略） */}
             <div className="flex items-center gap-2 min-w-0 flex-nowrap">
               <p className="text-pink-600 font-bold text-sm whitespace-nowrap flex-shrink-0">{salon.price}</p>
@@ -506,7 +516,8 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       {/* 2段目: ☆評価 → 料金 → 出勤数 →（右端）詳しく見る。上に細い区切り線。
           1行固定（折り返さない）：料金・出勤はフル表示、評価側が min-w-0 で縮む。 */}
       <div className="flex items-center gap-3 min-w-0 flex-nowrap pt-2.5 mb-3 border-t border-slate-200/70">
-        <div className="min-w-0 flex items-center gap-1.5 overflow-hidden">{ratingEl}</div>
+        {/* ★ 第1133便: タブがある画面（TOP）では ★ を出さない（口コミのタブの中に出す） */}
+        {!cardTabs && <div className="min-w-0 flex items-center gap-1.5 overflow-hidden">{ratingEl}</div>}
         {priceEl}
         {dutyBadge}
         <span className="ml-auto flex-shrink-0">{detailBtn}</span>
