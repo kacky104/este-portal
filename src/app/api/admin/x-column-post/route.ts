@@ -22,8 +22,8 @@ import { COLUMN_URL_PREFIX, columnSlugFromUrl, orderColumnsForPost } from '@/lib
 // ★★ md を実行時に読むので、next.config.ts の outputFileTracingIncludes でこのルートに src/content/column を同梱している。
 //   ★ 外すと本番で 0 本になり、skipped: 'no_columns' が返る（投稿はされない）。
 //
-//   crontab（VPS・JST・毎日 21:05）:
-//   5 21 * * * set -a; . /root/import.env; /usr/bin/curl -s -X POST https://fukues.com/api/admin/x-column-post -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{"apply":true}' >> /root/import.log 2>&1
+//   crontab（VPS・JST・毎日 08:05。★ 第1186便・カッキーさん: 朝に出す。出勤紹介の 12:05・18:05 と重ならない）:
+//   5 8 * * * set -a; . /root/import.env; /usr/bin/curl -s -X POST https://fukues.com/api/admin/x-column-post -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{"apply":true}' >> /root/import.log 2>&1
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
