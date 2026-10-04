@@ -304,12 +304,6 @@ export function SupportTab({
       </div>
 
       {/* ── 運営からのお知らせ ── */}
-      {/* ★ 第1174便（カッキーさん）: 広告掲載 申込書 兼 誓約書（サイン・控え）への入口。★ 文字のリンクだけ（ここでは何も読まない） */}
-      <a href="/mypage/agreement" className="flex items-center justify-between gap-3 bg-white rounded-none border border-slate-100 shadow-sm px-5 py-3 text-[13px] font-bold text-slate-700 hover:bg-pink-50">
-        <span>広告掲載 申込書 兼 誓約書（ご提出・控え）</span>
-        <span className="text-pink-600" aria-hidden>→</span>
-      </a>
-
       <div className={`bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4 ${subTab === 'notices' ? '' : 'hidden'}`}>
         <h2 className="text-sm font-black text-slate-700">運営からのお知らせ</h2>
         <p className="text-[11px] text-slate-400">※ お知らせは配信から6ヶ月間表示されます。それより古いものは自動的に非表示になります。</p>
@@ -525,6 +519,12 @@ export function SupportTab({
           </div>
         )}
       </div>
+      {/* ★ 第1174便 → 第1178便（カッキーさん「目立たない場所が良い」）: 広告掲載 申込書 兼 誓約書（ご提出・控え）への入口。
+          サブタブのすぐ下の大きな行から、この画面のいちばん下の小さな文字のリンクへ移した。★ ここでは何も読まない。
+          （まだ提出していない店には、マイページの上の黄色い帯から入ってもらう） */}
+      <p className="pt-2 text-right">
+        <a href="/mypage/agreement" className="text-[12px] text-slate-400 underline hover:text-pink-600">広告掲載 申込書 兼 誓約書（ご提出・控え）</a>
+      </p>
     </div>
   );
 }
