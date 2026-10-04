@@ -336,7 +336,7 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
             >
               <span className="truncate">{t.label}</span>
               {badge && (
-                <span className="flex-shrink-0 min-w-[16px] h-4 rounded-full bg-pink-600 px-1 text-center text-[10px] font-bold leading-4 text-white">
+                <span className="flex-shrink-0 box-border min-w-[18px] h-4 rounded-[4px] border border-pink-600 bg-white px-1 text-center text-[10px] font-bold leading-[14px] text-pink-600">
                   {badge}
                 </span>
               )}
