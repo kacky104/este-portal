@@ -67,7 +67,7 @@ export async function getMemberVipLetters(supabase: SupabaseClient): Promise<Mem
   for (const r of rows as Record<string, unknown>[]) {
     const letter = r.letter as Record<string, unknown> | null;
     if (!letter) continue; // レターが消えている等
-    // ★ 30日を過ぎたレターは出さない（★ 日数の正は src/lib/vipLetterWindow.ts）。
+    // ★ 14日（第1179便より前は30日）を過ぎたレターは出さない（★ 日数の正は src/lib/vipLetterWindow.ts）。
     //   ★★ 消しているのは【表示】だけ。★ 行は残っている。
     //   ★ 日時が読めないものは出す（★「読めなかった」を「期限切れ」に倒さない）。
     if (!isVipLetterVisible((letter.created_at as string | null) ?? null)) continue;
@@ -101,7 +101,7 @@ export type VipUnreadResult = { count: number } | { error: string };
 
 /** 自分の未読VIPレター数（read_at が null）。NotificationBell の未読数に合算する。RLS（本人のみ）に依存。
  *
- * ★★★ 30日を過ぎたレターは数えない（2026-09-06）。
+ * ★★★ 14日（第1179便より前は30日）を過ぎたレターは数えない（2026-09-06）。
  *   ★ 受信箱に出さないものを未読として数えると、**開きに行けない未読**がベルに残る。
  *   ★ ベルと一覧をずらさない（notificationFeed.ts と同じ考え方）。
  */

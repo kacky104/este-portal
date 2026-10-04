@@ -19,14 +19,16 @@ const eq = (name, got, want) => {
 const now = new Date('2026-09-06T12:00:00+09:00');
 const daysAgo = (n) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000).toISOString();
 
-eq('日数は30日', m.VIP_LETTER_WINDOW_DAYS, 30);
+// ★ 第1179便（カッキーさん）: 30日 → 14日
+eq('日数は14日', m.VIP_LETTER_WINDOW_DAYS, 14);
 
 eq('今日のものは出す', m.isVipLetterVisible(daysAgo(0), now), true);
-eq('29日前は出す', m.isVipLetterVisible(daysAgo(29), now), true);
-// ★ ちょうど30日は【出す】（境目で消さない）
-eq('★ ちょうど30日は出す', m.isVipLetterVisible(daysAgo(30), now), true);
-eq('30日と1分前は出さない', m.isVipLetterVisible(new Date(now.getTime() - (30 * 24 * 60 + 1) * 60 * 1000).toISOString(), now), false);
-eq('31日前は出さない', m.isVipLetterVisible(daysAgo(31), now), false);
+eq('13日前は出す', m.isVipLetterVisible(daysAgo(13), now), true);
+// ★ ちょうど14日は【出す】（境目で消さない）
+eq('★ ちょうど14日は出す', m.isVipLetterVisible(daysAgo(14), now), true);
+eq('14日と1分前は出さない', m.isVipLetterVisible(new Date(now.getTime() - (14 * 24 * 60 + 1) * 60 * 1000).toISOString(), now), false);
+eq('15日前は出さない', m.isVipLetterVisible(daysAgo(15), now), false);
+eq('30日前は出さない（前の決まりでは出していた）', m.isVipLetterVisible(daysAgo(30), now), false);
 eq('半年前は出さない', m.isVipLetterVisible(daysAgo(180), now), false);
 
 // ★★ 読めない日時を「期限切れ」に倒さない（作法3-3）
@@ -38,7 +40,7 @@ eq('★★ 壊れた日時は出す', m.isVipLetterVisible('こわれた日時',
 eq('★ 未来の日時は出す', m.isVipLetterVisible(daysAgo(-1), now), true);
 
 // ★ DBに渡す境目
-eq('境目は30日前', m.vipLetterWindowStartISO(now), daysAgo(30));
+eq('境目は14日前', m.vipLetterWindowStartISO(now), daysAgo(14));
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
