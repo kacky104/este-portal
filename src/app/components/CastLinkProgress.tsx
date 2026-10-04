@@ -38,7 +38,7 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
   /** 「招待する／確認する」の行き先（そのセラピストの編集ページ） */
   editHref: (therapistId: string) => string;
   tone?: keyof typeof TONES;
-  /** ★ 第1169便（カッキーさん）: 見出しの横に出す「作り方」の行き先（マイページだけ渡す＝/mypage/cast-guide）。無ければ出さない */
+  /** ★ 第1169便（カッキーさん）: 見出しの横に出す「作り方」の行き先（マイページ＝/mypage/cast-guide・第1170便からコネックエフのホーム＝/cast-guide）。無ければ出さない */
   guideHref?: string;
   onToast?: (m: string) => void;
 }) {
