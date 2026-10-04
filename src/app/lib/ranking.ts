@@ -422,6 +422,8 @@ async function computeOverallScores(week: string): Promise<ScoredSalon[]> {
 // 点数 ＝ 手動の上位表示×1 ＋ 手動のお知らせ×5 ＋ 店舗アカウントの fukuX 投稿（1日10点まで）。★ 計算は DB の salon_recommend_scores が正本。
 // ★ 第948便（2026-09-28・カッキーさん）: ＋ セラピストページ連携率 ÷2（毎週月曜0時に記録した％・20260928_recommend_cast_link_points.sql）。
 //   ★ 手動の動きが0でも、連携率の点があれば載る（0点の店だけ外すのは今までどおり）。
+// ★ 第1188便（2026-10-05・カッキーさん）: ＋ フクエスサイトで公式HPを公開中（salon_sites が live）+5 ＋ フクエックスの店舗アカウントを開設 +5
+//   （どちらも毎週・追加SQL_第1188便）。★ ここは points だけを読むので、コードの計算は変わらない。
 // 週は月曜0時（JST）から7日。★ 同点は総合（週間アクセス）の多い順、それも同じなら id 順。0点の店は出さない。
 // ★ SQL（20260918_salon_recommend_ranking.sql）が当たる前・読めないときは、総合（アクセス）の並びで出す（ページを空にしない）。
 export async function fetchRecommendWeeklyRanking(limit = 10, week: string = currentWeekStartJST()): Promise<SalonRankItem[]> {

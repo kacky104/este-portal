@@ -57,6 +57,7 @@ import { addSeenIds, freshNotices, loadSeenIds, unseenFreshCount } from '@/lib/o
 import { AgreementNoticeBar } from './AgreementNoticeBar';
 // ★ 第885便: セラピストページ連携の連携率（コネックエフのホームと同じ部品）
 import { CastLinkProgress } from '@/app/components/CastLinkProgress';
+import { RECOMMEND_SITE_BONUS, RECOMMEND_FUKUX_SHOP_BONUS } from '@/lib/rankingPoints';
 // ★ 第887便: リンク・QRで招待（カードでは52×22の「QR」ボタン）
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import { postAnnouncementManually, getAnnounceState, applyAnnouncePhotoOnSave } from '@/app/actions/announcePost';
@@ -3780,6 +3781,10 @@ export default function MyPage() {
               onChange={(e) => setSalonForm((p) => ({ ...p, official_url: e.target.value }))}
             />
             <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。</p>
+            {/* ★ 第1188便（カッキーさん）: おすすめランキングの加点を説明に足す。
+                ★ 点が付くのは【フクエスサイトで作って公開中】のお店（salon_sites が live）。★ この欄に URL を入れただけでは付かない。
+                ★ 数字は src/lib/rankingPoints.ts（計算の正本は SQL・追加SQL_第1188便）。 */}
+            <p className="text-[10px] text-slate-400 mt-0.5">公式サイトをフクエスサイトで作成すると、おすすめランキングに毎週+{RECOMMEND_SITE_BONUS}ポイント加点されます。</p>
           </div>
           <div>
             <label className={labelClass}>fukuX URL（任意）</label>
@@ -3791,6 +3796,8 @@ export default function MyPage() {
               onChange={(e) => setSalonForm((p) => ({ ...p, fukux_url: e.target.value }))}
             />
             <p className="text-[10px] text-slate-400 mt-1">https:// から始まる正しいURLを入力してください。</p>
+            {/* ★ 第1188便: 点が付くのは【店舗アカウントを開設している】お店（同じログインの承認済み kind='shop'）。★ URL の入力では付かない。 */}
+            <p className="text-[10px] text-slate-400 mt-0.5">フクエックスの店舗アカウントを開設すると、おすすめランキングに毎週+{RECOMMEND_FUKUX_SHOP_BONUS}ポイント加点されます。</p>
           </div>
           {/* ── 支払い方法（店舗基本情報に表示） ── */}
           <div>

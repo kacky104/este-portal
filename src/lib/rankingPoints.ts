@@ -18,3 +18,13 @@ export const RECOMMEND_CAST_LINK_DIVISOR = 2;
 export function recommendCastLinkPoints(pct: number): number {
   return Math.floor(pct / RECOMMEND_CAST_LINK_DIVISOR);
 }
+
+/**
+ * ★ 第1188便（2026-10-05・カッキーさん）: お店の「おすすめランキング」に毎週足す点（説明文に出す数字）。
+ *   ・フクエスサイトで公式HPを公開中（salon_sites.status = 'live'）のお店 … RECOMMEND_SITE_BONUS
+ *   ・フクエックスの店舗アカウント（オーナーと同じログイン・承認済み）があるお店 … RECOMMEND_FUKUX_SHOP_BONUS
+ * ★★ 計算の正本は DB（追加SQL_第1188便・salon_recommend_scores の st／fx）。ここは【説明文に出す数字】だけ。
+ *   ★ SQL の点数を変えたら、ここも同じ数に直すこと。
+ */
+export const RECOMMEND_SITE_BONUS = 5;
+export const RECOMMEND_FUKUX_SHOP_BONUS = 5;
