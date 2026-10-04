@@ -163,6 +163,14 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
   return rows;
 }
 
+// ★ 第1155便: 数のバッジの色はタブごとに分ける（枠と数字。背景は白）。写メ日記＝ピンク・口コミ＝オレンジ・新人＝緑・クーポン＝青
+const BADGE_COLOR: Record<CardTabKey, string> = {
+  diary: 'border-pink-600 text-pink-600',
+  review: 'border-orange-500 text-orange-600',
+  newface: 'border-green-600 text-green-600',
+  coupon: 'border-blue-600 text-blue-600',
+};
+
 export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therapists }: {
   salonId: number;
   reviewCount: number;
@@ -336,7 +344,7 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
             >
               <span className="truncate">{t.label}</span>
               {badge && (
-                <span className="flex-shrink-0 box-border min-w-[18px] h-4 rounded-[4px] border border-pink-600 bg-white px-1 text-center text-[10px] font-bold leading-[14px] text-pink-600">
+                <span className={`flex-shrink-0 box-border min-w-[18px] h-4 rounded-[4px] border bg-white px-1 text-center text-[10px] font-bold leading-[14px] ${BADGE_COLOR[t.key]}`}>
                   {badge}
                 </span>
               )}
