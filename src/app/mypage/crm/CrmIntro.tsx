@@ -1,131 +1,180 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useCrmLinks } from './CrmBase';
-import { CRM_INTRO } from '@/lib/crmIntro';
+import { CRM_INTRO, type CrmIntroIcon } from '@/lib/crmIntro';
 
 // フクエスCRM「ご案内」（第1144便・2026-10-04・カッキーさん）。★ 未契約の店舗様が入口を押したときに出る。
-//   ★ それまでは「有料機能です」の箇条だけ（CrmShell の Upsell）。
-//   ★ フクエスリンク・コネックエフの「はじめての方へ」と同じ組み立て（とは → 流れ → できること → 無料との違い → はじめかた）。
+//   ★ ログイン不要のご案内ページ（fukuescrm.com/about・第1145便）と、マイページの中（CrmShell の未契約）の両方で使う。
 //   ★ 中身は lib/crmIntro.ts（純粋なデータ）。★ 契約の判定はサーバー（actions/crm.ts）のまま。ここは見せるだけ。
+// ★★ 第1165便（カッキーさん）: コネックエフのご案内（/mypage/conecf・第1164便）と同じ要領で、1ページのチラシの形に作り直した
+//   （淡い地・角の丸い札・番号の丸）。札5つ（とは／できること／違いの表／はじめかた／お申し込み）→ 1枚。
+//   ★ いちばん上のバナー（crm-intro.webp・第1147便）は出さない（見出しの行が代わり）。画像は public に残してある。
+//   ★ ボタンは紙の外に大きく3つ（運営に申し込む＝第1163便の行き先のまま／使い方／マイページへ戻る）。
 
-const card = 'border border-slate-200 bg-white p-4 sm:p-5 shadow-sm';
+// ── 色（フクエスCRM の藍）。ここだけ直せば全体が変わる ──
+const INK = '#1b2540'; // 見出しの濃い色
+const MAIN = '#4f46e5'; // 主役の藍（indigo-600）
+const NAVY = '#1e2a5a'; // 濃い紺（番号の丸・/about の帯と同じ）
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[16px] font-black text-slate-800 border-l-4 border-indigo-500 pl-2.5">{children}</h3>;
+const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+const ICONS: Record<CrmIntroIcon, ReactNode> = {
+  calendar: (<><rect x="3.5" y="5" width="17" height="15" rx="2.5" {...stroke} /><path d="M3.5 10h17M8 3.5v3M16 3.5v3" {...stroke} /></>),
+  users: (<><circle cx="9" cy="8.5" r="3.2" {...stroke} /><path d="M3 19.5c.5-3.2 2.9-5 6-5s5.5 1.8 6 5" {...stroke} /><path d="M16 5.6a3.2 3.2 0 010 5.8M18.2 14.9c1.6.8 2.5 2.3 2.8 4.6" {...stroke} /></>),
+  list: (<><path d="M9 7h11M9 12h11M9 17h11" {...stroke} /><circle cx="4.8" cy="7" r="1" fill="currentColor" /><circle cx="4.8" cy="12" r="1" fill="currentColor" /><circle cx="4.8" cy="17" r="1" fill="currentColor" /></>),
+  chart: (<><path d="M4 20h16" {...stroke} /><path d="M7 20v-6M12 20V7M17 20v-9" {...stroke} strokeWidth={2.6} /></>),
+  yen: (<><circle cx="12" cy="12" r="8.5" {...stroke} /><path d="M8.8 7.5l3.2 5 3.2-5M12 12.5V17M9.2 12.5h5.6M9.2 15h5.6" {...stroke} /></>),
+  tag: (<><path d="M12.5 3.5h7v7L11 19.9a1.5 1.5 0 01-2.1 0l-4.8-4.8a1.5 1.5 0 010-2.1l8.4-9.5z" {...stroke} /><circle cx="16" cy="8" r="1.2" fill="currentColor" /></>),
+};
+
+function SectionHead({ no, children, tag }: { no: string; children: ReactNode; tag?: string }) {
+  return (
+    <div className="mt-9 mb-4 flex items-center justify-between gap-3">
+      <h3 className="flex items-baseline gap-3 text-[20px] sm:text-[24px] font-black" style={{ color: INK }}>
+        <span className="text-[13px] font-bold" style={{ color: MAIN }}>{no}</span>
+        {children}
+      </h3>
+      {tag && <span className="flex-shrink-0 rounded-full bg-[#e9ebfd] px-4 py-1.5 text-[12.5px] font-bold" style={{ color: NAVY }}>{tag}</span>}
+    </div>
+  );
 }
 
-// ★ 第1145便: ログイン不要のご案内ページ（fukuescrm.com/about）でも使う。★ salonName は無ければ出さない。
-//   ★ 第1163便: publicPage のときに出していた「契約店舗様はこちらからログイン」のボタンは「運営に申し込む」に替えた。★ publicPage は呼び出し側のために受け取るだけ（いまは出し分けに使っていない）。
+/** ○ が付いている行（かっこ書きは出さない） */
+const has = (v: string) => v.trim().startsWith('○');
+
 export function CrmIntro({ salonName }: { salonName?: string; publicPage?: boolean }) {
   const links = useCrmLinks();
   const c = CRM_INTRO;
+  const plain = c.features.filter((f) => !f.accent);
+  const accent = c.features.filter((f) => f.accent);
+  const freeRows = c.compare.rows.filter((r) => has(r.free));
+  const crmRows = c.compare.rows.filter((r) => has(r.crm));
   return (
-    <div className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8 space-y-4">
-      {/* ★ 第1147便（カッキーさん）: コネックエフのご案内と同じく、いちばん上にバナー（3:1）。
-          ★ 画像は /public/mypage/sidebar/crm-intro.webp。★ いまはマイページの横のバナー（600×200）の写し。1200×400 の絵に差し替えるときはファイルを置き換えるだけ */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/mypage/sidebar/crm-intro.webp" alt="フクエスCRM　顧客管理、セラピスト管理を効率化" width={1200} height={400} className="block w-full h-auto border border-slate-200" />
-      {salonName && <p className="text-[12px] font-bold text-indigo-500">{salonName}</p>}
+    <div className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8">
+      <article className="overflow-hidden border border-[#dfe2f8] bg-[#f8f9ff] shadow-sm">
+        <div className="h-1.5" style={{ background: MAIN }} />
+        <div className="px-4 sm:px-10 pt-6 sm:pt-7 pb-8">
+          {/* ── 見出しの行 ── */}
+          <div className="flex items-center justify-between gap-3">
+            <p className="flex items-baseline gap-3 whitespace-nowrap">
+              <span className="text-[24px] sm:text-[30px] font-black tracking-tight" style={{ color: INK }}>フクエスCRM</span>
+              <span className="hidden sm:inline text-[14px] font-bold" style={{ color: MAIN }}>のご案内</span>
+            </p>
+            <span className="flex-shrink-0 rounded-full bg-[#e9ebfd] px-3 sm:px-4 py-1.5 text-[11.5px] sm:text-[12.5px] font-bold" style={{ color: NAVY }}>{c.hero.audience}</span>
+          </div>
+          {salonName && <p className="mt-1 text-[12px] font-bold" style={{ color: MAIN }}>{salonName}</p>}
 
-      {/* ── とは ── */}
-      <section className={`${card} space-y-3`}>
-        <SectionTitle>{c.intro.title}</SectionTitle>
-        <p className="text-[15.5px] font-bold text-slate-700 leading-relaxed">{c.intro.lead}</p>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 text-center">
-          {c.flow.map((f, i) => (
-            <div key={f.name} className="contents">
-              {i > 0 && <div className="text-indigo-400 font-black text-[18px] rotate-90 sm:rotate-0" aria-hidden>→</div>}
-              <div className={`flex-1 border px-3 py-2.5 ${i < 2 ? 'border-indigo-200 bg-indigo-50' : 'border-emerald-200 bg-emerald-50'}`}>
-                <div className={`text-[12px] font-bold ${i < 2 ? 'text-indigo-500' : 'text-emerald-600'}`}>{f.caption}</div>
-                <div className={`text-[15px] font-black ${i < 2 ? 'text-indigo-800' : 'text-emerald-800'}`}>{f.name}</div>
+          {/* ── いちばん言いたいこと ＋ 流れの絵 ── */}
+          <div className="mt-7 grid gap-6 sm:grid-cols-[1fr_236px] sm:items-center">
+            <div>
+              <h2 className="text-[33px] sm:text-[44px] font-black leading-[1.25] tracking-tight" style={{ color: INK }}>
+                {c.hero.line1}
+                <br />
+                <span style={{ color: MAIN }}>{c.hero.line2}</span>
+              </h2>
+              <p className="mt-4 whitespace-pre-line text-[17px] sm:text-[19px] font-black leading-relaxed" style={{ color: NAVY }}>{c.hero.sub}</p>
+              <div className="mt-5 flex flex-wrap gap-2.5">
+                {c.hero.pills.map((t) => (
+                  <span key={t} className="rounded-full px-5 py-2.5 text-[14px] sm:text-[15px] font-black text-white" style={{ background: MAIN }}>{t}</span>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-        <ul className="space-y-1.5">
-          {c.intro.points.map((p) => (
-            <li key={p} className="flex gap-2 text-[14.5px] text-slate-600 leading-relaxed">
-              <span className="text-emerald-600 font-black flex-none">✓</span>{p}
-            </li>
-          ))}
-        </ul>
-      </section>
 
-      {/* ── できること ── */}
-      <section className={`${card} space-y-3`}>
-        <SectionTitle>できること</SectionTitle>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {c.features.map((f) => (
-            // ★ 第1148便（カッキーさん）: accent の札はピンク（来店時の同意書・セラピストへの公開）
-            <div key={f.name} className={`border p-3.5 ${f.accent ? 'border-pink-200 bg-pink-50' : 'border-slate-200'}`}>
-              <b className={`text-[15px] font-black ${f.accent ? 'text-pink-700' : 'text-slate-800'}`}>{f.name}</b>
-              {f.body && <p className={`mt-1 whitespace-pre-line text-[13.5px] leading-relaxed ${f.accent ? 'text-pink-900/80' : 'text-slate-600'}`}>{f.body}</p>}
+            <div className="rounded-2xl border border-[#dfe2f8] bg-white p-4 text-center">
+              {c.flow.map((f, i) => {
+                const last = i === c.flow.length - 1;
+                return (
+                  <div key={f.name}>
+                    {i > 0 && (
+                      <svg viewBox="0 0 24 24" className="mx-auto my-1 h-6 w-6" style={{ color: MAIN }} aria-hidden><path d="M12 4v15M6 13.5l6 6 6-6" {...stroke} strokeWidth={2.4} /></svg>
+                    )}
+                    <div className={`rounded-xl px-3 py-2.5 ${last ? 'text-white' : 'border-2'}`} style={last ? { background: MAIN } : { borderColor: '#c9cdf6' }}>
+                      <p className={`text-[12px] font-bold ${last ? 'text-white/85' : 'text-slate-500'}`}>{f.caption}</p>
+                      <p className="text-[16.5px] font-black" style={last ? undefined : { color: INK }}>{f.name}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      </section>
+          </div>
 
-      {/* ── 無料との違い ── */}
-      <section className={`${card} space-y-3`}>
-        <SectionTitle>無料の予約ボードとの違い</SectionTitle>
-        <p className="text-[14px] text-slate-500 leading-relaxed">予約ボードは今までどおり無料でお使いいただけます。</p>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-[13.5px] border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-slate-600">
-                <th className="text-left font-bold px-3 py-2 border-b border-slate-200"></th>
-                <th className="font-bold px-3 py-2 border-b border-slate-200 whitespace-nowrap">{c.compare.freeLabel}</th>
-                <th className="font-bold px-3 py-2 border-b border-indigo-200 bg-indigo-50 text-indigo-800 whitespace-nowrap">{c.compare.crmLabel}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {c.compare.rows.map((r) => (
-                <tr key={r.item} className="border-b border-slate-100">
-                  <td className="px-3 py-2 text-slate-700">{r.item}</td>
-                  <td className="px-3 py-2 text-center text-slate-500">{r.free}</td>
-                  <td className="px-3 py-2 text-center font-bold text-indigo-800 bg-indigo-50/50">{r.crm}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+          {/* ── 01 できること ── */}
+          <SectionHead no="01">できること</SectionHead>
+          <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+            {plain.map((f) => (
+              <li key={f.name} className="flex items-center gap-2 sm:gap-2.5 rounded-2xl border border-[#dfe2f8] bg-white px-2.5 sm:px-3 py-3">
+                <span className="flex h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#e9ebfd]" style={{ color: NAVY }}>
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden>{f.icon ? ICONS[f.icon] : null}</svg>
+                </span>
+                <span className="text-[13.5px] sm:text-[16px] font-black leading-tight tracking-tight" style={{ color: INK }}>{f.name}</span>
+              </li>
+            ))}
+          </ul>
+          {/* ★ 第1148便（カッキーさん）: accent の札はピンク（来店時の同意書・セラピストページへの公開） */}
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {accent.map((f) => (
+              <li key={f.name} className="rounded-2xl border border-pink-200 bg-pink-50 px-4 py-4">
+                <p className="text-[16px] font-black text-pink-700">{f.name}</p>
+                {f.body && <p className="mt-1.5 whitespace-pre-line text-[13.5px] leading-relaxed text-pink-900/80">{f.body}</p>}
+              </li>
+            ))}
+          </ul>
 
-      {/* ── はじめかた ── */}
-      <section className={`${card} space-y-3`}>
-        <SectionTitle>はじめかた</SectionTitle>
-        <ol className="space-y-2.5">
-          {c.steps.map((s, i) => (
-            <li key={s.title} className="flex gap-3">
-              <span className="flex-none w-7 h-7 rounded-full bg-indigo-600 text-white text-[13px] font-black flex items-center justify-center">{i + 1}</span>
-              <div className="min-w-0 flex items-center min-h-[28px]">
-                <b className="text-[14.5px] font-black text-slate-800">{s.title}</b>
-                {s.body && <p className="mt-0.5 text-[13.5px] text-slate-600 leading-relaxed">{s.body}</p>}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
+          {/* ── 02 無料との違い（表 → 2枚の札。かっこ書きは出さない） ── */}
+          <SectionHead no="02">{c.compare.title}</SectionHead>
+          <div className="grid gap-3 sm:grid-cols-[5fr_7fr] sm:items-start">
+            <div className="rounded-2xl border border-[#dfe2f8] bg-white px-4 py-4">
+              <p className="text-[15px] font-black text-slate-500">{c.compare.freeLabel}</p>
+              <ul className="mt-2.5 space-y-1.5">
+                {freeRows.map((r) => (
+                  <li key={r.item} className="flex gap-2 text-[14px] leading-snug text-slate-600"><span className="flex-none font-black text-slate-400">✓</span>{r.item}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl px-4 py-4 text-white" style={{ background: MAIN }}>
+              <p className="text-[15px] font-black">{c.compare.crmLabel}</p>
+              <ul className="mt-2.5 space-y-1.5">
+                {crmRows.map((r) => (
+                  <li key={r.item} className="flex gap-2 text-[14px] font-bold leading-snug"><span className="flex-none font-black text-white/80">✓</span>{r.item}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <p className="mt-2.5 text-[12.5px] text-slate-500">{c.compare.note}</p>
 
-      {/* ── お申し込み ── */}
-      <section className={`${card} space-y-3`}>
-        <SectionTitle>{c.apply.title}</SectionTitle>
-        <p className="text-[14px] text-slate-600 leading-relaxed">{c.apply.body}</p>
-        <div className="flex flex-wrap gap-2">
-          {/* ★ 第1163便（カッキーさん）: 「ご契約店舗様はこちらからログイン」の場所を「運営に申し込む」に替えた。
-              行き先はマイページの「運営事務局」→ お問い合わせ（件名と本文を入れた状態で開く。送信は店舗様が押す）。
-              ★ ログイン不要のページ（/about）でもマイページの中の案内でも出す。 */}
-          <a href={links.fukues('/mypage?tab=support&apply=crm')} className="inline-block bg-indigo-600 px-4 py-2 text-[13px] font-bold text-white">
-            運営に申し込む
-          </a>
-          <a href={links.special('guide')} target="_blank" rel="noopener" className="inline-block border border-indigo-300 bg-white px-4 py-2 text-[13px] font-bold text-indigo-700">
-            使い方・よくある質問を見る
-          </a>
-          <a href={links.fukues('/mypage')} className="inline-block bg-slate-800 px-4 py-2 text-[13px] font-bold text-white">
-            マイページへ戻る
-          </a>
+          {/* ── 03 はじめかた ── */}
+          <SectionHead no="03" tag={`${c.steps.length}つのステップ`}>はじめかた</SectionHead>
+          <ol className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+            {c.steps.map((s, i) => (
+              <li key={s.title} className="rounded-2xl border border-[#dfe2f8] bg-white px-3 py-3.5 text-center">
+                <span className="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[16px] font-black text-white" style={{ background: NAVY }}>{i + 1}</span>
+                <p className="mt-2 text-balance text-[13.5px] font-black leading-snug" style={{ color: INK }}>{s.title}</p>
+                {s.body && <p className="mt-1 text-[12.5px] leading-relaxed text-slate-500">{s.body}</p>}
+              </li>
+            ))}
+          </ol>
+
+          {/* ── お申し込み ── */}
+          <div className="mt-6 rounded-2xl bg-[#e9ebfd] px-4 sm:px-6 py-5">
+            <p className="text-[17px] font-black" style={{ color: MAIN }}>{c.apply.title}</p>
+            <p className="mt-1.5 text-[14.5px] font-bold leading-relaxed" style={{ color: INK }}>{c.apply.body}</p>
+          </div>
         </div>
-      </section>
+      </article>
+
+      {/* ★ ボタンは紙の外に大きく。★ 第1163便: 「運営に申し込む」の行き先はマイページの「運営事務局」→ お問い合わせ
+          （件名と本文を入れた状態で開く。送信は店舗様が押す）。★ PC は横並び・スマホは縦並び */}
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <a href={links.fukues('/mypage?tab=support&apply=crm')} className="flex-1 py-4 text-center text-[17px] font-black text-white shadow-md hover:opacity-95" style={{ background: `linear-gradient(to right, ${NAVY}, ${MAIN})` }}>
+          運営に申し込む
+        </a>
+        <a href={links.special('guide')} target="_blank" rel="noopener" className="flex items-center justify-center border-2 bg-white px-5 py-3.5 text-[14.5px] font-bold hover:bg-indigo-50" style={{ borderColor: MAIN, color: MAIN }}>
+          使い方・よくある質問
+        </a>
+        <a href={links.fukues('/mypage')} className="flex items-center justify-center bg-slate-800 px-5 py-3.5 text-[14.5px] font-bold text-white hover:opacity-90">
+          マイページへ戻る
+        </a>
+      </div>
     </div>
   );
 }
