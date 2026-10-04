@@ -11,7 +11,8 @@ import { CRM_INTRO } from '@/lib/crmIntro';
 //   ★ 画像は public/mypage/crm/crm-intro.webp（1600×2262）。差し替えるときはこのファイルを置き換えるだけ。
 //     （.webp は proxy.ts の matcher から外れているので、fukuescrm.com でもそのまま出る）
 //   ★ 画像の中の文章は alt に要点を書く（画面読み上げのため）。★ 画像の中身を変えたら alt も直すこと（食い違わせない）。
-//   ★ 画像には「無料の予約ボードとの違い」は入っていない（カッキーさんの画像のとおり）。お申し込みの一文は画像の下に文字で置く。
+//   ★ 第1168便（カッキーさん）: 「無料の予約ボードとの違い」の画像を2枚目に足した（public/mypage/crm/crm-compare.webp・1600×1306）。
+//   ★ お申し込みの一文は画像の下に文字で置く。
 //   ★ lib/crmIntro.ts はお申し込みの一文だけ使っている（ほかの項目は第1165便の文字組みのもの。画像に戻すときのために残してある）。
 //   ★ ボタンは画像にしない。3つ（運営に申し込む＝第1163便の行き先のまま／使い方／マイページへ戻る）。
 
@@ -26,6 +27,13 @@ const INTRO_ALT =
   'セラピストページへの公開：フクエスのセラピストページに、その子のスケジュールラインを表示します。出勤する部屋番号やお客様の名前、時間などが表示されます。お客様の個人情報（電話番号など）や店舗側のメモなどは表示されません。' +
   '02 はじめかた（4つのステップ）：1 運営事務局にお申し込み、2 利用規約に同意する、3 料金表を入れる、4 受付を始める。';
 
+// ★ 第1168便: 2枚目（無料の予約ボードとの違い）。★ 画像の中身を変えたら alt も直すこと
+const COMPARE_ALT =
+  'フクエスCRM ご案内（フクエス掲載店さまへ）。無料の予約ボードとの違い。' +
+  '予約の受付・変更：予約ボード（無料）は対応、フクエスCRM（有料）も対応。' +
+  'お客様の利用回数・キャンセル回数、分類・要注意メモ・女子NG、悪質キャンセルの記録、売上・報酬・日報・月の集計、料金表・金銭授受、来店時の同意書（QR）：フクエスCRM（有料）だけ対応。' +
+  '予約ボードは、今までどおり無料でお使いいただけます。';
+
 export function CrmIntro({ salonName }: { salonName?: string; publicPage?: boolean }) {
   const links = useCrmLinks();
   return (
@@ -38,6 +46,15 @@ export function CrmIntro({ salonName }: { salonName?: string; publicPage?: boole
         width={1600}
         height={2262}
         className="block w-full h-auto border border-slate-200"
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/mypage/crm/crm-compare.webp"
+        alt={COMPARE_ALT}
+        width={1600}
+        height={1306}
+        loading="lazy"
+        className="mt-4 block w-full h-auto border border-slate-200"
       />
 
       <p className="mt-5 text-center text-[14px] font-bold text-slate-600">{CRM_INTRO.apply.body}</p>
