@@ -5,6 +5,8 @@ import { createClient } from '@/app/lib/supabase/client';
 import { submitOwnerInquiry } from '@/app/actions/ownerInquiry';
 import { BannerPerkPanel } from '@/app/mypage/BannerPerkPanel';
 import { EmbedCodePanel } from '@/app/mypage/EmbedCodePanel';
+import { OpsNoticeBar } from '@/app/mypage/OpsNoticeBar';
+import type { OpsNotice } from '@/lib/opsNotices';
 
 const supabase = createClient();
 
@@ -70,6 +72,7 @@ export function SupportTab({
   active,
   onUnreadChange,
   onToast,
+  opsNotices,
 }: {
   salonId: number | null;
   // 埋め込みコードのSEO用テキストリンク（アンカーテキスト＝店舗名）に使う。
@@ -77,6 +80,8 @@ export function SupportTab({
   active: boolean;
   onUnreadChange: (count: number) => void;
   onToast: (msg: string) => void;
+  /** ★ 第1176便: 運営からのお知らせ（ops_notices）。親が1回読んだものを受け取り、いちばん上に帯で出す */
+  opsNotices: OpsNotice[];
 }) {
   const [subTab, setSubTab] = useState<'notices' | 'inquiry' | 'faq' | 'banner' | 'option'>('notices');
   const [notices, setNotices] = useState<OwnerNotice[]>([]);
@@ -254,6 +259,10 @@ export function SupportTab({
 
   return (
     <div className="space-y-4">
+      {/* ★ 第1176便（カッキーさん）: 運営からのお知らせの帯。マイページのいちばん上から、ここ（運営事務局）へ移した。
+          公開から14日以内のいちばん新しい1件。無ければ出ない。「一覧」で全部 */}
+      <OpsNoticeBar notices={opsNotices} inline />
+
       {/* ── サブタブ（運営から / 運営に問い合わせ / よくある質問 / 公式サイトに貼る / オプション申込） ──
           ★ PC（sm以上）では5つを均等に並べて、下のカードと同じ幅いっぱいに広げる
             （2026-09-06・カッキーさんの指示）。

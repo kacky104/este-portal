@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { pickBandNotice, shortDate, loadReadIds } from '@/lib/opsNotices';
-import { useOpsNotices } from './OpsNoticeParts';
+import { pickBandNotice, shortDate, loadReadIds, type OpsNotice } from '@/lib/opsNotices';
 
 // マイページ上の「運営からのお知らせ」の帯（第862便・2026-09-26・カッキーさんの指示）。
 // ★ 1行だけ・白地にグレーの枠（★ お支払いのお願い＝黄・止まっている警告＝赤より目立たせない）。
 // ★ 出すのは公開から14日以内のうち、いちばん新しく公開した1件。★ 無ければ帯ごと出さない。
 // ★ 第865便: タイトルを押すと【個別ページ】/mypage/notices/[id] へ（その場で開く形はやめた）。★「すべて見る」で一覧。
 // ★ 第863便: PC は本文（main）と同じ拡大（zoom 1.2）・同じ横幅（max-w-2xl px-4）にして、下のブロックと端をそろえる。
-export function OpsNoticeBar({ zoom = 1 }: { zoom?: number }) {
-  const { notices } = useOpsNotices();
+// ★★ 第1176便（カッキーさん）: マイページのいちばん上から【運営事務局の画面の中】へ移した。
+//   ★ お知らせは親（mypage/page.tsx）が1回だけ読んで渡す（サイドバーのバッジと同じものを使う＝読み取りは増やさない）。
+//   ★ inline … 運営事務局の中に置くとき（外側の幅・余白・拡大は親に任せる）。
+export function OpsNoticeBar({ notices, zoom = 1, inline = false }: { notices: OpsNotice[]; zoom?: number; inline?: boolean }) {
   const [readIds, setReadIds] = useState<number[]>([]);
   useEffect(() => { setReadIds(loadReadIds()); }, []);
 
@@ -20,7 +21,7 @@ export function OpsNoticeBar({ zoom = 1 }: { zoom?: number }) {
   const unread = !readIds.includes(n.id);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-3" style={zoom === 1 ? undefined : { zoom }}>
+    <div className={inline ? '' : 'max-w-2xl mx-auto px-4 pt-3'} style={zoom === 1 ? undefined : { zoom }}>
       <div className="flex items-center gap-1.5 sm:gap-3 border border-slate-200 bg-white px-2.5 sm:px-4 py-1.5 sm:py-2.5">
         {/* ★ 第864便: スマホでは「運営から」を出さない（タイトルを長く見せる） */}
         <span className="hidden sm:inline flex-shrink-0 text-[12px] font-bold text-slate-400">運営から</span>

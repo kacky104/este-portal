@@ -51,7 +51,9 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 import { getMediaLinkAlerts, getMediaOverview } from '@/app/actions/mediaCredentials';
 import { canReadProvider } from '@/lib/mediaOverview';
-import { OpsNoticeBar } from './OpsNoticeBar';
+// ★ 第1176便: 運営からのお知らせの帯は「運営事務局」の画面の中へ移した（SupportTab が出す）。ここでは読むだけ（バッジ用）
+import { useOpsNotices } from './OpsNoticeParts';
+import { addSeenIds, freshNotices, loadSeenIds, unseenFreshCount } from '@/lib/opsNotices';
 import { AgreementNoticeBar } from './AgreementNoticeBar';
 // ★ 第885便: セラピストページ連携の連携率（コネックエフのホームと同じ部品）
 import { CastLinkProgress } from '@/app/components/CastLinkProgress';
@@ -916,6 +918,20 @@ export default function MyPage() {
   const mediaVisible = canSeeMedia({ ownerId: userId, adminUuid: ADMIN_UUID, unlocked: mediaUnlocked });
   // 「運営から」タブの未読お知らせ件数（SupportTab が読み込み時に通知・タブバッジ表示用）。
   const [supportUnread, setSupportUnread] = useState(0);
+  // ★★ 第1176便（カッキーさん）: 運営からのお知らせ（ops_notices）を新しく公開したら、サイドバーの「運営事務局」にバッジを付ける。
+  //   ★ 読むのはマイページを開いたときの1回（今までは「今すぐ」の画面を出すたびに帯が読んでいた＝読み取りは減る）。
+  //   ★ 数えるのは、公開から14日以内で、まだ「運営事務局」を開いて見ていないもの（このブラウザの印・lib/opsNotices.ts）。
+  //   ★ 「運営事務局」を開いたら印を付ける＝バッジが消える。NEW の札は個別ページを読むまで残る（別の印）。
+  const { notices: opsNotices, loaded: opsNoticesLoaded } = useOpsNotices();
+  const [opsSeenIds, setOpsSeenIds] = useState<number[]>([]);
+  useEffect(() => { setOpsSeenIds(loadSeenIds()); }, []);
+  useEffect(() => {
+    if (activeTab !== 'support' || !opsNoticesLoaded) return;
+    const ids = freshNotices(opsNotices).map((n) => n.id);
+    if (ids.length === 0) return;
+    setOpsSeenIds((prev) => (ids.every((id) => prev.includes(id)) ? prev : addSeenIds(ids)));
+  }, [activeTab, opsNoticesLoaded, opsNotices]);
+  const opsUnseen = unseenFreshCount(opsNotices, opsSeenIds);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [newTherapistName, setNewTherapistName] = useState('');
   // ★ 第398便（コネックエフ 1c・案B）: コネックエフを使う店は、セラピストの追加をコネックエフで行う
@@ -2843,7 +2859,8 @@ export default function MyPage() {
   //   ★ 色は要対応のピンク。赤（rose）は /admin のメール不達＝取りこぼし専用なので使わない。
   const navBadge = (key: TabKey): number | null => {
     if (key === 'booking' && bookingNewCount > 0) return bookingNewCount;
-    if (key === 'support' && supportUnread > 0) return supportUnread;
+    // ★ 第1176便: 運営事務局のバッジ＝今までの未読（owner_notices）＋ 運営からのお知らせ（ops_notices）の新着
+    if (key === 'support' && supportUnread + opsUnseen > 0) return supportUnread + opsUnseen;
     return null;
   };
 
@@ -3459,9 +3476,8 @@ export default function MyPage() {
 
         <div className="flex-1 min-w-0">
 
-        {/* ★ 第862便: 運営からのお知らせ（1行の帯・公開から14日・無ければ出ない）。★ お支払いのお願い・警告より上、目立たない色 */}
-        {/* ★ 第866便: 「今すぐ」の画面のときだけ出す（カッキーさんの指示） */}
-        {activeTab === 'available' && <OpsNoticeBar zoom={mainZoom} />}
+        {/* ★ 第1176便（カッキーさん）: 運営からのお知らせの帯（第862便・第866便）は、ここ（いちばん上）から「運営事務局」の画面の中へ移した。
+            新しく公開すると、サイドバーの「運営事務局」にバッジが付く（上の opsUnseen）。 */}
         {/* ★ 第1175便（カッキーさん）: 申込書 兼 誓約書がまだの店にだけ出す帯（押すと /mypage/agreement）。★ どの画面でも置きっぱなし＝読み取りは開いたときの1回だけ */}
         <AgreementNoticeBar zoom={mainZoom} />
 
@@ -6049,6 +6065,7 @@ export default function MyPage() {
             active={activeTab === 'support'}
             onUnreadChange={setSupportUnread}
             onToast={showToast}
+            opsNotices={opsNotices}
           />
         </div>
 
