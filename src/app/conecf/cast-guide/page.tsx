@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
-import { CAST_GUIDE_ALT, CAST_GUIDE_IMAGE } from '@/lib/castGuide';
+import { CAST_GUIDE_ALT_CONECF, CAST_GUIDE_IMAGE_CONECF } from '@/lib/castGuide';
 
 // コネックエフ「セラピストページの作り方」（第1170便・2026-10-04・カッキーさん）。★ conecf.com/cast-guide。
 // ★ ホームの「セラピストページ連携」（CastLinkProgress）の見出しの横の「作り方」から開く。
-// ★ 中身はマイページの /mypage/cast-guide と同じ画像1枚（lib/castGuide.ts）。読み取りは無い（外枠の ConecfShell が今までどおり契約を見るだけ）。
+// ★ 中身はコネックエフ用の画像1枚（lib/castGuide.ts・第1171便: 手順1だけマイページ用と違う）。読み取りは無い（外枠の ConecfShell が今までどおり契約を見るだけ）。
 // ★ サイドバーの印は「はじめての方へ」（ご案内の仲間）。サイドバーには項目を足していない。
 
 export default function ConecfCastGuidePage() {
@@ -18,10 +18,10 @@ export default function ConecfCastGuidePage() {
         <div className="max-w-3xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={CAST_GUIDE_IMAGE.src}
-            alt={CAST_GUIDE_ALT}
-            width={CAST_GUIDE_IMAGE.width}
-            height={CAST_GUIDE_IMAGE.height}
+            src={CAST_GUIDE_IMAGE_CONECF.src}
+            alt={CAST_GUIDE_ALT_CONECF}
+            width={CAST_GUIDE_IMAGE_CONECF.width}
+            height={CAST_GUIDE_IMAGE_CONECF.height}
             className="block w-full h-auto border border-slate-200 mb-5"
           />
           <div className="flex flex-col sm:flex-row gap-3 pb-6">
