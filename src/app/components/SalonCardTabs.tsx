@@ -171,6 +171,20 @@ const BADGE_COLOR: Record<CardTabKey, string> = {
   coupon: 'border-blue-600 text-blue-600',
 };
 
+// ★ 第1157便: 押したとき（開いているタブ）の下線・薄い背景・文字も、バッジと同じ色に揃える
+const TAB_ACTIVE_COLOR: Record<CardTabKey, string> = {
+  diary: 'border-pink-600 bg-pink-50 text-pink-700',
+  review: 'border-orange-500 bg-orange-50 text-orange-700',
+  newface: 'border-green-600 bg-green-50 text-green-700',
+  coupon: 'border-blue-600 bg-blue-50 text-blue-700',
+};
+const TAB_HOVER_COLOR: Record<CardTabKey, string> = {
+  diary: 'hover:text-pink-700',
+  review: 'hover:text-orange-700',
+  newface: 'hover:text-green-700',
+  coupon: 'hover:text-blue-700',
+};
+
 export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therapists }: {
   salonId: number;
   reviewCount: number;
@@ -341,8 +355,8 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
                 n <= 0
                   ? 'border-transparent text-slate-300 cursor-default'
                   : active
-                    ? 'border-pink-600 bg-pink-50 text-pink-700'
-                    : 'border-transparent text-slate-600 hover:text-pink-700'
+                    ? TAB_ACTIVE_COLOR[t.key]
+                    : `border-transparent text-slate-600 ${TAB_HOVER_COLOR[t.key]}`
               }`}
             >
               <span className="truncate">{t.label}</span>
