@@ -60,16 +60,6 @@ type Site = {
 
 type Overview = { therapistCount: number; sites: Site[] };
 
-/** 「6:20」。時刻だけ。★ 読めない値は空文字にする（"Invalid Date" を店舗に見せない）。 */
-function fmtTime(iso: string | null): string {
-  if (!iso) return '';
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Tokyo',
-  }).format(new Date(t));
-}
-
 /**
  * ★★★ 動いていることを示す、ゆっくりした点滅（第90便・カッキーさん）。
  *
@@ -256,33 +246,8 @@ export function MediaHome({ salonId, onToast }: {
               </p>
             </div>
 
-            {/* ★ 3つとも中央表示（第90便・カッキーさん）。★ 見出しの中央寄せと揃える */}
-            <dl className="mt-4 grid grid-cols-3 gap-px bg-slate-100 border border-slate-100 overflow-hidden">
-              <div className="bg-white px-3 py-2.5 text-center">
-                <dt className="text-[12px] font-bold text-slate-400">セラピスト</dt>
-                <dd className="text-[20px] font-black text-slate-800 tabular-nums">
-                  {data?.therapistCount ?? 0}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
-                </dd>
-              </div>
-              <div className="bg-white px-3 py-2.5 text-center">
-                <dt className="text-[12px] font-bold text-slate-400">最後の反映</dt>
-                {/* ★ 第312便: スマホでは時刻を1段小さく（★ 3つ並びで折り返さない大きさ） */}
-                {/* ★ 第1182便（2026-10-05・カッキーさん）: 日付（10/5）を落として時刻だけに。
-                    ★ 15分ごとに回るので、日付はいつも今日。★ 右の「次の反映」と同じ書き方に揃う。 */}
-                <dd className="text-[15px] sm:text-[17px] font-black text-slate-800 tabular-nums">
-                  {fmtTime(reading.listLastRunAt) || '—'}
-                </dd>
-              </div>
-              <div className="bg-white px-3 py-2.5 text-center">
-                <dt className="text-[12px] font-bold text-slate-400">次の反映</dt>
-                {/* ★★ 分からない・止まっているときは時刻を出さない。
-                    ★ 過ぎている時刻を「次」と書かない（mediaOverview.nextImportAt） */}
-                <dd className="text-[15px] sm:text-[17px] font-black text-slate-800 tabular-nums">
-                  {reading.nextImportAt ? `${fmtTime(reading.nextImportAt)}ごろ` : '—'}
-                </dd>
-              </div>
-            </dl>
-
+            {/* ★★ 第1187便（2026-10-05・カッキーさん）: 「セラピスト ◯名／最後の反映／次の反映」の3つの枠を消した。
+                ★ 見出し（反映中）と下の1行（15分間隔・毎朝6時台）で足りる。★ くわしい時刻は「連携の記録」。 */}
             {/* ★★ 第310便（2026-09-12・カッキーさん）: 「（最後は 9/12 06:13）」を落とした。
                 ★ 知りたいのは【いつ回るか】で、前回の時刻まではいらない。
                 ★ 時刻を出さなくなったので、前回が有るかどうかで出し分けるのもやめた
@@ -290,7 +255,7 @@ export function MediaHome({ salonId, onToast }: {
                 ★ 第393便（2026-09-16・カッキーさん）: 「週間の予定は…反映」→「週間出勤は…更新」。
                   ★ 「予定」はフクエスの言葉ではない。★ 店舗様が見ているものの名前（週間出勤）で言う。 */}
             <p className="mt-2.5 text-[13px] text-slate-400 text-center">
-              今日の出勤は15分以内。1週間分は毎朝6時台に更新。
+              今日の出勤は15分間隔。1週間分は毎朝6時台に更新。
             </p>
           </>
         ) : writing.length > 0 ? (
