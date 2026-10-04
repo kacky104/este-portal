@@ -408,6 +408,13 @@ export default function AdminDashboard() {
             >
               請求書
             </Link>
+            {/* ★ 第1174便: 広告掲載 申込書 兼 誓約書（店舗に送るリンク・提出の様子） */}
+            <Link
+              href="/admin/agreements"
+              className="text-xs text-pink-600 hover:text-pink-700 font-bold transition-colors"
+            >
+              誓約書
+            </Link>
             {/* ★ 第1009便: fukuX の運営パネル（認証・凍結・通報・バナー）へ */}
             <Link
               href="/x/admin"
