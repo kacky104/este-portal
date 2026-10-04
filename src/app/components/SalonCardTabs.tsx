@@ -319,8 +319,11 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
   };
 
   return (
-    <div className="-mx-2 border-t border-slate-200" onClick={(e) => e.stopPropagation()}>
-      <div className="flex h-9">
+    // ★ 第1156便: 見出しの行を、上の線とカードの下の縁のちょうど真ん中に置く。
+    //   TOP のカードは下の余白が 7px（ShuffledSalons の pb-[7px]）なので、行を 36 → 43px にして、閉じているときはその 7px を打ち消す
+    //   （カードの高さは変わらない）。下線 2px のぶんは上に 2px 足して釣り合わせる。
+    <div className={`-mx-2 border-t border-slate-200${open ? '' : ' -mb-[7px]'}`} onClick={(e) => e.stopPropagation()}>
+      <div className="flex h-[43px]">
         {CARD_TABS.map((t) => {
           const n = countOf[t.key];
           const active = open === t.key;
@@ -334,7 +337,7 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
               aria-controls={panelId}
               aria-label={`${t.label} ${n}${t.unit}`}
               onClick={() => pick(t.key)}
-              className={`flex-1 min-w-0 h-9 flex items-center justify-center gap-1 border-b-2 text-xs font-bold transition-colors ${
+              className={`flex-1 min-w-0 box-border h-[43px] pt-0.5 flex items-center justify-center gap-1 border-b-2 text-xs font-bold transition-colors ${
                 n <= 0
                   ? 'border-transparent text-slate-300 cursor-default'
                   : active
