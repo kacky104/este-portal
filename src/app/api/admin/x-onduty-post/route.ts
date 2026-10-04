@@ -13,6 +13,14 @@ import { buildDisplayHours } from '@/lib/scheduleFormat';
 //   ・本文: 「本日は N人 が出勤予定（HH:MM現在 M人が出勤中）」＋写真の順に「①名前（お店）出勤時間」＋フクエスの出勤一覧へのリンク（文字だけ）。
 //   ★ リンクカード（OGP のサムネイル）は付けない: 付けると写真4枚よりカードが目立ってしまう（第1005便・実機で確認）。
 //   ・時刻: 12:05 と 18:05（JST）。キリのよい時刻から外して、他の自動投稿と重ねない。
+// ★★ 第1184便（2026-10-05・カッキーさん）: 写真で紹介するのは【フクエックスの店舗アカウントを開設しているお店】のセラピストだけ。
+//   ・開設している＝ salons.owner_id と同じログインの x_profiles（kind='shop'・approved）がある（xLink.ts・おすすめランキングと同じつなぎ方）。
+//     ★ 店舗基本設定の「fukuX URL」を手で入れただけのお店は入らない（アカウントが連携していないため）。
+//   ・「本日は N人 が出勤予定」の N は今までどおり全店ぶん（★ 紹介する子だけを絞る）。
+//   ・「同じお店は1人まで」は【開設しているお店が4つ以上あるとき】に今までどおり効く。
+//     ★ 4つ未満のときは、お店ごとに 1人ずつ → 2人ずつ … と均等に足して4人にする（1店だけなら同じ店から4人）。
+//   ・開設しているお店に、出勤中・これから出勤で写真のある子が1人もいない回は投稿しない（skipped: 'no_fukux_shop'）。
+//     ★ 全店に戻して埋めない（開設しているお店だけを紹介する、という約束を崩さない）。
 // ★ 重複防止: 同じ日・同じ回の投稿がすでにあれば何もしない（周が2回動いても1本）。
 // ★ 今日の出勤が0人、または写真のある子が0人なら投稿しない。
 // ★ apply 既定 false（試し打ち）: 何を投稿するつもりかだけ返す。announce-auto と同じ作法。
@@ -103,36 +111,66 @@ export async function POST(req: Request) {
   // 公開中のセラピスト・掲載中の店舗だけ
   const { data: ths } = await svc
     .from('therapists')
-    .select('id, name, profile_image_url, user_id, salons!therapists_salon_id_fkey!inner(name, is_hidden)')
+    .select('id, name, profile_image_url, user_id, salons!therapists_salon_id_fkey!inner(name, is_hidden, owner_id)')
     .in('id', rows.map((r) => r.id))
     .eq('is_active', true)
     .eq('salons.is_hidden', false);
-  const pub = new Map<number, { name: string; shop: string; image: string | null; userId: string | null }>();
-  for (const t of (ths ?? []) as unknown as { id: number; name: string; profile_image_url: string | null; user_id: string | null; salons: { name: string } | { name: string }[] | null }[]) {
+  const pub = new Map<number, { name: string; shop: string; image: string | null; userId: string | null; ownerId: string | null }>();
+  for (const t of (ths ?? []) as unknown as { id: number; name: string; profile_image_url: string | null; user_id: string | null; salons: { name: string; owner_id: string | null } | { name: string; owner_id: string | null }[] | null }[]) {
     const sh = Array.isArray(t.salons) ? t.salons[0] : t.salons;
-    pub.set(Number(t.id), { name: t.name ?? '', shop: sh?.name ?? '', image: t.profile_image_url ?? null, userId: t.user_id ?? null });
+    pub.set(Number(t.id), { name: t.name ?? '', shop: sh?.name ?? '', image: t.profile_image_url ?? null, userId: t.user_id ?? null, ownerId: sh?.owner_id ?? null });
   }
   const visible = rows.filter((r) => pub.has(r.id));
   const totalToday = visible.length;           // 本日の出勤予定（終わった子も含む）
   const onDutyNow = visible.filter((r) => r.status === 'onDuty').length;
   // ★ 写真に載せる候補: 出勤中＋これから出勤（終わった子は外す）・写真がある子だけ
-  const candidates = visible
+  const withPhoto = visible
     .filter((r) => (r.status === 'onDuty' || r.status === 'before') && !!pub.get(r.id)?.image)
     .sort((a, b) => a.id - b.id);
   if (totalToday === 0) return NextResponse.json({ ok: true, skipped: 'no_schedule', slot, today });
-  if (candidates.length === 0) return NextResponse.json({ ok: true, skipped: 'no_photo', slot, today, totalToday, onDutyNow });
+  if (withPhoto.length === 0) return NextResponse.json({ ok: true, skipped: 'no_photo', slot, today, totalToday, onDutyNow });
+
+  // ★ 第1184便: フクエックスの店舗アカウントを開設しているお店の子だけに絞る（お店のオーナーのログイン＝承認済みの kind='shop'）。
+  const ownerIds = [...new Set(withPhoto.map((r) => pub.get(r.id)!.ownerId).filter((v): v is string => !!v))];
+  const fukuxOwners = new Set<string>();
+  if (ownerIds.length > 0) {
+    const { data: shops, error: shopErr } = await svc
+      .from('x_profiles')
+      .select('auth_user_id')
+      .in('auth_user_id', ownerIds)
+      .eq('kind', 'shop')
+      .eq('status', 'approved');
+    if (shopErr) {
+      // ★ 読めなかったときは投稿しない（★ 絞れないまま全店から出さない）
+      console.error('[x-onduty-post] 店舗アカウントを読めなかった', shopErr.message);
+      return NextResponse.json({ ok: false, error: shopErr.message }, { status: 500 });
+    }
+    for (const x of (shops ?? []) as { auth_user_id: string | null }[]) if (x.auth_user_id) fukuxOwners.add(x.auth_user_id);
+  }
+  const candidates = withPhoto.filter((r) => {
+    const o = pub.get(r.id)!.ownerId;
+    return !!o && fukuxOwners.has(o);
+  });
+  if (candidates.length === 0) return NextResponse.json({ ok: true, skipped: 'no_fukux_shop', slot, today, totalToday, onDutyNow });
 
   // ★ 第1019便: 「同じお店は1本につき1人まで」。ずらした先頭から順に見て、まだ載せていないお店の子だけ拾う。
-  //   （店が4つ未満なら、その分だけ少なくなる＝同じ店で埋めない）
+  // ★ 第1184便: お店が4つ未満で4人に足りないときは、1店あたりの上限を 1人 → 2人 → … と上げながら同じ順で拾い直す
+  //   （お店が4つ以上あれば1周目で4人そろう＝今までと同じ。1店だけなら、ずらした先頭から続けて4人）。
   const off = rotationOffset(today, slot, candidates.length);
   const picked: typeof candidates = [];
-  const usedShops = new Set<string>();
-  for (let i = 0; i < candidates.length && picked.length < PICK; i++) {
-    const c = candidates[(off + i) % candidates.length];
-    const shop = pub.get(c.id)!.shop;
-    if (usedShops.has(shop)) continue;
-    usedShops.add(shop);
-    picked.push(c);
+  const pickedIds = new Set<number>();
+  const perShop = new Map<string, number>();
+  for (let cap = 1; cap <= PICK && picked.length < PICK; cap++) {
+    for (let i = 0; i < candidates.length && picked.length < PICK; i++) {
+      const c = candidates[(off + i) % candidates.length];
+      if (pickedIds.has(c.id)) continue;
+      const shop = pub.get(c.id)!.shop;
+      const n = perShop.get(shop) ?? 0;
+      if (n >= cap) continue;
+      perShop.set(shop, n + 1);
+      pickedIds.add(c.id);
+      picked.push(c);
+    }
   }
   if (picked.length === 0) return NextResponse.json({ ok: true, skipped: 'no_photo', slot, today, totalToday, onDutyNow });
 
