@@ -2922,10 +2922,12 @@ export default function MyPage() {
   //     1. 連携しているフクエックスの店舗アカウント（/x/u/ハンドル）
   //        ＝ 同じログインで作った kind='shop' の承認済みアカウント。★ 店舗様の設定は要らない。
   //     2. 店舗基本設定の「fukuX URL」（1が未連携で、手で入れてある場合）
-  //     3. フクエックスのトップ（/x）＝ まだ何も無いとき。★ 白い画面を出さない。
+  //     3. 開設のご案内（/mypage/fukux）＝ まだ何も無いとき（第1162便より前はフクエックスのトップ /x）。★ 白い画面を出さない。
+  //   ★ 第1162便（カッキーさん）: 3 を「開設のご案内」（/mypage/fukux・画像1枚＋「フクエックスを始める」）に変えた。
+  //     ＝ まだ開設していないお店（1も2も無い）は、バナーを押すとまずご案内が出る。そこからフクエックス（/x）へ。
   const fukuxHref = xShopHandle
     ? `/x/u/${encodeURIComponent(xShopHandle)}`
-    : ((salon?.fukux_url ?? '').trim() || '/x');
+    : ((salon?.fukux_url ?? '').trim() || '/mypage/fukux');
   // ★★ 第664便（2026-09-22・カッキーさんの指示）: 文字リンクを画像バナーに置き換えた（./SidebarBanner.tsx）。行き先は上の fukuxHref のまま。
   const renderFukuxLink = (pc: boolean) => (
     <SidebarBanner
