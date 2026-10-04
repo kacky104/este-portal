@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
     //   Vercel の画像変換回数と Supabase からの読み出しを減らす。
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
+  // ★ 第1185便: フクエックスの運営アカウントがコラムを毎日1本投稿する周（/api/admin/x-column-post）は、
+  //   コラムの md（src/content/column/*.md）を実行時に読む。サーバーの関数に md を同梱する。
+  //   ★ 外すと本番でコラムが0本になり、その周は何も投稿しなくなる（skipped: 'no_columns'）。
+  outputFileTracingIncludes: {
+    '/api/admin/x-column-post': ['./src/content/column/**/*'],
+  },
   // クライアントルーターキャッシュの再利用時間。既定では静的(ISR)ページのRSCが
   // ブラウザ内で5分再利用され、出勤表などの保存が回遊中のユーザーに最大5分見えない。
   // 静的30秒・動的0秒に短縮（サーバー側ISRは revalidateSalon 等で即時無効化済み）。
