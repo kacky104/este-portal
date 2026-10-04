@@ -24,7 +24,8 @@ export function AgreementNoticeBar({ zoom = 1 }: { zoom?: number }) {
       <Link href="/mypage/agreement" className="flex items-center gap-2 border border-amber-300 bg-amber-50 px-3 sm:px-4 py-2 sm:py-2.5 text-amber-900 hover:bg-amber-100">
         <span className="min-w-0 flex-1 text-[13px] sm:text-[15px] font-bold leading-snug">
           {need === 'renew' ? `「${AGREEMENT_TITLE}」の文面が新しくなりました。あらためてご提出をお願いします。` : `「${AGREEMENT_TITLE}」のご提出をお願いします。`}
-          <span className="ml-1 font-normal text-amber-800/80">（1〜2分で終わります）</span>
+          {/* ★ 第1177便: マイページはスタッフの方も開くので、代表者様ご本人に出してもらうことを帯にも書く */}
+          <span className="ml-1 font-normal text-amber-800/80">（代表者様ご本人がご提出ください・1〜2分で終わります）</span>
         </span>
         <span className="flex-shrink-0 text-[12px] sm:text-[13px] font-black underline">提出する ›</span>
       </Link>

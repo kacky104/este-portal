@@ -79,7 +79,9 @@ export default function ListingAgreementPage() {
       <>
         <div className="mb-4 border border-emerald-300 bg-emerald-50 px-4 py-3.5 print:hidden">
           <p className="text-[16px] font-black text-emerald-800">{justSigned ? 'ご提出ありがとうございました。' : 'ご提出済みです。'}</p>
-          <p className="mt-1 text-[13.5px] leading-relaxed text-emerald-900/80">下が控えです。印刷や PDF での保存は「印刷する」からできます。</p>
+          <p className="mt-1 text-[13.5px] leading-relaxed text-emerald-900/80">
+            下が控えです。印刷や PDF での保存は「印刷する」からできます。{justSigned ? 'ご登録のメールアドレスにも、受付のお知らせをお送りしました。' : ''}
+          </p>
         </div>
         <AgreementCopy record={signed} />
         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row print:hidden">
@@ -164,6 +166,13 @@ export default function ListingAgreementPage() {
       <ul className="mb-3 space-y-1">
         {AGREEMENT_NOTES.map((t) => <li key={t} className="text-[12.5px] leading-relaxed text-slate-500">※ {t}</li>)}
       </ul>
+
+      {/* ★ 第1177便（カッキーさん）: マイページはスタッフの方も開くので、ご本人が出すことと、メールで知らせることをここに書く。
+          ★ 画面の案内だけ（誓約書の文面＝写しには入れない＝版は変えない） */}
+      <p className="mb-3 border border-amber-300 bg-amber-50 px-3 py-2.5 text-[13.5px] font-bold leading-relaxed text-amber-900">
+        店舗運営の代表者様、または媒体掲載責任者様ご本人がご記入・サインしてください。
+        <span className="mt-0.5 block font-normal text-amber-800/90">提出すると、ご登録のメールアドレスに受付のお知らせが届きます。</span>
+      </p>
 
       <label className="block">
         <span className="mb-1 block text-[13px] font-bold text-slate-700">代表者名 <span className="text-rose-500">*</span></span>

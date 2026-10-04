@@ -12,6 +12,8 @@ import { headers } from 'next/headers';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { notifyAdmin } from '@/app/lib/notifyAdmin';
+import { sendAgreementMail } from '@/app/lib/listing/sendAgreementMail';
 import {
   AGREEMENT_VERSION, agreementBodyText, agreementInputError, normalizeAgreementInput, type AgreementInput,
 } from '@/lib/listingAgreement';
@@ -111,6 +113,11 @@ export async function submitListingAgreement(
     .gte('signed_at', new Date(Date.now() - 24 * 3600 * 1000).toISOString());
   if ((count ?? 0) >= 10) return { ok: false, error: '送信が多すぎます。時間をおいてからもう一度お試しください' };
 
+  // 出し直しかどうか（前にも提出があるか）。★ 第1177便: お知らせのメールの文言に使う
+  const { data: prev } = await ctx.svc
+    .from('listing_agreements').select('id').eq('salon_id', ctx.salon.id).limit(1).maybeSingle();
+  const resubmit = !!prev;
+
   const h = await headers();
   const bodyText = agreementBodyText();
   const { data, error } = await ctx.svc.from('listing_agreements').insert({
@@ -130,7 +137,40 @@ export async function submitListingAgreement(
     ip: (h.get('x-forwarded-for') ?? '').split(',')[0].trim().slice(0, 60),
   }).select(COLS).single();
   if (error || !data) return { ok: false, error: '送信できませんでした。もう一度お試しください' };
-  return { ok: true, record: toRecord(data as unknown as Row) };
+  const record = toRecord(data as unknown as Row);
+
+  // ★★ 第1177便（カッキーさん）: 提出・出し直しがあったら、店舗様（ログインのメール）と運営に知らせる。
+  //   マイページは代表者様のほかにスタッフの方も開くので、代表者様が心当たりのない提出に気づけるようにする。
+  //   ★ どちらも失敗しても提出は成立させる（例外を投げない作り）。★ 送り終わってから返す（途中で切られないように）。
+  const signedAtLabel = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(record.signedAt));
+  const [mail] = await Promise.all([
+    sendAgreementMail({
+      to: [ctx.user.email ?? '', input.email],
+      salonName: input.salonName, representative: input.representative,
+      receiptNo: record.id, signedAtLabel, resubmit,
+    }),
+    notifyAdmin(
+      `【申込書・誓約書】${input.salonName}（${resubmit ? '出し直し' : '提出'}）`,
+      [
+        `${input.salonName}（店舗ID ${ctx.salon.id}）から「申込書 兼 誓約書」の${resubmit ? '出し直し' : '提出'}がありました。`,
+        '',
+        `受付番号：${record.id}`,
+        `ご記入日：${signedAtLabel}`,
+        `代表者名：${input.representative}`,
+        ...(input.companyName ? [`法人名：${input.companyName}`] : []),
+        `所在地：${input.address}`,
+        `電話番号：${input.phone}`,
+        `メール：${input.email}`,
+        '',
+        `控え：https://fukues.com/admin/agreements/${record.id}`,
+      ],
+      { replyTo: input.email },
+    ),
+  ]);
+  if (!mail.ok) console.error('[listingAgreement] 店舗様へのお知らせメールを送れなかった', mail.error);
+  return { ok: true, record };
 }
 
 /**
