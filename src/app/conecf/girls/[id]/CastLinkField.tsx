@@ -95,7 +95,8 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
   // ★ 第887便: メールが分からないときは「リンク・QRで招待」（本人が自分でメールを入れる）
   const linkRow = (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[12.5px] text-slate-500">メールアドレスが分からないときは</span>
+      {/* ★ 第1181便（カッキーさん）: 「メールアドレスが分からないときは」→「QRコードを送って設定。」 */}
+      <span className="text-[12.5px] text-slate-500">QRコードを送って設定。</span>
       <CastInviteLinkButton therapistId={therapistId} salonId={salonId} onToast={onToast} tone={tone} onClosed={() => { void load(); onAutoClosed?.(); }}
         therapistName={therapistName}
         defaultOpen={autoOpenLink && st?.status === 'none'}
@@ -154,9 +155,8 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
 
       {note ?? (
         <p className="text-[12.5px] text-slate-400 leading-relaxed">
-          セラピストページと連携するためのメールアドレスです。「招待メールを送る」を押すと、本人に招待メールが届きます。
-          {/* ★ 第874便（カッキーさん）: どのメールを入れるのか */}
-          <span className="block font-bold text-slate-500">入力するのは、セラピストさんが確認できるメールアドレスです。ご本人に教えてもらって入力し、連携してください。</span>
+          {/* ★ 第874便 → 第1181便（カッキーさん）: 説明を1文に。メールで招待するか、QRコードをラインで送るかの2通り */}
+          セラピストページと連携するためのメールアドレスです。セラピストさんのメールアドレスを入力して「招待メールを送る」か、QRコードをラインで送って設定してください。
           <span className="block">※ 下の「保存」とは別です（このボタンだけで送られます）。</span>
         </p>
       )}
