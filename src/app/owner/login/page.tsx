@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { signInWithEmail, getSession, onAuthChange, signOut } from '@/lib/auth';
 import { createClient } from '@/app/lib/supabase/client';
 
@@ -32,7 +32,6 @@ async function checkIsOwner(): Promise<boolean> {
 }
 
 function OwnerLoginInner() {
-  const router = useRouter();
   const params = useSearchParams();
   const dest = safeRedirect(params.get('redirectTo'));
 
@@ -55,7 +54,8 @@ function OwnerLoginInner() {
         setCurrentEmail(s.user.email ?? null);
         const owner = await checkIsOwner();
         if (!mounted) return;
-        if (owner) { router.replace(dest); return; }
+        // ★ 第1180便: 画面の中の移動（router）ではなく、ページごと開き直す（下の submit と同じ理由）
+        if (owner) { window.location.replace(dest); return; }
         setNotOwner(true);
       }
       setChecking(false);
@@ -70,13 +70,21 @@ function OwnerLoginInner() {
     setNotOwner(false);
     if (!email || !password) { setError('メールアドレスとパスワードを入力してください。'); return; }
     setLoading(true);
+    // ★ ログインできて移動を始めたら、ボタンを「ログイン中...」のままにしておく（もう一度押せないように）
+    let leaving = false;
     try {
       const res = await signInWithEmail(email.trim(), password);
       if (!res.ok) { setError(res.error ?? 'ログインに失敗しました。'); return; }
       const owner = await checkIsOwner();
       if (owner) {
-        router.push(dest);
-        router.refresh();
+        // ★★ 第1180便（2026-10-04・カッキーさん「ログインを押しても画面が変わらず、リロードすると入れる」）:
+        //   router.push(dest) → router.refresh() だと、ログインはできているのに画面がログインのまま残ることがあった
+        //   （画面の中の移動は、ブラウザに残っている「未ログインなのでログインへ戻す」という古い結果を使い回すことがある）。
+        //   → ページごと開き直す（＝リロードと同じ動き。新しいログインの cookie を付けてサーバーに聞き直す）。
+        //   ★ フクエスCRM・コネックエフのログイン（window.location.replace）と同じやり方。
+        //   ★ dest は safeRedirect を通した【このサイトの中のパス】だけ。
+        leaving = true;
+        window.location.assign(dest);
       } else {
         setCurrentEmail(email.trim());
         setNotOwner(true);
@@ -84,7 +92,7 @@ function OwnerLoginInner() {
     } catch {
       setError('通信エラーが発生しました。インターネット環境をお確かめください。');
     } finally {
-      setLoading(false);
+      if (!leaving) setLoading(false);
     }
   };
 
