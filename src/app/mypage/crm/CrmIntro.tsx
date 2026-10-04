@@ -11,7 +11,8 @@ import { CRM_INTRO } from '@/lib/crmIntro';
 //   ★ 画像は public/mypage/crm/crm-intro.webp（1600×2262）。差し替えるときはこのファイルを置き換えるだけ。
 //     （.webp は proxy.ts の matcher から外れているので、fukuescrm.com でもそのまま出る）
 //   ★ 画像の中の文章は alt に要点を書く（画面読み上げのため）。★ 画像の中身を変えたら alt も直すこと（食い違わせない）。
-//   ★ 第1168便（カッキーさん）: 「無料の予約ボードとの違い」の画像を2枚目に足した（public/mypage/crm/crm-compare.webp・1600×1306）。
+//   ★ 第1168便（カッキーさん）: 「無料の予約ボードとの違い」の画像を2枚目に足した（public/mypage/crm/crm-compare.webp）。
+//   ★ 第1169便（カッキーさん）: 2枚目の上の見出し（フクエスCRM ご案内／フクエス掲載店さまへ）は1枚目と重なるので切り取った（1600×1132）。
 //   ★ お申し込みの一文は画像の下に文字で置く。
 //   ★ lib/crmIntro.ts はお申し込みの一文だけ使っている（ほかの項目は第1165便の文字組みのもの。画像に戻すときのために残してある）。
 //   ★ ボタンは画像にしない。3つ（運営に申し込む＝第1163便の行き先のまま／使い方／マイページへ戻る）。
@@ -29,7 +30,7 @@ const INTRO_ALT =
 
 // ★ 第1168便: 2枚目（無料の予約ボードとの違い）。★ 画像の中身を変えたら alt も直すこと
 const COMPARE_ALT =
-  'フクエスCRM ご案内（フクエス掲載店さまへ）。無料の予約ボードとの違い。' +
+  '無料の予約ボードとの違い。' +
   '予約の受付・変更：予約ボード（無料）は対応、フクエスCRM（有料）も対応。' +
   'お客様の利用回数・キャンセル回数、分類・要注意メモ・女子NG、悪質キャンセルの記録、売上・報酬・日報・月の集計、料金表・金銭授受、来店時の同意書（QR）：フクエスCRM（有料）だけ対応。' +
   '予約ボードは、今までどおり無料でお使いいただけます。';
@@ -52,7 +53,7 @@ export function CrmIntro({ salonName }: { salonName?: string; publicPage?: boole
         src="/mypage/crm/crm-compare.webp"
         alt={COMPARE_ALT}
         width={1600}
-        height={1306}
+        height={1132}
         loading="lazy"
         className="mt-4 block w-full h-auto border border-slate-200"
       />

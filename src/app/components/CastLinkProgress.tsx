@@ -33,11 +33,13 @@ const TONES = {
   },
 } as const;
 
-export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast }: {
+export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, guideHref }: {
   salonId: number | null;
   /** 「招待する／確認する」の行き先（そのセラピストの編集ページ） */
   editHref: (therapistId: string) => string;
   tone?: keyof typeof TONES;
+  /** ★ 第1169便（カッキーさん）: 見出しの横に出す「作り方」の行き先（マイページだけ渡す＝/mypage/cast-guide）。無ければ出さない */
+  guideHref?: string;
   onToast?: (m: string) => void;
 }) {
   const T = TONES[tone];
@@ -73,7 +75,14 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast }
   return (
     <div className={T.card}>
       <div className="flex items-end justify-between gap-3 flex-wrap">
-        <h3 className="text-[16px] font-bold text-slate-700">セラピストページ連携</h3>
+        <div className="flex items-baseline gap-3">
+          <h3 className="text-[16px] font-bold text-slate-700">セラピストページ連携</h3>
+          {guideHref && (
+            <Link href={guideHref} target="_blank" rel="noopener noreferrer" className={`text-[13px] font-bold underline underline-offset-2 hover:opacity-80 ${T.num}`}>
+              作り方
+            </Link>
+          )}
+        </div>
         <p className="text-[14px] text-slate-500 tabular-nums">
           <b className={`text-[22px] font-black ${T.num}`}>{done.length}</b>
           <span className="mx-1">/</span>{active.length}名 連携済み（{pct}%）
