@@ -8,7 +8,8 @@
 
 export type CrmIntroFlowBox = { caption: string; name: string };
 /** ★ 第1148便: accent … 札をピンクで目立たせる（カッキーさんの指定） */
-export type CrmIntroFeature = { name: string; body: string; accent?: boolean };
+// ★ 第1160便（カッキーさん）: スケジュール〜料金設定の6枚は説明の文を出さない（見出しだけ）。ピンクの2枚だけ文を残す
+export type CrmIntroFeature = { name: string; body?: string; accent?: boolean };
 export type CrmIntroCompareRow = { item: string; free: string; crm: string };
 /** ★ 第1149便（カッキーさん）: 説明の文は出さない（見出しだけ）。body は残してあるが空 */
 export type CrmIntroStep = { title: string; body?: string };
@@ -40,12 +41,12 @@ export const CRM_INTRO: CrmIntroContent = {
     { caption: '次に来たとき', name: '回数・メモが一目で分かる' },
   ],
   features: [
-    { name: 'スケジュール', body: 'その日の出勤と予約を、セラピストごとに時間の軸で。空いているところを押すだけで受付できます。' },
-    { name: '顧客台帳', body: '名前・電話・分類（一般／会員／常連／VIP／NG）・要注意メモ・女子NG・予約の履歴。名前や電話の下4桁で探せます。' },
-    { name: '予約一覧', body: '先月のキャンセル、担当ごと、名前や電話で、日付をまたいで予約を探せます。' },
-    { name: '日報・レポート', body: '締め作業でその日の売上・報酬・経費を日報に。月ごとの売上・本数・お客様の数も集計します。' },
-    { name: '金銭授受', body: 'セラピストとのお金のやりとり（精算・釣銭・前借り）と残高を、通算で持ちます。' },
-    { name: '料金設定', body: 'コース・指名・延長・オプション・割引の料金表。項目ごとに料金と女子報酬を入れておけば、受付で選ぶだけです。' },
+    { name: 'スケジュール' },
+    { name: '顧客台帳' },
+    { name: '予約一覧' },
+    { name: '日報・レポート' },
+    { name: '金銭授受' },
+    { name: '料金設定' },
     { name: '来店時の同意書（QR）', body: '部屋ごとのQRをお客様のスマホで読んでサイン。紙でもらったときも記録できます。', accent: true },
     { name: 'セラピストへの公開', body: 'ONにすると、セラピスト本人のページに自分の出勤と予約だけが出ます。お客様の電話番号は見せません。', accent: true },
   ],

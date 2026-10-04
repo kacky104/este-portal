@@ -59,7 +59,7 @@ export function CrmIntro({ salonName, publicPage = false }: { salonName?: string
             // ★ 第1148便（カッキーさん）: accent の札はピンク（来店時の同意書・セラピストへの公開）
             <div key={f.name} className={`border p-3.5 ${f.accent ? 'border-pink-200 bg-pink-50' : 'border-slate-200'}`}>
               <b className={`text-[15px] font-black ${f.accent ? 'text-pink-700' : 'text-slate-800'}`}>{f.name}</b>
-              <p className={`mt-1 text-[13.5px] leading-relaxed ${f.accent ? 'text-pink-900/80' : 'text-slate-600'}`}>{f.body}</p>
+              {f.body && <p className={`mt-1 text-[13.5px] leading-relaxed ${f.accent ? 'text-pink-900/80' : 'text-slate-600'}`}>{f.body}</p>}
             </div>
           ))}
         </div>
