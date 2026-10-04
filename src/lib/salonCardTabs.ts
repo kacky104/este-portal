@@ -21,13 +21,14 @@ export type CardTabKey = 'diary' | 'review' | 'newface' | 'coupon';
  *   more     … 画面に出すリンクの文字
  *   moreFull … 読み上げ用（aria-label）。★ 「すべて見る」だけでは何の一覧か分からないので、こちらは省かない
  * ★ 第1134便（カッキーさん）: 第1132便で「すべて見る」に縮めた写メ日記・口コミのリンクの文字を、元の「写メ日記をすべて見る」「口コミをすべて見る」に戻した。
+ * ★ 第1158便（カッキーさん）: リンクの文字を「◯◯をすべて見る」→「◯◯一覧」に（写メ日記一覧・口コミ一覧・新人一覧・クーポン一覧）。
  */
 export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: string; more: string; moreFull: string; path: string }> = [
-  { key: 'diary', label: '写メ日記', unit: '件', more: '写メ日記をすべて見る', moreFull: '写メ日記をすべて見る', path: 'diary' },
-  { key: 'review', label: '口コミ', unit: '件', more: '口コミをすべて見る', moreFull: '口コミをすべて見る', path: 'reviews' },
-  { key: 'newface', label: '新人', unit: '名', more: '新人をすべて見る', moreFull: '新人をすべて見る', path: 'newface' },
+  { key: 'diary', label: '写メ日記', unit: '件', more: '写メ日記一覧', moreFull: '写メ日記一覧', path: 'diary' },
+  { key: 'review', label: '口コミ', unit: '件', more: '口コミ一覧', moreFull: '口コミ一覧', path: 'reviews' },
+  { key: 'newface', label: '新人', unit: '名', more: '新人一覧', moreFull: '新人一覧', path: 'newface' },
   // ★ 第1153便（カッキーさん）: 「クーポンを見る」→「クーポンをすべて見る」（ほかのタブと同じ言い方）
-  { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポンをすべて見る', moreFull: 'クーポンをすべて見る', path: 'coupon' },
+  { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポン一覧', moreFull: 'クーポン一覧', path: 'coupon' },
 ];
 
 /** 開いたときに出す件数（口コミ・新人・クーポン） */
