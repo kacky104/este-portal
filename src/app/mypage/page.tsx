@@ -2890,7 +2890,8 @@ export default function MyPage() {
       // ★ まだ読んでいない。★ 一瞬「申し込み受付中」と出てから変わるのを防ぐため、何も描かない。
       ? null
       : hpSite === null
-        ? { label: 'フクエスサイト（申し込み受付中）', href: '/hp/templates' }
+        // ★ 第1172便（カッキーさん）: 申し込み前のお店は、まず1ページの簡単なご案内（/mypage/site）へ。そこから デザイン一覧・お問い合わせ・営業ページ（/hp/templates）へ行ける
+        ? { label: 'フクエスサイト（申し込み受付中）', href: '/mypage/site' }
         : hpSite.status !== 'live'
           ? { label: 'フクエスサイト（制作中）', href: null }
           : {
@@ -2900,7 +2901,7 @@ export default function MyPage() {
             };
 
   // ★★ 第665便（2026-09-22・カッキーさんの指示）: 文字リンクを画像バナーに置き換えた（./SidebarBanner.tsx）。
-  //   ★ 行き先は上の hpNav のまま: 申し込み前→/hp/templates・公開中→/hp/{slug}/admin（管理画面）。
+  //   ★ 行き先は上の hpNav のまま: 申し込み前→/mypage/site（第1172便より前は /hp/templates）・公開中→/hp/{slug}/admin（管理画面）。
   //   ★ 制作中・停止中は押せない表示（薄く＋「準備中」の札）。
   const renderHpLink = (pc: boolean) => {
     // ★ まだ読んでいないあいだは描かない（上の hpNav のコメント参照）。
