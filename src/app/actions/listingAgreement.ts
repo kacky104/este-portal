@@ -133,6 +133,28 @@ export async function submitListingAgreement(
   return { ok: true, record: toRecord(data as unknown as Row) };
 }
 
+/**
+ * 店舗側: マイページの上の帯を出すかどうか（第1175便・カッキーさん）。
+ * ★ 'new' ＝ 一度も出していない・'renew' ＝ 前の版には出したが今の版はまだ・'none' ＝ 提出済み（帯を出さない）。
+ * ★ マイページを開いたときに1回だけ（小さな読み取り: 店舗1本＋サイン1本・版と id だけ）。
+ * ★ 読めなかったとき（表がまだ無い・通信の失敗など）は 'none'＝帯を出さない（マイページを止めない）。
+ */
+export async function getMyAgreementNotice(): Promise<{ need: 'none' | 'new' | 'renew' }> {
+  try {
+    const ctx = await myContext();
+    if (!ctx.ok) return { need: 'none' };
+    const { data, error } = await ctx.svc
+      .from('listing_agreements').select('id, version')
+      .eq('salon_id', ctx.salon.id)
+      .order('signed_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) return { need: 'none' };
+    if (!data) return { need: 'new' };
+    return { need: (data as { version: string }).version === AGREEMENT_VERSION ? 'none' : 'renew' };
+  } catch {
+    return { need: 'none' };
+  }
+}
+
 // ── 運営側 ─────────────────────────────────────────────────────────────
 
 async function requireAdmin(): Promise<{ ok: true } | Err> {
