@@ -5,13 +5,15 @@ import { useEffect, useState } from 'react';
 import { getSalonCastLinkRoster } from '@/app/actions/castInvite';
 // ★ 第893便: 「招待する」の左横に「QR」（リンク・QRで招待の小窓）
 import { CastInviteLinkButton } from './CastInviteLinkButton';
-import { CAST_LINK_BONUS } from '@/lib/rankingPoints';
+import { CAST_LINK_BONUS, recommendCastLinkPoints } from '@/lib/rankingPoints';
 
 // ★ 第884便（カッキーさん）: 「セラピストページ連携」の連携率と、まだ連携していない方の一覧。
 // ★ 第885便: コネックエフのホームとフクエスのマイページ（今すぐの画面）で同じ部品を使う（tone で色だけ変える）。
 // ★ ねらい: オーナー様が数字を見て、未連携の方を招待したくなるように。
 // ★ 数えるのは【公開中】のセラピストだけ（★ 非公開＝お休み・退店予定の方で率を下げない）。
 // ★ 第1093便・第1095便（カッキーさん）: 連携したセラピストは、セラピストランキングに毎週 +5 ポイント（枠で目立たせず、説明文の中に書く）。
+// ★ 第1183便（カッキーさん）: お店の「おすすめランキング」にも、連携率の半分のポイントが毎週つくことを説明文に足した。
+//   ★ ランキングの名前は画面のタブと同じ「おすすめランキング」。★ 点は連携率そのままではなく【÷2】（第948便の SQL が正本）。
 // ★ 招待そのものは各セラピストの編集ページで行う（★ ここは入口だけ。招待の処理を2つ持たない）。
 
 const SHOW = 8;
@@ -94,6 +96,8 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
       {/* ★ 第1095便（カッキーさん）: ランキングの加点は枠で目立たせず、説明文の中に書く（数字は src/lib/rankingPoints.ts＝計算と同じ） */}
       <p className="text-[13px] text-slate-500 leading-relaxed">
         連携したセラピストは、写メ日記や今すぐなど、自分のスマホから更新できます。セラピストランキングにも毎週+{CAST_LINK_BONUS}ポイント加点されます。
+        {/* ★ 例の数字は、いまの連携率から出す（★ 1%以下は0点になるので、そのときは100%の例を出す） */}
+        お店のおすすめランキングにも、連携率の半分のポイントが毎週加点されます（{recommendCastLinkPoints(pct) > 0 ? `${pct}%なら${recommendCastLinkPoints(pct)}` : `100%なら${recommendCastLinkPoints(100)}`}ポイント）。
         <span className="text-slate-400">（公開中の方だけ数えています）</span>
       </p>
 
