@@ -140,6 +140,22 @@ export function SupportTab({
     })();
   }, [salonId]);
 
+  // ★ 第1163便（カッキーさん）: フクエスCRM のご案内の「運営に申し込む」から来たとき（/mypage?tab=support&apply=crm）は、
+  //   お問い合わせの画面を開き、件名と本文を入れておく（★ 送信はしない。店舗様が内容を見て「送信」を押す）。
+  //   読んだら URL から apply を外す（読み込み直しで入れ直さない）。新しい読み書きは無い（送り先は今までのお問い合わせと同じ）。
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('apply') !== 'crm') return;
+    const fill = () => {
+      setSubTab('inquiry');
+      setSubject('フクエスCRMのお申し込み');
+      setBody('フクエスCRMの利用を申し込みます。\n\n（ご質問・ご希望があれば、この下にご記入ください）');
+    };
+    fill();
+    url.searchParams.delete('apply');
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, []);
+
   // 未読件数を親（タブバッジ）へ通知。
   const unreadIds = notices.filter(n => !readIds.has(n.id)).map(n => n.id);
   useEffect(() => {

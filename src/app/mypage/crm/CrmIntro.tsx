@@ -15,8 +15,8 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 // ★ 第1145便: ログイン不要のご案内ページ（fukuescrm.com/about）でも使う。★ salonName は無ければ出さない。
-//   publicPage のときは「契約店舗様はこちらからログイン」のボタンを出す（ログイン後は契約店ならそのまま使える・未契約ならこの案内に戻る）。
-export function CrmIntro({ salonName, publicPage = false }: { salonName?: string; publicPage?: boolean }) {
+//   ★ 第1163便: publicPage のときに出していた「契約店舗様はこちらからログイン」のボタンは「運営に申し込む」に替えた。★ publicPage は呼び出し側のために受け取るだけ（いまは出し分けに使っていない）。
+export function CrmIntro({ salonName }: { salonName?: string; publicPage?: boolean }) {
   const links = useCrmLinks();
   const c = CRM_INTRO;
   return (
@@ -112,11 +112,12 @@ export function CrmIntro({ salonName, publicPage = false }: { salonName?: string
         <SectionTitle>{c.apply.title}</SectionTitle>
         <p className="text-[14px] text-slate-600 leading-relaxed">{c.apply.body}</p>
         <div className="flex flex-wrap gap-2">
-          {publicPage && (
-            <a href={links.special('login')} className="inline-block bg-indigo-600 px-4 py-2 text-[13px] font-bold text-white">
-              ご契約店舗様はこちらからログイン
-            </a>
-          )}
+          {/* ★ 第1163便（カッキーさん）: 「ご契約店舗様はこちらからログイン」の場所を「運営に申し込む」に替えた。
+              行き先はマイページの「運営事務局」→ お問い合わせ（件名と本文を入れた状態で開く。送信は店舗様が押す）。
+              ★ ログイン不要のページ（/about）でもマイページの中の案内でも出す。 */}
+          <a href={links.fukues('/mypage?tab=support&apply=crm')} className="inline-block bg-indigo-600 px-4 py-2 text-[13px] font-bold text-white">
+            運営に申し込む
+          </a>
           <a href={links.special('guide')} target="_blank" rel="noopener" className="inline-block border border-indigo-300 bg-white px-4 py-2 text-[13px] font-bold text-indigo-700">
             使い方・よくある質問を見る
           </a>
