@@ -3,7 +3,7 @@ import { DIARY_NEW_WINDOW_MS } from '@/lib/diaryNew';
 import { buildTabCounts, todayJstOf, type SalonCardTabCounts } from '@/lib/salonCardTabs';
 
 // 店舗カードのタブに出す数（写メ日記・クーポン）を、全店ぶんまとめて読む（第1126便）。
-//   ★ TOP の作り直し（ISR・revalidate 600）のときに1回だけ。2本を同時に読む。
+//   ★ TOP の作り直し（ISR・revalidate 600）のときに1回だけ。2本を同時に読む。第1159便から地域ページ（/area/…・6つ）の作り直しでも同じ2本。
 //   ★ クーポンの行は salon_id と期限だけ。数えるのはこちら側（PostgREST は店舗ごとの集計を返せない）。
 //   ★ 第1128便: 写メ日記の行は、各店の新しい順2件を HTML に入れるために タイトル・本文・セラピスト名 も読む（本数は同じ2本のまま）。
 //   ★ 写メ日記は48時間以内だけ＝行数は少ない。

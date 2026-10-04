@@ -491,7 +491,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         {detailBtn}
       </div>
 
-      {/* 4. タブ（第1126便・TOP だけ）。★ 第1139便（カッキーさん）: 料金の行と入れ替えて、カードのいちばん下に置く（開くと下へ伸びる） */}
+      {/* 4. タブ（第1126便・TOP と、第1159便から地域ページ）。★ 第1139便（カッキーさん）: 料金の行と入れ替えて、カードのいちばん下に置く（開くと下へ伸びる） */}
       {cardTabs}
     </div>
   );
@@ -526,7 +526,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       {/* 3段目: セラピストサムネ列 */}
       {therapistThumbs}
 
-      {/* 4段目: タブ（第1126便・TOP だけ） */}
+      {/* 4段目: タブ（第1126便・TOP と、第1159便から地域ページ） */}
       {cardTabs}
     </div>
   );

@@ -26,6 +26,8 @@ import { TherapistPickupBanner } from '@/app/components/TherapistPickupBanner';
 import { AutoFitHeadingText } from '@/app/components/AutoFitHeadingText';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { fetchSalonCardTabCounts } from '@/app/lib/salonCardTabCounts';
+import type { SalonCardTabCounts } from '@/lib/salonCardTabs';
 
 // ISR：10分ごとに再生成。Next 16 では revalidate を効かせるため generateStaticParams が必須。
 export const revalidate = 600;
@@ -71,11 +73,14 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
   // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。
   const supabase = createPublicClient();
-  const [salons, featuredSalons, pickupBanners, moreCardImage] = await Promise.all([
+  const [salons, featuredSalons, pickupBanners, moreCardImage, allTabCounts] = await Promise.all([
     fetchSalons(supabase),
     getFeaturedSalons(supabase, area), // このエリア専用のピックアップ（未設定なら空＝枠ごと非表示）
     fetchActiveTherapistPickupBanners(), // セラピストピックアップ枠（TOPと共通・20枚目直下・0件なら非表示）
     fetchSiteImage(supabase, LIST_MORE_CARD_KEY), // 「一覧を見る」カードの画像（第218便・TOPと共通）
+    // ★ 第1159便（カッキーさん）: 地域ページの店舗カードにも TOP と同じタブ（写メ日記・口コミ・新人・クーポン）を出す。
+    //   TOP と同じ関数＝このページの作り直し（ISR 600）のときに 2本（写メ日記48h・クーポン）。中身は押したときに読む。
+    fetchSalonCardTabCounts(supabase),
   ]);
   const label = areaLabel(area);
   const pickupTitle = `${area === DISPATCH_AREA ? '出張対応' : label}のピックアップ店舗`;
@@ -84,6 +89,11 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。
   const areaSalons = salons.filter((s) => salonInArea(s, area));
   const areaSalonIds = areaSalons.map((s) => s.id);
+  // ★ 第1159便: 画面へ渡すのはこのエリアの店のぶんだけ（ほかの地域の写メ日記の行まで HTML に入れない）
+  const cardTabCounts: SalonCardTabCounts = {};
+  for (const id of areaSalonIds) {
+    if (allTabCounts[id]) cardTabCounts[id] = allTabCounts[id];
+  }
 
   // このエリアの店舗に付いた口コミの新着3件（スマホ=FAQ直下 / PC=右カラム）。
   // ★ エリアが決まってからでないと引けないので、上の Promise.all には入れられない。
@@ -171,6 +181,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
         <div className="-mx-3 lg:mx-0">
         <ShuffledSalons
           moreImageUrl={moreCardImage}
+          cardTabCounts={cardTabCounts}
           salons={withBumpedFirst(weightedShuffleDaily(salons, `area:${slug}`, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
           areas={[...AREA_ORDER]}
           currentArea={area}
