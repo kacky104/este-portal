@@ -60,18 +60,7 @@ type Site = {
 
 type Overview = { therapistCount: number; sites: Site[] };
 
-/** 「8/30 06:13」。★ 読めない値は空文字にする（"Invalid Date" を店舗に見せない）。 */
-function fmt(iso: string | null): string {
-  if (!iso) return '';
-  const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return '';
-  return new Intl.DateTimeFormat('ja-JP', {
-    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
-    timeZone: 'Asia/Tokyo',
-  }).format(new Date(t));
-}
-
-/** 「6:20」。時刻だけ。 */
+/** 「6:20」。時刻だけ。★ 読めない値は空文字にする（"Invalid Date" を店舗に見せない）。 */
 function fmtTime(iso: string | null): string {
   if (!iso) return '';
   const t = Date.parse(iso);
@@ -278,8 +267,10 @@ export function MediaHome({ salonId, onToast }: {
               <div className="bg-white px-3 py-2.5 text-center">
                 <dt className="text-[12px] font-bold text-slate-400">最後の反映</dt>
                 {/* ★ 第312便: スマホでは時刻を1段小さく（★ 3つ並びで折り返さない大きさ） */}
+                {/* ★ 第1182便（2026-10-05・カッキーさん）: 日付（10/5）を落として時刻だけに。
+                    ★ 15分ごとに回るので、日付はいつも今日。★ 右の「次の反映」と同じ書き方に揃う。 */}
                 <dd className="text-[15px] sm:text-[17px] font-black text-slate-800 tabular-nums">
-                  {fmt(reading.listLastRunAt) || '—'}
+                  {fmtTime(reading.listLastRunAt) || '—'}
                 </dd>
               </div>
               <div className="bg-white px-3 py-2.5 text-center">
