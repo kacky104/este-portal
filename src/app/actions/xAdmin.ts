@@ -3,6 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { isKeptXImageName } from '@/lib/xImagesKeep';
 
 // fukuX 運営パネル限定：表示中アカウントのログインメール（auth.users.email）を取得する。
 //
@@ -141,7 +142,9 @@ async function deleteXImagesFolder(
         return;
       }
       if (!files || files.length === 0) return;
-      const paths = files.filter((f) => f.id !== null).map((f) => `${uid}/${f.name}`);
+      // ★ 第1198便: タイムラインのバナーの画像（banner-slot…）は残す（src/lib/xImagesKeep.ts）。
+      //   ★ 残すファイルしか無くなったら paths が空になり、下の行で終わる（同じ一覧を読み続けない）。
+      const paths = files.filter((f) => f.id !== null && !isKeptXImageName(f.name)).map((f) => `${uid}/${f.name}`);
       if (paths.length === 0) return;
       const { error: rmErr } = await bucket.remove(paths);
       if (rmErr) {

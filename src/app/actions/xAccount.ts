@@ -2,6 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { isKeptXImageName } from '@/lib/xImagesKeep';
 
 // fukuX アカウント（本人）の完全削除。
 //
@@ -70,7 +71,9 @@ async function deleteUserXImages(
       }
       if (!files || files.length === 0) return;
       // フォルダ（id=null）を除いた実ファイルのみを対象に。
-      const paths = files.filter((f) => f.id !== null).map((f) => `${uid}/${f.name}`);
+      // ★ 第1198便: タイムラインのバナーの画像（banner-slot…）は残す（src/lib/xImagesKeep.ts）。
+      //   ★ 残すファイルしか無くなったら paths が空になり、下の行で終わる（同じ一覧を読み続けない）。
+      const paths = files.filter((f) => f.id !== null && !isKeptXImageName(f.name)).map((f) => `${uid}/${f.name}`);
       if (paths.length === 0) return;
       const { error: rmErr } = await bucket.remove(paths);
       if (rmErr) {

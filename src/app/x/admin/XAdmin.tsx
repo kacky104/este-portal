@@ -12,6 +12,7 @@ import { adminDeleteXPost, adminDeleteXProfile } from '@/app/actions/xAdmin';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { BANNER_SITE_SHORT } from '../banner/bannerSites';
 import { useXToast } from '../useXToast';
+import { X_BANNER_FILE_PREFIX } from '@/lib/xImagesKeep';
 
 const supabase = createClient();
 
@@ -272,7 +273,8 @@ export function XAdmin({
     const slot = crop.slot;
     setBusy(`banner-${slot}`);
     const ext = blob.type === 'image/jpeg' ? 'jpg' : 'webp';
-    const path = `${myAuthId}/banner-slot${slot}-${Date.now()}.${ext}`;
+    // ★ 第1198便: ファイル名の頭（banner-slot）は、アカウントを消すときに【残す画像】の目印（src/lib/xImagesKeep.ts）。変えるときは両方直す。
+    const path = `${myAuthId}/${X_BANNER_FILE_PREFIX}${slot}-${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from('x-images').upload(path, blob, { cacheControl: STORAGE_CACHE_CONTROL });
     if (upErr) {
       setBusy(null);
