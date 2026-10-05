@@ -71,8 +71,15 @@ export async function createMyXProfile(input: {
     const isUnique = error.code === '23505' || /duplicate|unique/i.test(msg);
     if (isUnique && /handle/i.test(msg)) return { ok: false, reason: 'handle_taken', error: 'このIDは使われています。別のIDをお試しください。' };
     if (isUnique) return { ok: false, reason: 'already', error: 'すでにアカウントがあります。' };
-    console.error('[x] アカウントを開設できなかった', user.id, error.code, msg);
-    return { ok: false, error: 'アカウントを開設できませんでした。ページを開き直してから、もう一度お試しください。' };
+    console.error('[x] アカウントを開設できなかった', user.id, error.code, msg, error.details, error.hint);
+    // ★★ 第1192便（2026-10-05・カッキーさん）: 開設できない原因が画面から分からなかった（理由はサーバーの記録にしか出ない）。
+    //   ・DB（トリガー・ポリシー）が日本語で理由を返したときは、それをそのまま出す（投稿の jpOr と同じ作法）。
+    //   ・そうでないときは、今までの文に【エラー番号と、引っかかった制約・列の名前】だけを添える。
+    //     ★ 英語の生エラーの文は出さない。番号と名前だけなら、画面の写真1枚で原因を追える。
+    if (/[ぁ-んァ-ン一-龥]/.test(msg)) return { ok: false, error: msg };
+    const where = /constraint "([^"]+)"/.exec(msg)?.[1] ?? /column "([^"]+)"/.exec(msg)?.[1] ?? '';
+    const tail = error.code ? `（エラー番号: ${error.code}${where ? ` / ${where}` : ''}）` : '';
+    return { ok: false, error: `アカウントを開設できませんでした。ページを開き直してから、もう一度お試しください。${tail}` };
   }
   // ★ 第994便: セラピストなら、セラピストページ連携＋認証済みのお店に自動で所属（条件に合わなければ何もしない）
   if (input.kind === 'therapist') {
