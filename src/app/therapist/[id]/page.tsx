@@ -675,7 +675,12 @@ export default async function TherapistPublicPage({
                     全部見る →
                   </Link>
                 </div>
-                <TherapistDiaryList posts={diaryPosts.slice(0, 6)} name={therapist.name} />
+                {/* ★ 第1202便（カッキーさん）: スマホは、写メ日記の並びだけブロックの内側の左右の余白（p-6＝24px）を打ち消して端まで。
+                    ★ 見出しの行（写メ日記／全部見る）は余白を残す。★ PC（sm 以上）は今までどおり。
+                    ★ 上の p-6 を変えたら、この -mx-6 も同じ数に直すこと。 */}
+                <div className="-mx-6 sm:mx-0">
+                  <TherapistDiaryList posts={diaryPosts.slice(0, 6)} name={therapist.name} />
+                </div>
               </section>
             )}
 

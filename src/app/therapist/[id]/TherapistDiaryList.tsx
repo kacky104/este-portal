@@ -54,11 +54,16 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
           <Link
             key={post.id}
             href={`/diary/${post.id}`}
-            className="flex-shrink-0 w-[130px] text-left overflow-hidden border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow"
+            // ★★ 第1202便（2026-10-05・カッキーさん）: スマホは、ブロックの内側の左右の余白をなくしたぶん画像を大きく。
+            //   ★ 1枚の幅 ＝ 並びの枠の 42.6%（＝今までの「余白つきの枠 305px に対して 130px」と同じ割合）。
+            //     枠が左右 24px ずつ広がったので、同じ割合のまま 130px → 約150px（iPhone 16 の幅のとき）になる。
+            //   ★ 画像の比率は今までどおり 130:185（下の aspect）。横に伸びたぶん、縦も同じ割合で伸びる。
+            //   ★ PC（sm 以上）は今までどおり 130px の固定。
+            className="flex-shrink-0 w-[42.6%] sm:w-[130px] text-left overflow-hidden border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow"
           >
             {/* 画像：スマホは縦長（下のテキスト枠ぶんを吸収しカード高さを維持）＋画像内オーバーレイ、
                 PC は従来どおり正方形（テキストは下に別表示）。横幅・横スクロール挙動は不変。 */}
-            <div className="relative w-[130px] h-[185px] sm:h-[130px] bg-slate-100">
+            <div className="relative w-full aspect-[130/185] sm:w-[130px] sm:h-[130px] sm:aspect-auto bg-slate-100">
               {img ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={img} alt={name} className="w-full h-full object-cover" />
