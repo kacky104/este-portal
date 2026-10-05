@@ -36,7 +36,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 ### 入店祝い金・保証制度
 
-サロンによっては、入店時の祝い金や、慣れるまでの期間の**最低[保証](/jobs/glossary/hosho)**（予約が少なくても一定額を保証する制度）を設けていることがあります。未経験の方は、保証制度の有無と期間・条件を確認しておくと安心です。
+サロンによっては、入店時の[祝い金](/jobs/glossary/nyuten-iwaikin)や、慣れるまでの期間の**最低[保証](/jobs/glossary/hosho)**（予約が少なくても一定額を保証する制度）を設けていることがあります。未経験の方は、保証制度の有無と期間・条件を確認しておくと安心です。
 
 ## 引かれるもの・自己負担も確認
 
