@@ -61,7 +61,12 @@ export function CastSchedule({
   //   → 上の案内「新しい予約が◯件」も、ほかの日のぶんだけを数える（この日のぶんは、すぐ下に NEW つきで見えている）。
   const otherDays = upcoming ? upcoming.filter((b) => b.date !== date) : [];
   const newIds = new Set((upcoming ?? []).filter((b) => newSigs?.has(b.sig)).map((b) => b.bookingId));
-  const newCount = otherDays.filter((b) => newSigs?.has(b.sig)).length;
+  // ★★ 第1213便（2026-10-06・カッキーさん）: キャンセルになった予約は消さずに「キャンセル」と出す。
+  //   → 上の案内は「新しい予約」と「キャンセル」を分けて数える（どちらも、ほかの日のぶんだけ）。
+  const newBookCount = otherDays.filter((b) => !b.cancelled && newSigs?.has(b.sig)).length;
+  const newCancelCount = otherDays.filter((b) => b.cancelled && newSigs?.has(b.sig)).length;
+  const newCount = newBookCount + newCancelCount;
+  const otherCancelled = otherDays.filter((b) => b.cancelled).length;
   const openDay = (d: string) => {
     go(d);
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -85,6 +90,8 @@ export function CastSchedule({
 
   const loading = !res || res.date !== date;
   const day = res?.day ?? null;
+  // ★ 第1213便: タイムラインに描くのは生きている予約だけ（キャンセルの枠は空いているので描かない。下の一覧には「キャンセル」と出す）
+  const liveBookings = useMemo(() => (day ? day.bookings.filter((b) => !b.cancelled) : []), [day]);
 
   // 時間軸：設定の表示時間。出勤・予約がはみ出すときは広げる（見落とさないため）
   const axis = useMemo(() => {
@@ -92,9 +99,9 @@ export function CastSchedule({
     let s = day.dayStartMin;
     let e = day.dayEndMin;
     for (const w of day.shifts) { s = Math.min(s, w.startMin); e = Math.max(e, w.endMin); }
-    for (const b of day.bookings) { s = Math.min(s, b.startMin); e = Math.max(e, b.endMin); }
+    for (const b of liveBookings) { s = Math.min(s, b.startMin); e = Math.max(e, b.endMin); }
     return { start: Math.floor(s / 60) * 60, end: Math.ceil(e / 60) * 60 };
-  }, [day]);
+  }, [day, liveBookings]);
 
   const hours: number[] = [];
   for (let h = axis.start / 60; h < axis.end / 60; h++) hours.push(h);
@@ -107,7 +114,7 @@ export function CastSchedule({
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !day) return;
-    const target = date === today && nowMinOf(date) != null ? (nowMinOf(date) as number) - 60 : (day.shifts[0]?.startMin ?? day.bookings[0]?.startMin ?? null);
+    const target = date === today && nowMinOf(date) != null ? (nowMinOf(date) as number) - 60 : (day.shifts[0]?.startMin ?? liveBookings[0]?.startMin ?? null);
     if (target == null) { el.scrollLeft = 0; return; }
     el.scrollLeft = Math.max(0, ((target - axis.start) / 60) * HOUR_W - 8);
   }, [loadedDate]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -122,7 +129,11 @@ export function CastSchedule({
           className="mb-3 flex w-full items-center justify-center gap-2 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-600 ring-1 ring-rose-200"
         >
           <span className="rounded-full bg-rose-500 px-1.5 text-[11px] font-black leading-[18px] text-white">NEW</span>
-          ほかの日に新しい予約が{newCount}件あります
+          {newBookCount > 0 && newCancelCount > 0
+            ? `ほかの日に 新しい予約${newBookCount}件・キャンセル${newCancelCount}件 があります`
+            : newCancelCount > 0
+              ? `ほかの日の予約が${newCancelCount}件キャンセルになりました`
+              : `ほかの日に新しい予約が${newBookCount}件あります`}
           <span aria-hidden="true">▼</span>
         </button>
       )}
@@ -171,7 +182,7 @@ export function CastSchedule({
                   {day.breakStartMin != null && day.breakEndMin != null && (
                     <div className="absolute top-0 bottom-0 bg-slate-200/70" style={{ left: x(day.breakStartMin), width: x(day.breakEndMin) - x(day.breakStartMin) }} title="休憩" />
                   )}
-                  {day.bookings.map((b, i) => (
+                  {liveBookings.map((b, i) => (
                     <button
                       type="button"
                       key={i}
@@ -204,12 +215,14 @@ export function CastSchedule({
               {day.bookings.map((b, i) => (
                 <li key={i}>
                   <button type="button" onClick={() => setPicked(b)} className="flex w-full items-baseline gap-3 py-2 text-left text-[14px] hover:bg-slate-50">
-                  <span className="w-[112px] flex-none font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
+                  {/* ★ 第1213便: キャンセルの予約は消さず、時間と名前に線を引いて「キャンセル」の札を付ける */}
+                  <span className={`w-[112px] flex-none font-black ${b.cancelled ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
                   <span className="min-w-0 flex-1">
                     {/* ★ 第1212便: まだ見ていなかった予約の印（この日のぶんは、下の「ほかの日の予約」には出さずここに付ける） */}
                     {newIds.has(b.bookingId) && <span className="mr-1.5 rounded-full bg-rose-500 px-1.5 text-[10px] font-black leading-[16px] text-white">NEW</span>}
-                    {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
-                    <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
+                    {b.cancelled && <span className="mr-1.5 border border-rose-300 bg-rose-50 px-1 text-[11px] font-bold text-rose-600">キャンセル</span>}
+                    {b.nomination && !b.cancelled && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
+                    <span className={`font-bold ${b.cancelled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
                     {/* ★ 第651便: ニックネームを一覧にも（ポップアップと同じ紫の札・本人だけに見える値） */}
                     {b.nickname && <span className="ml-1.5 inline-block max-w-[10em] truncate align-bottom rounded-full bg-violet-50 px-2 py-px text-[12px] font-bold text-violet-700">{b.nickname}</span>}
                     <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
@@ -232,7 +245,9 @@ export function CastSchedule({
         <div ref={upcomingRef} className="mt-5 scroll-mt-20 border-t border-slate-200 pt-4">
           <h3 className="px-1 text-[14px] font-black text-slate-700">
             ほかの日の予約
-            <span className="ml-1.5 text-[12px] font-bold text-slate-400">{otherDays.length}件</span>
+            <span className="ml-1.5 text-[12px] font-bold text-slate-400">
+              {otherDays.length - otherCancelled}件{otherCancelled > 0 && `・キャンセル${otherCancelled}件`}
+            </span>
           </h3>
           <ul className="mt-1 divide-y divide-slate-100">
             {otherDays.map((b) => (
@@ -240,11 +255,12 @@ export function CastSchedule({
                 <button type="button" onClick={() => openDay(b.date)} className="flex w-full items-baseline gap-2 px-1 py-2 text-left text-[14px] hover:bg-slate-50">
                   <span className="w-[76px] flex-none whitespace-nowrap text-[13px] font-black text-slate-600">{shortDayLabel(b.date)}</span>
                   {/* ★ 第1212便: 時刻が2行に折り返していたので、幅をその日の一覧と同じ 112px にして折り返さない */}
-                  <span className="w-[112px] flex-none whitespace-nowrap font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
+                  <span className={`w-[112px] flex-none whitespace-nowrap font-black ${b.cancelled ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
                   <span className="min-w-0 flex-1">
                     {newSigs?.has(b.sig) && <span className="mr-1.5 rounded-full bg-rose-500 px-1.5 text-[10px] font-black leading-[16px] text-white">NEW</span>}
-                    {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
-                    <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
+                    {b.cancelled && <span className="mr-1.5 border border-rose-300 bg-rose-50 px-1 text-[11px] font-bold text-rose-600">キャンセル</span>}
+                    {b.nomination && !b.cancelled && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
+                    <span className={`font-bold ${b.cancelled ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
                     <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
                   </span>
                   <span className="flex-none text-[12px] text-slate-300" aria-hidden="true">›</span>
@@ -302,6 +318,10 @@ function BookingPopup({ b, date, onClose, onSaved }: { b: CastScheduleBooking; d
         className="w-full max-w-sm bg-white p-5 shadow-xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* ★ 第1213便: キャンセルになった予約は、いちばん上にはっきり書く */}
+        {b.cancelled && (
+          <p className="mb-3 bg-rose-50 px-3 py-2 text-center text-[13px] font-black text-rose-600 ring-1 ring-rose-200">この予約はキャンセルになりました</p>
+        )}
         <div className="flex items-start gap-2">
           <p className="min-w-0 flex-1 text-[18px] font-black text-slate-800">{b.customerName ? `${b.customerName}様` : 'お客様'}</p>
           <button type="button" onClick={onClose} className="-mr-1 -mt-1 flex-none rounded-full px-2 py-1 text-[18px] leading-none text-slate-400 hover:bg-slate-100" aria-label="閉じる">×</button>
@@ -321,7 +341,7 @@ function BookingPopup({ b, date, onClose, onSaved }: { b: CastScheduleBooking; d
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
+        {!b.cancelled && <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>}
         <button type="button" onClick={onClose} className="mt-3 w-full rounded-full border border-slate-200 py-2.5 text-[14px] font-bold text-slate-600">閉じる</button>
       </div>
     </div>

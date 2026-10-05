@@ -108,6 +108,7 @@ export function CastTabs({
   //   ・「見た」の印はスマホ（ブラウザ）ごと（src/lib/castSeenBookings.ts）。スケジュールのタブを開いたら、いま先にある予約を全部「見た」にしてバッジを消す。
   //   ・newSigs＝この画面を開いているあいだ「NEW」を付けておく予約。★ バッジは開いたら消えるが、NEW の札は読み直すまで残す（どれが新しいか分かるように）。
   //   ・読むのは、開いたときと、スケジュールのタブを押したとき（本人の先の予約を近い順に・数行）。
+  //   ★ 第1213便: キャンセルになった予約も数える（キャンセルで印の値が変わる＝「まだ見ていないお知らせ」になる）。
   const [upcoming, setUpcoming] = useState<CastUpcomingBooking[] | null>(null);
   const [newSigs, setNewSigs] = useState<Set<string>>(() => new Set());
   const [scheduleBadge, setScheduleBadge] = useState(0);
@@ -187,7 +188,7 @@ export function CastTabs({
               {label}
               {/* ★ 第1211便: まだ見ていない新しい予約の数 */}
               {key === 'schedule' && scheduleBadge > 0 && (
-                <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`新しい予約 ${scheduleBadge}件`}>
+                <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`予約のお知らせ ${scheduleBadge}件`}>
                   {scheduleBadge}
                 </span>
               )}
@@ -219,7 +220,7 @@ export function CastTabs({
                 {label}
                 {/* ★ 第1211便: まだ見ていない新しい予約の数（アイコンの右上） */}
                 {key === 'schedule' && scheduleBadge > 0 && (
-                  <span className="absolute top-1 left-1/2 ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`新しい予約 ${scheduleBadge}件`}>
+                  <span className="absolute top-1 left-1/2 ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`予約のお知らせ ${scheduleBadge}件`}>
                     {scheduleBadge}
                   </span>
                 )}

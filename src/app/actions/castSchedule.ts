@@ -39,6 +39,8 @@ export type CastScheduleBooking = {
   nickname: string;
   /** このセラピストの接客として何回目か（キャンセル以外を日時順に数える）。台帳にひも付かない予約は null */
   visitNo: number | null;
+  /** ★ 第1213便: キャンセルになった予約か（消さずに「キャンセル」と分かる形で出す）。★ 悪質キャンセルの印（cancel_bad）は返さない */
+  cancelled: boolean;
 };
 export type CastScheduleDay = {
   date: string;
@@ -123,9 +125,10 @@ export async function getCastScheduleDay(
       .eq('therapist_id', m.therapistId).eq('schedule_date', date).eq('is_active', true),
     m.svc.from('crm_work_days').select('room, break_start_min, break_end_min')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).eq('business_date', date).maybeSingle(),
-    m.svc.from('salon_bookings').select('id, customer_id, slot_start, slot_end, course_name, customer_name, crm_items')
-      .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).neq('status', 'cancelled')
-      .gte('slot_start', from).lt('slot_start', to).order('slot_start'),
+    // ★ 第1213便: キャンセルの予約も読む（消えたように見せず「キャンセル」と出すため）。画面側でタイムラインからは外す
+    m.svc.from('salon_bookings').select('id, customer_id, slot_start, slot_end, course_name, customer_name, crm_items, status')
+      .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId)
+      .gte('slot_start', from).lt('slot_start', to).order('slot_start').order('id'),
   ]);
   if (bErr) return { ok: false, error: '読み込めませんでした' };
 
@@ -176,6 +179,7 @@ export async function getCastScheduleDay(
       canNickname: cid != null,
       nickname: cid != null ? (nick.get(cid) ?? '') : '',
       visitNo: cid != null ? ((order.get(cid) ?? []).indexOf(String(b.id)) + 1 || null) : null,
+      cancelled: String(b.status) === 'cancelled',
     };
   });
 
@@ -200,11 +204,17 @@ export async function getCastScheduleDay(
 // ★★ 何日先まで、の期限は置かない（カッキーさんの確認: 3週間先の予約が2週間の窓に入るまで出ない、を避ける）。
 //   代わりに件数で頭打ち（近い順に UPCOMING_LIMIT 件）。1人のセラピストの先の予約がこれを超えることは、まず無い。
 // ★ 返すのは本人の、まだ終わっていない予約だけ。時間・コース・お客様の名前・指名のバッジ。電話番号・料金・報酬は返さない。
-// ★ キャンセルされた予約は出ない（一覧から消えるだけ。「キャンセルされました」のお知らせは作っていない）。
+// ★★ 第1213便（2026-10-06・カッキーさん）: キャンセルされた予約も返す（cancelled=true）。
+//   ・以前は一覧から消えるだけで、セラピストから見ると「予約がいきなり無くなった」になっていた。
+//   ・「見た」の印（sig）はキャンセルで別の値になる＝キャンセルも「まだ見ていないお知らせ」としてバッジに数える。
+//   ・★ 出せるのは【キャンセル】にした予約だけ。お店が【削除】した予約、キャンセル後に同じ枠へ新しい予約が入って
+//     行ごと消された予約（booking.ts の UNIQUE 対策）は、DB に行が残らないので出せない。
 export type CastUpcomingBooking = {
   bookingId: string;
-  /** 「見た」の印に使う値＝予約 id＋開始時刻。★ 時間が変わると別の値になる＝もう一度「新しい」になる */
+  /** 「見た」の印に使う値＝予約 id＋開始時刻（キャンセルは末尾に :x）。★ 時間が変わる・キャンセルになる・キャンセルから戻ると別の値＝もう一度「新しい」になる */
   sig: string;
+  /** ★ 第1213便: キャンセルになった予約か */
+  cancelled: boolean;
   /** その予約の営業日（朝6時区切り）YYYY-MM-DD。一覧で押したときに開く日 */
   date: string;
   /** その営業日 0:00（JST）からの分。翌日にまたぐと 1440 を超える */
@@ -228,10 +238,9 @@ export async function getCastUpcomingBookings(): Promise<{ ok: true; items: Cast
   // ★ いま接客中の予約も「これから」に入れる（始まりが少し前でも、終わりがまだ先なら残す）ので、6時間前から読んで下で絞る
   const { data: bs, error } = await m.svc
     .from('salon_bookings')
-    .select('id, slot_start, slot_end, course_name, customer_name, crm_items')
+    .select('id, slot_start, slot_end, course_name, customer_name, crm_items, status')
     .eq('salon_id', m.salonId)
     .eq('therapist_id', m.therapistId)
-    .neq('status', 'cancelled')
     .gte('slot_start', new Date(now - 6 * 3600_000).toISOString())
     .order('slot_start')
     .order('id')
@@ -249,9 +258,11 @@ export async function getCastUpcomingBookings(): Promise<{ ok: true; items: Cast
     const date = new Date(s + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
     const base = new Date(`${date}T00:00:00+09:00`).getTime();
     const startMin = Math.round((s - base) / 60000);
+    const cancelled = String(b.status) === 'cancelled';
     items.push({
       bookingId: String(b.id),
-      sig: `${String(b.id)}:${s}`,
+      sig: `${String(b.id)}:${s}${cancelled ? ':x' : ''}`,
+      cancelled,
       date,
       startMin,
       endMin: Math.max(Math.round((e - base) / 60000), startMin + 10),
