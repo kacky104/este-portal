@@ -9,6 +9,7 @@ import { shouldPostXWeekly, xAnnounceBody, xWeeklyLabel } from '@/lib/xAnnounceW
 // ★ 対象: 「自動投稿」に印の付いた公開中のお知らせがあり（announcements.auto_rotate）、
 //   フクエックスの店舗アカウント（オーナーと同じログイン・承認済みの kind='shop'）を開設しているお店すべて。
 //   ★ 店舗様の設定は無い。★ 印を全部外せば、そのお店は止まる。
+//   ★ 無料掲載枠（listing_plan='free'）のお店は対象外（第1190便）。
 // ★ 何を出すか: 印の付いたお知らせを、週ごとに1本ずつ順番に（並びは created_at 昇順 → id 昇順＝毎日の自動投稿と同じ）。
 //   本文は手で「fukuX 同時投稿」したときと同じ（題名＋空行＋本文・画像1枚）。★ お店自身の名義で出る。
 // ★ いつ: 曜日・時刻はお店ごとにばらばら（店舗IDから決まる・10:00〜21:50）。判断は src/lib/xAnnounceWeekly.ts。
@@ -42,10 +43,13 @@ export async function POST(req: Request) {
   // 「自動投稿」に印の付いた、公開中のお知らせを持つ店（★ 非表示の店は外す）
   const { data: rows, error } = await svc
     .from('announcements')
-    .select('salon_id, salons!inner(id, is_hidden, owner_id)')
+    .select('salon_id, salons!inner(id, is_hidden, owner_id, listing_plan)')
     .eq('auto_rotate', true)
     .eq('is_published', true)
-    .eq('salons.is_hidden', false);
+    .eq('salons.is_hidden', false)
+    // ★ 第1190便（カッキーさん）: 無料掲載枠（listing_plan='free'）のお店は対象にしない。
+    //   ★ 無料枠はフクエックスとの連携が無い（おすすめランキングの母集団も standard だけ）。あとで店舗アカウントが出来ても出さない。
+    .eq('salons.listing_plan', 'standard');
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   const ownerBySalon = new Map<number, string | null>();
