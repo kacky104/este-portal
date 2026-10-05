@@ -58,6 +58,7 @@ import { AgreementNoticeBar } from './AgreementNoticeBar';
 // ★ 第885便: セラピストページ連携の連携率（コネックエフのホームと同じ部品）
 import { CastLinkProgress } from '@/app/components/CastLinkProgress';
 import { RECOMMEND_SITE_BONUS, RECOMMEND_FUKUX_SHOP_BONUS } from '@/lib/rankingPoints';
+import { xWeeklyLabel } from '@/lib/xAnnounceWeekly';
 // ★ 第887便: リンク・QRで招待（カードでは52×22の「QR」ボタン）
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import { postAnnouncementManually, getAnnounceState, applyAnnouncePhotoOnSave } from '@/app/actions/announcePost';
@@ -5549,6 +5550,12 @@ export default function MyPage() {
                 {/* ★ 第500便: お知らせは1日5回まで（自動も含む・朝6時リセット） */}
                 {announceState.remainingToday != null && (
                   <p className="text-[11px] text-slate-600 leading-relaxed">今日のお知らせ投稿：あと<span className="font-black text-pink-600">{announceState.remainingToday}</span>回（1日5回まで・自動投稿も含む・毎朝6時リセット）</p>
+                )}
+                {/* ★ 第1189便（カッキーさん）: フクエックスへの週1回の自動投稿の案内。
+                    ★ 出すのは、店舗アカウントを開設していて、印の付いたお知らせがあるお店だけ（周 /api/admin/x-announce-weekly と同じ条件）。
+                    ★ 曜日・時刻は周と同じ関数（src/lib/xAnnounceWeekly.ts）から作る。店舗IDから決まり、選べない。 */}
+                {xShopProfileId && announceState.targetCount > 0 && salon?.id != null && xWeeklyLabel(Number(salon.id)) && (
+                  <p className="text-[11px] text-slate-600 leading-relaxed">フクエックスには、{xWeeklyLabel(Number(salon.id))}に自動投稿のお知らせを1本投稿します（週1回・順番・変更不可）。</p>
                 )}
                 {/* ★★ 周期の1行と、仕組みの説明は消した（2026-09-06・カッキーさんの指示）。
                     ★ 見出しの「（1日1投稿）」と、上の1行（自動配信設定◯件）で足りる、という判断。
