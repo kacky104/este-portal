@@ -3,7 +3,7 @@
 
 export type XTimelineTab = 'new' | 'recommended' | 'following' | 'shops';
 
-/** /x を開いたときのタブを URL で指定する値（/x?tab=new）。★ 何も付けなければ今までどおり「おすすめ」。 */
+/** ヘッダーのロゴがほかのページから /x を開くときに付ける値（/x?tab=new）。★ 第1207便から、付けなくても最初は「新着」。 */
 export const X_TAB_NEW_PARAM = 'new';
 
 /**

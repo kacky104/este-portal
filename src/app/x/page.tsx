@@ -22,7 +22,6 @@ import { XStoryBar } from './XStoryBar';
 import { XOnDutyStrip } from './XOnDutyStrip'; // ★ 第1001便: 今日出勤のセラピストの帯
 import { fetchOnDutyTherapists, fetchTherapistTotal } from './xOnDuty';
 import { fetchXBanners } from './xBanners';
-import { X_TAB_NEW_PARAM } from './xTimelineShared';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
 export const dynamic = 'force-dynamic';
@@ -32,9 +31,11 @@ export const dynamic = 'force-dynamic';
 // layout 側に置くと canonical 未定義の下位ページ全てが /x 扱いになるため page 側で定義する。
 export const metadata = { alternates: { canonical: '/x' } };
 
-export default async function XHomePage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  // ★ 第1196便: /x?tab=new（ヘッダーのロゴから）なら「新着」タブで開く。何も付いていなければ今までどおり「おすすめ」。
-  const initialTab = (await searchParams).tab === X_TAB_NEW_PARAM ? 'new' : 'recommended';
+export default async function XHomePage() {
+  // ★★ 第1207便（2026-10-05・カッキーさん）: タイムラインを開いたとき・再読み込みしたときは、いつも「新着」タブから。
+  //   ★ 第1196便では「/x?tab=new のときだけ新着・何も付いていなければおすすめ」だったが、最初のタブそのものを新着に変えた。
+  //   ★ ヘッダーのロゴが付ける ?tab=new は、付いていてもいなくても同じ結果になる（害は無いのでそのまま）。
+  const initialTab = 'new' as const;
   // 閲覧はログイン不要（SNS標準）。未ログイン・未開設でもおすすめタイムラインを見せ、
   // アクション（いいね/フォロー/投稿）時にアカウント作成モーダルへ誘導する。
   // getXContext（認証＋自分profile）と fetchRecommended・fetchShopShowcases（profile非依存）は独立なので並列化。

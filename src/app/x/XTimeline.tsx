@@ -50,10 +50,10 @@ export function XTimeline({
   myFollowers?: FollowUser[];
   myAffiliatedShop?: { handle: string; displayName: string } | null;
   banners?: XBanner[]; // 運営設定のバナースライダー（全タブ共通・タブバー直下）。空なら非表示。
-  // ★ 第1196便: 最初に開くタブ（/x?tab=new なら「新着」）。指定が無ければ今までどおり「おすすめ」。
+  // ★ 最初に開くタブ。★ 第1207便: 指定が無いときも「新着」（開いたとき・再読み込みしたときは、いつも新着から）。
   initialTab?: XTimelineTab;
 }) {
-  const [tab, setTab] = useState<XTimelineTab>(initialTab ?? 'recommended');
+  const [tab, setTab] = useState<XTimelineTab>(initialTab ?? 'new');
   // バナースライダーのシャッフル：タブを切り替えるたびに並びをシャッフルし、key を変えて
   // スライダーを先頭から再スタートさせる。初期表示はサーバー順のまま（hydration mismatch 回避＝
   // Math.random はクリック時のみ）。
