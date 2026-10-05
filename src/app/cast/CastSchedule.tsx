@@ -33,9 +33,10 @@ function nowMinOf(date: string): number | null {
   return m >= 360 && m < 1800 ? m : null;
 }
 
-export function CastSchedule() {
+// ★ 第1209便: initialDate＝最初に開く日（CRM の「LINE」ボタンのリンクから来たとき）。無ければ今日（営業日）。
+export function CastSchedule({ initialDate = null }: { initialDate?: string | null } = {}) {
   const today = useMemo(() => getBusinessDateJST(), []);
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : today);
   const [res, setRes] = useState<{ date: string; day: CastScheduleDay | null; err: string } | null>(null);
   const [nowMin, setNowMin] = useState<number | null>(null);
   const [picked, setPicked] = useState<CastScheduleBooking | null>(null);

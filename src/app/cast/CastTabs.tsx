@@ -66,6 +66,8 @@ export function CastTabs({
   todayRewardCount,
   diaryToday,
   castScheduleEnabled = false,
+  initialTab,
+  initialScheduleDate = null,
 }: {
   therapistId: string;
   therapistName: string;
@@ -86,13 +88,17 @@ export function CastTabs({
   diaryToday: number;
   /** お店が「セラピストへの公開」を ON にしているとき「スケジュール」タブを出す（第599便） */
   castScheduleEnabled?: boolean;
+  /** ★ 第1209便: 最初に開くタブ（/cast?tab=schedule）。スケジュールを出せない店では無視して「写メ日記」から。 */
+  initialTab?: 'schedule';
+  /** ★ 第1209便: スケジュールで最初に開く日（/cast?tab=schedule&date=YYYY-MM-DD）。無ければ今日。 */
+  initialScheduleDate?: string | null;
 }) {
   const tabs: ReadonlyArray<readonly [CastTab, string]> = [
     ...TABS,
     ...(castScheduleEnabled ? [['schedule', 'スケジュール'] as const] : []),
     ['theme', '着せ替え'] as const,
   ];
-  const [activeTab, setActiveTab] = useState<CastTab>('diary');
+  const [activeTab, setActiveTab] = useState<CastTab>(initialTab === 'schedule' && castScheduleEnabled ? 'schedule' : 'diary');
   const topRef = useRef<HTMLDivElement>(null);
   const [reward, setReward] = useState({ total: todayReward, count: todayRewardCount });
   const onTodayChange = useCallback((total: number, count: number) => setReward({ total, count }), []);
@@ -181,7 +187,7 @@ export function CastTabs({
 
       {activeTab === 'records' && <CastCustomers today={businessDate} onTodayChange={onTodayChange} />}
 
-      {activeTab === 'schedule' && castScheduleEnabled && <CastSchedule />}
+      {activeTab === 'schedule' && castScheduleEnabled && <CastSchedule initialDate={initialScheduleDate} />}
 
       {activeTab === 'now' && (
         <CastImasugu

@@ -73,6 +73,7 @@ import {
   type CrmAlarm,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from './CrmShell';
+import { castNotifyText, lineShareHref } from '@/lib/crmCastNotify';
 import { alarmAudioReady, playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { ConsentView } from './ConsentView';
 
@@ -415,6 +416,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           workDayOf={(tid) => data?.workDays[tid] ?? null}
           roomColorOf={(room) => data?.settings.roomColors[room]}
           toggleDefs={data?.settings.customToggles ?? []}
+          date={date}
+          castNotifyOn={Boolean(data?.settings.castPayEnabled)}
           onWork={setWorkFor}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
           onToggleEnd={async (tid, next) => {
@@ -560,8 +563,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, endTypeOf, onToggleEnd, onEmpty,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, endTypeOf, onToggleEnd, onEmpty, date, castNotifyOn,
 }: {
+  /** いま開いている日（YYYY-MM-DD）。「LINE」で知らせる文面とリンクに使う（第1209便） */
+  date: string;
+  /** 設定「セラピストへの公開」が ON か。OFF だとセラピストページにスケジュールが出ないので、「LINE」は押せない形で出す（第1209便） */
+  castNotifyOn: boolean;
   /** その日の出勤情報（休憩・待機場所・遅刻当欠・交通費） */
   workDayOf: (therapistId: number) => CrmWorkDay | null;
   /** 部屋の色の名前 */
@@ -646,6 +653,28 @@ function Grid({
                     <button type="button" onClick={() => onWork(r.therapist!)} className="truncate text-left text-[15px] font-black text-[#3f51b5] underline decoration-dotted underline-offset-2 hover:text-indigo-800">
                       {r.therapist.name}
                     </button>
+                    {/* ★★ 第1209便（カッキーさん）: 予約や待機部屋などを更新したことを、その子へ LINE で知らせるボタン。
+                        ★ 押すと、文面（更新しました＋セラピストページのスケジュールへのリンク）が入った LINE の送る画面が開く。送り先は LINE の画面で選ぶ。
+                        ★ 文面とリンクは src/lib/crmCastNotify.ts。★ 予約の中身・お客様の名前は文面に入れない。
+                        ★ 「セラピストへの公開」が OFF の店は、開いてもスケジュールが出ないので押せない形にする（理由は title に）。 */}
+                    {castNotifyOn ? (
+                      <a
+                        href={lineShareHref(castNotifyText(r.therapist.name, date))}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="予定を更新したことを LINE で知らせる（送り先は LINE の画面で選びます）"
+                        className="flex-none bg-[#06c755] px-1 text-[10px] font-black leading-[16px] text-white hover:opacity-85"
+                      >
+                        LINE
+                      </a>
+                    ) : (
+                      <span
+                        title="設定の「セラピストへの公開」を ON にすると、LINE で知らせるボタンが使えます"
+                        className="flex-none cursor-not-allowed bg-slate-300 px-1 text-[10px] font-black leading-[16px] text-white"
+                      >
+                        LINE
+                      </span>
+                    )}
                   </p>
                   <p className="flex items-center gap-1 truncate text-[12px] font-bold text-slate-600">
                     <span className="truncate">

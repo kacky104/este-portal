@@ -20,7 +20,11 @@ import { getTherapistReviewRanking } from '@/app/lib/reviews';
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
 // - 未ログイン → /cast/login。
 // - ログイン済みだが user_id に紐づく therapists が無い（会員・オーナー等）→ 案内を表示して弾く。
-export default async function CastHomePage() {
+// ★ 第1209便: ?tab=schedule&date=YYYY-MM-DD で開くと、「スケジュール」タブをその日で開く（CRM の「LINE」ボタンのリンク先）。
+export default async function CastHomePage({ searchParams }: { searchParams: Promise<{ tab?: string; date?: string }> }) {
+  const sp = await searchParams;
+  const openSchedule = sp.tab === 'schedule';
+  const openDate = typeof sp.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : null;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/cast/login');
@@ -252,6 +256,8 @@ export default async function CastHomePage() {
               todayRewardCount={todayRewardCount}
               diaryToday={diaryToday}
               castScheduleEnabled={await isCastScheduleEnabled()}
+              initialTab={openSchedule ? 'schedule' : undefined}
+              initialScheduleDate={openDate}
             />
 
             {/* ★ 第495便: fukuX のバナー（スマホ・タブレット）。★ 第522便: 遷移先は本人の fukuX（連携が無ければ /x）。★ タブの中身の下に少し空けて置く。PC（xl 以上）は右横に出すので隠す */}
