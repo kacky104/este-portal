@@ -6,6 +6,8 @@ category: hatarakikata
 summary: 求人で「見た目だけで採用を決めません」という意味で使われる言葉。実際の面接では、清潔感・話しやすさ・続けられそうかが見られる。「年齢不問」「未経験歓迎」も、言葉の中身を確かめて読む。
 description: 容姿不問とは、求人で「見た目だけで採用を決めません」という意味で使われる言葉。面接で実際に見られること、年齢不問・未経験歓迎との違い、写真の出し方、求人や面接で確かめることを、メンズエステで働く前に知りたい目線で解説します。
 publishedAt: 2026-10-05
+heroImage: /work-glossary/yoshi-fumon/hero.webp
+heroAlt: 朝の光が入る洗面所で、鏡に向かって髪をひとつにまとめている女性の後ろ姿。鏡の中の顔はやわらかくぼけている
 related: [mensetsu, senzai-shashin, koshu, kyakuso, taiken-nyuten]
 faq:
   - q: 容姿不問なら、だれでも採用されますか？
