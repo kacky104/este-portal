@@ -194,6 +194,76 @@ export async function getCastScheduleDay(
   };
 }
 
+// ── これからの予約（第1211便・2026-10-06・カッキーさん） ─────────────────────────
+// ★ 「スケジュール」タブのバッジ（まだ見ていない新しい予約の数）と、スケジュールの下の「これからの予約」の一覧に使う。
+// ★ ねらい: 3日後・3週間後の事前予約を見落とさない。1日ずつ「翌日 ▶」を押さなくても、先の予約が1か所で分かる。
+// ★★ 何日先まで、の期限は置かない（カッキーさんの確認: 3週間先の予約が2週間の窓に入るまで出ない、を避ける）。
+//   代わりに件数で頭打ち（近い順に UPCOMING_LIMIT 件）。1人のセラピストの先の予約がこれを超えることは、まず無い。
+// ★ 返すのは本人の、まだ終わっていない予約だけ。時間・コース・お客様の名前・指名のバッジ。電話番号・料金・報酬は返さない。
+// ★ キャンセルされた予約は出ない（一覧から消えるだけ。「キャンセルされました」のお知らせは作っていない）。
+export type CastUpcomingBooking = {
+  bookingId: string;
+  /** 「見た」の印に使う値＝予約 id＋開始時刻。★ 時間が変わると別の値になる＝もう一度「新しい」になる */
+  sig: string;
+  /** その予約の営業日（朝6時区切り）YYYY-MM-DD。一覧で押したときに開く日 */
+  date: string;
+  /** その営業日 0:00（JST）からの分。翌日にまたぐと 1440 を超える */
+  startMin: number;
+  endMin: number;
+  course: string;
+  customerName: string;
+  nomination: CrmNominationBadge | null;
+};
+
+const UPCOMING_LIMIT = 50;
+
+export async function getCastUpcomingBookings(): Promise<{ ok: true; items: CastUpcomingBooking[] } | { ok: false; error: string }> {
+  const m = await me();
+  if (!m) return { ok: false, error: 'ログインしてください' };
+  const en = await readEnabled(m.svc, m.salonId);
+  // ★ お店がスケジュールを公開していないときは「0件」（タブ自体が出ないので、バッジも一覧も出ない）
+  if (!en.on) return { ok: true, items: [] };
+
+  const now = Date.now();
+  // ★ いま接客中の予約も「これから」に入れる（始まりが少し前でも、終わりがまだ先なら残す）ので、6時間前から読んで下で絞る
+  const { data: bs, error } = await m.svc
+    .from('salon_bookings')
+    .select('id, slot_start, slot_end, course_name, customer_name, crm_items')
+    .eq('salon_id', m.salonId)
+    .eq('therapist_id', m.therapistId)
+    .neq('status', 'cancelled')
+    .gte('slot_start', new Date(now - 6 * 3600_000).toISOString())
+    .order('slot_start')
+    .order('id')
+    .limit(UPCOMING_LIMIT + 10);
+  if (error) return { ok: false, error: '読み込めませんでした' };
+
+  const items: CastUpcomingBooking[] = [];
+  for (const b of bs ?? []) {
+    const s = new Date(String(b.slot_start)).getTime();
+    if (!Number.isFinite(s)) continue;
+    const eRaw = b.slot_end ? new Date(String(b.slot_end)).getTime() : NaN;
+    const e = Number.isFinite(eRaw) ? eRaw : s + 60 * 60_000;
+    if (e <= now) continue; // もう終わった予約
+    // 営業日（朝6時区切り・JST）: 0:00〜5:59 に始まる予約は前の日のぶん
+    const date = new Date(s + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
+    const base = new Date(`${date}T00:00:00+09:00`).getTime();
+    const startMin = Math.round((s - base) / 60000);
+    items.push({
+      bookingId: String(b.id),
+      sig: `${String(b.id)}:${s}`,
+      date,
+      startMin,
+      endMin: Math.max(Math.round((e - base) / 60000), startMin + 10),
+      course: String(b.course_name ?? ''),
+      customerName: String(b.customer_name ?? ''),
+      nomination: itemsOf(b.crm_items).nomination,
+    });
+    if (items.length >= UPCOMING_LIMIT) break;
+  }
+  return { ok: true, items };
+}
+
 /**
  * 予約のお客様に、本人だけのニックネームを付ける／変える／消す（第630便）。
  * ★ 画面からは予約 id だけ受け取り、サーバーで「本人の予約か」を確かめてから customer_id を引く（customer_id は画面に出さない）。

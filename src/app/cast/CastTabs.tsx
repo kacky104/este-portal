@@ -8,12 +8,14 @@
 //  - 今すぐ：準備中表示（フェーズ3で実装）
 // テーマ背景はページ全体（CastThemeProvider）に効くため、タブを切り替えても維持される。
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CastDiary } from './CastDiary';
 import { CastThemePicker } from './CastTheme';
 import { CastImasugu } from './CastImasugu';
 import { CastCustomers } from './CastCustomers';
 import { CastSchedule } from './CastSchedule';
+import { getCastUpcomingBookings, type CastUpcomingBooking } from '@/app/actions/castSchedule';
+import { readSeenBookings, writeSeenBookings } from '@/lib/castSeenBookings';
 
 type CastTab = 'diary' | 'theme' | 'now' | 'records' | 'schedule';
 
@@ -100,6 +102,37 @@ export function CastTabs({
   ];
   const [activeTab, setActiveTab] = useState<CastTab>(initialTab === 'schedule' && castScheduleEnabled ? 'schedule' : 'diary');
   const topRef = useRef<HTMLDivElement>(null);
+
+  // ★★ 第1211便（2026-10-06・カッキーさん）: 「スケジュール」タブのバッジ＝【まだ見ていない新しい予約の数】（今日から先・期限なし）。
+  //   ・ねらい: 3日後・3週間後の事前予約を見落とさない。★ 「その日の予約数」だと、今日が0件なら先の予約に気づけないので、新着の数にした。
+  //   ・「見た」の印はスマホ（ブラウザ）ごと（src/lib/castSeenBookings.ts）。スケジュールのタブを開いたら、いま先にある予約を全部「見た」にしてバッジを消す。
+  //   ・newSigs＝この画面を開いているあいだ「NEW」を付けておく予約。★ バッジは開いたら消えるが、NEW の札は読み直すまで残す（どれが新しいか分かるように）。
+  //   ・読むのは、開いたときと、スケジュールのタブを押したとき（本人の先の予約を近い順に・数行）。
+  const [upcoming, setUpcoming] = useState<CastUpcomingBooking[] | null>(null);
+  const [newSigs, setNewSigs] = useState<Set<string>>(() => new Set());
+  const [scheduleBadge, setScheduleBadge] = useState(0);
+  // いまスケジュールのタブを見ているか（読み終わったときに「見た」にするかどうかを決める。押した時点で書き換える）
+  const viewingScheduleRef = useRef(initialTab === 'schedule' && castScheduleEnabled);
+  const applyUpcoming = useCallback((items: CastUpcomingBooking[]) => {
+    const seen = readSeenBookings(therapistId);
+    const fresh = items.filter((b) => !seen.has(b.sig)).map((b) => b.sig);
+    setUpcoming(items);
+    if (fresh.length > 0) setNewSigs((prev) => new Set([...prev, ...fresh]));
+    if (viewingScheduleRef.current) {
+      writeSeenBookings(therapistId, items.map((b) => b.sig));
+      setScheduleBadge(0);
+    } else {
+      setScheduleBadge(fresh.length);
+    }
+  }, [therapistId]);
+  useEffect(() => {
+    if (!castScheduleEnabled) return;
+    let alive = true;
+    // ★ 読めなかったときはバッジを出さない（0件と書かない・画面は止めない）
+    getCastUpcomingBookings().then((r) => { if (alive && r.ok) applyUpcoming(r.items); }).catch(() => {});
+    return () => { alive = false; };
+  }, [castScheduleEnabled, applyUpcoming]);
+
   const [reward, setReward] = useState({ total: todayReward, count: todayRewardCount });
   const onTodayChange = useCallback((total: number, count: number) => setReward({ total, count }), []);
   // 今すぐ：本人・お店・取り込みのどれかが有効なら受付中（開いた時点で判定）
@@ -113,6 +146,12 @@ export function CastTabs({
   // タブを切り替えたら、中身の先頭が見える位置まで戻す（下のタブバーから押したときに、前のタブの途中のまま残らないように）。
   const selectTab = (key: CastTab) => {
     setActiveTab(key);
+    // ★ 第1211便: スケジュールを開いたら、いま分かっている先の予約を「見た」にしてバッジを消し、最新を読み直す
+    viewingScheduleRef.current = key === 'schedule';
+    if (key === 'schedule' && castScheduleEnabled) {
+      if (upcoming) { writeSeenBookings(therapistId, upcoming.map((b) => b.sig)); setScheduleBadge(0); }
+      getCastUpcomingBookings().then((r) => { if (r.ok) applyUpcoming(r.items); }).catch(() => {});
+    }
     const el = topRef.current;
     if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -146,6 +185,12 @@ export function CastTabs({
             >
               <TabIcon tab={key} className="w-4 h-4" />
               {label}
+              {/* ★ 第1211便: まだ見ていない新しい予約の数 */}
+              {key === 'schedule' && scheduleBadge > 0 && (
+                <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`新しい予約 ${scheduleBadge}件`}>
+                  {scheduleBadge}
+                </span>
+              )}
             </button>
           );
         })}
@@ -172,6 +217,12 @@ export function CastTabs({
                 {selected && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-pink-500" />}
                 <TabIcon tab={key} className="w-6 h-6" />
                 {label}
+                {/* ★ 第1211便: まだ見ていない新しい予約の数（アイコンの右上） */}
+                {key === 'schedule' && scheduleBadge > 0 && (
+                  <span className="absolute top-1 left-1/2 ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`新しい予約 ${scheduleBadge}件`}>
+                    {scheduleBadge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -187,7 +238,7 @@ export function CastTabs({
 
       {activeTab === 'records' && <CastCustomers today={businessDate} onTodayChange={onTodayChange} />}
 
-      {activeTab === 'schedule' && castScheduleEnabled && <CastSchedule initialDate={initialScheduleDate} />}
+      {activeTab === 'schedule' && castScheduleEnabled && <CastSchedule initialDate={initialScheduleDate} upcoming={upcoming} newSigs={newSigs} />}
 
       {activeTab === 'now' && (
         <CastImasugu

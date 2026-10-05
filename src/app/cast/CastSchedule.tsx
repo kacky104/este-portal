@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { getCastScheduleDay, setCastCustomerNickname, type CastScheduleBooking, type CastScheduleDay } from '@/app/actions/castSchedule';
+import { getCastScheduleDay, setCastCustomerNickname, type CastScheduleBooking, type CastScheduleDay, type CastUpcomingBooking } from '@/app/actions/castSchedule';
 import { CRM_NOMINATION_CLASS } from '@/app/lib/crm/types';
 import { addBusinessDays, getBusinessDateJST } from '@/lib/dutyStatus';
 
@@ -27,6 +27,11 @@ function dayLabel(date: string): string {
   const d = new Date(`${date}T12:00:00Z`);
   return `${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日（${'日月火水木金土'[d.getUTCDay()]}）`;
 }
+/** 「10/9（金）」 */
+function shortDayLabel(date: string): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  return `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}（${'日月火水木金土'[d.getUTCDay()]}）`;
+}
 function nowMinOf(date: string): number | null {
   const base = new Date(`${date}T00:00:00+09:00`).getTime();
   const m = Math.floor((Date.now() - base) / 60000);
@@ -34,7 +39,12 @@ function nowMinOf(date: string): number | null {
 }
 
 // ★ 第1209便: initialDate＝最初に開く日（CRM の「LINE」ボタンのリンクから来たとき）。無ければ今日（営業日）。
-export function CastSchedule({ initialDate = null }: { initialDate?: string | null } = {}) {
+// ★ 第1211便: upcoming＝今日から先の予約（近い順・親の CastTabs が読む）／newSigs＝まだ見ていなかった予約（「NEW」を付ける）。
+export function CastSchedule({
+  initialDate = null,
+  upcoming = null,
+  newSigs,
+}: { initialDate?: string | null; upcoming?: CastUpcomingBooking[] | null; newSigs?: Set<string> } = {}) {
   const today = useMemo(() => getBusinessDateJST(), []);
   const [date, setDate] = useState(initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : today);
   const [res, setRes] = useState<{ date: string; day: CastScheduleDay | null; err: string } | null>(null);
@@ -42,6 +52,14 @@ export function CastSchedule({ initialDate = null }: { initialDate?: string | nu
   const [picked, setPicked] = useState<CastScheduleBooking | null>(null);
   // 日を変えたら開いているポップアップは閉じる
   const go = (d: string) => { setPicked(null); setDate(d); };
+  // ★ 第1211便: 「これからの予約」の一覧から、その日へ飛ぶ／新着の案内から一覧へ降りる
+  const topRef = useRef<HTMLElement>(null);
+  const upcomingRef = useRef<HTMLDivElement>(null);
+  const newCount = upcoming ? upcoming.filter((b) => newSigs?.has(b.sig)).length : 0;
+  const openDay = (d: string) => {
+    go(d);
+    topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -89,7 +107,19 @@ export function CastSchedule({ initialDate = null }: { initialDate?: string | nu
   }, [loadedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <section className="-mx-4 bg-white px-2 py-4 shadow-sm ring-1 ring-black/5 sm:mx-0 sm:rounded-2xl sm:p-4">
+    <section ref={topRef} className="-mx-4 scroll-mt-20 bg-white px-2 py-4 shadow-sm ring-1 ring-black/5 sm:mx-0 sm:rounded-2xl sm:p-4">
+      {/* ★ 第1211便: まだ見ていなかった予約があるときの案内（押すと下の「これからの予約」へ）。★ 見落とさないよう、日付より上に置く */}
+      {newCount > 0 && (
+        <button
+          type="button"
+          onClick={() => upcomingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          className="mb-3 flex w-full items-center justify-center gap-2 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-600 ring-1 ring-rose-200"
+        >
+          <span className="rounded-full bg-rose-500 px-1.5 text-[11px] font-black leading-[18px] text-white">NEW</span>
+          新しい予約が{newCount}件あります
+          <span aria-hidden="true">▼</span>
+        </button>
+      )}
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => go(addBusinessDays(date, -1))} className="rounded-full border border-slate-200 px-3 py-1.5 text-[13px] font-bold text-slate-500">◀ 前日</button>
         <p className="flex-1 text-center text-[16px] font-black text-slate-800">{dayLabel(date)}</p>
@@ -184,6 +214,39 @@ export function CastSchedule({ initialDate = null }: { initialDate?: string | nu
           )}
           <p className="mt-3 text-center text-[11px] leading-relaxed text-slate-400">時間の変更やキャンセルは、お店に伝えてください。</p>
         </>
+      )}
+
+      {/* ★★ 第1211便（カッキーさん）: これからの予約（今日から先・近い順・期限なし）。
+          ★ 1日ずつ「翌日 ▶」を押さなくても、3日後・3週間後の事前予約がここで分かる。押すとその日のスケジュールへ。
+          ★ まだ見ていなかった予約には NEW。★ 読めていないあいだ（upcoming が null）は枠ごと出さない。 */}
+      {upcoming && (
+        <div ref={upcomingRef} className="mt-5 scroll-mt-20 border-t border-slate-200 pt-4">
+          <h3 className="px-1 text-[14px] font-black text-slate-700">
+            これからの予約
+            <span className="ml-1.5 text-[12px] font-bold text-slate-400">{upcoming.length}件</span>
+          </h3>
+          {upcoming.length === 0 ? (
+            <p className="mt-2 text-center text-[13px] text-slate-400">これからの予約はまだありません</p>
+          ) : (
+            <ul className="mt-1 divide-y divide-slate-100">
+              {upcoming.map((b) => (
+                <li key={b.bookingId}>
+                  <button type="button" onClick={() => openDay(b.date)} className={`flex w-full items-baseline gap-2 px-1 py-2 text-left text-[14px] hover:bg-slate-50 ${b.date === date ? 'bg-pink-50/60' : ''}`}>
+                    <span className="w-[76px] flex-none text-[13px] font-black text-slate-600">{shortDayLabel(b.date)}</span>
+                    <span className="w-[98px] flex-none font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
+                    <span className="min-w-0 flex-1">
+                      {newSigs?.has(b.sig) && <span className="mr-1.5 rounded-full bg-rose-500 px-1.5 text-[10px] font-black leading-[16px] text-white">NEW</span>}
+                      {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
+                      <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
+                      <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
+                    </span>
+                    <span className="flex-none text-[12px] text-slate-300" aria-hidden="true">›</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
       {picked && (
         <BookingPopup
