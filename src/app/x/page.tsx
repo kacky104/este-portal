@@ -20,7 +20,7 @@ import { fetchShopShowcases } from './xShops';
 import { fetchStoryGroups, fetchStoryAuthorsPublic, type StoryGroup } from './xStories';
 import { XStoryBar } from './XStoryBar';
 import { XOnDutyStrip } from './XOnDutyStrip'; // ★ 第1001便: 今日出勤のセラピストの帯
-import { fetchOnDutyTherapists } from './xOnDuty';
+import { fetchOnDutyTherapists, fetchTherapistTotal } from './xOnDuty';
 import { fetchXBanners } from './xBanners';
 
 // ログイン状態・自分の x_profiles・フォロー中/いいね状態を読むため動的レンダリング（ISRにはしない）。
@@ -35,12 +35,13 @@ export default async function XHomePage() {
   // 閲覧はログイン不要（SNS標準）。未ログイン・未開設でもおすすめタイムラインを見せ、
   // アクション（いいね/フォロー/投稿）時にアカウント作成モーダルへ誘導する。
   // getXContext（認証＋自分profile）と fetchRecommended・fetchShopShowcases（profile非依存）は独立なので並列化。
-  const [{ userId, profile }, recommended, shopShowcases, banners, onDuty] = await Promise.all([
+  const [{ userId, profile }, recommended, shopShowcases, banners, onDuty, therapistTotal] = await Promise.all([
     getXContext(),
     fetchRecommended(),
     fetchShopShowcases(),
     fetchXBanners(),
     fetchOnDutyTherapists().catch(() => []), // ★ 第1001便: 取れなくても帯が出ないだけ
+    fetchTherapistTotal().catch(() => null), // ★ 第1194便: 帯の右端の「セラピスト総数」。取れなくても数字が出ないだけ
   ]);
 
   let followingFeed: FeedItem[] = []; // フォロー中タブ：フォロー先の投稿＋フォロー先がリポストした投稿をマージ
@@ -215,7 +216,7 @@ export default async function XHomePage() {
       <XStoryBar groups={storyGroups} me={profile} loggedIn={!!userId} />
 
       {/* ★ 第1001便: 今日出勤のセラピスト（本体の出勤表から・全タブ共通・タブの上） */}
-      <XOnDutyStrip items={onDuty} />
+      <XOnDutyStrip items={onDuty} total={therapistTotal} />
 
       <XTimeline
         me={profile}

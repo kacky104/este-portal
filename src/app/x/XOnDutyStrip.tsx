@@ -5,7 +5,8 @@ import { XDragScroll } from './XDragScroll';
 // ★★ 第1001便（2026-09-30・カッキーさん）: 「今日出勤のセラピスト」の帯（タイムラインのタブの上・全タブ共通）。
 // ★ ストーリーバーと同じ横スクロールの丸アイコン。★ 第1007便: 出すのは出勤中の子だけ（緑の点は全員に付く）。
 // ★ タップで fukuX のプロフィール（無ければフクエスのセラピストページ）へ。
-export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
+// ★ 第1194便（カッキーさん）: 見出しの行の右端に「セラピスト総数 ◯人」（フクエスTOPの「福岡セラピスト」と同じ数）。total が null（読めなかった）なら出さない。
+export function XOnDutyStrip({ items, total }: { items: OnDutyTherapist[]; total?: number | null }) {
   if (items.length === 0) return null;
   const nowCount = items.filter((t) => t.onDutyNow).length;
   return (
@@ -17,6 +18,9 @@ export function XOnDutyStrip({ items }: { items: OnDutyTherapist[] }) {
           福岡の出勤中セラピスト
           {nowCount > 0 && <span className="ml-1.5 text-xs font-bold text-emerald-500">いま {nowCount}人</span>}
         </h2>
+        {typeof total === 'number' && total > 0 && (
+          <span className="flex-shrink-0 text-xs font-bold text-[color:var(--x-text-secondary)] tabular-nums">セラピスト総数 {total}人</span>
+        )}
       </div>
       {/* ★ 第1006便: PC でもマウスでつかんで／ホイールで横に動かせる（スクロールバーは出さない） */}
       <XDragScroll className="flex gap-3 px-0 pb-1">

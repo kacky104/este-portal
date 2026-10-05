@@ -93,3 +93,17 @@ export async function fetchOnDutyTherapists(): Promise<OnDutyTherapist[]> {
   }
   return out;
 }
+
+// ★ 第1194便（2026-10-05・カッキーさん）: 帯の見出しの右端に出す「セラピスト総数」。
+//   ★ フクエスTOPの数字の帯（第959便「福岡セラピスト ◯人」）・/therapists と同じ条件＝在籍中（is_active）・非表示でない店。
+//   ★ 件数だけ数える（head:true＝行は取らない）。★ 実数のみ。読めなかったときは null（＝画面に出さない。0人と書かない）。
+export async function fetchTherapistTotal(): Promise<number | null> {
+  const supabase = createPublicClient();
+  const { count, error } = await supabase
+    .from('therapists')
+    .select('id, salons!therapists_salon_id_fkey!inner(id)', { count: 'exact', head: true })
+    .eq('is_active', true)
+    .eq('salons.is_hidden', false);
+  if (error || typeof count !== 'number') return null;
+  return count;
+}
