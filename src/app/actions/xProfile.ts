@@ -63,7 +63,9 @@ export async function createMyXProfile(input: {
     kind: input.kind,
     handle,
     display_name: displayName,
-    bio: String(input.bio ?? '').trim() || null,
+    // ★★ 第1193便（2026-10-05・カッキーさん）: 自己紹介が空欄だと開設できなかった（エラー番号 23502 / bio）。
+    //   x_profiles.bio は null を受け付けない列。空欄は null ではなく【空文字】で送る。
+    bio: String(input.bio ?? '').trim(),
     avatar_url: input.avatarUrl || null,
   });
   if (error) {
@@ -108,6 +110,8 @@ export async function updateMyXProfile(profileId: string, patch: Record<string, 
   const clean: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(patch ?? {})) if (UPDATABLE.has(k)) clean[k] = v;
   if (Object.keys(clean).length === 0) return { ok: true };
+  // ★ 第1193便: 設定画面で自己紹介を消したときも同じ（画面は null を送ってくる）。null は空文字に直してから保存する
+  if ('bio' in clean) clean.bio = String(clean.bio ?? '').trim();
   // ★ 第996便: フクエスに在籍（セラピストページ連携・公開中）のセラピストは、リンク先をフクエスの個別ページに固定
   if ('link_url' in clean) {
     const { data: meRow } = await supabase.from('x_profiles').select('kind').eq('id', profileId).eq('auth_user_id', user.id).maybeSingle();
