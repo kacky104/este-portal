@@ -58,8 +58,10 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
   );
 
   return (
-    // x-banner-frame: 枠線リングだけのグラデキラリ（5秒に1回一周・globals.css）。radius は inherit のため rounded-xl をここに持つ。
-    <div className="mt-3 relative x-banner-frame" style={{ borderRadius: 12 }}>
+    // ★★ 第1200便（2026-10-05・カッキーさん）: 周りを走る光（x-banner-frame・globals.css）は【いま表示しているバナー1枚】の周りを回す。
+    //   ★ 前はこの外枠（1枚＋次の0.2枚が見える幅ぜんたい）に付いていたので、光がバナー1枚ではなく、見えている範囲ぜんたいを一周していた
+    //     （第1011便で1枚の幅を 82% にしたときから）。→ 外枠からは外し、下の【手前の1枚】に付ける。
+    <div className="mt-3 relative">
       <div
         ref={trackRef}
         onScroll={onScroll}
@@ -77,11 +79,15 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
         onPointerLeave={() => {
           pausedRef.current = false;
         }}
-        className="flex gap-2 overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        // ★ 第1200便: py-2 -my-2 ＝ 光のにじみ（外側へ数px）が、横スクロールの枠で上下に切れないための余白（見た目の位置は変わらない）
+        className="flex gap-2 overflow-x-auto snap-x snap-mandatory py-2 -my-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {banners.map((b) => (
+        {banners.map((b, i) => (
           // ★ 第1012便: バナーは1枚ずつ角を丸く（x-theme.css の「箱は直角」ルールに負けないよう inline style で指定）
-          <div key={b.slot} className="w-[82%] flex-shrink-0 snap-start aspect-[64/27] overflow-hidden bg-[color:var(--x-inset)]" style={{ borderRadius: 12 }}>
+          // ★ 第1200便: 外側の箱（光の枠・切り抜かない）と、内側の箱（画像を角丸で切り抜く）に分けた。
+          //   ★ 光は手前の1枚（i === index）だけ。★ 切り替わるたびにその1枚で最初から1周する。radius は inherit なので外側にも 12 を持つ。
+          <div key={b.slot} className={`relative w-[82%] flex-shrink-0 snap-start aspect-[64/27] ${i === index ? 'x-banner-frame' : ''}`} style={{ borderRadius: 12 }}>
+          <div className="w-full h-full overflow-hidden bg-[color:var(--x-inset)]" style={{ borderRadius: 12 }}>
             {b.linkUrl ? (
               b.linkUrl.startsWith('/') ? (
                 <Link href={b.linkUrl} className="block w-full h-full">
@@ -95,6 +101,7 @@ export function XBannerSlider({ banners }: { banners: XBanner[] }) {
             ) : (
               slideInner(b)
             )}
+          </div>
           </div>
         ))}
       </div>
