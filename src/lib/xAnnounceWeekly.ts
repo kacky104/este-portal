@@ -51,6 +51,25 @@ export function xWeeklyLabel(salonId: number): string | null {
   return `毎週${WEEKDAY_LABELS[s.weekday]}曜 ${hh}:${mm}ごろ`;
 }
 
+/**
+ * ★ 第1191便: 【時刻だけ】の判定（DB を読まずに出せる）。
+ *   due＝いまがそのお店の時刻〜3時間のあいだ ／ not_yet＝まだ ／ missed＝3時間を過ぎた ／ unknown＝計算できない。
+ * ★ 周（route.ts）はこれを先に見て、due でないお店は本数・状態を読みに行かない（読み取りを減らす）。
+ * ★ shouldPostXWeekly も同じ関数を使う（★ 時刻の判断を2か所に書かない）。
+ */
+export function xWeeklyTimeState(now: Date, salonId: number): { state: 'due' | 'not_yet' | 'missed' | 'unknown'; weekKey: string | null; dueAtISO: string | null } {
+  const ws = xWeekStartMs(now);
+  const weekKey = xWeekKey(now);
+  const slot = xWeeklySlot(salonId);
+  if (ws === null || weekKey === null || slot === null) return { state: 'unknown', weekKey, dueAtISO: null };
+  const dueMs = ws + slot.weekday * DAY_MS + slot.minuteOfDay * 60_000;
+  const dueAtISO = new Date(dueMs).toISOString();
+  const t = now.getTime();
+  if (t < dueMs) return { state: 'not_yet', weekKey, dueAtISO };
+  if (t >= dueMs + X_WEEKLY_WINDOW_MS) return { state: 'missed', weekKey, dueAtISO };
+  return { state: 'due', weekKey, dueAtISO };
+}
+
 export type XWeeklySkipReason =
   | 'unknown'        // ★ 材料が読めていない。0件と混ぜない
   | 'no_targets'     // 印の付いたお知らせが0件
@@ -73,18 +92,14 @@ export function shouldPostXWeekly(input: {
 }): XWeeklyResult {
   const NO = (reason: XWeeklySkipReason, weekKey: string | null, dueAtISO: string | null): XWeeklyResult =>
     ({ post: false, reason, weekKey, index: null, dueAtISO });
-  const ws = xWeekStartMs(input.now);
-  const weekKey = xWeekKey(input.now);
-  const slot = xWeeklySlot(input.salonId);
-  if (ws === null || weekKey === null || slot === null) return NO('unknown', weekKey, null);
-  const dueMs = ws + slot.weekday * DAY_MS + slot.minuteOfDay * 60_000;
-  const dueAtISO = new Date(dueMs).toISOString();
+  const time = xWeeklyTimeState(input.now, input.salonId);
+  const { weekKey, dueAtISO } = time;
+  if (time.state === 'unknown' || weekKey === null || dueAtISO === null) return NO('unknown', weekKey, null);
   if (input.targetCount === null || !Number.isFinite(input.targetCount)) return NO('unknown', weekKey, dueAtISO);
   if (input.targetCount <= 0) return NO('no_targets', weekKey, dueAtISO);
   if (input.lastWeek === weekKey) return NO('done_this_week', weekKey, dueAtISO);
-  const now = input.now.getTime();
-  if (now < dueMs) return NO('not_yet', weekKey, dueAtISO);
-  if (now >= dueMs + X_WEEKLY_WINDOW_MS) return NO('missed', weekKey, dueAtISO);
+  if (time.state === 'not_yet') return NO('not_yet', weekKey, dueAtISO);
+  if (time.state === 'missed') return NO('missed', weekKey, dueAtISO);
   return { post: true, reason: null, weekKey, index: nextRotationIndex(input.rotationIndex, input.targetCount), dueAtISO };
 }
 

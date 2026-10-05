@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { shouldPostXWeekly, xAnnounceBody, xWeeklyLabel } from '@/lib/xAnnounceWeekly';
+import { shouldPostXWeekly, xAnnounceBody, xWeeklyLabel, xWeeklyTimeState } from '@/lib/xAnnounceWeekly';
 
 // ★★ 第1189便（2026-10-05・カッキーさん）: お店のお知らせ（新着情報）を、週に1回、そのお店のフクエックスの店舗アカウントへ自動投稿する周。
 //   POST /api/admin/x-announce-weekly  (Authorization: Bearer <CRON_SECRET>)
@@ -16,6 +16,9 @@ import { shouldPostXWeekly, xAnnounceBody, xWeeklyLabel } from '@/lib/xAnnounceW
 //   ★ 順番（x_rotation_index）と「今週は出した」（x_last_week）は salon_announce_state に持つ（追加SQL_第1189便）。
 //     ★ 毎日の自動投稿の順番（rotation_index）とは別に進む。
 //   ★★ SQL を流す前は、状態を読めないので【何もしない】（failed に数えるだけ・投稿はしない）。
+// ★★ 第1191便（カッキーさん）: 読み取りを減らす。【いまがそのお店の時刻かどうか】は DB を読まずに計算できるので先に見て、
+//   時刻のお店が1つも無い回は、最初の1回（印の付いたお知らせのあるお店の一覧）だけ読んで終わる。
+//   ★ ほとんどの回（10分ごと・週に1回しか時刻が来ない）は読み取り1回。時刻のお店があるときだけ、店舗アカウントと、その店の本数・状態を読む。
 // ★ apply 既定 false（試し打ち）: 何件やるつもりかだけ返す。
 // ★ 知っておくこと: この投稿も、おすすめランキングの「フクエックス投稿の点（1日10点まで）」に数えられる（週に +1）。
 //
@@ -59,8 +62,24 @@ export async function POST(req: Request) {
   }
   const salonIds = [...ownerBySalon.keys()].sort((a, b) => a - b);
 
-  // フクエックスの店舗アカウント（オーナーと同じログイン・承認済み）
-  const ownerIds = [...new Set([...ownerBySalon.values()].filter((v): v is string => !!v))];
+  const posted: string[] = [];
+  const skipped: Array<{ salonId: number; why: string }> = [];
+  const failed: Array<{ salonId: number; why: string }> = [];
+  const times = salonIds.map((id) => ({ salonId: id, at: xWeeklyLabel(id) }));
+
+  // ★ 第1191便: いまが時刻のお店だけを残す（DB を読まない）。時刻でないお店は、ここで skipped に数えて終わり
+  const dueIds: number[] = [];
+  for (const salonId of salonIds) {
+    const t = xWeeklyTimeState(now, salonId);
+    if (t.state === 'due') dueIds.push(salonId);
+    else skipped.push({ salonId, why: t.state });
+  }
+  if (dueIds.length === 0) {
+    return NextResponse.json({ ok: true, apply, salons: salonIds.length, posted: 0, failed: 0, detail: { posted, failed, skipped, times } });
+  }
+
+  // フクエックスの店舗アカウント（オーナーと同じログイン・承認済み）。★ 時刻のお店のぶんだけ
+  const ownerIds = [...new Set(dueIds.map((id) => ownerBySalon.get(id) ?? null).filter((v): v is string => !!v))];
   const profileByOwner = new Map<string, string>();
   if (ownerIds.length > 0) {
     const { data: shops, error: shopErr } = await svc
@@ -76,11 +95,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const posted: string[] = [];
-  const skipped: Array<{ salonId: number; why: string }> = [];
-  const failed: Array<{ salonId: number; why: string }> = [];
-
-  for (const salonId of salonIds) {
+  for (const salonId of dueIds) {
     const owner = ownerBySalon.get(salonId) ?? null;
     const profileId = owner ? profileByOwner.get(owner) : undefined;
     if (!profileId) { skipped.push({ salonId, why: 'no_fukux_shop' }); continue; }
@@ -154,10 +169,7 @@ export async function POST(req: Request) {
     salons: salonIds.length,
     posted: posted.length,
     failed: failed.length,
-    detail: {
-      posted, failed, skipped,
-      // ★ 参考: この周が見た店の曜日・時刻（保存していないので、ここで計算して見せる）
-      times: salonIds.map((id) => ({ salonId: id, at: xWeeklyLabel(id) })),
-    },
+    // ★ times＝参考: この周が見た店の曜日・時刻（保存していないので、計算して見せる）
+    detail: { posted, failed, skipped, times },
   });
 }
