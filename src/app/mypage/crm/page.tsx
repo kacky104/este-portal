@@ -991,7 +991,7 @@ function DetailPanel({
       {/* ★ 詳細も中央に出す（2026-09-19・カッキーさんの指示・受付フォームとそろえる） */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-      <aside className="pointer-events-auto max-h-[92vh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
+      <aside className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center bg-[#b3b8e6] px-4 py-2.5">
           <span className="text-[15px] font-black text-slate-800">お客様と予約</span>
           <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold text-slate-700" aria-label="閉じる">×</button>
@@ -1427,7 +1427,7 @@ function BookingForm({
       {/* ★ 受付フォームは画面の中央に出す（2026-09-19・カッキーさんの指示）。詳細パネルは右のまま。 */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-      <aside className="pointer-events-auto flex max-h-[92vh] w-full max-w-[560px] flex-col bg-white shadow-2xl">
+      <aside className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[560px] flex-col bg-white shadow-2xl">
         <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
           <span className="text-[15px] font-black">{f.mode === 'new' ? (quick ? 'かんたん受付' : '予約を受け付ける') : '予約を変更する'}</span>
           {f.mode === 'new' && (
@@ -1810,7 +1810,7 @@ function ConfirmDialog({
     <>
       <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto max-h-[92vh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
+        <div className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
           <div className="flex items-center bg-emerald-600 px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">報酬確定：{therapist.name}</span>
             <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
@@ -2179,7 +2179,7 @@ function CloseDialog({
     <>
       <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto max-h-[92vh] w-full max-w-[560px] overflow-y-auto bg-white shadow-2xl">
+        <div className="pointer-events-auto max-h-[92dvh] w-full max-w-[560px] overflow-y-auto bg-white shadow-2xl">
           <div className="flex items-center bg-[#1e2a5a] px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">締め作業（日報）：{dateLabel(date)}</span>
             <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
@@ -2304,12 +2304,17 @@ function WorkDayDialog({
     <>
       <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto flex max-h-[92vh] w-full max-w-[640px] flex-col bg-white shadow-2xl">
+        {/* ★★ 第1210便（2026-10-06・カッキーさん）: スマホで、下の「保存」が画面の外に出て押せなかった。
+            原因＝高さの上限を 92vh にしていた。vh は【ブラウザのアドレスバー・下のバーを含めた高さ】なので、
+            実機ではバーのぶんだけ画面より大きくなり、いちばん下（保存の帯）が隠れる。中身は枠の中に収まっているので、中をスクロールしても届かない。
+            → dvh（いま見えている高さ）に変えた。★ この画面のほかの小窓（予約の内容・受付・女子メモ・報酬確定・締め作業・取り込み）も同じ直し。
+            ★ ここの小窓は「上の帯／中身（中だけスクロール）／下の帯」の3段。min-h-0 は、中身が縮んでスクロールに回るための念押し。 */}
+        <div className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[640px] flex-col bg-white shadow-2xl">
           <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">出勤情報：{therapist.name}</span>
             <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
           </div>
-          <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px]">
               <span className="font-bold text-slate-500">{dateLabel(date)}</span>
               <span className="font-bold text-slate-800">

@@ -57,7 +57,7 @@ export function ImportDialog({ salonId, onClose, onDone }: { salonId: number; on
     <>
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto flex max-h-[92vh] w-full max-w-[720px] flex-col bg-white shadow-2xl">
+        <div className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[720px] flex-col bg-white shadow-2xl">
           <div className="flex items-center bg-indigo-600 px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">お客様の取り込み（名前と電話番号）</span>
             <button type="button" onClick={onClose} disabled={busy} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
