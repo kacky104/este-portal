@@ -656,7 +656,8 @@ export default async function TherapistPublicPage({
 
             {/* 写メ日記（新着6件 + 全部見る）— プロフィールの上に表示 */}
             {diaryPosts.length > 0 && (
-              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-x-hidden min-w-0">
+              // ★ 第1203便（カッキーさん）: スマホは、ブロックの内側の上下の余白を半分に（24px → 12px）。左右（px-6）と PC（sm:py-6）はそのまま。
+              <section className="bg-white rounded-2xl border border-slate-200 shadow-sm px-6 py-3 sm:py-6 overflow-x-hidden min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <h3 className="font-bold text-slate-900 truncate">写メ日記</h3>
