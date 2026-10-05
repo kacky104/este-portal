@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { XProfile } from './xProfile';
 import type { XPost, FeedItem } from './xPosts';
@@ -18,6 +18,7 @@ import { AutoFitName } from './AutoFitName';
 import { useXEngagement } from './useXEngagement';
 import { useXToast } from './useXToast';
 import type { FollowUser } from './xFollows';
+import { X_SHOW_NEW_TAB_EVENT, type XTimelineTab } from './xTimelineShared';
 
 export function XTimeline({
   me,
@@ -33,6 +34,7 @@ export function XTimeline({
   myFollowers,
   myAffiliatedShop,
   banners,
+  initialTab,
 }: {
   me: XProfile | null;
   loggedIn: boolean;
@@ -48,14 +50,16 @@ export function XTimeline({
   myFollowers?: FollowUser[];
   myAffiliatedShop?: { handle: string; displayName: string } | null;
   banners?: XBanner[]; // 運営設定のバナースライダー（全タブ共通・タブバー直下）。空なら非表示。
+  // ★ 第1196便: 最初に開くタブ（/x?tab=new なら「新着」）。指定が無ければ今までどおり「おすすめ」。
+  initialTab?: XTimelineTab;
 }) {
-  const [tab, setTab] = useState<'recommended' | 'following' | 'shops'>('recommended');
+  const [tab, setTab] = useState<XTimelineTab>(initialTab ?? 'recommended');
   // バナースライダーのシャッフル：タブを切り替えるたびに並びをシャッフルし、key を変えて
   // スライダーを先頭から再スタートさせる。初期表示はサーバー順のまま（hydration mismatch 回避＝
   // Math.random はクリック時のみ）。
   const [shuffledBanners, setShuffledBanners] = useState<XBanner[] | null>(null);
   const [bannerShuffleKey, setBannerShuffleKey] = useState(0);
-  const selectTab = (key: 'recommended' | 'following' | 'shops') => {
+  const selectTab = (key: XTimelineTab) => {
     setTab(key);
     if ((banners?.length ?? 0) > 1) {
       const arr = [...banners!];
@@ -101,7 +105,8 @@ export function XTimeline({
   const onPosted = (post: XPost) => {
     setMyNewPosts((prev) => [post, ...prev]);
     eng.registerPost(post);
-    setTab('recommended');
+    // ★ 第1196便: 新着タブで投稿したときは新着のまま（新着の先頭にも入る）。ほかのタブからは今までどおり「おすすめ」へ。
+    setTab((t) => (t === 'new' ? 'new' : 'recommended'));
     showToast('投稿しました');
   };
 
@@ -112,11 +117,28 @@ export function XTimeline({
       .filter((p) => (seen.has(p.id) ? false : (seen.add(p.id), true)));
   }, [myNewPosts, recommended]);
 
+  // ★★ 第1196便（2026-10-05・カッキーさん）: 新着タブ＝投稿順（新しい順）。
+  //   ★ 中身は「おすすめ」と同じ投稿（直近のぶん）を、30分シャッフルの前の並び＝投稿日時の新しい順に戻しただけ。
+  //     ★ 読み取りは増えない（サーバーから届いた配列を並べ替えるだけ）。リポストは流さない（おすすめと同じ）。
+  const newView = useMemo(
+    // ★ 日時は数字にして比べる（DB の「+00:00」と、投稿直後の「Z」で書き方が違っても順番が狂わない）
+    () => [...recommendedView].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)),
+    [recommendedView]
+  );
+
+  // ★ 第1196便: ヘッダーの中央のロゴを /x の上で押したとき → 新着タブへ切り替える（一番上へ戻るのはヘッダー側）。
+  useEffect(() => {
+    const onShowNew = () => setTab('new');
+    window.addEventListener(X_SHOW_NEW_TAB_EVENT, onShowNew);
+    return () => window.removeEventListener(X_SHOW_NEW_TAB_EVENT, onShowNew);
+  }, []);
+
   const followingFeedView = followingFeed;
   const shopShowcasesView = shopShowcases;
   // ★ 第1002便: 一覧は最初 30 件だけ描き、下まで来たら次の 30 件を足す（並びはそのまま）
   const { visible: recVisible, hasMore: recHasMore, sentinelRef: recSentinelRef } = useIncrementalList(recommendedView);
   const { visible: folVisible, hasMore: folHasMore, sentinelRef: folSentinelRef } = useIncrementalList(followingFeedView);
+  const { visible: newVisible, hasMore: newHasMore, sentinelRef: newSentinelRef } = useIncrementalList(newView);
 
   // 1枚のカードを描画（repostLabel を渡せばカード上部にリポストラベルが出る）。
   const renderCard = (p: XPost, repostLabel?: string) => {
@@ -160,7 +182,8 @@ export function XTimeline({
       {/* タブ */}
       <div className="sticky top-14 z-30 -mx-4 px-4 bg-[color:var(--x-surface-translucent)] backdrop-blur-md border-b border-[color:var(--x-border-strong)]">
         <div className="flex">
-          {([['recommended', 'おすすめ'], ['following', isTherapist ? 'フォロワー' : 'フォロー中'], ['shops', 'お店']] as const).map(([key, label]) => (
+          {/* ★ 第1196便: いちばん左に「新着」（投稿順） */}
+          {([['new', '新着'], ['recommended', 'おすすめ'], ['following', isTherapist ? 'フォロワー' : 'フォロー中'], ['shops', 'お店']] as const).map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -181,7 +204,17 @@ export function XTimeline({
       {(banners?.length ?? 0) > 0 && <XBannerSlider key={bannerShuffleKey} banners={shuffledBanners ?? banners!} />}
 
       {/* タブ中身 */}
-      {tab === 'recommended' ? (
+      {tab === 'new' ? (
+        // ★ 第1196便: 新着（投稿順）。見た目はおすすめと同じ全幅行。
+        newView.length === 0 ? (
+          <Empty text="まだ投稿がありません" />
+        ) : (
+          <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+            {renderList(newVisible)}
+            {newHasMore && <div ref={newSentinelRef} className="py-6 text-center text-xs text-[color:var(--x-text-muted)]">読み込み中…</div>}
+          </div>
+        )
+      ) : tab === 'recommended' ? (
         recommendedView.length === 0 ? (
           <Empty text="まだ投稿がありません" />
         ) : (

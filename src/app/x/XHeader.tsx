@@ -14,6 +14,7 @@ import { useMe } from './XMeProvider';
 import { NOTIF_READ_EVENT } from './xNotificationsShared';
 import { DM_READ_EVENT } from './xDmShared';
 import type { XProfile } from './xProfile';
+import { X_SHOW_NEW_TAB_EVENT, X_TAB_NEW_PARAM } from './xTimelineShared';
 
 
 // アバター表示に必要な最小フィールド（XProfile はこれを満たす）。
@@ -124,11 +125,15 @@ export function XHeader() {
 
   // 中央ロゴ：タイムライン（/x）の一番上へ。/x 表示中はスムーズスクロール、他ページからは /x へ遷移
   // （遷移後は新規表示のため最上部から始まる）。
+  // ★ 第1196便（カッキーさん）: 押すと【新着タブ】を開く。
+  //   ・/x の上では、ページは開き直さずにタイムラインへ「新着へ」と伝える（イベント）＋一番上へ。
+  //   ・ほかのページからは /x?tab=new へ（開いたときに新着タブ）。
   const goTimelineTop = () => {
     if (pathname === '/x') {
+      window.dispatchEvent(new Event(X_SHOW_NEW_TAB_EVENT));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      router.push('/x');
+      router.push(`/x?tab=${X_TAB_NEW_PARAM}`);
     }
   };
 
@@ -159,7 +164,7 @@ export function XHeader() {
           <button
             type="button"
             onClick={goTimelineTop}
-            aria-label="タイムラインの一番上へ"
+            aria-label="新着のタイムラインへ"
             className="justify-self-center flex items-center active:scale-95 transition"
           >
             <Image src="/fukux-mark.png" alt="fukuX" width={36} height={36} priority className="object-contain" />
