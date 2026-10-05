@@ -228,18 +228,21 @@ export function XTimeline({
       ) : tab === 'shops' ? (
         // お店タブ：お店カード（店名＋アバター＋画像グリッド）の一覧。カード全体タップでプロフィールへ。
         // ※全幅グリッド方式を試験（2026-07-10）→実機評価でカード型（A方式）継続に確定し差し戻し済み。
+        // ★★ 第1199便（2026-10-05・カッキーさん）: あらためて【端いっぱい】に。カード（角丸・枠・左右の余白）をやめ、
+        //   新着・おすすめの投稿の行と同じ幅（-mx-4＝スマホは画面の端から端）に。お店とお店の間は区切り線。
+        //   ★ 店名・地域の行だけ左右に余白（px-4）。画像の並び（4列）は余白なしで端まで。
         shopShowcasesView.length === 0 ? (
           <Empty text="表示できるお店がまだありません" />
         ) : (
-          <div className="space-y-3 pt-3">
+          <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
             {shopShowcasesView.map((s) => (
               <Link
                 key={s.id}
                 href={`/x/u/${encodeURIComponent(s.handle)}`}
-                className="block rounded-2xl bg-[color:var(--x-surface)] shadow-sm border border-[color:var(--x-border)] p-2.5 hover:shadow-md transition-shadow"
+                className={`block bg-[color:var(--x-surface)] pt-3 hover:opacity-95 transition-opacity ${s.images.length > 0 ? '' : 'pb-3'}`}
               >
                 {/* 店名は1行自動縮小フィット（AutoFitShopName）・@ID は非表示（2026-07-10 変更）。バッジは縮めない。 */}
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 px-4">
                   <span className="w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                     {s.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -264,19 +267,19 @@ export function XTimeline({
                 </div>
                 {/* 地域（x_profiles.address）。空なら行ごと非表示。 */}
                 {s.address && (
-                  <p className="text-xs text-[color:var(--x-text-secondary)] mb-3 flex items-center gap-1">📍{s.address}</p>
+                  <p className="text-xs text-[color:var(--x-text-secondary)] px-4 flex items-center gap-1">📍{s.address}</p>
                 )}
-                {/* 余白削減方式: カードの白フチ（p-2.5=10px）を細く残しつつ、隙間は最小限（gap-0.5=2px）。
-                    画像0枚（未認証店など）はグリッドごと出さず、名前＋地域だけのコンパクトなカードになる。 */}
+                {/* ★ 第1199便: 画像は左右の余白なしで端まで（隙間は gap-0.5=2px のまま）。
+                    画像0枚（未認証店など）はグリッドごと出さず、名前＋地域だけの行になる。 */}
                 {s.images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-0.5">
+                  <div className="grid grid-cols-4 gap-0.5 mt-2.5">
                     {s.images.map((url, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         key={i}
                         src={url}
                         alt={`${s.displayName}-${i + 1}`}
-                        className="aspect-square w-full object-cover rounded-sm"
+                        className="aspect-square w-full object-cover"
                         loading="lazy"
                       />
                     ))}
