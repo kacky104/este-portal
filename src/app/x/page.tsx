@@ -192,7 +192,7 @@ export default async function XHomePage({ searchParams }: { searchParams: Promis
         <div className="mt-4 mb-1 p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-sky-50 border border-indigo-100">
           <p className="text-sm font-bold text-slate-800">メンズエステ専用SNS「fukuX(フクエックス)」</p>
           <p className="text-[12px] text-slate-500 mt-0.5 mb-3">
-            お気に入りのセラピスト・お店をフォローして新着をチェックしよう。
+            お気に入りのセラピスト・お店をフォローして新着やストーリー、ここだけの情報をチェックしよう。
           </p>
           <div className="flex gap-2">
             <Link
