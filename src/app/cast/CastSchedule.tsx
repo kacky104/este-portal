@@ -55,7 +55,13 @@ export function CastSchedule({
   // ★ 第1211便: 「これからの予約」の一覧から、その日へ飛ぶ／新着の案内から一覧へ降りる
   const topRef = useRef<HTMLElement>(null);
   const upcomingRef = useRef<HTMLDivElement>(null);
-  const newCount = upcoming ? upcoming.filter((b) => newSigs?.has(b.sig)).length : 0;
+  // ★★ 第1212便（2026-10-06・カッキーさん）: 同じ予約が「その日の一覧」と「これからの予約」に2回並んで見にくかった。
+  //   → 下の一覧は【いま開いている日のぶんを除いた、ほかの日の予約】だけにする。開いている日のぶんは上の一覧に出ているので、
+  //     NEW の札は上の一覧の行に付ける（newIds＝まだ見ていなかった予約の id）。
+  //   → 上の案内「新しい予約が◯件」も、ほかの日のぶんだけを数える（この日のぶんは、すぐ下に NEW つきで見えている）。
+  const otherDays = upcoming ? upcoming.filter((b) => b.date !== date) : [];
+  const newIds = new Set((upcoming ?? []).filter((b) => newSigs?.has(b.sig)).map((b) => b.bookingId));
+  const newCount = otherDays.filter((b) => newSigs?.has(b.sig)).length;
   const openDay = (d: string) => {
     go(d);
     topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -116,7 +122,7 @@ export function CastSchedule({
           className="mb-3 flex w-full items-center justify-center gap-2 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-600 ring-1 ring-rose-200"
         >
           <span className="rounded-full bg-rose-500 px-1.5 text-[11px] font-black leading-[18px] text-white">NEW</span>
-          新しい予約が{newCount}件あります
+          ほかの日に新しい予約が{newCount}件あります
           <span aria-hidden="true">▼</span>
         </button>
       )}
@@ -200,6 +206,8 @@ export function CastSchedule({
                   <button type="button" onClick={() => setPicked(b)} className="flex w-full items-baseline gap-3 py-2 text-left text-[14px] hover:bg-slate-50">
                   <span className="w-[112px] flex-none font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
                   <span className="min-w-0 flex-1">
+                    {/* ★ 第1212便: まだ見ていなかった予約の印（この日のぶんは、下の「ほかの日の予約」には出さずここに付ける） */}
+                    {newIds.has(b.bookingId) && <span className="mr-1.5 rounded-full bg-rose-500 px-1.5 text-[10px] font-black leading-[16px] text-white">NEW</span>}
                     {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
                     <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
                     {/* ★ 第651便: ニックネームを一覧にも（ポップアップと同じ紫の札・本人だけに見える値） */}
@@ -216,36 +224,34 @@ export function CastSchedule({
         </>
       )}
 
-      {/* ★★ 第1211便（カッキーさん）: これからの予約（今日から先・近い順・期限なし）。
+      {/* ★★ 第1211便（カッキーさん）: 今日から先の予約（近い順・期限なし）を1か所で。
           ★ 1日ずつ「翌日 ▶」を押さなくても、3日後・3週間後の事前予約がここで分かる。押すとその日のスケジュールへ。
-          ★ まだ見ていなかった予約には NEW。★ 読めていないあいだ（upcoming が null）は枠ごと出さない。 */}
-      {upcoming && (
+          ★★ 第1212便: 出すのは【いま開いている日を除いた、ほかの日の予約】だけ（開いている日のぶんは上の一覧にある＝同じ予約を2回並べない）。
+            ほかの日に予約が無いときは、枠ごと出さない。★ 読めていないあいだ（upcoming が null）も出さない。 */}
+      {otherDays.length > 0 && (
         <div ref={upcomingRef} className="mt-5 scroll-mt-20 border-t border-slate-200 pt-4">
           <h3 className="px-1 text-[14px] font-black text-slate-700">
-            これからの予約
-            <span className="ml-1.5 text-[12px] font-bold text-slate-400">{upcoming.length}件</span>
+            ほかの日の予約
+            <span className="ml-1.5 text-[12px] font-bold text-slate-400">{otherDays.length}件</span>
           </h3>
-          {upcoming.length === 0 ? (
-            <p className="mt-2 text-center text-[13px] text-slate-400">これからの予約はまだありません</p>
-          ) : (
-            <ul className="mt-1 divide-y divide-slate-100">
-              {upcoming.map((b) => (
-                <li key={b.bookingId}>
-                  <button type="button" onClick={() => openDay(b.date)} className={`flex w-full items-baseline gap-2 px-1 py-2 text-left text-[14px] hover:bg-slate-50 ${b.date === date ? 'bg-pink-50/60' : ''}`}>
-                    <span className="w-[76px] flex-none text-[13px] font-black text-slate-600">{shortDayLabel(b.date)}</span>
-                    <span className="w-[98px] flex-none font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
-                    <span className="min-w-0 flex-1">
-                      {newSigs?.has(b.sig) && <span className="mr-1.5 rounded-full bg-rose-500 px-1.5 text-[10px] font-black leading-[16px] text-white">NEW</span>}
-                      {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
-                      <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
-                      <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
-                    </span>
-                    <span className="flex-none text-[12px] text-slate-300" aria-hidden="true">›</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="mt-1 divide-y divide-slate-100">
+            {otherDays.map((b) => (
+              <li key={b.bookingId}>
+                <button type="button" onClick={() => openDay(b.date)} className="flex w-full items-baseline gap-2 px-1 py-2 text-left text-[14px] hover:bg-slate-50">
+                  <span className="w-[76px] flex-none whitespace-nowrap text-[13px] font-black text-slate-600">{shortDayLabel(b.date)}</span>
+                  {/* ★ 第1212便: 時刻が2行に折り返していたので、幅をその日の一覧と同じ 112px にして折り返さない */}
+                  <span className="w-[112px] flex-none whitespace-nowrap font-black text-slate-800">{hhmm(b.startMin)}〜{hhmm(b.endMin)}</span>
+                  <span className="min-w-0 flex-1">
+                    {newSigs?.has(b.sig) && <span className="mr-1.5 rounded-full bg-rose-500 px-1.5 text-[10px] font-black leading-[16px] text-white">NEW</span>}
+                    {b.nomination && <span className={`mr-1.5 px-1 text-[11px] font-bold ${CRM_NOMINATION_CLASS[b.nomination]}`}>{b.nomination}</span>}
+                    <span className="font-bold text-slate-700">{b.customerName ? `${b.customerName}様` : 'お客様'}</span>
+                    <span className="ml-2 text-[13px] text-slate-500">{b.course}</span>
+                  </span>
+                  <span className="flex-none text-[12px] text-slate-300" aria-hidden="true">›</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       {picked && (
