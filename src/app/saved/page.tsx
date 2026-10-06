@@ -23,6 +23,11 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { fetchSiteImage, LIST_MORE_CARD_KEY } from '@/app/lib/siteImages';
+import { fetchSalonCardTabCounts } from '@/app/lib/salonCardTabCounts';
+import type { SalonCardTabCounts } from '@/lib/salonCardTabs';
+
+// ★ 第1240便: タブの数がまだ読めていない店舗に渡す「0件」（毎回新しく作らない＝カードを描き直させない）
+const NO_TAB_COUNTS = { diary: 0, coupon: 0 };
 
 export default function SavedPage() {
   // 表示中タブ（既定: 保存した店舗）
@@ -187,6 +192,25 @@ export default function SavedPage() {
     return () => { cancelled = true; };
   }, [salonIds, salonsSynced]);
 
+  // ★ 第1240便（カッキーさん）: 店舗カードの下に TOP と同じタブの行（写メ日記・口コミ・新人・クーポン）を出す。
+  //   写メ日記（60時間以内）とクーポンの数を、保存した店舗の分だけ読む（未取得の店舗だけ・2本）。中身は押したときに読む（TOP と同じ）。
+  //   読めるまで・読めなかったときは 0 件扱い（タブは薄く出るだけ。口コミ・新人の数は店舗とセラピストから出るので先に出る）。
+  const [cardTabCounts, setCardTabCounts] = useState<SalonCardTabCounts>({});
+  const tabCountsAttempted = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    if (!salonsSynced) return;
+    const missing = salonIds.filter(id => !tabCountsAttempted.current.has(id));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const got = await fetchSalonCardTabCounts(createClient(), Date.now(), missing);
+      if (cancelled) return;
+      missing.forEach(id => tabCountsAttempted.current.add(id));
+      setCardTabCounts(prev => ({ ...prev, ...got }));
+    })();
+    return () => { cancelled = true; };
+  }, [salonIds, salonsSynced]);
+
   // 未取得のセラピストだけまとめて取得（既存の取得ロジックを共有）。
   useEffect(() => {
     if (!therapistsSynced) return;
@@ -306,6 +330,7 @@ export default function SavedPage() {
                         compactTherapists
                         showSaveButton
                         nameBanner
+                        tabCounts={cardTabCounts[salon.id] ?? NO_TAB_COUNTS}
                       />
                     ))}
                   </div>
@@ -328,6 +353,7 @@ export default function SavedPage() {
                           compactTherapists
                           showSaveButton
                           nameBanner
+                          tabCounts={cardTabCounts[salon.id] ?? NO_TAB_COUNTS}
                         />
                       ))}
                     </div>
