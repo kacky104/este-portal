@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCrmLinks } from '../CrmBase';
 import { useEffect, useState } from 'react';
 import { getCrmTherapists, searchCrmBookings } from '@/app/actions/crm';
-import { CRM_RECEIVED_LABEL, yen, type CrmBookingListRow, type CrmBookingSearch, type CrmReceivedBy, type CrmTherapist } from '@/app/lib/crm/types';
+import { CRM_RECEIVED_LABEL, isUnreceived, yen, type CrmBookingListRow, type CrmBookingSearch, type CrmReceivedBy, type CrmTherapist } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { ConsentView } from '../ConsentView';
 
@@ -53,6 +53,8 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   // ★ 第1218便: 既定の期間は「今月1日〜月末」（前は〜今日で、これからの予約＝未確定のネット予約が既定で出なかった）
   const [f, setF] = useState<CrmBookingSearch>({ from: monthStart(today), to: shiftMonth(today, 0).to, therapistId: null, status: 'all', source: '', q: '' });
   const [qInput, setQInput] = useState('');
+  // ★ 第1228便: 「未受領」の判定（開始を過ぎたか）に使う今の時刻（開いたときの1回）
+  const [nowMs] = useState(() => Date.now());
   // 結果は「どの条件の結果か（key）」と一緒に持つ（条件が変わったら読み込み中として出す）
   const [res, setRes] = useState<{ key: string; rows: CrmBookingListRow[]; truncated: boolean; err: string } | null>(null);
   const [therapists, setTherapists] = useState<CrmTherapist[]>([]);
@@ -196,7 +198,7 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
                     </td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{yen(b.priceTotal)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{yen(b.payTotal)}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-[12px]">{b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : cancelled ? '' : '未受領'}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-[12px]">{b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : isUnreceived(b, nowMs) ? '未受領' : ''}</td>
                     <td className="min-w-[140px] px-2 py-1.5 text-[12px]">
                       {b.consentAt ? (
                         <ConsentView

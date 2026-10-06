@@ -334,8 +334,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     const payAll = dayBookings.reduce((a, b) => a + (b.payTotal ?? 0), 0)
       + data.confirms.reduce((a, c) => a + c.allowance, 0);
     const workingCount = therapistRows.filter((r) => (r.therapist?.schedules.length ?? 0) > 0).length;
-    const unreceived = visibleBookings.filter((b) => isUnreceived(b, nowMs)).length;
-    return { rows, startMin, endMin, activeCount, workingCount, sales, payAll, unreceived };
+    // ★ 第1228便: 未受領の予約そのもの（時間順）も返す＝「未受領 N件」を押すと最初の1件の詳細を開ける
+    const unreceivedList = visibleBookings.filter((b) => isUnreceived(b, nowMs)).sort((a, b) => a.slotStartISO.localeCompare(b.slotStartISO));
+    const unreceived = unreceivedList.length;
+    return { rows, startMin, endMin, activeCount, workingCount, sales, payAll, unreceived, unreceivedList };
   }, [data, date, baseMs, nowMs]);
 
   const isToday = date === businessTodayJST();
@@ -398,7 +400,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
             {' '}／ 売上 <span className="text-[#3f51b5]">{yen(view.sales)}</span> ／ 報酬 <span className="text-[#3f51b5]">{yen(view.payAll)}</span>
             {' '}（報酬確定済 <span className="text-emerald-600">{data?.confirms.length ?? 0}</span>人）
             {view.unreceived > 0 && (
-              <>{' '}／ <span className="text-rose-600">未受領 {view.unreceived}件</span></>
+              // ★ 第1228便: 押すと、未受領のいちばん早い予約の「お客様と予約」を開く（受領の印をそこで付けられる）
+              <>{' '}／ <button type="button" onClick={() => setPicked(view.unreceivedList[0])} title="押すと、未受領のいちばん早い予約を開きます" className="text-rose-600 underline decoration-dotted underline-offset-2">未受領 {view.unreceived}件</button></>
             )}
           </span>
         )}
@@ -1113,7 +1116,8 @@ function DetailPanel({
               </>
             )}
             <dt className="font-bold text-slate-400">電話</dt>
-            <dd className="text-slate-800">{b.customerTel || '—'}</dd>
+            {/* ★ 第1228便: 電話番号を押すと電話をかけられる（折り返し1タップ） */}
+            <dd className="text-slate-800">{b.customerTel ? <a href={`tel:${b.customerTel.replace(/[^0-9+]/g, '')}`} className="text-[#3f51b5] underline decoration-dotted underline-offset-2">{b.customerTel}</a> : '—'}</dd>
             <dt className="font-bold text-slate-400">状態</dt>
             <dd className="text-slate-800">
               {b.status === 'cancelled' ? (b.cancelBad ? '悪質キャンセル' : 'キャンセル') : b.status === 'new' ? '未確定（ネット予約）' : '確定'}
@@ -1491,7 +1495,7 @@ function BookingForm({
           {/* お客様（電話 → 台帳） */}
           <div>
             <label className={labCls}>電話番号（入れると台帳からお客様を出します）</label>
-            <input className={fieldCls} value={f.customerTel} inputMode="tel" onChange={(e) => { set('customerTel', e.target.value); setFound(null); }} placeholder="090-1234-5678" />
+            <input className={fieldCls} value={f.customerTel} inputMode="tel" autoComplete="tel" onChange={(e) => { set('customerTel', e.target.value); setFound(null); }} placeholder="090-1234-5678" />
             {telDigits.length >= 10 && found === 'none' && (
               <p className="mt-1 text-[12px] text-slate-500">台帳にない番号です（新しいお客様として台帳に入ります）</p>
             )}

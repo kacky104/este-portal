@@ -40,6 +40,15 @@ type SettingTab = (typeof SETTING_TABS)[number]['key'];
 
 function SettingsBody({ salonId }: { salonId: number }) {
   const [st, setSt] = useState<CrmSettings | null>(null);
+  // ★ 第1228便: 読み込んだとき（または保存したとき）の設定。いまの st と違えば「未保存」
+  const [savedSt, setSavedSt] = useState<CrmSettings | null>(null);
+  const dirty = !!st && !!savedSt && JSON.stringify(st) !== JSON.stringify(savedSt);
+  useEffect(() => {
+    if (!dirty) return;
+    const onLeave = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', onLeave);
+    return () => window.removeEventListener('beforeunload', onLeave);
+  }, [dirty]);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
@@ -72,9 +81,11 @@ function SettingsBody({ salonId }: { salonId: number }) {
       if (!r.ok) { setErr(r.error); return; }
       // ★ 同意書の題名・本文がどちらも空なら、初期の文面を入れておく（保存するまでは DB は変わらない・第562便）
       const s = r.settings;
-      setSt(!s.consentTitle.trim() && !s.consentBody.trim()
+      const init = !s.consentTitle.trim() && !s.consentBody.trim()
         ? { ...s, consentTitle: CRM_CONSENT_DEFAULT_TITLE, consentBody: CRM_CONSENT_DEFAULT_BODY }
-        : s);
+        : s;
+      setSt(init);
+      setSavedSt(init);
     });
     return () => { alive = false; };
   }, [salonId]);
@@ -92,6 +103,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setMsg('保存しました');
+    setSavedSt(st);
   };
 
   const sel = 'border border-slate-300 bg-white px-3 py-2 text-[15px] focus:border-indigo-400 focus:outline-none';
@@ -314,7 +326,7 @@ function SettingsBody({ salonId }: { salonId: number }) {
 
       {tab === 'consent' && (
       <section className="mt-4 border border-slate-200 bg-white p-5">
-        <h2 className="text-[17px] font-black text-slate-800">来店時の同意書（ペーパーレス）</h2>
+        <h2 className="text-[17px] font-black text-slate-800">来店時の同意書（QR）</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
           各部屋に置いた QR コードをお客様（かセラピスト・お店のタブレット）が読むと、この文面が出ます。
           最後の「上記の内容をすべて了承します」に☑を入れ、指でサインして送信すると、その部屋のいまの予約に「了承済」とサインが記録されます。
@@ -354,7 +366,10 @@ function SettingsBody({ salonId }: { salonId: number }) {
           <p className="mt-1 text-[13px] text-slate-400">上の「待機場所（部屋）」を追加して保存すると、ここに部屋ごとの QR が出ます。</p>
         ) : (
           <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {st.rooms.map((r) => <RoomQr key={r} salonId={salonId} room={r} />)}
+            {/* ★ 第1228便: まだ保存していない部屋は QR を出さない（押すと「設定にありません」になっていた） */}
+            {st.rooms.map((r) => savedSt?.rooms.includes(r)
+              ? <RoomQr key={r} salonId={salonId} room={r} />
+              : <p key={r} className="border border-dashed border-slate-300 px-3 py-2 text-[13px] text-slate-500">{r}：保存すると QR を出せます</p>)}
           </div>
         )}
       </section>
@@ -381,9 +396,11 @@ function SettingsBody({ salonId }: { salonId: number }) {
       {tab === 'import' && <ImportSection salonId={salonId} />}
 
       {/* ★ 保存ボタンは画面の下についてくる（第564便） */}
-      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${tab === 'import' ? 'hidden' : ''}`}>
+      {/* ★ 第1228便: 「データの取り込み」でも、未保存の変更があるときは保存バーを出す（前は隠れていて、そのまま移ると編集が消えた） */}
+      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${tab === 'import' && !dirty ? 'hidden' : ''}`}>
         {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
-        {msg && <p className="mb-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
+        {msg && !dirty && <p className="mb-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
+        {dirty && <p className="mb-2 text-[13px] font-bold text-amber-700">まだ保存していない変更があります</p>}
         <button type="button" disabled={busy} onClick={save} className="w-full bg-indigo-600 py-3 text-[15px] font-bold text-white disabled:opacity-50">
           {busy ? '保存中…' : '保存する'}
         </button>

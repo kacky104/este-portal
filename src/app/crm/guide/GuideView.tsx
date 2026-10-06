@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // フクエスCRM の「使い方」「よくある質問」を表示する（第648便）。
 // ★ 本文の書き方は TermsView と同じ（「## 」見出し・「- 」「1. 」箇条・空行で段落）。★ よくある質問は「Q. 」「A. 」の行。
@@ -33,10 +33,12 @@ function Body({ text, faq }: { text: string; faq: boolean }) {
 }
 
 export function GuideView({ guide, faq }: { guide: string; faq: string }) {
-  const [tab, setTab] = useState<'guide' | 'faq'>(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#faq') return 'faq';
-    return 'guide';
-  });
+  // ★ 第1228便: 初期値はサーバーと同じ 'guide' にして、#faq は開いたあとに見る（サーバー＝使い方／ブラウザ＝FAQ の不一致を避ける）
+  const [tab, setTab] = useState<'guide' | 'faq'>('guide');
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- URL の #faq を開いたあとに読む（ハイドレーション後の1回だけ）
+    if (window.location.hash === '#faq') setTab('faq');
+  }, []);
   const text = tab === 'guide' ? guide : faq;
   const heads = text.split('\n').filter((l) => l.startsWith('## ')).map((l) => l.slice(3));
   return (

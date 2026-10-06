@@ -46,7 +46,9 @@ export default function CrmMoneyPage() {
 function MoneyBody({ salonId }: { salonId: number }) {
   const [ym, setYm] = useState(() => businessTodayJST().slice(0, 7));
   const [balances, setBalances] = useState<CrmMoneyBalance[] | null>(null);
-  const [moves, setMoves] = useState<CrmMoneyMove[]>([]);
+  // ★ 第1228便: 月の動きは「どの月の結果か」と一緒に持つ（月を切り替えた直後に前の月の動きが残らないように。残高は月に依らないのでそのまま）
+  const [movesLoaded, setMovesLoaded] = useState<{ ym: string; moves: CrmMoneyMove[] } | null>(null);
+  const moves = movesLoaded && movesLoaded.ym === ym ? movesLoaded.moves : null;
   const [therapists, setTherapists] = useState<{ id: number; name: string }[]>([]);
   const [err, setErr] = useState('');
   const [tick, setTick] = useState(0);
@@ -60,7 +62,7 @@ function MoneyBody({ salonId }: { salonId: number }) {
       if (!r.ok) { setErr(r.error); setBalances([]); return; }
       setErr('');
       setBalances(r.balances);
-      setMoves(r.moves);
+      setMovesLoaded({ ym, moves: r.moves });
       setTherapists(r.therapists);
     });
     return () => { alive = false; };
@@ -143,7 +145,9 @@ function MoneyBody({ salonId }: { salonId: number }) {
           <button type="button" onClick={() => setYm(shiftMonth(ym, 1))} className="bg-[#3f51b5] px-3 py-1.5 text-[13px] font-bold text-white">次月 ▶</button>
         </div>
       </div>
-      {moves.length === 0 ? (
+      {!moves ? (
+        <p className="text-[13px] text-slate-400">読み込み中です…</p>
+      ) : moves.length === 0 ? (
         <p className="border border-slate-200 bg-white p-6 text-center text-[14px] text-slate-400">この月の動きはまだありません</p>
       ) : (
         <div className="overflow-x-auto border border-slate-200 bg-white">

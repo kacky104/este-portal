@@ -33,16 +33,18 @@ export default function CrmReportsPage() {
 
 function ReportsBody({ salonId }: { salonId: number }) {
   const [ym, setYm] = useState(() => thisMonthJST());
-  const [rows, setRows] = useState<CrmDailyReport[] | null>(null);
+  // ★ 第1228便: 「どの月の結果か」を一緒に持つ（月を切り替えた直後に前の月の数字が新しい見出しの下に残らないように）
+  const [loaded, setLoaded] = useState<{ ym: string; rows: CrmDailyReport[] } | null>(null);
+  const rows = loaded && loaded.ym === ym ? loaded.rows : null;
   const [err, setErr] = useState('');
 
   useEffect(() => {
     let alive = true;
     listCrmReports(salonId, ym).then((r) => {
       if (!alive) return;
-      if (!r.ok) { setErr(r.error); setRows([]); return; }
+      if (!r.ok) { setErr(r.error); setLoaded({ ym, rows: [] }); return; }
       setErr('');
-      setRows(r.reports);
+      setLoaded({ ym, rows: r.reports });
     });
     return () => { alive = false; };
   }, [salonId, ym]);
@@ -78,7 +80,7 @@ function ReportsBody({ salonId }: { salonId: number }) {
       <div className="mb-3 grid grid-cols-2 gap-px bg-slate-200 sm:grid-cols-5">
         {[
           ['売上', yen(total.sales)],
-          ['女子報酬', yen(total.pay)],
+          ['女子報酬（手当込み）', yen(total.pay)],
           ['経費', yen(total.expense)],
           ['利益', yen(total.profit)],
           ['本数', `${total.bookingCount}本`],
@@ -108,7 +110,7 @@ function ReportsBody({ salonId }: { salonId: number }) {
                 <th className={th}>出勤</th>
                 <th className={th}>売上</th>
                 <th className={th}>うち現金</th>
-                <th className={th}>女子報酬</th>
+                <th className={th}>女子報酬（手当込み）</th>
                 <th className={th}>経費</th>
                 <th className={th}>利益</th>
                 <th className="px-2 py-2 text-left text-[11px] font-bold text-slate-500">メモ</th>

@@ -117,6 +117,9 @@ export function CrmShell({
               <Link
                 key={n.key}
                 href={links.href(n.href) + adminSalonQuery}
+                aria-current={current === n.key ? 'page' : undefined}
+                // ★ 第1228便: いま開いているタブが画面の外（右）にあるときは、開いたときに見える位置へ寄せる（スマホで「設定」「料金設定」が隠れていた）
+                ref={current === n.key ? (el) => { el?.scrollIntoView?.({ inline: 'center', block: 'nearest' }); } : undefined}
                 className={`flex-none whitespace-nowrap px-2.5 py-1.5 text-[12px] font-bold md:px-4 md:py-2 md:text-[14px] ${
                   current === n.key ? 'bg-[#eef1f8] text-[#1e2a5a]' : 'text-indigo-200 hover:text-white'
                 }`}
