@@ -1920,6 +1920,16 @@ export async function addCrmMoneyMove(
   if (amount < 1 || amount > 10000000) return { ok: false, error: '金額は1円以上で入れてください' };
   const { data: t } = await auth.svc.from('therapists').select('salon_id').eq('id', tid).maybeSingle();
   if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'このお店のセラピストではありません' };
+  // ★ 第1225便（カッキーさん）: 二重送信よけ。同じセラピスト・同じ日・同じ向き・同じ種別・同じ金額の取り消していない記録が
+  //   直近10秒以内にあれば入れない（画面の busy が効く前の二度押し・反応が遅いときの押し直し）。本当に2回なら10秒待てば入る。
+  const { data: dup, error: dupErr } = await auth.svc.from('crm_money_moves').select('id')
+    .eq('salon_id', salonId).eq('therapist_id', tid).eq('business_date', input.date)
+    .eq('direction', input.direction).eq('category', input.category).eq('amount', amount)
+    .is('cancelled_at', null)
+    .gte('created_at', new Date(Date.now() - 10_000).toISOString())
+    .limit(1);
+  if (dupErr) return { ok: false, error: dupErr.message };
+  if (dup && dup.length > 0) return { ok: false, error: '同じ内容を数秒前に記録しています（二重でなければ、少し待ってからもう一度）' };
   const { error } = await auth.svc.from('crm_money_moves').insert({
     salon_id: salonId,
     therapist_id: tid,
