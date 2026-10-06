@@ -12,11 +12,16 @@
 //     ★ 札の文字は Claude が上から書いたもの。カッキーさんが作り直した画像が来たら、ファイルを置き換える。
 //   ・画像の下に、料金と「お申し込みは運営へ」を文字で出し、「運営に申し込む」ボタンを足した（行き先は CRM のご案内と同じお問い合わせ）。
 //   ・「コネックエフを始める」は残す（見るだけなら契約前でも入れる。切り替えは契約後＝サーバーで止めている）。
+// ★★ 第1250便（2026-10-06・カッキーさん）: セットを契約していないお店だけ、ボタンの名前を「中を見てみる」にする
+//   （押しても始められない＝見るだけなので、名前を実際に合わせる。行き先は同じ conecf.com）。
+//   ★ このページで初めて読み取りが入った＝getConecfAccess（ログイン＋自分の店の crm_until）を1回。書き込みは無い。
+//   ★ 読めなかった・未ログイン・店が無いときは今までどおり「コネックエフを始める」（★ 契約済みのお店に「見るだけ」と出さない）。
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CONECF_ORIGIN } from '@/lib/conecfHost';
 import { SET_PLAN_LINE, SET_PLAN_APPLY_LINE } from '@/lib/setPlan';
+import { getConecfAccess } from '@/app/actions/conecf';
 
 export const metadata: Metadata = { title: 'コネックエフのご案内｜フクエス マイページ' };
 
@@ -29,7 +34,18 @@ const INTRO_ALT =
   '始める前に：フクエスリンクとは、どちらか一方です。切り替えると、駅ちかからの取り込みは止まります。ほかの連携ツールは、連携を外してから。同じサイトに2つのツールから書き込むと、上書きし合います。' +
   '元に戻したいときは運営事務局へ。取り込み（フクエスリンク）に戻せます。くわしい使い方は、コネックエフの「はじめての方へ」をご覧ください。';
 
-export default function ConecfIntroPage() {
+/** セットを契約していないと分かったときだけ true（★ 読めなかったときは false＝今までどおりの名前） */
+async function isBeforeContract(): Promise<boolean> {
+  try {
+    const access = await getConecfAccess();
+    return access.ok && !access.contract;
+  } catch {
+    return false;
+  }
+}
+
+export default async function ConecfIntroPage() {
+  const beforeContract = await isBeforeContract();
   return (
     <main className="min-h-screen bg-slate-50 py-6 sm:py-10 px-4">
       <div className="max-w-3xl mx-auto">
@@ -62,7 +78,7 @@ export default function ConecfIntroPage() {
             href={CONECF_ORIGIN}
             className="flex-1 text-center py-4 bg-gradient-to-r from-[#1e3a8a] to-[#2563eb] text-white text-[17px] font-black shadow-md hover:opacity-95"
           >
-            コネックエフを始める
+            {beforeContract ? '中を見てみる' : 'コネックエフを始める'}
           </a>
           {/* ★ 第1241便: お申し込み（お問い合わせの画面に件名と本文を入れて開く。送信は店舗様が押す） */}
           <Link href="/mypage?tab=support&apply=crm" className="sm:w-48 text-center py-4 border-2 border-[#1e3a8a] bg-white text-[15px] font-black text-[#1e3a8a] hover:bg-blue-50">
