@@ -13,6 +13,11 @@ function ForgotPasswordInner() {
       ? 'リンクが無効か有効期限切れの可能性があります。再度メールを送信してください。'
       : ''
   );
+  // ★ 第1236便（カッキーさん）: 店舗オーナーログイン（/owner/login）から来たとき（?from=owner）だけ、
+  //   「戻る」の行き先を /owner/login にし、メールのリンクの着地も /reset-password?from=owner にする（変更後にオーナー側へ戻すため）。
+  //   ★ 会員（from なし）は今までどおり /login・/reset-password。★ from は 'owner' のときだけ見る（ほかの値は無視）。
+  const fromOwner = params.get('from') === 'owner';
+  const backHref = fromOwner ? '/owner/login' : '/login';
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,7 +29,7 @@ function ForgotPasswordInner() {
     setLoading(true);
     try {
       // 結果に関わらず同じ案内を出す（メール列挙対策：登録の有無を分からせない）。
-      await requestPasswordReset(email.trim());
+      await requestPasswordReset(email.trim(), fromOwner ? '/reset-password?from=owner' : undefined);
       setSent(true);
     } catch {
       setSent(true);
@@ -60,7 +65,7 @@ function ForgotPasswordInner() {
               再設定メールを送信しました。メールをご確認ください。<br />
               （ご登録のない場合はメールは届きません）
             </p>
-            <Link href="/login" className="block text-sm text-pink-600 hover:underline">ログイン画面へ戻る</Link>
+            <Link href={backHref} className="block text-sm text-pink-600 hover:underline">ログイン画面へ戻る</Link>
           </div>
         ) : (
           <form onSubmit={submit} className="relative z-10 space-y-4">
@@ -93,7 +98,7 @@ function ForgotPasswordInner() {
             >
               {loading ? '送信中...' : '再設定メールを送信'}
             </button>
-            <Link href="/login" className="block text-center text-sm text-slate-400 hover:text-pink-500 transition-colors">
+            <Link href={backHref} className="block text-center text-sm text-slate-400 hover:text-pink-500 transition-colors">
               ← ログインに戻る
             </Link>
           </form>

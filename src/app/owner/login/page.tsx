@@ -189,10 +189,11 @@ function OwnerLoginInner() {
             </form>
 
             {/* ★ 第1235便（カッキーさん）: ログインボタンの下に、パスワードの変更（再設定）への入口。
-                運営が発行した最初のパスワードを、店舗様が自分で変えられるように。行き先は会員と同じ /forgot-password（メールで再設定のリンクが届く）。 */}
+                運営が発行した最初のパスワードを、店舗様が自分で変えられるように。行き先は会員と同じ /forgot-password（メールで再設定のリンクが届く）。
+                ★ 第1236便: ?from=owner を付ける＝再設定の画面の「戻る」と、変更したあとの行き先がここ（/owner/login）になる。 */}
             <p className="mt-3 text-center text-xs text-slate-500">
               パスワードの変更は
-              <Link href="/forgot-password" className="text-pink-600 font-medium hover:underline ml-1">こちら →</Link>
+              <Link href="/forgot-password?from=owner" className="text-pink-600 font-medium hover:underline ml-1">こちら →</Link>
             </p>
 
             <div className="mt-5 space-y-2 text-center">

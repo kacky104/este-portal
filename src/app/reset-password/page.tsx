@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getSession, onAuthChange } from '@/lib/auth';
 import { setMyPassword } from '@/app/actions/memberAccount';
 import { PASSWORD_HINT, validatePassword } from '@/lib/password';
@@ -10,8 +10,13 @@ import { PASSWORD_HINT, validatePassword } from '@/lib/password';
 // ★ 第981便: 保存はサーバーアクション setMyPassword（アプリ内ブラウザで送る前に止まる事故の対策）。
 //   断られた理由は setMyPassword が日本語で返す（「時間をおいて」は出さない）。
 
-export default function ResetPasswordPage() {
+function ResetPasswordInner() {
   const router = useRouter();
+  // ★ 第1236便（カッキーさん）: 店舗オーナーログインから来た再設定（?from=owner）は、変更後・戻るの行き先を /owner/login に。
+  //   ★ /owner/login は、オーナーでログイン済みならそのまま /mypage へ進む（＝変更後はマイページが開く）。
+  //   ★ 会員（from なし）は今までどおりトップ・/login。★ from は 'owner' のときだけ見る。
+  const fromOwner = useSearchParams().get('from') === 'owner';
+  const backHref = fromOwner ? '/owner/login' : '/login';
 
   // リカバリーセッションの有無（/auth/callback 経由で確立済みの想定）。
   const [checking, setChecking] = useState(true);
@@ -55,7 +60,11 @@ export default function ResetPasswordPage() {
       if (!res.ok) { setError(res.error); return; }
       setDone(true);
       // 変更後はログイン済み状態。少し見せてからトップへ。
-      setTimeout(() => { router.push('/'); router.refresh(); }, 1600);
+      // ★ 第1236便: オーナーから来たときは /owner/login へ（ページごと開き直す＝第1180便と同じ理由。そこからマイページへ進む）。
+      setTimeout(() => {
+        if (fromOwner) { window.location.assign('/owner/login'); return; }
+        router.push('/'); router.refresh();
+      }, 1600);
     } catch {
       setError('通信できませんでした。電波のよい場所で、もう一度押してください。');
     } finally {
@@ -84,7 +93,7 @@ export default function ResetPasswordPage() {
               </svg>
             </div>
             <p className="text-sm text-slate-700 font-medium">パスワードを変更しました。</p>
-            <p className="text-xs text-slate-400">トップページへ移動します...</p>
+            <p className="text-xs text-slate-400">{fromOwner ? '店舗の管理画面へ移動します...' : 'トップページへ移動します...'}</p>
           </div>
         ) : !hasSession ? (
           // リカバリーセッションが無い（直接アクセス・期限切れ等）
@@ -93,12 +102,12 @@ export default function ResetPasswordPage() {
               リンクが無効か、有効期限が切れている可能性があります。<br />お手数ですが、再度お試しください。
             </p>
             <Link
-              href="/forgot-password"
+              href={fromOwner ? '/forgot-password?from=owner' : '/forgot-password'}
               className="block w-full py-3 rounded-xl bg-pink-600 text-white font-bold text-sm hover:bg-pink-700 transition-colors"
             >
               再設定メールを送り直す
             </Link>
-            <Link href="/login" className="block text-sm text-slate-400 hover:text-pink-500 transition-colors">ログインに戻る</Link>
+            <Link href={backHref} className="block text-sm text-slate-400 hover:text-pink-500 transition-colors">ログインに戻る</Link>
           </div>
         ) : (
           <form onSubmit={submit} className="relative z-10 space-y-4">
@@ -150,5 +159,14 @@ export default function ResetPasswordPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// ★ 第1236便: useSearchParams を使うので Suspense で包む（/forgot-password と同じ形）
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-pink-50/40" />}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
