@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { startRelayFlow, hasSokuseraSendCandidate } from '@/app/lib/media/relayFlow';
 
 // ── 即セラの周（第143便・2026-09-04）───────────────────────────────────
 //   POST /api/admin/sokusera-push  (Authorization: Bearer <CRON_SECRET>)
@@ -15,6 +15,7 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 //   ★ 相手のアカウントを触る操作なので、1人ずつ・確かめながら進む。
 //
 // ★ 「今すぐ」は45分で切れる（★ 第326便で30分から延ばした）。★ 周は5分ごと。★ 取りこぼしは次の周が拾う。
+// ★★ 第1244便: 周は回るが、ONにする相手がいない店へはログインしない（hasSokuseraSendCandidate・DB だけで下調べ）。
 //
 // crontab（VPS・5分ごと。★ 日記の周と1分ずらす）:
 //   1-59/5 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokusera-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
@@ -81,6 +82,23 @@ export async function POST(req: Request) {
   for (const r of rows) {
     const target = r.salon_id + '/' + PROVIDER + '#' + r.slot;
     if (started.length >= MAX_SALONS_PER_RUN) { skipped.push({ target, why: '今回の上限に達したので次の周へ' }); continue; }
+
+    // ★★★ ONにする相手がいなければ、ジョブを積まない（第1244便・2026-10-06・カッキーさん）。
+    //   ★ ここを入れる前は、誰も「今すぐ」でなくても5分ごとに必ずエステ魂へログインし、名簿を読んでいた
+    //     （10/6 の実測: 17時間50分でログイン216回・実際に ON にしたのは6回）。
+    //   ★ 相手サイトへの負荷と目立ち方を抑える。写メ日記の周（第140便）と同じ作法。
+    //   ★ これは【絞り込み】。★ 誰をONにするかの判断はフロー側のまま（2か所に置かない）。
+    //   ★★ 読めなかったときは count=-1 で通す（★ 「いない」と決めつけない）。
+    let candidate: Awaited<ReturnType<typeof hasSokuseraSendCandidate>>;
+    try {
+      candidate = await hasSokuseraSendCandidate({ salonId: Number(r.salon_id), provider: PROVIDER, slot: Number(r.slot) });
+    } catch (e) {
+      // ★ 絞り込みで落ちたら、絞り込まない（★ ONにできる方を取りこぼさない側へ倒す）
+      candidate = { ok: true, count: -1 };
+      console.warn('[sokusera-push] 候補の下調べに失敗', target, e instanceof Error ? e.message : 'unknown');
+    }
+    if (!candidate.ok) { skipped.push({ target, why: candidate.why }); continue; }
+
     if (!apply) { started.push(target); continue; }
     try {
       const res = await startRelayFlow({

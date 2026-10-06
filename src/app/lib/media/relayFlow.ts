@@ -3443,6 +3443,104 @@ async function planEsutamaSokusera(
 }
 
 
+/**
+ * ★★★ 即セラの周を回す【前】に、DB だけで「いま即セラをONにする相手がいるか」を確かめる（第1244便・2026-10-06・カッキーさん）。
+ *
+ * ★★ なぜ要るか（2026-10-06 に実測）
+ *   周が5分ごとに、誰も「今すぐ」でなくてもエステ魂へログインし、名簿を読んでいた。
+ *     ・10/6 の 0:00〜17:50 で ログイン 216回・名簿の読み取り 213回。そのうち実際に即セラを ON にしたのは 6回。
+ *     ・ベンリーはエステ魂を1日1回しか読まない。★ 相手サイトへの負荷と目立ち方を抑える（カッキーさんの方針）。
+ *   → 写メ日記の周（hasDiarySendCandidate・第140便）と同じ作法で、用が無い周はログインしない。
+ *
+ * ★★★ **これは「絞り込み」であって「判定」ではない。**
+ *   ★ 誰をONにするかの判断は planEsutamaSokusera ＋ decideSokuseraTarget のまま。★ 2か所に置かない。
+ *   ★★ ここは【確実に0人のときだけ false を返す】保守的な見張り。
+ *     ★ 材料の読み方（今すぐの3枠・名簿の結び・送り先サイト・了承・直近にONにした時刻）は planEsutamaSokusera と同じ。判定も同じ関数。
+ *     ★ 相手の利用状況（魂セラピストを始めているか）は**見ない**（名簿を読まないと分からない）→ 「始めている」とみなして通す。
+ *       だから true でも「ONにする」とは限らない。★ そのときはフローが正しく断る。
+ *     ★ 読めなかったときは count=-1 で通す（★ 「いない」と決めつけない＝取りこぼさない側へ倒す）。
+ */
+export async function hasSokuseraSendCandidate(params: {
+  salonId: number; provider: string; slot: number;
+}): Promise<{ ok: true; count: number } | { ok: false; why: string }> {
+  const supabase = createServiceClient();
+  const now = new Date();
+
+  // ① 在籍＋「今すぐ」の3枠（planEsutamaSokusera と同じ列）
+  const { data: ths, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name, import_cast_id, is_available_now, available_until, is_available_now_cast, available_until_cast, is_available_now_import, available_until_import')
+    .eq('salon_id', params.salonId)
+    .eq('is_active', true)
+    .order('id', { ascending: true });
+  if (thErr) return { ok: true, count: -1 };
+  const trows = (ths ?? []) as Array<Record<string, unknown>>;
+  if (trows.length === 0) return { ok: false, why: '在籍がいません' };
+
+  // ★ いちばん多いのはここ（誰も「今すぐ」でない）。★ 残りの読み取りをせずに帰る
+  const live = trows.filter((t) => isImasuguLiveRow(t as unknown as ImasuguRow, now));
+  if (live.length === 0) return { ok: false, why: 'いま「今すぐ」の方がいません' };
+  const ids = live.map((t) => Number(t['id']));
+
+  // ② 名簿の結び
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: live.map((t) => ({ id: Number(t['id']), import_cast_id: (t['import_cast_id'] as string | null) ?? null })),
+    provider: params.provider, slot: params.slot,
+  });
+  if (castErr) return { ok: true, count: -1 };
+
+  // ②' コネックエフ「送り先サイト」
+  const seraOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (seraOff.error) return { ok: true, count: -1 };
+
+  // ③ 了承（写メ日記の了承を共用）
+  const consentOf = new Map<number, string>();
+  {
+    const { data: cs, error: csErr } = await supabase
+      .from('therapist_media_consent').select('therapist_id, state')
+      .eq('provider', params.provider).eq('kind', 'diary').in('therapist_id', ids);
+    if (csErr) return { ok: true, count: -1 };
+    for (const r of (cs ?? []) as Array<{ therapist_id: number; state: string | null }>) {
+      consentOf.set(Number(r.therapist_id), String(r.state ?? 'unknown'));
+    }
+  }
+
+  // ④ 直近にONにした時刻（監査ログ。planEsutamaSokusera と同じ引き方）
+  const lastOf = new Map<string, string>();
+  {
+    const since = new Date(now.getTime() - (SOKUSERA_COOLDOWN_MIN + 5) * 60000).toISOString();
+    const { data: au, error: auErr } = await supabase
+      .from('salon_media_audit')
+      .select('detail, created_at')
+      .eq('salon_id', params.salonId).eq('provider', params.provider)
+      .eq('event', 'verify_sokusera').eq('outcome', 'ok')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (auErr) return { ok: true, count: -1 };
+    for (const r of (au ?? []) as Array<{ detail: Record<string, unknown> | null; created_at: string }>) {
+      const cid = String(r.detail?.['castId'] ?? '');
+      if (cid && !lastOf.has(cid)) lastOf.set(cid, String(r.created_at));
+    }
+  }
+
+  let count = 0;
+  for (const t of live) {
+    const id = Number(t['id']);
+    const castId = maps.castIdOf.get(id) ?? null;
+    const v = decideSokuseraTarget({
+      consent: toConsentState(consentOf.get(id)),
+      account: 'started',   // ★ 利用状況は名簿を読まないと分からない → 通す側に倒す（フローが正しく断る）
+      castId,
+      imasuguLive: !seraOff.off.has(id),
+      lastStartedAt: castId ? (lastOf.get(String(castId).trim()) ?? null) : null,
+    }, now);
+    if (v.ok) count++;
+  }
+  if (count === 0) return { ok: false, why: '「今すぐ」の方はいますが、いま即セラをONにする方はいません（ご了承・名簿の結び・打ったばかり）' };
+  return { ok: true, count };
+}
+
 /** ★ 第421便: conecf_photo_pushes に書く（sourceUrl=null は行を消す） */
 async function savePhotoSynced(
   svc: ReturnType<typeof createServiceClient>, provider: string, slot: number, rows: PhotoSynced[],
