@@ -7,11 +7,15 @@ import { useConecfHref } from './ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { useState } from 'react';
 import { enableConecf } from '@/app/actions/conecf';
+import { SET_PLAN_LINE, SET_PLAN_APPLY_LINE } from '@/lib/setPlan';
+import { FUKUES_ORIGIN } from '@/lib/crmHost';
 
 // コネックエフのホーム（第395便 1a → 第396便 1b で連携の状態を足した）。
 
 // ★★ 「コネックエフに切り替える」（第399便・カッキーさんの決定）。★ 押す前に、何が変わるかを言う。
-function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast: (m: string) => void }) {
+// ★★ 第1241便（カッキーさん）: セット（コネックエフ＋フクエスCRM・月額22,000円 税込）を契約していない店には、
+//   切り替えるボタンの代わりに料金と「お申し込みは運営へ」を出す（canSwitch=false）。サーバー（enableConecf）でも止めている。
+function SwitchCard({ enabledAt, canSwitch, applyHref, onToast }: { enabledAt: string | null; canSwitch: boolean; applyHref: string; onToast: (m: string) => void }) {
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(enabledAt);
@@ -20,6 +24,20 @@ function SwitchCard({ enabledAt, onToast }: { enabledAt: string | null; onToast:
 
   // ★ 第411便（カッキーさん）: 切り替え済みの帯は出さない（★ ベンリーに寄せて上をすっきり）。★ 切り替え前の案内だけ残す
   if (done) return null;
+
+  if (!canSwitch) {
+    return (
+      <div className="bg-white border-2 border-indigo-300 px-5 py-4 space-y-3">
+        <p className="text-[16px] font-black text-indigo-800">コネックエフは、フクエスCRMとのセットでご利用いただけます</p>
+        <p className="text-[14px] text-slate-600 leading-relaxed">
+          いまは見るだけです。{SET_PLAN_LINE}{SET_PLAN_APPLY_LINE}ご契約後に「コネックエフに切り替える」を押せるようになります。
+        </p>
+        <a href={applyHref} className="inline-block px-5 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
+          運営に申し込む
+        </a>
+      </div>
+    );
+  }
 
   const onGo = async (stopRead = false) => {
     setBusy(true);
@@ -79,7 +97,12 @@ export default function ConecfHomePage() {
       {(access) => (
         <div className="space-y-3">
           {/* ★ 第411便: 「◯◯ 様」の帯は外した（★ 店舗名はサイドバーに出ている。★ はじめての方へはサイドバーから） */}
-          <SwitchCard enabledAt={access.enabledAt} onToast={showToast} />
+          <SwitchCard
+            enabledAt={access.enabledAt}
+            canSwitch={access.contract || access.role === 'operator'}
+            applyHref={`${FUKUES_ORIGIN}/mypage?tab=support&apply=crm`}
+            onToast={showToast}
+          />
           {/* ★ 第884便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧 */}
           <CastLinkProgress salonId={access.salonId} editHref={(id) => href(`/girls/${id}`)} onToast={showToast} guideHref={href('/cast-guide')} />
           <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} onToast={showToast} />

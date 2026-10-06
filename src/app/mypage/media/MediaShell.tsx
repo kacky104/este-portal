@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { MediaPageDecision } from '@/lib/mediaVisibility';
 import { useMediaSession } from './MediaSession';
+import { SET_PLAN_PRICE_LABEL } from '@/lib/setPlan';
 
 // 媒体連携のページの外枠 ——【フクエスリンク】（第60便で見た目を差し替え）。
 //
@@ -161,7 +162,7 @@ export function MediaShell({
           <p className="text-[18px] font-black text-slate-800">この画面はコネックエフへ移りました</p>
           <p className="text-[14px] text-slate-500 leading-relaxed text-left">
             フクエスリンクは【駅ちかからフクエスへの反映（取り込み）】専用になりました。
-            出勤・写メ日記・新着情報などを各サイトへ更新したいときは、コネックエフをお使いください（フクエス契約店舗様は無料）。
+            出勤・写メ日記・新着情報などを各サイトへ更新したいときは、コネックエフをお使いください（フクエスCRMとのセットで{SET_PLAN_PRICE_LABEL}）。フクエスリンクは今までどおり無料です。
           </p>
           <Link href="/mypage/conecf" className="inline-block w-full py-3 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
             コネックエフのご案内を見る

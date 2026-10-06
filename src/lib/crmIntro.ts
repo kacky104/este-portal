@@ -6,7 +6,9 @@
 //   （いちばん言いたいこと＋流れ → できること → 無料との違い → はじめかた → お申し込み）。
 //   ★ 落としたもの: 「とは」の箇条4つ（→ 見出しの下の一文と札2つに集約）・違いの表のかっこ書き（○（時間の軸の画面で）など）。
 // ★★ 値・画面の名前はすべて【いまの実際の動き】から（src/app/lib/crm/guideText.ts と食い違わせない）。★ 願望や予定を書かない。
-// ★ 料金はここに書かない（第2条が保留のため）。「運営事務局へ」に留める。
+// ★ 第1241便（2026-10-06）: 料金が決まった＝コネックエフとのセットで月額22,000円（税込）。値は lib/setPlan.ts。
+
+import { SET_PLAN_LINE, SET_PLAN_APPLY_LINE } from './setPlan';
 
 export type CrmIntroFlowBox = { caption: string; name: string };
 export type CrmIntroIcon = 'calendar' | 'users' | 'list' | 'chart' | 'yen' | 'tag';
@@ -77,6 +79,6 @@ export const CRM_INTRO: CrmIntroContent = {
   ],
   apply: {
     title: 'お申し込み・料金',
-    body: 'お申し込み・料金は運営事務局までお問い合わせください。',
+    body: `${SET_PLAN_LINE}${SET_PLAN_APPLY_LINE}`,
   },
 };

@@ -1,0 +1,28 @@
+// ★★ コネックエフ＋フクエスCRM のセット販売（第1241便・2026-10-06・カッキーさんの決定）。
+//   ・コネックエフとフクエスCRM は【セットのみ】で販売する（片方だけの契約は無い）。月額 22,000円（税込）。
+//   ・契約しているかどうかは、今までのフクエスCRM のスイッチ（salons.crm_until・/admin の店舗編集で運営が ON／OFF）で見る。
+//     ＝スイッチは1つ。ON の店だけ「コネックエフに切り替える」を押せて、フクエスCRM も使える。
+//   ・フクエスリンク（駅ちかからの反映専用）は今までどおり無料（このセットとは別）。
+// ★ 金額・呼び名を変えるときはここだけ（ご案内・よくあるご質問・利用規約・/admin が同じ値を使う）。
+//   ★ 画像の中の金額（public/mypage/conecf/conecf-intro-v2.webp の札）は別に直すこと。
+// ★ 純粋なデータと判定だけ（通信も DB も触らない）。
+
+export const SET_PLAN_PRICE_YEN = 22000;
+/** 例: 月額22,000円（税込） */
+export const SET_PLAN_PRICE_LABEL = `月額${SET_PLAN_PRICE_YEN.toLocaleString('ja-JP')}円（税込）`;
+export const SET_PLAN_NAME = 'コネックエフ＋フクエスCRM';
+/** ご案内に出す1文 */
+export const SET_PLAN_LINE = `コネックエフとフクエスCRMは、セットで${SET_PLAN_PRICE_LABEL}です。`;
+export const SET_PLAN_APPLY_LINE = 'お申し込みは運営事務局までご連絡ください。';
+/** 契約していない店が「コネックエフに切り替える」を押したときに返す文（サーバー） */
+export const SET_PLAN_NEED_MESSAGE = `コネックエフは、フクエスCRMとのセット（${SET_PLAN_PRICE_LABEL}）をご契約の店舗様がお使いいただけます。${SET_PLAN_APPLY_LINE}`;
+
+/**
+ * セットを契約しているか。★ actions/crm.ts の isCrmActive と同じ決まり（crm_until の日付が今日（JST の暦日）以降）。
+ * @param crmUntil salons.crm_until（YYYY-MM-DD…／無ければ null）
+ * @param todayJst 今日（JST）の YYYY-MM-DD
+ */
+export function isSetPlanActive(crmUntil: string | null | undefined, todayJst: string): boolean {
+  if (!crmUntil) return false;
+  return String(crmUntil).slice(0, 10) >= todayJst;
+}

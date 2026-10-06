@@ -8,6 +8,8 @@ import { providerLabel } from '@/lib/mediaAudit';
 import { computeMediaLinkAlerts } from '@/app/lib/media/linkAlerts';
 import { hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
+import { isSetPlanActive, SET_PLAN_NEED_MESSAGE } from '@/lib/setPlan';
 
 // コネックエフ（conecf.com）の入口の権限（第395便・1a・2026-09-17）。
 //
@@ -16,9 +18,13 @@ import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 // ★ 店舗の選び方は /mypage/media（useMediaGate）と同じ：非表示でない店を先に、id の若い順で1件。
 //   ★ 複数店舗の切り替えは第1弾では作らない。
 // ★★ 書くのは enableConecf（切り替え）だけ。
+// ★★ 第1241便（2026-10-06・カッキーさん）: コネックエフはフクエスCRM とのセット販売（月額22,000円・税込）になった。
+//   ・contract ＝ セットを契約しているか（salons.crm_until・lib/setPlan.ts）。運営が /admin で ON にした店だけ true。
+//   ・契約していない店は、入って見ることはできるが「コネックエフに切り替える」を押せない（enableConecf がサーバーで止める）。
+//   ・すでに切り替え済みの店の動きは、ここでは変えていない（解約のときに止めるかどうかは別便）。
 
 export type ConecfAccess =
-  | { ok: true; role: 'owner' | 'operator'; email: string; salonId: number | null; salonName: string; enabledAt: string | null }
+  | { ok: true; role: 'owner' | 'operator'; email: string; salonId: number | null; salonName: string; enabledAt: string | null; contract: boolean }
   | { ok: false; reason: 'login' }
   | { ok: false; reason: 'no_salon'; email: string };
 
@@ -31,7 +37,7 @@ export async function getConecfAccess(): Promise<ConecfAccess> {
 
   const { data: salon } = await supabase
     .from('salons')
-    .select('id, name, conecf_enabled_at')
+    .select('id, name, conecf_enabled_at, crm_until')
     .eq('owner_id', user.id)
     .order('is_hidden', { ascending: true })
     .order('id', { ascending: true })
@@ -46,12 +52,13 @@ export async function getConecfAccess(): Promise<ConecfAccess> {
       salonId: Number(salon.id),
       salonName: (salon.name as string | null) ?? '',
       enabledAt: (salon.conecf_enabled_at as string | null) ?? null,
+      contract: isSetPlanActive((salon.crm_until as string | null) ?? null, getCalendarDateJST()),
     };
   }
 
   // ★ 運営は店舗を持っていなくても入れる（★ 中身の画面は、店舗を選べるようになるまで空）
   if (user.id === ADMIN_UUID) {
-    return { ok: true, role: 'operator', email, salonId: null, salonName: '', enabledAt: null };
+    return { ok: true, role: 'operator', email, salonId: null, salonName: '', enabledAt: null, contract: true };
   }
 
   return { ok: false, reason: 'no_salon', email };
@@ -105,6 +112,8 @@ export async function enableConecf(input: { stopRead?: boolean } = {}): Promise<
   if (!a.ok) return { ok: false, error: 'ログインが必要です' };
   if (a.salonId == null) return { ok: false, error: '店舗が選ばれていません' };
   if (a.enabledAt) return { ok: true, enabledAt: a.enabledAt };
+  // ★ 第1241便: セット（コネックエフ＋フクエスCRM）を契約していない店は切り替えられない。運営は試せるように通す。
+  if (a.role !== 'operator' && !a.contract) return { ok: false, error: SET_PLAN_NEED_MESSAGE };
   const svc = createServiceClient();
 
   // ★★ 第400便: 「駅ちかから反映」が残っていたら、先に止める（★ 取り込みがコネックエフの出勤を上書きするため）。

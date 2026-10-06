@@ -7,15 +7,21 @@
 //   ★ 画像の中の文章は alt に要点を書く（画面読み上げのため）。★ 画像の中身を変えたら alt も直すこと（食い違わせない）。
 //   ★ 画像の「はじめての方へ」は押せないので、下に押せる形でも置く。★ ボタン2つは画像にしない（今までどおり）。
 //   ★ 前の画像（01〜05 の pc/sp・10枚）は public/mypage/conecf/ に残してある（いまは使っていない）。
+// ★★ 第1241便（2026-10-06・カッキーさん）: コネックエフはフクエスCRM とのセット販売（月額22,000円・税込）になった。
+//   ・画像の札「利用料 無料」を「月額 22,000円（税込）」に書き換えた画像（conecf-intro-v2.webp）に差し替え（元の conecf-intro.webp は残してある）。
+//     ★ 札の文字は Claude が上から書いたもの。カッキーさんが作り直した画像が来たら、ファイルを置き換える。
+//   ・画像の下に、料金と「お申し込みは運営へ」を文字で出し、「運営に申し込む」ボタンを足した（行き先は CRM のご案内と同じお問い合わせ）。
+//   ・「コネックエフを始める」は残す（見るだけなら契約前でも入れる。切り替えは契約後＝サーバーで止めている）。
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CONECF_ORIGIN } from '@/lib/conecfHost';
+import { SET_PLAN_LINE, SET_PLAN_APPLY_LINE } from '@/lib/setPlan';
 
 export const metadata: Metadata = { title: 'コネックエフのご案内｜フクエス マイページ' };
 
 const INTRO_ALT =
-  'コネックエフ ご案内（フクエス契約店舗様へ）。入力は、1か所だけ。フクエス・駅ちか・エステ魂も、まとめて自動で更新されます。二度打ち ゼロ・利用料 無料。' +
+  'コネックエフ ご案内（フクエス契約店舗様へ）。入力は、1か所だけ。フクエス・駅ちか・エステ魂も、まとめて自動で更新されます。二度打ち ゼロ・月額 22,000円（税込）。' +
   'コネックエフ（ここだけ入力）から、フクエス・駅ちか・エステ魂 など（まとめて自動で更新）。' +
   '01 まとめて更新できるもの：出勤（7日分をまとめて）、写メ日記（書くのは1回）、今すぐ（即ヒメ・即セラも）、セラピスト（登録・写真の更新）。エステラブへは写メ日記を送れます。全国エステランキングは準備中です。' +
   '02 始め方（4つのステップ）：1、「コネックエフを始める」を押す。フクエスと同じメールアドレス・パスワードでログインします。2、「コネックエフに切り替える」を押す。コネックエフのホームにあります。' +
@@ -29,12 +35,21 @@ export default function ConecfIntroPage() {
       <div className="max-w-3xl mx-auto">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/mypage/conecf/conecf-intro.webp"
+          src="/mypage/conecf/conecf-intro-v2.webp"
           alt={INTRO_ALT}
           width={1600}
           height={2262}
           className="block w-full h-auto border border-slate-200 mb-5"
         />
+
+        {/* ★ 第1241便: 料金（セット販売）とお申し込み先 */}
+        <div className="mb-5 border-2 border-[#2563eb] bg-white px-4 py-3.5 text-center">
+          <p className="text-[15px] font-black text-[#1e3a8a]">ご利用料金</p>
+          <p className="mt-1 text-[14px] font-bold text-slate-700 leading-relaxed">{SET_PLAN_LINE}</p>
+          <p className="mt-0.5 text-[13px] text-slate-500 leading-relaxed">
+            コネックエフだけ・フクエスCRMだけのご契約はありません。{SET_PLAN_APPLY_LINE}ご契約後に「コネックエフに切り替える」を押せるようになります。
+          </p>
+        </div>
 
         {/* ★ 画像の「はじめての方へ」を押せる形でも置く（★ 画像の文字は押せないため） */}
         <p className="mb-5 text-center text-[13.5px] text-slate-500">
@@ -49,6 +64,10 @@ export default function ConecfIntroPage() {
           >
             コネックエフを始める
           </a>
+          {/* ★ 第1241便: お申し込み（お問い合わせの画面に件名と本文を入れて開く。送信は店舗様が押す） */}
+          <Link href="/mypage?tab=support&apply=crm" className="sm:w-48 text-center py-4 border-2 border-[#1e3a8a] bg-white text-[15px] font-black text-[#1e3a8a] hover:bg-blue-50">
+            運営に申し込む
+          </Link>
           <Link href="/mypage" className="sm:w-56 text-center py-4 border-2 border-[#2563eb] bg-white text-[15px] font-bold text-[#1d4ed8] hover:bg-blue-50">
             マイページへ戻る
           </Link>

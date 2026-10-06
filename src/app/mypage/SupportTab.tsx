@@ -7,6 +7,7 @@ import { BannerPerkPanel } from '@/app/mypage/BannerPerkPanel';
 import { EmbedCodePanel } from '@/app/mypage/EmbedCodePanel';
 import { OpsNoticeBar } from '@/app/mypage/OpsNoticeBar';
 import type { OpsNotice } from '@/lib/opsNotices';
+import { SET_PLAN_PRICE_LABEL } from '@/lib/setPlan';
 
 const supabase = createClient();
 
@@ -153,8 +154,9 @@ export function SupportTab({
     if (url.searchParams.get('apply') !== 'crm') return;
     const fill = () => {
       setSubTab('inquiry');
-      setSubject('フクエスCRMのお申し込み');
-      setBody('フクエスCRMの利用を申し込みます。\n\n（ご質問・ご希望があれば、この下にご記入ください）');
+      // ★ 第1241便: コネックエフとフクエスCRM はセット販売になった（コネックエフの「運営に申し込む」も同じ行き先）
+      setSubject('コネックエフ＋フクエスCRM（セット）のお申し込み');
+      setBody(`コネックエフとフクエスCRMのセット（${SET_PLAN_PRICE_LABEL}）を申し込みます。\n\n（ご質問・ご希望があれば、この下にご記入ください）`);
     };
     fill();
     url.searchParams.delete('apply');

@@ -9,6 +9,7 @@
 
 import { WORK_FIRST_APPROVAL_NOTE } from './mediaOverview';
 import { GUIDE_SERVICE_NOTE, type GuideContent } from './mediaGuide';
+import { SET_PLAN_LINE, SET_PLAN_APPLY_LINE, SET_PLAN_PRICE_LABEL } from './setPlan';
 
 export const CONECF_GUIDE: GuideContent = {
   intro: {
@@ -18,7 +19,8 @@ export const CONECF_GUIDE: GuideContent = {
     points: [
       'サイトごとに管理画面を開いて、同じ出勤を入れ直す手間がなくなります',
       'いつ・何を更新したかは「更新結果」で確認できます',
-      'フクエス契約店舗様は無料でお使いいただけます',
+      // ★ 第1241便: セット販売になった（もとは「フクエス契約店舗様は無料でお使いいただけます」）
+      `フクエスCRMとのセットで、${SET_PLAN_PRICE_LABEL}でお使いいただけます`,
     ],
   },
   flow: [
@@ -124,7 +126,8 @@ export const CONECF_GUIDE: GuideContent = {
     {
       group: 'はじめる前に',
       items: [
-        { q: '料金はかかりますか？', a: ['フクエス契約店舗様は無料です。'] },
+        // ★ 第1241便: セット販売（lib/setPlan.ts）。片方だけの契約は無い
+        { q: '料金はかかりますか？', a: [SET_PLAN_LINE, 'コネックエフだけ・フクエスCRMだけのご契約はありません。', SET_PLAN_APPLY_LINE] },
         {
           q: 'フクエスへの更新に設定はいりますか？',
           a: [

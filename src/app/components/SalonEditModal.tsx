@@ -383,7 +383,8 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
               onChange={e => setCrmUntil(e.target.checked ? CRM_ON_UNTIL : '')}
               className="w-4 h-4 accent-pink-500"
             />
-            フクエスCRM（有料・顧客台帳）
+            {/* ★ 第1241便: コネックエフとフクエスCRM はセット販売。このスイッチ1つで両方（ON の店だけ「コネックエフに切り替える」を押せて、フクエスCRM も使える） */}
+            コネックエフ＋フクエスCRM（セット・月額22,000円 税込）
           </label>
 
           {/* 営業時間 */}
