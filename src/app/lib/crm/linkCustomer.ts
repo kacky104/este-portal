@@ -14,10 +14,13 @@ type Svc = ReturnType<typeof createServiceClient>;
 
 const CRM_PHONE_RE = /^\d{10,13}$/;
 
-/** 名寄せに使える形へそろえた電話番号。使えない番号なら空文字。 */
+/** 名寄せに使える形へそろえた電話番号。使えない番号なら空文字。
+ * ★ 第1220便: 全部同じ数字（0000000000 など）は電話番号として扱わない＝以前の削除で入れた 0000000000 の予約を開いて保存しても名寄せされない */
 export function crmPhone(tel: string | null | undefined): string {
   const p = normalizePhone(String(tel ?? ''));
-  return CRM_PHONE_RE.test(p) ? p : '';
+  if (!CRM_PHONE_RE.test(p)) return '';
+  if (/^(\d)\1+$/.test(p)) return '';
+  return p;
 }
 
 async function findCustomerId(svc: Svc, salonId: number, phone: string): Promise<number | null> {

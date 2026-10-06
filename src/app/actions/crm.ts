@@ -663,7 +663,7 @@ export async function getCrmSchedule(
           courseName: b.courseName,
           courseMin: b.courseMin,
           customerName: b.customerName,
-          customerTel: b.customerTel,
+          customerTel: displayTel(b.customerTel), // ★ 第1220便
           note: b.note ?? '',
           status: b.status,
           cancelBad: e?.cancelBad ?? false,
@@ -2191,7 +2191,11 @@ export async function agreeCrmTerms(salonId: number): Promise<{ ok: true } | { o
 
 /**
  * お客様を台帳から消す（お客様から削除を頼まれたときなど）。
- * その人の予約は名前「削除済み」・電話 0000000000・備考なしにし、その予約の同意書も消す（金額・日時は残す）。
+ * その人の予約は名前「削除済み」・電話なし・備考なし・customer_id なしにし、その予約の同意書も消す（金額・日時は残す）。
+ * ★ 第1220便（カッキーさん）: 電話を 0000000000 にしていた → ''（空）に。
+ *   0000000000 は10桁なので「電話番号らしい」判定（crmPhone）を通り、その予約を後で開いて保存すると
+ *   「削除済み」という顧客が作られて削除済み全員の予約が1人に名寄せされる道があった。予約一覧にもそのまま出ていた。
+ *   ★ customer_id も null に（消した顧客を指したまま残っていた）。
  */
 export async function deleteCrmCustomer(
   salonId: number,
@@ -2209,13 +2213,19 @@ export async function deleteCrmCustomer(
     const chunk = bookingIds.slice(i, i + 300);
     await svc.from('crm_consents').delete().eq('salon_id', salonId).in('booking_id', chunk);
     const { error } = await svc.from('salon_bookings')
-      .update({ customer_name: '削除済み', customer_tel: '0000000000', note: null })
+      .update({ customer_name: '削除済み', customer_tel: '', customer_id: null, note: null })
       .eq('salon_id', salonId).in('id', chunk);
     if (error) return { ok: false, error: error.message };
   }
   const { error } = await svc.from('salon_customers').delete().eq('salon_id', salonId).eq('id', customerId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/** ★ 第1220便: 画面に出す電話番号。以前の削除で入れた 0000000000（全部同じ数字）は出さない */
+function displayTel(v: unknown): string {
+  const t = String(v ?? '');
+  return /^(\d)\1{5,}$/.test(t) ? '' : t;
 }
 
 function csvCell(v: unknown): string {
@@ -2313,7 +2323,7 @@ export async function searchCrmBookings(
     therapistName: b.therapist_id == null ? 'フリー' : names.get(Number(b.therapist_id)) ?? '(不明)',
     courseName: String(b.course_name ?? ''),
     customerName: String(b.customer_name ?? ''),
-    customerTel: String(b.customer_tel ?? ''),
+    customerTel: displayTel(b.customer_tel), // ★ 第1220便: 削除済み（0000000000）は出さない
     customerId: b.customer_id == null ? null : Number(b.customer_id),
     status: String(b.status),
     cancelBad: Boolean(b.cancel_bad),
