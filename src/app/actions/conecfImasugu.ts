@@ -2,10 +2,11 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { getBusinessDateJST, getNowJSTMinutes } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getNowJSTMinutes, getCalendarDateJST } from '@/lib/dutyStatus';
 import { imasuguMax, imasuguUntilISO, isCastLiveRow, isOwnerLiveRow, isImportLiveRow } from '@/lib/imasugu';
 import { isOnDutyNow, type ImasuguOrderMode, type ImasuguPriorityRule } from '@/lib/conecfImasugu';
 import { runImasuguForSalon } from '@/app/lib/conecf/imasuguRun';
+import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
 // コネックエフ「今すぐ一括」の受け口（第401便・1e・2026-09-17）。
 // ★ 書き込みは「コネックエフに切り替え済み」の自店だけ。★ 今すぐは店舗の枠だけを触る（本人・取り込みの枠は触らない）。
@@ -18,10 +19,12 @@ async function resolve(write: boolean) {
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
   const { data: salon } = await svc
-    .from('salons').select('id, jobs_enabled, conecf_enabled_at')
+    .from('salons').select('id, jobs_enabled, conecf_enabled_at, crm_until')
     .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   if (write && !salon.conecf_enabled_at) return { ok: false as const, error: '保存するには、ホームで「コネックエフに切り替える」を押してください' };
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）
+  if (write && isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) return { ok: false as const, error: CONECF_STOPPED_MESSAGE };
   return { ok: true as const, svc, salonId: Number(salon.id), max: imasuguMax(salon.jobs_enabled === true) };
 }
 

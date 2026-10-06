@@ -9,6 +9,7 @@ import { signOut } from '@/lib/auth';
 import { useConecfHref } from './ConecfBase';
 import { useConecfSession } from './ConecfSession';
 import { CONECF_NAV, type ConecfNavKey } from './conecfNav';
+import { CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
 // コネックエフの外枠（第395便・1a・2026-09-17）。
 // ★ 骨格はフクエスリンク（MediaShell）と同じ：左サイドバー・1画面1機能・スマホは三本線→ドロワー。
@@ -245,6 +246,16 @@ export function ConecfShell({
             </button>
             <h1 className="text-[16px] font-normal text-[#212121] truncate">{title}</h1>
           </div>
+          {/* ★ 第1243便（カッキーさん）: セット（コネックエフ＋フクエスCRM）を OFF にした店＝切り替え済みで契約が無い店。
+              どの画面でもいちばん上に「止めています」を出す（保存・各サイトへの更新はサーバーが止めている）。 */}
+          {access.enabledAt && !access.contract && (
+            <div className="px-4 md:px-6 pb-2.5">
+              <div className="border border-amber-400 bg-amber-50 px-3 py-2.5">
+                <p className="text-[14px] font-bold text-amber-800">コネックエフを止めています</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-amber-900">{CONECF_STOPPED_MESSAGE}</p>
+              </div>
+            </div>
+          )}
           {alerts.length > 0 && (
             <div className="px-4 md:px-6 pb-2.5">
               {alerts.map((a) => (

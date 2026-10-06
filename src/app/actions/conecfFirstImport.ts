@@ -3,6 +3,8 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { firstImportPhase, type FirstImportPhase } from '@/lib/conecfFirstImport';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
+import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
 // コネックエフ「駅ちかから最初に1回だけ取り込む」の受け口（第406便・2026-09-17）。
 // ★ 押すのは店舗様（切り替え済みの自店だけ）。★ 1店舗1回だけ（★ 戻すのは運営が SQL で）。
@@ -17,7 +19,7 @@ async function resolve() {
   const svc = createServiceClient();
   const { data: salon } = await svc
     .from('salons')
-    .select('id, conecf_enabled_at, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at')
+    .select('id, conecf_enabled_at, crm_until, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at')
     .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   return { ok: true as const, svc, salon };
@@ -85,6 +87,8 @@ export async function requestConecfFirstImport(): Promise<Result<{ requestedAt: 
   if (!r.ok) return r;
   const { svc, salon } = r;
   if (!salon.conecf_enabled_at) return { ok: false, error: '取り込むには、ホームで「コネックエフに切り替える」を押してください' };
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）
+  if (isConecfStopped({ conecfEnabledAt: (salon.conecf_enabled_at as string | null) ?? null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) return { ok: false, error: CONECF_STOPPED_MESSAGE };
   if (salon.conecf_import_requested_at) return { ok: false, error: '駅ちかからの取り込みは、すでに1回行っています' };
   const { count } = await svc
     .from('salon_import_sources').select('id', { count: 'exact', head: true })
@@ -126,7 +130,7 @@ async function resolvePhoto() {
   const svc = createServiceClient();
   const { data: salon, error } = await svc
     .from('salons')
-    .select('id, conecf_enabled_at, conecf_import_requested_at, conecf_import_done_at, conecf_photo_import_requested_at, conecf_photo_import_started_at, conecf_photo_import_done_at')
+    .select('id, conecf_enabled_at, crm_until, conecf_import_requested_at, conecf_import_done_at, conecf_photo_import_requested_at, conecf_photo_import_started_at, conecf_photo_import_done_at')
     .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
   if (error) return { ok: false as const, error: '写真の取り込みの準備ができていません（SQL 未適用）' };
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
@@ -177,6 +181,8 @@ export async function requestConecfPhotoImport(): Promise<Result<{ requestedAt: 
   if (!r.ok) return r;
   const { svc, salon } = r;
   if (!salon.conecf_enabled_at) return { ok: false, error: '取り込むには、ホームで「コネックエフに切り替える」を押してください' };
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）
+  if (isConecfStopped({ conecfEnabledAt: (salon.conecf_enabled_at as string | null) ?? null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) return { ok: false, error: CONECF_STOPPED_MESSAGE };
   if (salon.conecf_photo_import_requested_at) return { ok: false, error: '駅ちかの写真の取り込みは、すでに1回行っています' };
   if (salon.conecf_import_requested_at && !salon.conecf_import_done_at) return { ok: false, error: '駅ちかからの取り込み中です。終わってからもう一度お試しください（写真もいっしょに取り込みます）' };
   const { count } = await svc

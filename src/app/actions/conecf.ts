@@ -21,7 +21,7 @@ import { isSetPlanActive, SET_PLAN_NEED_MESSAGE } from '@/lib/setPlan';
 // ★★ 第1241便（2026-10-06・カッキーさん）: コネックエフはフクエスCRM とのセット販売（月額22,000円・税込）になった。
 //   ・contract ＝ セットを契約しているか（salons.crm_until・lib/setPlan.ts）。運営が /admin で ON にした店だけ true。
 //   ・契約していない店は、入って見ることはできるが「コネックエフに切り替える」を押せない（enableConecf がサーバーで止める）。
-//   ・すでに切り替え済みの店の動きは、ここでは変えていない（解約のときに止めるかどうかは別便）。
+//   ・第1243便: 切り替え済みでセットの契約が無い店は「止めている店」（保存・取り込み・各サイトへの送信を止める。lib/conecf/contract.ts）。
 
 export type ConecfAccess =
   | { ok: true; role: 'owner' | 'operator'; email: string; salonId: number | null; salonName: string; enabledAt: string | null; contract: boolean }
@@ -112,8 +112,9 @@ export async function enableConecf(input: { stopRead?: boolean } = {}): Promise<
   if (!a.ok) return { ok: false, error: 'ログインが必要です' };
   if (a.salonId == null) return { ok: false, error: '店舗が選ばれていません' };
   if (a.enabledAt) return { ok: true, enabledAt: a.enabledAt };
-  // ★ 第1241便: セット（コネックエフ＋フクエスCRM）を契約していない店は切り替えられない。運営は試せるように通す。
-  if (a.role !== 'operator' && !a.contract) return { ok: false, error: SET_PLAN_NEED_MESSAGE };
+  // ★ 第1241便: セット（コネックエフ＋フクエスCRM）を契約していない店は切り替えられない。
+  //   ★ 第1243便: 運営の店も同じ（切り替えたあと契約が無いと「止めている店」になるため。試すときは /admin でセットを ON にしてから）
+  if (!a.contract) return { ok: false, error: SET_PLAN_NEED_MESSAGE };
   const svc = createServiceClient();
 
   // ★★ 第400便: 「駅ちかから反映」が残っていたら、先に止める（★ 取り込みがコネックエフの出勤を上書きするため）。

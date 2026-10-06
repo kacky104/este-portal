@@ -5,6 +5,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { buildGirlEditValues, buildCastEditValues, buildEsutamaEditPhotos, planPhotoRemovalSlots, imagesOf } from '@/app/lib/media/girlEditPlan';
 import type { PhotoSyncOp } from '@/lib/ekichikaPhoto';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
+import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
 /** ★★ 第428便: 「消さずに更新」のときは消す手を外す（★ 既定は外す＝押す前に確認していない呼び出しでは消さない） */
 function keepRemoves(photos: PhotoSyncOp[], allowRemove: boolean | undefined): PhotoSyncOp[] {
@@ -23,10 +25,12 @@ async function resolve() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon } = await svc.from('salons').select('id, conecf_enabled_at')
+  const { data: salon } = await svc.from('salons').select('id, conecf_enabled_at, crm_until')
     .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   if (!salon.conecf_enabled_at) return { ok: false as const, error: '反映するには、ホームで「コネックエフに切り替える」を押してください' };
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）
+  if (isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) return { ok: false as const, error: CONECF_STOPPED_MESSAGE };
   return { ok: true as const, svc, salonId: Number(salon.id), userId: user.id };
 }
 

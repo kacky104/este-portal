@@ -15,6 +15,8 @@ import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { isSavableTarget } from '@/lib/conecfTargets';
 import { therapistNameDupMessage } from '@/lib/therapistNameDup';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
+import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import {
   normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
 } from '@/lib/conecfSiteFields';
@@ -36,7 +38,7 @@ async function resolveSalon(opts: { write?: boolean } = {}): Promise<Result<{ sv
   const svc = createServiceClient();
   const { data: salon } = await svc
     .from('salons')
-    .select('id, area, conecf_enabled_at')
+    .select('id, area, conecf_enabled_at, crm_until')
     .eq('owner_id', user.id)
     .order('is_hidden', { ascending: true })
     .order('id', { ascending: true })
@@ -45,6 +47,8 @@ async function resolveSalon(opts: { write?: boolean } = {}): Promise<Result<{ sv
   if (!salon) return { ok: false, error: '店舗情報が見つかりません' };
   // ★ 第399便: 書き込みは「コネックエフに切り替え済み」の店だけ（★ 切り替え前は見るだけ）
   if (opts.write && !salon.conecf_enabled_at) return { ok: false, error: '保存するには、ホームで「コネックエフに切り替える」を押してください' };
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）
+  if (opts.write && isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) return { ok: false, error: CONECF_STOPPED_MESSAGE };
   return { ok: true, data: { svc, salonId: Number(salon.id), area: (salon.area as string | null) ?? null } };
 }
 

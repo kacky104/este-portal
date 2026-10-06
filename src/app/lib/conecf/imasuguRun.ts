@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { getBusinessDateJST, getNowJSTMinutes } from '@/lib/dutyStatus';
+import { getBusinessDateJST, getCalendarDateJST, getNowJSTMinutes } from '@/lib/dutyStatus';
+import { isConecfStopped } from '@/lib/setPlan';
 import { imasuguMax, imasuguUntilISO, isCastLiveRow } from '@/lib/imasugu';
 import { isOnDutyNow, pickImasugu, type ImasuguOrderMode, type ImasuguPriorityRule } from '@/lib/conecfImasugu';
 
@@ -19,9 +20,13 @@ export type ImasuguRunResult = {
 };
 
 export async function runImasuguForSalon(svc: Svc, salonId: number, apply: boolean, now = new Date()): Promise<ImasuguRunResult> {
-  const { data: salon } = await svc.from('salons').select('id, jobs_enabled, conecf_enabled_at, is_hidden').eq('id', salonId).maybeSingle();
+  const { data: salon } = await svc.from('salons').select('id, jobs_enabled, conecf_enabled_at, crm_until, is_hidden').eq('id', salonId).maybeSingle();
   if (!salon || salon.is_hidden) return { salonId, candidates: 0, on: [], off: 0, skipped: 'salon-hidden' };
   if (!salon.conecf_enabled_at) return { salonId, candidates: 0, on: [], off: 0, skipped: 'conecf-not-enabled' };
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は「今すぐ一括」を回さない（設定は触らない）
+  if (isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) {
+    return { salonId, candidates: 0, on: [], off: 0, skipped: 'set-plan-off' };
+  }
 
   const { data: st } = await svc.from('conecf_imasugu_settings').select('*').eq('salon_id', salonId).maybeSingle();
   const orderMode = (st?.order_mode as ImasuguOrderMode) ?? 'priority';

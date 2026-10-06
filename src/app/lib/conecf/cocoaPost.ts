@@ -2,6 +2,8 @@ import { Resend } from 'resend';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { COCOA_TEMPLATES_MAX, pickCocoaTemplate, type CocoaTemplate } from '@/lib/conecfCocoa';
 import { dayKeyJST } from '@/lib/announceAuto';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
+import { isConecfStopped } from '@/lib/setPlan';
 
 // ココア店長ブログの1店ぶんのメール投稿（第404便・1f 応用）。★ サーバー専用（'use server' ではない）。
 // ★ ココアは駅ちかと同じ ranking-deli 系。★ 写メ日記転送（forwardDiary）と同じ Resend で、件名＝タイトル・本文＝本文・添付＝写真1枚。
@@ -56,9 +58,13 @@ export async function hasEkichikaLogin(svc: Svc, salonId: number): Promise<boole
 }
 
 export async function postCocoaForSalon(svc: Svc, salonId: number, apply: boolean, markAuto: boolean, now = new Date()): Promise<CocoaPostResult> {
-  const { data: salon } = await svc.from('salons').select('id, is_hidden, conecf_enabled_at').eq('id', salonId).maybeSingle();
+  const { data: salon } = await svc.from('salons').select('id, is_hidden, conecf_enabled_at, crm_until').eq('id', salonId).maybeSingle();
   if (!salon || salon.is_hidden) return { salonId, posted: false, skipped: 'salon-hidden' };
   if (!salon.conecf_enabled_at) return { salonId, posted: false, skipped: 'conecf-not-enabled' };
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は投稿しない（手動・自動とも。設定は触らない）
+  if (isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon as { crm_until?: string | null }).crm_until ?? null }, getCalendarDateJST())) {
+    return { salonId, posted: false, skipped: 'set-plan-off' };
+  }
   // ★ 第474便: 駅ちかのID・PASSが無い（解除・一時停止）なら投稿しない
   if (!(await hasEkichikaLogin(svc, salonId))) return { salonId, posted: false, skipped: 'no-ekichika-login' };
 

@@ -99,7 +99,7 @@ export default function ConecfHomePage() {
           {/* ★ 第411便: 「◯◯ 様」の帯は外した（★ 店舗名はサイドバーに出ている。★ はじめての方へはサイドバーから） */}
           <SwitchCard
             enabledAt={access.enabledAt}
-            canSwitch={access.contract || access.role === 'operator'}
+            canSwitch={access.contract}
             applyHref={`${FUKUES_ORIGIN}/mypage?tab=support&apply=crm`}
             onToast={showToast}
           />

@@ -78,6 +78,7 @@ import {
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
 import { shouldDropAutoAudits, AUDIT_SHOP_HIDDEN } from '@/lib/mediaAudit';
+import { conecfStopNote } from '@/app/lib/conecf/contract';
 import { dayKeyJST } from '@/lib/announceAuto';
 // ★ 失敗を覚えて、やめどきを決める（第137便）
 import { decideDiaryRetry, MAX_DIARY_ATTEMPTS } from '@/lib/esutamaDiaryRetry';
@@ -370,6 +371,13 @@ export async function startRelayFlow(params: {
 
   if (error) throw new Error('ログイン情報を読めなかった: ' + error.message);
   if (!cred) return { ok: false, reason: 'no_credential', note: 'ログイン情報が登録されていません' };
+
+  // ★★ 第1243便（カッキーさん）: セット（コネックエフ＋フクエスCRM）を OFF にした店は、各サイトへのフローを始めない。
+  //   ★ ここは手動・自動のすべてのフローの入口＝1か所で止まる。対象はコネックエフに切り替え済みの店だけ（フクエスリンクの店は通る）。
+  //   ★ 記録（salon_media_audit）は書かない＝「続けて失敗したので自動をやめる」の数に入らない。ON に戻せば次の周から元どおり。
+  //   ★ 走っている途中のフロー（次の段）は止めない（ここを通らない）。読めなかったときは止めない（conecfStopNote）。
+  const stopNote = await conecfStopNote(supabase, params.salonId);
+  if (stopNote) return { ok: false, reason: 'disabled', note: stopNote };
 
   // ★★ 連携の向きが 'none'（連携しない）の枠では、認証情報を使わない（第45便）。
   //   ★ 行が無いときは止めない。向きがまだ決まっていないだけで、

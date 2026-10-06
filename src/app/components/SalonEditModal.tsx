@@ -194,6 +194,19 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
       try { const u = new URL(officialRaw); okUrl = u.protocol === 'http:' || u.protocol === 'https:'; } catch { okUrl = false; }
       if (!okUrl) { setError('公式ホームページURLは https://〜 の形で入力してください'); return; }
     }
+    // ★ 第1243便（カッキーさん）: セット（コネックエフ＋フクエスCRM）を ON → OFF にするときは、保存の前に確かめる。
+    //   OFF にすると、その店のフクエスCRM がすぐ使えなくなり、コネックエフの保存・各サイトへの更新も止まる。
+    //   （間違えたときは、もう一度 ON にして保存すれば元どおり。データ・設定は消えない。CRM のデータは OFF のまま90日で消える）
+    if (Boolean(salon.crm_until) && !crmUntil) {
+      const okOff = window.confirm(
+        'コネックエフ＋フクエスCRM（セット）を OFF にします。\n\n' +
+        '・フクエスCRM がすぐ使えなくなります（同意書の QR・セラピストのスケジュール表示も止まります）\n' +
+        '・コネックエフでの保存と、各サイトへの更新（出勤・今すぐ・写メ日記・ココア）が止まります\n' +
+        '・コネックエフに切り替え済みの店は、出勤とセラピストをマイページでも直せません。解約のときは「マイページでの編集に戻す」作業も必要です\n\n' +
+        '間違えたときは、もう一度 ON にして保存すれば元どおりです。OFF にしてよろしいですか？',
+      );
+      if (!okOff) return;
+    }
     setSaving(true);
     setError('');
 

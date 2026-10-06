@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { forwardsDiaryFromFukues, readDiarySource, diaryForwardAllowed } from '@/lib/diarySource';
+import { conecfStopNote } from '@/app/lib/conecf/contract';
 
 // ── 写メ日記の他媒体転送（第36便・第2弾）────────────────────────────────
 //
@@ -177,6 +178,19 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
       return result;
     }
     result.注意 = `試し打ち（1通も送っていません）／この店舗の正本は ${readDiarySource(source)} のため、実運用では送られません`;
+  }
+  // ★★ 第1243便（カッキーさん）: セット（コネックエフ＋フクエスCRM）を OFF にした店は転送しない（コネックエフに切り替え済みの店だけ。フクエスリンクの店は通る）。
+  //   ★ 日記そのものはフクエスに載る（ここは他サイトへ送る所だけ）。★ 止めているあいだに書かれた日記は、ON に戻しても送り直さない（記録は skipped）。
+  if (salonId != null) {
+    const stopNote = await conecfStopNote(svc, Number(salonId));
+    if (stopNote) {
+      if (apply) {
+        result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:set_plan_off' });
+        await log('-', 'skipped:set_plan_off');
+        return result;
+      }
+      result.注意 = '試し打ち（1通も送っていません）／この店舗はセットのご契約が無いため、実運用では送られません';
+    }
   }
   if (rows.length === 0) {
     result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:no_address' });
@@ -360,6 +374,14 @@ export async function retryFailedForwards(opts: { limit?: number; apply?: boolea
       const why = 'skipped:source_is_' + readDiarySource(built.payload.source);
       note(why, mask(address));
       if (apply) await mark(why);
+      continue;
+    }
+
+    // ★ 第1243便: セットを OFF にした店の再送はしない（新しい転送と同じ扱い＝ skipped で終わりにする。
+    //   残したままにすると、止めている店の行が毎回の周の先頭に居座って、ほかの店の再送を押しのけるため）
+    if (built.payload.salonId != null && (await conecfStopNote(svc, Number(built.payload.salonId)))) {
+      note('skipped:set_plan_off', mask(address));
+      if (apply) await mark('skipped:set_plan_off');
       continue;
     }
 

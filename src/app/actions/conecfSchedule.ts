@@ -2,9 +2,10 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { getBusinessDateRangeJST } from '@/lib/dutyStatus';
+import { getBusinessDateRangeJST, getCalendarDateJST } from '@/lib/dutyStatus';
 import { sortTherapistsByKana } from '@/lib/therapistOrder';
 import { CONECF_SCHEDULE_DAYS, normalizeShifts, type ConecfShift, type ConecfShiftInput } from '@/lib/conecfSchedule';
+import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
 // コネックエフ「週間スケジュール」の受け口（第399便・1d・2026-09-17）。
 // ★ 保存先はフクエスの therapist_schedules（★ /mypage の出勤と同じ行）。★ 保存した時点でフクエスに出る。
@@ -20,7 +21,7 @@ async function resolve(write: boolean) {
   const svc = createServiceClient();
   const { data: salon } = await svc
     .from('salons')
-    .select('id, conecf_enabled_at')
+    .select('id, conecf_enabled_at, crm_until')
     .eq('owner_id', user.id)
     .order('is_hidden', { ascending: true })
     .order('id', { ascending: true })
@@ -30,6 +31,8 @@ async function resolve(write: boolean) {
   if (write && !salon.conecf_enabled_at) {
     return { ok: false as const, error: '保存するには、ホームで「コネックエフに切り替える」を押してください' };
   }
+  // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）
+  if (write && isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) return { ok: false as const, error: CONECF_STOPPED_MESSAGE };
   return { ok: true as const, svc, salonId: Number(salon.id) };
 }
 

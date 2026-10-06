@@ -26,3 +26,21 @@ export function isSetPlanActive(crmUntil: string | null | undefined, todayJst: s
   if (!crmUntil) return false;
   return String(crmUntil).slice(0, 10) >= todayJst;
 }
+
+// ★★ 第1243便（2026-10-06・カッキーさんの決定）: セットを OFF にした店は、コネックエフも止める。
+//   ・止める店＝コネックエフに切り替え済み（conecf_enabled_at あり）で、セットの契約が無い店。
+//     切り替えていない店（フクエスリンク・マイページで編集している店）は対象外。
+//   ・止めるもの＝コネックエフでの保存・取り込みと、各サイトへの送信（手動・自動）。設定には触らない＝ON に戻せば元どおり。
+//   ・★ コネックエフに切り替えた店は、セラピストと出勤をマイページでは直せない。止めているあいだは、どこからも直せなくなる。
+//     本当の解約のときは、運営が「マイページでの編集に戻す」（conecf_enabled_at を空にする）までがセット。
+/** 止めている店の画面・保存のエラーに出す文 */
+export const CONECF_STOPPED_MESSAGE =
+  `${SET_PLAN_NAME}（セット）のご契約が確認できないため、コネックエフでの保存と各サイトへの更新を止めています。お心当たりのない場合は、運営事務局までご連絡ください。`;
+
+export function isConecfStopped(
+  salon: { conecfEnabledAt: string | null | undefined; crmUntil: string | null | undefined },
+  todayJst: string,
+): boolean {
+  if (!salon.conecfEnabledAt) return false;
+  return !isSetPlanActive(salon.crmUntil, todayJst);
+}
