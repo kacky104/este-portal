@@ -15,6 +15,7 @@ import { useIncrementalList } from './useIncrementalList'; // ★ 第1002便: 30
 import { XFollowRows } from './XFollowRows';
 import { VerifiedBadge } from './VerifiedBadge';
 import { AutoFitName } from './AutoFitName';
+import { XShopCardImages } from './XShopCardImages';
 import { useXEngagement } from './useXEngagement';
 import { useXToast } from './useXToast';
 import type { FollowUser } from './xFollows';
@@ -271,20 +272,14 @@ export function XTimeline({
                 )}
                 {/* ★ 第1199便: 画像は左右の余白なしで端まで（隙間は gap-0.5=2px のまま）。
                     画像0枚（未認証店など）はグリッドごと出さず、名前＋地域だけの行になる。 */}
-                {s.images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-0.5 mt-2.5">
-                    {s.images.map((url, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={i}
-                        src={url}
-                        alt={`${s.displayName}-${i + 1}`}
-                        className="aspect-square w-full object-cover"
-                        loading="lazy"
-                      />
-                    ))}
-                  </div>
-                )}
+                {/* ★ 第1238便: 認証店はフクエスのセラピスト写真から開くたびにランダム（XShopCardImages）。手で入れた画像の店は今までどおり。 */}
+                <XShopCardImages
+                  images={s.images}
+                  pool={s.pool}
+                  name={s.displayName}
+                  gridClassName="grid grid-cols-4 gap-0.5 mt-2.5"
+                  tileClassName="aspect-square w-full"
+                />
               </Link>
             ))}
           </div>

@@ -2,6 +2,8 @@
 //   未認証×未設置: 0枚 / 未認証×設置: 4枚 / 認証×未設置: 4枚 / 認証×設置: 8枚（4列×2段）
 // ⚠️ DB側ガード（x_showcase_verified_guard・migrations/20260711_x_profiles_banner_installed.sql）と同じ式。
 //    変更する場合は必ず両方を揃えること。
+// ★ 第1238便（2026-10-06）: 枚数の式は変えていない。認証店（フクエスに掲載中）は、この枚数ぶんを
+//    フクエスのセラピスト写真から自動で出す（xShops.ts）。手で入れるのは「未認証×バナー設置」の4枚だけ。
 export function shopShowcaseLimit(p: { is_verified: boolean; banner_installed: boolean }): number {
   return (p.is_verified ? 4 : 0) + (p.banner_installed ? 4 : 0);
 }

@@ -3,6 +3,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { getXContext } from '../xProfile';
 import { getLinkedTherapistForXProfile, fukuesTherapistPageUrl } from '@/app/lib/xLink';
 import { fetchShopMini, type ShopMini } from '../xAffiliation';
+import { hasListedSalonForShowcase } from '../xShops';
 import { XSettingsForm } from './XSettingsForm';
 
 // ログイン必須＋自分の x_profiles の編集なので動的レンダリング。
@@ -30,12 +31,15 @@ export default async function XSettingsPage() {
     const linked = await getLinkedTherapistForXProfile(profile.auth_user_id);
     if (linked) fixedLinkUrl = fukuesTherapistPageUrl(linked.id);
   }
+  // ★ 第1238便: 認証店でフクエスに掲載中の店舗があるお店は、お店カード画像が自動（セラピスト写真）。設定欄は案内だけにする
+  const autoShowcase =
+    profile.kind === 'shop' && profile.is_verified ? await hasListedSalonForShowcase(profile.auth_user_id) : false;
 
   return (
     <div className="x-card my-6 p-6 rounded-2xl bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)]">
       <h1 className="text-2xl font-black tracking-tight mb-1">プロフィール設定</h1>
       <p className="text-sm text-[color:var(--x-text-secondary)] mb-6">アカウント名・自己紹介・画像を編集できます。</p>
-      <XSettingsForm profile={profile} email={email} affiliatedShop={affiliatedShop} fixedLinkUrl={fixedLinkUrl} />
+      <XSettingsForm profile={profile} email={email} affiliatedShop={affiliatedShop} fixedLinkUrl={fixedLinkUrl} autoShowcase={autoShowcase} />
     </div>
   );
 }

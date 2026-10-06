@@ -53,11 +53,14 @@ export function XSettingsForm({
   email,
   affiliatedShop,
   fixedLinkUrl = null,
+  autoShowcase = false,
 }: {
   profile: XProfile;
   email: string | null;
   affiliatedShop: ShopMini | null;
   fixedLinkUrl?: string | null; // ★ 第996便: フクエス在籍のセラピストはリンク先固定（入力欄を出さない）
+  // ★ 第1238便: 認証店（フクエスに掲載中）のお店カードは、セラピスト写真から自動。手で入れる欄は出さず、保存でも送らない
+  autoShowcase?: boolean;
 }) {
   const router = useRouter();
 
@@ -261,7 +264,8 @@ export function XSettingsForm({
         ...(isShop ? { address: shopAreas.length > 0 ? shopAreas.join('／') : legacyAddress } : {}),
         // お店カード画像は「上限>0」または「既存画像あり（削除を反映するため）」のお店のみ保存対象
         // （上限0・画像0で送る意味はなく、DBトリガの上限式とも整合。枚数が減る変更はDB側が常に許可）。
-        ...(isShop && (showcaseLimit > 0 || (profile.showcase_images ?? []).length > 0)
+        // ★ 第1238便: 自動の店（autoShowcase）は欄を出していないので送らない＝DB の showcase_images はそのまま残る
+        ...(isShop && !autoShowcase && (showcaseLimit > 0 || (profile.showcase_images ?? []).length > 0)
           ? { showcase_images: showcaseImages }
           : {}),
         // オファー系は未所属セラピストのみ保存対象（それ以外では欄を出さず、キーも送らない＝ガードトリガ回避）。
@@ -559,18 +563,37 @@ export function XSettingsForm({
 
       {/* ── お店カード画像 ── タイムライン「お店」タブのショーケース用。
           上限は認証×リンクバナー設置で 0/4/8 枚（showcaseLimit）。上限0のときは案内カードのみ。 */}
-      {isShop && showcaseLimit === 0 && showcaseImages.length === 0 && (
+      {/* ★ 第1238便: 認証店（フクエスに掲載中）は自動。手で入れる欄の代わりに案内だけ出す。 */}
+      {isShop && autoShowcase && (
+        <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
+          <p className="text-sm font-bold text-[color:var(--x-text-primary)]">お店カード画像（自動・{showcaseLimit}枚）</p>
+          <p className="text-[12px] text-[color:var(--x-text-secondary)] mt-1 leading-relaxed">
+            認証済みのお店は、フクエスに登録している公開中のセラピストの写真が、タイムラインの「お店」タブに自動で表示されます
+            （4列×{showcaseLimit > 4 ? '2段' : '1段'}・開くたびにランダムで入れ替わります）。こちらでの設定は不要です。
+            写真はフクエスのマイページで登録したものが使われます。
+            {!profile.banner_installed && (
+              <>
+                貴店サイトに
+                <Link href="/x/banner" className="text-[color:var(--x-accent)] font-bold hover:underline">リンクバナー</Link>
+                を設置いただくと、8枚（4列×2段）になります（設置後に運営までご連絡ください）。
+              </>
+            )}
+          </p>
+        </div>
+      )}
+      {isShop && !autoShowcase && showcaseLimit === 0 && showcaseImages.length === 0 && (
         <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
           <p className="text-sm font-bold text-[color:var(--x-text-primary)]">お店カード画像</p>
           <p className="text-[12px] text-[color:var(--x-text-secondary)] mt-1 leading-relaxed">
-            お店カード画像は、フクエス認証済みのお店、または貴店サイトに
+            フクエス認証済みのお店は、フクエスに登録しているセラピストの写真が自動で表示されます（4枚・バナー設置で8枚）。
+            未認証のお店は、貴店サイトに
             <Link href="/x/banner" className="text-[color:var(--x-accent)] font-bold hover:underline">リンクバナー</Link>
-            を設置いただいたお店が設定できます（認証で4枚・バナー設置でさらに4枚）。
+            を設置いただくと、お店カード画像を4枚まで設定できます。
             バナー設置後は運営までご連絡ください。確認のうえ設定を開放します。
           </p>
         </div>
       )}
-      {isShop && (showcaseLimit > 0 || showcaseImages.length > 0) && (
+      {isShop && !autoShowcase && (showcaseLimit > 0 || showcaseImages.length > 0) && (
         <div>
           <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-1.5 px-1">
             お店カード画像{showcaseLimit > 0 ? `（${showcaseLimit}枚まで）` : ''}

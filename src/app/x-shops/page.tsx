@@ -15,6 +15,7 @@ import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { getTheme, breadcrumbCurrentColor } from '@/app/lib/themes';
 import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 import { fetchShopShowcases, fetchVerifiedTherapists } from '@/app/x/xShops';
+import { XShopCardImages } from '@/app/x/XShopCardImages';
 import { XShopsTabs } from './XShopsTabs';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
@@ -203,20 +204,14 @@ export default async function XShopsPage() {
                 )}
 
                 {/* ショーケース画像（最大8枚・4列グリッド）。0枚ならグリッドごと非表示。 */}
-                {s.images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-0.5">
-                    {s.images.map((url, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={i}
-                        src={url}
-                        alt={`${s.displayName}-${i + 1}`}
-                        className="aspect-square w-full object-cover rounded-sm"
-                        loading="lazy"
-                      />
-                    ))}
-                  </div>
-                )}
+                {/* ★ 第1238便: 認証店はフクエスのセラピスト写真から開くたびにランダム（XShopCardImages）。手で入れた画像の店は今までどおり。 */}
+                <XShopCardImages
+                  images={s.images}
+                  pool={s.pool}
+                  name={s.displayName}
+                  gridClassName="grid grid-cols-4 gap-0.5"
+                  tileClassName="aspect-square w-full rounded-sm"
+                />
               </Link>
             ))}
           </div>
