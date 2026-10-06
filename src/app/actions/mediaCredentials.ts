@@ -119,6 +119,14 @@ function validTarget(provider: string, slot: number): string | null {
  *
  * ★ 作れなくても保存そのものは成功として返す（鍵は保存できている）。
  *   ★ ただし黙らない。★ 監査に outcome 'failed' で残す（記録が無い＝何もしていない、にしない）。
+ *
+ * ★★★ 第1260便（2026-10-07・カッキーさんの決定）: 作る行の向きは 'write' ではなく **'none'（反映しない）**。
+ *   ★ 実際に起きた（アロマメイ様・2026-10-06 21:54）: フクエスリンク（駅ちかから反映）の店が、コネックエフに切り替える前に
+ *     エステ魂の鍵を入れた → ここが 'write' の行を作った → 「駅ちか read ＋ エステ魂 write」という禁止の組み合わせが
+ *     applyLinkMode の守り（第127便）を通らずに出来た → 写メ日記の入口が 'fukues' に倒れ、駅ちかからの取り込みが黙って止まった。
+ *   ★ 決まり: コネックエフに切り替えた店だけが write。フクエスリンクの店は駅ちかから読むだけ（ほかのサイトは読みも書きもしない）。
+ *   ★ 鍵を保存しただけで向きが変わる道をなくす。向きは店舗様がホームで選んだときだけ（applyLinkMode・守りを通る）。
+ *   ★ 'none' の行があれば「出勤を送る」の画面には枠が出る（第110便の穴は塞いだまま）。
  */
 async function ensureSendOnlySource(input: {
   svc: ReturnType<typeof createServiceClient>;
@@ -151,7 +159,7 @@ async function ensureSendOnlySource(input: {
     import_profile: false,
     create_missing: false,
     is_enabled: true,
-    link_mode: 'write',
+    link_mode: 'none',   // ★ 第1260便: 'write' → 'none'。向きは店舗様が選んだときだけ変わる
     updated_at: nowISO,
   });
 
@@ -160,7 +168,7 @@ async function ensureSendOnlySource(input: {
     event: 'link_mode_changed',
     outcome: error ? 'failed' : 'ok',
     // ★ from は空（どこからも来ていない＝新しく作った）。★ 第48便の決めごとに揃える
-    detail: { mode: 'write', from: '', by: 'credential_saved' },
+    detail: { mode: 'none', from: '', by: 'credential_saved' },
     actor: input.actor,
   });
 }
@@ -660,6 +668,23 @@ async function applyLinkMode(input: {
       return {
         ok: false,
         error: 'この店舗はコネックエフに切り替え済みのため、駅ちかから反映にはできません。出勤はコネックエフの週間スケジュールで入力してください',
+      };
+    }
+  }
+
+  // ★★★ 第1260便（2026-10-07・カッキーさんの決定）: 【フクエスから反映（write / write_auto）】は、
+  //   コネックエフに切り替えた店（conecf_enabled_at あり）だけ。
+  //   ★ 決まり: コネックエフ＝フクエスから各サイトへ送る。フクエスリンク＝駅ちかから読むだけ。どちらか一方。
+  //   ★ 下の第127便の守り（ほかが read なら write にしない）とは別の線。駅ちかの行が無い店や、駅ちかを 'none' にした店でも、
+  //     切り替えていなければ write にしない。★ 画面だけで守らない（受け口で見る）。
+  //   ★ 'none'（止める）は常に通す。★ 読めなかったときは断る（「分からない」を「切り替え済み」と読まない）。
+  if (input.mode === 'write' || input.mode === 'write_auto') {
+    const { data: sal, error: salErr } = await svc.from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle();
+    if (salErr) return { ok: false, error: '店舗の設定を読めませんでした: ' + salErr.message };
+    if (!sal?.conecf_enabled_at) {
+      return {
+        ok: false,
+        error: 'フクエスから各サイトへの反映は、コネックエフに切り替えた店舗様がお使いいただけます。先にコネックエフのホームで「コネックエフに切り替える」を押してください',
       };
     }
   }
