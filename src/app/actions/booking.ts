@@ -577,16 +577,62 @@ export async function updateBookingStatus(
   }
   const auth = await assertBookingOwner(bookingId);
   if (!auth.ok) return { ok: false, error: auth.error };
+  const svc = auth.svc;
 
   // ★ キャンセルにしたら受領（CRM）も未受領に戻す（第554便）
   const patch: Record<string, unknown> = nextStatus === 'cancelled'
     ? { status: nextStatus, received_by: '', received_at: null }
     : { status: nextStatus };
-  const { error } = await auth.svc
+
+  // ★★ 第1222便（カッキーさん）: キャンセルから new/confirmed へ【戻す】ときだけ、受付・移動と同じ確認をしてから更新する。
+  //   それまでは状態だけ書き換えていたので、キャンセル後に同じ時間へ別の予約が入っていても DB の重なり禁止（EXCLUDE）に当たって
+  //   英語の生のメッセージが画面に出る／休憩の時間に重なっていても止まらない／悪質キャンセルの印が残ったまま戻る、だった。
+  //   ★ cancelled にする方向と new ⇄ confirmed の切り替えは今までどおり（何も足さない）。
+  if (nextStatus !== 'cancelled') {
+    const { data: cur, error: cErr } = await svc
+      .from('salon_bookings')
+      .select('salon_id, therapist_id, slot_start, slot_end, status')
+      .eq('id', bookingId)
+      .maybeSingle();
+    if (cErr || !cur) return { ok: false, error: '予約が見つかりません' };
+    if (cur.status === 'cancelled') {
+      const salonId = Number(cur.salon_id);
+      const therapistId = cur.therapist_id == null ? null : Number(cur.therapist_id);
+      const slotStart = new Date(String(cur.slot_start));
+      const slotEnd = new Date(String(cur.slot_end));
+      // ほかの予約との重なり（moveBooking と同じ問い合わせ）
+      let overlapQuery = svc
+        .from('salon_bookings')
+        .select('id')
+        .neq('status', 'cancelled')
+        .neq('id', bookingId)
+        .lt('slot_start', slotEnd.toISOString())
+        .gt('slot_end', slotStart.toISOString())
+        .limit(1);
+      overlapQuery = therapistId !== null
+        ? overlapQuery.eq('therapist_id', therapistId)
+        : overlapQuery.eq('salon_id', salonId).is('therapist_id', null);
+      const { data: others, error: oErr } = await overlapQuery;
+      if (oErr) return { ok: false, error: oErr.message };
+      if (others && others.length > 0) return { ok: false, error: 'その時間帯には別の予約が入っています（キャンセルを取り消せません）' };
+      // フクエスCRMの休憩との重なり（第551便と同じ）
+      if (therapistId !== null) {
+        const brk = await breakConflict(svc, salonId, therapistId, slotStart, slotEnd);
+        if (brk) return { ok: false, error: brk };
+      }
+      // 悪質キャンセルの印はリセット（戻した予約が、もう一度キャンセルしたときに最初から「悪質」にならないように）
+      patch.cancel_bad = false;
+    }
+  }
+
+  const { error } = await svc
     .from('salon_bookings')
     .update(patch)
     .eq('id', bookingId);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (isSlotConflictError(error.code)) return { ok: false, error: 'その時間帯には別の予約が入っています（キャンセルを取り消せません）' };
+    return { ok: false, error: error.message };
+  }
   return { ok: true };
 }
 
