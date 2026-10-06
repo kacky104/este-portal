@@ -51,5 +51,43 @@ eq('★★ 即ヒメ18・出勤20・休み6', [parsed.filter((c) => c.sokuhime &
 eq('★★★ 外側の div に sokuiku があっても、休みの方には印を付けない', parsed.filter((c) => c.status === 'off' && c.sokuhime).length, 0);
 eq('★★★ 在籍26のうち即ヒメ18（半数超え）でも止めない', L.sokuhimeMisread(parsed).misread, false);
 
+console.log('\n── 6. ★★★ 新人・体入の印（第1258便・フクエスの NEW をこの印に合わせる） ──');
+const cardN = (id, name, badge) =>
+  `<li class="girl-box"><figure><a href="/fukuoka/area175/style8/99999/${id}/"><div class="image p-imgWrap"><img src="x.jpg" alt="${name}" />${badge}</div>` +
+  `<p class="data-name ellipsis">${name}<span class="age">(24)</span></p>` +
+  `<div class="waiting sokuiku  normal "><ul><li class="waiting-cont normal"></li></ul></div></a></figure></li>`;
+const htmlN =
+  cardN(1, 'しんじん', '<p class="beginner-ico beginner">\n<span>新人</span>\n</p>') +
+  cardN(2, 'たいにゅう', '<p class="beginner-ico experience"><span>体入</span></p>') +
+  cardN(3, 'ふつう', '') +
+  cardN(4, 'しらない印', '<p class="beginner-ico something"><span>注目</span></p>') +
+  cardN(5, '文字だけ新人', '<p class="beginner-ico"><span>新人</span></p>') +
+  cardN(6, '別の印', '<p class="attend-ico today"><span>本日出勤</span></p>');
+const pn = L.parseEkichikaList(htmlN, '99999');
+const nc = Object.fromEntries(pn.map((c) => [c.name, c.newcomer]));
+eq('★★★ 新人の印', nc['しんじん'], 'new');
+eq('★★★ 体入の印', nc['たいにゅう'], 'trial');
+eq('★★★ 印が無い方は null（★ ここが null でないと、また全員が新人になる）', nc['ふつう'], null);
+eq('★★ 知らない印は付けない', nc['しらない印'], null);
+eq('★ クラスで分からなくても文字が「新人」なら新人', nc['文字だけ新人'], 'new');
+eq('★ ほかの印（本日出勤）は新人ではない', nc['別の印'], null);
+eq('★★ beginner-ico の「beginner」を新人と読み違えない（体入は trial のまま）', pn.filter((c) => c.newcomer === 'new').length, 2);
+
+// ★ 実物（_fixtures は git に入れない）。置いてあるときだけ確かめる。
+{
+  const fs = require('fs'), path = require('path');
+  const dir = path.join(__dirname, '..', '_fixtures');
+  const file = fs.existsSync(dir) ? fs.readdirSync(dir).find((f) => /^女の子一覧.*AMAZE.*\.html$/.test(f)) : undefined;
+  if (!file) console.log('（実物の HTML は置いていないので飛ばした）');
+  else {
+    const real = L.parseEkichikaList(fs.readFileSync(path.join(dir, file), 'utf8'), '20925');
+    eq('★ 実物: 78名読めた', real.length, 78);
+    eq('★★★ 実物: 新人4・体入1・印なし73', [real.filter((c) => c.newcomer === 'new').length, real.filter((c) => c.newcomer === 'trial').length, real.filter((c) => c.newcomer === null).length], [4, 1, 73]);
+    eq('★★ 実物: 新人は れん・来栖くるみ・ちゆ・うさ', real.filter((c) => c.newcomer === 'new').map((c) => c.nameKey).sort(), ['れん', '来栖くるみ', 'ちゆ', 'うさ'].map((n) => n).sort());
+    eq('★★ 実物: 休みの方に即ヒメの印は無い（読み違いなし）', L.sokuhimeMisread(real), { misread: false, off: real.filter((c) => c.status === 'off').length, offFlagged: 0 });
+    eq('★ 実物: 読めなかった方（unknown）は居ない', real.filter((c) => c.status === 'unknown').length, 0);
+  }
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : `\n★★ ${fail} 件 NG`);
 process.exit(fail === 0 ? 0 : 1);

@@ -299,7 +299,9 @@ export async function POST(req: Request) {
           area: salonArea,
           is_active: true,                  // ★ 公開で作る（第227便）。★ 写真は既定画像で出る（第217便）。
           // ★ NEW を付ける（第227便）。★ 第406便: 最初の1回は付けない（★ すでに在籍している子なので・カッキーさんの決定）
-          // ★ 第1257便: フクエスリンクでも、その店の最初の取り込みでは付けない（lib/importNewFace.ts・ingest-list と同じ線）
+          // ★ 第1257便: フクエスリンクでも、その店の最初の取り込みでは付けない（lib/importNewFace.ts）
+          // ★ 第1258便: 一覧の周（ingest-list）は駅ちかの新人・体入の印で付ける。★ ここは個人ページしか読まず印が見えないので第1257便の決まりのまま。
+          //   ★ ふだんは一覧の周（15分ごと）が先に作るので、ここで作るのはまれ（1日1回の周が先に新しい方を見つけたときだけ）。
           is_new_face: withNew,
           new_face_since: withNew ? importedAt : null,   // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
           age: source.import_profile || firstImport ? cast.age : null,

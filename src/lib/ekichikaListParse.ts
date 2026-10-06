@@ -106,6 +106,12 @@ export type EkichikaListCast = {
   status: 'work' | 'off' | 'unknown';       // 当日の出勤
   /** ★ 即ヒメ（いますぐ案内可能）。始発姫も即ヒメの一種なので true にする。 */
   sokuhime: boolean;
+  /**
+   * ★ 第1258便: 駅ちかの「新人」「体入（体験入店）」の印。★ 印が無ければ null。
+   *   <p class="beginner-ico beginner"><span>新人</span></p> ／ <p class="beginner-ico experience"><span>体入</span></p>
+   *   （AMAZE 様の在籍一覧 2026-10-07 の実物で確認。78名のうち 新人4・体入1）
+   */
+  newcomer: 'new' | 'trial' | null;
   start: string | null;                     // 'HH:MM'（status==='work' のみ）
   end: string | null;                       // 'HH:MM'（日跨ぎも素の時刻。表示側が「翌」を付ける）
 };
@@ -206,10 +212,22 @@ export function parseEkichikaList(html: string, externalId: string): EkichikaLis
     }
     // waiting-cont 自体が無い＝レイアウト変更。'unknown' のまま＝触らない（安全弁）。
 
+    // ★★ 第1258便（2026-10-07・カッキーさん）: 駅ちかの新人・体入の印を読む（フクエスの NEW をこの印に合わせるため）。
+    //   ★ クラスは空白で区切って見る（'beginner-ico' の中の beginner を拾わないため。\b では区切れない）。
+    //   ★ クラスで分からないときは印の文字で見る。どちらでも分からない印は「印なし」（知らない印で NEW を付けない）。
+    const begCls = pick(/<p[^>]*class="([^"]*\bbeginner-ico\b[^"]*)"[^>]*>/, seg);
+    let newcomer: 'new' | 'trial' | null = null;
+    if (begCls) {
+      const tokens = begCls.split(/\s+/).filter(Boolean);
+      const begText = stripTags(pick(/<p[^>]*class="[^"]*\bbeginner-ico\b[^"]*"[^>]*>([\s\S]*?)<\/p>/, seg) ?? '');
+      if (tokens.includes('experience') || /体入|体験/.test(begText)) newcomer = 'trial';
+      else if (tokens.includes('beginner') || /新人/.test(begText)) newcomer = 'new';
+    }
+
     out.push({
       castId, name, nameKey: normalizeName(name), age,
       height, bust, cup, waist, hip, bodyType,
-      status, sokuhime, start, end,
+      status, sokuhime, newcomer, start, end,
     });
   }
 

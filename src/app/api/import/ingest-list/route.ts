@@ -3,8 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { normalizeName } from '@/lib/ekichikaParse';
 import { parseEkichikaList, sokuhimeMisread, type EkichikaListCast } from '@/lib/ekichikaListParse';
-import { loadCastIds, rememberCastId, earliestCastLinkAt } from '@/lib/mediaCastIds';
-import { importNewFaceOnCreate } from '@/lib/importNewFace';
+import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
 
 // ── 外部媒体取り込み・girlslist方式（第36便・フェーズ4）────────────────────
 // 駅ちかの「女の子一覧」(girlslist) のHTMLを受け取り、当日ぶんの出勤を反映する。
@@ -242,18 +241,6 @@ export async function POST(req: Request) {
   const imasuguSeenIds: number[] = [];
   let matched = 0, unknownStatus = 0;
 
-  // ★ 第1257便: 新しく作る方に NEW を付けるか。★ 作る方が出たときに1回だけ読む（ふだんの周は読まない）。
-  //   ★ 読めなかったときは今までどおり付ける。★ この周の途中で結びが増えても答えは変えない（最初に読んだ値で通す）。
-  const rosterIdsAtStart = [...nameOf.keys()];
-  let newFaceMemo: boolean | null = null;
-  const newFaceOnCreate = async (): Promise<boolean> => {
-    if (newFaceMemo !== null) return newFaceMemo;
-    const r = await earliestCastLinkAt(supabase, { therapistIds: rosterIdsAtStart, provider });
-    if (r.error) console.warn('[ingest-list] 名簿の結びの時刻を読めなかった（NEW は今までどおり付ける）', r.error);
-    newFaceMemo = r.error ? true : importNewFaceOnCreate(r.at);
-    return newFaceMemo;
-  };
-
   for (const c of listed.values()) {
     if (!c.name || !c.nameKey) { unmatched.push(`${c.name ?? c.castId}（名前が読めない）`); continue; }
 
@@ -273,9 +260,14 @@ export async function POST(req: Request) {
       //   ★ 以前は非公開で作っていたが、誰も公開にしないまま溜まり、駅ちかの新人がフクエスに
       //     出ないという実害のほうが大きかった。★ 写真は第217便の既定画像で出る。
       //   ★ ingest（日次）側も同じ。★ 片方だけ変えないこと。
-      // ★★ 第1257便（2026-10-07・カッキーさん）: その店の【最初の取り込み】では NEW を付けない（AMAZE 様で在籍59名が全員新人になった）。
-      //   判定は lib/importNewFace.ts（名簿の結びがはじめて出来てから24時間は付けない）。★ ingest（日次）側も同じ。
-      const withNew = await newFaceOnCreate();
+      // ★★ 第1257便（2026-10-07・カッキーさん）: その店の【最初の取り込み】で在籍の全員が新人になった（AMAZE 様）。
+      // ★★ 第1258便（同日・カッキーさんの決定）: NEW は【駅ちかで新人・体入の印が付いている方だけ】に付ける。
+      //   ★ それまでは「駅ちかに居てフクエスに居ない方＝新人」とみなして全員に付けていた。一覧には印が載っているので、印を見る。
+      //   ★ 最初の取り込みでも、ふだんの取り込みでも同じ決まり（＝第1257便の「最初の24時間は付けない」は、この周では要らなくなった）。
+      //   ★ 付けるのは作るときだけ。すでに居る方の NEW は付けも外しもしない（店舗様がマイページで決めたことを書き換えない）。
+      //     駅ちか側で印が消えても、フクエスの NEW は出し続ける（60日・カッキーさんの決定）。
+      //   ★ 1日1回の周（ingest）は個人ページしか読まないので印が見えない＝今までどおり（第1257便の決まり）。
+      const withNew = c.newcomer !== null;
       const { data: made, error: mkErr } = await supabase.from('therapists').insert({
         salon_id: source.salon_id, name: c.name.trim(), area: salonArea,
         is_active: true,
