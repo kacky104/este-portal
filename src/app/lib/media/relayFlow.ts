@@ -18,6 +18,7 @@ import { findMediaSite } from '@/lib/mediaSites';
 import { defaultAuditSummary } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
 import { markWorkSynced } from '@/app/lib/media/workInputHash';
+import { loadSokuseraChecks, recordSokuseraChecks } from '@/app/lib/conecf/sokuseraChecks';
 import { stampDiaryListed } from '@/app/lib/media/diaryWatch';
 import { openContext, unpackBody, type RelayResponse } from '@/lib/relayJob';
 import { decryptSecret } from '@/lib/mediaCredentials';
@@ -838,6 +839,16 @@ export async function advanceRelayFlow(params: {
   if (audits.some((a) => a.event === 'write_work' && a.outcome === 'ok')) workSynced = true;
   if (workSynced && !next && context.intent === 'work_auto' && context.autoInputHash) {
     await markWorkSynced(createServiceClient(), { salonId: params.salonId, provider: params.provider, slot: params.slot, hash: context.autoInputHash });
+  }
+
+  // ★★ 第1246便: 自動の即セラで、本人の設定ページまで読んで【打たなかった】（すでにON など）＝その方を55分あける
+  if (context.intent === 'sokusera_auto' && context.esutamaSokuseraTherapistId
+      && audits.some((a) => a.event === 'read_sokusera' && a.outcome === 'ok' && a.detail?.['use'] === 'sokusera' && a.detail?.['willStart'] === false)) {
+    await recordSokuseraChecks(
+      createServiceClient(),
+      { salonId: params.salonId, provider: params.provider, slot: params.slot },
+      [{ therapistId: Number(context.esutamaSokuseraTherapistId), castId: context.esutamaSokuseraCastId ?? null, reason: 'page_no_start' }],
+    );
   }
 
   // ★★★ 流れが終わったら、送った印の【状態】を決める（第137便）。
@@ -3380,6 +3391,9 @@ async function planEsutamaSokusera(
     }
   }
 
+  // ★ 第1246便: 見に行って打たなかった方（55分あける）
+  const checkedOf = await loadSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot, now });
+
   const activeCastIds = new Set(mediaRows.map((r) => String(r.castId).trim()));
   const rows = trows.map((t) => {
     const id = Number(t['id']);
@@ -3396,9 +3410,21 @@ async function planEsutamaSokusera(
         // ★ 第408便: 送り先サイトで「送らない」の人は今すぐ扱いにしない
         imasuguLive: !seraOff.off.has(id) && isImasuguLiveRow(t as unknown as ImasuguRow, now),
         lastStartedAt: castId ? (lastOf.get(String(castId).trim()) ?? null) : null,
+        lastCheckedAt: checkedOf.get(id) ?? null,
       },
     };
   });
+
+  // ★★ 第1246便: 自動の周で、名簿を読んだ結果「今すぐ中なのに打てない」と分かった方（魂セラピスト未開始・利用状況が不明）を覚える。
+  //   ★ 次の55分は、その方のために相手サイトへ行かない（下調べ hasSokuseraSendCandidate が lastCheckedAt で見る）。
+  //   ★ 名簿を読まないと分からない理由だけ。了承なし・名簿未結びは DB だけで分かるので記録しない。
+  if (auto) {
+    const held = rows
+      .map((r) => ({ r, v: decideSokuseraTarget(r.input, now) }))
+      .filter((x) => !x.v.ok && (x.v.reason === 'not_started' || x.v.reason === 'account_unknown'))
+      .map((x) => ({ therapistId: x.r.therapistId, castId: x.r.castId, reason: x.v.ok ? '' : x.v.reason }));
+    await recordSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot }, held);
+  }
 
   const tally = tallySokusera(rows.map((r) => r.input), now);
   const summary = sokuseraSummary(tally);
@@ -3541,6 +3567,9 @@ export async function hasSokuseraSendCandidate(params: {
     }
   }
 
+  // ★ 第1246便: 見に行って打たなかった方（55分あける）
+  const checkedOf = await loadSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot, now });
+
   let count = 0;
   for (const t of live) {
     const id = Number(t['id']);
@@ -3551,10 +3580,11 @@ export async function hasSokuseraSendCandidate(params: {
       castId,
       imasuguLive: !seraOff.off.has(id),
       lastStartedAt: castId ? (lastOf.get(String(castId).trim()) ?? null) : null,
+      lastCheckedAt: checkedOf.get(id) ?? null,
     }, now);
     if (v.ok) count++;
   }
-  if (count === 0) return { ok: false, why: '「今すぐ」の方はいますが、いま即セラをONにする方はいません（ご了承・名簿の結び・打ったばかり）' };
+  if (count === 0) return { ok: false, why: '「今すぐ」の方はいますが、いま即セラをONにする方はいません（ご了承・名簿の結び・打ったばかり・確かめたばかり）' };
   return { ok: true, count };
 }
 

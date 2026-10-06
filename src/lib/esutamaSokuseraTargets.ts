@@ -26,6 +26,14 @@ import { canSendDiary, type ConsentState, type MediaAccountState } from './thera
  */
 export const SOKUSERA_COOLDOWN_MIN = 55;
 
+/**
+ * ★★ 第1246便（2026-10-06・カッキーさん）: 【見に行って打たなかった】方は、これだけの間は見に行かない（分）。
+ *   ★ 「今すぐ」中でも、エステ魂側で魂セラピストを始めていない／本人がすでに即セラをONにしている方は、
+ *     名簿や設定ページを読まないと分からない＝10分ごとに見に行っていた。★ 相手サイトへの負荷と目立ち方を抑える。
+ *   ★ 打った方の間（SOKUSERA_COOLDOWN_MIN）と同じ55分。★ 本人がONにした分も60分で切れるので、それより手前で見直しても意味が薄い。
+ */
+export const SOKUSERA_CHECK_HOLD_MIN = 55;
+
 export type SokuseraTargetInput = {
   /** 写メ日記の了承を共用する */
   consent: ConsentState;
@@ -37,10 +45,12 @@ export type SokuseraTargetInput = {
   imasuguLive: boolean;
   /** 最後に即セラをONにした時刻（ISO）。★ 無ければ null */
   lastStartedAt: string | null;
+  /** ★ 第1246便: 最後に【見に行って打たなかった】時刻（ISO）。★ 無ければ null／省略可 */
+  lastCheckedAt?: string | null;
 };
 
 export type SokuseraTargetReason =
-  | 'not_imasugu' | 'not_agreed' | 'not_started' | 'account_unknown' | 'no_cast_id' | 'cooling';
+  | 'not_imasugu' | 'not_agreed' | 'not_started' | 'account_unknown' | 'no_cast_id' | 'cooling' | 'checked';
 
 export type SokuseraTargetVerdict =
   | { ok: true }
@@ -81,6 +91,14 @@ export function decideSokuseraTarget(input: SokuseraTargetInput, now: Date): Sok
       return { ok: false, reason: 'cooling', message: 'さきほど即セラをONにしたばかりです' };
     }
   }
+  // ★★ 第1246便: 見に行って打たなかったばかりなら、間を置く（★ 相手サイトを読まずに済ませる）
+  const checked = input.lastCheckedAt ? Date.parse(input.lastCheckedAt) : NaN;
+  if (Number.isFinite(checked)) {
+    const passed = (now.getTime() - checked) / 60000;
+    if (passed < SOKUSERA_CHECK_HOLD_MIN) {
+      return { ok: false, reason: 'checked', message: 'さきほど確かめたばかりです（エステ魂側で開始前、またはすでにON）' };
+    }
+  }
   return { ok: true };
 }
 
@@ -93,6 +111,8 @@ export type SokuseraTally = {
   利用状況が不明: number;
   名簿未結び: number;
   打ったばかり: number;
+  /** ★ 第1246便 */
+  確かめたばかり: number;
 };
 
 export function tallySokusera(
@@ -101,7 +121,7 @@ export function tallySokusera(
 ): SokuseraTally {
   const t: SokuseraTally = {
     母数: rows.length, ONにする: 0, 今すぐでない: 0, 了承なし: 0,
-    未開始: 0, 利用状況が不明: 0, 名簿未結び: 0, 打ったばかり: 0,
+    未開始: 0, 利用状況が不明: 0, 名簿未結び: 0, 打ったばかり: 0, 確かめたばかり: 0,
   };
   for (const r of rows) {
     const v = decideSokuseraTarget(r, now);
@@ -112,6 +132,7 @@ export function tallySokusera(
     else if (v.reason === 'account_unknown') t.利用状況が不明++;
     else if (v.reason === 'no_cast_id') t.名簿未結び++;
     else if (v.reason === 'cooling') t.打ったばかり++;
+    else if (v.reason === 'checked') t.確かめたばかり++;
   }
   return t;
 }
@@ -120,6 +141,7 @@ export function tallySokusera(
 export function sokuseraSummary(t: SokuseraTally): string {
   const parts = ['即セラをONにする ' + t.ONにする + '名'];
   if (t.打ったばかり > 0) parts.push('さきほどONにした ' + t.打ったばかり + '名');
+  if (t.確かめたばかり > 0) parts.push('さきほど確かめた ' + t.確かめたばかり + '名');
   if (t.今すぐでない > 0) parts.push('「今すぐ」ではない ' + t.今すぐでない + '名');
   if (t.了承なし > 0) parts.push('ご了承がまだ ' + t.了承なし + '名');
   if (t.名簿未結び > 0) parts.push('名簿が未結び ' + t.名簿未結び + '名');

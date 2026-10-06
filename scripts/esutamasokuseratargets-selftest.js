@@ -54,6 +54,18 @@ eq('★ 読めない時刻は無いものと同じ', d({ lastStartedAt: 'こわ�
 eq('★★★ 今すぐでなければ cooling より先',
    d({ imasuguLive: false, lastStartedAt: minAgo(1) }).reason, 'not_imasugu');
 
+console.log('\n── 3b. ★★ 第1246便: 見に行って打たなかった方は55分あける ──');
+eq('★★★ さきほど確かめていたら見に行かない', d({ lastCheckedAt: minAgo(10) }).reason, 'checked');
+eq('★ 54分前でもまだ見に行かない', d({ lastCheckedAt: minAgo(54) }).reason, 'checked');
+eq('★ 55分たてば見に行く', d({ lastCheckedAt: minAgo(55) }).ok, true);
+eq('★ 省略すれば今までどおり', d({}).ok, true);
+eq('★ null でも今までどおり', d({ lastCheckedAt: null }).ok, true);
+eq('★ 読めない時刻は無いものと同じ', d({ lastCheckedAt: 'こわれている' }).ok, true);
+eq('★★ 未来の時刻でも暴走しない', d({ lastCheckedAt: '2099-01-01T00:00:00Z' }).reason, 'checked');
+eq('★★ 打ったばかりのほうが先', d({ lastStartedAt: minAgo(1), lastCheckedAt: minAgo(1) }).reason, 'cooling');
+eq('★★ 今すぐでなければ checked より先', d({ imasuguLive: false, lastCheckedAt: minAgo(1) }).reason, 'not_imasugu');
+eq('★ 55分の定数', T.SOKUSERA_CHECK_HOLD_MIN, 55);
+
 console.log('\n── 4. ★★ 数える・0でも理由が読める ──');
 const rows = [
   { ...OK }, { ...OK },
@@ -62,16 +74,18 @@ const rows = [
   { ...OK, castId: null },
   { ...OK, account: 'not_started' },
   { ...OK, lastStartedAt: minAgo(5) },
+  { ...OK, lastCheckedAt: minAgo(5) },
 ];
 eq('★ 理由ごとに数える', T.tallySokusera(rows, NOW), {
-  母数: 7, ONにする: 2, 今すぐでない: 1, 了承なし: 1,
-  未開始: 1, 利用状況が不明: 0, 名簿未結び: 1, 打ったばかり: 1,
+  母数: 8, ONにする: 2, 今すぐでない: 1, 了承なし: 1,
+  未開始: 1, 利用状況が不明: 0, 名簿未結び: 1, 打ったばかり: 1, 確かめたばかり: 1,
 });
 eq('★ 空でも落ちない', T.tallySokusera([], NOW).母数, 0);
 // ★★★ 「ONにする」は0でも必ず出す（第35便の反省6）
 eq('★★★ 0でも数を出す',
    T.sokuseraSummary(T.tallySokusera([{ ...OK, imasuguLive: false }], NOW)).startsWith('即セラをONにする 0名'), true);
-eq('★ 在籍の数は必ず出る', T.sokuseraSummary(T.tallySokusera(rows, NOW)).includes('在籍 7名'), true);
+eq('★ 在籍の数は必ず出る', T.sokuseraSummary(T.tallySokusera(rows, NOW)).includes('在籍 8名'), true);
+eq('★ 確かめたばかりも並ぶ', T.sokuseraSummary(T.tallySokusera(rows, NOW)).includes('さきほど確かめた 1名'), true);
 eq('★ 0のものは並べない',
    T.sokuseraSummary(T.tallySokusera([{ ...OK }], NOW)).includes('名簿'), false);
 
