@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { signInWithEmail, getSession, onAuthChange, signOut } from '@/lib/auth';
 import { createClient } from '@/app/lib/supabase/client';
+import { PASSWORD_HINT } from '@/lib/password';
 
 // redirectTo は同一オリジンの相対パスのみ許可（オープンリダイレクト防止）。
 function safeRedirect(raw: string | null): string {
@@ -161,7 +162,10 @@ function OwnerLoginInner() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">パスワード</label>
+                {/* ★ 第1237便（カッキーさん）: パスワードの決まりを横に小さく（文言は /reset-password と同じ PASSWORD_HINT＝実際の決まりと食い違わせない） */}
+                <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+                  パスワード<span className="ml-1 text-[11px] font-normal text-slate-400">（{PASSWORD_HINT}）</span>
+                </label>
                 <input
                   id="password"
                   type="password"
