@@ -371,5 +371,24 @@ eq('★★★ 写真から選ばれた外見の語があるときだけ、紹介
    [Tg.hasPhotoLookBadge(['店長おすすめ', 'キレイ', '明るい', '施術上手'], v.NUMERIC_BADGES), Tg.hasPhotoLookBadge(['リピーター多数', '癒し系', 'アロマ得意'], v.NUMERIC_BADGES)], [true, false]);
 eq('★★ 数値の語（低身長・高身長・巨乳）だけでは「写真から選ばれた」とみなさない', [Tg.hasPhotoLookBadge(['高身長', 'トーク上手', '密着施術'], v.NUMERIC_BADGES), Tg.hasPhotoLookBadge(null, v.NUMERIC_BADGES)], [false, false]);
 
+console.log('\n── 写真が無い方は取り込んでから48時間待つ（第1259便）──');
+{
+  const nowW = new Date('2026-10-07T01:00:00+09:00');
+  const agoW = (h) => new Date(nowW.getTime() - h * 3600 * 1000).toISOString();
+  const tgW = (o) => Tg.isAutoBadgeTarget({ feature_badges: [], body_type: 'T160 B86(E) W55 H86', profile_image_url: null, profile_images: null, feature_badges_auto_at: null, hasCastId: true, ...o }, nowW);
+  eq('★★★ 写真なし・取り込んで2時間 → 待つ（AMAZE 様の夜）', tgW({ linkedAt: agoW(2) }), false);
+  eq('★★ 写真なし・取り込んで47時間 → まだ待つ', tgW({ linkedAt: agoW(47) }), false);
+  eq('★★ 写真なし・ちょうど48時間 → 選ぶ（本当に写真が無い方）', tgW({ linkedAt: agoW(48) }), true);
+  eq('★★★ 写真あり・取り込んで2時間 → 待たずに選ぶ', tgW({ linkedAt: agoW(2), profile_image_url: 'https://x/1-ekichika1-1700000000000.jpg' }), true);
+  eq('★★ 写真あり（配列）・取り込んで2時間 → 待たずに選ぶ', tgW({ linkedAt: agoW(2), profile_images: ['https://x/a.jpg'] }), true);
+  eq('★★ 結びの時刻が分からない（null）→ 今までどおり選ぶ', tgW({ linkedAt: null }), true);
+  eq('★ 結びの時刻を渡さない → 今までどおり選ぶ', tgW({}), true);
+  eq('★ 時刻が壊れている → 今までどおり選ぶ', tgW({ linkedAt: 'こわれた値' }), true);
+  eq('★★ 待っている間も、ほかの条件は今までどおり（印が付いている方は対象外）', tgW({ linkedAt: agoW(100), feature_badges_auto_at: '2026-10-01T00:00:00Z' }), false);
+  eq('★ 写真もサイズも無い方は、何時間たっても対象外', tgW({ linkedAt: agoW(100), body_type: null }), false);
+  eq('★ 線は48時間', Tg.AUTO_BADGE_PHOTO_WAIT_HOURS, 48);
+  eq('★ 写真の有無', [Tg.hasBadgePhoto({ profile_image_url: null, profile_images: [] }), Tg.hasBadgePhoto({ profile_image_url: 'u', profile_images: null }), Tg.hasBadgePhoto({ profile_image_url: null, profile_images: ['', null] })], [false, true, false]);
+}
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

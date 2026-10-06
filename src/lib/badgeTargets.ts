@@ -27,15 +27,42 @@ export function hasBadgeMaterial(r: Pick<BadgeTargetRow, 'body_type' | 'profile_
   return imgs.length > 0 || !!r.profile_image_url || !!r.body_type;
 }
 
+/** 写真が1枚でも入っているか。 */
+export function hasBadgePhoto(r: Pick<BadgeTargetRow, 'profile_image_url' | 'profile_images'>): boolean {
+  const imgs = Array.isArray(r.profile_images) ? r.profile_images.filter(Boolean) : [];
+  return imgs.length > 0 || !!r.profile_image_url;
+}
+
+/**
+ * ★★★ 写真が無い方を、取り込んでから何時間待つか（第1259便・2026-10-07・カッキーさん）。
+ *   ★ なぜ: 駅ちかの写真は【1日1回（毎朝6時台）の周】でしか入らない。いっぽう自動バッジは1時間に1回・1人1回だけ。
+ *     新しい店を取り込んだ夜（AMAZE 様・78名）、写真が入る前にサイズだけを材料にバッジが付き始めた。
+ *     1人1回なので、あとで写真が入っても選び直されない＝外見のバッジが付かず、くじの2つだけの方が並ぶ。
+ *   ★ 48時間＝朝の周を2回待つ（人数の多い店は写真が1回で入りきらず、残りが次の朝になる）。
+ *     それでも写真が無い方は「本当に写真が無い方」とみなして、今までどおりサイズだけで選ぶ。
+ */
+export const AUTO_BADGE_PHOTO_WAIT_HOURS = 48;
+
 /**
  * ★★★ 自動で選ぶ対象か（第1098便・カッキーさんの決定）。
  *   ① 駅ちかの取り込み対象（駅ちかの castId を持っている）
  *   ② バッジが空（★ 店舗様・本人が付けたバッジは上書きしない）
  *   ③ まだ一度も自動で選んでいない（feature_badges_auto_at が null・★ 1人1回だけ）
  *   ④ 材料（写真かサイズ）がある（★ 無い方は印を付けずに待つ＝材料が入った周で選ぶ）
+ *   ⑤ 第1259便: 写真が無い方は、駅ちかとの名簿の結び（linkedAt）から AUTO_BADGE_PHOTO_WAIT_HOURS 時間たつまで待つ
+ *      （★ 写真がある方は待たない。★ linkedAt が分からない方（null）も待たない＝今までどおり）。
+ *      ★ キャッチフレーズ・紹介文の自動作成は「バッジを自動で付けた方」が対象なので、一緒に待つことになる。
  */
-export function isAutoBadgeTarget(r: BadgeTargetRow & { feature_badges_auto_at: string | null; hasCastId: boolean }): boolean {
-  return r.hasCastId && r.feature_badges_auto_at === null && isEmptyBadges(r.feature_badges) && hasBadgeMaterial(r);
+export function isAutoBadgeTarget(
+  r: BadgeTargetRow & { feature_badges_auto_at: string | null; hasCastId: boolean; linkedAt?: string | null },
+  now: Date = new Date(),
+): boolean {
+  if (!(r.hasCastId && r.feature_badges_auto_at === null && isEmptyBadges(r.feature_badges) && hasBadgeMaterial(r))) return false;
+  if (hasBadgePhoto(r)) return true;
+  if (!r.linkedAt) return true;
+  const t = new Date(r.linkedAt).getTime();
+  if (Number.isNaN(t)) return true;
+  return now.getTime() - t >= AUTO_BADGE_PHOTO_WAIT_HOURS * 60 * 60 * 1000;
 }
 
 // ───────────── キャッチフレーズ・紹介文の自動作成（第1104便・2026-10-02・カッキーさん）─────────────

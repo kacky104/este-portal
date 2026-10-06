@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { generateBadgesForTherapist } from '@/app/lib/therapistBadgeCore';
 import { parseAdminBody, truthy, num } from '@/lib/adminBody';
-import { isAutoBadgeTarget, isEmptyBadges } from '@/lib/badgeTargets';
+import { isAutoBadgeTarget, isEmptyBadges, hasBadgePhoto } from '@/lib/badgeTargets';
 
 // ── 特徴バッジの自動選択（第1098便・2026-10-02・カッキーさん）────────────────
 //
@@ -20,6 +20,7 @@ import { isAutoBadgeTarget, isEmptyBadges } from '@/lib/badgeTargets';
 //   ③ バッジが空（★ 店舗様・本人が付けたバッジは上書きしない）
 //   ④ まだ一度も自動で選んでいない（feature_badges_auto_at が null）
 //   ⑤ 材料（写真かサイズ）がある
+//   ⑥ 第1259便: 写真が無い方は、取り込んでから48時間は待つ（★ 駅ちかの写真は1日1回・朝6時台の周で入る。入ってから選ぶ）
 //   ★ 新しい方から順に処理する（id の大きい順）。★ 取り込んだばかりの方に先に付く。
 //
 // ★★★ 1人1回だけ
@@ -101,16 +102,26 @@ export async function POST(req: Request) {
 
   // 2. バッジが空の方だけに絞り、駅ちかの castId を持っているかを調べる（旧列 import_cast_id ＋ 新しい表 therapist_media_ids）
   const empties = unmarked.filter((r) => isEmptyBadges(r.feature_badges));
+  //   ★ 第1259便: 写真が無い方は、結びが出来た時刻（created_at）も読む（★ 取り込んでから48時間は待つため）。
+  //     同じ方に枠が2つあれば古い方を採る。
   const withMediaId = new Set<number>();
-  const needLookup = empties.filter((r) => !r.import_cast_id).map((r) => Number(r.id));
+  const linkedAtOf = new Map<number, string>();
+  const needLookup = empties.filter((r) => !r.import_cast_id || !hasBadgePhoto(r)).map((r) => Number(r.id));
   for (let i = 0; i < needLookup.length; i += 200) {
     const { data, error } = await svc
       .from('therapist_media_ids')
-      .select('therapist_id, external_cast_id')
+      .select('therapist_id, external_cast_id, created_at')
       .eq('provider', 'ekichika')
       .in('therapist_id', needLookup.slice(i, i + 200));
     if (error) return json({ ok: false, error: 'therapist_media_ids を読めませんでした: ' + error.message }, 500);
-    for (const r of data ?? []) if (r.external_cast_id) withMediaId.add(Number(r.therapist_id));
+    for (const r of data ?? []) {
+      if (!r.external_cast_id) continue;
+      const tid = Number(r.therapist_id);
+      withMediaId.add(tid);
+      const at = (r as { created_at?: string | null }).created_at ?? null;
+      const prev = linkedAtOf.get(tid);
+      if (at && (!prev || at < prev)) linkedAtOf.set(tid, at);
+    }
   }
 
   const targets = empties.filter((r) => isAutoBadgeTarget({
@@ -120,6 +131,7 @@ export async function POST(req: Request) {
     profile_images: r.profile_images,
     feature_badges_auto_at: r.feature_badges_auto_at,
     hasCastId: !!r.import_cast_id || withMediaId.has(Number(r.id)),
+    linkedAt: linkedAtOf.get(Number(r.id)) ?? null,
   }));
 
   const results: Array<Record<string, unknown>> = [];
