@@ -27,6 +27,7 @@ import {
   type CrmBookingRow,
   type CrmCustomerDetail,
   type CrmCustomerRow,
+  type CrmDormantCustomer,
   type CrmScheduleData,
   type CrmScheduleCustomer,
   type CrmBookingItem,
@@ -283,6 +284,48 @@ export async function searchCrmCustomers(
       ...(memoHitOf(q, r) ? { memoHit: memoHitOf(q, r)! } : {}),
     })),
   };
+}
+
+/**
+ * ★ 第1230便（カッキーさん）: 休眠客＝利用が1回以上あり、最終利用から days 日以上たっていて、これからの予約が無いお客様。
+ *   最終利用の古い順（長く来ていない人が上）。読むのは salon_customers（id と名前・最大 5000 人）＋ crm_customer_stats（1人1行）だけ。
+ *   ★ 読み取りだけ。DB は変えない。
+ */
+export async function listCrmDormantCustomers(
+  salonId: number,
+  days: number,
+): Promise<{ ok: true; customers: CrmDormantCustomer[]; total: number } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const d = [30, 60, 90, 180].includes(Number(days)) ? Number(days) : 90;
+  const svc = auth.svc;
+  const { data, error } = await svc
+    .from('salon_customers').select('id, name, member_no, category')
+    .eq('salon_id', salonId).order('id').limit(5000);
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []) as Array<{ id: unknown; name: unknown; member_no: unknown; category: unknown }>;
+  const ids = rows.map((r) => Number(r.id));
+  const stats = await statsFor(svc, salonId, ids);
+  const now = Date.now();
+  const limitMs = now - d * 86400_000;
+  const out: CrmDormantCustomer[] = [];
+  for (const r of rows) {
+    const s = stats.get(Number(r.id));
+    if (!s || s.visits === 0 || s.upcoming > 0 || !s.lastVisitISO) continue;
+    const last = new Date(s.lastVisitISO).getTime();
+    if (last > limitMs) continue;
+    out.push({
+      id: Number(r.id),
+      name: String(r.name ?? ''),
+      memberNo: String(r.member_no ?? ''),
+      category: toCrmCategory(r.category),
+      visits: s.visits,
+      lastVisitISO: s.lastVisitISO,
+      daysAgo: Math.floor((now - last) / 86400_000),
+    });
+  }
+  out.sort((a, b) => a.lastVisitISO.localeCompare(b.lastVisitISO));
+  return { ok: true, customers: out.slice(0, 200), total: out.length };
 }
 
 /** 検索の言葉がメモ・要注意メモのどこに当たったか（前後を少し切り出す・第553便） */

@@ -33,6 +33,18 @@ export type CrmStats = {
   lastVisitISO: string | null;
 };
 
+/** ★ 第1230便: 休眠客（しばらく来ていないお客様）の1行（レポート用） */
+export type CrmDormantCustomer = {
+  id: number;
+  name: string;
+  memberNo: string;
+  category: CrmCategory;
+  visits: number;
+  lastVisitISO: string;
+  /** 最終利用から何日 */
+  daysAgo: number;
+};
+
 export type CrmCustomerRow = {
   id: number;
   name: string;

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCrmMonthStats } from '@/app/actions/crm';
-import { yen, type CrmMonthStats, type CrmStatRow } from '@/app/lib/crm/types';
+import Link from 'next/link';
+import { getCrmMonthStats, listCrmDormantCustomers } from '@/app/actions/crm';
+import { CRM_CATEGORY_LABEL, yen, type CrmDormantCustomer, type CrmMonthStats, type CrmStatRow } from '@/app/lib/crm/types';
+import { useCrmLinks } from '../CrmBase';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 
 // フクエスCRM「レポート」（第540便・2026-09-19）。
@@ -21,7 +23,7 @@ export default function CrmStatsPage() {
   const { access, adminSalonQuery } = useCrmAccess();
   return (
     <CrmShell access={access} adminSalonQuery={adminSalonQuery} current="stats">
-      {(a) => <StatsBody salonId={a.salonId} />}
+      {(a) => <StatsBody salonId={a.salonId} adminSalonQuery={adminSalonQuery} />}
     </CrmShell>
   );
 }
@@ -79,7 +81,72 @@ function Table({ title, rows, color, note }: { title: string; rows: CrmStatRow[]
   );
 }
 
-function StatsBody({ salonId }: { salonId: number }) {
+// ★ 第1230便（カッキーさん）: 休眠客（しばらく来ていないお客様）。月に依らず「今」から数える。押すと顧客台帳でその人を開く。
+function DormantSection({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
+  const crm = useCrmLinks();
+  const [days, setDays] = useState(90);
+  const [res, setRes] = useState<{ days: number; customers: CrmDormantCustomer[]; total: number } | null>(null);
+  const [err, setErr] = useState('');
+  useEffect(() => {
+    let alive = true;
+    listCrmDormantCustomers(salonId, days).then((r) => {
+      if (!alive) return;
+      if (!r.ok) { setErr(r.error); return; }
+      setErr('');
+      setRes({ days, customers: r.customers, total: r.total });
+    });
+    return () => { alive = false; };
+  }, [salonId, days]);
+  const list = res && res.days === days ? res : null;
+  const sep = adminSalonQuery ? `${adminSalonQuery}&` : '?';
+  const ymd = (iso: string) => new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: 'numeric', day: 'numeric' }).format(new Date(iso));
+  return (
+    <section>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-[15px] font-black text-slate-800">しばらく来ていないお客様</h2>
+        <div className="flex">
+          {[30, 60, 90, 180].map((d) => (
+            <button key={d} type="button" onClick={() => setDays(d)} className={`px-2.5 py-1 text-[12px] font-bold ${days === d ? 'bg-[#7C3AED] text-white' : 'border border-slate-300 bg-white text-slate-600'}`}>
+              {d}日以上
+            </button>
+          ))}
+        </div>
+        {list && <span className="text-[12px] text-slate-500">{list.total}人{list.total > list.customers.length ? `（上から${list.customers.length}人まで表示）` : ''}</span>}
+      </div>
+      <p className="mt-1 text-[11px] text-slate-400">利用が1回以上あり、最終利用から{days}日以上たっていて、これからの予約が無いお客様。長く来ていない順。名前を押すと顧客台帳で開きます。</p>
+      {err && <p className="mt-1 text-[13px] font-bold text-rose-600">{err}</p>}
+      {!list ? (
+        <p className="mt-2 text-[13px] text-slate-400">探しています…</p>
+      ) : list.customers.length === 0 ? (
+        <p className="mt-2 text-[13px] text-slate-400">該当するお客様はいません。</p>
+      ) : (
+        <div className="mt-2 overflow-x-auto border border-slate-200 bg-white">
+          <table className="w-full min-w-[420px] text-[13px]">
+            <thead className="bg-slate-50 text-[11px] text-slate-500">
+              <tr><th className="px-3 py-1.5 text-left">お客様</th><th className="px-2 text-left">分類</th><th className="px-2 text-right">利用</th><th className="px-2 text-right">最終利用</th><th className="px-2 text-right">経過</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {list.customers.map((c) => (
+                <tr key={c.id}>
+                  <td className="px-3 py-1.5">
+                    <Link href={`${crm.href('/customers')}${sep}customer=${c.id}`} className="font-bold text-[#3f51b5] underline decoration-dotted underline-offset-2">{c.name || '(名前なし)'}</Link>
+                    {c.memberNo && <span className="ml-1 text-[11px] text-slate-400">{c.memberNo}</span>}
+                  </td>
+                  <td className="px-2 text-[12px] text-slate-600">{CRM_CATEGORY_LABEL[c.category]}</td>
+                  <td className="px-2 text-right">{c.visits}回</td>
+                  <td className="whitespace-nowrap px-2 text-right text-slate-600">{ymd(c.lastVisitISO)}</td>
+                  <td className="whitespace-nowrap px-2 text-right font-bold text-slate-800">{c.daysAgo}日</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StatsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
   const [ym, setYm] = useState(() => thisMonthJST());
   const [st, setSt] = useState<CrmMonthStats | null>(null);
   const [err, setErr] = useState('');
@@ -145,6 +212,7 @@ function StatsBody({ salonId }: { salonId: number }) {
           <Table title="新規／リピート（本数）" rows={st.byNewRepeat} color="#7C3AED" note="その人の初めての1本＝新規、2本目から＝リピート（前の月までの利用も見ます）" />
         </>
       )}
+      <DormantSection salonId={salonId} adminSalonQuery={adminSalonQuery} />
     </div>
   );
 }
