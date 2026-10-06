@@ -17,6 +17,7 @@ import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
 import { defaultAuditSummary } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
+import { markWorkSynced } from '@/app/lib/media/workInputHash';
 import { stampDiaryListed } from '@/app/lib/media/diaryWatch';
 import { openContext, unpackBody, type RelayResponse } from '@/lib/relayJob';
 import { decryptSecret } from '@/lib/mediaCredentials';
@@ -144,6 +145,8 @@ export async function startRelayFlow(params: {
    *   送る直前に読み直して作った計画と突き合わせ、違ったら送らない。
    */
   approvedFingerprint?: string;
+  /** ★ 第1245便: 自動反映（work_auto）の「フクエス側の材料の指紋」。同期できたら記録する（markWorkSynced） */
+  autoInputHash?: string;
   /**
    * intent='diary_read' で【初回の遡り】をするときだけ。
    * ★ 渡さなければ通常運転＝一覧の1ページ目だけを見る（§371）。
@@ -425,6 +428,7 @@ export async function startRelayFlow(params: {
     ...(params.approvedFingerprint !== undefined
       ? { approvedFingerprint: params.approvedFingerprint }
       : {}),
+    ...(params.autoInputHash ? { autoInputHash: params.autoInputHash } : {}),
     // ★ 初回の遡り（第95便）。★ 渡されたときだけ入れる
     ...(params.diarySince ? { diarySince: params.diarySince } : {}),
     ...(Number.isFinite(params.diaryPagesLeft)
@@ -675,11 +679,15 @@ export async function advanceRelayFlow(params: {
     note = outcome.note + ' → ' + r.note;
   }
 
+  // ★ 第1245便: この周で「フクエス側の材料と相手サイトが同期できた」か（自動反映だけ。指紋は始めるときに文脈へ入れてある）
+  let workSynced = false;
+
   if (outcome.kind === 'plan_work') {
     const r = await planWork(params, outcome.page, context);
     audits.push(...r.audits);
     note = outcome.note + ' → ' + r.note;
     next = r.next ?? null;
+    if (r.synced) workSynced = true;
   }
 
   // ★★ エステラブの名簿を読めた（第78便）。★ この便では【保存しない】。
@@ -822,6 +830,14 @@ export async function advanceRelayFlow(params: {
   if (outcome.kind === 'done' && outcome.esutamaPlan) {
     const r = await saveEsutamaPlan(params, outcome.esutamaPlan, context);
     note = note + ' → ' + r.note;
+    // ★ 第1245便: 変更ぶんを全員ぶん保存できた（変更0も含む）＝同期できた。★ 1人でも保存できていなければ記録しない（次の周がやり直す）
+    const p = outcome.esutamaPlan;
+    if (p.people > 0 && p.saved >= p.changed) workSynced = true;
+  }
+  // ★ 駅ちか: 書いて照合まで通った（write_work ok）＝同期できた
+  if (audits.some((a) => a.event === 'write_work' && a.outcome === 'ok')) workSynced = true;
+  if (workSynced && !next && context.intent === 'work_auto' && context.autoInputHash) {
+    await markWorkSynced(createServiceClient(), { salonId: params.salonId, provider: params.provider, slot: params.slot, hash: context.autoInputHash });
   }
 
   // ★★★ 流れが終わったら、送った印の【状態】を決める（第137便）。
@@ -1919,7 +1935,7 @@ async function planWork(
   params: { salonId: number; provider: string; slot: number },
   page: WorkPage,
   ctx: RelayFlowContext,
-): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest; synced?: boolean }> {
   const flowId = ctx.flowId;
   // ★ 送る intent は2つ（第48便）。work_auto は人が見ずに送る。
   const pushing = ctx.intent === 'work_push' || ctx.intent === 'work_auto';
@@ -2119,8 +2135,9 @@ async function planWork(
   }
 
   // ★ 送るものが無いなら送らない。全件上書きのフォームを、意味なく投げない。
+  //   ★ 第1245便: 自動（work_auto）なら「同期できている」＝指紋を記録する（synced）。次の周は材料が変わるまで行かない
   if (plan.changes.length === 0) {
-    return { audits: [planAudit], note: '変更が無いので送らない' };
+    return { audits: [planAudit], note: '変更が無いので送らない', synced: unattended };
   }
 
   // ★★ ここまで来て初めて書き込みを組み立てる。

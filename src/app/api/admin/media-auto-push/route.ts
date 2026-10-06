@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { loadWorkInputHash } from '@/app/lib/media/workInputHash';
+import { canSkipAutoPush } from '@/lib/workInputHash';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
   isDueForAutoPush,
@@ -17,6 +19,10 @@ import {
 //   その状態にできるのは「いまの向きになってから1回でも反映が成功している枠」だけ（§54）。
 //   ★ 実弾が0回のあいだは対象が0件。**このエンドポイントを置いても何も起きない。**
 //
+// ★★ 第1245便（2026-10-06・カッキーさんの決定＝案B）: フクエス側の出勤が前回同期したときから変わっていない枠は、相手サイトへ行かない。
+//   指紋は lib/workInputHash.ts、記録は salon_import_sources.auto_synced_hash / auto_synced_at（追加SQL_第1245便）。
+//   ★ 同期が24時間より古い・営業日が変わった（指紋が変わる）ときは行く。★ 2026-10-06 に crontab へ入れた（それまで周は動いていなかった）。
+//
 // ★★ apply 既定 false（試し打ち）。何件やるつもりかだけ返す。
 //   relay-purge・取り込みと同じ作法。★ 最初は apply なしで数を見ること。
 //
@@ -30,6 +36,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 type Row = { salon_id: number; provider: string; slot: number };
+// ★ 第1245便: 前回「同期できた」ときの指紋と時刻（列は 追加SQL_第1245便）。★ 列が無い（SQL 未適用）なら読めない＝今までどおり毎周行く
+type SyncRow = { salon_id: number; provider: string; slot: number; auto_synced_hash: string | null; auto_synced_at: string | null };
 
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -54,6 +62,21 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   const rows = (sources ?? []) as Row[];
+
+  // ★★ 第1245便（2026-10-06・カッキーさんの決定＝案B）: フクエス側の出勤が【前回同期したときから変わっていない】店は、相手サイトへ行かない。
+  //   ★ 相手サイトへの負荷と目立ち方を抑える（ベンリーは1日1回）。反映の速さ（30分以内）は保つ。
+  //   ★ 同期が24時間より古ければ指紋が同じでも行く（相手側で手で直されたぶんを拾う）。営業日が変わると指紋も変わる＝毎朝6時台の周は必ず行く。
+  //   ★ 指紋が読めない・列が無い（SQL 未適用）ときは今までどおり行く（★ 読み取りの不調で送信を止めない）。
+  const syncOf = new Map<string, SyncRow>();
+  {
+    const { data: syncRows, error: syncErr } = await svc
+      .from('salon_import_sources')
+      .select('salon_id, provider, slot, auto_synced_hash, auto_synced_at')
+      .eq('is_enabled', true).eq('link_mode', 'write_auto');
+    if (syncErr) console.error('[auto-push] 同期済みの印を読めなかった（SQL 未適用?）。今までどおり毎周行く:', syncErr.message);
+    for (const r of (syncRows ?? []) as SyncRow[]) syncOf.set(`${r.salon_id}/${r.provider}#${r.slot}`, r);
+  }
+
   const started: string[] = [];
   const skipped: Array<{ target: string; why: string }> = [];
   const gaveUp: string[] = [];
@@ -107,6 +130,19 @@ export async function POST(req: Request) {
       continue;
     }
 
+    // ★ 第1245便: フクエス側の材料の指紋。★ 同じで新しければ行かない
+    let inputHash: string | null = null;
+    try {
+      inputHash = await loadWorkInputHash(svc, { salonId: r.salon_id, provider: r.provider, slot: r.slot, nowMs: now.getTime() });
+    } catch (e) {
+      console.warn('[auto-push] 指紋を作れなかった（今までどおり行く）', target, e instanceof Error ? e.message : 'unknown');
+    }
+    const sync = syncOf.get(target);
+    if (inputHash && sync && canSkipAutoPush({ hash: inputHash, syncedHash: sync.auto_synced_hash, syncedAt: sync.auto_synced_at, now })) {
+      skipped.push({ target, why: 'フクエス側の出勤に変更なし（前回の同期から24時間以内）' });
+      continue;
+    }
+
     if (!apply) { started.push(target); continue; }
 
     try {
@@ -115,6 +151,8 @@ export async function POST(req: Request) {
         salonId: r.salon_id, provider: r.provider, slot: r.slot,
         intent: 'work_auto',
         actor: 'system:auto-push',
+        // ★ 第1245便: 同期できたら、この指紋を「同期済み」として記録する（app/lib/media/relayFlow.ts）
+        ...(inputHash ? { autoInputHash: inputHash } : {}),
       });
       if (r2.ok) started.push(target);
       else skipped.push({ target, why: r2.note });

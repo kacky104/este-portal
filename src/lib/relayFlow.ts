@@ -431,6 +431,8 @@ export type RelayFlowContext = {
    *   ★ 指紋だけを持つので文脈が太らない。
    */
   approvedFingerprint?: string;
+  /** ★ 第1245便: 自動反映（work_auto）が始まったときの「フクエス側の材料の指紋」。同期できたらこの値を記録する（lib/workInputHash.ts） */
+  autoInputHash?: string;
   /** ★ 送った内容（encodeGirlWork の詰めた文字列）。verify_work で照合するのに要る */
   sentPacked?: string;
   /** 送った人数。★ 切り捨て（max_input_vars）の主症状はここに出る */

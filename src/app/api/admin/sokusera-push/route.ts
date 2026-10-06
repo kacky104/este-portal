@@ -14,11 +14,11 @@ import { startRelayFlow, hasSokuseraSendCandidate } from '@/app/lib/media/relayF
 // ★★★ **1回のフローでONにするのは1人だけ。** ★ 「全員にまとめて」は作らない。
 //   ★ 相手のアカウントを触る操作なので、1人ずつ・確かめながら進む。
 //
-// ★ 「今すぐ」は45分で切れる（★ 第326便で30分から延ばした）。★ 周は5分ごと。★ 取りこぼしは次の周が拾う。
+// ★ 「今すぐ」は45分で切れる（★ 第326便で30分から延ばした）。★ 周は10分ごと（第1244便まで5分）。★ 取りこぼしは次の周が拾う。
 // ★★ 第1244便: 周は回るが、ONにする相手がいない店へはログインしない（hasSokuseraSendCandidate・DB だけで下調べ）。
 //
-// crontab（VPS・5分ごと。★ 日記の周と1分ずらす）:
-//   1-59/5 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokusera-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
+// crontab（VPS・10分ごと。★ 第1244便で 5分→10分（2026-10-06・カッキーさん・相手サイトへの負荷を抑える）。★ 日記の周・即ヒメの周と1分ずらす）:
+//   1-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokusera-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
