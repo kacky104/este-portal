@@ -1163,13 +1163,12 @@ export async function unconfirmCrmPay(
 /** その日に受領・報酬・動きがあって、その日の終わりの残高が 0 でない人の名前（第558便） */
 async function unsettledNames(svc: Svc, salonId: number, dateISO: string, known: Map<number, string>): Promise<string[]> {
   try {
-    const byDay = await moneyByDay(svc, salonId, { untilDate: dateISO });
+    // ★ 第1226便: DB 側の関数で1人1行（その日に動きがあって、その日の終わりの残高が 0 でない人）
+    const totals = await moneyTotals(svc, salonId, { untilDate: dateISO, day: dateISO });
     const ids: number[] = [];
-    for (const [tid, days] of byDay) {
-      if (!days.has(dateISO)) continue;
-      let bal = 0;
-      for (const a of days.values()) bal += aggBalance(a);
-      if (bal !== 0) ids.push(tid);
+    for (const [tid, t] of totals) {
+      if (!t.dayActive) continue;
+      if (aggBalance(t.total) !== 0) ids.push(tid);
     }
     if (ids.some((id) => !known.has(id))) {
       const { data } = await svc.from('therapists').select('id, name').in('id', ids);
@@ -1834,6 +1833,48 @@ async function moneyByDay(
 
 const aggBalance = (a: MoneyAgg) => a.received - a.pay - a.toShop + a.toTherapist;
 
+type MoneyTotal = { total: MoneyAgg; day: MoneyAgg; dayActive: boolean };
+
+/**
+ * ★★ 第1226便（カッキーさん）: 残高の集計を DB 側の関数 crm_money_balances で行い、セラピスト1人につき1行だけ受け取る。
+ *   それまでは moneyByDay で開店以来の全予約・確定・動きを 3 表ぶん読んで JS で足していた（CRM の店が増える・1年分たまると締めのたびに数万行）。
+ *   ★ 関数が無い・失敗したときは今までの読み方（moneyByDay）に戻る＝SQL を流す前に push しても壊れない。
+ *   ★ 数え方は同じ（received − pay − toShop + toTherapist・営業日 6:00 区切り・確定した日は確定の報酬＋手当）。
+ * @param opt.untilDate この営業日まで（含む）／opt.therapistId この人だけ／opt.day この日の分を day・dayActive で返す
+ */
+async function moneyTotals(
+  svc: Svc,
+  salonId: number,
+  opt: { therapistId?: number; untilDate?: string; day?: string } = {},
+): Promise<Map<number, MoneyTotal>> {
+  const out = new Map<number, MoneyTotal>();
+  const { data, error } = await svc.rpc('crm_money_balances', {
+    p_salon_id: salonId,
+    p_until: opt.untilDate ?? null,
+    p_therapist_id: opt.therapistId ?? null,
+    p_day: opt.day ?? null,
+  });
+  if (!error && Array.isArray(data)) {
+    for (const r of data as Record<string, unknown>[]) {
+      out.set(Number(r.therapist_id), {
+        total: { received: Number(r.received) || 0, pay: Number(r.pay) || 0, toShop: Number(r.to_shop) || 0, toTherapist: Number(r.to_therapist) || 0 },
+        day: { received: Number(r.day_received) || 0, pay: Number(r.day_pay) || 0, toShop: Number(r.day_to_shop) || 0, toTherapist: Number(r.day_to_therapist) || 0 },
+        dayActive: Boolean(r.day_active),
+      });
+    }
+    return out;
+  }
+  if (error) console.error('[crm] crm_money_balances を読めませんでした（今までの読み方で足します）:', error.message);
+  const byDay = await moneyByDay(svc, salonId, { therapistId: opt.therapistId, untilDate: opt.untilDate });
+  for (const [tid, days] of byDay) {
+    const total = emptyAgg();
+    for (const a of days.values()) { total.received += a.received; total.pay += a.pay; total.toShop += a.toShop; total.toTherapist += a.toTherapist; }
+    const day = (opt.day && days.get(opt.day)) || emptyAgg();
+    out.set(tid, { total, day: { ...day }, dayActive: !!opt.day && days.has(opt.day) });
+  }
+  return out;
+}
+
 /** 金銭授受タブ：女子ごとの残高（通算）と、月の動き（ym は YYYY-MM） */
 export async function getCrmMoney(
   salonId: number,
@@ -1845,11 +1886,11 @@ export async function getCrmMoney(
   const svc = auth.svc;
   // ★ 第1221便（カッキーさん）: 残高は【今日の営業日まで】で数える（報酬確定の画面・締めの未精算の判定と同じ区切り）。
   //   前は区切りなしで、明日や来週の予約に報酬を入れた時点で残高が動いていた（画面どうしで数字が食い違う）。
-  const [names, byDay] = await Promise.all([therapistNames(svc, salonId), moneyByDay(svc, salonId, { untilDate: businessDateNowJST() })]);
+  // ★ 第1226便: 残高は DB 側の関数で1人1行
+  const [names, totals] = await Promise.all([therapistNames(svc, salonId), moneyTotals(svc, salonId, { untilDate: businessDateNowJST() })]);
   const balances: CrmMoneyBalance[] = [];
-  for (const [tid, days] of byDay) {
-    const t = emptyAgg();
-    for (const a of days.values()) { t.received += a.received; t.pay += a.pay; t.toShop += a.toShop; t.toTherapist += a.toTherapist; }
+  for (const [tid, tt] of totals) {
+    const t = tt.total;
     balances.push({ therapistId: tid, name: names.get(tid) ?? '(不明)', ...t, balance: aggBalance(t) });
   }
   balances.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance) || a.name.localeCompare(b.name, 'ja'));
@@ -1879,18 +1920,18 @@ export async function getCrmMoneyDay(
   if (!auth.ok) return auth;
   if (!validDate(dateISO) || !Number.isInteger(therapistId)) return { ok: false, error: '指定が不正です' };
   const svc = auth.svc;
-  const [byDay, names, { data: conf }, { data: mv }] = await Promise.all([
-    moneyByDay(svc, salonId, { therapistId, untilDate: dateISO }),
+  const [totals, names, { data: conf }, { data: mv }] = await Promise.all([
+    moneyTotals(svc, salonId, { therapistId, untilDate: dateISO, day: dateISO }), // ★ 第1226便
     therapistNames(svc, salonId),
     svc.from('crm_pay_confirms').select('therapist_id').eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).maybeSingle(),
     svc.from('crm_money_moves')
       .select('id, therapist_id, business_date, direction, category, amount, memo, created_at, cancelled_at')
       .eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).order('id'),
   ]);
-  const days = byDay.get(therapistId) ?? new Map<string, MoneyAgg>();
-  let prior = 0;
-  for (const [d, a] of days) if (d < dateISO) prior += aggBalance(a);
-  const today = days.get(dateISO) ?? emptyAgg();
+  const tt = totals.get(therapistId);
+  const today = tt?.day ?? emptyAgg();
+  // 前日までの残高 ＝ その日までの通算 − その日の分
+  const prior = tt ? aggBalance(tt.total) - aggBalance(today) : 0;
   return {
     ok: true,
     day: {
