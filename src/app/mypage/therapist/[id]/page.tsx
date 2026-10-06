@@ -1082,6 +1082,10 @@ export default function TherapistEditPage() {
           <p className="text-[10px] text-slate-400 leading-relaxed">
             ※ 退店の際も削除より「非公開」がおすすめです。削除はプロフィール・写真・写メ日記が消え、戻せません。
           </p>
+          {/* ★ 第1223便（カッキーさん）: 非公開にしても、セラピストページ連携の紐付けが残っていれば本人は /cast に入れる（スケジュールも読める）。退店のときは紐付け解除も案内する */}
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            ※ 退店のときは、マイページの「セラピストページ連携」で「紐付け解除」もしてください。非公開にしただけでは、本人はセラピストページ（スケジュール・写メ日記）に入れたままです。
+          </p>
         </div>
 
       </main>

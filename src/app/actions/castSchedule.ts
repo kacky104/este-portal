@@ -76,7 +76,9 @@ async function me(): Promise<{ svc: Svc; therapistId: number; salonId: number } 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const svc = createServiceClient();
-  const { data } = await svc.from('therapists').select('id, salon_id').eq('user_id', user.id).maybeSingle();
+  // ★ 第1223便: 同じログインが2人のセラピストに紐づいていると maybeSingle がエラー→null で黙ってスケジュールが出なかった → 先頭の1人を使う
+  const { data: rows } = await svc.from('therapists').select('id, salon_id').eq('user_id', user.id).order('id').limit(1);
+  const data = rows?.[0];
   if (!data?.id || data.salon_id == null) return null;
   return { svc, therapistId: Number(data.id), salonId: Number(data.salon_id) };
 }
