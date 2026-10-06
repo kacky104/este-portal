@@ -21,6 +21,13 @@ import { pickArticlePhoto, normalizeArticlePhotoIds } from '@/lib/articlePhotoPi
 //   ② 入っていなければ salon_article_settings.photo_therapist_ids（店舗に1つの箱）から1枚（第373便）
 //      ★ 直前の1枚（last_photo_therapist_id）は避ける。★ 箱が空なら写真に触らない
 //   ★★ 文章の therapist_ids / last_photo_therapist_id / ekichika_girl_id は【読まない】（列は残っている）。
+//
+// ★★★ 第1262便（2026-10-07・カッキーさんの決定）: 新着情報を出せるのは【コネックエフに切り替えた店】だけ（手動も自動も）。
+//   ★ 決まり: コネックエフ＝フクエスから各サイトへ送る／フクエスリンク＝駅ちかから読むだけ。新着情報もフクエスから駅ちかへ書く操作。
+//   ★ 実際に起きかけた（アロマメイ様・オイルクエスト様・2026-10-06 夜）: 切り替える前にコネックエフの画面で「自動投稿中」を付けた。
+//     画面はフクエスリンクのころの部品（NewsBoard）で、切り替え前の店を止めていなかった＝鍵のある店は次の時刻に駅ちかへ出るところだった。
+//   ★ 文章を作る・「自動投稿中」を付けるのは切り替え前でもできる（準備しておける）。出るのは切り替えたあとから。
+//   ★ 読めなかったときは出さない（「分からない」を「切り替え済み」と読まない）。
 
 const PROVIDER = 'ekichika';
 /** 店舗様がフクエスに上げた写真の置き場。★ 中継役が取りに来られるのはここだけ（第106便） */
@@ -45,6 +52,13 @@ export async function postOneArticle(input: {
   actor: string;
 }): Promise<PostOneResult> {
   const svc = createServiceClient();
+
+  // ★ 第1262便: コネックエフに切り替えた店だけ（手で押したときも自動の周も）
+  const { data: sal, error: salErr } = await svc.from('salons').select('conecf_enabled_at').eq('id', input.salonId).maybeSingle();
+  if (salErr) return { ok: false, error: '店舗の設定を読めませんでした' };
+  if (!sal?.conecf_enabled_at) {
+    return { ok: false, error: '駅ちかへの新着情報の投稿は、コネックエフに切り替えたあとにお使いいただけます（文章と自動投稿の設定は、このまま残ります）' };
+  }
 
   // ★★★ 内容は【DBから読み直す】。★ 呼び出し側から受け取った文字をそのまま駅ちかへ流さない
   const { data: t, error: tErr } = await svc

@@ -55,9 +55,12 @@ export async function POST(req: Request) {
   //     ★★★ nullsFirst を明示する。★ 昇順の既定では null が【後ろ】に来るので、任せない。
   //     ★ ここを間違えると「まだ一度も出していない文章が、いつまでも出ない」。
   //   ★ 非表示の店舗は外す（★ salons!inner で絞る）
-  const { data: temps, error: tErr } = await svc
+  //   ★★ 第1262便（2026-10-07・カッキーさん）: コネックエフに切り替えた店だけ（conecf_enabled_at あり）。
+  //     フクエスリンクの店は駅ちかから読むだけ＝フクエスから新着情報を書かない。切り替え前に付けた「自動投稿中」は、切り替えたあとから動く。
+  //     ★ ここで外しておく（postOneArticle も同じ線で断るが、毎周「失敗」を積まないため）。
+  const { data: tempsAll, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, salon_id, slot, article_slot, last_auto_day, last_posted_at, salons!inner(id, is_hidden)')
+    .select('id, salon_id, slot, article_slot, last_auto_day, last_posted_at, salons!inner(id, is_hidden, conecf_enabled_at)')
     .eq('provider', PROVIDER)
     .eq('is_active', true)
     .eq('salons.is_hidden', false)
@@ -66,6 +69,13 @@ export async function POST(req: Request) {
     .order('id', { ascending: true });
   // ★★ 読めなかったときは【何もしない】。★ 0件と混ぜない（作法3-5）
   if (tErr) return NextResponse.json({ ok: false, error: tErr.message }, { status: 500 });
+  // ★ 第1262便: 切り替えた店の文章だけ残す（★ 絞り込みは読んだあとにここで。問い合わせの条件を増やして周ごと落とさない）
+  const temps = (tempsAll ?? []).filter((r) => {
+    const rel = (r as unknown as { salons?: { conecf_enabled_at?: string | null } | Array<{ conecf_enabled_at?: string | null }> | null }).salons;
+    const one = Array.isArray(rel) ? rel[0] : rel;
+    return !!one?.conecf_enabled_at;
+  });
+  const notSwitched = (tempsAll ?? []).length - temps.length;
 
   const posted: string[] = [];
   const skipped: Array<{ salonId: number; articleSlot: number; why: string }> = [];
@@ -148,6 +158,8 @@ export async function POST(req: Request) {
     apply,
     at: now.toISOString(),
     targets: groups.size,
+    // ★ 第1262便: 「自動投稿中」だが、店がコネックエフに切り替えていないので見送った文章の数
+    notSwitched,
     posted,
     skipped,
     failed,
