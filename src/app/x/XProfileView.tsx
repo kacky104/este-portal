@@ -222,14 +222,19 @@ export function XProfileView({
 
           {/* 名前・kind・所属（同じ行に横並び。狭幅は折り返し）。
               表示名は1行自動縮小フィット（20→13px・AutoFitName）＝長い名前でも改行/省略せず1行に収める。
-              認証バッジ・種別チップは縮めず名前の直後に配置（after）。所属バッジは長くなり得るため次行へ折り返し。 */}
+              認証バッジ・種別チップは縮めず名前の直後に配置（after）。所属バッジは長くなり得るため次行へ折り返し。
+              ★ 第1251便（2026-10-06・カッキーさん）: 店名が長いと名前が「ヒ…」と省略されていた（例: THE LABYRINTH ～ラビリンス～所属）。
+                AutoFitName の外枠は flex-1（＝幅の見積もり 0）なので、折り返しの判定で「名前は幅 0 で足りる」と数えられ、
+                所属バッジが同じ行に居座って、名前には余りの幅しか回らなかった。
+                → このページだけ見積もりを中身の幅に（basis-auto!）。入らないときは所属バッジが次の行へ下りる。
+                名前だけで1行を超えるときは今までどおり縮めて収める（min-w-0 はそのまま）。 */}
           <div className="mt-2">
             <div className="flex items-center gap-2 flex-wrap">
               <AutoFitName
                 name={target.display_name}
                 max={20}
                 min={13}
-                className="gap-2"
+                className="gap-2 basis-auto!"
                 textClassName="font-black text-[color:var(--x-text-primary)]"
                 textTag="h1"
                 after={
