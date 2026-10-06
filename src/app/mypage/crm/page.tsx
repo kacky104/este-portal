@@ -601,9 +601,11 @@ function Grid({
   const zoom = narrow ? 0.72 : 1;
   // ★ 第1214便（カッキーさん）: スマホは名前の列を広げる（150→186）・女子メモの列を細く（100→64）。名前の列の余白は px-2 → px-1。
   // ★ 第1215便（カッキーさん・本番で確認）: 女子メモが狭すぎた → 女子メモは元の 100px に戻し、名前は 174px（右に余白があった）。
-  //   左の固定枠の合計は 250 → 274px（画面上はタイムラインが約17px 狭くなるが、少しなら良いとのこと）。女子メモの空欄の文字は「✎ メモを書く」に戻す。
+  //   左の固定枠の合計は 250 → 274px（画面上はタイムラインが約17px 狭くなるが、少しなら良いとのこと）。
+  // ★ 第1216便（カッキーさん）: 女子メモの列を画面上 17px（zoom 0.72 なので 24px）狭く＝100→76px にして、タイムラインを第1214便の目視幅に戻す。
+  //   左の固定枠の合計は 250px。女子メモの空欄の文字はスマホだけ「✎ メモ」。
   const nameW = narrow ? NAME_W + 24 : NAME_W;
-  const memoW = narrow ? 100 : MEMO_W;
+  const memoW = narrow ? 76 : MEMO_W;
   const leftW = nameW + memoW;
   const ppm = narrow ? 1.1 : PX_PER_MIN;
   const width = (endMin - startMin) * ppm;
@@ -757,7 +759,7 @@ function Grid({
                   <p className="line-clamp-4 whitespace-pre-line text-[12px] leading-[1.3] text-slate-700">{r.therapist.memo}</p>
                 ) : (
                   // ★ 薄すぎて見つけられなかった（2026-09-19）→ 枠つきのボタンに見える形に
-                  <span className="inline-block whitespace-nowrap border border-dashed border-amber-400 bg-amber-50 px-1 py-0.5 text-[11px] font-bold text-amber-700">✎ メモを書く</span>
+                  <span className="inline-block whitespace-nowrap border border-dashed border-amber-400 bg-amber-50 px-1 py-0.5 text-[11px] font-bold text-amber-700">{narrow ? '✎ メモ' : '✎ メモを書く'}</span>
                 )}
               </button>
               {r.therapist.memo && (
