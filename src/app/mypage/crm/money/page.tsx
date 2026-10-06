@@ -83,7 +83,7 @@ function MoneyBody({ salonId }: { salonId: number }) {
       <h1 className="mb-1 text-[20px] font-black text-slate-800">金銭授受</h1>
       <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
         女子が受領した料金 − 女子の報酬 − 女子→お店に渡した額 ＋ お店→女子に払った額 ＝ 残高。
-        ＋はお店が受け取る側、−はお店が払う側です。ふだんの精算はスケジュールの「報酬確定」の画面からできます。
+        残高は今日の営業日までの分です（これからの予約の報酬は入りません）。ふだんの精算はスケジュールの「報酬確定」の画面からできます。
       </p>
 
       {/* 残高 */}

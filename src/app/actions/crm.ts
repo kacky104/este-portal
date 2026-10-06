@@ -1816,7 +1816,9 @@ export async function getCrmMoney(
   if (!auth.ok) return auth;
   if (!/^\d{4}-\d{2}$/.test(ym)) return { ok: false, error: '月が不正です' };
   const svc = auth.svc;
-  const [names, byDay] = await Promise.all([therapistNames(svc, salonId), moneyByDay(svc, salonId)]);
+  // ★ 第1221便（カッキーさん）: 残高は【今日の営業日まで】で数える（報酬確定の画面・締めの未精算の判定と同じ区切り）。
+  //   前は区切りなしで、明日や来週の予約に報酬を入れた時点で残高が動いていた（画面どうしで数字が食い違う）。
+  const [names, byDay] = await Promise.all([therapistNames(svc, salonId), moneyByDay(svc, salonId, { untilDate: businessDateNowJST() })]);
   const balances: CrmMoneyBalance[] = [];
   for (const [tid, days] of byDay) {
     const t = emptyAgg();
