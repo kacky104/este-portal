@@ -354,18 +354,12 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     return { ok: false, error: target.state === 'full' ? 'slot_taken' : 'invalid' };
   }
 
-  // 7) INSERT 前に、同一 (therapist_id, slot_start) の cancelled 行があれば削除する。
-  //    UNIQUE(therapist_id, slot_start) が残っているため、キャンセル済み枠を再予約すると
-  //    23505 で弾かれてしまう。cancelled 行だけ先に消してキャンセル枠を再利用可能にする。
+  // 7) ★ 第1227便（カッキーさん）: ここにあった「同一 (therapist_id, slot_start) の cancelled 行を削除」はやめた。
+  //    UNIQUE を【キャンセル以外】だけの部分ユニーク索引に変えた（追加SQL_第1227便）ので、キャンセル行が残っていても再予約できる。
+  //    ★ キャンセル行を残す理由: 悪質キャンセルの印・顧客台帳のキャンセル回数・同意書・/cast の「キャンセル」表示が消えないように。
   //    （new/confirmed の行があった場合は上の重なり再検証で既に slot_taken 済み。）
-  await svc
-    .from('salon_bookings')
-    .delete()
-    .eq('therapist_id', therapistId)
-    .eq('slot_start', slotStart.toISOString())
-    .eq('status', 'cancelled');
 
-  // INSERT（UNIQUE(therapist_id, slot_start) 違反=23505 は「直前に埋まった」として返す）。
+  // INSERT（有効な予約の UNIQUE 違反=23505 は「直前に埋まった」として返す）。
   // 予約枠＝コース＋インターバル（インターバル分も塞ぐ。course_min はコース時間のみを保存し、
   // 復元は (slot_end - slot_start) - course_min で行う＝手入力と同じ方式）。
   const slotEnd = new Date(slotStart.getTime() + (courseMin + intervalMin) * 60 * 1000);
@@ -839,24 +833,7 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
     if (freeRows && freeRows.length > 0) return { ok: false, error: 'その時間帯は既にフリー客の予約が入っています' };
   }
 
-  // 同一枠に cancelled 行が残っていれば掃除（UNIQUE制約対策・createBooking と同じ。
-  // フリー客は部分ユニーク index（salon_id, slot_start WHERE therapist_id IS NULL）が対象）。
-  if (therapistId !== null) {
-    await svc
-      .from('salon_bookings')
-      .delete()
-      .eq('therapist_id', therapistId)
-      .eq('slot_start', slotStart.toISOString())
-      .eq('status', 'cancelled');
-  } else {
-    await svc
-      .from('salon_bookings')
-      .delete()
-      .eq('salon_id', salonId)
-      .is('therapist_id', null)
-      .eq('slot_start', slotStart.toISOString())
-      .eq('status', 'cancelled');
-  }
+  // ★ 第1227便: ここにあった「同一枠の cancelled 行の掃除（削除）」はやめた（createBooking と同じ理由・追加SQL_第1227便で UNIQUE が cancelled を見なくなった）。
 
   // ★ フクエスCRM：電話番号で顧客台帳へ名寄せ（失敗しても予約は止めない）。
   const customerId = await linkBookingCustomer(svc, salonId, customerTel, customerName);
@@ -965,17 +942,7 @@ export async function moveBooking(
     if (brk) return { ok: false, error: brk };
   }
 
-  // 移動先の同一枠に cancelled 行が残っていれば掃除（UNIQUE制約対策）。
-  let cleanupQuery = svc
-    .from('salon_bookings')
-    .delete()
-    .eq('slot_start', slotStart.toISOString())
-    .eq('status', 'cancelled')
-    .neq('id', bookingId);
-  cleanupQuery = therapistId !== null
-    ? cleanupQuery.eq('therapist_id', therapistId)
-    : cleanupQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
-  await cleanupQuery;
+  // ★ 第1227便: ここにあった「移動先の同一枠の cancelled 行の掃除（削除）」はやめた（追加SQL_第1227便で UNIQUE が cancelled を見なくなった）。
 
   const { error: upErr } = await svc
     .from('salon_bookings')
