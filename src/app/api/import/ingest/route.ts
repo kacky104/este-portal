@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { parseEkichikaCast, normalizeName } from '@/lib/ekichikaParse';
-import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
+import { loadCastIds, rememberCastId, earliestCastLinkAt } from '@/lib/mediaCastIds';
+import { importNewFaceOnCreate } from '@/lib/importNewFace';
 import { acceptsFirstImport, pickFirstImportSchedule, fillEmptyProfile } from '@/lib/conecfFirstImport';
 import { extractCastPhotos, planCastPhotoFollow, allowCastPhotoClear } from '@/lib/ekichikaCastPhotos';
 import { importEkichikaCastPhotos } from '@/app/lib/media/ekichikaCastPhotoImport';
@@ -247,6 +248,19 @@ export async function POST(req: Request) {
   };
 
   // 4. 個人ページごとに解析・照合・反映
+  // ★ 第1257便: 新しく作る方に NEW を付けるか。★ 作る方が出たときに1回だけ読む（ふだんの周は読まない）。
+  //   ★ 読めなかったときは今までどおり付ける。★ この chunk の途中で結びが増えても答えは変えない（最初に読んだ値で通す）。
+  //   ★ 個人ページは10人ずつ届くが、2つ目以降の chunk では「最初の結びが数分前」と読めるので、同じ答え（付けない）になる。
+  const rosterIdsAtStart = (therapists ?? []).map((t) => t.id as number);
+  let newFaceMemo: boolean | null = null;
+  const newFaceOnCreate = async (): Promise<boolean> => {
+    if (newFaceMemo !== null) return newFaceMemo;
+    const r = await earliestCastLinkAt(supabase, { therapistIds: rosterIdsAtStart, provider });
+    if (r.error) console.warn('[ingest] 名簿の結びの時刻を読めなかった（NEW は今までどおり付ける）', r.error);
+    newFaceMemo = r.error ? true : importNewFaceOnCreate(r.at);
+    return newFaceMemo;
+  };
+
   for (const c of casts) {
     if (!c.html) continue;
     const cast = parseEkichikaCast(c.html, todayISO);
@@ -276,6 +290,7 @@ export async function POST(req: Request) {
         unmatched.push(`${cast.name}（伏字・記号のみ・作成せず）`);
         continue;
       }
+      const withNew = !firstImport && (await newFaceOnCreate());
       const { data: made, error: mkErr } = await supabase
         .from('therapists')
         .insert({
@@ -284,8 +299,9 @@ export async function POST(req: Request) {
           area: salonArea,
           is_active: true,                  // ★ 公開で作る（第227便）。★ 写真は既定画像で出る（第217便）。
           // ★ NEW を付ける（第227便）。★ 第406便: 最初の1回は付けない（★ すでに在籍している子なので・カッキーさんの決定）
-          is_new_face: !firstImport,
-          new_face_since: firstImport ? null : importedAt,   // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
+          // ★ 第1257便: フクエスリンクでも、その店の最初の取り込みでは付けない（lib/importNewFace.ts・ingest-list と同じ線）
+          is_new_face: withNew,
+          new_face_since: withNew ? importedAt : null,   // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
           age: source.import_profile || firstImport ? cast.age : null,
           body_type: source.import_profile || firstImport ? cast.bodyType : null,
         })

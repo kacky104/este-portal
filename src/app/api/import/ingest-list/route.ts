@@ -3,7 +3,8 @@ import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { normalizeName } from '@/lib/ekichikaParse';
 import { parseEkichikaList, sokuhimeMisread, type EkichikaListCast } from '@/lib/ekichikaListParse';
-import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
+import { loadCastIds, rememberCastId, earliestCastLinkAt } from '@/lib/mediaCastIds';
+import { importNewFaceOnCreate } from '@/lib/importNewFace';
 
 // ── 外部媒体取り込み・girlslist方式（第36便・フェーズ4）────────────────────
 // 駅ちかの「女の子一覧」(girlslist) のHTMLを受け取り、当日ぶんの出勤を反映する。
@@ -241,6 +242,18 @@ export async function POST(req: Request) {
   const imasuguSeenIds: number[] = [];
   let matched = 0, unknownStatus = 0;
 
+  // ★ 第1257便: 新しく作る方に NEW を付けるか。★ 作る方が出たときに1回だけ読む（ふだんの周は読まない）。
+  //   ★ 読めなかったときは今までどおり付ける。★ この周の途中で結びが増えても答えは変えない（最初に読んだ値で通す）。
+  const rosterIdsAtStart = [...nameOf.keys()];
+  let newFaceMemo: boolean | null = null;
+  const newFaceOnCreate = async (): Promise<boolean> => {
+    if (newFaceMemo !== null) return newFaceMemo;
+    const r = await earliestCastLinkAt(supabase, { therapistIds: rosterIdsAtStart, provider });
+    if (r.error) console.warn('[ingest-list] 名簿の結びの時刻を読めなかった（NEW は今までどおり付ける）', r.error);
+    newFaceMemo = r.error ? true : importNewFaceOnCreate(r.at);
+    return newFaceMemo;
+  };
+
   for (const c of listed.values()) {
     if (!c.name || !c.nameKey) { unmatched.push(`${c.name ?? c.castId}（名前が読めない）`); continue; }
 
@@ -260,11 +273,14 @@ export async function POST(req: Request) {
       //   ★ 以前は非公開で作っていたが、誰も公開にしないまま溜まり、駅ちかの新人がフクエスに
       //     出ないという実害のほうが大きかった。★ 写真は第217便の既定画像で出る。
       //   ★ ingest（日次）側も同じ。★ 片方だけ変えないこと。
+      // ★★ 第1257便（2026-10-07・カッキーさん）: その店の【最初の取り込み】では NEW を付けない（AMAZE 様で在籍59名が全員新人になった）。
+      //   判定は lib/importNewFace.ts（名簿の結びがはじめて出来てから24時間は付けない）。★ ingest（日次）側も同じ。
+      const withNew = await newFaceOnCreate();
       const { data: made, error: mkErr } = await supabase.from('therapists').insert({
         salon_id: source.salon_id, name: c.name.trim(), area: salonArea,
         is_active: true,
-        is_new_face: true,
-        new_face_since: importedAt,   // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
+        is_new_face: withNew,
+        new_face_since: withNew ? importedAt : null,   // ★ NEW の起点。★ 期間の判定は isNewFaceActive（60日）
         age: source.import_profile ? c.age : null,
         body_type: source.import_profile ? c.bodyType : null,
       }).select('id').single();

@@ -181,3 +181,25 @@ export async function forgetCastId(
 
   return { ok: true, removed: therapistId === null ? 0 : 1, therapistId };
 }
+
+/**
+ * ★ 第1257便: その店（渡された在籍）・その媒体で、いちばん古い名簿の結びの時刻。★ 枠は問わない（店として最初かどうかを見るため）。
+ *   ★ 使い道は lib/importNewFace.ts（最初の取り込みでは新人マークを付けない）。
+ *   ★ 在籍が0人・結びが1件も無いときは at=null。★ 読めなかったときは error を返す（呼ぶ側は今までどおりに倒す）。
+ */
+export async function earliestCastLinkAt(
+  supabase: SupabaseClient,
+  input: { therapistIds: ReadonlyArray<number>; provider: string },
+): Promise<{ at: string | null; error?: string }> {
+  if (input.therapistIds.length === 0) return { at: null };
+  const { data, error } = await supabase
+    .from('therapist_media_ids')
+    .select('created_at')
+    .eq('provider', input.provider)
+    .in('therapist_id', [...input.therapistIds])
+    .order('created_at', { ascending: true })
+    .limit(1);
+  if (error) return { at: null, error: error.message };
+  const row = (data ?? [])[0] as { created_at?: string | null } | undefined;
+  return { at: row?.created_at ?? null };
+}
