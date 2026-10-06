@@ -1,7 +1,7 @@
 'use client';
 
 import { useHydrated } from '@/lib/useHydrated';
-// ★ 第1126便: 48時間の窓は lib/diaryNew.ts が唯一の正（店舗カードのタブの数も同じ窓を見る）
+// ★ 第1126便: 48時間の窓は lib/diaryNew.ts が唯一の正（★ 第1239便: 店舗カードのタブの数は別の定数＝60時間）
 import { DIARY_NEW_WINDOW_MS as NEW_WINDOW_MS } from '@/lib/diaryNew';
 
 // 写メ日記の「NEW」バッジ。更新（created_at）から48時間以内のときだけ更新日の右横に表示する。

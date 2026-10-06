@@ -7,7 +7,7 @@ import { NewBadge } from '@/components/NewBadge';
 import Image from 'next/image';
 import { isNewFaceActive } from '@/lib/newFace';
 import { formatDiaryDate } from '@/lib/diaryDate';
-import { DIARY_NEW_WINDOW_MS } from '@/lib/diaryNew';
+import { SALON_CARD_DIARY_WINDOW_MS } from '@/lib/diaryNew';
 import {
   CARD_TABS, CARD_TAB_ROWS, CARD_DIARY_ROWS, CARD_NEWFACE_ROWS, CARD_REVIEW_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating,
   therapistRefOf, todayJstOf,
@@ -77,7 +77,7 @@ async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number
       .from('diary_posts')
       .select('id, therapist_id, title, content, created_at, therapists(name, age, profile_image_url)')
       .eq('salon_id', salonId)
-      .gte('created_at', new Date(now - DIARY_NEW_WINDOW_MS).toISOString())
+      .gte('created_at', new Date(now - SALON_CARD_DIARY_WINDOW_MS).toISOString()) // ★ 第1239便: 数と同じ60時間
       .order('created_at', { ascending: false })
       .limit(CARD_DIARY_ROWS);
     if (error) throw error;

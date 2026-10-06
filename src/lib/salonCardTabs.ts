@@ -5,7 +5,7 @@
 //   並びは 写メ日記 → 口コミ → 新人 → クーポン。0件のタブは薄く出す（押せない）。
 //   開いたときは 2件を1行ずつ ＋「すべて見る」。
 // ★★★ 数の決め方
-//   写メ日記 … 48時間以内の投稿（NEW バッジと同じ窓＝DIARY_NEW_WINDOW_MS）
+//   写メ日記 … 60時間以内の投稿（SALON_CARD_DIARY_WINDOW_MS。★ 第1239便で 48→60。NEW バッジは48時間のまま）
 //   口コミ   … カードの ★ の横に出している件数（salons.review_count）と同じ
 //   新人     … いま新人紹介中の人数（isNewFaceActive と同じ判定・カードが読んでいるセラピストから数える）
 //   クーポン … 公開中で、期限が切れていない枚数（/salon/{id}/coupon と同じ条件）
@@ -53,7 +53,7 @@ export type CardDiaryRow = { id: string; name: string; age: string; text: string
 
 /**
  * TOP の作り直しのときに読む数（店舗ごと）。口コミ・新人はここに入れない（今ある値から出す）。
- * ★ 第1128便: diaryRows ＝ 48時間以内の写メ日記の新しい順2件。★ 見た目は閉じたまま、中身だけ HTML に入れる
+ * ★ 第1128便: diaryRows ＝ 60時間以内（第1239便で 48→60）の写メ日記の新しい順2件。★ 見た目は閉じたまま、中身だけ HTML に入れる
  *   （検索エンジンは、閉じてあるタブの中身も HTML にあれば読む。写メ日記の個別ページへのリンクも TOP に載る）。
  */
 export type SalonCardTabCount = { diary: number; coupon: number; diaryRows?: CardDiaryRow[] };

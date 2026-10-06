@@ -129,7 +129,7 @@ export default async function Home() {
     supabase.rpc('public_member_count'),
     // ★ 第1076便: hero スライダー（サーバーで読む・LCP）。読めなければ空＝hero 無し。
     fetchHeaderSlides(supabase).catch(() => []),
-    // ★ 第1126便: 店舗カードのタブの数（写メ日記48時間以内・公開中のクーポン）。全店ぶんを2本で読む。読めなければ空＝0件扱い。
+    // ★ 第1126便: 店舗カードのタブの数（写メ日記60時間以内＝第1239便で 48→60・公開中のクーポン）。全店ぶんを2本で読む。読めなければ空＝0件扱い。
     fetchSalonCardTabCounts(supabase),
   ]);
 

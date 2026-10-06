@@ -79,7 +79,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
     fetchActiveTherapistPickupBanners(), // セラピストピックアップ枠（TOPと共通・20枚目直下・0件なら非表示）
     fetchSiteImage(supabase, LIST_MORE_CARD_KEY), // 「一覧を見る」カードの画像（第218便・TOPと共通）
     // ★ 第1159便（カッキーさん）: 地域ページの店舗カードにも TOP と同じタブ（写メ日記・口コミ・新人・クーポン）を出す。
-    //   TOP と同じ関数＝このページの作り直し（ISR 600）のときに 2本（写メ日記48h・クーポン）。中身は押したときに読む。
+    //   TOP と同じ関数＝このページの作り直し（ISR 600）のときに 2本（写メ日記60h・クーポン）。中身は押したときに読む。
     fetchSalonCardTabCounts(supabase),
   ]);
   const label = areaLabel(area);
