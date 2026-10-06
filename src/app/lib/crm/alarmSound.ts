@@ -25,6 +25,18 @@ export function alarmAudioReady(): boolean {
   return !!ctx && ctx.state === 'running';
 }
 
+/** ★ 第1229便: スリープ・電話・裏に回ったあとで止まった音を、もう一度動かしてみる（画面を触らなくても戻ることがある）。戻れば true */
+export async function resumeAlarmAudio(): Promise<boolean> {
+  if (!ctx) return false;
+  try { await ctx.resume(); } catch { /* 何もしない */ }
+  return ctx.state === 'running';
+}
+
+/** ★ 第1229便: 音が出せないときの代わり（対応しているスマホだけ振動する） */
+export function vibrateAlarm(): void {
+  try { (navigator as Navigator & { vibrate?: (p: number | number[]) => boolean }).vibrate?.([300, 150, 300]); } catch { /* 何もしない */ }
+}
+
 function tone(c: AudioContext, at: number, freq: number, len: number, type: OscillatorType = 'sine') {
   const o = c.createOscillator();
   const g = c.createGain();

@@ -74,7 +74,7 @@ import {
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from './CrmShell';
 import { castNotifyText, lineShareHref } from '@/lib/crmCastNotify';
-import { alarmAudioReady, playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
+import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vibrateAlarm } from '@/app/lib/crm/alarmSound';
 import { ConsentView } from './ConsentView';
 
 // フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
@@ -1944,10 +1944,27 @@ function AlarmCenter({
   bookings: CrmScheduleBooking[];
   therapists: CrmScheduleTherapist[];
   alarms: CrmAlarm[];
-  /** 表の上をたたんでいるときは「音をONにする」ボタンを出さない（鳴っている帯は出す） */
+  /** ★ 第1229便: 表の上をたたんでいるときは小さいボタンにする（前は出していなかった＝スマホは最初からたたんであるので、実質 ON にできなかった） */
   hideButton?: boolean;
 }) {
   const [ready, setReady] = useState(false);
+  const readyRef = useRef(false);
+  useEffect(() => { readyRef.current = ready; }, [ready]);
+
+  // ★ 第1229便: iOS はスリープ・電話・裏に回ると音の仕組みが止まる（state が running でなくなる）。
+  //   前は一度 ON にすると「アラームON」のまま鳴らなかった → 画面に戻ったとき・1秒ごとの確認で止まっていたら、動かし直す。戻らなければボタンを出し直す。
+  useEffect(() => {
+    const check = async () => {
+      if (!readyRef.current) return;
+      if (alarmAudioReady()) return;
+      const ok = await resumeAlarmAudio();
+      if (!ok) setReady(false);
+    };
+    const onVis = () => { if (document.visibilityState === 'visible') void check(); };
+    document.addEventListener('visibilitychange', onVis);
+    const t = setInterval(() => { void check(); }, 5000);
+    return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(t); };
+  }, []);
   const [active, setActive] = useState<ActiveAlarm[]>([]);
   const [own, setOwn] = useState<{ bookings: CrmScheduleBooking[]; therapists: CrmScheduleTherapist[] } | null>(null);
 
@@ -2023,6 +2040,7 @@ function AlarmCenter({
       if (next.length > 0 && now - lastPlayRef.current >= 1200) {
         lastPlayRef.current = now;
         playAlarmOnce(next[next.length - 1].sound);
+        vibrateAlarm(); // ★ 第1229便: 音が出せない状態でも、対応しているスマホは振動で知らせる
       }
     };
     step();
@@ -2040,16 +2058,16 @@ function AlarmCenter({
   return (
     <div className="mb-2">
       {blinkCss && <style>{blinkCss}</style>}
-      {hideButton ? null : !ready ? (
+      {!ready ? (
         <button
           type="button"
           onClick={async () => { const ok = await unlockAlarmAudio(); setReady(ok && alarmAudioReady()); if (ok) playAlarmOnce(1); }}
           className="border border-amber-500 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 md:border-2 md:px-3 md:py-1 md:text-[13px]"
         >
-          🔔 アラームの音をONにする<span className="hidden md:inline">（画面を開くたびに1回押してください）</span>
+          {hideButton ? '🔔 音をONにする' : <>🔔 アラームの音をONにする<span className="hidden md:inline">（画面を開くたびに1回押してください）</span></>}
         </button>
       ) : (
-        <span className="inline-block bg-emerald-600 px-2 py-0.5 text-[12px] font-bold text-white">🔔 アラームON</span>
+        <span className="inline-block bg-emerald-600 px-2 py-0.5 text-[12px] font-bold text-white">🔔 {hideButton ? 'ON' : 'アラームON'}</span>
       )}
       {active.length > 0 && (
         <div className="sticky top-0 z-40 mt-2 space-y-1">
