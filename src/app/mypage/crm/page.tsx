@@ -641,7 +641,8 @@ function Grid({
   //   左の固定枠の合計は 250 → 274px（画面上はタイムラインが約17px 狭くなるが、少しなら良いとのこと）。
   // ★ 第1216便（カッキーさん）: 女子メモの列を画面上 17px（zoom 0.72 なので 24px）狭く＝100→76px にして、タイムラインを第1214便の目視幅に戻す。
   //   左の固定枠の合計は 250px。女子メモの空欄の文字はスマホだけ「✎ メモ」。
-  const nameW = narrow ? NAME_W + 24 : NAME_W;
+  // ★ 第1233便（カッキーさん）: PC は名前の列を 150→190px に（そのぶんタイムラインの見える幅は狭くなる）。スマホは第1216便のまま 174px。
+  const nameW = narrow ? NAME_W + 24 : NAME_W + 40;
   const memoW = narrow ? 76 : MEMO_W;
   const leftW = nameW + memoW;
   const ppm = narrow ? 1.1 : PX_PER_MIN;
@@ -843,25 +844,26 @@ function Grid({
               {r.therapist?.schedules.map((w, i) => {
                 const s = Math.round((new Date(w.startISO).getTime() - baseMs) / 60000);
                 const e = Math.round((new Date(w.endISO).getTime() - baseMs) / 60000);
+                // ★ 第1233便（カッキーさん）: 「受まで／上がり」のバッジは、出勤の終わりの【次のマス】（帯の右の外側）に出す。
+                //   終わりが時間軸の右端（営業時間の終わり）で、その先にマスが無いときは今までどおり帯の中の右端。
+                const tid = r.therapist!.id;
+                const et = endTypeOf(tid);
+                const outside = e < endMin;
                 return (
-                  <div key={i} className="pointer-events-none absolute top-0 bottom-0 bg-pink-100/70" style={{ left: x(s), width: Math.max(0, x(e) - x(s)) }}>
+                  <div key={i} className="contents">
+                    <div className="pointer-events-none absolute top-0 bottom-0 bg-pink-100/70" style={{ left: x(s), width: Math.max(0, x(e) - x(s)) }} />
                     {/* ★ 終わりの時刻に「受まで／上がり」（押すとその日だけ切り替え・第548便） */}
-                    {(() => {
-                      const tid = r.therapist!.id;
-                      const et = endTypeOf(tid);
-                      return (
-                        <button
-                          type="button"
-                          onClick={(ev) => { ev.stopPropagation(); onToggleEnd(tid, et === 'accept' ? 'finish' : 'accept'); }}
-                          title="押すと「受まで」と「上がり」を切り替えます"
-                          className={`pointer-events-auto absolute right-0.5 top-0.5 z-[8] flex items-center gap-0.5 border px-1 text-[10px] font-bold leading-[14px] ${
-                            et === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'
-                          }`}
-                        >
-                          {CRM_END_LABEL[et]} {w.end <= w.start ? `翌${Number(w.end.slice(0, 2))}:${w.end.slice(3, 5)}` : w.end}
-                        </button>
-                      );
-                    })()}
+                    <button
+                      type="button"
+                      onClick={(ev) => { ev.stopPropagation(); onToggleEnd(tid, et === 'accept' ? 'finish' : 'accept'); }}
+                      title="押すと「受まで」と「上がり」を切り替えます"
+                      className={`absolute top-0.5 z-[8] flex items-center gap-0.5 whitespace-nowrap border px-1 text-[10px] font-bold leading-[14px] ${
+                        et === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'
+                      }`}
+                      style={outside ? { left: x(e) + 3 } : { left: Math.max(x(s), x(e) - 2), transform: 'translateX(-100%)' }}
+                    >
+                      {CRM_END_LABEL[et]} {w.end <= w.start ? `翌${Number(w.end.slice(0, 2))}:${w.end.slice(3, 5)}` : w.end}
+                    </button>
                   </div>
                 );
               })}
