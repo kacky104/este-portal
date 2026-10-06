@@ -16,6 +16,14 @@
 // ★★ 店舗様が先にホームで「駅ちかから反映する」を押していると external_id が空の行が既にある
 //   （mediaCredentials.ts の insert）。★ その場合は新規ではなく【その行に上書き】（salon_id, provider, slot の一意で upsert）。
 // ★ 消す口は作らない（戻せない操作は SQL のまま）。★ 止める・再開は is_enabled だけ。
+// ★★★ 第1261便（2026-10-07・カッキーさんの決定）: 即ヒメを読むか（import_imasugu）は【枠ごとに選ぶ】。既定は 枠1＝読む・枠2と3＝読まない。
+//   ★ 実際に起きた（アロマメイ様・2026-10-07 2:03）: 2枠の店で、駅ちかの即ヒメは12名なのにフクエスの「今すぐ」は4名。
+//     即ヒメの印は掲載（枠）ごと。取り込みは枠ごとに走り、「その枠の一覧に居て印が無い方」の今すぐを外すので、
+//     枠1で付けた直後（1秒後）に枠2の内容で外されていた。
+//   ★ 決め: フクエスの「今すぐ」は【駅ちかの枠1のページと同じ】にする（両方の枠を合わせる形にはしない）。
+//     ＝2枠の店は、即ヒメを枠1だけ読む。★ 出勤・プロフィール・新しい方の作成は、今までどおり全部の枠で読む。
+//   ★ それまではここが全部の枠で true を立てていた（＝上書き登録のたびに枠2も true に戻っていた）。
+//   ★ 一覧からも枠ごとに切り替えられる（adminSetImportSourceImasugu）。
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
@@ -40,6 +48,8 @@ export type ImportSourceRow = {
   externalId: string;
   shopUrl: string;
   isEnabled: boolean;
+  /** ★ 第1261便: この枠の即ヒメを読むか */
+  importImasugu: boolean;
   linkMode: string;
   lastRunAt: string | null;
   lastStatus: string | null;
@@ -63,7 +73,7 @@ export async function adminListImportSources(): Promise<{ ok: true; rows: Import
   const svc = createServiceClient();
   const { data, error } = await svc
     .from('salon_import_sources')
-    .select('id, salon_id, slot, external_id, shop_url, is_enabled, link_mode, last_run_at, last_status, last_error, salons!inner(name)')
+    .select('id, salon_id, slot, external_id, shop_url, is_enabled, import_imasugu, link_mode, last_run_at, last_status, last_error, salons!inner(name)')
     .eq('provider', 'ekichika')
     .order('salon_id')
     .order('slot');
@@ -79,6 +89,7 @@ export async function adminListImportSources(): Promise<{ ok: true; rows: Import
       externalId: String(r.external_id ?? ''),
       shopUrl: String(r.shop_url ?? ''),
       isEnabled: r.is_enabled !== false,
+      importImasugu: (r as { import_imasugu?: boolean | null }).import_imasugu === true,
       linkMode: String(r.link_mode ?? ''),
       lastRunAt: (r.last_run_at as string | null) ?? null,
       lastStatus: (r.last_status as string | null) ?? null,
@@ -88,9 +99,12 @@ export async function adminListImportSources(): Promise<{ ok: true; rows: Import
   return { ok: true, rows };
 }
 
-/** 登録（新規 or 上書き）。★ 旗は全部立てる（上のコメント） */
+/**
+ * 登録（新規 or 上書き）。★ 旗は立てる（上のコメント）。
+ * ★ 第1261便: 即ヒメを読むか（importImasugu）だけは選ぶ。★ 渡さなければ 枠1＝読む・枠2と3＝読まない。
+ */
 export async function adminUpsertImportSource(input: {
-  salonId: number; slot?: number; externalId: string; shopUrl: string;
+  salonId: number; slot?: number; externalId: string; shopUrl: string; importImasugu?: boolean;
 }): Promise<{ ok: true; created: boolean } | Err> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
@@ -116,12 +130,14 @@ export async function adminUpsertImportSource(input: {
   if (exErr) return { ok: false, error: exErr.message };
 
   const now = new Date().toISOString();
+  // ★ 第1261便: 即ヒメは枠1だけが既定（2枠の店で、枠2が枠1の今すぐを外さないように）
+  const importImasugu = typeof input.importImasugu === 'boolean' ? input.importImasugu : slot === 1;
   const flags = {
     external_id: externalId,
     shop_url: shopUrl,
     import_schedule: true,
     import_profile: true,
-    import_imasugu: true,
+    import_imasugu: importImasugu,
     create_missing: true,
     list_mode: true,
     import_interval_min: 15,
@@ -144,7 +160,7 @@ export async function adminUpsertImportSource(input: {
     salonId, provider: 'ekichika', slot,
     event: 'source_registered',
     outcome: error ? 'failed' : 'ok',
-    detail: { externalId, shopUrl, created: existing?.id == null },
+    detail: { externalId, shopUrl, created: existing?.id == null, importImasugu },
     actor: `admin:${auth.uid}`,
   });
   if (error) return { ok: false, error: error.message };
@@ -159,6 +175,23 @@ export async function adminSetImportSourceEnabled(input: { id: number; enabled: 
   const { error } = await svc
     .from('salon_import_sources')
     .update({ is_enabled: input.enabled === true, updated_at: new Date().toISOString() })
+    .eq('id', Number(input.id)).eq('provider', 'ekichika');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * ★ 第1261便: この枠の即ヒメを読む／読まない（import_imasugu だけ）。
+ *   ★ 読まないにしても、すでに付いている「今すぐ（取り込みの枠）」は消さない（期限で自然に消える・最大50分）。
+ *   ★ 出勤・プロフィール・向きには触れない。
+ */
+export async function adminSetImportSourceImasugu(input: { id: number; on: boolean }): Promise<{ ok: true } | Err> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const svc = createServiceClient();
+  const { error } = await svc
+    .from('salon_import_sources')
+    .update({ import_imasugu: input.on === true, updated_at: new Date().toISOString() })
     .eq('id', Number(input.id)).eq('provider', 'ekichika');
   if (error) return { ok: false, error: error.message };
   return { ok: true };
