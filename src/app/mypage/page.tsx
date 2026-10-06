@@ -3029,10 +3029,14 @@ export default function MyPage() {
 
   // ★★ 第667便（2026-09-22・カッキーさんの指示）: コネックエフの画像バナー（全店舗）。
   //   ★ 切り替え済み（conecf_enabled_at あり）→ conecf.com へ直接。★ まだの店 → 説明ページ /mypage/conecf（読んだあと「始める」で conecf.com）。
+  // ★★ 第1252便（2026-10-06・カッキーさん）: セットを契約している店（crmOn＝crm_until が今日以降）も、ご案内を飛ばして conecf.com へ直接。
+  //   契約が済んだ店にご案内（料金・「ご契約後に切り替えるを押せるようになります」）が出ると混乱するため。
+  //   ★ 新しい読み取りは無い（crmOn は上で読んでいる値）。読めなかったときは false＝今までどおりご案内へ。
+  //   ★ ご案内のページ（/mypage/conecf）は残してある（契約前の店はここを通る）。切り替えるときの注意は conecf.com のホームの確認にも出る。
   const renderConecfLink = (pc: boolean) => (
     <SidebarBanner
       pc={pc}
-      href={conecfOn ? CONECF_ORIGIN : '/mypage/conecf'}
+      href={conecfOn || crmOn ? CONECF_ORIGIN : '/mypage/conecf'}
       src="/mypage/sidebar/conecf-v2.webp"
       alt="コネックエフ　日常作業を効率化・媒体連携"
     />
