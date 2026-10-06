@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { normalizeName } from '@/lib/ekichikaParse';
-import { parseEkichikaList, type EkichikaListCast } from '@/lib/ekichikaListParse';
+import { parseEkichikaList, sokuhimeMisread, type EkichikaListCast } from '@/lib/ekichikaListParse';
 import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
 
 // ── 外部媒体取り込み・girlslist方式（第36便・フェーズ4）────────────────────
@@ -59,9 +59,11 @@ const IMASUGU_IMPORT_MINUTES = 50;
 // ★★★ 読み違えの安全弁（第39便で実際に踏みかけた形）
 //   駅ちかの外側 <div class="waiting sokuiku"> は【休みの子にも付いている】。
 //   もしパーサがそちらを拾う作りに戻ると、在籍全員が即ヒメになる。
-//   即ヒメは店舗あたり5枠までなので、在籍の半数を超えることは仕様上ありえない。
-//   → 超えたらその周は即ヒメを書かない。★ ただし黙って止めず、理由を返す。
-const SOKUHIME_SANITY_RATIO = 0.5;
+//   → 読み違いと分かったら、その周は即ヒメを書かない。★ ただし黙って止めず、理由を返す。
+// ★★ 第1255便（2026-10-06・カッキーさん）: 弁を「在籍の半数を超えたら」から【休みの方に即ヒメの印が付いていたら】に替えた。
+//   ★ 以前は「即ヒメは店舗あたり5枠まで」を前提にしていたが、枠はプランやオプションで15〜20ほどに増やせる。
+//     枠の多い店が即ヒメをたくさん使うと、正しい内容なのに「多すぎる」で取り込まれなかった。
+//   ★ 判定は lib/ekichikaListParse.ts の sokuhimeMisread（純粋・番人 check:listsokuhime）。枠の数に関係なく働く。
 
 // 伏字よけ。駅ちかには「〇〇」のような表記が実在する（第35便・アイリスで実測）。
 const MASK_ONLY = /^[〇○●◯＊*xX×✕✖?？!！_＿\-ー–—\s]*$/;
@@ -365,12 +367,13 @@ export async function POST(req: Request) {
   //   衝突した子は触らない（出勤・プロフィールと同じ扱い）。
   const sokuhimeSafe = sokuhimeIds.filter((id) => !conflicted.has(id));
   const imasuguSeenSafe = imasuguSeenIds.filter((id) => !conflicted.has(id));
-  // ★ 在籍の半数を超えたら読み違いを疑う（外側の div を拾った形）。その周は書かない。
+  // ★ 休みの方に即ヒメの印が付いていたら読み違い（外側の div を拾った形）。その周は書かない（第1255便）。
+  const misread = sokuhimeMisread([...listed.values()]);
   let imasuguSkipped: string | undefined;
   if (!source.import_imasugu) {
     imasuguSkipped = 'この店舗は即ヒメの取り込みを有効にしていない（salon_import_sources.import_imasugu）';
-  } else if (listed.size > 0 && sokuhimeSafe.length / listed.size > SOKUHIME_SANITY_RATIO) {
-    imasuguSkipped = `即ヒメが多すぎる（${sokuhimeSafe.length}/${listed.size}）— 駅ちかのHTMLの読み違いを疑うこと`;
+  } else if (misread.misread) {
+    imasuguSkipped = `休みの方に即ヒメの印が付いている（${misread.offFlagged}/${misread.off}）— 駅ちかのHTMLの読み違いを疑うこと`;
   }
   const imasuguUntil = new Date(Date.now() + IMASUGU_IMPORT_MINUTES * 60 * 1000).toISOString();
   // 落とす対象＝一覧に居たが即ヒメではない子
