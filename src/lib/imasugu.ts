@@ -60,6 +60,9 @@ export type ImasuguRow = {
  * ★★★★ 「今すぐ」に同時に出せる人数の上限（第390便・2026-09-15・カッキーさんの決定）。
  *   ★★ 3名 → **5名**。★ フクエスワーク掲載店（jobs_enabled）は +5 で **10名**。
  *   ★ 上位表示の回数（20回／ワーク掲載店40回）と同じ考え方にそろえた。
+ * ★★ 第1253便（2026-10-06・カッキーさんの決定）: フクエスワーク掲載店は 10名 → **15名**（上乗せ +5 → +10）。
+ *   ★ フクエスだけの店は 5名のまま。★ DB の変更は無い（人数の決まりはこの関数だけ・DB に上限の守りは無い）。
+ *   ★ コネックエフの「全員同時」（batch_size 0）もこの上限まで＝15名。
  *
  * ★★★ 数字はここ1か所。★ 画面（保存の切り詰め・上限の判定・文言）はこの関数を読む。
  *   ★ それまでは mypage が 3 を【3か所に直接書いていた】。
@@ -68,9 +71,9 @@ export type ImasuguRow = {
  */
 export const IMASUGU_MAX_BASE = 5;
 /** フクエスワーク掲載店（jobs_enabled）の上乗せ。 */
-export const IMASUGU_MAX_JOBS_BONUS = 5;
+export const IMASUGU_MAX_JOBS_BONUS = 10;
 
-/** その店が同時に「今すぐ」にできる人数。★ 5名／ワーク掲載店は10名。 */
+/** その店が同時に「今すぐ」にできる人数。★ 5名／ワーク掲載店は15名（第1253便）。 */
 export function imasuguMax(jobsEnabled: boolean | null | undefined): number {
   return IMASUGU_MAX_BASE + (jobsEnabled === true ? IMASUGU_MAX_JOBS_BONUS : 0);
 }

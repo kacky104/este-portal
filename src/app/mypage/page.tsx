@@ -2218,7 +2218,7 @@ export default function MyPage() {
     if (conecfOn) { showToast('今すぐはコネックエフの「今すぐ・即ヒメ・即セラ自動設定」で編集します'); return; }
     setSavingAvailable(true);
     // 「今すぐ」を付けられるのは「本日出勤中」かつ「チェック済み」のセラピストのみ。
-    // ★ 人数の上限は imasuguMax（第390便: 5名／フクエスワーク掲載店は10名）。★ ここに数字を書かない。
+    // ★ 人数の上限は imasuguMax（第390便: 5名／フクエスワーク掲載店は15名・第1253便）。★ ここに数字を書かない。
     // 出勤外・期限切れの古いフラグはここで確実にfalseへリセットする（人数制限の抜け穴対策）。
     // 排他制御：キャスト枠がライブのセラピストはオーナーが選べない（UIで無効化済み）。
     // 念のためここでも liveIds から除外し、かつ一括リセットの対象からも外して
@@ -4466,7 +4466,7 @@ export default function MyPage() {
               // 「今すぐ」判定は営業日基準（深夜0〜6時は前日のスケジュールを参照）
               const todayStr = getBusinessDateJST();
               const checkedCount = onDutyTherapists.filter(t => availableNow[String(t.id)]).length;
-              // ★ 第390便: 上限は5名／フクエスワーク掲載店は10名。★ 判定も文言も lib から出す
+              // ★ 第390便: 上限は5名／フクエスワーク掲載店は15名（第1253便）。★ 判定も文言も lib から出す
               const imasuguLimit = imasuguMax(salon?.jobs_enabled);
               const atLimit = checkedCount >= imasuguLimit;
               if (onDutyTherapists.length === 0) {
