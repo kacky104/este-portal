@@ -1546,6 +1546,49 @@ async function readWorkEnds(svc: Svc, salonId: number, dateISO: string): Promise
   return out;
 }
 
+/**
+ * ★★ 第1232便（カッキーさん）: 待機場所（部屋）の名前を変える。
+ *   それまでは「削除→再追加」しかなく、色が初期に戻り、QR が別のトークンになり（印刷した QR が無効に）、過去の出勤情報・同意書は古い名前のまま残っていた。
+ *   ★ 1つの処理で4つの表をそろえて書き換える（順番: 設定 → 出勤情報 → QR トークン → 同意書）。
+ *   ★ QR トークンは主キー (salon_id, room) の room を書き換えるだけ＝トークンそのものは変わらない＝印刷した QR はそのまま使える。
+ *   ★ 途中で失敗したら、そこまでの分は戻せない（RPC にしていない）ので、どこまで変わったかを正直に返す。
+ */
+export async function renameCrmRoom(
+  salonId: number,
+  from: string,
+  to: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const f = String(from ?? '').trim();
+  const t = String(to ?? '').trim();
+  if (!f) return { ok: false, error: '元の部屋が不正です' };
+  if (!t) return { ok: false, error: '新しい名前を入れてください' };
+  if (t.length > 30) return { ok: false, error: '待機場所の名前は30文字までです' };
+  if (t === f) return { ok: true };
+  let st: CrmSettings;
+  try { st = await readSettings(svc, salonId); } catch (e) { return readFail(e); }
+  if (!st.rooms.includes(f)) return { ok: false, error: 'その部屋は設定にありません（保存してからもう一度）' };
+  if (st.rooms.includes(t)) return { ok: false, error: `「${t}」はもうあります` };
+  // 1) 設定（名前の一覧と色）
+  const rooms = st.rooms.map((r) => (r === f ? t : r));
+  const roomColors: Record<string, string> = {};
+  for (const [k, v] of Object.entries(st.roomColors)) roomColors[k === f ? t : k] = v;
+  const r1 = await svc.from('crm_settings').update({ rooms, room_colors: roomColors, updated_at: new Date().toISOString() }).eq('salon_id', salonId);
+  if (r1.error) return { ok: false, error: `設定の書き換えに失敗しました: ${r1.error.message}` };
+  // 2) 出勤情報の待機場所（過去の分も・その店の分だけ）
+  const r2 = await svc.from('crm_work_days').update({ room: t }).eq('salon_id', salonId).eq('room', f);
+  if (r2.error) return { ok: false, error: `出勤情報の書き換えに失敗しました（設定は変わっています）: ${r2.error.message}` };
+  // 3) QR のトークン（トークンはそのまま・部屋名だけ）
+  const r3 = await svc.from('crm_room_tokens').update({ room: t }).eq('salon_id', salonId).eq('room', f);
+  if (r3.error) return { ok: false, error: `QR の書き換えに失敗しました（設定・出勤情報は変わっています）: ${r3.error.message}` };
+  // 4) 同意書の履歴の部屋名
+  const r4 = await svc.from('crm_consents').update({ room: t }).eq('salon_id', salonId).eq('room', f);
+  if (r4.error) return { ok: false, error: `同意書の書き換えに失敗しました（設定・出勤情報・QR は変わっています）: ${r4.error.message}` };
+  return { ok: true };
+}
+
 export async function getCrmSettings(
   salonId: number,
 ): Promise<{ ok: true; settings: CrmSettings } | { ok: false; error: string }> {

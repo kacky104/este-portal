@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCrmRoomQr, getCrmSettings, saveCrmSettings } from '@/app/actions/crm';
+import { getCrmRoomQr, getCrmSettings, renameCrmRoom, saveCrmSettings } from '@/app/actions/crm';
 import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, CRM_TOGGLE_COLORS, type CrmToggleColor, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
@@ -53,6 +53,24 @@ function SettingsBody({ salonId }: { salonId: number }) {
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const [newRoom, setNewRoom] = useState('');
+  // ★ 第1232便: 名前を変えている部屋（null＝変えていない）と新しい名前
+  const [renaming, setRenaming] = useState<{ from: string; to: string } | null>(null);
+  const [renameBusy, setRenameBusy] = useState(false);
+  const doRename = async () => {
+    if (!renaming || !st) return;
+    const to = renaming.to.trim();
+    if (!to || to === renaming.from) { setRenaming(null); return; }
+    if (dirty) { setErr('先に「保存する」を押してから、名前を変えてください（未保存の変更があります）'); return; }
+    setRenameBusy(true); setErr(''); setMsg('');
+    const r = await renameCrmRoom(salonId, renaming.from, to);
+    setRenameBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    // 変えたあとは読み直す（色・QR も新しい名前で出る）
+    const rr = await getCrmSettings(salonId);
+    if (rr.ok) { setSt(rr.settings); setSavedSt(rr.settings); }
+    setRenaming(null);
+    setMsg(`「${renaming.from}」を「${to}」に変えました（過去の出勤情報・QR・同意書もそろえました）`);
+  };
   // 左のサイドバーで選んでいる項目（URL の #rooms などで覚える・第565便）
   const [tab, setTab] = useState<SettingTab>(() => {
     if (typeof window === 'undefined') return 'display';
@@ -223,6 +241,24 @@ function SettingsBody({ salonId }: { salonId: number }) {
             return (
               <div key={r} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2">
                 <span className="min-w-[64px] px-2 py-1 text-center text-[13px] font-bold" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{r}</span>
+                {/* ★ 第1232便: 名前を変える（その場でサーバーに保存。色・過去の出勤情報・QR・同意書の部屋名もそろえる） */}
+                {renaming?.from === r ? (
+                  <span className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={renaming.to}
+                      maxLength={30}
+                      onChange={(e) => setRenaming({ from: r, to: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void doRename(); } if (e.key === 'Escape') setRenaming(null); }}
+                      className="w-32 border border-indigo-400 bg-white px-2 py-1 text-[13px] focus:outline-none"
+                      aria-label="新しい名前"
+                    />
+                    <button type="button" disabled={renameBusy} onClick={doRename} className="bg-indigo-600 px-2 py-1 text-[12px] font-bold text-white disabled:opacity-50">{renameBusy ? '変更中…' : '変更'}</button>
+                    <button type="button" disabled={renameBusy} onClick={() => setRenaming(null)} className="px-1 text-[12px] font-bold text-slate-400 underline">やめる</button>
+                  </span>
+                ) : savedSt?.rooms.includes(r) ? (
+                  <button type="button" onClick={() => setRenaming({ from: r, to: r })} className="text-[12px] font-bold text-indigo-600 underline">名前を変える</button>
+                ) : null}
                 <div className="flex flex-wrap gap-1">
                   {CRM_ROOM_COLORS.map((col) => (
                     <button
