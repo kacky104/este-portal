@@ -89,7 +89,14 @@ function PricesBody({ salonId }: { salonId: number }) {
                 <h3 className="text-[15px] font-black text-slate-800">{CRM_PRICE_KIND_LABEL[kind]}</h3>
                 <p className="text-[12px] text-slate-500">{HINT[kind]}</p>
               </div>
-              <div className="overflow-x-auto">
+              {/* ★ 第1231便（カッキーさん）: スマホはカード型（1件ずつ縦に・「保存」が右端に隠れない）。PC は今までの表。 */}
+              <div className="divide-y divide-slate-100 md:hidden">
+                {list.map((p) => (
+                  <RowCard key={p.id} salonId={salonId} initial={toDraft(p)} onSaved={reload} />
+                ))}
+                <RowCard key={`new-${kind}-${list.length}-${tick}`} salonId={salonId} initial={emptyDraft(kind, list.length)} onSaved={reload} />
+              </div>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[640px] text-[13px]">
                   <thead>
                     <tr className="text-left text-[11px] font-bold text-slate-400">
@@ -120,7 +127,8 @@ function PricesBody({ salonId }: { salonId: number }) {
 
 const cell = 'w-full border border-slate-300 bg-white px-2 py-1.5 text-[13px] focus:border-indigo-400 focus:outline-none';
 
-function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; onSaved: () => void }) {
+/** ★ 第1231便: 行の状態と保存・削除（表の行とカードで共通） */
+function useDraftRow(salonId: number, initial: Draft, onSaved: () => void) {
   const [d, setD] = useState<Draft>(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -152,7 +160,57 @@ function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; o
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
   };
+  return { d, set, busy, err, confirmDel, setConfirmDel, isNew, fixed, dirty, numOnly, save, del };
+}
 
+function RowCard({ salonId, initial, onSaved }: { salonId: number; initial: Draft; onSaved: () => void }) {
+  const { d, set, busy, err, confirmDel, setConfirmDel, isNew, fixed, dirty, numOnly, save, del } = useDraftRow(salonId, initial, onSaved);
+  const lab = 'block text-[10px] font-bold text-slate-400';
+  return (
+    <div className={`px-3 py-2 ${isNew ? 'bg-slate-50/60' : ''} ${!d.isActive ? 'opacity-50' : ''}`}>
+      {fixed ? (
+        <div className="flex items-center gap-2 py-1">
+          <span className="text-[14px] font-bold text-slate-800">{d.name}</span>
+          <span className="bg-slate-200 px-1.5 text-[10px] font-bold text-slate-600">固定</span>
+        </div>
+      ) : (
+        <input className={cell} value={d.name} maxLength={40} onChange={(e) => set('name', e.target.value)} placeholder={isNew ? '＋ 新しい項目の名前' : ''} aria-label="名前" />
+      )}
+      <div className="mt-1.5 grid grid-cols-4 gap-1.5">
+        {USES_MINUTES[d.kind] && (
+          <label><span className={lab}>分数</span><input className={cell} inputMode="numeric" value={d.minutes} onChange={(e) => set('minutes', numOnly(e.target.value))} placeholder="分" /></label>
+        )}
+        <label><span className={lab}>{d.kind === 'discount' ? '料金から引く' : '料金'}</span><input className={cell} inputMode="numeric" value={d.price} onChange={(e) => set('price', numOnly(e.target.value))} placeholder="円" /></label>
+        <label><span className={lab}>{d.kind === 'discount' ? '報酬から引く' : '女子報酬'}</span><input className={cell} inputMode="numeric" value={d.pay} onChange={(e) => set('pay', numOnly(e.target.value))} placeholder="円" /></label>
+        <label><span className={lab}>並び</span><input className={cell} inputMode="numeric" value={d.sort} onChange={(e) => set('sort', numOnly(e.target.value))} /></label>
+      </div>
+      <div className="mt-1.5 flex items-center gap-2">
+        <label className="flex items-center gap-1 text-[12px] font-bold text-slate-600">
+          <input type="checkbox" className="h-4 w-4 accent-indigo-600" checked={d.isActive} onChange={(e) => set('isActive', e.target.checked)} />使う
+        </label>
+        <button
+          type="button"
+          disabled={busy || !d.name.trim() || (!dirty && !isNew)}
+          onClick={save}
+          className="ml-auto bg-indigo-600 px-3 py-1.5 text-[12px] font-bold text-white disabled:opacity-40"
+        >
+          {isNew ? '追加' : '保存'}
+        </button>
+        {!isNew && !fixed && (
+          confirmDel ? (
+            <button type="button" disabled={busy} onClick={del} className="bg-rose-600 px-2 py-1.5 text-[12px] font-bold text-white">本当に削除</button>
+          ) : (
+            <button type="button" disabled={busy} onClick={() => setConfirmDel(true)} className="px-1 text-[12px] font-bold text-slate-400 underline">削除</button>
+          )
+        )}
+      </div>
+      {err && <p className="mt-0.5 text-[12px] font-bold text-rose-600">{err}</p>}
+    </div>
+  );
+}
+
+function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; onSaved: () => void }) {
+  const { d, set, busy, err, confirmDel, setConfirmDel, isNew, fixed, dirty, numOnly, save, del } = useDraftRow(salonId, initial, onSaved);
   return (
     <tr className={`border-t border-slate-100 ${isNew ? 'bg-slate-50/60' : ''} ${!d.isActive ? 'opacity-50' : ''}`}>
       <td className="px-2 py-1.5">

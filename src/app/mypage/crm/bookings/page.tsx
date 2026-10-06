@@ -151,8 +151,59 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       {rows && list.length === 0 && !err && (
         <p className="border border-slate-200 bg-white p-8 text-center text-[14px] text-slate-400">この条件の予約はありません</p>
       )}
+      {/* ★ 第1231便（カッキーさん）: スマホはカード型（横スクロールなしで1件が全部見える）。PC は今までの表。 */}
       {list.length > 0 && (
-        <div className="overflow-x-auto border border-slate-200 bg-white">
+        <div className="divide-y divide-slate-200 border border-slate-200 bg-white md:hidden">
+          {list.map((b) => {
+            const cancelled = b.status === 'cancelled';
+            const received = b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : isUnreceived(b, nowMs) ? '未受領' : '';
+            return (
+              <div key={b.id} className={`px-3 py-2 text-[13px] ${cancelled ? 'text-slate-400' : ''}`}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <Link href={`${crm.href('/')}${adminSalonQuery}${sep}date=${businessDateOf(b.slotStartISO)}`} className="font-bold text-indigo-600">
+                    {dt(b.slotStartISO)}
+                  </Link>
+                  <span className="text-slate-400">〜{hm(b.slotEndISO)}</span>
+                  {cancelled
+                    ? <span className={`px-1 text-[11px] font-bold text-white ${b.cancelBad ? 'bg-rose-600' : 'bg-slate-400'}`}>{b.cancelBad ? '悪質キャンセル' : 'キャンセル'}</span>
+                    : b.status === 'new' ? <span className="bg-pink-500 px-1 text-[11px] font-bold text-white">未確定</span> : <span className="text-[11px] text-slate-500">確定</span>}
+                  {received && <span className={`ml-auto text-[11px] font-bold ${received === '未受領' ? 'text-rose-600' : 'text-slate-500'}`}>{received}</span>}
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
+                  <span className="font-bold text-slate-700">{b.therapistName}</span>
+                  <span className="text-slate-300">／</span>
+                  {b.customerId ? (
+                    <Link href={`${crm.href('/customers')}${adminSalonQuery}${sep}customer=${b.customerId}`} className="font-bold text-slate-800 underline decoration-dotted underline-offset-2">
+                      {b.customerName || '(名前なし)'}
+                    </Link>
+                  ) : (
+                    <span>{b.customerName || '(名前なし)'}</span>
+                  )}
+                  {b.source === 'web' && <span className="border border-pink-500 px-1 text-[10px] font-bold text-pink-600">ﾌｸｴｽ</span>}
+                  {b.customerTel && <a href={`tel:${b.customerTel.replace(/[^0-9+]/g, '')}`} className="text-[11px] text-slate-400 underline decoration-dotted">{b.customerTel}</a>}
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-slate-600">
+                  {b.courseName && <span>{b.courseName}</span>}
+                  <span>料金 <span className="font-bold text-slate-800">{yen(b.priceTotal)}</span></span>
+                  <span>報酬 <span className="font-bold text-slate-800">{yen(b.payTotal)}</span></span>
+                  {b.consentAt && (
+                    <ConsentView
+                      salonId={salonId}
+                      bookingId={b.id}
+                      consentAt={b.consentAt}
+                      bookingLabel={`${dt(b.slotStartISO)}〜${hm(b.slotEndISO)}`}
+                      therapistName={b.therapistName}
+                      customerName={b.customerName}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {list.length > 0 && (
+        <div className="hidden overflow-x-auto border border-slate-200 bg-white md:block">
           <table className="w-full min-w-[860px] text-[13px]">
             <thead className="bg-slate-50 text-[11px] font-bold text-slate-500">
               <tr>
