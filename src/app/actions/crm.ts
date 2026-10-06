@@ -810,14 +810,41 @@ async function readPriceItemsRaw(svc: Svc, salonId: number): Promise<CrmPriceIte
 async function readPriceItems(svc: Svc, salonId: number): Promise<CrmPriceItem[]> {
   const items = await readPriceItemsRaw(svc, salonId);
   const missing = CRM_FIXED_NOMINATIONS.filter((n) => !items.some((i) => i.kind === 'nomination' && i.name === n));
-  if (missing.length === 0) return items;
-  await svc.from('crm_price_items').insert(
+  if (missing.length === 0) return dedupeFixed(items);
+  // ★ 第1224便（カッキーさん）: 初回に2つの読み取りが同時に走ると両方が「無い」と判断して2回 insert していた（同じ名前の指名が2行）。
+  //   → 作った行の id を受け取り、直後にもう一度読んで、同じ名前の固定指名が【自分の作った行以外】にもあれば、自分が作った行だけ消す。
+  //   ★ 消すのは「たった今自分が入れた行」に限る（既存の行は触らない）。
+  const { data: made } = await svc.from('crm_price_items').insert(
     missing.map((name) => ({
       salon_id: salonId, kind: 'nomination', name, minutes: 0, price: 0, pay: 0,
       sort: CRM_FIXED_NOMINATIONS.indexOf(name), is_active: true,
     })),
-  );
-  return readPriceItemsRaw(svc, salonId);
+  ).select('id, name');
+  const after = await readPriceItemsRaw(svc, salonId);
+  const mineIds = new Set((made ?? []).map((r) => Number(r.id)));
+  const extra: number[] = [];
+  for (const name of missing) {
+    const same = after.filter((i) => i.kind === 'nomination' && i.name === name);
+    if (same.length <= 1) continue;
+    const others = same.filter((i) => !mineIds.has(i.id));
+    if (others.length > 0) extra.push(...same.filter((i) => mineIds.has(i.id)).map((i) => i.id));
+  }
+  if (extra.length > 0) {
+    await svc.from('crm_price_items').delete().eq('salon_id', salonId).in('id', extra);
+    return dedupeFixed(after.filter((i) => !extra.includes(i.id)));
+  }
+  return dedupeFixed(after);
+}
+
+/** ★ 第1224便: 同じ名前の固定指名が複数あれば id の小さい1行だけ返す（画面に2つ並ばない）。行そのものは消さない。 */
+function dedupeFixed(items: CrmPriceItem[]): CrmPriceItem[] {
+  const seen = new Set<string>();
+  return items.filter((i) => {
+    if (!isFixedNomination(i.kind, i.name)) return true;
+    if (seen.has(i.name)) return false;
+    seen.add(i.name);
+    return true;
+  });
 }
 
 /** 料金表を全部（使っていないものも）返す（料金設定の画面用） */
