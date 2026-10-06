@@ -255,7 +255,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
       </div>
 
       {(tab === 'fukues' || tab === 'ekichika' || tab === 'esutama') && (
-        <GirlExtraTab key={tab} tab={tab} id={id} salonId={d.salonId} enabled={enabled} onToast={onToast} />
+        <GirlExtraTab key={tab} tab={tab} id={id} salonId={d.salonId} enabled={enabled} onToast={onToast} imageCount={images.length} />
       )}
 
       {/* ★ 第731便: 写メ日記の転送先（マイページと同じ中身・1人1サイト1か所） */}

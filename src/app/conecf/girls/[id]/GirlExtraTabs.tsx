@@ -12,6 +12,8 @@ import {
   type QaItem,
 } from '@/lib/conecfSiteFields';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
+// ★ 第1234便（カッキーさん）: AI でキャッチフレーズ・詳細プロフィールの下書き（マイページ /mypage/therapist/[id] と同じ server action・同じ枠・同じ決まり）
+import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { useSitePush } from './useSitePush';
 import { PhotoRemoveConfirm } from '../PhotoRemoveConfirm';
 import { BADGE_CATEGORY_ORDER, BADGE_CATEGORY_LABELS, BADGE_CATEGORY_COLORS, BADGES_BY_CATEGORY, MAX_BADGES } from '@/lib/therapistBadges';
@@ -144,9 +146,22 @@ const toEk = (f: Record<string, unknown>): Ek => ({ pGenres: arr(f.pGenres), gen
 const toEs = (f: Record<string, unknown>): Es => ({ types: arr(f.types), experience: str(f.experience), qualified: str(f.qualified), bodyStyle: str(f.bodyStyle), answers: { ...rec(f.answers) }, sns: { ...rec(f.sns) }, description: str(f.description), castPr: str(f.castPr) });
 
 export function GirlExtraTab({
-  tab, id, salonId, enabled, onToast,
-}: { tab: ExtraTab; id: number; salonId: number; enabled: boolean; onToast: (m: string) => void }) {
+  tab, id, salonId, enabled, onToast, imageCount = 0,
+}: { tab: ExtraTab; id: number; salonId: number; enabled: boolean; onToast: (m: string) => void; /** ★ 第1234便: プロフィール写真の枚数（AI の材料の判定に使う） */ imageCount?: number }) {
   const [x, setX] = useState<ConecfGirlExtras | null>(null);
+  // ★ 第1234便: AI 下書き（マイページと同じ）。生成した文はフォームに入れるだけで、保存は「保存」を押したとき。
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiUseImage, setAiUseImage] = useState(true);
+  const [aiQuota, setAiQuota] = useState<QuotaState | null>(null);
+  const [aiUndo, setAiUndo] = useState<{ catchphrase: string; profileText: string } | null>(null);
+  // ★ サーバーは【保存済み】のバッジで数えるので、読み込んだとき・保存したときのバッジを別に持つ
+  const [savedBadges, setSavedBadges] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (tab !== 'fukues') return;
+    let alive = true;
+    getTherapistCopyQuota(salonId).then((q) => { if (alive && q.ok) setAiQuota(q.quota); }).catch(() => { /* 何もしない */ });
+    return () => { alive = false; };
+  }, [tab, salonId]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [slotIdx, setSlotIdx] = useState(0);
@@ -159,7 +174,7 @@ export function GirlExtraTab({
     let alive = true;
     getConecfGirlExtras({ id }).then((res) => {
       if (!alive) return;
-      if (res.ok) setX(res.data); else setError(res.error);
+      if (res.ok) { setX(res.data); setSavedBadges(res.data.badges); } else setError(res.error);
     }).catch(() => { if (alive) setError('読み込めませんでした'); });
     return () => { alive = false; };
   }, [id]);
@@ -256,13 +271,94 @@ export function GirlExtraTab({
       setSaving(false);
       if (!res.ok) { onToast(res.error); return false; }
       if (!rb.ok) { onToast(rb.error); return false; }
+      setSavedBadges(rb.data.badges);
       void revalidateSalon(salonId); void revalidateTherapist(id);
       onToast('保存しました');
       return true;
     };
+    // ★ 第1234便: AI 下書きの止める条件（マイページと同じ・第30便／第880便）: 写真もバッジも無い／写真を使わないのにバッジが無い／バッジ3つ未満／バッジが未保存
+    const AI_MIN_BADGES = 3;
+    const badges = x.badges;
+    const aiOutOfQuota = aiQuota ? !aiQuota.unlimited && aiQuota.used >= aiQuota.limit : false;
+    const aiNoMaterial = imageCount === 0 && badges.length === 0;
+    const aiNoMaterialForText = !aiUseImage && badges.length === 0;
+    const aiFewBadges = badges.length < AI_MIN_BADGES;
+    const aiBadgesUnsaved = !aiFewBadges && (savedBadges ?? []).length < AI_MIN_BADGES;
+    const aiBlocked = aiNoMaterial || aiNoMaterialForText || aiFewBadges || aiBadgesUnsaved;
+    const handleAiDraft = async () => {
+      if (aiLoading) return;
+      setAiLoading(true);
+      const before = { catchphrase: c.catchphrase, profileText: c.profileText };
+      const r = await generateTherapistCopy(salonId, id, aiUseImage);
+      setAiLoading(false);
+      if (!r.ok) { if (r.quota) setAiQuota(r.quota); onToast(r.error); return; }
+      setAiQuota(r.quota);
+      setAiUndo(before);
+      setX((p) => (p ? { ...p, comments: { ...p.comments, catchphrase: r.catchphrase || p.comments.catchphrase, profileText: r.profileText } } : p));
+      const notes: string[] = [];
+      if (!r.usedImage && aiUseImage) notes.push('写真は読み込めなかったため文字情報のみで作成');
+      if (r.short) notes.push('短めなので加筆をおすすめします');
+      onToast(`下書きを入れました。内容を確かめて「保存」を押してください${notes.length ? `（${notes.join('・')}）` : ''}`);
+    };
+    const handleAiUndo = () => {
+      if (!aiUndo) return;
+      const u = aiUndo;
+      setX((p) => (p ? { ...p, comments: { ...p.comments, catchphrase: u.catchphrase, profileText: u.profileText } } : p));
+      setAiUndo(null);
+    };
     return (
       <div className={CARD}>
         <Section title="フクエスに反映">
+          {/* ★ 第1234便（カッキーさん）: AI で下書き（マイページの「AIで下書きを作る」と同じ。枠も共通＝月の回数はマイページと合算） */}
+          <div className="mt-3 rounded border border-violet-200 bg-violet-50/60 px-3 py-2.5 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[13px] font-bold text-violet-800">AIでキャッチフレーズと詳細プロフィールの下書きを作る</p>
+              {aiQuota && (
+                <span className="text-[11px] font-bold text-violet-700 bg-white rounded-full px-2 py-0.5 whitespace-nowrap">
+                  {aiQuota.unlimited ? '運営アカウント（回数制限なし）' : `今月の残り ${Math.max(0, aiQuota.limit - aiQuota.used)}回 / ${aiQuota.limit}回`}
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-violet-900/70 leading-relaxed">
+              年齢・サイズ・特徴バッジ（と写真）から作ります。できた文は下の欄に入るだけなので、確かめてから「保存」を押してください。回数はマイページの「AIで下書き」と同じ枠で、毎月1日にリセットされます。
+            </p>
+            <label className="flex items-center gap-2 text-[12px] font-bold text-violet-900/80 cursor-pointer">
+              <input type="checkbox" className="accent-violet-600 w-4 h-4" checked={aiUseImage} onChange={(e) => setAiUseImage(e.target.checked)} disabled={aiLoading} />
+              プロフィール写真も見て書く
+            </label>
+            {aiBlocked && (
+              <p className="text-[12px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2 leading-relaxed">
+                {aiFewBadges
+                  ? `下の「特徴バッジ」を3つ以上選んでから作成してください（現在 ${badges.length}つ）。`
+                  : aiBadgesUnsaved
+                    ? '特徴バッジを選びました。いちど「保存」を押してから作成してください。'
+                    : aiNoMaterial
+                      ? 'まだ材料がありません。「画像」タブで写真を登録するか、下の「特徴バッジ」を選んでから作成してください。'
+                      : '写真を使わない設定のときは、下の「特徴バッジ」を選んでから作成してください。'}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleAiDraft}
+                disabled={aiLoading || aiOutOfQuota || aiBlocked}
+                className="rounded-full bg-violet-600 hover:bg-violet-700 disabled:bg-violet-300 text-white text-[12.5px] font-black px-4 py-2"
+              >
+                {aiLoading
+                  ? '作成中…（20秒ほどかかります）'
+                  : aiOutOfQuota
+                    ? '今月の回数を使い切りました'
+                    : aiBlocked
+                      ? (aiFewBadges ? '特徴バッジを3つ以上選んでください' : aiBadgesUnsaved ? '先に保存してください' : '写真かバッジを設定してください')
+                      : 'AIで下書きを作る'}
+              </button>
+              {aiUndo && !aiLoading && (
+                <button type="button" onClick={handleAiUndo} className="rounded-full bg-white border border-violet-200 text-violet-700 text-[12.5px] font-bold px-3 py-2 hover:bg-violet-50">
+                  元に戻す
+                </button>
+              )}
+            </div>
+          </div>
           <Row label="キャッチフレーズ">
             <input className={INPUT} value={c.catchphrase} onChange={(e) => setC('catchphrase', e.target.value)} />
             <Counter text={c.catchphrase} max={CATCH_MAX} limits={COMMENT_SITE_LIMITS.catch} />
