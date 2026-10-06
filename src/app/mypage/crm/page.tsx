@@ -599,8 +599,10 @@ function Grid({
   // ★ 第575便：スマホも風俗CTIv2 のように女子メモの列を出し、PC と同じ形を小さく（zoom）して1画面に多く並べる
   const narrow = useNarrow();
   const zoom = narrow ? 0.72 : 1;
-  const nameW = NAME_W;
-  const memoW = narrow ? 100 : MEMO_W;
+  // ★ 第1214便（カッキーさん）: スマホは左の固定枠の合計（250px）を変えずに、女子メモの列を細く（100→64）して名前の列へ（150→186）。
+  //   タイムラインの目視幅はそのまま。名前の列の余白も px-2 → px-1 に詰める。女子メモの空欄の文字はスマホだけ「✎ メモ」。
+  const nameW = narrow ? NAME_W + 36 : NAME_W;
+  const memoW = narrow ? 64 : MEMO_W;
   const leftW = nameW + memoW;
   const ppm = narrow ? 1.1 : PX_PER_MIN;
   const width = (endMin - startMin) * ppm;
@@ -630,7 +632,7 @@ function Grid({
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
           <div className="sticky left-0 z-10 flex flex-none border-r border-slate-300 bg-slate-100 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: leftW }}>
-            <span className="px-2" style={{ width: nameW }}>セラピスト</span>
+            <span className={narrow ? 'px-1' : 'px-2'} style={{ width: nameW }}>セラピスト</span>
             <span className="border-l border-slate-300 px-2" style={{ width: memoW }}>女子メモ</span>
           </div>
           {hours.map((h) => (
@@ -645,7 +647,7 @@ function Grid({
           <div key={r.key} className={`relative flex border-b hover:z-[25] ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
             <div className={`sticky left-0 z-20 flex flex-none border-r border-slate-300 ${r.done ? 'bg-slate-300' : 'bg-white'}`} style={{ width: leftW }}>
-            <div className="flex-none px-2 py-1.5" style={{ width: nameW }}>
+            <div className={`flex-none py-1.5 ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
               {r.therapist ? (
                 <>
                   <p className="flex items-center gap-1">
@@ -754,7 +756,7 @@ function Grid({
                   <p className="line-clamp-4 whitespace-pre-line text-[12px] leading-[1.3] text-slate-700">{r.therapist.memo}</p>
                 ) : (
                   // ★ 薄すぎて見つけられなかった（2026-09-19）→ 枠つきのボタンに見える形に
-                  <span className="inline-block whitespace-nowrap border border-dashed border-amber-400 bg-amber-50 px-1 py-0.5 text-[11px] font-bold text-amber-700">✎ メモを書く</span>
+                  <span className="inline-block whitespace-nowrap border border-dashed border-amber-400 bg-amber-50 px-1 py-0.5 text-[11px] font-bold text-amber-700">{narrow ? '✎ メモ' : '✎ メモを書く'}</span>
                 )}
               </button>
               {r.therapist.memo && (
