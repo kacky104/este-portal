@@ -3,6 +3,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { loadWorkInputHash } from '@/app/lib/media/workInputHash';
 import { canSkipAutoPush } from '@/lib/workInputHash';
+import { staggerNotBefore } from '@/lib/relayStagger';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
   isDueForAutoPush,
@@ -153,6 +154,8 @@ export async function POST(req: Request) {
         actor: 'system:auto-push',
         // ★ 第1245便: 同期できたら、この指紋を「同期済み」として記録する（app/lib/media/relayFlow.ts）
         ...(inputHash ? { autoInputHash: inputHash } : {}),
+        // ★ 第1247便: 店舗ごとに 0〜3分ずらす（同じ瞬間に何店舗ぶんもログインしない）
+        notBefore: staggerNotBefore(started.length, now),
       });
       if (r2.ok) started.push(target);
       else skipped.push({ target, why: r2.note });

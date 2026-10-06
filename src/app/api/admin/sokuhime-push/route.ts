@@ -4,6 +4,7 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { needsConsent } from '@/lib/mediaConsent';
 // ★ 第325便: 「いま今すぐの人がいるか」を、画面と同じ物差しで見る（★ 決め方を2つ持たない）
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
+import { staggerNotBefore } from '@/lib/relayStagger';
 
 // ── 即ヒメの周（第215便・2026-09-08）─────────────────────────────────────
 //   POST /api/admin/sokuhime-push  (Authorization: Bearer <CRON_SECRET>)
@@ -194,6 +195,8 @@ export async function POST(req: Request) {
         // ★★★ apply が明示 true のときだけ実弾。★ dryrun は読んで計画を残すだけ
         sokuhime: { apply },
         actor: 'cron:sokuhime-push',
+        // ★ 第1247便: 店舗ごとに 0〜3分ずらす
+        notBefore: staggerNotBefore(started.length, new Date()),
       });
       // ★ 枠が塞がっている（busy）のは【正常】。★ 次の周が拾う
       if (!res.ok) { skipped.push({ target, why: res.note }); continue; }

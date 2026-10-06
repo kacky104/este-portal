@@ -148,6 +148,8 @@ export async function startRelayFlow(params: {
   approvedFingerprint?: string;
   /** ★ 第1245便: 自動反映（work_auto）の「フクエス側の材料の指紋」。同期できたら記録する（markWorkSynced） */
   autoInputHash?: string;
+  /** ★ 第1247便: 最初の段（ログイン）をこの時刻（ISO）まで中継に引き取らせない（店舗ごとの時刻のずらし・lib/relayStagger.ts）。省略＝すぐ */
+  notBefore?: string | null;
   /**
    * intent='diary_read' で【初回の遡り】をするときだけ。
    * ★ 渡さなければ通常運転＝一覧の1ページ目だけを見る（§371）。
@@ -574,6 +576,7 @@ export async function startRelayFlow(params: {
     headers: login.headers,
     body: login.body,
     context,
+    ...(params.notBefore ? { notBefore: params.notBefore } : {}),
   });
 
   if (!r.ok) {

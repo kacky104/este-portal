@@ -100,6 +100,7 @@
     "check:conecfimasugu": "tsc src/lib/conecfImasugu.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/conecfimasugu-selftest.js",
     "check:conecfschedule": "tsc src/lib/conecfSchedule.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/conecfschedule-selftest.js",
     "check:conecfgirl": "tsc src/lib/conecfGirl.ts src/lib/bodyType.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/conecfgirl-selftest.js",
+    "check:relaystagger": "tsc src/lib/relayStagger.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/relaystagger-selftest.js",
     "check:workinputhash": "tsc src/lib/workInputHash.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workinputhash-selftest.js",
     "check:conecfhost": "tsc src/lib/conecfHost.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/conecfhost-selftest.js",
     "check:crmhost": "tsc src/lib/crmHost.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmhost-selftest.js"

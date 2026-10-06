@@ -148,6 +148,8 @@ export async function enqueueRelayJob(params: {
   context?: unknown;
   /** ★ ファイル付き POST（第106便）。★ 検査は buildRelayRequest → assertRelayMultipart */
   multipart?: RelayMultipart;
+  /** ★ 第1247便: この時刻（ISO）まで中継は引き取らない（店舗ごとの時刻のずらし）。省略＝すぐ */
+  notBefore?: string | null;
 }): Promise<{ ok: true; jobId: string } | { ok: false; reason: 'busy'; detail: string }> {
   // ★ 積む前に検査する。DBに入ってから弾くのでは、消し忘れた行が残る
   const request = buildRelayRequest({
@@ -170,6 +172,8 @@ export async function enqueueRelayJob(params: {
     status: 'queued',
     request_enc: sealRequest(request, jobId),
     ...(params.context === undefined ? {} : { context_enc: sealContext(params.context, jobId) }),
+    // ★ 第1247便: 付けないときは列に触れない（列が無い＝SQL 未適用でも今までどおり積める）
+    ...(params.notBefore ? { not_before: params.notBefore } : {}),
   });
 
   if (error) {
@@ -201,13 +205,21 @@ export async function leaseRelayJob(
   const nowISO = new Date().toISOString();
 
   for (let tries = 0; tries < 5; tries++) {
-    const { data, error } = await supabase
-      .from('media_relay_jobs')
-      .select('id, purpose, attempts, request_enc, status')
-      .or('status.eq.queued,and(status.eq.leased,leased_until.lt.' + nowISO + ')')
-      .lt('attempts', MAX_ATTEMPTS)
-      .order('created_at', { ascending: true })
-      .limit(1);
+    // ★ 第1247便: 「この時刻まで引き取らない」（店舗ごとの時刻のずらし・not_before）。null＝すぐ。
+    //   ★★ 列が無い（SQL 未適用）と引けなくなり【中継が全部止まる】ので、その条件だけ外してもう一度引く（console.error は出す）。
+    const pick = (withNotBefore: boolean) => {
+      let q = supabase
+        .from('media_relay_jobs')
+        .select('id, purpose, attempts, request_enc, status')
+        .or('status.eq.queued,and(status.eq.leased,leased_until.lt.' + nowISO + ')');
+      if (withNotBefore) q = q.or('not_before.is.null,not_before.lte.' + nowISO);
+      return q.lt('attempts', MAX_ATTEMPTS).order('created_at', { ascending: true }).limit(1);
+    };
+    let { data, error } = await pick(true);
+    if (error && /not_before/.test(error.message ?? '')) {
+      console.error('[relay] not_before の列が無いため、ずらしを無視して引く（追加SQL_第1247便を実行してください）:', error.message);
+      ({ data, error } = await pick(false));
+    }
 
     if (error) throw new Error('ジョブを引けなかった: ' + error.message);
     const row = (data ?? [])[0] as JobRow | undefined;

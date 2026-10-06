@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow, hasSokuseraSendCandidate } from '@/app/lib/media/relayFlow';
+import { staggerNotBefore } from '@/lib/relayStagger';
 
 // ── 即セラの周（第143便・2026-09-04）───────────────────────────────────
 //   POST /api/admin/sokusera-push  (Authorization: Bearer <CRON_SECRET>)
@@ -104,6 +105,8 @@ export async function POST(req: Request) {
       const res = await startRelayFlow({
         salonId: Number(r.salon_id), provider: PROVIDER, slot: Number(r.slot),
         intent: 'sokusera_auto', actor: 'cron:sokusera-push',
+        // ★ 第1247便: 店舗ごとに 0〜3分ずらす
+        notBefore: staggerNotBefore(started.length, new Date()),
       });
       // ★ 枠が塞がっている（busy）のは【正常】。★ 次の周が拾う
       if (!res.ok) { skipped.push({ target, why: res.note }); continue; }

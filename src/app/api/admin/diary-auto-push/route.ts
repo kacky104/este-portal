@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow, hasDiarySendCandidate } from '@/app/lib/media/relayFlow';
+import { staggerNotBefore } from '@/lib/relayStagger';
 
 // ── 写メ日記の自動反映の周（第137便・2026-09-05）───────────────────────────
 //   POST /api/admin/diary-auto-push  (Authorization: Bearer <CRON_SECRET>)
@@ -129,6 +130,8 @@ export async function POST(req: Request) {
         salonId: Number(r.salon_id), provider: PROVIDER, slot: Number(r.slot),
         intent: 'diary_auto',
         actor: 'cron:diary-auto-push',
+        // ★ 第1247便: 店舗ごとに 0〜3分ずらす
+        notBefore: staggerNotBefore(started.length, new Date()),
       });
       // ★ 枠が塞がっている（busy）のは【正常】。★ 次の周が拾う
       if (!res.ok) { skipped.push({ target, why: res.note }); continue; }
