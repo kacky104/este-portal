@@ -188,6 +188,13 @@ function OwnerLoginInner() {
               </button>
             </form>
 
+            {/* ★ 第1235便（カッキーさん）: ログインボタンの下に、パスワードの変更（再設定）への入口。
+                運営が発行した最初のパスワードを、店舗様が自分で変えられるように。行き先は会員と同じ /forgot-password（メールで再設定のリンクが届く）。 */}
+            <p className="mt-3 text-center text-xs text-slate-500">
+              パスワードの変更は
+              <Link href="/forgot-password" className="text-pink-600 font-medium hover:underline ml-1">こちら →</Link>
+            </p>
+
             <div className="mt-5 space-y-2 text-center">
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 オーナーアカウントの発行は運営で行います。新規のお申し込みは運営までご連絡ください。
