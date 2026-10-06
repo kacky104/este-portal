@@ -24,6 +24,9 @@ function hm(iso: string): string {
 function businessDateOf(iso: string): string {
   return new Date(new Date(iso).getTime() + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
 }
+function shiftDays(d: string, n: number): string {
+  return new Date(new Date(`${d}T00:00:00Z`).getTime() + n * 86400_000).toISOString().slice(0, 10);
+}
 function shiftMonth(d: string, n: number): { from: string; to: string } {
   const [y, m] = d.split('-').map(Number);
   const s = new Date(Date.UTC(y, m - 1 + n, 1));
@@ -47,7 +50,8 @@ const STATUS_OPTIONS: Array<[CrmBookingSearch['status'], string]> = [
 function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
   const crm = useCrmLinks();
   const today = businessTodayJST();
-  const [f, setF] = useState<CrmBookingSearch>({ from: monthStart(today), to: today, therapistId: null, status: 'all', source: '', q: '' });
+  // ★ 第1218便: 既定の期間は「今月1日〜月末」（前は〜今日で、これからの予約＝未確定のネット予約が既定で出なかった）
+  const [f, setF] = useState<CrmBookingSearch>({ from: monthStart(today), to: shiftMonth(today, 0).to, therapistId: null, status: 'all', source: '', q: '' });
   const [qInput, setQInput] = useState('');
   // 結果は「どの条件の結果か（key）」と一緒に持つ（条件が変わったら読み込み中として出す）
   const [res, setRes] = useState<{ key: string; rows: CrmBookingListRow[]; truncated: boolean; err: string } | null>(null);
@@ -98,8 +102,10 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         </div>
         <div className="flex gap-1">
           <button type="button" onClick={() => setF({ ...f, ...shiftMonth(f.from, -1) })} className="bg-[#3f51b5] px-2 py-1.5 text-[12px] font-bold text-white">◀ 前月</button>
-          <button type="button" onClick={() => setF({ ...f, from: monthStart(today), to: today })} className="bg-pink-400 px-2 py-1.5 text-[12px] font-bold text-white">今月</button>
+          <button type="button" onClick={() => setF({ ...f, from: monthStart(today), to: shiftMonth(today, 0).to })} className="bg-pink-400 px-2 py-1.5 text-[12px] font-bold text-white">今月</button>
           <button type="button" onClick={() => setF({ ...f, ...shiftMonth(f.from, 1) })} className="bg-[#3f51b5] px-2 py-1.5 text-[12px] font-bold text-white">次月 ▶</button>
+          {/* ★ 第1218便: 今日（営業日）から60日先まで */}
+          <button type="button" onClick={() => setF({ ...f, from: today, to: shiftDays(today, 60) })} className="border border-[#3f51b5] bg-white px-2 py-1.5 text-[12px] font-bold text-[#3f51b5]">今後</button>
         </div>
         <div>
           <p className="text-[11px] font-bold text-slate-500">担当</p>

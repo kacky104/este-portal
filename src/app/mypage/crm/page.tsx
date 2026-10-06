@@ -198,6 +198,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   //   日付を変えたとき・「画面を更新」を押したとき・まだ何も持っていないときは全部読む。
   const dataRef = useRef<CrmScheduleData | null>(null);
   useEffect(() => { dataRef.current = data; }, [data]);
+  // ★ 第1218便: 「受まで／上がり」を保存中の人（連打防止）
+  const endTogglingRef = useRef<Set<number>>(new Set());
   const fullNextRef = useRef(true);
   // ★ 第1116便: 前回読んだときの変更マークと時刻。★ マークが同じ（＝何も変わっていない）なら全量を読まない
   const markRef = useRef<{ mark: string; at: number } | null>(null);
@@ -212,7 +214,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       // ★ 第1116便: 先に変更マーク（1行）だけ読む（★ 全量より【先に】読む＝読んでいる最中の変化を次の回で拾える）。
       //   自動更新で、マークが前回と同じ、かつ前回から10分経っていなければ、ここで終わり（全量を読まない）。
       //   ★ マークを読めないとき（SQL 前・運営が別の店舗を見ている）は null → 今までどおり毎回読む。
-      const mark = await getCrmChangeMark(salonId);
+      // ★ 第1218便: 読み取りが例外で落ちても（オフライン等）画面が固まらないように try/catch。
+      //   ★ lite（60秒ごと）の失敗では前の表を残してエラー文だけ出す（スマホの一瞬の通信切れで表が丸ごと消えないように）。
+      let mark: string | null = null;
+      try { mark = await getCrmChangeMark(salonId); } catch { mark = null; }
       if (!alive) return;
       if (!full) {
         const last = markRef.current;
@@ -221,9 +226,18 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           return;
         }
       }
-      const res = await getCrmSchedule(salonId, date, full ? undefined : { lite: true });
+      let res: Awaited<ReturnType<typeof getCrmSchedule>>;
+      try {
+        res = await getCrmSchedule(salonId, date, full ? undefined : { lite: true });
+      } catch {
+        res = { ok: false, error: '読み込めませんでした（通信を確認してください）' };
+      }
       if (!alive) return;
-      if (!res.ok) { setErr(res.error); setData(null); return; }
+      if (!res.ok) {
+        setErr(res.error);
+        if (full) setData(null);
+        return;
+      }
       setErr('');
       if (res.lite) {
         // ★ lite の返事に設定・料金表は無い → 前回の値と合わせる（前回が無ければ次は全部読む）
@@ -272,7 +286,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
   // 行と表示範囲
   const view = useMemo(() => {
-    if (!data) return null;
+    // ★ 第1218便: 日付を変えた直後（data がまだ前の日）は表を出さない＝「空いている」と誤って受付しないように（下に「読み込み中」）
+    if (!data || data.date !== date) return null;
     const inWindow = (s: number, e: number) => e > DAY_START_MIN && s < WINDOW_END_MIN;
     // ★ 時間軸の始まりと終わりは「設定」タブの値（第548便）。予約がその外にあるときだけ広げる。
     let minStart = data.settings.dayStartMin;
@@ -290,7 +305,6 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     visibleBookings.forEach((b) => noteBooking(minOfDay(b.slotStartISO, baseMs), minOfDay(b.slotEndISO, baseMs)));
 
     const rows: Row[] = [];
-    // ★ フリー（担当未定）の行はいつも出す（ここに受付できるように）。
     // ★ フリー（担当未定）の行は出さない（第553便・カッキーさんの指示）。
     //   ただし、前に入れた担当未定の予約が残っている日だけは、見落とさないように出す。
     const free = visibleBookings.filter((b) => b.therapistId == null);
@@ -311,17 +325,25 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
     const startMin = Math.floor(minStart / 60) * 60;
     const endMin = Math.ceil(maxEnd / 60) * 60;
-    const activeCount = visibleBookings.filter((b) => b.status !== 'cancelled').length;
-    const sales = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.priceTotal ?? 0), 0);
+    // ★ 第1218便: 上の帯の合計は【営業日（6:00〜翌6:00 に始まる予約）】で数える。
+    //   前は表示窓（〜翌7:00）で数えていたので、翌6:30 の予約がある日は行ごとの本数・報酬確定・日報とずれていた。
+    const dayBookings = visibleBookings.filter((b) => b.status !== 'cancelled' && inBusinessDay(minOfDay(b.slotStartISO, baseMs)));
+    const activeCount = dayBookings.length;
+    const sales = dayBookings.reduce((a, b) => a + (b.priceTotal ?? 0), 0);
     // ★ 報酬は確定のときの手当・交通費も足す（日報の女子報酬とそろえる・第539便）
-    const payAll = visibleBookings.filter((b) => b.status !== 'cancelled').reduce((a, b) => a + (b.payTotal ?? 0), 0)
+    const payAll = dayBookings.reduce((a, b) => a + (b.payTotal ?? 0), 0)
       + data.confirms.reduce((a, c) => a + c.allowance, 0);
     const workingCount = therapistRows.filter((r) => (r.therapist?.schedules.length ?? 0) > 0).length;
     const unreceived = visibleBookings.filter((b) => isUnreceived(b, nowMs)).length;
     return { rows, startMin, endMin, activeCount, workingCount, sales, payAll, unreceived };
-  }, [data, baseMs, nowMs]);
+  }, [data, date, baseMs, nowMs]);
 
   const isToday = date === businessTodayJST();
+  // ★ 第1218便: 「今」ボタン（今日だけ）。横に流したあと、赤い線の位置へ戻る手段が無かった。
+  const [nowJump, setNowJump] = useState(0);
+  const nowButton = isToday && view ? (
+    <button type="button" onClick={() => setNowJump((v) => v + 1)} title="今の時刻（赤い線）の位置へ" className="border border-rose-400 bg-white px-1.5 py-0.5 text-[11px] font-bold text-rose-600 md:px-2 md:py-1 md:text-[13px]">今</button>
+  ) : null;
 
   return (
     <div className="px-1.5 py-1.5 md:px-4 md:py-3">
@@ -342,6 +364,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           <button type="button" onClick={() => setDate(shiftDate(date, -1))} className="bg-[#3f51b5] px-1.5 py-0.5 text-[11px] font-bold text-white">◀</button>
           <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-1.5 py-0.5 text-[11px] font-bold text-white ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
           <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-1.5 py-0.5 text-[11px] font-bold text-white">▶</button>
+          {nowButton}
           <button type="button" onClick={toggleFold} className="ml-auto border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-600">▼ ひらく</button>
         </div>
       ) : (
@@ -362,6 +385,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px] ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
           <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">次日▶</button>
         </div>
+        {nowButton}
         <input
           type="date"
           value={date}
@@ -399,7 +423,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       {refreshedAt != null && (
         <div className="pointer-events-none fixed left-1/2 top-16 z-[60] -translate-x-1/2 bg-slate-800/90 px-4 py-2 text-[13px] font-bold text-white shadow-lg">更新しました</div>
       )}
-      {!data && !err && <p className="p-6 text-center text-[14px] text-slate-400">読み込み中です…</p>}
+      {(!data || data.date !== date) && !err && <p className="p-6 text-center text-[14px] text-slate-400">読み込み中です…</p>}
 
       {view && (
         <Grid
@@ -418,12 +442,20 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           toggleDefs={data?.settings.customToggles ?? []}
           date={date}
           castNotifyOn={Boolean(data?.settings.castPayEnabled)}
+          nowJump={nowJump}
           onWork={setWorkFor}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
           onToggleEnd={async (tid, next) => {
-            const r = await setCrmWorkEnd(salonId, tid, date, next);
-            if (!r.ok) { setErr(r.error); return; }
-            reload();
+            // ★ 第1218便: 保存が終わるまで同じ人の切り替えを受け付けない（反応が無いと思って2回押すと元に戻っていた）
+            if (endTogglingRef.current.has(tid)) return;
+            endTogglingRef.current.add(tid);
+            try {
+              const r = await setCrmWorkEnd(salonId, tid, date, next);
+              if (!r.ok) { setErr(r.error); return; }
+              reload();
+            } finally {
+              endTogglingRef.current.delete(tid);
+            }
           }}
           onEmpty={(therapistId, min) => {
             // ★ 休憩の時間は受付しない（第551便）
@@ -506,7 +538,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           initial={data.workDays[workFor.id] ?? CRM_EMPTY_WORK_DAY}
           onClose={() => setWorkFor(null)}
           onSaved={() => { setWorkFor(null); reload(); }}
-          onConfirm={() => { const t = workFor; setWorkFor(null); setConfirmFor(t); }}
+          onConfirm={() => { const t = workFor; setWorkFor(null); reload(); setConfirmFor(t); }}
         />
       )}
 
@@ -563,7 +595,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, endTypeOf, onToggleEnd, onEmpty, date, castNotifyOn,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, endTypeOf, onToggleEnd, onEmpty, date, castNotifyOn, nowJump,
 }: {
   /** いま開いている日（YYYY-MM-DD）。「LINE」で知らせる文面とリンクに使う（第1209便） */
   date: string;
@@ -580,6 +612,8 @@ function Grid({
   /** そのセラピストのその日の「受まで／上がり」 */
   endTypeOf: (therapistId: number) => CrmEndType;
   onToggleEnd: (therapistId: number, next: CrmEndType) => void;
+  /** ★ 第1218便: 「今」ボタンが押された回数（増えたら赤い線の位置へ横スクロール） */
+  nowJump: number;
   rows: Row[];
   startMin: number;
   endMin: number;
@@ -617,20 +651,30 @@ function Grid({
 
   // ★ 開いたとき「今」の赤い線が画面の左 1/3 に来るように横スクロール（第640便・風俗CTIv2 と同じ）。
   //   ★ 日付を変えたときにもう一度。★ 60秒ごとの読み直しでは動かさない（見ている最中にずらさない）。
+  //   ★ 第1218便: 日付が変わったら「動かした」の印を消す（前は今日→明日→今日と戻ると今日の印が残っていて動かなかった）。
+  //   ★ 「今」ボタン（nowJump が増えたとき）でも同じ位置へ動かす。
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrolledFor = useRef<number | null>(null);
-  useEffect(() => {
+  const jumpToNow = () => {
     const el = scrollRef.current;
     if (!el || !showNow || nowMin == null) return;
-    if (scrolledFor.current === baseMs) return;
-    scrolledFor.current = baseMs;
     const target = (leftW + x(nowMin)) * zoom - el.clientWidth / 3;
     el.scrollLeft = Math.max(0, target);
+  };
+  useEffect(() => {
+    if (scrolledFor.current !== baseMs) scrolledFor.current = null;
+    if (!showNow || scrolledFor.current === baseMs) return;
+    scrolledFor.current = baseMs;
+    jumpToNow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseMs, showNow]);
+  useEffect(() => {
+    if (nowJump > 0) jumpToNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nowJump]);
 
   return (
-    <div ref={scrollRef} className="max-h-[calc(100vh-130px)] overflow-auto border border-slate-300 bg-white md:max-h-[calc(100vh-170px)]">
+    <div ref={scrollRef} className="max-h-[calc(100dvh-130px)] overflow-auto border border-slate-300 bg-white md:max-h-[calc(100dvh-170px)]">
       <div className="relative" style={{ width: leftW + width, zoom }}>
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
@@ -807,7 +851,7 @@ function Grid({
                           type="button"
                           onClick={(ev) => { ev.stopPropagation(); onToggleEnd(tid, et === 'accept' ? 'finish' : 'accept'); }}
                           title="押すと「受まで」と「上がり」を切り替えます"
-                          className={`pointer-events-auto absolute right-0.5 top-0.5 z-[12] flex items-center gap-0.5 border px-1 text-[10px] font-bold leading-[14px] ${
+                          className={`pointer-events-auto absolute right-0.5 top-0.5 z-[8] flex items-center gap-0.5 border px-1 text-[10px] font-bold leading-[14px] ${
                             et === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'
                           }`}
                         >
@@ -973,10 +1017,10 @@ function DetailPanel({
   const ng = b.therapistId != null && (c?.ngTherapistIds.includes(b.therapistId) ?? false);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, busy]);
 
   const toggleBad = async () => {
     setBusy(true);
@@ -994,7 +1038,7 @@ function DetailPanel({
   return (
     <>
       {/* ★ 詳細も中央に出す（2026-09-19・カッキーさんの指示・受付フォームとそろえる） */}
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
       <aside className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
         <div className="flex items-center bg-[#b3b8e6] px-4 py-2.5">
@@ -1278,10 +1322,10 @@ function BookingForm({
   const set = <K extends keyof BookingFormState>(k: K, v: BookingFormState[K]) => setF((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, busy]);
 
   // 電話番号を入れたら台帳を引く（0.4秒止まったら）
   const telDigits = f.customerTel.replace(/[^0-9０-９]/g, '');
@@ -1429,8 +1473,8 @@ function BookingForm({
 
   return (
     <>
-      {/* ★ 受付フォームは画面の中央に出す（2026-09-19・カッキーさんの指示）。詳細パネルは右のまま。 */}
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      {/* ★ 受付フォームは画面の中央に出す（2026-09-19・カッキーさんの指示）。詳細も同日に中央へ。 */}
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
       <aside className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[560px] flex-col bg-white shadow-2xl">
         <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
@@ -1710,10 +1754,10 @@ function MemoDialog({
   const [err, setErr] = useState('');
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, busy]);
 
   const save = async () => {
     setBusy(true);
@@ -1726,7 +1770,7 @@ function MemoDialog({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
         <div className="pointer-events-auto w-full max-w-[460px] bg-white shadow-2xl">
           <div className="flex items-center bg-amber-500 px-4 py-2.5 text-white">
@@ -1784,10 +1828,10 @@ function ConfirmDialog({
   const [sure, setSure] = useState(false);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, busy]);
 
   const mine = bookings
     .filter((b) => b.status !== 'cancelled' && inBusinessDay(Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000)))
@@ -1813,7 +1857,7 @@ function ConfirmDialog({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
         <div className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
           <div className="flex items-center bg-emerald-600 px-4 py-2.5 text-white">
@@ -2156,10 +2200,10 @@ function CloseDialog({
   }, [salonId, date]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, busy]);
 
   const ex = Math.max(0, Math.round(Number(expense) || 0));
   const doClose = async () => {
@@ -2182,7 +2226,7 @@ function CloseDialog({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
         <div className="pointer-events-auto max-h-[92dvh] w-full max-w-[560px] overflow-y-auto bg-white shadow-2xl">
           <div className="flex items-center bg-[#1e2a5a] px-4 py-2.5 text-white">
@@ -2290,24 +2334,27 @@ function WorkDayDialog({
   const set = <K extends keyof CrmWorkDay>(k: K, v: CrmWorkDay[K]) => setWd((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, busy]);
 
-  const save = async () => {
+  const saveOnly = async (): Promise<boolean> => {
     setBusy(true); setErr('');
     const r = await saveCrmWorkDay(salonId, therapist.id, date, wd);
     setBusy(false);
-    if (!r.ok) { setErr(r.error); return; }
-    onSaved();
+    if (!r.ok) { setErr(r.error); return false; }
+    return true;
   };
+  const save = async () => { if (await saveOnly()) onSaved(); };
+  // ★ 第1218便: 「報酬確定を行う」は、いま入れた交通費などを【先に保存してから】確定画面へ（保存せずに開くと、交通費が手当に入らなかった）
+  const confirmAfterSave = async () => { if (await saveOnly()) onConfirm(); };
 
   const roomOptions = wd.room && !rooms.includes(wd.room) ? [...rooms, wd.room] : rooms;
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
         {/* ★★ 第1210便（2026-10-06・カッキーさん）: スマホで、下の「保存」が画面の外に出て押せなかった。
             原因＝高さの上限を 92vh にしていた。vh は【ブラウザのアドレスバー・下のバーを含めた高さ】なので、
@@ -2414,7 +2461,7 @@ function WorkDayDialog({
             {err && <p className="text-[13px] font-bold text-rose-600">{err}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-slate-200 p-3">
-            <button type="button" disabled={busy} onClick={onConfirm} className="text-[13px] font-bold text-emerald-700 underline">
+            <button type="button" disabled={busy} onClick={confirmAfterSave} className="text-[13px] font-bold text-emerald-700 underline">
               報酬確定を行う
             </button>
             <button type="button" disabled={busy} onClick={onClose} className="ml-auto border border-slate-300 bg-white px-4 py-2 text-[14px] font-bold text-slate-600">

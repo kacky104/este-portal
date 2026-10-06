@@ -63,6 +63,10 @@ function StatusBadge({ b, nowMs }: { b: CrmBookingRow; nowMs: number }) {
       ? <span className="bg-rose-600 px-1.5 py-0.5 text-[11px] font-bold text-white">悪質キャンセル</span>
       : <span className="bg-slate-200 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">キャンセル</span>;
   }
+  // ★ 第1218便: フクエスのネット予約で、まだお店が確定していないものは「未確定」（予約一覧・スケジュールと同じ言葉）
+  if (b.status === 'new') {
+    return <span className="bg-pink-100 px-1.5 py-0.5 text-[11px] font-bold text-pink-700">未確定</span>;
+  }
   if (new Date(b.slotStartISO).getTime() > nowMs) {
     return <span className="bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold text-sky-700">予約中</span>;
   }
