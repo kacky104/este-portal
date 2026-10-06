@@ -593,7 +593,8 @@ export async function getCrmSchedule(
   const customerIds = [...new Set([...extra.values()].map((e) => e.customerId).filter((v): v is number => v != null))];
 
   // ★ ここから先は互いに依存しない → 同時に読む
-  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays] = await Promise.all([
+  // ★ 第1219便: どれかの読み取りが失敗したら ok:false（画面は第1218便で、60秒更新の失敗なら前の表を残す）
+  const reads = await Promise.all([
     // 同意書（第560便）：有効な同意の時刻
     bookingIds.length > 0
       ? svc.from('crm_consents').select('booking_id, created_at')
@@ -616,7 +617,9 @@ export async function getCrmSchedule(
     lite ? Promise.resolve(null) : readSettings(svc, salonId),
     readWorkEnds(svc, salonId, dateISO),
     readWorkDays(svc, salonId, dateISO),
-  ]);
+  ]).catch((e: unknown) => readFail(e));
+  if (!Array.isArray(reads)) return reads;
+  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays] = reads;
 
   const consentAt = new Map<string, string>();
   for (const c of consentRows) consentAt.set(String(c.booking_id), String(c.created_at));
@@ -1017,13 +1020,23 @@ async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Prom
   }));
 }
 
+// ★★ 第1219便（カッキーさん）: 読み取りの失敗を「空」と区別する。
+//   readConfirms / readReport / readSettings / readWorkEnds / readWorkDays は、Supabase が error を返したら【投げる】（空のふりをしない）。
+//   それまでは一時的なDBエラーで「設定が空」「確定なし」として進み、出勤情報の自由項目が全部落ちて保存されたり、
+//   手当の入らない数字で日報が作られたりする道があった。呼び出し側は readFail で受けて ok:false を返す（止まってエラーを出す）。
+function readFail(e: unknown): { ok: false; error: string } {
+  const m = e instanceof Error ? e.message : String(e);
+  return { ok: false, error: `読み込めませんでした（${m}）。もう一度お試しください` };
+}
+
 async function readConfirms(svc: Svc, salonId: number, dateISO: string): Promise<CrmPayConfirm[]> {
   if (!validDate(dateISO)) return [];
-  const { data } = await svc
+  const { data, error } = await svc
     .from('crm_pay_confirms')
     .select('therapist_id, booking_count, pay_total, allowance, note, confirmed_at')
     .eq('salon_id', salonId)
     .eq('business_date', dateISO);
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({
     therapistId: Number(r.therapist_id),
     bookingCount: Number(r.booking_count) || 0,
@@ -1052,8 +1065,9 @@ function toReport(r: Record<string, unknown>): CrmDailyReport {
 
 async function readReport(svc: Svc, salonId: number, dateISO: string): Promise<CrmDailyReport | null> {
   if (!validDate(dateISO)) return null;
-  const { data } = await svc
+  const { data, error } = await svc
     .from('crm_daily_reports').select('*').eq('salon_id', salonId).eq('business_date', dateISO).maybeSingle();
+  if (error) throw new Error(error.message);
   return data ? toReport(data as Record<string, unknown>) : null;
 }
 
@@ -1186,7 +1200,11 @@ export async function getCrmDaySummary(
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
-  return { ok: true, summary: await computeDay(auth.svc, salonId, dateISO) };
+  try {
+    return { ok: true, summary: await computeDay(auth.svc, salonId, dateISO) };
+  } catch (e) {
+    return readFail(e); // ★ 第1219便
+  }
 }
 
 /** 締める（日報を作る・もう締めてあれば今の数字で作り直す） */
@@ -1201,7 +1219,9 @@ export async function closeCrmDay(
   if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
   const ex = Math.round(Number(expense) || 0);
   if (ex < 0 || ex > 100000000) return { ok: false, error: '経費の金額が不正です' };
-  const d = await computeDay(auth.svc, salonId, dateISO);
+  // ★ 第1219便: 確定などが読めなかったら日報を作らない（手当の入らない数字で作ってしまわないように）
+  let d: CrmDaySummary;
+  try { d = await computeDay(auth.svc, salonId, dateISO); } catch (e) { return readFail(e); }
   const { error } = await auth.svc.from('crm_daily_reports').upsert({
     salon_id: salonId,
     business_date: dateISO,
@@ -1426,8 +1446,9 @@ export async function setCrmReceived(
 
 // ── 設定と「受まで／上がり」（第548便）──────────────────
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
-  const { data } = await svc
+  const { data, error } = await svc
     .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms, consent_enabled, consent_title, consent_body, cast_pay_enabled, custom_toggles').eq('salon_id', salonId).maybeSingle();
+  if (error) throw new Error(error.message);
   if (!data) return { ...CRM_DEFAULT_SETTINGS, alarms: normalizeCrmAlarms(null) };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
@@ -1448,8 +1469,9 @@ async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
 
 async function readWorkEnds(svc: Svc, salonId: number, dateISO: string): Promise<Record<number, CrmEndType>> {
   if (!validDate(dateISO)) return {};
-  const { data } = await svc
+  const { data, error } = await svc
     .from('crm_work_ends').select('therapist_id, end_type').eq('salon_id', salonId).eq('business_date', dateISO);
+  if (error) throw new Error(error.message);
   const out: Record<number, CrmEndType> = {};
   for (const r of data ?? []) out[Number(r.therapist_id)] = r.end_type === 'accept' ? 'accept' : 'finish';
   return out;
@@ -1460,7 +1482,11 @@ export async function getCrmSettings(
 ): Promise<{ ok: true; settings: CrmSettings } | { ok: false; error: string }> {
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
-  return { ok: true, settings: await readSettings(auth.svc, salonId) };
+  try {
+    return { ok: true, settings: await readSettings(auth.svc, salonId) };
+  } catch (e) {
+    return readFail(e); // ★ 第1219便
+  }
 }
 
 export async function saveCrmSettings(
@@ -1549,10 +1575,11 @@ export async function setCrmWorkEnd(
 // ★ 出勤の開始・終了時刻はここでは変えない（therapist_schedules はサイトと媒体の元・カッキーさんの決定）。
 async function readWorkDays(svc: Svc, salonId: number, dateISO: string): Promise<Record<number, CrmWorkDay>> {
   if (!validDate(dateISO)) return {};
-  const { data } = await svc
+  const { data, error } = await svc
     .from('crm_work_days')
     .select('therapist_id, break_start_min, break_end_min, break_memo, room, attendance, transport, toggle_values')
     .eq('salon_id', salonId).eq('business_date', dateISO);
+  if (error) throw new Error(error.message);
   const out: Record<number, CrmWorkDay> = {};
   for (const r of data ?? []) {
     out[Number(r.therapist_id)] = {
@@ -1604,7 +1631,9 @@ export async function saveCrmWorkDay(
   if (transport < 0 || transport > 100000) return { ok: false, error: '交通費は0〜100,000円で入れてください' };
   const attendance = ['late', 'absent', 'sent_home'].includes(String(wd.attendance)) ? wd.attendance : '';
   // 自由項目（第597便）：いまの設定にある項目・選択肢だけを保存する
-  const toggleDefs = (await readSettings(auth.svc, salonId)).customToggles;
+  // ★ 第1219便: 設定が読めなかったら保存しない（自由項目が全部落ちたまま保存されないように）
+  let toggleDefs: CrmSettings['customToggles'];
+  try { toggleDefs = (await readSettings(auth.svc, salonId)).customToggles; } catch (e) { return readFail(e); }
   const toggleValues: Record<string, string> = {};
   for (const t of toggleDefs) {
     const v = wd.toggles?.[t.id];
@@ -1907,7 +1936,8 @@ export async function getCrmRoomQr(
   if (!auth.ok) return auth;
   const r = String(room ?? '').trim();
   if (!r || r.length > 30) return { ok: false, error: '部屋が不正です' };
-  const st = await readSettings(auth.svc, salonId);
+  let st: CrmSettings;
+  try { st = await readSettings(auth.svc, salonId); } catch (e) { return readFail(e); } // ★ 第1219便
   if (!st.rooms.includes(r)) return { ok: false, error: 'この部屋は設定にありません（保存してからもう一度）' };
   const { data: cur } = await auth.svc
     .from('crm_room_tokens').select('token, created_at, prev_token, prev_created_at')
