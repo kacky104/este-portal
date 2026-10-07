@@ -55,10 +55,18 @@ export type PlanIssue = {
     | 'too_many_fields'       // max_input_vars を超える
     | 'unmapped_therapist'    // この枠での castId が無い＝駅ちかに出せない
     | 'unknown_girl'          // 駅ちかに居てフクエスに居ない＝読んだまま返す
-    | 'missing_row_as_rest';  // フクエスに行が無い日を「休み」として扱った
+    | 'missing_row_as_rest'   // フクエスに行が無い日を「休み」として扱った
+    | 'target_off';           // ★ 第1267便: コネックエフの送り先サイトで「送らない」にしている方（店舗様が決めたこと）
   detail: string;
   /** 人が読む用。件数だけ入れる（名前やURLを監査ログに流さないため） */
   count?: number;
+  /**
+   * ★ 第1267便（2026-10-07・カッキーさん）: 「◯名」が誰のことか（画面に出すためだけ）。
+   *   きっかけ: ラビリンス様から「1名は…と出るが、誰のことか・何のことか分からない」。
+   *   ★ detail には混ぜない（detail と count は監査ログの材料になりうる。名前は流さない決まりのまま）。
+   *   ★ 保存先は media_work_plans.notes（店舗オーナーだけが読む）。summarizePlan（監査ログ）は件数しか使わない。
+   */
+  names?: string[];
 };
 
 export type WorkDiff = {
@@ -305,6 +313,15 @@ export function buildWorkPlan(input: {
    *   true にすると見張りが厳しくなる（AUTO_* のしきい値）。★ 緩くはならない。
    */
   unattended?: boolean;
+  /** ★ 第1267便: therapist_id → 名前（お知らせに「誰のことか」を出すためだけ。計画の中身には使わない） */
+  nameOf?: ReadonlyMap<number, string>;
+  /**
+   * ★ 第1267便: 送り先サイトで「送らない」にしている方の castId。
+   *   呼ぶ側が castIdOf から外しているので、駅ちかの出勤表に居ても「送る対象」に入らない
+   *   → そのままだと「駅ちかにだけ登録がある方」に数えられてしまう（同じ人が2行に出る）。ここで外す。
+   *   ★ 数え方だけの話。送る内容（読んだまま返す）は変わらない。
+   */
+  skipCastIds?: ReadonlySet<string>;
 }): WorkPlan {
   const { page, todayISO, shifts } = input;
   const blockers: PlanIssue[] = [];
@@ -372,10 +389,22 @@ export function buildWorkPlan(input: {
     row[d] = sh;
   }
 
+  // ★ 第1267便: 名前（分かる分だけ）。★ 空の配列は付けない
+  const namesOf = (ids: Iterable<number>): string[] => {
+    const out: string[] = [];
+    for (const id of ids) {
+      const n = (input.nameOf?.get(id) ?? '').trim();
+      if (n) out.push(n);
+    }
+    return out;
+  };
+  const withNames = (names: string[]): { names?: string[] } => (names.length > 0 ? { names } : {});
+
   if (unmapped.size > 0) {
     notes.push({
       kind: 'unmapped_therapist',
       count: unmapped.size,
+      ...withNames(namesOf(unmapped)),
       // ★★★★ 第338便（2026-09-13・カッキーさん）: 「駅ちかの番号（castId）」は【こちら側の言葉】。
       //   ★ 店舗様には意味が分からない。★ 何が足りないかと、どこで直すかだけを言う。
       detail:
@@ -384,9 +413,13 @@ export function buildWorkPlan(input: {
     });
   }
   if (notOnPage.size > 0) {
+    // ★ notOnPage は castId の集まり。名前は castIdOf を逆に引く
+    const notOnPageIds: number[] = [];
+    for (const [tid, castId] of input.castIdOf) if (notOnPage.has(castId)) notOnPageIds.push(tid);
     notes.push({
       kind: 'unmapped_therapist',
       count: notOnPage.size,
+      ...withNames(namesOf(notOnPageIds)),
       // ★ 第338便: 「番号は分かりますが」も内部の話。★ 起きていることだけを言う
       detail: notOnPage.size + '名は、いま駅ちかの出勤表に出ていないため更新できません',
     });
@@ -485,10 +518,11 @@ export function buildWorkPlan(input: {
     notes.push({
       kind: 'missing_row_as_rest',
       count: missingRowAsRest,
+      // ★ 第1267便: 「◯件は…として扱いました」は、何の件数か・何をされたのかが伝わらなかった（ラビリンス様）。
+      //   ★ 何を数えているか（出勤を入れていない日）を先に言い、起きること（駅ちかではお休み）だけを言う。
       detail:
-        missingRowAsRest +
-        '件は、フクエス側に入力が無い日のため「お休み」として扱いました' +
-        '（駅ちかは部分更新ができないため、入力が無い＝お休みになります）',
+        '出勤を入れていない日（' + missingRowAsRest + '件）は、駅ちかでは「お休み」として出しています' +
+        '（出勤を入れた日は、そのまま出ています）',
     });
   }
 
@@ -575,12 +609,16 @@ export function buildWorkPlan(input: {
   }
 
   // 駅ちかに居てフクエスに居ない子（触らないことを伝える）
-  const untouched = page.girls.length - wanted.size;   // ★ wanted ＝ 送る対象の人数
+  // ★ 第1267便: 「送らない」にしている方は、ここに数えない（skipCastIds・別のお知らせで言う）
+  const untouchedGirls = page.girls.filter((g) => !wanted.has(g.girlId) && !(input.skipCastIds?.has(g.girlId) ?? false));
+  const untouched = untouchedGirls.length;
   if (untouched > 0) {
     notes.push({
       kind: 'unknown_girl',
       count: untouched,
-      detail: untouched + '名は駅ちかにだけ登録がある方です。読んだ内容をそのままお返しします（変更しません）',
+      ...withNames(untouchedGirls.map((g) => String(g.name ?? '').trim()).filter((n) => n.length > 0)),
+      // ★ 第1267便: 「読んだ内容をそのままお返しします」はこちら側の言い方 → 起きることだけを言う
+      detail: untouched + '名は、駅ちかにだけ登録がある方です。その方の出勤には触っていません',
     });
   }
 

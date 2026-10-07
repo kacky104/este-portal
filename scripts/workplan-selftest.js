@@ -268,5 +268,52 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
   eq('⑬ ★ 自動は差分が大きすぎて止まる', auto.blockers.map(b=>b.kind).includes('change_too_large'), true);
 }
 
+// 14) ★ 第1267便: お知らせに「誰のことか」を添える・「送らない」の方を「駅ちかにだけ登録がある方」に数えない
+//     きっかけ: ラビリンス様から「1名は…と出るが意味が分からない」（2026-10-07）。
+{
+  const nameOf = new Map([[1,'あい'],[2,'いく'],[3,'うた'],[77,'ななな']]);
+  const sh = (id) => ({therapistId:id, dateISO:'2026-08-28', active:true, start:'20:00', end:'03:00'});
+  const note = (pl, kind, idx = 0) => pl.notes.filter(n=>n.kind===kind)[idx];
+
+  // フクエス側の名前（nameOf）を渡さなければ、フクエスの方の names は付かない。
+  // ★ 「駅ちかにだけ登録がある方」の名前は駅ちかの出勤表から分かるので、nameOf が無くても付く。
+  const p0 = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), sh(77)], castIdOf});
+  eq('⑭ nameOf を渡さなければ、フクエスの方の names は付かない', p0.notes.filter(n => n.kind !== 'unknown_girl').every(n => n.names === undefined), true);
+  eq('⑭ ★ 駅ちかにだけ登録がある方は、駅ちかの出勤表の名前を添える', note(p0,'unknown_girl').names, ['駅ちかだけ']);
+  eq('⑭ ★ 駅ちかにだけ登録がある方の文', note(p0,'unknown_girl').detail, '1名は、駅ちかにだけ登録がある方です。その方の出勤には触っていません');
+
+  // 連携していない方（77）・駅ちかの出勤表に出ていない方（3 → castId 333 は page に居ない）
+  const cast2 = new Map([[1,'111'],[2,'222'],[3,'333']]);
+  const p1 = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), sh(77)], castIdOf: cast2, nameOf});
+  eq('⑭ ★ 連携していない方の名前', note(p1,'unmapped_therapist',0).names, ['ななな']);
+  eq('⑭ ★ 連携していない方の文は変えていない', note(p1,'unmapped_therapist',0).detail.startsWith('1名は駅ちかと連携していないため更新できません'), true);
+  eq('⑭ ★★ 出勤表に出ていない方の名前（castId から逆に引く）', note(p1,'unmapped_therapist',1).names, ['うた']);
+  eq('⑭ ★ 出勤表に出ていない方の文', note(p1,'unmapped_therapist',1).detail, '1名は、いま駅ちかの出勤表に出ていないため更新できません');
+  eq('⑭ ★★★ 名前は detail に混ぜない（監査ログの材料に流さない）', p1.notes.some(n => /ななな|うた|駅ちかだけ/.test(n.detail)), false);
+  eq('⑭ ★★★ 監査ログの要約にも名前が出ない', /ななな|うた|駅ちかだけ/.test(JSON.stringify(wp.summarizePlan(p1))), false);
+
+  // 入力が無い日の文
+  eq('⑭ ★★ 「出勤を入れていない日（◯件）」と先に言う', note(p1,'missing_row_as_rest').detail,
+    '出勤を入れていない日（' + note(p1,'missing_row_as_rest').count + '件）は、駅ちかでは「お休み」として出しています（出勤を入れた日は、そのまま出ています）');
+  // ★ 2人×7日＝14マスのうち、入力があるのは1マス（therapist 1 の 8/28）→ 13件
+  eq('⑭ 件数は今までどおり（2人×7日−1）', note(p1,'missing_row_as_rest').count, 13);
+
+  // 「送らない」にしている方（2）: 呼ぶ側が castIdOf から外す → skipCastIds を渡すと「駅ちかにだけ」に数えない
+  const castOff = new Map([[1,'111']]);
+  const without = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1)], castIdOf: castOff, nameOf});
+  eq('⑭ skipCastIds を渡さないと2名に数える（今までの数え方）', note(without,'unknown_girl').count, 2);
+  const withSkip = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1)], castIdOf: castOff, nameOf, skipCastIds: new Set(['222'])});
+  eq('⑭ ★★★ skipCastIds の方は「駅ちかにだけ登録がある方」に数えない', [note(withSkip,'unknown_girl').count, note(withSkip,'unknown_girl').names], [1, ['駅ちかだけ']]);
+  eq('⑭ ★★★ 送る内容は変わらない（その方は読んだまま返す）', JSON.stringify(withSkip.sent), JSON.stringify(without.sent));
+  eq('⑭ ★ 変更の件数も変わらない', withSkip.changes.length, without.changes.length);
+  // 駅ちかにだけ居る方が「送らない」の方だけなら、そのお知らせ自体を出さない
+  const pageOnly2 = mkPage([
+    {girlId:'111', name:'あ', days: days(false,'00:00','00:00')},
+    {girlId:'222', name:'い', days: days(false,'00:00','00:00')},
+  ], labels);
+  const onlyOff = wp.buildWorkPlan({page: pageOnly2, todayISO: today, shifts: [sh(1)], castIdOf: castOff, nameOf, skipCastIds: new Set(['222'])});
+  eq('⑭ ★ 残りが0名なら「駅ちかにだけ登録がある方」を出さない', onlyOff.notes.some(n=>n.kind==='unknown_girl'), false);
+}
+
 console.log(fail === 0 ? '\n★ 全部通った' : '\n★ 失敗 ' + fail + '件');
 process.exit(fail === 0 ? 0 : 1);

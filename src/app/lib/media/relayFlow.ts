@@ -1974,7 +1974,8 @@ async function planWork(
   //   ★ この2つは対（つい）。★ 片方だけ直さないこと。
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
-    .select('id, import_cast_id')
+    // ★ 第1267便: 名前も読む（お知らせに「誰のことか」を出すためだけ）
+    .select('id, name, import_cast_id')
     .eq('salon_id', params.salonId);
   if (thErr) {
     return {
@@ -1988,7 +1989,9 @@ async function planWork(
     };
   }
 
-  const rows = (therapists ?? []) as Array<{ id: number; import_cast_id?: string | null }>;
+  const rows = (therapists ?? []) as Array<{ id: number; name?: string | null; import_cast_id?: string | null }>;
+  const nameOf = new Map<number, string>();
+  for (const t of rows) nameOf.set(Number(t.id), String(t.name ?? ''));
   const { maps, error: castErr } = await loadCastIds(supabase, {
     therapists: rows,
     provider: params.provider,
@@ -2025,6 +2028,9 @@ async function planWork(
       note: '送り先サイトを読めなかった: ' + conecfOff.error,
     };
   }
+  // ★ 第1267便: 「送らない」にしている方の castId を控えてから外す（「駅ちかにだけ登録がある方」に数えないため）
+  const offCastIds = new Set<string>();
+  for (const tid of conecfOff.off) { const c = castIdOf.get(tid); if (c) offCastIds.add(c); }
   for (const tid of conecfOff.off) castIdOf.delete(tid);
 
   const ids = rows.map((t) => t.id);
@@ -2059,11 +2065,15 @@ async function planWork(
     end: typeof r['end_time'] === 'string' ? r['end_time'].slice(0, 5) : null,
   }));
 
-  const plan = buildWorkPlan({ page, todayISO, shifts, castIdOf, unattended });
+  const plan = buildWorkPlan({ page, todayISO, shifts, castIdOf, unattended, nameOf, skipCastIds: offCastIds });
   if (conecfOff.off.size > 0) {
+    // ★ 第1267便: 種類を分けた（'target_off'＝店舗様が決めたこと。「送れていない方」とは別に出す）＋ 誰のことかを添える
+    const offNames = [...conecfOff.off].map((tid) => (nameOf.get(tid) ?? '').trim()).filter((n) => n.length > 0);
     plan.notes.push({
-      kind: 'unmapped_therapist',
-      detail: conecfOff.off.size + '名は送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）',
+      kind: 'target_off',
+      count: conecfOff.off.size,
+      ...(offNames.length > 0 ? { names: offNames } : {}),
+      detail: conecfOff.off.size + '名は、送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）',
     });
   }
   const s = summarizePlan(plan);

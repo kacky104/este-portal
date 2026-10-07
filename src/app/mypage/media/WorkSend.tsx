@@ -16,6 +16,7 @@ import {
 import { bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { siteMark } from '@/lib/mediaSites';
 import { AUTO_PUSH_INTERVAL_MIN } from '@/lib/mediaLinkMode';
+import { splitWorkNotes, workNoteNames } from '@/lib/workSendNotes';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -584,7 +585,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {/* ★ 自動更新中の枠。★ 第210便の文言のまま（周期は AUTO_PUSH_INTERVAL_MIN から出す） */}
                 {s.autoOn && (
                   <p className="text-[13px] text-slate-400 leading-relaxed">
-                    {AUTO_PUSH_INTERVAL_MIN}分以内に{s.label}を更新します。更新できないときは止めて、ここに出します。
+                    {AUTO_PUSH_INTERVAL_MIN}分以内に{s.label}を更新します。更新できないときは止めて、赤い枠でここに出します。
                   </p>
                 )}
 
@@ -631,15 +632,54 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   </ul>
                 )}
 
-                {plan && plan.notes.length > 0 && (
-                  <ul className="space-y-1.5">
-                    {plan.notes.map((n, i) => (
-                      <li key={`n-${i}`} className="text-[14px] text-slate-500 bg-slate-50 px-3 py-2 leading-relaxed">
+                {/* ★★★ 第1267便（2026-10-07・カッキーさん）: お知らせ（notes）を2つに分けた。
+                    ★ きっかけ: ラビリンス様から「自動更新したら4行ぐらい出たが、意味が分からない。66件は休みと扱ったとは？」。
+                      4行とも【止めた理由ではない】のに、すぐ上の「更新できないときは…ここに出します」の下に同じ並びで出ていて、
+                      エラーに読めた。しかも「◯名」が誰のことか分からなかった。
+                    ★ 分け方（lib/workSendNotes.ts の splitWorkNotes）:
+                      ・その方の出勤が【送れていない】もの … 見える所に、名前を添えて出す（店舗様が直せる・気づける所）
+                      ・更新の内容についてのお知らせ       … 畳む（読みたい人だけ開く）。「止めた理由ではない」と先に言う
+                    ★ 止めた理由（blockers・赤い枠）は今までどおり上に出る。★ 文そのものは lib/workPlan.ts。 */}
+                {plan && (() => {
+                  const { unsent, info } = splitWorkNotes(plan.notes);
+                  const line = (n: WorkPlanView['notes'][number]) => {
+                    const names = workNoteNames(n);
+                    return (
+                      <>
                         {n.detail}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                        {names && <span className="block mt-0.5 text-[13px] font-bold">{names}</span>}
+                      </>
+                    );
+                  };
+                  return (
+                    <>
+                      {unsent.length > 0 && (
+                        <div className="border border-amber-200 bg-amber-50 px-3 py-2 space-y-1.5">
+                          <p className="text-[13px] font-bold text-amber-900">
+                            出勤を送れていない方がいます（ほかの方の出勤は更新しています）
+                          </p>
+                          <ul className="space-y-1.5">
+                            {unsent.map((n, i) => (
+                              <li key={`u-${i}`} className="text-[14px] text-amber-900/90 leading-relaxed">{line(n)}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {info.length > 0 && (
+                        <details className="border border-slate-200 bg-slate-50 px-3 py-2">
+                          <summary className="cursor-pointer text-[13px] font-bold text-slate-500">
+                            更新の内容について（{info.length}件・止めた理由ではありません）
+                          </summary>
+                          <ul className="mt-2 space-y-1.5">
+                            {info.map((n, i) => (
+                              <li key={`n-${i}`} className="text-[14px] text-slate-500 leading-relaxed">{line(n)}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </>
+                  );
+                })()}
 
                 {/* ★★★ 第393便: 差分があるときだけ出る一段。★ ここが「更新して自動にする」を押す場面。
                     ★ 表は畳んでおく。★ 読みたい人だけ開く（★ 選ばせないので、ふだんは読む必要がない）。 */}

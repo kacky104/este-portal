@@ -566,7 +566,8 @@ export type WorkPlanView = {
   fingerprint: string;
   diff: Array<{ girlId: string; name: string; dayIndex: number; before: string; after: string }>;
   blockers: Array<{ kind: string; detail: string; count?: number }>;
-  notes: Array<{ kind: string; detail: string; count?: number }>;
+  /** ★ 第1267便: names＝「◯名」が誰のことか（分かる分だけ・画面に出すためだけ） */
+  notes: Array<{ kind: string; detail: string; count?: number; names?: string[] }>;
 };
 
 export async function getMediaWorkPlan(input: {
