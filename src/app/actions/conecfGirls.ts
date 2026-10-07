@@ -17,6 +17,7 @@ import { isSavableTarget } from '@/lib/conecfTargets';
 import { therapistNameDupMessage } from '@/lib/therapistNameDup';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
+import { splitSavableTherapistPhotos } from '@/lib/storageOwnPath';
 import {
   normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
 } from '@/lib/conecfSiteFields';
@@ -237,9 +238,24 @@ export async function saveConecfGirlImages(input: { id: number; images: string[]
   const { svc, salonId } = r.data;
   const t = await ownTherapist(svc, salonId, Number(input.id));
   if (!t) return { ok: false, error: 'この女性は見つかりません' };
-  const images = (Array.isArray(input.images) ? input.images : [])
+  const given = (Array.isArray(input.images) ? input.images : [])
     .filter((u): u is string => typeof u === 'string' && /^https:\/\//.test(u))
     .slice(0, CONECF_MAX_IMAGES);
+  // ★★★ 第1285便: 新しく入れる写真は、フクエスの保管庫にある【この方自身の】写真だけ受け付ける。
+  //   ★ それまでは https なら何でも通った。他店の写真の URL を入れられた（＝他店の写真を自店の写真として出せた。
+  //     さらに、その方を削除すると他店のファイルが消えた ― そちらは lib/therapistDelete.ts でも塞いだ）。
+  //   ★ いますでに入っている URL はそのまま通す（昔の取り込みで外部の URL が入っている方の写真を、保存のたびに消さない）。
+  //   ★ 黙って落とさない。断って理由を返す（保存したのに写真が消えた、を作らない）。
+  const current = [
+    ...(Array.isArray(t.profile_images) ? (t.profile_images as unknown[]).filter((x): x is string => typeof x === 'string') : []),
+    ...(typeof t.profile_image_url === 'string' ? [t.profile_image_url] : []),
+  ];
+  const split = splitSavableTherapistPhotos(given, current, Number(t.id), process.env.NEXT_PUBLIC_SUPABASE_URL ?? '');
+  if (split.rejected.length > 0) {
+    console.error('[conecf] 受け付けない写真の URL が来た', salonId, Number(t.id), split.rejected.length);
+    return { ok: false, error: 'この写真は保存できません。画面から写真を選び直してください（この方の写真として上げたものだけ使えます）' };
+  }
+  const images = split.ok;
   const { error } = await svc
     .from('therapists')
     .update({ profile_image_url: images[0] ?? null, profile_images: images })

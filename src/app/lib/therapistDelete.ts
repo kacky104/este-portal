@@ -10,6 +10,7 @@
 //     ・app/lib/conecf/girlDeleteFinish.ts … 店舗様が押した削除（権限を確かめて積んだ流れ）の続きとして呼ぶ
 
 import type { createServiceClient } from '@/app/lib/supabase/service';
+import { isOwnTherapistPhotoPath, isOwnDiaryImagePath } from '@/lib/storageOwnPath';
 
 type Svc = ReturnType<typeof createServiceClient>;
 
@@ -83,7 +84,11 @@ export async function deleteTherapistCore(
     (t.profile_image_url as string | null) ?? null,
   ]
     .map((u) => bucketPathFromPublicUrl(u, THERAPIST_BUCKET))
-    .filter((p): p is string => !!p);
+    // ★★★ 第1285便: 消すのは【このセラピスト自身のファイル】だけ（名前が「番号-」で始まるもの）。
+    //   ★ ここは運営の権限（service_role）で消す。URL に他店の写真が入っていたら、そのまま他店のファイルを消していた。
+    //     写真の URL は店舗様が保存できるので、「他店の写真を自店の方に入れる → その方を削除する」で他店のファイルを消せた。
+    //   ★ 決まりは src/lib/storageOwnPath.ts。入れ替えのときの掃除（cleanupTherapistPhotos）と同じ絞り方。
+    .filter((p): p is string => !!p && isOwnTherapistPhotoPath(p, String(t.id)));
   if (profilePaths.length > 0) {
     const { error: rmErr } = await svc.storage
       .from(THERAPIST_BUCKET)
@@ -94,7 +99,8 @@ export async function deleteTherapistCore(
   const diaryPaths = (diaries ?? [])
     .flatMap((d) => (Array.isArray(d.images) ? (d.images as string[]) : []))
     .map((u) => bucketPathFromPublicUrl(u, DIARY_BUCKET))
-    .filter((p): p is string => !!p);
+    // ★ 第1285便: 写メ日記の写真も同じ（フォルダが「番号/」のものだけ）
+    .filter((p): p is string => !!p && isOwnDiaryImagePath(p, String(t.id)));
   if (diaryPaths.length > 0) {
     const { error: rmErr } = await svc.storage
       .from(DIARY_BUCKET)

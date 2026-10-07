@@ -50,6 +50,7 @@
     "check:workflowcookie": "tsc src/lib/relayFlow.ts src/lib/mediaAudit.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workflowcookie-selftest.js",
     "check:workproblem": "tsc src/lib/workProblem.ts src/lib/loginBackoff.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workproblem-selftest.js",
     "check:relayretry": "tsc src/lib/relayRetry.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/relayretry-selftest.js",
+    "check:storageownpath": "tsc src/lib/storageOwnPath.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/storageownpath-selftest.js",
     "check:girldeletefinish": "tsc src/lib/girlDeleteFinish.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/girldeletefinish-selftest.js",
     "check:worksendnotes": "tsc src/lib/workSendNotes.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/worksendnotes-selftest.js",
     "check:diarystall": "tsc src/lib/diaryStall.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/diarystall-selftest.js",
