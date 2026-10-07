@@ -76,5 +76,16 @@ eq('★★ 名指しで押したのに送る設定が無い: 理由を言う（�
    P.sitePushToast([offEs], { explicit: true }), 'エステ魂へは更新を送っていません：' + none.error);
 eq('名指し・受け付けた', P.sitePushToast([sentEk], { explicit: true }), '駅ちかへの更新を受け付けました。結果は「更新結果」に出ます');
 
+console.log('\n── 4. ★★★ 順番待ちで受け付けた（第1296便） ──');
+eq('★★ 順番待ちでも「受け付けた」に数える（waiting は順番待ちの枠だけ）',
+   P.summarizeSlotPushes('駅ちか', [{ slot: 1, state: 'queued', waiting: true }, { slot: 2, state: 'queued' }]),
+   { ok: true, queued: ['駅ちか', '駅ちか（枠2）'], notes: [], waiting: ['駅ちか'] });
+eq('★ 順番待ちが無ければ、waiting の項目ごと無い（今までと同じ形）',
+   Object.keys(P.summarizeSlotPushes('駅ちか', [{ slot: 1, state: 'queued' }])), ['ok', 'queued', 'notes']);
+eq('★★★ お知らせに「終わりしだい順番に始めます」を足す（断っていない）',
+   P.sitePushToast([{ ...sentEk, waiting: ['駅ちか'] }, sentEs]),
+   '駅ちか・エステ魂への更新を受け付けました。結果は「更新結果」に出ます　／　駅ちかは別の更新が動いているため、終わりしだい順番に始めます（15分たっても始まらないときは取りやめて「更新結果」に出します）');
+eq('★ 順番待ちが無いときの文は、今までと一字も変わらない', P.sitePushToast([{ ...sentEk, waiting: [] }, sentEs]), P.sitePushToast([sentEk, sentEs]));
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

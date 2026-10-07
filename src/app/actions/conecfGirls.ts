@@ -490,8 +490,14 @@ export async function getConecfGirlDeleteInfo(input: { id: number }): Promise<Re
  *   ★ 依頼を1つも積まないとき（サイトからは消さない・連携が無い・自動で消せるサイトが無い）は、今までどおりすぐ消す。
  *
  * @returns pending … true なら、本人はまだ消していない（各サイトで確かめ終わったら消える）
+ * @returns waiting … 依頼を受け付けたサイトのうち、前の更新が動いていて順番待ちのサイト（第1296便）
+ *
+ * ★★★ 第1296便（2026-10-08）: 各サイトへの依頼は、前の更新が動いていても【順番待ち】で受け付ける。
+ *   これまで … 出勤の自動更新などと重なると「別の更新が動いています。少し待ってから、もう一度「削除」を押してください」で断っていた。
+ *   これから … 断らずに受け付け、前の更新が終わったら自動で始める。15分たっても始まらなければ取りやめて「更新結果」に出す
+ *             （その方は非公開のまま一覧に残る＝もう一度「削除」を押せる）。
  */
-export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }): Promise<Result<{ salonId: number; name: string; queued: string[]; manual: string[]; pending: boolean }>> {
+export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }): Promise<Result<{ salonId: number; name: string; queued: string[]; manual: string[]; pending: boolean; waiting: string[] }>> {
   const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId } = r.data;
@@ -501,6 +507,7 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
 
   const queued: string[] = [];
   const manual: string[] = [];
+  const waiting: string[] = [];
   if (input.alsoSites === true) {
     const { data: legacy } = await svc.from('therapists').select('import_cast_id').eq('id', Number(t.id)).maybeSingle();
     const sites = await linkedSites(svc, salonId, Number(t.id), (legacy?.import_cast_id as string | null) ?? null);
@@ -523,8 +530,8 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
         let f;
         try {
           f = site.auto === 'delete'
-            ? await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'girl_delete', actor: 'conecf:girl-delete', girlDelete: { castId: site.castId }, deleteAfter })
-            : await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'cast_hide', actor: 'conecf:girl-delete', castHide: { castId: site.castId }, deleteAfter });
+            ? await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'girl_delete', actor: 'conecf:girl-delete', girlDelete: { castId: site.castId }, deleteAfter, whenBusy: 'wait' })
+            : await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'cast_hide', actor: 'conecf:girl-delete', castHide: { castId: site.castId }, deleteAfter, whenBusy: 'wait' });
         } catch (e) {
           console.error('[conecf] 退店のサイト依頼を積めなかった', (e as Error).message);
           f = { ok: false as const, note: '開始できませんでした' };
@@ -538,14 +545,15 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
             + (queued.length > 0 ? queued.join('・') + 'には依頼済みです。' : '') + '少し待ってから、もう一度「削除」を押してください' };
         }
         queued.push(site.label + (site.auto === 'delete' ? '（削除）' : '（非表示）'));
+        if ('waiting' in f && f.waiting === true) waiting.push(site.label);   // ★ 第1296便
       }
       // ③ は、各サイトで消えたことを確かめ終わったところで（app/lib/conecf/girlDeleteFinish.ts）
-      return { ok: true, data: { salonId, name, queued, manual, pending: true } };
+      return { ok: true, data: { salonId, name, queued, manual, pending: true, waiting } };
     }
   }
 
   // ★ 依頼を1つも積まない（サイトからは消さない・連携が無い・自動で消せるサイトが無い）＝今までどおり、すぐ消す
   const res = await deleteTherapistWithCleanup({ therapistId: String(t.id), salonId, via: 'conecf' });   // ★ 第1291便: コネックエフからの削除の印
   if (!res.ok) return { ok: false, error: res.error };
-  return { ok: true, data: { salonId, name, queued, manual, pending: false } };
+  return { ok: true, data: { salonId, name, queued, manual, pending: false, waiting } };
 }

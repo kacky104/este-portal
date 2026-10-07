@@ -25,6 +25,7 @@ import {
 } from '@/lib/relayJob';
 import type { RelayMultipart } from '@/lib/relayMultipart';
 import { noResponseAction, reLeaseAction, isStuckSweepMinute } from '@/lib/relayRetry';
+import { WAIT_STATUS, WAIT_SETTLE_SECONDS, WAIT_SCAN_LIMIT, enqueueDecision, planWaiting, type WaitingRow } from '@/lib/relayWait';
 
 /** 何回まで投げ直すか。★ 相手のアカウントが凍る形の事故を避けるため、少なくしてある（§17-1）。 */
 export const MAX_ATTEMPTS = 3;
@@ -131,6 +132,12 @@ type JobRow = {
  * ★ 同じ (salon_id, provider, slot) で走っているジョブがあると、
  *   部分ユニーク索引に弾かれる。これは異常ではなく【順序を守れている】ということなので、
  *   例外にせず 'busy' を返す。
+ *
+ * ★★★ 第1296便: whenBusy: 'wait' を渡すと、断らずに【順番待ち】（status='waiting'）で入れる。
+ *   ★ 順番待ちの行は、走っているジョブを1件に限る索引に数えない。引き取りのついでに、枠が空いたら繰り上げる（promoteWaitingRelayJobs）。
+ *   ★ 待てるのは同じ店・サイト・枠で3件まで・15分まで（lib/relayWait.ts）。超えたら今までどおり 'busy'。
+ *   ★ 入れるのは【流れの最初の段】（ログイン。文脈に Cookie がまだ無い）だけにすること。途中の段を待たせない。
+ *   ★ SQL（追加SQL_第1296便）が未適用だと 'waiting' は check 制約に弾かれる → 今までどおり 'busy' を返す。
  */
 export async function enqueueRelayJob(params: {
   salonId: number;
@@ -151,7 +158,9 @@ export async function enqueueRelayJob(params: {
   multipart?: RelayMultipart;
   /** ★ 第1247便: この時刻（ISO）まで中継は引き取らない（店舗ごとの時刻のずらし）。省略＝すぐ */
   notBefore?: string | null;
-}): Promise<{ ok: true; jobId: string } | { ok: false; reason: 'busy'; detail: string }> {
+  /** ★ 第1296便: 走っているジョブがあるとき、断らずに順番待ちで入れる。省略＝今までどおり断る */
+  whenBusy?: 'wait';
+}): Promise<{ ok: true; jobId: string; waiting?: boolean } | { ok: false; reason: 'busy'; detail: string }> {
   // ★ 積む前に検査する。DBに入ってから弾くのでは、消し忘れた行が残る
   const request = buildRelayRequest({
     method: params.method,
@@ -164,33 +173,151 @@ export async function enqueueRelayJob(params: {
   const supabase = createServiceClient();
   const jobId = crypto.randomUUID();
 
-  const { error } = await supabase.from('media_relay_jobs').insert({
+  const row = (status: string) => ({
     id: jobId,
     salon_id: params.salonId,
     provider: params.provider,
     slot: params.slot,
     purpose: params.purpose,
-    status: 'queued',
+    status,
     request_enc: sealRequest(request, jobId),
     ...(params.context === undefined ? {} : { context_enc: sealContext(params.context, jobId) }),
     // ★ 第1247便: 付けないときは列に触れない（列が無い＝SQL 未適用でも今までどおり積める）
     ...(params.notBefore ? { not_before: params.notBefore } : {}),
   });
+  const busy = {
+    ok: false as const,
+    reason: 'busy' as const,
+    detail:
+      '同じ店舗・媒体・枠で走っているジョブがあるため積まなかった' +
+      '（read→変更→write→再read の順序を守るための仕掛け。異常ではない）',
+  };
 
-  if (error) {
-    // 23505 = unique_violation（media_relay_jobs_one_active）
-    if (error.code === '23505') {
-      return {
-        ok: false,
-        reason: 'busy',
-        detail:
-          '同じ店舗・媒体・枠で走っているジョブがあるため積まなかった' +
-          '（read→変更→write→再read の順序を守るための仕掛け。異常ではない）',
-      };
-    }
-    throw new Error('ジョブを積めなかった: ' + error.message);
+  // ★★★ 第1296便: 順番待ちを頼まれたときだけ、先に待っている件数を見る（押した順を守る・3件まで）。
+  //   ★ 頼まれていない流れ（自動の周・読み取り）は、ここで DB を読まない＝今までと同じ動き。
+  //   ★ 読めなかったときは 0 件として進む（数えられないことを理由に、操作を断らない）。
+  const wantWait = params.whenBusy === 'wait';
+  let waitingCount = 0;
+  if (wantWait) {
+    const { count, error: wErr } = await supabase
+      .from('media_relay_jobs')
+      .select('id', { count: 'exact', head: true })
+      .eq('salon_id', params.salonId)
+      .eq('provider', params.provider)
+      .eq('slot', params.slot)
+      .eq('status', WAIT_STATUS);
+    if (wErr) console.error('[relay] 順番待ちの件数を読めなかった（0件として進む）', wErr.message);
+    else waitingCount = count ?? 0;
   }
-  return { ok: true, jobId };
+
+  let decision = enqueueDecision({ wantWait, slotBusy: false, waitingCount });
+  if (decision === 'queue') {
+    const { error } = await supabase.from('media_relay_jobs').insert(row('queued'));
+    if (!error) return { ok: true, jobId };
+    // 23505 = unique_violation（media_relay_jobs_one_active）
+    if (error.code !== '23505') throw new Error('ジョブを積めなかった: ' + error.message);
+    decision = enqueueDecision({ wantWait, slotBusy: true, waitingCount });
+  }
+  if (decision === 'wait') {
+    // ★ 同じ id で入れ直してよい（上の insert は入っていない）。暗号文は id に紐づいているので、id を変えない
+    const { error } = await supabase.from('media_relay_jobs').insert(row(WAIT_STATUS));
+    if (!error) return { ok: true, jobId, waiting: true };
+    // 23514 = check_violation（追加SQL_第1296便が未適用）。★ 今までどおり断る。ほかの失敗も、操作を落とさず断る側に倒す（黙らない）
+    if (error.code === '23514') console.error('[relay] status に waiting を入れられない（追加SQL_第1296便を実行してください）。今までどおり断る');
+    else console.error('[relay] 順番待ちで入れられなかった（今までどおり断る）', error.code, error.message);
+  }
+  return busy;
+}
+
+/**
+ * ★★★ 第1296便: 順番待ちの行を片づける。引き取り（leaseRelayJob）のついでに毎回呼ぶ。
+ *   1. 15分を過ぎたものは、始めずに取りやめる（'expired'）→ 記録に残す。
+ *      ★ 繰り上げより先にやる。中継が止まっていた間の操作を、動き出したあとで送らない。
+ *   2. 店・サイト・枠ごとにいちばん古い1件を、枠が空いていれば 'queued' に繰り上げる。
+ *      ★ 「空いているか」の最後の番は DB の索引（media_relay_jobs_one_active）。まだ動いていれば 23505 で弾かれる＝取り合いにならない。
+ *      ★ その前に1回読んで確かめるのは、弾かれるのが分かっている更新を毎回投げないため（と、段と段のすき間を避けるため）。
+ * ★ 相手サイトへは行かない。順番待ちが無いときは、DB への問い合わせが1回増えるだけ。
+ */
+export async function promoteWaitingRelayJobs(): Promise<{ waiting: number; expired: number; promoted: number }> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from('media_relay_jobs')
+    .select('id, salon_id, provider, slot, created_at')
+    .eq('status', WAIT_STATUS)
+    .order('created_at', { ascending: true })
+    .limit(WAIT_SCAN_LIMIT);
+  if (error) throw new Error('順番待ちを読めなかった: ' + error.message);
+  const rows: WaitingRow[] = (data ?? []).map((r) => ({
+    id: String(r.id),
+    salonId: Number(r.salon_id),
+    provider: String(r.provider),
+    slot: Number(r.slot),
+    createdAt: String(r.created_at),
+  }));
+  if (rows.length === 0) return { waiting: 0, expired: 0, promoted: 0 };
+
+  const plan = planWaiting(rows, Date.now());
+  let expired = 0;
+  let promoted = 0;
+
+  for (const r of plan.expire) {
+    const { data: closed, error: exErr } = await supabase
+      .from('media_relay_jobs')
+      .update({
+        status: 'expired',
+        // ★ 平文の秘密を入れない（error 欄の約束）。何が起きたかだけ書く
+        error: '順番待ちのまま上限の時間を過ぎたので、始めずに取りやめた',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', r.id)
+      .eq('status', WAIT_STATUS)   // ★ 読んでから更新までの間に繰り上がっていたら触らない
+      .select('id, context_enc')
+      .maybeSingle();
+    if (exErr) { console.error('[relay] 順番待ちを取りやめられなかった', r.id, exErr.message); continue; }
+    if (!closed) continue;
+    expired++;
+    // ★ 何の操作だったか（文脈）を知っているのは relayFlow。記録はそちらで書く（★ import が動的な理由は completeRelayJob と同じ）
+    try {
+      const { recordWaitExpired } = await import('./relayFlow');
+      await recordWaitExpired({
+        jobId: r.id, salonId: r.salonId, provider: r.provider, slot: r.slot,
+        contextEnc: (closed.context_enc as string | null) ?? null,
+      });
+    } catch (e) {
+      console.error('[relay] 順番待ちの取りやめを記録できなかった', r.id, e instanceof Error ? e.message : 'unknown');
+    }
+  }
+
+  for (const r of plan.promote) {
+    // ★ 走っているジョブがある／直前のジョブが閉じたばかり（次の段を積んでいる最中かもしれない）なら、今回は繰り上げない
+    const settleISO = new Date(Date.now() - WAIT_SETTLE_SECONDS * 1000).toISOString();
+    const { data: active, error: aErr } = await supabase
+      .from('media_relay_jobs')
+      .select('id')
+      .eq('salon_id', r.salonId)
+      .eq('provider', r.provider)
+      .eq('slot', r.slot)
+      .or('status.in.(queued,leased),and(status.eq.done,updated_at.gt.' + settleISO + ')')
+      .limit(1);
+    if (aErr) { console.error('[relay] 順番待ちの前の様子を読めなかった（今回は繰り上げない）', r.id, aErr.message); continue; }
+    if ((active ?? []).length > 0) continue;
+
+    const { data: up, error: upErr } = await supabase
+      .from('media_relay_jobs')
+      .update({ status: 'queued', updated_at: new Date().toISOString() })
+      .eq('id', r.id)
+      .eq('status', WAIT_STATUS)
+      .select('id')
+      .maybeSingle();
+    if (upErr) {
+      // 23505 = 読んでから更新までの間に、別の流れが枠を取った。★ 異常ではない。次の引き取りでもう一度試す
+      if (upErr.code !== '23505') console.error('[relay] 順番待ちを繰り上げられなかった', r.id, upErr.message);
+      continue;
+    }
+    if (up) promoted++;
+  }
+
+  return { waiting: rows.length, expired, promoted };
 }
 
 /**
@@ -214,6 +341,14 @@ export async function leaseRelayJob(
     } catch (e) {
       console.error('[relay] 引き取りのついでの掃除に失敗（引き取りは続ける）', e instanceof Error ? e.message : 'unknown');
     }
+  }
+
+  // ★★★ 第1296便: 順番待ちの片づけ（取りやめ・繰り上げ）。★ 引く前にやる＝繰り上げたジョブを、この引き取りでそのまま渡せる。
+  //   ★ 失敗しても引き取りは止めない（全店・全サイトの送信がここを通る）。
+  try {
+    await promoteWaitingRelayJobs();
+  } catch (e) {
+    console.error('[relay] 順番待ちの片づけに失敗（引き取りは続ける）', e instanceof Error ? e.message : 'unknown');
   }
 
   for (let tries = 0; tries < 8; tries++) {

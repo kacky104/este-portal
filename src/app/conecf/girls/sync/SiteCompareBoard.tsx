@@ -8,6 +8,7 @@ import {
 } from '@/app/actions/mediaCredentials';
 import { listConecfTargetOffs } from '@/app/actions/conecfGirls';
 import { canLink, strengthLabel, type LinkPairs } from '@/lib/mediaLinkPairs';
+import { waitToastNote } from '@/lib/relayWait';
 import { useMediaBrand } from '@/app/mypage/media/mediaBrand';
 import { summarizeCreatePlan } from '@/app/mypage/media/createPlanSummary';
 
@@ -153,7 +154,10 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
     try {
       const res = await startMediaTherapistCreatePush({ salonId, provider: s.provider, slot: s.slot, therapistId: t.id });
       if (!res.ok) { onToast(plainText(res.error)); return; }
-      onToast(`${s.label}へ登録を送りました。結果は「更新結果」に出ます。数分後に「再読み込み」を押すと、この表にも反映されます`);
+      // ★ 第1296便: 前の更新が動いているときは順番待ち（断らない）。「送りました」と言い切らない
+      onToast(res.data.waiting
+        ? `${s.label}への登録を受け付けました。${waitToastNote([s.label])}。結果は「更新結果」に出ます`
+        : `${s.label}へ登録を送りました。結果は「更新結果」に出ます。数分後に「再読み込み」を押すと、この表にも反映されます`);
       setOpen(null); setPreview(null);
     } finally { setBusy(''); }
   };

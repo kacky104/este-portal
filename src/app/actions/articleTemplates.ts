@@ -27,6 +27,7 @@ import {
   articleSlotAutoNote,
 } from '@/lib/articleRotation';
 import { dayKeyJST } from '@/lib/announceAuto';
+import { isWaitAuditReason } from '@/lib/relayWait';
 import { normalizeArticlePhotoIds, ARTICLE_PHOTO_MAX } from '@/lib/articlePhotoPick';
 
 // 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05 → ★ 第373便で写真を【店舗に1つの箱】へ・2026-09-15）。
@@ -288,6 +289,9 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
     const all = await listMediaAudit({ salonId, limit: 120, provider: PROVIDER, slot: mediaSlot });
     runs = all
       .filter((r) => ARTICLE_EVENTS.has(r.event))
+      // ★ 第1296便: 順番待ちの記録（セラピストの削除・プロフィール更新・新規登録）は新着情報の話ではないので出さない
+      //   （種類は flow_stalled のまま足している。ここで外さないと、関係のない行が混ざり、押したあとの待ちも早く切れる）
+      .filter((r) => !(r.event === 'flow_stalled' && isWaitAuditReason(r.detail?.['reason'])))
       // ★★★ 第164便: ここに第149便の物差しを通していなかった。
       //   ★ たたむはずの busy が店舗様の画面に出ていた（2026-09-05 実測）。
       //   ★★ 出す・出さないの判断は mediaAudit の1か所だけ。★ ここで判定し直さない

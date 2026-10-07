@@ -10,6 +10,7 @@ import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { providerLabel } from '@/lib/mediaAudit';
 import { targetOffMessage } from '@/lib/conecfTargets';
 import { conecfPushSlots, pushSlotLabel, sitePushNotReadyMessage, summarizeSlotPushes, type SlotPush } from '@/lib/conecfSitePush';
+import { waitToastNote } from '@/lib/relayWait';
 
 /** ★★ 第428便: 「消さずに更新」のときは消す手を外す（★ 既定は外す＝押す前に確認していない呼び出しでは消さない） */
 function keepRemoves(photos: PhotoSyncOp[], allowRemove: boolean | undefined): PhotoSyncOp[] {
@@ -44,7 +45,8 @@ async function resolve() {
 
 /** ★ 1人の更新の結果。off＝その店はそのサイトへ送っていない／この方は「送り先サイト」で送らない設定（＝失敗ではない） */
 export type ConecfPushResult =
-  | { ok: true; data: { flowId: string; queued: string[]; notes: string[] } }
+  // ★ 第1296便: waiting … 受け付けた枠のうち、前の更新が動いていて順番待ちの枠（★ 無ければ項目ごと無い）
+  | { ok: true; data: { flowId: string; queued: string[]; notes: string[]; waiting?: string[] } }
   | { ok: false; error: string; off?: boolean };
 
 type Svc = ReturnType<typeof createServiceClient>;
@@ -64,6 +66,8 @@ function isTargetOff(error: string, site: string, slot: number): boolean {
   return error === targetOffMessage(pushSlotLabel(site, slot));
 }
 
+// ★ 第1296便: 更新（apply）は、前の更新が動いていても順番待ちで受け付ける（startRelayFlow の whenBusy: 'wait'）。
+//   この文が出るのは、順番待ちが3件たまっているとき・確かめるだけ（試し打ち）のとき・SQL が未適用のとき。
 const BUSY_NOTE = (site: string) => `いま${site}で別の更新が動いています。少し待ってからお試しください`;
 
 export async function startConecfEkichikaEdit(input: { id: number; apply: boolean; allowRemove?: boolean }): Promise<ConecfPushResult> {
@@ -88,9 +92,11 @@ export async function startConecfEkichikaEdit(input: { id: number; apply: boolea
           castId: built.data.castId, name: built.data.name, values: built.data.values, apply: input.apply === true,
           therapistId: built.data.therapistId, photos: keepRemoves(built.data.photos, input.allowRemove), photoSkipped: built.data.photoSkipped,
         },
+        // ★ 第1296便: 送るとき（apply）だけ順番待ちにする。確かめるだけ（試し打ち）は画面で結果を待つので、今までどおり断る
+        ...(input.apply === true ? { whenBusy: 'wait' as const } : {}),
       });
       if (!f.ok) { results.push({ slot, state: 'failed', note: f.reason === 'busy' ? BUSY_NOTE(site) : f.note }); continue; }
-      results.push({ slot, state: 'queued' });
+      results.push({ slot, state: 'queued', ...(f.waiting === true ? { waiting: true } : {}) });
       if (!flowId) flowId = f.flowId;
     } catch (e) {
       console.error('[conecf] 駅ちかへの反映を始められなかった', slot, (e as Error).message);
@@ -99,7 +105,7 @@ export async function startConecfEkichikaEdit(input: { id: number; apply: boolea
   }
   const sum = summarizeSlotPushes(site, results);
   if (!sum.ok) return { ok: false, error: sum.error, off: sum.off };
-  return { ok: true, data: { flowId, queued: sum.queued, notes: sum.notes } };
+  return { ok: true, data: { flowId, queued: sum.queued, notes: sum.notes, ...(sum.waiting ? { waiting: sum.waiting } : {}) } };
 }
 
 export type EkichikaEditStatus =
@@ -185,9 +191,12 @@ export async function startConecfEkichikaBulkEdit(input: { ids: number[]; allowR
           castId: first.castId, name: first.name, values: first.values, apply: true,
           therapistId: first.therapistId, photos: first.photos, photoSkipped: first.photoSkipped, queue: rest,
         },
+        whenBusy: 'wait',   // ★ 第1296便: 前の更新が動いていても、順番待ちで受け付ける
       });
       if (!f.ok) { notes.push((many ? pushSlotLabel(site, slot) + '：' : '') + (f.reason === 'busy' ? BUSY_NOTE(site) : f.note)); continue; }
       for (const it of items) queuedIds.add(it.therapistId);
+      // ★ 第1296便: 順番待ちで受け付けたことを、お知らせの下の注記に出す（受け付けた人数には数える）
+      if (f.waiting === true) notes.push(waitToastNote([pushSlotLabel(site, slot)]));
     } catch (e) {
       console.error('[conecf] まとめて更新を始められなかった', slot, (e as Error).message);
       notes.push((many ? pushSlotLabel(site, slot) + '：' : '') + '更新を開始できませんでした。時間をおいてお試しください');
@@ -244,9 +253,11 @@ export async function startConecfEsutamaEdit(input: { id: number; apply: boolean
         actor: 'shop:' + r.userId,
         castEdit: { castId: built.data.castId, name: built.data.name, values: built.data.values, apply: input.apply === true, therapistId: built.data.therapistId,
           photos: { ...built.data.photos, allowRemove: input.allowRemove === true } },
+        // ★ 第1296便: 送るとき（apply）だけ順番待ちにする（駅ちかと同じ）
+        ...(input.apply === true ? { whenBusy: 'wait' as const } : {}),
       });
       if (!f.ok) { results.push({ slot, state: 'failed', note: f.reason === 'busy' ? BUSY_NOTE(site) : f.note }); continue; }
-      results.push({ slot, state: 'queued' });
+      results.push({ slot, state: 'queued', ...(f.waiting === true ? { waiting: true } : {}) });
       if (!flowId) flowId = f.flowId;
     } catch (e) {
       console.error('[conecf] エステ魂への反映を始められなかった', slot, (e as Error).message);
@@ -255,7 +266,7 @@ export async function startConecfEsutamaEdit(input: { id: number; apply: boolean
   }
   const sum = summarizeSlotPushes(site, results);
   if (!sum.ok) return { ok: false, error: sum.error, off: sum.off };
-  return { ok: true, data: { flowId, queued: sum.queued, notes: sum.notes } };
+  return { ok: true, data: { flowId, queued: sum.queued, notes: sum.notes, ...(sum.waiting ? { waiting: sum.waiting } : {}) } };
 }
 
 export async function startConecfEsutamaBulkEdit(input: { ids: number[]; allowRemove?: boolean }): Promise<BulkResult> {
@@ -289,9 +300,12 @@ export async function startConecfEsutamaBulkEdit(input: { ids: number[]; allowRe
         intent: 'cast_edit',
         actor: 'shop:' + r.userId,
         castEdit: { castId: first.castId, name: first.name, values: first.values, apply: true, therapistId: first.therapistId, photos: first.photos, queue: rest },
+        whenBusy: 'wait',   // ★ 第1296便: 前の更新が動いていても、順番待ちで受け付ける
       });
       if (!f.ok) { notes.push((many ? pushSlotLabel(site, slot) + '：' : '') + (f.reason === 'busy' ? BUSY_NOTE(site) : f.note)); continue; }
       for (const it of items) queuedIds.add(it.therapistId);
+      // ★ 第1296便: 順番待ちで受け付けたことを、お知らせの下の注記に出す（受け付けた人数には数える）
+      if (f.waiting === true) notes.push(waitToastNote([pushSlotLabel(site, slot)]));
     } catch (e) {
       console.error('[conecf] エステ魂へのまとめて更新を始められなかった', slot, (e as Error).message);
       notes.push((many ? pushSlotLabel(site, slot) + '：' : '') + '更新を開始できませんでした。時間をおいてお試しください');

@@ -1180,10 +1180,12 @@ export async function startMediaTherapistCreate(input: {
  *   2) 中継 … 一覧を読んで**同じ名前が居たら作らない**（第232便 §10-2）
  * ★ 結果はその場では返らない（★ 中継が引き取る）。★ 履歴（salon_media_audit・event=create_girl / create_cast）で見る。
  * ★ 消す口は運営だけ（設計メモ §4 A）。★ 画面には「消すときは駅ちかの管理画面から」と書く。
+ * ★★ 第1296便: 同じサイトで前の更新が動いていても、断らずに順番待ちで受け付ける（waiting: true）。
+ *   ★ 二度押しで2件並んでも、2件目は上の 2)（同じ名前が居たら作らない）で止まる。
  */
 export async function startMediaTherapistCreatePush(input: {
   salonId: string | number; provider: string; slot?: number; therapistId: string | number;
-}): Promise<Result<{ jobId: string; note: string; warnings: string[] }>> {
+}): Promise<Result<{ jobId: string; note: string; warnings: string[]; waiting: boolean }>> {
   const therapistId = Number(input.therapistId);
   if (!Number.isFinite(therapistId) || therapistId <= 0) return { ok: false, error: 'セラピストの指定が不正です' };
 
@@ -1194,9 +1196,9 @@ export async function startMediaTherapistCreatePush(input: {
   if (!m.ok) return { ok: false, error: m.error };
 
   try {
-    const r = await startRelayFlow(m.flow);
+    const r = await startRelayFlow({ ...m.flow, whenBusy: 'wait' });
     if (!r.ok) return { ok: false, error: r.note };
-    return { ok: true, data: { jobId: r.jobId, note: r.note, warnings: m.warnings } };
+    return { ok: true, data: { jobId: r.jobId, note: r.note, warnings: m.warnings, waiting: r.waiting === true } };
   } catch (e) {
     // ★ 例外文に秘密が混ざらないよう、こちら側で作った文言だけ返す
     console.error('[media] セラピスト登録を始められなかった', (e as Error).message);

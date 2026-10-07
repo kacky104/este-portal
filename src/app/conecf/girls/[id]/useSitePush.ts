@@ -35,7 +35,8 @@ export function useSitePush(site: PushSite, id: number, enabled: boolean, onToas
     setBusy(false);
     setRemovals(null);
     const o: SitePushOutcome = r.ok
-      ? { site: label, state: 'sent', labels: r.data.queued, notes: r.data.notes }
+      // ★ 第1296便: 順番待ちで受け付けた枠（waiting）も渡す（お知らせに「終わりしだい順番に始めます」を足す）
+      ? { site: label, state: 'sent', labels: r.data.queued, notes: r.data.notes, ...(r.data.waiting ? { waiting: r.data.waiting } : {}) }
       : { site: label, state: r.off === true ? 'off' : 'failed', note: r.error };
     if (!opts.silent) tell(o);
     return o;

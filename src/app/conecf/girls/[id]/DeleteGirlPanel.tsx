@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useConecfHref } from '../../ConecfBase';
 import { getConecfGirlDeleteInfo, deleteConecfGirl, type ConecfGirlDeleteInfo } from '@/app/actions/conecfGirls';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
+import { waitToastNote } from '@/lib/relayWait';
 
 // ★★ 第432便: 退店した女性の削除。
 //   ★ 押すと、連携しているサイトと消えるものを出して確認 → 「削除する」で消す（取り消せない）。
@@ -32,7 +33,9 @@ export function DeleteGirlPanel({ id, enabled, onToast }: { id: number; enabled:
     // ★★★ 第1279便: 「サイトからも消す」は、各サイトで消えたことを確かめてからコネックエフ側を消す（pending）。
     //   ★ それまでは非公開の方として一覧に残る。★ 「削除しました」と言い切らない（まだ消していない）。
     onToast(r.data.pending
+      // ★ 第1296便: 前の更新が動いているサイトは順番待ち（断らない）。始まるのが遅い理由を言う
       ? `${r.data.name}さんの削除を受け付けました。${r.data.queued.join('・')}で消えたことを確かめてから、コネックエフからも消します（数分かかります）。それまでは非公開になります`
+        + (r.data.waiting.length > 0 ? '。' + waitToastNote(r.data.waiting) : '')
       : `${r.data.name}さんを削除しました`);
     window.location.href = href('/girls');
   };

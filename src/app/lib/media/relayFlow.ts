@@ -17,8 +17,10 @@ import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
 // ★ 第1287便: 書き込む流れは、コネックエフの文に同意した枠だけ（全フローの入口で見る）
 import { writeConsentBlockNote, relayIntentNeedsWriteConsent } from '@/lib/mediaConsent';
-import { defaultAuditSummary } from '@/lib/mediaAudit';
+import { defaultAuditSummary, targetLabel } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
+// ★ 第1296便: 人が押した削除・プロフィール更新・新規登録は、前の更新が動いていても順番待ちで受け付ける
+import { canWaitIntent, waitAcceptedSummary, waitExpiredSummary, WAIT_REASON_ACCEPTED, WAIT_REASON_EXPIRED } from '@/lib/relayWait';
 import { markWorkSynced } from '@/app/lib/media/workInputHash';
 import { loadSokuseraChecks, recordSokuseraChecks } from '@/app/lib/conecf/sokuseraChecks';
 import { stampDiaryListed } from '@/app/lib/media/diaryWatch';
@@ -139,7 +141,8 @@ function firstStep(
 }
 
 export type StartFlowResult =
-  | { ok: true; jobId: string; flowId: string; note: string }
+  // ★ 第1296便: waiting … 順番待ちで受け付けた（前の更新が終わったら自動で始まる。15分で取りやめ）
+  | { ok: true; jobId: string; flowId: string; note: string; waiting?: boolean }
   | { ok: false; reason: 'busy' | 'no_credential' | 'disabled' | 'unsupported' | 'login_backoff'; note: string };
 
 /**
@@ -379,6 +382,14 @@ export async function startRelayFlow(params: {
   };
   /** 'shop:<auth_user_id>' など。監査ログに残す */
   actor?: string;
+  /**
+   * ★★★ 第1296便: 同じ店・サイト・枠で前の更新が動いているとき、断らずに【順番待ち】で受け付ける。
+   *   ★ 効くのは、人が押した【削除・プロフィール更新・新規登録】だけ（lib/relayWait.ts の WAIT_INTENTS）。
+   *     ほかの流れ・自動の周（actor が cron: / system）は、渡しても今までどおり断る。
+   *   ★ 入口の検査（同意・切り替え・停止・「反映しない」）とログインの中身は【押した時点】のまま。繰り上がるときには見直さない
+   *     （だから待つのは15分まで）。
+   */
+  whenBusy?: 'wait';
 }): Promise<StartFlowResult> {
   if (!SUPPORTED_PROVIDERS.includes(params.provider as (typeof SUPPORTED_PROVIDERS)[number])) {
     return { ok: false, reason: 'unsupported', note: 'この媒体の自動連携はまだありません' };
@@ -648,7 +659,32 @@ export async function startRelayFlow(params: {
     body: login.body,
     context,
     ...(params.notBefore ? { notBefore: params.notBefore } : {}),
+    // ★ 第1296便: 順番待ちにしてよいのは、人が押した 削除・プロフィール更新・新規登録 だけ（呼び出し側の頼みを、ここでもう一度ふるいにかける）
+    ...(params.whenBusy === 'wait' && canWaitIntent(params.intent) && !isAutomaticActor(params.actor) ? { whenBusy: 'wait' as const } : {}),
   });
+
+  if (r.ok && r.waiting === true) {
+    // ★★★ 第1296便: 順番待ちで受け付けた。★ 記録に残す（押してから始まるまで「更新結果」に何も出ない時間を作らない）。
+    //   ★ 記録の種類は足さない（flow_stalled のまま・reason で見分ける）。古い画面は summary をそのまま出す。
+    await recordMediaAudit({
+      salonId: params.salonId,
+      provider: params.provider,
+      slot: params.slot,
+      event: 'flow_stalled',
+      outcome: 'ok',   // ★ 断っていない。受け付けて、あとで始める
+      summary: waitAcceptedSummary(targetLabel(params.provider, params.slot), params.intent),
+      detail: { reason: WAIT_REASON_ACCEPTED, intent: params.intent, flowId: context.flowId },
+      actor: params.actor ?? 'system',
+      jobId: r.jobId,
+    });
+    return {
+      ok: true,
+      jobId: r.jobId,
+      flowId: context.flowId,
+      waiting: true,
+      note: '受け付けました。' + (findMediaSite(params.provider)?.name ?? 'このサイト') + 'で別の更新が動いているため、終わりしだい順番に始めます',
+    };
+  }
 
   if (!r.ok) {
     // ★★★ 第157便: 断られたことを記録に残す。
@@ -673,6 +709,44 @@ export async function startRelayFlow(params: {
     flowId: context.flowId,
     note: '受け付けました。数分お待ちください',   // ★ 第1294便: 「中継役」は内部の言葉なので外した
   };
+}
+
+/**
+ * ★★★ 第1296便: 順番待ちのまま15分を過ぎて、始めずに取りやめた操作を記録に残す。
+ *   ★ 呼び出し元は promoteWaitingRelayJobs()（引き取りのついで）。行はもう 'expired' に落としてある。
+ *   ★ 相手サイトへは何も送っていない（ログインもしていない）。
+ *   ★ 削除の場合: その方は非公開のまま残る（削除の続き finishGirlDelete は、待っているサイトが残っているので本人を消さない）。
+ *   ★ 文脈が読めなくても黙らない（何の操作かは言えないが、取りやめたことは残す）。
+ */
+export async function recordWaitExpired(params: {
+  jobId: string;
+  salonId: number;
+  provider: string;
+  slot: number;
+  contextEnc: string | null;
+}): Promise<void> {
+  let intent = '';
+  let flowId = '';
+  if (params.contextEnc) {
+    try {
+      const context = openContext<RelayFlowContext>(params.contextEnc, params.jobId);
+      intent = String(context.intent ?? '');
+      flowId = String(context.flowId ?? '');
+    } catch (e) {
+      console.error('[relay] 順番待ちの文脈を開けなかった（操作の名前なしで記録する）', params.jobId, e instanceof Error ? e.message : 'unknown');
+    }
+  }
+  await recordMediaAudit({
+    salonId: params.salonId,
+    provider: params.provider,
+    slot: params.slot,
+    event: 'flow_stalled',
+    outcome: 'stopped',   // ★ 始めなかった。店舗様の画面に出す（押した操作が行われていないので）
+    summary: waitExpiredSummary(targetLabel(params.provider, params.slot), intent),
+    detail: { reason: WAIT_REASON_EXPIRED, ...(intent ? { intent } : {}), ...(flowId ? { flowId } : {}) },
+    actor: 'system:relay-wait',
+    jobId: params.jobId,
+  });
 }
 
 /**

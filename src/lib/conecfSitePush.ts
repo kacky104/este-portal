@@ -11,6 +11,8 @@
 //
 // ★ 2026-10-07 の時点で枠2を登録している店は無い（＝①で今日の動きは変わらない）。
 
+import { waitToastNote } from './relayWait';
+
 /** ★ いま更新を送る枠（小さい順）。★ startRelayFlow と同じ条件: ログイン情報が有効・向きが「反映しない」でない（向きの行が無い枠は通す） */
 export function conecfPushSlots(
   creds: ReadonlyArray<{ slot?: number | null; is_enabled?: boolean | null }>,
@@ -39,11 +41,15 @@ export function sitePushNotReadyMessage(siteName: string): string {
   return `${siteName}へは、いま更新を送る設定になっていません（コネックエフのホームでご確認ください）`;
 }
 
-/** 1枠ぶんの結果。off＝「送り先サイト」で送らない設定（わざと） */
-export type SlotPush = { slot: number; state: 'queued' | 'off' | 'failed'; note?: string };
+/**
+ * 1枠ぶんの結果。off＝「送り先サイト」で送らない設定（わざと）
+ *   ★ 第1296便: waiting … 受け付けたが、前の更新が動いているので順番待ち（state は 'queued' のまま＝受け付けている）
+ */
+export type SlotPush = { slot: number; state: 'queued' | 'off' | 'failed'; note?: string; waiting?: boolean };
 
 export type SitePushSummary =
-  | { ok: true; queued: string[]; notes: string[] }
+  // ★ 第1296便: waiting … 受け付けた枠のうち、順番待ちの枠の呼び名（★ 1つも無ければ項目ごと無い）
+  | { ok: true; queued: string[]; notes: string[]; waiting?: string[] }
   | { ok: false; error: string; off: boolean };
 
 /**
@@ -57,7 +63,8 @@ export function summarizeSlotPushes(siteName: string, slots: readonly SlotPush[]
   const queued = slots.filter((s) => s.state === 'queued').map((s) => pushSlotLabel(siteName, s.slot));
   const failed = slots.filter((s) => s.state === 'failed')
     .map((s) => (many ? pushSlotLabel(siteName, s.slot) + '：' : '') + (s.note || '送れませんでした'));
-  if (queued.length > 0) return { ok: true, queued, notes: failed };
+  const waiting = slots.filter((s) => s.state === 'queued' && s.waiting === true).map((s) => pushSlotLabel(siteName, s.slot));
+  if (queued.length > 0) return { ok: true, queued, notes: failed, ...(waiting.length > 0 ? { waiting } : {}) };
   if (failed.length > 0) return { ok: false, error: failed.join('　／　'), off: false };
   return { ok: false, error: slots[0].note || sitePushNotReadyMessage(siteName), off: true };
 }
@@ -75,6 +82,8 @@ export type SitePushOutcome = {
   labels?: string[];
   notes?: string[];
   note?: string;
+  /** ★ 第1296便: 受け付けた枠のうち、順番待ちの枠の呼び名 */
+  waiting?: string[];
 };
 
 /**
@@ -93,6 +102,9 @@ export function sitePushToast(results: readonly SitePushOutcome[], opts: { expli
     parts.push(`${labels.join('・')}への更新を受け付けました。結果は「更新結果」に出ます`);
     const notes = sent.flatMap((r) => r.notes ?? []);
     if (notes.length > 0) parts.push(`送っていない枠があります（${notes.join('　／　')}）`);
+    // ★ 第1296便: 順番待ちで受け付けたサイトがあれば、そう言う（「受け付けました」だけだと、始まるのが遅い理由が分からない）
+    const waitNote = waitToastNote(sent.flatMap((r) => r.waiting ?? []));
+    if (waitNote) parts.push(waitNote);
   }
   for (const r of rs.filter((x) => x.state === 'confirm')) parts.push(`${r.site}は、写真の確認のあとに更新します`);
   for (const r of rs.filter((x) => x.state === 'failed')) parts.push(`${r.site}へは更新を送っていません：${r.note || '送れませんでした'}`);

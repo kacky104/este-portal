@@ -302,6 +302,11 @@ eq('★★ それでも「進まなかった」ことは必ず言う',
 eq('★★★ busy 以外は失敗として書く',
    sum('flow_stalled', 'failed', { reason: 'enqueue_failed' }), '駅ちか（枠1）の次の手順を進められませんでした');
 eq('★ 理由が分からなくても文言は出る', sum('flow_stalled', 'failed'), '駅ちか（枠1）の次の手順を進められませんでした');
+// ★ 第1296便: 順番待ち。★ 種類は足さず、理由（reason）で見分ける。書く側が文を渡し忘れても意味が通ること
+eq('★★ 順番待ちで受け付けた（断っていない）',
+   sum('flow_stalled', 'ok', { reason: 'waiting' }), '駅ちか（枠1）で別の更新が動いているため、順番待ちで受け付けました。前の更新が終わりしだい始めます');
+eq('★★ 順番待ちを取りやめた（「進められませんでした」と書かない＝始めていない）',
+   [/始めずに取りやめました/.test(sum('flow_stalled', 'stopped', { reason: 'wait_expired' })), /進められません/.test(sum('flow_stalled', 'stopped', { reason: 'wait_expired' }))], [true, false]);
 {
   // ★ 内部の段名（article_list など）を店舗様の文に出さない
   const t = sum('flow_stalled', 'stopped', { reason: 'busy', purpose: 'article_list' });

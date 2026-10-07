@@ -303,7 +303,10 @@ export function TherapistBoard({ salonId, onToast }: {
     try {
       const res = await startMediaTherapistCreatePush({ salonId, provider: c.provider, slot: c.slot, therapistId: t.id });
       if (!res.ok) { onToast(plainText(res.error)); return; }
-      onToast(`${c.label}へ登録を送りました。結果は「連携の記録」に出ます。数分後に「${c.label}の名簿を更新する」を押すと、この一覧にも反映されます`);
+      // ★ 第1296便: 前の更新が動いているときは順番待ち（断らない）。「送りました」と言い切らない
+      onToast(res.data.waiting
+        ? `${c.label}への登録を受け付けました。${c.label}で別の更新が動いているため、終わりしだい順番に始めます。結果は「連携の記録」に出ます`
+        : `${c.label}へ登録を送りました。結果は「連携の記録」に出ます。数分後に「${c.label}の名簿を更新する」を押すと、この一覧にも反映されます`);
       setCreateView(null);
     } finally {
       setCreateBusy('');
