@@ -134,5 +134,23 @@ eq('名前に「中」が入っていない',
   eq('★ 「正本」「代行」と書かない（こちらの言葉）', ['fukues', 'ekichika', 'benry'].some((v) => /正本|代行/.test(n(v, []).title + n(v, []).body)), false);
 }
 
+// ── 第1264便: 移行期間の取り込み（diary_mixed_since）を、書き方の選択に連動させる ──
+{
+  const NOW = '2026-10-07T04:00:00.000Z';
+  const OLD = '2026-10-03T12:01:43.218Z';
+  const f = (prevPref, nextPref, currentSince) => m.nextDiaryMixedSince({ prevPref, nextPref, currentSince, nowISO: NOW });
+  eq('★★★ 駅ちかで書く → フクエスで書く: いまの時刻で始める', f('auto', 'fukues', null), NOW);
+  eq('★★★ フクエスで書く → 駅ちかで書く: 消す（リセット）', f('fukues', 'auto', OLD), null);
+  eq('★★★ もう一度フクエスで書く: 新しい時刻で始め直す（前の値は消えている）', f('auto', 'fukues', null), NOW);
+  eq('★★ 駅ちかで書くの店に古い時刻が残っていても、選んだ時刻で始め直す', f('auto', 'fukues', OLD), NOW);
+  eq('★★★ すでにフクエスで書く＋時刻あり: 触らない（始まりを後ろへずらさない）', f('fukues', 'fukues', OLD), undefined);
+  eq('★★ すでにフクエスで書くだが時刻が無い（第1264便より前に選んだ店）: 始める', f('fukues', 'fukues', null), NOW);
+  eq('★ すでにフクエスで書くだが時刻が空文字: 始める', f('fukues', 'fukues', ''), NOW);
+  eq('★ 駅ちかで書く → 駅ちかで書く: 消す（空のまま）', f('auto', 'auto', null), null);
+  eq('★ 前の値が読めない（null）→ フクエスで書く: 始める', f(null, 'fukues', null), NOW);
+  eq('★ 知らない値を選んだら auto 扱い＝消す（始めない）', f('auto', 'xxx', null), null);
+  eq('★ 前が知らない値なら auto 扱い＝始める', f('xxx', 'fukues', OLD), NOW);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

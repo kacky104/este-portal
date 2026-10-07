@@ -7,8 +7,11 @@ import { getDiaryWritePref, setDiaryWritePref } from '@/app/actions/mediaCredent
 // ★ 第895便（2026-09-26・カッキーさん）: フクエスリンクのホーム「写メ日記の書き方」。
 // ★ 店舗オーナーが選ぶ: 駅ちかで書く（駅ちか → フクエス）／フクエスで書く（フクエス → フクエス・駅ちか）。
 // ★ 入口は常に1つ（二重投稿を防ぐ）。★ 押す前に、何が変わるかを必ず出す。
+// ★ 第1264便（2026-10-07・カッキーさん）: 「フクエスで書く」を選ぶと、移行期間の取り込みが自動で始まる
+//   （まだフクエスで書いていないセラピストの日記は駅ちかから載せ続ける・フクエスで1件書いた方から順に切り替わる）。
+//   「駅ちかで書く」に戻すとリセット。★ 決め方は lib/diarySource.ts の nextDiaryMixedSince。
 
-type State = { pref: 'auto' | 'fukues'; source: string; total: number; withAddress: number; backfilling: boolean };
+type State = { pref: 'auto' | 'fukues'; source: string; total: number; withAddress: number; backfilling: boolean; importing: boolean };
 
 export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToast: (m: string) => void }) {
   const [st, setSt] = useState<State | null>(null);
@@ -66,10 +69,11 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
             {ask === 'fukues' ? (
               <>
                 <li>セラピストは、セラピストページ（フクエス）から写メ日記を書きます。</li>
-                <li><b>駅ちかに直接書いた写メ日記は、フクエスに載らなくなります</b>（同じ日記が2つ並ばないため）。</li>
+                <li><b>まだフクエスで書いていない方の写メ日記は、今までどおり駅ちかから載せます</b>（フクエスで書き始めた方から、順に切り替わります）。</li>
+                <li>フクエスで1度書いた方は、そのあと駅ちかに直接書いた写メ日記がフクエスに載らなくなります（同じ日記が2つ並ばないため）。</li>
                 <li>駅ちかへは、投稿用メールアドレスが登録されているセラピストの分だけ届きます（いま {st.withAddress}/{st.total}名）。</li>
                 <li>出勤・セラピスト・即ヒメは、今までどおり駅ちかから反映します。</li>
-                {st.backfilling && <li>いま過去の写メ日記をフクエスに載せている途中です。切り替える前に駅ちかで書かれた分は、最後まで載せます。</li>}
+                {st.backfilling && <li>いま過去の写メ日記をフクエスに載せている途中です。このまま最後まで載せます。</li>}
               </>
             ) : (
               <>
@@ -99,6 +103,16 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
           {importNote === 'no_credential' && (
             <p className="text-slate-500">
               <Link href="/mypage/media/login" className="text-indigo-600 underline">駅ちかのID・PW</Link>を登録すると、投稿用アドレスを読み込めます。
+            </p>
+          )}
+          {/* ★ 第1264便: いま何が起きているかを1行で（移行期間の取り込み）。★ 回っている状態のときだけ「載せています」と言う */}
+          {st.importing ? (
+            <p className="text-slate-500">まだフクエスで書いていない方の写メ日記は、駅ちかから載せています。</p>
+          ) : importNote === 'no_credential' ? null : (
+            <p className="text-slate-500">
+              駅ちかに書いた写メ日記は、いま載せていません（
+              <Link href="/mypage/media/login" className="text-indigo-600 underline">駅ちかのID・PW</Link>
+              の登録とご同意があると、まだフクエスで書いていない方の分を載せます）。
             </p>
           )}
           <Link href="/mypage/media/diary" className="inline-block text-[13px] font-bold text-indigo-600 underline">写メ日記の投稿先を見る →</Link>

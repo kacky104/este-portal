@@ -159,7 +159,8 @@ export function diarySourceNote(source: unknown, sites: ReadonlyArray<DiarySourc
 // ─────────────────────────────────────────────────────────────
 // ★ 第895便（2026-09-26・カッキーさん）: 写メ日記の書き方を店舗オーナーが選ぶ（salons.diary_write_pref）。
 //   'auto'   … 今までどおり（ホームの向きから deriveDiarySource が決める）
-//   'fukues' … 写メ日記だけフクエスで書く。★ 駅ちかからの取り込みは止まる（入口は常に1つ）
+//   'fukues' … 写メ日記だけフクエスで書く。★ 入口は fukues（常に1つ）。
+//               ★ 第1264便: まだフクエスで書いていないセラピストの分は、駅ちかからの取り込みを続ける（nextDiaryMixedSince）
 // ─────────────────────────────────────────────────────────────
 export const DIARY_WRITE_PREFS = ['auto', 'fukues'] as const;
 export type DiaryWritePref = (typeof DIARY_WRITE_PREFS)[number];
@@ -178,4 +179,35 @@ export function readDiaryWritePref(v: unknown): DiaryWritePref {
 export function diaryForwardAllowed(linkMode: string | null | undefined, pref: unknown): boolean {
   if (linkMode === 'write' || linkMode === 'write_auto') return true;
   return readDiaryWritePref(pref) === 'fukues' && linkMode === 'read';
+}
+
+/**
+ * ★★★ 第1264便（2026-10-07・カッキーさんの決定）: 移行期間の取り込み（salons.diary_mixed_since・第1140便）を、
+ *   フクエスリンクのホームの「写メ日記の書き方」に連動させる。★ それまでは運営が店ごとに SQL で入れていた（ラビリンス様）。
+ *
+ *   「フクエスで書く」を選んだ   … 始まりの時刻に【いま】を入れる。
+ *       → まだフクエスで書いていないセラピストの日記は、今までどおり駅ちかから取り込む。
+ *         フクエスで1件書いた方は、それ以降に駅ちかへ載った日記を取り込まない（フクエスから送った写しとみなす）。
+ *   「駅ちかで書く」に戻した     … 消す（リセット）。全員ふつうの取り込みに戻る。
+ *   もう一度「フクエスで書く」   … 新しい【いま】を入れる＝前に書いたことがある方も、もう一度フクエスで書くまでは取り込む。
+ *   すでに「フクエスで書く」で時刻も入っている … 触らない（★ 同じ選択が二度届いても、始まりを後ろへずらさない）。
+ *
+ * ★ 見分けそのもの（セラピストごとの線）は ekichikaDiaryParse の isFukuesWrittenCopy / firstFukuesWrittenAt。ここは時刻を決めるだけ。
+ * ★ 実際に回るのは、駅ちかが「駅ちかから反映（read）」で、ID・PW と同意がある枠だけ（/api/admin/diary-import の isMixed）。
+ * @returns 入れる時刻（ISO）／null（消す）／undefined（いまの値のまま・書かない）
+ */
+export function nextDiaryMixedSince(input: {
+  /** 変える前の salons.diary_write_pref */
+  prevPref: unknown;
+  /** これから入れる書き方 */
+  nextPref: unknown;
+  /** いまの salons.diary_mixed_since */
+  currentSince: string | null | undefined;
+  nowISO: string;
+}): string | null | undefined {
+  if (readDiaryWritePref(input.nextPref) !== 'fukues') return null;
+  const running =
+    readDiaryWritePref(input.prevPref) === 'fukues' &&
+    typeof input.currentSince === 'string' && input.currentSince.length > 0;
+  return running ? undefined : input.nowISO;
 }

@@ -29,7 +29,9 @@ import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
 //   salons.diary_mixed_since が入っている店は、入口が 'fukues'（写メ日記はフクエスで書く）でも回す。
 //   ★ セラピストは出勤日に1人ずつ切り替えるので、しばらく「フクエスで書く人」と「駅ちかで書く人」が混じる。
 //   ★ 駅ちかで書かれた日記だけを取り込む（見分けは relayFlow の saveDiaryDetail ③b・セラピストごとに線を引く）。
-//   ★ 運営が店ごとに入れる（追加SQL_第1140便）。列が無い・空の店は今までどおり。
+//   ★ 第1264便（2026-10-07）: フクエスリンクのホームで「フクエスで書く」を選ぶと自動で入り、「駅ちかで書く」に戻すと消える
+//     （setDiaryWritePref・lib/diarySource.ts の nextDiaryMixedSince）。それまでは運営が店ごとに SQL で入れていた（追加SQL_第1140便）。
+//     列が空の店は今までどおり。
 //
 // ★ since を渡すと【初回の遡り】になる（それより古い投稿は開かない・ページを遡る）。
 //   ★ 渡さなければ通常運転＝一覧の1ページ目だけを見て、新着だけ開く（§371）。
@@ -96,7 +98,7 @@ export async function POST(req: Request) {
   const sourceOf = new Map<number, string>();
   // ★ 第897便: 自動の遡り（はじめて ID・PW を入れた店・60日）。★ since が入っている間だけ
   const backfillOf = new Map<number, { since: string; until: string | null }>();
-  // ★ 第1140便: 移行期間の取り込み（運営が入れた店だけ・値は始まりの時刻）
+  // ★ 第1140便: 移行期間の取り込み（値は始まりの時刻。第1264便から「フクエスで書く」を選んだときに自動で入る）
   const mixedSinceOf = new Map<number, string>();
   if (salonIds.length > 0) {
     // ★ 列がまだ無くても止めない（SQL と push の順番を問わない）。読めなければ「移行期間の店は無い」として進む
@@ -137,7 +139,7 @@ export async function POST(req: Request) {
   }
 
   // ★★ 回すのは: 入口が ekichika の店 ＋【遡りの途中で「フクエスで書く」にした店】（★ until があるときだけ＝切り替え前の日記だけ取り込む）
-  // ★ 第1140便: 移行期間の取り込みで回す店か（入口が 'fukues' ＋ 運営が始まりの時刻を入れている）。
+  // ★ 第1140便: 移行期間の取り込みで回す店か（入口が 'fukues' ＋ 始まりの時刻が入っている）。
   //   ★ 入口が 'ekichika' の店は今までどおりの取り込み（見分けは使わない。フクエスで書いても駅ちかへ送らないので写しが無い）
   //   ★ 第1142便: その枠が「駅ちかから反映（read）」のときだけ（止めた店・止めた枠は回さない）
   const isMixed = (salonId: number, slot: number): boolean =>

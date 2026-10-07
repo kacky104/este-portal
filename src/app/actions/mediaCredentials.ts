@@ -21,6 +21,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
+import { nextDiaryMixedSince } from '@/lib/diarySource';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
 import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
@@ -2464,7 +2465,8 @@ export async function unlinkTherapistMediaId(input: {
 // ─────────────────────────────────────────────────────────────
 // ★ 第895便（2026-09-26・カッキーさん）: 写メ日記の書き方を店舗オーナーが選ぶ（フクエスリンクのホーム）。
 //   'auto'   … 駅ちかで書く（駅ちか → フクエスへ取り込む・今までどおり）
-//   'fukues' … フクエスで書く（フクエス → 駅ちかの投稿用メールへ送る）。★ 駅ちかからの取り込みは止まる
+//   'fukues' … フクエスで書く（フクエス → 駅ちかの投稿用メールへ送る）。
+//               ★ 第1264便: まだフクエスで書いていないセラピストの日記は、駅ちかからの取り込みを続ける（セラピストごとに切り替わる）
 // ★ 入口（salons.diary_source）は syncDiarySource が決め直す（★ 判断は lib/diarySource の一本線）。
 // ─────────────────────────────────────────────────────────────
 
@@ -2477,6 +2479,13 @@ type DiaryWriteState = {
   withAddress: number;
   /** ★ 第897便: 過去分を遡って取り込んでいる途中か */
   backfilling: boolean;
+  /**
+   * ★ 第1264便: 「フクエスで書く」のまま、駅ちかからの取り込み（移行期間の取り込み）が実際に回る状態か。
+   *   ★ 取り込みの周（/api/admin/diary-import）と同じ条件で見る:
+   *     始まりの時刻が入っている ＋ 駅ちかの ID・PW が有効で同意済み ＋ その枠が「駅ちかから反映（read）」で止められていない。
+   *   ★ 画面の「駅ちかから載せています」は、これが true のときだけ出す（回っていないのに回っていると言わない）。
+   */
+  importing: boolean;
 };
 
 async function readDiaryWriteState(svc: ReturnType<typeof createServiceClient>, salonId: number): Promise<DiaryWriteState> {
@@ -2494,7 +2503,24 @@ async function readDiaryWriteState(svc: ReturnType<typeof createServiceClient>, 
   }
   const pref = (salon as { diary_write_pref?: string | null } | null)?.diary_write_pref === 'fukues' ? 'fukues' : 'auto';
   const backfilling = !!(salon as { diary_backfill_since?: string | null } | null)?.diary_backfill_since;
-  return { pref, source: String((salon?.diary_source as string | null) ?? 'benry'), total: ids.length, withAddress, backfilling };
+  // ★ 第1264便: 移行期間の取り込みが回る状態か（★ 読めなければ false＝「載せています」と言わない）
+  let importing = false;
+  if (pref === 'fukues') {
+    const { data: mx } = await svc.from('salons').select('diary_mixed_since').eq('id', salonId).maybeSingle();
+    if ((mx as { diary_mixed_since?: string | null } | null)?.diary_mixed_since) {
+      const { data: creds } = await svc
+        .from('salon_media_credentials').select('slot, consent_version')
+        .eq('salon_id', salonId).eq('provider', 'ekichika').eq('is_enabled', true);
+      const keySlots = new Set(
+        (creds ?? []).filter((c) => typeof (c as { consent_version?: string | null }).consent_version === 'string').map((c) => Number(c.slot ?? 1)),
+      );
+      const { data: srcs } = await svc
+        .from('salon_import_sources').select('slot, link_mode, is_enabled')
+        .eq('salon_id', salonId).eq('provider', 'ekichika');
+      importing = (srcs ?? []).some((r) => r.link_mode === 'read' && r.is_enabled !== false && keySlots.has(Number(r.slot ?? 1)));
+    }
+  }
+  return { pref, source: String((salon?.diary_source as string | null) ?? 'benry'), total: ids.length, withAddress, backfilling, importing };
 }
 
 export async function getDiaryWritePref(input: { salonId: number }): Promise<Result<DiaryWriteState>> {
@@ -2513,12 +2539,30 @@ export async function setDiaryWritePref(input: { salonId: number; pref: string }
   if (!guard.ok) return guard;
 
   const svc = createServiceClient();
-  const { data: before } = await svc.from('salons').select('diary_write_pref').eq('id', salonId).maybeSingle();
-  // ★ 第897便: 過去分の遡りの途中なら、「フクエスで書く」にした時刻より前の日記だけ最後まで取り込む（★ 戻したら上限なし）
+  // ★ 第1264便: いまの書き方と、移行期間の始まり（diary_mixed_since）を一緒に読む。
+  //   ★★ 読めないまま進むと「いまの状態が分からないのに始まりを書き換える」ことになるので、読めなければ変えずに返す。
+  const { data: before, error: beforeErr } = await svc.from('salons').select('diary_write_pref, diary_mixed_since').eq('id', salonId).maybeSingle();
+  if (beforeErr) return { ok: false, error: '店舗の設定を読めませんでした: ' + beforeErr.message };
+  const prevPref = (before as { diary_write_pref?: string | null } | null)?.diary_write_pref ?? 'auto';
   const { data: bf } = await svc.from('salons').select('diary_backfill_since').eq('id', salonId).maybeSingle();
   const backfilling = !!(bf as { diary_backfill_since?: string | null } | null)?.diary_backfill_since;
   const patch: Record<string, unknown> = { diary_write_pref: input.pref };
-  if (backfilling) patch.diary_backfill_until = input.pref === 'fukues' ? new Date().toISOString() : null;
+  // ★★★ 第1264便（2026-10-07・カッキーさんの決定）: 「フクエスで書く」を選んだ店は、移行期間の取り込み（第1140便）を自動で始める。
+  //   ・フクエスで書く … 始まりの時刻に【いま】を入れる。まだフクエスで書いていないセラピストの日記は、今までどおり駅ちかから取り込む
+  //   ・駅ちかで書く   … 始まりの時刻を消す（リセット）。もう一度「フクエスで書く」にしたら、新しい【いま】から数え直す
+  //   ★ 決め方は lib/diarySource.ts の nextDiaryMixedSince（番人 check:diarysource）。undefined は「触らない」。
+  const mixedSince = nextDiaryMixedSince({
+    prevPref, nextPref: input.pref,
+    currentSince: (before as { diary_mixed_since?: string | null } | null)?.diary_mixed_since ?? null,
+    nowISO: new Date().toISOString(),
+  });
+  if (mixedSince !== undefined) patch.diary_mixed_since = mixedSince;
+  // ★ 過去分の遡り（第897便）の途中で書き方を変えたとき: 上限の時刻（diary_backfill_until）は空にする。
+  //   ★ 第1264便より前は、「フクエスで書く」にした時刻を上限に入れて、それより新しい日記を開かないようにしていた
+  //     （フクエスから送った日記の写しを取り込まないため）。
+  //   ★ いまは写しをセラピストごとに見分ける（移行期間の取り込み）ので、上限は要らない。
+  //     入れたままだと、まだフクエスで書いていない方が駅ちかに書いた【新しい】日記を、遡りが終わるまで開かなくなる。
+  if (backfilling) patch.diary_backfill_until = null;
   const { error } = await svc.from('salons').update(patch).eq('id', salonId);
   if (error) return { ok: false, error: error.message };
 
@@ -2526,10 +2570,14 @@ export async function setDiaryWritePref(input: { salonId: number; pref: string }
   await recordMediaAudit({
     salonId, provider: 'ekichika', slot: 1,
     event: 'diary_write_pref', outcome: 'ok',
-    detail: { from: String((before as { diary_write_pref?: string | null } | null)?.diary_write_pref ?? 'auto'), to: input.pref },
+    detail: {
+      from: String(prevPref), to: input.pref,
+      // ★ 第1264便: 移行期間の取り込みをどうしたか（started＝始めた／cleared＝消した／kept＝触っていない）
+      mixed: mixedSince === undefined ? 'kept' : mixedSince === null ? 'cleared' : 'started',
+    },
     actor,
   });
-  // ★ 入口を決め直す（'fukues' なら取り込みが止まり、送るようになる）
+  // ★ 入口を決め直す（'fukues' なら送るようになる。取り込みは「移行期間の取り込み」として続く・第1264便）
   await syncDiarySource(svc, salonId, actor);
 
   // ★ フクエスで書くに切り替えたら、駅ちかの投稿用アドレスを読み込む（鍵と同意があるときだけ・失敗しても切り替えはそのまま）

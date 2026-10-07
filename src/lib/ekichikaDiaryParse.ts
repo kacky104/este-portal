@@ -645,7 +645,8 @@ export const DIARY_RECHECK_HOURS = 24;
 //     境目より前に駅ちかへ載った日記 … 駅ちかで書いたもの → 取り込む
 //     境目以降に駅ちかへ載った日記   … フクエスから送ったものとみなす → 取り込まない（★ 二度と開かない）
 //   ★ フクエスでまだ1件も書いていない人は、境目が無い＝全部取り込む。
-//   ★ 動くのは salons.diary_mixed_since が入っていて、入口が 'fukues' の店だけ（運営が店ごとに入れる）。
+//   ★ 動くのは salons.diary_mixed_since が入っていて、入口が 'fukues' の店だけ。
+//     ★ 第1264便: 時刻は「フクエスで書く」を選んだときに自動で入る（lib/diarySource.ts の nextDiaryMixedSince）。
 
 /** ★ フクエスで書いた日記の写し（駅ちか側に載ったもの）。★ 取り込まない。'imported' と同じく【二度と開かない】 */
 export const DIARY_STATUS_FUKUES_COPY = 'skipped:fukues_copy';
