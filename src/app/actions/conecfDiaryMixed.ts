@@ -5,6 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { readDiaryMixedState, extendDiaryMixedPeriod, type DiaryMixedState } from '@/app/lib/conecf/diaryMixed';
+import { maybeStartDiaryBackfill } from '@/app/lib/media/diarySourceSync';
 
 // コネックエフ「写メ日記転送」の、移行期間の受け口（第1265便・2026-10-07・カッキーさんの決定）。
 //   ・getConecfDiaryMixed    … 期限・残り日数・いま取り込んでいるか（読むだけ）
@@ -48,5 +49,8 @@ export async function extendConecfDiaryMixed(): Promise<Result<DiaryMixedState>>
   if (!r.ok) return r;
   const res = await extendDiaryMixedPeriod(r.svc, r.salonId, 'shop:' + r.userId);
   if (!res.ok) return { ok: false, error: res.error };
+  // ★ 第1266便: 期限切れ・未設定から延長して、はじめて取り込みが回る状態になった店は、過去60日ぶんも遡る
+  //   （まだ1件も取り込み記録が無い店だけ・中で条件を見る・失敗しても延長はそのまま）
+  await maybeStartDiaryBackfill(r.svc, r.salonId, 'shop:' + r.userId);
   return { ok: true, data: res.state };
 }

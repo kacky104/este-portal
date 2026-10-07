@@ -152,5 +152,19 @@ eq('名前に「中」が入っていない',
   eq('★ 前が知らない値なら auto 扱い＝始める', f('xxx', 'fukues', OLD), NOW);
 }
 
+// ── 第1266便: 過去60日ぶんの遡りを始めるか ──
+{
+  const f = (o) => m.shouldStartDiaryBackfill({ source: 'ekichika', conecfMixedRunning: false, backfillSince: null, importedCount: 0, ...o });
+  eq('★★★ 入口が ekichika・記録0件・列が空 → 始める（今までどおり）', f({}), true);
+  eq('★★★ コネックエフで移行期間の取り込みが回る・記録0件 → 始める', f({ source: 'fukues', conecfMixedRunning: true }), true);
+  eq('★★★ 入口が fukues で、移行期間の取り込みが回らない → 始めない', f({ source: 'fukues' }), false);
+  eq('★★ 入口が benry → 始めない', f({ source: 'benry' }), false);
+  eq('★★★ 取り込み記録が1件でもある → 始めない（フクエスリンクから来た店）', f({ source: 'fukues', conecfMixedRunning: true, importedCount: 335 }), false);
+  eq('★★ 入口が ekichika でも記録があれば始めない', f({ importedCount: 1 }), false);
+  eq('★★★ 遡りの途中（列に時刻あり）→ 始め直さない', f({ backfillSince: '2026-08-08T00:00:00.000Z' }), false);
+  eq('★★ 件数が読めない（null）→ 始めない', f({ importedCount: null }), false);
+  eq('★ 件数が undefined → 始めない', f({ importedCount: undefined }), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

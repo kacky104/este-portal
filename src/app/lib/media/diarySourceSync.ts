@@ -8,7 +8,8 @@
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { needsConsent } from '@/lib/mediaConsent';
-import { deriveDiarySource, readDiarySource } from '@/lib/diarySource';
+import { deriveDiarySource, readDiarySource, shouldStartDiaryBackfill } from '@/lib/diarySource';
+import { readDiaryMixedState } from '@/app/lib/conecf/diaryMixed';
 import { siteDirection } from '@/lib/mediaOverview';
 
 /**
@@ -70,6 +71,8 @@ export async function syncDiarySource(svc: ReturnType<typeof createServiceClient
 /**
  * ★ 第897便（2026-09-26・カッキーさん・案B）: はじめて駅ちかの写メ日記を取り込めるようになった店は、過去60日ぶんを自動で遡る。
  * ★ 条件: 入口が 'ekichika' になった ＋ まだ1件も取り込み記録が無い ＋ 遡りの列が空。
+ *   ★ 第1266便: コネックエフに切り替えた店は、入口が 'ekichika' の代わりに「移行期間の取り込みが回る状態」で見る。
+ *     呼ぶ場所は同じ（鍵を保存したとき・向きを変えたとき）＋ 移行期間を延長したとき（actions/conecfDiaryMixed.ts）。
  *   ★ 既存の店（取り込み記録がある店）は対象外。★ 一度入りきったら列は空に戻る（relayFlow の planDiaryList）。
  * ★ 失敗しても呼び元は止めない。
  */
@@ -78,12 +81,22 @@ export const DIARY_BACKFILL_DAYS = 60;
 export async function maybeStartDiaryBackfill(svc: ReturnType<typeof createServiceClient>, salonId: number, actor: string): Promise<void> {
   try {
     const { data: salon } = await svc.from('salons').select('diary_source, diary_backfill_since').eq('id', salonId).maybeSingle();
-    if (!salon || readDiarySource((salon.diary_source as string | null) ?? null) !== 'ekichika') return;
-    if ((salon as { diary_backfill_since?: string | null }).diary_backfill_since) return;
-    const { count } = await svc
+    if (!salon) return;
+    const backfillSince = (salon as { diary_backfill_since?: string | null }).diary_backfill_since ?? null;
+    if (backfillSince) return;
+    const isEkichika = readDiarySource((salon.diary_source as string | null) ?? null) === 'ekichika';
+    // ★★ 第1266便（2026-10-07・カッキーさんの決定）: コネックエフに切り替えた店で、移行期間の取り込みが回る状態になったときも遡る
+    //   （フクエスリンクを通らず、コネックエフで初めて駅ちかの ID・PW を入れた店）。★ 入口が ekichika の店では読まない（余計な問い合わせをしない）
+    const conecfMixedRunning = isEkichika ? false : (await readDiaryMixedState(svc, salonId)).running;
+    if (!isEkichika && !conecfMixedRunning) return;
+    const { count, error: countErr } = await svc
       .from('salon_diary_imports').select('external_diary_id', { count: 'exact', head: true })
       .eq('salon_id', salonId).eq('provider', 'ekichika');
-    if ((count ?? 0) > 0) return;
+    // ★ 決め方は lib/diarySource.ts の shouldStartDiaryBackfill（番人 check:diarysource）。件数が読めなければ始めない
+    if (!shouldStartDiaryBackfill({
+      source: salon.diary_source, conecfMixedRunning, backfillSince,
+      importedCount: countErr ? null : (count ?? 0),
+    })) return;
     const since = new Date(Date.now() - DIARY_BACKFILL_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const { error } = await svc.from('salons').update({ diary_backfill_since: since, diary_backfill_until: null }).eq('id', salonId);
     if (error) { console.error('[media] 遡りを始められなかった', salonId, error.message); return; }

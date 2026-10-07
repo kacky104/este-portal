@@ -211,3 +211,27 @@ export function nextDiaryMixedSince(input: {
     typeof input.currentSince === 'string' && input.currentSince.length > 0;
   return running ? undefined : input.nowISO;
 }
+
+/**
+ * ★★★ 過去60日ぶんの遡り（第897便）を、いま始めるか。
+ *   始めるのは「はじめて駅ちかの写メ日記を取り込めるようになった店」だけ:
+ *     ・入口が 'ekichika'（フクエスリンクで駅ちかから反映し、ID・PW を入れた店）＝今までどおり
+ *     ・★ 第1266便（2026-10-07・カッキーさんの決定）: コネックエフに切り替えた店で、移行期間の取り込みが回る状態
+ *       （フクエスリンクを通らず、コネックエフで初めて駅ちかの ID・PW を入れた店にも、過去60日ぶんを入れる）
+ *   どちらも、遡りの途中でない（列が空）＋ まだ1件も取り込み記録が無い、ときだけ。
+ *   ★ 取り込み記録の数が分からない（null）ときは始めない（★「分からない」を「0件」と読まない）。
+ */
+export function shouldStartDiaryBackfill(input: {
+  /** salons.diary_source */
+  source: unknown;
+  /** コネックエフの移行期間の取り込みが、いま回る状態か（lib/conecf/diaryMixed の running） */
+  conecfMixedRunning: boolean;
+  /** salons.diary_backfill_since */
+  backfillSince: string | null | undefined;
+  /** salon_diary_imports の件数（駅ちか）。読めなければ null */
+  importedCount: number | null | undefined;
+}): boolean {
+  if (input.backfillSince) return false;
+  if (typeof input.importedCount !== 'number' || input.importedCount > 0) return false;
+  return importsDiaryFromEkichika(input.source) || input.conecfMixedRunning === true;
+}
