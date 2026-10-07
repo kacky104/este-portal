@@ -119,7 +119,9 @@ export const CONECF_FUKUES_COLUMN: Record<(typeof MATRIX_ROWS)[number], string> 
  *   ★ 並びは フクエス・駅ちか・エステ魂・エステラブ・エステランキング（★ フクエスの列を含む5つ）。
  */
 export const CONECF_EXTRA_ROWS: ReadonlyArray<{ label: string; cells: readonly [string, string, string, string, string] }> = [
-  { label: '新人の反映', cells: ['即時', '30分以内', '30分以内', NO, NA] },
+  // ★ 第1295便（2026-10-07・カッキーさん）: この行は【新しい方の登録】のこと。
+  //   駅ちか・エステ魂へ自動で登録する流れは無い（「セラピスト登録状況一覧」で登録を押したときに送る）ので、「30分以内」をやめた。
+  { label: '新人の反映', cells: ['即時', '登録を押したとき', '登録を押したとき', NO, NA] },
 ];
 
 /** ★ 第468便: コネックエフの早見表では「エスラン」を「エステランキング」と書く（★ 列の見出しは少し小さい字） */
