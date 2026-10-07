@@ -102,6 +102,87 @@ export function decideSokuseraTarget(input: SokuseraTargetInput, now: Date): Sok
   return { ok: true };
 }
 
+// ───────────── 途中で失敗した方の扱い（第1288便・2026-10-07・カッキーさんの OK） ─────────────
+//
+// ★★★ 塞いだ穴: 自動の周は「ON にできる方の先頭の1人」を選ぶ。次の周でその方を飛ばすのは、
+//   ON にできた（55分）／設定ページまで読んで打たなかった（55分・第1246便）ときだけだった。
+//   ★ 途中で失敗すると何も残らず、次の周も同じ方が先頭＝【直るまで毎周その方で止まり、後ろの方が1人も ON にならない】。
+//   ★ ON を送ったあと確かめられなかった方へは、10分ごとに ON を打ち直していた。
+//   ★ 2026-10-07 の時点で失敗は 14日で0件（SQL で確認）。店が増える前に入れておく。
+// ★ 決まり:
+//   ・ON を送る【前】に失敗 … あけない。順番を後ろへ回すだけ（ほかに居なければ次の周でもう一度）
+//   ・ON を送った【あと】確かめられなかった … 55分あける（★ 打ち直さない）
+// ★ 記録は conecf_sokusera_checks（第1246便の表）の reason で分ける。表は増やさない。
+
+/** 送る前に失敗した（後ろへ回すだけ・あけない） */
+export const SOKUSERA_REASON_RETRY = 'failed_before_send';
+/** 送ったあと確かめられなかった（55分あける） */
+export const SOKUSERA_REASON_UNCONFIRMED = 'sent_unconfirmed';
+
+/**
+ * ★ 記録を「あける方（held）」と「後ろへ回す方（retried）」に分ける。therapistId → 時刻(ISO)。
+ *   ★ 知らない理由は【あける側】（今までの行はすべてこちら）。
+ */
+export function splitSokuseraChecks(
+  rows: ReadonlyArray<{ therapistId: number; checkedAt: string; reason?: string | null }>,
+): { held: Map<number, string>; retried: Map<number, string> } {
+  const held = new Map<number, string>();
+  const retried = new Map<number, string>();
+  for (const r of rows) {
+    if (!Number.isFinite(r.therapistId) || !r.checkedAt) continue;
+    if (r.reason === SOKUSERA_REASON_RETRY) retried.set(r.therapistId, r.checkedAt);
+    else held.set(r.therapistId, r.checkedAt);
+  }
+  return { held, retried };
+}
+
+/**
+ * ★★★ 自動の周で ON にする1人を選ぶ。★ 渡すのは【ON にしてよい方だけ】（decideSokuseraTarget が ok）を在籍順で。
+ *   ・直近に失敗していない方がいれば、その先頭
+ *   ・全員が直近に失敗している → いちばん前に失敗した方（★ 同じ方ばかりにしない）
+ */
+export function pickSokuseraAuto<T extends { lastFailedAt?: string | null }>(okRows: readonly T[]): T | null {
+  if (okRows.length === 0) return null;
+  const at = (r: T) => (r.lastFailedAt ? Date.parse(r.lastFailedAt) : NaN);
+  const fresh = okRows.find((r) => !Number.isFinite(at(r)));
+  if (fresh) return fresh;
+  let best = okRows[0];
+  for (const r of okRows) if (at(r) < at(best)) best = r;
+  return best;
+}
+
+/**
+ * ★★★ 1つの段が終わったとき、その方をどう覚えるか。
+ *   'retry'       … 送る前に失敗した（後ろへ回す）
+ *   'unconfirmed' … 送ったあと確かめられなかった（55分あける）
+ *   null          … 覚えない（続きがある／ON を確かめた／打たないと決めた回＝第1246便が別に記録する）
+ * ★ nextPurpose は次に積む段（無ければ null）。★ 'esutama_sokusera_end' へ向かう＝流れを畳んでいる。
+ */
+export function sokuseraAttemptOutcome(input: {
+  purpose: string;
+  nextPurpose: string | null;
+  audits: ReadonlyArray<{ event: string; outcome: string; detail?: Record<string, unknown> | null }>;
+}): 'retry' | 'unconfirmed' | null {
+  const ending = input.nextPurpose === null || input.nextPurpose === 'esutama_sokusera_end';
+  switch (input.purpose) {
+    case 'esutama_sokusera_token':
+    case 'esutama_sokusera_proxy':
+      return ending ? 'retry' : null;
+    case 'esutama_sokusera_page': {
+      if (!ending) return null;
+      const decidedNoStart = input.audits.some((a) =>
+        a.event === 'read_sokusera' && a.outcome === 'ok' && a.detail?.['use'] === 'sokusera' && a.detail?.['willStart'] === false);
+      return decidedNoStart ? null : 'retry';
+    }
+    case 'esutama_sokusera_start':
+      return ending ? 'unconfirmed' : null;
+    case 'esutama_sokusera_verify':
+      return input.audits.some((a) => a.event === 'verify_sokusera' && a.outcome === 'ok') ? null : 'unconfirmed';
+    default:
+      return null;
+  }
+}
+
 export type SokuseraTally = {
   母数: number;
   ONにする: number;

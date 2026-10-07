@@ -93,6 +93,7 @@ import { decideDiaryRetry, MAX_DIARY_ATTEMPTS } from '@/lib/esutamaDiaryRetry';
 // ★ 即セラ（第143便）。★ 判断は純粋関数側
 import {
   decideSokuseraTarget, tallySokusera, sokuseraSummary, SOKUSERA_COOLDOWN_MIN,
+  pickSokuseraAuto, sokuseraAttemptOutcome, SOKUSERA_REASON_RETRY, SOKUSERA_REASON_UNCONFIRMED,
 } from '@/lib/esutamaSokuseraTargets';
 import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
 import { isImasuguLiveRow, isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
@@ -922,6 +923,24 @@ export async function advanceRelayFlow(params: {
       { salonId: params.salonId, provider: params.provider, slot: params.slot },
       [{ therapistId: Number(context.esutamaSokuseraTherapistId), castId: context.esutamaSokuseraCastId ?? null, reason: 'page_no_start' }],
     );
+  }
+
+  // ★★★ 第1288便: 自動の即セラで、選んだ方の回が【途中で失敗した】。★ 何も残さないと、次の周も同じ方が先頭に選ばれて後ろが詰まる。
+  //   ・送る前に失敗（代理ログインに入れない・ページが読めない・名前が違う）… 順番を後ろへ回す（あけない）
+  //   ・送ったあと確かめられなかった（応答がエラー・読み返すと OFF・読めない）… 55分あける（★ 10分ごとに打ち直さない）
+  //   ★ 判定は lib/esutamaSokuseraTargets.ts の sokuseraAttemptOutcome。相手サイトから返事が無いまま打ち切られた回（relay_gave_up など）はここを通らない。
+  if (context.intent === 'sokusera_auto' && context.esutamaSokuseraTherapistId) {
+    const how = sokuseraAttemptOutcome({ purpose: params.purpose, nextPurpose: next ? next.purpose : null, audits });
+    if (how) {
+      await recordSokuseraChecks(
+        createServiceClient(),
+        { salonId: params.salonId, provider: params.provider, slot: params.slot },
+        [{
+          therapistId: Number(context.esutamaSokuseraTherapistId), castId: context.esutamaSokuseraCastId ?? null,
+          reason: how === 'retry' ? SOKUSERA_REASON_RETRY : SOKUSERA_REASON_UNCONFIRMED,
+        }],
+      );
+    }
   }
 
   // ★★★ 流れが終わったら、送った印の【状態】を決める（第137便）。
@@ -3620,8 +3639,8 @@ async function planEsutamaSokusera(
     }
   }
 
-  // ★ 第1246便: 見に行って打たなかった方（55分あける）
-  const checkedOf = await loadSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot, now });
+  // ★ 第1246便: 見に行って打たなかった方（55分あける）。★ 第1288便: 送る前に失敗した方（retried・あけずに後ろへ回す）
+  const { held: checkedOf, retried: failedOf } = await loadSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot, now });
 
   const activeCastIds = new Set(mediaRows.map((r) => String(r.castId).trim()));
   const rows = trows.map((t) => {
@@ -3631,6 +3650,8 @@ async function planEsutamaSokusera(
       therapistId: id,
       name: String(t['name'] ?? ''),
       castId,
+      // ★ 第1288便: 直近に【送る前に失敗した】時刻（無ければ null）。選ぶ順番にだけ使う
+      lastFailedAt: failedOf.get(id) ?? null,
       input: {
         consent: toConsentState(consentOf.get(id)),
         account: esutamaAccountState(castId, activeCastIds, true),
@@ -3668,8 +3689,9 @@ async function planEsutamaSokusera(
 
   // ★★★ ONにする人を1人だけ選ぶ。★ 「全員にまとめて」は作らない
   const wantId = auto ? 0 : Number(ctx.esutamaSokuseraTherapistId ?? 0);
+  // ★ 第1288便: 自動は、直近に失敗していない方を先に（pickSokuseraAuto）。★ 先頭の方の失敗で後ろを詰まらせない
   const picked = auto
-    ? rows.find((r) => decideSokuseraTarget(r.input, now).ok)
+    ? (pickSokuseraAuto(rows.filter((r) => decideSokuseraTarget(r.input, now).ok)) ?? undefined)
     : rows.find((r) => r.therapistId === wantId);
   if (!picked) {
     // ★ 対象が居ないのは【正常】。★ 故障として数えない
@@ -3687,6 +3709,11 @@ async function planEsutamaSokusera(
     };
   }
   if (!ctk) {
+    // ★ 第1288便: 選んだのに進めなかった（送る前の失敗）。自動なら、次の周はほかの方を先に
+    if (auto) {
+      await recordSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot },
+        [{ therapistId: picked.therapistId, castId: picked.castId, reason: SOKUSERA_REASON_RETRY }]);
+    }
     return {
       audits: [planAudit, {
         event: 'push_sokusera', outcome: 'stopped',
@@ -3796,8 +3823,8 @@ export async function hasSokuseraSendCandidate(params: {
     }
   }
 
-  // ★ 第1246便: 見に行って打たなかった方（55分あける）
-  const checkedOf = await loadSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot, now });
+  // ★ 第1246便: 見に行って打たなかった方（55分あける）。★ 第1288便: 送る前に失敗した方（retried）はあけない＝ここでは数える
+  const { held: checkedOf } = await loadSokuseraChecks(supabase, { salonId: params.salonId, provider: params.provider, slot: params.slot, now });
 
   let count = 0;
   for (const t of live) {

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { SOKUSERA_CHECK_HOLD_MIN } from '@/lib/esutamaSokuseraTargets';
+import { SOKUSERA_CHECK_HOLD_MIN, splitSokuseraChecks } from '@/lib/esutamaSokuseraTargets';
 
 // ★★ 即セラ「見に行って打たなかった」方の記録（第1246便・2026-10-06・カッキーさん）。
 //   表: conecf_sokusera_checks（追加SQL_第1246便）。店舗×媒体×枠×セラピストで1行（上書き）。
@@ -8,26 +8,30 @@ import { SOKUSERA_CHECK_HOLD_MIN } from '@/lib/esutamaSokuseraTargets';
 
 type Svc = SupabaseClient;
 
-/** 直近（55分＋5分）に「見に行って打たなかった」方の時刻。therapistId → ISO */
+/**
+ * 直近（55分＋5分）の記録。therapistId → ISO。
+ *   held    … 見に行って打たなかった／送ったあと確かめられなかった（55分あける）
+ *   retried … 送る前に失敗した（第1288便・あけない。順番を後ろへ回すだけ）
+ */
 export async function loadSokuseraChecks(
   svc: Svc, params: { salonId: number; provider: string; slot: number; now?: Date },
-): Promise<Map<number, string>> {
-  const out = new Map<number, string>();
+): Promise<{ held: Map<number, string>; retried: Map<number, string> }> {
+  const out = { held: new Map<number, string>(), retried: new Map<number, string>() };
   const now = params.now ?? new Date();
   const since = new Date(now.getTime() - (SOKUSERA_CHECK_HOLD_MIN + 5) * 60000).toISOString();
   const { data, error } = await svc
     .from('conecf_sokusera_checks')
-    .select('therapist_id, checked_at')
+    .select('therapist_id, checked_at, reason')
     .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
     .gte('checked_at', since);
   if (error) {
     console.error('[sokusera] 確かめた記録を読めなかった（SQL 未適用?）。今までどおり見に行く:', error.message);
     return out;
   }
-  for (const r of (data ?? []) as Array<{ therapist_id: number; checked_at: string }>) {
-    out.set(Number(r.therapist_id), String(r.checked_at));
-  }
-  return out;
+  return splitSokuseraChecks(
+    ((data ?? []) as Array<{ therapist_id: number; checked_at: string; reason: string | null }>)
+      .map((r) => ({ therapistId: Number(r.therapist_id), checkedAt: String(r.checked_at), reason: r.reason })),
+  );
 }
 
 /** 「見に行って打たなかった」を記録する（上書き）。★ 失敗しても流れは止めない */
