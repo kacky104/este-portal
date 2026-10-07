@@ -134,6 +134,40 @@ eq('混ざっていても数える', m.shouldGiveUpAuto(['stopped', 'failed', 's
 // ★ 直近が ok なら連続は切れている。古い失敗を蒸し返さない
 eq('直近が ok なら切らない', m.shouldGiveUpAuto(['ok', 'failed', 'failed', 'failed']), false);
 eq('記録が無ければ切らない', m.shouldGiveUpAuto([]), false);
+
+// ── ★★★ 第1273便: エステ魂の「変更なし」を失敗に数えない・同じ流れは1回 ──
+{
+  const W = (outcome, detail) => ({ event: 'write_work', outcome, detail });
+  const P = (outcome) => ({ event: 'plan_work', outcome, detail: { flowId: 'p' } });
+  const noChange = (f) => W('stopped', { people: 29, saved: 0, changed: 0, flowId: f });
+  const savedOk = (f) => W('ok', { people: 29, saved: 2, changed: 2, flowId: f });
+  const g = (rows) => m.shouldGiveUpAuto(m.pushOutcomesForGiveUp(rows));
+
+  // ラビリンス様のエステ魂（2026-10-07 の記録の並び。新しい順）＋ 翌朝6時台の「変更なし」
+  const labyrinth = [noChange('f5'), noChange('f4'), noChange('f3'), savedOk('f2'), noChange('f1')];
+  eq('★★★ 変更なしの周が3回続いても、自動を切らない', g(labyrinth), false);
+  eq('★★★ 変更なしの回は ok と同じに扱う', m.pushOutcomesForGiveUp(labyrinth), ['ok', 'ok', 'ok', 'ok', 'ok']);
+  eq('★★ 変更なしの回は、そこまでの「続けて」を切る（相手サイトと同じだと確かめた回）',
+    g([W('failed', { flowId: 'a' }), noChange('b'), W('failed', { flowId: 'c' }), W('failed', { flowId: 'd' })]), false);
+  eq('★★★ 本当の失敗3回は、今までどおり切る',
+    g([W('failed', { reason: 'verify_mismatch', flowId: 'a' }), W('failed', { flowId: 'b' }), W('failed', { flowId: 'c' })]), true);
+  eq('★★ plan_work は数えない（落とす）', m.pushOutcomesForGiveUp([P('stopped'), W('failed', { flowId: 'a' }), P('ok')]), ['failed']);
+
+  // 送るものがあったのに1人も保存できなかった回（changed > 0）は、今までどおり stopped
+  const blockedSummary = (f) => W('stopped', { people: 29, saved: 0, changed: 1, flowId: f });
+  const blockedPerson = (f) => W('stopped', { castId: '123', reason: 'auto_would_clear', workingBefore: 1, flowId: f });
+  eq('★★ 送るものがあったのに保存0 → stopped のまま', m.pushOutcomesForGiveUp([blockedSummary('a')]), ['stopped']);
+  eq('★★★ 同じ流れの行（まとめ＋人ごと）は1回と数える', m.pushOutcomesForGiveUp([blockedSummary('a'), blockedPerson('a')]), ['stopped']);
+  eq('★★★ 2周（4行）では切らない。これまでは2周で切れていた', g([blockedSummary('b'), blockedPerson('b'), blockedSummary('a'), blockedPerson('a')]), false);
+  eq('★★ 3周続けば切る', g([blockedSummary('c'), blockedPerson('c'), blockedSummary('b'), blockedPerson('b'), blockedSummary('a'), blockedPerson('a')]), true);
+  eq('★★ 同じ流れで、まとめが ok（ほかの人は保存できた）なら ok', m.pushOutcomesForGiveUp([savedOk('a'), blockedPerson('a')]), ['ok']);
+
+  // 駅ちか（flowId つき・1流れ1行）と、flowId の無い古い行
+  eq('★ 駅ちかの行はそのまま', m.pushOutcomesForGiveUp([W('ok', { changed: 2, people: 38, flowId: 'a' }), W('failed', { changed: 2, people: 38, reason: 'verify_mismatch', flowId: 'b' })]), ['ok', 'failed']);
+  eq('★ flowId が無い行は1行ずつ数える', m.pushOutcomesForGiveUp([W('stopped', {}), W('stopped', null), W('failed')]), ['stopped', 'stopped', 'failed']);
+  eq('★★ 駅ちかの「送らなかった」（changed はあるが saved が無い行）は変更なしと取り違えない', m.pushOutcomesForGiveUp([W('stopped', { changed: 0, flowId: 'a' })]), ['stopped']);
+  eq('★ 空', m.pushOutcomesForGiveUp([]), []);
+}
 eq('しきい値は3回', m.AUTO_GIVE_UP_STREAK, 3);
 
 // ── 周期 ──

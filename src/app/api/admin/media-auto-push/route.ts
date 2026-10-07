@@ -8,8 +8,8 @@ import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
   isDueForAutoPush,
   shouldGiveUpAuto,
+  pushOutcomesForGiveUp,
   AUTO_GIVE_UP_STREAK,
-  type PushOutcome,
 } from '@/lib/mediaLinkMode';
 
 // ── 自動反映の周（第48便・設計メモ 追記14）─────────────────────────────
@@ -88,7 +88,8 @@ export async function POST(req: Request) {
     // ★ この枠の直近の書き込みまわりの記録。★ 新しい箱は作らない（§54）
     const { data: audit } = await svc
       .from('salon_media_audit')
-      .select('event, outcome, created_at')
+      // ★ 第1273便: detail も読む（「変更なしで終わった回」と「同じ流れの行」を見分けるため・pushOutcomesForGiveUp）
+      .select('event, outcome, created_at, detail')
       .eq('salon_id', r.salon_id).eq('provider', r.provider).eq('slot', r.slot)
       .in('event', ['plan_work', 'write_work'])
       .order('created_at', { ascending: false })
@@ -101,9 +102,9 @@ export async function POST(req: Request) {
 
     // ★★★ 連続で送れていないなら自動を切る（§56・第38便 relay_gave_up と同じ作法）。
     //   ★ 判定材料は write_work だけ。plan_work は「組んだ」であって「送った」ではない。
-    const outcomes = list
-      .filter((a) => a.event === 'write_work')
-      .map((a) => String(a.outcome) as PushOutcome);
+    //   ★★★ 第1273便: エステ魂の「変更なしで終わった回」（write_work 'stopped'）を失敗に数えない。同じ流れの行は1回と数える。
+    //     数えていたので、変更の無い周が3回続くと、何も失敗していないのに自動が切れるところだった。
+    const outcomes = pushOutcomesForGiveUp(list.map((a) => ({ event: String(a.event), outcome: String(a.outcome), detail: a.detail })));
     if (shouldGiveUpAuto(outcomes)) {
       gaveUp.push(target);
       if (apply) {

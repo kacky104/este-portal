@@ -192,6 +192,45 @@ export function shouldGiveUpAuto(recentOutcomes: readonly PushOutcome[]): boolea
   return false;
 }
 
+/**
+ * ★★★ 第1273便（2026-10-07）: 「続けて反映できなかった回」を数える材料を、記録から取り出す。
+ *
+ * ★ 何が起きるところだったか（ラビリンス様・エステ魂）:
+ *   エステ魂の自動の周は、【変更が無かった回】も write_work を 'stopped' で記録する
+ *   （「エステ魂の出勤に変更はありませんでした」・lib/esutamaFlow.ts の nextEsutamaPerson）。
+ *   shouldGiveUpAuto は 'stopped' も数えるので、変更の無い周が3回続くと
+ *   「3回続けて反映できなかったため、自動をやめて…」で自動が切れる。★ 何も失敗していないのに。
+ *   毎朝6時台の周は営業日が変わって必ず回り、ふつうは変更なし。10/7 の記録は 14:05・16:06 と2回続いていた。
+ *
+ * ★ 決まり:
+ *   ・write_work だけを見る（plan_work は「組んだ」であって「送った」ではない）。
+ *   ・「変更なしで終わった回」（stopped・saved 0・changed 0）は 'ok' と同じに扱う。
+ *     ★ 相手サイトを読んで、フクエスと同じだと確かめた回。＝そこまでの「続けて」は切れる。
+ *   ・同じ流れ（flowId）の行は1回と数える。★ エステ魂は人ごとの行と最後のまとめの行を書くので、
+ *     1周で2回ぶん数えていた。新しい順に渡すので、最初に出た行（＝最後に書かれたまとめ）を採る。
+ *
+ * @param rows 新しい順。plan_work が混ざっていてよい（落とす）
+ */
+export function pushOutcomesForGiveUp(
+  rows: ReadonlyArray<{ event: string; outcome: string; detail?: unknown }>,
+): PushOutcome[] {
+  const out: PushOutcome[] = [];
+  const seenFlows = new Set<string>();
+  for (const r of rows) {
+    if (r.event !== 'write_work') continue;
+    const d = (r.detail && typeof r.detail === 'object' ? r.detail : {}) as Record<string, unknown>;
+    const flowId = typeof d['flowId'] === 'string' ? (d['flowId'] as string) : '';
+    if (flowId) {
+      if (seenFlows.has(flowId)) continue;
+      seenFlows.add(flowId);
+    }
+    const outcome: PushOutcome = r.outcome === 'ok' ? 'ok' : r.outcome === 'failed' ? 'failed' : 'stopped';
+    const noChange = outcome === 'stopped' && d['saved'] === 0 && d['changed'] === 0;
+    out.push(noChange ? 'ok' : outcome);
+  }
+  return out;
+}
+
 // ───────────────────────── いつ回すか ─────────────────────────
 
 /**
