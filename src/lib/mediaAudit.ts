@@ -35,6 +35,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'diary_source_synced', // ★ 写メ日記の入口を、向きから導いて書き換えた（第205便）。★ 店舗は直接いじらない
   'diary_backfill_started', // ★ 第897便: はじめて写メ日記を取り込める店で、過去60日ぶんの自動の遡りを始めた
   'diary_write_pref', // ★ 第895便: 店舗オーナーが写メ日記の書き方（駅ちかで書く／フクエスで書く）を選んだ
+  'diary_mixed_period', // ★ 第1265便: コネックエフの店の写メ日記の移行期間（切り替えたときに30日で始める／店舗様が14日延長する）
   'cast_id_linked',      // ★ 名簿の結びを画面から作った（第115便）。★ 送り先が決まる
   'cast_id_unlinked',    // ★ 名簿の結びを画面から外した（第115便）
   'write_work',          // 出勤を書き換えた
@@ -578,6 +579,19 @@ export function defaultAuditSummary(input: {
         // ★ 第1264便: 「駅ちかに書いた日記はフクエスに載らなくなります」→ セラピストごとに切り替わる言い方に
         ? '写メ日記を「フクエスで書く」にしました（フクエスで書いた日記を駅ちかへ送ります。まだフクエスで書いていない方の日記は、今までどおり駅ちかから載せます）'
         : '写メ日記を「駅ちかで書く」に戻しました（駅ちかに書いた日記をフクエスに載せます）';
+      break;
+    }
+    case 'diary_mixed_period': {
+      // ★ 第1265便: コネックエフの店の移行期間（lib/diaryMixedPeriod.ts）。detail: kind（started / extended）・lastDay（◯/◯）
+      const last = typeof d?.['lastDay'] === 'string' && d['lastDay'] ? String(d['lastDay']) : '';
+      const till = last ? `（${last} まで）` : '';
+      if (input.outcome !== 'ok') {
+        s = '写メ日記の移行期間を設定できませんでした。写メ日記転送の画面の「14日間延長する」からお試しください';
+      } else if (d?.['kind'] === 'extended') {
+        s = `写メ日記の移行期間を14日間延長しました${till}。期間中は、フクエスでまだ投稿していない方が駅ちかに書いた写メ日記もフクエスに載せます`;
+      } else {
+        s = `写メ日記の移行期間を始めました${till}。フクエスで1度投稿するまでは、駅ちかに書いた写メ日記もフクエスに載せます`;
+      }
       break;
     }
     case 'diary_source_synced': {

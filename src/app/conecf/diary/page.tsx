@@ -6,6 +6,7 @@ import { DiaryTargets } from '@/app/mypage/media/DiaryTargets';
 import { DiaryConsent } from '@/app/mypage/media/DiaryConsent';
 import { useToast } from '@/app/components/useToast';
 import { useConecfHref } from '../ConecfBase';
+import { DiaryMixedPanel } from './DiaryMixedPanel';
 
 // コネックエフ「写メ日記転送」（第402便・1f）。★ 中身はフクエスリンクの「写メ日記の投稿先」と同じ部品。
 // ★ 写メ日記を書くのは、これまでどおりフクエス（マイページ・セラピスト本人）。
@@ -18,6 +19,8 @@ export default function ConecfDiaryPage() {
     <ConecfShell current="diary" title="写メ日記転送" toast={toast}>
       {(a) => (
         <div className="space-y-3">
+          {/* ★ 第1265便（カッキーさん）: 移行期間（切り替えてから30日＋延長）。駅ちかに書いた写メ日記を、フクエスで1度投稿するまで載せる */}
+          <DiaryMixedPanel onToast={showToast} sitesHref={href('/sites')} homeHref={href('/')} />
           {/* ★ 第872便（カッキーさん）: フクエスでの投稿が必須・セラピストページと連携しないと送れない、をはっきり書く */}
           <div className="text-[13.5px] text-slate-600 bg-white border border-slate-200 px-4 py-2.5 leading-relaxed space-y-0.5">
             <p>・写メ日記は、<b className="font-bold text-slate-800">フクエスでの投稿が必須</b>です。フクエスに投稿した写メ日記を、ここで決めたサイトへ転送します。</p>

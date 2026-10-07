@@ -10,6 +10,7 @@ import { hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isSetPlanActive, SET_PLAN_NEED_MESSAGE } from '@/lib/setPlan';
+import { startDiaryMixedOnSwitch } from '@/app/lib/conecf/diaryMixed';
 
 // コネックエフ（conecf.com）の入口の権限（第395便・1a・2026-09-17）。
 //
@@ -17,7 +18,7 @@ import { isSetPlanActive, SET_PLAN_NEED_MESSAGE } from '@/lib/setPlan';
 // ★ 判定はサーバーで行う。★ 画面は結果に従って「ログイン」「店舗なし」「中身」を出し分けるだけ。
 // ★ 店舗の選び方は /mypage/media（useMediaGate）と同じ：非表示でない店を先に、id の若い順で1件。
 //   ★ 複数店舗の切り替えは第1弾では作らない。
-// ★★ 書くのは enableConecf（切り替え）だけ。
+// ★★ 書くのは enableConecf（切り替え）だけ。★ 第1265便: 切り替えたとき、写メ日記の移行期間（30日）も一緒に始める。
 // ★★ 第1241便（2026-10-06・カッキーさん）: コネックエフはフクエスCRM とのセット販売（月額22,000円・税込）になった。
 //   ・contract ＝ セットを契約しているか（salons.crm_until・lib/setPlan.ts）。運営が /admin で ON にした店だけ true。
 //   ・契約していない店は、入って見ることはできるが「コネックエフに切り替える」を押せない（enableConecf がサーバーで止める）。
@@ -145,5 +146,14 @@ export async function enableConecf(input: { stopRead?: boolean } = {}): Promise<
     .select('conecf_enabled_at')
     .maybeSingle();
   if (error) return { ok: false, error: `切り替えに失敗しました: ${error.message}` };
+  // ★★ 第1265便（2026-10-07・カッキーさんの決定）: 切り替えた店は、写メ日記の移行期間（30日）を始める。
+  //   期間中は、セラピストがフクエスで1度投稿するまで、駅ちかに書いた写メ日記もフクエスに取り込む（lib/diaryMixedPeriod.ts）。
+  //   ★ いまの呼び出しで切り替わったときだけ（data がある＝この update が印を入れた）。すでに切り替え済みの店は上で返っている。
+  //   ★ 失敗しても切り替えは成立させる（中で連携の記録に「設定できませんでした」を残す。写メ日記転送の画面から始められる）。
+  if (data) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    await startDiaryMixedOnSwitch(svc, a.salonId, 'shop:' + (user?.id ?? 'unknown'));
+  }
   return { ok: true, enabledAt: (data?.conecf_enabled_at as string | null) ?? now };
 }

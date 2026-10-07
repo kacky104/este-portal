@@ -4,6 +4,7 @@ import { startRelayFlow, diaryBackfillContext } from '@/app/lib/media/relayFlow'
 import { importsDiaryFromEkichika, readDiarySource } from '@/lib/diarySource';
 import { stampDiaryQueued } from '@/app/lib/media/diaryWatch';
 import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
+import { diaryMixedRuns } from '@/lib/diaryMixedPeriod';
 
 // ── 写メ日記の取り込みを1回まわす（第95便）─────────────────────────────
 //   POST /api/admin/diary-import  (Authorization: Bearer <CRON_SECRET>)
@@ -32,6 +33,8 @@ import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
 //   ★ 第1264便（2026-10-07）: フクエスリンクのホームで「フクエスで書く」を選ぶと自動で入り、「駅ちかで書く」に戻すと消える
 //     （setDiaryWritePref・lib/diarySource.ts の nextDiaryMixedSince）。それまでは運営が店ごとに SQL で入れていた（追加SQL_第1140便）。
 //     列が空の店は今までどおり。
+//   ★ 第1265便（2026-10-07）: コネックエフに切り替えた店も、切り替えてから30日間（＋店舗様の延長14日ずつ）は回す。
+//     期限（salons.diary_mixed_until）を過ぎたら、その店へは行かない（ログインもしない）。フクエスリンクの店に期限は無い。
 //
 // ★ since を渡すと【初回の遡り】になる（それより古い投稿は開かない・ページを遡る）。
 //   ★ 渡さなければ通常運転＝一覧の1ページ目だけを見て、新着だけ開く（§371）。
@@ -114,17 +117,45 @@ export async function POST(req: Request) {
   //     ★ 入口が 'ekichika' の店は、止めた瞬間に入口が 'benry' に変わるので元から止まる。
   //       ★ 「フクエスで書く」の店は入口が 'fukues' のまま変わらないので、ここで向きを見ないと回り続けてしまう。
   //   ★ 読めなかったときは回さない（★「分からない」を「回してよい」と読まない）。
-  const mixedReadSlots = new Set<string>();
+  // ★★★ 第1265便（2026-10-07・カッキーさんの決定）: コネックエフに切り替えた店も、【移行期間のあいだだけ】回す。
+  //   ・切り替えていない店（フクエスリンク）… 今までどおり、その枠が read のあいだ（期限なし）
+  //   ・切り替えた店 … その枠が「フクエスから反映（write / write_auto）」で、期限（salons.diary_mixed_until）の前だけ。
+  //     期限は切り替えたときに30日で入り、店舗様が「14日間延長する」で延ばせる（lib/diaryMixedPeriod.ts・番人 check:diarymixed）。
+  //   ★ 決め方は diaryMixedRuns の1か所。★ 切り替えたかどうか・期限を読めなかったときは回さない。
+  //   ★ diary_mixed_until は新しい列（追加SQL_第1265便）。ほかの列と別に読む＝列が無くても、フクエスリンクの店の取り込みは今までどおり回る。
+  const mixedRunSlots = new Set<string>();
   if (mixedSinceOf.size > 0) {
+    const mixedIds = [...mixedSinceOf.keys()];
+    const nowISO = new Date().toISOString();
+    const switchedOf = new Map<number, boolean>();
+    const { data: swRows, error: swErr } = await svc.from('salons').select('id, conecf_enabled_at').in('id', mixedIds);
+    if (swErr) console.warn('[diary-import] 移行期間の店の切り替えを読めなかった（回さない）', swErr.message);
+    for (const r of swRows ?? []) switchedOf.set(Number((r as { id: number }).id), !!(r as { conecf_enabled_at?: string | null }).conecf_enabled_at);
+    const untilOf = new Map<number, string>();
+    const { data: untilRows, error: untilErr } = await svc.from('salons').select('id, diary_mixed_until').in('id', mixedIds);
+    if (untilErr) console.warn('[diary-import] 移行期間の期限を読めなかった（切り替えた店は回さない。列が無い？）', untilErr.message);
+    for (const r of untilRows ?? []) {
+      const row = r as { id: number; diary_mixed_until?: string | null };
+      if (typeof row.diary_mixed_until === 'string' && row.diary_mixed_until) untilOf.set(Number(row.id), row.diary_mixed_until);
+    }
     const { data: srcRows, error: srcErr } = await svc
       .from('salon_import_sources')
       .select('salon_id, slot, link_mode, is_enabled')
       .eq('provider', 'ekichika')
-      .in('salon_id', [...mixedSinceOf.keys()]);
+      .in('salon_id', mixedIds);
     if (srcErr) console.warn('[diary-import] 移行期間の店の向きを読めなかった（回さない）', srcErr.message);
     for (const r of srcRows ?? []) {
       const row = r as { salon_id: number; slot: number | null; link_mode: string | null; is_enabled: boolean | null };
-      if (row.link_mode === 'read' && row.is_enabled !== false) mixedReadSlots.add(Number(row.salon_id) + '#' + Number(row.slot ?? 1));
+      const sid = Number(row.salon_id);
+      // ★ 切り替えたかどうかが分からない店は回さない（★「分からない」を「回してよい」と読まない）
+      if (!switchedOf.has(sid)) continue;
+      if (diaryMixedRuns({
+        switched: switchedOf.get(sid) === true,
+        linkMode: row.link_mode,
+        slotEnabled: row.is_enabled !== false,
+        until: untilOf.get(sid) ?? null,
+        nowISO,
+      })) mixedRunSlots.add(sid + '#' + Number(row.slot ?? 1));
     }
   }
   if (salonIds.length > 0) {
@@ -142,8 +173,9 @@ export async function POST(req: Request) {
   // ★ 第1140便: 移行期間の取り込みで回す店か（入口が 'fukues' ＋ 始まりの時刻が入っている）。
   //   ★ 入口が 'ekichika' の店は今までどおりの取り込み（見分けは使わない。フクエスで書いても駅ちかへ送らないので写しが無い）
   //   ★ 第1142便: その枠が「駅ちかから反映（read）」のときだけ（止めた店・止めた枠は回さない）
+  //   ★ 第1265便: コネックエフに切り替えた店は、その枠が「フクエスから反映」で、移行期間（期限の前）のあいだだけ（mixedRunSlots）
   const isMixed = (salonId: number, slot: number): boolean =>
-    sourceOf.get(salonId) === 'fukues' && mixedSinceOf.has(salonId) && mixedReadSlots.has(salonId + '#' + slot);
+    sourceOf.get(salonId) === 'fukues' && mixedSinceOf.has(salonId) && mixedRunSlots.has(salonId + '#' + slot);
   const canRun = (salonId: number, slot: number): boolean => {
     if (importsDiaryFromEkichika(sourceOf.get(salonId))) return true;
     if (isMixed(salonId, slot)) return true;
