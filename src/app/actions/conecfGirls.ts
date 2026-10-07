@@ -545,7 +545,7 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
   }
 
   // ★ 依頼を1つも積まない（サイトからは消さない・連携が無い・自動で消せるサイトが無い）＝今までどおり、すぐ消す
-  const res = await deleteTherapistWithCleanup({ therapistId: String(t.id), salonId });
+  const res = await deleteTherapistWithCleanup({ therapistId: String(t.id), salonId, via: 'conecf' });   // ★ 第1291便: コネックエフからの削除の印
   if (!res.ok) return { ok: false, error: res.error };
   return { ok: true, data: { salonId, name, queued, manual, pending: false } };
 }

@@ -16,7 +16,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
 // ★ 第1287便: 書き込む流れは、コネックエフの文に同意した枠だけ（全フローの入口で見る）
-import { writeConsentBlockNote } from '@/lib/mediaConsent';
+import { writeConsentBlockNote, relayIntentNeedsWriteConsent } from '@/lib/mediaConsent';
 import { defaultAuditSummary } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
 import { markWorkSynced } from '@/app/lib/media/workInputHash';
@@ -86,7 +86,7 @@ import {
 } from '@/lib/esutamaDiaryPlan';
 import { toConsentState } from '@/lib/therapistMediaConsent';
 import { shouldDropAutoAudits, AUDIT_SHOP_HIDDEN } from '@/lib/mediaAudit';
-import { conecfStopNote } from '@/app/lib/conecf/contract';
+import { conecfFlowNote } from '@/app/lib/conecf/contract';
 import { dayKeyJST } from '@/lib/announceAuto';
 // ★ 失敗を覚えて、やめどきを決める（第137便）
 import { decideDiaryRetry, MAX_DIARY_ATTEMPTS } from '@/lib/esutamaDiaryRetry';
@@ -414,7 +414,11 @@ export async function startRelayFlow(params: {
   //   ★ ここは手動・自動のすべてのフローの入口＝1か所で止まる。対象はコネックエフに切り替え済みの店だけ（フクエスリンクの店は通る）。
   //   ★ 記録（salon_media_audit）は書かない＝「続けて失敗したので自動をやめる」の数に入らない。ON に戻せば次の周から元どおり。
   //   ★ 走っている途中のフロー（次の段）は止めない（ここを通らない）。読めなかったときは止めない（conecfStopNote）。
-  const stopNote = await conecfStopNote(supabase, params.salonId);
+  // ★★ 第1291便: 相手サイトを【書き換える】流れは、コネックエフに切り替えた店だけ（第1260便の決まりを、全フローの入口でも見る）。
+  //   ★ これまでは「向きを変えるとき」と自動の周だけが見ていた。運営が切り替えを戻した店に向き（フクエスから反映）が残っていると、
+  //     手で押した送信は通っていた。★ 読むだけの流れ（フクエスリンクの写メ日記の取り込み・接続テスト）は今までどおり通す。
+  //   ★ 書き換える流れかどうかの物差しは、同意（第1287便）と同じ一覧（lib/mediaConsent.ts の RELAY_READ_ONLY_INTENTS）。
+  const stopNote = await conecfFlowNote(supabase, params.salonId, { write: relayIntentNeedsWriteConsent(params.intent) });
   if (stopNote) return { ok: false, reason: 'disabled', note: stopNote };
 
   // ★★ 連携の向きが 'none'（連携しない）の枠では、認証情報を使わない（第45便）。

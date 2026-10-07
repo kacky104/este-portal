@@ -3,7 +3,8 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { businessDateJSTFrom } from '@/lib/dutyStatus';
+import { businessDateJSTFrom, getCalendarDateJST } from '@/lib/dutyStatus';
+import { conecfScreenBlockMessage } from '@/lib/setPlan';
 import { deleteTherapistCore } from '@/app/lib/therapistDelete';
 
 // セラピスト削除・プロフィール画像掃除のサーバー専用処理（2026-07-12 新設）。
@@ -66,6 +67,8 @@ function bucketPathFromPublicUrl(url: string | null | undefined, bucket: string)
 export async function deleteTherapistWithCleanup(input: {
   therapistId: string;
   salonId: number;
+  /** ★ 第1291便: コネックエフの画面（deleteConecfGirl）から呼ぶときだけ 'conecf'。★ 切り替え済みの店は /mypage からは断る */
+  via?: 'conecf';
 }): Promise<Result> {
   const therapistId = String(input.therapistId ?? '').trim();
   const salonId = Number(input.salonId);
@@ -73,6 +76,18 @@ export async function deleteTherapistWithCleanup(input: {
 
   const auth = await assertOwner(salonId);
   if ('error' in auth) return { ok: false, error: auth.error };
+
+  // ★★ 第1291便: コネックエフに切り替えた店の削除は、コネックエフで（公開・非公開の第407便と同じ形）。
+  //   ★ マイページから消すと、駅ちか・エステ魂の削除（非表示）が走らず、連携の番号ごとフクエス側だけ消える
+  //     ＝相手サイトに載ったまま、フクエスからは二度と触れなくなる（コネックエフの削除は、各サイトから消えたのを確かめてから消す・第1279便）。
+  //   ★ service_role なので DB のトリガー（第407便）では止まらない → ここで止める。読めなかったときは断る（取り返しがつかない操作）。
+  if (input.via !== 'conecf') {
+    const { data: sal, error: salErr } = await createServiceClient().from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle();
+    if (salErr) return { ok: false, error: '店舗の設定を読めませんでした。時間をおいてお試しください' };
+    if (sal?.conecf_enabled_at) {
+      return { ok: false, error: 'セラピストの削除はコネックエフで行ってください（画面が古い場合は再読み込みしてください）' };
+    }
+  }
 
   // ★ 第1279便: 消す中身は app/lib/therapistDelete.ts へ移した（中身は変えていない）。ここは権限を確かめて呼ぶだけ。
   //   ★ コネックエフの削除が「各サイトから消えたことを確かめてから消す」ようになり、中継の流れの中からも同じ中身を呼ぶため。
@@ -181,6 +196,17 @@ export async function setTherapistActive(input: {
     if (sal?.conecf_enabled_at) {
       return { ok: false, error: '公開・非公開はコネックエフで切り替えてください（画面が古い場合は再読み込みしてください）' };
     }
+  } else {
+    // ★★ 第1291便: コネックエフの画面からでも、切り替え前の店・止めている店（セットの契約なし・第1243便）は断る。
+    //   ★ ほかの保存（resolveSalon({ write: true })）は止まるのに、公開／非公開だけ通っていた。
+    //   ★ 決めごとは lib/setPlan.ts。読めなかったときは断る（★ 押し直せば済む操作。分からないまま通さない）。
+    const { data: sal, error: salErr } = await svc.from('salons').select('conecf_enabled_at, crm_until').eq('id', salonId).maybeSingle();
+    if (salErr || !sal) return { ok: false, error: '店舗の設定を読めませんでした。時間をおいてお試しください' };
+    const block = conecfScreenBlockMessage(
+      { conecfEnabledAt: (sal.conecf_enabled_at as string | null) ?? null, crmUntil: (sal.crm_until as string | null) ?? null },
+      getCalendarDateJST(),
+    );
+    if (block) return { ok: false, error: block };
   }
 
   // ★ 対象が当該サロン所属か（★ 権限は上で見ているが、他店の id を渡された場合をここで落とす）

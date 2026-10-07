@@ -6,6 +6,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isReadOnlyConsent, conecfConsentMissingNote, consentSaveDecision } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
+import { CONECF_NEED_SWITCH_MESSAGE } from '@/lib/setPlan';
 import { syncDiarySource, maybeStartDiaryBackfill } from '@/app/lib/media/diarySourceSync';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 // ★★★ 【第259便】セラピスト登録の材料づくり。★ 運営の curl の口（media-girl-create）と同じ1か所を呼ぶ（第257便）。
@@ -705,7 +706,7 @@ async function applyLinkMode(input: {
     if (!sal?.conecf_enabled_at) {
       return {
         ok: false,
-        error: 'フクエスから各サイトへの反映は、コネックエフに切り替えた店舗様がお使いいただけます。先にコネックエフのホームで「コネックエフに切り替える」を押してください',
+        error: CONECF_NEED_SWITCH_MESSAGE,   // ★ 第1291便: 全フローの入口（startRelayFlow）と同じ文（lib/setPlan.ts）
       };
     }
   }

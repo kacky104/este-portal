@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
-import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
+import { isConecfStopped, CONECF_STOPPED_MESSAGE, conecfFlowBlockMessage } from '@/lib/setPlan';
 
 // ★★ コネックエフを止めているか（第1243便・2026-10-06・カッキーさんの決定）。
 //   セット（コネックエフ＋フクエスCRM）を OFF にした店は、コネックエフの保存・各サイトへの送信を止める。
@@ -24,4 +24,23 @@ export async function conecfStopNote(svc: Svc, salonId: number): Promise<string 
     { conecfEnabledAt: (data.conecf_enabled_at as string | null) ?? null, crmUntil: (data.crm_until as string | null) ?? null },
     getCalendarDateJST(),
   ) ? CONECF_STOPPED_MESSAGE : null;
+}
+
+/**
+ * ★ 第1291便: 中継の流れ（startRelayFlow）を始めてよいか。止めるなら店舗様に見せる文、よければ null。
+ *   write=true（相手サイトを書き換える流れ）は、コネックエフに切り替えた店だけ（決めごとは lib/setPlan.ts の conecfFlowBlockMessage）。
+ *   ★ 読めなかったとき（error）・店が見つからないときは【止めない】（conecfStopNote と同じ作法）。
+ */
+export async function conecfFlowNote(svc: Svc, salonId: number, opts: { write: boolean }): Promise<string | null> {
+  const { data, error } = await svc.from('salons').select('conecf_enabled_at, crm_until').eq('id', salonId).maybeSingle();
+  if (error) {
+    console.error('[conecf] 店舗の設定を読めなかった（止めずに進める）', salonId, error.code, error.message);
+    return null;
+  }
+  if (!data) return null;
+  return conecfFlowBlockMessage(
+    { conecfEnabledAt: (data.conecf_enabled_at as string | null) ?? null, crmUntil: (data.crm_until as string | null) ?? null },
+    getCalendarDateJST(),
+    opts,
+  );
 }

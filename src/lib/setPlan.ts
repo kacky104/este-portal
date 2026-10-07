@@ -44,3 +44,36 @@ export function isConecfStopped(
   if (!salon.conecfEnabledAt) return false;
   return !isSetPlanActive(salon.crmUntil, todayJst);
 }
+
+// ★★ 第1291便（2026-10-07）: 入口の守りを揃える。
+//   ① 各サイトを【書き換える】流れは、コネックエフに切り替えた店だけ（第1260便の決まり）。
+//      これまでは「向きを変えるとき」と自動の周だけが見ていた。運営が切り替えを戻した店（conecf_enabled_at を空にした店）に
+//      向き（フクエスから反映）が残っていると、手で押した送信は通っていた → 全フローの入口でも見る。
+//   ② コネックエフの画面からの公開／非公開は、「止めている店」の守りが無かった（ほかの保存は止まるのに、これだけ通った）。
+/** 切り替えていない店が、各サイトを書き換える操作をしたときに返す文（向きを変えるときの文と同じ） */
+export const CONECF_NEED_SWITCH_MESSAGE =
+  'フクエスから各サイトへの反映は、コネックエフに切り替えた店舗様がお使いいただけます。先にコネックエフのホームで「コネックエフに切り替える」を押してください';
+
+/**
+ * 中継の流れを始めてよいか。★ 止めるときだけ文を返す。
+ *   ・止めている店（切り替え済み・セットの契約なし）… 読むだけの流れも止める（第1243便のまま）
+ *   ・切り替えていない店 … 書き換える流れだけ止める（★ 読むだけ＝フクエスリンクの取り込み・接続テストは通す）
+ */
+export function conecfFlowBlockMessage(
+  salon: { conecfEnabledAt: string | null | undefined; crmUntil: string | null | undefined },
+  todayJst: string,
+  opts: { write: boolean },
+): string | null {
+  if (isConecfStopped(salon, todayJst)) return CONECF_STOPPED_MESSAGE;
+  if (opts.write && !salon.conecfEnabledAt) return CONECF_NEED_SWITCH_MESSAGE;
+  return null;
+}
+
+/** コネックエフの画面からの保存（公開／非公開など）を受けてよいか。★ 断るときだけ文を返す */
+export function conecfScreenBlockMessage(
+  salon: { conecfEnabledAt: string | null | undefined; crmUntil: string | null | undefined },
+  todayJst: string,
+): string | null {
+  if (!salon.conecfEnabledAt) return '保存するには、ホームで「コネックエフに切り替える」を押してください';
+  return isConecfStopped(salon, todayJst) ? CONECF_STOPPED_MESSAGE : null;
+}
