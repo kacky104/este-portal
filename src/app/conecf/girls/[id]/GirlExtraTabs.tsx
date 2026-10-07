@@ -15,6 +15,7 @@ import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 // ★ 第1234便（カッキーさん）: AI でキャッチフレーズ・詳細プロフィールの下書き（マイページ /mypage/therapist/[id] と同じ server action・同じ枠・同じ決まり）
 import { generateTherapistCopy, getTherapistCopyQuota, type QuotaState } from '@/app/actions/therapistCopy';
 import { useSitePush } from './useSitePush';
+import { sitePushToast, type SitePushOutcome } from '@/lib/conecfSitePush';
 import { PhotoRemoveConfirm } from '../PhotoRemoveConfirm';
 import { BADGE_CATEGORY_ORDER, BADGE_CATEGORY_LABELS, BADGE_CATEGORY_COLORS, BADGES_BY_CATEGORY, MAX_BADGES } from '@/lib/therapistBadges';
 
@@ -191,10 +192,15 @@ export function GirlExtraTab({
       const ok = await onSave();
       if (!ok) return;
       if (sites.length === 0) { onToast('フクエスへ更新しました'); return; }
+      // ★ 第1289便: 結果を1つのお知らせにまとめる。1サイトだけのタブ（駅ちか・エステ魂）は、送っていない理由も言う
+      const outs: SitePushOutcome[] = [];
       for (const site of sites) {
         const p = site === 'ekichika' ? pushEk : pushEs;
-        await p.onUpdate({ quiet: true });   // ★ 写真が消えるときは確認で止まる（下に出る）
+        const o = await p.onUpdate({ quiet: true, silent: true });   // ★ 写真が消えるときは確認で止まる（下に出る）
+        if (o) outs.push(o);
       }
+      const msg = sitePushToast(outs, { explicit: sites.length === 1 });
+      if (msg) onToast(msg);
     };
     const siteLabel = sites.length === 0 ? 'フクエス' : sites.map((s) => (s === 'ekichika' ? '駅ちか' : 'エステ魂')).join('・');
     return (

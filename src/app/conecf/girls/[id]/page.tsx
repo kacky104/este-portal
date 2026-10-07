@@ -14,6 +14,7 @@ import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import { GirlExtraTab } from './GirlExtraTabs';
 import { GirlDiaryTab } from './GirlDiaryTab';
 import { useSitePush } from './useSitePush';
+import { sitePushToast, type SitePushOutcome } from '@/lib/conecfSitePush';
 import { PhotoRemoveConfirm } from '../PhotoRemoveConfirm';
 import { DeleteGirlPanel } from './DeleteGirlPanel';
 import { CastLinkField } from './CastLinkField';
@@ -200,8 +201,12 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
     const onSaveAndPush = async () => {
       const ok = await onSave();
       if (!ok) return;
-      await pushEk.onUpdate({ quiet: true });
-      await pushEs.onUpdate({ quiet: true });
+      // ★ 第1289便: 2サイトぶんの結果を1つのお知らせにまとめる（★ 駅ちかの結果が、直後のエステ魂のお知らせで上書きされていた）。
+      //   ★ その店が送っていないサイトのことは言わない。出すものが無ければ「保存しました」のお知らせを残す。
+      const a = await pushEk.onUpdate({ quiet: true, silent: true });
+      const b = await pushEs.onUpdate({ quiet: true, silent: true });
+      const msg = sitePushToast([a, b].filter((x): x is SitePushOutcome => x !== null));
+      if (msg) onToast(msg);
     };
     return (
       <>

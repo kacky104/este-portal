@@ -158,7 +158,11 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     if (!r.ok) { onToast(r.error); return; }
     if (r.data.queued > 0) { onToast(`${r.data.queued}名のエステ魂への更新を受け付けました。結果は「更新結果」に出ます`); setPicked(new Set()); }
     else onToast('更新できるセラピストがいませんでした');
-    setBulkNote(r.data.skipped.length > 0 ? `エステ魂へ更新しなかった方：${r.data.skipped.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '');
+    // ★ 第1289便: 始められなかった枠（notes）も出す
+    setBulkNote([
+      r.data.skipped.length > 0 ? `エステ魂へ更新しなかった方：${r.data.skipped.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '',
+      ...(r.data.notes ?? []),
+    ].filter(Boolean).join('　／　'));
   };
 
   const sendBulk = async (allowRemove: boolean) => {
@@ -172,7 +176,11 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       onToast(`${r.data.queued}名の駅ちかへの更新を受け付けました。結果は「更新結果」に出ます`);
       setPicked(new Set());
     } else onToast('更新できるセラピストがいませんでした');
-    setBulkNote(sk.length > 0 ? `更新しなかった方：${sk.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '');
+    // ★ 第1289便: 始められなかった枠（notes）も出す
+    setBulkNote([
+      sk.length > 0 ? `更新しなかった方：${sk.map((x) => `${x.name}（${x.reason}）`).join('、')}` : '',
+      ...(r.data.notes ?? []),
+    ].filter(Boolean).join('　／　'));
   };
 
   const onAdd = async () => {

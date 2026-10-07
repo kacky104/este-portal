@@ -14,8 +14,9 @@ export function PhotoRemoveConfirm({ items, busy, onRemove, onKeep, onCancel, si
     <div className="bg-white border border-amber-300 p-4 space-y-3 text-[14px] text-[#212121]">
       <p className="font-bold text-amber-800">{site}から写真が {total} 枚消えます</p>
       <ul className="text-[13px] text-slate-600 leading-relaxed list-disc pl-5">
-        {items.map((x) => (
-          <li key={x.id}>{x.name}さん：画像{x.slots.join('・')}</li>
+        {/* ★ 第1289便: 2枠ある店では同じ方が枠ごとに並ぶ（名前に「（枠2）」が付く）ので、key は並び順も足す */}
+        {items.map((x, i) => (
+          <li key={`${x.id}-${i}`}>{x.name}さん：画像{x.slots.join('・')}</li>
         ))}
       </ul>
       <p className="text-[12px] text-slate-500">コネックエフで減らした写真です。{site}で消した写真は元に戻せません。</p>
