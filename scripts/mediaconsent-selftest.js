@@ -80,5 +80,84 @@ eq('★ 空文字の名前は捨てる', v.consentRecheckNotice(['', '駅ちか'
 // ★ 印は短く。★ 見出しの横に並ぶ
 eq('★ 印の文字', v.CONSENT_RECHECK_BADGE, '同意の取り直し');
 
+console.log('\n── 7. ★★★ 第1287便: 書き込みは、コネックエフの文に同意した枠だけ ──');
+const V5 = v.MEDIA_CONSENT_VERSION, LINK = v.FUKUES_LINK_CONSENT_VERSION;
+eq('読むだけの同意か: link-v1 は true', v.isReadOnlyConsent(LINK), true);
+eq('読むだけの同意か: v5 は false', v.isReadOnlyConsent(V5), false);
+eq('読むだけの同意か: 無し・空は false', [v.isReadOnlyConsent(null), v.isReadOnlyConsent('')], [false, false]);
+// ★★★ 実際に起きうる形: フクエスリンク（link-v1）のままコネックエフに切り替えた店
+eq('★★★ 共通の判定は link-v1 を通す（＝これだけで書き込みを守れない）', v.needsConsent(LINK), false);
+eq('★★★ link-v1 の枠へ出勤（自動）は始めない', typeof v.writeConsentBlockNote(LINK, 'work_auto', '駅ちか'), 'string');
+eq('★★★ link-v1 の枠へ出勤（手動）も始めない', typeof v.writeConsentBlockNote(LINK, 'work_push', '駅ちか'), 'string');
+eq('★★★ link-v1 の枠から写メ日記を読むのは止めない', v.writeConsentBlockNote(LINK, 'diary_read', '駅ちか'), null);
+eq('★★ link-v1 の枠の接続テストは止めない', v.writeConsentBlockNote(LINK, 'connect_test', '駅ちか'), null);
+eq('★★ link-v1 の枠の投稿用アドレスの読み込みは止めない', v.writeConsentBlockNote(LINK, 'mail_apply', '駅ちか'), null);
+eq('★★★ v5 の枠は、書き込みも読むだけも止めない',
+   [v.writeConsentBlockNote(V5, 'work_auto', '駅ちか'), v.writeConsentBlockNote(V5, 'girl_delete', '駅ちか'), v.writeConsentBlockNote(V5, 'diary_read', '駅ちか')],
+   [null, null, null]);
+eq('★★ 古い版（v4）の枠へは書かない', typeof v.writeConsentBlockNote('v4-2026-09-17', 'sokusera_auto', 'エステ魂'), 'string');
+eq('★★ 同意が無い枠へは書かない', typeof v.writeConsentBlockNote(null, 'diary_auto', 'エステ魂'), 'string');
+eq('★★★ 知らない流れは【要る側】', v.relayIntentNeedsWriteConsent('something_new'), true);
+// ★ 案内の文: 直す場所まで書く。読むだけの同意は「取り直し」と言わない
+const noteLink = v.conecfConsentMissingNote(LINK, '駅ちか');
+const noteOld = v.conecfConsentMissingNote('v4-2026-09-17', '駅ちか');
+eq('★ 案内に直す場所（ID・パスワード登録）が入る', noteLink.indexOf('ID・パスワード登録') >= 0 && noteOld.indexOf('ID・パスワード登録') >= 0, true);
+eq('★ 読むだけの同意は「読み取りのみ」と言う', noteLink.indexOf('読み取りのみ') >= 0, true);
+eq('★★ 読むだけの同意に「取り直し」と言わない', noteLink.indexOf('取り直し') >= 0, false);
+eq('★ 古い版は「取り直し」と言う', noteOld.indexOf('取り直し') >= 0, true);
+eq('★ サイト名が入る', noteLink.indexOf('駅ちか') >= 0, true);
+eq('★ 名前が無ければ名前のない言い方', v.conecfConsentMissingNote(LINK, '').indexOf('このサイト') >= 0, true);
+eq('同意済みなら案内は無い', v.conecfConsentMissingNote(V5, '駅ちか'), null);
+
+console.log('\n── 8. ★★★ 第1287便: 流れの一覧（src/lib/relayFlow.ts）を、読むだけ／書く に分けきっている ──');
+{
+  const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'lib', 'relayFlow.ts'), 'utf8');
+  const a = src.indexOf('export type RelayFlowIntent =');
+  const b = src.indexOf('export type RelayFlowContext');
+  const intents = [];
+  const re = /^\s*\|\s*'([a-z_]+)'/gm;
+  let m;
+  const block = src.slice(a, b);
+  while ((m = re.exec(block)) !== null) intents.push(m[1]);
+  eq('★ 流れの一覧が読めている（20 以上）', a >= 0 && b > a && intents.length >= 20, true);
+  const known = new Set([...v.RELAY_READ_ONLY_INTENTS, ...v.RELAY_WRITE_INTENTS]);
+  eq('★★★ どちらにも入っていない流れは無い（★ 流れを足したら mediaConsent.ts の一覧にも足す）', intents.filter((x) => !known.has(x)), []);
+  eq('★★ 一覧にあるのに、流れの型に無いものは無い', [...known].filter((x) => intents.indexOf(x) < 0), []);
+  eq('★★★ 両方に入っている流れは無い', v.RELAY_READ_ONLY_INTENTS.filter((x) => v.RELAY_WRITE_INTENTS.indexOf(x) >= 0), []);
+  // ★ 相手サイトを書き換える流れを、読むだけの側に入れない
+  for (const w of ['work_push', 'work_auto', 'sokuhime_auto', 'photo_push', 'diary_auto', 'sokusera_auto', 'article_auto', 'girl_delete', 'girl_create', 'cast_create', 'girl_edit', 'cast_edit']) {
+    eq('★★★ ' + w + ' は書き込みの同意が要る', v.relayIntentNeedsWriteConsent(w), true);
+  }
+}
+
+console.log('\n── 9. ★★★ 第1287便: 保存のときの同意（どの画面から来たかで見る） ──');
+// ★★★ 直す前: link-v1 の行にコネックエフの画面（v5）から同意すると、版だけ変わって日時・記録が残らなかった
+eq('★★★ link-v1 → コネックエフの画面で同意: v5 にして【新しい同意】として残す',
+   v.consentSaveDecision({ existing: LINK, agreed: true, incoming: V5 }),
+   { ok: true, version: V5, newlyAgreed: true, previous: LINK });
+eq('★★★ link-v1 → コネックエフの画面でチェック無し: 保存しない',
+   v.consentSaveDecision({ existing: LINK, agreed: false, incoming: V5 }), { ok: false, why: 'not_agreed' });
+eq('v5 → コネックエフの画面（パスワードの入れ直し）: 版も日時もそのまま',
+   v.consentSaveDecision({ existing: V5, agreed: false, incoming: V5 }), { ok: true, version: V5, newlyAgreed: false, previous: null });
+eq('★★ v5 → フクエスリンクの画面: 同意済み。版を link-v1 へ下げない',
+   v.consentSaveDecision({ existing: V5, agreed: true, incoming: LINK }), { ok: true, version: V5, newlyAgreed: false, previous: null });
+eq('link-v1 → フクエスリンクの画面: 同意済み',
+   v.consentSaveDecision({ existing: LINK, agreed: false, incoming: LINK }), { ok: true, version: LINK, newlyAgreed: false, previous: null });
+eq('はじめて（コネックエフ）', v.consentSaveDecision({ existing: null, agreed: true, incoming: V5 }), { ok: true, version: V5, newlyAgreed: true, previous: null });
+eq('はじめて（フクエスリンク）', v.consentSaveDecision({ existing: null, agreed: true, incoming: LINK }), { ok: true, version: LINK, newlyAgreed: true, previous: null });
+eq('★ はじめてでチェック無し', v.consentSaveDecision({ existing: null, agreed: false, incoming: V5 }), { ok: false, why: 'not_agreed' });
+eq('★★ 古い画面（知らない版）からチェックあり: 画面の読み直しを求める',
+   v.consentSaveDecision({ existing: null, agreed: true, incoming: 'v4-2026-09-17' }), { ok: false, why: 'stale_screen' });
+eq('★ 古い版（v4）の行 → コネックエフの画面で同意: 取り直しとして残す',
+   v.consentSaveDecision({ existing: 'v4-2026-09-17', agreed: true, incoming: V5 }), { ok: true, version: V5, newlyAgreed: true, previous: 'v4-2026-09-17' });
+eq('古い画面（知らない版）・同意済みの行: 今までどおり通す（版はそのまま）',
+   v.consentSaveDecision({ existing: V5, agreed: false, incoming: 'v4-2026-09-17' }), { ok: true, version: V5, newlyAgreed: false, previous: null });
+
+console.log('\n── 10. 第1287便: コネックエフのホームの帯（読むだけの同意のまま切り替えた店） ──');
+const cn = v.conecfConsentNeededNotice(['駅ちか']);
+eq('★ 「取り直し」「元どおり」と言わない（まだ1度も送っていない）', cn.title.indexOf('取り直し') >= 0 || cn.body.indexOf('元どおり') >= 0, false);
+eq('★ いまの同意の範囲と、直す場所を書く', cn.body.indexOf('読み取りのみ') >= 0 && cn.body.indexOf('ID・パスワード登録') >= 0, true);
+eq('★ 名前が無ければ名前のない言い方', v.conecfConsentNeededNotice([]).body.indexOf('いくつかのサイト') >= 0, true);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

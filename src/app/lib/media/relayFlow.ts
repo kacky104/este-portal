@@ -15,6 +15,8 @@ import type { EsutamaCastEditValues } from '@/lib/esutamaCastEdit';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
+// ★ 第1287便: 書き込む流れは、コネックエフの文に同意した枠だけ（全フローの入口で見る）
+import { writeConsentBlockNote } from '@/lib/mediaConsent';
 import { defaultAuditSummary } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
 import { markWorkSynced } from '@/app/lib/media/workInputHash';
@@ -384,7 +386,7 @@ export async function startRelayFlow(params: {
   const supabase = createServiceClient();
   const { data: cred, error } = await supabase
     .from('salon_media_credentials')
-    .select('shop_id, login_id, password_enc, is_enabled')
+    .select('shop_id, login_id, password_enc, is_enabled, consent_version')
     .eq('salon_id', params.salonId)
     .eq('provider', params.provider)
     .eq('slot', params.slot)
@@ -392,6 +394,20 @@ export async function startRelayFlow(params: {
 
   if (error) throw new Error('ログイン情報を読めなかった: ' + error.message);
   if (!cred) return { ok: false, reason: 'no_credential', note: 'ログイン情報が登録されていません' };
+
+  // ★★★ 第1287便（2026-10-07・カッキーさんの OK）: 相手サイトを【書き換える】流れは、コネックエフの文に同意した枠だけ。
+  //   ★ ここは手動・自動のすべてのフローの入口。自動の周（出勤・即セラ・写メ日記・新着情報…）は同意を見ていなかった。
+  //   ★ フクエスリンクの文（駅ちかの写メ日記を読むだけ）に同意しただけの枠へは書かない。
+  //   ★ 読むだけの流れ（写メ日記の取り込み・接続テスト・名簿・試し打ち）はここでは止めない（lib/mediaConsent.ts の RELAY_READ_ONLY_INTENTS）。
+  //   ★ 記録（salon_media_audit）は書かない＝「続けて失敗したので自動をやめる」の数に入らない。同意すれば次の周から動く。
+  {
+    const consentNote = writeConsentBlockNote(
+      (cred as { consent_version?: string | null }).consent_version ?? null,
+      params.intent,
+      findMediaSite(params.provider)?.name ?? 'このサイト',
+    );
+    if (consentNote) return { ok: false, reason: 'disabled', note: consentNote };
+  }
 
   // ★★ 第1243便（カッキーさん）: セット（コネックエフ＋フクエスCRM）を OFF にした店は、各サイトへのフローを始めない。
   //   ★ ここは手動・自動のすべてのフローの入口＝1か所で止まる。対象はコネックエフに切り替え済みの店だけ（フクエスリンクの店は通る）。

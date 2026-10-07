@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { needsConsent } from '@/lib/mediaConsent';
+import { needsConecfConsent } from '@/lib/mediaConsent';
 // ★ 第325便: 「いま今すぐの人がいるか」を、画面と同じ物差しで見る（★ 決め方を2つ持たない）
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 import { staggerNotBefore } from '@/lib/relayStagger';
@@ -138,7 +138,8 @@ export async function POST(req: Request) {
   if (credErr) return NextResponse.json({ ok: false, error: credErr.message }, { status: 500 });
   const consentOk = new Set<string>();
   for (const c of (creds ?? []) as Array<{ salon_id: number; slot: number; consent_version: string | null }>) {
-    if (!needsConsent(c.consent_version)) consentOk.add(Number(c.salon_id) + '#' + Number(c.slot ?? 1));
+    // ★ 第1287便: 即ヒメは書き込み。コネックエフの文に同意した枠だけ（読むだけの同意＝フクエスリンクの文では送らない）
+    if (!needsConecfConsent(c.consent_version)) consentOk.add(Number(c.salon_id) + '#' + Number(c.slot ?? 1));
   }
 
   // ★★★ 第1283便: 運営が「即ヒメを送らない」にした枠（sokuhime_push_off）。★ 上の一覧とは別に引く。

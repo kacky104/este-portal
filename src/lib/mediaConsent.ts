@@ -203,6 +203,104 @@ export function isAcceptableConsentVersion(v: string): boolean {
   return v === MEDIA_CONSENT_VERSION || v === FUKUES_LINK_CONSENT_VERSION;
 }
 
+// ───────────── 書き込みに要る同意（第1287便・2026-10-07・カッキーさんの OK） ─────────────
+//
+// ★★★ 起きうること: フクエスリンク（駅ちかの写メ日記を【読むだけ】・link-v1）に同意した店がコネックエフへ切り替えると、
+//   駅ちかの行は link-v1 のまま残る。共通の判定（needsConsent）は「どちらかに同意していればよい」なので、
+//   【書き込みの文に同意していないのに、フクエスから駅ちかへ書けた】。自動の周は同意そのものを見ていなかった。
+//   ★ 2026-10-07 の時点で該当の店は 0（SQL で確認）。来週切り替える店が出る前に入口を塞ぐ。
+// ★ 決まり: 相手サイトを【書き換える】流れは、コネックエフの文（needsConecfConsent）に同意した枠だけ。
+//   ★ 読むだけの流れ（写メ日記の取り込み・接続テスト・名簿・試し打ち）は今までどおり（ここでは何も足さない）。
+
+/** ★ 読むだけの同意（フクエスリンクの文）か。★ 「取り直し」ではなく「書き込みへのご同意がまだ」と言い分けるため */
+export function isReadOnlyConsent(savedVersion: string | null | undefined): boolean {
+  if (typeof savedVersion !== 'string' || savedVersion.length === 0) return false;
+  return savedVersion === FUKUES_LINK_CONSENT_VERSION || FUKUES_LINK_CONSENT_WORDING_ONLY.includes(savedVersion);
+}
+
+/**
+ * ★ 相手サイトを【書き換えない】流れ（RelayFlowIntent・src/lib/relayFlow.ts）。
+ *   ★ mail_apply はフクエス側を書くだけ（駅ちかへは読むだけ）。
+ * ★★ 流れを増やしたら、ここか下の RELAY_WRITE_INTENTS のどちらかに必ず入れる（番人が relayFlow.ts と突き合わせる）。
+ */
+export const RELAY_READ_ONLY_INTENTS: readonly string[] = [
+  'connect_test', 'work_dryrun', 'roster_read', 'sokuhime_read', 'mail_dryrun', 'mail_apply',
+  'diary_read', 'diary_dryrun', 'article_dryrun', 'article_slots',
+];
+
+/** ★ 相手サイトを書き換える（ことがある）流れ。★ 試し打ちの旗つき（girl_edit の apply 無し等）もこちら＝コネックエフの機能 */
+export const RELAY_WRITE_INTENTS: readonly string[] = [
+  'work_push', 'work_auto', 'sokuhime_push', 'sokuhime_auto', 'photo_push',
+  'diary_push', 'diary_auto', 'sokusera_push', 'sokusera_auto',
+  'article_push', 'article_auto',
+  'girl_delete', 'cast_hide', 'cast_create', 'girl_create', 'cast_photo', 'girl_edit', 'cast_edit',
+];
+
+/** ★ その流れは書き込みの同意が要るか。★ 知らない流れは【要る側】に倒す */
+export function relayIntentNeedsWriteConsent(intent: string): boolean {
+  return !RELAY_READ_ONLY_INTENTS.includes(intent);
+}
+
+/**
+ * ★ コネックエフの文に同意していない枠への案内（同意済みなら null）。
+ *   ★ 直す場所（コネックエフの「ID・パスワード登録」）まで書く。★ サイト名は引数（決め打ちにしない）。
+ */
+export function conecfConsentMissingNote(savedVersion: string | null | undefined, siteName: string): string | null {
+  if (!needsConecfConsent(savedVersion)) return null;
+  const name = typeof siteName === 'string' && siteName.length > 0 ? siteName : 'このサイト';
+  const how = `コネックエフの「ID・パスワード登録」で${name}を開き、内容をお読みのうえご同意ください`;
+  if (isReadOnlyConsent(savedVersion)) {
+    return `${name}は、いま「写メ日記の読み取りのみ」のご同意です。フクエスから${name}へ送るには、${how}`;
+  }
+  if (typeof savedVersion !== 'string' || savedVersion.length === 0) {
+    return `${name}へ送るには、ご同意が必要です。${how}`;
+  }
+  return `${name}は、同意の取り直しが必要です。${how}`;
+}
+
+/** ★ 流れを始めてよいか（全フローの入口・startRelayFlow が呼ぶ）。★ 止めるときだけ理由の文を返す */
+export function writeConsentBlockNote(savedVersion: string | null | undefined, intent: string, siteName: string): string | null {
+  if (!relayIntentNeedsWriteConsent(intent)) return null;
+  return conecfConsentMissingNote(savedVersion, siteName);
+}
+
+/**
+ * ★★★ ログイン情報の保存のとき、同意をどう扱うか（saveMediaCredential が呼ぶ）。
+ *   ★ 「すでに同意済みか」は【来た画面の版】で見る。コネックエフの画面（v5）から来たのに、
+ *     共通の判定で「同意済み」と読むと、link-v1 → v5 に変わっても【同意日時・同意した人・記録】が残らなかった。
+ *   ★ 同意済みなら版は変えない（コネックエフに同意済みの行を、フクエスリンクの版へ下げない）。
+ *   ★ 知らない版の画面から来たときは今までどおり共通の判定。
+ */
+export function consentSaveDecision(input: {
+  existing: string | null | undefined; agreed: boolean; incoming: string;
+}):
+  | { ok: true; version: string; newlyAgreed: boolean; previous: string | null }
+  | { ok: false; why: 'stale_screen' | 'not_agreed' } {
+  const existing = typeof input.existing === 'string' && input.existing.length > 0 ? input.existing : null;
+  const already =
+    input.incoming === MEDIA_CONSENT_VERSION ? !needsConecfConsent(existing)
+      : input.incoming === FUKUES_LINK_CONSENT_VERSION ? !needsFukuesLinkConsent(existing)
+        : !needsConsent(existing);
+  if (already && existing) return { ok: true, version: existing, newlyAgreed: false, previous: null };
+  const agreeingNow = input.agreed === true && isAcceptableConsentVersion(input.incoming);
+  if (!agreeingNow) return { ok: false, why: input.agreed === true ? 'stale_screen' : 'not_agreed' };
+  return { ok: true, version: input.incoming, newlyAgreed: true, previous: existing };
+}
+
+/**
+ * ★ コネックエフのホームの帯: 読むだけの同意（フクエスリンク）のまま切り替えた店向け。
+ *   ★ 「取り直し」「元どおり」とは言わない（★ まだ1度も送っていない）。
+ */
+export function conecfConsentNeededNotice(siteLabels: readonly string[]): { title: string; body: string } {
+  const names = siteLabels.filter((s) => typeof s === 'string' && s.length > 0);
+  const where = names.length > 0 ? names.join('・') : 'いくつかのサイト';
+  return {
+    title: 'コネックエフのご利用内容へのご同意が必要です',
+    body: `${where}は、いま「写メ日記の読み取りのみ」のご同意です。コネックエフから${where}へ出勤などを送るには、`
+      + '「ID・パスワード登録」で内容をお読みのうえ、ご同意ください。',
+  };
+}
+
 /** 監査ログや控えに残すための、文言の全文（1つの文字列）。 */
 export function consentFullText(): string {
   return MEDIA_CONSENT_SECTIONS.map((s, i) => `${i + 1}. ${s.heading}\n${s.body}`).join('\n\n');

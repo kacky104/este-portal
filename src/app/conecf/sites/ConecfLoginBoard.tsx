@@ -39,7 +39,7 @@ import { useConecfSession } from '../ConecfSession';
 
 type CredRow = {
   provider: string; slot: number; shopId: string; loginId: string; passwordMask: string; hasPassword: boolean;
-  isEnabled: boolean; needsConsent: boolean; consentAgreedAt: string | null; lastVerifiedAt: string | null;
+  isEnabled: boolean; needsConsent: boolean; consentReadOnly?: boolean; consentAgreedAt: string | null; lastVerifiedAt: string | null;
   lastError: string | null; linkMode: string | null;
 };
 
@@ -188,6 +188,8 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
     const st = siteLoginStatus({ known, rows: siteRows, accepting: site.accepting });
     if (st === 'site_closed') return { text: 'いまは使えません（登録は残っています）', tone: 'text-rose-600' };
     if (!canRegisterSite(site) && siteRows.length === 0) return { text: notYetLabel(site), tone: 'text-slate-400' };
+    // ★ 第1287便: 読むだけの同意（フクエスリンクの文）のままの枠は「取り直し」と言わない（★ まだ1度も送っていない）
+    if (siteRows.some((r) => r.needsConsent && r.consentReadOnly)) return { text: 'ご同意が必要です（いまは「写メ日記の読み取りのみ」のご同意です）', tone: 'text-amber-700' };
     if (siteRows.some((r) => r.needsConsent)) return { text: '同意の取り直しが必要です（いまは送っていません）', tone: 'text-amber-700' };
     if (siteRows.length === 0) return { text: '', tone: '' };
     const slots = mediaSiteSlots(site).length > 1 ? siteRows.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : '';

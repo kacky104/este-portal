@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import { workProblemShort, type WorkProblem } from '@/lib/workProblem';
-import { consentRecheckNotice } from '@/lib/mediaConsent';
+import { consentRecheckNotice, conecfConsentNeededNotice } from '@/lib/mediaConsent';
 import { useConecfHref } from './ConecfBase';
 
 // コネックエフのホーム（第396便・1b・2026-09-17）。
@@ -24,6 +24,8 @@ type Site = {
   autoOn: boolean;
   hasCredential: boolean;
   needsConsent: boolean;
+  /** ★ 第1287便: いまの同意が【読むだけ（フクエスリンクの文）】。「取り直し」ではなく「ご同意が必要」と言う */
+  consentReadOnly?: boolean;
   capabilities: string[];
   /** ★ 第1275便: いまうまくいっていないこと。無ければ null */
   problem?: WorkProblem | null;
@@ -45,7 +47,7 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
   useEffect(() => {
     if (salonId == null) return;
     let alive = true;
-    getMediaOverview({ salonId }).then((res) => {
+    getMediaOverview({ salonId, service: 'conecf' }).then((res) => {   // ★ 第1287便: 同意はコネックエフの文で見る
       if (!alive) return;
       if (res.ok) setData(res.data as Overview);
       else setError(res.error);
@@ -58,7 +60,7 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
     setBusy(s.provider + '#' + s.slot);
     const res = await setMediaLinkMode({ salonId, provider: s.provider, slot: s.slot, mode });
     if (res.ok) {
-      const back = await getMediaOverview({ salonId });
+      const back = await getMediaOverview({ salonId, service: 'conecf' });
       if (back.ok) setData(back.data as Overview);
       onToast(mode === 'write'
         ? `${s.label}への更新を始めました。出勤の自動更新は「出勤をサイトへ」で設定してください`
@@ -77,7 +79,10 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
   }
 
   const sites = data?.sites ?? [];
-  const recheck = sites.filter((s) => s.needsConsent);
+  // ★ 第1287便: 「取り直し」（古い版）と「読むだけの同意のまま」（フクエスリンクから切り替えた店）を言い分ける。
+  //   ★ 後者の帯は切り替えたあとだけ（★ 切り替える前は見るだけ。フクエスリンクとしては同意済み）。
+  const recheck = sites.filter((s) => s.needsConsent && !s.consentReadOnly);
+  const needAgree = enabled ? sites.filter((s) => s.needsConsent && s.consentReadOnly) : [];
   const updating = sites.filter((s) => s.direction === 'write' && !s.needsConsent);
 
   return (
@@ -87,6 +92,15 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
         <div className="border border-amber-300 bg-amber-50 px-4 py-3">
           <p className="text-[15px] font-bold text-amber-800">{consentRecheckNotice(recheck.map((x) => x.label)).title}</p>
           <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">{consentRecheckNotice(recheck.map((x) => x.label)).body}</p>
+          <Link href={href('/sites')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">ID・パスワード登録を開く ›</Link>
+        </div>
+      )}
+
+      {/* ── 第1287便: 読むだけの同意（フクエスリンク）のまま切り替えた店（琥珀）── */}
+      {needAgree.length > 0 && (
+        <div className="border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-[15px] font-bold text-amber-800">{conecfConsentNeededNotice(needAgree.map((x) => x.label)).title}</p>
+          <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">{conecfConsentNeededNotice(needAgree.map((x) => x.label)).body}</p>
           <Link href={href('/sites')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">ID・パスワード登録を開く ›</Link>
         </div>
       )}
@@ -141,7 +155,7 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
                 ? { text: 'フクエスリンクで反映中', tone: 'text-amber-700' }
                 : { text: '更新していません', tone: 'text-slate-400' };
             } else if (s.needsConsent) {
-              status = { text: '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
+              status = { text: s.consentReadOnly ? 'ご同意が必要です（いまは更新していません）' : '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
             } else if (!s.hasCredential) {
               status = { text: 'ID・パスワード未登録', tone: 'text-slate-400' };

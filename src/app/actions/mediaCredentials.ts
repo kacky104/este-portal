@@ -4,7 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
-import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isAcceptableConsentVersion } from '@/lib/mediaConsent';
+import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isReadOnlyConsent, conecfConsentMissingNote, consentSaveDecision } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
 import { syncDiarySource, maybeStartDiaryBackfill } from '@/app/lib/media/diarySourceSync';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
@@ -194,6 +194,8 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
       hasPassword: boolean;
       isEnabled: boolean;
       needsConsent: boolean;
+      /** ★ 第1287便: コネックエフの画面で、いまの同意が【読むだけ（フクエスリンクの文）】のときだけ true（「取り直し」と言い分ける） */
+      consentReadOnly?: boolean;
       consentAgreedAt: string | null;
       lastVerifiedAt: string | null;
       lastError: string | null;
@@ -244,6 +246,7 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
         : input.service === 'link'
           ? needsFukuesLinkConsent(r.consent_version as string | null)
           : needsConsent(r.consent_version as string | null),
+      ...(input.service === 'conecf' && isReadOnlyConsent(r.consent_version as string | null) ? { consentReadOnly: true } : {}),
       consentAgreedAt: (r.consent_agreed_at as string | null) ?? null,
       lastVerifiedAt: (r.last_verified_at as string | null) ?? null,
       lastError: (r.last_error as string | null) ?? null,
@@ -292,10 +295,16 @@ export async function saveMediaCredential(input: {
     .maybeSingle();
 
   // ★★ 同意の検査。すでにいまの版で同意済みなら、毎回チェックを求めない
-  const alreadyAgreed = !needsConsent((existing?.consent_version as string | null) ?? null);
   // ★ 第716便: 版は2系統（コネックエフ v5 / フクエスリンク link-v1）。★ 来た版をそのまま保存する（どちらの文に同意したかを残す）
-  const agreeingNow = input.agreed === true && isAcceptableConsentVersion(input.consentVersion);
-  if (!alreadyAgreed && !agreeingNow) {
+  // ★★★ 第1287便: 「同意済みか」は【来た画面の版】で見る（lib/mediaConsent.ts の consentSaveDecision）。
+  //   ★ 読むだけの同意（link-v1）の行にコネックエフの画面から同意したとき、共通の判定だと「同意済み」と読まれて、
+  //     版だけ v5 に変わり、同意日時・同意した人・consent_agreed の記録が残らなかった。
+  const consent = consentSaveDecision({
+    existing: (existing?.consent_version as string | null) ?? null,
+    agreed: input.agreed === true,
+    incoming: input.consentVersion,
+  });
+  if (!consent.ok) {
     // ★ 版がずれている場合もここに来る。画面が古いまま送ってきた可能性があるので、そう言う
     return {
       ok: false,
@@ -341,9 +350,10 @@ export async function saveMediaCredential(input: {
       password_enc: passwordEnc,
       is_enabled: true,
       // ★ 第716便: いま同意した版をそのまま入れる。★ 同意済みでパスワードを入れ直しただけなら、前の版を残す
-      consent_version: agreeingNow ? input.consentVersion : ((existing?.consent_version as string | null) ?? MEDIA_CONSENT_VERSION),
+      // ★ 第1287便: 同意済みなら版は変えない（コネックエフに同意済みの行を、フクエスリンクの版へ下げない）
+      consent_version: consent.version,
       // ★ すでに同意済みなら日時は上書きしない（「いつ同意したか」を新しくしない）
-      ...(alreadyAgreed ? {} : { consent_agreed_at: nowISO, consent_agreed_by: guard.data.userId }),
+      ...(consent.newlyAgreed ? { consent_agreed_at: nowISO, consent_agreed_by: guard.data.userId } : {}),
       last_error: null,
       updated_at: nowISO,
     },
@@ -352,11 +362,12 @@ export async function saveMediaCredential(input: {
   if (error) return { ok: false, error: error.message };
 
   const actor = 'shop:' + guard.data.userId;
-  if (!alreadyAgreed) {
+  if (consent.newlyAgreed) {
     await recordMediaAudit({
       salonId, provider: input.provider, slot,
       event: 'consent_agreed', outcome: 'ok',
-      detail: { consentVersion: input.consentVersion },
+      // ★ 第1287便: 前の版も残す（読むだけの同意 → 書き込みの同意、が記録で辿れるように）。画面の1行は consentVersion だけを読む
+      detail: { consentVersion: consent.version, ...(consent.previous ? { previousVersion: consent.previous } : {}) },
       actor,
     });
   }
@@ -699,6 +710,22 @@ async function applyLinkMode(input: {
     }
   }
 
+  // ★★★ 第1287便（2026-10-07・カッキーさんの OK）: 【フクエスから反映】にできるのは、コネックエフの文（書き込み）に同意した枠だけ。
+  //   ★ フクエスリンクの文（駅ちかの写メ日記を読むだけ・link-v1）のまま切り替えた店は、ここで断って同意の画面へ案内する。
+  //   ★ ログイン情報がまだ無い枠は通す（送るものが無い。登録のときにコネックエフの文へ同意する）。
+  //   ★ 全フローの入口（startRelayFlow）でも同じ判定で見る＝ここだけで守らない。
+  //   ★ 'none'（止める）は常に通す。★ 読めなかったときは断る（「分からない」を「同意済み」と読まない）。
+  if (input.mode === 'write' || input.mode === 'write_auto') {
+    const { data: cr, error: crErr } = await svc
+      .from('salon_media_credentials').select('consent_version')
+      .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot).maybeSingle();
+    if (crErr) return { ok: false, error: 'ログイン情報を読めませんでした: ' + crErr.message };
+    if (cr) {
+      const note = conecfConsentMissingNote(cr.consent_version as string | null, findMediaSite(input.provider)?.name ?? 'このサイト');
+      if (note) return { ok: false, error: note };
+    }
+  }
+
   // ★★★ ほかの媒体が【正本】のあいだは write にできない（第127便・2026-09-04）。
   //
   // ★★★ 実際に起きていた（ラビリンス様）: 駅ちかが read（＝正本）なのにエステ魂が write。
@@ -948,8 +975,10 @@ export async function startMediaWorkPush(input: {
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
   if (!cred) return { ok: false, error: 'ログイン情報が登録されていません' };
-  if (needsConsent(cred.consent_version as string | null)) {
-    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  // ★ 第1287便: 書き込みは、コネックエフの文に同意した枠だけ（読むだけの同意では通さない）
+  {
+    const note = conecfConsentMissingNote(cred.consent_version as string | null, findMediaSite(input.provider)?.name ?? 'このサイト');
+    if (note) return { ok: false, error: note };
   }
 
   // ★ 向きが 'write' でなければ送らない
@@ -1097,8 +1126,10 @@ async function guardTherapistCreate(input: {
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
   if (!cred) return { ok: false, error: 'ログイン情報が登録されていません' };
-  if (needsConsent(cred.consent_version as string | null)) {
-    return { ok: false, error: '連携の説明に同意してから実行してください' };
+  // ★ 第1287便: 書き込みは、コネックエフの文に同意した枠だけ（読むだけの同意では通さない）
+  {
+    const note = conecfConsentMissingNote(cred.consent_version as string | null, findMediaSite(input.provider)?.name ?? 'このサイト');
+    if (note) return { ok: false, error: note };
   }
 
   // ④ 向きが write 系でなければ送らない（★ 出勤の反映と同じ。★ 相手に人を増やすので、読むだけの枠では受けない）
@@ -1630,7 +1661,8 @@ export async function getSokuhimeAuto(input: { salonId: string | number; slot?: 
   const auto = src?.sokuhime_auto === true;
   let why: string | null = null;
   if (!cred) why = '駅ちかのログイン情報が登録されていません';
-  else if (needsConsent(cred.consent_version as string | null)) why = '連携の説明にご同意いただくと使えます';
+  // ★ 第1287便: 即ヒメは書き込み。コネックエフの文への同意を見る
+  else if (needsConecfConsent(cred.consent_version as string | null)) why = 'コネックエフの「ID・パスワード登録」で、駅ちかの内容にご同意いただくと使えます';
   else if (!src || src.is_enabled !== true) why = 'この枠はいま止まっています（運営にお問い合わせください）';
   else if (!isWriteDirection(src.link_mode as string | null)) why = 'ホームで駅ちかを「フクエスから反映」にすると使えます';
   return { ok: true, data: { auto, canAuto: why === null, why } };
@@ -1709,7 +1741,11 @@ export async function startMediaSokuhimePush(input: {
     .from('salon_media_credentials').select('consent_version')
     .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot).maybeSingle();
   if (!row) return { ok: false, error: '駅ちかのログイン情報が登録されていません' };
-  if (needsConsent(row.consent_version as string | null)) return { ok: false, error: '連携の説明に同意してから実行してください' };
+  // ★ 第1287便: 即ヒメは書き込み（試し打ちもコネックエフの機能）。コネックエフの文に同意した枠だけ
+  {
+    const note = conecfConsentMissingNote(row.consent_version as string | null, '駅ちか');
+    if (note) return { ok: false, error: note };
+  }
   // ★★★ 実弾は write の枠だけ。★ 画面だけで守らない（第38便 §17-16）
   if (input.apply === true) {
     const { data: src } = await svc.from('salon_import_sources').select('link_mode, is_enabled')
@@ -1843,7 +1879,8 @@ export async function startMediaMailImport(input: {
  *
  * ★★ 失敗しても画面は止めない、は呼び出し側の作法。ここは素直にエラーを返す。
  */
-export async function getMediaOverview(input: { salonId: string | number }): Promise<
+// ★ 第1287便: service: 'conecf' ＝コネックエフの画面から。同意をコネックエフの文（書き込み）で見る。省略は今までどおり共通
+export async function getMediaOverview(input: { salonId: string | number; service?: 'conecf' }): Promise<
   Result<{
     /** フクエスに登録されているセラピストの人数 */
     therapistCount: number;
@@ -1871,6 +1908,8 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
        *   ★ 鍵が無い枠では意味が無いので false。
        */
       needsConsent: boolean;
+      /** ★ 第1287便: service='conecf' で、いまの同意が【読むだけ（フクエスリンクの文）】のときだけ true が付く */
+      consentReadOnly?: boolean;
       /** 最後にその管理画面へログインできた時刻 */
       lastVerifiedAt: string | null;
       /** 最後の取り込み（当日の周） */
@@ -1972,7 +2011,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
   const key = (p: string, s: number) => p + '#' + s;
 
   const credOf = new Map<string, {
-    hasCredential: boolean; lastVerifiedAt: string | null; needsConsent: boolean;
+    hasCredential: boolean; lastVerifiedAt: string | null; needsConsent: boolean; consentReadOnly: boolean;
   }>();
   for (const c of creds ?? []) {
     credOf.set(key(String(c.provider), Number(c.slot ?? 1)), {
@@ -1981,7 +2020,11 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       lastVerifiedAt: (c.last_verified_at as string | null) ?? null,
       // ★★★ 同意の取り直しが要る枠は、送信も接続テストも止まる（第89便）。
       //   ★ 止まっていることを入口でも言えるように、ここで持って上がる。
-      needsConsent: needsConsent((c.consent_version as string | null) ?? null),
+      // ★ 第1287便: コネックエフの画面では、コネックエフの文（書き込み）への同意で見る（ID・パスワード登録の画面と同じ判定）
+      needsConsent: input.service === 'conecf'
+        ? needsConecfConsent((c.consent_version as string | null) ?? null)
+        : needsConsent((c.consent_version as string | null) ?? null),
+      consentReadOnly: input.service === 'conecf' && isReadOnlyConsent((c.consent_version as string | null) ?? null),
     });
   }
 
@@ -2008,7 +2051,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
 
   const sites: Array<{
     provider: string; slot: number; label: string; direction: string; statusLabel: string;
-    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean;
+    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean; consentReadOnly?: boolean;
     lastVerifiedAt: string | null;
     listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
     /** ★ 第348便: 最後に【内容を確かめた】時刻（media_work_plans.created_at） */
@@ -2096,6 +2139,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
       hasCredential: facts.hasCredential,
       // ★ 鍵が無い枠に「同意の取り直し」を出さない（取り直す相手がいない）
       needsConsent: cred != null && cred.needsConsent === true,
+      ...(cred != null && cred.consentReadOnly === true ? { consentReadOnly: true } : {}),
       lastVerifiedAt: cred?.lastVerifiedAt ?? null,
       listLastRunAt,
       fullLastRunAt,
