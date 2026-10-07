@@ -22,8 +22,10 @@ const N = (kind, detail, extra) => ({ kind, detail, ...(extra || {}) });
   const r = m.splitWorkNotes(notes);
   eq('★★★ 送れていない方は1行（出勤表に出ていない）', r.unsent.map((n) => n.kind), ['unmapped_therapist']);
   // ★ 第1268便: 「出勤を入れていない日（66件）」は出さない（カッキーさんの決定）
-  eq('★★★ お知らせ（畳む側）は2行。入力が無い日の行は出さない', r.info.map((n) => n.kind), ['unknown_girl', 'target_off']);
+  // ★ 第1269便: 「送らない」にしている方の行も出さない（カッキーさんの決定）
+  eq('★★★ お知らせ（畳む側）は1行。入力が無い日・送らないにしている方の行は出さない', r.info.map((n) => n.kind), ['unknown_girl']);
   eq('★★★ 入力が無い日の行は、どちらの側にも出ない', [...r.unsent, ...r.info].some((n) => n.kind === 'missing_row_as_rest'), false);
+  eq('★★★ 送らないにしている方の行は、どちらの側にも出ない', [...r.unsent, ...r.info].some((n) => n.kind === 'target_off'), false);
   eq('★ 並びは渡された順のまま', r.info[0].detail.startsWith('1名は、駅ちかにだけ'), true);
 }
 
@@ -31,12 +33,10 @@ const N = (kind, detail, extra) => ({ kind, detail, ...(extra || {}) });
 eq('★★ 連携していない方 → 送れていない', m.splitWorkNotes([N('unmapped_therapist', '2名は駅ちかと連携していないため更新できません')]).unsent.length, 1);
 eq('★★ 選べない時刻 → 送れていない', m.splitWorkNotes([N('time_not_selectable', '1件は、駅ちかで選べない時刻のため反映していません')]).unsent.length, 1);
 eq('★★ 時刻を寄せた → お知らせ', m.splitWorkNotes([N('time_snapped', '1件は、駅ちかが30分刻みのため時刻を寄せて反映しました')]).info.length, 1);
-eq('★★ 送らないにしている → お知らせ（店舗様が決めたこと）', m.splitWorkNotes([N('target_off', '1名は、送り先サイトで「送らない」にしているため更新していません')]).info.length, 1);
+eq('★★★ 送らないにしている → 出さない（第1269便・店舗様が決めた設定）', m.splitWorkNotes([N('target_off', '1名は、送り先サイトで「送らない」にしているため更新していません', { names: ['しおん'] })]), { unsent: [], info: [] });
 eq('★★★ 知らない種類 → お知らせ（勝手に警告にしない）', m.splitWorkNotes([N('something_new', 'x')]).info.length, 1);
-eq('★★★ 古い計画: 「送らない」が unmapped_therapist で保存されていても、お知らせの側',
-  m.splitWorkNotes([N('unmapped_therapist', '1名は送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）')]), {
-    unsent: [], info: [N('unmapped_therapist', '1名は送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）')],
-  });
+eq('★★★ 古い計画: 「送らない」が unmapped_therapist で保存されていても、黄色い枠に出さない（どちらにも出さない）',
+  m.splitWorkNotes([N('unmapped_therapist', '1名は送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）')]), { unsent: [], info: [] });
 eq('★★★ 第1267便より前の言い方（◯件は、フクエス側に入力が無い日のため…）で保存された行も出さない',
   m.splitWorkNotes([N('missing_row_as_rest', '66件は、フクエス側に入力が無い日のため「お休み」として扱いました（駅ちかは部分更新ができないため、入力が無い＝お休みになります）')]),
   { unsent: [], info: [] });

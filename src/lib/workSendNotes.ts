@@ -19,12 +19,19 @@ const UNSENT_KINDS: readonly string[] = ['unmapped_therapist', 'time_not_selecta
  *   ★ 出勤を入れていない日が休みになるのは当たり前で、店舗様にとって意味が無い。しかも件数（66件）が何かの異常に読めて混乱する
  *     （ラビリンス様）。言い換えても（第1267便）同じだったので、出さない。
  *   ★ 消すのは【表示】だけ。計画（media_work_plans.notes）には今までどおり残る＝運営が調べるときは読める。
+ *
+ * ★★★ 第1269便（2026-10-07・カッキーさんの決定＝案A）: 'target_off'（送り先サイトで「送らない」にしている方）も出さない。
+ *   ★ 店舗様が自分で決めた設定で、出勤を出したかどうかに関係なく、設定がそのままなら更新のたびに出続ける
+ *     （出勤が1件も無い方でも出る）。出し続けると「何か対応が要るのか」と読まれる。
+ *   ★ 設定は、プロフィール編集の「送り先サイト」と「セラピスト登録状況一覧」で確かめられる。
+ *     よくあるご質問「特定のセラピストさんだけ、出勤が反映されません」にも書いてある（lib/conecfGuide.ts）。
  */
-const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest'];
+const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest', 'target_off'];
 
 /**
  * ★ 第1267便より前に保存された計画では、「送らない」にしている方のお知らせも 'unmapped_therapist' だった。
- *   計画は更新のたびに作り直されるので、古い行はすぐ無くなる。そのあいだだけ、文で見分けて「お知らせ」の側に出す。
+ *   計画は更新のたびに作り直されるので、古い行はすぐ無くなる。そのあいだだけ、文で見分ける
+ *   （★ 「送れていない方」の黄色い枠に出さないため。第1269便からは、新しい種類 'target_off' と同じく出さない）。
  */
 function isLegacyTargetOff(n: WorkNote): boolean {
   return n.kind === 'unmapped_therapist' && n.detail.includes('「送らない」にしている');
@@ -35,8 +42,9 @@ export function splitWorkNotes(notes: ReadonlyArray<WorkNote> | null | undefined
   const info: WorkNote[] = [];
   for (const n of notes ?? []) {
     if (!n || typeof n.detail !== 'string') continue;
-    if (HIDDEN_KINDS.includes(n.kind)) continue;
-    if (UNSENT_KINDS.includes(n.kind) && !isLegacyTargetOff(n)) unsent.push(n);
+    // ★ 第1269便: 古い計画の「送らない」の行（種類が unmapped_therapist のまま）も、同じく出さない
+    if (HIDDEN_KINDS.includes(n.kind) || isLegacyTargetOff(n)) continue;
+    if (UNSENT_KINDS.includes(n.kind)) unsent.push(n);
     else info.push(n);
   }
   return { unsent, info };
