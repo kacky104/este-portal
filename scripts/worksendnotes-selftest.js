@@ -40,6 +40,8 @@ eq('★★★ 古い計画: 「送らない」が unmapped_therapist で保存�
 eq('★★★ 第1267便より前の言い方（◯件は、フクエス側に入力が無い日のため…）で保存された行も出さない',
   m.splitWorkNotes([N('missing_row_as_rest', '66件は、フクエス側に入力が無い日のため「お休み」として扱いました（駅ちかは部分更新ができないため、入力が無い＝お休みになります）')]),
   { unsent: [], info: [] });
+eq('★★★ 第1271便: 送る出勤が無い方（連携していない／出勤表に出ていない）は、どちらの側にも出さない',
+  m.splitWorkNotes([N('not_listed_idle', '1名は、駅ちかと連携していないか出勤表に出ていませんが、送る出勤がありません', { names: ['もえ'] })]), { unsent: [], info: [] });
 eq('★ 空・null', [m.splitWorkNotes(null), m.splitWorkNotes([])], [{ unsent: [], info: [] }, { unsent: [], info: [] }]);
 eq('★ 文が無い行は捨てる（画面を壊さない）', m.splitWorkNotes([{ kind: 'unknown_girl' }, null]), { unsent: [], info: [] });
 

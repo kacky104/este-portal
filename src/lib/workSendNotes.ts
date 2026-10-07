@@ -26,7 +26,9 @@ const UNSENT_KINDS: readonly string[] = ['unmapped_therapist', 'time_not_selecta
  *   ★ 設定は、プロフィール編集の「送り先サイト」と「セラピスト登録状況一覧」で確かめられる。
  *     よくあるご質問「特定のセラピストさんだけ、出勤が反映されません」にも書いてある（lib/conecfGuide.ts）。
  */
-const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest', 'target_off'];
+//   ★ 第1271便: 'not_listed_idle'（連携していない／相手の出勤表に出ていないが、送る出勤が1件も無い方）も出さない。
+//     非公開にして相手サイトからも外した方が、更新のたびに「送れていない方」に出続けていた（ラビリンス様・2026-10-07）。
+const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest', 'target_off', 'not_listed_idle'];
 
 /**
  * ★ 第1267便より前に保存された計画では、「送らない」にしている方のお知らせも 'unmapped_therapist' だった。

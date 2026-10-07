@@ -56,7 +56,8 @@ export type PlanIssue = {
     | 'unmapped_therapist'    // この枠での castId が無い＝駅ちかに出せない
     | 'unknown_girl'          // 駅ちかに居てフクエスに居ない＝読んだまま返す
     | 'missing_row_as_rest'   // フクエスに行が無い日を「休み」として扱った
-    | 'target_off';           // ★ 第1267便: コネックエフの送り先サイトで「送らない」にしている方（店舗様が決めたこと）
+    | 'target_off'            // ★ 第1267便: コネックエフの送り先サイトで「送らない」にしている方（店舗様が決めたこと）
+    | 'not_listed_idle';      // ★ 第1271便: 連携していない／相手の出勤表に出ていないが、【送る出勤が1件も無い】方（画面には出さない）
   detail: string;
   /** 人が読む用。件数だけ入れる（名前やURLを監査ログに流さないため） */
   count?: number;
@@ -375,19 +376,36 @@ export function buildWorkPlan(input: {
     if (!wanted.has(castId)) wanted.set(castId, Array.from({ length: WORK_DAYS }, () => null));
   }
 
+  // ★★★ 第1271便（2026-10-07・カッキーさん）: 「出勤を送れていない方がいます」は、【送る出勤がある方】だけにする。
+  //   ★ 実際に起きた（ラビリンス様）: 非公開にして駅ちかからも外した方（もえさん）が、更新のたびに
+  //     「もえ さんは、いま駅ちかの出勤表に出ていないため更新できません」と黄色い枠に出続けた。
+  //     フクエスに駅ちかの番号が残っているだけで、送る出勤は1件も無い。＝店舗様がすることは何も無い。
+  //   ★ 「送る出勤がある」＝この7日のうちに、出勤（お休みでない・時刻が入っている）が1日でもある。
+  //     非公開にした方は出勤がお休みになっている（setTherapistActive）ので、ここには入らない。
+  //   ★ 数え方だけの話。送る内容は変わらない（出勤表に居ない方・番号が無い方は、もとから送っていない）。
+  const hasWork = (sh: FukuesShift): boolean => sh.active && Boolean(sh.start) && Boolean(sh.end) && dayOfISO.has(sh.dateISO);
   const unmapped = new Set<number>();
+  const unmappedIdle = new Set<number>();
+  const notOnPageWithWork = new Set<string>();
   for (const sh of shifts) {
     const castId = input.castIdOf.get(sh.therapistId);
     if (!castId) {
-      unmapped.add(sh.therapistId);   // フクエスに居るが、この枠の番号が無い
+      // フクエスに居るが、この枠の番号が無い
+      if (hasWork(sh)) unmapped.add(sh.therapistId);
+      else unmappedIdle.add(sh.therapistId);
       continue;
     }
     const row = wanted.get(castId);
-    if (!row) continue;               // 駅ちかの出勤表に居ない。notOnPage で報告済み
+    if (!row) {
+      // 駅ちかの出勤表に居ない
+      if (hasWork(sh)) notOnPageWithWork.add(castId);
+      continue;
+    }
     const d = dayOfISO.get(sh.dateISO);
     if (d === undefined) continue;    // 7日窓の外。送る対象ではない
     row[d] = sh;
   }
+  for (const id of unmapped) unmappedIdle.delete(id);   // 1日でも出勤があれば「送れていない方」
 
   // ★ 第1267便: 名前（分かる分だけ）。★ 空の配列は付けない
   const namesOf = (ids: Iterable<number>): string[] => {
@@ -412,17 +430,30 @@ export function buildWorkPlan(input: {
         '名は駅ちかと連携していないため更新できません。「セラピスト設定」で連携してください',
     });
   }
-  if (notOnPage.size > 0) {
-    // ★ notOnPage は castId の集まり。名前は castIdOf を逆に引く
+  if (notOnPageWithWork.size > 0) {
+    // ★ castId の集まり。名前は castIdOf を逆に引く
     const notOnPageIds: number[] = [];
-    for (const [tid, castId] of input.castIdOf) if (notOnPage.has(castId)) notOnPageIds.push(tid);
+    for (const [tid, castId] of input.castIdOf) if (notOnPageWithWork.has(castId)) notOnPageIds.push(tid);
     notes.push({
       kind: 'unmapped_therapist',
-      count: notOnPage.size,
+      count: notOnPageWithWork.size,
       ...withNames(namesOf(notOnPageIds)),
       // ★ 第338便: 「番号は分かりますが」も内部の話。★ 起きていることだけを言う
-      detail: notOnPage.size + '名は、いま駅ちかの出勤表に出ていないため更新できません',
+      detail: notOnPageWithWork.size + '名は、いま駅ちかの出勤表に出ていないため更新できません',
     });
+  }
+  // ★ 第1271便: 送る出勤が無い方は、記録（計画）にだけ残す。画面には出さない（lib/workSendNotes.ts の HIDDEN_KINDS）
+  {
+    const idleIds: number[] = [...unmappedIdle];
+    for (const [tid, castId] of input.castIdOf) if (notOnPage.has(castId) && !notOnPageWithWork.has(castId)) idleIds.push(tid);
+    if (idleIds.length > 0) {
+      notes.push({
+        kind: 'not_listed_idle',
+        count: idleIds.length,
+        ...withNames(namesOf(idleIds)),
+        detail: idleIds.length + '名は、駅ちかと連携していないか出勤表に出ていませんが、送る出勤がありません',
+      });
+    }
   }
 
   // ★ 「フクエスの出勤が1件も無い」は【休み全員】ではない。まだ入れていないだけかもしれない。

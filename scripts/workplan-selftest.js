@@ -284,13 +284,41 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
 
   // 連携していない方（77）・駅ちかの出勤表に出ていない方（3 → castId 333 は page に居ない）
   const cast2 = new Map([[1,'111'],[2,'222'],[3,'333']]);
-  const p1 = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), sh(77)], castIdOf: cast2, nameOf});
+  const p1 = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), sh(77), sh(3)], castIdOf: cast2, nameOf});
   eq('⑭ ★ 連携していない方の名前', note(p1,'unmapped_therapist',0).names, ['ななな']);
   eq('⑭ ★ 連携していない方の文は変えていない', note(p1,'unmapped_therapist',0).detail.startsWith('1名は駅ちかと連携していないため更新できません'), true);
   eq('⑭ ★★ 出勤表に出ていない方の名前（castId から逆に引く）', note(p1,'unmapped_therapist',1).names, ['うた']);
   eq('⑭ ★ 出勤表に出ていない方の文', note(p1,'unmapped_therapist',1).detail, '1名は、いま駅ちかの出勤表に出ていないため更新できません');
   eq('⑭ ★★★ 名前は detail に混ぜない（監査ログの材料に流さない）', p1.notes.some(n => /ななな|うた|駅ちかだけ/.test(n.detail)), false);
   eq('⑭ ★★★ 監査ログの要約にも名前が出ない', /ななな|うた|駅ちかだけ/.test(JSON.stringify(wp.summarizePlan(p1))), false);
+
+  // ★★★ 第1271便: 送る出勤が無い方は「送れていない方」に出さない（ラビリンス様・もえさん＝非公開で駅ちかからも外した方）
+  {
+    const rest = (id) => ({therapistId:id, dateISO:'2026-08-28', active:false, start:null, end:null});
+    const far = (id) => ({therapistId:id, dateISO:'2026-12-31', active:true, start:'20:00', end:'03:00'});
+    const idle = (pl) => pl.notes.filter(n => n.kind === 'not_listed_idle');
+    const warn = (pl) => pl.notes.filter(n => n.kind === 'unmapped_therapist');
+    // 3（うた）は駅ちかの出勤表に居ない。出勤の行が1つも無い
+    const a = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1)], castIdOf: cast2, nameOf});
+    eq('⑮ ★★★ 出勤表に居ない＋出勤の行が無い → 「送れていない方」に出さない', warn(a).length, 0);
+    eq('⑮ ★ 記録には残す（画面に出さない種類で）', [idle(a).length, idle(a)[0].count, idle(a)[0].names], [1, 1, ['うた']]);
+    // お休みの行だけ（非公開にした方は出勤がお休みになる）
+    const b = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), rest(3)], castIdOf: cast2, nameOf});
+    eq('⑮ ★★★ 出勤表に居ない＋お休みの行だけ → 出さない', [warn(b).length, idle(b).length], [0, 1]);
+    // 7日より先の出勤だけ
+    const c = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), far(3)], castIdOf: cast2, nameOf});
+    eq('⑮ ★★ 出勤表に居ない＋7日より先の出勤だけ → 出さない（いま送るものが無い）', [warn(c).length, idle(c).length], [0, 1]);
+    // 出勤がある → 今までどおり黄色い枠
+    const d = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), sh(3)], castIdOf: cast2, nameOf});
+    eq('⑮ ★★★ 出勤表に居ない＋出勤がある → 「送れていない方」に出す', [warn(d).length, warn(d)[0].names, idle(d).length], [1, ['うた'], 0]);
+    // 連携していない方（77）も同じ
+    const e = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), sh(3), rest(77)], castIdOf: cast2, nameOf});
+    eq('⑮ ★★★ 連携していない＋お休みの行だけ → 出さない', [warn(e).map(n => n.names), idle(e)[0].names], [[['うた']], ['ななな']]);
+    const f = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), rest(77), sh(77)], castIdOf: cast2, nameOf});
+    eq('⑮ ★★ 連携していない＋お休みと出勤が混ざる → 出す（1日でも出勤があれば）', [warn(f)[0].names, idle(f).map(n => n.names)], [['ななな'], [['うた']]]);
+    eq('⑮ ★★★ 送る内容は変わらない（出勤表に居ない方は、もとから送っていない）', [a.sent.length, d.sent.length], [page.girls.length, page.girls.length]);
+    eq('⑮ ★★★ 名前は detail に混ぜない', [a, b, c, e, f].some(pl => pl.notes.some(n => /ななな|うた/.test(n.detail))), false);
+  }
 
   // 入力が無い日の文
   eq('⑭ ★★ 「出勤を入れていない日（◯件）」と先に言う', note(p1,'missing_row_as_rest').detail,
