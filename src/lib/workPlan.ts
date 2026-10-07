@@ -57,7 +57,7 @@ export type PlanIssue = {
     | 'unknown_girl'          // 駅ちかに居てフクエスに居ない＝読んだまま返す
     | 'missing_row_as_rest'   // フクエスに行が無い日を「休み」として扱った
     | 'target_off'            // ★ 第1267便: コネックエフの送り先サイトで「送らない」にしている方（店舗様が決めたこと）
-    | 'not_listed_idle';      // ★ 第1271便: 連携していない／相手の出勤表に出ていないが、【送る出勤が1件も無い】方（画面には出さない）
+    | 'not_listed_idle';      // ★ 第1271便で足し、第1272便で【作るのをやめた】（古い画面が出してしまう）。保存済みの計画のために型だけ残す
   detail: string;
   /** 人が読む用。件数だけ入れる（名前やURLを監査ログに流さないため） */
   count?: number;
@@ -385,14 +385,12 @@ export function buildWorkPlan(input: {
   //   ★ 数え方だけの話。送る内容は変わらない（出勤表に居ない方・番号が無い方は、もとから送っていない）。
   const hasWork = (sh: FukuesShift): boolean => sh.active && Boolean(sh.start) && Boolean(sh.end) && dayOfISO.has(sh.dateISO);
   const unmapped = new Set<number>();
-  const unmappedIdle = new Set<number>();
   const notOnPageWithWork = new Set<string>();
   for (const sh of shifts) {
     const castId = input.castIdOf.get(sh.therapistId);
     if (!castId) {
       // フクエスに居るが、この枠の番号が無い
-      if (hasWork(sh)) unmapped.add(sh.therapistId);
-      else unmappedIdle.add(sh.therapistId);
+      if (hasWork(sh)) unmapped.add(sh.therapistId);   // ★ 出勤が無い方は数えない（第1271便）
       continue;
     }
     const row = wanted.get(castId);
@@ -405,7 +403,6 @@ export function buildWorkPlan(input: {
     if (d === undefined) continue;    // 7日窓の外。送る対象ではない
     row[d] = sh;
   }
-  for (const id of unmapped) unmappedIdle.delete(id);   // 1日でも出勤があれば「送れていない方」
 
   // ★ 第1267便: 名前（分かる分だけ）。★ 空の配列は付けない
   const namesOf = (ids: Iterable<number>): string[] => {
@@ -442,19 +439,13 @@ export function buildWorkPlan(input: {
       detail: notOnPageWithWork.size + '名は、いま駅ちかの出勤表に出ていないため更新できません',
     });
   }
-  // ★ 第1271便: 送る出勤が無い方は、記録（計画）にだけ残す。画面には出さない（lib/workSendNotes.ts の HIDDEN_KINDS）
-  {
-    const idleIds: number[] = [...unmappedIdle];
-    for (const [tid, castId] of input.castIdOf) if (notOnPage.has(castId) && !notOnPageWithWork.has(castId)) idleIds.push(tid);
-    if (idleIds.length > 0) {
-      notes.push({
-        kind: 'not_listed_idle',
-        count: idleIds.length,
-        ...withNames(namesOf(idleIds)),
-        detail: idleIds.length + '名は、駅ちかと連携していないか出勤表に出ていませんが、送る出勤がありません',
-      });
-    }
-  }
+  // ★★★ 第1272便（2026-10-07）: 送る出勤が無い方のお知らせは【作らない】。
+  //   ★ 第1271便では「画面に出さない種類（not_listed_idle）」として計画に残した。
+  //     ところが、開いたままの画面（デプロイ前に読み込んだ JS）は新しい種類を知らず、
+  //     「知らない種類はお知らせに出す」決まりのとおり
+  //     「もえ さんは、駅ちかと連携していないか出勤表に出ていませんが、送る出勤がありません」と出してしまった（ラビリンス様・16:26）。
+  //   ★ 教訓: 「出さないもの」を新しい種類で送らない。画面の版に頼らず、もとから作らない。
+  //   ★ 種類 not_listed_idle は、第1271便の間に保存された計画のために HIDDEN_KINDS に残してある。
 
   // ★ 「フクエスの出勤が1件も無い」は【休み全員】ではない。まだ入れていないだけかもしれない。
   //   ここで送ると駅ちかの出勤が全部消える（設計メモ §11-3）。
