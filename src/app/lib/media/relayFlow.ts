@@ -700,7 +700,8 @@ export async function advanceRelayFlow(params: {
     const r = await saveSokuhime(params, outcome.page, context);
     note = outcome.note + ' → ' + r.note;
     if (context.intent === 'sokuhime_push' || context.intent === 'sokuhime_auto') {
-      const s = await advanceSokuhime(params, outcome.page, context);
+      // ★ 第1281便: 即ヒメ設定画面を読んだ応答の Cookie を足した文脈で、確認 → 設定 → 解除 へ進む（出勤の第1270便と同じ形）
+      const s = await advanceSokuhime(params, outcome.page, outcome.cookie ? { ...context, cookie: outcome.cookie } : context);
       audits.push(...s.audits);
       note = note + ' → ' + s.note;
       next = s.next ?? null;

@@ -1080,7 +1080,14 @@ export type FlowOutcome =
    * ★ 即ヒメ設定画面を読めた（第213便）。roster と同じ理由でここでは保存しない。
    *   ★ ここで「次のジョブ」を返さない＝**駅ちかへ何も飛ばない。**
    */
-  | { kind: 'sokuhime'; page: EkichikaSokuhimePage; audits: FlowAudit[]; note: string }
+  | {
+      kind: 'sokuhime'; page: EkichikaSokuhimePage; audits: FlowAudit[]; note: string;
+      /**
+       * ★ 第1281便: 即ヒメ設定画面を読んだ応答の Set-Cookie を足した Cookie（plan_work の cookie と同じ役目）。
+       *   呼び出し側（app/lib/media/relayFlow.ts）が、文脈の cookie の代わりにこれを使って 確認 → 設定 → 解除 を組む。
+       */
+      cookie?: string;
+    }
   /**
    * ★★★ ニュースの一覧を読めた（第158便）。roster と同じ理由でここでは保存しない。
    *   ★ 呼び出し側が写しを1件だけ上書きで残す。
@@ -1318,6 +1325,20 @@ function stop(audits: FlowAudit[], note: string): FlowOutcome {
 }
 
 /**
+ * ★★★ 第1281便（2026-10-07）: いま受け取った応答が配った Cookie（Set-Cookie）を足した文脈を返す。
+ *   ★ 出勤の障害（第1270便）と同じ形 ―― 応答の Set-Cookie を捨てて、前の段の Cookie のまま次を送る ―― が、
+ *     駅ちかの 写真（アップロード・切り抜き）・削除・即ヒメ の段に残っていた。ブラウザと同じ動きに揃える。
+ *   ★ 何も配られなければ、いまの文脈をそのまま返す（Cookie を空にしない）。
+ */
+function withResponseCookie(
+  ctx: RelayFlowContext,
+  input: { headers: Record<string, string | string[]> },
+): RelayFlowContext {
+  const cookie = mergeCookies(ctx.cookie ?? '', input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+  return cookie === ctx.cookie ? ctx : { ...ctx, cookie };
+}
+
+/**
  * ★★★ 状態遷移の本体。
  * 「いま閉じたジョブの purpose と応答」から「次に積むもの・監査に残すもの」を決める。
  * ★ ここは純粋関数。DBもネットワークも触らない＝テストで固定できる。
@@ -1428,7 +1449,8 @@ function advanceQueueOrEnd(
     && ctx.createStage === 'verify'
     && ctx.createRosterRefresh !== true
   ) {
-    const cookie = ctx.cookie ?? '';
+    // ★ 第1281便: いま終わった段の応答が配った Cookie を足して読み直す
+    const cookie = mergeCookies(ctx.cookie ?? '', input.headers['set-cookie'] as string | string[] | undefined) || (ctx.cookie ?? '');
     return {
       kind: 'next',
       audits: out.audits,
@@ -1900,6 +1922,7 @@ function afterSokuhimeCheck(
 ): FlowOutcome {
   const lost = diaryLoginLost(input, ctx, '即ヒメの確認の応答');
   if (lost) return lost;
+  ctx = withResponseCookie(ctx, input);   // ★ 第1281便: この応答が配った Cookie を足してから次の段へ
   const j = parseSokuhimeJson(input.body);
   const name = ctx.sokuhimeTarget?.name ?? '';
   // ★★★ 第327便: 1人がだめでも周ごと落とさない。★ その人ぶんを記録して次の人へ。
@@ -1934,6 +1957,7 @@ function afterSokuhimeSet(
 ): FlowOutcome {
   const lost = diaryLoginLost(input, ctx, '即ヒメの設定の応答');
   if (lost) return lost;
+  ctx = withResponseCookie(ctx, input);   // ★ 第1281便: この応答が配った Cookie を足してから次の段へ
   const j = parseSokuhimeJson(input.body);
   const t = ctx.sokuhimeTarget;
   const name = t?.name ?? '';
@@ -1976,6 +2000,7 @@ function afterSokuhimeDel(
 ): FlowOutcome {
   const lost = diaryLoginLost(input, ctx, '即ヒメの解除の応答');
   if (lost) return lost;
+  ctx = withResponseCookie(ctx, input);   // ★ 第1281便: この応答が配った Cookie を足してから次の段へ
   const j = parseSokuhimeJson(input.body);
   const d = ctx.sokuhimeDel;
   if (input.status !== 200 || j.problems.length > 0) {
@@ -2042,6 +2067,7 @@ function afterReadSokuhime(
         },
       ],
       note: '即ヒメ設定画面を読めた（枠 ' + sokuhimeUsed(page) + '/' + page.boxes.length + '・出勤中 ' + page.working.length + '名）',
+      cookie: withResponseCookie(ctx, input).cookie,   // ★ 第1281便: 読んだ画面の Cookie を足したもの
     };
   }
   if (looksLikeEkichikaLoginPage(input.body)) {
@@ -2269,15 +2295,17 @@ function afterGirlDelete(
     );
   }
   // ★ 200 でも 302 でも、判定は次の読み直しで行う
+  // ★ 第1281便: 削除の応答が配った Cookie を足して読み直す（読み直しがログイン画面へ戻されないように）
+  const c = withResponseCookie(ctx, input);
   return {
     kind: 'next',
     next: {
       purpose: 'read_girls',
       method: 'GET',
       url: EKICHIKA_GIRLS_URL,
-      headers: buildReadWorkRequest(ctx.cookie),
+      headers: buildReadWorkRequest(c.cookie),
       body: '',
-      context: { ...ctx, deleteStage: 'verify' },
+      context: { ...c, deleteStage: 'verify' },
     },
     audits: [],
     note: '削除を送った。★ 成否は一覧を読み直して確かめる（応答では判定しない）',
@@ -2720,7 +2748,8 @@ function afterReadGirls(
     }
     // ★★★ 削除の流れ（第228便）は、ここで終わらずに次の段へ進む。
     //   ★ 既存の roster_read の枝には一切触っていない（下の return がそのまま残る）。
-    if (ctx.intent === 'girl_delete') return girlDeleteAfterGirls(page, ctx);
+    //   ★ 第1281便: 一覧を読んだ応答の Cookie を足した文脈で渡す（削除リンクの GET をその Cookie で送る）
+    if (ctx.intent === 'girl_delete') return girlDeleteAfterGirls(page, withResponseCookie(ctx, input));
     // ★★★ 登録の流れ（第234便）も、ここで終わらずに次の段へ進む
     if (ctx.intent === 'girl_create') return girlCreateAfterGirls(page, input, ctx);
 
@@ -3905,6 +3934,11 @@ function afterReadPhotoPage(
       '編集ページが読めない: ' + page.problems.join(' / '),
     );
   }
+
+  // ★★★ 第1281便（2026-10-07）: 編集ページの応答が配った Cookie を足してから、次の POST（アップロード・切り抜き）を組む。
+  //   ★ この3つの POST は、いま読んだページの fuel_csrf_token を送る。その合言葉と同じ応答で配られた Cookie を持っていく。
+  //   ★ 写真を合わせる道（photoSync）は第421便から足していた。足していなかったのは 登録直後の1枚・複数枚の道と、切り抜きの段。
+  ctx = withResponseCookie(ctx, input);
 
   // ────────── ★★★ 第421便: コネックエフの写真に合わせる道（girl_edit のあと） ──────────
   if (ctx.photoSync === true && (stage === 'sync' || stage === 'sync_deleted')) {
