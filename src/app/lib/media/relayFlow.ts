@@ -687,7 +687,9 @@ export async function advanceRelayFlow(params: {
   let workSynced = false;
 
   if (outcome.kind === 'plan_work') {
-    const r = await planWork(params, outcome.page, context);
+    // ★★★ 第1270便: 出勤ページを読んだ応答の Cookie を足した文脈で、計画 → 書き込みへ進む（lib/relayFlow.ts の afterReadWork）。
+    //   ★ ここで文脈の cookie（ログイン直後のまま）を使うと、フォームの fuel_csrf_token と Cookie が合わず、駅ちかが書き込みを黙って捨てる。
+    const r = await planWork(params, outcome.page, outcome.cookie ? { ...context, cookie: outcome.cookie } : context);
     audits.push(...r.audits);
     note = outcome.note + ' → ' + r.note;
     next = r.next ?? null;
@@ -839,6 +841,7 @@ export async function advanceRelayFlow(params: {
     if (p.people > 0 && p.saved >= p.changed) workSynced = true;
   }
   // ★ 駅ちか: 書いて照合まで通った（write_work ok）＝同期できた
+  //   ★ 第1270便: 照合が合わなかった回は write_work 'failed' になった（lib/relayFlow.ts の afterVerifyWork）＝ここには数えない
   if (audits.some((a) => a.event === 'write_work' && a.outcome === 'ok')) workSynced = true;
   if (workSynced && !next && context.intent === 'work_auto' && context.autoInputHash) {
     await markWorkSynced(createServiceClient(), { salonId: params.salonId, provider: params.provider, slot: params.slot, hash: context.autoInputHash });

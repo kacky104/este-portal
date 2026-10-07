@@ -441,6 +441,10 @@ export type RelayFlowContext = {
   expectedDateLabels?: string[];
   /** 変更した件数（監査ログの文面に使う） */
   changeCount?: number;
+  /** ★ 第1270便: 書き込み（write_work）の応答の番号。照合が合わなかったときの記録に残す（原因を追う材料） */
+  writeHttpStatus?: number;
+  /** ★ 第1270便: 書き込みの応答が転送だったときの行き先（パスだけ）。同上 */
+  writeRedirect?: string;
 
   // ── ここから下は intent='article_*' のときだけ入る（第155便）──
   /**
@@ -1046,7 +1050,14 @@ export type FlowOutcome =
    *   ページを持ったまま呼び出し側へ返す。★ 判断そのものは workPlan.ts（これも純粋関数）が持つ。
    *   ★ ここで「次のジョブ」を返さないのが大事: **返さない＝駅ちかへ何も飛ばない。**
    */
-  | { kind: 'plan_work'; page: WorkPage; audits: FlowAudit[]; note: string }
+  | {
+      kind: 'plan_work'; page: WorkPage; audits: FlowAudit[]; note: string;
+      /**
+       * ★★★ 第1270便: 出勤ページを読んだ応答の Set-Cookie を足した Cookie。★ 書き込み（write_work）はこれで送る。
+       *   呼び出し側（app/lib/media/relayFlow.ts の planWork）が、文脈の cookie の代わりにこれを使う。
+       */
+      cookie?: string;
+    }
   /**
    * ★ 媒体側の名簿を読めた（第50便）。plan_work と同じ理由でここでは保存しない
    *   （このファイルは DB を触らない約束）。呼び出し側が写しを1件だけ上書きで残す。
@@ -2946,7 +2957,17 @@ function afterReadWork(
         detail: { people: page.girls.length, days: page.dateLabels.length, flowId },
       },
     ];
-    return finishRead(audits, ctx, page);
+    // ★★★ 第1270便（2026-10-07）: 出勤ページの応答が返した Cookie を足してから、次（計画 → 書き込み）へ渡す。
+    //   ★ 実際に起きた（ラビリンス様）: コネックエフに切り替えてから、駅ちかへの出勤の更新が12回中12回
+    //     「更新後に読み直したら一致しない」。送った変更が1件も入っていなかった（合わない件数＝変えたマス＋その日の人数）。
+    //   ★ 駅ちかの出勤フォームには fuel_csrf_token（使い捨て・ページを開くたびに変わる。2026-10-07 に実物で確認）が入っている。
+    //     相手はフォームの値を【同じ応答で配った Cookie】と突き合わせる作りと読める。
+    //     ところがこの段だけ、応答の Set-Cookie を捨てて、ログイン直後の Cookie のまま書き込んでいた。
+    //     → 相手は合言葉が合わない書き込みを、エラーも出さずに捨てる（応答は 400 未満・ログイン画面へも戻らない）。
+    //   ★ 新着情報・プロフィール更新・新規登録・写真（どれも本番で通っている）は、読んだページの Cookie を毎段足している。
+    //     足していなかったのは出勤の流れだけだった。
+    const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+    return finishRead(audits, { ...ctx, cookie }, page);
   }
 
   // ★ 読めなかった。ここで初めて「ログイン画面が返ったのか」を疑う
@@ -3002,6 +3023,7 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
         page,
         audits,
         note: '出勤ページを読めた。★ ここでフクエスの出勤と突き合わせる（送らない）',
+        cookie: ctx.cookie,   // ★ 第1270便: 読んだページの Cookie を足したもの（afterReadWork）
       };
     case 'work_push':
       // ★ 送る側も、まず同じ形で計画を立て直す。**承認の時点ではなく、いま読んだページで組む。**
@@ -3011,6 +3033,7 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
         page,
         audits,
         note: '出勤ページを読めた。★ 承認された内容と一致するか確かめてから送る',
+        cookie: ctx.cookie,   // ★ 第1270便: 読んだページの Cookie を足したもの（afterReadWork）
       };
     case 'mail_dryrun':
     case 'mail_apply':
@@ -3085,6 +3108,7 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
         page,
         audits,
         note: '出勤ページを読めた。★ 自動反映：厳しい方の見張りを通ったら送る',
+        cookie: ctx.cookie,   // ★ 第1270便: 読んだページの Cookie を足したもの（afterReadWork）
       };
     default: {
       // ★★ intent を増やしたらここがコンパイルエラーになる。
@@ -3149,15 +3173,22 @@ function afterWriteWork(
   }
 
   // ★ ここで「成功」と書かない。次の段（読み直し）だけが成否を知っている。
+  // ★ 第1270便: 書き込みの応答が返した Cookie も足す（セッションの入れ替えがあっても、読み直しがログイン画面へ戻されないように）。
+  //   応答の番号と転送先（パスだけ）は、照合が合わなかったときの記録に残す（★ これまで何も残らず、原因を追えなかった）。
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+  let writeRedirect = '';
+  if (location) {
+    try { writeRedirect = new URL(location, EKICHIKA_ORIGIN).pathname.slice(0, 80); } catch { writeRedirect = ''; }
+  }
   return {
     kind: 'next',
     next: {
       purpose: 'verify_work',
       method: 'GET',
       url: EKICHIKA_WORK_URL,
-      headers: buildReadWorkRequest(ctx.cookie),
+      headers: buildReadWorkRequest(cookie),
       body: '',
-      context: ctx,
+      context: { ...ctx, cookie, writeHttpStatus: input.status, ...(writeRedirect ? { writeRedirect } : {}) },
     },
     audits: [],
     note: '書き込みの応答を受け取った。★ 成否は読み直して突き合わせてから判定する',
@@ -3228,13 +3259,37 @@ function afterVerifyWork(
 
   // ★★★ 一致しなかった。**ここは黙ってはいけない場所。**
   //   「送ったつもり」を作らないために、店舗に見える文言も強くしてある（mediaAudit）。
+  // ★★★ 第1270便（2026-10-07）: 合わなかった回を write_work 'ok' と記録しない。
+  //   ★ この関数の頭に「読み直して突き合わせた結果を、書き込みの成否そのものとする」とあるのに、合わなかった側でも 'ok' を書いていた。
+  //     そのせいで（ラビリンス様で2日間）:
+  //       ・連携の記録に「出勤を更新しました」と出る（入っていないのに）
+  //       ・「3回続けて反映できなかったら自動をやめて知らせる」（shouldGiveUpAuto・write_work の結果だけを数える）が働かない
+  //       ・自動の周が「同期できた」と記録して、出勤が変わるまで送り直さない（第1245便・write_work ok を見ている）
+  //   → 'failed' にする。理由は reason: 'verify_mismatch'。
+  // ★ 合わなかった中身も残す（種類ごとの件数・最初の1件・書き込みの応答の番号）。★ 名前は入れない（番号と日と時刻だけ）。
+  const countOf = (kind: string): number => v.problems.filter((p) => p.kind === kind).length;
+  const firstCell = v.problems.find((p) => p.kind === 'cell_mismatch') ?? v.problems[0];
+  //   名前は「番号（名前） 日N: …」「番号（名前） が送信後の…」の形でしか入らない（ekichikaWorkParse の verifyAfterWrite）→ 括弧ごと落とす
+  const stripName = (d: string): string => d.replace(/^([^（\s]+)（.*）(?= 日\d+:| が送信後)/, '$1');
+  const sample = firstCell ? (firstCell.kind + ' ' + stripName(firstCell.detail)).slice(0, 110) : '';
   return stop(
     [
-      { event: 'write_work', outcome: 'ok', detail: { changed, people: sent.length, flowId } },
+      { event: 'write_work', outcome: 'failed', detail: { changed, people: sent.length, reason: 'verify_mismatch', flowId } },
       {
         event: 'verify_work',
         outcome: 'failed',
-        detail: { problems: v.problems.length, people: after.girls.length, flowId },
+        detail: {
+          problems: v.problems.length,
+          cells: countOf('cell_mismatch'),
+          dayCounts: countOf('header_count_mismatch'),
+          girlCount: countOf('girl_count_mismatch') + countOf('girl_missing'),
+          dateShifted: countOf('date_shifted'),
+          people: after.girls.length,
+          writeStatus: ctx.writeHttpStatus ?? null,
+          writeTo: ctx.writeRedirect ?? null,
+          sample,
+          flowId,
+        },
       },
     ],
     '書き込み後の照合が一致しない: ' + v.problems.map((p) => p.kind + ' ' + p.detail).join(' / ').slice(0, 300),
