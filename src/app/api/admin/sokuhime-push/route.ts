@@ -43,6 +43,13 @@ import { sokuhimeOwnedSinceISO } from '@/lib/ekichikaSokuhimePlan';
 //     ② 連携の説明に同意済み（認証情報を使う操作は同意の後ろ）
 //   ★★ ① を外さない。★ 駅ちかから取り込んでいる店へフクエスから書かない（第214便の方針）。
 //
+// ★★★★ 【第1283便】（2026-10-07・カッキーさんの決定）: 即ヒメを送るかは【枠ごとに止められる】。★ 既定は「送る」。
+//   ★ 店舗様がコネックエフのホームでその枠の「更新する」を押せば、枠2・枠3にも自動で送る（運営の作業なし）。
+//   ★ 送りたくない枠（回数制で枠2の回数を使いたくない 等）だけ、運営が /admin の「駅ちかの店舗ページ登録」で「送らない」にする
+//     （salon_import_sources.sokuhime_push_off = true）。★ その枠へは周が入らない（ログインもしない）。
+//   ★ 止めた時点でフクエスが押していた即ヒメは外しに行かない（45分で自然に切れる）。
+//   ★ 第323便で外した sokuhime_auto（店舗様が自分で入れるスイッチ）とは別物。あちらは今も見ない。
+//
 // ★★★★ 【第323便】（2026-09-13・カッキーさんの指示）: 「即ヒメの自動が入っている店だけ」（sokuhime_auto）を
 //   **条件から外した**。★ エステ魂の即セラ（sokusera-push）と同じく、【フクエスから反映なら自動】に揃えた。
 //   ★ 同じ画面に2つの決まりが並んでいて、店舗様が取り違えた（★ 即セラはスイッチ無しで動く）。
@@ -134,6 +141,22 @@ export async function POST(req: Request) {
     if (!needsConsent(c.consent_version)) consentOk.add(Number(c.salon_id) + '#' + Number(c.slot ?? 1));
   }
 
+  // ★★★ 第1283便: 運営が「即ヒメを送らない」にした枠（sokuhime_push_off）。★ 上の一覧とは別に引く。
+  //   ★ 列がまだ無い（追加SQL の前に push された）ときは「止めた枠は無い」＝今までどおり全部の枠へ送る。
+  //     ★ 列が無いだけで周ごと落とすと、ラビリンス様の即ヒメが止まる。★ ほかの失敗は今までどおり 500。
+  const pushOff = new Set<string>();
+  {
+    const { data: offs, error: offErr } = await svc
+      .from('salon_import_sources')
+      .select('salon_id, slot')
+      .eq('provider', PROVIDER).eq('sokuhime_push_off', true);
+    //   ★ 「列が無い」の番号は 42703（Postgres）か PGRST204（PostgREST の列の一覧に無い）
+    if (offErr && offErr.code !== '42703' && offErr.code !== 'PGRST204') return NextResponse.json({ ok: false, error: offErr.message }, { status: 500 });
+    for (const o of (offErr ? [] : (offs ?? [])) as Array<{ salon_id: number; slot: number }>) {
+      pushOff.add(Number(o.salon_id) + '#' + Number(o.slot ?? 1));
+    }
+  }
+
   /**
    * ★★★★ 【第325便】（2026-09-13・カッキーさんの指示）: 【仕事がある店舗だけ】積む。
    *   ★ それまでは、フクエスから反映の枠なら**誰も「今すぐ」でなくても周のたびにログイン**していた。
@@ -180,6 +203,11 @@ export async function POST(req: Request) {
 
   for (const r of rows) {
     const target = r.salon_id + '/' + PROVIDER + '#' + r.slot;
+    // ★ 第1283便: 運営が止めた枠へは入らない（★ ログインもしない）
+    if (pushOff.has(Number(r.salon_id) + '#' + Number(r.slot))) {
+      skipped.push({ target, why: '運営の設定で、この枠へは即ヒメを送らない' });
+      continue;
+    }
     if (!consentOk.has(Number(r.salon_id) + '#' + Number(r.slot))) {
       skipped.push({ target, why: '連携の説明にまだ同意していない' });
       continue;

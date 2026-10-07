@@ -133,5 +133,23 @@ console.log('\n── 8. ★★★ 第1282便: 「フクエスが押した枠」
   eq('★ 周の入口に「24時間」の絞り込みが残っていない', /24 \* 3600 \* 1000/.test(route), false);
 }
 
+console.log('\n── 9. ★★★ 第1283便: 即ヒメを送らない枠（運営が枠ごとに止める・既定は送る）──');
+{
+  const fs = require('fs'), path = require('path');
+  const src = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  const route = src('src/app/api/admin/sokuhime-push/route.ts');
+  eq('★★★ 周の入口が、止めた枠（sokuhime_push_off）を引いている', /\.eq\('sokuhime_push_off', true\)/.test(route), true);
+  // ★ 止めた枠は、同意やほかの条件より前に外す（★ 中継ジョブを積まない＝ログインしない）
+  const iOff = route.indexOf('pushOff.has('), iStart = route.indexOf('await startRelayFlow({\n        salonId: Number(r.salon_id)');
+  eq('★★★ 止めた枠は、中継ジョブを積む前に外す', iOff > 0 && iStart > iOff, true);
+  // ★★ 追加SQL の前に push されても、周ごと落ちない（列が無い＝止めた枠は無い）。★ 落ちるとラビリンス様の即ヒメが止まる
+  eq('★★★ 列がまだ無いときは「止めた枠は無い」として進む', /offErr\.code !== '42703' && offErr\.code !== 'PGRST204'\) return NextResponse\.json/.test(route), true);
+  // ★ 一覧（駅ちかへ書く向きの枠を引く問い合わせ）には、新しい列を足さない（足すと、列が無いあいだ全店の即ヒメが止まる）
+  const mainSelect = /\.select\('salon_id, slot, salons!inner\(conecf_enabled_at\)'\)/.test(route);
+  eq('★★ 書く向きの枠を引く問い合わせは、今までの列だけ', mainSelect, true);
+  const ov = src('src/app/actions/mediaCredentials.ts');
+  eq('★★ 店舗様の画面へ渡す側も、読めなくても画面を止めない（別の問い合わせ）', /\.eq\('salon_id', salonId\)\.eq\('sokuhime_push_off', true\)/.test(ov), true);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

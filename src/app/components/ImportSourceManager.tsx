@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  adminListImportSources, adminUpsertImportSource, adminSetImportSourceEnabled, adminSetImportSourceImasugu, extractEkichikaShopId,
+  adminListImportSources, adminUpsertImportSource, adminSetImportSourceEnabled, adminSetImportSourceImasugu, adminSetImportSourceSokuhimePush, extractEkichikaShopId,
   type ImportSourceRow,
 } from '@/app/actions/importSourceAdmin';
 
@@ -34,6 +34,8 @@ export default function ImportSourceManager({ allSalons, onToast }: {
   // ★ 第1261便: 即ヒメを読むか。★ 枠1だけが既定で ON
   const [imasugu, setImasugu] = useState(true);
   const [busyImId, setBusyImId] = useState<number | null>(null);
+  // ★ 第1283便: 即ヒメを送る／送らない（コネックエフの店の枠）
+  const [busySpId, setBusySpId] = useState<number | null>(null);
   const pickSlot = (n: 1 | 2 | 3) => { setSlot(n); setImasugu(n === 1); };
   const [externalId, setExternalId] = useState('');
   const [shopUrl, setShopUrl] = useState('');
@@ -76,6 +78,19 @@ export default function ImportSourceManager({ allSalons, onToast }: {
     await load();
   };
 
+  // ★ 第1283便: 一覧から、その枠へ即ヒメを送る／送らない（★ 既定は送る。止めたい枠だけ「送らない」に）
+  const onToggleSokuhimePush = async (r: ImportSourceRow) => {
+    setBusySpId(r.id);
+    const res = await adminSetImportSourceSokuhimePush({ id: r.id, on: !r.sokuhimePush });
+    setBusySpId(null);
+    if (!res.ok) { onToast(res.error); return; }
+    const label = r.salonName + (r.slot > 1 ? `（枠${r.slot}）` : '');
+    onToast(r.sokuhimePush
+      ? `${label} へ即ヒメを送らないようにしました（いま入っている即ヒメは45分で自然に切れます）`
+      : `${label} へ即ヒメを送るようにしました（次の周・10分以内から）`);
+    await load();
+  };
+
   const onToggle = async (r: ImportSourceRow) => {
     setBusyId(r.id);
     const res = await adminSetImportSourceEnabled({ id: r.id, enabled: !r.isEnabled });
@@ -93,6 +108,8 @@ export default function ImportSourceManager({ allSalons, onToast }: {
         フクエスリンク（駅ちかからの反映）は、ここで駅ちかのお店のページを登録した店舗だけ動きます。
         登録すると取り込みの設定（出勤・プロフィール・新しく入った子の作成・15分ごと）は自動で立ちます。
         即ヒメ（フクエスの「今すぐ」）は枠1だけ読むのが既定です（2枠の店で食い違わないように）。下の一覧でも枠ごとに切り替えられます。
+        コネックエフの店（向きが write）は、店舗様が「更新する」を押した枠すべてに、今すぐを即ヒメとして送ります。
+        送りたくない枠だけ、一覧の「即ヒメ（送る）」を「送らない」にしてください（枠2にも送ると、駅ちかへのログインが倍になり、回数制のプランでは枠2の回数も使います）。
         店舗様はそのあと、フクエスリンクのホームで「駅ちかから反映する」を押すだけです。
         ★ 掲載番号（URL 末尾・例 46440）は、駅ちか管理画面のログイン用の店舗ID（例 37168）とは別の番号です。
       </p>
@@ -176,7 +193,8 @@ export default function ImportSourceManager({ allSalons, onToast }: {
                 <th className="py-2 pr-3">掲載番号</th>
                 <th className="py-2 pr-3">URL</th>
                 <th className="py-2 pr-3">向き</th>
-                <th className="py-2 pr-3">即ヒメ</th>
+                <th className="py-2 pr-3">即ヒメ（読む）</th>
+                <th className="py-2 pr-3">即ヒメ（送る）</th>
                 <th className="py-2 pr-3">最終取り込み</th>
                 <th className="py-2 pr-3">状態</th>
                 <th className="py-2"></th>
@@ -201,6 +219,20 @@ export default function ImportSourceManager({ allSalons, onToast }: {
                     >
                       {busyImId === r.id ? '…' : r.importImasugu ? '読む' : '読まない'}
                     </button>
+                  </td>
+                  {/* ★ 第1283便: 即ヒメを送るか。★ 駅ちかから反映（read）の枠はそもそも送らないので「—」 */}
+                  <td className="py-2 pr-3 whitespace-nowrap">
+                    {r.linkMode === 'read' ? <span className="text-gray-300">—</span> : (
+                      <button
+                        type="button"
+                        onClick={() => void onToggleSokuhimePush(r)}
+                        disabled={busySpId === r.id}
+                        title="押すと切り替わります"
+                        className={`px-2 py-0.5 border rounded-lg font-bold disabled:opacity-50 ${r.sokuhimePush ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-rose-300 bg-rose-50 text-rose-700'}`}
+                      >
+                        {busySpId === r.id ? '…' : r.sokuhimePush ? '送る' : '送らない'}
+                      </button>
+                    )}
                   </td>
                   <td className="py-2 pr-3 tabular-nums">{fmt(r.lastRunAt)}</td>
                   <td className="py-2 pr-3">

@@ -44,6 +44,8 @@ type Site = {
   autoOn: boolean;
   /** ★ 第1275便: いまうまくいっていないこと（ログインできていない・送ったのに反映できていない・自動が止まった）。無ければ null */
   problem?: WorkProblem | null;
+  /** ★ 第1283便: 運営が「この枠へは即ヒメを送らない」にしている。そのときだけ true */
+  sokuhimeOff?: boolean;
 };
 
 const keyOf = (p: string, s: number) => p + '#' + s;
@@ -839,7 +841,15 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               ★ だからこの説明には【枠の数を書かない】。
           ★ 見えなくなったもの: 枠の空き具合と、1人ずつ押す道。★ 枠は駅ちかの管理画面で見られる。
           ★ SokuhimeSlots.tsx は第324便で消した。 */}
-      {!loading && !error && view && view.provider === 'ekichika' && view.direction === 'write' && (
+      {/* ★ 第1283便: 運営がこの枠の即ヒメを止めているときは、「自動設定中」と言わない（★ 送っていないのに光らせない） */}
+      {!loading && !error && view && view.provider === 'ekichika' && view.direction === 'write' && view.sokuhimeOff === true && (
+        <AutoNote title="即ヒメは送っていません">
+          <p className="text-[13.5px] text-slate-500 leading-relaxed">
+            この枠には「今すぐ」を即ヒメとして送らない設定です。送るようにしたいときは、運営までご連絡ください。
+          </p>
+        </AutoNote>
+      )}
+      {!loading && !error && view && view.provider === 'ekichika' && view.direction === 'write' && view.sokuhimeOff !== true && (
         // ★★★ 第336便: 見出し「駅ちかの即ヒメ」を消し、状態そのもの（即ヒメ自動設定中）を見出しにした。
         //   ★ 見出しが【いま何が起きているか】を言う。★ 場所の名前（駅ちかの…）はタブで分かる。
         <AutoNote title="即ヒメ自動設定中" kirari>

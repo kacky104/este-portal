@@ -1900,6 +1900,11 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
        *   ★ 無ければ null。★ 反映の向き（write）で、鍵がある枠だけ調べる。
        */
       problem: WorkProblem | null;
+      /**
+       * ★ 第1283便: 運営が「この枠へは即ヒメを送らない」にしている（salon_import_sources.sokuhime_push_off）。
+       *   ★ そのときだけ true が付く（ふだんは欄そのものが無い）。★ 駅ちかの枠だけ。
+       */
+      sokuhimeOff?: boolean;
     }>;
   }>
 > {
@@ -1922,6 +1927,18 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
     .select('provider, slot, is_enabled, password_enc, last_verified_at, consent_version')
     .eq('salon_id', salonId);
   if (crErr) return { ok: false, error: 'ログイン情報を確認できませんでした' };
+
+  // ★ 第1283便: 即ヒメを送らない枠。★ 読めなくても画面は止めない（列がまだ無い・一時的な不調 → 「止めていない」扱い）
+  const sokuhimeOffKeys = new Set<string>();
+  {
+    const { data: offs, error: offErr } = await svc
+      .from('salon_import_sources').select('provider, slot').eq('salon_id', salonId).eq('sokuhime_push_off', true);
+    if (offErr) {
+      if (offErr.code !== '42703' && offErr.code !== 'PGRST204') console.error('[overview] 即ヒメを送らない枠を読めなかった', salonId, offErr.message);
+    } else {
+      for (const o of (offs ?? []) as Array<{ provider: string; slot: number }>) sokuhimeOffKeys.add(String(o.provider) + '#' + Number(o.slot ?? 1));
+    }
+  }
 
   // ★ 最後に反映できた時刻。★ 枠ごとに問い合わせを分けない（枠が増えるほど往復が増える形にしない）
   const { data: audit } = await svc
@@ -1999,6 +2016,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
     nextImportAt: string | null;
     capabilities: string[];
     problem: WorkProblem | null;
+    sokuhimeOff?: boolean;
   }> = [];
 
   for (const k of keys) {
@@ -2090,6 +2108,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
         return site ? sendableCapabilities(site).map(capabilityLabel).filter((x) => x.length > 0) : [];
       })(),
       problem,
+      ...(sokuhimeOffKeys.has(k) ? { sokuhimeOff: true } : {}),
     });
   }
 

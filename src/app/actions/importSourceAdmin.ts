@@ -50,6 +50,8 @@ export type ImportSourceRow = {
   isEnabled: boolean;
   /** ★ 第1261便: この枠の即ヒメを読むか */
   importImasugu: boolean;
+  /** ★ 第1283便: この枠へ即ヒメを送るか（コネックエフの店・既定は送る）。false＝運営が止めた（sokuhime_push_off） */
+  sokuhimePush: boolean;
   linkMode: string;
   lastRunAt: string | null;
   lastStatus: string | null;
@@ -78,6 +80,14 @@ export async function adminListImportSources(): Promise<{ ok: true; rows: Import
     .order('salon_id')
     .order('slot');
   if (error) return { ok: false, error: error.message };
+  // ★ 第1283便: 即ヒメを送らない枠。★ 別に引く（列がまだ無い＝追加SQL の前でも、一覧は今までどおり出す）
+  const offIds = new Set<number>();
+  {
+    const { data: offs, error: offErr } = await svc
+      .from('salon_import_sources').select('id').eq('provider', 'ekichika').eq('sokuhime_push_off', true);
+    if (offErr && offErr.code !== '42703' && offErr.code !== 'PGRST204') return { ok: false, error: offErr.message };
+    for (const o of (offErr ? [] : (offs ?? [])) as Array<{ id: number }>) offIds.add(Number(o.id));
+  }
   const rows: ImportSourceRow[] = (data ?? []).map((r) => {
     const salon = (r as unknown as { salons: { name: string | null } | { name: string | null }[] }).salons;
     const name = Array.isArray(salon) ? salon[0]?.name : salon?.name;
@@ -90,6 +100,7 @@ export async function adminListImportSources(): Promise<{ ok: true; rows: Import
       shopUrl: String(r.shop_url ?? ''),
       isEnabled: r.is_enabled !== false,
       importImasugu: (r as { import_imasugu?: boolean | null }).import_imasugu === true,
+      sokuhimePush: !offIds.has(Number(r.id)),
       linkMode: String(r.link_mode ?? ''),
       lastRunAt: (r.last_run_at as string | null) ?? null,
       lastStatus: (r.last_status as string | null) ?? null,
@@ -194,5 +205,27 @@ export async function adminSetImportSourceImasugu(input: { id: number; on: boole
     .update({ import_imasugu: input.on === true, updated_at: new Date().toISOString() })
     .eq('id', Number(input.id)).eq('provider', 'ekichika');
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * ★★★ 第1283便（2026-10-07・カッキーさんの決定）: この枠へ即ヒメを送る／送らない（sokuhime_push_off だけ）。
+ *   ★ コネックエフの店は、店舗様が「更新する」を押した枠すべてに、フクエスの「今すぐ」を即ヒメとして送る（既定）。
+ *     2枠ある店で「枠2には送りたくない」（ログインが倍になる・回数制の回数を使う）ときだけ、ここで止める。
+ *   ★ 止めても、いまフクエスが押している即ヒメは外しに行かない（45分で自然に切れる）。
+ *   ★ 出勤・プロフィール・向きには触れない。★ 店舗様の画面（出勤をサイトへ）には「即ヒメは送っていません」と出る。
+ *   ★ 追加SQL（第1283便）を流す前は列が無いので、ここは失敗する（一覧は出る）。
+ */
+export async function adminSetImportSourceSokuhimePush(input: { id: number; on: boolean }): Promise<{ ok: true } | Err> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const svc = createServiceClient();
+  const { error } = await svc
+    .from('salon_import_sources')
+    .update({ sokuhime_push_off: input.on !== true, updated_at: new Date().toISOString() })
+    .eq('id', Number(input.id)).eq('provider', 'ekichika');
+  if (error) {
+    return { ok: false, error: error.code === '42703' || error.code === 'PGRST204' ? '追加SQL（第1283便）がまだ流れていません' : error.message };
+  }
   return { ok: true };
 }
