@@ -142,5 +142,63 @@ eq('★★★ 止めた理由があれば stop で終わる',
 const r6 = F.afterEsutamaDiaryEnd(res(500), ctx({ esutamaDiaryPosted: true }));
 eq('★★★ 終われなければ止めて知らせる', [r6.kind, r6.note.includes('代理ログイン終了')], ['stop', true]);
 
+// ══════════════════════════════════════════════════════════════════════════
+// ★★★ 第1284便（2026-10-07）: 写真を付ける／写真つきで断られたら文章だけで送り直す
+console.log('\n── 7. ★★★ 投稿の段に写真を載せる（積む直前）──');
+{
+  const PHOTO = 'data:image/jpeg;base64,' + 'QUJD'.repeat(80);
+  const pageOut = F.afterEsutamaDiaryPage(res(200, '<div>【さら】さんにログイン中です</div>' + CTK),
+    ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryDraft: DRAFT, esutamaDiaryPhotoUrls: ['https://abc.supabase.co/storage/v1/object/public/diary-images/1/a.jpg'] }));
+  const step = pageOut.next;
+  eq('★ 投稿の段は、まず文章だけで組まれる（写真は積む直前に載せる）', [step.purpose, step.body.includes('photos'), step.body.includes('photo_data=')], ['esutama_diary_post', false, true]);
+  const a = F.attachEsutamaDiaryPhotos(step, [PHOTO, PHOTO]);
+  eq('★★★ 写真が本文に載る（2枚）', [a.photoCount, a.droppedForSize, (a.step.body.match(/photos%5B\d%5D%5Bdata%5D=data/g) || []).length], [2, 0, 2]);
+  eq('★★★ 載せたあとの本文に photo_data は無い（いまのフォームの形）', a.step.body.includes('photo_data'), false);
+  eq('★★★ ctk・題名・本文はそのまま', ['ctk=0123456789abcdef0123456789abcdef', 'title=', 'content='].map((k) => a.step.body.includes(k)), [true, true, true]);
+  eq('★★★ 文脈には枚数だけ（写真の中身を持ち回らない）', [a.step.context.esutamaDiaryPhotoCount, JSON.stringify(a.step.context).includes('QUJDQUJD')], [2, false]);
+  eq('★ 宛先・Cookie・段の名前は変えない', [a.step.url, a.step.headers.cookie, a.step.purpose], [step.url, step.headers.cookie, 'esutama_diary_post']);
+  // ★ 大きすぎるときは、うしろから外す
+  const big = 'data:image/jpeg;base64,' + 'QUJD'.repeat(2000);   // 8,000文字
+  const fit = F.attachEsutamaDiaryPhotos(step, [big, big, big], { maxBytes: 20000 });
+  eq('★★ 本文が上限を超えるなら、うしろの写真から外す', [fit.photoCount, fit.droppedForSize, fit.step.context.esutamaDiaryPhotoSkipped], [2, 1, 1]);
+  const none = F.attachEsutamaDiaryPhotos(step, [big], { maxBytes: 1000 });
+  eq('★★★ 1枚も載らなければ、文章だけの段のまま送る（日記を止めない）', [none.photoCount, none.step.body === step.body, none.step.context.esutamaDiaryPhotoSkipped], [0, true, 1]);
+  eq('★★ 用意できた写真が0枚でも、文章だけの段のまま。付けられなかった数は残す', (() => { const r = F.attachEsutamaDiaryPhotos(step, [], { skipped: 2 }); return [r.step.body === step.body, r.step.context.esutamaDiaryPhotoSkipped]; })(), [true, 2]);
+  eq('★★ 形が違う写真は載せない', F.attachEsutamaDiaryPhotos(step, ['https://example.com/a.jpg']).photoCount, 0);
+  eq('★★ 投稿の段でなければ何もしない', F.attachEsutamaDiaryPhotos({ ...step, purpose: 'esutama_diary_end' }, [PHOTO]).step.body, step.body);
+}
+
+console.log('\n── 8. ★★★ 写真つきで断られたら、文章だけでもう一度（1回だけ）──');
+{
+  const SENT = { esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryDraft: DRAFT, esutamaDiaryCtk: '0123456789abcdef0123456789abcdef', esutamaDiaryPhotoCount: 2 };
+  const FORM_BACK = '<form action="/tamathera/diary/post/" method="post"><input name="ctk"><textarea name="content"></textarea></form>';
+  const ok = F.afterEsutamaDiaryPost(res(303, ''), ctx(SENT));
+  eq('★★★ 通れば「写真2枚つき」と記録に出る', [ok.audits[0].outcome, ok.audits[0].summary.includes('写真2枚つき'), ok.audits[0].detail.photos, ok.next.purpose], ['ok', true, 2, 'esutama_diary_end']);
+  const rej = F.afterEsutamaDiaryPost(res(500, ''), ctx(SENT));
+  eq('★★★ 断られたら、代理ログインを開いたまま投稿ページを読み直す（文章だけで送り直すため）', [rej.kind, rej.next.purpose, rej.next.method], ['next', 'esutama_diary_page', 'GET']);
+  eq('★★★ 記録に「写真つきで送れませんでした。文章だけで送り直します」', [rej.audits[0].event, rej.audits[0].outcome, rej.audits[0].summary.includes('文章だけで送り直します'), rej.audits[0].detail.reason], ['push_diary', 'failed', true, 'photo_rejected']);
+  eq('★★★ 送り直しの文脈: もう写真は付けない', [rej.next.context.esutamaDiaryPhotoRetried, rej.next.context.esutamaDiaryPhotoCount, rej.next.context.esutamaDiaryPhotoUrls], [true, 0, undefined]);
+  eq('★★ まだ「送れた／送れなかった」を決めていない（印はそのまま）', [rej.next.context.esutamaDiaryPosted, rej.next.context.esutamaDiaryVerdict], [undefined, undefined]);
+  // ★ 読み直した投稿ページ → 文章だけの投稿
+  const page2 = F.afterEsutamaDiaryPage(res(200, '<div>【さら】さんにログイン中です</div>' + CTK), rej.next.context);
+  eq('★★★ 送り直しは文章だけ（今までの形）', [page2.next.purpose, page2.next.body.includes('photos'), page2.next.body.includes('photo_data=')], ['esutama_diary_post', false, true]);
+  eq('★★★ 送り直しの段には写真を載せない', F.attachEsutamaDiaryPhotos(page2.next, ['data:image/jpeg;base64,' + 'QUJD'.repeat(80)]).step.body, page2.next.body);
+  const ok2 = F.afterEsutamaDiaryPost(res(303, ''), page2.next.context);
+  eq('★★★ 送り直しが通れば ok。「写真つきでは送れなかったため、文章だけです」と出る', [ok2.audits[0].outcome, ok2.audits[0].summary.includes('文章だけです'), ok2.audits[0].detail.photoRetried, ok2.next.context.esutamaDiaryPosted], ['ok', true, true, true]);
+  const rej2 = F.afterEsutamaDiaryPost(res(200, FORM_BACK), page2.next.context);
+  eq('★★★ 送り直しも断られたら、もう繰り返さない（今までどおり「送れませんでした」で終える）', [rej2.next.purpose, rej2.audits[0].outcome, rej2.next.context.esutamaDiaryPosted], ['esutama_diary_end', 'failed', false]);
+  // ★ 写真を付けていない日記は、今までどおり
+  const plain = F.afterEsutamaDiaryPost(res(500, ''), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' }));
+  eq('★★ 写真なしで断られたときは、今までどおり送り直さない', [plain.next.purpose, plain.audits[0].outcome], ['esutama_diary_end', 'failed']);
+  const plainOk = F.afterEsutamaDiaryPost(res(303, ''), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら' }));
+  eq('★★ 写真なしの記録の1行は今までどおり', plainOk.audits[0].summary, 'エステ魂へさらさんの写メ日記を送りました。掲載は媒体側でご確認ください');
+  const skipped = F.afterEsutamaDiaryPost(res(303, ''), ctx({ esutamaProxyOpen: true, esutamaDiaryCastName: 'さら', esutamaDiaryPhotoCount: 0, esutamaDiaryPhotoSkipped: 1 }));
+  eq('★★ 写真を用意できなかった日記は「写真は付けられなかったため、文章だけです」', skipped.audits[0].summary.includes('写真は付けられなかったため、文章だけです'), true);
+  eq('★★ 一部だけ付けられなかったときも黙らない', F.afterEsutamaDiaryPost(res(303, ''), ctx({ ...SENT, esutamaDiaryPhotoSkipped: 1 })).audits[0].summary.includes('1枚は付けられませんでした'), true);
+  // ★ 「分からない」は送り直さない（二度送りを避ける・今までどおり）
+  const unk = F.afterEsutamaDiaryPost(res(200, '<html>ok</html>'), ctx(SENT));
+  eq('★★★ 判定できない応答のときは送り直さない（印を残す）', [unk.next.purpose, unk.next.context.esutamaDiaryPosted], ['esutama_diary_end', true]);
+}
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

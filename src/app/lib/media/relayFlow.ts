@@ -95,7 +95,12 @@ import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
 import { isImasuguLiveRow, isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND, sokuhimeOwnedSinceISO } from '@/lib/ekichikaSokuhimePlan';
 import { buildSokuhimeCheckStep, buildSokuhimeDelStep } from '@/lib/relayFlow';
-import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
+import { buildEsutamaDiaryTokenStep, attachEsutamaDiaryPhotos } from '@/lib/esutamaDiaryFlow';
+import {
+  ESUTAMA_DIARY_PHOTO_W, ESUTAMA_DIARY_PHOTO_H, ESUTAMA_DIARY_PHOTO_MAX, ESUTAMA_DIARY_PHOTO_QUALITIES,
+  ESUTAMA_DIARY_PHOTO_MAX_BYTES, ESUTAMA_DIARY_SOURCE_MAX_BYTES,
+  esutamaDiaryPhotoFit, esutamaDiaryPhotoDataUrl, pickEsutamaDiaryPhotoUrls,
+} from '@/lib/esutamaDiaryPhoto';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
 /**
@@ -1023,6 +1028,14 @@ export async function advanceRelayFlow(params: {
       console.error('[relay] 削除の続きで落ちた（本人は消していない）', params.jobId, e instanceof Error ? e.message : 'unknown');
       note = note + ' → ★ 削除の続きで落ちた（本人は消していない）';
     }
+  }
+
+  // ★★★ 第1284便: エステ魂の写メ日記の【投稿の段】に写真を載せる（★ 積む直前・この1回の送信の本文にだけ）。
+  //   ★ 写真を用意できなくても、段はそのまま（文章だけ）積む。★ 写真のせいで日記を止めない。
+  if (next && next.purpose === 'esutama_diary_post') {
+    const p = await attachDiaryPhotosToStep(next);
+    next = p.step;
+    if (p.note) note = note + ' → ' + p.note;
   }
 
   if (!next) return { note };
@@ -3136,6 +3149,9 @@ async function planEsutamaDiary(
   const title = String((dp.title as string | null) ?? '').trim();
   const content = String((dp.content as string | null) ?? '').trim();
   const images = ((dp.images as string[] | null) ?? []).filter(Boolean).length;
+  // ★★★ 第1284便: 付ける写真の【場所】を決める（先頭から3枚まで・フクエスの保管庫の公開 URL だけ）。
+  //   ★ 中身はここでは取りに行かない。投稿の段を積む直前に取ってきて整える（attachDiaryPhotosToStep）。
+  const photoPick = pickEsutamaDiaryPhotoUrls(dp.images, process.env.NEXT_PUBLIC_SUPABASE_URL ?? '');
   // ★ 空の記事を本人のアカウントから出さない（★ 純粋関数側でも見ているが、ここで先に止める）
   if (content.length === 0) {
     return {
@@ -3218,16 +3234,99 @@ async function planEsutamaDiary(
     esutamaDiaryPostId: diaryId,
     esutamaDiaryDraft: { title, content },
     esutamaDiaryMarked: true,
+    // ★ 第1284便: 写真の場所（中身は持ち回らない）。★ 前の回の残りを持ち越さない
+    esutamaDiaryPhotoUrls: photoPick.urls.length > 0 ? photoPick.urls : undefined,
+    esutamaDiaryPhotoSkipped: photoPick.skipped > 0 ? photoPick.skipped : undefined,
+    esutamaDiaryPhotoCount: undefined,
+    esutamaDiaryPhotoRetried: undefined,
   };
   const step = buildEsutamaDiaryTokenStep(nextCtx, castId, ctk);
 
   return {
     audits: [planAudit, markAudit],
     note: summary + ' → ' + row.name + 'さんへ1件だけ送ります'
-      // ★★ 写真は運ばない。★ 黙って落とさず、必ず書く（第129便で photo_data は空と決めた）
-      + (images > 0 ? '（★ 写真' + images + '枚はエステ魂へは送りません）' : ''),
+      // ★ 第1284便: 写真も付ける（3枚まで）。★ 付けない写真があれば、黙って落とさず書く
+      + (photoPick.urls.length > 0 ? '（写真' + photoPick.urls.length + '枚を付けます）' : '')
+      + (images > photoPick.urls.length ? '（★ 写真' + (images - photoPick.urls.length) + '枚は付けません: 3枚まで・フクエスの保管庫の写真だけ）' : ''),
     next: { purpose: step.purpose, method: step.method, url: step.url, headers: step.headers, body: step.body, context: nextCtx },
   };
+}
+
+/**
+ * ★★★ 第1284便（2026-10-07）: エステ魂の写メ日記に付ける写真を1枚、取ってきて整える。
+ *   ★ 形は実物の画面と同じ: 714×1112 の JPEG（品質 0.8）を "data:image/jpeg;base64,…" にする
+ *     （決まりと確かめ方は src/lib/esutamaDiaryPhoto.ts）。
+ *   ★ 縦長の写真は中央で枠に合わせる。横長・正方形は切らずに白い余白（esutamaDiaryPhotoFit）。
+ *   ★ 大きすぎるときは品質を下げる。それでも収まらなければ、その1枚は付けない（理由を返す）。
+ *   ★ 取りに行くのはフクエスの保管庫の公開 URL だけ（選ぶ段 pickEsutamaDiaryPhotoUrls で絞ってある）。
+ */
+async function prepareEsutamaDiaryPhoto(url: string): Promise<{ dataUrl: string | null; note: string }> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
+  if (!res.ok) return { dataUrl: null, note: '写真を取れなかった（' + res.status + '）' };
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.byteLength === 0 || buf.byteLength > ESUTAMA_DIARY_SOURCE_MAX_BYTES) {
+    return { dataUrl: null, note: '写真の大きさが想定外（' + buf.byteLength + 'バイト）' };
+  }
+  const sharp = (await import('sharp')).default;
+  const meta = await sharp(buf).metadata();
+  let w = Number(meta.width ?? 0), h = Number(meta.height ?? 0);
+  // ★ スマホの写真は「回して見せる」印（EXIF の向き）が付いていることがある。5〜8 は縦横が入れ替わる
+  if (Number(meta.orientation ?? 1) >= 5) [w, h] = [h, w];
+  const fit = esutamaDiaryPhotoFit(w, h);
+  for (const q of ESUTAMA_DIARY_PHOTO_QUALITIES) {
+    const out = await sharp(buf).rotate()
+      .resize({ width: ESUTAMA_DIARY_PHOTO_W, height: ESUTAMA_DIARY_PHOTO_H, fit, position: 'centre', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      // ★ ブラウザの canvas.toDataURL('image/jpeg') と同じ、ふつうの（プログレッシブでない）JPEG にする
+      .jpeg({ quality: q, progressive: false, chromaSubsampling: '4:2:0' })
+      .toBuffer();
+    if (out.byteLength <= ESUTAMA_DIARY_PHOTO_MAX_BYTES) {
+      return {
+        dataUrl: esutamaDiaryPhotoDataUrl(out.toString('base64')),
+        note: w + '×' + h + ' → ' + (fit === 'cover' ? '枠に合わせて切った' : '切らずに余白') + '・品質' + q + '・' + Math.round(out.byteLength / 1024) + 'KB',
+      };
+    }
+  }
+  return { dataUrl: null, note: '写真を小さくし切れなかった（' + w + '×' + h + '）' };
+}
+
+/**
+ * ★★★ 第1284便: 積む直前の投稿の段に、写真を載せる。
+ *   ★ ここで何が起きても、段は必ず返す（★ 落ちたら文章だけの段のまま）。★ 写真のせいで日記を止めない。
+ *   ★ 付けられなかった枚数は文脈に残す（送ったあとの記録の1行に「◯枚は付けられませんでした」と出る）。
+ */
+async function attachDiaryPhotosToStep(step: FlowNextRequest): Promise<{ step: FlowNextRequest; note: string }> {
+  const ctx = step.context;
+  const urls = (ctx.esutamaDiaryPhotoUrls ?? []).slice(0, ESUTAMA_DIARY_PHOTO_MAX);
+  if (urls.length === 0 || ctx.esutamaDiaryPhotoRetried === true) return { step, note: '' };
+  const before = Number(ctx.esutamaDiaryPhotoSkipped ?? 0);
+  try {
+    const photos: string[] = [];
+    const notes: string[] = [];
+    let failed = 0;
+    for (const url of urls) {
+      try {
+        const r = await prepareEsutamaDiaryPhoto(url);
+        if (r.dataUrl) photos.push(r.dataUrl); else failed += 1;
+        notes.push(r.note);
+      } catch (e) {
+        failed += 1;
+        notes.push('写真を用意できなかった: ' + String(e instanceof Error ? e.message : e).slice(0, 60));
+      }
+    }
+    const a = attachEsutamaDiaryPhotos(step, photos, { skipped: before + failed });
+    return {
+      step: a.step,
+      note: '写真 ' + a.photoCount + '枚を付けた（' + notes.join(' ／ ') + '）'
+        + (a.droppedForSize > 0 ? '。★ 本文が大きくなりすぎるため ' + a.droppedForSize + '枚を外した' : ''),
+    };
+  } catch (e) {
+    console.error('[relay] 写メ日記の写真を載せられなかった（文章だけで送る）', e instanceof Error ? e.message : 'unknown');
+    return {
+      step: { ...step, context: { ...ctx, esutamaDiaryPhotoCount: 0, esutamaDiaryPhotoSkipped: before + urls.length } },
+      note: '★ 写真を載せられなかった（文章だけで送る）',
+    };
+  }
 }
 
 /**

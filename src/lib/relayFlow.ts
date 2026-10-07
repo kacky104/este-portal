@@ -824,6 +824,18 @@ export type RelayFlowContext = {
   esutamaDiaryPostId?: string;
   /** 送る中身。★ 題名と本文とカテゴリ。★ 秘密ではない（店舗様が書いたもの） */
   esutamaDiaryDraft?: { title: string; content: string; categoryId?: string };
+  /**
+   * ★★★ 第1284便: この日記に付ける写真の【場所】（フクエスの保管庫の公開 URL・先頭から3枚まで）。
+   *   ★ 写真の中身（base64）は文脈に入れない。★ 投稿の段を積む直前に、呼び出し側（app/lib/media/relayFlow.ts）が
+   *     取ってきて整え、その1回の送信の本文にだけ載せる（文脈は段ごとに保存されるので、重いものを持ち回らない）。
+   */
+  esutamaDiaryPhotoUrls?: string[];
+  /** ★ 第1284便: いま送った投稿に付けた写真の枚数（投稿の段を積むときに入る） */
+  esutamaDiaryPhotoCount?: number;
+  /** ★ 第1284便: 用意できなかった・入り切らなかった写真の枚数 */
+  esutamaDiaryPhotoSkipped?: number;
+  /** ★ 第1284便: 写真つきで断られたので、文章だけで送り直している（★ 1回だけ。写真はもう付けない） */
+  esutamaDiaryPhotoRetried?: boolean;
   /** 投稿ページで拾った ctk。★ POST を組むまでの間だけ持つ */
   esutamaDiaryCtk?: string;
   /**

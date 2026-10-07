@@ -27,6 +27,7 @@ import {
   esutamaDiaryPostSignals, parseProxyLoggedInName, judgeEsutamaDiaryPost,
 } from './esutamaTherapistParse';
 import { buildEsutamaDiaryPost } from './esutamaDiaryPost';
+import { ESUTAMA_DIARY_POST_MAX_BYTES } from './esutamaDiaryPhoto';
 import {
   buildEsutamaCreateShopTokenRequest, buildEsutamaProxyLoginRequest,
   buildEsutamaDiaryPageRequest, buildEsutamaDiaryPostRequest, buildEsutamaEndProxyRequest,
@@ -238,6 +239,42 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
   //       **印が残って二度と送れなくなる**。★ 静かな取りこぼし。
   const j = judgeEsutamaDiaryPost(input.status, sig);
   const name = ctx.esutamaDiaryCastName ?? '';
+  // ★ 第1284便: この投稿に付けた写真の枚数／用意できなかった枚数／写真つきで断られて文章だけで送り直した回か
+  const photoCount = Number(ctx.esutamaDiaryPhotoCount ?? 0);
+  const photoSkipped = Number(ctx.esutamaDiaryPhotoSkipped ?? 0);
+  const photoRetried = ctx.esutamaDiaryPhotoRetried === true;
+
+  // ★★★ 第1284便: 写真つきで断られたら、**文章だけでもう一度**送る（★ 1回だけ）。
+  //   ★ 写真の形は 10/7 に実物の画面から読んだものだが、送って通るかは最初の1通まで分からない。
+  //     写真のせいで日記そのものが載らないのは、写真が無いより悪い。
+  //   ★ 'rejected' ＝ 相手は受け取っていない（4xx/5xx か、投稿フォームが戻ってきた）。だから送り直しても二重にならない。
+  //     'unknown' は送り直さない（★ 分からないまま二度送らない・今までどおり印を残す）。
+  //   ★ 代理ログインは開いたまま。投稿ページを読み直して ctk を取り直す。
+  if (j.verdict === 'rejected' && photoCount > 0 && !photoRetried) {
+    const retryCtx = { ...ctx, cookie, esutamaDiaryPhotoRetried: true, esutamaDiaryPhotoCount: 0, esutamaDiaryPhotoUrls: undefined };
+    return {
+      kind: 'next',
+      next: (() => { const r = buildEsutamaDiaryPageRequest(cookie);
+        return { purpose: 'esutama_diary_page' as const, method: r.method, url: r.url, headers: r.headers, body: '', context: retryCtx }; })(),
+      audits: [{
+        event: 'push_diary', outcome: 'failed',
+        summary: 'エステ魂へ' + (name ? name + 'さんの' : '') + '写メ日記を写真つきで送れませんでした（' + j.reason + '）。文章だけで送り直します',
+        detail: {
+          status: input.status, verdict: j.verdict, reason: 'photo_rejected', photos: photoCount,
+          castId: ctx.esutamaDiaryCastId ?? null, name: ctx.esutamaDiaryCastName ?? null,
+          diaryPostId: ctx.esutamaDiaryPostId ?? null,
+          formStillThere: sig.formStillThere, hasErrorWord: sig.hasErrorWord, bodyLength: sig.length,
+        },
+      }],
+      note: '写真つきで断られました（' + j.reason + '）。★ 文章だけで送り直します（投稿ページを読み直す）',
+    };
+  }
+  // ★ 店舗様が読む1行に足す、写真のこと
+  const photoWord = photoCount > 0
+    ? '（写真' + photoCount + '枚つき' + (photoSkipped > 0 ? '。★ ' + photoSkipped + '枚は付けられませんでした' : '') + '）'
+    : photoRetried
+      ? '（★ 写真つきでは送れなかったため、文章だけです）'
+      : photoSkipped > 0 ? '（★ 写真は付けられなかったため、文章だけです）' : '';
   // ★★★ 印を残すか外すかは【ここ】で決まる（呼び出し側は esutamaDiaryPosted を見る）。
   //   ★ 'unknown' は【残す】。★ 消せない相手に、分からないまま二度送らない。
   const posted = j.verdict !== 'rejected';
@@ -246,7 +283,7 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
     outcome: j.verdict === 'sent' ? 'ok' : j.verdict === 'rejected' ? 'failed' : 'stopped',
     // ★ 店舗様が読む1行。★ 「送った」と「載った」を混ぜない
     summary: j.verdict === 'sent'
-      ? 'エステ魂へ' + (name ? name + 'さんの' : '') + '写メ日記を送りました。掲載は媒体側でご確認ください'
+      ? 'エステ魂へ' + (name ? name + 'さんの' : '') + '写メ日記を送りました' + photoWord + '。掲載は媒体側でご確認ください'
       : j.verdict === 'rejected'
         ? 'エステ魂へ' + (name ? name + 'さんの' : '') + '写メ日記を送れませんでした（' + j.reason + '）。もう一度お送りできます'
         : 'エステ魂へ送りましたが、受け取られたか判定できませんでした（' + j.reason + '）。★ 二度送りを避けるため、この日記は送信済みとして扱います。媒体側でご確認ください',
@@ -260,6 +297,10 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
       formStillThere: sig.formStillThere,
       hasErrorWord: sig.hasErrorWord,
       bodyLength: sig.length,
+      // ★ 第1284便: 写真のこと（付けた枚数・付けられなかった枚数・文章だけで送り直した回か）
+      photos: photoCount,
+      ...(photoSkipped > 0 ? { photoSkipped } : {}),
+      ...(photoRetried ? { photoRetried: true } : {}),
     },
   }];
   const next = { ...ctx, cookie, esutamaDiaryPosted: posted, esutamaDiaryVerdict: j.verdict };
@@ -297,6 +338,45 @@ export function afterEsutamaDiaryEnd(input: Input, ctx: RelayFlowContext): FlowO
       ? (ctx.esutamaDiaryCastName ?? '') + 'さんへ写メ日記を送りました'
       : '送れませんでした（代理ログインは終えました）',
   };
+}
+
+/**
+ * ★★★ 第1284便: 積む直前の【投稿の段】に、用意できた写真を載せる（純粋）。
+ *   ★ 呼び出し側（app/lib/media/relayFlow.ts）が、写真を取ってきて 714×1112 の JPEG に整えたあとで呼ぶ。
+ *   ★ 写真の中身は、この1回の送信の本文にだけ入る。★ 文脈（段ごとに保存される）には枚数しか入れない。
+ *   ★ 本文が上限（maxBytes）を超えるときは、うしろの写真から外す。1枚も載らなければ、もとの段（文章だけ）をそのまま返す。
+ *   ★ 写真つきで断られて文章だけで送り直している回（esutamaDiaryPhotoRetried）には載せない。
+ */
+export function attachEsutamaDiaryPhotos<T extends { purpose: string; headers: Record<string, string>; body: string; context: RelayFlowContext }>(
+  step: T,
+  photos: string[],
+  opts?: { maxBytes?: number; skipped?: number },
+): { step: T; photoCount: number; droppedForSize: number } {
+  const ctx = step.context;
+  const skippedBefore = Math.max(0, Math.floor(Number(opts?.skipped ?? 0)));
+  const none = (dropped: number) => ({
+    step: { ...step, context: { ...ctx, esutamaDiaryPhotoCount: 0, esutamaDiaryPhotoSkipped: skippedBefore + dropped } },
+    photoCount: 0, droppedForSize: dropped,
+  });
+  if (step.purpose !== 'esutama_diary_post' || ctx.esutamaDiaryPhotoRetried === true) return { step, photoCount: 0, droppedForSize: 0 };
+  const draft = ctx.esutamaDiaryDraft;
+  const ctk = ctx.esutamaDiaryCtk;
+  if (!draft || !ctk || photos.length === 0) return none(0);
+  const maxBytes = Math.floor(Number(opts?.maxBytes ?? ESUTAMA_DIARY_POST_MAX_BYTES));
+  const cookie = step.headers['cookie'] ?? ctx.cookie ?? '';
+  for (let n = photos.length; n >= 1; n--) {
+    const built = buildEsutamaDiaryPost({ ...draft, photos: photos.slice(0, n) }, ctk);
+    if (built.photoCount === 0) continue;
+    const body = buildEsutamaDiaryPostRequest(cookie, built.fields).body ?? '';
+    // ★ 本文は ASCII だけ（URL エンコード済み）なので、文字数＝バイト数
+    if (body.length > maxBytes) continue;
+    const dropped = photos.length - built.photoCount;
+    return {
+      step: { ...step, body, context: { ...ctx, esutamaDiaryPhotoCount: built.photoCount, esutamaDiaryPhotoSkipped: skippedBefore + dropped } },
+      photoCount: built.photoCount, droppedForSize: dropped,
+    };
+  }
+  return none(photos.length);
 }
 
 /**

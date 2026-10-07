@@ -26,6 +26,14 @@
 // ★★★ 日記は【上書きではなく投稿】。★ 二度送ると記事が2本載る。★ しかも店舗側から消せない。
 //   → 送った印（diary_posts 側）が無いと重複する。★ ここは呼び出し側の責任。
 
+// ★★★ 第1284便（2026-10-07）: 写真を付けられるようにした。
+//   ★ 実物のフォームは 9/4 から変わっていた（photo_data はもう無い。photos[1..3][data] / [album_id]）。
+//     形と確かめ方は src/lib/esutamaDiaryPhoto.ts の頭に書いた。
+//   ★ 写真が1枚も無い日記は、今までと同じ項目・同じ並びで送る（★ 9/4 から毎日通っている形に触らない）。
+//     写真つきの形が本番で通ることを確かめたら、文章だけの形もいまのフォームに揃える（別の便）。
+
+import { ESUTAMA_DIARY_PHOTO_MAX, isEsutamaDiaryPhotoDataUrl } from './esutamaDiaryPhoto';
+
 /** カテゴリ。★ 数字は相手の value。★ 名前はこちらの画面用。 */
 export const ESUTAMA_DIARY_CATEGORIES: ReadonlyArray<{ id: string; label: string }> = [
   { id: '1', label: '日常' },
@@ -66,6 +74,11 @@ export type DiaryDraft = {
   content: string;
   /** 省略時は「日常」。★ 知らない値も「日常」へ倒す（送らないより送る）。 */
   categoryId?: string;
+  /**
+   * ★ 第1284便: 付ける写真（"data:image/jpeg;base64,…"・714×1112 に整えたもの）。先頭から3枚まで。
+   *   ★ 形が違うものは入れない（photoDropped に数える）。★ 無ければ今までどおり文章だけ。
+   */
+  photos?: string[];
 };
 
 export type BuiltDiaryPost = {
@@ -76,6 +89,10 @@ export type BuiltDiaryPost = {
   contentDropped: number;
   /** ★ 本文が空なら送らない。★ 空の記事を本人のアカウントから出さない。 */
   empty: boolean;
+  /** ★ 第1284便: 入れた写真の枚数（0〜3） */
+  photoCount: number;
+  /** ★ 第1284便: 渡されたが入れなかった写真の枚数（形が違う・4枚目以降） */
+  photoDropped: number;
 };
 
 /** ★ 実物のフォームにあった項目（2026-09-04 実測）。★ これ以外は送らない。 */
@@ -95,16 +112,39 @@ export function buildEsutamaDiaryPost(draft: DiaryDraft, ctk: string): BuiltDiar
   const c = clampText(draft.content, ESUTAMA_CONTENT_MAX);
   const category = isEsutamaCategory(draft.categoryId) ? String(draft.categoryId) : ESUTAMA_DIARY_DEFAULT_CATEGORY;
 
-  // ★ 実物のフォーム順。★ photo_data は空（画像なし・required でないことを実測で確認）
-  const fields: Array<[string, string]> = [
-    ['ctk', String(ctk ?? '')],
-    ['photo_data', ''],
-    ['title', t.text],
-    ['category_id', category],
-    ['content', c.text],
-    ['published_date', ''],
-    ['schedule_mode', 'now'],
-  ];
+  // ★ 第1284便: 入れてよい形の写真だけ、先頭から3枚まで
+  const given = Array.isArray(draft.photos) ? draft.photos : [];
+  const photos = given.filter(isEsutamaDiaryPhotoDataUrl).slice(0, ESUTAMA_DIARY_PHOTO_MAX);
+
+  let fields: Array<[string, string]>;
+  if (photos.length === 0) {
+    // ★ 写真なし: 今までと同じ項目・同じ並び（★ 9/4 から通っている形。触らない）
+    //   ★ photo_data は空（画像なし・required でないことを実測で確認）
+    fields = [
+      ['ctk', String(ctk ?? '')],
+      ['photo_data', ''],
+      ['title', t.text],
+      ['category_id', category],
+      ['content', c.text],
+      ['published_date', ''],
+      ['schedule_mode', 'now'],
+    ];
+  } else {
+    // ★★★ 写真つき: いまの実物のフォーム順（2026-10-07 に読んだ）。
+    //   ctk → title → category_id → content → photos[1..3][data] / [album_id] → published_date → schedule_mode
+    //   ★ 写真の無い枠も、ブラウザと同じく空で送る。★ album_id は使わない（空）。★ photo_data はいまのフォームに無いので送らない。
+    fields = [
+      ['ctk', String(ctk ?? '')],
+      ['title', t.text],
+      ['category_id', category],
+      ['content', c.text],
+    ];
+    for (let n = 1; n <= ESUTAMA_DIARY_PHOTO_MAX; n++) {
+      fields.push(['photos[' + n + '][data]', photos[n - 1] ?? '']);
+      fields.push(['photos[' + n + '][album_id]', '']);
+    }
+    fields.push(['published_date', ''], ['schedule_mode', 'now']);
+  }
 
   return {
     fields,
@@ -112,5 +152,7 @@ export function buildEsutamaDiaryPost(draft: DiaryDraft, ctk: string): BuiltDiar
     contentDropped: c.dropped,
     // ★ 本文が空（空白だけ）なら送らない。★ 題名だけの記事を本人の名前で出さない
     empty: c.text.trim().length === 0,
+    photoCount: photos.length,
+    photoDropped: given.length - photos.length,
   };
 }
