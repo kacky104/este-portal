@@ -97,5 +97,41 @@ console.log('\n── 7. まとめ押しの1行 ──');
 p = plan({ people: [P(1), P(2)], workingCastIds: ['101', '102'], maxSet: 6 });
 eq('2人まとめ', v.sokuhimePlanSummary(p), '人1さん・人2さんの2名を枠へ');
 
+console.log('\n── 8. ★★★ 第1282便: 「フクエスが押した枠」は、押してから45分以内の記録だけ ──');
+{
+  // ★ 実際に起きた（ラビリンス様 10/6）: 15:59 に押した2名（～16:44 迄）を、17:09 に「フクエスの枠」として外した。
+  //   16:44 を過ぎて枠に居たのは、だれかが入れ直した即ヒメ。
+  const at = (hhmm) => Date.parse('2026-10-06T' + hhmm + ':00+09:00');
+  const pushedAt = at('15:59');
+  const owned = (nowMs) => pushedAt >= Date.parse(v.sokuhimeOwnedSinceISO(nowMs));
+  eq('即ヒメが続く時間は45分', v.SOKUHIME_LIFETIME_MIN, 45);
+  eq('★ 16:39（押して40分）: まだフクエスの枠', owned(at('16:39')), true);
+  eq('★ 16:44（押して45分ちょうど）: まだフクエスの枠', owned(at('16:44')), true);
+  eq('★★★ 16:49（押して50分）: もうフクエスの枠ではない', owned(at('16:49')), false);
+  eq('★★★ 17:09（実際に外してしまった時刻）: フクエスの枠ではない', owned(at('17:09')), false);
+  // ★ 計画: 「フクエスが押した」に入っていなければ、枠に居ても外さない
+  const boxes = [B(0, { girlId: '101' }), B(1, { girlId: '102' }), B(2)];
+  const off = [P(1, { imasuguByFukues: false }), P(2, { imasuguByFukues: false })];
+  eq('★★★ 45分を過ぎた記録を渡さなければ、人が入れた即ヒメは外さない', plan({ people: off, boxes, workingCastIds: ['101', '102'], pushedByFukues: [], maxDel: 6 }).dels, []);
+  eq('★ 45分以内の記録の方は、今すぐが終わっていれば外す（今までどおり）', plan({ people: off, boxes, workingCastIds: ['101', '102'], pushedByFukues: ['101'], maxDel: 6 }).dels.map((d) => d.castId), ['101']);
+
+  // ★★ 2か所（中継の計画・周の入口）が同じ物差しを使っていること。★ 片方だけ24時間に戻すと、用の無いログインか、人の枠の解除が戻る
+  const fs = require('fs'), path = require('path');
+  const src = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
+  const near = (text) => {
+    const out = [];
+    let i = -1;
+    while ((i = text.indexOf("from('media_sokuhime_pushes')", i + 1)) >= 0) out.push(text.slice(i, i + 420));
+    return out;
+  };
+  const flow = src('src/app/lib/media/relayFlow.ts');
+  const planRead = near(flow).filter((x) => x.includes(".select('cast_id')"));
+  eq('★★★ 中継の計画: 押した記録を読むところは1か所で、45分の物差しを使う', [planRead.length, planRead.every((x) => x.includes('sokuhimeOwnedSinceISO('))], [1, true]);
+  const route = src('src/app/api/admin/sokuhime-push/route.ts');
+  const routeRead = near(route.replace(/\r/g, '').replace(/\n\s*/g, ' '));
+  eq('★★★ 周の入口: 開いた記録を数えるところも、45分の物差しを使う', [routeRead.length, routeRead.every((x) => x.includes('sokuhimeOwnedSinceISO('))], [1, true]);
+  eq('★ 周の入口に「24時間」の絞り込みが残っていない', /24 \* 3600 \* 1000/.test(route), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

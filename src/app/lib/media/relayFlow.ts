@@ -93,7 +93,7 @@ import {
 } from '@/lib/esutamaSokuseraTargets';
 import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
 import { isImasuguLiveRow, isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
-import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND } from '@/lib/ekichikaSokuhimePlan';
+import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND, sokuhimeOwnedSinceISO } from '@/lib/ekichikaSokuhimePlan';
 import { buildSokuhimeCheckStep, buildSokuhimeDelStep } from '@/lib/relayFlow';
 import { buildEsutamaDiaryTokenStep } from '@/lib/esutamaDiaryFlow';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
@@ -1793,7 +1793,9 @@ async function advanceSokuhime(
     .from('media_sokuhime_pushes').select('cast_id')
     .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
     .is('removed_at', null)
-    .gte('pushed_at', new Date(now.getTime() - 24 * 3600 * 1000).toISOString());
+    // ★★★ 第1282便: 押してから45分以内の記録だけ（それまでは24時間）。★ 理由は lib/ekichikaSokuhimePlan.ts の sokuhimeOwnedSinceISO。
+    //   ★ 45分を過ぎた記録の方がいま枠に居たら、それは店舗様（やベンリー）が入れた即ヒメ。フクエスは外さない。
+    .gte('pushed_at', sokuhimeOwnedSinceISO(now.getTime()));
   if (pErr) return fail('pushes_read_failed', 'こちらが押した記録を読めなかった: ' + pErr.message);
 
   // ★ 1人だけ試すときは、その人だけを people にする（★ ほかの人を勝手に押さない）

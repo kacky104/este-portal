@@ -5,6 +5,7 @@ import { needsConsent } from '@/lib/mediaConsent';
 // ★ 第325便: 「いま今すぐの人がいるか」を、画面と同じ物差しで見る（★ 決め方を2つ持たない）
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 import { staggerNotBefore } from '@/lib/relayStagger';
+import { sokuhimeOwnedSinceISO } from '@/lib/ekichikaSokuhimePlan';
 
 // ── 即ヒメの周（第215便・2026-09-08）─────────────────────────────────────
 //   POST /api/admin/sokuhime-push  (Authorization: Bearer <CRON_SECRET>)
@@ -140,6 +141,7 @@ export async function POST(req: Request) {
    *   ★★ 「仕事がある」は2つ。★ 片方だけだと**外す仕事が永久に走らない**:
    *     ① いま「今すぐ」の方がいる（★ これから上げる）
    *     ② フクエスが入れた枠が残っている（★ 「今すぐ」が終わったら外す・removed_at が空）
+   *        ★ 第1282便: 押してから45分以内の記録だけ（45分で駅ちか側が切れる）
    *   ★ ①の物差しは画面（getSokuhimeCandidates）とも中継（planSokuhime）とも同じ関数を使う。
    *     ★ 取り込み枠（駅ちか由来）は数えない（★ エコーバックしない・第214便）。
    *   ★★ ここは【積むかどうか】だけを決める。★ 誰を上げるかは今までどおり中継の中で決める
@@ -159,13 +161,15 @@ export async function POST(req: Request) {
       const row = t as unknown as ImasuguRow;
       if (isOwnerLiveRow(row, now) || isCastLiveRow(row, now)) liveSalons.add(Number(t['salon_id']));
     }
-    // ★★ 24時間より古い記録は数えない。★ 中継の計画（planSokuhime）が見る範囲と同じにする。
-    //   ★ ここを広くすると、中継が触らない古い1行のせいで【永久に周のたびにログイン】になる。
+    // ★★★ 第1282便: 押してから45分以内の記録だけ数える（それまでは24時間）。★ 中継の計画が見る範囲と同じ物差し（sokuhimeOwnedSinceISO）。
+    //   ★ 45分を過ぎたら、フクエスが押した即ヒメは駅ちか側でもう切れている＝外す仕事は無い。
+    //   ★ それまでは、自然に切れた記録が開いたまま残り、だれも「今すぐ」でなくても最長24時間、10分ごとにログインしていた。
+    //   ★★ ここを中継の計画より広くしない（中継が触らない記録のせいで、用の無いログインが続く）。
     const { data: open, error: opErr } = await svc
       .from('media_sokuhime_pushes')
       .select('salon_id')
       .eq('provider', PROVIDER).is('removed_at', null)
-      .gte('pushed_at', new Date(now.getTime() - 24 * 3600 * 1000).toISOString())
+      .gte('pushed_at', sokuhimeOwnedSinceISO(now.getTime()))
       .in('salon_id', ids);
     if (opErr) return NextResponse.json({ ok: false, error: opErr.message }, { status: 500 });
     for (const o of (open ?? []) as Array<{ salon_id: number }>) openSalons.add(Number(o.salon_id));
