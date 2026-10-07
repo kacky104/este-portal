@@ -444,8 +444,23 @@ function castCreateAfterList(
       );
     }
     // ★ 増えたのが2人以上＝こちらの知らない登録が同時に起きた。★ 名前で1人に絞れなければ止める
+    // ★★★ 第1290便（2026-10-07）: 増えたのが1人でも、【名前が合うときだけ】その番号を結ぶ。
+    //   ★ 直す前は「増えたのが1人ならその方」。こちらの登録が通らず、同じ数分の間に店舗様が相手サイトで別の方を足していると、
+    //     その別の方の番号を結んでいた＝そのあとの更新・削除が別の方に当たる（★ 取り返しがつかないほうへ倒さない）。
+    //   ★ 比べ方は、登録の前の「もう居ないか」と同じ normalizeName（★ 物差しを2つ持たない）。
+    //   ★ 過去の登録（2026-10-07 までの本番の2件＋試し21件）は、相手サイトの名前がこちらの名前のまま載っていた。
     const byName = fresh.filter((r) => normalizeName(r.name) === normalizeName(want));
-    const hit = fresh.length === 1 ? fresh[0] : (byName.length === 1 ? byName[0] : null);
+    const hit = byName.length === 1 ? byName[0] : null;
+    if (hit === null && fresh.length === 1) {
+      return stop(
+        [{
+          event: 'create_cast', outcome: 'failed',
+          summary: 'エステ魂で1名増えていましたが、名前が「' + fresh[0].name + '」で、登録しようとした「' + want + '」と違うため、連携していません。エステ魂の画面でご確認ください',
+          detail: { name: want, added: 1, addedName: fresh[0].name, addedCastId: fresh[0].castId, reason: 'name_mismatch', flowId },
+        }],
+        '増えた1人の名前が、登録しようとした名前と違う（★ 結ばない）',
+      );
+    }
     if (hit === null) {
       return stop(
         [{ event: 'create_cast', outcome: 'failed', summary: 'エステ魂で増えた方が' + fresh.length + '名あり、どれを登録したのか決められませんでした', detail: { name: want, added: fresh.length, reason: 'ambiguous', flowId } }],

@@ -161,6 +161,19 @@ const ctxV = Object.assign({}, ctxF, { createStage: 'verify' });
   const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'あや'), cell('5809640', 'ゆい')), ctxV);
   eq('★★★ 登録④: どれを登録したのか決められなければ止める', [r.kind, r.audits[0].detail.reason], ['stop', 'ambiguous']);
 }
+{
+  // ★★★ 第1290便: 増えたのが1人でも、名前が違えば結ばない（★ こちらの登録が通らず、店舗様が同じ数分に別の方を足した形）
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', 'あや')), ctxV);
+  eq('★★★ 登録④: 増えた1人の名前が違えば、その番号を結ばない', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['stop', 'failed', 'name_mismatch']);
+  eq('★★★ 登録④: 結ぶ番号を返さない', r.mediaCreated === undefined, true);
+  eq('★★ 登録④: 増えていた方の名前と番号は記録に残す', [r.audits[0].detail.addedName, r.audits[0].detail.addedCastId], ['あや', '5809639']);
+  eq('★ 登録④: お知らせに両方の名前が入る', r.audits[0].summary.indexOf('あや') >= 0 && r.audits[0].summary.indexOf('さくら') >= 0, true);
+}
+{
+  // ★ 全角・空白の違いは同じ名前（登録の前の「もう居ないか」と同じ物差し）
+  const r = go('read_girls', 200, {}, girlsPage(...OTHERS, cell('5809639', '　さくら ')), ctxV);
+  eq('★★ 登録④: 前後の空白が違うだけなら結ぶ', [r.kind, r.mediaCreated && r.mediaCreated.castId], ['next', '5809639']);
+}
 
 // ── ⑤ 網羅の見張り（★ 登録が出勤ページへ迷い込んだら止める）──
 {

@@ -523,6 +523,13 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
     const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'あや'), row('900003', 'ゆい')]) }, ctxV);
     eq('★★★ 登録④: どれを登録したのか決められなければ止める', [r.kind, r.audits[0].detail.reason], ['stop', 'ambiguous']);
   }
+  {
+    // ★★★ 第1290便: 増えたのが1人でも、名前が違えば結ばない
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900002', 'あや')]) }, ctxV);
+    eq('★★★ 登録④: 増えた1人の名前が違えば、その番号を結ばない', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['stop', 'failed', 'name_mismatch']);
+    eq('★★★ 登録④: 結ぶ番号を返さない', r.mediaCreated === undefined, true);
+    eq('★★ 登録④: 増えていた方の名前と番号は記録に残す', [r.audits[0].detail.addedName, r.audits[0].detail.addedCastId], ['あや', '900002']);
+  }
 
   // ── ⑤ 登録のあと、そのまま写真へ（第267便）──────────────────────
   //   ★★★ 見張りたいのは4つ:
