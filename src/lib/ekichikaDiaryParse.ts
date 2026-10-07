@@ -697,6 +697,30 @@ export function firstFukuesWrittenAt(
 }
 
 /**
+ * ★★★ 第1286便（2026-10-07）: 境目（そのセラピストがフクエスで書き始めた時刻）を、2つの材料の早いほうで決める。
+ *   written … いま残っている「フクエスで書いた日記」のいちばん早い時刻（firstFukuesWrittenAt）
+ *   sent    … フクエスから駅ちかへ【送れた記録】（diary_forward_log の status='sent'）のいちばん早い時刻
+ *
+ * ★ なぜ送れた記録も見るか（実際に起きた・ラビリンス様 10/7）:
+ *   ひまりさんがフクエスで初めて書いた日記を、すぐフクエスから消した。駅ちかには写しが残っていた。
+ *   境目は「いま残っている日記」だけで決めていたので、消した瞬間に「まだフクエスで書いていない方」に戻り、
+ *   次の取り込みが、駅ちかの写しを「駅ちかで書いた日記」として取り込んだ（消した日記が戻ってきた）。
+ *   ★ 送れた記録は、日記を消しても残る（diary_forward_log は日記に結びついていない）。
+ * ★ どちらも無ければ null（＝まだフクエスで書いていない方。全部取り込む）。読めない値は無いものとして扱う。
+ */
+export function earliestFukuesStart(
+  written: string | null | undefined,
+  sent: string | null | undefined,
+): string | null {
+  const w = written ? Date.parse(written) : Number.NaN;
+  const s = sent ? Date.parse(sent) : Number.NaN;
+  if (Number.isNaN(w) && Number.isNaN(s)) return null;
+  if (Number.isNaN(w)) return sent ?? null;
+  if (Number.isNaN(s)) return written ?? null;
+  return (s < w ? sent : written) ?? null;
+}
+
+/**
  * 1周で詳細を開く上限（第97便）。
  *
  * ★★★ なぜ要るか（2026-09-01・実弾で分かった）

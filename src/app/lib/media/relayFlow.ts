@@ -45,6 +45,7 @@ import {
   DIARY_STATUS_FUKUES_COPY,
   isFukuesWrittenCopy,
   firstFukuesWrittenAt,
+  earliestFukuesStart,
   type EkichikaDiaryListPage,
   type EkichikaDiaryDetail,
   type KnownDiary,
@@ -2767,7 +2768,20 @@ async function saveDiaryDetail(
         ((imp ?? []) as Array<{ diary_post_id: string | null }>).map((r) => String(r.diary_post_id ?? '')).filter((x) => x.length > 0),
       );
     }
-    const firstAt = firstFukuesWrittenAt(ownRows, importedIds);
+    // ★★★ 第1286便: フクエスから駅ちかへ【送れた記録】も見る（日記を消しても残る）。
+    //   ★ いま残っている日記だけで決めていたので、初めて書いた日記をフクエスから消すと「まだ書いていない方」に戻り、
+    //     駅ちかに残った写しを取り込んでいた（消した日記が戻ってくる）。理由は lib/ekichikaDiaryParse.ts の earliestFukuesStart。
+    //   ★ 読めないまま進むと二重に入れてしまう。記録を残さず保留（次の周でもう一度）
+    const { data: fwd, error: fwdErr } = await supabase
+      .from('diary_forward_log')
+      .select('created_at')
+      .eq('therapist_id', therapistId).eq('provider', params.provider).eq('status', 'sent')
+      .gte('created_at', ctx.diaryMixedSince)
+      .order('created_at', { ascending: true })
+      .limit(1);
+    if (fwdErr) return done('★ フクエスから送った記録を引けなかったので日記 ' + diaryId + ' は保留: ' + fwdErr.message.slice(0, 80));
+    const firstSentAt = ((fwd ?? []) as Array<{ created_at: string | null }>)[0]?.created_at ?? null;
+    const firstAt = earliestFukuesStart(firstFukuesWrittenAt(ownRows, importedIds), firstSentAt);
     if (isFukuesWrittenCopy(postedAt, firstAt)) {
       const err = await markDiary(params, { diaryId, status: DIARY_STATUS_FUKUES_COPY, therapistId, postedAt });
       return done(

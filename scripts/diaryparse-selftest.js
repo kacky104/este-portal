@@ -604,6 +604,24 @@ console.log('\n── 移行期間の取り込み: フクエスで書いた日�
   eq('★★★ フクエスで書いた最初の日記（取り込んだ日記は数えない・並びに頼らない）', m.firstFukuesWrittenAt(posts, new Set(['imp1'])), '2026-10-05T20:10:30+09:00');
   eq('★ 取り込んだ日記しか無ければ null（＝全部取り込む）', m.firstFukuesWrittenAt([posts[0]], new Set(['imp1'])), null);
   eq('★ 空・null でも落ちない', [m.firstFukuesWrittenAt([], new Set()), m.firstFukuesWrittenAt(null, new Set())], [null, null]);
+  // ★★★ 第1286便（2026-10-07）: フクエスから駅ちかへ送れた記録も、境目の材料にする
+  //   ★ 実際に起きた（ラビリンス様・ひまりさん）: フクエスで初めて書いた日記をすぐ消した → 駅ちかに残った写しが取り込まれて戻ってきた
+  {
+    const WRITTEN = '2026-10-07T11:55:00.000Z', SENT = '2026-10-07T11:55:20.000Z';   // 20:55 JST に書いて、すぐ駅ちかへ送れた
+    const POSTED = '2026-10-07T11:56:00.000Z';                                        // 駅ちかに載った時刻（分まで）
+    eq('★★★ 日記を消したあと（書いた日記が0件）でも、送れた記録があれば境目になる', m.earliestFukuesStart(null, SENT), SENT);
+    eq('★★★ そのとき、駅ちかに残った写しは取り込まない', m.isFukuesWrittenCopy(POSTED, m.earliestFukuesStart(null, SENT)), true);
+    eq('★ 日記が残っていれば今までどおり（早いほう）', m.earliestFukuesStart(WRITTEN, SENT), WRITTEN);
+    eq('★ 送れた記録のほうが早ければそちら（先に書いた日記を消して、あとの日記だけ残っている方）', m.earliestFukuesStart('2026-10-08T01:00:00.000Z', SENT), SENT);
+    eq('★ 送れた記録が無ければ、書いた日記だけで決める', m.earliestFukuesStart(WRITTEN, null), WRITTEN);
+    eq('★★ どちらも無ければ null（まだフクエスで書いていない方＝全部取り込む）', [m.earliestFukuesStart(null, null), m.earliestFukuesStart(undefined, ''), m.earliestFukuesStart('x', 'y')], [null, null, null]);
+    eq('★★ 送り始めるより前に駅ちかで書いた日記は、今までどおり取り込む', m.isFukuesWrittenCopy('2026-10-07T09:00:00.000Z', m.earliestFukuesStart(null, SENT)), false);
+    const fs = require('fs'), path = require('path');
+    const flow = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'lib', 'media', 'relayFlow.ts'), 'utf8');
+    eq('★★★ 取り込みの段が、送れた記録（diary_forward_log の sent）を境目に使っている',
+      /from\('diary_forward_log'\)[\s\S]{0,260}\.eq\('status', 'sent'\)[\s\S]{0,700}earliestFukuesStart\(firstFukuesWrittenAt\(ownRows, importedIds\), firstSentAt\)/.test(flow), true);
+    eq('★★ 送れた記録を読めなかったら、取り込まずに保留する（二重に入れない）', /if \(fwdErr\) return done\(/.test(flow), true);
+  }
 
   eq('★ 写しの記録の名前', m.DIARY_STATUS_FUKUES_COPY, 'skipped:fukues_copy');
   eq('★★★ 写しは二度と開かない（1日たっても開き直さない）',
