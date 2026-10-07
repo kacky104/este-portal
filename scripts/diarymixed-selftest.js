@@ -99,5 +99,16 @@ eq('延長は14日', m.DIARY_MIXED_EXTEND_DAYS, 14);
   eq('★ 翌日 0:00 JST は回さない', c({ nowISO: '2026-11-06T15:00:00.000Z' }), false);
 }
 
+console.log('\n── 第1292便: ★★★ 始まりが空の店が「延長する」を押したときの始まり ──');
+{
+  const SW = '2026-10-05T12:41:54.928Z';   // 切り替えた時刻
+  const NOW = '2026-10-10T03:00:00.000Z';  // 押した時刻
+  // ★★★ 直す前: いつも【いま】。10/6 にフクエスで書いて駅ちかへ送った日記を「写し」と見分けられず、二重に取り込む
+  eq('★★★ 切り替えた時刻が読めれば、それを始まりにする', m.mixedSinceWhenMissing(SW, NOW), SW);
+  eq('★★ 切り替えた時刻が無ければ、いま（今までどおり）', [m.mixedSinceWhenMissing(null, NOW), m.mixedSinceWhenMissing(undefined, NOW), m.mixedSinceWhenMissing('', NOW)], [NOW, NOW, NOW]);
+  eq('★★ 切り替えた時刻が読めない文字なら、いま', m.mixedSinceWhenMissing('x', NOW), NOW);
+  eq('★ 切り替えた時刻が未来（時計のずれ）なら、いま', m.mixedSinceWhenMissing('2026-10-11T00:00:00.000Z', NOW), NOW);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

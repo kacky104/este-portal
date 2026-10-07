@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
-  mixedUntilFromStart, extendMixedUntil, isMixedPeriodOpen, mixedLastDayLabel, mixedDaysLeft, diaryMixedRuns,
+  mixedUntilFromStart, extendMixedUntil, isMixedPeriodOpen, mixedLastDayLabel, mixedDaysLeft, diaryMixedRuns, mixedSinceWhenMissing,
 } from '@/lib/diaryMixedPeriod';
 
 // コネックエフの店の、写メ日記の「移行期間」（第1265便・2026-10-07・カッキーさんの決定）。★ サーバー専用（service_role で DB を触る）。
@@ -32,7 +32,7 @@ export type DiaryMixedState = {
 };
 
 async function readPeriod(svc: Svc, salonId: number): Promise<
-  | { ok: true; switched: boolean; source: string; since: string | null; until: string | null }
+  | { ok: true; switched: boolean; switchedAt: string | null; source: string; since: string | null; until: string | null }
   | { ok: false; error: string }
 > {
   const { data: salon, error } = await svc
@@ -43,6 +43,8 @@ async function readPeriod(svc: Svc, salonId: number): Promise<
   return {
     ok: true,
     switched: !!(salon as { conecf_enabled_at?: string | null }).conecf_enabled_at,
+    // ★ 第1292便: 切り替えた時刻（始まりが空の店が延長したときの、始まりの材料）
+    switchedAt: ((salon as { conecf_enabled_at?: string | null }).conecf_enabled_at) ?? null,
     source: String((salon as { diary_source?: string | null }).diary_source ?? ''),
     since: ((salon as { diary_mixed_since?: string | null }).diary_mixed_since) ?? null,
     until: ((u as { diary_mixed_until?: string | null } | null)?.diary_mixed_until) ?? null,
@@ -124,7 +126,8 @@ export async function startDiaryMixedOnSwitch(svc: Svc, salonId: number, actor: 
 /**
  * ★ 店舗様が「14日間延長する」を押した。何回でも押せる（押すたびに連携の記録に残す）。
  *   ・期間中 … いまの期限に14日足す ／ 期限切れ・未設定 … 押した日から14日
- *   ・始まりの時刻が入っていない店（切り替えのときに始められなかった店）は、ここで【いま】を入れる。
+ *   ・始まりの時刻が入っていない店（切り替えのときに始められなかった店）は、ここで入れる。
+ *     ★ 第1292便: 【いま】ではなく【切り替えた時刻】（読めなければいま）。理由は lib/diaryMixedPeriod.ts の mixedSinceWhenMissing。
  * ★ 権限（自分の店か・切り替え済みか・止めている店でないか）は呼ぶ側（actions/conecfDiaryMixed.ts）が見る。
  */
 export async function extendDiaryMixedPeriod(svc: Svc, salonId: number, actor: string): Promise<
@@ -137,7 +140,7 @@ export async function extendDiaryMixedPeriod(svc: Svc, salonId: number, actor: s
   if (!next) return { ok: false, error: '期限を決められませんでした。時間をおいてお試しください' };
   const wasOpen = isMixedPeriodOpen(p.until, nowISO);
   const { error } = await svc.from('salons')
-    .update({ diary_mixed_until: next, ...(p.since ? {} : { diary_mixed_since: nowISO }) })
+    .update({ diary_mixed_until: next, ...(p.since ? {} : { diary_mixed_since: mixedSinceWhenMissing(p.switchedAt, nowISO) }) })
     .eq('id', salonId);
   if (error) {
     await recordMediaAudit({

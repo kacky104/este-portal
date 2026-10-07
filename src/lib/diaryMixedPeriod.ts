@@ -66,6 +66,22 @@ export function extendMixedUntil(currentUntil: string | null | undefined, nowISO
   return endOfJstDayAfter(now, DIARY_MIXED_EXTEND_DAYS);
 }
 
+/**
+ * ★★★ 第1292便（2026-10-07）: 始まりの時刻（salons.diary_mixed_since）が空の店が「14日間延長する」を押したときに入れる始まり。
+ *   ・切り替えた時刻（salons.conecf_enabled_at）が読めて、いまより前なら、その時刻
+ *   ・読めなければ【いま】（今までどおり）
+ * ★ 直す前は、いつも【いま】を入れていた。切り替えのときに移行期間を始められなかった店（startDiaryMixedOnSwitch の失敗）が
+ *   あとから押すと、切り替えてから押すまでのあいだにフクエスで書いて駅ちかへ送った日記を「写し」と見分けられず、二重に取り込む
+ *   （★ 見分けは「始まり以降にフクエスで書いた最初の日記より後に、駅ちかへ載った日記」＝始まりが遅いと、最初の日記を見落とす）。
+ *   ★ 始まりが早いぶんには困らない（見分けの材料が増えるだけ）。
+ */
+export function mixedSinceWhenMissing(switchedAtISO: string | null | undefined, nowISO: string): string {
+  const sw = parseMs(switchedAtISO);
+  const now = parseMs(nowISO);
+  if (!Number.isNaN(sw) && !Number.isNaN(now) && sw <= now) return String(switchedAtISO);
+  return nowISO;
+}
+
 /** ★ 画面に出す「◯/◯」（期限の日＝期限の時刻の直前の、日本時間の日付）。期限が無い・読めないは null */
 export function mixedLastDayLabel(until: string | null | undefined): string | null {
   const u = parseMs(until);
