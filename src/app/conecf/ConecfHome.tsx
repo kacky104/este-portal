@@ -26,6 +26,8 @@ type Site = {
   needsConsent: boolean;
   /** ★ 第1287便: いまの同意が【読むだけ（フクエスリンクの文）】。「取り直し」ではなく「ご同意が必要」と言う */
   consentReadOnly?: boolean;
+  /** ★ 第1294便: ID・パスワードを一時停止しているだけ（登録は残っている） */
+  credentialPaused?: boolean;
   capabilities: string[];
   /** ★ 第1275便: いまうまくいっていないこと。無ければ null */
   problem?: WorkProblem | null;
@@ -38,7 +40,8 @@ const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0
 // ★ 第756便（カッキーさん）: enabled=false（コネックエフに切り替える前）は【見るだけ】。
 //   ★ 更新しているサイトは 0、各サイトは「更新していません」（駅ちかだけ「フクエスリンクで反映中」を出す）、ボタンは出さない。
 //   ★ 切り替える前に「コネックエフから更新する」を押せて向きが変わる穴を塞ぐ。
-export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: number | null; enabled?: boolean; onToast: (m: string) => void }) {
+// ★ 第1294便: stopped=true（切り替え済みで、セットのご契約が確認できない店＝保存と各サイトへの更新を止めている）は「更新中」と言わない。
+export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }: { salonId: number | null; enabled?: boolean; stopped?: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
@@ -119,7 +122,7 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
         <div className="px-4 py-3">
           <div className="text-[12.5px] font-bold text-slate-400">更新しているサイト</div>
           <div className="text-[22px] font-black text-slate-800 tabular-nums">
-            {data ? (enabled ? updating.length + 1 : 0) : '—'}<span className="text-[13px] font-bold text-slate-400 ml-0.5">サイト</span>
+            {data ? (enabled && !stopped ? updating.length + 1 : 0) : '—'}<span className="text-[13px] font-bold text-slate-400 ml-0.5">サイト</span>
           </div>
         </div>
       </div>
@@ -135,9 +138,11 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
             <div className="basis-full sm:basis-auto">
               <span className="inline-block text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・セラピスト・写メ日記・今すぐ・お知らせ</span>
             </div>
-            {enabled
-              ? <span className="sm:ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
-              : <span className="sm:ml-auto text-[13.5px] font-bold text-slate-400">更新していません</span>}
+            {stopped
+              ? <span className="sm:ml-auto text-[13.5px] font-bold text-amber-700">止めています</span>
+              : enabled
+                ? <span className="sm:ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
+                : <span className="sm:ml-auto text-[13.5px] font-bold text-slate-400">更新していません</span>}
           </li>
 
           {!data && <li className="px-4 py-3 text-[14px] text-slate-400">読み込み中…</li>}
@@ -157,6 +162,10 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
             } else if (s.needsConsent) {
               status = { text: s.consentReadOnly ? 'ご同意が必要です（いまは更新していません）' : '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
+            } else if (!s.hasCredential && s.credentialPaused) {
+              // ★ 第1294便: 一時停止しただけの枠を「未登録」と言わない（登録は残っている。再開は ID・パスワード登録から）
+              status = { text: 'ID・パスワードを一時停止中', tone: 'text-slate-500' };
+              action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
             } else if (!s.hasCredential) {
               status = { text: 'ID・パスワード未登録', tone: 'text-slate-400' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">登録する</Link>;
@@ -165,7 +174,8 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
               //   ★ いまの状態なのか、押すと何が起きるのかが読み取れない（★ 実際に迷った）。
               //   → 状態は【コネックエフから更新中】の1つだけ。出勤の自動更新は【別の行】で直し方まで出す。
               //   → ボタンは押したあとの結果が分かる言葉（★ 「更新を止める」）にする。
-              status = { text: '更新中', tone: 'text-emerald-700' };
+              // ★ 第1294便: 止めている店（セットのご契約が確認できない）は、送っていないので「更新中」と言わない
+              status = stopped ? { text: '止めています', tone: 'text-amber-700' } : { text: '更新中', tone: 'text-emerald-700' };
               action = (
                 <button type="button" disabled={busy !== ''} onClick={() => void onSet(s, 'none')}
                   className="px-3 py-1.5 border border-slate-300 bg-white text-[13px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">
@@ -175,7 +185,9 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
               // ★★★ 第1275便: うまくいっていないことがあれば、それを先に言う（「自動で更新しています」と言い切らない）。
               //   ★ 自動が切られた店に「未設定です」と出していた（＝設定し忘れに見える）。「止まりました」と言う。
               //   ★ 詳しい説明と直し方は行き先の画面が出す。ここは1行と行き先だけ。
-              note = s.problem
+              note = stopped
+                ? { text: 'セットのご契約が確認できないため、更新を止めています', tone: 'text-amber-700', link: null }
+                : s.problem
                 ? {
                     text: workProblemShort(s.problem), tone: 'text-rose-700',
                     link: s.problem.kind === 'login'

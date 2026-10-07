@@ -822,7 +822,7 @@ export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: 
       // ★ 送らなかったぶんは diffs に残る（画面に「送らずに残った」として出る）
       return nextEsutamaPerson(base, [readAudit, {
         event: 'write_work', outcome: 'stopped',
-        summary: '内容が新しくなっていたため、この方の出勤は送りませんでした。画面を開き直して「反映内容を確認」からやり直してください',
+        summary: '内容が新しくなっていたため、この方の出勤は送りませんでした。「出勤をサイトへ」を開き直して、もう一度更新してください',   // ★ 第1294便: 「反映内容を確認」のボタンは、いまは無い
         detail: { castId: d.castId, reason: 'plan_changed', flowId },
       }], '承認した内容と違うので送らない');
     }

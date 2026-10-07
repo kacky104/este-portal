@@ -113,7 +113,7 @@ const keep = run('read_photo_page', base({ photoSync: true, photoGirlId: GIRL, p
   { slot: 4, action: 'remove', sourceUrl: null },
 ] }), { body: editPage({ occupied: [1, 2, 3, 4] }) });
 eq('★★ 記録の無い埋まった枠は上書きも削除もしない', [keep.kind, keep.next && keep.next.purpose, keep.photoSynced], ['done', undefined, undefined]);
-eq('★ まとめに「残した枠」', keep.audits.map((a) => [a.outcome, a.summary]).pop(), ['ok', 'るうさんの駅ちかの写真を合わせました（駅ちかの写真を残した枠 2・3・4）']);
+eq('★ まとめに「残した枠」', keep.audits.map((a) => [a.outcome, a.summary]).pop(), ['ok', 'るうさんの駅ちかの写真は変えていません（駅ちかの写真を残した枠 2・3・4）']);
 const empty = run('read_photo_page', base({ photoSync: true, photoGirlId: GIRL, photoStage: 'sync', photoRemoved: [], photoPut: [], photoKept: [], editQueue: [], photoSyncOps: [
   { slot: 3, action: 'put', sourceUrl: 'https://x/3.jpg', file: FILE(3) },
 ] }), { body: editPage({ occupied: [1, 2] }) });

@@ -1003,7 +1003,8 @@ export async function startMediaWorkPush(input: {
     .select('sendable, change_count, fingerprint')
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
-  if (!plan) return { ok: false, error: '反映する内容がありません。先に「反映内容を確認」を押してください' };
+  // ★ 第1294便: 「反映内容を確認」のボタンは、いまは無い（押すのは「いますぐ更新する」「更新して自動にする」）
+  if (!plan) return { ok: false, error: '送る内容がまだ用意できていません。「出勤をサイトへ」を開き直して、もう一度お試しください' };
   if (plan.sendable !== true) return { ok: false, error: 'いまの内容は送れません。止めた理由をご確認ください' };
   if (Number(plan.change_count ?? 0) === 0) return { ok: false, error: '変えるところがありません' };
   const saved = String(plan.fingerprint ?? '');
@@ -1911,6 +1912,8 @@ export async function getMediaOverview(input: { salonId: string | number; servic
       needsConsent: boolean;
       /** ★ 第1287便: service='conecf' で、いまの同意が【読むだけ（フクエスリンクの文）】のときだけ true が付く */
       consentReadOnly?: boolean;
+      /** ★ 第1294便: ID・パスワードを一時停止しているだけ（登録は残っている）ときだけ true が付く */
+      credentialPaused?: boolean;
       /** 最後にその管理画面へログインできた時刻 */
       lastVerifiedAt: string | null;
       /** 最後の取り込み（当日の周） */
@@ -2012,12 +2015,14 @@ export async function getMediaOverview(input: { salonId: string | number; servic
   const key = (p: string, s: number) => p + '#' + s;
 
   const credOf = new Map<string, {
-    hasCredential: boolean; lastVerifiedAt: string | null; needsConsent: boolean; consentReadOnly: boolean;
+    hasCredential: boolean; paused: boolean; lastVerifiedAt: string | null; needsConsent: boolean; consentReadOnly: boolean;
   }>();
   for (const c of creds ?? []) {
     credOf.set(key(String(c.provider), Number(c.slot ?? 1)), {
       // ★ 「行がある」ではなく「使える」かどうか。止めてある枠・パスワードが無い枠は持っていない扱い
       hasCredential: c.is_enabled !== false && Boolean(c.password_enc),
+      // ★ 第1294便: 一時停止しただけ（登録は残っている）。ホームが「未登録」と言わないため
+      paused: c.is_enabled === false && Boolean(c.password_enc),
       lastVerifiedAt: (c.last_verified_at as string | null) ?? null,
       // ★★★ 同意の取り直しが要る枠は、送信も接続テストも止まる（第89便）。
       //   ★ 止まっていることを入口でも言えるように、ここで持って上がる。
@@ -2052,7 +2057,7 @@ export async function getMediaOverview(input: { salonId: string | number; servic
 
   const sites: Array<{
     provider: string; slot: number; label: string; direction: string; statusLabel: string;
-    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean; consentReadOnly?: boolean;
+    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean; consentReadOnly?: boolean; credentialPaused?: boolean;
     lastVerifiedAt: string | null;
     listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
     /** ★ 第348便: 最後に【内容を確かめた】時刻（media_work_plans.created_at） */
@@ -2141,6 +2146,7 @@ export async function getMediaOverview(input: { salonId: string | number; servic
       // ★ 鍵が無い枠に「同意の取り直し」を出さない（取り直す相手がいない）
       needsConsent: cred != null && cred.needsConsent === true,
       ...(cred != null && cred.consentReadOnly === true ? { consentReadOnly: true } : {}),
+      ...(cred != null && cred.paused === true ? { credentialPaused: true } : {}),
       lastVerifiedAt: cred?.lastVerifiedAt ?? null,
       listLastRunAt,
       fullLastRunAt,

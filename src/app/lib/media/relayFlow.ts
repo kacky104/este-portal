@@ -664,13 +664,14 @@ export async function startRelayFlow(params: {
       detail: { reason: 'busy', intent: params.intent, flowId: context.flowId, ...AUDIT_SHOP_HIDDEN },
       actor: params.actor ?? 'system',
     });
-    return { ok: false, reason: 'busy', note: r.detail };
+    // ★ 第1294便: 店舗様に見える文。内部の説明（r.detail＝「read→変更→write→再read の順序を守るための仕掛け…」）をそのまま出さない
+    return { ok: false, reason: 'busy', note: 'いま' + (findMediaSite(params.provider)?.name ?? 'このサイト') + 'で別の更新が動いています。少し待ってから、もう一度お試しください' };
   }
   return {
     ok: true,
     jobId: r.jobId,
     flowId: context.flowId,
-    note: '受け付けました。数分お待ちください（中継役が1分ごとに引き取ります）',
+    note: '受け付けました。数分お待ちください',   // ★ 第1294便: 「中継役」は内部の言葉なので外した
   };
 }
 
@@ -1571,7 +1572,7 @@ async function planEsutama(
       return {
         audits: [planAudit, {
           event: 'write_work', outcome: 'stopped',
-          summary: '内容が新しくなっているため送りませんでした。画面を開き直して「反映内容を確認」からやり直してください',
+          summary: '内容が新しくなっているため送りませんでした。「出勤をサイトへ」を開き直して、もう一度更新してください',   // ★ 第1294便: 「反映内容を確認」のボタンは、いまは無い
           detail: { reason: 'fingerprint_mismatch', flowId },
         }],
         note: '承認した計画と保存してある計画が違うので送らない',
@@ -3156,7 +3157,7 @@ async function planEsutamaDiary(
     return {
       audits: [planAudit, {
         event: 'push_diary', outcome: 'stopped',
-        summary: '一覧ページの ctk が見つからなかったため送りませんでした',
+        summary: 'エステ魂の一覧ページを正しく読めなかったため、送りませんでした（次の回でもう一度試します）',   // ★ 第1294便: 「ctk」は内部の言葉
         detail: { reason: 'no_ctk', therapistId: wantId, flowId },
       }],
       note: summary + ' → ctk が無いので送らない',
@@ -3721,7 +3722,7 @@ async function planEsutamaSokusera(
     return {
       audits: [planAudit, {
         event: 'push_sokusera', outcome: 'stopped',
-        summary: '一覧ページの ctk が見つからなかったため、ONにしませんでした',
+        summary: 'エステ魂の一覧ページを正しく読めなかったため、即セラをONにしませんでした（次の回でもう一度試します）',   // ★ 第1294便: 「ctk」は内部の言葉
         detail: { reason: 'no_ctk', therapistId: picked.therapistId, flowId },
       }],
       note: summary + ' → ctk が無いので打たない',

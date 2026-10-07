@@ -4382,7 +4382,10 @@ function photoSyncLoop(c: RelayFlowContext, page: PhotoPage, audits: FlowAudit[]
     kind: 'done',
     audits: [...audits, {
       event: 'push_photo', outcome: 'ok',
-      summary: photoSyncWho(c) + 'さんの駅ちかの写真を合わせました（' + (parts.join('／') || '変わるところなし') + '）',
+      // ★ 第1294便: 1枚も入れず・消さずに終わった回を「合わせました」と言わない（★ 送った記録の無い枠は触らない＝駅ちかの写真はそのまま）
+      summary: put.length === 0 && removed.length === 0
+        ? photoSyncWho(c) + 'さんの駅ちかの写真は変えていません' + (kept.length > 0 ? '（駅ちかの写真を残した枠 ' + kept.join('・') + '）' : '')
+        : photoSyncWho(c) + 'さんの駅ちかの写真を合わせました（' + parts.join('／') + '）',
       detail: { girlId, put: put.join(',') || null, removed: removed.join(',') || null, kept: kept.join(',') || null, after, stage: 'sync', flowId: c.flowId },
     }],
     note: '写真を合わせ終えた（' + (parts.join('／') || '変化なし') + '・後 ' + after + '）',

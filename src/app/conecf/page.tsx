@@ -105,7 +105,7 @@ export default function ConecfHomePage() {
           />
           {/* ★ 第884便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧 */}
           <CastLinkProgress salonId={access.salonId} editHref={(id) => href(`/girls/${id}`)} onToast={showToast} guideHref={href('/cast-guide')} />
-          <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} onToast={showToast} />
+          <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} stopped={!!access.enabledAt && !access.contract} onToast={showToast} />
         </div>
       )}
     </ConecfShell>
