@@ -175,10 +175,38 @@ const NOW = new Date('2026-08-29T12:00:00Z');
 const minAgo = (n) => new Date(NOW.getTime() - n * 60000).toISOString();
 eq('前回が分からなければ1回やる',
   m.isDueForAutoPush({ lastAttemptAt: null, now: NOW }), true);
-eq('29分では回さない',
-  m.isDueForAutoPush({ lastAttemptAt: minAgo(29), now: NOW }), false);
-eq('30分ちょうどで回す',
-  m.isDueForAutoPush({ lastAttemptAt: minAgo(30), now: NOW }), true);
+// ★★★ 第1276便: 物差しは20分（周期の30分より短い）。
+//   30分のままだと、記録が周の時刻より少しあとに付くぶん、30分おきの周が【必ず】見送られていた（反映が最長60分）。
+eq('★★★ 27〜29分（30分おきの周から見た、前回の記録）では回す',
+  [27, 28, 29].map((n) => m.isDueForAutoPush({ lastAttemptAt: minAgo(n), now: NOW })), [true, true, true]);
+eq('★★ 19分では回さない（周がもっと細かく来ても、20分は空ける）',
+  m.isDueForAutoPush({ lastAttemptAt: minAgo(19), now: NOW }), false);
+eq('★★ 20分ちょうどで回す',
+  m.isDueForAutoPush({ lastAttemptAt: minAgo(20), now: NOW }), true);
+eq('★ 最低の間は20分', m.AUTO_PUSH_MIN_GAP_MIN, 20);
+eq('★★★ 最低の間は、周期より短い（同じか長いと、また1回おきになる）', m.AUTO_PUSH_MIN_GAP_MIN < m.AUTO_PUSH_INTERVAL_MIN, true);
+{
+  // ★★★ 毎時5分・35分の周を、記録が1〜4分遅れて付く形で1日ぶん回す → 1回も見送られない
+  let last = null, skipped = 0, ran = 0;
+  for (let i = 0; i < 48; i++) {
+    const cycle = new Date(Date.UTC(2026, 9, 7, 0, 5, 0) + i * 30 * 60000);
+    if (m.isDueForAutoPush({ lastAttemptAt: last, now: cycle })) { ran++; last = new Date(cycle.getTime() + (1 + (i % 4)) * 60000).toISOString(); }
+    else skipped++;
+  }
+  eq('★★★ 30分おきの周は、1日48回すべて回る（見送り0）', [ran, skipped], [48, 0]);
+}
+{
+  const A = (min, event, intent) => ({ event, createdAt: minAgo(min), detail: intent ? { intent, flowId: 'f' + min } : {} });
+  eq('★★★ 人が押した更新・確認（work_push / work_dryrun）は「前回試した時刻」に数えない',
+    m.lastAutoAttemptAt([A(3, 'write_work', 'work_push'), A(4, 'plan_work', 'work_dryrun'), A(28, 'plan_work', 'work_auto')]), minAgo(28));
+  eq('★★ 自動の周の記録が無ければ null（＝1回やる）', m.lastAutoAttemptAt([A(3, 'write_work', 'work_push'), A(4, 'plan_work', 'work_dryrun')]), null);
+  eq('★★ いちばん新しい自動の周の記録を採る（plan_work でも write_work でも）', m.lastAutoAttemptAt([A(5, 'write_work', 'work_auto'), A(35, 'plan_work', 'work_auto')]), minAgo(5));
+  eq('★ ほかの種類の記録・intent の無い記録は見ない', m.lastAutoAttemptAt([{ event: 'login', createdAt: minAgo(1), detail: { intent: 'work_auto' } }, A(2, 'plan_work', null)]), null);
+  eq('★ 空', m.lastAutoAttemptAt([]), null);
+  // ★ 10:30 に人が「いますぐ更新する」→ 10:35 の周は見送られない
+  const last = m.lastAutoAttemptAt([A(5, 'write_work', 'work_push'), A(29, 'plan_work', 'work_auto')]);
+  eq('★★★ 人が5分前に更新していても、周は回る', m.isDueForAutoPush({ lastAttemptAt: last, now: NOW }), true);
+}
 // ★ 時計のずれ（未来の記録）で連打しない
 eq('未来の記録なら次の周に回す',
   m.isDueForAutoPush({ lastAttemptAt: new Date(NOW.getTime() + 60000).toISOString(), now: NOW }), false);

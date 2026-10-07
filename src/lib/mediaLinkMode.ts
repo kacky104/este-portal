@@ -240,9 +240,22 @@ export function pushOutcomesForGiveUp(
 export const AUTO_PUSH_INTERVAL_MIN = 30;
 
 /**
+ * ★★★ 第1276便（2026-10-07）: 自動の周どうしの【最低の間】。周期（30分）より短くしてある。
+ *
+ * ★ 何が起きていたか: 周は毎時5分・35分に来る。「前回試してから30分以上」を条件にしていたが、
+ *   前回の記録が付くのは、周が来た時刻より必ず少しあと（店舗ごとのずらし 0〜3分 ＋ 中継の往復）。
+ *   → 次の周（ちょうど30分後）から見ると 27〜29分で、【必ず】見送られていた。
+ *   → 画面は「30分以内に更新します」と言っているのに、実際は1回おき＝最長およそ60分。
+ *     10:05 に更新 → 10:20 に当日欠勤を入れる → 10:35 は見送り → 載るのは 11:05。
+ * ★ 20分にする。30分おきに来る周は必ず通る。周がもっと細かく来るようになっても、20分は空く（相手サイトに重くしない）。
+ */
+export const AUTO_PUSH_MIN_GAP_MIN = 20;
+
+/**
  * この枠を、いま回す番か。
  * ★ 前回が分からないときは true（＝1回やる）。★ ここは「やらない」より「やる」が安全。
  *   やっても blockers が全部効いており、駅ちかを壊す道は残っていない。
+ * ★ 第1276便: 物差しは AUTO_PUSH_MIN_GAP_MIN（20分）。AUTO_PUSH_INTERVAL_MIN（30分）は周期と画面の文に使う。
  */
 export function isDueForAutoPush(input: {
   lastAttemptAt: string | null;
@@ -255,5 +268,26 @@ export function isDueForAutoPush(input: {
   if (!Number.isFinite(now)) return false;
   const min = (now - last) / 60_000;
   if (min < 0) return false;                        // 時計のずれ。次の周に回す
-  return min >= (input.intervalMin ?? AUTO_PUSH_INTERVAL_MIN);
+  return min >= (input.intervalMin ?? AUTO_PUSH_MIN_GAP_MIN);
+}
+
+/**
+ * ★★★ 第1276便: 【自動の周が】前回いつ試したか。
+ *
+ * ★ これまでは、人が押した更新・確認（いますぐ更新する など）の記録も「前回試した時刻」に数えていた。
+ *   → 10:30 に「いますぐ更新する」を押すと、10:35 の周が見送られ、そのあと入れた変更が載るのは 11:05。
+ * ★ 自動の周の間をあけるための物差しなので、自動の周（intent が work_auto）の記録だけを見る。
+ *   ・人が押した更新と周が同じ瞬間に重なっても、二重には走らない（1店・1サイトに流れは1本・busy で断られる）。
+ *   ・人が押したあとの周は、中身が合っていれば読んで終わり（送らない）。
+ * @param rows 新しい順。plan_work / write_work の記録
+ */
+export function lastAutoAttemptAt(
+  rows: ReadonlyArray<{ event: string; createdAt: string; detail?: unknown }>,
+): string | null {
+  for (const r of rows) {
+    if (r.event !== 'plan_work' && r.event !== 'write_work') continue;
+    const d = (r.detail && typeof r.detail === 'object' ? r.detail : {}) as Record<string, unknown>;
+    if (d['intent'] === 'work_auto') return r.createdAt;
+  }
+  return null;
 }

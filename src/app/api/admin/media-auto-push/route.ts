@@ -7,6 +7,7 @@ import { staggerNotBefore } from '@/lib/relayStagger';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
   isDueForAutoPush,
+  lastAutoAttemptAt,
   shouldGiveUpAuto,
   pushOutcomesForGiveUp,
   AUTO_GIVE_UP_STREAK,
@@ -98,7 +99,10 @@ export async function POST(req: Request) {
     const list = audit ?? [];
     // ★ 「前回いつ試したか」は plan_work / write_work のどちらでもよい。
     //   止まった回も【試した回】として数える。数えないと3分ごとに再挑戦してしまう。
-    const lastAttemptAt = list.length > 0 ? String(list[0].created_at) : null;
+    // ★★★ 第1276便: 【自動の周の】記録だけを見る（人が押した更新・確認で、次の周を見送らない）。
+    //   物差しも 30分 → 20分（lib/mediaLinkMode.ts の AUTO_PUSH_MIN_GAP_MIN）。
+    //   30分のままだと、記録が周の時刻より少しあとに付くぶん、次の周が【必ず】見送られて、反映が最長60分かかっていた。
+    const lastAttemptAt = lastAutoAttemptAt(list.map((a) => ({ event: String(a.event), createdAt: String(a.created_at), detail: a.detail })));
 
     // ★★★ 連続で送れていないなら自動を切る（§56・第38便 relay_gave_up と同じ作法）。
     //   ★ 判定材料は write_work だけ。plan_work は「組んだ」であって「送った」ではない。
