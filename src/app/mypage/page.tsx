@@ -334,6 +334,12 @@ function tabIcon(key: TabKey | 'media' | 'fukux' | 'crm' | 'hp') {
 //     ★ PCでは今までどおり全部を縦に並べる（親子は字下げで見せるだけ）。
 //   ★★ 並びは「日々の更新 → 店舗の基本 → 店舗装飾 → 予約・求人 → その他」
 //     （2026-09-06・カッキーさんの指示で、毎日さわる方を上にした）。
+// ★★★ 第1297便（2026-10-08・カッキーさん）: 予約ボードは【いったん出さない】（フクエスCRM を有料で販売するようになったため）。
+//   ★ 仕組みは消していない（BookingBoard.tsx・actions/booking.ts・データはそのまま。フクエスCRM も同じ予約を使っている）。
+//   ★ 戻すときは、ここを true にするだけ。次の4つがまとめて戻る:
+//       ① サイドバーの「予約ボード」 ② ヘッダーのピンク文字 ③ ?tab=board で開ける ④ ネット予約タブの「電話予約は予約ボードへ」
+const SHOW_BOOKING_BOARD: boolean = false;
+
 const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string; parent?: TabKey }> = [
   { key: 'available', label: '今すぐ',          group: '日々の更新' },
   { key: 'schedule',  label: '出勤' },
@@ -341,7 +347,7 @@ const MYPAGE_NAV: Array<{ key: TabKey; label: string; group?: string; parent?: T
   { key: 'diary',     label: '写メ日記' },
   // ★ ネット予約は「日々の更新」の中・写メ日記の下（2026-09-06・カッキーさんの指示）。
   { key: 'booking',   label: 'ネット予約' },
-  { key: 'board',     label: '予約ボード' },
+  ...(SHOW_BOOKING_BOARD ? [{ key: 'board' as const, label: '予約ボード' }] : []),
   { key: 'coupon',    label: 'クーポン' },
   { key: 'news',      label: 'お知らせ' },
   { key: 'vipletter', label: 'VIPレター' },
@@ -460,7 +466,8 @@ const MOBILE_OTHER_SECTIONS: Array<{ group: string; keys: TabKey[] }> = NAV_SECT
 
 // ★ URL の ?tab= に出す値。★ 知らない値が来たら 'salon' に倒す（存在しない画面を作らない）。
 // ★ 'board' は MYPAGE_NAV にも入っているが、外れても ?tab=board が死なないよう明示で足しておく。
-const TAB_KEYS = new Set<string>([...MYPAGE_NAV.map((n) => n.key), 'board']);
+// ★ 第1297便: 予約ボードを出さないあいだは、?tab=board も「今すぐ」へ倒す（ブックマークから開けたままにしない）。
+const TAB_KEYS = new Set<string>([...MYPAGE_NAV.map((n) => n.key), ...(SHOW_BOOKING_BOARD ? ['board'] : [])]);
 function parseTabKey(raw: string | null): TabKey {
   // ★ 既定は「今すぐ」（2026-09-06）。★ 知らない値が来てもここへ倒す。
   return raw && TAB_KEYS.has(raw) ? (raw as TabKey) : 'available';
@@ -3129,12 +3136,15 @@ export default function MyPage() {
             <div className="flex items-center gap-4">
               {/* 予約ボードへの近道（2026-08-14 追加）。営業中いちばん使うタブなのでヘッダーに常設し、
                   他のリンク（slate-400）と違いピンク太字で目立たせる。 */}
-              <button
-                onClick={() => goTab('board')}
-                className="text-xs text-pink-500 hover:text-pink-600 font-black transition-colors"
-              >
-                予約ボード
-              </button>
+              {/* ★ 第1297便: いったん出さない（SHOW_BOOKING_BOARD） */}
+              {SHOW_BOOKING_BOARD && (
+                <button
+                  onClick={() => goTab('board')}
+                  className="text-xs text-pink-500 hover:text-pink-600 font-black transition-colors"
+                >
+                  予約ボード
+                </button>
+              )}
               <Link href={salon ? `/salon/${salon.id}` : '/'} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-pink-600 font-medium transition-colors">
                 サイトを見る
               </Link>
@@ -4074,7 +4084,7 @@ export default function MyPage() {
         {/* hidden 切替で常時マウント（タブを行き来しても日付・パネルの状態を保つ）。
             データの取得は active になったときだけ（BookingBoard 側で制御）。 */}
         <div className={`${activeTab === 'board' ? '' : 'hidden'}`}>
-          {salon && <BookingBoard salonId={Number(salon.id)} active={activeTab === 'board'} />}
+          {SHOW_BOOKING_BOARD && salon && <BookingBoard salonId={Number(salon.id)} active={activeTab === 'board'} />}
         </div>
 
         {/* ── タブ: ネット予約設定 ── */}
@@ -4094,7 +4104,8 @@ export default function MyPage() {
               ここに出ない。★ 常時表示にしてある。条件付きにすると「入れたはずの予約が無い」と
               思ったときに限って読めない。データが消えたわけではないことも必ず書くこと。 */}
           <p className="text-[11px] leading-relaxed text-slate-400">
-            ネット予約のみを表示しています（電話予約は予約ボードへ）。
+            {/* ★ 第1297便: 予約ボードを出さないあいだは、行き先を案内しない */}
+            ネット予約のみを表示しています{SHOW_BOOKING_BOARD ? '（電話予約は予約ボードへ）' : ''}。
           </p>
           {/* ── 表示上限の案内（2026-08-16 追加）──
               getSalonBookings() が .limit(SALON_BOOKINGS_LIMIT) で読んでいるため、
