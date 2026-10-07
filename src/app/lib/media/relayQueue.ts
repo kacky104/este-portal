@@ -24,6 +24,7 @@ import {
   type RelayResponse,
 } from '@/lib/relayJob';
 import type { RelayMultipart } from '@/lib/relayMultipart';
+import { noResponseAction, reLeaseAction, isStuckSweepMinute } from '@/lib/relayRetry';
 
 /** 何回まで投げ直すか。★ 相手のアカウントが凍る形の事故を避けるため、少なくしてある（§17-1）。 */
 export const MAX_ATTEMPTS = 3;
@@ -204,7 +205,18 @@ export async function leaseRelayJob(
   const supabase = createServiceClient();
   const nowISO = new Date().toISOString();
 
-  for (let tries = 0; tries < 5; tries++) {
+  // ★★★ 第1278便 ③: 「片づけ忘れ」の掃除を、引き取りのついでにやる（5分に1回）。
+  //   ★ これまでは6時間ごとの周（/api/admin/relay-purge）だけ。その間、居座ったジョブの店・サイトは何も送れなかった。
+  //   ★ 相手サイトへは行かない。DB への問い合わせが1回増えるだけ。失敗しても引き取りは止めない。
+  if (isStuckSweepMinute(Date.now())) {
+    try {
+      await expireStuckRelayJobs({ apply: true });
+    } catch (e) {
+      console.error('[relay] 引き取りのついでの掃除に失敗（引き取りは続ける）', e instanceof Error ? e.message : 'unknown');
+    }
+  }
+
+  for (let tries = 0; tries < 8; tries++) {
     // ★ 第1247便: 「この時刻まで引き取らない」（店舗ごとの時刻のずらし・not_before）。null＝すぐ。
     //   ★★ 列が無い（SQL 未適用）と引けなくなり【中継が全部止まる】ので、その条件だけ外してもう一度引く（console.error は出す）。
     const pick = (withNotBefore: boolean) => {
@@ -224,6 +236,39 @@ export async function leaseRelayJob(
     if (error) throw new Error('ジョブを引けなかった: ' + error.message);
     const row = (data ?? [])[0] as JobRow | undefined;
     if (!row) return { job: null, note: '対象件数:0（積まれているジョブが無い）' };
+
+    // ★★★ 第1278便 ④: 掴んだまま戻らなかった【書き換える段】は、もう一度渡さない。
+    //   ★ status が 'leased' のままここへ来る＝結果の報告が来ないまま期限が切れた（送った直後に VPS が落ちた、など）。
+    //     もう一度渡すと、出勤の保存・登録・写メ日記の投稿を二度送ることになる。
+    //   ★ 読むだけの段とログインは、今までどおり渡す（lib/relayRetry.ts）。
+    if (row.status === 'leased' && reLeaseAction(row.purpose) === 'stop_write') {
+      const { data: closed, error: clErr } = await supabase
+        .from('media_relay_jobs')
+        .update({
+          status: 'failed',
+          leased_until: null,
+          error: '結果の報告が来ないまま期限が切れた。相手を書き換える段なので送り直さずに打ち切った',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', row.id)
+        .eq('status', 'leased')
+        .eq('attempts', row.attempts)   // ★ 読んでから更新までの間に閉じられていたら触らない
+        .select('id, salon_id, provider, slot')
+        .maybeSingle();
+      if (clErr) throw new Error('ジョブを打ち切れなかった: ' + clErr.message);
+      if (closed) {
+        await recordMediaAudit({
+          salonId: closed.salon_id as number,
+          provider: closed.provider as string,
+          slot: closed.slot as number,
+          event: 'relay_expired',
+          outcome: 'stopped',
+          detail: { purpose: row.purpose, attempts: row.attempts, reason: 'no_report_write' },
+          jobId: row.id,
+        });
+      }
+      continue;   // 次の候補へ
+    }
 
     const until = new Date(Date.now() + leaseSeconds * 1000).toISOString();
     const { data: updated, error: upErr } = await supabase
@@ -266,6 +311,11 @@ export async function completeRelayJob(params: {
   jobId: string;
   response?: RelayResponse;
   error?: string;
+  /**
+   * ★ 第1278便: 相手サイトから返事が無かった（VPS の curl が時間切れ・接続できない＝status 0）。
+   *   読むだけの段は積み直す（3回まで）。書き換える段は1回で打ち切る（lib/relayRetry.ts）。
+   */
+  noResponse?: boolean;
 }): Promise<{ ok: boolean; note: string }> {
   const supabase = createServiceClient();
 
@@ -282,6 +332,47 @@ export async function completeRelayJob(params: {
   if (row.status !== 'leased') {
     // ★ 二重報告。黙って上書きすると、後から来た古い結果で新しい状態を壊す
     return { ok: false, note: '掴まれていないジョブへの結果報告（status=' + row.status + '）。無視した' };
+  }
+
+  // ★★★ 第1278便 ①②: 返事が無かった。★ ここで必ず閉じる（これまでは受け口が 400 で断り、「送っている途中」のまま残っていた）。
+  if (params.noResponse === true) {
+    const action = noResponseAction({ purpose: String(row.purpose), attempts: Number(row.attempts), maxAttempts: MAX_ATTEMPTS });
+    const patch = {
+      status: action === 'retry' ? 'queued' : 'failed',
+      error: action === 'stop_write'
+        ? '相手サイトから返事が無かった。相手を書き換える段なので送り直さずに打ち切った'
+        : '相手サイトから返事が無かった',
+      leased_until: null,
+      updated_at: new Date().toISOString(),
+    };
+    // ★ 投げ直すときは1分あける（返事をしない相手へ、同じ周の中で立て続けに3回投げない）。
+    //   ★ not_before の列が無い環境（SQL 未適用）では、その指定を外してもう一度（★ 閉じられないのがいちばん困る）。
+    const close = (withNotBefore: boolean) => supabase
+      .from('media_relay_jobs')
+      .update(withNotBefore ? { ...patch, not_before: new Date(Date.now() + 60 * 1000).toISOString() } : patch)
+      .eq('id', params.jobId)
+      .eq('status', 'leased');
+    let { error: nrErr } = await close(action === 'retry');
+    if (nrErr && action === 'retry' && /not_before/.test(nrErr.message ?? '')) ({ error: nrErr } = await close(false));
+    if (nrErr) throw new Error('返事の無かったジョブを閉じられなかった: ' + nrErr.message);
+    if (action !== 'retry') {
+      await recordMediaAudit({
+        salonId: row.salon_id as number,
+        provider: row.provider as string,
+        slot: row.slot as number,
+        // ★ 書き換える段は「届いたかどうか分からない」（relay_expired の文）。読むだけの段は「接続に続けて失敗」（relay_gave_up の文）
+        event: action === 'stop_write' ? 'relay_expired' : 'relay_gave_up',
+        outcome: 'stopped',
+        detail: { purpose: row.purpose as string, attempts: row.attempts, reason: 'no_response' },
+        jobId: params.jobId,
+      });
+    }
+    return {
+      ok: true,
+      note: action === 'retry' ? '返事が無かった。次の周で投げ直す（読むだけの段）'
+        : action === 'give_up' ? '返事が無いまま3回になったので諦めた'
+        : '返事が無かった。書き換える段なので送り直さずに打ち切った',
+    };
   }
 
   if (params.error) {

@@ -42,6 +42,14 @@ export async function POST(req: Request) {
     }
 
     const status = Number(body.status);
+    // ★★★ 第1278便: status 0（〜99）は「相手サイトから返事が無かった」。★ 断らずに受け取って、ジョブを閉じる。
+    //   VPS の relay.sh は、curl が時間切れ・接続できないとき status 0 で報告してくる。
+    //   これまでは下の検査で 400 を返していたので、ジョブが「送っている途中」のまま残り、
+    //   2分後に同じ要求（書き込みも）が送り直され、3回目のあとは掃除の周までその店・サイトがふさがっていた。
+    if (typeof body.status === 'number' && Number.isFinite(status) && status >= 0 && status < 100) {
+      const r = await completeRelayJob({ jobId, noResponse: true });
+      return NextResponse.json({ ok: r.ok, note: r.note });
+    }
     if (!Number.isFinite(status) || status < 100 || status > 599) {
       return NextResponse.json({ ok: false, error: 'status が HTTP ステータスとして読めない' }, { status: 400 });
     }
