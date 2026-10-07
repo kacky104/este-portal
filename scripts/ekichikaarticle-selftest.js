@@ -345,5 +345,19 @@ console.log('\n── 9. 一覧を読む GET ──');
      Object.prototype.hasOwnProperty.call(A.buildEkichikaArticleListRequest('', UA).headers, 'cookie'), false);
 }
 
+console.log('\n── 第1293便: ★★★ タイトル欄の実体参照をほどく ──');
+{
+  const page = (v) => PAGE.replace('value="るいさんとの出会い"', 'value="' + v + '"');
+  // ★★★ 直す前: & や " があるタイトルは、載っていても読み返しで一致しなかった
+  eq('★★★ &amp; は & に戻る', A.parseEkichikaArticlePage(page('新人 &amp; 体験入店'), 1).title, '新人 & 体験入店');
+  eq('★★★ &quot; は " に戻る', A.parseEkichikaArticlePage(page('&quot;本日&quot;のおすすめ'), 1).title, '"本日"のおすすめ');
+  eq("★★ &#039; と &#39; は ' に戻る", [A.parseEkichikaArticlePage(page('It&#039;s'), 1).title, A.parseEkichikaArticlePage(page('It&#39;s'), 1).title], ["It's", "It's"]);
+  eq('★★ &lt; &gt; も戻る', A.parseEkichikaArticlePage(page('&lt;NEW&gt;'), 1).title, '<NEW>');
+  eq('★★ 二重にほどかない（&amp;lt; は &lt; まで）', A.decodeAttrValue('&amp;lt;'), '&lt;');
+  eq('★ 16進の参照も戻る', A.decodeAttrValue('&#x2764;'), '❤');
+  eq('★ 知らない参照・壊れた番号はそのまま', [A.decodeAttrValue('&hearts;'), A.decodeAttrValue('&#0;')], ['&hearts;', '&#0;']);
+  eq('記号の無いタイトルは今までどおり', A.parseEkichikaArticlePage(PAGE, 1).title, 'るいさんとの出会い');
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

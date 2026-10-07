@@ -161,6 +161,28 @@ export type EkichikaArticlePage = {
   title: string;
 };
 
+/**
+ * ★★★ 第1293便（2026-10-07）: 属性の値（value="…"）の実体参照をほどく。
+ *   ★ 読み返しの「載ったか」は、編集ページのタイトル欄と送ったタイトルを比べている（articleFlow の afterArticleVerify）。
+ *     欄の値は HTML の書き方のまま（`&` は `&amp;`、`"` は `&quot;`）なので、ほどかずに比べると、
+ *     タイトルに & や " ' < > があるとき【載っていても毎回「確認できませんでした」】になっていた。
+ *   ★ `&amp;` は最後にほどく（先にほどくと `&amp;lt;` が `<` になる）。知らない参照はそのまま残す。
+ */
+export function decodeAttrValue(raw: string): string {
+  const cp = (n: number, keep: string): string => {
+    if (!Number.isInteger(n) || n <= 0 || n > 0x10ffff) return keep;
+    try { return String.fromCodePoint(n); } catch { return keep; }
+  };
+  return String(raw ?? '')
+    .replace(/&#(\d{1,7});/g, (m, d) => cp(Number(d), m))
+    .replace(/&#x([0-9a-f]{1,6});/gi, (m, h) => cp(parseInt(h, 16), m))
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+}
+
 function pickAttr(html: string, name: string): string | null {
   // ★ name="x" の input の value を読む。★ 属性の並びはどちらでもよいように2通り見る
   const a = new RegExp('<input[^>]*name="' + name + '"[^>]*value="([^"]*)"', 'i').exec(html);
@@ -204,7 +226,8 @@ export function parseEkichikaArticlePage(html: unknown, slot: unknown): Ekichika
     if (/\bselected\b/i.test(m[2])) selected = m[1];
   }
 
-  const title = /<input[^>]*name="title"[^>]*value="([^"]*)"/i.exec(form)?.[1] ?? '';
+  // ★ 第1293便: 実体参照をほどいてから返す（★ 送ったタイトルと比べる値。理由は decodeAttrValue）
+  const title = decodeAttrValue(/<input[^>]*name="title"[^>]*value="([^"]*)"/i.exec(form)?.[1] ?? '');
 
   return {
     slot,
