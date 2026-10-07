@@ -591,7 +591,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                       出していたのは【送る前に止めた理由】だけだった。読み直したら合わない・ログインできない・自動が止まった、は
                       「更新結果」にしか残らず、ラビリンス様の駅ちかは丸1日、入っていないことに誰も気づけなかった。
                     ★ 何を出すかは記録から決める（lib/workProblem.ts）。うまくいった回が記録されれば、次に開いたとき消える。 */}
-                {s.problem && (() => {
+                {/* ★ 第1277便: 'held'（自動が送る前に止めている）は、下の「止めた理由」の赤い枠がもう出している。ここでは二度言わない */}
+                {s.problem && s.problem.kind !== 'held' && (() => {
                   const t = workProblemText(s.problem, s.label, fmt(s.problem.at), {
                     loginScreen: brand.isConecf ? 'ID・パスワード登録' : '駅ちかのID・PW',
                     logScreen: brand.isConecf ? '更新結果' : '連携の記録',

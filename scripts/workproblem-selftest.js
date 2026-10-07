@@ -34,6 +34,17 @@ eq('★ 反映できた', kind([R(10, 'verify_work', 'ok'), R(10, 'write_work', 
 eq('★★★ エステ魂の「変更はありませんでした」（stopped・saved 0・changed 0）は問題にしない', kind([R(10, 'write_work', 'stopped', { people: 29, saved: 0, changed: 0 })]), null);
 eq('★★ 送る前に止めた理由（plan_work stopped）は、ここでは出さない（計画の赤い枠が出している）', kind([R(10, 'plan_work', 'stopped', { blockers: 1 }), R(5, 'write_work', 'failed')]), null);
 
+console.log('\n── 2b. ★★★ 第1277便: 自動が送る前に止めている（減り方・変更が大きい）→ ホームに出す ──');
+{
+  const held = (min, kind, intent) => R(min, 'plan_work', 'stopped', { changes: 6, blockers: 1, sendable: false, held: kind, intent: intent || 'work_auto' });
+  eq('★★★ 減り方が大きくて止めている', m.workProblemOf([held(30, 'shrink_too_much'), R(0, 'write_work', 'ok')]), { kind: 'held', at: at(30) });
+  eq('★★★ 変更が大きくて止めている', kind([held(30, 'change_too_large')]), 'held');
+  eq('★★★ 出勤が1件も入っていない（no_schedule）は出さない（入れていないだけ。日曜の朝に毎回赤くしない）', kind([held(30, 'no_schedule'), R(0, 'write_work', 'failed')]), null);
+  eq('★★ 人が確かめただけの回（work_dryrun）で止まった理由は、ホームに出さない（画面の赤い枠が出している）', kind([held(30, 'shrink_too_much', 'work_dryrun')]), null);
+  eq('★★★ そのあと「いますぐ更新する」で送れたら消える', kind([R(40, 'write_work', 'ok'), R(39, 'plan_work', 'ok', { changes: 6 }), held(30, 'shrink_too_much')]), null);
+  eq('★ ホームの1行', m.workProblemShort({ kind: 'held', at: at(0) }), '出勤の自動更新を止めています（変わる量が大きいため）');
+}
+
 console.log('\n── 3. うまくいかなかった形 ──');
 eq('★★ 保存できなかった（write_work failed）', kind([R(10, 'write_work', 'failed', { reason: 'http_error' })]), 'not_reflected');
 eq('★★ 送らずに止めた（内容が新しくなっていた など）', kind([R(10, 'write_work', 'stopped', { reason: 'fingerprint_mismatch' })]), 'not_sent');
@@ -73,7 +84,7 @@ console.log('\n── 6. 画面の文 ──');
   eq('★ ログイン: 直す場所を言う', [t('login').title, t('login').link, /「ID・パスワード登録」/.test(t('login').body)], ['駅ちかにログインできていません（10/7 15:20）', 'login', true]);
   eq('★ 反映できていない: 次にすることを言う', [t('not_reflected').title, /「いますぐ更新する」/.test(t('not_reflected').body), /「更新結果」/.test(t('not_reflected').body)], ['10/7 15:20 の更新が、駅ちかに反映できていません', true, true]);
   eq('★ 自動が止まった', t('auto_off').title, '3回続けて反映できなかったため、10/7 15:20 に自動更新を止めました');
-  for (const k of ['login', 'not_reflected', 'not_sent', 'unconfirmed', 'auto_off']) {
+  for (const k of ['login', 'not_reflected', 'not_sent', 'held', 'unconfirmed', 'auto_off']) {
     const x = t(k);
     eq('★★★ ' + k + ': 内部の言葉が出ない', /verify|write_work|slot|枠1|dryrun|castId|flow/i.test(x.title + x.body + m.workProblemShort({ kind: k, at: at(0) })), false);
   }

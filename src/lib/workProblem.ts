@@ -19,6 +19,7 @@ export type WorkProblemKind =
   | 'login'          // ログインに続けて失敗している
   | 'not_reflected'  // 送ったが、読み直したら合わなかった／保存できなかった／相手の画面を読めなかった
   | 'not_sent'       // 送らずに止めた（内容が新しくなっていた など）
+  | 'held'           // ★ 第1277便: 自動が、送る前に止めている（減り方・変更が大きい）。人が「いますぐ更新する」を押すと送れる
   | 'unconfirmed'    // 通信が最後まで確認できなかった（届いたかどうか分からない）
   | 'auto_off';      // 3回続けて反映できなかったため、自動を止めた
 
@@ -38,6 +39,9 @@ export type WorkProblemRow = {
 
 /** ログインの失敗を「続いている」と見なす回数。★ 1回きりの失敗（相手サイトの一時的な不調）で赤くしない */
 export const WORK_PROBLEM_LOGIN_STREAK = 2;
+
+/** 自動が送る前に止めたとき、ホームにも出す理由の種類（lib/workPlan.ts の blockers の kind） */
+const HELD_KINDS: readonly string[] = ['shrink_too_much', 'change_too_large'];
 
 /** 出勤を【書く・読み直す】段の名前（駅ちか・エステ魂）。★ ここで切れると「届いたか分からない」 */
 const WORK_WRITE_PURPOSES: readonly string[] = ['write_work', 'verify_work', 'esutama_work_save', 'esutama_work_verify'];
@@ -104,7 +108,14 @@ export function workProblemOf(rows: ReadonlyArray<WorkProblemRow>): WorkProblem 
       continue;
     }
     if (r.event === 'plan_work') {
-      // ★ 送る前に止めた理由は、計画の赤い枠が出している。ここでは出さない（仕切りにする）
+      // ★★★ 第1277便: 自動が「減り方・変更が大きい」で止めている回は、ホームに出す（kind 'held'）。
+      //   ★ 「出勤をサイトへ」は計画の赤い枠がもう出しているので、そちらの画面では二度言わない（WorkSend 側で出さない）。
+      //   ★ ホームは「出勤は自動で更新しています」と言い切っていた＝当日欠勤が止まっていても気づけなかった。
+      if (r.outcome === 'stopped' && d['intent'] === 'work_auto' && HELD_KINDS.includes(String(d['held'] ?? ''))) {
+        found = { kind: 'held', at: r.createdAt };
+        break;
+      }
+      // ★ それ以外の「送る前に止めた理由」（出勤が1件も入っていない など）は、計画の赤い枠に任せる（仕切りにする）
       if (r.outcome === 'stopped' || r.outcome === 'failed') break;
       // ★ 確かめて、変わるところが無かった＝合っている
       if (r.outcome === 'ok' && (d['changes'] === 0 || d['changed'] === 0)) break;
@@ -161,6 +172,12 @@ export function workProblemText(
         body: '「いますぐ更新する」を押すと、いまの内容で送り直します。理由は「' + names.logScreen + '」に出ています。',
         link: 'log',
       };
+    case 'held':
+      return {
+        title: when + ' の自動更新は、' + label + 'へ送る前に止めています',
+        body: '変わる量が大きいためです。内容が合っていれば「いますぐ更新する」を押してください（いまの内容で更新します）。',
+        link: null,
+      };
     case 'unconfirmed':
       return {
         title: when + ' の更新は、' + label + 'に届いたか確認できませんでした',
@@ -184,6 +201,7 @@ export function workProblemShort(p: WorkProblem): string {
     case 'login': return 'ログインできていません';
     case 'not_reflected': return '出勤の更新が反映できていません';
     case 'not_sent': return '出勤の更新を送らずに止めました';
+    case 'held': return '出勤の自動更新を止めています（変わる量が大きいため）';
     case 'unconfirmed': return '出勤の更新が届いたか確認できていません';
     case 'auto_off': return '出勤の自動更新が止まりました';
   }

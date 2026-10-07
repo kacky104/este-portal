@@ -113,30 +113,34 @@ export type WorkPlan = {
 // ───────────────────────────── 見張りの閾値 ─────────────────────────────
 
 /**
- * ★★★ 1日ぶんの出勤が、これ以上の割合で減るなら止める。
- *   取り込み側の掃除（IMPORT_SWEEP）が使っている 0.3 と同じ値にそろえてある。
- *   ★ 「減る方向だけ」見る。増える方向は事故にならない（誰も消えない）。
- */
-export const SHRINK_MAX_RATIO = 0.3;
-/** 割合が大きくても、人数が小さいうちは止めない（3人→2人で止めない）。 */
-export const SHRINK_MIN_PEOPLE = 3;
-
-/**
- * ★★★ 無人（自動反映）のときの、厳しい方のしきい値（第48便・設計メモ §56）。
+ * ★★★ 第1277便（2026-10-07・カッキーさんの決定）: 「減り方が大きいと送らない」見張りを作り直した。
  *
- * ★ なぜ変えるのか — 手動と自動では**担保の数が違う**。
- *     手動 … ① 人が見た内容と送る内容が同じ（指紋）＋ ② この見張り
- *     自動 … ★ ①が無い。②だけ
- *   → 担保が1本減るぶん、②を厳しくする。「人が見ているかどうかで強さを変える」。
+ * ★ これまで（第43・48便）: 1日ごとに見ていた。
+ *     自動 … その日の出勤が 2名以上 かつ 15%超 減ると、全体を送らない
+ *     手動 … その日の出勤が 3名以上 かつ 30%超 減ると、全体を送らない（★「それでも送る」が無い）
+ *   ★ 何が起きていたか:
+ *     ・1日の出勤が13名以下の店（ラビリンス様は数名）では、同じ日に2人が休むだけで自動が止まる。
+ *       当日欠勤＝いちばん急いで消したい変更が、黙って止まっていた（ホームは「自動で更新しています」のまま）。
+ *     ・同じ日に3人以上休むと、手で押しても送れない。臨時休業のとき、コネックエフからは駅ちかを更新できなかった。
+ *   ★ 数字の根拠は「手動の半分にしただけ」の決め打ちだった（第48便のコメント）。
  *
- * ★★ 数字の根拠は【手動の半分にしただけ】。実データを数日見てから決め直すこと。
- *   ★ 決め打ちであることを、決め打ちのまま忘れないために、ここに書いておく。
+ * ★ これから:
+ *     自動 … 【この7日間の合計】で見る。対象の方の出勤のうち、無くなるのが 5件以上 かつ 半分より多い ときだけ止める。
+ *            ＝当日欠勤が2〜3人重なっても、1日だけの臨時休業でも送る。フクエス側の出勤が大きく欠けたような異常は止める。
+ *     手動 … 止めない。人が画面で変わる内容を見てから押している（指紋で「見た内容＝送る内容」も確かめている）。
+ *   ★ 「フクエス側に出勤が1件も無いときは送らない」（no_schedule）は、自動・手動とも今までどおり。
+ *   ★ 「減る方向だけ」見るのは同じ。増える方向は事故にならない（誰も消えない）。
  */
-export const AUTO_SHRINK_MAX_RATIO = 0.15;
-export const AUTO_SHRINK_MIN_PEOPLE = 2;
+export const AUTO_SHRINK_MAX_RATIO = 0.5;
+/** 割合が大きくても、件数が小さいうちは止めない（出勤4件の店で3件が休みになっても止めない）。 */
+export const AUTO_SHRINK_MIN_CELLS = 5;
 /**
  * ★ 無人のとき、変更セルが「対象人数 × 7日」の何割を超えたら止めるか。
  *   ★ 作り直し級の差分（名簿の入れ替え・7日窓のずれ等）を、人が見ないまま流さない。
+ * ★★★ 第1277便: 【増える変更は数えない】（お休み → 出勤）。
+ *   福岡のメンズエステでは、日曜の夜に翌週ぶんをまとめて入れる習慣がある（カッキーさん）。
+ *   在籍が少なく出勤の多い店（例: 連携5名 × 4日 ＝ 20件 ＞ 35枠の半分）では、そのまとめ入力で自動が止まっていた。
+ *   出勤が増えるだけなら誰の出勤も消えない。数えるのは、無くなる変更と、時刻が変わる変更。
  */
 export const AUTO_CHANGE_MAX_RATIO = 0.5;
 
@@ -463,6 +467,10 @@ export function buildWorkPlan(input: {
   const changes: WorkChange[] = [];
   const diff: WorkDiff[] = [];
   let missingRowAsRest = 0;
+  // ★ 第1277便: 見張りの材料。対象の方の、いまの出勤の数（7日ぶん合計）／無くなる数／増える数
+  let targetWorkingBefore = 0;
+  let removedCells = 0;
+  let addedCells = 0;
   const notSelectable: string[] = [];
   // ★ 刻みに合わせて寄せたもの。★ 黙って書き換えないので、必ず数えて notes に出す
   const snappedList: string[] = [];
@@ -474,6 +482,7 @@ export function buildWorkPlan(input: {
     for (let d = 0; d < WORK_DAYS; d++) {
       const current = g.days[d];
       const sh = row[d];
+      if (current.work) targetWorkingBefore += 1;
 
       let next: WorkCell;
       if (sh && sh.active && sh.start && sh.end) {
@@ -497,6 +506,8 @@ export function buildWorkPlan(input: {
       }
 
       if (sameCell(current, next)) continue;
+      if (current.work && !next.work) removedCells += 1;
+      else if (!current.work && next.work) addedCells += 1;
       changes.push({ girlId: g.girlId, dayIndex: d, cell: next });
       diff.push({
         girlId: g.girlId,
@@ -573,29 +584,16 @@ export function buildWorkPlan(input: {
   const countsBefore = countWorkingByDay(page.girls);
   const countsAfter = countWorkingByDay(sent);
 
-  // ★★★ 消える方向の急減を止める。これがこの計画のいちばんの見張り。
-  for (let d = 0; d < WORK_DAYS; d++) {
-    const before = countsBefore[d] ?? 0;
-    const after = countsAfter[d] ?? 0;
-    const lost = before - after;
-    if (lost <= 0) continue;
-    // ★ 無人なら厳しい方を使う（§56）。★ どちらでも「減る方向だけ」見るのは同じ
-    const minPeople = input.unattended ? AUTO_SHRINK_MIN_PEOPLE : SHRINK_MIN_PEOPLE;
-    const maxRatio = input.unattended ? AUTO_SHRINK_MAX_RATIO : SHRINK_MAX_RATIO;
-    if (lost < minPeople) continue;
-    if (lost <= before * maxRatio) continue;
+  // ★★★ 消える方向の急減を止める（自動のときだけ）。
+  //   ★★★ 第1277便: 1日ごと → 【7日間の合計】。手動では止めない。理由は上の「見張りの閾値」。
+  if (input.unattended && removedCells >= AUTO_SHRINK_MIN_CELLS && removedCells > targetWorkingBefore * AUTO_SHRINK_MAX_RATIO) {
     blockers.push({
       kind: 'shrink_too_much',
-      count: lost,
+      count: removedCells,
       detail:
-        (page.dateLabels[d] ?? '日' + d) +
-        ' の出勤が ' +
-        before +
-        '名 → ' +
-        after +
-        '名（' +
-        lost +
-        '名 減）。減り方が大きいので止めました',
+        'この7日間の出勤 ' + targetWorkingBefore + '件のうち、' + removedCells + '件が無くなる内容です。' +
+        '減り方が大きいため、自動では更新していません。' +
+        '内容が合っていれば「いますぐ更新する」を押してください（いまの内容で更新します）',
     });
   }
 
@@ -617,15 +615,18 @@ export function buildWorkPlan(input: {
   // ★★★ 無人のとき、差分が大きすぎるなら送らない（第48便・§56）。
   //   ★ 「大きい差分が間違いだ」とは言えない。言えるのは【人が見ずに流す量ではない】だけ。
   //     だから止め方は blocker（送らない）で、直し方は「人が画面で承認する」。
+  // ★★★ 第1277便: 増える変更（お休み → 出勤）は数えない。まとめ入力で止めない。
+  //   ★ 文も直した。「承認してください」というボタンは、いまの画面に無い。
   if (input.unattended && wanted.size > 0) {
     const cells = wanted.size * WORK_DAYS;
-    if (changes.length > cells * AUTO_CHANGE_MAX_RATIO) {
+    const counted = changes.length - addedCells;
+    if (counted > cells * AUTO_CHANGE_MAX_RATIO) {
       blockers.push({
         kind: 'change_too_large',
-        count: changes.length,
+        count: counted,
         detail:
-          '変更が ' + changes.length + '件（対象 ' + cells + '枠）と大きいため、' +
-          '自動では更新しません。画面で内容をご確認のうえ承認してください',
+          '出勤が無くなる・時刻が変わる変更が ' + counted + '件（対象 ' + cells + '枠）と多いため、自動では更新していません。' +
+          '内容が合っていれば「いますぐ更新する」を押してください（いまの内容で更新します）',
       });
     }
   }
@@ -697,6 +698,9 @@ export function summarizePlan(plan: WorkPlan): {
     blockers: plan.blockers.length,
     notes: plan.notes.length,
     sendable: plan.ok,
+    // ★ 第1277便: 止めた理由の【種類】（最初の1つ）。ホームに「出勤の更新を止めています」を出すかどうかの材料（lib/workProblem.ts）。
+    //   ★ 文（detail）は入れない。種類の名前だけ
+    ...(plan.blockers.length > 0 ? { held: plan.blockers[0].kind } : {}),
   };
   if (!plan.ok) {
     return { detail, summary: '駅ちかへの反映を止めました: ' + (plan.blockers[0]?.detail ?? '理由不明') };

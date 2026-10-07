@@ -122,8 +122,9 @@ export async function POST(req: Request) {
           salonId: r.salon_id, provider: r.provider, slot: r.slot,
           event: 'link_mode_changed', outcome: 'stopped',
           summary:
-            AUTO_GIVE_UP_STREAK + '回続けて反映できなかったため、自動をやめて' +
-            '「毎回ご承認」に戻しました。画面で内容をご確認ください',
+            // ★ 第1277便: 「毎回ご承認」は、いまの画面に無い言葉。起きたことと、次にすることを言う
+            AUTO_GIVE_UP_STREAK + '回続けて反映できなかったため、出勤の自動更新を止めました。' +
+            '「出勤をサイトへ」で内容をご確認のうえ、もう一度自動更新にしてください',
           detail: { mode: 'write', from: 'write_auto', reason: 'auto_gave_up' },
           actor: 'system:auto-push',
         });

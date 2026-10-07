@@ -119,8 +119,19 @@ const cast2 = new Map(many.map((g,i)=>[i+1, g.girlId]));
 plan = wp.buildWorkPlan({page: page2, todayISO: today, shifts: [
   {therapistId:1, dateISO:'2026-08-28', active:true, start:'10:00', end:'18:00'},
 ], castIdOf: cast2});
-eq('④ 急減で止まる', plan.blockers.map(b=>b.kind).includes('shrink_too_much'), true);
+// ★★★ 第1277便（カッキーさんの決定）: 手で押した更新は、減り方では止めない（人が変わる内容を見てから押している）。
+eq('④ ★★★ 手動は、急減でも止めない（臨時休業のとき、コネックエフから駅ちかを更新できるように）', plan.blockers.map(b=>b.kind).includes('shrink_too_much'), false);
 eq('④ 前後の人数', [plan.countsBefore[0], plan.countsAfter[0]], [10,1]);
+{
+  const auto4 = wp.buildWorkPlan({page: page2, todayISO: today, shifts: [
+    {therapistId:1, dateISO:'2026-08-28', active:true, start:'10:00', end:'18:00'},
+  ], castIdOf: cast2, unattended: true});
+  eq('④ ★★★ 自動は、7日間の出勤70件のうち69件が無くなる内容なら止める', auto4.blockers.map(b=>b.kind).includes('shrink_too_much'), true);
+  eq('④ ★ 止めた文は、次にすること（いますぐ更新する）を言う', /70件のうち、69件が無くなる.*「いますぐ更新する」/.test(auto4.blockers.find(b=>b.kind==='shrink_too_much').detail), true);
+  eq('④ ★ 「承認してください」（いまの画面に無いボタン）と言わない', auto4.blockers.some(b => /承認/.test(b.detail)), false);
+  eq('④ ★★ 記録に、止めた理由の種類が残る（ホームに出す材料）', wp.summarizePlan(auto4).detail.held, 'shrink_too_much');
+  eq('④ ★ 止めていない計画には付かない', wp.summarizePlan(plan).detail.held, undefined);
+}
 
 // 5) 選択肢に無い時刻は触らずに止める
 plan = wp.buildWorkPlan({page, todayISO: today, shifts: [
@@ -232,11 +243,46 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
   const manual = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shifts8, castIdOf: cast2});
   const auto   = wp.buildWorkPlan({page: page2, todayISO: today, shifts: shifts8, castIdOf: cast2, unattended: true});
 
-  // 10名 → 8名。減り2名は 手動のしきい値（3名以上かつ3割超）に届かない
   eq('⑪ 10→8 は手動なら通る', manual.blockers.map(b=>b.kind).includes('shrink_too_much'), false);
-  // ★ 自動は 2名以上かつ1.5割超。2 > 10*0.15 = 1.5 なので止まる
-  eq('⑪ ★ 同じ内容でも自動なら止まる', auto.blockers.map(b=>b.kind).includes('shrink_too_much'), true);
+  // ★★★ 第1277便: 自動も、1日ごとの「2名以上かつ15%超」では止めない。7日間の合計で見る（70件のうち14件＝2割）
+  eq('⑪ ★★★ 毎日2名ずつ減る（70件のうち14件）でも、自動は止まらない', auto.blockers.length, 0);
   eq('⑪ 前後の人数は同じ', [auto.countsBefore[0], auto.countsAfter[0]], [10,8]);
+}
+
+// ⑪b ★★★ 第1277便: 自動の「減り方」の見張り（7日間の合計で、5件以上 かつ 半分より多く 無くなるときだけ止める）
+{
+  // 小さい店: 3人。今日は3人とも出勤、ほかの日は1人ずつ（7日間の出勤は 3 + 6 = 9件）
+  const small = [0,1,2].map((i) => ({girlId:'s'+i, name:'x', days: Array.from({length:7}, (_,d) => (d===0 || (i===0)) ? {start:'10:00',end:'18:00',work:true} : {start:'00:00',end:'00:00',work:false})}));
+  const pageS = mkPage(small, labels);
+  const castS = new Map([[1,'s0'],[2,'s1'],[3,'s2']]);
+  const on = (t,d) => ({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'10:00', end:'18:00'});
+  const base = [on(1,0),on(1,1),on(1,2),on(1,3),on(1,4),on(1,5),on(1,6),on(2,0),on(3,0)];
+  const run = (shifts) => wp.buildWorkPlan({page: pageS, todayISO: today, shifts, castIdOf: castS, unattended: true});
+  eq('⑪b 元は一致（変更0）', run(base).changes.length, 0);
+  // ★ ラビリンス様の規模: 同じ日に2人が休む（これまでは 3名→1名 で止まっていた）
+  const twoOff = run(base.filter((s) => !(s.dateISO === today && s.therapistId !== 1)));
+  eq('⑪b ★★★ 同じ日に2人が休んでも、自動は止まらない（当日欠勤を送る）', [twoOff.changes.length, twoOff.blockers.length, twoOff.ok], [2, 0, true]);
+  // ★ 今日だけ臨時休業（3人とも休み。9件のうち3件）
+  const closed = run(base.filter((s) => s.dateISO !== today));
+  eq('⑪b ★★★ 1日だけ全員休み（9件のうち3件）でも止まらない', [closed.changes.length, closed.blockers.length], [3, 0]);
+  // ★ 4件（半分以下ではないが 5件に届かない）
+  const four = run([on(1,0),on(1,1),on(1,2),on(1,3),on(1,4)]);
+  eq('⑪b ★★ 9件のうち4件が無くなる → 5件に届かないので止まらない', [four.changes.length, four.blockers.length], [4, 0]);
+  // ★ 5件（9件の半分より多い・5件以上）→ 止める
+  const five = run([on(1,0),on(1,1),on(1,2),on(1,3)]);
+  eq('⑪b ★★★ 9件のうち5件が無くなる → 止める', [five.changes.length, five.blockers.map(b=>b.kind)], [5, ['shrink_too_much']]);
+  const fiveManual = wp.buildWorkPlan({page: pageS, todayISO: today, shifts: [on(1,0),on(1,1),on(1,2),on(1,3)], castIdOf: castS});
+  eq('⑪b ★★★ 同じ内容でも、手で押した更新は止めない', fiveManual.blockers.length, 0);
+  // ★ 大きい店: 70件のうち35件（ちょうど半分）は止めない／36件は止める
+  const half = []; const over = [];
+  for (let t = 1; t <= 10; t++) for (let d = 0; d < 7; d++) {
+    const k = (t - 1) * 7 + d;
+    if (k >= 35) half.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'10:00', end:'18:00'});
+    if (k >= 36) over.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'10:00', end:'18:00'});
+  }
+  eq('⑪b ★★ 70件のうち35件（ちょうど半分）は止めない', wp.buildWorkPlan({page: page2, todayISO: today, shifts: half, castIdOf: cast2, unattended: true}).blockers.map(b=>b.kind).includes('shrink_too_much'), false);
+  eq('⑪b ★★ 70件のうち36件（半分より多い）は止める', wp.buildWorkPlan({page: page2, todayISO: today, shifts: over, castIdOf: cast2, unattended: true}).blockers.map(b=>b.kind).includes('shrink_too_much'), true);
+  eq('⑪b ★ しきい値', [wp.AUTO_SHRINK_MAX_RATIO, wp.AUTO_SHRINK_MIN_CELLS], [0.5, 5]);
 }
 
 // ⑫ ★ 無人でも「減っていない」なら止めない。★ 厳しくするのは減る方向だけ
@@ -266,6 +312,23 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
   eq('⑬ 人数は減っていない', [auto.countsBefore[0], auto.countsAfter[0]], [10,10]);
   eq('⑬ 手動なら通る', manual.blockers.length, 0);
   eq('⑬ ★ 自動は差分が大きすぎて止まる', auto.blockers.map(b=>b.kind).includes('change_too_large'), true);
+  eq('⑬ ★ 止めた文は、次にすること（いますぐ更新する）を言う。「承認」と言わない', [/「いますぐ更新する」/.test(auto.blockers[0].detail), /承認/.test(auto.blockers[0].detail)], [true, false]);
+}
+
+// ⑬b ★★★ 第1277便: 増える変更（お休み → 出勤）は数えない。日曜の夜のまとめ入力で、自動を止めない
+{
+  // 連携5名。駅ちかは全員お休み（まだ何も入っていない）。フクエスに 5名 × 4日 ＝ 20件をまとめて入れた（35枠の半分＝17.5 より多い）
+  const five = Array.from({length:5}, (_,i)=>({girlId:'n'+i, name:'x', days: days(false,'00:00','00:00')}));
+  const pageN = mkPage(five, labels);
+  const castN = new Map(five.map((g,i)=>[i+1, g.girlId]));
+  const bulk = [];
+  for (let t = 1; t <= 5; t++) for (let d = 1; d <= 4; d++) bulk.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'10:00', end:'18:00'});
+  const auto = wp.buildWorkPlan({page: pageN, todayISO: today, shifts: bulk, castIdOf: castN, unattended: true});
+  eq('⑬b ★★★ 20件まとめて入れても（35枠の半分より多い）、自動は止まらない', [auto.changes.length, auto.blockers.length, auto.ok], [20, 0, true]);
+  // 35枠すべてに入れても止まらない
+  const all = [];
+  for (let t = 1; t <= 5; t++) for (let d = 0; d < 7; d++) all.push({therapistId:t, dateISO: wp.addDaysISO(today,d), active:true, start:'10:00', end:'18:00'});
+  eq('⑬b ★★ 全枠（35件）に入れても止まらない', wp.buildWorkPlan({page: pageN, todayISO: today, shifts: all, castIdOf: castN, unattended: true}).blockers.length, 0);
 }
 
 // 14) ★ 第1267便: お知らせに「誰のことか」を添える・「送らない」の方を「駅ちかにだけ登録がある方」に数えない
