@@ -511,7 +511,7 @@ export async function startMediaConnectionTest(input: {
  */
 export async function startMediaWorkDryRun(input: {
   salonId: string | number; provider: string; slot?: number;
-}): Promise<Result<{ jobId: string; note: string }>> {
+}): Promise<Result<{ jobId: string; note: string; flowId: string }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   const slot = Math.trunc(Number(input.slot ?? 1));
@@ -539,7 +539,8 @@ export async function startMediaWorkDryRun(input: {
       actor: 'shop:' + guard.data.userId,
     });
     if (!r.ok) return { ok: false, error: r.note };
-    return { ok: true, data: { jobId: r.jobId, note: r.note } };
+    // ★ 第1280便: この確認の流れの番号も返す。画面は「この番号で保存された計画」が届くのを待つ（別の回の計画を結果と取り違えない）
+    return { ok: true, data: { jobId: r.jobId, note: r.note, flowId: r.flowId } };
   } catch (e) {
     console.error('[media] 試し打ちを始められなかった', (e as Error).message);
     return { ok: false, error: '確認を開始できませんでした。時間をおいてお試しください' };
@@ -555,6 +556,11 @@ export async function startMediaWorkDryRun(input: {
  */
 export type WorkPlanView = {
   createdAt: string;
+  /**
+   * ★ 第1280便: この計画を作った流れの番号（media_work_plans.flow_id）。無ければ空文字。
+   *   画面が「いま押した確認の結果か」を見分けるのに使う（作成時刻で見分けていたら、自動の周の計画を結果と取り違えた）。
+   */
+  flowId: string;
   sendable: boolean;
   targets: number;
   activeShifts: number;
@@ -586,7 +592,7 @@ export async function getMediaWorkPlan(input: {
   const svc = createServiceClient();
   const { data, error } = await svc
     .from('media_work_plans')
-    .select('created_at, sendable, targets, active_shifts, change_count, field_count, date_labels, counts_before, counts_after, diff, blockers, notes, fingerprint')
+    .select('created_at, flow_id, sendable, targets, active_shifts, change_count, field_count, date_labels, counts_before, counts_after, diff, blockers, notes, fingerprint')
     .eq('salon_id', salonId).eq('provider', input.provider).eq('slot', slot)
     .maybeSingle();
   if (error) {
@@ -600,6 +606,7 @@ export async function getMediaWorkPlan(input: {
     ok: true,
     data: {
       createdAt: String(r['created_at']),
+      flowId: typeof r['flow_id'] === 'string' ? (r['flow_id'] as string) : '',
       sendable: r['sendable'] === true,
       targets: Number(r['targets'] ?? 0),
       activeShifts: Number(r['active_shifts'] ?? 0),

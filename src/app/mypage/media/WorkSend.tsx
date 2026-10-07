@@ -250,7 +250,17 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           const [provider, slotStr] = k.split('#');
           const res = await getMediaWorkPlan({ salonId, provider, slot: Number(slotStr) });
           if (!res.ok || !res.data) continue;
-          if (res.data.createdAt === waiting[k]) continue;   // ★ まだ前の計画のまま
+          // ★★★ 第1280便（2026-10-07）: 「いま押した確認の結果」かどうかを、流れの番号で見分ける。
+          //   ★ これまでは「画面が最後に読み込んだ計画と、作成時刻が違えば結果」としていた。
+          //     画面を開いたままの間に自動の周（30分ごと）が計画を作り直していると、
+          //     押して15秒後の最初の見に行きで、その【自動の周の計画】を結果と取り違えた。
+          //     → 「変わるところはありませんでした」と出て終わる（本物の確認が終わるのは1〜2分後。送信も始まらない）。
+          //     ラビリンス様の画面で実際に起きた（10/7 18:54 に押して、出た時刻は「18:36 に確認」のまま）。
+          //   ★ 待っているのは「flow:<番号>」。番号が取れなかったとき（古い形）だけ、今までどおり作成時刻で見る。
+          const want = waiting[k] ?? '';
+          if (want.startsWith('flow:')) {
+            if (res.data.flowId !== want.slice(5)) continue;   // ★ まだ別の回の計画のまま
+          } else if (res.data.createdAt === want) continue;     // ★ まだ前の計画のまま
           const got = res.data;
           setPlans((p) => ({ ...p, [k]: got }));
           setWaiting((w) => { const n = { ...w }; delete n[k]; return n; });
@@ -329,8 +339,10 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       const res = await startMediaWorkDryRun({ salonId, provider: s.provider, slot: s.slot });
       if (!res.ok) { onToast(res.error); return; }
       afterCheck.current[k] = act;   // ★ 届いたときの続きを覚えておく（第393便）
-      // ★ 押した時点の作成時刻を覚える。★ 計画そのものが無いときは空文字（できたら必ず変わる）
-      setWaiting((w) => ({ ...w, [k]: plans[k]?.createdAt ?? '' }));
+      // ★ 第1280便: この確認の流れの番号を覚える（「flow:<番号>」）。その番号で保存された計画が届くのを待つ。
+      //   ★ 番号が取れなかったときだけ、今までどおり押した時点の作成時刻（計画が無ければ空文字）。
+      const flowId = res.data.flowId;
+      setWaiting((w) => ({ ...w, [k]: flowId ? 'flow:' + flowId : (plans[k]?.createdAt ?? '') }));
       setGaveUp((g) => { const n = new Set(g); n.delete(k); return n; });
       setTick(0);   // ★ 経過時間は押した瞬間から（effect の中で触らない・lint の作法）
       onToast(act === 'make_auto'
