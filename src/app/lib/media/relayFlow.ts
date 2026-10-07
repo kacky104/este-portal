@@ -65,6 +65,7 @@ import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
 import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
 import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
 import { planEsutamaWork, pickEsutamaTargets, shouldHoldEsutamaClears } from '@/lib/esutamaPlan';
+import { isAutomaticActor, loginBackoff, LOGIN_BACKOFF_MIN } from '@/lib/loginBackoff';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
 // ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
@@ -128,7 +129,7 @@ function firstStep(
 
 export type StartFlowResult =
   | { ok: true; jobId: string; flowId: string; note: string }
-  | { ok: false; reason: 'busy' | 'no_credential' | 'disabled' | 'unsupported'; note: string };
+  | { ok: false; reason: 'busy' | 'no_credential' | 'disabled' | 'unsupported' | 'login_backoff'; note: string };
 
 /**
  * フローを始める。★ login を1件積むだけ。実際に投げるのは VPS の周。
@@ -408,6 +409,39 @@ export async function startRelayFlow(params: {
   if (cred.is_enabled !== true) {
     // ★ 停止中の連携を、こちらの都合で勝手に動かさない
     return { ok: false, reason: 'disabled', note: 'この連携は停止中です。再開してからお試しください' };
+  }
+
+  // ★★★ 第1275便（2026-10-07）: ログインに【3回続けて失敗】しているサイトへは、自動の周は60分あける。
+  //   ★ これまで: パスワードが変わると、出勤（30分）・写メ日記の取り込み（15分）・即ヒメ（10分）・即セラ（10分）・
+  //     写メ日記の送信（5分）の周が、それぞれログインを試み続けた。止める仕組みがどこにも無かった。
+  //   ★ ここは自動・手動すべての流れの入口。自動の周（actor が cron: / system）だけを見送る。
+  //     人が押した操作（接続テスト・いますぐ更新する など）は、いつでも通す（直したあとすぐ確かめられるように）。
+  //   ★ 永久には止めない。60分たったら1回試す。ID・パスワードを保存し直したら数え直す。判断は lib/loginBackoff.ts。
+  //   ★ 記録は書かない（見送るたびに書くと「更新結果」が埋まる）。画面には lib/workProblem.ts が「ログインできていません」を出す。
+  //   ★ 読めなかったときは見送らない（記録の読み取りの不調で、送信を止めない）。
+  if (isAutomaticActor(params.actor)) {
+    const { data: logins, error: lgErr } = await supabase
+      .from('salon_media_audit')
+      .select('event, outcome, created_at')
+      .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+      .in('event', ['login', 'credential_saved'])
+      .order('created_at', { ascending: false })
+      .limit(6);
+    if (lgErr) {
+      console.error('[relay] ログインの記録を読めなかった（見送りの判断をせずに進む）', params.salonId, params.provider, lgErr.message);
+    } else {
+      const bo = loginBackoff({
+        rows: (logins ?? []).map((r) => ({ event: String(r.event), outcome: String(r.outcome), createdAt: String(r.created_at) })),
+        nowMs: Date.now(),
+      });
+      if (bo.hold) {
+        const name = findMediaSite(params.provider)?.name ?? 'このサイト';
+        return {
+          ok: false, reason: 'login_backoff',
+          note: `${name}へのログインに続けて失敗しているため、自動の更新は間をあけています（${LOGIN_BACKOFF_MIN}分に1回だけ試します）。ID・パスワードをご確認ください`,
+        };
+      }
+    }
   }
 
   const password = decryptSecret(cred.password_enc as string, {

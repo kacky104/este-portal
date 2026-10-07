@@ -17,6 +17,7 @@ import { bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { siteMark } from '@/lib/mediaSites';
 import { AUTO_PUSH_INTERVAL_MIN } from '@/lib/mediaLinkMode';
 import { splitWorkNotes, workNoteLine } from '@/lib/workSendNotes';
+import { workProblemText, type WorkProblem } from '@/lib/workProblem';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -41,6 +42,8 @@ type Site = {
   direction: string; statusLabel: string; hasCredential: boolean;
   /** ★ いま自動で反映しているか（第65便・㉞ その7 で /all から移した） */
   autoOn: boolean;
+  /** ★ 第1275便: いまうまくいっていないこと（ログインできていない・送ったのに反映できていない・自動が止まった）。無ければ null */
+  problem?: WorkProblem | null;
 };
 
 const keyOf = (p: string, s: number) => p + '#' + s;
@@ -538,7 +541,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 ★ 自動更新中なら「出勤 自動更新中」（キラリ）。★ まだなら、これから何をするかを見出しにする。
                 ★ 第342便で下の別枠に出していた「出勤 自動更新中」を、ここへ引き上げた（★ 見出しは1枚に1つ）。 */}
             <div className="flex items-baseline justify-between gap-2 flex-wrap">
-              <h3 className={'text-[16px] font-bold ' + (s.autoOn ? 'link-live-kirari' : 'text-slate-700')}>
+              {/* ★ 第1275便: うまくいっていないことがあるあいだは、見出しを光らせない（「動いている」と読ませない） */}
+              <h3 className={'text-[16px] font-bold ' + (s.autoOn && !s.problem ? 'link-live-kirari' : 'text-slate-700')}>
                 {s.autoOn ? '出勤 自動更新中' : `${s.label}の出勤を自動更新にする`}
               </h3>
               {plan && !isWaiting && !gaveUp.has(k) && (
@@ -582,6 +586,33 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               </div>
             ) : (
               <>
+                {/* ★★★ 第1275便（2026-10-07）: 送ったあとの失敗を、ここに赤い枠で出す。
+                    ★ すぐ下の文が「更新できないときは止めて、赤い枠でここに出します」と言っているのに、
+                      出していたのは【送る前に止めた理由】だけだった。読み直したら合わない・ログインできない・自動が止まった、は
+                      「更新結果」にしか残らず、ラビリンス様の駅ちかは丸1日、入っていないことに誰も気づけなかった。
+                    ★ 何を出すかは記録から決める（lib/workProblem.ts）。うまくいった回が記録されれば、次に開いたとき消える。 */}
+                {s.problem && (() => {
+                  const t = workProblemText(s.problem, s.label, fmt(s.problem.at), {
+                    loginScreen: brand.isConecf ? 'ID・パスワード登録' : '駅ちかのID・PW',
+                    logScreen: brand.isConecf ? '更新結果' : '連携の記録',
+                    autoOn: s.autoOn,
+                  });
+                  return (
+                    <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 space-y-1">
+                      <p className="text-[14.5px] font-bold text-rose-700 leading-relaxed">{t.title}</p>
+                      <p className="text-[14px] text-rose-700 leading-relaxed">{t.body}</p>
+                      {t.link && (
+                        <Link href={brand.link(t.link === 'login' ? 'login' : 'log')}
+                          className="inline-block text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">
+                          {t.link === 'login'
+                            ? (brand.isConecf ? 'ID・パスワード登録を開く' : 'ID・PWの画面を開く')
+                            : (brand.isConecf ? '更新結果を開く' : '連携の記録を開く')}
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* ★ 自動更新中の枠。★ 第210便の文言のまま（周期は AUTO_PUSH_INTERVAL_MIN から出す） */}
                 {s.autoOn && (
                   <p className="text-[13px] text-slate-400 leading-relaxed">

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
+import { workProblemShort, type WorkProblem } from '@/lib/workProblem';
 import { consentRecheckNotice } from '@/lib/mediaConsent';
 import { useConecfHref } from './ConecfBase';
 
@@ -24,6 +25,8 @@ type Site = {
   hasCredential: boolean;
   needsConsent: boolean;
   capabilities: string[];
+  /** ★ 第1275便: いまうまくいっていないこと。無ければ null */
+  problem?: WorkProblem | null;
 };
 
 type Overview = { therapistCount: number; sites: Site[] };
@@ -155,9 +158,19 @@ export function ConecfHome({ salonId, enabled = true, onToast }: { salonId: numb
                   {busy === k ? '変えています…' : '更新を止める'}
                 </button>
               );
-              note = s.autoOn
-                ? { text: '出勤は自動で更新しています', tone: 'text-slate-500', link: null }
-                : { text: '出勤の自動更新が未設定です', tone: 'text-rose-700', link: { href: href('/schedule/sync'), label: '設定する' } };
+              // ★★★ 第1275便: うまくいっていないことがあれば、それを先に言う（「自動で更新しています」と言い切らない）。
+              //   ★ 自動が切られた店に「未設定です」と出していた（＝設定し忘れに見える）。「止まりました」と言う。
+              //   ★ 詳しい説明と直し方は行き先の画面が出す。ここは1行と行き先だけ。
+              note = s.problem
+                ? {
+                    text: workProblemShort(s.problem), tone: 'text-rose-700',
+                    link: s.problem.kind === 'login'
+                      ? { href: href('/sites'), label: 'ID・パスワードを確認する' }
+                      : { href: href('/schedule/sync'), label: s.problem.kind === 'auto_off' ? '再開する' : '確認する' },
+                  }
+                : s.autoOn
+                  ? { text: '出勤は自動で更新しています', tone: 'text-slate-500', link: null }
+                  : { text: '出勤の自動更新が未設定です', tone: 'text-rose-700', link: { href: href('/schedule/sync'), label: '設定する' } };
             } else if (s.direction === 'read') {
               status = { text: 'フクエスリンクで反映中', tone: 'text-amber-700' };
               action = (

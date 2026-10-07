@@ -23,6 +23,7 @@ import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaL
 import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
 import { nextDiaryMixedSince } from '@/lib/diarySource';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
+import { workProblemOf, type WorkProblem } from '@/lib/workProblem';
 import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 // ★ 第372便: セラピストの既定画像（本人→店舗→運営）を当てる（第217便の決め方をそのまま使う）
@@ -1886,6 +1887,12 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
        *   ★ ホーム用に別の表を持たない。★ 知らない媒体は空。
        */
       capabilities: string[];
+      /**
+       * ★★★ 第1275便: いま【うまくいっていないこと】（ログインできていない・送ったのに反映できていない・自動が止まった など）。
+       *   ★ 記録（salon_media_audit）のいちばん新しい決め手から決める（lib/workProblem.ts の workProblemOf）。
+       *   ★ 無ければ null。★ 反映の向き（write）で、鍵がある枠だけ調べる。
+       */
+      problem: WorkProblem | null;
     }>;
   }>
 > {
@@ -1984,6 +1991,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
     planCheckedAt: string | null;
     nextImportAt: string | null;
     capabilities: string[];
+    problem: WorkProblem | null;
   }> = [];
 
   for (const k of keys) {
@@ -2025,6 +2033,31 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
         })
       : null;
 
+    // ★★★ 第1275便: うまくいっていないこと。★ 反映の向きで鍵がある枠だけ（読む向きの枠は送っていない）。
+    //   ★ ログインの記録は、ほかの周（写メ日記の取り込み・即ヒメ など）のぶんで数が多い。
+    //     出勤の記録と分けて引く（1本で引くと、ログインの行で窓が埋まって出勤の失敗が落ちる）。
+    //   ★ 読めなかったら null（★ 記録の読み取りの不調で、画面を赤くしない）。
+    let problem: WorkProblem | null = null;
+    if (direction === 'write' && facts.hasCredential) {
+      const base = () => svc
+        .from('salon_media_audit')
+        .select('event, outcome, created_at, detail')
+        .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot)
+        .order('created_at', { ascending: false });
+      const [workQ, loginQ] = await Promise.all([
+        base().in('event', ['read_work', 'plan_work', 'write_work', 'verify_work', 'relay_gave_up', 'relay_expired', 'link_mode_changed']).limit(40),
+        base().in('event', ['login', 'credential_saved']).limit(8),
+      ]);
+      if (workQ.error || loginQ.error) {
+        console.error('[overview] うまくいっていないことを調べられなかった', salonId, provider, (workQ.error ?? loginQ.error)?.message);
+      } else {
+        const merged = [...(workQ.data ?? []), ...(loginQ.data ?? [])]
+          .map((r) => ({ event: String(r.event), outcome: String(r.outcome), createdAt: String(r.created_at), detail: r.detail as unknown }))
+          .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+        problem = workProblemOf(merged);
+      }
+    }
+
     sites.push({
       provider,
       slot,
@@ -2049,6 +2082,7 @@ export async function getMediaOverview(input: { salonId: string | number }): Pro
         const site = findMediaSite(provider);
         return site ? sendableCapabilities(site).map(capabilityLabel).filter((x) => x.length > 0) : [];
       })(),
+      problem,
     });
   }
 

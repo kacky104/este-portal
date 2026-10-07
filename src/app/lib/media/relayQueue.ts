@@ -411,7 +411,7 @@ export async function expireStuckRelayJobs(
   const { data: rows, error: selErr } = await supabase
     .from('media_relay_jobs')
     // ★ 監査ログに「どの店舗の・どの枠が」打ち切られたかを残すので一緒に読む
-    .select('id, salon_id, provider, slot')
+    .select('id, salon_id, provider, slot, purpose')
     .eq('status', 'leased')
     .lt('leased_until', cutoff)
     .gte('attempts', MAX_ATTEMPTS);
@@ -447,7 +447,8 @@ export async function expireStuckRelayJobs(
       slot: src.slot as number,
       event: 'relay_expired',
       outcome: 'stopped',
-      detail: { graceMinutes: grace },
+      // ★ 第1275便: どの段で切れたかも残す（relay_gave_up と同じ）。「出勤をサイトへ」に出すかどうかを決める材料（lib/workProblem.ts）
+      detail: { graceMinutes: grace, purpose: String((src as { purpose?: unknown }).purpose ?? '') },
       jobId: r.id as string,
     });
   }
