@@ -905,6 +905,11 @@ export type RelayFlowContext = {
   /** 変更があった人数／保存できた人数（done のまとめ用） */
   esutamaChanged?: number;
   esutamaSaved?: number;
+  /**
+   * ★ 第1274便: 自動（work_auto）で「出勤がすべて無くなる書き換え」を止めるか（lib/esutamaPlan.ts の shouldHoldEsutamaClears）。
+   *   true のときだけ止める。★ フクエス側の出勤が全員ぶん空のときだけ true になる。
+   */
+  esutamaHoldClears?: boolean;
   // ── 第110便: 店舗の画面「出勤を送る」に出すための材料 ──
   /** 計画の窓（14日の 'YYYY-MM-DD'）。diff の dayIndex はこの添え字 */
   esutamaWindow?: string[];

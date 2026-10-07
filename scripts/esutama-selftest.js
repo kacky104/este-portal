@@ -493,5 +493,47 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
   throws('★ cookie が無ければ読みに行かない', () => R.buildEsutamaCastFormRequest(''), /Cookie/);
 }
 
+// ── ★★★ 第1274便: 非公開にした方の出勤を消しに行く／自動で「全部なくなる書き換え」を止めるのは全員ぶん空のときだけ ──
+{
+  const T = (id, name, active) => ({ therapistId: id, name, active });
+  const base = {
+    therapists: [T(1, 'あい', true), T(2, 'いく', true), T(3, 'うた', false), T(4, 'えま', false), T(5, 'おと', false), T(6, 'かな', false), T(7, '', true)],
+    links: [{ therapistId: 1, castId: '101' }, { therapistId: 3, castId: '103' }, { therapistId: 4, castId: '104' }, { therapistId: 5, castId: '105' }],
+    rosterCastIds: ['101', '103', '104', '999'],
+    shiftTherapistIds: [1, 3, 5, 6],
+  };
+  const ids = (x) => L.pickEsutamaTargets(x).map((t) => t.therapistId);
+  eq('★★★ 公開中の方は、結んでいなくても・出勤の行が無くても今までどおり対象（2）', ids(base).includes(2), true);
+  eq('★★★ 非公開でも「結んである・名簿に居る・出勤の行がある」方は対象（3）＝出勤を消しに行く', ids(base).includes(3), true);
+  eq('★★ 非公開で出勤の行が無い方は外す（4）。★「未入力のため更新していません」を増やさない', ids(base).includes(4), false);
+  eq('★★ 非公開で、結んだ番号が名簿に居ない方は外す（5）', ids(base).includes(5), false);
+  eq('★★★ 非公開で結んでいない方は外す（6）。★ 名前では探さない（同名の別の方を巻き込まない）', ids(base).includes(6), false);
+  eq('★ 名前が空の方は外す（今までどおり）', ids(base).includes(7), false);
+  eq('★ まとめ', ids(base), [1, 2, 3]);
+
+  // 非公開にした方（3）の出勤はお休みの行 → 計画では全日「出勤なし」＝エステ魂の ○ を消す
+  const win = ['2026-10-07', '2026-10-08', '2026-10-09'];
+  const plan = L.planEsutamaWork({
+    roster: [{ castId: '101', name: 'あい' }, { castId: '103', name: 'うた' }],
+    therapists: L.pickEsutamaTargets(Object.assign({}, base, { therapists: [T(1, 'あい', true), T(3, 'うた', false)] })),
+    shifts: [
+      { therapistId: 1, dateISO: '2026-10-07', active: true, start: '20:00', end: '02:00' },
+      { therapistId: 3, dateISO: '2026-10-08', active: false, start: null, end: null },
+    ],
+    windowDates: win,
+    links: base.links,
+  });
+  const uta = plan.people.find((p) => p.castId === '103');
+  eq('★★★ 非公開にした方は計画に入り、この期間は全日「出勤なし」になる', [!!uta, uta && uta.days.map((d) => d.range)], [true, [null, null, null]]);
+  eq('★★ 「更新していません」の行は増えない', plan.blocked.length, 0);
+
+  // 自動で止めるか
+  const P1 = (castId, working) => ({ therapistId: Number(castId), castId, name: 'x', days: win.map((dateISO, i) => ({ dateISO, range: working && i === 0 ? { some: 1 } : null })) });
+  eq('★★★ 誰か1人でも出勤が入っていれば止めない（当日欠勤・非公開の方の出勤は自動で消す）', L.shouldHoldEsutamaClears([P1('1', true), P1('2', false), P1('3', false)]), false);
+  eq('★★★ フクエス側の出勤が全員ぶん空なら止める（まだ出勤を入れていない店で、エステ魂の出勤を全員ぶん消さない）', L.shouldHoldEsutamaClears([P1('1', false), P1('2', false), P1('3', false)]), true);
+  eq('★★ 対象が2人以下なら止めない（1人だけの店で、その方の欠勤が永久に止まらないように）', [L.shouldHoldEsutamaClears([P1('1', false), P1('2', false)]), L.shouldHoldEsutamaClears([P1('1', false)]), L.shouldHoldEsutamaClears([])], [false, false, false]);
+  eq('★ 人数のしきい値', L.ESUTAMA_HOLD_CLEARS_MIN_PEOPLE, 3);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

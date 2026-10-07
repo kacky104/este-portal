@@ -64,7 +64,7 @@ import { buildEsutamaLoginPageRequest, buildEsutamaLoginRequest, buildEsutamaWor
 import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
 import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
 import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
-import { planEsutamaWork } from '@/lib/esutamaPlan';
+import { planEsutamaWork, pickEsutamaTargets, shouldHoldEsutamaClears } from '@/lib/esutamaPlan';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
 // ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
@@ -1362,11 +1362,14 @@ async function planEsutama(
   const todayISO = esutamaTodayISO(ctx, Date.now());
   const windowDates = esutamaWindowDates(todayISO);
 
+  // ★★★ 第1274便（2026-10-07・カッキーさんの決定）: ここで is_active で絞らない。非公開の方も読む。
+  //   ★ 絞っていたので、非公開にした方の【エステ魂に載ったままの出勤】に二度と触れなかった（最長14日ぶん残る）。
+  //   ★ 誰を対象にするかは lib/esutamaPlan.ts の pickEsutamaTargets（非公開の方は、番号が結んであって・名簿に居て・出勤の行がある方だけ）。
+  //   ★ 駅ちかの planWork は前から絞っていない（第216便）。そろえた。
   const { data: therapists, error: thErr } = await supabase
     .from('therapists')
-    .select('id, name, import_cast_id')
-    .eq('salon_id', params.salonId)
-    .eq('is_active', true);
+    .select('id, name, import_cast_id, is_active')
+    .eq('salon_id', params.salonId);
   if (thErr) {
     return { audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステ魂へ送る内容を組み立てられませんでした（フクエス側の読み取りに失敗）', detail: { reason: 'therapists_read_failed', flowId } }], note: 'セラピストを読めなかった: ' + thErr.message };
   }
@@ -1375,8 +1378,9 @@ async function planEsutama(
   if (conecfOff.error) {
     return { audits: [{ event: 'plan_work', outcome: 'failed', summary: 'エステ魂へ送る内容を組み立てられませんでした（送り先サイトの設定を読めませんでした）', detail: { reason: 'conecf_targets_read_failed', flowId } }], note: '送り先サイトを読めなかった: ' + conecfOff.error };
   }
-  const rows = ((therapists ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null }>).filter((t) => !conecfOff.off.has(Number(t.id)));
-  const people = rows.map((t) => ({ therapistId: t.id, name: String(t.name ?? '') })).filter((t) => t.name.length > 0);
+  const rows = ((therapists ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null; is_active?: boolean | null }>).filter((t) => !conecfOff.off.has(Number(t.id)));
+  // ★ 第1274便: ここではまだ全員（公開・非公開）。出勤と番号を読んでから、下で pickEsutamaTargets が絞る
+  const candidates = rows.map((t) => ({ therapistId: t.id, name: String(t.name ?? ''), active: t.is_active === true })).filter((t) => t.name.length > 0);
 
   // ★ 名簿画面で結んだ番号（therapist_media_ids）。あれば名前で探さない
   const { maps, error: castErr } = await loadCastIds(supabase, { therapists: rows, provider: params.provider, slot: params.slot });
@@ -1386,7 +1390,7 @@ async function planEsutama(
   const links: Array<{ therapistId: number; castId: string }> = [];
   for (const [tid, cid] of maps.castIdOf) if (cid) links.push({ therapistId: tid, castId: cid });
 
-  const ids = people.map((t) => t.therapistId);
+  const ids = candidates.map((t) => t.therapistId);
   const { data: sched, error: schErr } = ids.length
     ? await supabase
         .from('therapist_schedules')
@@ -1405,6 +1409,14 @@ async function planEsutama(
     start: typeof r['start_time'] === 'string' ? r['start_time'].slice(0, 5) : null,
     end: typeof r['end_time'] === 'string' ? r['end_time'].slice(0, 5) : null,
   }));
+
+  // ★ 第1274便: 公開中の方は全員。非公開の方は「番号が結んである・名簿に居る・出勤の行がある」方だけ（出勤を消しに行く相手）
+  const people = pickEsutamaTargets({
+    therapists: candidates,
+    links,
+    rosterCastIds: rosterRows.map((r) => r.castId),
+    shiftTherapistIds: shifts.map((s) => s.therapistId),
+  });
 
   const plan = planEsutamaWork({
     roster: rosterRows.map((r) => ({ castId: r.castId, name: r.name })),
@@ -1457,6 +1469,8 @@ async function planEsutama(
       purpose: 'esutama_work_read', method: req.method, url: req.url, headers: req.headers, body: '',
       context: {
         ...ctx, esutamaPeople: plan.people, esutamaIndex: 0, esutamaChanged: 0, esutamaSaved: 0,
+        // ★ 第1274便: 自動で「出勤がすべて無くなる書き換え」を止めるのは、フクエス側が全員ぶん空のときだけ
+        esutamaHoldClears: shouldHoldEsutamaClears(plan.people),
         esutamaWindow: windowDates, esutamaDiffs: [],
         esutamaBlocked: plan.blocked.map((b) => b.message), esutamaNotes: plan.notes,
         ...(approved !== undefined ? { esutamaApproved: approved } : {}),

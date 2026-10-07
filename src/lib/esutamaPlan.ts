@@ -55,6 +55,64 @@ export type EsutamaPlan = {
 };
 
 /**
+ * ★★★ 第1274便（2026-10-07・カッキーさんの決定）: 出勤を合わせに行く相手を決める。
+ *
+ * ★ 何が起きていたか: エステ魂の計画は【公開中の方だけ】を対象にしていた。
+ *   非公開にするとフクエスの出勤はお休みになり（setTherapistActive）、駅ちかは次の周で消える。
+ *   ところがエステ魂は、非公開にした瞬間にその方が対象から外れ、それまでに送ってあった出勤が最長14日ぶん載ったままになる。
+ *   ＝お客様には「出勤する人」に見える。
+ *
+ * ★ 決まり:
+ *   ・公開中の方は、今までどおり全員（結んでいない方は名前で探す。居なければ「更新していません」と出す）。
+ *   ・非公開の方は、次の3つがそろうときだけ入れる（＝出勤を消しに行く相手）。
+ *       ① エステ魂の番号が結んである（★ 名前では探さない。同名の別の方を巻き込まない）
+ *       ② その番号がいまエステ魂の名簿に居る
+ *       ③ この期間のフクエスの出勤の行がある（非公開にしたとき、お休みに書き換わった行）
+ *     そろわない非公開の方は、黙って外す（★ 「更新していません」の行を増やさない。店舗様がすることは無い）。
+ */
+export function pickEsutamaTargets(input: {
+  therapists: ReadonlyArray<{ therapistId: number; name: string; active: boolean }>;
+  links: ReadonlyArray<{ therapistId: number; castId: string }>;
+  rosterCastIds: ReadonlyArray<string>;
+  /** この期間に出勤の行がある方の therapistId（お休みの行も数える） */
+  shiftTherapistIds: ReadonlyArray<number>;
+}): Array<{ therapistId: number; name: string }> {
+  const linkOf = new Map<number, string>();
+  for (const l of input.links) if (l.castId) linkOf.set(l.therapistId, l.castId);
+  const onRoster = new Set(input.rosterCastIds);
+  const hasRows = new Set(input.shiftTherapistIds);
+  const out: Array<{ therapistId: number; name: string }> = [];
+  for (const t of input.therapists) {
+    if (!t.name) continue;
+    if (!t.active) {
+      const cid = linkOf.get(t.therapistId);
+      if (!cid || !onRoster.has(cid) || !hasRows.has(t.therapistId)) continue;
+    }
+    out.push({ therapistId: t.therapistId, name: t.name });
+  }
+  return out;
+}
+
+/** 自動で「出勤がすべて無くなる書き換え」を止めるのは、対象がこの人数以上のときだけ */
+export const ESUTAMA_HOLD_CLEARS_MIN_PEOPLE = 3;
+
+/**
+ * ★★★ 第1274便（2026-10-07・カッキーさんの決定）: 自動（work_auto）で、出勤がすべて無くなる書き換えを止めるか。
+ *
+ * ★ これまで: 「その方の ○ が全部消える書き換え」は、自動では1人ずつ必ず止めていた。
+ *   → 当日欠勤（この2週間で出勤がその日だけの方）と、非公開にした方の出勤が、エステ魂に残り続けた。
+ *     いちばん急いで消したい変更が止まっていた。
+ * ★ これから: 止めるのは【フクエス側の出勤が、対象の全員ぶん1件も無い】ときだけ。
+ *   ＝コネックエフに出勤をまだ入れていない店で、エステ魂に直接入れてある出勤を全員ぶん消してしまう事故を防ぐ。
+ *   それ以外（誰か1人でも出勤が入っている）は、消える変更も自動で送る。
+ *   ★ 人が押す「いますぐ更新する」（work_push）は、今までどおりいつでも送る。
+ */
+export function shouldHoldEsutamaClears(people: ReadonlyArray<EsutamaPerson>): boolean {
+  if (people.length < ESUTAMA_HOLD_CLEARS_MIN_PEOPLE) return false;
+  return people.every((p) => p.days.every((d) => d.range === null));
+}
+
+/**
  * 誰に何を送るかを決める。
  * @param roster 媒体側の名簿。★ null は【読めていない】。空配列（0人）とは別物
  * @param windowDates 送る対象の日（エステ魂の表にある日。通常は今日〜13日後）

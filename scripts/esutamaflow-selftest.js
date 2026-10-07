@@ -212,9 +212,18 @@ const ctxP = Object.assign({}, ctxW, { intent: 'work_push' });
   // れみ の計画を「全部なし」にする → 21:00〜24:00 が消える書き換え
   const clearPeople = [Object.assign({}, people[0], { days: [{ dateISO: D[0], range: null }, { dateISO: D[1], range: null }, { dateISO: D[2], range: null }] }), people[1]];
   const c = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxA, { esutamaPeople: clearPeople }), NOW);
-  eq('work_auto: ○ が全部消える人は送らず次へ（auto_would_clear）', [c.kind, c.next.purpose, c.audits[1].detail.reason], ['next', 'esutama_work_read', 'auto_would_clear']);
+  // ★★★ 第1274便（2026-10-07・カッキーさんの決定）: 止めるのは「フクエス側の出勤が全員ぶん空」のときだけ（esutamaHoldClears）。
+  //   それ以外は、○ が全部消える方（当日欠勤・非公開にした方）も自動で送る。
+  eq('★★★ work_auto: ○ が全部消える方も、ふつうは保存を積む（当日欠勤・非公開の方の出勤を消す）', [c.kind, c.next.purpose], ['next', 'esutama_work_save']);
+  const ch = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxA, { esutamaPeople: clearPeople, esutamaHoldClears: true }), NOW);
+  eq('★★★ work_auto: フクエス側が全員ぶん空（旗あり）なら送らず次へ（auto_would_clear）', [ch.kind, ch.next.purpose, ch.audits[1].detail.reason], ['next', 'esutama_work_read', 'auto_would_clear']);
+  eq('★★ 止めたときの文は、いまの画面の名前で言う', /「出勤をサイトへ」の「いますぐ更新する」/.test(ch.audits[1].summary), true);
+  const cf = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxA, { esutamaPeople: clearPeople, esutamaHoldClears: false }), NOW);
+  eq('★ 旗が false なら送る', cf.next.purpose, 'esutama_work_save');
   const cp = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxA, { intent: 'work_push', esutamaPeople: clearPeople }), NOW);
   eq('人が押す work_push なら全消しも送る', cp.next.purpose, 'esutama_work_save');
+  const cph = F.afterEsutamaWorkRead({ status: 200, headers: {}, body: pageRemi }, Object.assign({}, ctxA, { intent: 'work_push', esutamaPeople: clearPeople, esutamaHoldClears: true }), NOW);
+  eq('★★ 人が押す work_push は、旗があっても送る', cph.next.purpose, 'esutama_work_save');
 }
 
 // ── advanceFlow から段へ届く ──

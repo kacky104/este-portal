@@ -812,13 +812,16 @@ export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: 
       }], '承認した内容と違うので送らない');
     }
   }
-  // ★★★ 無人（work_auto）の守り: その人の ○ が全部消える書き換えは自動では送らない（人が見て送る）
-  if (ctx.intent === 'work_auto' && d.workingBefore > 0 && d.workingAfter === 0) {
+  // ★★★ 無人（work_auto）の守り: その人の ○ が全部消える書き換えを、自動では送らない場合がある。
+  //   ★★★ 第1274便（2026-10-07・カッキーさんの決定）: 止めるのは【フクエス側の出勤が全員ぶん空】のときだけ（ctx.esutamaHoldClears）。
+  //     これまでは1人ずつ必ず止めていたので、当日欠勤と、非公開にした方の出勤が、エステ魂に残り続けていた。
+  //     判断は lib/esutamaPlan.ts の shouldHoldEsutamaClears（計画の時点で決めて文脈に入れてある）。
+  if (ctx.intent === 'work_auto' && ctx.esutamaHoldClears === true && d.workingBefore > 0 && d.workingAfter === 0) {
     return nextEsutamaPerson(base, [readAudit, {
       event: 'write_work', outcome: 'stopped',
-      summary: 'この方の出勤がすべて無くなる内容のため、自動では送りませんでした。「出勤を送る」の画面から確認して送ってください',
+      summary: 'コネックエフに出勤が1件も入っていないため、エステ魂の出勤を消す内容は自動では送りませんでした。「出勤をサイトへ」の「いますぐ更新する」で確認して送ってください',
       detail: { castId: d.castId, reason: 'auto_would_clear', workingBefore: d.workingBefore, flowId },
-    }], '無人で全消しはしない');
+    }], '無人で全消しはしない（フクエス側が全員ぶん空）');
   }
   // ★★ 送る。読んだ表そのもの（当てたあと）を丸ごと送る
   let fields: Array<[string, string]>;
