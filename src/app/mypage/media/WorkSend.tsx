@@ -16,7 +16,7 @@ import {
 import { bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { siteMark } from '@/lib/mediaSites';
 import { AUTO_PUSH_INTERVAL_MIN } from '@/lib/mediaLinkMode';
-import { splitWorkNotes, workNoteNames } from '@/lib/workSendNotes';
+import { splitWorkNotes, workNoteLine } from '@/lib/workSendNotes';
 
 // 出勤を送る（第57便・㉞ その2）。
 //
@@ -639,15 +639,17 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     ★ 分け方（lib/workSendNotes.ts の splitWorkNotes）:
                       ・その方の出勤が【送れていない】もの … 見える所に、名前を添えて出す（店舗様が直せる・気づける所）
                       ・更新の内容についてのお知らせ       … 畳む（読みたい人だけ開く）。「止めた理由ではない」と先に言う
+                      ・★ 第1268便: 「出勤を入れていない日（◯件）は…お休み」は【出さない】（意味が無く、混乱のもと・カッキーさんの決定）
                     ★ 止めた理由（blockers・赤い枠）は今までどおり上に出る。★ 文そのものは lib/workPlan.ts。 */}
                 {plan && (() => {
                   const { unsent, info } = splitWorkNotes(plan.notes);
+                  // ★ 第1268便: 名前が人数ぶん分かるときは「◯名は」を名前に置き換える（workNoteLine）
                   const line = (n: WorkPlanView['notes'][number]) => {
-                    const names = workNoteNames(n);
+                    const l = workNoteLine(n);
                     return (
                       <>
-                        {n.detail}
-                        {names && <span className="block mt-0.5 text-[13px] font-bold">{names}</span>}
+                        {l.text}
+                        {l.names && <span className="block mt-0.5 text-[13px] font-bold">{l.names}</span>}
                       </>
                     );
                   };

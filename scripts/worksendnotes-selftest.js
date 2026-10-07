@@ -21,8 +21,10 @@ const N = (kind, detail, extra) => ({ kind, detail, ...(extra || {}) });
   ];
   const r = m.splitWorkNotes(notes);
   eq('★★★ 送れていない方は1行（出勤表に出ていない）', r.unsent.map((n) => n.kind), ['unmapped_therapist']);
-  eq('★★★ 残り3行はお知らせ（畳む側）', r.info.map((n) => n.kind), ['missing_row_as_rest', 'unknown_girl', 'target_off']);
-  eq('★ 並びは渡された順のまま', r.info[0].detail.startsWith('出勤を入れていない日'), true);
+  // ★ 第1268便: 「出勤を入れていない日（66件）」は出さない（カッキーさんの決定）
+  eq('★★★ お知らせ（畳む側）は2行。入力が無い日の行は出さない', r.info.map((n) => n.kind), ['unknown_girl', 'target_off']);
+  eq('★★★ 入力が無い日の行は、どちらの側にも出ない', [...r.unsent, ...r.info].some((n) => n.kind === 'missing_row_as_rest'), false);
+  eq('★ 並びは渡された順のまま', r.info[0].detail.startsWith('1名は、駅ちかにだけ'), true);
 }
 
 // ── 種類ごと ──
@@ -35,6 +37,9 @@ eq('★★★ 古い計画: 「送らない」が unmapped_therapist で保存�
   m.splitWorkNotes([N('unmapped_therapist', '1名は送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）')]), {
     unsent: [], info: [N('unmapped_therapist', '1名は送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）')],
   });
+eq('★★★ 第1267便より前の言い方（◯件は、フクエス側に入力が無い日のため…）で保存された行も出さない',
+  m.splitWorkNotes([N('missing_row_as_rest', '66件は、フクエス側に入力が無い日のため「お休み」として扱いました（駅ちかは部分更新ができないため、入力が無い＝お休みになります）')]),
+  { unsent: [], info: [] });
 eq('★ 空・null', [m.splitWorkNotes(null), m.splitWorkNotes([])], [{ unsent: [], info: [] }, { unsent: [], info: [] }]);
 eq('★ 文が無い行は捨てる（画面を壊さない）', m.splitWorkNotes([{ kind: 'unknown_girl' }, null]), { unsent: [], info: [] });
 
@@ -46,6 +51,25 @@ eq('★ 空の配列も null', m.workNoteNames(N('unknown_girl', 'x', { names: [
 eq('★ 空白だけの名前は数えない', m.workNoteNames(N('unknown_girl', 'x', { names: [' ', ''] })), null);
 eq('★★ 上限を超えたら「ほか◯名」', m.workNoteNames(N('unknown_girl', 'x', { names: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] })), '対象：1・2・3・4・5・6・7・8（ほか2名）');
 eq('★ null を渡しても落ちない', m.workNoteNames(null), null);
+
+// ── 第1268便: 「◯名は」を名前に置き換える ──
+eq('★★★ 1名＋名前1つ → 名前で言う', m.workNoteLine(N('unmapped_therapist', '1名は、いま駅ちかの出勤表に出ていないため更新できません', { names: ['さくら'] })),
+  { text: 'さくら さんは、いま駅ちかの出勤表に出ていないため更新できません', names: null });
+eq('★★ 読点が無い文（連携していない）でも同じ', m.workNoteLine(N('unmapped_therapist', '2名は駅ちかと連携していないため更新できません。「セラピスト設定」で連携してください', { names: ['あい', 'いく'] })).text,
+  'あい・いく さんは、駅ちかと連携していないため更新できません。「セラピスト設定」で連携してください');
+eq('★★ 駅ちかにだけ登録がある方', m.workNoteLine(N('unknown_girl', '1名は、駅ちかにだけ登録がある方です。その方の出勤には触っていません', { names: ['ゆい'] })).text,
+  'ゆい さんは、駅ちかにだけ登録がある方です。その方の出勤には触っていません');
+eq('★★ 送らないにしている方', m.workNoteLine(N('target_off', '1名は、送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）', { names: ['まい'] })).text,
+  'まい さんは、送り先サイトで「送らない」にしているため更新していません（すでに載っている出勤はそのままです）');
+eq('★★★ 名前が無ければ文はそのまま', m.workNoteLine(N('unmapped_therapist', '1名は、いま駅ちかの出勤表に出ていないため更新できません')),
+  { text: '1名は、いま駅ちかの出勤表に出ていないため更新できません', names: null });
+eq('★★★ 名前が人数より少ないときは置き換えない（人数をごまかさない）・名前は別の行',
+  m.workNoteLine(N('unmapped_therapist', '3名は、いま駅ちかの出勤表に出ていないため更新できません', { names: ['さくら'] })),
+  { text: '3名は、いま駅ちかの出勤表に出ていないため更新できません', names: '対象：さくら' });
+eq('★★ 人数が上限を超えるときも置き換えない', m.workNoteLine(N('unknown_girl', '10名は、駅ちかにだけ登録がある方です。その方の出勤には触っていません', { names: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'] })).names,
+  '対象：1・2・3・4・5・6・7・8（ほか2名）');
+eq('★ 「◯名は」で始まらない文はそのまま・名前は別の行', m.workNoteLine(N('time_snapped', '1件は、駅ちかが30分刻みのため時刻を寄せて反映しました', { names: ['さくら'] })),
+  { text: '1件は、駅ちかが30分刻みのため時刻を寄せて反映しました', names: '対象：さくら' });
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

@@ -14,6 +14,15 @@ export type WorkNote = { kind: string; detail: string; count?: number; names?: s
 const UNSENT_KINDS: readonly string[] = ['unmapped_therapist', 'time_not_selectable'];
 
 /**
+ * ★★★ 画面に出さない種類（第1268便・2026-10-07・カッキーさんの決定）。
+ *   'missing_row_as_rest'＝「出勤を入れていない日（◯件）は、駅ちかでは『お休み』として出しています」。
+ *   ★ 出勤を入れていない日が休みになるのは当たり前で、店舗様にとって意味が無い。しかも件数（66件）が何かの異常に読めて混乱する
+ *     （ラビリンス様）。言い換えても（第1267便）同じだったので、出さない。
+ *   ★ 消すのは【表示】だけ。計画（media_work_plans.notes）には今までどおり残る＝運営が調べるときは読める。
+ */
+const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest'];
+
+/**
  * ★ 第1267便より前に保存された計画では、「送らない」にしている方のお知らせも 'unmapped_therapist' だった。
  *   計画は更新のたびに作り直されるので、古い行はすぐ無くなる。そのあいだだけ、文で見分けて「お知らせ」の側に出す。
  */
@@ -26,6 +35,7 @@ export function splitWorkNotes(notes: ReadonlyArray<WorkNote> | null | undefined
   const info: WorkNote[] = [];
   for (const n of notes ?? []) {
     if (!n || typeof n.detail !== 'string') continue;
+    if (HIDDEN_KINDS.includes(n.kind)) continue;
     if (UNSENT_KINDS.includes(n.kind) && !isLegacyTargetOff(n)) unsent.push(n);
     else info.push(n);
   }
@@ -44,4 +54,24 @@ export function workNoteNames(n: WorkNote | null | undefined): string | null {
   const shown = names.slice(0, WORK_NOTE_NAMES_MAX);
   const rest = names.length - shown.length;
   return '対象：' + shown.join('・') + (rest > 0 ? '（ほか' + rest + '名）' : '');
+}
+
+/**
+ * ★★★ 画面に出す1行（第1268便・カッキーさん「1名のままで、誰かが分からない」）。
+ *   名前が人数ぶんそろっているときは、文の頭の「◯名は」を【名前】に置き換える:
+ *     「1名は、いま駅ちかの出勤表に出ていないため更新できません」
+ *       → 「さくら さんは、いま駅ちかの出勤表に出ていないため更新できません」
+ *   ★ 名前が足りない（人数と合わない）・多すぎる（上限超え）・文が「◯名は」で始まらないときは、
+ *     文はそのままにして、名前を別の行（対象：…）で添える。★ 人数をごまかさない。
+ * @returns text＝出す文／names＝別の行で添える名前（要らなければ null）
+ */
+export function workNoteLine(n: WorkNote): { text: string; names: string | null } {
+  const names = (Array.isArray(n.names) ? n.names : [])
+    .map((x) => (typeof x === 'string' ? x.trim() : ''))
+    .filter((x) => x.length > 0);
+  const m = /^(\d+)名は、?/.exec(n.detail);
+  if (m && names.length > 0 && names.length === Number(m[1]) && names.length <= WORK_NOTE_NAMES_MAX) {
+    return { text: names.join('・') + ' さんは、' + n.detail.slice(m[0].length), names: null };
+  }
+  return { text: n.detail, names: workNoteNames(n) };
 }
