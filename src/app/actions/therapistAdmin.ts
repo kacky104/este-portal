@@ -4,6 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
+import { deleteTherapistCore } from '@/app/lib/therapistDelete';
 
 // セラピスト削除・プロフィール画像掃除のサーバー専用処理（2026-07-12 新設）。
 //
@@ -19,7 +20,6 @@ import { businessDateJSTFrom } from '@/lib/dutyStatus';
 //  - storage 掃除は best-effort：失敗しても行削除は続行（孤児は残るが公開面は消える）。
 
 const THERAPIST_BUCKET = 'therapist-photos';
-const DIARY_BUCKET = 'diary-images';
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -74,69 +74,9 @@ export async function deleteTherapistWithCleanup(input: {
   const auth = await assertOwner(salonId);
   if ('error' in auth) return { ok: false, error: auth.error };
 
-  const svc = createServiceClient();
-
-  // 対象が当該サロン所属か検証しつつ、掃除対象のプロフィール画像URLを行削除前に控える。
-  const { data: t, error: tErr } = await svc
-    .from('therapists')
-    .select('id, salon_id, profile_image_url, profile_images')
-    .eq('id', therapistId)
-    .maybeSingle();
-  if (tErr) return { ok: false, error: `セラピストの取得に失敗しました: ${tErr.message}` };
-  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
-
-  // 写メ日記の画像URLも行削除前に控える（行が消えると辿れなくなる）。
-  const { data: diaries } = await svc
-    .from('diary_posts')
-    .select('images')
-    .eq('therapist_id', therapistId);
-
-  // 行削除：schedules → diary_posts → therapists の順。
-  const { error: schedErr } = await svc
-    .from('therapist_schedules')
-    .delete()
-    .eq('therapist_id', therapistId);
-  if (schedErr) return { ok: false, error: `出勤スケジュールの削除に失敗しました: ${schedErr.message}` };
-
-  const { error: diaryErr } = await svc
-    .from('diary_posts')
-    .delete()
-    .eq('therapist_id', therapistId);
-  if (diaryErr) return { ok: false, error: `写メ日記の削除に失敗しました: ${diaryErr.message}` };
-
-  const { error: delErr } = await svc
-    .from('therapists')
-    .delete()
-    .eq('id', therapistId)
-    .eq('salon_id', salonId);
-  if (delErr) return { ok: false, error: `削除に失敗しました: ${delErr.message}` };
-
-  // ── ここから storage 掃除（best-effort・失敗しても ok を返す） ──
-  const profilePaths = [
-    ...(Array.isArray(t.profile_images) ? (t.profile_images as string[]) : []),
-    (t.profile_image_url as string | null) ?? null,
-  ]
-    .map((u) => bucketPathFromPublicUrl(u, THERAPIST_BUCKET))
-    .filter((p): p is string => !!p);
-  if (profilePaths.length > 0) {
-    const { error: rmErr } = await svc.storage
-      .from(THERAPIST_BUCKET)
-      .remove([...new Set(profilePaths)]);
-    if (rmErr) console.error('[deleteTherapistWithCleanup] therapist-photos remove failed:', rmErr.message);
-  }
-
-  const diaryPaths = (diaries ?? [])
-    .flatMap((d) => (Array.isArray(d.images) ? (d.images as string[]) : []))
-    .map((u) => bucketPathFromPublicUrl(u, DIARY_BUCKET))
-    .filter((p): p is string => !!p);
-  if (diaryPaths.length > 0) {
-    const { error: rmErr } = await svc.storage
-      .from(DIARY_BUCKET)
-      .remove([...new Set(diaryPaths)]);
-    if (rmErr) console.error('[deleteTherapistWithCleanup] diary-images remove failed:', rmErr.message);
-  }
-
-  return { ok: true };
+  // ★ 第1279便: 消す中身は app/lib/therapistDelete.ts へ移した（中身は変えていない）。ここは権限を確かめて呼ぶだけ。
+  //   ★ コネックエフの削除が「各サイトから消えたことを確かめてから消す」ようになり、中継の流れの中からも同じ中身を呼ぶため。
+  return deleteTherapistCore(createServiceClient(), { therapistId, salonId });
 }
 
 /**

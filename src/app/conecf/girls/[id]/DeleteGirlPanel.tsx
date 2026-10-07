@@ -29,7 +29,11 @@ export function DeleteGirlPanel({ id, enabled, onToast }: { id: number; enabled:
     const r = await deleteConecfGirl({ id, alsoSites: autoSites.length > 0 && alsoSites });
     if (!r.ok) { setBusy(false); onToast(r.error); return; }
     void revalidateSalon(r.data.salonId); void revalidateTherapist(id);
-    onToast(`${r.data.name}さんを削除しました` + (r.data.queued.length > 0 ? `。${r.data.queued.join('・')}は数分で反映されます（結果は「更新結果」）` : ''));
+    // ★★★ 第1279便: 「サイトからも消す」は、各サイトで消えたことを確かめてからコネックエフ側を消す（pending）。
+    //   ★ それまでは非公開の方として一覧に残る。★ 「削除しました」と言い切らない（まだ消していない）。
+    onToast(r.data.pending
+      ? `${r.data.name}さんの削除を受け付けました。${r.data.queued.join('・')}で消えたことを確かめてから、コネックエフからも消します（数分かかります）。それまでは非公開になります`
+      : `${r.data.name}さんを削除しました`);
     window.location.href = href('/girls');
   };
 
@@ -54,6 +58,13 @@ export function DeleteGirlPanel({ id, enabled, onToast }: { id: number; enabled:
           <p className="font-bold text-[#c62828]">{info.name}さんを削除します。元に戻せません</p>
           <ul className="text-[13px] text-slate-600 leading-relaxed list-disc pl-5">
             <li>コネックエフとフクエスから、プロフィール・写真・出勤・写メ日記が消えます</li>
+            {/* ★ 第1279便: 順番を言う（押してすぐ一覧から消えるわけではない） */}
+            {autoSites.length > 0 && alsoSites && (
+              <li>
+                まず非公開にして、{autoSites.map(siteName).join('・')}から消えたことを確かめてから、コネックエフからも消します（数分）。
+                サイト側で消せなかったときは、非公開のまま一覧に残ります（もう一度「削除」を押せます）
+              </li>
+            )}
             {info.linked.length === 0 && <li>サイトとの連携はありません</li>}
             {manualSites.length > 0 && (
               <li className="text-[#c62828] font-bold">
@@ -67,7 +78,7 @@ export function DeleteGirlPanel({ id, enabled, onToast }: { id: number; enabled:
               <span>
                 <b>サイトからも一緒に消す</b>：
                 {autoSites.map((l) => siteName(l) + (l.auto === 'delete' ? 'は削除' : 'は非表示')).join('・')}
-                <span className="block text-[12px] text-slate-500">駅ちかで削除した写真・情報は戻せません。エステ魂は非表示なので、エステ魂の画面から戻せます。反映は数分後です。</span>
+                <span className="block text-[12px] text-slate-500">駅ちかで削除した写真・情報は戻せません。エステ魂は非表示なので、エステ魂の画面から戻せます</span>
               </span>
             </label>
           )}

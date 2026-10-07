@@ -66,6 +66,8 @@ import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
 import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
 import { planEsutamaWork, pickEsutamaTargets, shouldHoldEsutamaClears } from '@/lib/esutamaPlan';
 import { isAutomaticActor, loginBackoff, LOGIN_BACKOFF_MIN } from '@/lib/loginBackoff';
+import { isSiteGoneAudit } from '@/lib/girlDeleteFinish';
+import { finishGirlDelete } from '@/app/lib/conecf/girlDeleteFinish';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
 // ★★★ 営業日（朝6時始まり）の正本（第151便）。★ 段の中で暦日を書かない
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
@@ -270,6 +272,12 @@ export async function startRelayFlow(params: {
    * ★★★ castId が入っていなければ、一覧を読んだあと**何も消さずに終わる**。★ それが安全装置。
    */
   girlDelete?: { castId: string };
+  /**
+   * ★ 第1279便: intent='girl_delete' / 'cast_hide' で、コネックエフの削除（「サイトからも一緒に消す」）から積むときだけ。
+   *   流れが終わって、待っているサイトすべてで「消えた」と確かめられたら、本人を消す。
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
+   */
+  deleteAfter?: { therapistId: number; requestedAt: string; waitFor: Array<{ provider: string; slot: number; castId: string }> };
   /**
    * intent='cast_hide' のときだけ（第229便）。★ **非表示にする相手は1人だけ。**
    * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（girlDelete と同じ作法）。
@@ -496,6 +504,8 @@ export async function startRelayFlow(params: {
       : {}),
     // ★★★ 削除（第228便）。★ 渡されたときだけ入れる。★ 入っていなければ何も消さない
     ...(params.girlDelete ? { deleteCastId: String(params.girlDelete.castId) } : {}),
+    // ★ 第1279便: 削除の続き（各サイトで確かめ終わったら本人を消す）。★ 渡されたときだけ入れる
+    ...(params.deleteAfter ? { deleteAfter: params.deleteAfter } : {}),
     ...(params.castHide ? { hideCastId: String(params.castHide.castId) } : {}),
     ...(params.castCreate
       ? {
@@ -990,6 +1000,29 @@ export async function advanceRelayFlow(params: {
         ? 'stop'   // ★ 上の esutamaLoginFailed で拾っている。型を閉じるためだけ
         : outcome.kind;
   await stampCredential(params, settle, audits);
+
+  // ★★★ 第1279便: 削除の続き。流れが終わったところで、各サイトから消えたことを確かめ終わっていれば本人を消す。
+  //   ★ 記録（writeAudits）を書き終えた【あと】でやること。2つのサイトの流れがほぼ同時に終わっても、
+  //     あとから書いた側が、先に書いた側の記録を必ず見られる（どちらも消さないまま終わる、を作らない）。
+  //   ★ このサイトで確かめられたか:
+  //     ・駅ちか … 一覧を読み直して、その方がもう居ない（outcome.mediaRemoved）
+  //     ・エステ魂 … 非表示を確かめた／もともと非表示／一覧に居ない（この流れの記録から・lib/girlDeleteFinish.ts）
+  //   ★ 失敗しても流れは止めない（相手サイトの削除は済んでいる）。黙らない（記録に残す）。
+  if (!next && context.deleteAfter) {
+    try {
+      const da = context.deleteAfter;
+      const mine = da.waitFor.find((s) => s.provider === params.provider && Number(s.slot) === Number(params.slot));
+      const removed = outcome.kind === 'done' && 'mediaRemoved' in outcome && outcome.mediaRemoved != null;
+      const byAudit = mine !== undefined && audits.some((a) => isSiteGoneAudit(
+        { provider: params.provider, slot: params.slot, event: a.event, outcome: a.outcome, detail: a.detail }, mine,
+      ));
+      const r = await finishGirlDelete(params, da, removed || byAudit);
+      note = note + ' → ' + r;
+    } catch (e) {
+      console.error('[relay] 削除の続きで落ちた（本人は消していない）', params.jobId, e instanceof Error ? e.message : 'unknown');
+      note = note + ' → ★ 削除の続きで落ちた（本人は消していない）';
+    }
+  }
 
   if (!next) return { note };
   const r = await enqueueRelayJob({

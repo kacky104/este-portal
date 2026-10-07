@@ -477,6 +477,13 @@ export type RelayFlowContext = {
 
   // ── ここから下は intent='girl_delete' のときだけ入る（第228便）──
   /** ★★★ 消す相手（駅ちかの castId）。★ **1人だけ。** ★ 空なら何もせず終わる */
+  /**
+   * ★★★ 第1279便: この流れ（girl_delete / cast_hide）は、店舗様が「サイトからも一緒に消す」で押した削除の一部。
+   *   各サイトから消えたことを確かめ終わったら、コネックエフ・フクエス側の本人を消す（app/lib/conecf/girlDeleteFinish.ts）。
+   *   ★ 入っていなければ、今までどおり相手サイトの削除だけ（運営の口など）。
+   *   ★ 形は lib/girlDeleteFinish.ts の DeleteAfter。
+   */
+  deleteAfter?: { therapistId: number; requestedAt: string; waitFor: Array<{ provider: string; slot: number; castId: string }> };
   deleteCastId?: string;
   /** 段。undefined＝これから消す ／ 'verify'＝消したあとの照合 */
   deleteStage?: 'verify';

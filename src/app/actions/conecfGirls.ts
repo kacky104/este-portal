@@ -11,7 +11,7 @@ import {
 } from '@/lib/conecfGirl';
 import { parseBodyType } from '@/lib/bodyType';
 import { sanitizeBadges } from '@/lib/therapistBadges';
-import { deleteTherapistWithCleanup } from '@/app/actions/therapistAdmin';
+import { deleteTherapistWithCleanup, setTherapistActive } from '@/app/actions/therapistAdmin';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { isSavableTarget } from '@/lib/conecfTargets';
 import { therapistNameDupMessage } from '@/lib/therapistNameDup';
@@ -465,8 +465,17 @@ export async function getConecfGirlDeleteInfo(input: { id: number }): Promise<Re
 
 /**
  * @param alsoSites サイトからも消すなら true（★ 駅ちかは削除・エステ魂は非表示）。false ならコネックエフだけ
+ *
+ * ★★★ 第1279便（2026-10-07・カッキーさんの OK）: 「サイトからも消す」の順番を逆にした。
+ *   これまで … 各サイトへの依頼を【積めた時点】で、すぐにコネックエフ・フクエス側の本人を消していた。
+ *             相手サイトでの実際の削除は数分後。そこで失敗すると、本人がもう居ないのでやり直せず、退店した方が駅ちかに残った。
+ *   これから … ① すぐ非公開にする ② 各サイトへ依頼する ③ 各サイトで【消えたことを確かめてから】本人を消す。
+ *             ③ は中継の流れの終わり（app/lib/conecf/girlDeleteFinish.ts）。確かめられなかったら消さない（非公開のまま残る）。
+ *   ★ 依頼を1つも積まないとき（サイトからは消さない・連携が無い・自動で消せるサイトが無い）は、今までどおりすぐ消す。
+ *
+ * @returns pending … true なら、本人はまだ消していない（各サイトで確かめ終わったら消える）
  */
-export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }): Promise<Result<{ salonId: number; name: string; queued: string[]; manual: string[] }>> {
+export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }): Promise<Result<{ salonId: number; name: string; queued: string[]; manual: string[]; pending: boolean }>> {
   const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId } = r.data;
@@ -476,57 +485,51 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
 
   const queued: string[] = [];
   const manual: string[] = [];
-  /** ★ 第436便: 名簿の写しから外す番号（provider/slot/castId） */
-  const pruned: Array<{ provider: string; slot: number; castId: string }> = [];
   if (input.alsoSites === true) {
     const { data: legacy } = await svc.from('therapists').select('import_cast_id').eq('id', Number(t.id)).maybeSingle();
     const sites = await linkedSites(svc, salonId, Number(t.id), (legacy?.import_cast_id as string | null) ?? null);
-    for (const site of sites) {
-      if (!site.auto || !/^\d{1,12}$/.test(site.castId)) { manual.push(site.label); continue; }
-      let f;
-      try {
-        f = site.auto === 'delete'
-          ? await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'girl_delete', actor: 'conecf:girl-delete', girlDelete: { castId: site.castId } })
-          : await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'cast_hide', actor: 'conecf:girl-delete', castHide: { castId: site.castId } });
-      } catch (e) {
-        console.error('[conecf] 退店のサイト依頼を積めなかった', (e as Error).message);
-        f = { ok: false as const, note: '開始できませんでした' };
+    const autoSites = sites.filter((site) => site.auto && /^\d{1,12}$/.test(site.castId));
+    for (const site of sites) if (!autoSites.includes(site)) manual.push(site.label);
+
+    if (autoSites.length > 0) {
+      // ① すぐ非公開にする（フクエスから消える・今すぐと、この先の出勤も外れる）。
+      //   ★ ここが通らなければ、何も依頼しない（公開されたまま「削除中」にしない）。
+      const off = await setTherapistActive({ therapistId: String(t.id), salonId, isActive: false, via: 'conecf' });
+      if (!off.ok) return { ok: false, error: '削除を始められませんでした（' + off.error + '）' };
+
+      // ② 各サイトへ依頼する。★ 待つサイトの一覧と依頼の時刻を、流れの文脈に入れて持ち回す
+      const deleteAfter = {
+        therapistId: Number(t.id),
+        requestedAt: new Date().toISOString(),
+        waitFor: autoSites.map((site) => ({ provider: site.provider, slot: site.slot, castId: site.castId })),
+      };
+      for (const site of autoSites) {
+        let f;
+        try {
+          f = site.auto === 'delete'
+            ? await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'girl_delete', actor: 'conecf:girl-delete', girlDelete: { castId: site.castId }, deleteAfter })
+            : await startRelayFlow({ salonId, provider: site.provider, slot: site.slot, intent: 'cast_hide', actor: 'conecf:girl-delete', castHide: { castId: site.castId }, deleteAfter });
+        } catch (e) {
+          console.error('[conecf] 退店のサイト依頼を積めなかった', (e as Error).message);
+          f = { ok: false as const, note: '開始できませんでした' };
+        }
+        if (!f.ok) {
+          const why = 'reason' in f && f.reason === 'busy' ? 'いま' + site.label + 'で別の更新が動いています' : (f.note || '開始できませんでした');
+          // ★ 本人は消していない（非公開にしただけ）。少し待って、もう一度「削除」を押せる。
+          //   ★ 先に依頼を積めたサイトは、そのまま進む（消えたら、そのサイトの連携は外れる）。本人は、残りのサイトが済むまで消えない。
+          return { ok: false, error: site.label + 'への依頼を受け付けられませんでした（' + why + '）。'
+            + name + 'さんは非公開にしてあり、まだ削除していません。'
+            + (queued.length > 0 ? queued.join('・') + 'には依頼済みです。' : '') + '少し待ってから、もう一度「削除」を押してください' };
+        }
+        queued.push(site.label + (site.auto === 'delete' ? '（削除）' : '（非表示）'));
       }
-      if (!f.ok) {
-        const why = 'reason' in f && f.reason === 'busy' ? 'いま' + site.label + 'で別の更新が動いています' : (f.note || '開始できませんでした');
-        return { ok: false, error: site.label + 'への依頼を受け付けられなかったため、削除を止めました（' + why + '）。'
-          + (queued.length > 0 ? queued.join('・') + 'には依頼済みです。' : '') + '少し待ってからもう一度お試しください' };
-      }
-      queued.push(site.label + (site.auto === 'delete' ? '（削除）' : '（非表示）'));
-      pruned.push({ provider: site.provider, slot: site.slot, castId: site.castId });
+      // ③ は、各サイトで消えたことを確かめ終わったところで（app/lib/conecf/girlDeleteFinish.ts）
+      return { ok: true, data: { salonId, name, queued, manual, pending: true } };
     }
   }
 
+  // ★ 依頼を1つも積まない（サイトからは消さない・連携が無い・自動で消せるサイトが無い）＝今までどおり、すぐ消す
   const res = await deleteTherapistWithCleanup({ therapistId: String(t.id), salonId });
-  if (!res.ok) return { ok: false, error: res.error + (queued.length > 0 ? '（' + queued.join('・') + 'には依頼済みです）' : '') };
-  // ★★ 第436便: 消した人を【名簿の写し】からも外す（★ 外さないと「名前が同じ」の候補に出続け、
-  //   ★ 次に同じ名前の子を作ったとき、もう居ない相手に結びついてしまう・2026-09-18 00:08 に踏んだ）
-  await pruneRosterSnapshots(svc, salonId, pruned);
-  return { ok: true, data: { salonId, name, queued, manual } };
-}
-
-/**
- * ★★ 第436便: 名簿の写し（media_roster_snapshots）から、消した／非表示にした番号を外す。
- *   ★ 写しは「相手の画面をこの時刻に読んだ結果」なので、書き換えるのは本当は読み直しの役目。
- *     ★ でも読み直しは中継の周を待つ（数分）。★ その間に「名前が同じ」の候補として出てしまう。
- *   → ★ こちらが消した番号だけを、その場で抜く（★ ほかの行は触らない）。★ 次の読み直しで写しは正しくなる
- */
-async function pruneRosterSnapshots(svc: Svc, salonId: number, rows: Array<{ provider: string; slot: number; castId: string }>): Promise<void> {
-  for (const r of rows) {
-    const { data } = await svc.from('media_roster_snapshots').select('entries, total')
-      .eq('salon_id', salonId).eq('provider', r.provider).eq('slot', r.slot).maybeSingle();
-    const entries = (data?.entries as Array<{ castId?: unknown }> | null) ?? null;
-    if (!Array.isArray(entries)) continue;
-    const next = entries.filter((e) => String(e?.castId ?? '') !== r.castId);
-    if (next.length === entries.length) continue;
-    const { error } = await svc.from('media_roster_snapshots')
-      .update({ entries: next, total: next.length })
-      .eq('salon_id', salonId).eq('provider', r.provider).eq('slot', r.slot);
-    if (error) console.error('[conecf] 名簿の写しから外せなかった', r.provider, error.message);
-  }
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, data: { salonId, name, queued, manual, pending: false } };
 }
