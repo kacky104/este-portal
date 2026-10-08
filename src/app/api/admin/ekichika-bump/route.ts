@@ -4,6 +4,8 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { shouldBumpNow, type BumpSetting } from '@/lib/ekichikaBump';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
+// ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
+//   ★ 道（URL）は変えない＝crontab はそのまま。★ 押し方は lib/esutamaAppealFlow.ts、押すかの判断は同じ shouldBumpNow。
 //   POST /api/admin/ekichika-bump  (Authorization: Bearer <CRON_SECRET>)
 //   body: { apply?: boolean }   … ★ apply 既定 false（試し打ち）＝誰に押しに行くつもりかを返すだけ。中継ジョブを積まない
 //
@@ -22,6 +24,7 @@ export const maxDuration = 60;
 
 type Row = {
   salon_id: number;
+  provider: string;
   slot: number | null;
   bump_start_min: number | null;
   bump_end_min: number | null;
@@ -46,13 +49,13 @@ export async function POST(req: Request) {
   const now = new Date();
   const { data, error } = await svc
     .from('salon_import_sources')
-    .select('salon_id, slot, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_read_at, bump_auto_at')
-    .eq('provider', 'ekichika')
+    .select('salon_id, provider, slot, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_read_at, bump_auto_at')
+    .in('provider', ['ekichika', 'esutama'])
     .eq('bump_auto', true);
   // ★ 列が無い（追加SQL_第1305便が未適用）ときもここで返す。★ 何もしない
   if (error) return NextResponse.json({ ok: false, error: '自動の上位表示の設定を読めなかった: ' + error.message }, { status: 500 });
 
-  const results: Array<{ salonId: number; slot: number; reason: string; started?: boolean; note?: string }> = [];
+  const results: Array<{ salonId: number; provider: string; slot: number; reason: string; started?: boolean; note?: string }> = [];
   for (const r of (data ?? []) as Row[]) {
     const slot = Number(r.slot ?? 1);
     const setting: BumpSetting = {
@@ -65,24 +68,24 @@ export async function POST(req: Request) {
       now, setting,
       state: { lastAt: r.bump_last_at, remaining: r.bump_remaining, readAt: r.bump_read_at, autoAt: r.bump_auto_at },
     });
-    if (!judge.bump || !apply) { results.push({ salonId: r.salon_id, slot, reason: judge.reason }); continue; }
+    if (!judge.bump || !apply) { results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: judge.reason }); continue; }
 
     // ★ 始める前に「始めた時刻」を書く（同じ枠を立て続けに始めない）。★ 書けなければ始めない（二重に押しに行かない側）
     const { error: aErr } = await svc.from('salon_import_sources')
       .update({ bump_auto_at: now.toISOString() })
-      .eq('salon_id', r.salon_id).eq('provider', 'ekichika').eq('slot', slot);
-    if (aErr) { results.push({ salonId: r.salon_id, slot, reason: 'mark_failed', note: aErr.message }); continue; }
+      .eq('salon_id', r.salon_id).eq('provider', r.provider).eq('slot', slot);
+    if (aErr) { results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'mark_failed', note: aErr.message }); continue; }
 
     try {
       const f = await startRelayFlow({
-        salonId: r.salon_id, provider: 'ekichika', slot,
+        salonId: r.salon_id, provider: r.provider, slot,
         intent: 'bump_auto', actor: 'cron:ekichika-bump',
         bump: { setting },
       });
-      results.push({ salonId: r.salon_id, slot, reason: 'ok', started: f.ok, note: f.note });
+      results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'ok', started: f.ok, note: f.note });
     } catch (e) {
       console.error('[ekichika-bump] 流れを始められなかった', r.salon_id, slot, e instanceof Error ? e.message : 'unknown');
-      results.push({ salonId: r.salon_id, slot, reason: 'start_failed' });
+      results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'start_failed' });
     }
   }
 

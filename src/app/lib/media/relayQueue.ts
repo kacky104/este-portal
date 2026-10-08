@@ -113,6 +113,10 @@ export type RelayPurpose =
   // ★ 第1305便: 駅ちかの上位表示。★ bump_set だけが相手の回数を減らす（送り直さない・lib/relayRetry.ts）
   | 'read_bump'
   | 'bump_set'
+  // ★ 第1314便: エステ魂の集客ワンクリックアピール。★ esutama_appeal_set だけが相手の回数を減らす（送り直さない）
+  | 'esutama_appeal_read'
+  | 'esutama_appeal_set'
+  | 'esutama_appeal_verify'
   | 'selftest';
 
 export type LeasedJob = {

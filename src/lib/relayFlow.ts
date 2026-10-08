@@ -52,6 +52,8 @@ import {
   type EkichikaDiaryDetail,
 } from './ekichikaDiaryParse';
 import { mergeCookies } from './relayJob';
+// ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）
+import { afterEsutamaAppealRead, afterEsutamaAppealSet, afterEsutamaAppealVerify } from './esutamaAppealFlow';
 // ★ 第1305便: 駅ちかの上位表示（判断と読み取りは ekichikaBump.ts）
 import { EKICHIKA_ADMIN_TOP_URL, EKICHIKA_BUMP_URL, parseEkichikaBumpTop, bumpTopUsable, buildEkichikaBumpBody, parseEkichikaBumpResult, shouldBumpNow, type BumpSetting } from './ekichikaBump';
 // ★ 送る内容の形。★ 型だけ借りる（実体は esutamaRequests。★ 実行時の依存は増やさない）
@@ -1040,7 +1042,9 @@ export type FlowNextRequest = {
     | 'esutama_therapist_list' | 'esutama_diary_token' | 'esutama_diary_proxy'
     | 'esutama_diary_page' | 'esutama_diary_post' | 'esutama_diary_end'
     // ★ 第1305便: 駅ちかの上位表示。★ bump_set だけが相手の回数を減らす
-    | 'read_bump' | 'bump_set';
+    | 'read_bump' | 'bump_set'
+    // ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）。★ esutama_appeal_set だけが相手の回数を減らす
+    | 'esutama_appeal_read' | 'esutama_appeal_set' | 'esutama_appeal_verify';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1611,6 +1615,13 @@ function advanceFlowStep(
     // ── エステ魂のセラピスト設定（第229便）★ 段名で分けている。既存の case には触れていない ──
     case 'esutama_cast_list':
       return afterEsutamaCastList(input, ctx);
+    // ── エステ魂の集客ワンクリックアピール（第1314便）──
+    case 'esutama_appeal_read':
+      return afterEsutamaAppealRead(input, ctx);
+    case 'esutama_appeal_set':
+      return afterEsutamaAppealSet(input, ctx);
+    case 'esutama_appeal_verify':
+      return afterEsutamaAppealVerify(input, ctx);
     case 'esutama_cast_hide':
       return afterEsutamaCastHide(input, ctx);
     // ── セラピストの新規登録（第232便）★ 段名で分けている。既存の case には触れていない ──

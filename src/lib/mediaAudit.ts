@@ -740,24 +740,28 @@ export function defaultAuditSummary(input: {
     }
     // ── 駅ちかの上位表示（第1305便）──
     case 'read_bump': {
+      // ★ 第1314便: エステ魂は「集客ワンクリックアピール（店舗情報）」なので、呼び名を「アピール」にする
+      const what = input.provider === 'esutama' ? 'アピール' : '上位表示';
       const rem = count(d, 'remaining');
       const q = count(d, 'quota');
       s = input.outcome === 'ok'
-        ? `${t}の上位表示の残り回数を確かめました` + (rem !== null ? `（残り${rem}${q !== null ? '/' + q : ''}回）` : '')
-        : `${t}の上位表示の残り回数を読み取れませんでした`;
+        ? `${t}の${what}の残り回数を確かめました` + (rem !== null ? `（残り${rem}${q !== null ? '/' + q : ''}回）` : '')
+        : `${t}の${what}の残り回数を読み取れませんでした`;
       break;
     }
     case 'push_bump': {
+      const esutama = input.provider === 'esutama';
+      const what = esutama ? 'アピール' : '上位表示';
       const rem = count(d, 'remaining');
       const q = count(d, 'quota');
       const left = rem !== null ? `（残り${rem}${q !== null ? '/' + q : ''}回）` : '';
       const why = d?.['reason'];
       const msg = typeof d?.['message'] === 'string' && String(d['message']).length > 0 ? `（${String(d['message'])}）` : '';
       s = input.outcome === 'ok'
-        ? `${t}で上位表示しました` + left
+        ? (esutama ? `${t}で店舗情報をアピールしました` : `${t}で上位表示しました`) + left
         : input.outcome === 'stopped'
-          ? (why === 'no_quota' ? `${t}は本日の上位表示の残り回数がないため、押しませんでした` : `${t}の上位表示は、今回は押しませんでした`)
-          : `${t}で上位表示できませんでした` + msg;
+          ? (why === 'no_quota' ? `${t}は本日の${what}の残り回数がないため、押しませんでした` : `${t}の${what}は、今回は押しませんでした`)
+          : `${t}で${what}できませんでした` + msg;
       break;
     }
     case 'selftest':

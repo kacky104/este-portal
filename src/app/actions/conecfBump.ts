@@ -11,6 +11,13 @@ import { isValidBumpSetting, bumpSlotsPerDay } from '@/lib/ekichikaBump';
 // ★ 駅ちかの管理画面トップの「上位表示する」を、自動（時間帯・間隔）と今すぐの2通りで押す。押すのは中継の流れ（bump_auto / bump_push）。
 // ★ 書き込み（設定の保存・今すぐ押す）は「コネックエフに切り替え済み」でセットを契約している自店だけ（第1243便の守り）。
 // ★ 設定と状態は salon_import_sources の bump_*（provider='ekichika'・枠ごと）。追加SQL_第1305便。
+// ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ口・同じ列（provider='esutama'）。★ 押す流れは lib/esutamaAppealFlow.ts
+
+export type BumpProvider = 'ekichika' | 'esutama';
+const PROVIDER_NAME: Record<BumpProvider, string> = { ekichika: '駅ちか', esutama: 'エステ魂' };
+function okProvider(v: unknown): BumpProvider | null {
+  return v === 'ekichika' || v === 'esutama' ? v : null;
+}
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -48,15 +55,17 @@ export type ConecfBumpSlot = {
 };
 
 /** ready=false … 列がまだ無い（追加SQL_第1305便が未適用）。画面は「準備中」を出す */
-export async function getConecfBump(): Promise<Result<{ salonId: number; ready: boolean; slots: ConecfBumpSlot[] }>> {
+export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Promise<Result<{ salonId: number; ready: boolean; slots: ConecfBumpSlot[] }>> {
+  const provider = okProvider(providerArg);
+  if (!provider) return { ok: false, error: 'サイトの指定が不正です' };
   const r = await resolve(false);
   if (!r.ok) return r;
   const { svc, salonId } = r;
   const [src, cred] = await Promise.all([
     svc.from('salon_import_sources')
       .select('slot, link_mode, bump_auto, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_quota, bump_read_at')
-      .eq('salon_id', salonId).eq('provider', 'ekichika').order('slot', { ascending: true }),
-    svc.from('salon_media_credentials').select('slot, is_enabled').eq('salon_id', salonId).eq('provider', 'ekichika'),
+      .eq('salon_id', salonId).eq('provider', provider).order('slot', { ascending: true }),
+    svc.from('salon_media_credentials').select('slot, is_enabled').eq('salon_id', salonId).eq('provider', provider),
   ]);
   if (src.error) {
     if (/bump_/.test(src.error.message ?? '')) return { ok: true, data: { salonId, ready: false, slots: [] } };
@@ -83,7 +92,9 @@ export async function getConecfBump(): Promise<Result<{ salonId: number; ready: 
 }
 
 /** 自動の設定を保存する */
-export async function saveConecfBump(input: { slot: number; enabled: boolean; startMin: number; endMin: number; intervalMin: number }): Promise<Result<{ perDay: number }>> {
+export async function saveConecfBump(input: { provider?: BumpProvider; slot: number; enabled: boolean; startMin: number; endMin: number; intervalMin: number }): Promise<Result<{ perDay: number }>> {
+  const provider = okProvider(input.provider ?? 'ekichika');
+  if (!provider) return { ok: false, error: 'サイトの指定が不正です' };
   const r = await resolve(true);
   if (!r.ok) return r;
   const slot = Number(input.slot);
@@ -92,22 +103,24 @@ export async function saveConecfBump(input: { slot: number; enabled: boolean; st
   if (!isValidBumpSetting(setting)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
   const { data, error } = await r.svc.from('salon_import_sources')
     .update({ bump_auto: setting.enabled, bump_start_min: setting.startMin, bump_end_min: setting.endMin, bump_interval_min: setting.intervalMin })
-    .eq('salon_id', r.salonId).eq('provider', 'ekichika').eq('slot', slot)
+    .eq('salon_id', r.salonId).eq('provider', provider).eq('slot', slot)
     .select('slot');
   if (error) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
-  if (!data || data.length === 0) return { ok: false, error: '駅ちかの店舗ページが登録されていません。運営事務局までご連絡ください' };
+  if (!data || data.length === 0) return { ok: false, error: `${PROVIDER_NAME[provider]}の店舗ページが登録されていません。運営事務局までご連絡ください` };
   return { ok: true, data: { perDay: bumpSlotsPerDay(setting) } };
 }
 
 /** 今すぐ上位表示する（駅ちかへは1〜2分で届く） */
-export async function runConecfBumpNow(input: { slot: number }): Promise<Result<{ note: string }>> {
+export async function runConecfBumpNow(input: { provider?: BumpProvider; slot: number }): Promise<Result<{ note: string }>> {
+  const provider = okProvider(input.provider ?? 'ekichika');
+  if (!provider) return { ok: false, error: 'サイトの指定が不正です' };
   const r = await resolve(true);
   if (!r.ok) return r;
   const slot = Number(input.slot);
   if (!Number.isInteger(slot) || slot < 1) return { ok: false, error: '枠の指定が不正です' };
   try {
     const f = await startRelayFlow({
-      salonId: r.salonId, provider: 'ekichika', slot,
+      salonId: r.salonId, provider, slot,
       intent: 'bump_push', actor: 'shop:' + r.userId,
       bump: { force: true },
     });

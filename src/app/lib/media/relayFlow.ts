@@ -961,7 +961,8 @@ export async function advanceRelayFlow(params: {
   // ★★ 第1305便: 駅ちかの上位表示の状態（残り回数・最終更新日）を表に書く。★ 周が次に押すかを決める材料。
   //   ★ 書けなくても流れは止めない（次の周がもう一度読みに行くだけ）。★ ただし黙らない（ログに残す）。
   //   ★ 列が無い（追加SQL_第1305便が未適用）ときもここで失敗するだけ。
-  if (outcome.kind === 'done' && outcome.ekichikaBump && params.provider === 'ekichika') {
+  // ★ 第1314便: エステ魂の集客ワンクリックアピールも同じ列に書く（provider='esutama' の行）
+  if (outcome.kind === 'done' && outcome.ekichikaBump && (params.provider === 'ekichika' || params.provider === 'esutama')) {
     const b = outcome.ekichikaBump;
     const { error: bErr } = await createServiceClient()
       .from('salon_import_sources')

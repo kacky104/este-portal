@@ -28,6 +28,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   'girl_create_form', 'girl_create_msg', 'girl_edit_form',
   'article_list', 'article_read', 'article_verify',
   'read_bump',   // ★ 第1305便: 管理画面トップを読むだけ
+  'esutama_appeal_read', 'esutama_appeal_verify',   // ★ 第1314便: エステ魂のアピールの画面を読むだけ
   // ── エステラブ: 読むだけ ──
   'esulove_therapists',
   // ── エステ魂: 読むだけ ──
@@ -54,6 +55,8 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'sokuhime_check', 'sokuhime_set', 'sokuhime_del',
   // ★ 第1305便: 上位表示。★ 届いていれば回数が1つ減っている。返事が無くても押し直さない（二重に減らさない）
   'bump_set',
+  // ★ 第1314便: エステ魂の集客ワンクリックアピール。★ 届いていれば回数が1つ減っている。押し直さない
+  'esutama_appeal_set',
   // ── エステ魂 ──
   'esutama_work_save',
   'esutama_cast_hide', 'esutama_cast_create',
