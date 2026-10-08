@@ -67,5 +67,64 @@ console.log('── 5. ★★★ 第1319便: 絵文字は番号の書き方に�
   eq('★ 長さの判定も送る形で', v.bodyTooLong('💸'.repeat(1200)), true);
 }
 
+console.log('── 6. ★★★ 第1320便: 文字の飾り（色・大きさ・太字）は印で持ち、送るときにタグにする ──');
+{
+  const h = v.cocoaMarksToHtml, m = v.cocoaMailBody;
+  eq('使える飾りは8つ（色5・大きさ2・太字）', v.COCOA_MARKS.map((x) => x.key), ['赤', 'ピンク', 'オレンジ', '青', '緑', '大', '特大', '太字']);
+  // ★★★ ココアのメールの入口は " の前に \ を付けて壊す（10/8 の試し投稿）。作るタグに " を入れない・値に空白を入れない
+  const allTags = v.COCOA_MARKS.map((x) => h('[' + x.key + ']あ[/' + x.key + ']')).join('');
+  eq('★★★ 作るタグに " も \' も入らない', /["']/.test(allTags), false);
+  eq('★★★ 属性の値に空白が入らない', /<[a-z]+ [^>]* [^>]*>/.test(allTags), false);
+  eq('★★★ 色: 試し投稿で通った形（style=color:#…）', h('[赤]高収入[/赤]'), '<span style=color:#FF0000>高収入</span>');
+  eq('★★★ 大きさ: 試し投稿で通った形（style=font-size:…px）', h('[大]大募集[/大]'), '<span style=font-size:20px>大募集</span>');
+  eq('★★ 太字は <strong>', h('[太字]日給3万〜7万円[/太字]'), '<strong>日給3万〜7万円</strong>');
+  eq('★★ 重ねがけ（色＋大きさ＋太字）', h('[赤][特大][太字]急募[/太字][/特大][/赤]'), '<span style=color:#FF0000><span style=font-size:26px><strong>急募</strong></span></span>');
+  eq('★ 「大」と「特大」を取り違えない', h('[特大]A[/特大][大]B[/大]'), '<span style=font-size:26px>A</span><span style=font-size:20px>B</span>');
+  eq('★ 文の途中だけに付けられる', h('報酬は[赤]70分15,000円[/赤]です'), '報酬は<span style=color:#FF0000>70分15,000円</span>です');
+  // ★ 対にならない印は、置き換えずに文字のまま残す（壊れたタグを送らない・見え方の確認で気づける）
+  eq('★★★ 開きだけの印は文字のまま', h('[赤]閉じ忘れ'), '[赤]閉じ忘れ');
+  eq('★★★ 閉じだけの印は文字のまま', h('開き忘れ[/赤]'), '開き忘れ[/赤]');
+  eq('★★ 食い違った閉じ（[赤]…[/青]）は、どちらも文字のまま', h('[赤]あ[/青]'), '[赤]あ[/青]');
+  eq('★★ 内側の閉じ忘れは文字に戻し、外側は効かせる', h('[赤]あ[大]い[/赤]'), '<span style=color:#FF0000>あ[大]い</span>');
+  eq('★ 中身が空の印は捨てる', h('前[赤][/赤]後'), '前後');
+  eq('★ 知らない名前は印とみなさない（【】や [ ] を使った文を壊さない）', h('[紫]あ[/紫] [1] 【給与】'), '[紫]あ[/紫] [1] 【給与】');
+  eq('★ 印の無い本文は1文字も変わらない', h('普通の文\n2行目 <br> & 💸'), '普通の文\n2行目 <br> & 💸');
+
+  // 送る形（改行・絵文字と一緒に）
+  eq('★★★ 送る本文: 印→タグ、改行→<br>、絵文字→番号', m('💸[赤]高収入[/赤]\n[大]大募集[/大]'),
+    '&#128184;<span style=color:#FF0000>高収入</span><br>\n<span style=font-size:20px>大募集</span>');
+  eq('★★ 行をまたいだ飾りの中の改行も <br> になる', m('[赤]1行目\n2行目[/赤]'), '<span style=color:#FF0000>1行目<br>\n2行目</span>');
+  eq('★★ 送る本文に " が残らない（印だけで書いた本文）', /"/.test(m('[赤]あ[/赤]\n[特大][太字]い[/太字][/特大]')), false);
+
+  // 手で打ったタグの " を外す
+  const u = v.cocoaUnquoteAttrs;
+  eq('★★★ style="…" を、囲まない形に直す（試し投稿で壊れた書き方 → 通った書き方）', u('<span style="color:#FF0000;">赤</span>'), '<span style=color:#FF0000>赤</span>');
+  eq('★★ 値の中の空白を詰める', u('<span style="color: #FF0000; font-size: 20px;">a</span>'), '<span style=color:#FF0000;font-size:20px>a</span>');
+  eq('★★ 一重の引用符も', u("<strong style='color:#e58aaa'>a</strong>"), '<strong style=color:#e58aaa>a</strong>');
+  eq('★ font タグの属性も', u('<font color="#FF0000" size="5">a</font>'), '<font color=#FF0000 size=5>a</font>');
+  eq('★★ 空白の要る値は触らない（直せないものを壊さない）', u('<span style="font-family: MS Gothic">a</span>'), '<span style="font-family: MS Gothic">a</span>');
+  eq('★★ = を含む値（リンクの URL など）は触らない', u('<a href="https://example.com/?a=1">a</a>'), '<a href="https://example.com/?a=1">a</a>');
+  eq('★ タグの外の " には触らない', u('彼女は "安心" と言った <br>'), '彼女は "安心" と言った <br>');
+  eq('★★ 送る本文でも、手で打った " は外れる', m('<span style="color:#FF0000;">赤</span>'), '<span style=color:#FF0000>赤</span>');
+
+  // 画面
+  eq('★ 飾りを外す: 印だけ消えて文字は残る', v.stripCocoaMarks('[赤]あ[/赤][大]い[/大] [1]'), 'あい [1]');
+  eq('★★ 見え方の確認の色・大きさは、送る形と同じ値', [v.cocoaMarkStyle('赤'), v.cocoaMarkStyle('特大'), v.cocoaMarkStyle('太字')], [{ color: '#FF0000' }, { fontSize: '26px' }, { fontWeight: 'bold' }]);
+  eq('★ 木: 文字と飾りに分かれる', v.parseCocoaMarks('a[赤]b[/赤]c'), [{ t: 'text', v: 'a' }, { t: 'mark', k: '赤', c: [{ t: 'text', v: 'b' }] }, { t: 'text', v: 'c' }]);
+
+  // 「飾りを外す」: 色の付いた文字だけを選んでも、前後の印ごと外せる
+  const t1 = '前[赤][大]文字[/大][/赤]後';
+  const ex = v.expandCocoaSelection(t1, t1.indexOf('文字'), t1.indexOf('文字') + 2);
+  eq('★★ 選んだ範囲を、すぐ外側の印まで広げる', t1.slice(ex.s, ex.e), '[赤][大]文字[/大][/赤]');
+  eq('★ 印がくっついていなければ広げない', v.expandCocoaSelection('a[赤]b[/赤]c', 0, 1), { s: 0, e: 1 });
+  eq('★ 広げて外すと、文字だけ残る', t1.slice(0, ex.s) + v.stripCocoaMarks(t1.slice(ex.s, ex.e)) + t1.slice(ex.e), '前文字後');
+
+  const fs = require('fs'), path = require('path');
+  const page = fs.readFileSync(path.join(__dirname, '..', 'src/app/conecf/cocoa/page.tsx'), 'utf8').replace(/\r/g, '');
+  eq('★★★ 画面の見え方の確認は、送る形と同じ木（parseCocoaMarks）から作る', /parseCocoaMarks\(body\)/.test(page), true);
+  eq('★★★ 見え方の確認に dangerouslySetInnerHTML を使わない（打った文字をそのまま HTML にしない）', /dangerouslySetInnerHTML/.test(page), false);
+  eq('★★ ボタンは COCOA_MARKS から作る（色を足すのは lib の1行）', /COCOA_MARKS\.filter\(/.test(page), true);
+}
+
 if (fail) { console.log('\n★ '+fail+' 件 NG'); process.exit(1); }
 console.log('\n★ すべて通った');

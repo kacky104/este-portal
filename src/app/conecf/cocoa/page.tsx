@@ -1,12 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfSession } from '../ConecfSession';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
-import { widthCount, bodyTooLong, COCOA_TITLE_MAX, COCOA_BODY_MAX } from '@/lib/conecfCocoa';
+import {
+  widthCount, bodyTooLong, COCOA_TITLE_MAX, COCOA_BODY_MAX,
+  COCOA_MARKS, parseCocoaMarks, stripCocoaMarks, cocoaMarkStyle, expandCocoaSelection, type CocoaNode,
+} from '@/lib/conecfCocoa';
 import {
   getConecfCocoa, saveConecfCocoaSettings, saveConecfCocoaTemplate, setConecfCocoaTemplateActive,
   deleteConecfCocoaTemplate, postConecfCocoaNow, type CocoaData, type CocoaTemplateRow,
@@ -26,6 +29,20 @@ function hm(iso: string | null): string {
   return Number.isFinite(d.getTime()) ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(d) : '';
 }
 
+// ★★ 第1320便: 文字の飾り（色・大きさ・太字）。本文には [赤]…[/赤] のような印で入れ、送るときにタグへ置き換える（lib/conecfCocoa.ts）。
+const MARK_BTN = 'px-2.5 py-1 border border-slate-300 bg-white text-[13px] font-bold leading-none hover:bg-slate-50';
+
+/** ココアでの見え方（めやす）。★ 送る形と同じ木から作る。打った文字は、そのまま文字として出す（HTML にしない） */
+function PreviewNodes({ nodes }: { nodes: readonly CocoaNode[] }) {
+  return (
+    <>
+      {nodes.map((n, i) => (n.t === 'mark'
+        ? <span key={i} style={cocoaMarkStyle(n.k)}><PreviewNodes nodes={n.c} /></span>
+        : n.v.split('\n').map((line, j) => <Fragment key={`${i}-${j}`}>{j > 0 && <br />}{line}</Fragment>)))}
+    </>
+  );
+}
+
 function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   salonId: number; tpl: CocoaTemplateRow | null; onDone: () => void; onCancel: () => void; onToast: (m: string) => void;
 }) {
@@ -34,6 +51,36 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   const [imageUrl, setImageUrl] = useState<string | null>(tpl?.imageUrl ?? null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // ★ 第1320便: 本文欄で選んでいる範囲（何も選んでいなければ null）
+  const selected = (): { s: number; e: number } | null => {
+    const el = bodyRef.current;
+    if (!el || el.selectionStart === el.selectionEnd) return null;
+    return { s: el.selectionStart, e: el.selectionEnd };
+  };
+  const reselect = (s: number, e: number) => {
+    requestAnimationFrame(() => { const el = bodyRef.current; if (!el) return; el.focus(); el.setSelectionRange(s, e); });
+  };
+  /** 選んだ文字の前後に印を足す */
+  const wrap = (key: string) => {
+    const sel = selected();
+    if (!sel) { onToast('飾りを付けたい文字を選んでから、ボタンを押してください'); return; }
+    const open = `[${key}]`;
+    setBody(body.slice(0, sel.s) + open + body.slice(sel.s, sel.e) + `[/${key}]` + body.slice(sel.e));
+    reselect(sel.s + open.length, sel.e + open.length);
+  };
+  /** 選んだ範囲（と、すぐ外側の印）から、印だけを消す */
+  const unwrap = () => {
+    const sel0 = selected();
+    if (!sel0) { onToast('飾りを外したい文字を選んでから、ボタンを押してください'); return; }
+    const sel = expandCocoaSelection(body, sel0.s, sel0.e);
+    const mid = stripCocoaMarks(body.slice(sel.s, sel.e));
+    setBody(body.slice(0, sel.s) + mid + body.slice(sel.e));
+    reselect(sel.s, sel.s + mid.length);
+  };
+  /** ボタンを押しても、本文欄の選択を外さない */
+  const keep = (e: React.MouseEvent) => e.preventDefault();
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; e.target.value = '';
@@ -69,8 +116,26 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
       </div>
       <div>
         <label className="block text-[13px] font-bold text-slate-600 mb-1">本文</label>
-        <textarea className={`${INPUT} min-h-[160px]`} value={body} onChange={(e) => setBody(e.target.value)} />
-        <p className={`text-[12px] mt-1 ${bOver ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>全角{COCOA_BODY_MAX}文字まで。改行はそのままココアに反映されます。外部リンクは載りません。</p>
+        {/* ★ 第1320便: 文字の飾りのボタン（選んだ文字に付ける） */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+          <span className="text-[12px] text-slate-500">文字を選んで押す：</span>
+          {COCOA_MARKS.filter((m) => m.kind === 'color').map((m) => (
+            <button key={m.key} type="button" onMouseDown={keep} onClick={() => wrap(m.key)} className={MARK_BTN} style={cocoaMarkStyle(m.key)}>{m.key}</button>
+          ))}
+          <span className="w-px h-5 bg-slate-200" aria-hidden />
+          {COCOA_MARKS.filter((m) => m.kind !== 'color').map((m) => (
+            <button key={m.key} type="button" onMouseDown={keep} onClick={() => wrap(m.key)} className={`${MARK_BTN} text-slate-700`}>{m.key}</button>
+          ))}
+          <span className="w-px h-5 bg-slate-200" aria-hidden />
+          <button type="button" onMouseDown={keep} onClick={unwrap} className="px-2.5 py-1 text-[13px] text-slate-500 underline">飾りを外す</button>
+        </div>
+        <textarea ref={bodyRef} className={`${INPUT} min-h-[160px]`} value={body} onChange={(e) => setBody(e.target.value)} />
+        <p className={`text-[12px] mt-1 ${bOver ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>全角{COCOA_BODY_MAX}文字まで。改行と絵文字はそのままココアに反映されます。外部リンクは載りません。</p>
+        <p className="text-[12px] font-bold text-slate-500 mt-3 mb-1">ココアでの見え方（めやす）</p>
+        <div className="border border-slate-200 bg-white px-3 py-2 min-h-[48px] text-[15px] leading-[1.8] text-slate-800 break-words">
+          {body.trim() ? <PreviewNodes nodes={parseCocoaMarks(body)} /> : <span className="text-slate-300">本文を入れると、ここに出ます</span>}
+        </div>
+        <p className="text-[12px] text-slate-400 mt-1">[赤]…[/赤] のような印は、送るときに色・大きさ・太字に置き換わります。印が文字のまま見えるときは、対になっていません。</p>
       </div>
       <div>
         <label className="block text-[13px] font-bold text-slate-600 mb-1">写真（1枚・任意）</label>
