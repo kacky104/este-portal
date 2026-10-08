@@ -8,8 +8,10 @@ import { useToast } from '@/app/components/useToast';
 import { getConecfBump, saveConecfBump, runConecfBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
 import { bumpSlotsPerDay, EKICHIKA_BUMP_INTERVALS } from '@/lib/ekichikaBump';
 import { minuteLabel, minuteFromLabel } from '@/lib/bumpAuto';
+import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 
-// コネックエフ「駅ちか上位表示」（第1305便・2026-10-08・カッキーさん）。
+// コネックエフ「上位表示設定」（第1305便で駅ちかを作り、第1306便でフクエスも同じ画面に入れた・2026-10-08・カッキーさん）。
+// ★ フクエスの部分は、マイページの「今すぐ」画面と同じ部品（SalonBumpButton）をそのまま置いている（★ 2か所に別々に書かない）。
 // ★ 駅ちかの管理画面トップの「上位表示する」を、自動（時間帯・間隔）と今すぐの2通りで押す。
 // ★ フクエスの自動上位表示（マイページ）と同じ形: ON/OFF・時間帯・間隔（10/15/20/30/60分）。
 // ★ 残り回数・最後の上位表示は、押しに行ったときに駅ちかの画面から読んだ値（手で押した分も入る）。
@@ -144,7 +146,7 @@ function SlotCard({ s, many, enabled, onToast, onSaved }: {
   );
 }
 
-function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => void }) {
+function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [data, setData] = useState<{ ready: boolean; slots: ConecfBumpSlot[] } | null>(null);
   const [error, setError] = useState('');
@@ -156,27 +158,48 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  if (error) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>;
-  if (!data) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
-  if (!data.ready) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>準備中です。もうしばらくお待ちください。</div>;
+  const section = 'text-[15px] font-black text-slate-800 border-l-4 border-rose-400 pl-2.5';
 
   return (
-    <div className="space-y-3">
-      {!enabled && (
-        <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] text-amber-900 leading-relaxed">
-          いまは見るだけです。保存するには、<Link href={href('/')} className="font-bold underline">ホーム</Link>で「コネックエフに切り替える」を押してください。
-        </div>
-      )}
+    <div className="space-y-5">
       <p className="text-[13.5px] text-slate-600 leading-relaxed">
-        駅ちかの管理画面トップにある「上位表示する」を、コネックエフから押します。押すと1分ほどで、駅ちかのエリア・市区町村・駅の店舗一覧で上位に表示されます。
-        結果は<Link href={href('/log')} className="font-bold underline">更新結果</Link>に出ます。
+        フクエスと駅ちかの上位表示を、ここでまとめて設定できます。どちらも、手で押すボタンと、時間帯・間隔で自動で押す設定があります。
       </p>
-      {data.slots.length === 0 && (
-        <div className={`${CARD} p-5 text-[14px] text-slate-500`}>駅ちかの店舗ページが登録されていません。運営事務局までご連絡ください。</div>
-      )}
-      {data.slots.map((s) => (
-        <SlotCard key={s.slot + ':' + s.enabled + ':' + s.startMin + ':' + s.endMin + ':' + s.intervalMin} s={s} many={data.slots.length > 1} enabled={enabled} onToast={onToast} onSaved={load} />
-      ))}
+
+      {/* ── フクエス（TOP・地域ページ）── */}
+      <section className="space-y-2">
+        <h2 className={section}>フクエス</h2>
+        {salonId != null
+          ? <SalonBumpButton salonId={salonId} />
+          : <div className={`${CARD} p-5 text-[14px] text-slate-500`}>店舗情報が見つかりません</div>}
+      </section>
+
+      {/* ── 駅ちか（エリア・市区町村・駅の店舗一覧）── */}
+      <section className="space-y-2">
+        <h2 className={section}>駅ちか</h2>
+        {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
+        {!error && !data && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
+        {!error && data && !data.ready && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>準備中です。もうしばらくお待ちください。</div>}
+        {!error && data && data.ready && (
+          <>
+            {!enabled && (
+              <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] text-amber-900 leading-relaxed">
+                駅ちかの設定は、いまは見るだけです。保存するには、<Link href={href('/')} className="font-bold underline">ホーム</Link>で「コネックエフに切り替える」を押してください。
+              </div>
+            )}
+            <p className="text-[13px] text-slate-600 leading-relaxed">
+              駅ちかの管理画面トップにある「上位表示する」を、コネックエフから押します。押すと1分ほどで、駅ちかのエリア・市区町村・駅の店舗一覧で上位に表示されます。
+              結果は<Link href={href('/log')} className="font-bold underline">更新結果</Link>に出ます。
+            </p>
+            {data.slots.length === 0 && (
+              <div className={`${CARD} p-5 text-[14px] text-slate-500`}>駅ちかの店舗ページが登録されていません。運営事務局までご連絡ください。</div>
+            )}
+            {data.slots.map((s) => (
+              <SlotCard key={s.slot + ':' + s.enabled + ':' + s.startMin + ':' + s.endMin + ':' + s.intervalMin} s={s} many={data.slots.length > 1} enabled={enabled} onToast={onToast} onSaved={load} />
+            ))}
+          </>
+        )}
+      </section>
     </div>
   );
 }
@@ -184,8 +207,8 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 export default function ConecfBumpPage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="bump" title="駅ちか上位表示" toast={toast}>
-      {(a) => <Body enabled={!!a.enabledAt} onToast={showToast} />}
+    <ConecfShell current="bump" title="上位表示設定" toast={toast}>
+      {(a) => <Body salonId={a.salonId} enabled={!!a.enabledAt} onToast={showToast} />}
     </ConecfShell>
   );
 }

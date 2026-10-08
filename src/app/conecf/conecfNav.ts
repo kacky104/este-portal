@@ -23,10 +23,10 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
   // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
   { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
+  // ★ 第1306便（カッキーさん）: フクエスと駅ちかの上位表示（手で押す・時間帯と間隔で自動で押す）をまとめた画面。今すぐの下
+  { key: 'bump',         label: '上位表示設定',           href: '/bump' },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
-  // ★ 第1305便: 駅ちかの「上位表示する」を自動で押す（時間帯・間隔）＋今すぐ押す
-  { key: 'bump',         label: '駅ちか上位表示',         href: '/bump' },
   // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）
   { key: 'announce',     label: 'フクエスお知らせ',       href: '/announce' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
