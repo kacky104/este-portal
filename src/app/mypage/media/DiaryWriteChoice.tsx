@@ -77,7 +77,7 @@ export function DiaryWriteChoice({ salonId, onToast }: { salonId: number; onToas
               </>
             ) : (
               <>
-                <li>駅ちかに書いた写メ日記を、15分ごとにフクエスに載せます。</li>
+                <li>駅ちかに書いた写メ日記を、15分以内にフクエスに載せます。</li>
                 <li>フクエスで書いた写メ日記は、駅ちかへ送らなくなります。</li>
               </>
             )}

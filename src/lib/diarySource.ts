@@ -147,7 +147,7 @@ export function diarySourceNote(source: unknown, sites: ReadonlyArray<DiarySourc
     return { title: 'フクエスで書きます', body: 'ホームの設定に連動しています。フクエスで書いた写メ日記を、「フクエスから反映」にしているサイトへ送ります。', needsKey: false };
   }
   if (s === 'ekichika') {
-    return { title: '駅ちかで書きます', body: 'ホームの設定に連動しています。駅ちかに載った写メ日記を、15分ごとにフクエスへ取り込みます。フクエスからはどこへも送りません。', needsKey: false };
+    return { title: '駅ちかで書きます', body: 'ホームの設定に連動しています。駅ちかに載った写メ日記を、15分以内にフクエスへ取り込みます。フクエスからはどこへも送りません。', needsKey: false };
   }
   if (ekichikaReadWithoutKey(sites)) {
     return { title: '駅ちかで書きます', body: '写メ日記を取り込むには、駅ちかのログイン情報を登録してください。登録するまでは取り込みません。', needsKey: true };
