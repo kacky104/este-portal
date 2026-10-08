@@ -46,13 +46,23 @@ export function bodyTooLong(body: string): boolean {
  *   ・行の終わりにもう <br> や </p> などが書いてあれば、足さない（手で打ったテンプレを二重に改行しない）
  *   ・頭の空行と、末尾の空白・改行は落とす（記事の終わりに空の行を作らない）
  *   ・★ ほかの文字（< や &）には触らない。本文はココアが HTML として読むので、タグを打てばタグとして出る（今までと同じ）
+ *
+ * ★★★ 第1319便（2026-10-08）: 絵文字は「番号の書き方」（&#128184; の形）にして送る。
+ *   ★ ココアのメール投稿は、本文の絵文字（💸 など・U+10000 以上の文字）を落とす。番号の書き方ならそのまま通って、絵文字で表示される。
+ *     ラビリンス様の試し投稿で確かめた（10/8 19:58・blogid39652698: 「💸🌟📋」は消え、「&#128184;&#127775;&#128203;」は出た）。
+ *   ★ 変えるのは U+10000 以上の文字だけ。✨ や ⭐ のような U+FFFF までの記号は、今までどおりそのまま送る（タイトルでは出ている）。
+ *   ★ タイトル（メールの件名）は変えない。HTML ではないので、番号の書き方はそのまま文字で出てしまう。
+ *   ★ 同じ試し投稿で分かったこと: <strong> は通る。style="…" や color="…" は、メールの入口で " の前に \ が付いて壊れる（色・大きさが効かない）。
+ *     <font color> は <span style="color:…"> に直される（＝色そのものは受け付ける作り）。" を使わない書き方は未確認。
  */
 export function cocoaMailBody(body: string): string {
   const src = String(body ?? '').replace(/\r\n?/g, '\n').replace(/^\n+/, '').replace(/\s+$/, '');
   if (src === '') return '';
   const lines = src.split('\n');
   const hasBreak = (line: string) => /<br\s*\/?>\s*$/i.test(line) || /<\/(p|div|li|ul|ol|h[1-6]|blockquote)>\s*$/i.test(line);
-  return lines.map((line, i) => (i === lines.length - 1 || hasBreak(line) ? line : line + '<br>')).join('\n');
+  const withBreaks = lines.map((line, i) => (i === lines.length - 1 || hasBreak(line) ? line : line + '<br>')).join('\n');
+  // ★ 第1319便: U+10000 以上の文字（絵文字）は番号の書き方にする（そのままではココアのメール投稿で落ちる）
+  return withBreaks.replace(/[\u{10000}-\u{10FFFF}]/gu, (ch) => '&#' + String(ch.codePointAt(0)) + ';');
 }
 
 export type CocoaTemplate = { id: number; title: string; body: string; imageUrl: string | null; isActive: boolean; sortOrder: number; lastPostedAt: string | null };
