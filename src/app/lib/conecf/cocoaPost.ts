@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { COCOA_TEMPLATES_MAX, pickCocoaTemplate, type CocoaTemplate } from '@/lib/conecfCocoa';
+import { COCOA_TEMPLATES_MAX, pickCocoaTemplate, cocoaMailBody, type CocoaTemplate } from '@/lib/conecfCocoa';
 import { dayKeyJST } from '@/lib/announceAuto';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped } from '@/lib/setPlan';
@@ -86,7 +86,8 @@ export async function postCocoaForSalon(svc: Svc, salonId: number, apply: boolea
   const { error } = await resend.emails.send({
     from: FROM, to,
     subject: pick.title.trim() || '店長ブログ',
-    text: pick.body ?? '',
+    // ★ 第1318便: 改行を <br> にして送る（ココアは本文を HTML として表示するので、ただの改行はつながって見える）
+    text: cocoaMailBody(pick.body ?? ''),
     ...(attachments.length ? { attachments } : {}),
   });
 

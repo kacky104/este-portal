@@ -22,8 +22,38 @@ export function widthCount(s: string): number {
 
 /** タイトルが長すぎないか（全角48＝幅96まで） */
 export function titleTooLong(title: string): boolean { return widthCount(title) > COCOA_TITLE_MAX * 2; }
-/** 本文が長すぎないか（全角3333＝幅6666、半角9950 の緩いほう） */
-export function bodyTooLong(body: string): boolean { return widthCount(body) > COCOA_BODY_MAX * 2 && body.length > 9950; }
+/**
+ * 本文が長すぎないか（全角3333＝幅6666、半角9950 の緩いほう）。
+ * ★ 第1318便: ココアへ【送る形】（改行を <br> にしたあと）で数える。1改行につき半角4文字ぶん増える。
+ */
+export function bodyTooLong(body: string): boolean {
+  const sent = cocoaMailBody(body);
+  return widthCount(sent) > COCOA_BODY_MAX * 2 && sent.length > 9950;
+}
+
+/**
+ * ★★★ 第1318便（2026-10-08・カッキーさん）: ココアへ送る本文。★ 入力した改行を <br> にして送る。
+ *
+ * ★★ なぜ要るか（ラビリンス様の公開ページで確かめた・2026-10-08）
+ *   ココアの店長ブログは本文を HTML として表示する。メールで送った改行（\n）は本文にそのまま入るが、
+ *   HTML ではただの改行は空白になるので、公開ページでは1段落につながって見えていた（本文に改行23個・タグ0個）。
+ *   ココアの管理画面で書いた記事は、改行が <br> で入っている。
+ *   ★ メールの本文に <br> と書けば、タグのまま通って改行される（カッキーさんがテンプレに手で打って確かめた）。
+ *   → 店舗様は今までどおり普通に改行して書くだけ。送るときにここで <br> にする。
+ *
+ * ★ 決めごと
+ *   ・改行1つ → <br> 1つ（空の行は空の行のまま＝段落の間があく）。★ 改行そのものも残す（HTML では空白・害は無い）
+ *   ・行の終わりにもう <br> や </p> などが書いてあれば、足さない（手で打ったテンプレを二重に改行しない）
+ *   ・頭の空行と、末尾の空白・改行は落とす（記事の終わりに空の行を作らない）
+ *   ・★ ほかの文字（< や &）には触らない。本文はココアが HTML として読むので、タグを打てばタグとして出る（今までと同じ）
+ */
+export function cocoaMailBody(body: string): string {
+  const src = String(body ?? '').replace(/\r\n?/g, '\n').replace(/^\n+/, '').replace(/\s+$/, '');
+  if (src === '') return '';
+  const lines = src.split('\n');
+  const hasBreak = (line: string) => /<br\s*\/?>\s*$/i.test(line) || /<\/(p|div|li|ul|ol|h[1-6]|blockquote)>\s*$/i.test(line);
+  return lines.map((line, i) => (i === lines.length - 1 || hasBreak(line) ? line : line + '<br>')).join('\n');
+}
 
 export type CocoaTemplate = { id: number; title: string; body: string; imageUrl: string | null; isActive: boolean; sortOrder: number; lastPostedAt: string | null };
 

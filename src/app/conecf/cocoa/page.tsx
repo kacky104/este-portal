@@ -6,7 +6,7 @@ import { useConecfSession } from '../ConecfSession';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
-import { widthCount, COCOA_TITLE_MAX, COCOA_BODY_MAX } from '@/lib/conecfCocoa';
+import { widthCount, bodyTooLong, COCOA_TITLE_MAX, COCOA_BODY_MAX } from '@/lib/conecfCocoa';
 import {
   getConecfCocoa, saveConecfCocoaSettings, saveConecfCocoaTemplate, setConecfCocoaTemplateActive,
   deleteConecfCocoaTemplate, postConecfCocoaNow, type CocoaData, type CocoaTemplateRow,
@@ -57,7 +57,7 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   };
 
   const tOver = widthCount(title) > COCOA_TITLE_MAX * 2;
-  const bOver = widthCount(body) > COCOA_BODY_MAX * 2 && body.length > 9950;
+  const bOver = bodyTooLong(body);   // ★ 第1318便: 送る形（改行を <br> にしたあと）で数える。保存のときの判定と同じ関数
 
   return (
     <div className={`${CARD} p-4 space-y-3`}>
@@ -70,7 +70,7 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
       <div>
         <label className="block text-[13px] font-bold text-slate-600 mb-1">本文</label>
         <textarea className={`${INPUT} min-h-[160px]`} value={body} onChange={(e) => setBody(e.target.value)} />
-        <p className={`text-[12px] mt-1 ${bOver ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>全角{COCOA_BODY_MAX}文字まで。外部リンクは載りません。</p>
+        <p className={`text-[12px] mt-1 ${bOver ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>全角{COCOA_BODY_MAX}文字まで。改行はそのままココアに反映されます。外部リンクは載りません。</p>
       </div>
       <div>
         <label className="block text-[13px] font-bold text-slate-600 mb-1">写真（1枚・任意）</label>
