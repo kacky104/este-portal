@@ -103,6 +103,9 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
 
   const runNow = async () => {
     if (!guard()) return;
+    // ★ 第1315便（カッキーさん）: フクエスと同じく、押す前に1回確かめる
+    const left = s.remaining !== null ? `（本日残り ${s.remaining}回）` : '';
+    if (!window.confirm(`${name}の${site.what}を実行しますか？${left}`)) return;
     setBusy('run');
     const res = await runConecfBumpNow({ provider: site.provider, slot: s.slot });
     setBusy('');
