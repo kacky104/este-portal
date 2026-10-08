@@ -21,6 +21,7 @@ import { HpDemoManager } from '@/app/components/HpDemoManager';
 import { HpSitesManager } from '@/app/components/HpSitesManager';
 import OwnerContactManager from '@/app/components/OwnerContactManager';
 import ImportSourceManager from '@/app/components/ImportSourceManager';
+import CrmGroupManager from '@/app/components/CrmGroupManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import JobBoostManager from '@/app/components/JobBoostManager';
@@ -738,6 +739,14 @@ export default function AdminDashboard() {
           {/* ── フクエスリンク：駅ちかの店舗ページ登録（第704便）。★ これが無いと駅ちかからの取り込みが動かない ── */}
           <AccordionSection id="import-sources" title="フクエスリンク：駅ちかの店舗ページ登録" expanded={expandedSections} onToggle={toggleSection}>
             <ImportSourceManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          {/* ── フクエスCRM：グループ・提携店（第1324便）。★ NG・要注意の共有は、ここで入れた店どうしだけ。★ 運営だけが作る ── */}
+          <AccordionSection id="crm-groups" title="フクエスCRM：グループ・提携店（NG・要注意の共有）" expanded={expandedSections} onToggle={toggleSection}>
+            <CrmGroupManager
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
             />
