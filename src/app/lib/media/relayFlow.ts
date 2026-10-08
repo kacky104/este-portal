@@ -107,7 +107,7 @@ import { buildEsutamaDiaryTokenStep, attachEsutamaDiaryPhotos } from '@/lib/esut
 import {
   ESUTAMA_DIARY_PHOTO_W, ESUTAMA_DIARY_PHOTO_H, ESUTAMA_DIARY_PHOTO_MAX, ESUTAMA_DIARY_PHOTO_QUALITIES,
   ESUTAMA_DIARY_PHOTO_MAX_BYTES, ESUTAMA_DIARY_SOURCE_MAX_BYTES,
-  esutamaDiaryPhotoFit, esutamaDiaryPhotoDataUrl, pickEsutamaDiaryPhotoUrls,
+  esutamaDiaryPhotoFit, esutamaDiaryCropLoss, esutamaDiaryPhotoDataUrl, pickEsutamaDiaryPhotoUrls,
 } from '@/lib/esutamaDiaryPhoto';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 
@@ -3490,7 +3490,8 @@ async function planEsutamaDiary(
  * ★★★ 第1284便（2026-10-07）: エステ魂の写メ日記に付ける写真を1枚、取ってきて整える。
  *   ★ 形は実物の画面と同じ: 714×1112 の JPEG（品質 0.8）を "data:image/jpeg;base64,…" にする
  *     （決まりと確かめ方は src/lib/esutamaDiaryPhoto.ts）。
- *   ★ 縦長の写真は中央で枠に合わせる。横長・正方形は切らずに白い余白（esutamaDiaryPhotoFit）。
+ *   ★ 第1323便: どの写真も、中央で枠いっぱいに合わせて端を切る（エステ魂の標準の見え方。理由は esutamaDiaryPhotoFit）。
+ *     それまでは、横長・正方形は切らずに白い余白を足していた（上下に白い帯が出た）。
  *   ★ 大きすぎるときは品質を下げる。それでも収まらなければ、その1枚は付けない（理由を返す）。
  *   ★ 取りに行くのはフクエスの保管庫の公開 URL だけ（選ぶ段 pickEsutamaDiaryPhotoUrls で絞ってある）。
  */
@@ -3507,6 +3508,7 @@ async function prepareEsutamaDiaryPhoto(url: string): Promise<{ dataUrl: string 
   // ★ スマホの写真は「回して見せる」印（EXIF の向き）が付いていることがある。5〜8 は縦横が入れ替わる
   if (Number(meta.orientation ?? 1) >= 5) [w, h] = [h, w];
   const fit = esutamaDiaryPhotoFit(w, h);
+  const loss = esutamaDiaryCropLoss(w, h);
   for (const q of ESUTAMA_DIARY_PHOTO_QUALITIES) {
     const out = await sharp(buf).rotate()
       .resize({ width: ESUTAMA_DIARY_PHOTO_W, height: ESUTAMA_DIARY_PHOTO_H, fit, position: 'centre', background: { r: 255, g: 255, b: 255, alpha: 1 } })
@@ -3517,7 +3519,7 @@ async function prepareEsutamaDiaryPhoto(url: string): Promise<{ dataUrl: string 
     if (out.byteLength <= ESUTAMA_DIARY_PHOTO_MAX_BYTES) {
       return {
         dataUrl: esutamaDiaryPhotoDataUrl(out.toString('base64')),
-        note: w + '×' + h + ' → ' + (fit === 'cover' ? '枠に合わせて切った' : '切らずに余白') + '・品質' + q + '・' + Math.round(out.byteLength / 1024) + 'KB',
+        note: w + '×' + h + ' → ' + '枠に合わせて切った' + (loss === null ? '' : '（約' + Math.round(loss * 100) + '%）') + '・品質' + q + '・' + Math.round(out.byteLength / 1024) + 'KB',
       };
     }
   }

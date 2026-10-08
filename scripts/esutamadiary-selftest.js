@@ -89,10 +89,20 @@ eq('★ 枠の大きさ・枚数・品質は実物どおり', [P.ESUTAMA_DIARY_P
 eq('★ スマホの縦の写真（3:4）は枠に合わせて切る（端が少し切れるだけ）', P.esutamaDiaryPhotoFit(3024, 4032), 'cover');
 eq('★ 9:16 の縦長も切る', P.esutamaDiaryPhotoFit(1080, 1920), 'cover');
 eq('★ 枠と同じ形は切る（何も切れない）', P.esutamaDiaryPhotoFit(714, 1112), 'cover');
-eq('★★★ 正方形は切らない（切ると3分の1以上が消える）→ 白い余白', P.esutamaDiaryPhotoFit(1200, 1200), 'contain');
-eq('★★★ 横長は切らない → 白い余白', P.esutamaDiaryPhotoFit(4032, 3024), 'contain');
-eq('★★ 極端に細長い縦（切ると2割を超える）も切らない', P.esutamaDiaryPhotoFit(500, 1200), 'contain');
-eq('★★ 大きさが分からなければ切らない側', [P.esutamaDiaryPhotoFit(0, 0), P.esutamaDiaryPhotoFit(NaN, 100)], ['contain', 'contain']);
+// ★★★ 第1323便（2026-10-08・カッキーさんの決定）: どの写真も枠いっぱいに切る（エステ魂の標準の見え方。白い帯を出さない）
+eq('★★★ 正方形も枠に合わせて切る（白い余白を足さない）', P.esutamaDiaryPhotoFit(1200, 1200), 'cover');
+eq('★★★ 横長も枠に合わせて切る', P.esutamaDiaryPhotoFit(4032, 3024), 'cover');
+eq('★★ 極端に細長い縦も切る', P.esutamaDiaryPhotoFit(500, 1200), 'cover');
+eq('★★ 大きさが分からなくても切る（実際の大きさは加工するときに読める）', [P.esutamaDiaryPhotoFit(0, 0), P.esutamaDiaryPhotoFit(NaN, 100)], ['cover', 'cover']);
+// 切れる割合（記録の1行に出す数字）
+const pct = (w, h) => { const v = P.esutamaDiaryCropLoss(w, h); return v === null ? null : Math.round(v * 100); };
+eq('★★ 切れる割合: 枠と同じ形は0%・縦長3:4は約14%・正方形は約36%・横長4:3は約52%', [pct(714, 1112), pct(3024, 4032), pct(1200, 1200), pct(4032, 3024)], [0, 14, 36, 52]);
+eq('★ 大きさが分からなければ、割合は出さない', [P.esutamaDiaryCropLoss(0, 0), P.esutamaDiaryCropLoss(NaN, 100)], [null, null]);
+{
+  const flow = require('fs').readFileSync(require('path').join(__dirname, '..', 'src/app/lib/media/relayFlow.ts'), 'utf8');
+  eq('★★★ 写真を整えるところに「切らずに余白」の道が残っていない', /切らずに余白'/.test(flow), false);
+  eq('★★ 枠への入れ方は esutamaDiaryPhotoFit から受け取る（ここに決め打ちしない）', /const fit = esutamaDiaryPhotoFit\(w, h\);/.test(flow), true);
+}
 
 console.log('\n── 写真: 入れてよい形か ──');
 const B64 = 'QUJD'.repeat(80);   // 320文字の base64

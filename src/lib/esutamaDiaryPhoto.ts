@@ -38,25 +38,34 @@ export const ESUTAMA_DIARY_POST_MAX_BYTES = 950_000;
 export const ESUTAMA_DIARY_SOURCE_MAX_BYTES = 16 * 1024 * 1024;
 /** photos[N][data] の頭。★ 実物の JS はこれで始まらないものを「変換に失敗」として捨てる */
 export const ESUTAMA_DIARY_PHOTO_PREFIX = 'data:image/jpeg;base64,';
-/** 枠に合わせて切るときに、失ってよい面積の上限。★ これより多く切れる写真は、切らずに白い余白を足す */
-export const ESUTAMA_DIARY_CROP_LOSS_MAX = 0.2;
+/**
+ * ★★★ 枠（714×1112 の縦長）への入れ方。★ 第1323便（2026-10-08・カッキーさんの決定）: 【どの写真も、枠いっぱいに広げて端を切る】。
+ *
+ * ★★ なぜ変えたか
+ *   第1284便では、横長・正方形の写真は「切ると顔が欠ける」ので、切らずに白い余白を足していた（切れる面積が2割を超えるとき）。
+ *   10/8、ラビリンス様のるいさんが同じ日に、フクエスから（18:05）とエステ魂で直接（18:07）の2通りで投稿された。
+ *   フクエスからの記事は上下に白い帯が出て、エステ魂の暗いページの中で浮いて見えた。直接の投稿は枠いっぱいに出る。
+ *   → エステ魂の標準の見え方にそろえる。
+ * ★★ 分かっていて受け入れたこと: エステ魂の画面では本人が切る位置を選べるが、こちらは真ん中を機械的に切る。
+ *   正方形は左右あわせて約36%、横長（4:3）は約52%が切れる。人物が端に寄った横長の写真は、顔や体が欠けることがある。
+ * ★ 大きさが分からない写真も cover（実際の大きさは、加工するときに読める）。
+ */
+export function esutamaDiaryPhotoFit(_width: number, _height: number): 'cover' {
+  return 'cover';
+}
 
 /**
- * ★★★ 枠（714×1112 の縦長）への入れ方を決める。
- *   cover   … 枠いっぱいに広げて、はみ出た端を切る（中央を残す）
- *   contain … 切らずに全体を入れ、足りない部分は白い余白
- * ★ 縦長の写真（スマホの自撮り 3:4 など）は cover。端が少し切れるだけで、枠いっぱいに見える。
- * ★ 横長・正方形は cover だと半分近く切れる（顔が切れる）。だから contain。
- * ★ 大きさが分からない写真は contain（切らない側に倒す）。
+ * 枠に合わせて切ったとき、元の写真のうち切れて無くなる割合（0〜1）。★ 記録の1行に出すためだけに使う。
+ * ★ 大きさが分からなければ null（数字を作らない）。
  */
-export function esutamaDiaryPhotoFit(width: number, height: number): 'cover' | 'contain' {
+export function esutamaDiaryCropLoss(width: number, height: number): number | null {
   const w = Number(width), h = Number(height);
-  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return 'contain';
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
   const target = ESUTAMA_DIARY_PHOTO_W / ESUTAMA_DIARY_PHOTO_H;
   const ratio = w / h;
   // ★ 枠より横に広い写真は左右が切れ、枠より縦に長い写真は上下が切れる
   const kept = ratio > target ? target / ratio : ratio / target;
-  return 1 - kept <= ESUTAMA_DIARY_CROP_LOSS_MAX ? 'cover' : 'contain';
+  return Math.max(0, 1 - kept);
 }
 
 /** JPEG の中身（base64）を、photos[N][data] に入れる形にする */
