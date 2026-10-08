@@ -71,7 +71,17 @@ console.log('\n── 3. ★★★ 自動の押し方（10:00〜23:00・20分ご
   eq('次の区切り（10:20）→ 10:24 に押す', at(10, 24, { lastAt: jst(2026, 10, 8, 10, 5).toISOString() }), 'ok');
   eq('★★★ 店舗様が駅ちかで 10:15 に手で押した → 10:24 は押さない（9分しか経っていない＝回数を2つ使うのを防ぐ）', at(10, 24, { lastAt: jst(2026, 10, 8, 10, 15).toISOString() }), 'too_soon');
   eq('　→ 次の区切り 10:44 には押す', at(10, 44, { lastAt: jst(2026, 10, 8, 10, 15).toISOString() }), 'ok');
-  eq('★★ 残り0回を読んで30分 → 見に行かない／61分 → 見に行く', [at(12, 4, { remaining: 0, readAt: jst(2026, 10, 8, 11, 34).toISOString() }), at(12, 4, { remaining: 0, readAt: jst(2026, 10, 8, 11, 3).toISOString() })], ['no_quota', 'ok']);
+  // ★★★ 第1311便: 0回を読んだら、次の時間帯のはじめ（10:00）まで見に行かない（前は60分ごとに見に行っていた）
+  eq('★★★ 21:20 に0回を読んだ → 22:24・23:04 は見に行かない', [at(22, 24, { remaining: 0, readAt: jst(2026, 10, 8, 21, 20).toISOString() }), at(23, 4, { remaining: 0, readAt: jst(2026, 10, 8, 21, 20).toISOString() })], ['no_quota', 'no_quota']);
+  eq('★★★ 11:03 に0回を読んだ → 12:04 も見に行かない（前は61分で見に行っていた）', at(12, 4, { remaining: 0, readAt: jst(2026, 10, 8, 11, 3).toISOString() }), 'no_quota');
+  eq('★★★ 前の日の 21:20 に0回 → 翌朝 10:04 には見に行く', m.shouldBumpNow({ now: jst(2026, 10, 9, 10, 4), setting, state: st({ remaining: 0, readAt: jst(2026, 10, 8, 21, 20).toISOString(), lastAt: jst(2026, 10, 8, 21, 20).toISOString() }) }).reason, 'ok');
+  eq('戻る時刻: 21:20 → 翌10:00／9:00 → 同じ日の10:00／ちょうど10:00 → 翌10:00／読めない → null', [
+    m.bumpZeroResumeAt(jst(2026, 10, 8, 21, 20, 30).toISOString(), 600),
+    m.bumpZeroResumeAt(jst(2026, 10, 8, 9, 0).toISOString(), 600),
+    m.bumpZeroResumeAt(jst(2026, 10, 8, 10, 0, 5).toISOString(), 600),
+    m.bumpZeroResumeAt(null, 600),
+  ], [jst(2026, 10, 9, 10, 0).toISOString(), jst(2026, 10, 8, 10, 0).toISOString(), jst(2026, 10, 9, 10, 0).toISOString(), null]);
+  eq('★ 0回でも、読んだ時刻が無ければ待たせない（「読めていない」と混ぜない）', at(12, 4, { remaining: 0, readAt: null }), 'ok');
   eq('★★ 読んだ直後の残り0回は押さない', at(12, 4, { remaining: 0, readAt: jst(2026, 10, 8, 12, 4).toISOString() }, true), 'no_quota');
   eq('周が流れを始めて2分 → 始めない／読んだあとは見ない', [at(12, 4, { autoAt: jst(2026, 10, 8, 12, 2).toISOString() }), at(12, 4, { autoAt: jst(2026, 10, 8, 12, 2).toISOString() }, true)], ['running', 'ok']);
   eq('★ 時刻が読めないときは押さない', at(12, 4, { lastAt: 'x' }), 'unknown');

@@ -175,6 +175,7 @@ function SlotCard({ s, many, enabled, onToast, onSaved }: {
           <ul className="text-[11px] text-slate-500 leading-relaxed list-disc pl-4 space-y-0.5">
             <li>手動のボタンはいつでも押せます。</li>
             <li>駅ちかで手で押した直後は、自動では押しません。</li>
+            <li>残りが0回になったら、次の日の時間帯のはじめ（{start}）まで自動は止まります。</li>
             <li>反映まで1〜2分かかります。</li>
           </ul>
         </div>

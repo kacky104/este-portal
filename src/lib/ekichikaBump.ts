@@ -20,7 +20,8 @@
 //   時間帯の始まりから「間隔ごとの区切り」を作り、いまの区切りでまだ上位表示されていなければ押す。
 //   ・最後の上位表示（bump_last_at）は【駅ちかの最終更新日】＝店舗様が駅ちかで手で押した分も入る。
 //   ・ただし前回から間隔の半分も経っていなければ押さない（手で押した直後に自動が重なって、回数を2つ使うのを防ぐ）。
-//   ・残り0回なら押さない（★ 駅ちかの回数が戻る時刻は分からないので、0回を読んでから60分は見に行かない）。
+//   ・残り0回なら押さない。★ 第1311便（カッキーさんの決定）: 0回を読んだら、次の【時間帯のはじめ】（ラビリンス様は朝10:00）まで見に行かない。
+//     ★ それまでは「60分ごとに見に行く」だった（駅ちかの回数が戻る時刻が分からないため）。駅ちかへのログインを減らすために変えた。
 //   ・回数・時刻が読めていないときは押さない側に倒す（「0回」と「読めていない」を混ぜない）。
 
 import { BUMP_AUTO_INTERVALS, isValidBumpInterval, isValidMinuteOfDay, minuteOfDayJST, bumpWindowLength } from './bumpAuto';
@@ -34,8 +35,20 @@ export const EKICHIKA_BUMP_DEFAULT_END_MIN = 1380;
 export const EKICHIKA_BUMP_DEFAULT_INTERVAL_MIN = 20;
 export { BUMP_AUTO_INTERVALS as EKICHIKA_BUMP_INTERVALS };
 
-/** 残り0回を読んでから、次に見に行くまで（分）。★ 駅ちかの回数が戻る時刻が分からないため */
-export const EKICHIKA_BUMP_ZERO_RECHECK_MIN = 60;
+/**
+ * 残り0回を読んだあと、次に見に行ってよい時刻（ISO）＝読んだあとの【時間帯のはじめ】（第1311便）。
+ *   例: 10:00〜23:00 の店が 21:20 に0回を読んだ → 翌朝 10:00。★ 9:00 に0回を読んだ → 同じ日の 10:00。
+ *   ★ 読んだ時刻が読めないときは null（＝待たせない。「読めていない」と「0回」を混ぜない）。
+ */
+export function bumpZeroResumeAt(readAt: string | null, startMin: number): string | null {
+  const readMs = readAt ? Date.parse(readAt) : NaN;
+  if (!Number.isFinite(readMs) || !isValidMinuteOfDay(startMin)) return null;
+  const readMin = minuteOfDayJST(new Date(readMs));
+  let delta = (startMin - readMin + 1440) % 1440;
+  if (delta === 0) delta = 1440;   // ★ ちょうど 10:00 に読んだ0回 → 翌日の 10:00
+  const minuteStartMs = readMs - (readMs % 60000);
+  return new Date(minuteStartMs + delta * 60000).toISOString();
+}
 /** 周が流れを始めてから、同じ枠で次を始めない時間（分）。★ 中継が引き取って押し終えるまでの余裕 */
 export const EKICHIKA_BUMP_RUNNING_MIN = 4;
 
@@ -163,11 +176,11 @@ export function shouldBumpNow(input: { now: Date; setting: BumpSetting; state: B
   const slotAt = currentBumpSlotAt(now, s);
   if (!slotAt) return no('out_of_window');
 
-  // 残り0回（★ 周のときだけ「60分は見に行かない」。読んだ直後は、その値で決める）
+  // 残り0回（★ 周のときは「次の時間帯のはじめまで見に行かない」第1311便。読んだ直後は、その値で決める）
   if (state.remaining !== null && state.remaining <= 0) {
     if (input.atRead) return no('no_quota');
-    const readMs = state.readAt ? Date.parse(state.readAt) : NaN;
-    if (Number.isFinite(readMs) && now.getTime() - readMs < EKICHIKA_BUMP_ZERO_RECHECK_MIN * 60000) return no('no_quota');
+    const resume = bumpZeroResumeAt(state.readAt, s.startMin);
+    if (resume && now.getTime() < Date.parse(resume)) return no('no_quota');
   }
   // 流れを始めたばかり（周のときだけ）
   if (!input.atRead && state.autoAt) {
