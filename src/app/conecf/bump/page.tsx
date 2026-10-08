@@ -198,8 +198,9 @@ function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: 
 
   const section = 'text-[15px] font-black text-slate-800 border-l-4 border-rose-400 pl-2.5';
 
+  // ★ 第1308便（カッキーさん・店舗様の声「窮屈」）: 下に余白を足し、最後のカードの下までスクロールできるようにする
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-40">
       <p className="text-[13.5px] text-slate-600 leading-relaxed">
         フクエスと駅ちかの上位表示を、ここでまとめて設定できます。どちらも、手で押すボタンと、時間帯・間隔で自動で押す設定があります。
       </p>
