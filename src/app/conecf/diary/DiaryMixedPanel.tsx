@@ -68,7 +68,7 @@ export function DiaryMixedPanel({ onToast, sitesHref, homeHref }: {
             移行期間：{st.lastDay} まで{left && <span className="ml-1.5 text-[13px] font-bold text-amber-700">（{left}）</span>}
           </p>
           <p>
-            セラピストがフクエスで1度写メ日記を投稿するまでは、<b className="font-bold text-slate-800">駅ちかに書いた写メ日記もフクエスに載ります</b>（15分ごと）。
+            セラピストがフクエスで1度写メ日記を投稿するまでは、<b className="font-bold text-slate-800">駅ちかに書いた写メ日記もフクエスに載ります</b>（15分以内）。
             期間中に、<b className="font-bold text-slate-800">フクエスからの投稿への切り替え</b>をお願いします。
           </p>
           <p>期間を過ぎると、駅ちかに書いた写メ日記はフクエスに載らなくなります。</p>
