@@ -21,6 +21,11 @@ export const ESUTAMA_APPEAL_PAGE_URL = 'https://estama.jp/admin/guest/appeal/';
 export const ESUTAMA_APPEAL_POST_URL = 'https://estama.jp/admin_post/single_appeal_exec';
 /** ★ 店舗情報の行だけ。★ クーポン（shop_coupon）・体験談（shop_exp）は押さない */
 export const ESUTAMA_APPEAL_ROW = 'shop,guest_appeal';
+/**
+ * 1日に押せる回数。★ エステ魂の画面には上限が出ない（説明文は「1日1回・プラチナ3回」で実際と合わない）。
+ * ★ 第1314便の2（カッキーさん・2026-10-08）: 実際は1日10回とのことなので 10 として扱う（画面は「残り N / 10回」）。
+ */
+export const ESUTAMA_APPEAL_DAILY = 10;
 
 export type EsutamaAppealPage = {
   remaining: number | null;

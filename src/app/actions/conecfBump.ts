@@ -74,6 +74,11 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
   const credOn = new Map((cred.data ?? []).map((c) => [Number(c.slot ?? 1), c.is_enabled === true]));
   const slots: ConecfBumpSlot[] = (src.data ?? []).map((x) => {
     const slot = Number(x.slot ?? 1);
+    // ★ 第1314便の2: エステ魂は1日10回。まだ自動を入れていない行は、列の既定（10:00〜23:00・20分＝40回）ではなく
+    //   10:00〜19:00・60分（ちょうど10回）を入れた状態で見せる（★ 保存するまで表には書かない）
+    const esutamaFresh = provider === 'esutama' && x.bump_auto !== true
+      && Number(x.bump_start_min) === 600 && Number(x.bump_end_min) === 1380 && Number(x.bump_interval_min) === 20;
+    if (esutamaFresh) { x.bump_end_min = 1140; x.bump_interval_min = 60; }
     return {
       slot,
       hasCredential: credOn.get(slot) === true,

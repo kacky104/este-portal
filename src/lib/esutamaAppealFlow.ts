@@ -13,7 +13,7 @@ import { AUDIT_SHOP_HIDDEN } from './mediaAudit';
 import { shouldBumpNow } from './ekichikaBump';
 import {
   parseEsutamaAppealPage, esutamaAppealUsable, esutamaAppealPressed,
-  buildEsutamaAppealPageRequest, buildEsutamaAppealPostRequest,
+  buildEsutamaAppealPageRequest, buildEsutamaAppealPostRequest, ESUTAMA_APPEAL_DAILY,
 } from './esutamaAppeal';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
@@ -65,10 +65,10 @@ export function afterEsutamaAppealRead(input: Input, ctx: RelayFlowContext, nowA
   }
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
   const readAt = now.toISOString();
-  const state = { remaining: page.remaining, quota: null, lastAt: page.lastAt, readAt, pressed: false };
+  const state = { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt, readAt, pressed: false };
   const audits: FlowAudit[] = [
     { event: 'login', outcome: 'ok', detail: { flowId } },
-    { event: 'read_bump', outcome: 'ok', detail: { remaining: page.remaining, flowId, ...AUDIT_SHOP_HIDDEN } },
+    { event: 'read_bump', outcome: 'ok', detail: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, flowId, ...AUDIT_SHOP_HIDDEN } },
   ];
   const decision = ctx.bumpForce === true
     ? ((page.remaining ?? 0) > 0 ? { bump: true, reason: 'ok' as const } : { bump: false, reason: 'no_quota' as const })
@@ -89,7 +89,7 @@ export function afterEsutamaAppealRead(input: Input, ctx: RelayFlowContext, nowA
     kind: 'next',
     next: {
       purpose: 'esutama_appeal_set', method: p.method, url: p.url, headers: p.headers, body: p.body ?? '',
-      context: { ...ctx, cookie, bumpBefore: { remaining: page.remaining, quota: null, lastAt: page.lastAt } },
+      context: { ...ctx, cookie, bumpBefore: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt } },
     },
     audits,
     note: 'アピールの画面を読めた（残り ' + page.remaining + '）→ 店舗情報をアピールする',
@@ -108,7 +108,7 @@ export function afterEsutamaAppealSet(input: Input, ctx: RelayFlowContext): Flow
       kind: 'done',
       audits: [{ event: 'push_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'http_error', manual, flowId } }],
       note: 'アピールの応答が ' + input.status + ' だった',
-      ekichikaBump: { ...(ctx.bumpBefore ?? { remaining: null, quota: null, lastAt: null }), readAt: new Date().toISOString(), pressed: false },
+      ekichikaBump: { ...(ctx.bumpBefore ?? { remaining: null, quota: ESUTAMA_APPEAL_DAILY, lastAt: null }), readAt: new Date().toISOString(), pressed: false },
     };
   }
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
@@ -125,7 +125,7 @@ export function afterEsutamaAppealSet(input: Input, ctx: RelayFlowContext): Flow
 export function afterEsutamaAppealVerify(input: Input, ctx: RelayFlowContext, nowArg?: Date): FlowOutcome {
   const flowId = ctx.flowId;
   const manual = ctx.bumpForce === true;
-  const before = ctx.bumpBefore ?? { remaining: null, quota: null, lastAt: null };
+  const before = ctx.bumpBefore ?? { remaining: null, quota: ESUTAMA_APPEAL_DAILY, lastAt: null };
   const now = nowArg ?? new Date();
   const readAt = now.toISOString();
   const page = input.status === 200 ? parseEsutamaAppealPage(input.body, now) : null;
@@ -135,22 +135,22 @@ export function afterEsutamaAppealVerify(input: Input, ctx: RelayFlowContext, no
       kind: 'done',
       audits: [{ event: 'push_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'verify_unreadable', manual, flowId } }],
       note: 'アピールのあと画面を読み直せなかった（押せたか分からない）',
-      ekichikaBump: { remaining: before.remaining, quota: null, lastAt: before.lastAt, readAt, pressed: false },
+      ekichikaBump: { remaining: before.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: before.lastAt, readAt, pressed: false },
     };
   }
   const pressed = esutamaAppealPressed(before, page);
   if (pressed) {
     return {
       kind: 'done',
-      audits: [{ event: 'push_bump', outcome: 'ok', detail: { remaining: page.remaining, manual, flowId } }],
+      audits: [{ event: 'push_bump', outcome: 'ok', detail: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, manual, flowId } }],
       note: '店舗情報をアピールできた（残り ' + page.remaining + '）',
-      ekichikaBump: { remaining: page.remaining, quota: null, lastAt: page.lastAt ?? readAt, readAt, pressed: true },
+      ekichikaBump: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt ?? readAt, readAt, pressed: true },
     };
   }
   return {
     kind: 'done',
     audits: [{ event: 'push_bump', outcome: 'failed', detail: { reason: 'not_accepted', remaining: page.remaining, manual, flowId } }],
     note: 'アピールを送ったが、残り回数も最終アピールも変わらなかった',
-    ekichikaBump: { remaining: page.remaining, quota: null, lastAt: page.lastAt, readAt, pressed: false },
+    ekichikaBump: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt, readAt, pressed: false },
   };
 }
