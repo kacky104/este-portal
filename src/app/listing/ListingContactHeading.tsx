@@ -1,62 +1,46 @@
-// /listing「掲載をご希望の店舗様へ」の見出しブロック（2026-08-17 / 第20便）。
-// もともと <h2> と説明文の <p> だった部分を、オーナー作成のデザイン画像に差し替えたもの。
+import { LISTING_MINCHO } from './listingStyle';
+
+// /listing の「掲載をご希望の店舗様へ」（第1301便・2026-10-08 に画像から文字へ組み直した）。
 //
-// ★ 幅は【画面いっぱい】。本文ラッパー（max-w-3xl）の外に置いてある（2026-08-17 オーナー判断）。
-//   いったん max-w-3xl の中に入れて実測したが、全幅のほうが見栄えが良いという判断で変更した。
-//   動かすときは page.tsx 側で本文ラッパーの外に置くこと。中に入れると左右16pxの余白が付いて全幅にならない。
-//
-// ★ 上の黒い隔たり（pt-10 と背景色）は【外した】（2026-08-17）。
-//   入れていたのは、すぐ上が ListingHpPromo（全幅の暗い帯）で、隙間なしに並べると
-//   2枚が1枚の大きな黒い塊に見えたため。
-//   その後 ListingGuidePdfLink（明るいクリーム系・上端 PC #f8f3e9 / SP #c9bba8）が
-//   間に入り、暗→明→暗と交互になったので、色だけで境目が分かるようになった。
-//   ★ もしまた上に暗い帯を置くことになったら、隔たりを戻すこと。
-//     そのときの背景色は【画像の上端の実測値】に合わせる（PC #1e1e1d ／ SP #171514）。
-//     単色1つで済ませると、どちらかの画面幅で継ぎ目に線が出る。
-//     Tailwind の md: はちょうど 768px で <source media="(max-width: 767px)"> と一致する。
-//
-// ★ 角丸は付けていない。全幅の帯なので、角を丸めると左右の端で背景が三角に覗く。
-//
-// ★ リンクを付けていない。画像の「下のフォームから相談する↓」が指しているのは
-//   すぐ下にある実物のフォームで、押させる先が別にあるわけではない。
-//   ここをリンクにすると「押したのにその場から動かない」体験になる。
-//
-// ★ 文章は sr-only で HTML に残してある（禁則85）。
-//   とくに <h2>掲載をご希望の店舗様へ</h2> は見出し階層の一部なので必ず残すこと。
-//   これを消すと、このページの h2 が「無料掲載について」から始まることになり、
-//   フォームがどのセクションに属するのか読み上げでたどれなくなる。
-//   ★ 画像側の文言を変えたら、ここの sr-only も同時に直すこと。
-//
-// ★ PC/SP の切り替えは 768px。<source media> と width/height をセットで扱うこと（禁則74）。
-//   contact-pc.webp 2062×763 ／ contact-sp.webp 1254×1254。縦横比が大きく違う
-//   （2.70 と 1.00）ので、width/height が無いと読み込み前後で下のフォームが飛ぶ。
-//
-// ★ display:none での出し分けはしない。表示されない側もブラウザは必ず落とすため（禁則84）。
+// ★ これまでは全幅のデザイン画像（public/listing/contact-pc.webp・contact-sp.webp）。文言は画像のときと同じ。
+// ★ 直下がお問い合わせフォームの帯（page.tsx）。この2つの間に別の要素を挟まないこと。
+// ★ <h2>掲載をご希望の店舗様へ</h2> は見出し階層の一部なので必ず残すこと。
+// ★ このあと画像を用意したら、このブロックを画像に戻す。そのときは下の文を sr-only で残すこと（禁則85）。
+//   ★ 画像の下端の色と、フォームの帯の背景色（#1f1f1e）を合わせること（ずれると帯の始まりに横線が1本入る）。
+
+const POINTS = ['ご相談無料', '資料請求OK'] as const;
 
 export function ListingContactHeading() {
   return (
-    <section className="w-full">
-      {/* ── 画面に出さないテキスト（検索エンジン・読み上げ用）。画像の文言と一致させること。 */}
-      <h2 className="sr-only">掲載をご希望の店舗様へ</h2>
-      <p className="sr-only">CONTACT　福岡で、もっと選ばれるお店へ。</p>
-      <p className="sr-only">
-        本サイトへの掲載をご希望の店舗様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
-      </p>
-      <p className="sr-only">ご相談無料／資料請求OK</p>
-
-      {/* ── 見た目（全幅の画像）。alt="" ＝ 装飾扱い（内容は上の sr-only が持っている）。 */}
-      <picture>
-        <source media="(max-width: 767px)" srcSet="/listing/contact-sp.webp" width={1254} height={1254} />
-        <img
-          src="/listing/contact-pc.webp"
-          width={2062}
-          height={763}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="block w-full h-auto"
-        />
-      </picture>
+    <section className="w-full border-t border-[#c9a55c]/40 bg-[#faf5ec]">
+      <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
+        <h2
+          className="text-[28px] font-semibold leading-[1.45] text-[#2b211c] sm:text-[42px]"
+          style={{ fontFamily: LISTING_MINCHO }}
+        >
+          掲載をご希望の店舗様へ
+        </h2>
+        <p
+          className="mt-3 text-[20px] font-semibold leading-[1.6] text-[#c8402f] sm:text-[28px]"
+          style={{ fontFamily: LISTING_MINCHO }}
+        >
+          福岡で、もっと選ばれるお店へ。
+        </p>
+        <p className="mt-6 max-w-2xl text-[14px] leading-[2] text-[#4a3f38] sm:text-[15px]">
+          本サイトへの掲載をご希望の店舗様は、下記フォームからお気軽にお問い合わせください。掲載内容・条件等の詳細をご案内いたします。
+        </p>
+        <ul className="mt-7 flex flex-wrap gap-3">
+          {POINTS.map((p) => (
+            <li
+              key={p}
+              className="border border-[#c9a55c] bg-[#fffdf8] px-5 py-2.5 text-[15px] font-semibold text-[#2b211c] sm:text-[16px]"
+              style={{ fontFamily: LISTING_MINCHO }}
+            >
+              {p}
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }

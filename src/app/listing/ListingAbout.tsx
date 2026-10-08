@@ -1,69 +1,87 @@
-// /listing の上部セクション（「掲載について」＋「掲載店舗様でできること」）。
-// 2026-08-17（第19便）に、オーナー作成のデザイン画像へ差し替えた。
+import { LISTING_MINCHO } from './listingStyle';
+
+// /listing の「フクエスとは」＋「掲載店舗様でできること」（第1301便・2026-10-08 に画像から文字へ組み直した）。
 //
-// ★ 経緯。同日の少し前まで、この部分は HTML・CSS で組んでいた（デザイン見本の再現）。
-//   その後いただいた画像は写真（福岡の街並み・スマホ／タブレットのモック）が主役で、
-//   CSS では再現できない質のものだったため、まるごと画像に置き換えている。
-//   「デザイン見本を渡されたら HTML・CSS で再現する」は原則として有効だが、
-//   写真が主役の完成画像を渡された場合はこの限りではない。
-//
-// ★ 文章は sr-only で HTML に残してある（2026-08-17 オーナー判断）。
-//   画像化すると検索エンジンにも読み上げにも文字が残らない。第18便で
-//   「FAQを画像化しない」を危険地帯に入れたのと同じ理由。
-//   見た目は画像だけ、中身は見出し階層（h1/h2）と本文を持っている状態にしてある。
-//   ★ 画像側の文言を変えたら、ここの sr-only も必ず同時に直すこと。
-//     食い違うと「読み上げと画面の内容が違う」状態になり、検索エンジンからも不審に見える。
-//
-// ★ 画像は next/image を通していない（/hp/templates と同じ作法）。
-//   すでに WebP で書き出し済み・原寸配信のため、変換をもう一段挟む意味が無い。
-//
-// ★ PC/SP の切り替えは 768px。<source media> と画像の実寸をセットで扱うこと（禁則74）。
-//   about-pc.webp 1586×992 ／ about-sp.webp 864×1821。
-//   width/height を必ず書くこと。書かないと読み込み前の高さが確保されず、
-//   下のコンテンツが大きく飛ぶ（このセクションは縦が長いので影響が大きい）。
+// ★ これまでは全幅のデザイン画像（public/listing/about-pc.webp・about-sp.webp）で、文章は sr-only で持っていた。
+//   料金・機能が変わったので、ページ全体をいったん文字（HTML）で組み直した（カッキーさんの決定）。文言は画像のときと同じ。
+//   ★ このあと画像を用意したら、このブロックを画像に戻す。そのときは下の文を sr-only で残すこと（禁則85）。
+// ★ 見出し「掲載店舗様でできること」は、ページ下の「無料掲載について」が名前で指している。文言を変えるならそちらも直す。
+// ★ 帯は全幅。本文ラッパー（max-w-3xl px-4）の【外】に置く（page.tsx）。100vw ではみ出させない。
+
+const AREAS = ['博多', '天神', '北九州', '久留米'] as const;
+
+// 4つの札の色は、これまでの画像（タブレットの4枚の札）と同じ並び。暗い面の上で読める明るさにしてある
+const CAN_DO: ReadonlyArray<{ name: string; color: string }> = [
+  { name: '店舗情報', color: '#f08a7c' },
+  { name: '写メ日記', color: '#6fcbd0' },
+  { name: '出勤管理', color: '#7fb6e6' },
+  { name: '求人・オファー', color: '#d9b46a' },
+];
 
 export function ListingAbout() {
   return (
     <section className="w-full">
-      {/* ── 画面に出さないテキスト（検索エンジン・読み上げ用）────────────────
-          ★ h1 は【ここには無い】（2026-08-18 第23便）。
-            以前はここに sr-only の h1「掲載について」を置いていたが、可視の見出しが
-            ページに1本も無いのはSEO上もったいないため、page.tsx にパンくず＋可視の h1 を
-            作ってそちらへ移した。ここに戻すと h1 が2本になるので戻さないこと。
-            画像のキャッチコピーは段落として持たせている。 */}
-      <p className="sr-only">
-        ABOUT FUKUES　福岡のメンズエステを、もっと見つけてもらえる場所へ。
-      </p>
-      <p className="sr-only">
-        フクエスは、福岡県のメンズエステ専門ポータルサイトです。博多・天神・北九州・久留米など、福岡全域の店舗様の情報を掲載しています。
-      </p>
-      <p className="sr-only">対応エリア：博多／天神／北九州／久留米</p>
+      {/* ── フクエスとは（明るい帯）── */}
+      <div className="bg-[#faf5ec]">
+        <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
+          <h2
+            className="text-[26px] font-semibold leading-[1.5] text-[#2b211c] sm:text-[42px] sm:leading-[1.45]"
+            style={{ fontFamily: LISTING_MINCHO }}
+          >
+            福岡のメンズエステを、
+            <br />
+            もっと見つけてもらえる場所へ。
+          </h2>
+          <p className="mt-6 max-w-2xl text-[14px] leading-[2] text-[#4a3f38] sm:text-[15px]">
+            フクエスは、福岡県のメンズエステ専門ポータルサイトです。博多・天神・北九州・久留米など、福岡全域の店舗様の情報を掲載しています。
+          </p>
+          <p className="sr-only">対応エリア</p>
+          <ul
+            className="mt-8 flex flex-wrap items-center gap-y-3 text-[20px] font-semibold text-[#c8402f] sm:text-[26px]"
+            style={{ fontFamily: LISTING_MINCHO }}
+          >
+            {AREAS.map((a, i) => (
+              <li
+                key={a}
+                className={i === 0 ? '' : 'ml-5 border-l border-[#c9a55c] pl-5 sm:ml-8 sm:pl-8'}
+              >
+                {a}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
-      <h2 className="sr-only">掲載店舗様でできること</h2>
-      <p className="sr-only">
-        FOR SALON　集客から求人、リピートづくりまで。お店の運営に必要な機能を、ひとつに。
-      </p>
-      <p className="sr-only">
-        掲載店舗様には、集客からリピートづくりまでに必要な機能をまとめてご用意しています。店舗情報の更新・写メ日記・出勤管理は、専用の管理画面からいつでも行えます。セラピストの求人掲載や、お仕事を探しているセラピストへのオファーにも対応しています。
-      </p>
-      <p className="sr-only">店舗情報／写メ日記／出勤管理／求人・オファー</p>
-
-      {/* ── 見た目（全幅の画像）────────────────────────────────
-          alt="" ＝ 装飾扱い。同じ内容を上の sr-only で持っているので、
-          alt にも書くと読み上げが二重になる。 */}
-      <picture>
-        <source media="(max-width: 767px)" srcSet="/listing/about-sp.webp" width={864} height={1821} />
-        <img
-          src="/listing/about-pc.webp"
-          width={1586}
-          height={992}
-          alt=""
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          className="block w-full h-auto"
-        />
-      </picture>
+      {/* ── 掲載店舗様でできること（暗い帯）── */}
+      <div className="bg-[#1f1f1e]">
+        <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
+          <h2 className="text-[13px] font-bold tracking-[0.12em] text-[#d9b46a] sm:text-[14px]">
+            掲載店舗様でできること
+          </h2>
+          <p
+            className="mt-4 text-[23px] font-semibold leading-[1.6] text-[#f7efe0] sm:text-[38px] sm:leading-[1.5]"
+            style={{ fontFamily: LISTING_MINCHO }}
+          >
+            集客から求人、リピートづくりまで。
+            <br />
+            お店の運営に必要な機能を、ひとつに。
+          </p>
+          <p className="mt-6 max-w-2xl text-[14px] leading-[2] text-[#d8cdbb] sm:text-[15px]">
+            掲載店舗様には、集客からリピートづくりまでに必要な機能をまとめてご用意しています。店舗情報の更新・写メ日記・出勤管理は、専用の管理画面からいつでも行えます。セラピストの求人掲載や、お仕事を探しているセラピストへのオファーにも対応しています。
+          </p>
+          <ul className="mt-8 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
+            {CAN_DO.map((c) => (
+              <li
+                key={c.name}
+                className="border px-4 py-3 text-center text-[15px] font-semibold sm:min-w-[160px] sm:px-6 sm:text-[17px]"
+                style={{ borderColor: c.color, color: c.color, fontFamily: LISTING_MINCHO }}
+              >
+                {c.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </section>
   );
 }
