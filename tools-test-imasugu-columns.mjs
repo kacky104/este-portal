@@ -187,17 +187,24 @@ test('★ ステータスバッジも取り込み枠だけで「今すぐ」に�
 //   （supabase/migrations/20260827_import_interval_default.sql）。
 //   ★ 片方だけ動かすと静かにちらつくので、ここで両者が揃っていることを見張る。
 
-const DB_MAX_INTERVAL_MIN = 20; // ★ 上記マイグレーションの CHECK 制約の値
+// ★★ 第1312便（2026-10-08）: 取り込み間隔を30分にし、期限は lib/importListInterval.ts で間隔から計算（80分）。
+//   DB の上限も30分に上げた（追加SQL_第1312便）。
+const DB_MAX_INTERVAL_MIN = 30; // ★ 追加SQL_第1312便の CHECK 制約の値
 
 test('★ IMASUGU_IMPORT_MINUTES が DB の間隔上限を下回っていない', () => {
-  const src = fs.readFileSync('src/app/api/import/ingest-list/route.ts', 'utf8');
-  const m = src.match(/const\s+IMASUGU_IMPORT_MINUTES\s*=\s*(\d+)/);
-  assert.ok(m, 'IMASUGU_IMPORT_MINUTES が見つからない（名前を変えたなら DB 制約も見直すこと）');
-  const minutes = Number(m[1]);
+  const src = fs.readFileSync('src/lib/importListInterval.ts', 'utf8');
+  const iv = src.match(/export\s+const\s+IMPORT_LIST_INTERVAL_MIN\s*=\s*(\d+)/);
+  const pause = src.match(/const\s+IMPORT_5XX_PAUSE_MIN\s*=\s*(\d+)/);
+  assert.ok(iv && pause, 'IMPORT_LIST_INTERVAL_MIN / IMPORT_5XX_PAUSE_MIN が見つからない（名前を変えたなら DB 制約も見直すこと）');
+  assert.ok(/IMASUGU_IMPORT_MINUTES\s*=\s*IMPORT_LIST_INTERVAL_MIN\s*\*\s*2\s*\+\s*IMPORT_5XX_PAUSE_MIN\s*\+\s*10/.test(src), '期限の計算式が変わった');
+  const interval = Number(iv[1]);
+  const minutes = interval * 2 + Number(pause[1]) + 10;
+  assert.ok(interval <= DB_MAX_INTERVAL_MIN, `新規登録の間隔 ${interval} 分が DB の上限 ${DB_MAX_INTERVAL_MIN} 分を超えている（即ヒメを読む店の登録が失敗する）`);
   assert.ok(
-    minutes >= DB_MAX_INTERVAL_MIN,
-    `IMASUGU_IMPORT_MINUTES=${minutes} が DB の上限 ${DB_MAX_INTERVAL_MIN} 分を下回っている。` +
-    'この状態だと、上限ぎりぎりの間隔の店で「今すぐ」が途切れる。' +
-    '期限を縮めるなら supabase/migrations の CHECK 制約も同じ値へ下げること。',
+    minutes >= DB_MAX_INTERVAL_MIN * 2,
+    `IMASUGU_IMPORT_MINUTES=${minutes} が、上限 ${DB_MAX_INTERVAL_MIN} 分の間隔で1回止まったときをまかなえない。` +
+    '期限を縮めるなら CHECK 制約も同じ考えで下げること。',
   );
+  const route = fs.readFileSync('src/app/api/import/ingest-list/route.ts', 'utf8');
+  assert.ok(/import\s*\{\s*IMASUGU_IMPORT_MINUTES\s*\}\s*from\s*'@\/lib\/importListInterval'/.test(route), 'ingest-list が期限を lib から読んでいない');
 });
