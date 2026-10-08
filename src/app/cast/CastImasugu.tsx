@@ -168,7 +168,7 @@ export function CastImasugu({
       {importLive && (
         <p className="text-[11px] text-sky-700 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2 leading-relaxed">
           いま駅ちかで<strong>即ヒメ</strong>に設定されているため、サイトには「今すぐ」と表示されています。<br />
-          この表示は駅ちか側で即ヒメを解除すると消えます（最大15分ほどかかります）。
+          この表示は駅ちか側で即ヒメを解除すると消えます（最大30分ほどかかります）。
         </p>
       )}
 

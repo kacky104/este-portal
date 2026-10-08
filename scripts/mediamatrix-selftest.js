@@ -53,7 +53,7 @@ const T = m.THERAPIST_TABLES;
 eq('★ 2枚（write → read の順・カッキーさんの添削）', T.map((t) => t.key), ['write', 'read']);
 eq('★ 見出し', T.map((t) => t.title), ['フクエスから反映 ーセラピストー', '駅ちかから反映 ーセラピストー']);
 // ★★ 1行目はごく短く（カッキーさんの添削）。★ 取り込みは「自動反映」、送る側は「設定が必要」
-eq('★★★ 1行目（lead）', [T[0].lead, T[1].lead], ['※フクエスリンクのセラピスト設定が必要です', '自動反映（15〜60分以内）　※フクエスリンクのセラピスト設定が必要です']);
+eq('★★★ 1行目（lead）', [T[0].lead, T[1].lead], ['※フクエスリンクのセラピスト設定が必要です', '自動反映（30分以内）　※フクエスリンクのセラピスト設定が必要です']);
 eq('★★ 全部の行が列の数と合っている', T.every((t) => t.rows.every((r) => r.cells.length === t.headers.length)), true);
 eq('★★ 空のマス・空の行名が無い', T.every((t) => t.rows.every((r) => r.label.length > 0 && r.cells.every((c) => typeof c === 'string' && c.length > 0))), true);
 const rc = (t, l) => { const r = t.rows.find((x) => x.label === l); return r.cells[r.cells.length - 1]; };

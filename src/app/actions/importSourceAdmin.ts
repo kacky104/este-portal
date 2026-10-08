@@ -11,7 +11,7 @@
 //     ここ（サーバー）以外からは読めも書けもしない。
 // ★★ 旗はラビリンス様（salon 6）と同じ値で立てる（★ 1店ずつ SQL で揃えていたものを既定にする）:
 //   import_schedule / import_profile / import_imasugu / create_missing = true
-//   list_mode = true・import_interval_min = 15（出勤は15分ごと、週間出勤は1日1回の周）
+//   list_mode = true・import_interval_min = 30（出勤は30分ごと・第1312便で15→30、週間出勤は1日1回の周）
 //   link_mode = 'read'・is_enabled = true
 // ★★ 店舗様が先にホームで「駅ちかから反映する」を押していると external_id が空の行が既にある
 //   （mediaCredentials.ts の insert）。★ その場合は新規ではなく【その行に上書き】（salon_id, provider, slot の一意で upsert）。
@@ -26,6 +26,7 @@
 //   ★ 一覧からも枠ごとに切り替えられる（adminSetImportSourceImasugu）。
 
 import { createClient } from '@/app/lib/supabase/server';
+import { IMPORT_LIST_INTERVAL_MIN } from '@/lib/importListInterval';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
@@ -151,7 +152,7 @@ export async function adminUpsertImportSource(input: {
     import_imasugu: importImasugu,
     create_missing: true,
     list_mode: true,
-    import_interval_min: 15,
+    import_interval_min: IMPORT_LIST_INTERVAL_MIN,
     is_enabled: true,
     updated_at: now,
   };

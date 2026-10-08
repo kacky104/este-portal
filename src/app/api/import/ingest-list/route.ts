@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { IMASUGU_IMPORT_MINUTES } from '@/lib/importListInterval';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { normalizeName } from '@/lib/ekichikaParse';
 import { parseEkichikaList, sokuhimeMisread, type EkichikaListCast } from '@/lib/ekichikaListParse';
@@ -54,7 +55,7 @@ const SWEEP_MAX_RATIO = 0.3;
 //   ★ ふだんは次の周で「即ヒメでなくなった子」を落とすので、見え方は変わらない。
 //   ★ 残りうるのは「駅ちかが止まっている間に即ヒメを外した子」だけ（最大50分）。
 //   ★ 429 の停止（30分）が重なると、まだ切れることがある（相手が「多すぎる」と言ったときは引く方を優先）。
-const IMASUGU_IMPORT_MINUTES = 50;
+// ★★★ 第1312便（2026-10-08）: 取り込み間隔を15分→30分にしたので、50分 → 80分。★ 正本は lib/importListInterval.ts（間隔から計算）。
 
 // ★★★ 読み違えの安全弁（第39便で実際に踏みかけた形）
 //   駅ちかの外側 <div class="waiting sokuiku"> は【休みの子にも付いている】。

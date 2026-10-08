@@ -13,7 +13,7 @@ import { CONECF_ORIGIN } from '@/lib/conecfHost';
 export const metadata: Metadata = { title: 'フクエスリンクのご案内｜フクエス マイページ' };
 
 const ITEMS: ReadonlyArray<{ t: string; d: string; note?: boolean }> = [
-  { t: '出勤', d: '15分以内に自動反映' },
+  { t: '出勤', d: '30分以内に自動反映' },
   { t: 'セラピスト', d: '新人も自動登録' },
   { t: '即ヒメ', d: '即ヒメ → 今すぐ' },
   { t: '写メ日記', d: '駅ちかのID・PWを登録で', note: true },
