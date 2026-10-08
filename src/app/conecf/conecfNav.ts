@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync'
   | 'schedule' | 'scheduleSync'
   | 'now'
-  | 'diary' | 'news' | 'announce' | 'cocoa'
+  | 'diary' | 'news' | 'bump' | 'announce' | 'cocoa'
   | 'log' | 'matrix'
   | 'guide' | 'qa';
 
@@ -25,6 +25,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
+  // ★ 第1305便: 駅ちかの「上位表示する」を自動で押す（時間帯・間隔）＋今すぐ押す
+  { key: 'bump',         label: '駅ちか上位表示',         href: '/bump' },
   // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）
   { key: 'announce',     label: 'フクエスお知らせ',       href: '/announce' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },

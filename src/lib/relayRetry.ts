@@ -27,6 +27,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   'read_photo_page',
   'girl_create_form', 'girl_create_msg', 'girl_edit_form',
   'article_list', 'article_read', 'article_verify',
+  'read_bump',   // ★ 第1305便: 管理画面トップを読むだけ
   // ── エステラブ: 読むだけ ──
   'esulove_therapists',
   // ── エステ魂: 読むだけ ──
@@ -51,6 +52,8 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'article_image', 'article_crop', 'article_save',
   // ★ sokuhime_check は「確かめる」段だが POST。中身が読み取りだけと言い切れないので、送り直さない側に置く（次の周が10分後に来る）
   'sokuhime_check', 'sokuhime_set', 'sokuhime_del',
+  // ★ 第1305便: 上位表示。★ 届いていれば回数が1つ減っている。返事が無くても押し直さない（二重に減らさない）
+  'bump_set',
   // ── エステ魂 ──
   'esutama_work_save',
   'esutama_cast_hide', 'esutama_cast_create',

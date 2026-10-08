@@ -21,6 +21,8 @@ import { defaultAuditSummary, targetLabel } from '@/lib/mediaAudit';
 import { enqueueRelayJob } from '@/app/lib/media/relayQueue';
 // ★ 第1296便: 人が押した削除・プロフィール更新・新規登録は、前の更新が動いていても順番待ちで受け付ける
 import { canWaitIntent, waitAcceptedSummary, waitExpiredSummary, WAIT_REASON_ACCEPTED, WAIT_REASON_EXPIRED } from '@/lib/relayWait';
+// ★ 第1305便: 駅ちかの上位表示
+import type { BumpSetting } from '@/lib/ekichikaBump';
 import { markWorkSynced } from '@/app/lib/media/workInputHash';
 import { loadSokuseraChecks, recordSokuseraChecks } from '@/app/lib/conecf/sokuseraChecks';
 import { stampDiaryListed } from '@/app/lib/media/diaryWatch';
@@ -390,6 +392,13 @@ export async function startRelayFlow(params: {
    *     （だから待つのは15分まで）。
    */
   whenBusy?: 'wait';
+  /**
+   * ★ 第1305便: intent='bump_auto' / 'bump_push' のときだけ（駅ちかの上位表示）。
+   *   setting … 自動の設定（bump_auto では必須。読んだ最終更新日で押すかを決め直すのに使う）
+   *   force   … 店舗様がコネックエフで押した（bump_push）。間隔は見ない（残り0回なら押さない）
+   * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
+   */
+  bump?: { setting?: BumpSetting; force?: boolean };
 }): Promise<StartFlowResult> {
   if (!SUPPORTED_PROVIDERS.includes(params.provider as (typeof SUPPORTED_PROVIDERS)[number])) {
     return { ok: false, reason: 'unsupported', note: 'この媒体の自動連携はまだありません' };
@@ -622,6 +631,9 @@ export async function startRelayFlow(params: {
           sokuhimeStage: 'plan' as const,
         }
       : {}),
+    // ★ 第1305便: 駅ちかの上位表示。★ 渡されたときだけ入れる
+    ...(params.bump?.setting ? { bumpSetting: params.bump.setting } : {}),
+    ...(params.bump?.force === true ? { bumpForce: true } : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
     ...(params.diary
       ? {
@@ -633,6 +645,9 @@ export async function startRelayFlow(params: {
   // ★★★ 実弾なのに相手が指定されていないのは、呼び出し側の間違い。★ 黙って始めない
   if (params.intent === 'diary_push' && !params.diary) {
     throw new Error('diary_push には diary（therapistId）が要る');
+  }
+  if (params.intent === 'bump_auto' && !params.bump?.setting) {
+    throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
     throw new Error('sokusera_push には sokusera（therapistId）が要る');
@@ -941,6 +956,24 @@ export async function advanceRelayFlow(params: {
         note = note + ' → ★ 番号の結びつけに失敗: ' + (r.error ?? '理由不明');
       }
     }
+  }
+
+  // ★★ 第1305便: 駅ちかの上位表示の状態（残り回数・最終更新日）を表に書く。★ 周が次に押すかを決める材料。
+  //   ★ 書けなくても流れは止めない（次の周がもう一度読みに行くだけ）。★ ただし黙らない（ログに残す）。
+  //   ★ 列が無い（追加SQL_第1305便が未適用）ときもここで失敗するだけ。
+  if (outcome.kind === 'done' && outcome.ekichikaBump && params.provider === 'ekichika') {
+    const b = outcome.ekichikaBump;
+    const { error: bErr } = await createServiceClient()
+      .from('salon_import_sources')
+      .update({
+        bump_remaining: b.remaining,
+        bump_quota: b.quota,
+        bump_read_at: b.readAt,
+        ...(b.lastAt ? { bump_last_at: b.lastAt } : {}),
+      })
+      .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot);
+    if (bErr) console.error('[relay] 上位表示の状態を書けなかった', params.salonId, params.slot, bErr.message);
+    else note = note + ' → 上位表示の状態（残り ' + (b.remaining ?? '?') + '）を記録した';
   }
 
   // ★★★ 第421便: 写真を枠へ合わせ終えた記録（★ 変わった枠だけ送る・減った枠を消すのに使う）。

@@ -234,6 +234,8 @@ export const RELAY_WRITE_INTENTS: readonly string[] = [
   'diary_push', 'diary_auto', 'sokusera_push', 'sokusera_auto',
   'article_push', 'article_auto',
   'girl_delete', 'cast_hide', 'cast_create', 'girl_create', 'cast_photo', 'girl_edit', 'cast_edit',
+  // ★ 第1305便: 駅ちかの上位表示（相手の回数を減らす）
+  'bump_auto', 'bump_push',
 ];
 
 /** ★ その流れは書き込みの同意が要るか。★ 知らない流れは【要る側】に倒す */

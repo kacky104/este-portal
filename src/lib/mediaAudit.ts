@@ -79,6 +79,9 @@ export const MEDIA_AUDIT_EVENTS = [
   'create_girl',         // ★★★ 駅ちかにセラピストを1人 登録した。★ 新人マークつき。★ 運営だけの口から
   // ── 駅ちかの女の子プロフィール更新（第415便・2026-09-17）★ 1人ぶんの欄を書き換える ──
   'edit_girl',           // ★★ 駅ちかのプロフィールを更新した（試し打ちは stopped）
+  // ── 駅ちかの上位表示（第1305便・2026-10-08）──
+  'read_bump',           // ★ 駅ちかの管理画面トップで、上位表示の残り回数を読んだ。読むだけ（店舗様の画面からはたたむ）
+  'push_bump',           // ★★ 駅ちかの「上位表示する」を押した（相手の回数が1つ減る）。手で押して押せなかったときは stopped
   'selftest',            // 認証情報を使わない疎通確認
 ] as const;
 
@@ -111,7 +114,8 @@ export function shouldDropAutoAudits(
 ): boolean {
   // ★ 自動の周だけ。★ 第143便で即セラの周も、第215便で即ヒメの周も同じ扱いにした
   //   ★★ 即セラ・即ヒメは「今すぐ」の人が居ない時間のほうが長い。★ 放っておくと日記より積む
-  if (intent !== 'diary_auto' && intent !== 'sokusera_auto' && intent !== 'sokuhime_auto') return false;
+  // ★ 第1305便: 駅ちかの上位表示の周（bump_auto）も同じ扱い（区切りの前で押さなかった回＝読んだだけ）
+  if (intent !== 'diary_auto' && intent !== 'sokusera_auto' && intent !== 'sokuhime_auto' && intent !== 'bump_auto') return false;
   if (hasNext) return false;
   if (audits.length === 0) return false;
   // ★★★ 「見ただけ」の出来事。★ 即ヒメの周だけ 'login' も入る（第215便）。
@@ -121,7 +125,9 @@ export function shouldDropAutoAudits(
   //     ★ すでに本番で回っているものの挙動を、この便のついでに変えない。
   const looked = intent === 'sokuhime_auto'
     ? ['login', 'read_sokuhime']
-    : ['read_diary_targets', 'plan_diary', 'read_sokusera'];
+    : intent === 'bump_auto'
+      ? ['login', 'read_bump']
+      : ['read_diary_targets', 'plan_diary', 'read_sokusera'];
   return audits.every((a) => {
     if (a.outcome !== 'ok') return false;
     // ★★ 即ヒメの計画は、中身が空のときだけ「見ただけ」とみなす
@@ -730,6 +736,28 @@ export function defaultAuditSummary(input: {
             : why === 'wait_expired'
               ? `${t}の前の更新が終わらなかったため、順番待ちの操作は始めずに取りやめました。お手数ですが、もう一度お試しください`
               : `${t}の次の手順を進められませんでした`;
+      break;
+    }
+    // ── 駅ちかの上位表示（第1305便）──
+    case 'read_bump': {
+      const rem = count(d, 'remaining');
+      const q = count(d, 'quota');
+      s = input.outcome === 'ok'
+        ? `${t}の上位表示の残り回数を確かめました` + (rem !== null ? `（残り${rem}${q !== null ? '/' + q : ''}回）` : '')
+        : `${t}の上位表示の残り回数を読み取れませんでした`;
+      break;
+    }
+    case 'push_bump': {
+      const rem = count(d, 'remaining');
+      const q = count(d, 'quota');
+      const left = rem !== null ? `（残り${rem}${q !== null ? '/' + q : ''}回）` : '';
+      const why = d?.['reason'];
+      const msg = typeof d?.['message'] === 'string' && String(d['message']).length > 0 ? `（${String(d['message'])}）` : '';
+      s = input.outcome === 'ok'
+        ? `${t}で上位表示しました` + left
+        : input.outcome === 'stopped'
+          ? (why === 'no_quota' ? `${t}は本日の上位表示の残り回数がないため、押しませんでした` : `${t}の上位表示は、今回は押しませんでした`)
+          : `${t}で上位表示できませんでした` + msg;
       break;
     }
     case 'selftest':

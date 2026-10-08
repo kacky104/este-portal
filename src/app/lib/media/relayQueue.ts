@@ -110,6 +110,9 @@ export type RelayPurpose =
   | 'esutama_sokusera_start'
   | 'esutama_sokusera_verify'
   | 'esutama_sokusera_end'
+  // ★ 第1305便: 駅ちかの上位表示。★ bump_set だけが相手の回数を減らす（送り直さない・lib/relayRetry.ts）
+  | 'read_bump'
+  | 'bump_set'
   | 'selftest';
 
 export type LeasedJob = {

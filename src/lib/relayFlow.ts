@@ -52,6 +52,8 @@ import {
   type EkichikaDiaryDetail,
 } from './ekichikaDiaryParse';
 import { mergeCookies } from './relayJob';
+// ★ 第1305便: 駅ちかの上位表示（判断と読み取りは ekichikaBump.ts）
+import { EKICHIKA_ADMIN_TOP_URL, EKICHIKA_BUMP_URL, parseEkichikaBumpTop, bumpTopUsable, buildEkichikaBumpBody, parseEkichikaBumpResult, shouldBumpNow, type BumpSetting } from './ekichikaBump';
 // ★ 送る内容の形。★ 型だけ借りる（実体は esutamaRequests。★ 実行時の依存は増やさない）
 import type { EsutamaCastCreateValues } from './esutamaRequests';
 // ★ 駅ちかの登録（第234便）。★ 読み手と組み立ては ekichikaGirlCreate が持つ
@@ -123,6 +125,7 @@ import {
 import type { EsutamaPerson } from './esutamaPlan';
 import type { EsutamaRosterRow } from './esutamaParse';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
+import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
 import {
   planEkichikaGirlEdit, buildEkichikaGirlEditFormRequest, buildEkichikaGirlEditRequest, parseEkichikaGirlEditForm,
   verifyEkichikaGirlEdit, type EkichikaGirlEditValues, type EditPlan,
@@ -228,6 +231,15 @@ export type RelayFlowIntent =
    */
   | 'sokuhime_push'
   | 'sokuhime_auto'
+  /**
+   * ★★★ 第1305便（2026-10-08）: 駅ちかの「上位表示する」（管理画面トップのボタン）。
+   *   login → read_bump（管理画面トップ: 残り回数・最終更新日・店舗番号）→（押すなら）bump_set → 終わり。
+   *   ★ bump_auto は周から（時間帯・間隔は salon_import_sources の bump_*）。読んだ最終更新日で、もう一度押すかを決め直す。
+   *   ★ bump_push は店舗様がコネックエフで押したとき（間隔は見ない・残り0回なら押さない）。
+   *   ★ bump_set は相手の回数を1つ減らす＝書き換える段（送り直さない・lib/relayRetry.ts）。
+   */
+  | 'bump_auto'
+  | 'bump_push'
   /**
    * ★★ 投稿用メールアドレスの取り込み（第53便・設計メモ 追記26 §123）。
    *   login → read_maillist → 終わり。★ **駅ちかへは何も書かない。**
@@ -890,6 +902,13 @@ export type RelayFlowContext = {
   sokuhimeDelDone?: Array<{ castId: string; slotIndex: number }>;
   /** #hide_shop_id・#preceding_flg・回数（ページから） */
   sokuhimeShopId?: string;
+  // ── ここから下は intent='bump_auto' / 'bump_push' のときだけ入る（第1305便）──
+  /** 自動の設定（bump_auto のとき・周が DB から入れる）。★ 読んだ最終更新日で押すかを決め直すのに使う */
+  bumpSetting?: BumpSetting;
+  /** 店舗様がコネックエフで押した（bump_push）。★ 間隔は見ない。残り0回なら押さない */
+  bumpForce?: boolean;
+  /** 押す前に読んだ値（トップから）。★ 押したあとの記録に使う */
+  bumpBefore?: { remaining: number | null; quota: number | null; lastAt: string | null };
   sokuhimePrecedingFlg?: string;
   sokuhimeRemaining?: number | null;
   /** 相手が返した終了時刻の文字（"HH:MM"）。★ 照合の段で記録に残す */
@@ -1019,7 +1038,9 @@ export type FlowNextRequest = {
     | 'esutama_sokusera_token' | 'esutama_sokusera_proxy' | 'esutama_sokusera_page'
     | 'esutama_sokusera_start' | 'esutama_sokusera_verify' | 'esutama_sokusera_end'
     | 'esutama_therapist_list' | 'esutama_diary_token' | 'esutama_diary_proxy'
-    | 'esutama_diary_page' | 'esutama_diary_post' | 'esutama_diary_end';
+    | 'esutama_diary_page' | 'esutama_diary_post' | 'esutama_diary_end'
+    // ★ 第1305便: 駅ちかの上位表示。★ bump_set だけが相手の回数を減らす
+    | 'read_bump' | 'bump_set';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1048,6 +1069,11 @@ export type FlowOutcome =
       photoSynced?: PhotoSynced[];
       /** ★ エステ魂の流れの終わりだけ（第110便） */
       esutamaPlan?: EsutamaPlanSummary;
+      /**
+       * ★ 第1305便: 駅ちかの上位表示の状態（管理画面トップ・押した応答から）。★ 表（salon_import_sources.bump_*）に書くのは呼び出し側。
+       *   pressed … この流れで押せたか
+       */
+      ekichikaBump?: { remaining: number | null; quota: number | null; lastAt: string | null; readAt: string; pressed: boolean };
       /**
        * ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **番号を表に書くのは呼び出し側**。
        *   ★ このファイルは DB を知らない。★ 「誰の番号がいくつか」を返すところまでが仕事。
@@ -1505,6 +1531,11 @@ function advanceFlowStep(
       return afterReadGirls(input, ctx);
     case 'read_sokuhime':
       return afterReadSokuhime(input, ctx);
+    // ── 駅ちかの上位表示（第1305便）★ 段名で分けている ──
+    case 'read_bump':
+      return afterReadBump(input, ctx);
+    case 'bump_set':
+      return afterBumpSet(input, ctx);
     // ── 駅ちかから1人削除（第228便）★ 段名で分けている。既存の case には触れていない ──
     case 'girl_delete':
       return afterGirlDelete(input, ctx);
@@ -1718,6 +1749,23 @@ function afterLogin(
       next,
       audits: [],
       note: 'ログインの応答を受け取った。★ 成否はニュースの一覧が読めるかどうかで判定する',
+    };
+  }
+
+  if (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push') {
+    // ★ 第1305便: まず管理画面トップを読む（残り回数・最終更新日・店舗番号）。★ 読めた＝ログインできた
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'read_bump',
+        method: 'GET',
+        url: EKICHIKA_ADMIN_TOP_URL,
+        headers: buildReadWorkRequest(cookie),
+        body: '',
+        context: { ...ctx, cookie },
+      },
+      audits: [],
+      note: 'ログインの応答を受け取った。★ 成否は管理画面トップが読めるかどうかで判定する',
     };
   }
 
@@ -3116,6 +3164,10 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
     case 'sokuhime_auto':
       // ★ ここへは来ない（即ヒメは出勤ページを読みに行かない）。★ 網羅は外さない（第213・214便）
       return stop(audits, '即ヒメは出勤ページを使わない（ここへは来ないはず）');
+    case 'bump_auto':
+    case 'bump_push':
+      // ★ 第1305便: 上位表示は管理画面トップを読む（出勤ページは使わない）
+      return stop(audits, '上位表示は出勤ページを使わない（ここへは来ないはず）');
     case 'diary_read':
       // ★ ここへは来ない（写メ日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★ この見張りが、いま実際に働いた: diary_read を足した時点でコンパイルが止まった（第94便）
@@ -4624,5 +4676,141 @@ function afterGirlEdit(
     audits: [],
     note: 'プロフィールを送った。★ 成否は編集ページを読み直して確かめる' + (message ? '（画面のことば: ' + message + '）' : ''),
     next: { purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '', context: { ...ctx, cookie, editStage: 'verify' } },
+  };
+}
+
+
+// ───────────── ★★★ 駅ちかの上位表示（第1305便・2026-10-08）─────────────
+//   ① GET  /admin                      … 残り回数・1日の回数・最終更新日・店舗番号（#hide_shop_id）
+//   ② POST /admin/bulktop/create.json  … 'id=undefined&key=undefined&shop_id=<店舗番号>'（駅ちかの画面と一字一句同じ・ekichikaBump.ts）
+//   ★ jQuery の $.ajax と同じ形（x-www-form-urlencoded・X-Requested-With）。
+//   ★ 押すかどうかは、①で読んだ最終更新日で決め直す（店舗様が駅ちかで手で押した直後なら押さない）。
+
+function bumpPostHeaders(ctx: RelayFlowContext): Record<string, string> {
+  return {
+    'user-agent': RELAY_USER_AGENT,
+    accept: 'application/json, text/javascript, */*; q=0.01',
+    'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+    'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+    origin: EKICHIKA_ORIGIN,
+    referer: EKICHIKA_ADMIN_TOP_URL,
+    'x-requested-with': 'XMLHttpRequest',
+    cookie: ctx.cookie,
+  };
+}
+
+function afterReadBump(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  if (input.status >= 300 && input.status < 400) {
+    const location = String(input.headers['location'] ?? '');
+    if (location.includes('/admin/login')) {
+      return stop(
+        [{
+          event: 'login', outcome: 'failed',
+          summary: '駅ちかにログインできませんでした（ログイン画面へ戻されました）。店舗ID・ログインID・パスワードをご確認ください',
+          detail: { httpStatus: input.status, reason: 'back_to_login', flowId },
+        }],
+        '管理画面トップがログイン画面へ戻された＝ログインできていない',
+      );
+    }
+    return stop([{ event: 'read_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'redirect', flowId } }], '管理画面トップが想定外の場所へ転送された');
+  }
+  if (input.status !== 200) {
+    return stop([{ event: 'read_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'http_error', flowId } }], '管理画面トップの応答が ' + input.status + ' だった');
+  }
+  const top = parseEkichikaBumpTop(input.body);
+  if (!bumpTopUsable(top)) {
+    if (looksLikeEkichikaLoginPage(input.body)) {
+      return stop(
+        [{
+          event: 'login', outcome: 'failed',
+          summary: '駅ちかにログインできませんでした（ログイン画面が返りました）。店舗ID・ログインID・パスワードをご確認ください',
+          detail: { httpStatus: input.status, reason: 'login_page', flowId },
+        }],
+        '管理画面トップの代わりにログイン画面が返った',
+      );
+    }
+    return stop(
+      [{ event: 'read_bump', outcome: 'failed', detail: { reason: 'unparseable', problems: top.problems.slice(0, 4).join(' / '), flowId } }],
+      '管理画面トップの上位表示の欄を読めなかった: ' + top.problems.join(' / '),
+    );
+  }
+
+  const cookie = withResponseCookie(ctx, input).cookie;
+  const now = new Date();
+  const readAt = now.toISOString();
+  const state = { remaining: top.remaining, quota: top.quota, lastAt: top.lastAt, readAt, pressed: false };
+  const audits: FlowAudit[] = [
+    { event: 'login', outcome: 'ok', detail: { flowId } },
+    // ★ 読んだだけの行は店舗様の画面からたたむ（自動は20分ごとなので、出すと記録が埋まる）
+    { event: 'read_bump', outcome: 'ok', detail: { remaining: top.remaining, quota: top.quota, flowId, ...AUDIT_SHOP_HIDDEN } },
+  ];
+
+  const decision = ctx.bumpForce === true
+    ? ((top.remaining ?? 0) > 0 ? { bump: true, reason: 'ok' as const } : { bump: false, reason: 'no_quota' as const })
+    : shouldBumpNow({
+      now,
+      setting: ctx.bumpSetting ?? { enabled: false, startMin: 0, endMin: 0, intervalMin: 0 },
+      state: { lastAt: top.lastAt, remaining: top.remaining, readAt, autoAt: null },
+      atRead: true,
+    });
+
+  if (!decision.bump) {
+    // ★ 手で押したのに押せなかったときは、理由を店舗様の画面に出す。★ 自動は黙る（次の区切りでまた見る）
+    const extra: FlowAudit[] = ctx.bumpForce === true
+      ? [{ event: 'push_bump', outcome: 'stopped', detail: { reason: decision.reason, remaining: top.remaining, quota: top.quota, manual: true, flowId } }]
+      : [];
+    return { kind: 'done', audits: [...audits, ...extra], note: '上位表示は押さなかった（' + decision.reason + '）', ekichikaBump: state };
+  }
+
+  return {
+    kind: 'next',
+    next: {
+      purpose: 'bump_set',
+      method: 'POST',
+      url: EKICHIKA_BUMP_URL,
+      headers: bumpPostHeaders({ ...ctx, cookie }),
+      body: buildEkichikaBumpBody(String(top.shopId)),
+      context: { ...ctx, cookie, bumpBefore: { remaining: top.remaining, quota: top.quota, lastAt: top.lastAt } },
+    },
+    audits,
+    note: '管理画面トップを読めた（残り ' + top.remaining + '/' + (top.quota ?? '?') + '）→ 上位表示を押す',
+  };
+}
+
+function afterBumpSet(
+  input: { status: number; headers: Record<string, string | string[]>; body: string },
+  ctx: RelayFlowContext,
+): FlowOutcome {
+  const flowId = ctx.flowId;
+  const before = ctx.bumpBefore ?? { remaining: null, quota: null, lastAt: null };
+  const now = new Date().toISOString();
+  if (input.status >= 300 && input.status < 400 && String(input.headers['location'] ?? '').includes('/admin/login')) {
+    return stop(
+      [{ event: 'push_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'back_to_login', manual: ctx.bumpForce === true, flowId } }],
+      '上位表示を押したらログイン画面へ戻された',
+    );
+  }
+  const r = parseEkichikaBumpResult(input.status, input.body);
+  if (r.ok) {
+    return {
+      kind: 'done',
+      audits: [{ event: 'push_bump', outcome: 'ok', detail: { remaining: r.remaining, quota: before.quota, manual: ctx.bumpForce === true, flowId } }],
+      note: '上位表示を押せた（残り ' + r.remaining + '）',
+      ekichikaBump: { remaining: r.remaining, quota: before.quota, lastAt: r.lastAt ?? now, readAt: now, pressed: true },
+    };
+  }
+  return {
+    kind: 'done',
+    audits: [{
+      event: 'push_bump', outcome: 'failed',
+      detail: { httpStatus: input.status, reason: 'not_accepted', message: r.message, manual: ctx.bumpForce === true, flowId },
+    }],
+    note: '上位表示が通らなかった: ' + (r.message ?? ''),
+    // ★ 押せなかった。読んだときの値だけ残す（回数は減っていないはず）
+    ekichikaBump: { remaining: before.remaining, quota: before.quota, lastAt: before.lastAt, readAt: now, pressed: false },
   };
 }
