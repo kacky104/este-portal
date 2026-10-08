@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { startRelayFlow, hasSokuhimeWork } from '@/app/lib/media/relayFlow';
 import { needsConecfConsent } from '@/lib/mediaConsent';
 // ★ 第325便: 「いま今すぐの人がいるか」を、画面と同じ物差しで見る（★ 決め方を2つ持たない）
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
@@ -33,6 +33,14 @@ import { sokuhimeOwnedSinceISO } from '@/lib/ekichikaSokuhimePlan';
 //     ★ だから1周の通信は「1人につき POST 2回 ＋ 最後に GET 1回」。
 //   ★ 1人がだめ（在籍していない・出勤中でない）でも周ごと落とさない。★ その人の理由を記録して次の人へ。
 //   ★ 残りは次の周が拾う（10分ごと・今すぐは45分もつ・第326便で30分から延ばした）。
+//
+// ★★★★ 【第1317便】（2026-10-08・カッキーさんの決定）: 用が無い周は【ログインしない】。
+//   ★ 「今すぐ」の方が全員、フクエスが押してから42分以内（45分で駅ちか側が切れる）で、外す枠も無いときは、中継ジョブを積まない。
+//   ★ 駅ちかへのログインは、ラビリンス様で多くて1日 16〜44回 減る（10/6〜10/8 の記録で「全員もう即ヒメ中」だった周の数。
+//     ★ そのうち店舗様が駅ちかで直接入れた即ヒメの方が居た周は、今までどおり読みに行く）。
+//   ★★ 分かっていて残す遅れ: 店舗様が駅ちかの画面で直接、フクエスの押した即ヒメを外した・入れ替えたとき、
+//     気づくのが最長10分 → 最長42分になる（押し直しがそのぶん遅れる）。
+//   ★ 下調べは hasSokuhimeWork（relayFlow）。決め方と理由は lib/ekichikaSokuhimePlan.ts の sokuhimeIdleCheck。
 //
 // ★★★ ベンリー（Mr.Venrey）などの「即姫」タイマーを使っている店では、
 //   相手のほうが先に枠を埋めることがある。★ そのときフクエスは **必ず譲る**
@@ -218,6 +226,12 @@ export async function POST(req: Request) {
       skipped.push({ target, why: '「今すぐ」の方がいない（外す枠も無い）ので入らなかった' });
       continue;
     }
+    // ★★★ 第1317便（2026-10-08・カッキーさんの決定）: 「今すぐ」の方が全員、フクエスが押した即ヒメの続いているあいだは入らない。
+    //   ★ それまでは「今すぐ」の方が居るかぎり10分ごとにログインし、7〜9割は読んだだけで帰っていた（10/6〜10/8 の記録）。
+    //   ★ 決め方は lib/ekichikaSokuhimePlan.ts の sokuhimeIdleCheck。★ 読めなかったときは今までどおり入る。
+    //   ★ 数えるだけ（apply も dryrun も無し）でもここを通す＝本番で、ジョブを積まずに下調べの結果を見られる。
+    const work = await hasSokuhimeWork({ salonId: Number(r.salon_id), provider: PROVIDER, slot: Number(r.slot) });
+    if (!work.ok) { skipped.push({ target, why: work.why }); continue; }
     if (started.length >= MAX_SALONS_PER_RUN) { skipped.push({ target, why: '今回の上限に達したので次の周へ' }); continue; }
     // ★ dryrun も apply も付いていなければ、数えるだけ（中継ジョブを積まない）
     if (!apply && !dryrun) { started.push(target); continue; }

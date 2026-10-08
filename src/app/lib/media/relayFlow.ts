@@ -101,7 +101,7 @@ import {
 } from '@/lib/esutamaSokuseraTargets';
 import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
 import { isImasuguLiveRow, isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
-import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND, sokuhimeOwnedSinceISO } from '@/lib/ekichikaSokuhimePlan';
+import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND, sokuhimeOwnedSinceISO, sokuhimeIdleCheck, type SokuhimePerson } from '@/lib/ekichikaSokuhimePlan';
 import { buildSokuhimeCheckStep, buildSokuhimeDelStep } from '@/lib/relayFlow';
 import { buildEsutamaDiaryTokenStep, attachEsutamaDiaryPhotos } from '@/lib/esutamaDiaryFlow';
 import {
@@ -1962,24 +1962,11 @@ async function advanceSokuhime(
 
   // ★ 1人だけ試すときは、その人だけを people にする（★ ほかの人を勝手に押さない）
   const wantId = ctx.intent === 'sokuhime_push' ? Number(ctx.sokuhimeTherapistId ?? 0) : 0;
-  const people = trows
-    .filter((t) => wantId === 0 || Number(t['id']) === wantId)
-    .map((t) => {
-      const row = t as unknown as ImasuguRow;
-      // ★★★ 書く元はオーナー枠＋キャスト枠だけ。★ 取り込み枠は書き戻さない（エコーバック）
-      // ★ 第408便: 送り先サイトで「送らない」の人は、今すぐでも上げない（★ 期限切れと同じ扱い＝こちらが上げた枠は通常どおり降ろす）
-      const byFukues = !sokuOff.off.has(Number(t['id'])) && (isOwnerLiveRow(row, now) || isCastLiveRow(row, now));
-      const untils = [row.available_until, row.available_until_cast]
-        .filter((u): u is string => typeof u === 'string' && u.length > 0)
-        .map((u) => Math.floor(new Date(u).getTime() / 1000))
-        .filter((n) => Number.isFinite(n) && n > nowUnix);
-      return {
-        therapistId: Number(t['id']), name: String(t['name'] ?? ''),
-        castId: maps.castIdOf.get(Number(t['id'])) ?? null,
-        imasuguByFukues: byFukues,
-        imasuguUntilUnix: byFukues && untils.length > 0 ? Math.max(...untils) : null,
-      };
-    });
+  // ★ 第1317便: 人の組み立ては sokuhimePeopleOf（周の下調べ hasSokuhimeWork と同じ1つを使う）
+  const people = sokuhimePeopleOf(
+    trows.filter((t) => wantId === 0 || Number(t['id']) === wantId),
+    maps.castIdOf, sokuOff.off, now, nowUnix,
+  );
   // ★ 1人だけ試すとき、その人が今すぐでなければ理由を出す（planSokuhime は用の無い人を黙って外すため）
   const wanted = wantId !== 0 ? people[0] : undefined;
 
@@ -2042,6 +2029,91 @@ async function advanceSokuhime(
     return { audits: [planAudit], note: summary + ' → 解除へ', next };
   }
   return { audits: [planAudit], note: summary };
+}
+
+/**
+ * ★★ 即ヒメの計画に渡す「人」を組み立てる（第1317便でここへ出した。中身は第214便・第408便のまま）。
+ *   ★ 中継の計画（advanceSokuhime）と、周の下調べ（hasSokuhimeWork）が【同じ1つ】を使う。★ 「今すぐ」の決め方を2つ持たない。
+ */
+function sokuhimePeopleOf(
+  trows: ReadonlyArray<Record<string, unknown>>,
+  castIdOf: ReadonlyMap<number, string | null>,
+  off: ReadonlySet<number>,
+  now: Date,
+  nowUnix: number,
+): SokuhimePerson[] {
+  return trows.map((t) => {
+    const row = t as unknown as ImasuguRow;
+    // ★★★ 書く元はオーナー枠＋キャスト枠だけ。★ 取り込み枠は書き戻さない（エコーバック）
+    // ★ 第408便: 送り先サイトで「送らない」の人は、今すぐでも上げない（★ 期限切れと同じ扱い＝こちらが上げた枠は通常どおり降ろす）
+    const byFukues = !off.has(Number(t['id'])) && (isOwnerLiveRow(row, now) || isCastLiveRow(row, now));
+    const untils = [row.available_until, row.available_until_cast]
+      .filter((u): u is string => typeof u === 'string' && u.length > 0)
+      .map((u) => Math.floor(new Date(u).getTime() / 1000))
+      .filter((n) => Number.isFinite(n) && n > nowUnix);
+    return {
+      therapistId: Number(t['id']), name: String(t['name'] ?? ''),
+      castId: castIdOf.get(Number(t['id'])) ?? null,
+      imasuguByFukues: byFukues,
+      imasuguUntilUnix: byFukues && untils.length > 0 ? Math.max(...untils) : null,
+    };
+  });
+}
+
+/**
+ * ★★★ 即ヒメの周を回す【前】に、DB だけで「この周に駅ちかへ行く用があるか」を確かめる（第1317便・2026-10-08・カッキーさんの決定）。
+ *   ★ 即セラの hasSokuseraSendCandidate（第1244便）と同じ作法。決め方は lib/ekichikaSokuhimePlan.ts の sokuhimeIdleCheck（理由もそこ）。
+ *
+ * ★★★ **これは「絞り込み」であって「判定」ではない。** 誰を押す・外すかは advanceSokuhime ＋ planSokuhime のまま。
+ *   ★ 材料の読み方（在籍・「今すぐ」の枠・名簿の結び・送り先サイト・こちらが押した記録）は advanceSokuhime の計画の段と同じ。
+ *   ★ 読めなかったときは count=-1 で通す（★ 「用が無い」と決めつけない＝取りこぼさない側へ倒す）。
+ */
+export async function hasSokuhimeWork(params: {
+  salonId: number; provider: string; slot: number;
+}): Promise<{ ok: true; count: number } | { ok: false; why: string }> {
+  const supabase = createServiceClient();
+  const now = new Date();
+  const nowUnix = Math.floor(now.getTime() / 1000);
+
+  const { data: ths, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name, import_cast_id, is_available_now, available_until, is_available_now_cast, available_until_cast, is_available_now_import, available_until_import')
+    .eq('salon_id', params.salonId).eq('is_active', true).order('id', { ascending: true });
+  if (thErr) return { ok: true, count: -1 };
+  const trows = (ths ?? []) as Array<Record<string, unknown>>;
+
+  const { maps, error: castErr } = await loadCastIds(supabase, {
+    therapists: trows.map((t) => ({ id: Number(t['id']), import_cast_id: (t['import_cast_id'] as string | null) ?? null })),
+    provider: params.provider, slot: params.slot,
+  });
+  if (castErr) return { ok: true, count: -1 };
+
+  const sokuOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (sokuOff.error) return { ok: true, count: -1 };
+
+  const { data: pushedRows, error: pErr } = await supabase
+    .from('media_sokuhime_pushes').select('cast_id, pushed_at')
+    .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+    .is('removed_at', null)
+    .gte('pushed_at', sokuhimeOwnedSinceISO(now.getTime()));
+  if (pErr) return { ok: true, count: -1 };
+
+  const people = sokuhimePeopleOf(trows, maps.castIdOf, sokuOff.off, now, nowUnix);
+  const v = sokuhimeIdleCheck({
+    people,
+    pushes: ((pushedRows ?? []) as Array<{ cast_id: string; pushed_at: string }>)
+      .map((r) => ({ castId: String(r.cast_id), pushedAtMs: Date.parse(String(r.pushed_at)) })),
+    nowMs: now.getTime(),
+  });
+  if (v.idle) {
+    return {
+      ok: false,
+      why: v.reason === 'no_one'
+        ? '即ヒメへ送る「今すぐ」の方がいない（外す枠も無い）ので入らなかった'
+        : '「今すぐ」の方は全員、フクエスが押した即ヒメがまだ続いている（外す枠も無い）ので入らなかった',
+    };
+  }
+  return { ok: true, count: people.filter((p) => p.imasuguByFukues).length };
 }
 
 /**

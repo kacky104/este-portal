@@ -191,3 +191,68 @@ export function sokuhimePlanSummary(plan: SokuhimePlan): string {
   if (plan.blocked.length > 0) parts.push(`送れない ${plan.blocked.length}名`);
   return parts.join(' ／ ');
 }
+
+/**
+ * ★★★ 第1317便（2026-10-08・カッキーさんの決定）: 周が駅ちかへログインする【前】に、
+ *   こちらの記録だけで「この周は用が無い」と言い切れるかを決める（純粋関数）。
+ *
+ * ★★ なぜ要るか（ラビリンス様の 10/6〜10/8 の記録で数えた）
+ *   「今すぐ」の方が1人でも居れば、周は10分ごとにログインして即ヒメ設定画面を読んでいた。
+ *   そのうち7〜9割は何も送らず、読んだだけ（10/6 59/67回・10/7 41/57回・10/8 26/37回）。
+ *   10/8 は、読んだだけの26回すべてが「全員もう即ヒメ中」だった。
+ *   → 押してから45分は駅ちか側で続くので、押した記録が新しいあいだは読みに行かない。
+ *
+ * ★★★ 「用が無い」と言うのは、次が【すべて】そろったときだけ。★ 1つでも欠けたら今までどおりログインする:
+ *   ① 「今すぐ」の方が全員、フクエスが押してから (45 − 余裕) 分以内（こちらの記録 media_sokuhime_pushes）
+ *   ② 外す枠が無い（フクエスが押して45分以内の方が、全員まだ「今すぐ」）
+ *   ③ 連携していない方（castId なし）が居ない … 店舗様が直せる理由は、今までどおり記録に出す
+ * ★ 駅ちかの画面の写し（media_sokuhime_snapshots）は使わない。枠の切れる時刻が実物では読めていない（第1282便）。
+ *   店舗様（やベンリー）が入れた即ヒメは、いつまで続くか分からない → その方が「今すぐ」の周は今までどおり読む。
+ * ★★ 分かっていて残す遅れ: 店舗様が駅ちかの画面で直接、フクエスの押した即ヒメを外した・入れ替えたとき、
+ *   こちらは押してから (45 − 余裕) 分たつまで気づかない（今までは次の周＝最長10分）。カッキーさん了承（2026-10-08）。
+ * ★ これは「絞り込み」であって「判定」ではない。誰を押す・外すかは planSokuhime のまま（2か所に置かない）。
+ */
+
+/**
+ * 押した記録の時刻は「読み直して確かめた時刻」で、実際に押した時刻より少し遅い（最大6人を続けて送るため）。
+ * ★ そのぶん駅ちか側は早く切れる。切れる間際の周は読みに行く（＝押し直しの間隔を今までと変えない）。
+ */
+export const SOKUHIME_IDLE_MARGIN_MIN = 3;
+
+export type SokuhimeIdleReason =
+  | 'all_on'       // 「今すぐ」の方は全員、フクエスが押した即ヒメがまだ続いている（外す枠も無い）
+  | 'no_one'       // 送る方がいない（外す枠も無い）
+  | 'needs_del'    // フクエスが押した方の「今すぐ」が終わっている → 外しに行く
+  | 'unlinked'     // 連携していない方が「今すぐ」→ 理由を記録に出すため読みに行く
+  | 'needs_push'   // 押した記録が無い・古い方が居る → 読みに行く
+  | 'unknown';     // 記録の時刻を読めない → 読みに行く（「用が無い」と決めつけない）
+
+export function sokuhimeIdleCheck(input: {
+  people: ReadonlyArray<Pick<SokuhimePerson, 'castId' | 'imasuguByFukues'>>;
+  /** フクエスが押した記録（removed_at が空のもの）。★ 古いものが混じっていてもよい（ここで45分に絞る） */
+  pushes: ReadonlyArray<{ castId: string; pushedAtMs: number }>;
+  nowMs: number;
+}): { idle: boolean; reason: SokuhimeIdleReason } {
+  const go = (reason: SokuhimeIdleReason) => ({ idle: false, reason });
+  const { nowMs } = input;
+  if (!Number.isFinite(nowMs)) return go('unknown');
+  if (input.pushes.some((p) => !Number.isFinite(p.pushedAtMs))) return go('unknown');
+
+  // ★ 「フクエスが押した枠」の範囲は中継の計画と同じ物差し（sokuhimeOwnedSinceISO）
+  const ownedSinceMs = Date.parse(sokuhimeOwnedSinceISO(nowMs));
+  const freshSinceMs = ownedSinceMs + SOKUHIME_IDLE_MARGIN_MIN * 60 * 1000;
+  const owned = input.pushes.filter((p) => p.pushedAtMs >= ownedSinceMs);
+
+  const live = input.people.filter((p) => p.imasuguByFukues);
+  const liveCast = new Set(live.map((p) => p.castId).filter((c): c is string => typeof c === 'string' && c.length > 0));
+
+  // ② 外す枠があるかもしれない（枠にまだ居るかは読まないと分からない → 読みに行く側へ）
+  if (owned.some((p) => !liveCast.has(p.castId))) return go('needs_del');
+  if (live.length === 0) return { idle: true, reason: 'no_one' };
+  // ③ 連携していない方
+  if (live.some((p) => !p.castId)) return go('unlinked');
+  // ① 全員、押した記録がまだ新しい
+  const fresh = new Set(owned.filter((p) => p.pushedAtMs >= freshSinceMs).map((p) => p.castId));
+  if (live.some((p) => !fresh.has(String(p.castId)))) return go('needs_push');
+  return { idle: true, reason: 'all_on' };
+}

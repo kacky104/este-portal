@@ -151,5 +151,57 @@ console.log('\n── 9. ★★★ 第1283便: 即ヒメを送らない枠（運
   eq('★★ 店舗様の画面へ渡す側も、読めなくても画面を止めない（別の問い合わせ）', /\.eq\('salon_id', salonId\)\.eq\('sokuhime_push_off', true\)/.test(ov), true);
 }
 
+console.log('\n── 10. ★★★ 第1317便: 用が無い周はログインしない（周の下調べ・sokuhimeIdleCheck）──');
+{
+  const NOW_MS = NOW * 1000;
+  const minAgo = (m) => NOW_MS - m * 60 * 1000;
+  const L = (id, o) => Object.assign({ castId: String(100 + id), imasuguByFukues: true }, o || {});
+  const idle = (people, pushes) => v.sokuhimeIdleCheck({ people, pushes, nowMs: NOW_MS });
+  const push = (id, m) => ({ castId: String(100 + id), pushedAtMs: minAgo(m) });
+
+  eq('余裕の定数は3分', v.SOKUHIME_IDLE_MARGIN_MIN, 3);
+  eq('★★★ 全員、押した記録が新しい → 用が無い', idle([L(1), L(2)], [push(1, 9), push(2, 29)]), { idle: true, reason: 'all_on' });
+  eq('★★★ 1人でも押した記録が無ければ、読みに行く', idle([L(1), L(2)], [push(1, 9)]), { idle: false, reason: 'needs_push' });
+  eq('★★★ 「今すぐ」でない方（取り込み枠だけの方も）は数えない', idle([L(1), L(2, { imasuguByFukues: false })], [push(1, 9)]), { idle: true, reason: 'all_on' });
+
+  // ★ 切れる間際: 押してから42分までは待つ。42分を過ぎたら読みに行く（記録の時刻は実際に押した時刻より少し遅い）
+  eq('41分前の記録 → 用が無い', idle([L(1)], [push(1, 41)]).idle, true);
+  eq('★★ 43分前の記録（45分の内側だが間際）→ 読みに行く', idle([L(1)], [push(1, 43)]), { idle: false, reason: 'needs_push' });
+  eq('★★ 46分前の記録（もう切れている）→ 読みに行く', idle([L(1)], [push(1, 46)]), { idle: false, reason: 'needs_push' });
+  eq('★ 古い記録と新しい記録が両方あれば、新しいほうで決まる', idle([L(1)], [push(1, 50), push(1, 5)]).idle, true);
+
+  // ★★★ 押し直しの間隔を今までと変えない: 周は10分ごと。押した周の次から 9・19・29・39分後は待ち、49分後に読みに行く
+  eq('★★★ 押してから 9・19・29・39分後の周は入らず、49分後の周で入る',
+    [9, 19, 29, 39, 49].map((m) => idle([L(1)], [push(1, m)]).idle), [true, true, true, true, false]);
+
+  // ★ 外す仕事: フクエスが押して45分以内の方の「今すぐ」が終わっている → 読みに行く（枠にまだ居るかは読まないと分からない）
+  eq('★★★ 押した方の「今すぐ」が終わっていれば、外しに行く', idle([L(1), L(2, { imasuguByFukues: false })], [push(1, 9), push(2, 20)]), { idle: false, reason: 'needs_del' });
+  eq('★★ 「今すぐ」の方が0人でも、外す枠があれば行く', idle([L(2, { imasuguByFukues: false })], [push(2, 20)]), { idle: false, reason: 'needs_del' });
+  eq('★ 45分を過ぎた記録は外す仕事に数えない（もう切れている・第1282便と同じ物差し）', idle([L(1), L(2, { imasuguByFukues: false })], [push(1, 9), push(2, 46)]), { idle: true, reason: 'all_on' });
+  eq('「今すぐ」の方が0人で、外す枠も無い → 用が無い', idle([L(1, { imasuguByFukues: false })], []), { idle: true, reason: 'no_one' });
+
+  // ★ 店舗様が直せる理由は、今までどおり記録に出す（＝読みに行く）
+  eq('★★ 連携していない方が「今すぐ」なら、読みに行く', idle([L(1), L(2, { castId: null })], [push(1, 9)]), { idle: false, reason: 'unlinked' });
+  // ★ 分からないときは「用が無い」と決めつけない
+  eq('★★ 記録の時刻を読めなければ、読みに行く', idle([L(1)], [{ castId: '101', pushedAtMs: NaN }]), { idle: false, reason: 'unknown' });
+  eq('★ いまの時刻が読めなければ、読みに行く', v.sokuhimeIdleCheck({ people: [L(1)], pushes: [push(1, 9)], nowMs: NaN }).idle, false);
+
+  // ── つなぎ（周の入口と中継）──
+  const fs = require('fs'), path = require('path');
+  const src = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8').replace(/\r/g, '');
+  const route = src('src/app/api/admin/sokuhime-push/route.ts');
+  const flow = src('src/app/lib/media/relayFlow.ts');
+  const iWork = route.indexOf('await hasSokuhimeWork('), iStart = route.indexOf('await startRelayFlow({\n        salonId: Number(r.salon_id)');
+  eq('★★★ 周の入口: 中継ジョブを積む前に下調べをする', iWork > 0 && iStart > iWork, true);
+  eq('★★ 用が無ければ、理由を残して積まない', /if \(!work\.ok\) \{ skipped\.push\(\{ target, why: work\.why \}\); continue; \}/.test(route), true);
+  // ★ 止めた枠・同意していない枠・「今すぐ」も外す枠も無い店は、下調べの前に外れる（問い合わせを増やさない）
+  eq('★ 下調べは、止めた枠・同意・第325便のふるいの後ろ', route.indexOf('pushOff.has(') < iWork && route.indexOf('consentOk.has(') < iWork && route.indexOf('!liveSalons.has(') < iWork, true);
+  const body = flow.slice(flow.indexOf('export async function hasSokuhimeWork('), flow.indexOf('★ 即ヒメ設定画面の写しを残す（第213便）'));
+  eq('★★★ 下調べの決め方は sokuhimeIdleCheck（ここに条件を書かない）', /sokuhimeIdleCheck\(\{/.test(body), true);
+  eq('★★★ 下調べも、押した記録を45分の物差しで引く', /\.is\('removed_at', null\)\s*\.gte\('pushed_at', sokuhimeOwnedSinceISO\(now\.getTime\(\)\)\)/.test(body), true);
+  eq('★★ 読めなかったときは通す（4か所とも count: -1）', (body.match(/return \{ ok: true, count: -1 \};/g) || []).length, 4);
+  eq('★★★ 「人」の組み立ては1つ（定義1＋中継の計画1＋下調べ1）', (flow.match(/sokuhimePeopleOf\(/g) || []).length, 3);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
