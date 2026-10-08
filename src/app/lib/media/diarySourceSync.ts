@@ -1,8 +1,8 @@
 // 写メ日記の入口（salons.diary_source）を、今の向き・鍵から導いて書く（第205便で作り、第669便でここへ移した）。
 // ★★★ 第669便（2026-09-22）: ラビリンス様の写メ日記の取り込みが 9/17 から5日止まっていた。
 //   ★ 原因: 向き（link_mode）を SQL Editor で直接 read に戻したため、この同期が走らず diary_source が 'benry' のまま残った。
-//   ★ 直し: 取り込みの周（/api/admin/diary-import・15分ごと）の頭でも、鍵のある店についてこれを呼ぶ。
-//     ★ どこから向きを変えても（画面・運営の SQL）、15分以内に入口が向きと揃う。
+//   ★ 直し: 取り込みの周（/api/admin/diary-import・20分ごと）の頭でも、鍵のある店についてこれを呼ぶ。
+//     ★ どこから向きを変えても（画面・運営の SQL）、20分以内に入口が向きと揃う。
 // ★ 判断は src/lib/diarySource.ts の deriveDiarySource（純粋関数・番人あり）。★ ここは読んで書くだけ。変わったときだけ書いて監査に残す。
 
 import { createServiceClient } from '@/app/lib/supabase/service';

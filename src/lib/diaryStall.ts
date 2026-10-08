@@ -32,14 +32,14 @@ import { importsDiaryFromEkichika } from './diarySource';
 import { importElapsedLabel, importSlotLabel } from './importStall';
 
 /**
- * 何周ぶん落ちたら鳴らすか。★ 15分間隔なら 16周 = 4時間。
+ * 何周ぶん落ちたら鳴らすか。★ 20分間隔なら 16周 = 5時間20分（第1316便までは15分間隔＝4時間）。
  * ★ importStall の LIST_STALL_CYCLES と同じ数にしてある（考え方を2つにしない）。
  */
 export const DIARY_STALL_CYCLES = 16;
 /** ★ 間隔をとても短くした店で、警告が過敏になりすぎないための下限。 */
 export const DIARY_STALL_MIN_HOURS = 4;
-/** 巡回の既定の間隔（分）。★ crontab は 2,17,32,47 の15分ごと。 */
-export const DIARY_INTERVAL_MIN_DEFAULT = 15;
+/** 巡回の既定の間隔（分）。★ crontab は 11,31,51 の20分ごと（第1316便・2026-10-08。それまでは 2,17,32,47 の15分ごと）。 */
+export const DIARY_INTERVAL_MIN_DEFAULT = 20;
 
 /** どちらの時計か。★ 名前を分けているのは、1本にまとめないため。 */
 export type DiaryClockKind = 'queued' | 'listed';
@@ -60,7 +60,7 @@ export type DiaryStallInput = {
   queuedAt: string | null;
   /** 駅ちかの一覧を読み終えた時刻。salon_diary_watch.listed_at */
   listedAt: string | null;
-  /** 巡回の間隔（分）。既定15 */
+  /** 巡回の間隔（分）。既定20 */
   intervalMin: number | null;
   /** 鍵を登録した時刻。★ 一度も進んでいないときの起点（importStall と同じ作法） */
   createdAt: string | null;
@@ -99,7 +99,7 @@ export function diaryStallHours(intervalMin: number | null): number {
 /** ★ 次に見る場所。★ 時計ごとに違う。★ ここが一緒だと、見張りの意味がない。 */
 function buildHint(clock: DiaryClockKind): string {
   if (clock === 'queued') {
-    return 'VPS の crontab（2,17,32,47 の巡回）と /root/import.log を見てください。'
+    return 'VPS の crontab（11,31,51 の巡回）と /root/import.log を見てください。'
       + '巡回の口が叩かれていない可能性があります';
   }
   return 'VPS の relay.sh（/root/relay.heartbeat）と、ログイン情報の直近の失敗理由を見てください。'

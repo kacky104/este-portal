@@ -97,8 +97,12 @@ console.log('\n── 5. しきい値（間隔から作る）──');
 eq('15分なら4時間', s.diaryStallHours(15), 4);
 eq('60分なら16時間', s.diaryStallHours(60), 16);
 eq('★ 1分でも下限の4時間（過敏にしない）', s.diaryStallHours(1), 4);
-eq('★ 空なら15分とみなす', s.diaryStallHours(null), 4);
-eq('★ 文字や0は15分とみなす', [s.diaryStallHours(0), s.diaryStallHours(-5)], [4, 4]);
+eq('20分なら5時間20分', Math.round(s.diaryStallHours(20) * 60), 320);
+// ★ 第1316便: 巡回を20分にした（crontab 11,31,51）。★ 既定が crontab とずれると、見張りのしきい値がずれる
+eq('★★ 既定の間隔は20分（crontab と同じ）', s.DIARY_INTERVAL_MIN_DEFAULT, 20);
+eq('★ 空なら20分とみなす', s.diaryStallHours(null), s.diaryStallHours(20));
+eq('★ 文字や0は20分とみなす', [s.diaryStallHours(0), s.diaryStallHours(-5)], [s.diaryStallHours(20), s.diaryStallHours(20)]);
+eq('★ 次に見る場所に、いまの crontab の分が出る', s.judgeDiaryStall(base({ queuedAt: hoursAgo(9), listedAt: hoursAgo(9) }))[0].hint.indexOf('11,31,51') > 0, true);
 eq('3.9時間では鳴らない', s.judgeDiaryStall(base({ queuedAt: hoursAgo(3.9), listedAt: hoursAgo(3.9) })), []);
 eq('4.1時間で鳴る', kinds(s.judgeDiaryStall(base({ queuedAt: hoursAgo(4.1), listedAt: hoursAgo(4.1) }))), ['queued:stale']);
 eq('★ 間隔を60分にすると4.1時間では鳴らない',

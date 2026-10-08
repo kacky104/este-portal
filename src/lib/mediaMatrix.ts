@@ -19,7 +19,7 @@
 //   駅ちか→フクエス 出勤 … import_interval_min（店舗ごと・既定60分・cron は15分ごと）
 //   駅ちか→フクエス 週間出勤 … import/targets mode=full（1日1回・03:20）
 //   フクエス→各サイト 週間出勤 … 出勤の送信は常に7日ぶん（同じ周）
-//   駅ちか→フクエス 写メ日記 … diary-import 15分ごと（ログイン情報が要る）
+//   駅ちか→フクエス 写メ日記 … diary-import 20分ごと（ログイン情報が要る・第1316便で15分から）
 //   エスラン         … 準備中（accepting: false・notYetKind 'preparing'）
 
 export const MATRIX_SITES = ['駅ちか', 'エステ魂', 'エステラブ', 'エスラン'] as const;
@@ -81,8 +81,8 @@ export const MEDIA_MATRIX: readonly MatrixSection[] = [
       '出勤':          ['30分以内', NO, NO, NO],   // ★ 第1312便: 当日の取り込みは30分ごと
       // ★ 週間の予定は1日1回の周（import/targets mode=full・03:20）で維持する
       '週間出勤（7日分）': ['1日1回', NO, NO, NO],
-      // ★ 第215便: 取り込みは15分ごとに回る＝書いてから【最長】15分（diary-import）
-      '写メ日記':      ['15分以内', NO, NO, NA],
+      // ★ 第215便・第1316便: 取り込みは20分ごとに回る＝書いてから【最長】20分（diary-import）
+      '写メ日記':      ['20分以内', NO, NO, NA],
       '即ヒメ／即セラ': ['出勤と一緒', NO, NO, NA],
       '新着情報':      ['設定の時刻', NO, NO, NA],
     },

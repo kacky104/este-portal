@@ -39,8 +39,13 @@ import { diaryMixedRuns } from '@/lib/diaryMixedPeriod';
 // ★ since を渡すと【初回の遡り】になる（それより古い投稿は開かない・ページを遡る）。
 //   ★ 渡さなければ通常運転＝一覧の1ページ目だけを見て、新着だけ開く（§371）。
 //
-// crontab（VPS・15分ごと。★ ③④が済んでから足すこと）:
-//   2,17,32,47 * * * * set -a; . /root/import.env; /usr/bin/curl -s -X POST https://fukues.com/api/admin/diary-import -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{"apply":true}' >> /root/import.log 2>&1
+// ★★★ 第1316便（2026-10-08・カッキーさんの決定）: 巡回を 15分 → 20分ごとに（駅ちかへのログインを 1枠1日 約96回 → 約72回）。
+//   ★ 分は 11,31,51。★ 同じ駅ちかの枠を使うほかの周の【あと】に置いた（中継の枠は 店×サイト×枠 に1本だけ）:
+//       4-59/5 … 上位表示（区切りの4分後＝ラビリンス様は :04・:24・:44）／ 8-59/10 … 即ヒメ ／ 5,35 … 出勤の自動反映
+//     ★ 2,22,42 にすると、20分間隔の上位表示（:04・:24・:44）の2分前に毎回当たる。
+//   ★ 間隔を変えたら lib/diaryStall.ts の DIARY_INTERVAL_MIN_DEFAULT と、画面の「20分以内」もそろえる。
+// crontab（VPS・20分ごと。第1315便までは 2,17,32,47 の15分ごと）:
+//   11,31,51 * * * * set -a; . /root/import.env; /usr/bin/curl -s -X POST https://fukues.com/api/admin/diary-import -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{"apply":true}' >> /root/import.log 2>&1
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;

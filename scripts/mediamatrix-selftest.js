@@ -15,7 +15,7 @@ eq('★★ 駅ちかから反映: 週間出勤は1日1回（mode=full）', m.MED
 // ★ 第215便: 「駅ちかから反映」の1列目は行き先の「フクエス」。★ ほかの区画は見出しを持たない（4サイトのまま）
 eq('★★ 駅ちかから反映: 1列目の見出しは「フクエス」', m.MEDIA_MATRIX[1].headers, ['フクエス', 'エステ魂', 'エステラブ', 'エスラン']);
 eq('★ ほかの区画は見出しを差し替えない', [m.MEDIA_MATRIX[0].headers, m.MEDIA_MATRIX[2].headers], [undefined, undefined]);
-eq('★★ 駅ちかから反映: 写メ日記は15分以内（diary-import 15分ごと）', m.MEDIA_MATRIX[1].cells['写メ日記'][0], '15分以内');
+eq('★★ 駅ちかから反映: 写メ日記は20分以内（diary-import 20分ごと・第1316便）', m.MEDIA_MATRIX[1].cells['写メ日記'][0], '20分以内');
 eq('★★ すべての区画に5行×4列がある',
    m.MEDIA_MATRIX.every((s) => m.MATRIX_ROWS.every((r) => Array.isArray(s.cells[r]) && s.cells[r].length === 4)), true);
 eq('★★ 空のマスが無い', m.MEDIA_MATRIX.every((s) => m.MATRIX_ROWS.every((r) => s.cells[r].every((c) => typeof c === 'string' && c.length > 0))), true);

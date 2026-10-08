@@ -576,7 +576,7 @@ export function defaultAuditSummary(input: {
       break;
     }
     case 'diary_backfill_started': {
-      s = `駅ちかの写メ日記を、過去${String(d?.['days'] ?? 60)}日ぶん遡ってフクエスに載せ始めました（15分ごとに少しずつ入ります）`;
+      s = `駅ちかの写メ日記を、過去${String(d?.['days'] ?? 60)}日ぶん遡ってフクエスに載せ始めました（20分ごとに少しずつ入ります）`;
       break;
     }
     case 'diary_write_pref': {

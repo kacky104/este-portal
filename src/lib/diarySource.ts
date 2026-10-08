@@ -120,7 +120,7 @@ export function ekichikaReadWithoutKey(sites: ReadonlyArray<DiarySourceSite>): b
  * ★★★ ホームの設定から、写メ日記の入口を導く（純粋関数）。
  *
  *   どれかのサイトが write         → 'fukues'   フクエスで書く。write のサイトへだけ送る（送る側の守りは forwardDiary）
- *   駅ちかが read ＋ 鍵が使える     → 'ekichika' 駅ちかで書く。15分ごとに取り込む
+ *   駅ちかが read ＋ 鍵が使える     → 'ekichika' 駅ちかで書く。20分ごとに取り込む（第1316便で15分から）
  *   駅ちかが read ＋ 鍵が無い       → 'benry'    ★ 取り込まない・送らない。画面で「鍵を登録してください」と案内（決定・16:3x）
  *   全部 none / 未設定              → 'benry'    取り込まない・送らない。代行メールは受け取る（黙認・決定）
  *
@@ -147,7 +147,7 @@ export function diarySourceNote(source: unknown, sites: ReadonlyArray<DiarySourc
     return { title: 'フクエスで書きます', body: 'ホームの設定に連動しています。フクエスで書いた写メ日記を、「フクエスから反映」にしているサイトへ送ります。', needsKey: false };
   }
   if (s === 'ekichika') {
-    return { title: '駅ちかで書きます', body: 'ホームの設定に連動しています。駅ちかに載った写メ日記を、15分以内にフクエスへ取り込みます。フクエスからはどこへも送りません。', needsKey: false };
+    return { title: '駅ちかで書きます', body: 'ホームの設定に連動しています。駅ちかに載った写メ日記を、20分以内にフクエスへ取り込みます。フクエスからはどこへも送りません。', needsKey: false };
   }
   if (ekichikaReadWithoutKey(sites)) {
     return { title: '駅ちかで書きます', body: '写メ日記を取り込むには、駅ちかのログイン情報を登録してください。登録するまでは取り込みません。', needsKey: true };
