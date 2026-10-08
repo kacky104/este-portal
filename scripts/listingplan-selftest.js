@@ -68,5 +68,18 @@ console.log('\n── 3. ★★★ /listing の部品（注記を外した中身
   eq('★ 見出し「掲載店舗様でできること」が見える形で在る', />\s*掲載店舗様でできること\s*</.test(body['ListingAbout.tsx']) && !/sr-only">\s*掲載店舗様でできること/.test(body['ListingAbout.tsx']), true);
 }
 
+console.log('\n── 4. ★★★ 公式ホームページ制作（/hp/templates・lib/hpPlan.ts・税込）──');
+{
+  const hp = require(path.join(__dirname, '..', '_tmpcheck', 'hpPlan.js'));
+  eq('★ 定価は残す（カッキーさんの決定）: 制作料165,000円・月額11,000円・ドメイン更新料 年11,000円（税込）',
+    [hp.HP_LIST_SETUP_YEN, hp.HP_LIST_MONTHLY_YEN, hp.HP_LIST_DOMAIN_YEN, hp.HP_TAX_LABEL], [165000, 11000, 11000, '税込']);
+  eq('★★★ 掲載店さまの年間の維持費（税込）は、/listing の10,000円（税別）と同じ額', [hp.HP_MEMBER_YEARLY_YEN, Math.round(m.LISTING_HP_YEARLY_YEN * 1.1)], [11000, 11000]);
+  const page = code(read('src', 'app', 'hp', 'templates', 'page.tsx'));
+  const price = code(read('src', 'app', 'hp', 'templates', 'HpPrice.tsx'));
+  eq('★★★ 「フクエスワークにも掲載なら」の条件を書いていない', [/フクエスワークにも/.test(page), /フクエスワークにも/.test(price)], [false, false]);
+  eq('★★ 料金は文字の部品（HpPrice）で出している（古い料金の画像を読んでいない）', [page.includes('<HpPrice />'), /hp-lp\/price-(pc|sp)\.webp/.test(page)], [true, false]);
+  eq('★★ 構造化データの定価が lib と同じ', ['165000', '11000'].every((n) => page.includes("price: '" + n + "'")), true);
+}
+
 console.log(fail === 0 ? '\n全部 ok' : '\nNG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
