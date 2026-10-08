@@ -5,7 +5,7 @@
 //   これから … 掲載料 月額120,000円（税別）の1本。フクエス・フクエスワーク・fukuX をすべて含む。
 //             ・創業掲載協力キャンペーン: 月額30,000円（税別）の永久割引 ＝ 月額90,000円（税別）。期限は出さない。
 //             ・コネックエフ＋フクエスCRM のセットは別のオプション: 月額20,000円（税別）。
-//               ★ lib/setPlan.ts の 22,000円（税込）と同じ金額（番人 check:listingplan が見張る）。
+//               ★ 値は lib/setPlan.ts の SET_PLAN_PRICE_YEN をそのまま使う（第1304便でどちらも税別にそろえた）。
 //             ・公式ホームページ: 掲載店は初期費用0円・月額0円。年間10,000円（税別）のドメイン・サーバー維持費だけ。
 //             ・予約ボードは出さない（第1297便）。機能一覧の 09 はコネックエフ＋フクエスCRM に差し替えた。
 //
@@ -14,14 +14,16 @@
 //   ★ 請求書の自動発行の金額（店舗ごとの設定）は別（ここを変えても請求は変わらない）。
 //   ★ 公式ホームページ制作のページ（/hp/templates）・マイページ「公式サイト」のご案内は、画像と文が別にある。
 
+import { SET_PLAN_PRICE_YEN } from './setPlan';
+
 /** 掲載料（月額・税別） */
 export const LISTING_FEE_YEN = 120000;
 /** 創業掲載協力キャンペーンの割引（月額・税別・永久） */
 export const LISTING_CAMPAIGN_OFF_YEN = 30000;
 /** キャンペーン適用後の掲載料（月額・税別） */
 export const LISTING_CAMPAIGN_FEE_YEN = LISTING_FEE_YEN - LISTING_CAMPAIGN_OFF_YEN;
-/** コネックエフ＋フクエスCRM セット（月額・税別）。★ 税込22,000円＝lib/setPlan.ts */
-export const LISTING_SET_OPTION_YEN = 20000;
+/** コネックエフ＋フクエスCRM セット（月額・税別）。★ 値は lib/setPlan.ts（同じ値を2か所に書かない） */
+export const LISTING_SET_OPTION_YEN = SET_PLAN_PRICE_YEN;
 /** 公式ホームページ: ドメイン・サーバー維持費（年額・税別） */
 export const LISTING_HP_YEARLY_YEN = 10000;
 

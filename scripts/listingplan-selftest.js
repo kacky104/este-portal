@@ -30,7 +30,8 @@ console.log('── 1. ★★★ 金額（カッキーさんの決定・10/8・�
   eq('★★★ キャンペーン後 ＝ 掲載料 − 割引 ＝ 90,000円', [m.LISTING_CAMPAIGN_FEE_YEN, m.LISTING_FEE_YEN - m.LISTING_CAMPAIGN_OFF_YEN], [90000, 90000]);
   eq('公式ホームページ 年間10,000円', m.LISTING_HP_YEARLY_YEN, 10000);
   eq('コネックエフ＋フクエスCRM 月額20,000円', m.LISTING_SET_OPTION_YEN, 20000);
-  eq('★★★ セットのオプションは、税込にすると lib/setPlan.ts と同じ額（片方だけ変えていない）', Math.round(m.LISTING_SET_OPTION_YEN * 1.1), sp.SET_PLAN_PRICE_YEN);
+  eq('★★★ セットのオプションは lib/setPlan.ts と同じ値（第1304便でどちらも税別）', [m.LISTING_SET_OPTION_YEN, sp.SET_PLAN_PRICE_YEN], [20000, 20000]);
+  eq('★★ セットの書き方も税別（コネックエフ・CRM のご案内・申し込みの文）', [sp.SET_PLAN_PRICE_LABEL, /税込/.test(sp.SET_PLAN_LINE + sp.SET_PLAN_NEED_MESSAGE)], ['月額20,000円（税別）', false]);
   eq('書き方は税別', m.LISTING_TAX_LABEL, '税別');
   eq('桁区切り', [m.listingYen(120000), m.listingYen(90000), m.listingYen(0)], ['120,000', '90,000', '0']);
 }

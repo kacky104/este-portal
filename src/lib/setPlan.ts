@@ -1,5 +1,7 @@
 // ★★ コネックエフ＋フクエスCRM のセット販売（第1241便・2026-10-06・カッキーさんの決定）。
-//   ・コネックエフとフクエスCRM は【セットのみ】で販売する（片方だけの契約は無い）。月額 22,000円（税込）。
+//   ・コネックエフとフクエスCRM は【セットのみ】で販売する（片方だけの契約は無い）。月額 20,000円（税別）。
+//     ★ 第1304便（2026-10-08・カッキーさんの決定）: 税込（22,000円）から税別（20,000円）の書き方にそろえた。額は同じ。
+//       /listing（掲載のご案内）と同じ書き方。★ 利用規約（app/lib/crm/termsText.ts 第2条）は「月額22,000円（税込）」のまま（同意済みの文面・額は同じ）。
 //   ・契約しているかどうかは、今までのフクエスCRM のスイッチ（salons.crm_until・/admin の店舗編集で運営が ON／OFF）で見る。
 //     ＝スイッチは1つ。ON の店だけ「コネックエフに切り替える」を押せて、フクエスCRM も使える。
 //   ・フクエスリンク（駅ちかからの反映専用）は今までどおり無料（このセットとは別）。
@@ -7,9 +9,10 @@
 //   ★ 画像の中の金額（public/mypage/conecf/conecf-intro-v2.webp の札）は別に直すこと。
 // ★ 純粋なデータと判定だけ（通信も DB も触らない）。
 
-export const SET_PLAN_PRICE_YEN = 22000;
-/** 例: 月額22,000円（税込） */
-export const SET_PLAN_PRICE_LABEL = `月額${SET_PLAN_PRICE_YEN.toLocaleString('ja-JP')}円（税込）`;
+/** 月額（税別） */
+export const SET_PLAN_PRICE_YEN = 20000;
+/** 例: 月額20,000円（税別） */
+export const SET_PLAN_PRICE_LABEL = `月額${SET_PLAN_PRICE_YEN.toLocaleString('ja-JP')}円（税別）`;
 export const SET_PLAN_NAME = 'コネックエフ＋フクエスCRM';
 /** ご案内に出す1文 */
 export const SET_PLAN_LINE = `コネックエフとフクエスCRMは、セットで${SET_PLAN_PRICE_LABEL}です。`;

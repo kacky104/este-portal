@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SET_PLAN_PRICE_LABEL } from '@/lib/setPlan';   // ★ 第1304便: 税別の書き方（月額20,000円（税別））
 import { createClient } from '@/app/lib/supabase/client';
 import { revalidateSalon, revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
@@ -397,7 +398,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
               className="w-4 h-4 accent-pink-500"
             />
             {/* ★ 第1241便: コネックエフとフクエスCRM はセット販売。このスイッチ1つで両方（ON の店だけ「コネックエフに切り替える」を押せて、フクエスCRM も使える） */}
-            コネックエフ＋フクエスCRM（セット・月額22,000円 税込）
+            コネックエフ＋フクエスCRM（セット・{SET_PLAN_PRICE_LABEL}）
           </label>
 
           {/* 営業時間 */}
