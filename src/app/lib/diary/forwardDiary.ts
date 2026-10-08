@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { attachKindOf, attachNeedsJpeg, attachExt } from '@/lib/diaryAttach';
 import { forwardsDiaryFromFukues, readDiarySource, diaryForwardAllowed } from '@/lib/diarySource';
 import { conecfStopNote } from '@/app/lib/conecf/contract';
 
@@ -109,11 +110,23 @@ async function buildPayload(svc: Svc, diaryId: string): Promise<{ ok: true; payl
     try {
       const r = await fetch(url);
       if (!r.ok) { 外した理由.push(`${i + 1}枚目が取得失敗(${r.status})`); continue; }
-      const buf = Buffer.from(await r.arrayBuffer());
+      let buf: Buffer = Buffer.from(await r.arrayBuffer());
+      // ★★★ 第1313便: WebP など（第999便からの写メ日記は WebP）は、駅ちかのメール投稿で画像が載らない → JPEG に変えて送る
+      let kind = attachKindOf(buf);
+      if (attachNeedsJpeg(kind)) {
+        try {
+          const sharp = (await import('sharp')).default;
+          buf = await sharp(buf).rotate().jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+          kind = 'jpeg';
+        } catch (e) {
+          // ★ 変えられなかった画像は送らない（載らない画像を送ると、駅ちかで「載らなかった」画像になる）。理由は残す
+          外した理由.push(`${i + 1}枚目をJPEGに変えられなかった(${e instanceof Error ? e.message : 'unknown'})`);
+          continue;
+        }
+      }
       if (total + buf.length > MAX_TOTAL_BYTES) { 外した理由.push(`${i + 1}枚目以降が容量上限(${MAX_TOTAL_BYTES / 1024 / 1024}MB)超過`); break; }
       total += buf.length;
-      const ext = (url.split('?')[0]?.split('.').pop() ?? 'jpg').slice(0, 4);
-      attachments.push({ filename: `photo${i + 1}.${ext}`, content: buf.toString('base64') });
+      attachments.push({ filename: `photo${i + 1}.${attachExt(kind)}`, content: buf.toString('base64') });
     } catch (e) {
       外した理由.push(`${i + 1}枚目が取得失敗(${e instanceof Error ? e.message : 'unknown'})`);
     }
