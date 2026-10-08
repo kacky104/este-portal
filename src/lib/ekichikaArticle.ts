@@ -24,6 +24,8 @@
 //   ・上位表示は TOPの店舗カードの表示順を上げる別のボタン。1日◯回・00:00リセット
 //   ★ 私（Claude）は「注意書きの文言が同じ」→「同じ回数を消費している」と推して間違えた。
 
+import { textMarksToHtml, stripAstral } from './textMarks';
+
 // ────────────────────────────── 枠（カテゴリー） ──────────────────────────────
 
 /**
@@ -111,6 +113,34 @@ export function checkArticleBody(body: unknown): ArticleCheck {
   if (/\son[a-z]+\s*=/i.test(b)) return { ok: false, message: '本文に使えない書き方が入っています' };
   if (/javascript:/i.test(b)) return { ok: false, message: '本文に使えない書き方が入っています' };
   return { ok: true, message: '' };
+}
+
+/**
+ * ★★★ 第1321便（2026-10-08・カッキーさん）: 駅ちかへ【送る形】の本文を作る。★ 保存の POST を組み立てるところで1回だけ通す。
+ *
+ * ★★ ラビリンス様の試し投稿で確かめたこと（10/8 20:43・緊急出勤速報・公開ページの中身を読んだ）
+ *   ・<span style="color:#FF0000;">・<span style="font-size:20px;">・<strong> は、そのまま載る（" で囲まない形も通る）
+ *   ・★★★ 絵文字（U+10000 以上の文字・💸 など）が入ると、【そこから後ろの本文がすべて消える】
+ *       → 送る前に外す。番号の書き方（&#128184;）が通るかは未確認（絵文字の行で本文が切れて、試せなかった）
+ *   ・タグの入った本文では、改行は改行にならなかった（1行につながった）。
+ *     タグの無い本文では、空の行（改行2つ）のところに <br /><br /> が入っていた（10/8 20:30 の記事）。
+ *       ★ 駅ちか側がどういう決まりで改行を直しているかは、分かっていない。
+ *       → こちらで改行を <br> にし、【改行の文字そのものは送らない】。相手の決まりに頼らないので、どちらの本文でも同じ結果になる。
+ *         （空の行は <br><br> ＝今までの見え方と同じ。1つだけの改行も、入力どおりに改行される）
+ *
+ * ★ 決めごと
+ *   ・印（[赤]…[/赤] など）→ タグ（lib/textMarks.ts・CKEditor が出すのと同じ " で囲んだ形）
+ *   ・行の終わりにもう <br> や <p> </p> などのかたまりのタグがあれば、足さない（手で打った本文を二重に改行しない）
+ *   ・頭の空行と、末尾の空白・改行は落とす
+ *   ・★ タイトルは変えない（絵文字が入るとどうなるかは未確認）
+ */
+export function ekichikaArticleBody(body: unknown): string {
+  const plain = (typeof body === 'string' ? body : '').replace(/\r\n?/g, '\n').replace(/^\n+/, '').replace(/\s+$/, '');
+  if (plain === '') return '';
+  const html = stripAstral(textMarksToHtml(plain, { quote: true }));
+  const lines = html.split('\n');
+  const hasBreak = (line: string) => /<br\s*\/?>\s*$/i.test(line) || /<\/?(p|div|ul|ol|li|h[1-6]|blockquote)\b[^<>]*>\s*$/i.test(line);
+  return lines.map((line, i) => (i === lines.length - 1 || hasBreak(line) ? line : line + '<br>')).join('').replace(/\s+$/, '');
 }
 
 // ────────────────────────────── 編集ページを読む ──────────────────────────────
@@ -430,6 +460,10 @@ export function buildEkichikaArticleSaveRequest(
   if (!t.ok) throw new Error('タイトルを送れません: ' + t.message);
   const b = checkArticleBody(write.body);
   if (!b.ok) throw new Error('本文を送れません: ' + b.message);
+  // ★ 第1321便: 送る形（印→タグ・改行→<br>・絵文字を外す）。★ 直したあとの本文も、同じ検査に通す（空になった本文を送らない）
+  const sendBody = ekichikaArticleBody(write.body);
+  const sb = checkArticleBody(sendBody);
+  if (!sb.ok) throw new Error('本文を送れません: ' + sb.message);
 
   const image = write.image ?? 'keep';
   // ★★★ 上げた画像を使うなら、その識別子が要る（★ 無いまま img_flg=0 にすると画像が消える）
@@ -453,7 +487,7 @@ export function buildEkichikaArticleSaveRequest(
 
   const fields: Array<[string, string]> = [
     ['title', write.title.trim()],
-    ['body', write.body],
+    ['body', sendBody],
     ['girl_id', girlId],
     // ★ 'girl' なら 1（女の子の画像を使う）／'upload' なら 0（独自の画像）。
     // ★ 'keep' は読んだ値をそのまま返す

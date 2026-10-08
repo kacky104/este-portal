@@ -15,6 +15,7 @@ import {
 } from '@/app/actions/articleTemplates';
 import type { ArticleSlotAdvice } from '@/lib/articleSlotAdvice';
 import { titleWidth, ARTICLE_TITLE_MAX_WIDTH } from '@/lib/ekichikaArticle';
+import { TextMarkToolbar, TextMarkPreview } from '@/app/components/TextMarkTools';
 // ★ 第375便: articlePhotoNote（選んだあとの青い箱）は画面から外した。★ 関数はライブラリに残っている
 import { ARTICLE_PHOTO_MAX, articlePhotoConfirmNote } from '@/lib/articlePhotoPick';
 
@@ -825,6 +826,8 @@ function Editor({
   const over = width > ARTICLE_TITLE_MAX_WIDTH;
   /** ★ 固定する方を選ぶ並びを開いているか。★ 普段は閉じておく（★ 40人ぶんのタイルは重い） */
   const [pickOpen, setPickOpen] = useState(false);
+  /** ★ 第1321便: 本文欄（文字の飾りのボタンが、選んでいる範囲を読む） */
+  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const fixed = draft.photoId === null ? null : therapists.find((t) => t.id === draft.photoId) ?? null;
   return (
     <div className="space-y-4">
@@ -855,17 +858,21 @@ function Editor({
         <label className="text-[13.5px] font-bold text-slate-600">本文</label>
         {/* ★ 相手ができないと言っていることを、書く【前】に伝える */}
         <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
-          画像と外部リンクは不可。改行は
-          <code className="mx-0.5 px-1 bg-slate-100">&lt;br&gt;</code>、
-          段落は<code className="mx-0.5 px-1 bg-slate-100">&lt;p&gt;〜&lt;/p&gt;</code>で書けます。
+          画像と外部リンクは載せられません。改行はそのまま反映されます。
         </p>
+        {/* ★ 第1321便: 文字の飾り（色・大きさ・太字）。ココア店長ブログと同じ部品。送る形にするのは lib/ekichikaArticle.ts の ekichikaArticleBody */}
+        <div className="mt-1.5">
+          <TextMarkToolbar textareaRef={bodyRef} value={draft.body} onChange={(next) => onChange({ body: next })} />
+        </div>
         <textarea
+          ref={bodyRef}
           value={draft.body}
           onChange={(e) => onChange({ body: e.target.value })}
           rows={6}
-          className="w-full mt-1.5 px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed bg-white"
+          className="w-full px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed bg-white"
           placeholder="本日も元気に営業しております。ご予約お待ちしております。"
         />
+        <TextMarkPreview value={draft.body} label="駅ちかでの見え方（めやす）" dropAstral />
       </div>
 
       {/* ───── 写真（第379便・2026-09-15・カッキーさん） ─────

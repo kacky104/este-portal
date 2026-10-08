@@ -120,10 +120,14 @@ console.log('── 6. ★★★ 第1320便: 文字の飾り（色・大きさ�
   eq('★ 広げて外すと、文字だけ残る', t1.slice(0, ex.s) + v.stripCocoaMarks(t1.slice(ex.s, ex.e)) + t1.slice(ex.e), '前文字後');
 
   const fs = require('fs'), path = require('path');
-  const page = fs.readFileSync(path.join(__dirname, '..', 'src/app/conecf/cocoa/page.tsx'), 'utf8').replace(/\r/g, '');
-  eq('★★★ 画面の見え方の確認は、送る形と同じ木（parseCocoaMarks）から作る', /parseCocoaMarks\(body\)/.test(page), true);
-  eq('★★★ 見え方の確認に dangerouslySetInnerHTML を使わない（打った文字をそのまま HTML にしない）', /dangerouslySetInnerHTML/.test(page), false);
-  eq('★★ ボタンは COCOA_MARKS から作る（色を足すのは lib の1行）', /COCOA_MARKS\.filter\(/.test(page), true);
+  const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8').replace(/\r/g, '');
+  const page = read('src/app/conecf/cocoa/page.tsx');
+  const tools = read('src/app/components/TextMarkTools.tsx');   // ★ 第1321便: ボタンと見え方の確認は共通の部品（駅ちか新着情報と同じ）
+  eq('★★★ ココアの画面に、飾りのボタンと見え方の確認がある', [/<TextMarkToolbar textareaRef=\{bodyRef\} value=\{body\}/.test(page), /<TextMarkPreview value=\{body\}/.test(page)], [true, true]);
+  eq('★★★ 見え方の確認は、送る形と同じ木（parseTextMarks）から作る', /parseTextMarks\(/.test(tools), true);
+  eq('★★★ 見え方の確認に dangerouslySetInnerHTML を使わない（打った文字をそのまま HTML にしない）', /dangerouslySetInnerHTML/.test(tools + page), false);
+  eq('★★ ボタンは TEXT_MARKS から作る（色を足すのは lib の1行）', /TEXT_MARKS\.filter\(/.test(tools), true);
+  eq('★★ ココアの印は、共通の印と同じもの（名前を残してあるだけ）', v.COCOA_MARKS === require(path.join(__dirname, '..', '_tmpcheck', 'textMarks.js')).TEXT_MARKS, true);
 }
 
 if (fail) { console.log('\n★ '+fail+' 件 NG'); process.exit(1); }

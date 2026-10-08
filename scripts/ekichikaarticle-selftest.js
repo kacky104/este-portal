@@ -359,5 +359,51 @@ console.log('\n── 第1293便: ★★★ タイトル欄の実体参照をほ
   eq('記号の無いタイトルは今までどおり', A.parseEkichikaArticlePage(PAGE, 1).title, 'るいさんとの出会い');
 }
 
+console.log('\n── ★★★ 第1321便: 送る本文（印→タグ・改行→<br>・絵文字を外す）──');
+{
+  const b = A.ekichikaArticleBody;
+  // ★ ラビリンス様の試し投稿（10/8 20:43）で、そのまま載った形
+  eq('★★★ 色: CKEditor が出すのと同じ形（" で囲む）', b('[赤]高収入[/赤]'), '<span style="color:#FF0000;">高収入</span>');
+  eq('★★★ 大きさ', b('[大]大募集[/大]'), '<span style="font-size:20px;">大募集</span>');
+  eq('★★ 太字', b('[太字]本日出勤[/太字]'), '<strong>本日出勤</strong>');
+  eq('★★ 重ねがけ', b('[赤][特大]急募[/特大][/赤]'), '<span style="color:#FF0000;"><span style="font-size:26px;">急募</span></span>');
+  eq('★★ 対にならない印は文字のまま', b('[赤]閉じ忘れ'), '[赤]閉じ忘れ');
+
+  // ★★★ 改行: こちらで <br> にし、改行の文字そのものは送らない（駅ちか側の直し方に頼らない）
+  eq('★★★ 改行1つ → <br>（改行の文字は残さない）', b('1行目\n2行目'), '1行目<br>2行目');
+  eq('★★★ 空の行 → <br><br>（今までの見え方と同じ）', b('るいさん。\n\n丁寧なお手入れ'), 'るいさん。<br><br>丁寧なお手入れ');
+  eq('★★★ 送る本文に改行の文字が1つも残らない', /[\r\n]/.test(b('a\r\nb\n\nc\n[赤]d\ne[/赤]')), false);
+  eq('★★ タグの入った本文でも、改行は <br> になる（試し投稿では1行につながった）', b('1 色: [赤]赤[/赤]\n2 大きさ: [大]大[/大]'),
+    '1 色: <span style="color:#FF0000;">赤</span><br>2 大きさ: <span style="font-size:20px;">大</span>');
+  eq('★★ 行の終わりにもう <br> があれば足さない', b('a<br>\nb<br />\nc'), 'a<br>b<br />c');
+  eq('★★ <p>〜</p> で書いた本文を二重に改行しない', b('<p>1段落</p>\n<p>2段落</p>'), '<p>1段落</p><p>2段落</p>');
+  eq('★ <p> だけの行・</p> だけの行のあとにも足さない', b('<p>\n本文\n</p>'), '<p>本文<br></p>');
+  eq('★ 頭の空行・末尾の空白は落とす', b('\n\na\nb\n\n  \n'), 'a<br>b');
+  eq('★ 1行だけの本文は1文字も変わらない（今までのテンプレを変えない）', b('<p>ほんぶん</p>'), '<p>ほんぶん</p>');
+  eq('★ 空・文字でないものは空', [b(''), b(null), b(undefined), b(12)], ['', '', '', '']);
+
+  // ★★★ 絵文字: 入ると、そこから後ろの本文が駅ちかで全部消える（10/8 20:43 の試し投稿）→ 送る前に外す
+  eq('★★★ 絵文字（U+10000 以上）は外す', b('💸報酬額\n🌟実績あり📋'), '報酬額<br>実績あり');
+  eq('★★★ 絵文字の後ろの文が残る（切れない）', b('前💸後ろの文').endsWith('後ろの文'), true);
+  eq('★★ 送る本文に U+10000 以上の文字が残らない', /[\u{10000}-\u{10FFFF}]/u.test(b('💸🌟📋🙋‍♀️あ')), false);
+  eq('★★ ✨ ⭐ ❤ ♪ など U+FFFF までの記号は残す', b('✨⭐❤♪※'), '✨⭐❤♪※');
+
+  // 保存の POST に、送る形が入る
+  const r = A.buildEkichikaArticleSaveRequest('sid=abc', PAGE1, { title: 'テスト', body: '[赤]本日[/赤]\n出勤💸\n\nお待ちしています' }, UA);
+  eq('★★★ 保存の POST の本文は、送る形（印→タグ・改行→<br>・絵文字なし）', decode(r.body).body,
+    '<span style="color:#FF0000;">本日</span><br>出勤<br><br>お待ちしています');
+  eq('★★ タイトルは変えない', decode(r.body).title, 'テスト');
+  throws('★★★ 絵文字だけの本文は、空になるので送らない', () => A.buildEkichikaArticleSaveRequest('sid=abc', PAGE1, { title: 'a', body: '💸' }, UA), /本文/);
+  throws('★★ 印で包んでも、画像は送らない', () => A.buildEkichikaArticleSaveRequest('sid=abc', PAGE1, { title: 'a', body: '[赤]<img src=x>[/赤]' }, UA), /本文/);
+
+  const fs = require('fs'), path = require('path');
+  const src = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8').replace(/\r/g, '');
+  const board = src('src/app/mypage/media/NewsBoard.tsx');
+  eq('★★★ 駅ちか新着情報の画面に、飾りのボタンと見え方の確認がある', [/<TextMarkToolbar textareaRef=\{bodyRef\}/.test(board), /<TextMarkPreview value=\{draft\.body\}[^>]*dropAstral/.test(board)], [true, true]);
+  const tools = src('src/app/components/TextMarkTools.tsx');
+  eq('★★★ 見え方の確認は、送る形と同じ木（parseTextMarks）から作る', /parseTextMarks\(/.test(tools), true);
+  eq('★★★ 見え方の確認に dangerouslySetInnerHTML を使わない', /dangerouslySetInnerHTML/.test(tools), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
