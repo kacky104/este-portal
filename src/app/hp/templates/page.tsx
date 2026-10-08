@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { HP_TEMPLATES, HP_COLOR_VARIANTS } from '@/app/lib/hpSite';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { HpPrice } from './HpPrice';
+import { HP_LIST_SETUP_YEN, HP_LIST_MONTHLY_YEN, HP_LIST_DOMAIN_YEN, HP_MEMBER_YEARLY_YEN, HP_WORK_FEE_YEN, HP_TAX_LABEL, hpYen } from '@/lib/hpPlan';
 
 // 公式ホームページ制作の【LP 兼 デザイン一覧】（2026-08-09）。
 //
@@ -19,11 +20,11 @@ import { HpPrice } from './HpPrice';
 //   4. デザインへの導線 … サムネ一覧そのものは /hp/templates/designs（専用ページ）へ移した
 //      （2026-08-15。LPが縦に長く、料金・お問い合わせまで遠かったため）。
 //      ここには「デザインを見る」ボタンだけを置く。総数は HP_PATTERN_COUNT で自動計算。
-//   5. 料金 … 定価は制作料165,000円/月々11,000円/更新料 年11,000円（全て税込）＝掲載していないお店。
-//      ★ 第1302便（2026-10-08）: フクエス掲載店さまは制作料0円・月々0円・年間11,000円（ドメイン・サーバー維持費）のみ。
+//   5. 料金 … 定価は制作料150,000円/月々10,000円/更新料 年10,000円（全て税別・第1303便で税込から税別へ）＝掲載していないお店。
+//      ★ 第1302便（2026-10-08）: フクエス掲載店さまは制作料0円・月々0円・年間10,000円（税別・ドメイン・サーバー維持費）のみ。
 //        「＋ワーク両方契約→月々も0円」の条件は無くなった。値は lib/hpPlan.ts。この数字を変えるときは営業資料・規約と必ず同時に。
 //      2026-08-15 に1枚画像へ差し替え → 第1302便で文字に戻した（HpPrice.tsx）。JSON-LD にも定価がある。
-//      ※注意書き（作業依頼 3,300円・ドメインメール対象外）だけは画像に入っていないので可視テキストで残してある。
+//      ※注意書き（作業依頼 1回3,000円（税別）・ドメインメール対象外）だけは画像に入っていないので可視テキストで残してある。
 //   6. 制作の流れ … 5ステップを1枚画像に（2026-08-15）→ 直下に3つめの「デザインを見る」ボタン
 //      → フッター（お問い合わせ）
 //
@@ -172,9 +173,18 @@ const SERVICE_JSON_LD = {
   areaServed: { '@type': 'AdministrativeArea', name: '福岡県' },
   provider: { '@type': 'Organization', name: 'フクエス', url: 'https://fukues.com/' },
   offers: [
-    { '@type': 'Offer', name: '制作料（初回のみ）', price: '165000', priceCurrency: 'JPY' },
-    { '@type': 'Offer', name: '月額利用料', price: '11000', priceCurrency: 'JPY' },
-    { '@type': 'Offer', name: 'ドメイン更新料（年額）', price: '11000', priceCurrency: 'JPY' },
+    // ★ 第1303便: 税別の額にそろえた（valueAddedTaxIncluded: false ＝ 税抜きの値段だと明示）。値は lib/hpPlan.ts
+    ...([
+      ['制作料（初回のみ）', HP_LIST_SETUP_YEN],
+      ['月額利用料', HP_LIST_MONTHLY_YEN],
+      ['ドメイン更新料（年額）', HP_LIST_DOMAIN_YEN],
+    ] as const).map(([name, price]) => ({
+      '@type': 'Offer',
+      name,
+      price: String(price),
+      priceCurrency: 'JPY',
+      priceSpecification: { '@type': 'PriceSpecification', price: String(price), priceCurrency: 'JPY', valueAddedTaxIncluded: false },
+    })),
   ],
 };
 
@@ -205,16 +215,16 @@ const HP_FAQ: { q: string; a: string }[] = [
   },
   {
     q: '料金はいくらですか？',
-    a: '制作料165,000円（初回のみ）、月額利用料11,000円、ドメイン更新料11,000円（年額）です。表示はすべて税込です。',
+    a: `制作料${hpYen(HP_LIST_SETUP_YEN)}円（初回のみ）、月額利用料${hpYen(HP_LIST_MONTHLY_YEN)}円、ドメイン更新料${hpYen(HP_LIST_DOMAIN_YEN)}円（年額）です。表示はすべて${HP_TAX_LABEL}です。`,
   },
   {
     q: 'フクエスに掲載していると割引がありますか？',
     // ★ 第1302便（2026-10-08）: 「フクエスワークにもご掲載なら月額0円」の条件が無くなった（lib/hpPlan.ts）
-    a: 'フクエスに掲載中のお店は、制作料165,000円と月額利用料11,000円が0円になります。かかるのは、年間11,000円のドメイン・サーバー維持費のみです。',
+    a: `フクエスに掲載中のお店は、制作料${hpYen(HP_LIST_SETUP_YEN)}円と月額利用料${hpYen(HP_LIST_MONTHLY_YEN)}円が0円になります。かかるのは、年間${hpYen(HP_MEMBER_YEARLY_YEN)}円（${HP_TAX_LABEL}）のドメイン・サーバー維持費のみです。`,
   },
   {
     q: '公開したあとの更新は誰がおこないますか？',
-    a: 'いつものフクエスの管理画面を更新すれば、公式ホームページにも自動で反映されます。写真や文章は専用の管理画面からいつでも変更いただけます。ご質問は無料です。ページ内容の変更などの作業をご依頼いただく場合は、1回3,300円（複雑な作業はお見積り）です。',
+    a: `いつものフクエスの管理画面を更新すれば、公式ホームページにも自動で反映されます。写真や文章は専用の管理画面からいつでも変更いただけます。ご質問は無料です。ページ内容の変更などの作業をご依頼いただく場合は、1回${hpYen(HP_WORK_FEE_YEN)}円（${HP_TAX_LABEL}・複雑な作業はお見積り）です。`,
   },
   {
     q: 'デザインは選べますか？',
@@ -470,14 +480,14 @@ export default function HpTemplatesPage() {
             （「フクエスワークにも掲載なら」は無くなった。掲載料にフクエスワークが含まれるようになった）。
           ★ 定価（掲載していないお店）は残す。値は lib/hpPlan.ts。定価を変えるときは SERVICE_JSON_LD とよくある質問も一緒に。
           ★ これまでの画像（public/hp-lp/price-*.webp）は消していない。画像に戻すときは料金と条件を sr-only で残すこと。
-          ★ ※注意書き（作業依頼 3,300円／ドメインメール対象外）は取引条件そのものなので、可視テキストのまま残すこと。 */}
+          ★ ※注意書き（作業依頼 1回3,000円（税別）／ドメインメール対象外）は取引条件そのものなので、可視テキストのまま残すこと。 */}
       <section className="pt-10 sm:pt-12">
         {/* ★ 第1302便（2026-10-08）: 画像（price-pc/sp.webp）から文字に組み直した＝HpPrice.tsx。値は lib/hpPlan.ts。 */}
         <HpPrice />
 
         <div className="mx-auto max-w-5xl px-5">
           <p className="mt-6 sm:mt-7 text-[11px] leading-relaxed text-[#a08e84] text-center">
-            ※ ご質問は無料。ページ内容の変更などの作業をご依頼いただく場合は1回 3,300円（複雑な作業はお見積り）。
+            ※ ご質問は無料。ページ内容の変更などの作業をご依頼いただく場合は1回 {hpYen(HP_WORK_FEE_YEN)}円（{HP_TAX_LABEL}・複雑な作業はお見積り）。
             ※ 独自ドメインのメールアドレスは対象外です。詳細はお申し込み時の利用規約をご確認ください。
           </p>
         </div>
