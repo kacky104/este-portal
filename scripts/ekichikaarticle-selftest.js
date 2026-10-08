@@ -359,7 +359,7 @@ console.log('\n── 第1293便: ★★★ タイトル欄の実体参照をほ
   eq('記号の無いタイトルは今までどおり', A.parseEkichikaArticlePage(PAGE, 1).title, 'るいさんとの出会い');
 }
 
-console.log('\n── ★★★ 第1321便: 送る本文（印→タグ・改行→<br>・絵文字を外す）──');
+console.log('\n── ★★★ 第1321便・第1322便: 送る本文（印→タグ・改行→<br>・絵文字→番号）──');
 {
   const b = A.ekichikaArticleBody;
   // ★ ラビリンス様の試し投稿（10/8 20:43）で、そのまま載った形
@@ -382,24 +382,25 @@ console.log('\n── ★★★ 第1321便: 送る本文（印→タグ・改行
   eq('★ 1行だけの本文は1文字も変わらない（今までのテンプレを変えない）', b('<p>ほんぶん</p>'), '<p>ほんぶん</p>');
   eq('★ 空・文字でないものは空', [b(''), b(null), b(undefined), b(12)], ['', '', '', '']);
 
-  // ★★★ 絵文字: 入ると、そこから後ろの本文が駅ちかで全部消える（10/8 20:43 の試し投稿）→ 送る前に外す
-  eq('★★★ 絵文字（U+10000 以上）は外す', b('💸報酬額\n🌟実績あり📋'), '報酬額<br>実績あり');
-  eq('★★★ 絵文字の後ろの文が残る（切れない）', b('前💸後ろの文').endsWith('後ろの文'), true);
-  eq('★★ 送る本文に U+10000 以上の文字が残らない', /[\u{10000}-\u{10FFFF}]/u.test(b('💸🌟📋🙋‍♀️あ')), false);
+  // ★★★ 絵文字: そのまま送ると、そこから後ろの本文が駅ちかで全部消える（10/8 20:43 の試し投稿）
+  //   → ★ 第1322便: 番号の書き方にして送る。そのまま載って絵文字で出る・後ろの文も残る（10/8 21:10 の試し投稿）
+  eq('★★★ 絵文字（U+10000 以上）は &#番号; にする', b('💸報酬額\n🌟実績あり📋'), '&#128184;報酬額<br>&#127775;実績あり&#128203;');
+  eq('★★★ 絵文字の後ろの文が残る', b('前💸後ろの文'), '前&#128184;後ろの文');
+  eq('★★★ 送る本文に U+10000 以上の文字が、そのままでは1つも残らない', /[\u{10000}-\u{10FFFF}]/u.test(b('💸🌟📋🙋‍♀️あ')), false);
+  eq('★ 手で打った番号の書き方は、二重に変えない', b('&#128184; 最後'), '&#128184; 最後');
   eq('★★ ✨ ⭐ ❤ ♪ など U+FFFF までの記号は残す', b('✨⭐❤♪※'), '✨⭐❤♪※');
 
   // 保存の POST に、送る形が入る
   const r = A.buildEkichikaArticleSaveRequest('sid=abc', PAGE1, { title: 'テスト', body: '[赤]本日[/赤]\n出勤💸\n\nお待ちしています' }, UA);
-  eq('★★★ 保存の POST の本文は、送る形（印→タグ・改行→<br>・絵文字なし）', decode(r.body).body,
-    '<span style="color:#FF0000;">本日</span><br>出勤<br><br>お待ちしています');
+  eq('★★★ 保存の POST の本文は、送る形（印→タグ・改行→<br>・絵文字→番号）', decode(r.body).body,
+    '<span style="color:#FF0000;">本日</span><br>出勤&#128184;<br><br>お待ちしています');
   eq('★★ タイトルは変えない', decode(r.body).title, 'テスト');
-  throws('★★★ 絵文字だけの本文は、空になるので送らない', () => A.buildEkichikaArticleSaveRequest('sid=abc', PAGE1, { title: 'a', body: '💸' }, UA), /本文/);
   throws('★★ 印で包んでも、画像は送らない', () => A.buildEkichikaArticleSaveRequest('sid=abc', PAGE1, { title: 'a', body: '[赤]<img src=x>[/赤]' }, UA), /本文/);
 
   const fs = require('fs'), path = require('path');
   const src = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8').replace(/\r/g, '');
   const board = src('src/app/mypage/media/NewsBoard.tsx');
-  eq('★★★ 駅ちか新着情報の画面に、飾りのボタンと見え方の確認がある', [/<TextMarkToolbar textareaRef=\{bodyRef\}/.test(board), /<TextMarkPreview value=\{draft\.body\}[^>]*dropAstral/.test(board)], [true, true]);
+  eq('★★★ 駅ちか新着情報の画面に、飾りのボタンと見え方の確認がある', [/<TextMarkToolbar textareaRef=\{bodyRef\}/.test(board), /<TextMarkPreview value=\{draft\.body\}/.test(board)], [true, true]);
   const tools = src('src/app/components/TextMarkTools.tsx');
   eq('★★★ 見え方の確認は、送る形と同じ木（parseTextMarks）から作る', /parseTextMarks\(/.test(tools), true);
   eq('★★★ 見え方の確認に dangerouslySetInnerHTML を使わない', /dangerouslySetInnerHTML/.test(tools), false);

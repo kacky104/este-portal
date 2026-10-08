@@ -24,7 +24,7 @@
 //   ・上位表示は TOPの店舗カードの表示順を上げる別のボタン。1日◯回・00:00リセット
 //   ★ 私（Claude）は「注意書きの文言が同じ」→「同じ回数を消費している」と推して間違えた。
 
-import { textMarksToHtml, stripAstral } from './textMarks';
+import { textMarksToHtml, astralToEntities } from './textMarks';
 
 // ────────────────────────────── 枠（カテゴリー） ──────────────────────────────
 
@@ -121,7 +121,8 @@ export function checkArticleBody(body: unknown): ArticleCheck {
  * ★★ ラビリンス様の試し投稿で確かめたこと（10/8 20:43・緊急出勤速報・公開ページの中身を読んだ）
  *   ・<span style="color:#FF0000;">・<span style="font-size:20px;">・<strong> は、そのまま載る（" で囲まない形も通る）
  *   ・★★★ 絵文字（U+10000 以上の文字・💸 など）が入ると、【そこから後ろの本文がすべて消える】
- *       → 送る前に外す。番号の書き方（&#128184;）が通るかは未確認（絵文字の行で本文が切れて、試せなかった）
+ *       → ★ 第1322便: 番号の書き方（&#128184;）にして送る。そのまま載って、絵文字で表示される（10/8 21:10 の試し投稿で確かめた。後ろの文も残った）
+ *         （第1321便では、まだ確かめられていなかったので外して送っていた）
  *   ・タグの入った本文では、改行は改行にならなかった（1行につながった）。
  *     タグの無い本文では、空の行（改行2つ）のところに <br /><br /> が入っていた（10/8 20:30 の記事）。
  *       ★ 駅ちか側がどういう決まりで改行を直しているかは、分かっていない。
@@ -137,7 +138,7 @@ export function checkArticleBody(body: unknown): ArticleCheck {
 export function ekichikaArticleBody(body: unknown): string {
   const plain = (typeof body === 'string' ? body : '').replace(/\r\n?/g, '\n').replace(/^\n+/, '').replace(/\s+$/, '');
   if (plain === '') return '';
-  const html = stripAstral(textMarksToHtml(plain, { quote: true }));
+  const html = astralToEntities(textMarksToHtml(plain, { quote: true }));
   const lines = html.split('\n');
   const hasBreak = (line: string) => /<br\s*\/?>\s*$/i.test(line) || /<\/?(p|div|ul|ol|li|h[1-6]|blockquote)\b[^<>]*>\s*$/i.test(line);
   return lines.map((line, i) => (i === lines.length - 1 || hasBreak(line) ? line : line + '<br>')).join('').replace(/\s+$/, '');

@@ -858,7 +858,7 @@ function Editor({
         <label className="text-[13.5px] font-bold text-slate-600">本文</label>
         {/* ★ 相手ができないと言っていることを、書く【前】に伝える */}
         <p className="text-[13px] text-slate-400 leading-relaxed mt-0.5">
-          画像と外部リンクは載せられません。改行はそのまま反映されます。
+          画像と外部リンクは載せられません。改行と絵文字はそのまま反映されます。
         </p>
         {/* ★ 第1321便: 文字の飾り（色・大きさ・太字）。ココア店長ブログと同じ部品。送る形にするのは lib/ekichikaArticle.ts の ekichikaArticleBody */}
         <div className="mt-1.5">
@@ -872,7 +872,7 @@ function Editor({
           className="w-full px-3 py-2.5 text-[15px] border border-slate-300 focus:border-indigo-400 outline-none leading-relaxed bg-white"
           placeholder="本日も元気に営業しております。ご予約お待ちしております。"
         />
-        <TextMarkPreview value={draft.body} label="駅ちかでの見え方（めやす）" dropAstral />
+        <TextMarkPreview value={draft.body} label="駅ちかでの見え方（めやす）" />
       </div>
 
       {/* ───── 写真（第379便・2026-09-15・カッキーさん） ─────

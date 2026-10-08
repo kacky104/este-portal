@@ -6,7 +6,7 @@
 
 import { dayKeyJST, autoPostMinuteOfDay } from './announceAuto';
 import {
-  TEXT_MARKS, parseTextMarks, textMarksToHtml, stripTextMarks, textMarkStyle, expandMarkSelection,
+  TEXT_MARKS, parseTextMarks, textMarksToHtml, stripTextMarks, textMarkStyle, expandMarkSelection, astralToEntities,
   type MarkNode, type TextMark, type TextMarkKind,
 } from './textMarks';
 
@@ -68,7 +68,7 @@ export function cocoaMailBody(body: string): string {
   const hasBreak = (line: string) => /<br\s*\/?>\s*$/i.test(line) || /<\/(p|div|li|ul|ol|h[1-6]|blockquote)>\s*$/i.test(line);
   const withBreaks = lines.map((line, i) => (i === lines.length - 1 || hasBreak(line) ? line : line + '<br>')).join('\n');
   // ★ 第1319便: U+10000 以上の文字（絵文字）は番号の書き方にする（そのままではココアのメール投稿で落ちる）
-  return withBreaks.replace(/[\u{10000}-\u{10FFFF}]/gu, (ch) => '&#' + String(ch.codePointAt(0)) + ';');
+  return astralToEntities(withBreaks);
 }
 
 export type CocoaTemplate = { id: number; title: string; body: string; imageUrl: string | null; isActive: boolean; sortOrder: number; lastPostedAt: string | null };

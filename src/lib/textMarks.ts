@@ -124,15 +124,12 @@ export function expandMarkSelection(text: string, s: number, e: number): { s: nu
   return { s: a, e: b };
 }
 
-/** 絵文字（U+10000 以上の文字）が入っているか */
-export function hasAstral(text: string): boolean {
-  return /[\u{10000}-\u{10FFFF}]/u.test(String(text ?? ''));
-}
-
 /**
- * 絵文字（U+10000 以上の文字）を外す。★ 後ろに付く「つなぎ」（U+200D）と「異体字の印」（U+FE0F）も一緒に外す。
- * ★ ✨ ⭐ ❤ など U+FFFF までの記号は残す。
+ * 絵文字（U+10000 以上の文字・💸 など）を、番号の書き方（&#128184; の形）にする。
+ * ★ ココアのメール投稿も、駅ちか新着情報も、絵文字をそのまま送ると壊れる（ココアは絵文字が消える・駅ちかはそこから後ろの本文が消える）。
+ *   番号の書き方なら、どちらもそのまま載って絵文字で表示される（ラビリンス様の試し投稿で確かめた・2026-10-08。ココア 19:58／駅ちか 21:10）。
+ * ★ ✨ ⭐ ❤ など U+FFFF までの記号は、そのまま送る。★ HTML として読まれる本文にだけ使う（タイトルには使わない）。
  */
-export function stripAstral(text: string): string {
-  return String(text ?? '').replace(/[\u{10000}-\u{10FFFF}][️‍]*/gu, '').replace(/‍/g, '');
+export function astralToEntities(text: string): string {
+  return String(text ?? '').replace(/[\u{10000}-\u{10FFFF}]/gu, (ch) => '&#' + String(ch.codePointAt(0)) + ';');
 }

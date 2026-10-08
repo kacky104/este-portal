@@ -2,7 +2,7 @@
 
 import { Fragment, useState, type MouseEvent, type RefObject } from 'react';
 import {
-  TEXT_MARKS, parseTextMarks, stripTextMarks, textMarkStyle, expandMarkSelection, hasAstral, stripAstral, type MarkNode,
+  TEXT_MARKS, parseTextMarks, stripTextMarks, textMarkStyle, expandMarkSelection, type MarkNode,
 } from '@/lib/textMarks';
 
 // 文字の飾り（色・大きさ・太字）のボタンと、見え方の確認（第1320便でココア店長ブログに作り、第1321便で共通の部品にした）。
@@ -67,33 +67,27 @@ export function TextMarkToolbar({ textareaRef, value, onChange }: {
 }
 
 /** 木を画面に出す。★ 打った文字は、そのまま文字として出す（HTML にしない） */
-function Nodes({ nodes, dropAstral }: { nodes: readonly MarkNode[]; dropAstral: boolean }) {
+function Nodes({ nodes }: { nodes: readonly MarkNode[] }) {
   return (
     <>
       {nodes.map((n, i) => (n.t === 'mark'
-        ? <span key={i} style={textMarkStyle(n.k)}><Nodes nodes={n.c} dropAstral={dropAstral} /></span>
-        : (dropAstral ? stripAstral(n.v) : n.v).split('\n').map((line, j) => <Fragment key={`${i}-${j}`}>{j > 0 && <br />}{line}</Fragment>)))}
+        ? <span key={i} style={textMarkStyle(n.k)}><Nodes nodes={n.c} /></span>
+        : n.v.split('\n').map((line, j) => <Fragment key={`${i}-${j}`}>{j > 0 && <br />}{line}</Fragment>)))}
     </>
   );
 }
 
-/**
- * 本文欄の下に置く「見え方（めやす）」。★ 送る形と同じ木（parseTextMarks）から作る。
- * @param dropAstral 絵文字を載せられない相手（駅ちか新着情報）では true。見え方からも外し、その旨を一言出す
- */
-export function TextMarkPreview({ value, label, dropAstral = false }: { value: string; label: string; dropAstral?: boolean }) {
+/** 本文欄の下に置く「見え方（めやす）」。★ 送る形と同じ木（parseTextMarks）から作る。 */
+export function TextMarkPreview({ value, label }: { value: string; label: string }) {
   return (
     <div className="mt-3">
       <p className="text-[12px] font-bold text-slate-500 mb-1">{label}</p>
       <div className="border border-slate-200 bg-white px-3 py-2 min-h-[48px] text-[15px] leading-[1.8] text-slate-800 break-words">
         {value.trim()
-          ? <Nodes nodes={parseTextMarks(value.replace(/^\n+/, '').replace(/\s+$/, ''))} dropAstral={dropAstral} />
+          ? <Nodes nodes={parseTextMarks(value.replace(/^\n+/, '').replace(/\s+$/, ''))} />
           : <span className="text-slate-300">本文を入れると、ここに出ます</span>}
       </div>
       <p className="text-[12px] text-slate-400 mt-1">[赤]…[/赤] のような印は、送るときに色・大きさ・太字に置き換わります。印が文字のまま見えるときは、対になっていません。</p>
-      {dropAstral && hasAstral(value) && (
-        <p className="text-[12px] text-rose-600 mt-1">絵文字（💸 など）は載せられないため、送るときに外します（✨ ⭐ などの記号は載ります）。</p>
-      )}
     </div>
   );
 }
