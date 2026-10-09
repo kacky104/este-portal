@@ -812,21 +812,21 @@ function Grid({
                     const cf = confirms.find((c) => c.therapistId === r.therapist!.id);
                     const changed = cf && (cf.payTotal !== pay || cf.bookingCount !== mine.length);
                     return (
-                      <div className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-500">
+                      <div className="mt-0.5 flex min-h-[22px] items-center gap-1 text-[12px] text-slate-500">{/* ★ 2026-10-09 点検（レイアウト）: 11px→12px・高さ22px（スマホは zoom 0.72 で 8px 相当だった） */}
                         <span>{mine.length}本</span>
                         {cf ? (
                           <button
                             type="button"
                             onClick={() => onConfirm(r.therapist!)}
                             title={changed ? '確定のあとに予約が変わっています（押して確定し直し）' : '報酬確定済み（押すと内容・取り消し）'}
-                            className={`px-1 font-bold text-white ${changed ? 'bg-amber-500' : 'bg-emerald-600'}`}
+                            className={`min-h-[20px] px-1.5 font-bold text-white ${changed ? 'bg-amber-500' : 'bg-emerald-600'}`}
                           >
                             {changed ? '⚠変更あり' : '✓確定'} {yen(cf.payTotal + cf.allowance)}
                           </button>
                         ) : (
                           <>
                             <span className="bg-cyan-50 px-1 font-bold text-slate-700">報酬 {yen(pay)}</span>
-                            <button type="button" onClick={() => onConfirm(r.therapist!)} className="bg-[#3f51b5] px-1 font-bold text-white">確定</button>
+                            <button type="button" onClick={() => onConfirm(r.therapist!)} className="min-h-[20px] bg-[#3f51b5] px-1.5 font-bold text-white">確定</button>
                           </>
                         )}
                       </div>
@@ -1971,6 +1971,12 @@ function ConfirmDialog({
             {confirm && (
               <p className="bg-emerald-50 px-3 py-2 text-[13px] font-bold text-emerald-800">
                 確定済み：{confirm.bookingCount}本・報酬 {yen(confirm.payTotal)}{confirm.allowance ? `＋手当 ${yen(confirm.allowance)}` : ''} ＝ {yen(confirm.payTotal + confirm.allowance)}
+              </p>
+            )}
+            {/* ★ 2026-10-09 点検（レイアウト）: 行の「⚠変更あり」は title だけでスマホでは理由が読めない → 小窓にも同じ文を出す */}
+            {confirm && (confirm.payTotal !== pay || confirm.bookingCount !== mine.length) && (
+              <p className="bg-amber-50 px-3 py-2 text-[12px] font-bold text-amber-800">
+                確定のあとに予約が変わっています（いま {mine.length}本・報酬 {yen(pay)}）。「いまの内容で確定し直す」を押すと今の数字になります。
               </p>
             )}
             <div>

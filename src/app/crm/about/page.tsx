@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { headers } from 'next/headers';
-import { crmBaseFor } from '@/lib/crmHost';
+import { crmBaseFor, crmSpecialHref } from '@/lib/crmHost';
 import { CrmBaseProvider } from '@/app/mypage/crm/CrmBase';
 import { CrmIntro } from '@/app/mypage/crm/CrmIntro';
 
@@ -22,6 +22,11 @@ export default async function CrmAboutPage() {
             <Image src="/crm-logo.png" alt="" width={64} height={64} className="h-8 w-8" priority />
             <span className="text-[17px] font-black tracking-wide">フクエスCRM</span>
             <span className="ml-1 text-[12px] text-indigo-200">ご案内</span>
+            {/* ★ 2026-10-09 点検（レイアウト）: 契約店がブックマークやバナーからここへ来たときの入口。使い方も */}
+            <nav className="ml-auto flex items-center gap-1.5 text-[12px] font-bold">
+              <a href={crmSpecialHref(base, 'guide')} className="border border-indigo-300/60 px-2 py-1 text-indigo-100 hover:bg-white/10">使い方</a>
+              <a href={crmSpecialHref(base, 'login')} className="bg-white px-2.5 py-1 text-[#1e2a5a] hover:bg-indigo-50">ログイン</a>
+            </nav>
           </div>
         </header>
         <CrmIntro publicPage />

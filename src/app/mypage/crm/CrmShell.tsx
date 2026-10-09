@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
 import type { CrmAccess } from '@/app/lib/crm/types';
 import { isCrmHost } from '@/lib/crmHost';
+import { createClient } from '@/app/lib/supabase/client';
 import { crmLeaveOk, safeAction, useCrmLinks } from './CrmBase';
 import { CrmIntro } from './CrmIntro';
 
@@ -112,6 +113,24 @@ export function CrmShell({
               <span className="hidden sm:inline">画面を更新</span>
             </button>
           )}
+          {/* ★ 2026-10-09 点検（レイアウト）: ログアウト。店舗のタブレットを共有する運用・運営が店を切り替えるときに要る。
+              ★ 未保存の変更があれば先に聞く（crmLeaveOk）。行き先は fukuescrm.com なら /login、本体なら /owner/login */}
+          <button
+            type="button"
+            onClick={async () => {
+              if (!crmLeaveOk()) return;
+              if (!window.confirm('ログアウトしますか？')) return;
+              try { await createClient().auth.signOut(); } catch { /* 失効済みでも進む */ }
+              window.location.href = isCrmHost(window.location.hostname) ? '/login' : '/owner/login';
+            }}
+            className="flex flex-none items-center gap-1 border border-indigo-300/60 px-2 py-1 text-[12px] font-bold text-indigo-100 hover:bg-white/10 md:text-[13px]"
+            title="ログアウト"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M10 17l5-5-5-5" /><path d="M15 12H3" /><path d="M21 4v16" />
+            </svg>
+            <span className="hidden sm:inline">ログアウト</span>
+          </button>
         </div>
         {access.active ? (
           <nav className="mt-1 flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] md:mt-2 md:gap-1 md:px-3">
