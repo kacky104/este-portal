@@ -637,6 +637,18 @@ export async function deleteBooking(
   const auth = await assertBookingOwner(bookingId);
   if (!auth.ok) return { ok: false, error: auth.error };
 
+  // ★ 2026-10-09 点検#24: 料金・受領の入った予約は消さない。行ごと消すと女子の残高（crm_money_balances）が遡って変わり、
+  //   締め済みの日報と食い違う（キャンセルと違って跡が残らない）。料金なしの予約（間違えて入れた枠など）は今までどおり消せる。
+  const { data: b, error: rErr } = await auth.svc
+    .from('salon_bookings')
+    .select('price_total, received_by')
+    .eq('id', bookingId)
+    .maybeSingle();
+  if (rErr) return { ok: false, error: `読み込めませんでした（${rErr.message}）。もう一度お試しください` };
+  if (b && (b.price_total != null || (b.received_by as string | null))) {
+    return { ok: false, error: '料金・受領の入った予約は削除できません。記録を残すため「キャンセルにする」をお使いください（料金を消してから削除することもできます）' };
+  }
+
   const { error } = await auth.svc
     .from('salon_bookings')
     .delete()

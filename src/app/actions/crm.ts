@@ -1856,10 +1856,12 @@ type MoneyAgg = { received: number; pay: number; toShop: number; toTherapist: nu
 const emptyAgg = (): MoneyAgg => ({ received: 0, pay: 0, toShop: 0, toTherapist: 0 });
 
 /** 1000行ずつ全部読む（PostgREST の上限対策） */
-async function readAll<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null }>): Promise<T[]> {
+// ★ 2026-10-09 点検#10: 読めなかったら投げる（空のふりをすると、顧客の削除で予約を匿名化せずに顧客行だけ消す道があった）。呼び出し側は try/catch → readFail
+async function readAll<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; from < 200000; from += 1000) {
-    const { data } = await fetchPage(from, from + 999);
+    const { data, error } = await fetchPage(from, from + 999);
+    if (error) throw new Error(error.message);
     const rows = data ?? [];
     out.push(...rows);
     if (rows.length < 1000) break;
@@ -1988,7 +1990,7 @@ async function moneyTotals(
     return out;
   }
   if (error) console.error('[crm] crm_money_balances を読めませんでした（今までの読み方で足します）:', error.message);
-  const byDay = await moneyByDay(svc, salonId, { therapistId: opt.therapistId, untilDate: opt.untilDate });
+  const byDay = await moneyByDay(svc, salonId, { therapistId: opt.therapistId, untilDate: opt.untilDate }); // ★ 読めなければ投げる（呼び出し側で readFail）
   for (const [tid, days] of byDay) {
     const total = emptyAgg();
     for (const a of days.values()) { total.received += a.received; total.pay += a.pay; total.toShop += a.toShop; total.toTherapist += a.toTherapist; }
@@ -2010,7 +2012,13 @@ export async function getCrmMoney(
   // ★ 第1221便（カッキーさん）: 残高は【今日の営業日まで】で数える（報酬確定の画面・締めの未精算の判定と同じ区切り）。
   //   前は区切りなしで、明日や来週の予約に報酬を入れた時点で残高が動いていた（画面どうしで数字が食い違う）。
   // ★ 第1226便: 残高は DB 側の関数で1人1行
-  const [names, totals] = await Promise.all([therapistNames(svc, salonId), moneyTotals(svc, salonId, { untilDate: businessDateNowJST() })]);
+  let names: Map<number, string>;
+  let totals: Map<number, MoneyTotal>;
+  try {
+    [names, totals] = await Promise.all([therapistNames(svc, salonId), moneyTotals(svc, salonId, { untilDate: businessDateNowJST() })]);
+  } catch (e) {
+    return readFail(e); // ★ 2026-10-09 点検#10
+  }
   const balances: CrmMoneyBalance[] = [];
   for (const [tid, tt] of totals) {
     const t = tt.total;
@@ -2046,14 +2054,20 @@ export async function getCrmMoneyDay(
   if (!auth.ok) return auth;
   if (!validDate(dateISO) || !Number.isInteger(therapistId)) return { ok: false, error: '指定が不正です' };
   const svc = auth.svc;
-  const [totals, names, { data: conf }, { data: mv }] = await Promise.all([
-    moneyTotals(svc, salonId, { therapistId, untilDate: dateISO, day: dateISO }), // ★ 第1226便
+  // ★ 2026-10-09 点検#10: moneyTotals（rpc が無いときの fallback）が読めなかったら ok:false（例外のまま画面へ出さない）
+  const totalsP = moneyTotals(svc, salonId, { therapistId, untilDate: dateISO, day: dateISO }) // ★ 第1226便
+    .then((t) => ({ ok: true as const, t }))
+    .catch((e: unknown) => ({ ok: false as const, e }));
+  const [totalsR, names, { data: conf }, { data: mv }] = await Promise.all([
+    totalsP,
     therapistNames(svc, salonId),
     svc.from('crm_pay_confirms').select('therapist_id').eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).maybeSingle(),
     svc.from('crm_money_moves')
       .select('id, therapist_id, business_date, direction, category, amount, memo, created_at, cancelled_at')
       .eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).order('id'),
   ]);
+  if (!totalsR.ok) return readFail(totalsR.e);
+  const totals = totalsR.t;
   const tt = totals.get(therapistId);
   const today = tt?.day ?? emptyAgg();
   // 前日までの残高 ＝ その日までの通算 − その日の分
@@ -2438,12 +2452,18 @@ export async function deleteCrmCustomer(
       }
     }
   }
-  const ids = await readAll<Record<string, unknown>>((from, to) =>
-    svc.from('salon_bookings').select('id').eq('salon_id', salonId).eq('customer_id', customerId).order('id').range(from, to));
-  const bookingIds = ids.map((r) => String(r.id));
+  let bookingIds: string[];
+  try {
+    const ids = await readAll<Record<string, unknown>>((from, to) =>
+      svc.from('salon_bookings').select('id').eq('salon_id', salonId).eq('customer_id', customerId).order('id').range(from, to));
+    bookingIds = ids.map((r) => String(r.id));
+  } catch (e) {
+    return readFail(e); // ★ 2026-10-09 点検#10: 予約を読めなかった回は、顧客行も消さない
+  }
   for (let i = 0; i < bookingIds.length; i += 300) {
     const chunk = bookingIds.slice(i, i + 300);
-    await svc.from('crm_consents').delete().eq('salon_id', salonId).in('booking_id', chunk);
+    const { error: cErr } = await svc.from('crm_consents').delete().eq('salon_id', salonId).in('booking_id', chunk);
+    if (cErr) return { ok: false, error: cErr.message }; // ★ 2026-10-09 点検#10: 同意書を消せなかったら止める
     const { error } = await svc.from('salon_bookings')
       .update({ customer_name: '削除済み', customer_tel: '', customer_id: null, note: null })
       .eq('salon_id', salonId).in('id', chunk);
@@ -2473,7 +2493,7 @@ function jst(iso: unknown): string {
 }
 
 /** 店舗データの書き出し（CSV・Excel で開けるよう先頭に BOM を付けるのは画面側） */
-export async function exportCrmCsv(
+async function exportCrmCsvInner(
   salonId: number,
   kind: 'customers' | 'bookings',
 ): Promise<{ ok: true; csv: string; count: number } | { ok: false; error: string }> {
@@ -2517,6 +2537,14 @@ export async function exportCrmCsv(
 const BOOKING_LIST_MAX = 1000;
 
 /** 日付の範囲（営業日・最大1年）と条件で予約を探す。新しい順・1000件まで */
+/** ★ 2026-10-09 点検#10: readAll が投げるようになったので、ここで受けて ok:false にする */
+export async function exportCrmCsv(...args: Parameters<typeof exportCrmCsvInner>): ReturnType<typeof exportCrmCsvInner> {
+  try {
+    return await exportCrmCsvInner(...args);
+  } catch (e) {
+    return readFail(e);
+  }
+}
 export async function searchCrmBookings(
   salonId: number,
   f: CrmBookingSearch,
