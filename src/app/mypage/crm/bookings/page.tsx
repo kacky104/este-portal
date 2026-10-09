@@ -114,7 +114,7 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           <select className={sel} value={f.therapistId == null ? '' : String(f.therapistId)} onChange={(e) => setF({ ...f, therapistId: e.target.value === '' ? null : Number(e.target.value) })}>
             <option value="">全員</option>
             <option value="0">フリー（担当未定）</option>
-            {therapists.map((t) => <option key={t.id} value={t.id}>{t.name}{t.isActive ? '' : '（在籍なし）'}</option>)}
+            {therapists.map((t) => <option key={t.id} value={t.id}>{t.name}{t.isActive ? '' : '（非公開）'}</option>)}{/* ★ is_active は公開／非公開（10-06 低-1）。「在籍なし」は誤解を招くので直した */}
           </select>
         </div>
         <div>

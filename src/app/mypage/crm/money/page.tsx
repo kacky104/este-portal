@@ -238,7 +238,7 @@ function UndoButton({ onUndo }: { onUndo: () => void }) {
   return sure ? (
     <button type="button" onClick={onUndo} className="bg-rose-600 px-2 py-0.5 text-[11px] font-bold text-white">本当に取り消す</button>
   ) : (
-    <button type="button" onClick={() => setSure(true)} className="border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500">取消</button>
+    <button type="button" onClick={() => setSure(true)} className="border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500">取り消す</button>
   );
 }
 

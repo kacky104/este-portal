@@ -336,7 +336,7 @@ function CustomerDetail({
                   <span className={ng ? 'font-bold text-rose-600' : 'text-slate-600'}>
                     {b.therapistName}{ng ? '（女子NG）' : ''}
                   </span>
-                  <span className="text-[11px] text-slate-400">{b.source === 'web' ? 'ネット予約' : '予約ボード'}</span>
+                  <span className="text-[11px] text-slate-400">{b.source === 'web' ? 'ネット予約' : '店で受付'}</span>
                   {b.status === 'cancelled' && (
                     <button
                       type="button"
@@ -506,7 +506,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
             ))}
             {!loadingList && list.length === 0 && !listErr && (
               <li className="p-4 text-[13px] leading-relaxed text-slate-400">
-                {query ? '見つかりませんでした' : 'まだお客様がいません。予約ボードやネット予約で電話番号つきの予約が入ると、自動でここに増えていきます。'}
+                {query ? '見つかりませんでした' : 'まだお客様がいません。スケジュールでの受付やネット予約で電話番号つきの予約が入ると、自動でここに増えていきます。'}
               </li>
             )}
           </ul>

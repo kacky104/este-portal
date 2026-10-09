@@ -378,7 +378,7 @@ export async function getCrmCustomer(
     courseName: (b.course_name as string | null) ?? '',
     courseMin: Number(b.course_min) || 0,
     therapistId: b.therapist_id == null ? null : Number(b.therapist_id),
-    therapistName: b.therapist_id == null ? 'フリー' : (tName.get(Number(b.therapist_id)) ?? '(退店)'),
+    therapistName: b.therapist_id == null ? 'フリー' : (tName.get(Number(b.therapist_id)) ?? '(不明)'), // ★ 文言をそろえた（行が無いときだけ。非公開は名前が出る）
     status: String(b.status),
     cancelBad: Boolean(b.cancel_bad),
     source: String(b.source ?? ''),
@@ -1097,7 +1097,10 @@ function businessWindow(dateISO: string): { startISO: string; endISO: string } {
 }
 
 function validDate(dateISO: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(dateISO) && !Number.isNaN(new Date(`${dateISO}T00:00:00Z`).getTime());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return false;
+  const t = new Date(`${dateISO}T00:00:00Z`).getTime();
+  // ★ 点検（低）: '2026-02-30' は V8 が 3/2 として受けてしまう → 戻した文字が同じときだけ有効（Postgres の生エラーを画面に出さない）
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === dateISO;
 }
 
 type DayBooking = {
