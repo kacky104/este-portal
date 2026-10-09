@@ -554,6 +554,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               bookingId: b.id,
               origTherapistKey: b.therapistId == null ? 'free' : String(b.therapistId),
               origStartMin: minOfDay(b.slotStartISO, baseMs),
+              origSpan: span, // ★ 2026-10-09 点検#16: 枠が縮むか伸びるかで、移動と内容の順番を決める
               therapistKey: b.therapistId == null ? 'free' : String(b.therapistId),
               startMin: minOfDay(b.slotStartISO, baseMs),
               courseName: b.courseName,
@@ -1315,6 +1316,7 @@ type BookingFormState = {
   bookingId?: string;
   origTherapistKey?: string;
   origStartMin?: number;
+  origSpan?: number;      // 変更前の枠の長さ（コース＋インターバル・分）
   therapistKey: string;   // 'free' か セラピストID
   startMin: number;       // その日 0:00 からの分
   courseName: string;
@@ -1509,18 +1511,26 @@ function BookingForm({
         const newId = res.bookingId;
         if (!newId) { setBusy(false); setErr('予約は入りましたが、料金を保存できませんでした（カードを押して「変更する」から入れてください）'); return; }
         const pr = await safeCall(() => savePricing(newId));
-        if (!pr.ok) { setBusy(false); setErr(`予約は入りましたが、料金を保存できませんでした：${pr.error}`); return; }
+        if (!pr.ok) {
+          // ★ 2026-10-09 点検#17: 予約はもう入っている。フォームを「変更」に切り替え、もう一度押すと料金だけ保存する（前は new のまま → 再送で「既に予約が入っています」）
+          setF((p) => ({ ...p, mode: 'edit', bookingId: newId, origTherapistKey: p.therapistKey, origStartMin: p.startMin, origSpan: p.courseMin + p.intervalMin }));
+          setBusy(false);
+          setErr(`予約は入りました。料金だけ保存できませんでした：${pr.error}（もう一度「保存」を押すと料金だけ保存します）`);
+          return;
+        }
       }
       setBusy(false);
       onSaved();
       return;
     }
-    // 変更：担当か開始時刻が変わったら先に移動、そのあと内容
-    if (f.therapistKey !== f.origTherapistKey || f.startMin !== f.origStartMin) {
-      const mv = await safeCall(() => moveBooking(f.bookingId!, tid, slotStartISO));
-      if (!mv.ok) { setBusy(false); setErr(mv.error ?? '移動できませんでした'); return; }
-    }
-    const up = await safeCall(() => updateBookingDetails({
+    // 変更：移動（担当・開始）と内容（コース・インターバル・名前など）は別の処理。
+    // ★ 2026-10-09 点検#16: 移動は【今の枠の長さ】で重なりを見るので、枠が縮む変更（90→60分）を伴う移動は、先に内容（縮める）→ 移動。
+    //   枠が伸びる変更は今までどおり 移動 → 内容（内容の側が新しい長さで重なりを見る）。
+    //   どちらも、片方だけ成功したときは「何が変わって何が残っているか」を文で出し、フォームの orig を進めて再送で二重に動かさない。
+    const moved = f.therapistKey !== f.origTherapistKey || f.startMin !== f.origStartMin;
+    const newSpan = f.courseMin + f.intervalMin;
+    const shrink = f.origSpan != null && newSpan < f.origSpan;
+    const details = () => safeCall(() => updateBookingDetails({
       bookingId: f.bookingId!,
       courseName: f.courseName,
       courseMin: f.courseMin,
@@ -1529,7 +1539,28 @@ function BookingForm({
       customerTel: f.customerTel,
       note: f.note,
     }));
-    if (!up.ok) { setBusy(false); setErr(up.error ?? '保存できませんでした'); return; }
+    const move = () => safeCall(() => moveBooking(f.bookingId!, tid, slotStartISO));
+    if (moved && shrink) {
+      const up = await details();
+      if (!up.ok) { setBusy(false); setErr(up.error ?? '保存できませんでした'); return; }
+      setF((p) => ({ ...p, origSpan: newSpan }));
+      const mv = await move();
+      if (!mv.ok) { setBusy(false); setErr(`内容（時間・名前など）は保存しました。移動だけできませんでした：${mv.error ?? ''}`); return; }
+      setF((p) => ({ ...p, origTherapistKey: p.therapistKey, origStartMin: p.startMin }));
+    } else {
+      if (moved) {
+        const mv = await move();
+        if (!mv.ok) { setBusy(false); setErr(mv.error ?? '移動できませんでした'); return; }
+        setF((p) => ({ ...p, origTherapistKey: p.therapistKey, origStartMin: p.startMin }));
+      }
+      const up = await details();
+      if (!up.ok) {
+        setBusy(false);
+        setErr(moved ? `時間・担当は変わりました。内容の保存だけできませんでした：${up.error ?? ''}（もう一度「保存」）` : (up.error ?? '保存できませんでした'));
+        return;
+      }
+      setF((p) => ({ ...p, origSpan: newSpan }));
+    }
     const pr = await safeCall(() => savePricing(f.bookingId!));
     setBusy(false);
     if (!pr.ok) { setErr(`料金を保存できませんでした：${pr.error}`); return; }
