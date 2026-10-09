@@ -558,8 +558,7 @@ function GroupConsentBox({ body, onChange }: { body: string; onChange: (body: st
     <div className="mt-3 border border-indigo-200 bg-indigo-50 p-3">
       <p className="text-[13px] font-bold text-slate-700">{CRM_GROUP_ALERT_SOURCE_LABEL}との共有についての文</p>
       <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
-        NG・要注意のお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}で共有するには、お客様にあらかじめ知らせておく必要があります。同意書に、共有についての文を入れてください。
-        文を足す前にサインされたお客様には、この同意は当たりません。
+        NG・要注意のお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}で共有するには、お客様にあらかじめ知らせておく必要があります。同意書に、共有についての文を入れてください。文を足す前にサインされたお客様には、この同意は当たりません。
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {has ? (

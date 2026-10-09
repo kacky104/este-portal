@@ -75,8 +75,7 @@ function ApplyCard({ salonId, view, readOnly, onDone }: { salonId: number; view:
       <section className="border border-emerald-300 bg-emerald-50 p-4">
         <h2 className="text-[16px] font-black text-slate-800">お申込みを受け付けました</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
-          ほかのお店の署名を待っています{view.waiting ? `（${view.waiting.total}店のうち${view.waiting.signed}店が署名済み）` : ''}。
-          全部そろうと、{CRM_GROUP_ALERT_SOURCE_LABEL}の共有が使えるようになります。
+          ほかのお店の署名を待っています{view.waiting ? `（${view.waiting.total}店のうち${view.waiting.signed}店が署名済み）` : ''}。全部そろうと、{CRM_GROUP_ALERT_SOURCE_LABEL}の共有が使えるようになります。
         </p>
       </section>
     );
@@ -97,8 +96,7 @@ function ApplyCard({ salonId, view, readOnly, onDone }: { salonId: number; view:
       </h2>
       <div className="space-y-3 p-4">
         <p className="text-[13px] leading-relaxed text-slate-700">
-          下のお店どうしで、NG・要注意のお客様を共有するためのお申込みです。参加するお店と申込書の内容を確かめて、お名前を入れ、同意のチェックを入れてください。
-          全部のお店の署名がそろうと、共有が使えるようになります。
+          下のお店どうしで、NG・要注意のお客様を共有するためのお申込みです。参加するお店と申込書の内容を確かめて、お名前を入れ、同意のチェックを入れてください。全部のお店の署名がそろうと、共有が使えるようになります。
         </p>
         <div>
           <p className={labelCls}>参加するお店（{view.parties.length}店）</p>
@@ -161,8 +159,7 @@ function ApprovalCard({ salonId, view, readOnly, onDone }: { salonId: number; vi
           <span className="ml-2 text-[12px] text-slate-500">{view.corp}</span>
         </p>
         <p className="text-[13px] leading-relaxed text-slate-700">
-          加わると、このお店にも、今までに共有した内容（{view.alertCount}件）が見えるようになります。このお店が共有した内容も、当店に見えるようになります。
-          今いるお店が1店でも認めなければ、このお店は加わりません。
+          加わると、このお店にも、今までに共有した内容（{view.alertCount}件）が見えるようになります。このお店が共有した内容も、当店に見えるようになります。今いるお店が1店でも認めなければ、このお店は加わりません。
         </p>
         <div>
           <label className={labelCls}>お名前（代表の方、または任された方）<span className="text-rose-500"> 必須</span></label>

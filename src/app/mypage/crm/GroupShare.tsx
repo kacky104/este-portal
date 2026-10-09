@@ -305,8 +305,7 @@ export function GroupShareBox({ salonId, customerId }: { salonId: number; custom
             ) : (
               <>
                 <p className="text-[13px] leading-relaxed text-slate-600">
-                  暴力・盗み・つきまといなど、セラピストやお店に危害があったときに、このお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}へ知らせます。
-                  共有すると、この電話番号からほかのお店に予約が入ったとき、受付の画面に出ます。
+                  暴力・盗み・つきまといなど、セラピストやお店に危害があったときに、このお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}へ知らせます。共有すると、この電話番号からほかのお店に予約が入ったとき、受付の画面に出ます。
                 </p>
                 <button type="button" onClick={() => setEditing(true)} className="mt-2 border border-rose-400 bg-white px-3 py-1.5 text-[13px] font-bold text-rose-600">
                   {CRM_GROUP_ALERT_SOURCE_LABEL}に共有する
