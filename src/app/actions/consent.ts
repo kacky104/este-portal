@@ -82,11 +82,10 @@ export async function submitConsent(
   if ((count ?? 0) >= 10) return { ok: false, error: '送信が多すぎます。少し待ってからもう一度お試しください' };
 
   const ua = ((await headers()).get('user-agent') ?? '').slice(0, 300);
-  // サインし直し：前のものは消さずに古くする
-  await svc.from('crm_consents')
-    .update({ superseded_at: new Date().toISOString() })
-    .eq('salon_id', room.salonId).eq('booking_id', target.bookingId).is('superseded_at', null);
-  const { error } = await svc.from('crm_consents').insert({
+  // サインし直し：前のものは消さずに古くする。
+  // ★ 2026-10-09 点検#12: 【先に新しいサインを入れて、成功したら前のを古くする】（前は 古くする→入れる で、入れるのが失敗すると
+  //   有効なサインが1つも無い状態になった＝サインし直しの失敗で元のサインまで失う）。
+  const { data: ins, error } = await svc.from('crm_consents').insert({
     salon_id: room.salonId,
     booking_id: target.bookingId,
     room: room.room,
@@ -96,7 +95,11 @@ export async function submitConsent(
     agreed_body: text.body,
     signature_png: sig,
     user_agent: ua,
-  });
-  if (error) return { ok: false, error: '送信できませんでした。もう一度お試しください' };
+  }).select('id').single();
+  if (error || !ins) return { ok: false, error: '送信できませんでした。もう一度お試しください' };
+  const { error: supErr } = await svc.from('crm_consents')
+    .update({ superseded_at: new Date().toISOString() })
+    .eq('salon_id', room.salonId).eq('booking_id', target.bookingId).is('superseded_at', null).neq('id', ins.id);
+  if (supErr) console.error('[consent] 前のサインを古くできなかった', target.bookingId, supErr.message); // ★ 新しいサインは入っている。画面側は最新を使う
   return { ok: true, timeLabel: target.timeLabel };
 }

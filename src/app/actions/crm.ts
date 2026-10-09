@@ -489,19 +489,33 @@ export async function saveCrmCustomer(
     customerId = Number(data.id);
   }
 
-  // 電話番号の入れ替え（消えた番号を消し、新しい番号を足す）
-  const { data: cur } = await svc.from('salon_customer_phones').select('phone').eq('customer_id', customerId);
+  // 電話番号の入れ替え。★ 2026-10-09 点検#11: 【先に足して、成功したら消す】（前は 消す→足す で、足すのが重複で失敗すると
+  //   元の番号まで消えて、番号の無いお客様が残った＝次にその番号から予約が入っても台帳に当たらない）。
+  //   いまの番号を読めなかったときも止める（空のふりをすると全部を「足す」扱いにして重複で失敗する）。
+  const isNew = !input.customerId;
+  const giveUpNew = async () => { if (isNew) await svc.from('salon_customers').delete().eq('salon_id', salonId).eq('id', customerId); };
+  const { data: cur, error: curErr } = await svc.from('salon_customer_phones').select('phone').eq('customer_id', customerId);
+  if (curErr) { await giveUpNew(); return readFail(new Error(curErr.message)); }
   const curSet = new Set((cur ?? []).map((p) => String(p.phone)));
   const toDel = [...curSet].filter((p) => !phones.includes(p));
   const toAdd = phones.filter((p) => !curSet.has(p));
-  if (toDel.length > 0) {
-    await svc.from('salon_customer_phones').delete().eq('customer_id', customerId).in('phone', toDel);
-  }
   if (toAdd.length > 0) {
     const { error: aErr } = await svc
       .from('salon_customer_phones')
       .insert(toAdd.map((phone) => ({ customer_id: customerId, salon_id: salonId, phone })));
-    if (aErr) return { ok: false, error: '電話番号を登録できませんでした（別のお客様と重なっている可能性があります）' };
+    if (aErr) {
+      await giveUpNew(); // ★ 新規のときは、名前だけのお客様を残さない
+      return {
+        ok: false,
+        error: isNew
+          ? '電話番号を登録できませんでした（別のお客様と重なっている可能性があります）。お客様は登録していません'
+          : '電話番号を登録できませんでした（別のお客様と重なっている可能性があります）。電話番号は元のままです（名前などは保存しました）',
+      };
+    }
+  }
+  if (toDel.length > 0) {
+    const { error: dErr } = await svc.from('salon_customer_phones').delete().eq('customer_id', customerId).in('phone', toDel);
+    if (dErr) return { ok: false, error: `古い電話番号を外せませんでした（${dErr.message}）。もう一度保存してください` };
   }
   return { ok: true, customerId };
 }
