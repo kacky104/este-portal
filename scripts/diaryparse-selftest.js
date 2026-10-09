@@ -181,6 +181,14 @@ eq('タグは落とす', m.diaryBodyToText('<p><b>太字</b>と<a href="#">リ�
 eq('文字参照をほどく', m.diaryBodyToText('<p>A&amp;B &quot;C&quot; &nbsp;D</p>'), 'A&B "C"  D');
 eq('★ 二重の文字参照を壊さない', m.diaryBodyToText('<p>&amp;lt;</p>'), '&lt;');
 eq('数値参照', m.diaryBodyToText('<p>&#12354;&#x3044;</p>'), 'あい');
+// ★★★ 第1336便（2026-10-09）: 名前つきの文字参照。★ 以前は「&hellip;」「&diams;」が文字のまま残った。
+eq('★★★ 名前つきの文字参照を戻す（本文）',
+  m.diaryBodyToText('<p>A&hellip;B&diams;C&hearts;D&rarr;E&sim;F&times;G</p>'),
+  'A\u2026B\u2666C\u2665D\u2192E\u223cF\u00d7G');
+eq('★ 名前は大文字・小文字を区別する', m.diaryBodyToText('<p>&Prime;&prime;&Alpha;&alpha;</p>'), '\u2033\u2032\u0391\u03b1');
+eq('★ 知らない名前はそのまま残す', m.diaryBodyToText('<p>A&nosuchname;B &HELLIP; R&D;</p>'), 'A&nosuchname;B &HELLIP; R&D;');
+eq('★ 二重の文字参照は1段だけ戻す（&amp;hellip; は「&hellip;」という文字）', m.diaryBodyToText('<p>&amp;hellip;</p>'), '&hellip;');
+eq('★ ; の無いものは触らない', m.diaryBodyToText('<p>Q&A と &hellip</p>'), 'Q&A と &hellip');
 eq('script は中身ごと落とす', m.diaryBodyToText('<p>本文</p><script>alert(1)</script>'), '本文');
 eq('空行は残すが3行以上は畳む', m.diaryBodyToText('a<br><br><br><br>b'), 'a\n\nb');
 eq('行末の空白は落とす', m.diaryBodyToText('a   <br>b'), 'a\nb');
@@ -261,6 +269,23 @@ console.log('\n── 5. 詳細: ふつうに読める ──');
   const html = detail({ flg: '1' }).replace('name="title"', 'data-file_name="x" name="title"');
   const d = m.parseEkichikaDiaryDetail(html);
   eq('★ 紛らわしい属性に釣られない', d.title, 'きょうのごはん');
+}
+
+// ★★★ 第1336便（2026-10-09）: タイトルの欄の、名前つきの文字参照。
+//   ★ 本番のフクエスの写メ日記に「14:00〜居るよ&lrm;」「…&hellip;」「(﹡&circ;﹀&circ;﹡)」「&diams;」「&perp;」「&sup;」「&bull;」が出ていた。
+{
+  const t = (v) => m.parseEkichikaDiaryDetail(detail({ flg: '1', title: v })).title;
+  eq('★★★ タイトルの &hellip; を戻す', t('気付いてしまいました&hellip;'), '気付いてしまいました\u2026');
+  eq('★★★ タイトルの &diams; &circ; &perp; &sup; &bull; を戻す', t('&diams;A&circ;B&perp;C&sup;D&bull;E'), '\u2666A\u02c6B\u22a5C\u2283D\u2022E');
+  eq('★★★ タイトルの &lrm;（目に見えない向きの印）は「&lrm;」という文字で残さない', t('14:00〜居るよ&lrm;'), '14:00〜居るよ\u200e');
+  eq('★ タイトルの &amp; &quot; は今までどおり', t('A&amp;B &quot;C&quot;'), 'A&B "C"');
+  eq('★ タイトルの二重の文字参照は1段だけ', t('&amp;hellip;'), '&hellip;');
+  // ★ 名前の表そのもの（lib/htmlNamedEntities.ts）。HTML 4.01 の 252 個。1つ欠けても気づけるように数える
+  const ne = require(path.join(__dirname, '..', '_tmpcheck', 'htmlNamedEntities.js'));
+  eq('★ 名前の数は 252', ne.HTML4_NAMED_COUNT, 252);
+  eq('★ 文字が重なっていない（同じ文字に2つの名前を付けていない）', new Set(ne.html4NamedEntityNames().map((n) => ne.html4NamedEntityChar(n))).size, 252);
+  eq('★ 知らない名前は null', ne.html4NamedEntityChar('nosuchname'), null);
+  eq('★ 継いだ名前（toString など）を名前と読まない', ne.html4NamedEntityChar('toString'), null);
 }
 
 console.log('\n── 6. 詳細: 非公開は「読めない」ではない（3-5） ──');

@@ -59,6 +59,8 @@
 //   §371  巡回は15分（★ 第1316便から20分）。一覧だけ読み、【新着があるときだけ】詳細を開く
 //         → ★ その「新着だけ」を決めるのが selectDiariesToFetch()。
 
+import { html4NamedEntityChar } from './htmlNamedEntities';
+
 // ────────────────────────────────────────────────────────────
 // 型
 // ────────────────────────────────────────────────────────────
@@ -123,6 +125,12 @@ function codePoint(n: number): string {
 /**
  * 文字参照をほどく。
  * ★ &amp; は **いちばん最後**にほどく。先にほどくと `&amp;lt;` が `<` になってしまう。
+ *
+ * ★★★ 第1336便（2026-10-09）: 名前つきの文字参照（&hellip; &diams; &circ; &lrm; など）も戻す。
+ *   ★ 駅ちかは、タイトルの欄に記号を名前つきで入れて返す。以前は6種しか戻さず、
+ *     フクエスの写メ日記のタイトルに「14:00〜居るよ&lrm;」「…しまいました&hellip;」とそのまま出ていた。
+ *   ★ 戻すのは HTML 4.01 の名前（lib/htmlNamedEntities.ts）。知らない名前はそのまま残す。
+ *   ★ &amp; はここでも戻さない（いちばん最後の1行にまかせる。`&amp;hellip;` は「&hellip;」という文字のまま）。
  */
 function decodeEntities(input: string): string {
   return String(input ?? '')
@@ -133,6 +141,8 @@ function decodeEntities(input: string): string {
     .replace(/&nbsp;/gi, ' ')
     .replace(/&#x([0-9a-f]+);/gi, (_m, h: string) => codePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_m, d: string) => codePoint(Number(d)))
+    .replace(/&([A-Za-z][A-Za-z0-9]{1,8});/g, (all: string, name: string) =>
+      name === 'amp' ? all : (html4NamedEntityChar(name) ?? all))
     .replace(/&amp;/gi, '&');
 }
 
