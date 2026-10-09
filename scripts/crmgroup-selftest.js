@@ -109,7 +109,10 @@ console.log('\n── 8. 店舗様の口（第1325便）★ 本人確認・グ�
   eq('店舗様の口が5つ', fns.map((f) => f.slice(0, f.indexOf('('))), ['getCrmCustomerGroupShare', 'saveCrmGroupAlert', 'withdrawCrmGroupAlert', 'listCrmGroupAlerts', 'getCrmGroupGuide']);
   eq('★★★ どの口も、最初に assertMember（本人確認＋グループに入っているか）を通す', fns.every((f) => /const a = await assertMember\(/.test(f.slice(0, 700))), true);
   eq('★★★ assertMember は、オーナー本人か（assertOwner）と、いまグループに入っているか（DB）を確かめる', /async function assertMember[\s\S]{0,300}await assertOwner\(salonId\)[\s\S]{0,200}await readCrmGroupMembership\(/.test(act), true);
-  eq('★★★ オーナー本人でなければ断る・契約期間外なら断る', /salon\.owner_id as string \| null\) !== user\.id/.test(act) && /ご契約期間外/.test(act), true);
+  // ★ 第1346便: 判定は lib/crm/auth.ts の assertCrmOwner に1本化（crmGroupShare の assertOwner はそれを呼ぶだけ）
+  const auth = read('src/app/lib/crm/auth.ts');
+  eq('★★★ assertOwner は lib/crm/auth.ts の assertCrmOwner を呼ぶ', /async function assertOwner[\s\S]{0,200}await assertCrmOwner\(salonId\)/.test(act), true);
+  eq('★★★ オーナー本人でなければ断る・契約期間外なら断る・規約に同意していなければ断る', /salon\.owner_id as string \| null\) !== user\.id/.test(auth) && /ご契約期間外/.test(auth) && /CRM_TERMS_REQUIRED/.test(auth), true);
   eq('★★★ 入っているかは、外していない行（left_at が null）で見る', /from\('crm_group_members'\)\s*\.select\('group_id'\)\.eq\('salon_id', salonId\)\.is\('left_at', null\)/.test(lib), true);
   eq('★★★ 当たりは、取り下げていない分（withdrawn_at が null）で、自分のグループの中だけ', /from\('crm_group_alerts'\)\s*\.select\(CRM_GROUP_HIT_COLS\)\.eq\('group_id', groupId\)\.is\('withdrawn_at', null\)/.test(lib), true);
   eq('★★★ 電話番号は完全一致（途中一致の like を使わない）', /\.in\('phone', want\.slice/.test(lib) && !/like\(/.test(lib), true);
@@ -155,7 +158,7 @@ console.log('\n── 9. 受付・スケジュール・台帳へのつなぎ（�
   eq('★★★ 当たっても、予約を断る・止める処理を足していない（出すだけ）', /groupHits[\s\S]{0,80}return \{ ok: false/.test(sched + lookup), false);
   const del = crm.slice(crm.indexOf('export async function deleteCrmCustomer'), crm.indexOf('function displayTel'));
   eq('★★★ お客様を台帳から消すときは、先に共有を取り下げる', del.indexOf("withdrawn_reason: 'customer_deleted'") > 0 && del.indexOf("withdrawn_reason: 'customer_deleted'") < del.indexOf("from('salon_customers').delete()"), true);
-  eq('★★ 取り下げられなかったら、消さない', /共有を取り下げられなかったので、削除していません/.test(del), true);
+  eq('★★ 取り下げられなかったら、消さない（★ 第1342便: 文に「グループ」を出さない）', /関連する記録を整理できなかったので、削除していません/.test(del) && !/グループ・提携店への共有を取り下げられなかった/.test(del), true);
   // ★★★ 表がまだ無い（追加SQL の前）ときに、お客様の削除を止めない。★ 書く前に読んで確かめる（書くときのエラーは、版によって見分けられない）
   eq('★★★ 取り下げの前に、読んで確かめる（表が無ければ、そのまま消す）', del.indexOf(".select('id, group_id')") > 0 && del.indexOf(".select('id, group_id')") < del.indexOf("withdrawn_reason: 'customer_deleted'") && /if \(shared\.error && !crmGroupTableMissing\(shared\.error, shared\.status\)\)/.test(del) && /const alive = shared\.error \? \[\] : /.test(del), true);
   const access = crm.slice(crm.indexOf('export async function getCrmAccess'), crm.indexOf('async function assertCrm'));
