@@ -225,7 +225,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   useEffect(() => {
     let alive = true;
     const prev = dataRef.current;
-    const full = fullNextRef.current || !prev || prev.date !== date;
+    let full = fullNextRef.current || !prev || prev.date !== date;
     fullNextRef.current = false;
     (async () => {
       // ★ 第1116便: 先に変更マーク（1行）だけ読む（★ 全量より【先に】読む＝読んでいる最中の変化を次の回で拾える）。
@@ -242,6 +242,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           setNowMs(Date.now());
           return;
         }
+        // ★ 2026-10-09 点検#5: マークが前回と【違う】＝どこかが変わった → 設定・料金表も読み直す（full）。
+        //   lite は設定・料金表を前回の値で使い回すので、別の端末で部屋・アラーム・料金表を変えても、開きっぱなしの画面に出なかった。
+        //   （追加SQL_第1344便で crm_settings・crm_price_items もマークを動かす）。マークが同じ回・読めない回は今までどおり lite。
+        if (mark !== null && last && last.mark !== mark) full = true;
       }
       let res: Awaited<ReturnType<typeof getCrmSchedule>>;
       try {
