@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, CRM_TOGGLE_COLORS, type CrmToggleColor, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { useCrmDirty } from '../CrmBase';
 import { addCrmGroupConsentClause, CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_CONSENT_MARK } from '@/lib/crmGroup';
 import { ImportDialog } from '../ImportDialog';
 
@@ -44,6 +45,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
   // ★ 第1228便: 読み込んだとき（または保存したとき）の設定。いまの st と違えば「未保存」
   const [savedSt, setSavedSt] = useState<CrmSettings | null>(null);
   const dirty = !!st && !!savedSt && JSON.stringify(st) !== JSON.stringify(savedSt);
+  useCrmDirty(dirty); // ★ 2026-10-09 点検#6: 上の帯のタブ・「画面を更新」でも聞く
   useEffect(() => {
     if (!dirty) return;
     const onLeave = (e: BeforeUnloadEvent) => { e.preventDefault(); };

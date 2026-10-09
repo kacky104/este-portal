@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
 import type { CrmAccess } from '@/app/lib/crm/types';
 import { isCrmHost } from '@/lib/crmHost';
-import { useCrmLinks } from './CrmBase';
+import { crmLeaveOk, useCrmLinks } from './CrmBase';
 import { CrmIntro } from './CrmIntro';
 
 // フクエスCRM の外枠（2026-09-19）。★ 画面が増えても、入口の判定と上の帯はここ1か所。
@@ -99,6 +99,7 @@ export function CrmShell({
             <button
               type="button"
               onClick={() => {
+                if (!crmLeaveOk()) return; // ★ 2026-10-09 点検#6
                 const ok = window.dispatchEvent(new CustomEvent('crm:refresh', { cancelable: true }));
                 if (ok) window.location.reload();
               }}
@@ -120,6 +121,8 @@ export function CrmShell({
                 key={n.key}
                 href={links.href(n.href) + adminSalonQuery}
                 aria-current={current === n.key ? 'page' : undefined}
+                // ★ 2026-10-09 点検#6: 設定などに保存していない変更があるとき、タブで移る前に聞く（ソフト遷移は beforeunload が効かない）
+                onClick={(e) => { if (current !== n.key && !crmLeaveOk()) e.preventDefault(); }}
                 // ★ 第1228便: いま開いているタブが画面の外（右）にあるときは、開いたときに見える位置へ寄せる（スマホで「設定」「料金設定」が隠れていた）
                 ref={current === n.key ? (el) => { el?.scrollIntoView?.({ inline: 'center', block: 'nearest' }); } : undefined}
                 className={`flex-none whitespace-nowrap px-2.5 py-1.5 text-[12px] font-bold md:px-4 md:py-2 md:text-[14px] ${

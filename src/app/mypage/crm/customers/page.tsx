@@ -370,7 +370,7 @@ function CustomerDetail({
           })}
         </ul>
       )}
-      {!editing && <DeleteCustomer salonId={salonId} customerId={c.id} name={c.name} onDeleted={onDeleted} />}
+      {!editing && <DeleteCustomer salonId={salonId} customerId={c.id} name={c.name} inGroup={inGroup} onDeleted={onDeleted} />}
     </div>
   );
 }
@@ -530,7 +530,8 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
 }
 
 // お客様を台帳から消す（第569便）。★ お客様から削除を頼まれたとき用。2回押しで消す。
-function DeleteCustomer({ salonId, customerId, name, onDeleted }: { salonId: number; customerId: number; name: string; onDeleted: () => void }) {
+// ★ 2026-10-09 点検#7: グループ共有の1文は、グループに入っている店にだけ出す（入っていない店に機能のことを書かない）
+function DeleteCustomer({ salonId, customerId, name, inGroup, onDeleted }: { salonId: number; customerId: number; name: string; inGroup: boolean; onDeleted: () => void }) {
   const [sure, setSure] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -548,7 +549,7 @@ function DeleteCustomer({ salonId, customerId, name, onDeleted }: { salonId: num
       ) : (
         <div className="border border-rose-300 bg-rose-50 p-3 text-[13px] text-rose-800">
           <p className="font-bold">「{name || '(名前なし)'}」さんを台帳から削除します。元に戻せません。</p>
-          <p className="mt-1 leading-relaxed">電話番号・メモ・分類も消え、このお客様の予約は名前「削除済み」・電話番号なし・備考なしになります（日時・金額は日報やレポートのため残ります）。その予約の同意書も消えます。グループ・提携店へ共有していた場合は、その共有も取り下げます。</p>
+          <p className="mt-1 leading-relaxed">電話番号・メモ・分類も消え、このお客様の予約は名前「削除済み」・電話番号なし・備考なしになります（日時・金額は日報やレポートのため残ります）。その予約の同意書も消えます。{inGroup && 'グループ・提携店へ共有していた場合は、その共有も取り下げます。'}</p>
           <div className="mt-2 flex gap-2">
             <button type="button" disabled={busy} onClick={run} className="bg-rose-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">{busy ? '削除中…' : '本当に削除する'}</button>
             <button type="button" onClick={() => setSure(false)} className="border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-600">やめる</button>

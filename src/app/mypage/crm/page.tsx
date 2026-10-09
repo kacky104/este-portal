@@ -73,6 +73,19 @@ import {
   type CrmAlarm,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from './CrmShell';
+
+// ★ 2026-10-09 点検#4: Server Action は、圏外・デプロイ直後の古いチャンクなどで ok:false ではなく【例外】になることがある。
+//   例外のまま busy が true に残ると、小窓のボタン・ESC・背景タップが全部効かなくなり、再読込しかなくなる（しかも無言）。
+//   → 画面から呼ぶ所は全部ここを通し、例外は ok:false の文に変える（呼び出し側の setBusy(false) がそのまま動く）。
+const NET_ERR = '通信できませんでした。もう一度お試しください';
+async function safeCall<T extends { ok: boolean }>(fn: () => Promise<T>): Promise<T | { ok: false; error: string }> {
+  try {
+    return await fn();
+  } catch (e) {
+    console.error('[crm] server action failed', e);
+    return { ok: false, error: NET_ERR };
+  }
+}
 import { castNotifyText, lineShareHref } from '@/lib/crmCastNotify';
 import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vibrateAlarm } from '@/app/lib/crm/alarmSound';
 import { ConsentView } from './ConsentView';
@@ -174,6 +187,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const [memoEdit, setMemoEdit] = useState<CrmScheduleTherapist | null>(null);
   // 報酬確定・締め（第538便）
   const [confirmFor, setConfirmFor] = useState<CrmScheduleTherapist | null>(null);
+  // ★ 2026-10-09 点検#3: 出勤情報の小窓から「報酬確定を行う」で来たとき、いま保存した交通費（reload が終わる前の data には無い）
+  const [confirmTransport, setConfirmTransport] = useState<number | null>(null);
   const [closing, setClosing] = useState(false);
   // ★ 表の上（アラーム・日付・件数）をたためる（第576便）。この端末だけ覚える
   // ★ 第647便：スマホは最初からたたむ（一度でも押した端末は、その選んだ方を守る）
@@ -447,7 +462,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           onPick={setPicked}
           onMemo={setMemoEdit}
           confirms={data?.confirms ?? []}
-          onConfirm={setConfirmFor}
+          onConfirm={(t) => { setConfirmTransport(null); setConfirmFor(t); }}
           workDayOf={(tid) => data?.workDays[tid] ?? null}
           roomColorOf={(room) => data?.settings.roomColors[room]}
           toggleDefs={data?.settings.customToggles ?? []}
@@ -461,7 +476,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
             if (endTogglingRef.current.has(tid)) return;
             endTogglingRef.current.add(tid);
             try {
-              const r = await setCrmWorkEnd(salonId, tid, date, next);
+              const r = await safeCall(() => setCrmWorkEnd(salonId, tid, date, next));
               if (!r.ok) { setErr(r.error); return; }
               reload();
             } finally {
@@ -549,14 +564,14 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           initial={data.workDays[workFor.id] ?? CRM_EMPTY_WORK_DAY}
           onClose={() => setWorkFor(null)}
           onSaved={() => { setWorkFor(null); reload(); }}
-          onConfirm={() => { const t = workFor; setWorkFor(null); reload(); setConfirmFor(t); }}
+          onConfirm={(savedTransport) => { const t = workFor; setWorkFor(null); reload(); setConfirmTransport(savedTransport); setConfirmFor(t); }}
         />
       )}
 
       {confirmFor && data && (
         <ConfirmDialog
           key={confirmFor.id}
-          transport={data.workDays[confirmFor.id]?.transport ?? 0}
+          transport={confirmTransport ?? data.workDays[confirmFor.id]?.transport ?? 0}
           therapist={confirmFor}
           salonId={salonId}
           date={date}
@@ -1024,7 +1039,7 @@ function DetailPanel({
   const run = async (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setBusy(true);
     setErr('');
-    const res = await fn();
+    const res = await safeCall(fn);
     setBusy(false);
     if (!res.ok) { setErr(res.error ?? 'うまくいきませんでした'); return; }
     onDone();
@@ -1041,7 +1056,7 @@ function DetailPanel({
   const toggleBad = async () => {
     setBusy(true);
     setErr('');
-    const res = await setCrmCancelBad(salonId, b.id, !b.cancelBad);
+    const res = await safeCall(() => setCrmCancelBad(salonId, b.id, !b.cancelBad));
     setBusy(false);
     if (!res.ok) { setErr(res.error); return; }
     onChanged({ ...b, cancelBad: !b.cancelBad });
@@ -1152,7 +1167,7 @@ function DetailPanel({
                           disabled={busy || on}
                           onClick={async () => {
                             setBusy(true); setErr('');
-                            const r = await setCrmPlayStatus(salonId, b.id, ps);
+                            const r = await safeCall(() => setCrmPlayStatus(salonId, b.id, ps));
                             setBusy(false);
                             if (!r.ok) { setErr(r.error); return; }
                             onChanged({ ...b, playStatus: ps });
@@ -1179,7 +1194,7 @@ function DetailPanel({
                           disabled={busy || on}
                           onClick={async () => {
                             setBusy(true); setErr('');
-                            const r = await setCrmReceived(salonId, b.id, rb);
+                            const r = await safeCall(() => setCrmReceived(salonId, b.id, rb));
                             setBusy(false);
                             if (!r.ok) { setErr(r.error); return; }
                             onChanged({ ...b, receivedBy: rb });
@@ -1328,6 +1343,7 @@ function BookingForm({
   const [found, setFound] = useState<CrmScheduleCustomer | null | 'none'>(null); // null＝まだ引いていない
   // ★ 第1325便: その電話番号が、グループ・提携店の共有リストに当たった分（★ 自店の台帳にいない、初めての電話でも当たる）
   const [group, setGroup] = useState<{ hits: CrmGroupHit[]; failed: boolean }>({ hits: [], failed: false });
+  const [lookupErr, setLookupErr] = useState(''); // ★ 2026-10-09 点検#18: 台帳を引けなかったとき
   // ★ かんたん受付（第640便・カッキーさんの指示）。風俗CTIv2 でアイリス様が「時間メモ」に時刻・金額・名前だけ書いて回していたのに合わせる。
   //   ★ 新規のときだけ。出すのは 電話・名前・担当・開始・時間・料金・女子報酬・備考。コース・料金表・インターバルは隠す（既定のまま）。
   //   ★ 料金・女子報酬は「補正」の欄に入れる（料金表の項目を選ばない＝合計＝入れた数字）。あとから詳細の「変更する」で料金表から選び直せる。
@@ -1354,8 +1370,11 @@ function BookingForm({
     if (telDigits.length < 10) return;
     let alive = true;
     const t = setTimeout(() => {
-      lookupCrmCustomerByPhone(salonId, f.customerTel).then((res) => {
-        if (!alive || !res.ok) return;
+      // ★ 2026-10-09 点検#18: 引けなかったときは無言にしない（NG・要注意が出ないまま受け付けてしまう）
+      safeCall(() => lookupCrmCustomerByPhone(salonId, f.customerTel)).then((res) => {
+        if (!alive) return;
+        if (!res.ok) { setLookupErr('台帳を引けませんでした（NG・要注意の印が出ません）'); return; }
+        setLookupErr('');
         setFound(res.customer ?? 'none');
         setGroup({ hits: res.groupHits, failed: res.groupFailed });
         const c = res.customer;
@@ -1451,7 +1470,7 @@ function BookingForm({
     setErr('');
     const slotStartISO = new Date(baseMs + f.startMin * 60000).toISOString();
     if (f.mode === 'new') {
-      const res = await createManualBooking({
+      const res = await safeCall(() => createManualBooking({
         salonId,
         therapistId: tid,
         slotStartISO,
@@ -1461,11 +1480,12 @@ function BookingForm({
         customerName: f.customerName,
         customerTel: f.customerTel,
         note: f.note,
-      });
+      }));
       if (!res.ok) { setBusy(false); setErr(res.error ?? '保存できませんでした'); return; }
       if (hasPricing || f.paymentMethod) {
-        if (!res.bookingId) { setBusy(false); setErr('予約は入りましたが、料金を保存できませんでした（カードを押して「変更する」から入れてください）'); return; }
-        const pr = await savePricing(res.bookingId);
+        const newId = res.bookingId;
+        if (!newId) { setBusy(false); setErr('予約は入りましたが、料金を保存できませんでした（カードを押して「変更する」から入れてください）'); return; }
+        const pr = await safeCall(() => savePricing(newId));
         if (!pr.ok) { setBusy(false); setErr(`予約は入りましたが、料金を保存できませんでした：${pr.error}`); return; }
       }
       setBusy(false);
@@ -1474,10 +1494,10 @@ function BookingForm({
     }
     // 変更：担当か開始時刻が変わったら先に移動、そのあと内容
     if (f.therapistKey !== f.origTherapistKey || f.startMin !== f.origStartMin) {
-      const mv = await moveBooking(f.bookingId!, tid, slotStartISO);
+      const mv = await safeCall(() => moveBooking(f.bookingId!, tid, slotStartISO));
       if (!mv.ok) { setBusy(false); setErr(mv.error ?? '移動できませんでした'); return; }
     }
-    const up = await updateBookingDetails({
+    const up = await safeCall(() => updateBookingDetails({
       bookingId: f.bookingId!,
       courseName: f.courseName,
       courseMin: f.courseMin,
@@ -1485,9 +1505,9 @@ function BookingForm({
       customerName: f.customerName,
       customerTel: f.customerTel,
       note: f.note,
-    });
+    }));
     if (!up.ok) { setBusy(false); setErr(up.error ?? '保存できませんでした'); return; }
-    const pr = await savePricing(f.bookingId!);
+    const pr = await safeCall(() => savePricing(f.bookingId!));
     setBusy(false);
     if (!pr.ok) { setErr(`料金を保存できませんでした：${pr.error}`); return; }
     onSaved();
@@ -1514,6 +1534,7 @@ function BookingForm({
           <div>
             <label className={labCls}>電話番号（入れると台帳からお客様を出します）</label>
             <input className={fieldCls} value={f.customerTel} inputMode="tel" autoComplete="tel" onChange={(e) => { set('customerTel', e.target.value); setFound(null); setGroup({ hits: [], failed: false }); }} placeholder="090-1234-5678" />
+            {lookupErr && <p className="mt-1 text-[12px] font-bold text-rose-600">{lookupErr}</p>}
             {telDigits.length >= 10 && found === 'none' && (
               <p className="mt-1 text-[12px] text-slate-500">台帳にない番号です（新しいお客様として台帳に入ります）</p>
             )}
@@ -1786,7 +1807,7 @@ function MemoDialog({
   const save = async () => {
     setBusy(true);
     setErr('');
-    const res = await saveCrmTherapistMemo(salonId, therapist.id, text);
+    const res = await safeCall(() => saveCrmTherapistMemo(salonId, therapist.id, text));
     setBusy(false);
     if (!res.ok) { setErr(res.error); return; }
     onSaved();
@@ -1866,14 +1887,14 @@ function ConfirmDialog({
 
   const doConfirm = async () => {
     setBusy(true); setErr('');
-    const r = await confirmCrmPay(salonId, therapist.id, date, al, note);
+    const r = await safeCall(() => confirmCrmPay(salonId, therapist.id, date, al, note));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onDone();
   };
   const doUndo = async () => {
     setBusy(true); setErr('');
-    const r = await unconfirmCrmPay(salonId, therapist.id, date);
+    const r = await safeCall(() => unconfirmCrmPay(salonId, therapist.id, date));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onDone();
@@ -2135,9 +2156,9 @@ function SettleBox({ salonId, therapistId, date }: { salonId: number; therapistI
     const n = Math.round(Number(amount) || 0);
     if (n <= 0) { setErr('金額を入れてください'); return; }
     setBusy(true); setErr('');
-    const r = await addCrmMoneyMove(salonId, {
+    const r = await safeCall(() => addCrmMoneyMove(salonId, {
       therapistId, date, direction: toShop ? 'to_shop' : 'to_therapist', category: 'settle', amount: n, memo,
-    });
+    }));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setMemo('');
@@ -2145,7 +2166,7 @@ function SettleBox({ salonId, therapistId, date }: { salonId: number; therapistI
   };
   const undo = async (id: number) => {
     setBusy(true); setErr('');
-    const r = await cancelCrmMoneyMove(salonId, id);
+    const r = await safeCall(() => cancelCrmMoneyMove(salonId, id));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setTick((t) => t + 1);
@@ -2250,14 +2271,14 @@ function CloseDialog({
   const ex = Math.max(0, Math.round(Number(expense) || 0));
   const doClose = async () => {
     setBusy(true); setErr('');
-    const r = await closeCrmDay(salonId, date, ex, memo);
+    const r = await safeCall(() => closeCrmDay(salonId, date, ex, memo));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onDone();
   };
   const doReopen = async () => {
     setBusy(true); setErr('');
-    const r = await reopenCrmDay(salonId, date);
+    const r = await safeCall(() => reopenCrmDay(salonId, date));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onDone();
@@ -2368,7 +2389,7 @@ function WorkDayDialog({
   initial: CrmWorkDay;
   onClose: () => void;
   onSaved: () => void;
-  onConfirm: () => void;
+  onConfirm: (savedTransport: number) => void;
 }) {
   const [wd, setWd] = useState<CrmWorkDay>(initial);
   const [busy, setBusy] = useState(false);
@@ -2383,14 +2404,14 @@ function WorkDayDialog({
 
   const saveOnly = async (): Promise<boolean> => {
     setBusy(true); setErr('');
-    const r = await saveCrmWorkDay(salonId, therapist.id, date, wd);
+    const r = await safeCall(() => saveCrmWorkDay(salonId, therapist.id, date, wd));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return false; }
     return true;
   };
   const save = async () => { if (await saveOnly()) onSaved(); };
   // ★ 第1218便: 「報酬確定を行う」は、いま入れた交通費などを【先に保存してから】確定画面へ（保存せずに開くと、交通費が手当に入らなかった）
-  const confirmAfterSave = async () => { if (await saveOnly()) onConfirm(); };
+  const confirmAfterSave = async () => { if (await saveOnly()) onConfirm(wd.transport); };
 
   const roomOptions = wd.room && !rooms.includes(wd.room) ? [...rooms, wd.room] : rooms;
 

@@ -31,7 +31,8 @@ type Err = { ok: false; error: string };
 type Svc = ReturnType<typeof createServiceClient>;
 
 const LIST_LIMIT = 500;
-const NOT_IN_GROUP = 'グループ・提携店の共有は、このお店では使えません（グループに入っていません）';
+// ★ 2026-10-09 点検#7: グループに入っていない店には、機能の名前を出さない
+const NOT_IN_GROUP = 'この操作は、このお店では使えません';
 
 type Auth = { ok: true; svc: Svc; userId: string; isAdmin: boolean };
 

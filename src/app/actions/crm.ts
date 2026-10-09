@@ -2411,14 +2411,14 @@ export async function deleteCrmCustomer(
     const shared = await svc.from('crm_group_alerts').select('id, group_id')
       .eq('salon_id', salonId).eq('customer_id', customerId).is('withdrawn_at', null);
     if (shared.error && !crmGroupTableMissing(shared.error, shared.status)) {
-      return { ok: false, error: 'グループ・提携店への共有を確かめられなかったので、削除していません。もう一度お試しください' };
+      return { ok: false, error: '関連する記録を確かめられなかったので、削除していません。もう一度お試しください' };
     }
     const alive = shared.error ? [] : (shared.data ?? []);
     if (alive.length > 0) {
       const { error: wErr } = await svc.from('crm_group_alerts')
         .update({ withdrawn_at: new Date().toISOString(), withdrawn_by: auth.userId, withdrawn_reason: 'customer_deleted' })
         .eq('salon_id', salonId).in('id', alive.map((w) => Number(w.id))).is('withdrawn_at', null);
-      if (wErr) return { ok: false, error: 'グループ・提携店への共有を取り下げられなかったので、削除していません。もう一度お試しください' };
+      if (wErr) return { ok: false, error: '関連する記録を整理できなかったので、削除していません。もう一度お試しください' };
       // 記録（★ 電話番号・名前・内容は入れない。書けなくても削除は止めない）
       for (const w of alive) {
         const { error: lErr } = await svc.from('crm_group_logs').insert({

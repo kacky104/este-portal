@@ -118,7 +118,7 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
       <div className="mx-auto max-w-4xl p-3 md:p-4">
         <GroupJoinTodo
           salonId={salonId}
-          fallback={<p className="p-10 text-center text-[14px] leading-relaxed text-slate-500">この機能は、グループ・提携店での共有をお申し込みのお店だけが使えます。</p>}
+          fallback={<p className="p-10 text-center text-[14px] leading-relaxed text-slate-500">この画面は、このお店では使えません。</p>}
         />
       </div>
     );
