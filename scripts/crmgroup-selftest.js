@@ -155,10 +155,10 @@ console.log('\n── 9. 受付・スケジュール・台帳へのつなぎ（�
   // ★★★ 表がまだ無い（追加SQL の前）ときに、お客様の削除を止めない。★ 書く前に読んで確かめる（書くときのエラーは、版によって見分けられない）
   eq('★★★ 取り下げの前に、読んで確かめる（表が無ければ、そのまま消す）', del.indexOf(".select('id, group_id')") > 0 && del.indexOf(".select('id, group_id')") < del.indexOf("withdrawn_reason: 'customer_deleted'") && /if \(shared\.error && !crmGroupTableMissing\(shared\.error, shared\.status\)\)/.test(del) && /const alive = shared\.error \? \[\] : /.test(del), true);
   const access = crm.slice(crm.indexOf('export async function getCrmAccess'), crm.indexOf('async function assertCrm'));
-  eq('★ タブと欄は、グループに入っている店にだけ（サーバーが判定）', /inGroup = active \? \(await readCrmGroupMembership\(svc, Number\(data\.id\)\)\)\.state === 'in' : false/.test(access), true);
+  eq('★ タブと欄は、グループに入っている店にだけ（サーバーが判定）', /const grp = active \? await readCrmGroupAccess\(svc, Number\(data\.id\)\) : \{ inGroup: false, groupPending: false, groupTodo: 0 \};/.test(access) && /inGroup: grp\.inGroup,/.test(access), true);
 
   const shell = read('src/app/mypage/crm/CrmShell.tsx');
-  eq('★ 「グループ共有」のタブは、入っている店にだけ', /access\.inGroup \? \[\.\.\.NAV\.slice\(0, 2\), NAV_GROUP, \.\.\.NAV\.slice\(2\)\] : NAV/.test(shell), true);
+  eq('★ 「グループ共有」のタブは、入っている店と、申込みの途中の店にだけ', /access\.inGroup \|\| access\.groupPending \? \[\.\.\.NAV\.slice\(0, 2\), NAV_GROUP, \.\.\.NAV\.slice\(2\)\] : NAV/.test(shell), true);
   const cust = read('src/app/mypage/crm/customers/page.tsx');
   eq('★ 顧客台帳の共有の欄は、入っている店にだけ', /\{inGroup && <GroupShareBox /.test(cust), true);
   const page = read('src/app/mypage/crm/page.tsx');
@@ -217,6 +217,107 @@ console.log('\n── 11. 公式HPの利用規約（第1327便）★ 全店に�
   eq('★★ 条件つきで書く（グループ・提携店が無い店にも、うそにならない）', [/当店にグループ店舗・提携店舗があるときは、それらの店舗でも以後のご利用をお断りすることがあります。/.test(t), /当店のグループ店舗・提携店舗（ある場合）との間で共有することがあります。/.test(t)], [true, true]);
   eq('★★ 「同意なく第三者に提供しません」に、例外があることを書く（実際と食い違わせない）', [/次に定める場合および法令に基づく場合を除き、ご本人の同意なく第三者に提供することはありません。/.test(t), /目的にのみ使用し、法令に基づく場合を除き/.test(t)], [true, false]);
   eq('★ 共有する項目・目的・窓口が書いてある', ['お名前・電話番号・行為のあった日と内容', 'セラピストの安全を守り、同じ被害を防ぐ目的', 'この目的のほかには使用しません', '確認・訂正・削除のお求めは、当店までご連絡ください'].every((w) => t.includes(w)), true);
+}
+
+console.log('\n── 12. 画面での申込み・承認の決まり（第1328便）──');
+{
+  const j = require(path.join(__dirname, '..', '_tmpcheck', 'crmGroupApply.js'));
+  const V = j.CRM_GROUP_APPLY_VERSION;
+  const sig = (id, inviteId, salonId, kind, partyIds, version) => ({ id, inviteId, salonId, kind, version: version || V, partyIds: partyIds || [] });
+  const I = (id, salonId) => ({ id, salonId });
+
+  eq('名前: 空は断る・前後の空白は落とす・40字まで', [j.checkCrmGroupSignerName('  ').ok, j.checkCrmGroupSignerName(' 山田　太郎 '), j.checkCrmGroupSignerName('あ'.repeat(41)).ok, j.checkCrmGroupSignerName(null).ok], [false, { ok: true, name: '山田 太郎' }, false, false]);
+  eq('顔ぶれが同じか（順番は見ない）', [j.sameCrmGroupParties([1, 2], [2, 1]), j.sameCrmGroupParties([1, 2], [1, 2, 3]), j.sameCrmGroupParties([], [])], [true, false, true]);
+
+  // ── 最初の顔ぶれ（まだだれも入っていない）
+  const inv2 = [I(10, 1), I(11, 2)];
+  eq('最初: 署名待ちが1店だけなら、申込書を出さない', j.crmGroupInviteeCanSign([], [], [I(10, 1)], I(10, 1)), false);
+  eq('最初: 2店そろえば、申込書を出す', j.crmGroupInviteeCanSign([], [], inv2, I(10, 1)), true);
+  eq('最初: 1店だけ署名 → だれも入れない', j.planCrmGroupJoins({ memberIds: [], invites: inv2, sigs: [sig(1, 10, 1, 'apply', [1, 2])], version: V }), []);
+  eq('★★★ 最初: 全部の店が署名 → 全部いっしょに入れる', j.planCrmGroupJoins({ memberIds: [], invites: inv2, sigs: [sig(1, 10, 1, 'apply', [1, 2]), sig(2, 11, 2, 'apply', [2, 1])], version: V }), [10, 11]);
+  {
+    // 2店が署名したあとで、運営が3店めを足した → 顔ぶれが変わったので、前の署名は効かない
+    const inv3 = [I(10, 1), I(11, 2), I(12, 3)];
+    const old = [sig(1, 10, 1, 'apply', [1, 2]), sig(2, 11, 2, 'apply', [1, 2])];
+    eq('★★★ 最初: 署名のあとで顔ぶれが変わったら、署名し直し（知らない店が混じったまま入れない）', [j.crmGroupApplyValid(old, [], inv3, I(10, 1), V), j.planCrmGroupJoins({ memberIds: [], invites: inv3, sigs: old, version: V })], [false, []]);
+    const redo = old.concat([sig(3, 10, 1, 'apply', [1, 2, 3]), sig(4, 11, 2, 'apply', [1, 2, 3]), sig(5, 12, 3, 'apply', [1, 2, 3])]);
+    eq('最初: 3店とも新しい顔ぶれで署名 → 3店いっしょに入れる', j.planCrmGroupJoins({ memberIds: [], invites: inv3, sigs: redo, version: V }), [10, 11, 12]);
+  }
+  eq('★★ 申込書の版が変わったら、前の署名は効かない', j.crmGroupApplyValid([sig(1, 10, 1, 'apply', [1, 2], '古い版')], [], inv2, I(10, 1), V), false);
+  eq('★ ほかの店の署名を、自分の署名として数えない', j.crmGroupApplyValid([sig(1, 10, 2, 'apply', [1, 2])], [], inv2, I(10, 1), V), false);
+
+  // ── あとから足す（1・2 が入っていて、3 を足す）
+  const mem = [1, 2], c = I(20, 3);
+  eq('★★★ 足す: 今いる店がまだ認めていなければ、足す店に申込書を出さない', j.crmGroupInviteeCanSign([], mem, [c], c), false);
+  eq('★★★ 足す: 1店だけ認めても、まだ出さない', j.crmGroupInviteeCanSign([sig(1, 20, 1, 'approve')], mem, [c], c), false);
+  const ok2 = [sig(1, 20, 1, 'approve'), sig(2, 20, 2, 'approve')];
+  eq('足す: 全部の店が認めたら、足す店に申込書を出す', j.crmGroupInviteeCanSign(ok2, mem, [c], c), true);
+  eq('足す: 認めただけでは、まだ入れない（足す店の署名が要る）', j.planCrmGroupJoins({ memberIds: mem, invites: [c], sigs: ok2, version: V }), []);
+  eq('★★★ 足す: 全部の店が認め、足す店が署名 → 入れる', j.planCrmGroupJoins({ memberIds: mem, invites: [c], sigs: ok2.concat([sig(3, 20, 3, 'apply', [1, 2, 3])]), version: V }), [20]);
+  eq('★★★ 足す: 1店でも「認めない」なら、足す店が署名していても入れない', j.planCrmGroupJoins({ memberIds: mem, invites: [c], sigs: [sig(1, 20, 1, 'approve'), sig(2, 20, 2, 'decline'), sig(3, 20, 3, 'apply', [1, 2, 3])], version: V }), []);
+  eq('★★★ 足す: 足す店の署名だけでは入れない（今いる店の承認が無い）', j.planCrmGroupJoins({ memberIds: mem, invites: [c], sigs: [sig(3, 20, 3, 'apply', [1, 2, 3])], version: V }), []);
+  eq('今いる店の返事', [j.crmGroupMemberAnswer(ok2, 20, 1), j.crmGroupMemberAnswer([sig(1, 20, 1, 'decline')], 20, 1), j.crmGroupMemberAnswer(ok2, 20, 9)], ['approve', 'decline', null]);
+  eq('★ ほかの署名待ちへの承認を、この署名待ちの承認として数えない', j.crmGroupInviteeCanSign([sig(1, 99, 1, 'approve'), sig(2, 99, 2, 'approve')], mem, [c], c), false);
+  {
+    // 3 と 4 を同時に足す: 3 が入ったら、4 には 3 の承認も要る
+    const d = I(21, 4);
+    const sigs = [
+      sig(1, 20, 1, 'approve'), sig(2, 20, 2, 'approve'), sig(3, 20, 3, 'apply', [1, 2, 3]),
+      sig(4, 21, 1, 'approve'), sig(5, 21, 2, 'approve'), sig(6, 21, 4, 'apply', [1, 2, 4]),
+    ];
+    eq('★★★ 2店を同時に足す: 先の店が入ったら、次の店は、先の店の承認と、新しい顔ぶれでの署名が要る', j.planCrmGroupJoins({ memberIds: mem, invites: [c, d], sigs, version: V }), [20]);
+    eq('（3 が入ったあと: 3 がまだ認めていない → 4 には申込書を出さない）', j.crmGroupInviteeCanSign(sigs, [1, 2, 3], [d], d), false);
+    const later = sigs.concat([sig(7, 21, 3, 'approve'), sig(8, 21, 4, 'apply', [1, 2, 3, 4])]);
+    eq('（3 も認め、4 が新しい顔ぶれで署名 → 入れる）', j.planCrmGroupJoins({ memberIds: [1, 2, 3], invites: [d], sigs: later, version: V }), [21]);
+    eq('（4 の古い署名＝顔ぶれ 1・2・4 は、3 が入ったあとは効かない）', j.crmGroupApplyValid(sigs.concat([sig(7, 21, 3, 'approve')]), [1, 2, 3], [d], d, V), false);
+  }
+
+  // ── 申込書の文
+  eq('★★★ 申込書の文に、実在の店の名前を入れる所が無い', /\$\{|○○店/.test(j.CRM_GROUP_APPLY_BODY), false);
+  eq('★★ 申込書に、要る項目がある（関係の表明・目的・共有できる内容・知らせ・秘密・運営の立場・加わるとき）', ['第1　関係についての表明', '第2　利用の目的と、してはいけないこと', '第3　共有できる内容', '第4　お客様への知らせ', '第6　秘密の扱い', '第8　運営の立場', '第9　店舗が加わるとき・抜けるとき・終わるとき'].every((h) => j.CRM_GROUP_APPLY_BODY.includes(h)), true);
+  eq('★★★ 申込書: 無断キャンセルと料金のもめごとは共有できない、と書いてある', j.CRM_GROUP_APPLY_BODY.includes('無断キャンセルと、料金のもめごとは、共有できません。'), true);
+  eq('★★ 申込書: 公式HPを使っていない店は、自分のサイトと店頭に出す、と書いてある', /フクエスの公式ホームページを使っていない店舗は、[\s\S]{0,140}自分のサイトの利用規約（または個人情報の取り扱い）に載せ、店頭にも掲示します。/.test(j.CRM_GROUP_APPLY_BODY), true);
+  eq('★★ 申込書: あとから加わる店は、全部の参加店舗が画面で認める・それまでの共有も見える、と書いてある', j.CRM_GROUP_APPLY_BODY.includes('あとから店舗が加わるときは、そのときの全部の参加店舗が、画面で認めます。加わった店舗には、それまでに共有された内容も見えるようになります。'), true);
+  eq('承認の記録に残す文（加わる店・件数・版）', j.crmGroupApproveBody({ name: 'テスト店', corp: 'テスト法人' }, 3).split('\n').slice(0, 3), ['次の店舗が、グループ・提携店の共有に加わることを認めます。', '　テスト店（テスト法人）', '加わると、この店舗にも、今までに共有した内容（3件）が見えるようになります。この店舗が共有した内容も、当店に見えるようになります。']);
+}
+
+console.log('\n── 13. 画面での申込み・承認の口（第1328便）──');
+{
+  const act = read('src/app/actions/crmGroupJoin.ts');
+  const lib = read('src/app/lib/crm/groupJoin.ts');
+  const fns = act.split(/\nexport async function /).slice(1);
+  eq('店舗様の口が3つ', fns.map((f) => f.slice(0, f.indexOf('('))), ['getCrmGroupJoinTodo', 'signCrmGroupApply', 'answerCrmGroupJoin']);
+  eq('★★★ どの口も、最初に本人確認（オーナー本人か・契約中か）を通す', fns.every((f) => /const a = await assertOwner\(/.test(f.slice(0, 500))), true);
+  const sign = act.slice(act.indexOf('export async function signCrmGroupApply'), act.indexOf('export async function answerCrmGroupJoin'));
+  const ans = act.slice(act.indexOf('export async function answerCrmGroupJoin'));
+  eq('★★★ 運営のアカウントでは、署名・承認できない（本人が押していない同意の記録を作らない）', [/if \(a\.isAdmin\) return \{ ok: false, error: ADMIN_CANNOT_SIGN \};/.test(sign), /if \(a\.isAdmin\) return \{ ok: false, error: ADMIN_CANNOT_SIGN \};/.test(ans)], [true, true]);
+  eq('★★★ 署名: 同意のチェックと名前が無ければ断る', /if \(input\.agree !== true\) return/.test(sign) && /checkCrmGroupSignerName\(input\.signerName\)/.test(sign), true);
+  eq('★★★ 署名: 自分の店の署名待ちにだけ・申込書を出してよいときだけ', /const inv = await pendingInviteOf\(svc, salonId\);\s*\n\s*if \(!inv \|\| inv\.id !== Number\(input\.inviteId\)\) return/.test(sign) && /if \(!crmGroupInviteeCanSign\(st\.state\.sigs, memberIds, st\.state\.invites, mine\)\) return/.test(sign), true);
+  eq('★★ 署名: 申込書の文の写し・版・その時の顔ぶれを残す', /kind: 'apply', signer_name: nm\.name,\s*\n\s*doc_version: CRM_GROUP_APPLY_VERSION, doc_body: CRM_GROUP_APPLY_BODY, parties,/.test(sign), true);
+  eq('★★★ 承認: いまそのグループに入っている店だけ・返事は1回', /if \(m\.state !== 'in'\) return/.test(ans) && /if \(crmGroupMemberAnswer\(st\.state\.sigs, inviteId, salonId\) !== null\) return/.test(ans), true);
+  eq('★★★ 「認めない」なら、その場で取りやめ（加わる店には何も出ないまま）', /if \(!approve\) \{\s*\n\s*const up = await svc\.from\('crm_group_invites'\)\.update\(\{ status: 'declined'/.test(ans), true);
+  const todo = act.slice(act.indexOf('export async function getCrmGroupJoinTodo'), act.indexOf('async function userAgent'));
+  eq('★★★ あとから足される店には、今いる全部の店が認めるまで、何も返さない', /if \(!crmGroupInviteeCanSign\(st\.state\.sigs, memberIds, st\.state\.invites, mine\)\) return none;/.test(todo), true);
+  eq('★★★ 署名が済んだあとは、店の名前を返さない', /const parties = signed \? \[\] : await crmGroupPartiesOf\(/.test(todo), true);
+  eq('★★★ 入れるかどうかは、純粋関数（planCrmGroupJoins）が決める', /const plan = planCrmGroupJoins\(\{ memberIds: members\.map\(\(m\) => m\.salonId\), invites, sigs, version: CRM_GROUP_APPLY_VERSION \}\);/.test(lib), true);
+  eq('★★ 同時に押されても二重に入れない（23505 は「もう入った」）', /if \(ins\.error\.code === '23505'\) return \{ joined, error: null \};/.test(lib), true);
+  eq('★★★ 入口でも、足される店には、全員が認めるまでタブを出さない', /if \(!crmGroupInviteeCanSign\(st\.state\.sigs, memberIds, st\.state\.invites, mine\)\) return none;/.test(lib), true);
+  // ★★★ 店の名前が、共有リスト・受付の口へ流れていない
+  eq('★★★ 共有リスト・受付の口は、参加店の名前を読む道具を使っていない', /crmGroupPartiesOf|groupJoin'/.test(read('src/app/actions/crmGroupShare.ts') + read('src/app/lib/crm/groupAlerts.ts')), false);
+  const admin = read('src/app/actions/crmGroupAdmin.ts');
+  eq('★★★ 署名待ちで入れる・取りやめる・記録を見るのは、運営だけ', ['adminInviteCrmGroupMember', 'adminCancelCrmGroupInvite', 'adminListCrmGroupSignatures'].map((n) => { const f = admin.slice(admin.indexOf('export async function ' + n)); return /const a = await requireAdmin\(\);\s*\n\s*if \(!a\.ok\) return a;/.test(f.slice(0, 500)); }), [true, true, true]);
+  eq('★★ グループを終わらせるとき、署名待ちも取りやめる', /update\(\{ status: 'cancelled', closed_at: nowIso \}\)\.eq\('group_id', id\)\.eq\('status', 'pending'\)/.test(admin), true);
+  const sql = read('追加SQL_第1328便_CRMのグループ共有の画面での申込み_2026-10-09.sql');
+  eq('★★★ 追加SQL: 2つの表とも RLS を有効にし、anon・authenticated から外す', ['crm_group_invites', 'crm_group_signatures'].map((t) => new RegExp('alter table public\\.' + t + '\\s+enable row level security;').test(sql) && new RegExp('revoke all on public\\.' + t + '\\s+from anon, authenticated;').test(sql)), [true, true]);
+  eq('★★★ 追加SQL: 署名の記録は追記専用（直せない・消せない）', /create trigger crm_group_signatures_no_update\s+before update or delete on public\.crm_group_signatures\s+for each row execute function public\.crm_group_logs_append_only\(\);/.test(sql), true);
+  eq('★★ 追加SQL: 1店が署名待ちでいられるのは1つだけ', /create unique index if not exists crm_group_invites_one_pending\s+on public\.crm_group_invites \(salon_id\) where status = 'pending';/.test(sql), true);
+  {
+    const kinds = /kind\s+text\s+not null check \(kind in \(([^)]*)\)\)/.exec(sql);
+    eq('追加SQL の署名の種類', kinds ? kinds[1].split(',').map((x) => x.trim().replace(/'/g, '')) : [], ['apply', 'approve', 'decline']);
+  }
+  // ★★★ 番人・コード・SQL に、実在の店の組み合わせを書いていない（見本は「テスト店」だけ）
+  const ui = read('src/app/mypage/crm/GroupJoin.tsx');
+  eq('★ 画面: 運営で表示中は押せない', /readOnly=\{todo\.isAdmin\}/.test(ui), true);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');

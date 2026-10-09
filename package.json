@@ -120,7 +120,7 @@
     "check:workinputhash": "tsc src/lib/workInputHash.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workinputhash-selftest.js",
     "check:conecfhost": "tsc src/lib/conecfHost.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/conecfhost-selftest.js",
     "check:crmhost": "tsc src/lib/crmHost.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmhost-selftest.js",
-    "check:crmgroup": "tsc src/lib/crmGroup.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmgroup-selftest.js"
+    "check:crmgroup": "tsc src/lib/crmGroup.ts src/lib/crmGroupApply.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmgroup-selftest.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

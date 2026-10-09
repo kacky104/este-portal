@@ -22,7 +22,9 @@ import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
 import { headers } from 'next/headers';
 import { businessDateNowJST } from '@/app/lib/crm/consentMatch';
 // ★ 第1325便: グループ・提携店で共有するNG・要注意リスト（受付・スケジュールに出す）
-import { crmGroupHitsForSalon, crmGroupTableMissing, readCrmGroupMembership } from '@/app/lib/crm/groupAlerts';
+import { crmGroupHitsForSalon, crmGroupTableMissing } from '@/app/lib/crm/groupAlerts';
+// ★ 第1328便: 画面での申込み・承認（「グループ共有」のタブを出すか・赤い印を付けるか）
+import { readCrmGroupAccess } from '@/app/lib/crm/groupJoin';
 import type { CrmGroupHit } from '@/lib/crmGroup';
 import {
   toCrmCategory,
@@ -113,7 +115,8 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
   }
   // ★ 第1325便: グループ・提携店の共有に入っている店にだけ、タブと欄を出す（読めないときは出さない＝中身はサーバーが別に確かめる）
   const active = isAdmin || isCrmActive(crmUntil);
-  const inGroup = active ? (await readCrmGroupMembership(svc, Number(data.id))).state === 'in' : false;
+  // ★ 第1328便: 申込み・承認の途中の店にもタブを出す（groupPending）。返事を待っていることがあれば赤い印（groupTodo）
+  const grp = active ? await readCrmGroupAccess(svc, Number(data.id)) : { inGroup: false, groupPending: false, groupTodo: 0 };
   return {
     ok: true,
     salonId: Number(data.id),
@@ -122,7 +125,9 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
     active,
     isAdmin,
     termsOk,
-    inGroup,
+    inGroup: grp.inGroup,
+    groupPending: grp.groupPending,
+    groupTodo: grp.groupTodo,
   };
 }
 

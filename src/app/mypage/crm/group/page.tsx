@@ -17,6 +17,7 @@ import {
 import { useCrmLinks } from '../CrmBase';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { fmtGroupPhone } from '../GroupShare';
+import { GroupJoinTodo } from '../GroupJoin';
 
 // フクエスCRM「グループ共有」＝グループ・提携店で共有している NG・要注意リスト（第1325便・2026-10-09・カッキーさん）。
 //
@@ -97,11 +98,21 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
     return <p className="p-10 text-center text-[14px] text-slate-400">{err || '読み込み中です…'}</p>;
   }
   if (!data.inGroup) {
-    return <p className="p-10 text-center text-[14px] leading-relaxed text-slate-500">この機能は、グループ・提携店での共有をお申し込みのお店だけが使えます。</p>;
+    // ★ 第1328便: 申込みの途中の店には、申込書を出す。何も無い店には、今までどおりの1行
+    return (
+      <div className="mx-auto max-w-4xl p-3 md:p-4">
+        <GroupJoinTodo
+          salonId={salonId}
+          fallback={<p className="p-10 text-center text-[14px] leading-relaxed text-slate-500">この機能は、グループ・提携店での共有をお申し込みのお店だけが使えます。</p>}
+        />
+      </div>
+    );
   }
 
   return (
     <div className="mx-auto max-w-4xl p-3 md:p-4">
+      {/* ★ 第1328便: ほかのお店が加わるときの確認（あるときだけ出る） */}
+      <GroupJoinTodo salonId={salonId} />
       <div className="border border-slate-200 bg-white p-3 md:p-4">
         <h1 className="text-[17px] font-black text-slate-800">
           {CRM_GROUP_ALERT_SOURCE_LABEL}で共有しているNG・要注意

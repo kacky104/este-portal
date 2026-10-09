@@ -89,6 +89,10 @@ export type CrmAccess =
       ok: true; salonId: number; salonName: string; crmUntil: string | null; active: boolean; isAdmin: boolean; termsOk: boolean;
       /** グループ・提携店の共有に入っているか（第1325便）。★ 入っている店にだけ「グループ共有」のタブと欄を出す */
       inGroup: boolean;
+      /** 画面での申込みの途中（第1328便）。★ 申込書を出してよい店にだけ true（タブを出す。共有はまだ使えない） */
+      groupPending: boolean;
+      /** この店が、まだ返事をしていない署名・承認の数（第1328便）。★ タブに赤い印を付ける */
+      groupTodo: number;
     }
   | { ok: false; error: string; needLogin?: boolean };
 

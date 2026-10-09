@@ -16,7 +16,11 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
-import { checkCrmGroupName, checkCrmGroupMember, CRM_GROUP_NOTE_MAX } from '@/lib/crmGroup';
+import { checkCrmGroupName, checkCrmGroupMember, CRM_GROUP_NOTE_MAX, CRM_GROUP_CORP_NAME_MAX } from '@/lib/crmGroup';
+// ★ 第1328便: 画面での申込み（署名待ちで入れる・取りやめる・署名の記録を見る）
+import { CRM_GROUP_APPLY_VERSION, crmGroupApplyValid, crmGroupInviteeCanSign, crmGroupMemberAnswer, type CrmGroupParty, type CrmGroupSig } from '@/lib/crmGroupApply';
+import { crmGroupTableMissing } from '@/app/lib/crm/groupAlerts';
+import { loadCrmGroupJoinState } from '@/app/lib/crm/groupJoin';
 
 type Err = { ok: false; error: string };
 type Svc = ReturnType<typeof createServiceClient>;
@@ -74,19 +78,42 @@ export type CrmGroupRow = {
   members: CrmGroupMemberRow[];
   /** いま有効な共有の件数（中身は運営にも出さない） */
   alertCount: number;
+  /** 署名待ち・断られた店（第1328便・画面での申込み） */
+  invites: CrmGroupInviteAdminRow[];
+};
+/** 運営の画面に出す「署名待ち」1件 */
+export type CrmGroupInviteAdminRow = {
+  id: number;
+  salonId: number;
+  salonName: string;
+  corpName: string;
+  crmUntil: string | null;
+  status: 'pending' | 'declined';
+  createdAt: string;
+  closedAt: string | null;
+  /** この店の、申込書への署名が済んでいるか（今の版・今の顔ぶれで） */
+  applied: boolean;
+  /** 今いる店の承認（あとから足す店のときだけ）。done＝認めた数／total＝今いる店の数 */
+  approvals: { done: number; total: number } | null;
+  /** この店の画面に、申込書が出ているか */
+  shown: boolean;
 };
 
 /** グループの一覧（運営）。★ 表がまだ無ければ ready: false */
-export async function adminListCrmGroups(): Promise<{ ok: true; ready: boolean; groups: CrmGroupRow[] } | Err> {
+export async function adminListCrmGroups(): Promise<{ ok: true; ready: boolean; /** 追加SQL_第1328便（画面での申込みの表）が流れているか */ invitesReady: boolean; applyVersion: string; groups: CrmGroupRow[] } | Err> {
   const a = await requireAdmin();
   if (!a.ok) return a;
   const svc = createServiceClient();
   const { data: gs, error: gErr } = await svc.from('crm_groups')
     .select('id, name, note, created_at, ended_at').order('id', { ascending: false });
-  if (tableMissing(gErr)) return { ok: true, ready: false, groups: [] };
+  if (tableMissing(gErr)) return { ok: true, ready: false, invitesReady: false, applyVersion: CRM_GROUP_APPLY_VERSION, groups: [] };
   if (gErr) return { ok: false, error: 'グループを読めませんでした: ' + gErr.message };
   const ids = (gs ?? []).map((g) => Number(g.id));
-  if (ids.length === 0) return { ok: true, ready: true, groups: [] };
+  // ★ 第1328便: 署名待ちの表があるか（★ 無いあいだは、画面での申込みの口を出さない）
+  const probe = await svc.from('crm_group_invites').select('id').limit(1);
+  const invitesReady = !probe.error;
+  if (probe.error && !crmGroupTableMissing(probe.error, probe.status)) return { ok: false, error: '署名待ちを読めませんでした: ' + probe.error.message };
+  if (ids.length === 0) return { ok: true, ready: true, invitesReady, applyVersion: CRM_GROUP_APPLY_VERSION, groups: [] };
 
   const [mRes, aRes] = await Promise.all([
     svc.from('crm_group_members')
@@ -114,13 +141,150 @@ export async function adminListCrmGroups(): Promise<{ ok: true; ready: boolean; 
   const countOf = new Map<number, number>();
   for (const r of (aRes.data ?? []) as Array<{ group_id: number }>) countOf.set(Number(r.group_id), (countOf.get(Number(r.group_id)) ?? 0) + 1);
 
+  // ★ 第1328便: 署名待ち・断られた店（続いているグループの分だけ）
+  const invitesOf = new Map<number, CrmGroupInviteAdminRow[]>();
+  if (invitesReady) {
+    const liveIds = (gs ?? []).filter((g) => !g.ended_at).map((g) => Number(g.id));
+    if (liveIds.length > 0) {
+      const iRes = await svc.from('crm_group_invites')
+        .select('id, group_id, salon_id, corp_name, status, created_at, closed_at, salons(name, crm_until)')
+        .in('group_id', liveIds).in('status', ['pending', 'declined']).order('id', { ascending: true });
+      if (iRes.error) return { ok: false, error: '署名待ちを読めませんでした: ' + iRes.error.message };
+      const rows = (iRes.data ?? []) as unknown as Array<Record<string, unknown>>;
+      for (const gid of [...new Set(rows.map((r) => Number(r.group_id)))]) {
+        const st = await loadCrmGroupJoinState(svc, gid);
+        const memberIds = st.ok ? st.state.members.map((m) => m.salonId) : [];
+        const pend = st.ok ? st.state.invites : [];
+        const sigs: CrmGroupSig[] = st.ok ? st.state.sigs : [];
+        invitesOf.set(gid, rows.filter((r) => Number(r.group_id) === gid).map((r) => {
+          const s = r.salons as { name?: string | null; crm_until?: string | null } | Array<{ name?: string | null; crm_until?: string | null }> | null;
+          const salon = Array.isArray(s) ? s[0] : s;
+          const lite = { id: Number(r.id), salonId: Number(r.salon_id) };
+          const pending = r.status === 'pending';
+          return {
+            id: lite.id, salonId: lite.salonId, salonName: salon?.name ?? '', corpName: String(r.corp_name ?? ''),
+            crmUntil: salon?.crm_until ?? null,
+            status: pending ? 'pending' as const : 'declined' as const,
+            createdAt: String(r.created_at ?? ''), closedAt: (r.closed_at as string | null) ?? null,
+            applied: pending && crmGroupApplyValid(sigs, memberIds, pend, lite, CRM_GROUP_APPLY_VERSION),
+            approvals: pending && memberIds.length > 0
+              ? { done: memberIds.filter((m) => crmGroupMemberAnswer(sigs, lite.id, m) === 'approve').length, total: memberIds.length }
+              : null,
+            shown: pending && crmGroupInviteeCanSign(sigs, memberIds, pend, lite),
+          };
+        }));
+      }
+    }
+  }
+
   return {
-    ok: true, ready: true,
+    ok: true, ready: true, invitesReady, applyVersion: CRM_GROUP_APPLY_VERSION,
     groups: (gs ?? []).map((g) => ({
       id: Number(g.id), name: String(g.name ?? ''), note: String(g.note ?? ''),
       createdAt: String(g.created_at ?? ''), endedAt: (g.ended_at as string | null) ?? null,
       members: membersOf.get(Number(g.id)) ?? [], alertCount: countOf.get(Number(g.id)) ?? 0,
+      invites: invitesOf.get(Number(g.id)) ?? [],
     })),
+  };
+}
+
+/**
+ * 店を「署名待ち」で入れる（運営）＝ その店の CRM の画面に、申込書（か、今いる店への確認）を出す。
+ * ★ 入れただけでは、共有は使えない。全部の署名・承認がそろった時に、グループに入る（決まりは src/lib/crmGroupApply.ts）。
+ * ★ 1店が署名待ちでいられるのは1つだけ・どこかのグループに入っている店は入れられない（DB の索引が最後の番）。
+ */
+export async function adminInviteCrmGroupMember(input: { groupId: number; salonId: number; corpName: string }): Promise<{ ok: true } | Err> {
+  const a = await requireAdmin();
+  if (!a.ok) return a;
+  const groupId = Number(input.groupId), salonId = Number(input.salonId);
+  if (!Number.isInteger(groupId) || groupId <= 0) return { ok: false, error: 'グループが不正です' };
+  if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗を選んでください' };
+  const corp = String(input.corpName ?? '').trim();
+  if (corp.length === 0) return { ok: false, error: '法人名（個人なら屋号かお名前）を入れてください' };
+  if (corp.length > CRM_GROUP_CORP_NAME_MAX) return { ok: false, error: '法人名は' + CRM_GROUP_CORP_NAME_MAX + '文字までです' };
+  const svc = createServiceClient();
+
+  const { data: g, error: gErr } = await svc.from('crm_groups').select('id, ended_at').eq('id', groupId).maybeSingle();
+  if (gErr) return { ok: false, error: 'グループを読めませんでした: ' + gErr.message };
+  if (!g) return { ok: false, error: 'グループが見つかりません' };
+  if (g.ended_at) return { ok: false, error: 'このグループは終わっています' };
+  const { data: s, error: sErr } = await svc.from('salons').select('id, crm_until').eq('id', salonId).maybeSingle();
+  if (sErr) return { ok: false, error: '店舗を読めませんでした: ' + sErr.message };
+  if (!s) return { ok: false, error: '店舗が見つかりません' };
+  const { data: mem, error: mErr } = await svc.from('crm_group_members').select('id').eq('salon_id', salonId).is('left_at', null).limit(1);
+  if (mErr) return { ok: false, error: '読めませんでした: ' + mErr.message };
+  if ((mem ?? []).length > 0) return { ok: false, error: 'この店は、もうどこかのグループに入っています（1店が入れるグループは1つだけです）' };
+  // ★ 書く前に読んで確かめる（表が無いとき、書くほうのエラーは見分けられない）
+  const cur = await svc.from('crm_group_invites').select('id').eq('salon_id', salonId).eq('status', 'pending').limit(1);
+  if (cur.error) return { ok: false, error: crmGroupTableMissing(cur.error, cur.status) ? '追加SQL_第1328便 がまだ流れていません' : '読めませんでした: ' + cur.error.message };
+  if ((cur.data ?? []).length > 0) return { ok: false, error: 'この店は、もう署名待ちになっています' };
+
+  const { error } = await svc.from('crm_group_invites').insert({ group_id: groupId, salon_id: salonId, corp_name: corp });
+  if (error) return { ok: false, error: error.code === '23505' ? 'この店は、もう署名待ちになっています' : '入れられませんでした: ' + error.message };
+  return { ok: true };
+}
+
+/** 署名待ちを取りやめる（運営）。★ 済んだ署名・承認の記録は消えない（追記専用） */
+export async function adminCancelCrmGroupInvite(input: { inviteId: number }): Promise<{ ok: true } | Err> {
+  const a = await requireAdmin();
+  if (!a.ok) return a;
+  const id = Number(input.inviteId);
+  if (!Number.isInteger(id) || id <= 0) return { ok: false, error: '対象が不正です' };
+  const svc = createServiceClient();
+  const { data, error } = await svc.from('crm_group_invites')
+    .update({ status: 'cancelled', closed_at: new Date().toISOString() }).eq('id', id).in('status', ['pending', 'declined']).select('id');
+  if (error) return { ok: false, error: '取りやめられませんでした: ' + error.message };
+  if (!data || data.length === 0) return { ok: false, error: 'もう済んでいます（入った・取りやめた）' };
+  return { ok: true };
+}
+
+/** 署名・承認の記録1件（運営が見る・印刷する） */
+export type CrmGroupSignatureRow = {
+  id: number;
+  inviteId: number;
+  salonId: number;
+  salonName: string;
+  kind: 'apply' | 'approve' | 'decline';
+  signerName: string;
+  docVersion: string;
+  docBody: string;
+  parties: CrmGroupParty[];
+  createdAt: string;
+};
+
+/** そのグループの、署名・承認の記録（運営）。新しい順 */
+export async function adminListCrmGroupSignatures(input: { groupId: number }): Promise<{ ok: true; rows: CrmGroupSignatureRow[] } | Err> {
+  const a = await requireAdmin();
+  if (!a.ok) return a;
+  const groupId = Number(input.groupId);
+  if (!Number.isInteger(groupId) || groupId <= 0) return { ok: false, error: 'グループが不正です' };
+  const svc = createServiceClient();
+  const res = await svc.from('crm_group_signatures')
+    .select('id, invite_id, salon_id, kind, signer_name, doc_version, doc_body, parties, created_at')
+    .eq('group_id', groupId).order('id', { ascending: false }).limit(200);
+  if (res.error) return crmGroupTableMissing(res.error, res.status) ? { ok: true, rows: [] } : { ok: false, error: '記録を読めませんでした: ' + res.error.message };
+  const rows = (res.data ?? []) as Array<Record<string, unknown>>;
+  const ids = [...new Set(rows.map((r) => Number(r.salon_id)))];
+  const nameOf = new Map<number, string>();
+  if (ids.length > 0) {
+    const { data } = await svc.from('salons').select('id, name').in('id', ids);
+    for (const s of data ?? []) nameOf.set(Number(s.id), String((s.name as string | null) ?? ''));
+  }
+  return {
+    ok: true,
+    rows: rows.flatMap((r) => {
+      const kind = r.kind;
+      if (kind !== 'apply' && kind !== 'approve' && kind !== 'decline') return [];
+      const parties = (Array.isArray(r.parties) ? r.parties : []).map((p) => {
+        const o = (p ?? {}) as { salonId?: unknown; name?: unknown; corp?: unknown };
+        return { salonId: Number(o.salonId) || 0, name: String(o.name ?? ''), corp: String(o.corp ?? '') };
+      });
+      return [{
+        id: Number(r.id), inviteId: Number(r.invite_id), salonId: Number(r.salon_id), salonName: nameOf.get(Number(r.salon_id)) ?? '',
+        kind, signerName: String(r.signer_name ?? ''), docVersion: String(r.doc_version ?? ''), docBody: String(r.doc_body ?? ''),
+        parties, createdAt: String(r.created_at ?? ''),
+      }];
+    }),
   };
 }
 
@@ -238,6 +402,15 @@ export async function adminEndCrmGroup(input: { id: number }): Promise<{ ok: tru
     withdrawn += w.count;
   }
   const nowIso = new Date().toISOString();
+  // ★ 第1328便: 署名待ちも取りやめる（終わったグループの申込書を、店の画面に残さない）。★ 書く前に読んで確かめる（表が無ければ、署名待ちそのものが無い）
+  {
+    const pend = await svc.from('crm_group_invites').select('id').eq('group_id', id).eq('status', 'pending');
+    if (pend.error && !crmGroupTableMissing(pend.error, pend.status)) return { ok: false, error: '署名待ちを読めなかったので、終わらせていません: ' + pend.error.message };
+    if (!pend.error && (pend.data ?? []).length > 0) {
+      const c = await svc.from('crm_group_invites').update({ status: 'cancelled', closed_at: nowIso }).eq('group_id', id).eq('status', 'pending');
+      if (c.error) return { ok: false, error: '署名待ちを取りやめられなかったので、終わらせていません: ' + c.error.message };
+    }
+  }
   const { error: lErr } = await svc.from('crm_group_members').update({ left_at: nowIso }).eq('group_id', id).is('left_at', null);
   if (lErr) return { ok: false, error: '店を外せませんでした: ' + lErr.message };
   const { error } = await svc.from('crm_groups').update({ ended_at: nowIso }).eq('id', id).is('ended_at', null);

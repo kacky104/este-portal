@@ -115,7 +115,7 @@ export function CrmShell({
         {access.active ? (
           <nav className="mt-1 flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] md:mt-2 md:gap-1 md:px-3">
             {/* ★ スマホでタブが収まらないときは横にすべらせる（第541便） */}
-            {(access.inGroup ? [...NAV.slice(0, 2), NAV_GROUP, ...NAV.slice(2)] : NAV).map((n) => (
+            {(access.inGroup || access.groupPending ? [...NAV.slice(0, 2), NAV_GROUP, ...NAV.slice(2)] : NAV).map((n) => (
               <Link
                 key={n.key}
                 href={links.href(n.href) + adminSalonQuery}
@@ -127,6 +127,8 @@ export function CrmShell({
                 }`}
               >
                 {n.label}
+                {/* ★ 第1328便: 署名・承認の返事を待っていることがあるとき（グループ共有のタブ） */}
+                {n.key === 'group' && access.groupTodo > 0 && <span className="ml-1 inline-block h-2 w-2 rounded-full bg-rose-500 align-middle" aria-label="確認が必要なことがあります" />}
               </Link>
             ))}
           </nav>
