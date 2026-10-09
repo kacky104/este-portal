@@ -106,7 +106,7 @@ console.log('\n── 8. 店舗様の口（第1325便）★ 本人確認・グ�
   const act = read('src/app/actions/crmGroupShare.ts');
   const lib = read('src/app/lib/crm/groupAlerts.ts');
   const fns = act.split(/\nexport async function /).slice(1);
-  eq('店舗様の口が4つ', fns.map((f) => f.slice(0, f.indexOf('('))), ['getCrmCustomerGroupShare', 'saveCrmGroupAlert', 'withdrawCrmGroupAlert', 'listCrmGroupAlerts']);
+  eq('店舗様の口が5つ', fns.map((f) => f.slice(0, f.indexOf('('))), ['getCrmCustomerGroupShare', 'saveCrmGroupAlert', 'withdrawCrmGroupAlert', 'listCrmGroupAlerts', 'getCrmGroupGuide']);
   eq('★★★ どの口も、最初に assertMember（本人確認＋グループに入っているか）を通す', fns.every((f) => /const a = await assertMember\(/.test(f.slice(0, 700))), true);
   eq('★★★ assertMember は、オーナー本人か（assertOwner）と、いまグループに入っているか（DB）を確かめる', /async function assertMember[\s\S]{0,300}await assertOwner\(salonId\)[\s\S]{0,200}await readCrmGroupMembership\(/.test(act), true);
   eq('★★★ オーナー本人でなければ断る・契約期間外なら断る', /salon\.owner_id as string \| null\) !== user\.id/.test(act) && /ご契約期間外/.test(act), true);
@@ -365,6 +365,34 @@ console.log('\n── 15. この機能を、表に出さない（カッキーさ
   const hit = open.filter((f) => /グループ共有|グループ・提携店|グループ店舗・提携店舗|crmGroup|crm_group/.test(fs.readFileSync(f, 'utf8')));
   eq('（見張るファイルがある）', open.length >= 5, true);
   eq('★★★ だれでも読めるページ・未契約の店への案内に、この機能のことを書いていない', hit.map((f) => path.relative(root, f).replace(/\\/g, '/')), []);
+}
+
+console.log('\n── 16. 「グループ共有」の使い方は、グループに入っている店にだけ（第1334便）──');
+{
+  const act = read('src/app/actions/crmGroupShare.ts');
+  const fn = act.slice(act.indexOf('export async function getCrmGroupGuide'));
+  eq('★★★ 使い方の文は、グループに入っているかを確かめてから返す', /const a = await assertMember\(Number\(salonId\)\);\s*\n\s*if \(!a\.ok\) return \{ ok: false, error: a\.error \};\s*\n\s*return \{ ok: true, sections: CRM_GROUP_GUIDE\.map\(/.test(fn), true);
+  // ★★★ 画面の部品（'use client'）から文のファイルを import していない（import すると、だれでも取れる JavaScript に文が入る）
+  const walk = (dir) => fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]) : [];
+  const root = path.join(__dirname, '..');
+  const users = walk(path.join(root, 'src')).filter((f) => /\.(ts|tsx)$/.test(f) && /groupGuideText/.test(fs.readFileSync(f, 'utf8'))).map((f) => path.relative(root, f).replace(/\\/g, '/')).sort();
+  eq('★★★ 使い方の文を読みこむのは、サーバーの口（use server のファイル）だけ', users.filter((f) => f !== 'src/app/lib/crm/groupGuideText.ts'), ['src/app/actions/crmGroupShare.ts']);
+  eq('（その口のファイルは use server）', /^'use server';/.test(act), true);
+  const txt = read('src/app/lib/crm/groupGuideText.ts');
+  eq('★ 文のファイルは、ほかを import しない（それだけで完結＝まちがって画面の部品とつながらない）', /^import /m.test(txt), false);
+  const page = read('src/app/mypage/crm/group/page.tsx');
+  eq('★★ 画面は、押されたときにサーバーから受け取る（文を埋めこんでいない）', /const r = await getCrmGroupGuide\(salonId\)/.test(page) && !/共有できるのは、暴力・脅し/.test(page), true);
+  eq('★★ 使い方のボタンは、グループに入っている店の画面にだけある（入っていない店の分かれ道より後ろ）', page.indexOf('if (!data.inGroup) {') > 0 && page.indexOf('if (!data.inGroup) {') < page.indexOf('onClick={() => void toggleGuide()}'), true);
+  // ★ 画面の言葉と食い違っていないこと
+  const share = read('src/app/mypage/crm/GroupShare.tsx'), join = read('src/app/mypage/crm/GroupJoin.tsx'), settings = read('src/app/mypage/crm/settings/page.tsx');
+  eq('★ 使い方に書いたボタンの名前が、画面と同じ', [
+    /との共有/.test(share) && /に共有する/.test(share) && txt.includes('「グループ・提携店との共有」の「グループ・提携店に共有する」'),
+    share.includes('共有する内容を確かめる') && share.includes('この内容で共有する') && txt.includes('「共有する内容を確かめる」→「この内容で共有する」'),
+    join.includes('新しいお店の参加について、確認をお願いします') && txt.includes('「新しいお店の参加について、確認をお願いします」'),
+    settings.includes('共有についての文を足す') && txt.includes('「共有についての文を足す」'),
+  ], [true, true, true, true]);
+  eq('★★★ 使い方に、無断キャンセル・料金は共有できない、と書いてある', txt.includes('無断キャンセルや料金のもめごとは共有できません。'), true);
+  eq('★★★ 使い方に、実在の店の名前を入れる所が無い', /\$\{|○○店/.test(txt), false);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');

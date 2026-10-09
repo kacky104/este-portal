@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { listCrmGroupAlerts, withdrawCrmGroupAlert, type CrmGroupListRow } from '@/app/actions/crmGroupShare';
+import { getCrmGroupGuide, listCrmGroupAlerts, withdrawCrmGroupAlert, type CrmGroupListRow } from '@/app/actions/crmGroupShare';
 import {
   CRM_GROUP_ALERT_SOURCE_LABEL,
   CRM_GROUP_KINDS,
@@ -57,6 +57,21 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
   const [sureId, setSureId] = useState<number | null>(null);
   // 開いている行（1件だけ）
   const [openId, setOpenId] = useState<number | null>(null);
+  // ★ 第1334便: 使い方（押したら開く）。★ 文は、押されたときにサーバーから受け取る（グループに入っている店にだけ返ってくる）
+  const [guide, setGuide] = useState<Array<{ heading: string; items: string[] }> | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideBusy, setGuideBusy] = useState(false);
+  const toggleGuide = async () => {
+    if (guideOpen) { setGuideOpen(false); return; }
+    if (!guide) {
+      setGuideBusy(true); setErr('');
+      const r = await getCrmGroupGuide(salonId).catch(() => null);
+      setGuideBusy(false);
+      if (!r || !r.ok) { setErr(r ? r.error : '使い方を読み込めませんでした（通信を確認してください）'); return; }
+      setGuide(r.sections);
+    }
+    setGuideOpen(true);
+  };
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -114,12 +129,37 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
       {/* ★ 第1328便: ほかのお店が加わるときの確認（あるときだけ出る） */}
       <GroupJoinTodo salonId={salonId} />
       <div className="border border-slate-200 bg-white p-3 md:p-4">
-        <h1 className="text-[17px] font-black text-slate-800">
-          {CRM_GROUP_ALERT_SOURCE_LABEL}で共有しているNG・要注意
-          <span className="ml-2 text-[12px] font-bold text-slate-400">自店をふくむ{data.memberCount}店</span>
-        </h1>
+        <div className="flex flex-wrap items-start gap-2">
+          <h1 className="text-[17px] font-black text-slate-800">
+            {CRM_GROUP_ALERT_SOURCE_LABEL}で共有しているNG・要注意
+            <span className="ml-2 text-[12px] font-bold text-slate-400">自店をふくむ{data.memberCount}店</span>
+          </h1>
+          {/* ★ 第1334便: 使い方（押したら開く・もう一度押すと閉じる） */}
+          <button
+            type="button"
+            aria-expanded={guideOpen}
+            disabled={guideBusy}
+            onClick={() => void toggleGuide()}
+            className="ml-auto flex-none border border-indigo-300 bg-white px-3 py-1 text-[13px] font-bold text-indigo-600 disabled:opacity-50"
+          >
+            {guideBusy ? '読み込み中…' : guideOpen ? '使い方を閉じる ▲' : '使い方 ▼'}
+          </button>
+        </div>
         {/* ★ 第1326便（カッキーさん）: 説明は1行だけ（使い方の3行は消した） */}
         <p className="mt-1.5 text-[12px] leading-relaxed text-slate-600">この内容を、{CRM_GROUP_ALERT_SOURCE_LABEL}の外に伝えたり、セラピストを守る目的のほかに使ったりしないでください。</p>
+        {guideOpen && guide && (
+          <div className="mt-3 border border-indigo-200 bg-indigo-50 p-3">
+            {guide.map((sec) => (
+              <section key={sec.heading} className="mb-3 last:mb-0">
+                <h2 className="border-b border-indigo-200 pb-0.5 text-[14px] font-black text-slate-800">{sec.heading}</h2>
+                <ul className="mt-1.5 space-y-1 text-[13px] leading-relaxed text-slate-700">
+                  {sec.items.map((t, i) => <li key={i} className="pl-4 -indent-4">・{t}</li>)}
+                </ul>
+              </section>
+            ))}
+            <button type="button" onClick={() => setGuideOpen(false)} className="mt-3 border border-slate-300 bg-white px-3 py-1 text-[13px] font-bold text-slate-600">閉じる</button>
+          </div>
+        )}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input className={`${inputCls} w-full sm:w-[260px]`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="電話（下4桁でも）・名前・内容の言葉" inputMode="search" />

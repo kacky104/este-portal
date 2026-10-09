@@ -24,6 +24,9 @@ import {
   CRM_GROUP_HIT_COLS, countCrmGroupMembers, crmActiveIssuerIds, readCrmGroupHits, readCrmGroupMembership, toCrmGroupHit,
 } from '@/app/lib/crm/groupAlerts';
 
+// ★ 第1334便: 「グループ共有」の使い方の文。★ ここ（サーバーの口）からだけ返す。画面の部品から import しない
+import { CRM_GROUP_GUIDE, type CrmGroupGuideSection } from '@/app/lib/crm/groupGuideText';
+
 type Err = { ok: false; error: string };
 type Svc = ReturnType<typeof createServiceClient>;
 
@@ -309,4 +312,15 @@ export async function listCrmGroupAlerts(
     });
   }
   return { ok: true, inGroup: true, memberCount, rows, more: all.length > LIST_LIMIT };
+}
+
+/**
+ * 「グループ共有」の使い方（第1334便）。
+ * ★★★ グループに入っている店にだけ返す（この仕組みがあることは、表に出さない＝カッキーさんの決定）。
+ *   入っていない店・申込みの途中の店には返さない。文は画面の部品に埋めこまず、押されたときに、ここから渡す。
+ */
+export async function getCrmGroupGuide(salonId: number): Promise<{ ok: true; sections: CrmGroupGuideSection[] } | Err> {
+  const a = await assertMember(Number(salonId));
+  if (!a.ok) return { ok: false, error: a.error };
+  return { ok: true, sections: CRM_GROUP_GUIDE.map((s) => ({ heading: s.heading, items: [...s.items] })) };
 }
