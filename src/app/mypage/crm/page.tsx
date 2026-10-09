@@ -720,7 +720,8 @@ function Grid({
   // ★ 第1233便（カッキーさん）: PC は名前の列を 150→190px に（そのぶんタイムラインの見える幅は狭くなる）。スマホは第1216便のまま 174px。
   // ★ 第1365便: 待機部屋を名前の行に上げたので、PC の名前の列を 190→174px（第1233便の 190 から少し戻す）。スマホは 174 のまま
   // ★ 第1366便: スマホも 174→156px（画面上は 0.72 倍で 約125→112px）。待機部屋が名前の行に上がって出勤の行が短くなった分
-  const nameW = narrow ? NAME_W + 6 : NAME_W + 24;
+  // ★ 第1367便: 本数を2行目へ移したので、スマホは 150px（画面上 約108px）。PC は 174 のまま
+  const nameW = narrow ? NAME_W : NAME_W + 24;
   // ★ 第1364便（カッキーさん）: 女子メモの列をたためる（見出しの「女子メモ ◀」で閉じる・「女子メモ ▶」で開く）。
   //   閉じると時間軸がそのぶん広がる。既定は開いた状態。この端末だけ覚える
   const [memoOpen, setMemoOpen] = useState<boolean>(() => {
@@ -844,6 +845,8 @@ function Grid({
                       {r.therapist.schedules.length > 0
                         ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
                         : '出勤なし'}
+                      {/* ★ 第1367便: 本数はここ（3行目は「報酬 ¥100,000 確定」だけにして、6桁でも折れないように） */}
+                      <span className="ml-1 font-normal text-slate-500">{r.bookings.filter((b) => b.status !== 'cancelled' && inBusinessDay(Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000))).length}本</span>
                     </span>
                     {(() => {
                       const wd = workDayOf(r.therapist!.id);
@@ -871,8 +874,7 @@ function Grid({
                     const cf = confirms.find((c) => c.therapistId === r.therapist!.id);
                     const changed = cf && (cf.payTotal !== pay || cf.bookingCount !== mine.length);
                     return (
-                      <div className="mt-0.5 flex min-h-[22px] items-center gap-1 text-[12px] text-slate-500">{/* ★ 2026-10-09 点検（レイアウト）: 11px→12px・高さ22px（スマホは zoom 0.72 で 8px 相当だった） */}
-                        <span>{mine.length}本</span>
+                      <div className="mt-0.5 flex min-h-[22px] items-center gap-1 whitespace-nowrap text-[12px] text-slate-500">{/* ★ 2026-10-09 点検（レイアウト）: 11px→12px・高さ22px。★ 第1367便: 本数は2行目へ・折り返さない */}
                         {cf ? (
                           <button
                             type="button"
