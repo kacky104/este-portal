@@ -840,8 +840,9 @@ function Grid({
                       return <span className="flex-none truncate px-1 text-[10px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
                     })()}
                   </p>
-                  <p className="flex items-center gap-1 truncate text-[12px] font-bold text-slate-600">
-                    <span className="truncate">
+                  {/* ★ 第1369便: 出勤時刻と本数は必ず全部出す（flex-none・折り返さない）。幅が足りないときはバッジの側が切れる（前は時刻が「11:00…」と切れた） */}
+                  <p className="flex items-center gap-1 overflow-hidden text-[12px] font-bold text-slate-600">
+                    <span className="flex-none whitespace-nowrap">
                       {r.therapist.schedules.length > 0
                         ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
                         : '出勤なし'}
@@ -861,7 +862,7 @@ function Grid({
                           )}
                           {pickCrmToggleValues(toggleDefs, wd.toggles).map((tv) => (
                             // ★ 第1368便: スマホは3文字まで（「掛け持ち」→「掛け持…」）。PC は 96px まで
-                            <span key={tv.title} title={`${tv.title}：${tv.value}`} className={`flex-none truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700 ${narrow ? 'max-w-[44px]' : 'max-w-[96px]'}`}>
+                            <span key={tv.title} title={`${tv.title}：${tv.value}`} className={`min-w-0 shrink truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700 ${narrow ? 'max-w-[44px]' : 'max-w-[96px]'}`}>
                               {narrow && tv.value.length > 3 ? `${tv.value.slice(0, 3)}…` : tv.value}
                             </span>
                           ))}
