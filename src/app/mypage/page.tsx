@@ -517,7 +517,11 @@ type BookingCourseForm = { name: string; duration_min: number | ''; price: strin
 // 施術後のインターバル（準備・片付け時間）の選択肢。salons.default_interval_min に保存し、
 // ネット予約が入ったときに予約枠へ自動で加算する（2026-08-15追加）。
 // 予約ボードの手入力フォーム（BookingBoard の INTERVAL_OPTIONS）と同じ並びを保つこと。
-const INTERVAL_MIN_OPTIONS: readonly number[] = [0, 15, 30, 45, 60];
+// ★ 第1362便（カッキーさん）: 5分刻み（なし・5〜30）に。フクエスCRM の受付（第1361便）と同じ。DB の CHECK も 追加SQL_第1362便 で同じ並びに。
+//   ★ 既に 45・60 を保存している店は、その値も選択肢に足して出す（開いて保存しても 0 に戻らない）
+const INTERVAL_MIN_OPTIONS: readonly number[] = [0, 5, 10, 15, 20, 25, 30];
+const intervalMinOptionsWith = (cur: number): number[] =>
+  INTERVAL_MIN_OPTIONS.includes(cur) ? [...INTERVAL_MIN_OPTIONS] : [...INTERVAL_MIN_OPTIONS, cur].sort((a, b) => a - b);
 
 // salons.booking_courses(JSON) → フォーム用に整形（既存店で null/未定義なら空配列）。
 function parseBookingCourses(raw: unknown): BookingCourseForm[] {
@@ -1887,9 +1891,9 @@ export default function MyPage() {
     const bookingEnabled = Boolean(salonForm.booking_enabled);
     const bookingEmail = normalizeEmail(salonForm.booking_email ?? '') || null;
     // 施術後インターバル（2026-08-15）。許可値以外は 0＝なしに丸める（DB側にも CHECK 制約あり）。
-    const defaultIntervalMin = INTERVAL_MIN_OPTIONS.includes(Number(salonForm.default_interval_min ?? 0))
-      ? Number(salonForm.default_interval_min ?? 0)
-      : 0;
+    //   ★ 第1362便: 0〜60 の5分刻みなら通す（選択肢の 0〜30 ＋ 以前の 45・60）
+    const rawInterval = Number(salonForm.default_interval_min ?? 0);
+    const defaultIntervalMin = Number.isInteger(rawInterval) && rawInterval >= 0 && rawInterval <= 60 && rawInterval % 5 === 0 ? rawInterval : 0;
     if (bookingEnabled) {
       if (!bookingEmail) {
         setSaving(false);
@@ -4272,7 +4276,7 @@ export default function MyPage() {
                 value={Number(salonForm.default_interval_min ?? 0)}
                 onChange={(e) => setSalonForm((p) => ({ ...p, default_interval_min: Number(e.target.value) }))}
               >
-                {INTERVAL_MIN_OPTIONS.map((m) => (
+                {intervalMinOptionsWith(Number(salonForm.default_interval_min ?? 0)).map((m) => (
                   <option key={m} value={m}>{m === 0 ? 'なし' : `${m}分`}</option>
                 ))}
               </select>
