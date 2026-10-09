@@ -150,6 +150,19 @@ function subscribeNarrow(cb: () => void) {
   mq.addEventListener('change', cb);
   return () => mq.removeEventListener('change', cb);
 }
+// ★ 点検（低 T・a11y）: 小窓を開いたら枠にフォーカスを移す（Tab で背景の「◀前日」などへ抜けない・読み上げが題名を言う）。
+//   開いたときの1回だけ。入力欄に autoFocus があるものはそちらが勝つ
+function useDialogFocus<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.contains(document.activeElement)) return; // すでに中の入力にフォーカスがある
+    el.focus({ preventScroll: true });
+  }, []);
+  return ref;
+}
+
 function useNarrow(): boolean {
   return useSyncExternalStore(
     subscribeNarrow,
@@ -1066,6 +1079,7 @@ function DetailPanel({
   onDone: () => void;
   onEdit: () => void;
 }) {
+  const dlgRef = useDialogFocus<HTMLElement>();
   const crm = useCrmLinks();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -1107,7 +1121,7 @@ function DetailPanel({
       {/* ★ 詳細も中央に出す（2026-09-19・カッキーさんの指示・受付フォームとそろえる） */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-      <aside className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
+      <aside ref={dlgRef} role="dialog" aria-modal="true" aria-label="お客様と予約" tabIndex={-1} className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl outline-none">
         <div className="flex items-center bg-[#b3b8e6] px-4 py-2.5">
           <span className="text-[15px] font-black text-slate-800">お客様と予約</span>
           <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold text-slate-700" aria-label="閉じる">×</button>
@@ -1374,6 +1388,7 @@ function BookingForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const dlgRef = useDialogFocus<HTMLElement>();
   const [f, setF] = useState<BookingFormState>(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -1584,7 +1599,7 @@ function BookingForm({
       {/* ★ 受付フォームは画面の中央に出す（2026-09-19・カッキーさんの指示）。詳細も同日に中央へ。 */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-      <aside className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[560px] flex-col bg-white shadow-2xl">
+      <aside ref={dlgRef} role="dialog" aria-modal="true" aria-label={f.mode === 'new' ? '予約を受け付ける' : '予約を変更する'} tabIndex={-1} className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[560px] flex-col bg-white shadow-2xl outline-none">
         <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
           <span className="text-[15px] font-black">{f.mode === 'new' ? (quick ? 'かんたん受付' : '予約を受け付ける') : '予約を変更する'}</span>
           {f.mode === 'new' && (
@@ -1599,7 +1614,7 @@ function BookingForm({
           {/* お客様（電話 → 台帳） */}
           <div>
             <label className={labCls}>電話番号（入れると台帳からお客様を出します）</label>
-            <input className={fieldCls} value={f.customerTel} inputMode="tel" autoComplete="tel" onChange={(e) => { set('customerTel', e.target.value); setFound(null); setGroup({ hits: [], failed: false }); }} placeholder="090-1234-5678" />
+            <input className={fieldCls} value={f.customerTel} inputMode="tel" autoComplete="tel" autoFocus={f.mode === 'new'} onChange={(e) => { set('customerTel', e.target.value); setFound(null); setGroup({ hits: [], failed: false }); }} placeholder="090-1234-5678" />
             {lookupErr && <p className="mt-1 text-[12px] font-bold text-rose-600">{lookupErr}</p>}
             {telDigits.length >= 10 && found === 'none' && (
               <p className="mt-1 text-[12px] text-slate-500">台帳にない番号です（新しいお客様として台帳に入ります）</p>
@@ -1862,6 +1877,7 @@ function MemoDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const dlgRef = useDialogFocus<HTMLDivElement>();
   const [text, setText] = useState(therapist.memo);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -1885,7 +1901,7 @@ function MemoDialog({
     <>
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto w-full max-w-[460px] bg-white shadow-2xl">
+        <div ref={dlgRef} role="dialog" aria-modal="true" aria-label={`女子メモ：${therapist.name}`} tabIndex={-1} className="pointer-events-auto w-full max-w-[460px] bg-white shadow-2xl outline-none">
           <div className="flex items-center bg-amber-500 px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">女子メモ：{therapist.name}</span>
             <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
@@ -1934,6 +1950,7 @@ function ConfirmDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const dlgRef = useDialogFocus<HTMLDivElement>();
   const [allowance, setAllowance] = useState(confirm ? String(confirm.allowance || '') : transport ? String(transport) : '');
   const [note, setNote] = useState(confirm?.note ?? (transport ? `交通費${transport}` : ''));
   const [busy, setBusy] = useState(false);
@@ -1974,7 +1991,7 @@ function ConfirmDialog({
     <>
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl">
+        <div ref={dlgRef} role="dialog" aria-modal="true" aria-label={`報酬確定：${therapist.name}`} tabIndex={-1} className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl outline-none">
           <div className="flex items-center bg-emerald-600 px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">報酬確定：{therapist.name}</span>
             <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
@@ -2318,6 +2335,7 @@ function CloseDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const dlgRef = useDialogFocus<HTMLDivElement>();
   const [sum, setSum] = useState<CrmDaySummary | null>(null);
   const [expense, setExpense] = useState('');
   const [memo, setMemo] = useState('');
@@ -2368,7 +2386,7 @@ function CloseDialog({
     <>
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto max-h-[92dvh] w-full max-w-[560px] overflow-y-auto bg-white shadow-2xl">
+        <div ref={dlgRef} role="dialog" aria-modal="true" aria-label={`締め作業（日報）：${dateLabel(date)}`} tabIndex={-1} className="pointer-events-auto max-h-[92dvh] w-full max-w-[560px] overflow-y-auto bg-white shadow-2xl outline-none">
           <div className="flex items-center bg-[#1e2a5a] px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">締め作業（日報）：{dateLabel(date)}</span>
             <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
@@ -2470,6 +2488,7 @@ function WorkDayDialog({
   /** ★ 点検（低 P）: 表のバッジが次の予約カードに隠れて押せないことがある → ここからも切り替えられる */
   onToggleEnd: (next: CrmEndType) => void;
 }) {
+  const dlgRef = useDialogFocus<HTMLDivElement>();
   const [wd, setWd] = useState<CrmWorkDay>(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -2503,7 +2522,7 @@ function WorkDayDialog({
             実機ではバーのぶんだけ画面より大きくなり、いちばん下（保存の帯）が隠れる。中身は枠の中に収まっているので、中をスクロールしても届かない。
             → dvh（いま見えている高さ）に変えた。★ この画面のほかの小窓（予約の内容・受付・女子メモ・報酬確定・締め作業・取り込み）も同じ直し。
             ★ ここの小窓は「上の帯／中身（中だけスクロール）／下の帯」の3段。min-h-0 は、中身が縮んでスクロールに回るための念押し。 */}
-        <div className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[640px] flex-col bg-white shadow-2xl">
+        <div ref={dlgRef} role="dialog" aria-modal="true" aria-label={`出勤情報：${therapist.name}`} tabIndex={-1} className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[640px] flex-col bg-white shadow-2xl outline-none">
           <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">出勤情報：{therapist.name}</span>
             <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>

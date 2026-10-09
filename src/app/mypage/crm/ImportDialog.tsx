@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { importCrmCustomers, previewCrmImport, type CrmImportPreviewRow } from '@/app/actions/crm';
 import { decodeText, parseCsv, parseVcf } from '@/app/lib/crm/importParse';
 
@@ -14,6 +14,9 @@ const IMPORT_STATUS_LABEL: Record<CrmImportPreviewRow['status'], string> = {
 
 export function ImportDialog({ salonId, onClose, onDone }: { salonId: number; onClose: () => void; onDone: () => void }) {
   const [rows, setRows] = useState<CrmImportPreviewRow[] | null>(null);
+  // ★ 点検（低 T・a11y）: 開いたら枠にフォーカス（Tab で背景へ抜けない）
+  const dlgRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { dlgRef.current?.focus({ preventScroll: true }); }, []);
   const [checked, setChecked] = useState<boolean[]>([]);
   const [fileName, setFileName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -58,7 +61,7 @@ export function ImportDialog({ salonId, onClose, onDone }: { salonId: number; on
       {/* ★ 点検（低）: 読み込んだ結果（rows）があるときは、背景タップでは閉じない（×か「やめる」だけ。指が当たって結果が消えないように） */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy || rows ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-        <div className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[720px] flex-col bg-white shadow-2xl">
+        <div ref={dlgRef} role="dialog" aria-modal="true" aria-label="お客様の取り込み" tabIndex={-1} className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[720px] flex-col bg-white shadow-2xl outline-none">
           <div className="flex items-center bg-indigo-600 px-4 py-2.5 text-white">
             <span className="text-[15px] font-black">お客様の取り込み（名前と電話番号）</span>
             <button type="button" onClick={onClose} disabled={busy} className="ml-auto px-2 text-[20px] font-bold" aria-label="閉じる">×</button>
