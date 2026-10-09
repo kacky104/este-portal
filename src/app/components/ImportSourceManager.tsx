@@ -208,7 +208,15 @@ export default function ImportSourceManager({ allSalons, onToast }: {
                   <td className="py-2 pr-3 max-w-[260px] truncate">
                     {r.shopUrl ? <a href={r.shopUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">{r.shopUrl}</a> : '—'}
                   </td>
-                  <td className="py-2 pr-3">{r.linkMode === 'read' ? '駅ちかから反映' : r.linkMode === 'none' ? '反映しない' : r.linkMode}</td>
+                  {/* ★ 第1377便（カッキーさん）: 送る向きの2つも日本語で出す（前は write / write_auto と内部の値がそのまま出ていた）。
+                      自動＝出勤を変えると承認なしで駅ちかへ反映／手動＝「いますぐ更新する」を押したときだけ（自動が未設定・または止まった）。 */}
+                  <td className="py-2 pr-3">
+                    {r.linkMode === 'read' ? '駅ちかから反映'
+                      : r.linkMode === 'none' ? '反映しない'
+                      : r.linkMode === 'write_auto' ? 'フクエスから反映（自動）'
+                      : r.linkMode === 'write' ? <span className="text-amber-700 font-bold">フクエスから反映（手動）</span>
+                      : r.linkMode}
+                  </td>
                   <td className="py-2 pr-3 whitespace-nowrap">
                     <button
                       type="button"
