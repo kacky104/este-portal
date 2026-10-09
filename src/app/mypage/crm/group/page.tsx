@@ -54,6 +54,8 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
   const [kind, setKind] = useState<CrmGroupKind | ''>('');
   const [mineOnly, setMineOnly] = useState(false);
   const [sureId, setSureId] = useState<number | null>(null);
+  // 開いている行（1件だけ）
+  const [openId, setOpenId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -105,12 +107,8 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
           {CRM_GROUP_ALERT_SOURCE_LABEL}で共有しているNG・要注意
           <span className="ml-2 text-[12px] font-bold text-slate-400">自店をふくむ{data.memberCount}店</span>
         </h1>
-        <ul className="mt-2 list-disc space-y-0.5 pl-5 text-[12px] leading-relaxed text-slate-600">
-          <li>ここに載っている電話番号から予約が入ると、スケジュールと受付の画面に「{CRM_GROUP_ALERT_SOURCE_LABEL}でNG」などと出ます。予約は自動では断りません。受けるかどうかはお店で決めてください。</li>
-          <li>共有を足す・直すときは、顧客台帳でお客様を開き、「{CRM_GROUP_ALERT_SOURCE_LABEL}との共有」の欄から行います。</li>
-          <li>どのお店が共有したかは、この画面には出ません。</li>
-          <li>この内容を、{CRM_GROUP_ALERT_SOURCE_LABEL}の外に伝えたり、セラピストを守る目的のほかに使ったりしないでください。</li>
-        </ul>
+        {/* ★ 第1326便（カッキーさん）: 説明は1行だけ（使い方の3行は消した） */}
+        <p className="mt-1.5 text-[12px] leading-relaxed text-slate-600">この内容を、{CRM_GROUP_ALERT_SOURCE_LABEL}の外に伝えたり、セラピストを守る目的のほかに使ったりしないでください。</p>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <input className={`${inputCls} w-full sm:w-[260px]`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="電話（下4桁でも）・名前・内容の言葉" inputMode="search" />
@@ -135,50 +133,91 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
       {rows.length === 0 ? (
         <p className="p-8 text-center text-[14px] text-slate-400">{data.rows.length === 0 ? 'まだ共有はありません' : '当てはまる共有はありません'}</p>
       ) : (
-        <ul className="mt-3 space-y-2">
-          {rows.map((r) => (
-            <li key={r.id} className={`border bg-white p-3 ${r.level === 'ng' ? 'border-rose-300' : 'border-amber-300'}`}>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className={`px-1.5 py-0.5 text-[12px] font-bold ${r.level === 'ng' ? 'bg-rose-600 text-white' : 'bg-amber-400 text-slate-900'}`}>{crmGroupLevelLabel(r.level)}</span>
-                <span className="border border-slate-300 px-1.5 py-0.5 text-[12px] font-bold text-slate-700">{crmGroupKindLabel(r.kind)}</span>
-                <span className={`px-1.5 py-0.5 text-[12px] font-bold ${r.certainty === 'confirmed' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-700'}`}>{crmGroupCertaintyLabel(r.certainty)}</span>
-                <span className="text-[13px] font-bold text-slate-700">{crmGroupDateLabel(r.happenedOn)}</span>
-                {r.mine && <span className="bg-indigo-100 px-1.5 py-0.5 text-[12px] font-bold text-indigo-700">自店が共有</span>}
-              </div>
-              <p className="mt-1.5 text-[15px] font-black text-slate-800">
-                {r.phones.map(fmtGroupPhone).join('／') || '(電話番号なし)'}
-                {r.shownName && <span className="ml-2 text-[13px] font-bold text-slate-500">{r.shownName}</span>}
-              </p>
-              <p className="mt-1 whitespace-pre-line text-[14px] leading-relaxed text-slate-800">{r.what}</p>
-              <p className="mt-1 text-[12px] text-slate-500">
-                {r.checkedHow ? `確かめ方：${r.checkedHow}　` : ''}共有した日：{dateTimeJST(r.createdAt)}
-              </p>
-              {r.mine && (
-                sureId === r.id ? (
-                  <div className="mt-2 border border-rose-300 bg-rose-50 p-2.5 text-[13px] text-rose-800">
-                    <p className="font-bold">この共有を取り下げます。ほかのお店の画面から、すぐに見えなくなります。</p>
-                    <div className="mt-2 flex gap-2">
-                      <button type="button" disabled={busy} onClick={() => withdraw(r.id)} className="bg-rose-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">{busy ? '取り下げ中…' : '取り下げる'}</button>
-                      <button type="button" disabled={busy} onClick={() => setSureId(null)} className="border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-600">やめる</button>
+        // ★ 第1326便（カッキーさん）: 1件を1行に（前はカードが下へ並んで、件数が増えると長くなった）。行を押すと「何をされたか」が開く
+        <div className="mt-3 border border-slate-200 bg-white">
+          <div className="hidden items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-400 md:flex">
+            <span className="w-[52px] flex-none">段</span>
+            <span className="w-[9.5em] flex-none">分類</span>
+            <span className="w-[6.5em] flex-none">起きた日</span>
+            <span className="w-[9.5em] flex-none">電話番号</span>
+            <span className="flex-1">名前</span>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {rows.map((r) => {
+              const open = openId === r.id;
+              return (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => { setOpenId(open ? null : r.id); setSureId(null); }}
+                    className={`flex w-full flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2 text-left hover:bg-indigo-50 ${open ? 'bg-indigo-50' : ''}`}
+                  >
+                    <span className="w-[52px] flex-none">
+                      <span className={`px-1.5 py-0.5 text-[11px] font-bold ${r.level === 'ng' ? 'bg-rose-600 text-white' : 'bg-amber-400 text-slate-900'}`}>{crmGroupLevelLabel(r.level)}</span>
+                    </span>
+                    <span className="w-[9.5em] flex-none truncate text-[13px] font-bold text-slate-700">{crmGroupKindLabel(r.kind)}</span>
+                    <span className="w-[6.5em] flex-none text-[13px] text-slate-600">{crmGroupDateLabel(r.happenedOn)}</span>
+                    <span className="w-[9.5em] flex-none text-[14px] font-black text-slate-800">
+                      {r.phones[0] ? fmtGroupPhone(r.phones[0]) : '(番号なし)'}
+                      {r.phones.length > 1 && <span className="ml-1 text-[11px] font-bold text-slate-400">ほか{r.phones.length - 1}</span>}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-slate-600">{r.shownName}</span>
+                    {r.certainty === 'suspected' && <span className="flex-none bg-slate-200 px-1.5 py-0.5 text-[11px] font-bold text-slate-700">疑い</span>}
+                    {r.mine && <span className="flex-none bg-indigo-100 px-1.5 py-0.5 text-[11px] font-bold text-indigo-700">自店</span>}
+                    <span className="flex-none text-[11px] text-slate-400" aria-hidden>{open ? '▲' : '▼'}</span>
+                  </button>
+                  {open && (
+                    <div className={`border-l-4 px-3 pb-3 pt-1 ${r.level === 'ng' ? 'border-rose-400' : 'border-amber-400'}`}>
+                      <p className="whitespace-pre-line text-[14px] leading-relaxed text-slate-800">{r.what}</p>
+                      <dl className="mt-2 grid grid-cols-[6em_1fr] gap-y-0.5 text-[12px] text-slate-600">
+                        <dt className="font-bold text-slate-400">確かさ</dt>
+                        <dd>{crmGroupCertaintyLabel(r.certainty)}</dd>
+                        {r.phones.length > 1 && (
+                          <>
+                            <dt className="font-bold text-slate-400">電話番号</dt>
+                            <dd>{r.phones.map(fmtGroupPhone).join('／')}</dd>
+                          </>
+                        )}
+                        {r.checkedHow && (
+                          <>
+                            <dt className="font-bold text-slate-400">確かめ方</dt>
+                            <dd>{r.checkedHow}</dd>
+                          </>
+                        )}
+                        <dt className="font-bold text-slate-400">共有した日</dt>
+                        <dd>{dateTimeJST(r.createdAt)}</dd>
+                      </dl>
+                      {r.mine && (
+                        sureId === r.id ? (
+                          <div className="mt-2 border border-rose-300 bg-rose-50 p-2.5 text-[13px] text-rose-800">
+                            <p className="font-bold">この共有を取り下げます。ほかのお店の画面から、すぐに見えなくなります。</p>
+                            <div className="mt-2 flex gap-2">
+                              <button type="button" disabled={busy} onClick={() => withdraw(r.id)} className="bg-rose-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">{busy ? '取り下げ中…' : '取り下げる'}</button>
+                              <button type="button" disabled={busy} onClick={() => setSureId(null)} className="border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-600">やめる</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {r.customerId != null && (
+                              <Link
+                                href={`${crm.href('/customers')}${adminSalonQuery ? `${adminSalonQuery}&` : '?'}customer=${r.customerId}`}
+                                className="border border-indigo-300 bg-white px-3 py-1 text-[13px] font-bold text-indigo-600"
+                              >
+                                顧客台帳で開く（直す）
+                              </Link>
+                            )}
+                            <button type="button" onClick={() => setSureId(r.id)} className="border border-slate-300 bg-white px-3 py-1 text-[13px] font-bold text-slate-600">取り下げる</button>
+                          </div>
+                        )
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {r.customerId != null && (
-                      <Link
-                        href={`${crm.href('/customers')}${adminSalonQuery ? `${adminSalonQuery}&` : '?'}customer=${r.customerId}`}
-                        className="border border-indigo-300 bg-white px-3 py-1 text-[13px] font-bold text-indigo-600"
-                      >
-                        顧客台帳で開く（直す）
-                      </Link>
-                    )}
-                    <button type="button" onClick={() => setSureId(r.id)} className="border border-slate-300 bg-white px-3 py-1 text-[13px] font-bold text-slate-600">取り下げる</button>
-                  </div>
-                )
-              )}
-            </li>
-          ))}
-        </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </div>
   );
