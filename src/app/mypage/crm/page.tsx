@@ -854,13 +854,15 @@ function Grid({
                       return (
                         <>
                           {wd.attendance && (
-                            <span className={`flex-none px-1 text-[10px] font-bold text-white ${wd.attendance === 'late' ? 'bg-amber-500' : 'bg-rose-600'}`}>
-                              {CRM_ATTENDANCE_LABEL[wd.attendance]}
+                            // ★ 第1368便: スマホは1文字（遅・欠・休）。色は今までどおり。PC は全文
+                            <span title={CRM_ATTENDANCE_LABEL[wd.attendance]} className={`flex-none px-1 text-[10px] font-bold text-white ${wd.attendance === 'late' ? 'bg-amber-500' : 'bg-rose-600'}`}>
+                              {narrow ? CRM_ATTENDANCE_LABEL[wd.attendance].slice(0, 1) : CRM_ATTENDANCE_LABEL[wd.attendance]}
                             </span>
                           )}
                           {pickCrmToggleValues(toggleDefs, wd.toggles).map((tv) => (
-                            <span key={tv.title} title={`${tv.title}：${tv.value}`} className="max-w-[96px] flex-none truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700">
-                              {tv.value}
+                            // ★ 第1368便: スマホは3文字まで（「掛け持ち」→「掛け持…」）。PC は 96px まで
+                            <span key={tv.title} title={`${tv.title}：${tv.value}`} className={`flex-none truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700 ${narrow ? 'max-w-[44px]' : 'max-w-[96px]'}`}>
+                              {narrow && tv.value.length > 3 ? `${tv.value.slice(0, 3)}…` : tv.value}
                             </span>
                           ))}
                         </>
