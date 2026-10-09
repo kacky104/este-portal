@@ -344,5 +344,26 @@ console.log('\n── 14. 古い行を消す（第1331便・追加SQL）──')
   eq('★ 8年は、フクエスCRM の保存期間（顧客データの取り扱い・一律8年）と同じ', /保存期間と消し方（一律8年）/.test(read('src/app/lib/crm/termsText.ts')), true);
 }
 
+console.log('\n── 15. この機能を、表に出さない（カッキーさんの決定・2026-10-09）──');
+{
+  // ★★★ グループ・提携店で共有できる仕組みがあることは、表に出さない。問い合わせがあって、どうしても、というときだけ。
+  //   できれば今回の1件だけにしたい（ほかの店に広げると、リスクが上がるだけ）。
+  //   → だれでも読めるページ・まだ使っていない店への案内に、この機能のことを書かない。
+  //   （使い方ページはログイン不要で全店共通。お客様が読めば、すり抜け方まで分かってしまう）
+  //   ★ 説明が要るときは、グループに入っている店だけが開ける所（「グループ共有」のタブの中）に置く。
+  const walk = (dir) => fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]) : [];
+  const root = path.join(__dirname, '..');
+  const open = [
+    ...walk(path.join(root, 'src', 'app', 'crm')),                 // /crm/guide・/crm/about・/crm/terms・/crm/data・/crm/login（ログイン不要）
+    path.join(root, 'src', 'app', 'lib', 'crm', 'guideText.ts'),   // 使い方・よくある質問の本文
+    path.join(root, 'src', 'app', 'lib', 'crm', 'termsText.ts'),   // CRM の規約・顧客データの取り扱い
+    path.join(root, 'src', 'app', 'mypage', 'crm', 'CrmIntro.tsx'),// まだ契約していない店へのご案内
+    path.join(root, 'src', 'lib', 'crmIntro.ts'),
+  ].filter((f) => /\.(ts|tsx)$/.test(f) && fs.existsSync(f));
+  const hit = open.filter((f) => /グループ共有|グループ・提携店|グループ店舗・提携店舗|crmGroup|crm_group/.test(fs.readFileSync(f, 'utf8')));
+  eq('（見張るファイルがある）', open.length >= 5, true);
+  eq('★★★ だれでも読めるページ・未契約の店への案内に、この機能のことを書いていない', hit.map((f) => path.relative(root, f).replace(/\\/g, '/')), []);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
