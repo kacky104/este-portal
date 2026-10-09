@@ -689,7 +689,10 @@ function Grid({
   const jumpToNow = () => {
     const el = scrollRef.current;
     if (!el || !showNow || nowMin == null) return;
-    const target = (leftW + x(nowMin)) * zoom - el.clientWidth / 3;
+    // ★ 2026-10-09 点検#13: 赤い線は「見えている時間軸（左の固定枠を除いた幅）」の左 1/3 に置く。
+    //   画面全体の 1/3 だと、スマホ・小さい PC では左の固定枠（名前＋女子メモ）より内側になり、赤線が固定枠の裏に隠れて「今」が効かないように見えた。
+    const fixed = leftW * zoom;
+    const target = (leftW + x(nowMin)) * zoom - fixed - (el.clientWidth - fixed) / 3;
     el.scrollLeft = Math.max(0, target);
   };
   useEffect(() => {
@@ -1651,7 +1654,9 @@ function BookingForm({
               </div>
               <div>
                 <label className={labCls}>女子報酬（円・指名を除く）</label>
-                <input className={fieldCls} inputMode="numeric" value={f.payAdjust} onChange={(e) => set('payAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="空欄でもよい" />
+                <input className={fieldCls} inputMode="numeric" value={f.payAdjust} onChange={(e) => set('payAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="空欄だと 0円で入ります" />
+                {/* ★ 2026-10-09 点検#15: 料金だけ入れて報酬が空だと、報酬 0円が【確定値】として入る（日報・金銭授受に乗る）。見えるようにする */}
+                {priceAdj > 0 && sums.pay + payAdj === 0 && <p className="mt-0.5 text-[11px] font-bold text-amber-700">女子報酬が 0円で入ります</p>}
               </div>
               <p className="col-span-2 -mt-1 text-[12px] text-slate-500">
                 {sums.price > 0 || sums.pay > 0
@@ -1888,6 +1893,8 @@ function ConfirmDialog({
   const pay = mine.reduce((a, b) => a + (b.payTotal ?? 0), 0);
   const al = Math.round(Number(allowance) || 0);
   const noPrice = mine.filter((b) => b.payTotal == null).length;
+  // ★ 2026-10-09 点検#15: 料金はあるのに報酬が 0円の予約（かんたん受付で報酬を空にしたなど）
+  const zeroPay = mine.filter((b) => b.payTotal === 0 && (b.priceTotal ?? 0) > 0).length;
 
   const doConfirm = async () => {
     setBusy(true); setErr('');
@@ -1936,6 +1943,7 @@ function ConfirmDialog({
                 </ul>
               )}
               {noPrice > 0 && <p className="mt-1 text-[12px] font-bold text-amber-700">料金・報酬がまだ入っていない予約が {noPrice} 本あります（0円で数えます）</p>}
+              {zeroPay > 0 && <p className="mt-1 text-[12px] font-bold text-amber-700">料金はあるのに女子報酬が 0円の予約が {zeroPay} 本あります（カードの「変更する」で入れられます）</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

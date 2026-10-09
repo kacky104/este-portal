@@ -2029,7 +2029,10 @@ export async function getCrmMoney(
     ok: true,
     balances,
     moves: (mv ?? []).map((r) => toMove(r, names)),
-    therapists: (ts ?? []).filter((t) => t.is_active !== false).map((t) => ({ id: Number(t.id), name: String(t.name ?? '') })),
+    // ★ 2026-10-09 点検#21: 非公開（is_active=false）の子も選べるように（残高が残っているのに精算を記録できなかった）。非公開は後ろに「（非公開）」付きで
+    therapists: [...(ts ?? [])]
+      .sort((a, b) => Number(a.is_active === false) - Number(b.is_active === false) || Number(a.id) - Number(b.id))
+      .map((t) => ({ id: Number(t.id), name: String(t.name ?? '') + (t.is_active === false ? '（非公開）' : '') })),
   };
 }
 

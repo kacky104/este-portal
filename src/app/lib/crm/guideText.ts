@@ -99,7 +99,7 @@ export const CRM_GUIDE_TEXT = `## はじめに
 
 ## ログインについて
 - アドレスは https://fukuescrm.com です。フクエスのマイページと同じアカウントで、ここで1回ログインし直してください。
-- パスワードを忘れたときは https://fukues.com/forgot-password から再設定します。
+- パスワードを忘れたときは https://fukues.com/forgot-password?from=owner から再設定します。
 - フクエスのマイページの「関連サイト」→「フクエスCRM（顧客台帳）」からも開けます。`;
 
 export const CRM_FAQ_TEXT = `## 受付
@@ -178,7 +178,7 @@ A. 設定の「来店時の同意書（QR）」で、部屋ごとに「QRコー�
 
 ## ログイン・その他
 Q. ログインできない
-A. フクエスのマイページと同じメールアドレスとパスワードです。fukuescrm.com では、fukues.com とは別に1回ログインが必要です。パスワードを忘れたときは https://fukues.com/forgot-password から再設定してください。
+A. フクエスのマイページと同じメールアドレスとパスワードです。fukuescrm.com では、fukues.com とは別に1回ログインが必要です。パスワードを忘れたときは https://fukues.com/forgot-password?from=owner から再設定してください。
 
 Q. スマホで設定の項目が見つからない
 A. 設定の上の「≡」を押すと、左から項目の一覧が出ます。

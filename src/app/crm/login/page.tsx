@@ -85,7 +85,7 @@ export default function CrmLoginPage() {
           フクエスの店舗アカウント（マイページと同じメールアドレス・パスワード）でログインできます。
         </p>
         <p className="mt-2 text-center text-[12px]">
-          <a href="https://fukues.com/forgot-password" className="font-bold text-indigo-600 underline">パスワードを忘れた方</a>
+          <a href="https://fukues.com/forgot-password?from=owner" className="font-bold text-indigo-600 underline">パスワードを忘れた方</a>
         </p>
       </div>
     </div>

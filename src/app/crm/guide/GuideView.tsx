@@ -64,7 +64,7 @@ export function GuideView({ guide, faq }: { guide: string; faq: string }) {
       </nav>
       <Body key={tab} text={text} faq={tab === 'faq'} />
       <p className="mt-10 border-t border-slate-200 pt-4 text-[12px] text-slate-400">
-        アドレス：https://fukuescrm.com　／　パスワードの再設定：https://fukues.com/forgot-password
+        アドレス：https://fukuescrm.com　／　パスワードの再設定：https://fukues.com/forgot-password?from=owner
       </p>
     </main>
   );
