@@ -280,28 +280,30 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
   return (
     <div className="space-y-4">
       {/* ── 今日の報酬 ── */}
-      <div className="rounded-3xl p-5 text-white shadow-md" style={{ background: 'linear-gradient(135deg,#F472B6 0%,#DB2777 55%,#BE185D 100%)' }}>
+      {/* ★ 第1337便（2026-10-09・カッキーさん）: ピンクの地に白い字は見えづらい、とのことで白いカードに。金額だけ濃いピンク。
+          小さい字は透かさず、1段大きく。着せ替えのどの色の上でも同じ見え方になる */}
+      <div className="rounded-3xl p-5 bg-white text-slate-800 border border-pink-200 shadow-sm">
         <div className="flex items-start gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-bold text-white/80">今日の報酬・{labelDate(today)}</p>
-            <p className="mt-1 text-[32px] leading-none font-black tabular-nums tracking-tight">{yen(todaySum.total)}</p>
-            <p className="mt-1.5 text-[11px] font-bold text-white/85">{todaySum.count}人</p>
+            <p className="text-xs font-bold text-slate-600">今日の報酬・{labelDate(today)}</p>
+            <p className="mt-1 text-[32px] leading-none font-black tabular-nums tracking-tight text-pink-700">{yen(todaySum.total)}</p>
+            <p className="mt-1.5 text-xs font-bold text-slate-600">{todaySum.count}人</p>
           </div>
           <button
             type="button"
             onClick={() => setShowCal((v) => !v)}
             aria-pressed={showCal}
-            className={`ml-auto shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-bold transition-colors ${showCal ? 'bg-white text-pink-600' : 'bg-white/20 text-white hover:bg-white/30'}`}
+            className={`ml-auto shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[12px] font-bold transition-colors ${showCal ? 'bg-pink-600 text-white' : 'bg-pink-100 text-pink-800 hover:bg-pink-200'}`}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} aria-hidden><rect x="3" y="5" width="18" height="16" rx="2" /><path strokeLinecap="round" d="M3 10h18M8 3v4M16 3v4" /></svg>
             カレンダー
           </button>
         </div>
-        <div className="mt-4 pt-3 border-t border-white/25 flex items-baseline justify-between">
-          <span className="text-[11px] font-bold text-white/80">{tm}月の合計</span>
-          <span className="text-base font-black tabular-nums">{yen(todayMonthTotal)}</span>
+        <div className="mt-4 pt-3 border-t border-pink-100 flex items-baseline justify-between">
+          <span className="text-xs font-bold text-slate-600">{tm}月の合計</span>
+          <span className="text-base font-black tabular-nums text-slate-800">{yen(todayMonthTotal)}</span>
         </div>
-        <p className="mt-2 text-[10px] text-white/70">あなただけが見られます。お店には表示されません。</p>
+        <p className="mt-2 text-[11px] text-slate-500">あなただけが見られます。お店には表示されません。</p>
       </div>
       {sumError && <p className="text-xs font-bold text-red-500">{sumError}</p>}
 
