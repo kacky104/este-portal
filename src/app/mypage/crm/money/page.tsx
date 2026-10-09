@@ -90,11 +90,12 @@ function MoneyBody({ salonId }: { salonId: number }) {
       </p>
 
       {/* 残高 */}
-      <div className="mb-2 flex flex-wrap items-center gap-3">
-        <span className="text-[15px] font-black text-slate-800">女子ごとの残高</span>
+      {/* ★ 第1356便: スマホは 見出し ／ 合計2つ ／ 精算済みも出す の3段（1行に入りきらず「お店が払う」だけ左に折れていた）。PC は今までの1行 */}
+      <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="w-full text-[15px] font-black text-slate-800 md:w-auto">女子ごとの残高</span>
         <span className="text-[13px] font-bold text-slate-600">お店が受け取る 合計 <span className="text-[#3f51b5]">{yen(totalIn)}</span></span>
         <span className="text-[13px] font-bold text-slate-600">お店が払う 合計 <span className="text-pink-600">{yen(totalOut)}</span></span>
-        <label className="ml-auto flex items-center gap-1 text-[12px] font-bold text-slate-500">
+        <label className="flex w-full items-center gap-1 text-[12px] font-bold text-slate-500 md:ml-auto md:w-auto">
           <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
           精算済みの人も出す
         </label>
