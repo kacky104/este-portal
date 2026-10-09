@@ -106,7 +106,9 @@ export async function generateMetadata({
 
   const name = (row.name as string) ?? '';
   const label = areaLabel(row.area as string | null);
-  const title = `${name}｜${label}のメンズエステ【フクエス】`;
+  // ★ 第1374便（2026-10-10・カッキーさん）: 店名で探す人が知りたいこと（口コミ・料金・出勤）を、検索結果で切れない前半に入れる。
+  //   下層ページ（subpageMetadata.ts の「店名の口コミ｜…」）と同じ並び。★ 店名は先頭のまま。
+  const title = `${name}の口コミ・料金・出勤情報｜${label}のメンズエステ【フクエス】`;
   const description =
     truncatePlain(row.description as string | null, 90) ||
     truncatePlain(row.appeal as string | null, 90) ||

@@ -102,7 +102,10 @@ export async function generateMetadata({
   // エリアは therapist.area を優先し、空なら所属サロンの area にフォールバック。両方空なら「福岡」。
   const areaValue = (tRow.area as string | null) || (salonRow.area as string | null) || null;
   const label = areaValue ? areaLabel(areaValue) : '福岡';
-  const title = `${name}（${salonName}）｜${label}のメンズエステ【フクエス】`;
+  // ★ 第1374便（2026-10-10・カッキーさん）: 名前で探す人が知りたいこと（出勤・口コミ・写メ日記）を、検索結果で切れない前半に入れる。
+  //   Search Console で「店名 名前」の検索は7〜10位まで来ているのに、クリックがほぼ0だった（例: 表示62・7.6位・クリック0）。
+  //   ★ 名前と店名は先頭のまま（名前で探す人がいちばん多い）。
+  const title = `${name}（${salonName}）の出勤・口コミ・写メ日記｜${label}のメンズエステ【フクエス】`;
   const description =
     truncatePlain(tRow.profile_text as string | null, 90) ||
     truncatePlain(tRow.comment as string | null, 90) ||
