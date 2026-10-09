@@ -9,7 +9,7 @@ publishedAt: 2026-09-25
 heroImage: /glossary/waribiki/hero.webp
 heroAlt: 昼下がりの受付カウンターに置かれた木の値札立てと、そのそばの小さな花瓶の一輪の花
 related: [shokai-wari, hayawari-shinyawari, coupon, vip-letter, shimei-ryo, option, free]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 割引は、いくつか重ねて使えますか？
     a: 重ねられないお店がほとんどです。「他の割引との併用不可」と書かれていることが多く、初回割・早割・クーポンのどれか一つを選ぶ形になります。どれがいちばん得かは、自分の行く時間帯と初回かどうかで変わるので、予約の前に比べてみてください。
@@ -55,7 +55,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)のお店の多くが、初回割とクーポンを店舗ページに載せています。早割・深夜割は、営業時間の長いお店を中心に見られます。同じエリアでも割引の形はお店ごとに違うので、行きたい時間帯と初回かどうかで、どの割引が得かが変わります。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)のお店の多くが、初回割とクーポンを店舗ページに載せています。早割・深夜割は、営業時間の長いお店を中心に見られます。同じエリアでも割引の形はお店ごとに違うので、行きたい時間帯と初回かどうかで、どの割引が得かが変わります。
 
 ## お客様の視点：割引を上手に使うコツ
 

@@ -9,7 +9,7 @@ publishedAt: 2026-09-15
 heroImage: /glossary/course-jikan/hero.webp
 heroAlt: メンズエステの受付カウンターと、壁に掛かった時計
 related: [counseling, shower, encho, aroma-oil-treatment, sejutsu-hani, shimei]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 初めてなら、何分のコースを選べばいいですか？
     a: 90分が目安です。着替えとカウンセリング、オイルを使うコースならシャワーの時間が入るので、60分では施術そのものの時間が短めになります。120分はゆったり受けられますが、初めての方には長く感じることもあります。全身を一通りほぐしてもらうなら90分前後、部位を絞るなら60分、と考えてください。
@@ -43,7 +43,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)と[博多駅周辺](/area/hakata-eki)で、コース時間の選ばれ方に少し違いがあります。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)と[博多駅周辺](/area/hakata-tenjin-nakasu)で、コース時間の選ばれ方に少し違いがあります。
 
 中洲・天神は、仕事帰りや会食のあとに立ち寄る方が多いため、**90分が定番**です。深夜まで営業しているお店が多く、遅い時間の枠も埋まります。博多駅周辺は、出張や旅行の合間に利用する方が多いため、**60分の短い枠**を用意しているお店が目立ちます。新幹線や飛行機の時刻に合わせて、終わりの時間から逆算して予約する方が多いところです。
 

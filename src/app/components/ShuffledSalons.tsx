@@ -13,7 +13,7 @@ import { SaveButton } from './SaveButton';
 import { useSalonTherapists, type TherapistThumb } from './useSalonTherapists';
 import { ImpressionMark } from './ImpressionMark';
 import { areaLabel } from '../lib/areaLabel';
-import { areaHref, DISPATCH_AREA } from '../lib/areas';
+import { areaHref, DISPATCH_AREA, normalizeAreaKey } from '../lib/areas';
 import { type Salon } from '@/app/lib/salons';
 import { SalonCardTabs } from './SalonCardTabs';
 import { type SalonCardTabCount, type SalonCardTabCounts } from '@/lib/salonCardTabs';
@@ -662,8 +662,9 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
 
   // エリア一致判定。includeDispatch 時（出張ページ）は、選択中の出張エリアに限り
   // dispatch_type が none 以外（available/only）のサロンも OR で含める。
+  // ★ 第1373便: まとめる前のエリアの値（博多・住吉／中洲・天神・薬院）が残っていても、今のエリアとして当てる（salonInArea と同じ）。
   const matchesArea = (s: Salon, area: string) =>
-    s.area === area || s.area2 === area || (includeDispatch && area === activeAreaEffective && s.dispatchType !== 'none');
+    normalizeAreaKey(s.area) === normalizeAreaKey(area) || (!!s.area2 && normalizeAreaKey(s.area2) === normalizeAreaKey(area)) || (includeDispatch && area === activeAreaEffective && s.dispatchType !== 'none');
 
   const filtered =
     activeAreaEffective === '福岡全域' ? list : list.filter(s => matchesArea(s, activeAreaEffective));

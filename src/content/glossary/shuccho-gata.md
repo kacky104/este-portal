@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/shuccho-gata/hero.webp
 heroAlt: 開いた扉の向こう、午前の光が入るホテルの客室で、ベッドの足もとに置かれた大きな黒いバッグ
 related: [tenpo-gata, room-gata, kanzen-yoyaku-sei, shower, course-jikan, tojitsu-yoyaku]
-areas: [dispatch, nakasu-tenjin, hakata-eki]
+areas: [dispatch, hakata-tenjin-nakasu]
 faq:
   - q: 出張型では、交通費がかかりますか？
     a: お店によって違います。決まったエリアの中なら交通費がかからないお店もあれば、場所によって交通費がかかるお店もあります。予約のときに、滞在先の場所を伝えて確かめておきましょう。
@@ -41,7 +41,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[博多駅周辺](/area/hakata-eki)や[中洲・天神・薬院](/area/nakasu-tenjin)のビジネスホテルに泊まっている、出張や旅行の方の利用が多く見られます。移動の疲れを、泊まっている部屋でそのままほぐせるのが喜ばれています。
+福岡では、[博多駅周辺](/area/hakata-tenjin-nakasu)や[中洲・天神・薬院](/area/hakata-tenjin-nakasu)のビジネスホテルに泊まっている、出張や旅行の方の利用が多く見られます。移動の疲れを、泊まっている部屋でそのままほぐせるのが喜ばれています。
 
 フクエスでは、出張に対応しているお店を[出張](/area/dispatch)のページでまとめて探せます。店舗型やルーム型のお店が、出張にも対応していることもあります。対応しているエリアはお店ごとに違うので、店舗ページの案内を見ておきましょう。
 

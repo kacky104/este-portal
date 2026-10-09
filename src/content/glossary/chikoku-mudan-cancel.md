@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/chikoku-mudan-cancel/hero.webp
 heroAlt: 雨に濡れた夜の駅のホームで、紺のコートの男性が腕時計に目をやりながら、もう片方の手にスマホを持っている手元
 related: [cancel-ryo, kanzen-yoyaku-sei, kinshi-jiko, course-jikan, net-yoyaku, tojitsu-yoyaku, encho]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 5分ほど遅れそうなときも、連絡したほうがよいですか？
     a: はい。少しの遅れでも、分かった時点で連絡してください。お店は時間に合わせて部屋やセラピストの準備をしているので、先に分かっていれば段取りを組み直せます。
@@ -39,7 +39,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡でも、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)をはじめ、多くのお店が遅刻と無断キャンセルの扱いを店舗ページに書いています。マンションの一室で営業するお店では、最寄りの駅に着いたときに連絡を入れるよう案内されることが多く、遅れそうなときもその連絡先に伝えれば大丈夫です。
+福岡でも、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)をはじめ、多くのお店が遅刻と無断キャンセルの扱いを店舗ページに書いています。マンションの一室で営業するお店では、最寄りの駅に着いたときに連絡を入れるよう案内されることが多く、遅れそうなときもその連絡先に伝えれば大丈夫です。
 
 電車の遅れや道の混雑など、自分ではどうにもならない理由で遅れることもあります。そうしたときも、連絡があるかどうかで、お店の受け止め方は大きく変わります。
 

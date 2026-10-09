@@ -9,6 +9,7 @@
 
 /** 地域（salons.area の値）→ タイトルに入れる言葉。★ 値は src/app/lib/areas.ts の AREA_ORDER と同じ */
 const AREA_WORDS: Record<string, string> = {
+  // ★ 第1373便: まとめる前の値。DB に残っているあいだ（修正SQL_第1373便を流すまで）は今までと同じ言葉を出す
   '博多・住吉': '博多',
   '中洲・天神・薬院': '中洲・天神',
   '北九州・小倉': '北九州・小倉',
@@ -17,28 +18,46 @@ const AREA_WORDS: Record<string, string> = {
   '出張': '福岡',
 };
 
+/**
+ * ★ 第1373便（2026-10-10）: エリアを「博多・天神・中洲」1つにまとめたので、エリアの値だけでは「博多の店」か「天神の店」かが分からなくなった。
+ *   公式サイトのタイトルは、店名を知らない人の検索（「博多 メンズエステ」など）の手がかりなので、【住所から】今までと同じ言葉を決める。
+ *     住所に「中洲」            → 中洲・天神（中洲は博多区だが、探す人は天神・中洲で探す）
+ *     住所に「博多区」          → 博多
+ *     住所に「中央区」「天神」「薬院」 → 中洲・天神
+ *     住所が空・どれでもない    → 博多・天神・中洲（エリア名そのまま。嘘にならない）
+ */
+export const HP_MERGED_AREA = '博多・天神・中洲';
+export function hpMergedAreaWord(address: unknown): string {
+  const a = typeof address === 'string' ? address : '';
+  if (/中洲/.test(a)) return '中洲・天神';
+  if (/博多区/.test(a)) return '博多';
+  if (/中央区|天神|薬院/.test(a)) return '中洲・天神';
+  return HP_MERGED_AREA;
+}
+
 /** ★ 地域が空・知らない値のときの言葉（サイト全体が福岡なので、嘘にならない） */
 export const HP_AREA_FALLBACK = '福岡';
 
 /** 出張の店の地域の値（areas.ts の DISPATCH_AREA と同じ） */
 const DISPATCH = '出張';
 
-/** タイトルに入れる地域の言葉 */
-export function hpAreaWord(area: unknown): string {
+/** タイトルに入れる地域の言葉。★ 第1373便: 「博多・天神・中洲」の店は住所から決める（address を渡す） */
+export function hpAreaWord(area: unknown, address?: unknown): string {
   const a = typeof area === 'string' ? area.trim() : '';
+  if (a === HP_MERGED_AREA) return hpMergedAreaWord(address);
   return AREA_WORDS[a] ?? HP_AREA_FALLBACK;
 }
 
 /** 「（地域）のメンズエステ」。出張の店は「福岡の出張メンズエステ」 */
-export function hpGenrePhrase(area: unknown): string {
+export function hpGenrePhrase(area: unknown, address?: unknown): string {
   const a = typeof area === 'string' ? area.trim() : '';
-  return a === DISPATCH ? `${HP_AREA_FALLBACK}の出張メンズエステ` : `${hpAreaWord(a)}のメンズエステ`;
+  return a === DISPATCH ? `${HP_AREA_FALLBACK}の出張メンズエステ` : `${hpAreaWord(a, address)}のメンズエステ`;
 }
 
 /** トップの title。「店名｜（地域）のメンズエステ【公式】」 */
-export function hpTopTitle(salonName: unknown, area: unknown): string {
+export function hpTopTitle(salonName: unknown, area: unknown, address?: unknown): string {
   const name = typeof salonName === 'string' ? salonName.trim() : '';
-  const tail = `${hpGenrePhrase(area)}【公式】`;
+  const tail = `${hpGenrePhrase(area, address)}【公式】`;
   return name ? `${name}｜${tail}` : tail;
 }
 
@@ -57,9 +76,10 @@ const sentence = (s: string) => (s === '' || /[。！？!?♪]$/.test(s) ? s : s
  * ★ それまではお店の一言だけ（20字ほど）で、短すぎると検索エンジンが別の文に差し替えやすかった。
  * ★ アクセスは短いときだけ入れる（HP_ACCESS_MAX 字まで）。★ 全体は HP_DESC_MAX 字で切る。
  */
-export function hpTopDescription(input: { salonName: unknown; area: unknown; access?: unknown; heroCatch?: unknown; concept?: unknown }): string {
+export function hpTopDescription(input: { salonName: unknown; area: unknown; address?: unknown; access?: unknown; heroCatch?: unknown; concept?: unknown }): string {
   const name = oneLine(input.salonName);
-  const head = name ? `${hpGenrePhrase(input.area)}「${name}」の公式サイト。` : `${hpGenrePhrase(input.area)}の公式サイト。`;
+  const genre = hpGenrePhrase(input.area, input.address);
+  const head = name ? `${genre}「${name}」の公式サイト。` : `${genre}の公式サイト。`;
   const access = oneLine(input.access);
   const lead = oneLine(input.heroCatch) || oneLine(input.concept);
   const body = head + (access && access.length <= HP_ACCESS_MAX ? sentence(access) : '') + sentence(lead);

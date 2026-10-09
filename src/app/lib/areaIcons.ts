@@ -2,7 +2,7 @@ import { createPublicClient } from '@/app/lib/supabase/public';
 
 // エリアアイコン（area_browse_icons）の公開読み取り。cookieless anon（ISRを効かせる）。
 // AreaBrowse のタイル画像を DB 管理する。SP/PC 2枚方式（バナーテーブルと同構成：sp_image_url / pc_image_url）。
-// area は AREA_ORDER キー（DB値・例 '博多・住吉'、出張は '出張'）。
+// area は AREA_ORDER キー（DB値・例 '博多・天神・中洲'、出張は '出張'）。
 // 戻り値は area → { sp, pc } のマップ。sp・pc とも空/null の行は含めない（＝そのエリアはチップフォールバック）。
 // 行なし・エラー時は空オブジェクト（＝全エリア チップフォールバック）。
 // URL は相対パス（移行期の初期データ）と Storage 絶対URLの両方があり得る（表示側は next/image で両対応）。

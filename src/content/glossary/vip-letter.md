@@ -9,7 +9,7 @@ publishedAt: 2026-09-25
 heroImage: /glossary/vip-letter/hero.webp
 heroAlt: 玄関の木の棚に置かれた、封蝋のない厚手の白い封筒と、そのそばの小さな鍵
 related: [fukues, kaiin-sei, coupon, shokai-wari, hon-shimei, kuchikomi]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: VIPレターは、どうすれば届きますか？
     a: フクエスに無料の会員登録をして、お店の店舗ページで「保存」を押しておくと、そのお店がVIPレターを送ったときに受信箱に届きます。保存しているお店からだけ届き、保存していないお店からは届きません。
@@ -41,7 +41,7 @@ VIPレターは、会員ページの受信箱に届きます。
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)のお店を中心に、VIPレターで新人の入店やキャンペーンを案内するお店が増えています。よく行くお店を保存しておくと、店舗ページを見に行かなくても、そのお店の新しい動きが受信箱に届きます。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)のお店を中心に、VIPレターで新人の入店やキャンペーンを案内するお店が増えています。よく行くお店を保存しておくと、店舗ページを見に行かなくても、そのお店の新しい動きが受信箱に届きます。
 
 ## お客様の視点：VIPレターを受け取るには
 

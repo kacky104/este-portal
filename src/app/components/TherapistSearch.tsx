@@ -33,7 +33,7 @@ import {
 } from '@/lib/therapistBadges';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
-import { AREA_ORDER, ALL_AREA, salonInArea } from '@/app/lib/areas';
+import { AREA_ORDER, ALL_AREA, salonInArea, normalizeAreaKey } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
 
@@ -72,7 +72,7 @@ export function TherapistSearch({
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const a = p.get('area');
-    if (a) setAreaState(a);
+    if (a) setAreaState(normalizeAreaKey(a)); // ★ 第1373便: 古いエリアの値（博多・住吉など）の付いた共有URLも、今のエリアとして開く
     const b = (p.get('b') || '').split(',').map((s) => s.trim()).filter(Boolean);
     if (b.length) setSelectedBadges(b);
   }, []);

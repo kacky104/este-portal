@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/keiretsu-ten/hero.webp
 heroAlt: 夕方のカフェの木のテーブルで、紺の袖の男性が両手で持つスマホの地図に、二つの印が並んでいる手元
 related: [zaiseki, shukkin-joho, tenpo-gata, room-gata, shimei, kaiin-sei]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 系列店どうしで、料金や会員の特典は同じですか？
     a: 同じことも多いですが、お店ごとに違うこともあります。会員の特典やポイントを系列店でも使えるかどうかは、お店によって決まりが違うので、予約のときに確かめてください。
@@ -41,7 +41,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)と[博多駅周辺](/area/hakata-eki)の両方にお店を出している運営者があります。仕事帰りは中心部のお店、出張の日は駅の近くのお店、というように、場所で使い分けやすいのが系列店のよいところです。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)と[博多駅周辺](/area/hakata-tenjin-nakasu)の両方にお店を出している運営者があります。仕事帰りは中心部のお店、出張の日は駅の近くのお店、というように、場所で使い分けやすいのが系列店のよいところです。
 
 [店舗型](/glossary/tenpo-gata)のお店と[ルーム型](/glossary/room-gata)のお店を、同じ運営者が両方持っていることもあります。雰囲気の違うお店を選べるのも、系列店ならではです。
 

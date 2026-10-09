@@ -33,6 +33,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const description = hpTopDescription({
     salonName: data.salon.name,
     area: data.salon.area,
+    address: data.salon.address, // ★ 第1373便: 「博多・天神・中洲」の店は住所から地域の言葉を決める
     access: data.salon.access,
     heroCatch: data.site.hero_catch,
     concept: data.site.concept_text,
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   // index/noindex・canonical・ファビコンの判定は _lib/meta.ts に集約（下層ページと共通）。
   return buildHpMetadata(data, slug, {
-    title: hpTopTitle(data.salon.name, data.salon.area),
+    title: hpTopTitle(data.salon.name, data.salon.area, data.salon.address),
     description,
     path: '',
   });

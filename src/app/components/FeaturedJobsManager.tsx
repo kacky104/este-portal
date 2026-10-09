@@ -8,7 +8,7 @@ import { areaLabel } from '@/app/lib/areaLabel';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 
 // 設定対象セットの切替タブ。key=null はトップ共通（featured_jobs.area IS NULL）、
-// それ以外は AREA_ORDER キー（DB値・例 '博多・住吉'）＝そのエリア専用（area = key の行）。
+// それ以外は AREA_ORDER キー（DB値・例 '博多・天神・中洲'）＝そのエリア専用（area = key の行）。
 // 全域センチネル(ALL_AREA)のみ求人エリアページ非対応のため除外。通常5エリア＋出張専門(DISPATCH_AREA)を含む。
 // 表示名は areaLabel 経由だが、出張は areaLabel('出張')='出張' となるため「出張専門」を固定文字列で特別扱いする
 //（/jobs/dispatch の表示名と揃える）。tab.key='出張' が featured_jobs.area='出張' としてそのまま流れる。

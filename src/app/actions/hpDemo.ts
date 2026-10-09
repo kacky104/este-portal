@@ -144,7 +144,7 @@ function demoTherapistRow(t: (typeof DEMO_THERAPISTS)[number], salonId: number) 
     age:               t.age,
     body_type:         t.body_type,
     catchphrase:       t.catchphrase,
-    area:              '中洲・天神・薬院',
+    area:              '博多・天神・中洲',
     work_hours:        null,
     comment:           null,
     profile_image_url: null,
@@ -181,7 +181,7 @@ export async function createHpDemo(): Promise<{ ok: true; salonId: number } | Er
     .insert({
       name:              'AROMA FUKUES',
       catchphrase:       'LUXURY AROMA PRIVATE SALON',
-      area:              '中洲・天神・薬院',
+      area:              '博多・天神・中洲',
       price:             '60分 12,000円〜',
       hours:             '12:00〜LAST',
       phone:             '090-0000-0000',

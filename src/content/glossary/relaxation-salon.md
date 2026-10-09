@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/relaxation-salon/hero.webp
 heroAlt: 昼の光が差し込む和の待合で、すだれの前の白木のベンチに座ってくつろぐ、紺のセーターの男性の後ろ姿
 related: [mens-esthe, momihogushi, aroma-oil-treatment, reflexology, shiatsu, kenzen-ten]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: リラクゼーションサロンとマッサージ院は、何が違いますか？
     a: 目的と資格が違います。マッサージ院は、国家資格を持つ人が体の不調をやわらげる施術をするところです。リラクゼーションサロンは、治療ではなく、疲れをほぐして気分をすっきりさせることを目的にしています。
@@ -47,7 +47,7 @@ faq:
 
 福岡には、駅ビルや商業施設に入ったもみほぐしのお店から、落ち着いた個室でアロマトリートメントを受けられるお店まで、いろいろなリラクゼーションサロンがあります。
 
-その中で、男性のお客様に向けたお店が[メンズエステ](/glossary/mens-esthe)です。[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)を中心に、夜遅くまで営業しているお店が多く、仕事帰りに利用しやすいのが特徴です。フクエスでは、リラクゼーションを目的とした[健全店](/glossary/kenzen-ten)のメンズエステを掲載しています。
+その中で、男性のお客様に向けたお店が[メンズエステ](/glossary/mens-esthe)です。[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)を中心に、夜遅くまで営業しているお店が多く、仕事帰りに利用しやすいのが特徴です。フクエスでは、リラクゼーションを目的とした[健全店](/glossary/kenzen-ten)のメンズエステを掲載しています。
 
 ## お客様の視点：自分に合うお店の選び方
 

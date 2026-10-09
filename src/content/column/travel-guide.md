@@ -20,8 +20,8 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/mai
 
 福岡で観光・出張の拠点になりやすいのは、次のエリアです。
 
-- **博多駅周辺**: 新幹線・空港アクセスの拠点。出張で福岡入りする方に便利（[博多駅周辺のサロン](https://fukues.com/area/hakata-eki)）
-- **中洲・天神・薬院**: 福岡最大の繁華街。観光や食事とあわせて立ち寄りやすい（[中洲・天神・薬院のサロン](https://fukues.com/area/nakasu-tenjin)）
+- **博多駅周辺**: 新幹線・空港アクセスの拠点。出張で福岡入りする方に便利（[博多駅周辺のサロン](https://fukues.com/area/hakata-tenjin-nakasu)）
+- **中洲・天神・薬院**: 福岡最大の繁華街。観光や食事とあわせて立ち寄りやすい（[中洲・天神・薬院のサロン](https://fukues.com/area/hakata-tenjin-nakasu)）
 - **ホテルで受けたい場合**: 移動を省きたいなら出張型も選択肢（[出張対応のサロン](https://fukues.com/area/dispatch)）
 
 滞在するホテルや予定に合わせて、無理なく寄れるエリアを選びましょう。エリアごとの特徴は[エリア別ガイド](/column/fukuoka-area-guide)でも詳しく紹介しています。
@@ -84,8 +84,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/mai
 
 フクエスでは福岡全域のサロンをエリア別に探せます。滞在先に合わせて、旅先での癒しスポットを見つけてください。
 
-- [博多駅周辺のサロンを探す](https://fukues.com/area/hakata-eki)
-- [中洲・天神・薬院のサロンを探す](https://fukues.com/area/nakasu-tenjin)
+- [博多・天神・中洲（博多駅周辺・薬院を含む）のサロンを探す](https://fukues.com/area/hakata-tenjin-nakasu)
 - [初めてのメンズエステ完全ガイドを読む](https://fukues.com/column/first-time-guide)
 
 フクエス編集部

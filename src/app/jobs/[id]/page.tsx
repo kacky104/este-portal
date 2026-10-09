@@ -86,12 +86,19 @@ export async function generateMetadata({
 // ★ 第1055便: エリア値（salons.area）→ JobPosting の addressLocality（市区町村）。
 //   「中洲・天神・薬院」は博多区と中央区にまたがるので市までにする。対応表に無い値（福岡県その他・出張など）は省略。
 const AREA_TO_LOCALITY: Record<string, string> = {
+  // ★ 第1373便: エリアを「博多・天神・中洲」1つにまとめた。博多区と中央区にまたがるので、住所に区が書いてあればそれを、無ければ市までにする（下の localityFromArea）。
+  '博多・天神・中洲': '福岡市',
+  // まとめる前の値（DB に残っているあいだは今までと同じ）
   '博多・住吉': '福岡市博多区',
   '中洲・天神・薬院': '福岡市',
   '北九州・小倉': '北九州市',
   '久留米': '久留米市',
 };
-function localityFromArea(area: string | null | undefined): string | undefined {
+function localityFromArea(area: string | null | undefined, address?: string | null): string | undefined {
+  if (area === '博多・天神・中洲') {
+    const m = (address ?? '').match(/福岡市(博多区|中央区|南区|東区|西区|早良区|城南区)/);
+    if (m) return m[0];
+  }
   return area ? AREA_TO_LOCALITY[area] : undefined;
 }
 
@@ -128,7 +135,7 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
         addressRegion: '福岡県',
         // ★ 第1055便: addressLocality は市区町村。以前はエリア名（博多・住吉 など）を入れていたが、
         //   schema.org の locality は市区町村なので、エリア値→市区の対応表で変換する（対応表に無ければ省略）。
-        addressLocality: localityFromArea(job.salon.area),
+        addressLocality: localityFromArea(job.salon.area, job.salon.address),
         streetAddress: job.salon.address || undefined,
         // postalCode は salons.postal_code が「NNN-NNNN」形式のときだけ出力する。
         // 未入力・書式不正の店は項目ごと省略（誤った郵便番号を出す方が有害なため）。

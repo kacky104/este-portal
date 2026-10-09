@@ -9,7 +9,7 @@ publishedAt: 2026-09-22
 heroImage: /glossary/ranking/hero.webp
 heroAlt: 午後のお店の入口で、制服のセラピストが花瓶の花を整えながら、横を向いてほほえんでいるところ
 related: [kuchikomi, shame-nikki, shimei, hon-shimei, shinjin, therapist]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: ランキングは、いつ入れ替わりますか？
     a: フクエスのランキングは1週間ごとの集計で、毎週月曜日に新しい週に切り替わります。週の途中でも集計は進んでいるので、同じ週のうちに順位が入れ替わることもあります。
@@ -39,7 +39,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡のメンズエステは、[中洲・天神・薬院](/area/nakasu-tenjin)のように在籍の多いお店が集まる地域と、[博多駅周辺](/area/hakata-eki)のように少人数でていねいに営業するお店が多い地域があります。在籍の多いお店は、ランキングにも名前が並びやすくなります。少人数のお店でも、固定のファンが多いセラピストが上位に入ることがあります。
+福岡のメンズエステは、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)のように在籍の多いお店が集まる地域と、[博多駅周辺](/area/hakata-tenjin-nakasu)のように少人数でていねいに営業するお店が多い地域があります。在籍の多いお店は、ランキングにも名前が並びやすくなります。少人数のお店でも、固定のファンが多いセラピストが上位に入ることがあります。
 
 フクエスの[ランキング](/ranking)では、次の三つを見られます。
 

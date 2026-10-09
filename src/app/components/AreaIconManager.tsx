@@ -18,7 +18,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 const BUCKET = 'area-banners';
 const ICON_PREFIX = 'icons/';
 
-// 通常5エリア＋出張専門（計6行）。slug=Storageパス/命名用、area=DB値（area_browse_icons.area のキー・例 '博多・住吉'）。
+// 通常4エリア＋出張専門（計5行・第1373便で博多と天神を1つにまとめた）。slug=Storageパス/命名用、area=DB値（area_browse_icons.area のキー・例 '博多・天神・中洲'）。
 // 出張は slug='dispatch' / area='出張'（Storageパスは icons/dispatch/{timestamp}.{ext} になる）。
 // label は行の表示名。出張は areaLabel('出張')='出張' ではなく「出張専門」を固定文字列で特別扱いし /jobs/dispatch と揃える。
 const AREA_ROWS = AREA_SLUGS_LIST.map((slug) => {

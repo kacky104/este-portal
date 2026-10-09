@@ -54,7 +54,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-フクエスワークに載っている福岡の求人では、「面接は私服OK」「LINE面接OK」を書いているお店が多く、[博多駅周辺](/jobs/area/hakata-eki)や[中洲・天神・薬院](/jobs/area/nakasu-tenjin)のお店は、駅から近い場所で面接をすることがほとんどです。面接の日にそのまま[体験入店](/jobs/glossary/taiken-nyuten)ができるお店も多いです。
+フクエスワークに載っている福岡の求人では、「面接は私服OK」「LINE面接OK」を書いているお店が多く、[博多駅周辺](/jobs/area/hakata-tenjin-nakasu)や[中洲・天神・薬院](/jobs/area/hakata-tenjin-nakasu)のお店は、駅から近い場所で面接をすることがほとんどです。面接の日にそのまま[体験入店](/jobs/glossary/taiken-nyuten)ができるお店も多いです。
 
 ## 働く人の視点：面接とのつきあい方
 

@@ -9,7 +9,7 @@ publishedAt: 2026-09-28
 heroImage: /glossary/warimashi-ryokin/hero.webp
 heroAlt: 夜の受付カウンターに置かれた空の真鍮のコイントレーと、そのそばで小さく灯るテーブルランプ
 related: [waribiki, hayawari-shinyawari, shuccho-gata, shimei-ryo, option, encho]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 割増料金は、どこを見れば分かりますか？
     a: 店舗ページの料金表や、その下の注意書きに書かれていることが多いです。「深夜○時以降は+○円」「年末年始は特別料金」のように書かれています。見当たらないときは、予約のときにお店に確かめてください。
@@ -49,7 +49,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)の深夜まで営業しているお店を中心に、時間帯で料金が変わる料金表がよく見られます。[博多駅周辺](/area/hakata-eki)では、出張や旅行のお客様がホテルに呼ぶ出張型のお店が多く、ホテルの場所によって交通費が変わる形が一般的です。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)の深夜まで営業しているお店を中心に、時間帯で料金が変わる料金表がよく見られます。[博多駅周辺](/area/hakata-tenjin-nakasu)では、出張や旅行のお客様がホテルに呼ぶ出張型のお店が多く、ホテルの場所によって交通費が変わる形が一般的です。
 
 年末年始の特別料金は、お店ごとに扱いが分かれます。年末年始に予約するときは、店舗ページのお知らせや料金表の注意書きを見ておくと安心です。
 

@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/koshitsu/hero.webp
 heroAlt: 朝の光がレースのカーテン越しに入る無人の個室に、白いシーツの施術台と、奥の壁ぎわの着替えのかご
 related: [sejutsu-dai, shower, tenpo-gata, room-gata, kami-pants, counseling]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 個室には鍵がかかりますか？
     a: お店によって違います。施術中にほかの人が入ってこないよう、扉を閉めて使うのが一般的です。貴重品の置き場所など、気になることがあれば、案内のときにセラピストに聞いてください。
@@ -50,7 +50,7 @@ faq:
 
 [ルーム型](/glossary/room-gata)のお店では、マンションの一室そのものが個室になります。玄関から施術の部屋まで、ほかのお客様と会うことはほとんどありません。
 
-[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)のどちらのエリアでも、個室の雰囲気はお店ごとに違います。店舗ページの写真で、部屋の広さや明るさを見ておくと、自分に合うお店を選びやすくなります。
+[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)のどちらのエリアでも、個室の雰囲気はお店ごとに違います。店舗ページの写真で、部屋の広さや明るさを見ておくと、自分に合うお店を選びやすくなります。
 
 ## お客様の視点：個室での過ごし方のコツ
 

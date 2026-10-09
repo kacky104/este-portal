@@ -9,7 +9,7 @@ publishedAt: 2026-09-18
 heroImage: /glossary/shower/hero.webp
 heroAlt: 白いタイルのパウダールームの洗面台と、奥に見えるガラス扉のシャワーブース
 related: [aroma-oil-treatment, oil, course-jikan, kami-pants, towel-work, seiketsu, counseling]
-areas: [nakasu-tenjin, hakata-eki, dispatch]
+areas: [hakata-tenjin-nakasu, dispatch]
 faq:
   - q: 施術の前に、シャワーは浴びたほうがいいですか？
     a: シャワーのあるお店では、浴びてから施術を受けるのが一般的です。オイルを使う施術は肌に直接触れるので、汗や外のほこりを流しておくと、お互いに気持ちよく過ごせます。シャワーのないお店では、来店前に入浴を済ませておけば十分です。
@@ -44,7 +44,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)のお店の多くが、シャワーを備えています。仕事帰りや会食のあとに立ち寄る方、出張で福岡に来てそのまま利用する方にとって、施術の前に汗を流せることは大事な条件になっています。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)のお店の多くが、シャワーを備えています。仕事帰りや会食のあとに立ち寄る方、出張で福岡に来てそのまま利用する方にとって、施術の前に汗を流せることは大事な条件になっています。
 
 ビルの一室で営業する店舗型でも、マンションの一室を使うルーム型でも、シャワーを置いているお店は珍しくありません。一方で、お客様のホテルや自宅に伺う[出張型](/area/dispatch)では、お店のシャワーではなく、その部屋のシャワーを使うことになります。
 

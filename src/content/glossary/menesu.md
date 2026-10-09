@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/menesu/hero.webp
 heroAlt: 木漏れ日の公園の木のベンチで、紺の服の男性がスマホで調べものをしている斜め後ろ姿
 related: [mens-esthe, relaxation-salon, kenzen-ten, kuchikomi, ranking, net-yoyaku]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: メンエスとメンズエステは、違うお店ですか？
     a: 同じものです。メンエスは、メンズエステを縮めた呼び方です。お店の名前やサイトでは「メンズエステ」と書かれることが多く、SNSや口コミでは「メンエス」と書かれることが多い、という違いがあるだけです。
@@ -39,7 +39,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡でお店を探すときも、「福岡 メンエス」「天神 メンエス」のように検索する方がたくさんいます。[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)のように、お店が集まる場所の名前と組み合わせて調べると、行きやすいお店を見つけやすくなります。
+福岡でお店を探すときも、「福岡 メンエス」「天神 メンエス」のように検索する方がたくさんいます。[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)のように、お店が集まる場所の名前と組み合わせて調べると、行きやすいお店を見つけやすくなります。
 
 フクエスでは、エリアごとにお店の一覧を見られるほか、[ランキング](/glossary/ranking)や口コミからお店を選ぶこともできます。フクエスに載っているのは、リラクゼーションを目的とした[健全店](/glossary/kenzen-ten)のメンズエステです。
 

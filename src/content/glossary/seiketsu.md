@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/seiketsu/hero.webp
 heroAlt: 朝の光が入る白い洗面台の前で、紺のシャツの袖をまくった男性が爪切りで指先の爪を整えている手元
 related: [shower, kinshi-jiko, counseling, aroma-oil-treatment, oil, towel-work, inshu-go-no-riyo]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: お店にシャワーがあるなら、家でお風呂に入らなくてもよいですか？
     a: シャワーがあるお店なら、施術の前にお店で浴びれば大丈夫です。シャワーがないお店では、来店前に家で入浴しておいてください。どちらか分からないときは、店舗ページか予約のときに確かめてください。
@@ -51,7 +51,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡でも、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)をはじめ、シャワーを備えたお店が多くあります。仕事帰りや出張の合間に立ち寄っても、施術前にお店でシャワーを浴びられるので、汗をかいたまま施術を受ける心配はありません。
+福岡でも、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)をはじめ、シャワーを備えたお店が多くあります。仕事帰りや出張の合間に立ち寄っても、施術前にお店でシャワーを浴びられるので、汗をかいたまま施術を受ける心配はありません。
 
 店舗ページに「シャワー完備」と書かれているかどうかは、お店を選ぶときの目安のひとつになります。書かれていないときは、予約のときに聞いてみてください。
 

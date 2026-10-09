@@ -9,7 +9,7 @@ publishedAt: 2026-09-15
 heroImage: /glossary/sokeibu/hero.webp
 heroAlt: 施術室のワゴンに、たたんだ白いタオルとオイルのボトルが並んでいるところ
 related: [lymph-drainage, sejutsu-hani, towel-work, counseling, aroma-oil-treatment]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 鼠径部は体のどこですか？
     a: 太ももの付け根と下腹部の境目にあたる部位です。脚を上げたときに折れ目ができるあたりで、解剖学では「鼠径部」と呼びます。体の中でも大きなリンパ節が集まっている場所です。
@@ -43,7 +43,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)をはじめ、店舗ページのコース案内に施術の進め方を書いているお店が多くなっています。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)をはじめ、店舗ページのコース案内に施術の進め方を書いているお店が多くなっています。
 
 ただし、施術の対象になる範囲は**お店ごとにルールとして決められていて、同じではありません**。同じ「全身コース90分」でも、お店によって内容は変わります。これは鼠径部にかぎった話ではなく、体のどの部位についても同じです。セラピストが個人の判断で範囲を決めることはできないので、判断の材料になるのは、お店が公開している案内ということになります。
 

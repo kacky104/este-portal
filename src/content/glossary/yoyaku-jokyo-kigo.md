@@ -9,7 +9,7 @@ publishedAt: 2026-09-22
 heroImage: /glossary/yoyaku-jokyo-kigo/hero.webp
 heroAlt: 夕方の施術室で、制服のセラピストが次のお客様のためにベッドのシーツを整えながらほほえんでいるところ
 related: [shukkin-joho, net-yoyaku, tojitsu-yoyaku, imasugu-annai, course-jikan, cancel-ryo]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 「×」の時間は、もう予約できませんか？
     a: その時間はネットでは申し込めませんが、キャンセルが出て空くこともあります。どうしてもその時間に受けたいときは、お店に電話して、空きが出たら知らせてもらえるか聞いてみてください。
@@ -43,7 +43,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡のメンズエステは、夜の時間帯に予約が集まりやすく、[中洲・天神・薬院](/area/nakasu-tenjin)の人気のお店では、週末の夜から先に×が並ぶこともあります。[博多駅周辺](/area/hakata-eki)の少人数のお店は、1人のセラピストの予約がそのまま埋まり具合に出るので、早めに見ておくと取りやすくなります。
+福岡のメンズエステは、夜の時間帯に予約が集まりやすく、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)の人気のお店では、週末の夜から先に×が並ぶこともあります。[博多駅周辺](/area/hakata-tenjin-nakasu)の少人数のお店は、1人のセラピストの予約がそのまま埋まり具合に出るので、早めに見ておくと取りやすくなります。
 
 フクエスでは、[ネット予約](/glossary/net-yoyaku)を受け付けているお店で、セラピストとコース、日にちを選ぶと、その日の時間の枠が並びます。
 

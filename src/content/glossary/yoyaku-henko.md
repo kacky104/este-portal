@@ -9,7 +9,7 @@ publishedAt: 2026-09-28
 heroImage: /glossary/yoyaku-henko/hero.webp
 heroAlt: 朝の木の机に開いた手帳と鉛筆と消しゴム、予定欄を書き直したあとに消しくずが少し残っているところ
 related: [yoyaku-kakunin, cancel-ryo, chikoku-mudan-cancel, net-yoyaku, course-jikan, encho]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 予約の変更に、お金はかかりますか？
     a: 早めに伝えれば、かからないお店がほとんどです。ただ、直前の変更は「キャンセルして取り直し」と同じ扱いになり、キャンセル料の決まりがあてはまるお店もあります。気になるときは、変更をお願いするときに一緒に確かめてください。
@@ -47,7 +47,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)の夜の時間帯や週末、[博多駅周辺](/area/hakata-eki)の出張客が多い時間帯は予約が詰まりやすく、直前の変更が難しいことがあります。一方で、平日の昼間などは空きがあることも多く、時間をずらすお願いが通りやすい傾向があります。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)の夜の時間帯や週末、[博多駅周辺](/area/hakata-tenjin-nakasu)の出張客が多い時間帯は予約が詰まりやすく、直前の変更が難しいことがあります。一方で、平日の昼間などは空きがあることも多く、時間をずらすお願いが通りやすい傾向があります。
 
 変更の受付は電話が中心というお店が多いので、ネット予約で申し込んだ場合も、変更のときは電話で伝えるのが確実です。
 

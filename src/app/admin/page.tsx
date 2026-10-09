@@ -125,7 +125,7 @@ function AccordionSection({
 
 const EMPTY_FORM = {
   name: '',
-  area: '博多・住吉',
+  area: '博多・天神・中洲',
   price: '',
   hours: '',
   phone: '',

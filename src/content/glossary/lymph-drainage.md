@@ -10,7 +10,7 @@ publishedAt: 2026-09-15
 heroImage: /glossary/lymph-drainage/hero.webp
 heroAlt: セラピストが、タオルをかけたお客様のふくらはぎに両手を当てて流しているところ
 related: [sokeibu, aroma-oil-treatment, micchaku, oil, atsu-no-tsuyosa, sejutsu-hani, counseling, course-jikan]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: リンパドレナージュとリンパマッサージは同じものですか？
     a: 同じ施術を指していることがほとんどです。お店によって「リンパマッサージ」「リンパケア」「リンパコース」と呼び方が違うだけで、リンパの流れに沿ってやさしい圧で流していく施術という中身は共通です。なお、あん摩マッサージ指圧師の資格がある人が行うものだけを「マッサージ」と呼ぶ決まりがあるため、資格を前提としないリラクゼーションのお店では「ドレナージュ」「トリートメント」という言い方が使われています。
@@ -60,7 +60,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)、[博多駅周辺](/area/hakata-eki)、[北九州・小倉](/area/kitakyushu)、[久留米](/area/kurume)のいずれでも、リンパドレナージュは「リンパコース」「アロマ＋リンパ」といった名前で料金表に載っています。単独のコースとして置いているお店と、オイルコースの中の手技として案内しているお店の両方があります。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)、[博多駅周辺](/area/hakata-tenjin-nakasu)、[北九州・小倉](/area/kitakyushu)、[久留米](/area/kurume)のいずれでも、リンパドレナージュは「リンパコース」「アロマ＋リンパ」といった名前で料金表に載っています。単独のコースとして置いているお店と、オイルコースの中の手技として案内しているお店の両方があります。
 
 料金は、オイルコースと同じ料金表の中に並んでいることが多く、時間ごとに設定されています。目安については[料金相場ガイド](/column/price-guide)にまとめてあるので、そちらと各店舗ページを見比べてください。
 

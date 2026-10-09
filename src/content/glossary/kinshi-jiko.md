@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/kinshi-jiko/hero.webp
 heroAlt: 夕暮れの街が見える窓ぎわの木のカウンターで、紺のセーターの男性が二つ折りの案内カードを開いて読んでいる手元
 related: [therapist-eno-sesshoku, sejutsu-hani, kenzen-ten, inshu-go-no-riyo, satsuei-rokuon, chikoku-mudan-cancel, counseling]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 禁止事項は、どこを見れば分かりますか？
     a: 多くのお店は、店舗ページの「ご利用にあたって」「注意事項」に書いています。予約の確認の連絡や、来店したときの説明で、あらためて伝えてくれるお店もあります。見当たらないときは、予約のときに聞けば教えてもらえます。
@@ -53,7 +53,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡でも、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)をはじめ、店舗ページに禁止事項を書いているお店が多くなっています。ビルの一室で営業するお店でも、マンションの一室を使うお店でも、この点は変わりません。
+福岡でも、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)をはじめ、店舗ページに禁止事項を書いているお店が多くなっています。ビルの一室で営業するお店でも、マンションの一室を使うお店でも、この点は変わりません。
 
 フクエスに載っているのは、リラクゼーションを目的とした[健全店](/glossary/kenzen-ten)のメンズエステです。店舗ページでは、コースや料金と並んで、お店のルールが書かれていることが多いので、予約の前に確かめることができます。
 

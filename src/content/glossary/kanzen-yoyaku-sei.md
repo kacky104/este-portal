@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/kanzen-yoyaku-sei/hero.webp
 heroAlt: 朝の光が入る施術室で、紺の制服のセラピストが施術台の白いシーツを両手で整えている手元
 related: [net-yoyaku, tojitsu-yoyaku, cancel-ryo, room-gata, tenpo-gata, eigyo-jikan]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 完全予約制のお店に、当日行っても利用できますか？
     a: 予約なしで行っても、利用できないことがほとんどです。ただ、当日でも空きがあれば予約できることが多いので、行きたい時間が決まったら、先にネット予約や電話で空きを確かめてください。
@@ -39,7 +39,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡のメンズエステも、[中洲・天神・薬院](/area/nakasu-tenjin)、[博多駅周辺](/area/hakata-eki)のどちらのエリアでも、完全予約制のお店がほとんどです。
+福岡のメンズエステも、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)、[博多駅周辺](/area/hakata-tenjin-nakasu)のどちらのエリアでも、完全予約制のお店がほとんどです。
 
 完全予約制といっても、何日も前に予約しなければならないわけではありません。[当日予約](/glossary/tojitsu-yoyaku)を受け付けているお店が多く、空きがあれば、その日のうちに利用できます。仕事帰りに思い立って予約する方もよくいます。
 

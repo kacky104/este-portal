@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/nenrei-kakunin/hero.webp
 heroAlt: 夜の街の灯りを背に、紺のスーツの男性が上着の内ポケットから閉じた黒い革のカードケースを取り出している手元
 related: [kinshi-jiko, kanzen-yoyaku-sei, net-yoyaku, kaiin-sei, counseling]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 身分証は、どんなものを持っていけばよいですか？
     a: 運転免許証、マイナンバーカード、パスポートなど、顔写真と生年月日が分かるものがおすすめです。お店によって使えるものが違うことがあるので、気になるときは予約のときに聞いてください。
@@ -47,7 +47,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡でも、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)をはじめ、多くのお店が18歳未満の利用のお断りを店舗ページに書いています。予約のときや来店したときに、あらためて案内してくれるお店もあります。
+福岡でも、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)をはじめ、多くのお店が18歳未満の利用のお断りを店舗ページに書いています。予約のときや来店したときに、あらためて案内してくれるお店もあります。
 
 フクエスに載っているのは、リラクゼーションを目的とした健全店のメンズエステです。どのお店も、それぞれのルールに沿って年齢確認を行っています。
 

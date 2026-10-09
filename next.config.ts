@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
     return [
       // ★ 第1084便: 旧 /working?area=・…/diary?page=N の転送は src/proxy.ts（rewriteLegacyQueryUrl）へ移した。
       //   ここ（redirects）だと has で取ったクエリが転送先に残る（/diary/page/2?page=2）ため。
+      // ★ 第1373便（2026-10-10）: エリアの統合（博多・住吉 ＋ 中洲・天神・薬院 → 博多・天神・中洲）。古い slug の URL を新しい URL へ（308）。
+      //   対応は src/app/lib/areas.ts の LEGACY_AREA_SLUGS と同じ。★ slug を変えるときは両方直すこと。
+      { source: '/area/:slug(hakata-eki|nakasu-tenjin)', destination: '/area/hakata-tenjin-nakasu', permanent: true },
+      { source: '/working/:slug(hakata-eki|nakasu-tenjin)', destination: '/working/hakata-tenjin-nakasu', permanent: true },
+      { source: '/jobs/area/:slug(hakata-eki|nakasu-tenjin)', destination: '/jobs/area/hakata-tenjin-nakasu', permanent: true },
+      { source: '/jobs/area/:slug(hakata-eki|nakasu-tenjin)/tag/:tag', destination: '/jobs/area/hakata-tenjin-nakasu/tag/:tag', permanent: true },
     ];
   },
   async headers() {

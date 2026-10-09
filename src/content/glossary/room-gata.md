@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/room-gata/hero.webp
 heroAlt: やわらかい照明の落ち着いた内廊下で、番号の入っていない木目の玄関ドアと、壁のインターホン
 related: [tenpo-gata, shuccho-gata, kanzen-yoyaku-sei, net-yoyaku, tojitsu-yoyaku, koshitsu]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: ルーム型のお店の住所は、どうやって分かりますか？
     a: 多くのお店では、店舗ページに最寄り駅やおおよその場所が書かれていて、詳しい部屋の場所は予約のあとに案内されます。当日、最寄り駅や近くの目印に着いたら連絡し、そこで部屋番号を教えてもらう流れがよくあります。案内の方法は予約のときに確かめておきましょう。
@@ -43,7 +43,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡のメンズエステでは、ルーム型のお店が多く見られます。[中洲・天神・薬院](/area/nakasu-tenjin)では、中心部から少し離れた落ち着いた住宅地のマンションを使っているお店がよくあります。[博多駅周辺](/area/hakata-eki)にも、駅から歩いて行けるマンションで営業しているお店があります。
+福岡のメンズエステでは、ルーム型のお店が多く見られます。[中洲・天神・薬院](/area/hakata-tenjin-nakasu)では、中心部から少し離れた落ち着いた住宅地のマンションを使っているお店がよくあります。[博多駅周辺](/area/hakata-tenjin-nakasu)にも、駅から歩いて行けるマンションで営業しているお店があります。
 
 ルーム型のお店は、予約の入り方によって、[当日予約](/glossary/tojitsu-yoyaku)でもすぐ案内できることがあります。空き状況は、フクエスの店舗ページの出勤情報やネット予約で確かめられます。
 

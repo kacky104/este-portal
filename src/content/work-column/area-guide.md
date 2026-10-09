@@ -18,7 +18,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 **こんな人に向いている**: 平日中心にコンスタントに働きたい人、電車通勤でアクセス重視の人
 
-→ [博多・住吉の求人一覧はこちら](/jobs/area/hakata-eki)
+→ [博多・天神・中洲の求人一覧はこちら](/jobs/area/hakata-tenjin-nakasu)
 
 ## 中洲・天神・薬院｜福岡の中心部で幅広い需要をつかむ
 
@@ -38,7 +38,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 
 **こんな人に向いている**: 夜型で深夜帯に稼働したい人（中洲）、土日メインで働きたい人（天神）、落ち着いた環境でリピーターを大切にしたい人（薬院）
 
-→ [中洲・天神・薬院の求人一覧はこちら](/jobs/area/nakasu-tenjin)
+→ [博多・天神・中洲の求人一覧はこちら](/jobs/area/hakata-tenjin-nakasu)
 
 ## 北九州・小倉｜独立した商圏を持つ北部の中核エリア
 

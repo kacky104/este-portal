@@ -10,7 +10,7 @@ publishedAt: 2026-09-14
 heroImage: /glossary/kenzen-ten/hero.webp
 heroAlt: 明るい施術室で、制服姿のセラピストが着衣のお客様の肩に手を当てているところ
 related: [mens-esthe, sejutsu-hani, kinshi-jiko, therapist-eno-sesshoku, kuchikomi]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 健全店と、脱毛やフェイシャルをする美容のメンズエステは同じですか？
     a: 別のものです。美容のメンズエステは肌や体型のケアが目的で、健全店と呼ばれるメンズエステはアロマオイルトリートメントやもみほぐしで疲れをほぐすリラクゼーションが目的です。同じ言葉が二つの業態に使われているので、お店のコース内容を見て判断してください。
@@ -44,7 +44,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡のメンズエステは、[中洲・天神・薬院](/area/nakasu-tenjin)の中心部、[博多駅周辺](/area/hakata-eki)、[北九州・小倉](/area/kitakyushu)、[久留米](/area/kurume)にお店が集まっています。中心部は夜遅くまで営業するお店が多く、仕事帰りや会食のあとに利用する人が中心です。博多駅周辺は出張や旅行で福岡を訪れる人の利用が多く、新幹線や空港へのアクセスを意識した営業時間のお店が目立ちます。
+福岡のメンズエステは、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)の中心部、[博多駅周辺](/area/hakata-tenjin-nakasu)、[北九州・小倉](/area/kitakyushu)、[久留米](/area/kurume)にお店が集まっています。中心部は夜遅くまで営業するお店が多く、仕事帰りや会食のあとに利用する人が中心です。博多駅周辺は出張や旅行で福岡を訪れる人の利用が多く、新幹線や空港へのアクセスを意識した営業時間のお店が目立ちます。
 
 ![福岡の街並みを描いたイラスト地図](/glossary/kenzen-ten/03-fukuoka-areas.webp)
 

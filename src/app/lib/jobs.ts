@@ -1,5 +1,9 @@
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { AREA_ORDER, ALL_AREA, DISPATCH_AREA } from '@/app/lib/areas';
+import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, areaDbKeys, normalizeAreaKey } from '@/app/lib/areas';
+
+// ★ 第1373便: 店のエリア（salons.area / area2）で求人を絞る or 条件。まとめる前のエリアの値が DB に残っていても拾う（areaDbKeys）。
+//   値をダブルクォートで囲み、PostgREST の or 構文の予約文字と衝突しないようにする。
+const salonAreaOr = (area: string) => areaDbKeys(area).flatMap((k) => [`area.eq."${k}"`, `area2.eq."${k}"`]).join(',');
 
 // リンクバナー設置特典で「求人カード優先表示」に使う重み（求人版・本体 CARD_BOOST_WEIGHT と同値）。
 // 求人一覧の30分ごとシャッフルで job_boost=true の求人に与える重み。
@@ -449,7 +453,7 @@ function mapJobListItem(row: Record<string, unknown>): JobListItem | null {
 // あればそれを、無ければ従来どおりサロンのメイン画像（salon_images 最小 display_order）を使う。
 // 並び順は display_order のまま表示（本体スライダーのマウント後ランダムシャッフルは踏襲しない）。
 // 0件時は空配列（呼び出し側でセクションごと非表示）。
-// area 引数: null（既定）＝トップ共通（area IS NULL）／AREA_ORDER キー（例 '博多・住吉'）＝そのエリア専用
+// area 引数: null（既定）＝トップ共通（area IS NULL）／AREA_ORDER キー（例 '博多・天神・中洲'）＝そのエリア専用
 //（area = <値> の行）。エリア別求人ページ（/jobs/area/[slug]）から DB値を渡して呼ぶ。
 export async function getFeaturedJobs(area: string | null = null): Promise<PickupJob[]> {
   const supabase = createPublicClient();
@@ -541,7 +545,7 @@ export async function fetchActiveJobsByFeature(slug: string): Promise<JobListIte
 // ── エリア絞り込み一覧用（/jobs/area/[slug]） ──
 // fetchActiveJobsByFeature のエリア版。features の GIN 検索を salons.area の完全一致に差し替えただけで、
 // salons!inner の select 内容・is_active/is_hidden の多重防御・mapJobListItem 整形は既存と完全同一。
-// area は areas.ts の DB値（AREA_ORDER のキー。例 '博多・住吉'）。出張は area 一致では拾えないため対象外。
+// area は areas.ts の DB値（AREA_ORDER のキー。例 '博多・天神・中洲'）。出張は area 一致では拾えないため対象外。
 export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]> {
   const supabase = createPublicClient();
   const rows = await runJobListQuery((cols) =>
@@ -552,7 +556,7 @@ export async function fetchActiveJobsByArea(area: string): Promise<JobListItem[]
       .eq('salons.is_hidden', false)
       // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
       // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
-      .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
+      .or(salonAreaOr(area), { referencedTable: 'salons' })
       .order('published_at', { ascending: false }),
   );
 
@@ -593,7 +597,7 @@ export async function fetchActiveJobsByAreaAndFeature(area: string, slug: string
       .eq('salons.is_hidden', false)
       // 第1エリア（area）または第2エリア（area2）の一致で拾う。値をダブルクォートで囲み
       // PostgREST の or 構文の予約文字と衝突しないようにする。!inner なので不一致の求人は親ごと落ちる。
-      .or(`area.eq."${area}",area2.eq."${area}"`, { referencedTable: 'salons' })
+      .or(salonAreaOr(area), { referencedTable: 'salons' })
       .contains('features', [slug])
       .order('published_at', { ascending: false }),
   );
@@ -672,7 +676,8 @@ export async function fetchAreaTagPairsWithActiveJobs(): Promise<{
   (data ?? []).forEach((row) => {
     const rec = row as Record<string, unknown>;
     const salon = pickSalon<{ area: string | null; area2?: string | null }>(rec.salons);
-    const salonAreas = [...new Set([salon?.area ?? '', salon?.area2 ?? ''])].filter((a) => normalAreas.has(a));
+    // ★ 第1373便: まとめる前のエリアの値は今の値として数える
+    const salonAreas = [...new Set([normalizeAreaKey(salon?.area ?? ''), normalizeAreaKey(salon?.area2 ?? '')])].filter((a) => normalAreas.has(a));
     if (salonAreas.length === 0) return;
     const feats = sanitizeFeatures(rec.features);
     for (const area of salonAreas) {

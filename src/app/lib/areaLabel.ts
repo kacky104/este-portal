@@ -3,12 +3,19 @@
 // フィルタや保存は元の値（キー）で行い、表示時のみ areaLabel() を通す。
 const AREA_LABELS: Record<string, string> = {
   '福岡全域': '福岡市全域',
-  '博多・住吉': '博多駅周辺',
   '福岡県その他': 'その他福岡市県',
+};
+
+// ★ 第1373便: まとめる前の値（areas.ts の LEGACY_AREA_KEYS と同じ）。DB に古い値が残っていても、今のエリア名で出す。
+//   ★ areas.ts から import しない（このファイルは client からも読まれる小さな部品のまま置く）。値を変えるときは両方直すこと。
+const LEGACY_AREA_KEYS: Record<string, string> = {
+  '博多・住吉': '博多・天神・中洲',
+  '中洲・天神・薬院': '博多・天神・中洲',
 };
 
 /** DBのエリア値を画面表示用ラベルに変換する（未定義はそのまま返す）。 */
 export function areaLabel(area: string | null | undefined): string {
   if (!area) return '';
-  return AREA_LABELS[area] ?? area;
+  const key = LEGACY_AREA_KEYS[area] ?? area;
+  return AREA_LABELS[key] ?? key;
 }

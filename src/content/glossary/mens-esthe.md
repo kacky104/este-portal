@@ -10,7 +10,7 @@ publishedAt: 2026-09-19
 heroImage: /glossary/mens-esthe/hero.webp
 heroAlt: 夕暮れの街あかりが窓に見えるビルの廊下と、その先で間接照明に照らされたメンズエステの木の扉
 related: [kenzen-ten, aroma-oil-treatment, momihogushi, course-jikan, sejutsu-hani, kuchikomi]
-areas: [nakasu-tenjin, hakata-eki, kitakyushu, kurume]
+areas: [hakata-tenjin-nakasu, kitakyushu, kurume]
 faq:
   - q: 「メンエス」と「メンズエステ」は同じ意味ですか？
     a: 同じ意味です。「メンエス」は「メンズエステ」を縮めた呼び方で、SNSや口コミ、検索でよく使われます。お店の名前やサイトでは「メンズエステ」と書かれることが多く、「メンエス」は利用する側の日常的な呼び方と考えると分かりやすいです。
@@ -60,7 +60,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡のメンズエステは、[中洲・天神・薬院](/area/nakasu-tenjin)の中心部と、[博多駅周辺](/area/hakata-eki)に多く集まっています。中心部は夜遅くまで営業するお店が多く、仕事帰りや会食のあとに立ち寄る方がよく利用しています。博多駅周辺は、出張や旅行で福岡を訪れた方が、移動の合間や宿泊先の近くで利用することが多いエリアです。
+福岡のメンズエステは、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)の中心部と、[博多駅周辺](/area/hakata-tenjin-nakasu)に多く集まっています。中心部は夜遅くまで営業するお店が多く、仕事帰りや会食のあとに立ち寄る方がよく利用しています。博多駅周辺は、出張や旅行で福岡を訪れた方が、移動の合間や宿泊先の近くで利用することが多いエリアです。
 
 福岡市の外では、[北九州・小倉](/area/kitakyushu)や[久留米](/area/kurume)にもお店があります。地元の方が週末や仕事帰りに通うお店が中心で、落ち着いた雰囲気のお店が多いのが特徴です。
 

@@ -16,7 +16,7 @@ import { JOBS_TOP_BANNER_AREA } from '@/app/lib/areaBanners';
 // 保存成功後 revalidateFeaturedJobs() で /jobs＋5エリア＋出張専門(/jobs/dispatch)の7パスを再検証（既存 server action をそのまま利用）。
 const BUCKET = 'area-banners';
 
-// 通常5エリア＋出張専門（計6行）。slug=Storageパス/命名用、area=DB値（area_hero_banners.area のキー・例 '博多・住吉'）。
+// 通常4エリア＋出張専門（計5行・第1373便で博多と天神を1つにまとめた）。slug=Storageパス/命名用、area=DB値（area_hero_banners.area のキー・例 '博多・天神・中洲'）。
 // 出張は slug='dispatch' / area='出張'（Storageパスは既存規約どおり dispatch/{timestamp}.{ext} になる）。
 // label は行の表示名。出張は areaLabel('出張')='出張' ではなく「出張専門」を固定文字列で特別扱いし /jobs/dispatch と揃える。
 // ★ 第482便（2026-09-18・カッキーさん）: いちばん上に「TOP（/jobs）」の行。★ area='top'・Storage は top/{timestamp}.{ext}

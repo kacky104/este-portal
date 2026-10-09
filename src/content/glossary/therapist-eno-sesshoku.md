@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/therapist-eno-sesshoku/hero.webp
 heroAlt: 午後の光が入る施術室で、紺の制服のセラピストが両手を前で重ねて会釈し、木の椅子に座る紺のシャツの男性がそれを迎えている後ろ姿
 related: [kinshi-jiko, sejutsu-hani, kenzen-ten, counseling, therapist, atsu-no-tsuyosa]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 施術中にうっかり手が当たってしまったら、どうなりますか？
     a: 寝返りや姿勢を変えたときに、たまたま手が当たることはあります。そのときは「すみません」とひとこと伝えれば大丈夫です。問題になるのは、お客様の側から意図して触れることです。
@@ -45,7 +45,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡でも、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)をはじめ、多くのお店が店舗ページの「ご利用にあたって」や「注意事項」に、このルールをはっきり書いています。来店したときや、施術前のカウンセリングで、あらためて説明してくれるお店もあります。
+福岡でも、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)をはじめ、多くのお店が店舗ページの「ご利用にあたって」や「注意事項」に、このルールをはっきり書いています。来店したときや、施術前のカウンセリングで、あらためて説明してくれるお店もあります。
 
 フクエスに載っているのは、リラクゼーションを目的とした健全店のメンズエステです。どのお店でも、セラピストへの接触は禁止事項として扱われています。
 

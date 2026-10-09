@@ -65,8 +65,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/mai
 フクエスでは福岡全域のメンズエステを、税込のコースメニュー・料金表つきで掲載しています。まずは気になるエリアから、料金を見比べてみてください。
 
 - [福岡のメンズエステ一覧を見る](https://fukues.com/)
-- [博多・住吉のサロンを探す](https://fukues.com/area/hakata-eki)
-- [中洲・天神・薬院のサロンを探す](https://fukues.com/area/nakasu-tenjin)
+- [博多・天神・中洲のサロンを探す](https://fukues.com/area/hakata-tenjin-nakasu)
 - [メンズエステ用語集で基本用語を確認する](https://fukues.com/column/glossary)
 
 フクエス編集部

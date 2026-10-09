@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/shinki-open/hero.webp
 heroAlt: 明るい真新しい受付で、紺の制服のセラピストが白と若草色の開店祝いの花をほほえみながら整えている横顔
 related: [shokai-wari, coupon, shinjin, kuchikomi, net-yoyaku, tenpo-gata]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: プレオープンと新規オープンは、何が違いますか？
     a: プレオープンは、正式に開店する前に、予約の数をしぼって受け付ける期間のことです。お店の流れを整えるための期間なので、特別な料金になっていることもあります。そのあと、正式に開店するのが新規オープンです。
@@ -39,7 +39,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)を中心に、新しいお店が開店することがあります。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)を中心に、新しいお店が開店することがあります。
 
 新しいお店は、店舗ページのお知らせで、オープンの案内やオープン記念の割引を知らせていることがよくあります。フクエスのトップページの「店舗新着情報」にも、お店からのお知らせが並びます。気になるエリアのお店は、ときどき見ておくと新しいお店に気づきやすくなります。
 

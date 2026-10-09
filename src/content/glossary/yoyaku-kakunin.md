@@ -9,7 +9,7 @@ publishedAt: 2026-09-28
 heroImage: /glossary/yoyaku-kakunin/hero.webp
 heroAlt: 夕暮れのオフィスの窓ぎわのデスクで、ノートパソコンの横に置いたスマートフォンの画面が通知で明るく灯っているところ
 related: [net-yoyaku, yoyaku-henko, tojitsu-yoyaku, cancel-ryo, chikoku-mudan-cancel, kanzen-yoyaku-sei]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 予約確認の連絡に、返事をしないとどうなりますか？
     a: お店によっては、返事がないと予約を取り消すことがあります。「確認のご連絡にお返事がない場合はキャンセル扱い」と書いているお店もあるので、連絡が来たら短くてもよいので返事をしておくと安心です。
@@ -47,7 +47,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡では、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)の多くのお店が、ネット予約のあとに電話かSMSで確定の連絡をしています。とくに夜遅い時間の予約や、出張・旅行で遠方から来るお客様の予約では、前日や当日にもう一度確かめるお店が少なくありません。
+福岡では、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)の多くのお店が、ネット予約のあとに電話かSMSで確定の連絡をしています。とくに夜遅い時間の予約や、出張・旅行で遠方から来るお客様の予約では、前日や当日にもう一度確かめるお店が少なくありません。
 
 確認の連絡に返事がないまま時間が過ぎると、予約を取り消すお店もあります。[遅刻・無断キャンセル](/glossary/chikoku-mudan-cancel)を防ぐための決まりなので、お店の注意書きに書かれていないか、予約のときに見ておくと安心です。
 

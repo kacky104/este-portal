@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, areaHref } from '@/app/lib/areas';
+import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, LEGACY_AREA_SLUGS, areaHref } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
 import styles from './glossary.module.css';
 
@@ -10,7 +10,9 @@ import styles from './glossary.module.css';
 
 export function GlossaryCta({ areas = [], className }: { areas?: string[]; className?: string }) {
   const all = AREA_ORDER.filter((a) => a !== ALL_AREA);
-  const mentioned = areas
+  // ★ 第1373便: まとめる前の slug（hakata-eki・nakasu-tenjin）が frontmatter に残っていても、今のエリアとして読む（同じエリアは1つに）。
+  const slugs = [...new Set(areas.map((s) => LEGACY_AREA_SLUGS[s] ?? s))];
+  const mentioned = slugs
     .map((s) => all.find((a) => areaHref(a) === `/area/${s}`))
     .filter((a): a is (typeof all)[number] => !!a);
   const areaLinks = [...mentioned, ...all.filter((a) => !mentioned.includes(a))];

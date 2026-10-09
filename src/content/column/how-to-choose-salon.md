@@ -18,8 +18,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/mai
 
 福岡は広く、サロンの立地もさまざま。**通いやすさは満足度に直結する**ので、最初にエリアを絞るのがおすすめです。
 
-- [博多・住吉](/area/hakata-eki): 駅チカ多め。出張・旅行中のホテル利用や仕事帰りに
-- [中洲・天神・薬院](/area/nakasu-tenjin): 店舗数が多く夜遅くまで営業するサロンも。飲みの後にも
+- [博多・天神・中洲](/area/hakata-tenjin-nakasu): 博多駅周辺・住吉は駅チカ多めで、出張・旅行中のホテル利用や仕事帰りに。中洲・天神・薬院は店舗数が多く、夜遅くまで営業するサロンも。飲みの後にも
 - [北九州・小倉](/area/kitakyushu): 小倉駅周辺中心。北九州にお住まいの方に
 - [久留米](/area/kurume): 筑後エリアで探すならこちら
 
@@ -78,5 +77,4 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/mai
 フクエスでは福岡全域のメンズエステを、口コミ評価・税込料金表・本日出勤中のセラピスト情報つきで掲載しています。まずは気になるエリアから探してみてください。
 
 - [福岡のメンズエステ一覧を見る](/)
-- [博多・住吉のサロンを探す](/area/hakata-eki)
-- [中洲・天神・薬院のサロンを探す](/area/nakasu-tenjin)
+- [博多・天神・中洲のサロンを探す](/area/hakata-tenjin-nakasu)

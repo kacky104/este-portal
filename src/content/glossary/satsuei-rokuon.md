@@ -9,7 +9,7 @@ publishedAt: 2026-09-24
 heroImage: /glossary/satsuei-rokuon/hero.webp
 heroAlt: 施術室の入口脇の木の棚で、紺の袖の男性がキャメル色の革のショルダーバッグにスマホをしまっている手元
 related: [kinshi-jiko, therapist-eno-sesshoku, koshitsu, kuchikomi, shame-nikki, counseling]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 施術中、スマホはどこに置けばよいですか？
     a: カバンの中か、お店が案内する場所にしまってください。着替えのかごや荷物置きの棚を用意しているお店が多くあります。急ぎの連絡を待っているときは、施術の前にセラピストにひとこと伝えておくと安心です。
@@ -47,7 +47,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡でも、[中洲・天神・薬院](/area/nakasu-tenjin)や[博多駅周辺](/area/hakata-eki)をはじめ、ほとんどのお店が撮影・録音の禁止を店舗ページに書いています。施術前に、スマホをカバンにしまうよう声をかけてくれるお店もあります。
+福岡でも、[中洲・天神・薬院](/area/hakata-tenjin-nakasu)や[博多駅周辺](/area/hakata-tenjin-nakasu)をはじめ、ほとんどのお店が撮影・録音の禁止を店舗ページに書いています。施術前に、スマホをカバンにしまうよう声をかけてくれるお店もあります。
 
 お店の雰囲気や施術室の様子を知りたいときは、店舗ページの写真や、セラピストの写メ日記を見るのがおすすめです。お店が公開している写真なら、安心して見ることができます。
 

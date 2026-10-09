@@ -9,7 +9,7 @@ publishedAt: 2026-09-25
 heroImage: /glossary/kuchikomi-sanjiku-hyoka/hero.webp
 heroAlt: 昼下がりの窓辺の白いテーブルに、三つの小さな木のさいころとガラスのコップの水を真上から見たところ
 related: [kuchikomi, fukues, shimei, hon-shimei, atsu-no-tsuyosa, counseling, ranking]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: 総合の評価は、どうやって決まりますか？
     a: 一つの口コミの総合は、「接客」「施術」「受付対応」の三つの星の平均です。お店やセラピストの総合は、その口コミの総合をさらに平均したものです。三つの軸のどれかだけが高くても、総合は大きく動きません。

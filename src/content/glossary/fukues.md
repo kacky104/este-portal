@@ -9,7 +9,7 @@ publishedAt: 2026-09-25
 heroImage: /glossary/fukues/hero.webp
 heroAlt: 朝の博多駅前の広場のベンチで、紺のジャケットの男性がスマートフォンを見ている手元
 related: [area-kensaku, kenzen-ten, mens-esthe, shukkin-joho, imasugu-annai, kuchikomi, coupon, kaiin-sei]
-areas: [nakasu-tenjin, hakata-eki]
+areas: [hakata-tenjin-nakasu]
 faq:
   - q: フクエスは、無料で使えますか？
     a: お店を探す、出勤や口コミを見る、クーポンを使う、会員登録をする、どれも無料です。料金がかかるのは、お店で受ける施術の代金だけです。
@@ -33,7 +33,7 @@ faq:
 
 ![エリアで探す、出勤・今すぐを見る、口コミを読む、クーポン・VIPレターを受け取る、の四つをアイコンで並べた図](/glossary/fukues/02-four-features.webp)
 
-**エリアで探す。** トップページや[エリア検索](/glossary/area-kensaku)から、博多・住吉、中洲・天神・薬院など、行きたい地域のお店だけを一覧できます。出張対応のお店だけを見ることもできます。
+**エリアで探す。** トップページや[エリア検索](/glossary/area-kensaku)から、博多・天神・中洲、北九州・小倉など、行きたい地域のお店だけを一覧できます。出張対応のお店だけを見ることもできます。
 
 **出勤と「今すぐ」を見る。** 各お店の[出勤情報](/glossary/shukkin-joho)がその日の出勤時間つきで並びます。すぐに案内できるセラピストは[今すぐ案内](/glossary/imasugu-annai)として出るので、今から行けるお店をその場で探せます。
 
@@ -49,7 +49,7 @@ faq:
 
 ## 福岡のメンズエステでの実情
 
-福岡のメンズエステは[中洲・天神・薬院](/area/nakasu-tenjin)と[博多駅周辺](/area/hakata-eki)に多く集まっていて、フクエスでもこの二つのエリアのお店がいちばん多く載っています。お店ごとの雰囲気や得意な施術は、店舗ページと口コミで見比べられます。
+福岡のメンズエステは[中洲・天神・薬院](/area/hakata-tenjin-nakasu)と[博多駅周辺](/area/hakata-tenjin-nakasu)に多く集まっていて、フクエスでもこの二つの地域のお店がいちばん多く載っています。お店ごとの雰囲気や得意な施術は、店舗ページと口コミで見比べられます。
 
 ## お客様の視点：フクエスの使い方
 
