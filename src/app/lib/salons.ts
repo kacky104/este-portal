@@ -20,7 +20,7 @@ export type Salon = {
   description: string;
   catchphrase: string; // TOP/地域の店舗カードに出すキャッチフレーズ（最大27文字）
   // area とは独立した別軸のフラグ。
-  showOnTop:    boolean; // トップ（/＝福岡市全域）に出すか
+  showOnTop:    boolean; // トップ（/＝福岡全域）に出すか
   dispatchType: 'none' | 'available' | 'only'; // 出張区分（none=なし / available=店舗あり＋出張 / only=出張専門）
   cardBoost:    boolean; // カード優先表示（バナー設置特典）。true で一覧の上側に来やすい。
   bumpedAt:     string | null; // 上位表示（bump）ボタンを最後に押した時刻。今朝6時以降なら先頭に出す。
