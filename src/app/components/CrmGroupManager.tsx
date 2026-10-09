@@ -254,7 +254,7 @@ export default function CrmGroupManager({ allSalons, onToast }: {
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
                     <th className="px-4 py-2 font-bold">店舗</th>
-                    <th className="px-4 py-2 font-bold">法人名</th>
+                    <th className="px-4 py-2 font-bold">運営者（法人名・屋号）</th>
                     <th className="px-4 py-2 font-bold">契約書を受け取った日</th>
                     <th className="px-4 py-2 font-bold">入れた日</th>
                     <th className="px-4 py-2 font-bold" />
@@ -334,7 +334,7 @@ export default function CrmGroupManager({ allSalons, onToast }: {
                 </select>
               </label>
               <label className="block">
-                <span className={LABEL}>法人名（個人なら屋号かお名前）</span>
+                <span className={LABEL}>運営者（法人名。個人なら屋号かお名前）</span>
                 <input value={a.corpName} onChange={(ev) => setA({ corpName: ev.target.value })} maxLength={80} className={`mt-1 ${INPUT}`} />
               </label>
               <label className="block">
@@ -355,7 +355,7 @@ export default function CrmGroupManager({ allSalons, onToast }: {
                     {busy === 'invite-' + g.id ? '入れています…' : '画面で申し込んでもらう（署名待ちで入れる）'}
                   </button>
                   <span className="text-[11px] text-gray-500 leading-relaxed">
-                    上の「店舗」と「法人名」を使います（日付は要りません）。★ 申込書の文は下書きです（版 {applyVersion}・弁護士の確認前）。
+                    上の「店舗」と「運営者」を使います（日付は要りません）。運営者の欄は、申込書で相手の店にも見えます（個人のお店は屋号がおすすめです）。★ 申込書の文は下書きです（版 {applyVersion}・弁護士の確認前）。
                   </span>
                 </>
               ) : (

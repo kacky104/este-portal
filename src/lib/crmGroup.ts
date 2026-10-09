@@ -75,8 +75,8 @@ export function checkCrmGroupMember(input: { salonId: unknown; corpName: unknown
   const salonId = Number(input.salonId);
   if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗を選んでください' };
   const corp = typeof input.corpName === 'string' ? input.corpName.trim() : '';
-  if (corp.length === 0) return { ok: false, error: '法人名（個人なら屋号かお名前）を入れてください' };
-  if (corp.length > CRM_GROUP_CORP_NAME_MAX) return { ok: false, error: '法人名は' + CRM_GROUP_CORP_NAME_MAX + '文字までです' };
+  if (corp.length === 0) return { ok: false, error: '運営者（法人名。個人なら屋号かお名前）を入れてください' };
+  if (corp.length > CRM_GROUP_CORP_NAME_MAX) return { ok: false, error: '運営者の欄は' + CRM_GROUP_CORP_NAME_MAX + '文字までです' };
   if (!isISODate(input.agreedOn)) return { ok: false, error: '契約書を受け取った日を入れてください' };
   if (isISODate(todayISO) && input.agreedOn > todayISO) return { ok: false, error: '契約書を受け取った日が、今日より先になっています' };
   return { ok: true };

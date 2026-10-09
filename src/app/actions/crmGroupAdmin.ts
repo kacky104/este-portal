@@ -200,8 +200,8 @@ export async function adminInviteCrmGroupMember(input: { groupId: number; salonI
   if (!Number.isInteger(groupId) || groupId <= 0) return { ok: false, error: 'グループが不正です' };
   if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗を選んでください' };
   const corp = String(input.corpName ?? '').trim();
-  if (corp.length === 0) return { ok: false, error: '法人名（個人なら屋号かお名前）を入れてください' };
-  if (corp.length > CRM_GROUP_CORP_NAME_MAX) return { ok: false, error: '法人名は' + CRM_GROUP_CORP_NAME_MAX + '文字までです' };
+  if (corp.length === 0) return { ok: false, error: '運営者（法人名。個人なら屋号かお名前）を入れてください' };
+  if (corp.length > CRM_GROUP_CORP_NAME_MAX) return { ok: false, error: '運営者の欄は' + CRM_GROUP_CORP_NAME_MAX + '文字までです' };
   const svc = createServiceClient();
 
   const { data: g, error: gErr } = await svc.from('crm_groups').select('id, ended_at').eq('id', groupId).maybeSingle();
