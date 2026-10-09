@@ -2319,6 +2319,9 @@ async function phoneOwners(svc: Svc, salonId: number, phones: string[]): Promise
 
 async function classifyImport(svc: Svc, salonId: number, rows: { name: string; phones: string[] }[]) {
   const owners = await phoneOwners(svc, salonId, rows.flatMap((r) => r.phones));
+  return classifyImportUsing(svc, salonId, rows, owners);
+}
+async function classifyImportUsing(svc: Svc, salonId: number, rows: { name: string; phones: string[] }[], owners: Map<string, number>) {
   const ids = [...new Set([...owners.values()])];
   const names = new Map<number, string>();
   for (let i = 0; i < ids.length; i += 300) {
@@ -2338,6 +2341,11 @@ async function classifyImport(svc: Svc, salonId: number, rows: { name: string; p
     r.phones.forEach((p) => seen.add(p));
     return { ...r, status, existingId, existingName: existingId != null ? names.get(existingId) ?? '' : '' };
   });
+}
+/** ★ 2026-10-09 点検#25: 取り込みで「番号の持ち主」をもう一度読まないよう、判定と一緒に返す */
+async function classifyImportWithOwners(svc: Svc, salonId: number, rows: { name: string; phones: string[] }[]) {
+  const owners = await phoneOwners(svc, salonId, rows.flatMap((r) => r.phones));
+  return { owners, rows: await classifyImportUsing(svc, salonId, rows, owners) };
 }
 
 /** 取り込む前の確認（新規／もう台帳にいる／ファイルの中で重複／番号なし） */
@@ -2364,7 +2372,7 @@ export async function importCrmCustomers(
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   const svc = auth.svc;
-  const res = await classifyImport(svc, salonId, cleanImportRows(rows));
+  const { owners, rows: res } = await classifyImportWithOwners(svc, salonId, cleanImportRows(rows));
   let created = 0;
   let updated = 0;
   let skipped = 0;
@@ -2388,22 +2396,44 @@ export async function importCrmCustomers(
   }
 
   // もう台帳にいる人：名前が空なら入れる・足りない番号を足す（5件まで）
-  for (const r of res.filter((x) => x.status === 'exists' && x.existingId != null)) {
+  // ★ 2026-10-09 点検#25: 前は1人ごとに 名前の update・番号の select・持ち主の select・insert（最大4往復）＝3,000人で数千往復になり、
+  //   Vercel の実行時間で切れると途中まで入って返事が無かった。→ いまの番号を300人ずつまとめて読み、持ち主は判定のときの owners を使い、
+  //   足す番号は200件ずつまとめて insert。名前の update だけ（名前が空の人限定・まれ）は1人ずつのまま。
+  const exists = res.filter((x) => x.status === 'exists' && x.existingId != null);
+  const haveByCustomer = new Map<number, Set<string>>();
+  const existIds = [...new Set(exists.map((r) => r.existingId!))];
+  for (let i = 0; i < existIds.length; i += 300) {
+    const { data: cur, error: cErr } = await svc.from('salon_customer_phones').select('customer_id, phone')
+      .eq('salon_id', salonId).in('customer_id', existIds.slice(i, i + 300));
+    if (cErr) return { ok: false, error: `取り込みの途中で止まりました（新規 ${created}人は登録済み・既存の人はまだ）：${cErr.message}` };
+    for (const p of cur ?? []) {
+      const k = Number(p.customer_id);
+      if (!haveByCustomer.has(k)) haveByCustomer.set(k, new Set());
+      haveByCustomer.get(k)!.add(String(p.phone));
+    }
+  }
+  const toInsert: { customer_id: number; salon_id: number; phone: string }[] = [];
+  for (const r of exists) {
     const id = r.existingId!;
     let changed = false;
     if (!r.existingName.trim() && r.name) {
       await svc.from('salon_customers').update({ name: r.name, updated_at: new Date().toISOString() }).eq('salon_id', salonId).eq('id', id);
       changed = true;
     }
-    const { data: cur } = await svc.from('salon_customer_phones').select('phone').eq('customer_id', id);
-    const have = new Set((cur ?? []).map((p) => String(p.phone)));
-    const owners = await phoneOwners(svc, salonId, r.phones.filter((p) => !have.has(p)));
+    const have = haveByCustomer.get(id) ?? new Set<string>();
+    // ★ owners は取り込む全番号の持ち主（判定のとき読んだもの）。別の人の番号は足さない。自分の番号は have で除く
     const add = r.phones.filter((p) => !have.has(p) && !owners.has(p)).slice(0, Math.max(0, 5 - have.size));
-    if (add.length > 0) {
-      await svc.from('salon_customer_phones').insert(add.map((phone) => ({ customer_id: id, salon_id: salonId, phone })));
-      changed = true;
-    }
+    for (const phone of add) { toInsert.push({ customer_id: id, salon_id: salonId, phone }); have.add(phone); }
+    if (add.length > 0) changed = true;
     if (changed) updated++; else skipped++;
+  }
+  for (let i = 0; i < toInsert.length; i += 200) {
+    const chunk = toInsert.slice(i, i + 200);
+    const { error: pErr } = await svc.from('salon_customer_phones').insert(chunk);
+    if (pErr) {
+      // まとめて入らなければ1件ずつ（その間に同じ番号が登録された等）
+      for (const p of chunk) await svc.from('salon_customer_phones').insert(p);
+    }
   }
   skipped += res.filter((r) => r.status === 'dup' || r.status === 'invalid').length;
   return { ok: true, created, updated, skipped };
