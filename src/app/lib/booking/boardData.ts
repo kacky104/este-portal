@@ -41,11 +41,16 @@ export type BookingBoardData = {
   defaultIntervalMin: number;   // 施術後インターバルの店舗設定（受付フォームの初期値・2026-08-15）
 };
 
-export const INTERVAL_OPTIONS_MIN = [0, 15, 30, 45, 60] as const;
+// ★ 第1361便: フクエスCRM の受付・変更は 5分刻み（なし・5・10・15・20・25・30）に。予約に入る値は 0〜60 の5分刻みなら受ける
+//   （前は 0・15・30・45・60 だけ。既存の 45・60 の予約もそのまま保存できる）。salons.default_interval_min の CHECK（0,15,30,45,60）はそのまま
+export const INTERVAL_OPTIONS_MIN = [0, 5, 10, 15, 20, 25, 30, 45, 60] as const;
+export function isValidIntervalMin(n: number): boolean {
+  return Number.isInteger(n) && n >= 0 && n <= 60 && n % 5 === 0;
+}
 
 export function normalizeIntervalMin(raw: unknown): number {
   const n = Number(raw ?? 0);
-  return (INTERVAL_OPTIONS_MIN as readonly number[]).includes(n) ? n : 0;
+  return isValidIntervalMin(n) ? n : 0;
 }
 
 // salons.booking_courses(JSON) → 型付き配列（不正な要素は除外）。

@@ -114,7 +114,11 @@ const REFRESH_MS = 60_000;
 const FORCE_RELOAD_MS = 10 * 60_000;
 const CLICK_STEP_MIN = 15;   // 空きを押したときの開始時刻の刻み
 const FORM_STEP_MIN = 5;     // フォームで選べる開始時刻の刻み（CTIv2 と同じ5分）
-const INTERVAL_OPTIONS = [0, 15, 30, 45, 60] as const;
+// ★ 第1361便（カッキーさん）: インターバルの選択肢を なし・5・10・15・20・25・30分 に（前は 0・15・30・45・60）。
+//   ★ 既存の予約や店の既定が 45・60 のときは、その値も選択肢に足して出す（変更して保存できるように・サーバーは5分刻み 0〜60 を受ける）
+const INTERVAL_OPTIONS = [0, 5, 10, 15, 20, 25, 30] as const;
+const intervalOptionsWith = (cur: number): number[] =>
+  (INTERVAL_OPTIONS as readonly number[]).includes(cur) ? [...INTERVAL_OPTIONS] : [...INTERVAL_OPTIONS, cur].sort((a, b) => a - b);
 
 const JST_HM = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false });
 
@@ -543,7 +547,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               startMin: min,
               courseName: first?.name ?? '',
               courseMin: first?.durationMin ?? 60,
-              intervalMin: (INTERVAL_OPTIONS as readonly number[]).includes(data?.defaultIntervalMin ?? 0) ? (data?.defaultIntervalMin ?? 0) : 0,
+              intervalMin: data?.defaultIntervalMin ?? 0, // ★ 第1361便: 店の既定（45・60 でも選択肢に足して出す）
               customerName: '',
               customerTel: '',
               note: '',
@@ -1840,7 +1844,7 @@ function BookingForm({
             <div>
               <label className={labCls}>インターバル（次の予約まで空ける）</label>
               <select className={fieldCls} value={f.intervalMin} onChange={(e) => set('intervalMin', Number(e.target.value))}>
-                {INTERVAL_OPTIONS.map((m) => <option key={m} value={m}>{m === 0 ? 'なし' : `${m}分`}</option>)}
+                {intervalOptionsWith(f.intervalMin).map((m) => <option key={m} value={m}>{m === 0 ? 'なし' : `${m}分`}</option>)}
               </select>
             </div>
           </div>

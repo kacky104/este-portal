@@ -8,7 +8,7 @@ import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { buildSlots, scheduleWindowUtc, jstWallToUtc, SLOT_STEP_MIN, type Slot } from '@/app/lib/booking/slots';
 // ★ 第1113便: 予約ボードの「読む」部分と型は src/app/lib/booking/boardData.ts へ（フクエスCRM と共有・認証はこちら）
 import {
-  loadBookingBoard, parseBookingCourses, normalizeIntervalMin, shiftDateStr, INTERVAL_OPTIONS_MIN,
+  loadBookingBoard, parseBookingCourses, normalizeIntervalMin, shiftDateStr, isValidIntervalMin,
   type BookingCourse, type OwnerBooking, type BookingBoardData,
 } from '@/app/lib/booking/boardData';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
@@ -791,8 +791,8 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   if (!Number.isInteger(durationMin) || durationMin < SLOT_STEP_MIN || durationMin > 720) {
     return { ok: false, error: '所要時間が不正です' };
   }
-  if (!(INTERVAL_OPTIONS_MIN as readonly number[]).includes(intervalMin)) {
-    return { ok: false, error: 'インターバルが不正です' };
+  if (!isValidIntervalMin(intervalMin)) {
+    return { ok: false, error: 'インターバルが不正です（0〜60分・5分刻み）' };
   }
   if (!customerName) return { ok: false, error: 'お客様名を入力してください' };
   if (customerTel && !/^\d{6,20}$/.test(customerTel)) {
@@ -1051,8 +1051,8 @@ export async function updateBookingDetails(
   if (!Number.isInteger(courseMin) || courseMin < SLOT_STEP_MIN || courseMin > 720) {
     return { ok: false, error: 'コース時間が不正です' };
   }
-  if (!(INTERVAL_OPTIONS_MIN as readonly number[]).includes(intervalMin)) {
-    return { ok: false, error: 'インターバルが不正です' };
+  if (!isValidIntervalMin(intervalMin)) {
+    return { ok: false, error: 'インターバルが不正です（0〜60分・5分刻み）' };
   }
   if (!customerName) return { ok: false, error: 'お客様名を入力してください' };
   if (customerTel && !/^\d{6,20}$/.test(customerTel)) {
