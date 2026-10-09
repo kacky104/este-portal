@@ -22,13 +22,17 @@ export function decodeText(buf: ArrayBuffer): string {
   try { return new TextDecoder('shift_jis').decode(buf); } catch { return utf8; }
 }
 
-function decodeQuotedPrintable(s: string): string {
+// ★ 点検（低）: CHARSET=SHIFT_JIS（ガラケー・古い Android の .vcf）は shift_jis で戻す（前は常に UTF-8 で、名前が化けた。番号は数字なので無事だった）
+function decodeQuotedPrintable(s: string, charset = 'utf-8'): string {
   const bytes: number[] = [];
   for (let i = 0; i < s.length; i++) {
     if (s[i] === '=' && /^[0-9A-Fa-f]{2}$/.test(s.slice(i + 1, i + 3))) { bytes.push(parseInt(s.slice(i + 1, i + 3), 16)); i += 2; }
     else bytes.push(s.charCodeAt(i) & 0xff);
   }
-  try { return new TextDecoder('utf-8').decode(new Uint8Array(bytes)); } catch { return s; }
+  const label = /shift[-_]?jis|sjis|cp932|windows-31j/i.test(charset) ? 'shift_jis' : 'utf-8';
+  try { return new TextDecoder(label).decode(new Uint8Array(bytes)); } catch {
+    try { return new TextDecoder('utf-8').decode(new Uint8Array(bytes)); } catch { return s; }
+  }
 }
 
 function unescapeVcard(v: string): string {
@@ -65,7 +69,7 @@ export function parseVcf(text: string): ImportRow[] {
     const head = line.slice(0, idx);
     let val = line.slice(idx + 1);
     const key = head.split(';')[0].split('.').pop()!.toUpperCase();
-    if (/ENCODING=QUOTED-PRINTABLE/i.test(head)) val = decodeQuotedPrintable(val);
+    if (/ENCODING=QUOTED-PRINTABLE/i.test(head)) val = decodeQuotedPrintable(val, /CHARSET=([A-Za-z0-9_-]+)/i.exec(head)?.[1] ?? 'utf-8');
     if (key === 'FN') cur.fn = unescapeVcard(val);
     else if (key === 'N') {
       const [family = '', given = ''] = val.split(';');

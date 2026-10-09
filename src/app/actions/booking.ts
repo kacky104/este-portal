@@ -19,6 +19,7 @@ import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
 import { linkBookingCustomer } from '@/app/lib/crm/linkCustomer';
 import { breakBlocks, breakConflict } from '@/app/lib/crm/breakGuard';
+import { dbMessage } from '@/app/lib/crm/dbError';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -385,7 +386,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   });
   if (insErr) {
     if (isSlotConflictError(insErr.code)) return { ok: false, error: 'slot_taken' };
-    return { ok: false, error: insErr.message };
+    return { ok: false, error: dbMessage(insErr) };
   }
 
   // 予約成立後、店の通知先メールへ Resend で予約通知を送信する。
@@ -458,7 +459,7 @@ export async function getSalonBookings(
     // 表示の上限であって、データの保持期間ではない（詳しくは lib/booking/limits.ts のコメント）。
     // 上限に達したことは画面側でも同じ定数を使って案内している（2026-08-16）。
     .limit(SALON_BOOKINGS_LIMIT);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
 
   const bookingRows = rows ?? [];
   // セラピスト名を辞書引き（N+1回避）。therapist_id=NULL はフリー客（担当未定・2026-08-14）。
@@ -607,7 +608,7 @@ export async function updateBookingStatus(
         ? overlapQuery.eq('therapist_id', therapistId)
         : overlapQuery.eq('salon_id', salonId).is('therapist_id', null);
       const { data: others, error: oErr } = await overlapQuery;
-      if (oErr) return { ok: false, error: oErr.message };
+      if (oErr) return { ok: false, error: dbMessage(oErr) };
       if (others && others.length > 0) return { ok: false, error: 'その時間帯には別の予約が入っています（キャンセルを取り消せません）' };
       // フクエスCRMの休憩との重なり（第551便と同じ）
       if (therapistId !== null) {
@@ -625,7 +626,7 @@ export async function updateBookingStatus(
     .eq('id', bookingId);
   if (error) {
     if (isSlotConflictError(error.code)) return { ok: false, error: 'その時間帯には別の予約が入っています（キャンセルを取り消せません）' };
-    return { ok: false, error: error.message };
+    return { ok: false, error: dbMessage(error) };
   }
   return { ok: true };
 }
@@ -653,7 +654,7 @@ export async function deleteBooking(
     .from('salon_bookings')
     .delete()
     .eq('id', bookingId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -841,7 +842,7 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
       .lt('slot_start', slotEnd.toISOString())
       .gt('slot_end', slotStart.toISOString())
       .limit(1);
-    if (freeErr) return { ok: false, error: freeErr.message };
+    if (freeErr) return { ok: false, error: dbMessage(freeErr) };
     if (freeRows && freeRows.length > 0) return { ok: false, error: 'その時間帯は既にフリー客の予約が入っています' };
   }
 
@@ -868,7 +869,7 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
   }).select('id').single();
   if (insErr) {
     if (isSlotConflictError(insErr.code)) return { ok: false, error: 'その時間帯は既に予約が入っています' };
-    return { ok: false, error: insErr.message };
+    return { ok: false, error: dbMessage(insErr) };
   }
   // ★ bookingId はフクエスCRM（料金・報酬を続けて保存する）で使う（第536便）。予約ボードは使っていない。
   return { ok: true, bookingId: inserted ? String(inserted.id) : undefined };
@@ -946,7 +947,7 @@ export async function moveBooking(
     ? overlapQuery.eq('therapist_id', therapistId)
     : overlapQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
   const { data: others, error: oErr } = await overlapQuery;
-  if (oErr) return { ok: false, error: oErr.message };
+  if (oErr) return { ok: false, error: dbMessage(oErr) };
   if (others && others.length > 0) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
   // ★ フクエスCRMの休憩の時間には移せない（第551便）
   if (therapistId !== null) {
@@ -966,7 +967,7 @@ export async function moveBooking(
     .eq('id', bookingId);
   if (upErr) {
     if (isSlotConflictError(upErr.code)) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
-    return { ok: false, error: upErr.message };
+    return { ok: false, error: dbMessage(upErr) };
   }
   return { ok: true };
 }
@@ -1002,7 +1003,7 @@ export async function getBookingCountsByDay(
     .neq('status', 'cancelled')
     .lt('slot_start', to.toISOString())
     .gt('slot_end', from.toISOString());
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
 
   const counts: Record<string, number> = Object.fromEntries(days.map((d) => [d, 0]));
   const windows = days.map((d) => ({
@@ -1086,7 +1087,7 @@ export async function updateBookingDetails(
       ? overlapQuery.eq('therapist_id', Number(booking.therapist_id))
       : overlapQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
     const { data: others, error: oErr } = await overlapQuery;
-    if (oErr) return { ok: false, error: oErr.message };
+    if (oErr) return { ok: false, error: dbMessage(oErr) };
     if (others && others.length > 0) {
       return { ok: false, error: '枠を伸ばすと他の予約と重なります（先に移動やインターバル調整をしてください）' };
     }
@@ -1116,7 +1117,7 @@ export async function updateBookingDetails(
     if (isSlotConflictError(upErr.code)) {
       return { ok: false, error: '枠を伸ばすと他の予約と重なります（先に移動やインターバル調整をしてください）' };
     }
-    return { ok: false, error: upErr.message };
+    return { ok: false, error: dbMessage(upErr) };
   }
   return { ok: true };
 }

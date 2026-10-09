@@ -19,6 +19,7 @@ import { loadBookingBoard, normalizeIntervalMin } from '@/app/lib/booking/boardD
 import { scheduleWindowUtc } from '@/app/lib/booking/slots';
 import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
 import { assertCrmOwner, isCrmActive } from '@/app/lib/crm/auth';
+import { dbMessage } from '@/app/lib/crm/dbError';
 import { headers } from 'next/headers';
 import { businessDateNowJST } from '@/app/lib/crm/consentMatch';
 // ★ 第1325便: グループ・提携店で共有するNG・要注意リスト（受付・スケジュールに出す）
@@ -232,19 +233,19 @@ export async function searchCrmCustomers(
     const { data, error } = await svc
       .from('salon_customers').select(LIST_COLS)
       .eq('salon_id', salonId).order('updated_at', { ascending: false }).limit(LIST_LIMIT);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
     rows = (data ?? []) as CustomerDbRow[];
   } else if (/^\d{4,13}$/.test(digits)) {
     const { data: ph, error: pErr } = await svc
       .from('salon_customer_phones').select('customer_id')
       .eq('salon_id', salonId).like('phone', `%${digits}%`).limit(LIST_LIMIT);
-    if (pErr) return { ok: false, error: pErr.message };
+    if (pErr) return { ok: false, error: dbMessage(pErr) };
     const ids = [...new Set((ph ?? []).map((p) => Number(p.customer_id)))];
     if (ids.length > 0) {
       const { data, error } = await svc
         .from('salon_customers').select(LIST_COLS)
         .eq('salon_id', salonId).in('id', ids).order('updated_at', { ascending: false });
-      if (error) return { ok: false, error: error.message };
+      if (error) return { ok: false, error: dbMessage(error) };
       rows = (data ?? []) as CustomerDbRow[];
     }
   } else {
@@ -256,7 +257,7 @@ export async function searchCrmCustomers(
       .eq('salon_id', salonId)
       .or(`name.ilike.%${safe}%,name_kana.ilike.%${safe}%,member_no.ilike.%${safe}%,memo.ilike.%${safe}%,caution_memo.ilike.%${safe}%`)
       .order('updated_at', { ascending: false }).limit(LIST_LIMIT);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
     rows = (data ?? []) as CustomerDbRow[];
   }
 
@@ -294,7 +295,7 @@ export async function listCrmDormantCustomers(
   const { data, error } = await svc
     .from('salon_customers').select('id, name, member_no, category')
     .eq('salon_id', salonId).order('id').limit(5000);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   const rows = (data ?? []) as Array<{ id: unknown; name: unknown; member_no: unknown; category: unknown }>;
   const ids = rows.map((r) => Number(r.id));
   const stats = await statsFor(svc, salonId, ids);
@@ -480,12 +481,12 @@ export async function saveCrmCustomer(
     const { data, error } = await svc
       .from('salon_customers').update(fields)
       .eq('salon_id', salonId).eq('id', customerId).select('id');
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
     if (!data || data.length === 0) return { ok: false, error: 'お客様が見つかりません' };
   } else {
     const { data, error } = await svc
       .from('salon_customers').insert({ salon_id: salonId, ...fields }).select('id').single();
-    if (error || !data) return { ok: false, error: error?.message ?? '登録できませんでした' };
+    if (error || !data) return { ok: false, error: error ? dbMessage(error, '登録') : '登録できませんでした' };
     customerId = Number(data.id);
   }
 
@@ -535,7 +536,7 @@ export async function setCrmCancelBad(
     .eq('id', bookingId)
     .eq('status', 'cancelled')
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   if (!data || data.length === 0) return { ok: false, error: 'キャンセル済みの予約だけに付けられます' };
   return { ok: true };
 }
@@ -548,7 +549,7 @@ export async function getCrmTherapists(
   if (!auth.ok) return auth;
   const { data, error } = await auth.svc
     .from('therapists').select('id, name, is_active').eq('salon_id', salonId).order('id', { ascending: true });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return {
     ok: true,
     therapists: (data ?? []).map((t) => ({
@@ -823,13 +824,13 @@ export async function saveCrmTherapistMemo(
 
   if (!text) {
     const { error } = await svc.from('crm_therapist_memos').delete().eq('therapist_id', therapistId);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
     return { ok: true };
   }
   const { error } = await svc
     .from('crm_therapist_memos')
     .upsert({ therapist_id: therapistId, salon_id: salonId, memo: text, updated_at: new Date().toISOString() });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -985,11 +986,11 @@ export async function saveCrmPriceItem(
   if (input.id) {
     const { data, error } = await auth.svc
       .from('crm_price_items').update(row).eq('salon_id', salonId).eq('id', input.id).select('id');
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
     if (!data || data.length === 0) return { ok: false, error: '項目が見つかりません' };
   } else {
     const { error } = await auth.svc.from('crm_price_items').insert({ salon_id: salonId, ...row });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
   }
   return { ok: true };
 }
@@ -1007,7 +1008,7 @@ export async function deleteCrmPriceItem(
   }
   // ★ 予約は項目を写して持っているので、消しても過去の予約の金額は変わらない
   const { error } = await auth.svc.from('crm_price_items').delete().eq('salon_id', salonId).eq('id', id);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -1083,7 +1084,7 @@ export async function setCrmBookingPricing(
     })
     .eq('salon_id', salonId)
     .eq('id', input.bookingId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true, priceTotal: priceTotal ?? 0, payTotal: payTotal ?? 0 };
 }
 
@@ -1238,7 +1239,7 @@ export async function confirmCrmPay(
     confirmed_at: new Date().toISOString(),
     confirmed_by: auth.userId,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -1253,7 +1254,7 @@ export async function unconfirmCrmPay(
   const { error } = await auth.svc
     .from('crm_pay_confirms').delete()
     .eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -1360,7 +1361,7 @@ export async function closeCrmDay(
     closed_at: new Date().toISOString(),
     closed_by: auth.userId,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -1372,7 +1373,7 @@ export async function reopenCrmDay(
   if (!auth.ok) return auth;
   if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
   const { error } = await auth.svc.from('crm_daily_reports').delete().eq('salon_id', salonId).eq('business_date', dateISO);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -1392,7 +1393,7 @@ export async function listCrmReports(
     .gte('business_date', `${ym}-01`)
     .lt('business_date', `${next}-01`)
     .order('business_date', { ascending: true });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true, reports: (data ?? []).map((r) => toReport(r as Record<string, unknown>)) };
 }
 
@@ -1423,7 +1424,7 @@ export async function getCrmMonthStats(
     .lt('slot_start', new Date(endMs).toISOString())
     .order('slot_start', { ascending: true })
     .limit(20000);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   const list = rows ?? [];
 
   const { data: conf } = await svc
@@ -1544,7 +1545,7 @@ export async function setCrmPlayStatus(
   const { data, error } = await auth.svc
     .from('salon_bookings').update({ play_status: playStatus })
     .eq('salon_id', salonId).eq('id', bookingId).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   if (!data || data.length === 0) return { ok: false, error: '予約が見つかりません' };
   return { ok: true };
 }
@@ -1562,7 +1563,7 @@ export async function setCrmReceived(
     .from('salon_bookings')
     .update({ received_by: receivedBy, received_at: receivedBy ? new Date().toISOString() : null })
     .eq('salon_id', salonId).eq('id', bookingId).neq('status', 'cancelled').select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   if (!data || data.length === 0) return { ok: false, error: '予約が見つかりません（キャンセルの予約は受領にできません）' };
   return { ok: true };
 }
@@ -1712,7 +1713,7 @@ export async function saveCrmSettings(
     custom_toggles: customToggles,
     updated_at: new Date().toISOString(),
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -1733,7 +1734,7 @@ export async function setCrmWorkEnd(
     salon_id: salonId, therapist_id: therapistId, business_date: dateISO, end_type: endType,
     updated_at: new Date().toISOString(),
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -1816,7 +1817,7 @@ export async function saveCrmWorkDay(
     toggle_values: toggleValues,
     updated_at: new Date().toISOString(),
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -2126,7 +2127,7 @@ export async function addCrmMoneyMove(
     .is('cancelled_at', null)
     .gte('created_at', new Date(Date.now() - 10_000).toISOString())
     .limit(1);
-  if (dupErr) return { ok: false, error: dupErr.message };
+  if (dupErr) return { ok: false, error: dbMessage(dupErr) };
   if (dup && dup.length > 0) return { ok: false, error: '同じ内容を数秒前に記録しています（二重でなければ、少し待ってからもう一度）' };
   const { error } = await auth.svc.from('crm_money_moves').insert({
     salon_id: salonId,
@@ -2138,7 +2139,7 @@ export async function addCrmMoneyMove(
     memo: String(input.memo ?? '').trim().slice(0, 200),
     created_by: auth.userId,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -2152,7 +2153,7 @@ export async function cancelCrmMoneyMove(
   const { data, error } = await auth.svc.from('crm_money_moves')
     .update({ cancelled_at: new Date().toISOString() })
     .eq('salon_id', salonId).eq('id', moveId).is('cancelled_at', null).select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   if (!data || data.length === 0) return { ok: false, error: '見つからないか、もう取り消してあります' };
   return { ok: true };
 }
@@ -2199,7 +2200,7 @@ export async function getCrmRoomQr(
     // 入れ替えのとき unique にぶつからないよう、先に prev を空にしてから書く
     if (cur) await auth.svc.from('crm_room_tokens').update({ prev_token: null }).eq('salon_id', salonId).eq('room', r);
     const { error } = await auth.svc.from('crm_room_tokens').upsert({ salon_id: salonId, room: r, ...row });
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
   }
   return { ok: true, url: `https://fukues.com/g/${row.token}`, createdAt: row.created_at, prevCreatedAt: row.prev_created_at };
 }
@@ -2216,7 +2217,7 @@ export async function getCrmBookingConsents(
     .select('id, created_at, room, agreed_title, agreed_body, signature_png, superseded_at, user_agent')
     .eq('salon_id', salonId).eq('booking_id', bookingId)
     .order('created_at', { ascending: false }).limit(20);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return {
     ok: true,
     consents: (data ?? []).map((r) => ({
@@ -2289,7 +2290,7 @@ export async function revokeCrmConsentManual(
     .eq('salon_id', salonId).eq('booking_id', bookingId).is('superseded_at', null)
     .like('user_agent', CONSENT_MANUAL_UA + '%')
     .select('id');
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   if (!data || data.length === 0) return { ok: false, error: '取り消せる手動の了承がありません（QR のサインは取り消せません）' };
   return { ok: true };
 }
@@ -2452,7 +2453,7 @@ export async function agreeCrmTerms(salonId: number): Promise<{ ok: true } | { o
   const ua = ((await headers()).get('user-agent') ?? '').slice(0, 300);
   const { error } = await auth.svc.from('crm_terms_agreements')
     .upsert({ salon_id: salonId, version: CRM_TERMS_VERSION, agreed_by: auth.userId, user_agent: ua }, { onConflict: 'salon_id,version', ignoreDuplicates: true });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -2510,14 +2511,14 @@ export async function deleteCrmCustomer(
   for (let i = 0; i < bookingIds.length; i += 300) {
     const chunk = bookingIds.slice(i, i + 300);
     const { error: cErr } = await svc.from('crm_consents').delete().eq('salon_id', salonId).in('booking_id', chunk);
-    if (cErr) return { ok: false, error: cErr.message }; // ★ 2026-10-09 点検#10: 同意書を消せなかったら止める
+    if (cErr) return { ok: false, error: dbMessage(cErr) }; // ★ 2026-10-09 点検#10: 同意書を消せなかったら止める
     const { error } = await svc.from('salon_bookings')
       .update({ customer_name: '削除済み', customer_tel: '', customer_id: null, note: null })
       .eq('salon_id', salonId).in('id', chunk);
-    if (error) return { ok: false, error: error.message };
+    if (error) return { ok: false, error: dbMessage(error) };
   }
   const { error } = await svc.from('salon_customers').delete().eq('salon_id', salonId).eq('id', customerId);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   return { ok: true };
 }
 
@@ -2621,7 +2622,7 @@ export async function searchCrmBookings(
     else q = q.ilike('customer_name', `%${text.replace(/[%_\\]/g, '')}%`);
   }
   const { data, error } = await q.order('slot_start', { ascending: false }).limit(BOOKING_LIST_MAX + 1);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error) };
   const names = await therapistNames(svc, salonId);
   const rows = (data ?? []).slice(0, BOOKING_LIST_MAX).map((b) => ({
     id: String(b.id),

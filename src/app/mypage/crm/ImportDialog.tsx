@@ -55,7 +55,8 @@ export function ImportDialog({ salonId, onClose, onDone }: { salonId: number; on
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
+      {/* ★ 点検（低）: 読み込んだ結果（rows）があるときは、背景タップでは閉じない（×か「やめる」だけ。指が当たって結果が消えないように） */}
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={busy || rows ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
         <div className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[720px] flex-col bg-white shadow-2xl">
           <div className="flex items-center bg-indigo-600 px-4 py-2.5 text-white">

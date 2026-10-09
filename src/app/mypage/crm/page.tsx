@@ -178,6 +178,15 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     }
     return businessTodayJST();
   });
+  // ★ 点検（低 R）: 見ている日付を URL（?date=）に残す。明日を見ている途中でスマホのブラウザが再読込しても、顧客台帳から戻っても同じ日に戻る。
+  //   ★ 今日のときは ?date= を消す（ブックマークが「今日」のままになるように）。?salon= は残す
+  useEffect(() => {
+    try {
+      const u = new URL(window.location.href);
+      if (date === businessTodayJST()) u.searchParams.delete('date'); else u.searchParams.set('date', date);
+      window.history.replaceState(window.history.state, '', u.toString());
+    } catch { /* 何もしない */ }
+  }, [date]);
   const [data, setData] = useState<CrmScheduleData | null>(null);
   const [err, setErr] = useState('');
   const [picked, setPicked] = useState<CrmScheduleBooking | null>(null);
