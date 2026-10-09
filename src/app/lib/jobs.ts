@@ -57,8 +57,9 @@ export const JOB_FEATURES = [
   { slug: 'jitaku-haken-nashi', label: '自宅派遣なし' },
 ] as const;
 
-// 2026-08-06: 6 → 8 に拡大（運営判断）。求人の特徴タグと、求人マッチングの
-// 「その他の希望条件」の両方がこの上限を共有している。
+// 2026-08-06: 6 → 8 に拡大（運営判断）。
+// ★ 第1370便（2026-10-10・カッキーさん）: 求人の特徴タグは上限なしに（JobFields・actions/jobs.ts から外した）。
+//   いまこの値を使うのは、求人マッチングの「その他の希望条件」（WorkMatchForm・workMatch.ts）だけ。
 export const MAX_JOB_FEATURES = 8;
 
 // 求人バナー画像（salon_jobs.hero_image_urls text[] NOT NULL DEFAULT '{}'）の最大枚数。

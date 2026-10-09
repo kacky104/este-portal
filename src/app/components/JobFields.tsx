@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import type { MyJob } from '@/app/actions/jobs';
 import {
   JOB_FEATURE_GROUPS,
   featureLabel,
   featureTagColor,
-  MAX_JOB_FEATURES,
   isValidEmailFormat,
   MAX_JOB_AREA_LEN,
   MAX_JOB_WORK_HOURS_LEN,
@@ -139,9 +137,7 @@ export function JobFields({
   // アップロード欄を無効化する。
   salonId?: number | null;
 }) {
-  // 最大数に達した状態で未選択タグを押したときの警告（クライアント側）。
-  const [featureWarn, setFeatureWarn] = useState(false);
-  const atMax = value.features.length >= MAX_JOB_FEATURES;
+  // ★ 第1370便（カッキーさん）: 求人の特徴タグの上限（最大8個）をなくした。いくつでも選べる（マッチングの「その他の希望条件」の上限は別・そのまま）
 
   // お祝い金の入力エラー（クライアント側の即時フィードバック）。空欄はエラーなし（＝非表示扱い）。
   const celebrationCheck = validateCelebrationMoney(value.celebration_money);
@@ -149,14 +145,8 @@ export function JobFields({
 
   const toggleFeature = (slug: string) => {
     if (value.features.includes(slug)) {
-      setFeatureWarn(false);
       onChange({ features: value.features.filter((s) => s !== slug) });
     } else {
-      if (atMax) {
-        setFeatureWarn(true);
-        return;
-      }
-      setFeatureWarn(false);
       onChange({ features: [...value.features, slug] });
     }
   };
@@ -261,11 +251,11 @@ export function JobFields({
         </FieldWithCount>
       </div>
 
-      {/* 特徴タグ（任意・最大6個）。選んだタグの絞り込みページ /jobs/tag/[slug] に掲載される。 */}
+      {/* 特徴タグ（任意・いくつでも）。選んだタグの絞り込みページ /jobs/tag/[slug] に掲載される。 */}
       <div>
-        <Label>特徴タグ（任意・最大{MAX_JOB_FEATURES}個）</Label>
+        <Label>特徴タグ（任意）</Label>
         <p className="text-[10px] text-slate-400 mb-2">
-          選んだタグの絞り込みページに掲載されます。現在 {value.features.length}/{MAX_JOB_FEATURES} 個
+          選んだタグの絞り込みページに掲載されます。現在 {value.features.length} 個
         </p>
         <div className="space-y-3">
           {/* ★ 第958便: 求人詳細・カードと同じカテゴリー別の色（角だけ丸い長方形）。選ぶとその色で塗る。 */}
@@ -277,7 +267,7 @@ export function JobFields({
               <div className="flex flex-wrap gap-1.5">
                 {g.slugs.map((slug) => {
                   const checked = value.features.includes(slug);
-                  const disabled = !checked && atMax; // 上限到達時は未選択を不可
+                  const disabled = false; // ★ 第1370便: 上限なし
                   const c = featureTagColor(slug);
                   return (
                     <label
@@ -308,9 +298,6 @@ export function JobFields({
             );
           })}
         </div>
-        {featureWarn && (
-          <p className="text-[10px] text-rose-500 mt-2">特徴タグは最大{MAX_JOB_FEATURES}個までです。</p>
-        )}
       </div>
 
       {/* 応募通知メール（必須）。応募があるとこのアドレスに通知が届く。 */}

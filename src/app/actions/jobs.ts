@@ -12,7 +12,6 @@ import {
   CONTACT_METHODS,
   type ContactMethod,
   type ApplicationStatus,
-  MAX_JOB_FEATURES,
   MAX_JOB_HERO_IMAGES,
   MAX_JOB_GALLERY_IMAGES,
   MAX_GALLERY_CAPTION_LEN,
@@ -302,9 +301,7 @@ function validate(input: JobFormInput): { ok: true; clean: CleanJob } | Err {
     }
     if (!features.includes(slug)) features.push(slug);
   }
-  if (features.length > MAX_JOB_FEATURES) {
-    return { ok: false, error: `特徴タグは最大${MAX_JOB_FEATURES}個までです` };
-  }
+  // ★ 第1370便（カッキーさん）: 求人の特徴タグの上限（最大8個）をなくした。ホワイトリスト＋重複除去だけ（最大でもタグの総数＝18）
 
   // 求人バナー画像：配列＋各要素を文字列化・空要素除去・重複除去。上限3枚を超えたらエラー
   // （サイレント切り詰めしない＝クライアントのバグに気付けるようにする）。
