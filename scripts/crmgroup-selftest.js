@@ -213,14 +213,16 @@ console.log('\n── 10. お客様の同意書に足す文（第1327便）─�
   eq('★★★ サーバー側は、同意書を自動で書き換えない', /addCrmGroupConsentClause|CRM_GROUP_CONSENT_CLAUSE/.test(read('src/app/actions/crm.ts') + read('src/app/actions/crmGroupShare.ts') + read('src/app/actions/crmGroupAdmin.ts') + read('src/app/actions/consent.ts')), false);
 }
 
-console.log('\n── 11. 公式HPの利用規約（第1327便）★ 全店に同じ文で足す ──');
+console.log('\n── 11. 公式HPの利用規約 ★ この機能のことを書かない（第1333便・カッキーさんの決定）──');
 {
+  // ★ 第1327便で、全店の規約に「グループ店舗・提携店舗（ある場合）と共有することがある」の文を足したが、同じ日に外した。
+  //   この仕組みがあることは、表に出さない。規約は、お客様にも、ほかのお店のオーナー様にも読める。
   const t = read('src/app/hp/_lib/terms.ts');
-  eq('★★★ 規約は店の名前だけを受け取る（グループに入っているかで、文を出し分けない）', /export function buildHpTerms\(salonName: string\): HpTermsSection\[\]/.test(t) && !/inGroup|crm_group|crmGroup/.test(t), true);
+  const body = t.slice(t.indexOf('export function buildHpTerms'));
+  eq('★★★ 規約の本文に、グループ・提携店との共有のことを書いていない', /グループ|提携|共有/.test(body), false);
+  eq('★★★ 規約は店の名前だけを受け取る（店ごとに文を出し分けない）', /export function buildHpTerms\(salonName: string\): HpTermsSection\[\]/.test(t) && !/inGroup|crm_group|crmGroup/.test(body), true);
   eq('★★★ 規約のページも、グループの表を読まない', /crm_group|crmGroup|inGroup/.test(read('src/app/hp/_templates/subpages.tsx') + read('src/app/hp/[slug]/terms/page.tsx') + read('src/app/hp/_lib/data.ts')), false);
-  eq('★★ 条件つきで書く（グループ・提携店が無い店にも、うそにならない）', [/当店にグループ店舗・提携店舗があるときは、それらの店舗でも以後のご利用をお断りすることがあります。/.test(t), /当店のグループ店舗・提携店舗（ある場合）との間で共有することがあります。/.test(t)], [true, true]);
-  eq('★★ 「同意なく第三者に提供しません」に、例外があることを書く（実際と食い違わせない）', [/次に定める場合および法令に基づく場合を除き、ご本人の同意なく第三者に提供することはありません。/.test(t), /目的にのみ使用し、法令に基づく場合を除き/.test(t)], [true, false]);
-  eq('★ 共有する項目・目的・窓口が書いてある', ['お名前・電話番号・行為のあった日と内容', 'セラピストの安全を守り、同じ被害を防ぐ目的', 'この目的のほかには使用しません', '確認・訂正・削除のお求めは、当店までご連絡ください'].every((w) => t.includes(w)), true);
+  eq('個人情報の文は、もとのまま', /目的にのみ使用し、法令に基づく場合を除き、ご本人の同意なく第三者に提供することはありません。/.test(body), true);
 }
 
 console.log('\n── 12. 画面での申込み・承認の決まり（第1328便）──');
@@ -280,7 +282,7 @@ console.log('\n── 12. 画面での申込み・承認の決まり（第1328�
   eq('★★★ 申込書の文に、実在の店の名前を入れる所が無い', /\$\{|○○店/.test(j.CRM_GROUP_APPLY_BODY), false);
   eq('★★ 申込書に、要る項目がある（関係の表明・目的・共有できる内容・知らせ・秘密・運営の立場・加わるとき）', ['第1　関係についての表明', '第2　利用の目的と、してはいけないこと', '第3　共有できる内容', '第4　お客様への知らせ', '第6　秘密の扱い', '第8　運営の立場', '第9　店舗が加わるとき・抜けるとき・終わるとき'].every((h) => j.CRM_GROUP_APPLY_BODY.includes(h)), true);
   eq('★★★ 申込書: 無断キャンセルと料金のもめごとは共有できない、と書いてある', j.CRM_GROUP_APPLY_BODY.includes('無断キャンセルと、料金のもめごとは、共有できません。'), true);
-  eq('★★ 申込書: 公式HPを使っていない店は、自分のサイトと店頭に出す、と書いてある', /フクエスの公式ホームページを使っていない店舗は、[\s\S]{0,140}自分のサイトの利用規約（または個人情報の取り扱い）に載せ、店頭にも掲示します。/.test(j.CRM_GROUP_APPLY_BODY), true);
+  eq('★★ 申込書: お客様への知らせは、同意書の文と、店頭の掲示（サイトには載せない＝表に出さない）', [/同意書に、グループ店舗・提携店舗と共有することがある、という文を入れます/.test(j.CRM_GROUP_APPLY_BODY), /の5つを、受付や施術室など、お客様が見られる場所に掲示します。/.test(j.CRM_GROUP_APPLY_BODY), /サイトの利用規約|公式ホームページ/.test(j.CRM_GROUP_APPLY_BODY)], [true, true, false]);
   eq('★★ 申込書: あとから加わる店は、全部の参加店舗が画面で認める・それまでの共有も見える、と書いてある', j.CRM_GROUP_APPLY_BODY.includes('あとから店舗が加わるときは、そのときの全部の参加店舗が、画面で認めます。加わった店舗には、それまでに共有された内容も見えるようになります。'), true);
   eq('★★ 申込書: 「店舗」は、運営する法人または個人事業主のこと、と決めてある（個人のお店でも、責任を負う人がはっきりする）', j.CRM_GROUP_APPLY_BODY.includes('この申込書で「店舗」とは、その店舗を運営する法人、または個人事業主をいいます。'), true);
   eq('承認の記録に残す文（加わる店・件数・版）', j.crmGroupApproveBody({ name: 'テスト店', corp: 'テスト法人' }, 3).split('\n').slice(0, 3), ['次の店舗が、グループ・提携店の共有に加わることを認めます。', '　テスト店（テスト法人）', '加わると、この店舗にも、今までに共有した内容（3件）が見えるようになります。この店舗が共有した内容も、当店に見えるようになります。']);
