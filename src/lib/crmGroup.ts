@@ -81,3 +81,129 @@ export function checkCrmGroupMember(input: { salonId: unknown; corpName: unknown
   if (isISODate(todayISO) && input.agreedOn > todayISO) return { ok: false, error: '契約書を受け取った日が、今日より先になっています' };
   return { ok: true };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 第1325便（2026-10-09）: 共有の登録（顧客台帳）と、受付・スケジュールでの表示。
+//
+// ★★★ カッキーさんの決定（10/9）
+//   ・受付の帯には「何をされたか」の文まで出す（受付の人が、その場で事情を分かったうえで断れるように）。
+//   ・店舗様の画面では、【どこにも】出した店の名前を出さない（受付・スケジュール・共有リストのページ・台帳のどれにも）。
+//     フクエスCRM のログインは店ごとに1つで、受付のスタッフも同じ画面を使うため。
+//     どの店が出したかを知りたいときは、オーナー様どうしで聞いてもらう。
+//   ★ だから、画面へ返す形（CrmGroupHit・CrmGroupListRow）には、店の番号も名前も【入れない】。入れるのは「自店の分か」だけ。
+//   ・当たっても、予約を自動で断らない（電話番号の持ち主が変わった別人のことがある）。出すだけ。断るかは店が決める。
+
+/** 確かさ。★ DB の check（crm_group_alerts.certainty）と同じ並び */
+export const CRM_GROUP_CERTAINTIES = [
+  { key: 'confirmed', label: '確認済み' },
+  { key: 'suspected', label: '疑い' },
+] as const;
+export type CrmGroupCertainty = (typeof CRM_GROUP_CERTAINTIES)[number]['key'];
+export function isCrmGroupCertainty(v: unknown): v is CrmGroupCertainty {
+  return CRM_GROUP_CERTAINTIES.some((x) => x.key === v);
+}
+
+export const CRM_GROUP_WHAT_MAX = 300;
+export const CRM_GROUP_CHECKED_HOW_MAX = 100;
+/** 1件の共有に付けられる電話番号の数（台帳の上限と同じ） */
+export const CRM_GROUP_PHONES_MAX = 5;
+
+/**
+ * 受付・スケジュール・台帳に出す「当たり」1件。
+ * ★★★ 出した店の番号・名前は入れない（上の決定）。mine＝自店が出した分か、だけ。
+ */
+export type CrmGroupHit = {
+  id: number;
+  level: CrmGroupLevel;
+  kind: CrmGroupKind;
+  certainty: CrmGroupCertainty;
+  /** YYYY-MM-DD */
+  happenedOn: string;
+  what: string;
+  /** 共有したときの、お客様の名前（人ちがいに気づくため） */
+  shownName: string;
+  mine: boolean;
+};
+
+export function crmGroupLevelLabel(level: unknown): string {
+  return CRM_GROUP_LEVELS.find((x) => x.key === level)?.label ?? '';
+}
+/** 分類の短い呼び方（「そのほか（…）」は「そのほか」） */
+export function crmGroupKindLabel(kind: unknown): string {
+  const l = CRM_GROUP_KINDS.find((x) => x.key === kind)?.label ?? '';
+  return l.replace(/（.*$/, '');
+}
+export function crmGroupCertaintyLabel(c: unknown): string {
+  return CRM_GROUP_CERTAINTIES.find((x) => x.key === c)?.label ?? '';
+}
+/** 2026-10-08 → 2026/10/8 */
+export function crmGroupDateLabel(iso: unknown): string {
+  const m = typeof iso === 'string' ? /^(\d{4})-(\d{2})-(\d{2})/.exec(iso) : null;
+  return m ? m[1] + '/' + Number(m[2]) + '/' + Number(m[3]) : '';
+}
+
+/**
+ * 帯の見出し。例:「グループ・提携店でNG（盗み・2026/10/8・確認済み）」
+ * ★★★ 出した店の名前は付けない。★ 自店が出した分は「自店からグループ・提携店に共有中：NG（…）」。
+ */
+export function crmGroupHitTitle(hit: Pick<CrmGroupHit, 'level' | 'kind' | 'certainty' | 'happenedOn' | 'mine'>): string {
+  const tail = '（' + [crmGroupKindLabel(hit.kind), crmGroupDateLabel(hit.happenedOn), crmGroupCertaintyLabel(hit.certainty)].filter((x) => x !== '').join('・') + '）';
+  const lv = crmGroupLevelLabel(hit.level);
+  return hit.mine
+    ? '自店から' + CRM_GROUP_ALERT_SOURCE_LABEL + 'に共有中：' + lv + tail
+    : CRM_GROUP_ALERT_SOURCE_LABEL + 'で' + lv + tail;
+}
+
+/**
+ * 予約カードに付ける印。★ ほかの店が出した分だけを数える（自店の分は、自店の台帳の分類・要注意で分かる）。
+ * ★ NG が1件でもあれば 'ng'。要注意だけなら 'caution'。無ければ null。
+ */
+export function crmGroupBadge(hits: ReadonlyArray<Pick<CrmGroupHit, 'level' | 'mine'>> | null | undefined): CrmGroupLevel | null {
+  const others = (hits ?? []).filter((h) => !h.mine);
+  if (others.some((h) => h.level === 'ng')) return 'ng';
+  if (others.some((h) => h.level === 'caution')) return 'caution';
+  return null;
+}
+export const CRM_GROUP_BADGE_LABEL: Readonly<Record<CrmGroupLevel, string>> = { ng: 'グループNG', caution: 'グループ要注意' };
+
+/** 並べ方: NG が先、同じ段なら新しい日付が先 */
+export function sortCrmGroupHits<T extends Pick<CrmGroupHit, 'level' | 'happenedOn' | 'id'>>(hits: ReadonlyArray<T>): T[] {
+  const rank = (l: CrmGroupLevel) => (l === 'ng' ? 0 : 1);
+  return [...hits].sort((a, b) => rank(a.level) - rank(b.level) || (a.happenedOn < b.happenedOn ? 1 : a.happenedOn > b.happenedOn ? -1 : b.id - a.id));
+}
+
+export type CrmGroupAlertInput = {
+  level: unknown; kind: unknown; certainty: unknown; happenedOn: unknown; what: unknown; checkedHow: unknown; phones: unknown;
+};
+export type CrmGroupAlertClean = {
+  level: CrmGroupLevel; kind: CrmGroupKind; certainty: CrmGroupCertainty; happenedOn: string; what: string; checkedHow: string; phones: string[];
+};
+
+/**
+ * 共有を登録・直すときの検査。通れば、保存する形（前後の空白を落としたもの）を返す。
+ * ★★★ 分類は、危害の7つだけ（無断キャンセル・料金のもめごとは、ここで断る。DB の check も同じ）。
+ * ★ 電話番号が1つも無ければ断る（電話番号で照らし合わせる仕組みなので、番号の無い共有は当たらない）。
+ * ★ 日付が今日より先なら断る（まだ起きていないことは書けない）。
+ * @param todayISO 今日（JST の YYYY-MM-DD）。★ このファイルは時計を持たない
+ */
+export function checkCrmGroupAlert(input: CrmGroupAlertInput, todayISO: string): { ok: true; value: CrmGroupAlertClean } | { ok: false; error: string } {
+  if (!isCrmGroupLevel(input.level)) return { ok: false, error: 'NG か要注意かを選んでください' };
+  if (!isCrmGroupKind(input.kind)) return { ok: false, error: '分類を選んでください（無断キャンセル・料金のもめごとは共有できません）' };
+  if (!isCrmGroupCertainty(input.certainty)) return { ok: false, error: '確認済みか、疑いかを選んでください' };
+  if (!isISODate(input.happenedOn)) return { ok: false, error: '起きた日を入れてください' };
+  if (isISODate(todayISO) && input.happenedOn > todayISO) return { ok: false, error: '起きた日が、今日より先になっています' };
+  const what = typeof input.what === 'string' ? input.what.trim() : '';
+  if (what.length === 0) return { ok: false, error: '何をされたかを書いてください（事実だけ）' };
+  if (what.length > CRM_GROUP_WHAT_MAX) return { ok: false, error: '何をされたかは' + CRM_GROUP_WHAT_MAX + '文字までです' };
+  const checkedHow = typeof input.checkedHow === 'string' ? input.checkedHow.trim() : '';
+  if (checkedHow.length > CRM_GROUP_CHECKED_HOW_MAX) return { ok: false, error: '確かめ方は' + CRM_GROUP_CHECKED_HOW_MAX + '文字までです' };
+  const raw = Array.isArray(input.phones) ? input.phones : [];
+  const phones: string[] = [];
+  for (const p of raw) {
+    if (typeof p !== 'string' || !/^[0-9]{10,13}$/.test(p)) return { ok: false, error: '電話番号の形が正しくありません' };
+    if (!phones.includes(p)) phones.push(p);
+  }
+  if (phones.length === 0) return { ok: false, error: '共有する電話番号を1つ以上選んでください' };
+  if (phones.length > CRM_GROUP_PHONES_MAX) return { ok: false, error: '電話番号は' + CRM_GROUP_PHONES_MAX + '件までです' };
+  return { ok: true, value: { level: input.level, kind: input.kind, certainty: input.certainty, happenedOn: input.happenedOn, what, checkedHow, phones } };
+}

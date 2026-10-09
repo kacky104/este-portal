@@ -21,6 +21,7 @@ import {
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { ConsentView } from '../ConsentView';
+import { GroupShareBox } from '../GroupShare';
 
 // フクエスCRM（有料）第1段階：顧客台帳（2026-09-19）。
 //
@@ -202,10 +203,12 @@ function CustomerForm({
 
 // ── 1人の詳細 ────────────────────────────────────────
 function CustomerDetail({
-  salonId, customerId, onBack, onChanged, onDeleted,
+  salonId, customerId, inGroup, onBack, onChanged, onDeleted,
 }: {
   salonId: number;
   customerId: number;
+  /** グループ・提携店の共有に入っている店か（第1325便）。★ 入っている店にだけ、共有の欄を出す */
+  inGroup: boolean;
   onBack: () => void;
   onChanged: () => void;
   onDeleted: () => void;
@@ -308,6 +311,8 @@ function CustomerDetail({
             <dt className="font-bold text-slate-400">メモ</dt>
             <dd className="whitespace-pre-line text-slate-800">{c.memo || '—'}</dd>
           </dl>
+          {/* ★ 第1325便: グループ・提携店との共有（★ 電話番号を直したら作り直す） */}
+          {inGroup && <GroupShareBox key={c.phones.join(',')} salonId={salonId} customerId={c.id} />}
         </>
       )}
 
@@ -375,12 +380,12 @@ export default function CrmCustomersPage() {
   const { access, adminSalonQuery } = useCrmAccess();
   return (
     <CrmShell access={access} adminSalonQuery={adminSalonQuery} current="customers">
-      {(a) => <CustomersBody salonId={a.salonId} />}
+      {(a) => <CustomersBody salonId={a.salonId} inGroup={a.inGroup} />}
     </CrmShell>
   );
 }
 
-function CustomersBody({ salonId }: { salonId: number }) {
+function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean }) {
   const [query, setQuery] = useState('');
   const [list, setList] = useState<CrmCustomerRow[]>([]);
   const [listErr, setListErr] = useState('');
@@ -511,6 +516,7 @@ function CustomersBody({ salonId }: { salonId: number }) {
               key={selected}
               salonId={salonId}
               customerId={selected}
+              inGroup={inGroup}
               onBack={() => setSelected(null)}
               onChanged={() => void runSearch(query)}
               onDeleted={() => { setSelected(null); void runSearch(query); }}
@@ -542,7 +548,7 @@ function DeleteCustomer({ salonId, customerId, name, onDeleted }: { salonId: num
       ) : (
         <div className="border border-rose-300 bg-rose-50 p-3 text-[13px] text-rose-800">
           <p className="font-bold">「{name || '(名前なし)'}」さんを台帳から削除します。元に戻せません。</p>
-          <p className="mt-1 leading-relaxed">電話番号・メモ・分類も消え、このお客様の予約は名前「削除済み」・電話番号なし・備考なしになります（日時・金額は日報やレポートのため残ります）。その予約の同意書も消えます。</p>
+          <p className="mt-1 leading-relaxed">電話番号・メモ・分類も消え、このお客様の予約は名前「削除済み」・電話番号なし・備考なしになります（日時・金額は日報やレポートのため残ります）。その予約の同意書も消えます。グループ・提携店へ共有していた場合は、その共有も取り下げます。</p>
           <div className="mt-2 flex gap-2">
             <button type="button" disabled={busy} onClick={run} className="bg-rose-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">{busy ? '削除中…' : '本当に削除する'}</button>
             <button type="button" onClick={() => setSure(false)} className="border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-600">やめる</button>

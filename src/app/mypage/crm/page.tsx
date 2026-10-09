@@ -76,6 +76,8 @@ import { CrmShell, useCrmAccess } from './CrmShell';
 import { castNotifyText, lineShareHref } from '@/lib/crmCastNotify';
 import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vibrateAlarm } from '@/app/lib/crm/alarmSound';
 import { ConsentView } from './ConsentView';
+import { GroupHitBand } from './GroupShare';
+import { CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_BADGE_LABEL, crmGroupBadge, type CrmGroupHit } from '@/lib/crmGroup';
 
 // フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
 //
@@ -423,6 +425,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       )}
 
       {err && <p className="mb-3 border-l-4 border-rose-500 bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">{err}</p>}
+      {/* ★ 第1325便: 共有リストを読めなかったとき（★ 印が出ていなくても「NG ではない」と思いこまないように知らせる） */}
+      {data?.groupFailed && data.date === date && (
+        <p className="mb-3 border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-[13px] font-bold text-amber-800">
+          {CRM_GROUP_ALERT_SOURCE_LABEL}の共有リストを読めませんでした。予約に印が出ていなくても、NG ではないとは限りません。「画面を更新」を押してください。
+        </p>
+      )}
       {refreshedAt != null && (
         <div className="pointer-events-none fixed left-1/2 top-16 z-[60] -translate-x-1/2 bg-slate-800/90 px-4 py-2 text-[13px] font-bold text-white shadow-lg">更新しました</div>
       )}
@@ -929,6 +937,7 @@ function BookingCard({
 }) {
   const cancelled = b.status === 'cancelled';
   const c = b.customer;
+  const groupBadge = cancelled ? null : crmGroupBadge(b.groupHits);
   // ★ 色分け（第643便・風俗CTIv2 にならう）：受領済＝終わった予約はグレー寄り（一目で「済み」）・入室済＝枠を太く（いま部屋にいる）
   //   ★ 未確定（ピンク枠）／確定（水色枠）の見分けは残す。★ 受領済は第638便の背景色（出勤情報の色）より優先
   const received = !cancelled && !!b.receivedBy;
@@ -983,6 +992,8 @@ function BookingCard({
       <p className="flex items-center gap-1 truncate text-[11px]">
         {ng && !cancelled && <span className="bg-rose-600 px-1 font-bold text-white">女子NG</span>}
         {c?.cautionMemo && <span className="bg-rose-100 px-1 font-bold text-rose-700">要注意</span>}
+        {/* ★ 第1325便: グループ・提携店の共有リストに当たった印（★ 出した店の名前は出さない。受けるかは店が決める） */}
+        {groupBadge && <span className={groupBadge === 'ng' ? 'flex-none bg-rose-700 px-1 font-bold text-white' : 'flex-none bg-amber-400 px-1 font-bold text-slate-900'}>{CRM_GROUP_BADGE_LABEL[groupBadge]}</span>}
         {b.priceTotal != null && <span className="font-bold text-slate-700">{yen(b.priceTotal)}</span>}
         {c && <span className="text-slate-500">利用{c.stats.visits}</span>}
         <span className="truncate text-slate-500">{b.courseName}</span>
@@ -1053,6 +1064,8 @@ function DetailPanel({
 
         {/* お客様 */}
         <section className="border-b border-slate-200 p-4">
+          {/* ★ 第1325便: グループ・提携店の共有リストに当たった予約（★ 台帳にひも付いていない予約でも出す） */}
+          <GroupHitBand hits={b.groupHits} className="mb-3" />
           {c ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
@@ -1313,6 +1326,8 @@ function BookingForm({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [found, setFound] = useState<CrmScheduleCustomer | null | 'none'>(null); // null＝まだ引いていない
+  // ★ 第1325便: その電話番号が、グループ・提携店の共有リストに当たった分（★ 自店の台帳にいない、初めての電話でも当たる）
+  const [group, setGroup] = useState<{ hits: CrmGroupHit[]; failed: boolean }>({ hits: [], failed: false });
   // ★ かんたん受付（第640便・カッキーさんの指示）。風俗CTIv2 でアイリス様が「時間メモ」に時刻・金額・名前だけ書いて回していたのに合わせる。
   //   ★ 新規のときだけ。出すのは 電話・名前・担当・開始・時間・料金・女子報酬・備考。コース・料金表・インターバルは隠す（既定のまま）。
   //   ★ 料金・女子報酬は「補正」の欄に入れる（料金表の項目を選ばない＝合計＝入れた数字）。あとから詳細の「変更する」で料金表から選び直せる。
@@ -1342,6 +1357,7 @@ function BookingForm({
       lookupCrmCustomerByPhone(salonId, f.customerTel).then((res) => {
         if (!alive || !res.ok) return;
         setFound(res.customer ?? 'none');
+        setGroup({ hits: res.groupHits, failed: res.groupFailed });
         const c = res.customer;
         if (c?.name) setF((p) => (p.customerName.trim() ? p : { ...p, customerName: c.name }));
       });
@@ -1497,7 +1513,7 @@ function BookingForm({
           {/* お客様（電話 → 台帳） */}
           <div>
             <label className={labCls}>電話番号（入れると台帳からお客様を出します）</label>
-            <input className={fieldCls} value={f.customerTel} inputMode="tel" autoComplete="tel" onChange={(e) => { set('customerTel', e.target.value); setFound(null); }} placeholder="090-1234-5678" />
+            <input className={fieldCls} value={f.customerTel} inputMode="tel" autoComplete="tel" onChange={(e) => { set('customerTel', e.target.value); setFound(null); setGroup({ hits: [], failed: false }); }} placeholder="090-1234-5678" />
             {telDigits.length >= 10 && found === 'none' && (
               <p className="mt-1 text-[12px] text-slate-500">台帳にない番号です（新しいお客様として台帳に入ります）</p>
             )}
@@ -1525,6 +1541,8 @@ function BookingForm({
                 {customer.category === 'ng' && <p className="mt-1.5 bg-rose-600 px-2 py-1 text-[13px] font-bold text-white">このお客様は分類が「NG」です</p>}
               </div>
             )}
+            {/* ★ 第1325便: グループ・提携店の共有リストに当たったとき（★ 出すだけ。受付は止めない） */}
+            {telDigits.length >= 10 && <GroupHitBand hits={group.hits} failed={group.failed} className="mt-2" />}
           </div>
           <div>
             <label className={labCls}>お客様の名前 <span className="text-rose-500">必須</span></label>

@@ -15,7 +15,7 @@ import { CrmIntro } from './CrmIntro';
 //   ・契約中 → 上の帯（スケジュール／顧客台帳）＋中身
 // ★ 運営（ADMIN）は ?salon=店舗ID で、その店を確認できる（タブを移っても ?salon を引き継ぐ）。
 
-export type CrmNavKey = 'schedule' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'settings';
+export type CrmNavKey = 'schedule' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'settings' | 'group';
 
 // ★ 第631便: href は CRM の中のパス。★ 実際のリンク先は useCrmLinks().href で作る（fukuescrm.com では '/customers'、本体では '/mypage/crm/customers'）。
 const NAV: Array<{ key: CrmNavKey; label: string; href: string }> = [
@@ -28,6 +28,8 @@ const NAV: Array<{ key: CrmNavKey; label: string; href: string }> = [
   { key: 'prices', label: '料金設定', href: '/prices' },
   { key: 'settings', label: '設定', href: '/settings' },
 ];
+// ★ 第1325便: グループ・提携店の共有リスト。★ グループに入っている店にだけ出す（access.inGroup・サーバーが判定）。「顧客台帳」の右に置く
+const NAV_GROUP: { key: CrmNavKey; label: string; href: string } = { key: 'group', label: 'グループ共有', href: '/group' };
 
 /** 入口の判定（契約・店舗）。★ ページごとに書かない */
 export function useCrmAccess(): { access: CrmAccess | null; adminSalonQuery: string } {
@@ -113,7 +115,7 @@ export function CrmShell({
         {access.active ? (
           <nav className="mt-1 flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] md:mt-2 md:gap-1 md:px-3">
             {/* ★ スマホでタブが収まらないときは横にすべらせる（第541便） */}
-            {NAV.map((n) => (
+            {(access.inGroup ? [...NAV.slice(0, 2), NAV_GROUP, ...NAV.slice(2)] : NAV).map((n) => (
               <Link
                 key={n.key}
                 href={links.href(n.href) + adminSalonQuery}

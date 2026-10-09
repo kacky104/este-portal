@@ -21,6 +21,9 @@ import { scheduleWindowUtc } from '@/app/lib/booking/slots';
 import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
 import { headers } from 'next/headers';
 import { businessDateNowJST } from '@/app/lib/crm/consentMatch';
+// ★ 第1325便: グループ・提携店で共有するNG・要注意リスト（受付・スケジュールに出す）
+import { crmGroupHitsForSalon, crmGroupTableMissing, readCrmGroupMembership } from '@/app/lib/crm/groupAlerts';
+import type { CrmGroupHit } from '@/lib/crmGroup';
 import {
   toCrmCategory,
   type CrmAccess,
@@ -108,14 +111,18 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
       .eq('salon_id', Number(data.id)).eq('version', CRM_TERMS_VERSION).maybeSingle();
     termsOk = !!ag;
   }
+  // ★ 第1325便: グループ・提携店の共有に入っている店にだけ、タブと欄を出す（読めないときは出さない＝中身はサーバーが別に確かめる）
+  const active = isAdmin || isCrmActive(crmUntil);
+  const inGroup = active ? (await readCrmGroupMembership(svc, Number(data.id))).state === 'in' : false;
   return {
     ok: true,
     salonId: Number(data.id),
     salonName: (data.name as string | null) ?? '',
     crmUntil,
-    active: isAdmin || isCrmActive(crmUntil),
+    active,
     isAdmin,
     termsOk,
+    inGroup,
   };
 }
 
@@ -660,9 +667,16 @@ export async function getCrmSchedule(
     lite ? Promise.resolve(null) : readSettings(svc, salonId),
     readWorkEnds(svc, salonId, dateISO),
     readWorkDays(svc, salonId, dateISO),
+    // ★ 第1325便: 予約の電話番号が、グループ・提携店の共有リストに当たるか（グループに入っていない店・電話番号の無い日は読まない）
+    //   ★ 読めなくても表は出す（groupFailed で画面に知らせる）。ここで投げない
+    crmGroupHitsForSalon(svc, salonId, bookings.map((b) => normalizePhone(String(b.customerTel ?? ''))))
+      .catch((e: unknown) => {
+        console.error('[crm] グループ共有を読めなかった', salonId, e instanceof Error ? e.message : String(e));
+        return { failed: true, byPhone: new Map<string, CrmGroupHit[]>() };
+      }),
   ]).catch((e: unknown) => readFail(e));
   if (!Array.isArray(reads)) return reads;
-  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays] = reads;
+  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits] = reads;
 
   const consentAt = new Map<string, string>();
   for (const c of consentRows) consentAt.set(String(c.booking_id), String(c.created_at));
@@ -683,6 +697,7 @@ export async function getCrmSchedule(
 
   const base: CrmScheduleLiteData = {
       date: dateISO,
+      groupFailed: groupHits.failed,
       courses: board.data.courses,
       confirms,
       report,
@@ -721,6 +736,7 @@ export async function getCrmSchedule(
           playStatus: e?.playStatus ?? '',
           receivedBy: e?.receivedBy ?? '',
           consentAt: consentAt.get(String(b.id)) ?? null,
+          groupHits: groupHits.byPhone.get(normalizePhone(String(b.customerTel ?? ''))) ?? [],
         };
       }),
   };
@@ -735,16 +751,24 @@ export async function getCrmSchedule(
 export async function lookupCrmCustomerByPhone(
   salonId: number,
   tel: string,
-): Promise<{ ok: true; customer: CrmScheduleCustomer | null } | { ok: false; error: string }> {
+): Promise<{ ok: true; customer: CrmScheduleCustomer | null; groupHits: CrmGroupHit[]; groupFailed: boolean } | { ok: false; error: string }> {
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   const phone = normalizePhone(String(tel ?? ''));
-  if (!/^\d{10,13}$/.test(phone)) return { ok: true, customer: null };
+  if (!/^\d{10,13}$/.test(phone)) return { ok: true, customer: null, groupHits: [], groupFailed: false };
   const svc = auth.svc;
+  // ★ 第1325便: グループ・提携店の共有リストも引く（★ 自店の台帳にいない、初めての電話でも当たる）。
+  //   ★ 出すだけ。予約は断らない（番号の持ち主が変わった別人のことがある）。★ 読めなかったら groupFailed（画面に知らせる）
+  const groupP = crmGroupHitsForSalon(svc, salonId, [phone]).catch((e: unknown) => {
+    console.error('[crm] グループ共有を読めなかった', salonId, e instanceof Error ? e.message : String(e));
+    return { failed: true, byPhone: new Map<string, CrmGroupHit[]>() };
+  });
   const { data: ph } = await svc
     .from('salon_customer_phones').select('customer_id')
     .eq('salon_id', salonId).eq('phone', phone).maybeSingle();
-  if (!ph) return { ok: true, customer: null };
+  const group = await groupP;
+  const groupHits = group.byPhone.get(phone) ?? [];
+  if (!ph) return { ok: true, customer: null, groupHits, groupFailed: group.failed };
   const id = Number(ph.customer_id);
   const [{ data: c }, stats] = await Promise.all([
     svc.from('salon_customers')
@@ -752,7 +776,7 @@ export async function lookupCrmCustomerByPhone(
       .eq('salon_id', salonId).eq('id', id).maybeSingle(),
     statsFor(svc, salonId, [id]),
   ]);
-  if (!c) return { ok: true, customer: null };
+  if (!c) return { ok: true, customer: null, groupHits, groupFailed: group.failed };
   return {
     ok: true,
     customer: {
@@ -763,6 +787,8 @@ export async function lookupCrmCustomerByPhone(
       ngTherapistIds: ((c.ng_therapist_ids as number[] | null) ?? []).map(Number),
       stats: stats.get(id) ?? emptyStats(),
     },
+    groupHits,
+    groupFailed: group.failed,
   };
 }
 
@@ -2372,6 +2398,32 @@ export async function deleteCrmCustomer(
   const svc = auth.svc;
   const { data: c } = await svc.from('salon_customers').select('id').eq('salon_id', salonId).eq('id', customerId).maybeSingle();
   if (!c) return { ok: false, error: 'お客様が見つかりません' };
+  // ★ 第1325便: このお客様をグループ・提携店へ共有していたら、先に取り下げる（台帳から消したのに、共有だけ残さない）。
+  //   ★ 取り下げられなかったら、消さない（消すと customer_id が外れて、台帳から取り下げる道が無くなる）。
+  //   ★★ 先に【読んで】確かめる。表がまだ無い（追加SQL_第1324便の前）ときは、共有そのものが無いので、そのまま消す。
+  //      いきなり update すると、表が無いときに中身の無いエラーが返る版があり、見分けられずに「消せない」になる（手元で確かめた）。
+  {
+    const shared = await svc.from('crm_group_alerts').select('id, group_id')
+      .eq('salon_id', salonId).eq('customer_id', customerId).is('withdrawn_at', null);
+    if (shared.error && !crmGroupTableMissing(shared.error, shared.status)) {
+      return { ok: false, error: 'グループ・提携店への共有を確かめられなかったので、削除していません。もう一度お試しください' };
+    }
+    const alive = shared.error ? [] : (shared.data ?? []);
+    if (alive.length > 0) {
+      const { error: wErr } = await svc.from('crm_group_alerts')
+        .update({ withdrawn_at: new Date().toISOString(), withdrawn_by: auth.userId, withdrawn_reason: 'customer_deleted' })
+        .eq('salon_id', salonId).in('id', alive.map((w) => Number(w.id))).is('withdrawn_at', null);
+      if (wErr) return { ok: false, error: 'グループ・提携店への共有を取り下げられなかったので、削除していません。もう一度お試しください' };
+      // 記録（★ 電話番号・名前・内容は入れない。書けなくても削除は止めない）
+      for (const w of alive) {
+        const { error: lErr } = await svc.from('crm_group_logs').insert({
+          group_id: Number(w.group_id), salon_id: salonId, alert_id: Number(w.id), action: 'alert_withdraw',
+          actor: 'owner:' + auth.userId, detail: { reason: 'customer_deleted' },
+        });
+        if (lErr) console.error('[crm] グループ共有の記録を書けなかった', Number(w.id), lErr.message);
+      }
+    }
+  }
   const ids = await readAll<Record<string, unknown>>((from, to) =>
     svc.from('salon_bookings').select('id').eq('salon_id', salonId).eq('customer_id', customerId).order('id').range(from, to));
   const bookingIds = ids.map((r) => String(r.id));

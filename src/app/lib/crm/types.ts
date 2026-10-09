@@ -1,5 +1,7 @@
 // フクエスCRM（有料）で画面とサーバーが共有する型・定数（2026-09-19）。
 
+import type { CrmGroupHit } from '@/lib/crmGroup';
+
 export const CRM_CATEGORIES = ['general', 'member', 'regular', 'vip', 'ng'] as const;
 export type CrmCategory = (typeof CRM_CATEGORIES)[number];
 
@@ -83,7 +85,11 @@ export type CrmBookingRow = {
 export type CrmTherapist = { id: number; name: string; isActive: boolean };
 
 export type CrmAccess =
-  | { ok: true; salonId: number; salonName: string; crmUntil: string | null; active: boolean; isAdmin: boolean; termsOk: boolean }
+  | {
+      ok: true; salonId: number; salonName: string; crmUntil: string | null; active: boolean; isAdmin: boolean; termsOk: boolean;
+      /** グループ・提携店の共有に入っているか（第1325便）。★ 入っている店にだけ「グループ共有」のタブと欄を出す */
+      inGroup: boolean;
+    }
   | { ok: false; error: string; needLogin?: boolean };
 
 // ── 本日スケジュール（CRM版・2026-09-19）────────────────
@@ -124,6 +130,8 @@ export type CrmScheduleBooking = {
   receivedBy: string;
   /** 同意書を了承した時刻（有効なもの・無ければ null）（第560便） */
   consentAt: string | null;
+  /** この予約の電話番号が、グループ・提携店の共有リストに当たった分（第1325便）。★ 出した店の名前は入っていない */
+  groupHits: CrmGroupHit[];
 };
 
 export type CrmScheduleTherapist = {
@@ -138,6 +146,8 @@ export type CrmScheduleTherapist = {
 
 export type CrmScheduleData = {
   date: string;                 // YYYY-MM-DD（営業日）
+  /** グループ・提携店の共有リストを読めなかった（第1325便）。★ true のとき、印が出ていなくても「当たりなし」とは限らない */
+  groupFailed: boolean;
   therapists: CrmScheduleTherapist[];
   bookings: CrmScheduleBooking[];
   /** 受付フォームのコース候補（salons.booking_courses・予約ボードと同じ） */

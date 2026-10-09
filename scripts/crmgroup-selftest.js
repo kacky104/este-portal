@@ -68,5 +68,111 @@ console.log('\n── 5. 運営の口（★ 運営だけ・service_role）──
   eq('★★ 記録（crm_group_logs）に、法人名や店の名前を入れない', /crm_group_logs'\)\.insert\([^)]*(corp_name|corpName|salonName)/.test(act), false);
 }
 
+console.log('\n── 6. 共有を登録するときの検査（第1325便）──');
+{
+  const a = (o) => v.checkCrmGroupAlert(Object.assign({ level: 'ng', kind: 'theft', certainty: 'confirmed', happenedOn: '2026-10-08', what: ' 財布から現金がなくなっていた ', checkedHow: ' 申告 ', phones: ['09012345678'] }, o), T);
+  eq('そろっていれば通る（前後の空白は落とす）', a({}), { ok: true, value: { level: 'ng', kind: 'theft', certainty: 'confirmed', happenedOn: '2026-10-08', what: '財布から現金がなくなっていた', checkedHow: '申告', phones: ['09012345678'] } });
+  eq('★★★ 無断キャンセル・料金のもめごとは、分類に無いので断る', [a({ kind: 'no_show' }).ok, a({ kind: 'money' }).ok, a({ kind: '' }).ok], [false, false, false]);
+  eq('段・確かさが決まった値でなければ断る', [a({ level: 'vip' }).ok, a({ certainty: 'maybe' }).ok], [false, false]);
+  eq('★ 起きた日が今日より先なら断る／今日は通る', [a({ happenedOn: '2026-10-10' }).ok, a({ happenedOn: T }).ok, a({ happenedOn: '' }).ok], [false, true, false]);
+  eq('★★ 何をされたかが空なら断る・300字まで', [a({ what: '   ' }).ok, a({ what: 'あ'.repeat(300) }).ok, a({ what: 'あ'.repeat(301) }).ok], [false, true, false]);
+  eq('確かめ方は100字まで（空でもよい）', [a({ checkedHow: '' }).ok, a({ checkedHow: 'あ'.repeat(101) }).ok], [true, false]);
+  eq('★★★ 電話番号が1つも無ければ断る（番号で照らし合わせるので、当たらない共有を作らない）', [a({ phones: [] }).ok, a({ phones: null }).ok], [false, false]);
+  eq('★ 電話番号は数字10〜13桁だけ（ハイフン入り・短い番号は断る）', [a({ phones: ['090-1234-5678'] }).ok, a({ phones: ['1234'] }).ok, a({ phones: [9012345678] }).ok], [false, false, false]);
+  eq('同じ番号は1つにまとめる・5件まで', [a({ phones: ['09012345678', '09012345678'] }).value.phones, a({ phones: ['09000000001', '09000000002', '09000000003', '09000000004', '09000000005', '09000000006'] }).ok], [['09012345678'], false]);
+}
+
+console.log('\n── 7. 帯の見出しと、予約カードの印（★ 出した店の名前を出さない）──');
+{
+  const h = (o) => Object.assign({ id: 1, level: 'ng', kind: 'theft', certainty: 'confirmed', happenedOn: '2026-10-08', what: 'x', shownName: '', mine: false }, o);
+  eq('ほかの店が出した分', v.crmGroupHitTitle(h({})), 'グループ・提携店でNG（盗み・2026/10/8・確認済み）');
+  eq('要注意・疑い', v.crmGroupHitTitle(h({ level: 'caution', kind: 'stalking', certainty: 'suspected' })), 'グループ・提携店で要注意（つきまとい・待ち伏せ・2026/10/8・疑い）');
+  eq('「そのほか（…）」は短く', v.crmGroupHitTitle(h({ kind: 'other' })), 'グループ・提携店でNG（そのほか・2026/10/8・確認済み）');
+  eq('自店が出した分', v.crmGroupHitTitle(h({ mine: true })), '自店からグループ・提携店に共有中：NG（盗み・2026/10/8・確認済み）');
+  eq('★ 印: NG が1件でもあれば NG', v.crmGroupBadge([h({ level: 'caution' }), h({ id: 2 })]), 'ng');
+  eq('★ 印: 要注意だけなら要注意', v.crmGroupBadge([h({ level: 'caution' })]), 'caution');
+  eq('★ 印: 自店の分だけなら出さない（自店の台帳の分類で分かる）', v.crmGroupBadge([h({ mine: true })]), null);
+  eq('印: 当たりが無ければ出さない', [v.crmGroupBadge([]), v.crmGroupBadge(null), v.crmGroupBadge(undefined)], [null, null, null]);
+  eq('並び: NG が先・同じ段なら新しい日付が先', v.sortCrmGroupHits([h({ id: 1, level: 'caution', happenedOn: '2026-10-09' }), h({ id: 2, happenedOn: '2026-09-01' }), h({ id: 3, happenedOn: '2026-10-01' })]).map((x) => x.id), [3, 2, 1]);
+  {
+    const sql = read('追加SQL_第1324便_CRMのグループ共有の表_2026-10-09.sql');
+    const cs = /certainty\s+text\s+not null default 'confirmed' check \(certainty in \(([^)]*)\)\)/.exec(sql);
+    eq('★★★ 追加SQL の確かさの check と同じ並び', cs ? cs[1].split(',').map((x) => x.trim().replace(/'/g, '')) : [], v.CRM_GROUP_CERTAINTIES.map((x) => x.key));
+  }
+}
+
+console.log('\n── 8. 店舗様の口（第1325便）★ 本人確認・グループの確認・店の名前を返さない ──');
+{
+  const act = read('src/app/actions/crmGroupShare.ts');
+  const lib = read('src/app/lib/crm/groupAlerts.ts');
+  const fns = act.split(/\nexport async function /).slice(1);
+  eq('店舗様の口が4つ', fns.map((f) => f.slice(0, f.indexOf('('))), ['getCrmCustomerGroupShare', 'saveCrmGroupAlert', 'withdrawCrmGroupAlert', 'listCrmGroupAlerts']);
+  eq('★★★ どの口も、最初に assertMember（本人確認＋グループに入っているか）を通す', fns.every((f) => /const a = await assertMember\(/.test(f.slice(0, 700))), true);
+  eq('★★★ assertMember は、オーナー本人か（assertOwner）と、いまグループに入っているか（DB）を確かめる', /async function assertMember[\s\S]{0,300}await assertOwner\(salonId\)[\s\S]{0,200}await readCrmGroupMembership\(/.test(act), true);
+  eq('★★★ オーナー本人でなければ断る・契約期間外なら断る', /salon\.owner_id as string \| null\) !== user\.id/.test(act) && /ご契約期間外/.test(act), true);
+  eq('★★★ 入っているかは、外していない行（left_at が null）で見る', /from\('crm_group_members'\)\s*\.select\('group_id'\)\.eq\('salon_id', salonId\)\.is\('left_at', null\)/.test(lib), true);
+  eq('★★★ 当たりは、取り下げていない分（withdrawn_at が null）で、自分のグループの中だけ', /from\('crm_group_alerts'\)\s*\.select\(CRM_GROUP_HIT_COLS\)\.eq\('group_id', groupId\)\.is\('withdrawn_at', null\)/.test(lib), true);
+  eq('★★★ 電話番号は完全一致（途中一致の like を使わない）', /\.in\('phone', want\.slice/.test(lib) && !/like\(/.test(lib), true);
+  // ★★★ 店の名前を、店舗様の画面へ返さない（カッキーさんの決定: どこにも出さない）
+  eq('★★★ 店舗様の口は、店の名前・法人名・グループの名前を読まない', /salons'\)\.select\('[^']*\bname\b/.test(act) || /corp_name|crm_groups'\)|salonName/.test(act), false);
+  eq('★★★ 下請けも、店の名前・法人名・グループの名前を読まない', /from\('salons'\)|corp_name|from\('crm_groups'\)|salonName/.test(lib), false);
+  {
+    const fn = lib.slice(lib.indexOf('export function toCrmGroupHit'), lib.indexOf('export type CrmGroupHitsResult'));
+    const hit = fn.slice(fn.indexOf('return {')); // 返す中身だけを見る（引数の salonId は「自店か」を決めるのに使う）
+    eq('★★★ 画面へ返す形に、出した店の番号を入れない（自店か、だけ）', /mine: Number\(r\.salon_id\) === salonId/.test(hit) && !/salonId:|salon_id:/.test(hit), true);
+    const ty = read('src/lib/crmGroup.ts');
+    const hitType = ty.slice(ty.indexOf('export type CrmGroupHit = {'), ty.indexOf('export function crmGroupLevelLabel'));
+    eq('★★★ CrmGroupHit の型に、店の番号・名前の欄が無い', /salon/i.test(hitType), false);
+    const rowType = act.slice(act.indexOf('export type CrmGroupListRow'), act.indexOf('export async function listCrmGroupAlerts'));
+    eq('★★★ 共有リストの行の型に、店の番号・名前の欄が無い', /salonId|salonName|salon_id/.test(rowType), false);
+  }
+  {
+    const save = act.slice(act.indexOf('export async function saveCrmGroupAlert'), act.indexOf('export async function withdrawCrmGroupAlert'));
+    eq('★★★ 登録は、純粋関数の検査を通す', /checkCrmGroupAlert\(input, getCalendarDateJST\(\)\)/.test(save), true);
+    eq('★★★ 共有できるのは、自店の台帳のお客様の、台帳に載っている番号だけ', /from\('salon_customers'\)\.select\('id, name'\)\.eq\('salon_id', salonId\)\.eq\('id', customerId\)/.test(save) && /v\.phones\.some\(\(p\) => !own\.includes\(p\)\)/.test(save), true);
+    eq('★★ 直せるのは、自店が出している有効な共有だけ', /if \(!curIds\.includes\(alertId\)\) return/.test(save) && /\.eq\('id', alertId\)\.eq\('salon_id', salonId\)\.eq\('group_id', a\.groupId\)\.is\('withdrawn_at', null\)/.test(save), true);
+    eq('★★ 電話番号を入れられなかった共有は残さない', /if \(pErr\) \{[\s\S]{0,300}from\('crm_group_alerts'\)\.delete\(\)\.eq\('id', alertId\)/.test(save), true);
+    const wd = act.slice(act.indexOf('export async function withdrawCrmGroupAlert'), act.indexOf('export type CrmGroupListRow'));
+    eq('★★★ 取り下げられるのは、自店の分だけ（消さずに印）', /withdrawn_reason: 'self'/.test(wd) && /\.eq\('id', id\)\.eq\('salon_id', Number\(salonId\)\)\.eq\('group_id', a\.groupId\)\.is\('withdrawn_at', null\)/.test(wd) && !/\.delete\(/.test(wd), true);
+  }
+  eq('★★ 記録に、電話番号・名前・内容を入れない', /crm_group_logs'\)\.insert\(\{[^}]*(phone:|what:|shown_name|name:)/.test(act), false);
+  eq('★★ 記録の detail に入れるのは、段・分類・確かさ・番号の数だけ', (act.match(/detail: \{ level: v\.level, kind: v\.kind, certainty: v\.certainty, phones: v\.phones\.length \}/g) || []).length, 2);
+}
+
+console.log('\n── 9. 受付・スケジュール・台帳へのつなぎ（第1325便）──');
+{
+  const crm = read('src/app/actions/crm.ts');
+  const lookup = crm.slice(crm.indexOf('export async function lookupCrmCustomerByPhone'), crm.indexOf('export async function saveCrmTherapistMemo'));
+  eq('★★★ 受付で電話番号を引くとき、共有リストも引く（本人確認のあと）', lookup.indexOf('await assertCrm(salonId)') > 0 && lookup.indexOf('await assertCrm(salonId)') < lookup.indexOf('crmGroupHitsForSalon(svc, salonId, [phone])'), true);
+  eq('★★★ 自店の台帳にいなくても、当たりを返す（初めての電話）', /if \(!ph\) return \{ ok: true, customer: null, groupHits, groupFailed: group\.failed \};/.test(lookup), true);
+  const sched = crm.slice(crm.indexOf('export async function getCrmSchedule'), crm.indexOf('export async function lookupCrmCustomerByPhone'));
+  eq('★★★ スケジュールの予約に、当たりを付ける（予約の電話番号で）', /crmGroupHitsForSalon\(svc, salonId, bookings\.map\(/.test(sched) && /groupHits: groupHits\.byPhone\.get\(normalizePhone\(String\(b\.customerTel \?\? ''\)\)\) \?\? \[\]/.test(sched), true);
+  eq('★★ 読めなかったことを画面へ知らせる（黙って「当たりなし」にしない）', /groupFailed: groupHits\.failed/.test(sched) && /groupFailed: group\.failed/.test(lookup), true);
+  eq('★★★ 当たっても、予約を断る・止める処理を足していない（出すだけ）', /groupHits[\s\S]{0,80}return \{ ok: false/.test(sched + lookup), false);
+  const del = crm.slice(crm.indexOf('export async function deleteCrmCustomer'), crm.indexOf('function displayTel'));
+  eq('★★★ お客様を台帳から消すときは、先に共有を取り下げる', del.indexOf("withdrawn_reason: 'customer_deleted'") > 0 && del.indexOf("withdrawn_reason: 'customer_deleted'") < del.indexOf("from('salon_customers').delete()"), true);
+  eq('★★ 取り下げられなかったら、消さない', /共有を取り下げられなかったので、削除していません/.test(del), true);
+  // ★★★ 表がまだ無い（追加SQL の前）ときに、お客様の削除を止めない。★ 書く前に読んで確かめる（書くときのエラーは、版によって見分けられない）
+  eq('★★★ 取り下げの前に、読んで確かめる（表が無ければ、そのまま消す）', del.indexOf(".select('id, group_id')") > 0 && del.indexOf(".select('id, group_id')") < del.indexOf("withdrawn_reason: 'customer_deleted'") && /if \(shared\.error && !crmGroupTableMissing\(shared\.error, shared\.status\)\)/.test(del) && /const alive = shared\.error \? \[\] : /.test(del), true);
+  const access = crm.slice(crm.indexOf('export async function getCrmAccess'), crm.indexOf('async function assertCrm'));
+  eq('★ タブと欄は、グループに入っている店にだけ（サーバーが判定）', /inGroup = active \? \(await readCrmGroupMembership\(svc, Number\(data\.id\)\)\)\.state === 'in' : false/.test(access), true);
+
+  const shell = read('src/app/mypage/crm/CrmShell.tsx');
+  eq('★ 「グループ共有」のタブは、入っている店にだけ', /access\.inGroup \? \[\.\.\.NAV\.slice\(0, 2\), NAV_GROUP, \.\.\.NAV\.slice\(2\)\] : NAV/.test(shell), true);
+  const cust = read('src/app/mypage/crm/customers/page.tsx');
+  eq('★ 顧客台帳の共有の欄は、入っている店にだけ', /\{inGroup && <GroupShareBox /.test(cust), true);
+  const page = read('src/app/mypage/crm/page.tsx');
+  eq('★★★ 受付フォーム・予約の詳細・予約カードに出す', [/<GroupHitBand hits=\{group\.hits\} failed=\{group\.failed\}/.test(page), /<GroupHitBand hits=\{b\.groupHits\}/.test(page), /CRM_GROUP_BADGE_LABEL\[groupBadge\]/.test(page)], [true, true, true]);
+  // ★★★ 画面の部品に、店の名前を出す道が無い
+  const ui = read('src/app/mypage/crm/GroupShare.tsx') + read('src/app/mypage/crm/group/page.tsx');
+  eq('★★★ 画面の部品が、店の名前を受け取っていない', /salonName|corpName|groupName/.test(ui), false);
+  // ★★★ セラピストの画面（/cast）には出さない（今も電話番号を見せていない）
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]);
+  const castDir = path.join(__dirname, '..', 'src', 'app', 'cast');
+  const castFiles = fs.existsSync(castDir) ? walk(castDir).filter((f) => /\.(ts|tsx)$/.test(f)) : [];
+  eq('★★★ セラピストの画面（/cast）は、共有リストに触れない', castFiles.some((f) => /crmGroup|crm_group|GroupHitBand/.test(fs.readFileSync(f, 'utf8'))), false);
+}
+
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);
