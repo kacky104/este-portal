@@ -718,7 +718,8 @@ function Grid({
   // ★ 第1216便（カッキーさん）: 女子メモの列を画面上 17px（zoom 0.72 なので 24px）狭く＝100→76px にして、タイムラインを第1214便の目視幅に戻す。
   //   左の固定枠の合計は 250px。女子メモの空欄の文字はスマホだけ「✎ メモ」。
   // ★ 第1233便（カッキーさん）: PC は名前の列を 150→190px に（そのぶんタイムラインの見える幅は狭くなる）。スマホは第1216便のまま 174px。
-  const nameW = narrow ? NAME_W + 24 : NAME_W + 40;
+  // ★ 第1365便: 待機部屋を名前の行に上げたので、PC の名前の列を 190→174px（第1233便の 190 から少し戻す）。スマホは 174 のまま
+  const nameW = narrow ? NAME_W + 24 : NAME_W + 24;
   // ★ 第1364便（カッキーさん）: 女子メモの列をたためる（見出しの「女子メモ ◀」で閉じる・「女子メモ ▶」で開く）。
   //   閉じると時間軸がそのぶん広がる。既定は開いた状態。この端末だけ覚える
   const [memoOpen, setMemoOpen] = useState<boolean>(() => {
@@ -829,6 +830,13 @@ function Grid({
                         LINE
                       </span>
                     )}
+                    {/* ★ 第1365便（カッキーさん）: 待機部屋のバッジは名前の行（LINE の右）に。出勤の行は 時刻・出欠・自由項目だけ */}
+                    {(() => {
+                      const room = workDayOf(r.therapist!.id)?.room;
+                      if (!room) return null;
+                      const c = roomColor(roomColorOf(room));
+                      return <span className="flex-none truncate px-1 text-[10px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
+                    })()}
                   </p>
                   <p className="flex items-center gap-1 truncate text-[12px] font-bold text-slate-600">
                     <span className="truncate">
@@ -846,10 +854,6 @@ function Grid({
                               {CRM_ATTENDANCE_LABEL[wd.attendance]}
                             </span>
                           )}
-                          {wd.room && (() => {
-                            const c = roomColor(roomColorOf(wd.room));
-                            return <span className="flex-none px-1 text-[10px] font-bold" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{wd.room}</span>;
-                          })()}
                           {pickCrmToggleValues(toggleDefs, wd.toggles).map((tv) => (
                             <span key={tv.title} title={`${tv.title}：${tv.value}`} className="max-w-[96px] flex-none truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700">
                               {tv.value}
