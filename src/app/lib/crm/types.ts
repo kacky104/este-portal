@@ -128,6 +128,8 @@ export type CrmScheduleBooking = {
   priceTotal: number | null;    // null＝まだ料金を入れていない
   payTotal: number | null;
   paymentMethod: string;
+  /** ★ 第1363便: 支払いの内訳（カード 20,000＋現金 5,000 のように分けたとき）。分けていなければ空 */
+  paymentSplit: CrmPaymentSplit[];
   /** プレイ状況：'' ＝ 予約だけ ／ address_sent ＝ 住所送済 ／ entered ＝ 入室済（第544便） */
   playStatus: string;
   /** 受領：'' ＝ 未受領 ／ therapist ＝ 女子が受領 ／ shop ＝ お店が受領（第554便） */
@@ -209,6 +211,25 @@ export type CrmBookingItem = {
 };
 
 export const CRM_PAYMENT_METHODS = ['現金', 'カード', 'PayPay', 'その他'] as const;
+export type CrmPaymentMethod = (typeof CRM_PAYMENT_METHODS)[number];
+/** ★ 第1363便: 支払いの内訳（1本の予約を複数の方法で払ったとき） */
+export type CrmPaymentSplit = { method: string; amount: number };
+/** 支払いの内訳 → 表示（「カード 20,000・現金 5,000」）。内訳が無ければ payment_method をそのまま */
+export function paymentLabel(method: string, split: CrmPaymentSplit[] | null | undefined): string {
+  if (split && split.length > 1) return split.map((s) => `${s.method} ${s.amount.toLocaleString()}`).join('・');
+  return method;
+}
+/** 内訳（jsonb）を読む。形が違えば空 */
+export function parsePaymentSplit(raw: unknown): CrmPaymentSplit[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CrmPaymentSplit[] = [];
+  for (const r of raw as Array<Record<string, unknown>>) {
+    const method = String(r?.method ?? '').trim();
+    const amount = Math.round(Number(r?.amount) || 0);
+    if (method && amount > 0) out.push({ method, amount });
+  }
+  return out;
+}
 
 /** 項目の合計（割引は引く）。補正は別に足す */
 export function sumCrmItems(items: CrmBookingItem[]): { price: number; pay: number } {
@@ -286,6 +307,8 @@ export type CrmMonthStats = {
   byNomination: CrmStatRow[];
   /** 新規／リピート（本数・第644便）：key=new / repeat / notel */
   byNewRepeat: CrmStatRow[];
+  /** ★ 第1363便: 支払い別（key=現金 / カード / PayPay / その他 / none）。分けた予約は金額ごとに振り分ける（本数は方法ごとに1） */
+  byPayment: CrmStatRow[];
 };
 
 // ── プレイ状況・指名のバッジ（第544便）────────────────

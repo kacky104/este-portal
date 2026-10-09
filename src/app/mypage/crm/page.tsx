@@ -34,6 +34,7 @@ import {
   CRM_CATEGORY_CLASS,
   CRM_CATEGORY_LABEL,
   CRM_PAYMENT_METHODS,
+  paymentLabel,
   CRM_PRICE_KINDS,
   CRM_PRICE_KIND_LABEL,
   CRM_PRICE_SINGLE,
@@ -556,6 +557,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               priceAdjust: '',
               payAdjust: '',
               paymentMethod: '',
+              payAmounts: {},
             });
           }}
         />
@@ -595,6 +597,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               priceAdjust: b.priceAdjust ? String(b.priceAdjust) : '',
               payAdjust: b.payAdjust ? String(b.payAdjust) : '',
               paymentMethod: b.paymentMethod,
+              payAmounts: payAmountsOf(b),
             });
             setPicked(null);
           }}
@@ -1181,7 +1184,7 @@ function DetailPanel({
             <dd className="text-slate-800">{b.courseName || '—'}{b.courseMin ? `（${b.courseMin}分）` : ''}</dd>
             <dt className="font-bold text-slate-400">料金</dt>
             <dd className="font-bold text-slate-800">
-              {yen(b.priceTotal)}{b.paymentMethod ? <span className="ml-1 text-[12px] font-normal text-slate-500">（{b.paymentMethod}）</span> : null}
+              {yen(b.priceTotal)}{b.paymentMethod ? <span className="ml-1 text-[12px] font-normal text-slate-500">（{paymentLabel(b.paymentMethod, b.paymentSplit)}）</span> : null}
             </dd>
             <dt className="font-bold text-slate-400">女子報酬</dt>
             <dd className="font-bold text-slate-800">{yen(b.payTotal)}</dd>
@@ -1361,7 +1364,16 @@ type BookingFormState = {
   priceAdjust: string;
   payAdjust: string;
   paymentMethod: string;
+  /** ★ 第1363便: 支払いの内訳（方法 → 金額の文字）。全部空なら paymentMethod（古い値）だけを送る */
+  payAmounts: Record<string, string>;
 };
+
+/** ★ 第1363便: 予約の支払い（内訳か1つの方法）→ フォームの金額欄 */
+function payAmountsOf(b: { paymentMethod: string; paymentSplit: { method: string; amount: number }[]; priceTotal: number | null }): Record<string, string> {
+  if (b.paymentSplit.length > 1) return Object.fromEntries(b.paymentSplit.map((s) => [s.method, String(s.amount)]));
+  if (b.paymentMethod && (CRM_PAYMENT_METHODS as readonly string[]).includes(b.paymentMethod) && b.priceTotal != null) return { [b.paymentMethod]: String(b.priceTotal) };
+  return {};
+}
 
 /** 予約の項目 → 今の料金表と同じもの（選択）と、表に無いもの（残す）に分ける */
 function splitItems(items: CrmBookingItem[], priceItems: CrmPriceItem[]): { selIds: number[]; keepItems: CrmBookingItem[] } {
@@ -1464,6 +1476,14 @@ function BookingForm({
   const priceAdj = Math.round(Number(f.priceAdjust) || 0);
   const payAdj = Math.round(Number(f.payAdjust) || 0);
   const hasPricing = allItems.length > 0 || priceAdj !== 0 || payAdj !== 0;
+  // ★ 第1363便: 支払いの内訳（金額の入った方法だけ）。合計が料金と違えば赤字（サーバーでも止める）
+  const paySplit = CRM_PAYMENT_METHODS
+    .map((m) => ({ method: m, amount: Math.round(Number(f.payAmounts[m]) || 0) }))
+    .filter((s) => s.amount > 0);
+  const paySum = paySplit.reduce((a, s) => a + s.amount, 0);
+  const payMismatch = paySplit.length > 0 && hasPricing && paySum !== sums.price + priceAdj;
+  const setPayAmount = (m: string, v: string) => setF((p) => ({ ...p, paymentMethod: '', payAmounts: { ...p.payAmounts, [m]: v.replace(/[^0-9]/g, '') } }));
+  const setPayAll = (m: string) => setF((p) => ({ ...p, paymentMethod: '', payAmounts: { [m]: String(Math.max(0, sums.price + priceAdj)) } }));
 
   /** 項目を押した：コース・指名は入れ替え、他は付け外し。コース・延長を選んだら時間とコース名も合わせる */
   const togglePrice = (p: CrmPriceItem) => {
@@ -1518,7 +1538,8 @@ function BookingForm({
       keepItems: f.keepItems,
       priceAdjust: priceAdj,
       payAdjust: payAdj,
-      paymentMethod: f.paymentMethod,
+      paymentMethod: paySplit.length === 0 ? f.paymentMethod : '',
+      paymentSplit: paySplit,
     });
 
   const submit = async () => {
@@ -1538,7 +1559,7 @@ function BookingForm({
         note: f.note,
       }));
       if (!res.ok) { setBusy(false); setErr(res.error ?? '保存できませんでした'); return; }
-      if (hasPricing || f.paymentMethod) {
+      if (hasPricing || f.paymentMethod || paySplit.length > 0) {
         const newId = res.bookingId;
         if (!newId) { setBusy(false); setErr('予約は入りましたが、料金を保存できませんでした（カードを押して「変更する」から入れてください）'); return; }
         const pr = await safeCall(() => savePricing(newId));
@@ -1795,13 +1816,34 @@ function BookingForm({
                   <label className={labCls}>報酬補正（±円）</label>
                   <input className={fieldCls} inputMode="numeric" value={f.payAdjust} onChange={(e) => set('payAdjust', e.target.value.replace(/[^0-9-]/g, ''))} placeholder="0" />
                 </div>
-                <div>
-                  <label className={labCls}>支払い</label>
-                  <select className={fieldCls} value={f.paymentMethod} onChange={(e) => set('paymentMethod', e.target.value)}>
-                    <option value="">—</option>
-                    {CRM_PAYMENT_METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
+              </div>
+              {/* ★ 第1363便（店舗様の要望）: 支払いは方法ごとの金額欄に（カード 20,000＋現金 5,000 のように分けられる）。
+                  「全額を…」を押すと料金の全額がその欄に入る（＝前のプルダウンと同じ1タップ）。合計が料金と違えば赤字 */}
+              <div className="mt-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`${labCls} mb-0`}>支払い</span>
+                  <span className="text-[11px] text-slate-400">全額を：</span>
+                  {CRM_PAYMENT_METHODS.map((m) => (
+                    <button key={m} type="button" onClick={() => setPayAll(m)} className="border border-slate-300 bg-white px-2 py-0.5 text-[12px] font-bold text-slate-700 hover:bg-indigo-50">{m}</button>
+                  ))}
+                  {(paySplit.length > 0 || f.paymentMethod) && (
+                    <button type="button" onClick={() => setF((p) => ({ ...p, paymentMethod: '', payAmounts: {} }))} className="text-[11px] font-bold text-slate-400 underline">消す</button>
+                  )}
                 </div>
+                <div className="mt-1 grid grid-cols-4 gap-2">
+                  {CRM_PAYMENT_METHODS.map((m) => (
+                    <label key={m} className="block">
+                      <span className="block text-[10px] font-bold text-slate-400">{m}</span>
+                      <input className={fieldCls} inputMode="numeric" value={f.payAmounts[m] ?? ''} onChange={(e) => setPayAmount(m, e.target.value)} placeholder="0" aria-label={`${m}で払った金額`} />
+                    </label>
+                  ))}
+                </div>
+                {payMismatch && (
+                  <p className="mt-1 text-[12px] font-bold text-rose-600">支払いの合計 {yen(paySum)} が料金 {yen(sums.price + priceAdj)} と合いません</p>
+                )}
+                {f.paymentMethod && paySplit.length === 0 && (
+                  <p className="mt-1 text-[11px] text-slate-500">いまの支払い：{f.paymentMethod}（金額欄に入れ直すと内訳になります）</p>
+                )}
               </div>
               <div className="mt-3 flex gap-4 border-t border-indigo-200 pt-2 text-[15px] font-black">
                 <span className="text-slate-800">料金 {hasPricing ? yen(sums.price + priceAdj) : '—'}</span>
@@ -1858,7 +1900,7 @@ function BookingForm({
         <div className="border-t border-slate-200 p-3">
           {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
           <div className="flex gap-2">
-            <button type="button" disabled={busy || !f.customerName.trim()} onClick={submit} className="flex-1 bg-[#3f51b5] py-2.5 text-[15px] font-bold text-white disabled:opacity-50">
+            <button type="button" disabled={busy || !f.customerName.trim() || payMismatch} onClick={submit} className="flex-1 bg-[#3f51b5] py-2.5 text-[15px] font-bold text-white disabled:opacity-50">
               {busy ? '保存中…' : f.mode === 'new' ? 'この内容で受け付ける' : '変更を保存する'}
             </button>
             <button type="button" disabled={busy} onClick={onClose} className="border border-slate-300 bg-white px-4 text-[14px] font-bold text-slate-600">

@@ -72,6 +72,10 @@ import {
   sumCrmItems,
   type CrmStats,
   type CrmTherapist,
+  type CrmPaymentSplit,
+  CRM_PAYMENT_METHODS,
+  parsePaymentSplit,
+  paymentLabel,
 } from '@/app/lib/crm/types';
 
 type Svc = ReturnType<typeof createServiceClient>;
@@ -611,7 +615,7 @@ export async function getCrmSchedule(
   // 予約 → 顧客のひも付けと悪質・入り口・料金（★ ボードの列に足して1回で読む）
   const board = await loadBookingBoard(svc, salonId, dateISO,
     { bookingCoursesRaw: auth.bookingCoursesRaw, defaultIntervalMin: auth.defaultIntervalMin },
-    { extraBookingCols: 'customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method, play_status, received_by' },
+    { extraBookingCols: 'customer_id, cancel_bad, source, crm_items, price_adjust, pay_adjust, price_total, pay_total, payment_method, payment_split, play_status, received_by' },
   );
   if (!board.ok) return board;
   const { therapists, bookings } = board.data;
@@ -619,7 +623,7 @@ export async function getCrmSchedule(
   type Extra = {
     customerId: number | null; cancelBad: boolean; source: string;
     items: CrmBookingItem[]; priceAdjust: number; payAdjust: number;
-    priceTotal: number | null; payTotal: number | null; paymentMethod: string; playStatus: string; receivedBy: string;
+    priceTotal: number | null; payTotal: number | null; paymentMethod: string; paymentSplit: CrmPaymentSplit[]; playStatus: string; receivedBy: string;
   };
   const extra = new Map<string, Extra>();
   for (const [id, r] of board.extra) {
@@ -633,6 +637,7 @@ export async function getCrmSchedule(
       priceTotal: r.price_total == null ? null : Number(r.price_total),
       payTotal: r.pay_total == null ? null : Number(r.pay_total),
       paymentMethod: String(r.payment_method ?? ''),
+      paymentSplit: parsePaymentSplit(r.payment_split),
       playStatus: String(r.play_status ?? ''),
       receivedBy: String(r.received_by ?? ''),
     });
@@ -733,6 +738,7 @@ export async function getCrmSchedule(
           priceTotal: e?.priceTotal ?? null,
           payTotal: e?.payTotal ?? null,
           paymentMethod: e?.paymentMethod ?? '',
+          paymentSplit: e?.paymentSplit ?? [],
           playStatus: e?.playStatus ?? '',
           receivedBy: e?.receivedBy ?? '',
           consentAt: consentAt.get(String(b.id)) ?? null,
@@ -1022,6 +1028,8 @@ export type CrmBookingPricingInput = {
   priceAdjust: number;
   payAdjust: number;
   paymentMethod: string;
+  /** ★ 第1363便: 支払いの内訳（方法と金額）。空なら paymentMethod だけ。合計は料金と同じでないと受けない */
+  paymentSplit?: CrmPaymentSplit[];
 };
 
 /**
@@ -1066,11 +1074,25 @@ export async function setCrmBookingPricing(
   const clamp = (v: unknown) => Math.max(-1000000, Math.min(1000000, Math.round(Number(v) || 0)));
   const priceAdjust = clamp(input.priceAdjust);
   const payAdjust = clamp(input.payAdjust);
-  const paymentMethod = String(input.paymentMethod ?? '').trim().slice(0, 20);
   const sum = sumCrmItems(items);
   const hasAny = items.length > 0 || priceAdjust !== 0 || payAdjust !== 0;
   const priceTotal = hasAny ? sum.price + priceAdjust : null;
   const payTotal = hasAny ? sum.pay + payAdjust : null;
+  // ★ 第1363便: 支払いの内訳。方法は決まった4つだけ・金額は正の整数・合計は料金と同じ。1つだけなら payment_method にその名前、複数なら「カード＋現金」
+  const split = parsePaymentSplit(input.paymentSplit ?? []);
+  let paymentMethod = String(input.paymentMethod ?? '').trim().slice(0, 20);
+  if (split.length > 0) {
+    for (const s of split) {
+      if (!(CRM_PAYMENT_METHODS as readonly string[]).includes(s.method)) return { ok: false, error: `支払いの方法が不正です（${s.method}）` };
+      if (s.amount > 10000000) return { ok: false, error: '支払いの金額が大きすぎます' };
+    }
+    if (new Set(split.map((s) => s.method)).size !== split.length) return { ok: false, error: '支払いの方法が重なっています' };
+    const splitSum = split.reduce((a, s) => a + s.amount, 0);
+    if (priceTotal == null || splitSum !== priceTotal) {
+      return { ok: false, error: `支払いの合計（${splitSum.toLocaleString()}円）が料金（${(priceTotal ?? 0).toLocaleString()}円）と合いません` };
+    }
+    paymentMethod = split.length === 1 ? split[0].method : split.map((s) => s.method).join('＋');
+  }
 
   const { error } = await svc
     .from('salon_bookings')
@@ -1081,6 +1103,7 @@ export async function setCrmBookingPricing(
       price_total: priceTotal,
       pay_total: payTotal,
       payment_method: paymentMethod,
+      payment_split: split.length > 1 ? split : null, // ★ 1つだけなら内訳は持たない（payment_method で足りる）
     })
     .eq('salon_id', salonId)
     .eq('id', input.bookingId);
@@ -1105,7 +1128,7 @@ function validDate(dateISO: string): boolean {
 }
 
 type DayBooking = {
-  therapistId: number | null; status: string; priceTotal: number; payTotal: number; paymentMethod: string;
+  therapistId: number | null; status: string; priceTotal: number; payTotal: number; paymentMethod: string; paymentSplit: CrmPaymentSplit[];
   hasPrice: boolean; receivedBy: string; slotStartISO: string;
 };
 
@@ -1113,7 +1136,7 @@ async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Prom
   const { startISO, endISO } = businessWindow(dateISO);
   const { data, error } = await svc
     .from('salon_bookings')
-    .select('therapist_id, status, price_total, pay_total, payment_method, received_by, slot_start')
+    .select('therapist_id, status, price_total, pay_total, payment_method, payment_split, received_by, slot_start')
     .eq('salon_id', salonId)
     .gte('slot_start', startISO)
     .lt('slot_start', endISO)
@@ -1126,6 +1149,7 @@ async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Prom
     priceTotal: Number(r.price_total) || 0,
     payTotal: Number(r.pay_total) || 0,
     paymentMethod: String(r.payment_method ?? ''),
+    paymentSplit: parsePaymentSplit(r.payment_split),
     hasPrice: r.price_total != null,
     receivedBy: String(r.received_by ?? ''),
     slotStartISO: String(r.slot_start),
@@ -1287,7 +1311,8 @@ async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<C
   ]);
   const active = bookings.filter((b) => b.status !== 'cancelled');
   const sales = active.reduce((a, b) => a + b.priceTotal, 0);
-  const cashSales = active.filter((b) => b.paymentMethod === '現金').reduce((a, b) => a + b.priceTotal, 0);
+  // ★ 第1363便: 分けた予約は現金の分だけ（内訳が無ければ今までどおり payment_method が現金なら全額）
+  const cashSales = active.reduce((a, b) => a + (b.paymentSplit.length > 1 ? b.paymentSplit.filter((s) => s.method === '現金').reduce((x, s) => x + s.amount, 0) : (b.paymentMethod === '現金' ? b.priceTotal : 0)), 0);
   const allowance = confirms.reduce((a, c) => a + c.allowance, 0);
   const pay = active.reduce((a, b) => a + b.payTotal, 0) + allowance;
   const confirmed = new Set(confirms.map((c) => c.therapistId));
@@ -1418,7 +1443,7 @@ export async function getCrmMonthStats(
 
   const { data: rows, error } = await svc
     .from('salon_bookings')
-    .select('slot_start, therapist_id, status, cancel_bad, price_total, pay_total, source, customer_id, crm_items')
+    .select('slot_start, therapist_id, status, cancel_bad, price_total, pay_total, source, customer_id, crm_items, payment_method, payment_split')
     .eq('salon_id', salonId)
     .gte('slot_start', new Date(startMs).toISOString())
     .lt('slot_start', new Date(endMs).toISOString())
@@ -1441,7 +1466,7 @@ export async function getCrmMonthStats(
   }
 
   type Row = import('@/app/lib/crm/types').CrmStatRow;
-  const maps = { day: new Map<string, Row>(), th: new Map<string, Row>(), src: new Map<string, Row>(), hour: new Map<string, Row>(), nom: new Map<string, Row>(), nr: new Map<string, Row>() };
+  const maps = { day: new Map<string, Row>(), th: new Map<string, Row>(), src: new Map<string, Row>(), hour: new Map<string, Row>(), nom: new Map<string, Row>(), nr: new Map<string, Row>(), pay: new Map<string, Row>() };
   const bump = (map: Map<string, Row>, key: string, label: string, b: { cancelled: boolean; price: number; pay: number }) => {
     const r = map.get(key) ?? { key, label, count: 0, cancels: 0, sales: 0, pay: 0 };
     if (b.cancelled) r.cancels += 1;
@@ -1473,6 +1498,16 @@ export async function getCrmMonthStats(
     bump(maps.th, tk, b.therapist_id == null ? 'フリー（担当未定）' : (tName.get(Number(b.therapist_id)) || '(不明)'), v);
     const sk = String(b.source ?? '') === 'web' ? 'web' : 'manual';
     bump(maps.src, sk, sk === 'web' ? 'ネット予約（フクエス）' : '予約ボード・CRM（電話など）', v);
+    // ★ 第1363便: 支払い別。分けた予約は金額ごとに振り分ける（報酬は最初の方法に寄せる）。キャンセルは数えない
+    if (!cancelled) {
+      const sp = parsePaymentSplit(b.payment_split);
+      if (sp.length > 1) {
+        sp.forEach((s, i) => bump(maps.pay, s.method, s.method, { cancelled: false, price: s.amount, pay: i === 0 ? pay : 0 }));
+      } else {
+        const pm = String(b.payment_method ?? '').trim();
+        bump(maps.pay, pm || 'none', pm || '未設定', v);
+      }
+    }
     bump(maps.hour, String(hour), hour >= 24 ? `翌${hour - 24}時台` : `${hour}時台`, v);
     // ★ 指名別（第644便）：料金表の「指名」の項目の名前で分ける（本／ネット／フリー／その他の指名／指名なし）
     const nomItem = parseItems(b.crm_items).find((i) => i.kind === 'nomination');
@@ -1529,6 +1564,7 @@ export async function getCrmMonthStats(
       byHour: [...maps.hour.values()].sort((a, b) => Number(a.key) - Number(b.key)),
       byNomination: ['hon', 'net', 'free', 'other', 'none'].map((k) => maps.nom.get(k)).filter((r): r is Row => !!r),
       byNewRepeat: ['new', 'repeat', 'notel'].map((k) => maps.nr.get(k)).filter((r): r is Row => !!r),
+      byPayment: [...CRM_PAYMENT_METHODS, 'none'].map((k) => maps.pay.get(k)).filter((r): r is Row => !!r),
     },
   };
 }
@@ -2568,7 +2604,7 @@ async function exportCrmCsvInner(
   }
   const bs = await readAll<Record<string, unknown>>((from, to) =>
     svc.from('salon_bookings')
-      .select('id, slot_start, slot_end, therapist_id, course_name, customer_name, customer_tel, status, cancel_bad, price_total, pay_total, payment_method, received_by, source, note, customer_id')
+      .select('id, slot_start, slot_end, therapist_id, course_name, customer_name, customer_tel, status, cancel_bad, price_total, pay_total, payment_method, payment_split, received_by, source, note, customer_id')
       .eq('salon_id', salonId).order('slot_start').range(from, to));
   const st: Record<string, string> = { new: '未確定', confirmed: '確定', cancelled: 'キャンセル' };
   const rcv: Record<string, string> = { '': '', therapist: '女子が受領', shop: 'お店が受領' };
@@ -2576,7 +2612,7 @@ async function exportCrmCsvInner(
   bs.forEach((b) => rows.push([
     b.id, jst(b.slot_start), jst(b.slot_end), b.therapist_id == null ? 'フリー' : names.get(Number(b.therapist_id)) ?? b.therapist_id,
     b.course_name, b.customer_name, displayTel(b.customer_tel), st[String(b.status)] ?? b.status, b.cancel_bad ? '悪質' : '', // ★ 2026-10-09 点検#8: 削除済み（0000000000）は出さない
-    b.price_total, b.pay_total, b.payment_method, rcv[String(b.received_by ?? '')] ?? '', b.source === 'web' ? 'フクエス' : '店で受付', b.note, b.customer_id,
+    b.price_total, b.pay_total, paymentLabel(String(b.payment_method ?? ''), parsePaymentSplit(b.payment_split)), rcv[String(b.received_by ?? '')] ?? '', b.source === 'web' ? 'フクエス' : '店で受付', b.note, b.customer_id,
   ]));
   return { ok: true, csv: toCsv(rows), count: bs.length };
 }
