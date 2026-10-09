@@ -50,7 +50,22 @@ function Table({ title, rows, color, note }: { title: string; rows: CrmStatRow[]
       {rows.length === 0 ? (
         <p className="p-4 text-[13px] text-slate-400">この月の予約はありません</p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* ★ 2026-10-09 点検（レイアウト）: スマホはカード型（名前と売上を太く、棒は下に）。PC は今までの表 */}
+        <div className="divide-y divide-slate-100 md:hidden">
+          {rows.map((r) => (
+            <div key={r.key} className="px-3 py-2">
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="font-bold text-slate-800">{r.label}</span>
+                <span className="ml-auto text-slate-600">{r.count}本</span>
+                <span className="font-bold">{yen(r.sales)}</span>
+              </div>
+              <p className="text-[11px] text-slate-500">ｷｬﾝｾﾙ {r.cancels}・報酬 {yen(r.pay)}</p>
+              <div className="mt-1"><Bar value={useCount ? r.count : r.sales} max={useCount ? maxCount : max} color={color} /></div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[560px] text-[13px]">
             <thead>
               <tr className="text-[11px] font-bold text-slate-400">
@@ -76,6 +91,7 @@ function Table({ title, rows, color, note }: { title: string; rows: CrmStatRow[]
             </tbody>
           </table>
         </div>
+        </>
       )}
     </section>
   );
@@ -120,7 +136,20 @@ function DormantSection({ salonId, adminSalonQuery }: { salonId: number; adminSa
       ) : list.customers.length === 0 ? (
         <p className="mt-2 text-[13px] text-slate-400">該当するお客様はいません。</p>
       ) : (
-        <div className="mt-2 overflow-x-auto border border-slate-200 bg-white">
+        <>
+        <div className="mt-2 divide-y divide-slate-100 border border-slate-200 bg-white md:hidden">
+          {list.customers.map((c) => (
+            <div key={c.id} className="px-3 py-2">
+              <div className="flex items-center gap-2 text-[13px]">
+                <Link href={`${crm.href('/customers')}${sep}customer=${c.id}`} className="font-bold text-[#3f51b5] underline decoration-dotted underline-offset-2">{c.name || '(名前なし)'}</Link>
+                {c.memberNo && <span className="text-[11px] text-slate-400">{c.memberNo}</span>}
+                <span className="ml-auto whitespace-nowrap font-bold text-slate-800">{c.daysAgo}日</span>
+              </div>
+              <p className="text-[11px] text-slate-500">{CRM_CATEGORY_LABEL[c.category]}・利用 {c.visits}回・最終 {ymd(c.lastVisitISO)}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 hidden overflow-x-auto border border-slate-200 bg-white md:block">
           <table className="w-full min-w-[420px] text-[13px]">
             <thead className="bg-slate-50 text-[11px] text-slate-500">
               <tr><th className="px-3 py-1.5 text-left">お客様</th><th className="px-2 text-left">分類</th><th className="px-2 text-right">利用</th><th className="px-2 text-right">最終利用</th><th className="px-2 text-right">経過</th></tr>
@@ -141,6 +170,7 @@ function DormantSection({ salonId, adminSalonQuery }: { salonId: number; adminSa
             </tbody>
           </table>
         </div>
+        </>
       )}
     </section>
   );

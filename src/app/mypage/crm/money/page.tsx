@@ -105,7 +105,22 @@ function MoneyBody({ salonId }: { salonId: number }) {
       ) : shown.length === 0 ? (
         <p className="mb-4 border border-slate-200 bg-white p-6 text-center text-[14px] text-slate-400">精算が残っている人はいません</p>
       ) : (
-        <div className="mb-5 overflow-x-auto border border-slate-200 bg-white">
+        <>
+        {/* ★ 2026-10-09 点検（レイアウト）: スマホはカード型（第1231便の予約一覧・料金設定と同じ作り）。PC は今までの表 */}
+        <div className="mb-5 divide-y divide-slate-100 border border-slate-200 bg-white md:hidden">
+          {shown.map((b) => (
+            <div key={b.therapistId} className="px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] font-black text-slate-800">{b.name}</span>
+                <span className={`ml-auto text-[14px] font-black ${b.balance > 0 ? 'text-[#3f51b5]' : b.balance < 0 ? 'text-pink-600' : 'text-emerald-700'}`}>{moneyBalanceLabel(b.balance)}</span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                受領 {yen(b.received)}・報酬 {yen(b.pay)}・女子→お店 {yen(b.toShop)}・お店→女子 {yen(b.toTherapist)}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="mb-5 hidden overflow-x-auto border border-slate-200 bg-white md:block">
           <table className="w-full min-w-[640px] text-[13px]">
             <thead className="bg-slate-50">
               <tr>
@@ -133,6 +148,7 @@ function MoneyBody({ salonId }: { salonId: number }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <AddMoveForm salonId={salonId} therapists={therapists} onDone={reload} />
@@ -151,7 +167,30 @@ function MoneyBody({ salonId }: { salonId: number }) {
       ) : moves.length === 0 ? (
         <p className="border border-slate-200 bg-white p-6 text-center text-[14px] text-slate-400">この月の動きはまだありません</p>
       ) : (
-        <div className="overflow-x-auto border border-slate-200 bg-white">
+        <>
+        <div className="divide-y divide-slate-100 border border-slate-200 bg-white md:hidden">
+          {moves.map((m) => (
+            <div key={m.id} className={`px-3 py-2 ${m.cancelledAt ? 'text-slate-400' : ''}`}>
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="font-bold">{dayLabel(m.date)}</span>
+                <span className="truncate">{m.therapistName}</span>
+                <span className={`ml-auto whitespace-nowrap font-black ${m.cancelledAt ? 'line-through' : m.direction === 'to_shop' ? 'text-[#3f51b5]' : 'text-pink-600'}`}>{yen(m.amount)}</span>
+              </div>
+              <div className="mt-0.5 flex items-center gap-2 text-[11px]">
+                <span className={`font-bold ${m.cancelledAt ? '' : m.direction === 'to_shop' ? 'text-[#3f51b5]' : 'text-pink-600'}`}>{CRM_MONEY_DIRECTION_LABEL[m.direction]}</span>
+                <span>{CRM_MONEY_CATEGORY_LABEL[m.category]}</span>
+                {m.memo && <span className="truncate text-slate-500">{m.memo}</span>}
+                <span className="ml-auto whitespace-nowrap text-slate-400">{timeLabel(m.createdAt)}</span>
+                {m.cancelledAt ? (
+                  <span className="whitespace-nowrap font-bold">取消 {timeLabel(m.cancelledAt)}</span>
+                ) : (
+                  <UndoButton onUndo={() => undo(m.id)} />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto border border-slate-200 bg-white md:block">
           <table className="w-full min-w-[700px] text-[13px]">
             <thead className="bg-slate-50">
               <tr>
@@ -187,6 +226,7 @@ function MoneyBody({ salonId }: { salonId: number }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

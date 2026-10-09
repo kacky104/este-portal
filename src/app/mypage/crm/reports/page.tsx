@@ -101,7 +101,29 @@ function ReportsBody({ salonId }: { salonId: number }) {
           この月の日報はまだありません。<br />スケジュールの「締め作業（日報を作る）」で、1日ずつ締めると、ここに並びます。
         </p>
       ) : (
-        <div className="overflow-x-auto border border-slate-200 bg-white">
+        <>
+        {/* ★ 2026-10-09 点検（レイアウト）: スマホはカード型（日付・売上・利益を太く、ほかは小さい文字）。PC は今までの表 */}
+        <div className="divide-y divide-slate-100 border border-slate-200 bg-white md:hidden">
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 text-[13px] font-black">
+            <span>合計</span>
+            <span className="ml-auto">売上 {yen(total.sales)}</span>
+            <span className={total.profit < 0 ? 'text-rose-600' : 'text-emerald-700'}>利益 {yen(total.profit)}</span>
+          </div>
+          {rows.map((r) => (
+            <div key={r.date} className="px-3 py-2">
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="font-bold text-slate-800">{dayLabel(r.date)}</span>
+                <span className="ml-auto font-bold">売上 {yen(r.sales)}</span>
+                <span className={`font-bold ${r.profit < 0 ? 'text-rose-600' : 'text-emerald-700'}`}>利益 {yen(r.profit)}</span>
+              </div>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                {r.bookingCount}本・ｷｬﾝｾﾙ {r.cancelCount}・出勤 {r.workingCount}人・現金 {yen(r.cashSales)}・女子報酬 {yen(r.pay)}・経費 {yen(r.expense)}
+                {r.memo && <span className="ml-1 text-slate-400">／{r.memo}</span>}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto border border-slate-200 bg-white md:block">
           <table className="w-full min-w-[760px] text-[13px]">
             <thead className="bg-slate-50">
               <tr>
@@ -149,6 +171,7 @@ function ReportsBody({ salonId }: { salonId: number }) {
             </tfoot>
           </table>
         </div>
+        </>
       )}
     </div>
   );
