@@ -653,16 +653,16 @@ export async function getCrmSchedule(
     // 同意書（第560便）：有効な同意の時刻
     bookingIds.length > 0
       ? svc.from('crm_consents').select('booking_id, created_at')
-          .eq('salon_id', salonId).is('superseded_at', null).in('booking_id', bookingIds).then((r) => r.data ?? [])
+          .eq('salon_id', salonId).is('superseded_at', null).in('booking_id', bookingIds).then(rowsOrThrow)
       : Promise.resolve([] as Array<{ booking_id: unknown; created_at: unknown }>),
     // 女子メモ（crm_therapist_memos・2026-09-19）
     therapistIds.length > 0
       ? svc.from('crm_therapist_memos').select('therapist_id, memo')
-          .eq('salon_id', salonId).in('therapist_id', therapistIds).then((r) => r.data ?? [])
+          .eq('salon_id', salonId).in('therapist_id', therapistIds).then(rowsOrThrow)
       : Promise.resolve([] as Array<{ therapist_id: unknown; memo: unknown }>),
     customerIds.length > 0
       ? svc.from('salon_customers').select('id, name, category, caution_memo, ng_therapist_ids')
-          .eq('salon_id', salonId).in('id', customerIds).then((r) => r.data ?? [])
+          .eq('salon_id', salonId).in('id', customerIds).then(rowsOrThrow)
       : Promise.resolve([] as Array<Record<string, unknown>>),
     statsFor(svc, salonId, customerIds),
     // ★ lite のときは読まない（画面側が前回の値を使う）
@@ -768,19 +768,30 @@ export async function lookupCrmCustomerByPhone(
     console.error('[crm] グループ共有を読めなかった', salonId, e instanceof Error ? e.message : String(e));
     return { failed: true, byPhone: new Map<string, CrmGroupHit[]>() };
   });
-  const { data: ph } = await svc
+  const { data: ph, error: phErr } = await svc
     .from('salon_customer_phones').select('customer_id')
     .eq('salon_id', salonId).eq('phone', phone).maybeSingle();
   const group = await groupP;
+  // ★ 2026-10-09 点検#2: 台帳を引けなかったら「台帳にない」と答えない（NG・要注意を見落として受け付けてしまう）
+  if (phErr) return readFail(new Error(phErr.message));
   const groupHits = group.byPhone.get(phone) ?? [];
   if (!ph) return { ok: true, customer: null, groupHits, groupFailed: group.failed };
   const id = Number(ph.customer_id);
-  const [{ data: c }, stats] = await Promise.all([
-    svc.from('salon_customers')
-      .select('id, name, category, caution_memo, ng_therapist_ids')
-      .eq('salon_id', salonId).eq('id', id).maybeSingle(),
-    statsFor(svc, salonId, [id]),
-  ]);
+  let c: Record<string, unknown> | null;
+  let stats: Awaited<ReturnType<typeof statsFor>>;
+  try {
+    const [cr, st] = await Promise.all([
+      svc.from('salon_customers')
+        .select('id, name, category, caution_memo, ng_therapist_ids')
+        .eq('salon_id', salonId).eq('id', id).maybeSingle(),
+      statsFor(svc, salonId, [id]),
+    ]);
+    if (cr.error) throw new Error(cr.error.message);
+    c = cr.data;
+    stats = st;
+  } catch (e) {
+    return readFail(e);
+  }
   if (!c) return { ok: true, customer: null, groupHits, groupFailed: group.failed };
   return {
     ok: true,
@@ -1102,13 +1113,15 @@ type DayBooking = {
 
 async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Promise<DayBooking[]> {
   const { startISO, endISO } = businessWindow(dateISO);
-  const { data } = await svc
+  const { data, error } = await svc
     .from('salon_bookings')
     .select('therapist_id, status, price_total, pay_total, payment_method, received_by, slot_start')
     .eq('salon_id', salonId)
     .gte('slot_start', startISO)
     .lt('slot_start', endISO)
     .limit(2000);
+  // ★ 2026-10-09 点検#1: 読めなかったら投げる（空のふりをすると 0本・報酬0円の確定や売上0の日報が書かれる）。第1219便と同じ
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({
     therapistId: r.therapist_id == null ? null : Number(r.therapist_id),
     status: String(r.status),
@@ -1125,6 +1138,12 @@ async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Prom
 //   readConfirms / readReport / readSettings / readWorkEnds / readWorkDays は、Supabase が error を返したら【投げる】（空のふりをしない）。
 //   それまでは一時的なDBエラーで「設定が空」「確定なし」として進み、出勤情報の自由項目が全部落ちて保存されたり、
 //   手当の入らない数字で日報が作られたりする道があった。呼び出し側は readFail で受けて ok:false を返す（止まってエラーを出す）。
+/** ★ 2026-10-09 点検#2: 読み取りの結果を「失敗なら投げる・成功なら行」に。.then(rowsOrThrow) で使う（空のふりをしない） */
+function rowsOrThrow<T>(r: { data: T[] | null; error: { message: string } | null }): T[] {
+  if (r.error) throw new Error(r.error.message);
+  return r.data ?? [];
+}
+
 function readFail(e: unknown): { ok: false; error: string } {
   const m = e instanceof Error ? e.message : String(e);
   return { ok: false, error: `読み込めませんでした（${m}）。もう一度お試しください` };
@@ -1174,15 +1193,17 @@ async function readReport(svc: Svc, salonId: number, dateISO: string): Promise<C
 
 /** その日に出勤しているセラピスト（在籍・その店） */
 async function readWorking(svc: Svc, salonId: number, dateISO: string): Promise<Array<{ id: number; name: string }>> {
-  const { data: ths } = await svc.from('therapists').select('id, name').eq('salon_id', salonId);
+  const { data: ths, error: thErr } = await svc.from('therapists').select('id, name').eq('salon_id', salonId);
+  if (thErr) throw new Error(thErr.message); // ★ 2026-10-09 点検#1
   const all = (ths ?? []).map((t) => ({ id: Number(t.id), name: String(t.name ?? '') }));
   if (all.length === 0) return [];
-  const { data: sch } = await svc
+  const { data: sch, error: schErr } = await svc
     .from('therapist_schedules')
     .select('therapist_id')
     .in('therapist_id', all.map((t) => t.id))
     .eq('schedule_date', dateISO)
     .eq('is_active', true);
+  if (schErr) throw new Error(schErr.message); // ★ 2026-10-09 点検#1
   const ids = new Set((sch ?? []).map((r) => Number(r.therapist_id)));
   return all.filter((t) => ids.has(t.id));
 }
@@ -1203,7 +1224,12 @@ export async function confirmCrmPay(
   if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
   const al = Math.round(Number(allowance) || 0);
   if (al < -1000000 || al > 1000000) return { ok: false, error: '手当の金額が大きすぎます' };
-  const mine = (await readDayBookings(svc, salonId, dateISO)).filter((b) => b.therapistId === therapistId && b.status !== 'cancelled');
+  let mine: DayBooking[];
+  try {
+    mine = (await readDayBookings(svc, salonId, dateISO)).filter((b) => b.therapistId === therapistId && b.status !== 'cancelled');
+  } catch (e) {
+    return readFail(e); // ★ 2026-10-09 点検#1: 読めなかった回は確定を書かない
+  }
   const { error } = await svc.from('crm_pay_confirms').upsert({
     salon_id: salonId,
     therapist_id: therapistId,
