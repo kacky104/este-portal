@@ -398,6 +398,23 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
     return Number.isInteger(v) && v > 0 ? v : null;
   });
   const [creating, setCreating] = useState(false);
+  // ★ 点検（低 C-2）: スマホは一覧と詳細が切り替わるので、詳細を開くときに履歴を1つ積み、端末の「戻る」で一覧へ戻す
+  //   （前は CRM ごと前のページへ戻っていた）。PC は一覧と詳細が並ぶので積まない
+  const isNarrow = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  const openOnMobile = (fn: () => void) => {
+    if (isNarrow()) { try { window.history.pushState({ crmDetail: true }, ''); } catch { /* 何もしない */ } }
+    fn();
+  };
+  // 画面の「一覧へ戻る」で閉じるときは、積んだ履歴を1つ戻して消す（次の「戻る」が空振りしないように）
+  const closeOnMobile = (fn: () => void) => {
+    if (isNarrow() && typeof window !== 'undefined' && window.history.state?.crmDetail) { window.history.back(); return; }
+    fn();
+  };
+  useEffect(() => {
+    const onPop = () => { setSelected(null); setCreating(false); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [therapists, setTherapists] = useState<CrmTherapist[]>([]);
   const seq = useRef(0);
 
@@ -419,8 +436,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
   }, [query, runSearch]);
 
   const openCreate = async () => {
-    setSelected(null);
-    setCreating(true);
+    openOnMobile(() => { setSelected(null); setCreating(true); });
     if (therapists.length === 0) {
       const r = await safeAction(getCrmTherapists(salonId));
       if (r.ok) setTherapists(r.therapists);
@@ -459,7 +475,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
               <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => { setCreating(false); setSelected(c.id); }}
+                  onClick={() => openOnMobile(() => { setCreating(false); setSelected(c.id); })}
                   className={`block w-full px-3 py-2.5 text-left hover:bg-indigo-50 ${selected === c.id ? 'bg-indigo-50' : ''}`}
                 >
                   <div className="flex items-center gap-1.5">
@@ -500,7 +516,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
         <section className={`min-h-[60vh] w-full flex-1 bg-white md:block md:border md:border-slate-200 ${showDetailOnMobile ? 'block' : 'hidden'}`}>
           {creating ? (
             <div className="p-4">
-              <button type="button" onClick={() => setCreating(false)} className="mb-3 text-[13px] font-bold text-indigo-600 md:hidden">
+              <button type="button" onClick={() => closeOnMobile(() => setCreating(false))} className="mb-3 text-[13px] font-bold text-indigo-600 md:hidden">
                 ← 一覧へ戻る
               </button>
               <h2 className="mb-3 text-[17px] font-black text-slate-800">お客様を新しく登録</h2>
@@ -518,7 +534,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
               salonId={salonId}
               customerId={selected}
               inGroup={inGroup}
-              onBack={() => setSelected(null)}
+              onBack={() => closeOnMobile(() => setSelected(null))}
               onChanged={() => void runSearch(query)}
               onDeleted={() => { setSelected(null); void runSearch(query); }}
             />

@@ -44,6 +44,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
   const [st, setSt] = useState<CrmSettings | null>(null);
   // ★ 第1228便: 読み込んだとき（または保存したとき）の設定。いまの st と違えば「未保存」
   const [savedSt, setSavedSt] = useState<CrmSettings | null>(null);
+  const [delRoom, setDelRoom] = useState<string | null>(null); // ★ 点検（低 C-5）: 部屋の削除の1回目
   const dirty = !!st && !!savedSt && JSON.stringify(st) !== JSON.stringify(savedSt);
   useCrmDirty(dirty); // ★ 2026-10-09 点検#6: 上の帯のタブ・「画面を更新」でも聞く
   useEffect(() => {
@@ -275,17 +276,25 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
                     />
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const rc = { ...st.roomColors };
-                    delete rc[r];
-                    setSt({ ...st, rooms: st.rooms.filter((x) => x !== r), roomColors: rc });
-                  }}
-                  className="ml-auto text-[12px] font-bold text-slate-400 underline"
-                >
-                  削除
-                </button>
+                {/* ★ 点検（低 C-5）: 削除は2回押し（1回目は赤字で「本当に削除」。保存するまで DB は変わらないが、一括保存なので誤削除に気づきにくい） */}
+                {delRoom === r ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const rc = { ...st.roomColors };
+                      delete rc[r];
+                      setSt({ ...st, rooms: st.rooms.filter((x) => x !== r), roomColors: rc });
+                      setDelRoom(null);
+                    }}
+                    className="ml-auto bg-rose-600 px-2 py-0.5 text-[12px] font-bold text-white"
+                  >
+                    本当に削除
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setDelRoom(r)} className="ml-auto text-[12px] font-bold text-slate-400 underline">
+                    削除
+                  </button>
+                )}
               </div>
             );
           })}

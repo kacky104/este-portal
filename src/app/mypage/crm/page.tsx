@@ -298,6 +298,19 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   }, []);
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
+  // 「受まで／上がり」の切り替え（表のバッジと、出勤情報の小窓の両方から）
+  const toggleEnd = async (tid: number, next: CrmEndType) => {
+    // ★ 第1218便: 保存が終わるまで同じ人の切り替えを受け付けない（反応が無いと思って2回押すと元に戻っていた）
+    if (endTogglingRef.current.has(tid)) return;
+    endTogglingRef.current.add(tid);
+    try {
+      const r = await safeCall(() => setCrmWorkEnd(salonId, tid, date, next));
+      if (!r.ok) { setErr(r.error); return; }
+      reload();
+    } finally {
+      endTogglingRef.current.delete(tid);
+    }
+  };
 
   // ★ 帯の「画面を更新」（第641便）：開いている詳細・フォームは閉じて、読み直す。「更新しました」を2秒出す
   const [refreshedAt, setRefreshedAt] = useState<number | null>(null);
@@ -491,18 +504,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           nowJump={nowJump}
           onWork={setWorkFor}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
-          onToggleEnd={async (tid, next) => {
-            // ★ 第1218便: 保存が終わるまで同じ人の切り替えを受け付けない（反応が無いと思って2回押すと元に戻っていた）
-            if (endTogglingRef.current.has(tid)) return;
-            endTogglingRef.current.add(tid);
-            try {
-              const r = await safeCall(() => setCrmWorkEnd(salonId, tid, date, next));
-              if (!r.ok) { setErr(r.error); return; }
-              reload();
-            } finally {
-              endTogglingRef.current.delete(tid);
-            }
-          }}
+          onToggleEnd={toggleEnd}
           onEmpty={(therapistId, min) => {
             // ★ 休憩の時間は受付しない（第551便）
             const wd = therapistId != null ? data?.workDays[therapistId] : undefined;
@@ -586,6 +588,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           onClose={() => setWorkFor(null)}
           onSaved={() => { setWorkFor(null); reload(); }}
           onConfirm={(savedTransport) => { const t = workFor; setWorkFor(null); reload(); setConfirmTransport(savedTransport); setConfirmFor(t); }}
+          onToggleEnd={(next) => void toggleEnd(workFor.id, next)}
         />
       )}
 
@@ -2443,7 +2446,7 @@ function CloseDialog({
 
 // ── 出勤情報（名前を押す・第550便）────────────────────
 function WorkDayDialog({
-  therapist, salonId, date, rooms, toggleDefs, endType, initial, onClose, onSaved, onConfirm,
+  therapist, salonId, date, rooms, toggleDefs, endType, initial, onClose, onSaved, onConfirm, onToggleEnd,
 }: {
   therapist: CrmScheduleTherapist;
   salonId: number;
@@ -2455,6 +2458,8 @@ function WorkDayDialog({
   onClose: () => void;
   onSaved: () => void;
   onConfirm: (savedTransport: number) => void;
+  /** ★ 点検（低 P）: 表のバッジが次の予約カードに隠れて押せないことがある → ここからも切り替えられる */
+  onToggleEnd: (next: CrmEndType) => void;
 }) {
   const [wd, setWd] = useState<CrmWorkDay>(initial);
   const [busy, setBusy] = useState(false);
@@ -2500,9 +2505,14 @@ function WorkDayDialog({
               <span className="font-bold text-slate-800">
                 出勤 {therapist.schedules.length > 0 ? therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ') : 'なし'}
               </span>
-              <span className={`border px-1.5 text-[12px] font-bold ${endType === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'}`}>
-                {CRM_END_LABEL[endType]}
-              </span>
+              <button
+                type="button"
+                onClick={() => onToggleEnd(endType === 'accept' ? 'finish' : 'accept')}
+                title="押すと「受まで」「上がり」が切り替わります"
+                className={`border px-1.5 text-[12px] font-bold ${endType === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'}`}
+              >
+                {CRM_END_LABEL[endType]} ⇄
+              </button>
             </div>
             <p className="-mt-2 text-[12px] text-slate-400">出勤の時刻は、マイページの「出勤」で変えてください（サイトと媒体に出る出勤と同じものです）。</p>
 
