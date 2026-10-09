@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
 import type { CrmAccess } from '@/app/lib/crm/types';
 import { isCrmHost } from '@/lib/crmHost';
-import { crmLeaveOk, useCrmLinks } from './CrmBase';
+import { crmLeaveOk, safeAction, useCrmLinks } from './CrmBase';
 import { CrmIntro } from './CrmIntro';
 
 // フクエスCRM の外枠（2026-09-19）。★ 画面が増えても、入口の判定と上の帯はここ1か所。
@@ -38,8 +38,8 @@ export function useCrmAccess(): { access: CrmAccess | null; adminSalonQuery: str
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const adminSalon = Number(sp.get('salon') ?? '') || undefined;
-    getCrmAccess(adminSalon).then((a) => {
-      if (!a.ok && a.needLogin) {
+    safeAction(getCrmAccess(adminSalon)).then((a) => {
+      if (!a.ok && 'needLogin' in a && a.needLogin) {
         // ★ 第631便: fukuescrm.com では CRM 専用のログインへ
         window.location.href = isCrmHost(window.location.hostname)
           ? '/login'

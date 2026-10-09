@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   deleteCrmPriceItem,
   listCrmPriceItems,
@@ -14,6 +14,7 @@ import {
   type CrmPriceKind,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { safeAction } from '../CrmBase';
 
 // フクエスCRM「料金設定」（第536便・2026-09-19）。
 // ★ 料金表＝項目ごとに「料金」と「女子報酬」（カッキーさんの決定：報酬は項目ごとに金額）。
@@ -56,7 +57,7 @@ function PricesBody({ salonId }: { salonId: number }) {
 
   useEffect(() => {
     let alive = true;
-    listCrmPriceItems(salonId).then((r) => {
+    safeAction(listCrmPriceItems(salonId)).then((r) => {
       if (!alive) return;
       if (!r.ok) { setErr(r.error); return; }
       setErr('');
@@ -94,7 +95,8 @@ function PricesBody({ salonId }: { salonId: number }) {
                 {list.map((p) => (
                   <RowCard key={p.id} salonId={salonId} initial={toDraft(p)} onSaved={reload} />
                 ))}
-                <RowCard key={`new-${kind}-${list.length}-${tick}`} salonId={salonId} initial={emptyDraft(kind, list.length)} onSaved={reload} />
+                {/* ★ 2026-10-09 点検#23: 新規行の key を固定（前は tick 入りで、別の行を保存するたびに入力途中の新規行が作り直されて消えた） */}
+                <RowCard key={`new-${kind}`} salonId={salonId} initial={emptyDraft(kind, list.length)} onSaved={reload} />
               </div>
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[640px] text-[13px]">
@@ -113,7 +115,7 @@ function PricesBody({ salonId }: { salonId: number }) {
                     {list.map((p) => (
                       <Row key={p.id} salonId={salonId} initial={toDraft(p)} onSaved={reload} />
                     ))}
-                    <Row key={`new-${kind}-${list.length}-${tick}`} salonId={salonId} initial={emptyDraft(kind, list.length)} onSaved={reload} />
+                    <Row key={`new-${kind}`} salonId={salonId} initial={emptyDraft(kind, list.length)} onSaved={reload} />
                   </tbody>
                 </table>
               </div>
@@ -137,6 +139,17 @@ function useDraftRow(salonId: number, initial: Draft, onSaved: () => void) {
   // ★ 固定の指名（フリー・ネット指名・本指名）は名前を変えられない・消せない（第546便）
   const fixed = !isNew && isFixedNomination(initial.kind, initial.name);
   const dirty = JSON.stringify(d) !== JSON.stringify(initial);
+  // ★ 2026-10-09 点検#23: 読み直しで initial が変わったとき、行が触られていなければ（前の initial と同じなら）新しい initial に合わせる。
+  //   前は useState の初期値だけだったので、保存→読み直しのあとも古い値を持ち、何も変えていないのに「保存」が押せる状態が残った。
+  const initialKey = JSON.stringify(initial);
+  const prevInitialKey = useRef(initialKey);
+  useEffect(() => {
+    if (prevInitialKey.current === initialKey) return;
+    const wasClean = JSON.stringify(d) === prevInitialKey.current;
+    prevInitialKey.current = initialKey;
+    if (wasClean) setD(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialKey]);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   const numOnly = (v: string) => v.replace(/[^0-9]/g, '');
 
@@ -150,6 +163,9 @@ function useDraftRow(salonId: number, initial: Draft, onSaved: () => void) {
     });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
+    // ★ 2026-10-09 点検#23: 保存したら、読み直し後の initial と同じ形に（新規行は空に戻す・既存行は数字をそろえる）
+    if (isNew) setD(initial);
+    else setD({ ...d, minutes: String(Number(d.minutes) || ''), price: String(Number(d.price) || 0), pay: String(Number(d.pay) || 0), sort: String(Number(d.sort) || 0) });
     onSaved();
   };
   const del = async () => {

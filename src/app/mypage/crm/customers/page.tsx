@@ -20,6 +20,7 @@ import {
   type CrmTherapist,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { safeAction } from '../CrmBase';
 import { ConsentView } from '../ConsentView';
 import { GroupShareBox } from '../GroupShare';
 
@@ -230,7 +231,7 @@ function CustomerDetail({
   // ★ お客様が変わったら、親が key で作り直す（ここで state を戻さない）。
   useEffect(() => {
     let alive = true;
-    getCrmCustomer(salonId, customerId).then((res) => {
+    safeAction(getCrmCustomer(salonId, customerId)).then((res) => {
       if (!alive) return;
       if (!res.ok) { setErr(res.error); return; }
       setData({ customer: res.customer, bookings: res.bookings, therapists: res.therapists });
@@ -403,7 +404,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
   const runSearch = useCallback(async (q: string) => {
     const my = ++seq.current;
     setLoadingList(true);
-    const res = await searchCrmCustomers(salonId, q);
+    const res = await safeAction(searchCrmCustomers(salonId, q));
     if (my !== seq.current) return; // 古い検索の結果は捨てる
     setLoadingList(false);
     if (!res.ok) { setListErr(res.error); setList([]); return; }
@@ -421,7 +422,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
     setSelected(null);
     setCreating(true);
     if (therapists.length === 0) {
-      const r = await getCrmTherapists(salonId);
+      const r = await safeAction(getCrmTherapists(salonId));
       if (r.ok) setTherapists(r.therapists);
     }
   };

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCrmLinks } from '../CrmBase';
+import { safeAction, useCrmLinks } from '../CrmBase';
 import { useEffect, useState } from 'react';
 import { getCrmTherapists, searchCrmBookings } from '@/app/actions/crm';
 import { CRM_RECEIVED_LABEL, isUnreceived, yen, type CrmBookingListRow, type CrmBookingSearch, type CrmReceivedBy, type CrmTherapist } from '@/app/lib/crm/types';
@@ -60,13 +60,13 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const [therapists, setTherapists] = useState<CrmTherapist[]>([]);
 
   useEffect(() => {
-    getCrmTherapists(salonId).then((r) => { if (r.ok) setTherapists(r.therapists); });
+    safeAction(getCrmTherapists(salonId)).then((r) => { if (r.ok) setTherapists(r.therapists); });
   }, [salonId]);
 
   const fKey = JSON.stringify(f);
   useEffect(() => {
     let alive = true;
-    searchCrmBookings(salonId, JSON.parse(fKey) as CrmBookingSearch).then((r) => {
+    safeAction(searchCrmBookings(salonId, JSON.parse(fKey) as CrmBookingSearch)).then((r) => {
       if (!alive) return;
       setRes(r.ok ? { key: fKey, rows: r.rows, truncated: r.truncated, err: '' } : { key: fKey, rows: [], truncated: false, err: r.error });
     });

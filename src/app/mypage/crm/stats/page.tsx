@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getCrmMonthStats, listCrmDormantCustomers } from '@/app/actions/crm';
 import { CRM_CATEGORY_LABEL, yen, type CrmDormantCustomer, type CrmMonthStats, type CrmStatRow } from '@/app/lib/crm/types';
-import { useCrmLinks } from '../CrmBase';
+import { safeAction, useCrmLinks } from '../CrmBase';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 
 // フクエスCRM「レポート」（第540便・2026-09-19）。
@@ -89,7 +89,7 @@ function DormantSection({ salonId, adminSalonQuery }: { salonId: number; adminSa
   const [err, setErr] = useState('');
   useEffect(() => {
     let alive = true;
-    listCrmDormantCustomers(salonId, days).then((r) => {
+    safeAction(listCrmDormantCustomers(salonId, days)).then((r) => {
       if (!alive) return;
       if (!r.ok) { setErr(r.error); return; }
       setErr('');
@@ -153,7 +153,7 @@ function StatsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
 
   useEffect(() => {
     let alive = true;
-    getCrmMonthStats(salonId, ym).then((r) => {
+    safeAction(getCrmMonthStats(salonId, ym)).then((r) => {
       if (!alive) return;
       if (!r.ok) { setErr(r.error); return; }
       setErr('');

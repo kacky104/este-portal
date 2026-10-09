@@ -46,3 +46,13 @@ export function useCrmDirty(dirty: boolean) {
 export function crmLeaveOk(): boolean {
   return !crmDirty.current || window.confirm(CRM_DIRTY_MSG);
 }
+
+// ★ 2026-10-09 点検#20: 画面から呼ぶ Server Action が【例外】（圏外・デプロイ直後の古いチャンク・5xx）で落ちたとき、
+//   「読み込み中です…」のまま止まらないように、ok:false の文に変える。各画面の .then(res => { if (!res.ok) setErr(...) }) がそのまま効く。
+export const CRM_LOAD_ERR = '読み込めませんでした（通信を確認して、上の「画面を更新」を押してください）';
+export function safeAction<T extends { ok: boolean }>(p: Promise<T>): Promise<T | { ok: false; error: string }> {
+  return p.catch((e: unknown) => {
+    console.error('[crm] server action failed', e);
+    return { ok: false as const, error: CRM_LOAD_ERR };
+  });
+}

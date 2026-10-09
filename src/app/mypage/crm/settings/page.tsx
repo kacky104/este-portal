@@ -6,7 +6,7 @@ import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, CRM_TOGGLE_COLORS, type CrmToggleColor, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
-import { useCrmDirty } from '../CrmBase';
+import { safeAction, useCrmDirty } from '../CrmBase';
 import { addCrmGroupConsentClause, CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_CONSENT_MARK } from '@/lib/crmGroup';
 import { ImportDialog } from '../ImportDialog';
 
@@ -97,7 +97,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
 
   useEffect(() => {
     let alive = true;
-    getCrmSettings(salonId).then((r) => {
+    safeAction(getCrmSettings(salonId)).then((r) => {
       if (!alive) return;
       if (!r.ok) { setErr(r.error); return; }
       // ★ 同意書の題名・本文がどちらも空なら、初期の文面を入れておく（保存するまでは DB は変わらない・第562便）

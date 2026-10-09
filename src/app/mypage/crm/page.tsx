@@ -220,6 +220,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   const fullNextRef = useRef(true);
   // ★ 第1116便: 前回読んだときの変更マークと時刻。★ マークが同じ（＝何も変わっていない）なら全量を読まない
   const markRef = useRef<{ mark: string; at: number } | null>(null);
+  // ★ 2026-10-09 点検#14: 最後に読み直した時刻
+  const loadedAtRef = useRef(0);
 
   // 読み込み（日付が変わったとき・自動更新のとき）
   useEffect(() => {
@@ -256,7 +258,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       if (!alive) return;
       if (!res.ok) {
         setErr(res.error);
-        if (full) setData(null);
+        // ★ 2026-10-09 点検#19: full の失敗でも前の表を残す（data を null にすると AlarmCenter が消えて「音ON」と鳴っている最中の状態が失われた）。
+        //   日付が違う data は view 側で null（「読み込み中」）になるので、別の日の表で誤って受け付けることはない。
         return;
       }
       setErr('');
@@ -269,17 +272,30 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         setData(res.data);
       }
       markRef.current = mark !== null ? { mark, at: Date.now() } : null;
+      loadedAtRef.current = Date.now();
       setNowMs(Date.now());
     })();
     return () => { alive = false; };
   }, [salonId, date, tick]);
 
   // 60秒ごとに読み直す（詳細・フォームを開いている間は止める＝見ている最中に動かさない）
+  // ★ 2026-10-09 点検#14: 小窓を閉じた直後・スリープから戻った直後は、次の60秒を待たずにすぐ読み直す（15秒以上経っていれば）。
+  //   受付フォームを開いたまま電話で5分話して閉じると、別端末の予約・受まで／上がりが最大60秒古いままだった。
+  const STALE_MS = 15000;
   useEffect(() => {
     if (picked || form || memoEdit || confirmFor || closing || workFor) return;
+    if (loadedAtRef.current && Date.now() - loadedAtRef.current > STALE_MS) setTick((v) => v + 1);
     const t = setInterval(() => setTick((v) => v + 1), REFRESH_MS);
     return () => clearInterval(t);
   }, [picked, form, memoEdit, confirmFor, closing, workFor]);
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (loadedAtRef.current && Date.now() - loadedAtRef.current > STALE_MS) setTick((v) => v + 1);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
 

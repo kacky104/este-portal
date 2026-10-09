@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { listCrmReports } from '@/app/actions/crm';
 import { yen, type CrmDailyReport } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { safeAction } from '../CrmBase';
 
 // フクエスCRM「日報」（第538便・2026-09-19）。★ 締め作業で作った日報を月ごとに並べ、月の合計を出す。
 // ★ 日報は締めたときの数字の写し。締めていない日は出ない（スケジュールの「締め作業」で作る）。
@@ -40,9 +41,9 @@ function ReportsBody({ salonId }: { salonId: number }) {
 
   useEffect(() => {
     let alive = true;
-    listCrmReports(salonId, ym).then((r) => {
+    safeAction(listCrmReports(salonId, ym)).then((r) => {
       if (!alive) return;
-      if (!r.ok) { setErr(r.error); setLoaded({ ym, rows: [] }); return; }
+      if (!r.ok) { setErr(r.error); return; } // ★ 2026-10-09 点検#20: 失敗したら「まだありません」と出さない
       setErr('');
       setLoaded({ ym, rows: r.reports });
     });

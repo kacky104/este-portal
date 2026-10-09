@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { getCrmBookingConsents, markCrmConsentManual, revokeCrmConsentManual } from '@/app/actions/crm';
 import type { CrmConsent } from '@/app/lib/crm/types';
+import { safeAction } from './CrmBase';
 
 // フクエスCRM：同意書の表示と印刷（第560便・第573便・第574便で別ファイルに）。
 // ★ スケジュールの予約の詳細・顧客台帳の予約の履歴・予約一覧で使う（過去の予約のサインもここから見られる）。
@@ -101,8 +102,8 @@ export function ConsentView({
   const load = async () => {
     setOpen(true);
     if (list) return;
-    const r = await getCrmBookingConsents(salonId, bookingId);
-    if (!r.ok) { setErr(r.error); return; }
+    const r = await safeAction(getCrmBookingConsents(salonId, bookingId));
+    if (!r.ok) { setErr(r.error); setOpen(false); return; } // ★ 2026-10-09 点検#20: 失敗したらボタンに戻す（もう一度押せる）
     setList(r.consents);
   };
   return (

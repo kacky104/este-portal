@@ -14,6 +14,7 @@ import {
   type CrmMoneyMove,
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { safeAction } from '../CrmBase';
 
 // フクエスCRM「金銭授受」（第558便・2026-09-20）。★ 風俗CTIv2 の金銭授受履歴にあたる。
 //   上：女子ごとの残高（通算）＝ 女子が受領した料金 − 報酬 − 女子→お店 ＋ お店→女子
@@ -57,9 +58,9 @@ function MoneyBody({ salonId }: { salonId: number }) {
 
   useEffect(() => {
     let alive = true;
-    getCrmMoney(salonId, ym).then((r) => {
+    safeAction(getCrmMoney(salonId, ym)).then((r) => {
       if (!alive) return;
-      if (!r.ok) { setErr(r.error); setBalances([]); return; }
+      if (!r.ok) { setErr(r.error); return; } // ★ 2026-10-09 点検#20: 失敗したら前の表を残す（空にして「いません」と出さない）
       setErr('');
       setBalances(r.balances);
       setMovesLoaded({ ym, moves: r.moves });
