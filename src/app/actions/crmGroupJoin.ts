@@ -13,10 +13,9 @@
 // ★ 入れるかどうかを決めるのは planCrmGroupJoins（純粋関数）。ここでは判断しない。
 
 import { headers } from 'next/headers';
-import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { ADMIN_UUID } from '@/app/lib/admin';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
+import { assertCrmOwner } from '@/app/lib/crm/auth';
 import {
   CRM_GROUP_APPLY_BODY, CRM_GROUP_APPLY_VERSION,
   checkCrmGroupSignerName, crmGroupApplyValid, crmGroupApproveBody, crmGroupInviteeCanSign, crmGroupMemberAnswer,
@@ -28,20 +27,11 @@ type Err = { ok: false; error: string };
 type Svc = ReturnType<typeof createServiceClient>;
 type Auth = { ok: true; svc: Svc; userId: string; isAdmin: boolean };
 
-/** オーナー本人（か運営）で、CRM が契約中か。★ actions/crm.ts の assertCrm と同じ判定 */
+/** オーナー本人（か運営）で、CRM が契約中・規約同意済みか。★ 2026-10-09 点検#9: 判定は lib/crm/auth.ts に1本化（actions/crm.ts と同じ） */
 async function assertOwner(salonId: number): Promise<Auth | Err> {
-  if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗が不正です' };
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'ログインが必要です' };
-  const svc = createServiceClient();
-  const { data: salon, error } = await svc.from('salons').select('owner_id, crm_until').eq('id', salonId).maybeSingle();
-  if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
-  const isAdmin = user.id === ADMIN_UUID;
-  if (!isAdmin && (salon.owner_id as string | null) !== user.id) return { ok: false, error: 'この店舗の顧客台帳を見る権限がありません' };
-  const until = (salon.crm_until as string | null) ?? null;
-  if (!isAdmin && !(until && String(until).slice(0, 10) >= getCalendarDateJST())) return { ok: false, error: 'フクエスCRMのご契約期間外です' };
-  return { ok: true, svc, userId: user.id, isAdmin };
+  const a = await assertCrmOwner(salonId);
+  if (!a.ok) return a;
+  return { ok: true, svc: a.svc, userId: a.userId, isAdmin: a.isAdmin };
 }
 
 const ADMIN_CANNOT_SIGN = '運営のアカウントでは、署名・承認はできません。店舗様のアカウントで行ってください';

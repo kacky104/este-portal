@@ -13,12 +13,12 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { normalizePhone } from '@/app/lib/validation/phone';
 // ★ 第1113便: 予約ボードの読む部分を直接使う（getBookingBoardData を呼ぶと認証が二重・予約を2回読むため）
 import { loadBookingBoard, normalizeIntervalMin } from '@/app/lib/booking/boardData';
 import { scheduleWindowUtc } from '@/app/lib/booking/slots';
 import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
+import { assertCrmOwner, isCrmActive } from '@/app/lib/crm/auth';
 import { headers } from 'next/headers';
 import { businessDateNowJST } from '@/app/lib/crm/consentMatch';
 // ★ 第1325便: グループ・提携店で共有するNG・要注意リスト（受付・スケジュールに出す）
@@ -78,11 +78,6 @@ type Svc = ReturnType<typeof createServiceClient>;
 const LIST_LIMIT = 50;
 const HISTORY_LIMIT = 300;
 
-/** crm_until（YYYY-MM-DD）が今日（JST暦日）以降なら有料で使える */
-function isCrmActive(crmUntil: string | null): boolean {
-  if (!crmUntil) return false;
-  return String(crmUntil).slice(0, 10) >= getCalendarDateJST();
-}
 
 /**
  * ログイン中のオーナーの店と、CRM が使えるかを返す。
@@ -134,26 +129,11 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
 /** 有料CRMを使ってよいか確かめてから service_role を返す */
 // ★ 第1113便: 予約ボードの読み込みに要る店舗の値も一緒に返す（★ getCrmSchedule が salons を読み直さないため）
 type CrmAuthOk = { ok: true; svc: Svc; userId: string; bookingCoursesRaw: unknown; defaultIntervalMin: number };
-async function assertCrm(salonId: number): Promise<CrmAuthOk | { ok: false; error: string }> {
-  if (!Number.isInteger(salonId) || salonId <= 0) return { ok: false, error: '店舗が不正です' };
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'ログインが必要です' };
-  const svc = createServiceClient();
-  const { data: salon, error } = await svc
-    .from('salons')
-    .select('owner_id, crm_until, booking_courses, default_interval_min')
-    .eq('id', salonId)
-    .maybeSingle();
-  if (error || !salon) return { ok: false, error: '店舗が見つかりません' };
-  const isAdmin = user.id === ADMIN_UUID;
-  if (!isAdmin && (salon.owner_id as string | null) !== user.id) {
-    return { ok: false, error: 'この店舗の顧客台帳を見る権限がありません' };
-  }
-  if (!isAdmin && !isCrmActive((salon.crm_until as string | null) ?? null)) {
-    return { ok: false, error: 'フクエスCRMのご契約期間外です' };
-  }
-  return { ok: true, svc, userId: user.id, bookingCoursesRaw: salon.booking_courses, defaultIntervalMin: normalizeIntervalMin(salon.default_interval_min) };
+async function assertCrm(salonId: number, opts?: { skipTerms?: boolean }): Promise<CrmAuthOk | { ok: false; error: string }> {
+  // ★ 2026-10-09 点検#9: 判定は lib/crm/auth.ts の assertCrmOwner に1本化（規約の同意もサーバーで確かめる）
+  const a = await assertCrmOwner(salonId, opts);
+  if (!a.ok) return a;
+  return { ok: true, svc: a.svc, userId: a.userId, bookingCoursesRaw: a.salon.booking_courses, defaultIntervalMin: normalizeIntervalMin(a.salon.default_interval_min) };
 }
 
 function emptyStats(): CrmStats {
@@ -2403,7 +2383,7 @@ export async function importCrmCustomers(
 /** 今の版の規約・顧客データの取り扱いに同意する（オーナー本人だけ） */
 export async function agreeCrmTerms(salonId: number): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!CRM_TERMS_VERSION) return { ok: true };
-  const auth = await assertCrm(salonId);
+  const auth = await assertCrm(salonId, { skipTerms: true }); // ★ 同意そのものは、同意前でも通す
   if (!auth.ok) return auth;
   const ua = ((await headers()).get('user-agent') ?? '').slice(0, 300);
   const { error } = await auth.svc.from('crm_terms_agreements')
