@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, CRM_TOGGLE_COLORS, type CrmToggleColor, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { CrmShell, useCrmAccess } from '../CrmShell';
+import { addCrmGroupConsentClause, CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_CONSENT_MARK } from '@/lib/crmGroup';
 import { ImportDialog } from '../ImportDialog';
 
 // フクエスCRM「設定」（第548便・2026-09-19）。
@@ -21,7 +22,7 @@ export default function CrmSettingsPage() {
   const { access, adminSalonQuery } = useCrmAccess();
   return (
     <CrmShell access={access} adminSalonQuery={adminSalonQuery} current="settings">
-      {(a) => <SettingsBody salonId={a.salonId} />}
+      {(a) => <SettingsBody salonId={a.salonId} inGroup={a.inGroup} />}
     </CrmShell>
   );
 }
@@ -38,7 +39,7 @@ const SETTING_TABS = [
 ] as const;
 type SettingTab = (typeof SETTING_TABS)[number]['key'];
 
-function SettingsBody({ salonId }: { salonId: number }) {
+function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean }) {
   const [st, setSt] = useState<CrmSettings | null>(null);
   // ★ 第1228便: 読み込んだとき（または保存したとき）の設定。いまの st と違えば「未保存」
   const [savedSt, setSavedSt] = useState<CrmSettings | null>(null);
@@ -392,6 +393,8 @@ function SettingsBody({ salonId }: { salonId: number }) {
           <ResetConsentButton onReset={() => setSt({ ...st, consentTitle: CRM_CONSENT_DEFAULT_TITLE, consentBody: CRM_CONSENT_DEFAULT_BODY })} />
           <p className="ml-auto text-[11px] text-slate-400">{st.consentBody.length}/8000</p>
         </div>
+        {/* ★ 第1327便: グループ・提携店で共有する店だけに出す（同意書に、共有の文を足す）。★ 押したときだけ足す。保存は店が押す */}
+        {inGroup && <GroupConsentBox body={st.consentBody} onChange={(body) => setSt({ ...st, consentBody: body })} />}
         <p className="mt-1 text-[12px] leading-relaxed text-slate-400">
           最初に入っている文面はひな形です。お店に合わせて自由に書き換えてください（書き換えたあとは下の「保存する」）。
           内容が法的に十分かどうかは、必要に応じて専門家にご確認ください。
@@ -532,6 +535,47 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
 }
 
 // 同意書を初期の文面に戻す（第562便）。★ 押しただけでは保存しない（下の「保存する」で保存）
+// グループ・提携店で NG・要注意を共有する店の同意書に、共有の文を足す（第1327便・カッキーさん）。
+// ★ 店が自分で直した同意書を、こちらで勝手に書き換えない。ボタンを押したときだけ足し、そのあと店が「保存する」を押す。
+// ★ 文を足す前にサインしたお客様には、この同意は効かない（サインした時の文の写しを残しているため）。
+function GroupConsentBox({ body, onChange }: { body: string; onChange: (body: string) => void }) {
+  const [msg, setMsg] = useState('');
+  const has = body.includes(CRM_GROUP_CONSENT_MARK);
+  const add = () => {
+    const r = addCrmGroupConsentClause(body);
+    if (!r.ok) {
+      setMsg(r.reason === 'already' ? 'もう入っています。' : '8000字をこえるので、足せません。本文を短くしてから、もう一度押してください。');
+      return;
+    }
+    onChange(r.body);
+    setMsg(
+      (r.number != null ? `${r.number}番として足しました。` : '本文の終わりに足しました。')
+      + (r.fixedPurpose ? '「個人情報は〜のみに使用します」の文も、食い違わないように直しました。' : '本文に「個人情報は〜のためにのみ使用します」のような文があれば、食い違わないように直してください。')
+      + '内容を確かめて、下の「保存する」を押してください。',
+    );
+  };
+  return (
+    <div className="mt-3 border border-indigo-200 bg-indigo-50 p-3">
+      <p className="text-[13px] font-bold text-slate-700">{CRM_GROUP_ALERT_SOURCE_LABEL}との共有についての文</p>
+      <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+        NG・要注意のお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}で共有するには、お客様にあらかじめ知らせておく必要があります。同意書に、共有についての文を入れてください。
+        文を足す前にサインされたお客様には、この同意は当たりません。
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {has ? (
+          <span className="bg-emerald-100 px-2 py-1 text-[12px] font-bold text-emerald-700">共有についての文が入っています</span>
+        ) : (
+          <>
+            <span className="bg-amber-100 px-2 py-1 text-[12px] font-bold text-amber-800">まだ入っていません</span>
+            <button type="button" onClick={add} className="border border-indigo-400 bg-white px-3 py-1 text-[13px] font-bold text-indigo-700">共有についての文を足す</button>
+          </>
+        )}
+      </div>
+      {msg && <p className="mt-2 text-[12px] font-bold leading-relaxed text-indigo-800">{msg}</p>}
+    </div>
+  );
+}
+
 function ResetConsentButton({ onReset }: { onReset: () => void }) {
   const [sure, setSure] = useState(false);
   return sure ? (

@@ -174,5 +174,50 @@ console.log('\n── 9. 受付・スケジュール・台帳へのつなぎ（�
 }
 
 
+console.log('\n── 10. お客様の同意書に足す文（第1327便）──');
+{
+  const types = read('src/app/lib/crm/types.ts');
+  const m = /export const CRM_CONSENT_DEFAULT_BODY = `([\s\S]*?)`;/.exec(types);
+  const def = m ? m[1] : '';
+  eq('（ひな形を読めた）', def.includes('10. お預かりした個人情報は'), true);
+  const r = v.addCrmGroupConsentClause(def);
+  eq('ひな形: 11番として足す', [r.ok, r.number, r.fixedPurpose], [true, 11, true]);
+  eq('★★ ひな形: 10番の「のみ使用します」を、食い違わない文に直す', [r.body.includes('10. お預かりした個人情報は、ご予約とご来店の管理のため、および次の11の目的のために使用します。'), r.body.includes('のためにのみ使用します')], [true, false]);
+  eq('ひな形: 11番は10番のあと・結びの「以上…」の前', r.body.indexOf('\n\n11. ' + v.CRM_GROUP_CONSENT_CLAUSE + '\n\n以上をご確認のうえ') > r.body.indexOf('10. お預かり'), true);
+  eq('★ ひな形: ほかの項目は変えない（1〜9番がそのまま）', def.split('\n').filter((l) => /^[1-9]\. /.test(l)).every((l) => r.body.includes(l)), true);
+  eq('★★ もう入っていれば、二重に足さない', v.addCrmGroupConsentClause(r.body), { ok: false, reason: 'already' });
+  eq('★★★ 足す文に、店の名前を入れる所が無い（相手は「グループ店舗・提携店舗」とだけ）', [v.CRM_GROUP_CONSENT_CLAUSE.includes('当店のグループ店舗・提携店舗'), /\{|\$|○○/.test(v.CRM_GROUP_CONSENT_CLAUSE)], [true, false]);
+  eq('★★ 足す文に、共有する項目（名前・電話番号・日と内容）と目的が書いてある', ['お名前', '電話番号', 'その行為のあった日と内容', 'セラピストの安全を守り'].every((w) => v.CRM_GROUP_CONSENT_CLAUSE.includes(w)), true);
+  eq('★★★ 足す文に、無断キャンセル・料金のことは書かない（共有しないので）', /キャンセル|料金|未払い/.test(v.CRM_GROUP_CONSENT_CLAUSE), false);
+  {
+    const own = '・18歳未満の方はお断りします\n・撮影は禁止です\n\n以上、ご了承ください。';
+    const o = v.addCrmGroupConsentClause(own);
+    eq('番号の無い同意書: 結びの「以上…」の前に足す', [o.ok, o.number, o.fixedPurpose, o.body], [true, null, false, '・18歳未満の方はお断りします\n・撮影は禁止です\n\n' + v.CRM_GROUP_CONSENT_CLAUSE + '\n\n以上、ご了承ください。']);
+    const plain = v.addCrmGroupConsentClause('ご利用ありがとうございます。');
+    eq('番号も結びも無い同意書: 最後に足す', plain.body, 'ご利用ありがとうございます。\n\n' + v.CRM_GROUP_CONSENT_CLAUSE);
+    eq('空の同意書: 文だけになる', v.addCrmGroupConsentClause('').body, v.CRM_GROUP_CONSENT_CLAUSE);
+    const multi = v.addCrmGroupConsentClause('1. あ\n2. い\n   続きの行\n\n結びの文');
+    eq('番号の項目が2行にわたるとき: 項目の終わりに足す', multi.body, '1. あ\n2. い\n   続きの行\n\n3. ' + v.CRM_GROUP_CONSENT_CLAUSE + '\n\n結びの文');
+    const zen = v.addCrmGroupConsentClause('１．あ\n２．い');
+    eq('全角の番号でも続きの番号になる', [zen.number, zen.body.endsWith('\n\n3. ' + v.CRM_GROUP_CONSENT_CLAUSE)], [3, true]);
+    eq('★ 長さの上限をこえるなら足さない', v.addCrmGroupConsentClause('あ'.repeat(7990)), { ok: false, reason: 'too_long' });
+    eq('文字でないものは、空として扱う', v.addCrmGroupConsentClause(null).ok, true);
+  }
+  const page = read('src/app/mypage/crm/settings/page.tsx');
+  eq('★ 設定の画面: 文を足す欄は、グループに入っている店にだけ', /\{inGroup && <GroupConsentBox /.test(page), true);
+  eq('★★ 設定の画面: 押したときだけ足す（開いただけ・保存しただけでは、同意書を書き換えない）', (page.match(/addCrmGroupConsentClause\(/g) || []).length === 1 && /const add = \(\) => \{\s*const r = addCrmGroupConsentClause\(body\);/.test(page), true);
+  eq('★★★ サーバー側は、同意書を自動で書き換えない', /addCrmGroupConsentClause|CRM_GROUP_CONSENT_CLAUSE/.test(read('src/app/actions/crm.ts') + read('src/app/actions/crmGroupShare.ts') + read('src/app/actions/crmGroupAdmin.ts') + read('src/app/actions/consent.ts')), false);
+}
+
+console.log('\n── 11. 公式HPの利用規約（第1327便）★ 全店に同じ文で足す ──');
+{
+  const t = read('src/app/hp/_lib/terms.ts');
+  eq('★★★ 規約は店の名前だけを受け取る（グループに入っているかで、文を出し分けない）', /export function buildHpTerms\(salonName: string\): HpTermsSection\[\]/.test(t) && !/inGroup|crm_group|crmGroup/.test(t), true);
+  eq('★★★ 規約のページも、グループの表を読まない', /crm_group|crmGroup|inGroup/.test(read('src/app/hp/_templates/subpages.tsx') + read('src/app/hp/[slug]/terms/page.tsx') + read('src/app/hp/_lib/data.ts')), false);
+  eq('★★ 条件つきで書く（グループ・提携店が無い店にも、うそにならない）', [/当店にグループ店舗・提携店舗があるときは、それらの店舗でも以後のご利用をお断りすることがあります。/.test(t), /当店のグループ店舗・提携店舗（ある場合）との間で共有することがあります。/.test(t)], [true, true]);
+  eq('★★ 「同意なく第三者に提供しません」に、例外があることを書く（実際と食い違わせない）', [/次に定める場合および法令に基づく場合を除き、ご本人の同意なく第三者に提供することはありません。/.test(t), /目的にのみ使用し、法令に基づく場合を除き/.test(t)], [true, false]);
+  eq('★ 共有する項目・目的・窓口が書いてある', ['お名前・電話番号・行為のあった日と内容', 'セラピストの安全を守り、同じ被害を防ぐ目的', 'この目的のほかには使用しません', '確認・訂正・削除のお求めは、当店までご連絡ください'].every((w) => t.includes(w)), true);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

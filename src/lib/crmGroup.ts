@@ -207,3 +207,73 @@ export function checkCrmGroupAlert(input: CrmGroupAlertInput, todayISO: string):
   if (phones.length > CRM_GROUP_PHONES_MAX) return { ok: false, error: '電話番号は' + CRM_GROUP_PHONES_MAX + '件までです' };
   return { ok: true, value: { level: input.level, kind: input.kind, certainty: input.certainty, happenedOn: input.happenedOn, what, checkedHow, phones } };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 第1327便（2026-10-09）: お客様の同意書に足す文（グループ・提携店で共有する店が、同意書に入れる文の例）。
+//   ★ 文はカッキーさんが決めた案1。弁護士の確認前の下書き（載せる前に確認を通すこと）。
+//   ★ 店が自分で直した同意書を、こちらで勝手に書き換えない。設定の画面のボタンを店が押したときだけ足す（そのあと店が保存する）。
+//   ★ 相手は「当店のグループ店舗・提携店舗」とだけ書く。店の名前は出さない。
+
+/** 同意書に、共有の文がもう入っているかの目印 */
+export const CRM_GROUP_CONSENT_MARK = 'グループ店舗・提携店舗';
+
+/** 同意書に足す文（番号は付けていない。足すときに、同意書の番号の続きを付ける） */
+export const CRM_GROUP_CONSENT_CLAUSE =
+  'お客様が、暴力・脅迫、窃盗、つきまとい・待ち伏せ、盗撮・録音、サービス外の行為の強要など、セラピストまたは当店に危害や損害を与える行為をされた場合、'
+  + '当店は、セラピストの安全を守り、同じ被害を防ぐ目的で、お客様のお名前・電話番号・その行為のあった日と内容を、当店のグループ店舗・提携店舗に知らせ、共有することがあります。'
+  + '共有した店舗でも、以後のご利用をお断りする場合があります。';
+
+/** ひな形の「個人情報は〜のみに使用します」の文。★ このままだと、共有の文と食い違うので直す */
+export const CRM_GROUP_CONSENT_PURPOSE_OLD = 'お預かりした個人情報は、ご予約とご来店の管理のためにのみ使用します。';
+
+export type CrmGroupConsentResult =
+  | { ok: true; body: string; /** 足した項目の番号（番号つきの同意書のとき） */ number: number | null; /** 「〜のみに使用します」の文を直したか */ fixedPurpose: boolean }
+  | { ok: false; reason: 'already' | 'too_long' };
+
+/**
+ * 同意書の本文に、グループ・提携店との共有の文を足す。
+ * ・もう入っていれば何もしない（already）。
+ * ・番号つき（「10. …」）の同意書なら、最後の番号の次の番号で、その項目のあとに足す。
+ * ・番号が無ければ、「以上…」で始まる結びの前（無ければ最後）に足す。
+ * ・ひな形の「個人情報は〜のみに使用します」が残っていれば、食い違わない文に直す。
+ * ・長さの上限をこえるなら足さない（too_long）。
+ */
+export function addCrmGroupConsentClause(body: unknown, maxLen = 8000): CrmGroupConsentResult {
+  const text = (typeof body === 'string' ? body : '').replace(/\r\n?/g, '\n');
+  if (text.includes(CRM_GROUP_CONSENT_MARK)) return { ok: false, reason: 'already' };
+  const toHalf = (s: string) => s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+  const lines = text.split('\n');
+  const numRe = /^\s*([0-9０-９]{1,3})\s*[.．、)）]/;
+  let last = -1;
+  let lastNo = 0;
+  lines.forEach((l, i) => {
+    const m = numRe.exec(l);
+    if (m) { last = i; lastNo = Number(toHalf(m[1])); }
+  });
+
+  let out: string[];
+  let number: number | null = null;
+  if (last >= 0) {
+    number = lastNo + 1;
+    let end = last;
+    while (end + 1 < lines.length && lines[end + 1].trim() !== '') end++; // その項目の続きの行
+    out = [...lines.slice(0, end + 1), '', number + '. ' + CRM_GROUP_CONSENT_CLAUSE, ...lines.slice(end + 1)];
+  } else {
+    let closing = -1;
+    lines.forEach((l, i) => { if (/^\s*以上/.test(l)) closing = i; });
+    if (closing >= 0) out = [...lines.slice(0, closing), CRM_GROUP_CONSENT_CLAUSE, '', ...lines.slice(closing)];
+    else out = [...(text.trim() === '' ? [] : [...lines, '']), CRM_GROUP_CONSENT_CLAUSE];
+  }
+  let next = out.join('\n');
+  const fixedPurpose = next.includes(CRM_GROUP_CONSENT_PURPOSE_OLD);
+  if (fixedPurpose) {
+    next = next.replace(
+      CRM_GROUP_CONSENT_PURPOSE_OLD,
+      number != null
+        ? 'お預かりした個人情報は、ご予約とご来店の管理のため、および次の' + number + 'の目的のために使用します。'
+        : 'お預かりした個人情報は、ご予約とご来店の管理のため、および下記の共有の目的のために使用します。',
+    );
+  }
+  if (next.length > maxLen) return { ok: false, reason: 'too_long' };
+  return { ok: true, body: next, number, fixedPurpose };
+}
