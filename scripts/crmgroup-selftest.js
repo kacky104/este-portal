@@ -115,7 +115,11 @@ console.log('\n── 8. 店舗様の口（第1325便）★ 本人確認・グ�
   eq('★★★ 電話番号は完全一致（途中一致の like を使わない）', /\.in\('phone', want\.slice/.test(lib) && !/like\(/.test(lib), true);
   // ★★★ 店の名前を、店舗様の画面へ返さない（カッキーさんの決定: どこにも出さない）
   eq('★★★ 店舗様の口は、店の名前・法人名・グループの名前を読まない', /salons'\)\.select\('[^']*\bname\b/.test(act) || /corp_name|crm_groups'\)|salonName/.test(act), false);
-  eq('★★★ 下請けも、店の名前・法人名・グループの名前を読まない', /from\('salons'\)|corp_name|from\('crm_groups'\)|salonName/.test(lib), false);
+  eq('★★★ 下請けも、店の名前・法人名・グループの名前を読まない（店の表から読むのは、契約の期限だけ）', /salons'\)\.select\('[^']*\bname\b|corp_name|from\('crm_groups'\)|salonName/.test(lib) || (lib.match(/from\('salons'\)\.select\('id, crm_until'\)/g) || []).length !== (lib.match(/from\('salons'\)/g) || []).length, false);
+  // ★★★ 第1331便: CRM を解約した店が出した共有は、その日から見せない（受付の当たり・共有リストの両方）
+  eq('★★★ 解約した店が出した共有は、受付で当てない', /const active = await crmActiveIssuerIds\(svc, \[\.\.\.issuerOf\.values\(\)\], salonId\);\s*\n\s*if \(!active\) return \{ failed: true, byPhone \};\s*\n\s*for \(const \[id, issuer\] of issuerOf\) if \(!active\.has\(issuer\)\) hits\.delete\(id\);/.test(lib), true);
+  eq('★★★ 解約した店が出した共有は、共有リストにも出さない', /const page = all\.filter\(\(r\) => active\.has\(Number\(r\.salon_id\)\)\)\.slice\(0, LIST_LIMIT\);/.test(act), true);
+  eq('★★ 契約中かどうかは、期限が今日（日本時間）以降か、で見る', /if \(until && String\(until\)\.slice\(0, 10\) >= today\) out\.add\(Number\(s\.id\)\);/.test(lib), true);
   {
     const fn = lib.slice(lib.indexOf('export function toCrmGroupHit'), lib.indexOf('export type CrmGroupHitsResult'));
     const hit = fn.slice(fn.indexOf('return {')); // 返す中身だけを見る（引数の salonId は「自店か」を決めるのに使う）
@@ -319,6 +323,25 @@ console.log('\n── 13. 画面での申込み・承認の口（第1328便）�
   // ★★★ 番人・コード・SQL に、実在の店の組み合わせを書いていない（見本は「テスト店」だけ）
   const ui = read('src/app/mypage/crm/GroupJoin.tsx');
   eq('★ 画面: 運営で表示中は押せない', /readOnly=\{todo\.isAdmin\}/.test(ui), true);
+}
+
+console.log('\n── 14. 古い行を消す（第1331便・追加SQL）──');
+{
+  const sql = read('追加SQL_第1331便_CRMのグループ共有の古い行を消す_2026-10-09.sql');
+  const code = sql.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
+  const ended = /\(s\.crm_until is null and s\.crm_ended_on is not null and s\.crm_ended_on <= today - 90\)\s*or \(s\.crm_until is not null and s\.crm_until <= today - 90\)/g;
+  eq('★★★ 解約して90日の条件は、店舗データを消す決まり（crm_purge_ended_salons）と同じ（外す店・署名待ちの2か所）', (code.match(ended) || []).length, 2);
+  {
+    const old = read('supabase/migrations/20260920_crm_contract_end.sql');
+    eq('（もとの決まりの条件が、今もこの形）', /\(crm_until is null and crm_ended_on is not null and crm_ended_on <= today - 90\)\s*or \(crm_until is not null and crm_until <= today - 90\)/.test(old), true);
+  }
+  eq('★★★ 店を外す前に、その店の共有を取り下げる', code.indexOf("set withdrawn_at = now(), withdrawn_reason = 'left'") > 0 && code.indexOf("set withdrawn_at = now(), withdrawn_reason = 'left'") < code.indexOf('update public.crm_group_members set left_at = now()'), true);
+  eq('★★★ 消すのは、取り下げて90日たった共有と、作って8年たった共有だけ', (code.match(/delete from public\.crm_group_alerts\s+where ([^\n]+)/g) || []).map((x) => x.replace(/\s+/g, ' ')), ["delete from public.crm_group_alerts where withdrawn_at is not null and withdrawn_at < now() - interval '90 days'", "delete from public.crm_group_alerts where created_at < now() - interval '8 years'"]);
+  eq('★★★ 署名・承認の記録、グループ、入っていた店の行、操作の記録は消さない', /delete from public\.(crm_group_signatures|crm_groups|crm_group_members|crm_group_logs|crm_group_invites)/.test(code), false);
+  eq('★★ 消したこと・外したことを、記録に残す（中身は残さない）', [(code.match(/'alert_purge', jsonb_build_object\('reason', '(withdrawn_90d|expired_8y)'/g) || []).length, /'member_leave', jsonb_build_object\('reason', 'crm_ended_90d'/.test(code), /crm_group_logs[^;]*\b(what|phone|shown_name)\b/.test(code)], [2, true, false]);
+  eq('★★★ 関数は、外から動かせない（anon・authenticated から外す）', /revoke all on function public\.crm_group_purge\(\) from public, anon, authenticated;/.test(code), true);
+  eq('★★ 毎日 3:10（日本時間）に動かす。今の片づけ（3:00）の予定は触らない', [/select cron\.schedule\('crm-group-purge', '10 18 \* \* \*', \$\$select public\.crm_group_purge\(\);\$\$\);/.test(code), /crm-purge-old-data|crm_purge_old_data\(\)|crm_purge_ended_salons\(\)/.test(code)], [true, false]);
+  eq('★ 8年は、フクエスCRM の保存期間（顧客データの取り扱い・一律8年）と同じ', /保存期間と消し方（一律8年）/.test(read('src/app/lib/crm/termsText.ts')), true);
 }
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');

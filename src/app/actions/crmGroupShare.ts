@@ -21,7 +21,7 @@ import {
   type CrmGroupAlertInput, type CrmGroupCertainty, type CrmGroupHit, type CrmGroupKind, type CrmGroupLevel,
 } from '@/lib/crmGroup';
 import {
-  CRM_GROUP_HIT_COLS, countCrmGroupMembers, readCrmGroupHits, readCrmGroupMembership, toCrmGroupHit,
+  CRM_GROUP_HIT_COLS, countCrmGroupMembers, crmActiveIssuerIds, readCrmGroupHits, readCrmGroupMembership, toCrmGroupHit,
 } from '@/app/lib/crm/groupAlerts';
 
 type Err = { ok: false; error: string };
@@ -290,7 +290,10 @@ export async function listCrmGroupAlerts(
   ]);
   if (res.error) return { ok: false, error: '共有リストを読めませんでした: ' + res.error.message };
   const all = (res.data ?? []) as unknown as Array<Record<string, unknown>>;
-  const page = all.slice(0, LIST_LIMIT);
+  // ★ 第1331便: CRM を解約した店が出した共有は、一覧にも出さない（受付の当たりと同じ決まり）
+  const active = await crmActiveIssuerIds(svc, all.map((r) => Number(r.salon_id)), Number(salonId));
+  if (!active) return { ok: false, error: '共有リストを読めませんでした。もう一度お試しください' };
+  const page = all.filter((r) => active.has(Number(r.salon_id))).slice(0, LIST_LIMIT);
   const ph = await alertPhones(svc, page.map((r) => Number(r.id)));
   if (ph.error) return { ok: false, error: '共有リストを読めませんでした: ' + ph.error };
   const rows: CrmGroupListRow[] = [];

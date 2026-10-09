@@ -8,6 +8,7 @@
 // ★ 読めなかったときは、黙って「当たりなし」にしない。failed を返す（受付の人が「NG ではない」と思いこまないように）。
 
 import type { createServiceClient } from '@/app/lib/supabase/service';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isCrmGroupCertainty, isCrmGroupKind, isCrmGroupLevel, sortCrmGroupHits, type CrmGroupHit } from '@/lib/crmGroup';
 
 type Svc = ReturnType<typeof createServiceClient>;
@@ -71,6 +72,30 @@ export function toCrmGroupHit(r: AlertDbRow, salonId: number): CrmGroupHit | nul
 export type CrmGroupHitsResult = { failed: boolean; byPhone: Map<string, CrmGroupHit[]> };
 
 /**
+ * その中で、フクエスCRM が契約中の店（第1331便）。
+ * ★★★ CRM を解約した店が出した共有は、解約したその日から、ほかの店に見せない（その店は、もう直すことも取り下げることもできないため）。
+ *   ★ 取り下げにはしない: 90日以内に再契約すれば、また見える（CRM 利用規約「契約が終わってから90日は残す。再契約すれば元どおり」と同じ）。
+ *   ★ 90日たったら、毎日の片づけ（DB の関数 crm_group_purge・追加SQL_第1331便）が、その店をグループから外して共有を消す。
+ * ★ 見ている店（selfId）は、いつも入れる（本人確認で契約中と分かっている。運営が見ているときも、自店の分は出す）。
+ * @returns 読めなかったら null（★ 呼ぶ側は「読めなかった」として扱う。黙って全部を見せない・黙って全部を隠さない）
+ */
+export async function crmActiveIssuerIds(svc: Svc, salonIds: ReadonlyArray<number>, selfId: number): Promise<Set<number> | null> {
+  const out = new Set<number>([selfId]);
+  const ask = [...new Set(salonIds)].filter((id) => id !== selfId);
+  if (ask.length === 0) return out;
+  const today = getCalendarDateJST();
+  for (let i = 0; i < ask.length; i += 200) {
+    const { data, error } = await svc.from('salons').select('id, crm_until').in('id', ask.slice(i, i + 200));
+    if (error) { console.error('[crmGroup] 店の契約を読めなかった', error.message); return null; }
+    for (const s of data ?? []) {
+      const until = (s.crm_until as string | null) ?? null;
+      if (until && String(until).slice(0, 10) >= today) out.add(Number(s.id));
+    }
+  }
+  return out;
+}
+
+/**
  * 電話番号（数字10〜13桁・完全一致）が、グループの共有リストに当たるか。
  * ★ 取り下げた分（withdrawn_at）は当てない。★ 途中一致はしない（別の人を出してしまうため）。
  */
@@ -90,14 +115,21 @@ export async function readCrmGroupHits(svc: Svc, groupId: number, salonId: numbe
 
   const ids = [...new Set(links.map((l) => l.alertId))];
   const hits = new Map<number, CrmGroupHit>();
+  const issuerOf = new Map<number, number>();
   for (let i = 0; i < ids.length; i += 200) {
     const { data, error } = await svc.from('crm_group_alerts')
       .select(CRM_GROUP_HIT_COLS).eq('group_id', groupId).is('withdrawn_at', null).in('id', ids.slice(i, i + 200));
     if (error) { console.error('[crmGroup] 共有リストを読めなかった', groupId, error.message); return { failed: true, byPhone }; }
     for (const r of (data ?? []) as AlertDbRow[]) {
       const h = toCrmGroupHit(r, salonId);
-      if (h) hits.set(h.id, h);
+      if (h) { hits.set(h.id, h); issuerOf.set(h.id, Number(r.salon_id)); }
     }
+  }
+  // ★ 第1331便: CRM を解約した店が出した共有は、当てない（当たりがあるときだけ読む）
+  if (hits.size > 0) {
+    const active = await crmActiveIssuerIds(svc, [...issuerOf.values()], salonId);
+    if (!active) return { failed: true, byPhone };
+    for (const [id, issuer] of issuerOf) if (!active.has(issuer)) hits.delete(id);
   }
   for (const l of links) {
     const h = hits.get(l.alertId);
