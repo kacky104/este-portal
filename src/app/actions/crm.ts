@@ -2524,7 +2524,7 @@ export async function exportCrmCsv(
   const rows: unknown[][] = [['予約ID', '開始', '終了', '担当', 'コース', '名前', '電話番号', '状態', '悪質', '料金', '女子報酬', '支払い', '受領', '入り口', '備考', '顧客ID']];
   bs.forEach((b) => rows.push([
     b.id, jst(b.slot_start), jst(b.slot_end), b.therapist_id == null ? 'フリー' : names.get(Number(b.therapist_id)) ?? b.therapist_id,
-    b.course_name, b.customer_name, b.customer_tel, st[String(b.status)] ?? b.status, b.cancel_bad ? '悪質' : '',
+    b.course_name, b.customer_name, displayTel(b.customer_tel), st[String(b.status)] ?? b.status, b.cancel_bad ? '悪質' : '', // ★ 2026-10-09 点検#8: 削除済み（0000000000）は出さない
     b.price_total, b.pay_total, b.payment_method, rcv[String(b.received_by ?? '')] ?? '', b.source === 'web' ? 'フクエス' : '店で受付', b.note, b.customer_id,
   ]));
   return { ok: true, csv: toCsv(rows), count: bs.length };
