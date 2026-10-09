@@ -719,7 +719,18 @@ function Grid({
   //   左の固定枠の合計は 250px。女子メモの空欄の文字はスマホだけ「✎ メモ」。
   // ★ 第1233便（カッキーさん）: PC は名前の列を 150→190px に（そのぶんタイムラインの見える幅は狭くなる）。スマホは第1216便のまま 174px。
   const nameW = narrow ? NAME_W + 24 : NAME_W + 40;
-  const memoW = narrow ? 76 : MEMO_W;
+  // ★ 第1364便（カッキーさん）: 女子メモの列をたためる（見出しの「女子メモ ◀」で閉じる・「女子メモ ▶」で開く）。
+  //   閉じると時間軸がそのぶん広がる。既定は開いた状態。この端末だけ覚える
+  const [memoOpen, setMemoOpen] = useState<boolean>(() => {
+    try { return typeof window === 'undefined' ? true : localStorage.getItem('crm_memo_open') !== '0'; } catch { return true; }
+  });
+  const toggleMemo = () => {
+    setMemoOpen((v) => {
+      try { localStorage.setItem('crm_memo_open', v ? '0' : '1'); } catch { /* 何もしない */ }
+      return !v;
+    });
+  };
+  const memoW = memoOpen ? (narrow ? 76 : MEMO_W) : 0;
   const leftW = nameW + memoW;
   const ppm = narrow ? 1.1 : PX_PER_MIN;
   const width = (endMin - startMin) * ppm;
@@ -762,8 +773,19 @@ function Grid({
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
           <div className="sticky left-0 z-10 flex flex-none border-r border-slate-300 bg-slate-100 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: leftW }}>
-            <span className={narrow ? 'px-1' : 'px-2'} style={{ width: nameW }}>セラピスト</span>
-            <span className="border-l border-slate-300 px-2" style={{ width: memoW }}>女子メモ</span>
+            <span className={`flex items-center ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
+              セラピスト
+              {!memoOpen && (
+                <button type="button" onClick={toggleMemo} title="女子メモの列を開く" className="ml-auto whitespace-nowrap px-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100">
+                  女子メモ ▶
+                </button>
+              )}
+            </span>
+            {memoOpen && (
+              <button type="button" onClick={toggleMemo} title="女子メモの列を閉じる（時間軸が広がります）" className="flex items-center border-l border-slate-300 px-2 text-left hover:bg-amber-100" style={{ width: memoW }}>
+                女子メモ<span className="ml-auto text-[11px] text-amber-700">◀</span>
+              </button>
+            )}
           </div>
           {hours.map((h) => (
             <div key={h} className="flex-none border-r border-slate-200 pl-1.5 text-[13px] font-bold leading-[30px] text-slate-600" style={{ width: 60 * ppm }}>
@@ -872,8 +894,8 @@ function Grid({
                 </>
               )}
             </div>
-            {/* 女子メモ（押すと書ける・お店の内部メモ） */}
-            {r.therapist ? (
+            {/* 女子メモ（押すと書ける・お店の内部メモ）。★ 第1364便: 列をたたんでいるときは出さない */}
+            {!memoOpen ? null : r.therapist ? (
               // ★ 女子メモ：ホバーで全文を浮かせて出す（第643便・風俗CTIv2 と同じ）。★ 押すと書ける（今までどおり）
               <div className="group relative flex-none" style={{ width: memoW }}>
               <button
