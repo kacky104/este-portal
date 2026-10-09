@@ -2680,6 +2680,15 @@ function WorkDayDialog({
                 <div key={t.id}>
                   <label className={labCls}>{t.title}</label>
                   <div className="flex flex-wrap gap-2">
+                    {/* ★ 第1371便（カッキーさん）: 「なし」を先頭に（前は選んだものをもう一度押すと外れる作りで、見た目で分からなかった） */}
+                    <button
+                      type="button"
+                      aria-pressed={cur === ''}
+                      onClick={() => setWd((p) => { const next = { ...(p.toggles ?? {}) }; delete next[t.id]; return { ...p, toggles: next }; })}
+                      className={`min-w-[52px] border px-3 py-1.5 text-[14px] font-bold ${cur === '' ? 'border-slate-600 bg-slate-600 text-white' : 'border-slate-300 bg-white text-slate-600'}`}
+                    >
+                      なし
+                    </button>
                     {t.options.map((o) => {
                       const on = cur === o;
                       return (
