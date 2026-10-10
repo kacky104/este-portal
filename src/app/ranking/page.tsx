@@ -19,22 +19,37 @@ const RANKING_TITLE = '福岡メンズエステランキング【フクエス】
 const RANKING_DESCRIPTION =
   '福岡のメンズエステ 週間アクセスランキング。人気の店舗・セラピストを毎週更新でチェックできます（毎週月曜リセット）。';
 
-export const metadata: Metadata = {
-  title: RANKING_TITLE,
-  description: RANKING_DESCRIPTION,
-  alternates: { canonical: '/ranking' },
-  // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
-  // （og:image も消える）。そのため images まで全て明示する。
-  openGraph: {
-    title: RANKING_TITLE,
+// ★ 第1383便（2026-10-10・カッキーさん）: 検索結果の見出し（title）に【2026年10月最新】のように年月を入れる。
+//   ・ねらいはクリック率（「ランキング」「おすすめ」で探す人は新しさを見る）。順位そのものを上げる直しではない。
+//   ・★ 年月は手で書かない（必ず古くなる・古い年が残ると逆効果）。JST の今の年月をここで作る。
+//     このページは5分ごとに作り直す（revalidate = 300）ので、月が変わると自分で変わる。DB は読まない。
+//   ・★ 付けるのはランキングだけ（毎週更新しているので「最新」と書いて嘘にならない）。TOP・エリアページには付けない。
+//   ・構造化データの名前（下の ItemList）は年月なしの RANKING_TITLE のまま。
+//   ・全角30字に収める: 福岡メンズエステランキング【2026年10月最新】｜フクエス。
+function rankingPageTitle(now: Date = new Date()): string {
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return `福岡メンズエステランキング【${jst.getUTCFullYear()}年${jst.getUTCMonth() + 1}月最新】｜フクエス`;
+}
+
+export function generateMetadata(): Metadata {
+  const title = rankingPageTitle();
+  return {
+    title,
     description: RANKING_DESCRIPTION,
-    url: '/ranking',
-    siteName: 'フクエス',
-    type: 'website',
-    images: [{ url: '/ogp.png', width: 1200, height: 630 }],
-  },
-  twitter: { card: 'summary_large_image', title: RANKING_TITLE, description: RANKING_DESCRIPTION, images: ['/ogp.png'] },
-};
+    alternates: { canonical: '/ranking' },
+    // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
+    // （og:image も消える）。そのため images まで全て明示する。
+    openGraph: {
+      title,
+      description: RANKING_DESCRIPTION,
+      url: '/ranking',
+      siteName: 'フクエス',
+      type: 'website',
+      images: [{ url: '/ogp.png', width: 1200, height: 630 }],
+    },
+    twitter: { card: 'summary_large_image', title, description: RANKING_DESCRIPTION, images: ['/ogp.png'] },
+  };
+}
 
 // 本体（ヘッダー・パンくず・ヒーロー・タブ・一覧・フッター）はタブごとにテーマ・ヒーロー画像を
 // 切り替えるためクライアント部品 RankingTabs 側に集約。ここではデータ取得とメタのみ担う。
