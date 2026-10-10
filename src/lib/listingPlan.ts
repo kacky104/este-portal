@@ -9,6 +9,11 @@
 //             ・公式ホームページ: 掲載店は初期費用0円・月額0円。年間10,000円（税別）のドメイン・サーバー維持費だけ。
 //             ・予約ボードは出さない（第1297便）。機能一覧の 09 はコネックエフ＋フクエスCRM に差し替えた。
 //
+// ★★★ 第1380便（2026-10-10・カッキーさんの決定）: /listing では「コネックエフ」の名前を出さない。
+//   ・有料オプションは【フクエスCRM 月額20,000円（税別）】。契約すると【無料オプション】で「他サイトへの連携サービス」が付く、と書く。
+//   ・連携サービスはあくまで外部のサービスという形。★ /listing の画面に出る文（下の値・各部品）に「コネックエフ」「セット」と書かないこと。
+//   ・額と契約の中身は今までと同じ（lib/setPlan.ts。マイページのご案内・利用規約の書き方は、この便では変えていない）。
+//
 // ★ /listing の金額は【税別】で出す（カッキーさんの決定）。CRM・コネックエフのご案内（税込）と書き方が違うので、混ぜないこと。
 // ★ 金額を変えるときはここだけ。/listing の各部品（料金プラン・機能一覧・公式ホームページ）が同じ値を使う。
 //   ★ 請求書の自動発行の金額（店舗ごとの設定）は別（ここを変えても請求は変わらない）。
@@ -22,12 +27,19 @@ export const LISTING_FEE_YEN = 120000;
 export const LISTING_CAMPAIGN_OFF_YEN = 30000;
 /** キャンペーン適用後の掲載料（月額・税別） */
 export const LISTING_CAMPAIGN_FEE_YEN = LISTING_FEE_YEN - LISTING_CAMPAIGN_OFF_YEN;
-/** コネックエフ＋フクエスCRM セット（月額・税別）。★ 値は lib/setPlan.ts（同じ値を2か所に書かない） */
+/** フクエスCRM（有料オプション・月額・税別）。★ 値は lib/setPlan.ts（同じ値を2か所に書かない） */
 export const LISTING_SET_OPTION_YEN = SET_PLAN_PRICE_YEN;
 /** 公式ホームページ: ドメイン・サーバー維持費（年額・税別） */
 export const LISTING_HP_YEARLY_YEN = 10000;
 
 export const LISTING_CAMPAIGN_NAME = '創業掲載協力キャンペーン';
+
+/** 有料オプション（フクエスCRM）と、契約すると付く無料オプション（第1380便）。★ サービスの名前（コネックエフ）は書かない */
+export const LISTING_CRM_NAME = 'フクエスCRM';
+export const LISTING_CRM_DESC = '予約・お客様の管理';
+export const LISTING_CRM_FREE_NAME = '他サイトへの連携サービス';
+export const LISTING_CRM_FREE_DESC =
+  'フクエスCRMをご契約の店舗様は、他サイトへ出勤・写メ日記を一括で更新できる外部の連携サービスを、無料でご利用いただけます。';
 export const LISTING_TAX_LABEL = '税別';
 
 /** '120,000' */
@@ -52,6 +64,6 @@ export const LISTING_FEATURES: ReadonlyArray<{ no: string; name: string; desc: s
   { no: '06', name: 'セラピスト求人', desc: 'フクエスワークで採用を支援' },
   { no: '07', name: '公式サイトへの埋め込み', desc: '写メ日記・口コミをそのまま表示' },
   { no: '08', name: 'fukuX（フクエックス）', desc: '福岡メンズエステ専用SNS' },
-  { no: '09', name: 'コネックエフ＋フクエスCRM', desc: '他サイトへの出勤・写メ日記の一括更新と、予約・お客様の管理', option: true },
+  { no: '09', name: LISTING_CRM_NAME, desc: LISTING_CRM_DESC, option: true },
   { no: '10', name: '公式ホームページ制作', desc: '掲載データと連動した、お店専用の公式ホームページを制作' },
 ];

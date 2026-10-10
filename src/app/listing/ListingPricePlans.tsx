@@ -7,6 +7,10 @@ import {
   LISTING_SET_OPTION_YEN,
   LISTING_TAX_LABEL,
   LISTING_INCLUDED,
+  LISTING_CRM_NAME,
+  LISTING_CRM_DESC,
+  LISTING_CRM_FREE_NAME,
+  LISTING_CRM_FREE_DESC,
   listingYen,
 } from '@/lib/listingPlan';
 
@@ -17,6 +21,8 @@ import {
 //   これから … 掲載料 月額120,000円（税別）の1本（フクエス・フクエスワーク・fukuX すべて込み）。
 //             創業掲載協力キャンペーン中＝月額30,000円の永久割引（月額90,000円）。★ 期限は書かない（カッキーさんの決定）。
 //             コネックエフ＋フクエスCRM は別のオプション（月額20,000円）。
+//   ★ 第1380便（2026-10-10・カッキーさんの決定）: オプションの書き方を変えた。「フクエスCRM 月額20,000円」＋
+//     契約すると無料オプションで「他サイトへの連携サービス」が付く。コネックエフの名前はこのページに出さない（外部のサービスという形）。
 //   ★ 金額は【税別】で出す。値は lib/listingPlan.ts（ここに数字を直接書かない）。
 // ★ 金額を改定したら【このページ・掲載案内PDF】を同時に直すこと。
 //   ★ 掲載案内PDF（public/docs/fukues-listing-guide.pdf）は古い料金のままなので、いまはページから外してある（page.tsx）。
@@ -89,11 +95,9 @@ export function ListingPricePlans() {
               <h3 className="mt-8 text-[15px] font-bold text-[#17767e] sm:text-[16px]">オプション</h3>
               <div className="mt-3 border border-[#17767e]/60 px-4 py-4">
                 <p className="text-[16px] font-semibold text-[#2b211c] sm:text-[17px]" style={{ fontFamily: LISTING_MINCHO }}>
-                  コネックエフ＋フクエスCRM<span className="whitespace-nowrap">（セット）</span>
+                  {LISTING_CRM_NAME}
                 </p>
-                <p className="mt-1 text-[13px] leading-[1.8] text-[#5c5048]">
-                  他サイトへの出勤・写メ日記の一括更新と、予約・お客様の管理
-                </p>
+                <p className="mt-1 text-[13px] leading-[1.8] text-[#5c5048]">{LISTING_CRM_DESC}</p>
                 <p className="mt-2 text-[#17767e]" style={{ fontFamily: LISTING_MINCHO }}>
                   <span className="text-[14px]">月額</span>
                   <span className="ml-1 text-[28px] font-semibold leading-none sm:text-[32px]">
@@ -102,6 +106,17 @@ export function ListingPricePlans() {
                   <span className="ml-0.5 text-[15px] font-semibold">円</span>
                   <span className="ml-1 text-[13px]">（{LISTING_TAX_LABEL}）</span>
                 </p>
+
+                {/* 契約すると付く無料オプション（第1380便）。★ サービスの名前は出さない */}
+                <div className="mt-4 border-t border-dashed border-[#17767e]/50 pt-3.5">
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="inline-block whitespace-nowrap bg-[#17767e] px-1.5 py-1 text-[11px] font-bold leading-none text-white">
+                      無料オプション
+                    </span>
+                    <span className="text-[14px] font-bold text-[#2b211c] sm:text-[15px]">{LISTING_CRM_FREE_NAME}</span>
+                  </p>
+                  <p className="mt-1.5 text-[13px] leading-[1.8] text-[#5c5048]">{LISTING_CRM_FREE_DESC}</p>
+                </div>
               </div>
             </div>
           </div>

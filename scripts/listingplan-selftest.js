@@ -29,7 +29,7 @@ console.log('── 1. ★★★ 金額（カッキーさんの決定・10/8・�
   eq('創業掲載協力キャンペーン 月額30,000円の割引', m.LISTING_CAMPAIGN_OFF_YEN, 30000);
   eq('★★★ キャンペーン後 ＝ 掲載料 − 割引 ＝ 90,000円', [m.LISTING_CAMPAIGN_FEE_YEN, m.LISTING_FEE_YEN - m.LISTING_CAMPAIGN_OFF_YEN], [90000, 90000]);
   eq('公式ホームページ 年間10,000円', m.LISTING_HP_YEARLY_YEN, 10000);
-  eq('コネックエフ＋フクエスCRM 月額20,000円', m.LISTING_SET_OPTION_YEN, 20000);
+  eq('フクエスCRM（有料オプション）月額20,000円', m.LISTING_SET_OPTION_YEN, 20000);
   eq('★★★ セットのオプションは lib/setPlan.ts と同じ値（第1304便でどちらも税別）', [m.LISTING_SET_OPTION_YEN, sp.SET_PLAN_PRICE_YEN], [20000, 20000]);
   eq('★★ セットの書き方も税別（コネックエフ・CRM のご案内・申し込みの文）', [sp.SET_PLAN_PRICE_LABEL, /税込/.test(sp.SET_PLAN_LINE + sp.SET_PLAN_NEED_MESSAGE)], ['月額20,000円（税別）', false]);
   eq('書き方は税別', m.LISTING_TAX_LABEL, '税別');
@@ -40,8 +40,13 @@ console.log('\n── 2. 機能一覧・含まれるもの ──');
 {
   eq('機能は10（見出しの「10の機能」と合う）', m.LISTING_FEATURES.length, 10);
   eq('番号は 01〜10 の順', m.LISTING_FEATURES.map((f) => f.no), ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']);
-  eq('★★★ 有料オプションの札が付くのは 09（コネックエフ＋フクエスCRM）だけ',
-    m.LISTING_FEATURES.filter((f) => f.option === true).map((f) => f.no + ' ' + f.name), ['09 コネックエフ＋フクエスCRM']);
+  eq('★★★ 有料オプションの札が付くのは 09（フクエスCRM）だけ',
+    m.LISTING_FEATURES.filter((f) => f.option === true).map((f) => f.no + ' ' + f.name), ['09 フクエスCRM']);
+  // ★★★ 第1380便（2026-10-10・カッキーさんの決定）: /listing ではコネックエフの名前を出さない（無料オプションの「他サイトへの連携サービス」と書く）
+  const crmWords = JSON.stringify([m.LISTING_FEATURES, m.LISTING_INCLUDED, m.LISTING_CRM_NAME, m.LISTING_CRM_DESC, m.LISTING_CRM_FREE_NAME, m.LISTING_CRM_FREE_DESC]);
+  eq('★★★ 出す文に「コネックエフ」「セット」と書いていない', [/コネックエフ|conecf/i.test(crmWords), /セット/.test(crmWords)], [false, false]);
+  eq('★★ 無料オプションは「他サイトへの連携サービス」・外部のサービスで無料と書いている',
+    [m.LISTING_CRM_NAME, m.LISTING_CRM_FREE_NAME, /外部の連携サービス/.test(m.LISTING_CRM_FREE_DESC), /無料/.test(m.LISTING_CRM_FREE_DESC)], ['フクエスCRM', '他サイトへの連携サービス', true, true]);
   const all = JSON.stringify([m.LISTING_FEATURES, m.LISTING_INCLUDED]);
   eq('★★★ 予約ボードを載せていない', /予約ボード/.test(all), false);
   eq('掲載料に含まれるもの: フクエス・フクエスワーク・fukuX', m.LISTING_INCLUDED.map((x) => x.name), ['フクエス 店舗掲載', 'フクエスワーク 求人掲載', 'fukuX（フクエックス）']);
@@ -58,6 +63,9 @@ console.log('\n── 3. ★★★ /listing の部品（注記を外した中身
   eq('★★★ 予約ボードを書いていない', has(/予約ボード/), []);
   eq('★★★ 古い料金（66,000・33,000・165,000・11,000）を書いていない', has(/66,000|33,000|165,000|11,000/), []);
   eq('★★★ 税込と書いていない（/listing は税別）', has(/税込/), []);
+  eq('★★★ 「コネックエフ」「セット」と書いていない（第1380便・名前は /listing に出さない）', has(/コネックエフ|conecf|セット/i), []);
+  eq('★★ 料金プランと機能一覧に、無料オプションの行がある',
+    [body['ListingPricePlans.tsx'].includes('LISTING_CRM_FREE_NAME') && body['ListingPricePlans.tsx'].includes('LISTING_CRM_FREE_DESC') && />\s*無料オプション\s*</.test(body['ListingPricePlans.tsx']), body['ListingFeatures.tsx'].includes('LISTING_CRM_FREE_NAME')], [true, true]);
   eq('★★ 金額を部品に直接書いていない（lib/listingPlan.ts の値を使う）', has(/120,000|90,000|30,000|20,000|10,000/), []);
   eq('★★ 部品は画像を読んでいない（いまは文字で組んでいる。画像に戻したら、この行と sr-only を一緒に直す）',
     shown.filter((f) => f !== 'page.tsx' && /\/listing\/[a-z-]+\.webp/.test(body[f])), []);

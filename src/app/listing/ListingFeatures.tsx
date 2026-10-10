@@ -1,11 +1,13 @@
 import { LISTING_MINCHO } from './listingStyle';
-import { LISTING_FEATURES, LISTING_SET_OPTION_YEN, LISTING_TAX_LABEL, listingYen } from '@/lib/listingPlan';
+import { LISTING_FEATURES, LISTING_SET_OPTION_YEN, LISTING_TAX_LABEL, LISTING_CRM_FREE_NAME, listingYen } from '@/lib/listingPlan';
 
 // /listing の「お店の成長を支える、10の機能」（第1301便・2026-10-08 に画像から文字へ組み直した）。
 //
 // ★ これまでは全幅のデザイン画像（public/listing/features-pc.webp・features-sp.webp）で、09 は「予約ボード」だった。
 //   予約ボードはいったん出さなくなった（第1297便）ので、09 を「コネックエフ＋フクエスCRM」に差し替えた（カッキーさんの決定）。
 //   ★ 09 は掲載料に含まれない【有料オプション】。そう分かる札と金額を必ず付ける（含まれると読めないように）。
+//   ★ 第1380便（2026-10-10・カッキーさん）: 09 は「フクエスCRM」だけにした。コネックエフの名前は出さず、
+//     「無料オプションで他サイトへの連携サービスが付く」の1行を金額の下に足した。
 // ★ 中身（名前・説明）は lib/listingPlan.ts の LISTING_FEATURES。数（10）を変えたら、見出しの「10の機能」も直すこと。
 // ★ このあと画像を用意したら、このブロックを画像に戻す。そのときは一覧を sr-only で残すこと（禁則85）。
 
@@ -48,6 +50,11 @@ export function ListingFeatures() {
                 {f.option && (
                   <p className="mt-1 text-[13px] font-bold leading-[1.8] text-[#17767e] sm:text-[14px]">
                     月額{listingYen(LISTING_SET_OPTION_YEN)}円（{LISTING_TAX_LABEL}）
+                  </p>
+                )}
+                {f.option && (
+                  <p className="mt-0.5 text-[13px] leading-[1.8] text-[#5c5048] sm:text-[14px]">
+                    ご契約で、{LISTING_CRM_FREE_NAME}が無料で付きます
                   </p>
                 )}
               </div>
