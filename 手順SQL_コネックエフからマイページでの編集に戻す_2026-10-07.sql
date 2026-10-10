@@ -29,7 +29,9 @@
 --
 -- ■ 確かめたこと（2026-10-07）
 --   同じ列を持つ試しの DB（PostgreSQL 16）で流した: 0 のままなら何も変わらない／店を指定すると write の3枠が none・計画2件が消え・記録3行・印が空／
---   ほかの店の行は変わらない／同じ店でもう一度流しても何も変わらない／④が0行。★ 本番ではまだ流していない。
+--   ほかの店の行は変わらない／同じ店でもう一度流しても何も変わらない／④が0行。
+--   ★ 本番で流した（2026-10-10 20:48・アロマメイ様＝店舗番号12）: 戻した店1・もとの向き ekichika#1 write, esutama#1 write・none 2枠・消した反映内容2・記録2。
+--     続けて ⑤（駅ちかから反映に戻す）を流した: read にした枠2（枠1・枠2）・記録2。
 --
 -- ■ 使い方  ★ Supabase の SQL Editor は複数の文を流すと最後の結果しか出ない → ①②③④を【1本ずつ】流す
 --   3か所の「0」を、戻す店の店舗番号に書き換える（①・②・③）。★ 0 のままなら②は何もしない。
@@ -109,3 +111,60 @@ order by i.provider, i.slot;
 select s.id, s.name, i.provider, i.slot, i.link_mode
 from salon_import_sources i join salons s on s.id = i.salon_id
 where s.conecf_enabled_at is null and i.link_mode in ('write', 'write_auto');
+
+-- ⑤ フクエスリンクに戻す（駅ちかから反映にする）。★ 2026-10-10 に足した（アロマメイ様で使った）。★ ②のあとに流す。この1文だけが書き込む
+--   ・本来は、店舗様がフクエスリンクのホームで「駅ちかから反映する」を押す（/admin からは向きを変えられない）。
+--     店舗様の操作を待てないとき（営業中で、同期が止まっている時間を短くしたい）に、運営がこれで戻す。
+--   ・その店の駅ちかの枠のうち、いま none（反映しない）で、止められていない枠を read にする（2枠ある店は2枠とも）。
+--     ★ 切り替え前に「反映しない」にしていた枠まで read になる。切り替え前の向きは「連携の記録」（link_mode_changed）で先に確かめること。
+--   ・画面（setMediaLinkMode）と同じ守りを見る: 切り替えの印が空／その店に write・write_auto の枠が無い／枠が止められていない。
+--     どれかに当たると 0 枠のまま何も変えない。
+--   ・画面で押したときに一緒に動くもののうち、この SQL がしないこと:
+--       写メ日記の入口の決め直し … 取り込みの周（15〜20分ごと）が向きから導き直す（駅ちかの ID・PASS が有効で同意済みの店）
+--       過去60日ぶんの遡り        … 始めない（前にフクエスリンクで取り込んでいた店なら要らない。初めての店は画面から）
+--   ・「連携の記録」に1枠1行残す（link_mode_changed・mode=read・by=conecf_revert・actor=admin:sql）
+--   ・エステ魂など駅ちか以外は none のまま（フクエスリンクは駅ちかから読むだけ）。
+with target as (
+  select 0::bigint as salon_id          -- ★ 店舗番号（0 のままなら何もしない）
+),
+ok as (
+  select t.salon_id
+  from target t
+  join salons s on s.id = t.salon_id
+  where s.conecf_enabled_at is null
+    and not exists (
+      select 1 from salon_import_sources i
+      where i.salon_id = t.salon_id and i.link_mode in ('write', 'write_auto')
+    )
+),
+upd as (
+  update salon_import_sources i
+     set link_mode = 'read', updated_at = now()
+    from ok
+   where i.salon_id = ok.salon_id and i.provider = 'ekichika'
+     and i.link_mode = 'none' and i.is_enabled = true
+  returning i.salon_id, i.provider, coalesce(i.slot, 1) as slot
+),
+audit as (
+  insert into salon_media_audit (salon_id, provider, slot, event, outcome, summary, detail, actor)
+  select u.salon_id, u.provider, u.slot, 'link_mode_changed', 'ok',
+         '駅ちか（枠' || u.slot || '）からフクエスへ反映するようにしました（フクエスリンクに戻したため・運営）',
+         jsonb_build_object('mode', 'read', 'from', 'none', 'by', 'conecf_revert'),
+         'admin:sql'
+  from upd u
+  returning 1
+)
+select (select count(*) from upd)   as "read にした枠",
+       (select count(*) from audit) as "残した記録";
+
+-- ⑥ ⑤のあと30分ほどしてからの確認（読むだけ）: switched_jst が空・駅ちかの枠が read で最終取り込みが新しい・diary_source が ekichika
+select s.id, s.name,
+       s.conecf_enabled_at at time zone 'Asia/Tokyo' as switched_jst,
+       s.diary_source, s.diary_write_pref,
+       i.provider, i.slot, i.link_mode, i.is_enabled,
+       i.last_run_at at time zone 'Asia/Tokyo' as last_run_jst, i.last_status
+from salons s
+left join salon_import_sources i on i.salon_id = s.id
+where s.id = 0          -- ★ 店舗番号
+order by i.provider, i.slot;
+
