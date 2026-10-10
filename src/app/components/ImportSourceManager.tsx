@@ -217,16 +217,29 @@ export default function ImportSourceManager({ allSalons, onToast }: {
                       : r.linkMode === 'write' ? <span className="text-amber-700 font-bold">フクエスから反映（手動）</span>
                       : r.linkMode}
                   </td>
+                  {/* ★ 第1387便（カッキーさん）: 即ヒメを読むか。★ フクエスから反映（write / write_auto）の枠はそもそも読まないので「—」
+                      （取り込みは「駅ちかから反映」でコネックエフに切り替えていない店だけ。api/import/targets・ingest-list）。
+                      ラビリンス様の行に「読む」と「送る」が両方出て、両方動いているように見えた。
+                      ★ 印（import_imasugu）は消していない。フクエスリンクに戻すと、残っている設定のまま働く（マウスを乗せると出る）。 */}
                   <td className="py-2 pr-3 whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={() => void onToggleImasugu(r)}
-                      disabled={busyImId === r.id}
-                      title="押すと切り替わります"
-                      className={`px-2 py-0.5 border rounded-lg font-bold disabled:opacity-50 ${r.importImasugu ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-300 bg-white text-gray-400'}`}
-                    >
-                      {busyImId === r.id ? '…' : r.importImasugu ? '読む' : '読まない'}
-                    </button>
+                    {r.linkMode === 'write' || r.linkMode === 'write_auto' ? (
+                      <span
+                        className="text-gray-300"
+                        title={`フクエスから反映の枠は、駅ちかの即ヒメを読みません（設定は「${r.importImasugu ? '読む' : '読まない'}」のまま残っています。駅ちかから反映に戻すと働きます）`}
+                      >
+                        —
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void onToggleImasugu(r)}
+                        disabled={busyImId === r.id}
+                        title="押すと切り替わります"
+                        className={`px-2 py-0.5 border rounded-lg font-bold disabled:opacity-50 ${r.importImasugu ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-gray-300 bg-white text-gray-400'}`}
+                      >
+                        {busyImId === r.id ? '…' : r.importImasugu ? '読む' : '読まない'}
+                      </button>
+                    )}
                   </td>
                   {/* ★ 第1283便: 即ヒメを送るか。★ 駅ちかから反映（read）の枠はそもそも送らないので「—」 */}
                   <td className="py-2 pr-3 whitespace-nowrap">
