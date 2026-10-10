@@ -4619,6 +4619,17 @@ export default function MyPage() {
             <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" onToast={showToast} guideHref="/mypage/cast-guide" />
           </div>
         )}
+        {/* ★ 第1388便（カッキーさん）: コネックエフに切り替えた店には、ここにあった「セラピストページ連携」（連携率と QR・リンクの招待）が
+            コネックエフのホームへ移ったことを1行で知らせる。前の場所を覚えている店舗様には「消えた」ように見えるため。
+            ★ 置き場所は、切り替え前に連携率が出ていたのと同じ所（「今すぐ対応可能なセラピスト」の下）。色は上の案内と同じ。 */}
+        {salon && conecfOn && (
+          <div className={activeTab === 'available' ? 'mt-3 bg-indigo-50 rounded-none border border-indigo-200 p-4 space-y-1.5' : 'hidden'}>
+            <p className="text-xs font-black text-indigo-700">セラピストページ連携（連携率と、QR・リンクでの招待）は、コネックエフのホームにあります</p>
+            <a href={CONECF_ORIGIN} target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-bold text-indigo-600 underline">
+              コネックエフのホームを開く ›
+            </a>
+          </div>
+        )}
 
         {/* ── タブ4: セラピスト情報 ── */}
         <div className={`space-y-3 ${activeTab === 'profile' ? '' : 'hidden'}`}>
