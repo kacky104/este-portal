@@ -52,5 +52,53 @@ eq('★ 渡した配列は変えない', orig.map((t) => t.name), ['x', 'y']);
 
 eq('空の一覧は空のまま', m.sortTherapistsForList([], () => true, () => true), []);
 
+// ── ★★★ 店舗様が決めた順（コネックエフ・第1384便・2026-10-10・カッキーさんの決定）──
+{
+  const L = [
+    { id: 1, name: 'あかね', hidden: false },
+    { id: 2, name: 'うみ', hidden: false },
+    { id: 3, name: 'えま', hidden: false },
+    { id: 4, name: 'かな', hidden: false },
+    { id: 5, name: 'いずみ', hidden: true },
+    { id: 6, name: 'あい', hidden: true },
+  ];
+  const by = (order, list) => m.sortTherapistsByManual(list || L, (t) => t.id, (t) => t.name, (t) => t.hidden, order).map((t) => t.name);
+  const kana = m.sortTherapistsByKana(L, (t) => t.name, (t) => t.hidden).map((t) => t.name);
+  eq('★★★ まだ並べ替えたことが無い店（空・null・undefined）は、今までどおり あいうえお順', [by([]), by(null), by(undefined)], [kana, kana, kana]);
+  eq('★★★ 決めた順に並ぶ・非公開の方は下（中は あいうえお順）', by([4, 3, 2, 1]), ['かな', 'えま', 'うみ', 'あかね', 'あい', 'いずみ']);
+  eq('★★★ 並びに入っていない公開の方（新しく登録した方）は、いちばん上', by([4, 1]), ['うみ', 'えま', 'かな', 'あかね', 'あい', 'いずみ']);
+  eq('★★ 非公開の方は、並びに入っていても下（公開の方の中だけで並べる）', by([5, 4, 3, 2, 1]), ['かな', 'えま', 'うみ', 'あかね', 'あい', 'いずみ']);
+  eq('★ 消した方の id が残っていても無視・同じ id が2回あれば先のほう', by([99, 3, 1, 3, 2, 4]), ['えま', 'あかね', 'うみ', 'かな', 'あい', 'いずみ']);
+  const before = L.map((t) => t.id);
+  by([4, 3, 2, 1]);
+  eq('★ 渡した配列は変えない', L.map((t) => t.id), before);
+
+  // 保存する並び: 公開の方だけ・画面の上から順
+  eq('★★★ 保存するのは公開の方の id を上から順に（非公開の方は入れない）', m.manualOrderToSave([L[3], L[4], L[0], L[1], L[5], L[2]], (t) => t.id, (t) => t.hidden), [4, 1, 2, 3]);
+  // ★ 保存した並びで読み直すと、画面と同じ順に戻る
+  const shown = [L[3], L[0], L[1], L[2], L[5], L[4]];
+  eq('★★★ 保存 → 読み直しで同じ順', by(m.manualOrderToSave(shown, (t) => t.id, (t) => t.hidden)), shown.map((t) => t.name));
+
+  // つまんで動かす途中の並び
+  const ids = (list) => list.map((t) => t.id);
+  const P = L.slice(0, 4);
+  eq('★★ 下へ動かす（1 を 3 の位置へ）', ids(m.moveInList(P, (t) => t.id, 1, 3)), [2, 3, 1, 4]);
+  eq('★★ 上へ動かす（4 を 2 の位置へ）', ids(m.moveInList(P, (t) => t.id, 4, 2)), [1, 4, 2, 3]);
+  eq('★ 動かせないとき（同じ人・居ない人）は同じ配列を返す', [m.moveInList(P, (t) => t.id, 2, 2) === P, m.moveInList(P, (t) => t.id, 9, 2) === P, m.moveInList(P, (t) => t.id, 2, 9) === P], [true, true, true]);
+  eq('★ 渡した配列は変えない（動かす途中）', ids(P), [1, 2, 3, 4]);
+
+  // ★★ 画面と受け口が、この決まりを使っている（式を別に書かない）
+  const fs = require('fs'), path = require('path');
+  const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
+  const girls = read('src', 'app', 'actions', 'conecfGirls.ts');
+  const sched = read('src', 'app', 'actions', 'conecfSchedule.ts');
+  const board = read('src', 'app', 'conecf', 'girls', 'sync', 'SiteCompareBoard.tsx');
+  eq('★★★ セラピスト一覧・週間スケジュール・セラピスト登録状況一覧が、同じ並べ方（sortTherapistsByManual）',
+    [girls, sched, board].map((s) => /sortTherapistsByManual\(/.test(s)), [true, true, true]);
+  const save = girls.slice(girls.indexOf('export async function saveConecfGirlOrder'));
+  eq('★★★ 保存は「切り替え済み・止めていない自店」だけ（resolveSalon の write）・他店の id を断る・therapists の行は書き換えない',
+    [/resolveSalon\(\{ write: true \}\)/.test(save.slice(0, 400)), /ownIds\.has\(id\)/.test(save), /from\('therapists'\)\s*\.update|from\('therapists'\)\.update/.test(save.slice(0, save.indexOf('\n}\n')))], [true, true, false]);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

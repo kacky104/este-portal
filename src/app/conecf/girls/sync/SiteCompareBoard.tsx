@@ -6,7 +6,8 @@ import {
   getSalonTherapists, getMediaOverview, getMediaLinkPairs,
   linkTherapistMediaId, unlinkTherapistMediaId, startMediaRosterRead, startMediaTherapistCreate, startMediaTherapistCreatePush,
 } from '@/app/actions/mediaCredentials';
-import { listConecfTargetOffs } from '@/app/actions/conecfGirls';
+import { listConecfTargetOffs, getConecfGirlOrder } from '@/app/actions/conecfGirls';
+import { sortTherapistsByManual } from '@/lib/therapistOrder';
 import { canLink, strengthLabel, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { waitToastNote } from '@/lib/relayWait';
 import { useMediaBrand } from '@/app/mypage/media/mediaBrand';
@@ -65,10 +66,14 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
 
   const load = useCallback(async () => {
     if (salonId == null) return;
-    const [t, ov, offs] = await Promise.all([getSalonTherapists({ salonId }), getMediaOverview({ salonId }), listConecfTargetOffs()]);
+    const [t, ov, offs, ord] = await Promise.all([getSalonTherapists({ salonId }), getMediaOverview({ salonId }), listConecfTargetOffs(), getConecfGirlOrder()]);
     setTargetOffs(new Set(offs.ok ? offs.data.offs : []));
     if (!t.ok) { setError(t.error); setLoading(false); return; }
-    setTherapists(t.data.map((x) => ({ id: x.id, name: x.name, imageUrl: x.imageUrl, isNewFace: x.isNewFace, isActive: x.isActive })));
+    // ★ 第1384便: セラピスト一覧と同じ順（店舗様が決めた順。無ければ あいうえお順・非公開の方は下）
+    setTherapists(sortTherapistsByManual(
+      t.data.map((x) => ({ id: x.id, name: x.name, imageUrl: x.imageUrl, isNewFace: x.isNewFace, isActive: x.isActive })),
+      (x) => Number(x.id), (x) => x.name, (x) => !x.isActive, ord.ok ? ord.data.order : [],
+    ));
     const all = ov.ok ? (ov.data.sites as Site[]) : [];
     // ★ 列にするのは ID・PASS があるサイト（駅ちか・エステ魂）。★ 同じ枠は1列
     const cols: Site[] = [];

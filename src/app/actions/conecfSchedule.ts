@@ -3,7 +3,8 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateRangeJST, getCalendarDateJST } from '@/lib/dutyStatus';
-import { sortTherapistsByKana } from '@/lib/therapistOrder';
+import { sortTherapistsByManual } from '@/lib/therapistOrder';
+import { readConecfGirlOrder } from '@/app/lib/conecf/girlOrder';
 import { CONECF_SCHEDULE_DAYS, normalizeShifts, type ConecfShift, type ConecfShiftInput } from '@/lib/conecfSchedule';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
@@ -70,9 +71,11 @@ export async function getConecfSchedule(): Promise<Result<{ salonId: number; dat
     isActive: t.is_active !== false,
     days: dates.map((d) => map.get(`${t.id}#${d}`) ?? { date: d, isActive: false, start: null, end: null }),
   }));
+  // ★ 第1384便: セラピスト一覧で店舗様が決めた順と同じ（無ければ今までどおり あいうえお順）
+  const order = await readConecfGirlOrder(r.svc, r.salonId);
   return {
     ok: true,
-    data: { salonId: r.salonId, dates, rows: sortTherapistsByKana(rows, (x) => x.name, (x) => !x.isActive) },
+    data: { salonId: r.salonId, dates, rows: sortTherapistsByManual(rows, (x) => x.id, (x) => x.name, (x) => !x.isActive, order) },
   };
 }
 

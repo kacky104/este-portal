@@ -50,6 +50,64 @@ export function sortTherapistsByKana<T>(
   });
 }
 
+/** ★★ 店舗様が決めた順（コネックエフ・第1384便・2026-10-10・カッキーさんの決定）。
+ *   コネックエフのセラピスト一覧で、つまんで並べ替えた順。セラピスト登録状況一覧・週間スケジュールも同じ順。
+ *   ★ 上から: ① 公開の方で、並びに【入っていない】方（＝新しく登録した方。中は あいうえお順）
+ *            ② 公開の方を、店舗様が決めた順
+ *            ③ 非公開の方（★ 今までどおり下にまとめる。中は あいうえお順。並びは見ない）
+ *   ★ order が空（まだ並べ替えたことが無い店・表が無い）なら、sortTherapistsByKana と同じ結果（今までどおり）。
+ *   ★ order にあって一覧に無い id（消した方）は無視する。同じ id が2回あれば、先のほうを使う。
+ *   ★ 元の配列は変えない。
+ */
+export function sortTherapistsByManual<T>(
+  list: readonly T[],
+  getId: (t: T) => number,
+  getName: (t: T) => string | null | undefined,
+  isHidden: (t: T) => boolean,
+  order: readonly number[] | null | undefined,
+): T[] {
+  const kana = sortTherapistsByKana(list, getName, isHidden);
+  if (!order || order.length === 0) return kana;
+  const pos = new Map<number, number>();
+  order.forEach((id, i) => { if (!pos.has(id)) pos.set(id, i); });
+  // ★ 組: 0 = 公開・並びに無い／1 = 公開・並びにある／2 = 非公開。★ 同じ組の中は kana の順のまま（sort は安定）
+  const keyOf = (t: T): [number, number] => {
+    if (isHidden(t)) return [2, 0];
+    const p = pos.get(getId(t));
+    return p === undefined ? [0, 0] : [1, p];
+  };
+  return [...kana].sort((a, b) => {
+    const ka = keyOf(a);
+    const kb = keyOf(b);
+    return ka[0] - kb[0] || ka[1] - kb[1];
+  });
+}
+
+/** 並べ替えたあとに保存する並び（公開の方の id を、いまの画面の上から順に）。★ 非公開の方は入れない＝公開に戻したら、いちばん上に出る */
+export function manualOrderToSave<T>(list: readonly T[], getId: (t: T) => number, isHidden: (t: T) => boolean): number[] {
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const t of list) {
+    if (isHidden(t)) continue;
+    const id = getId(t);
+    if (!Number.isFinite(id) || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+/** 一覧の中で、id の方を target の方の位置へ動かす（つまんで動かす途中の並び）。★ 元の配列は変えない。動かせないときは同じ配列を返す */
+export function moveInList<T>(list: readonly T[], getId: (t: T) => number, id: number, targetId: number): T[] {
+  const from = list.findIndex((t) => getId(t) === id);
+  const to = list.findIndex((t) => getId(t) === targetId);
+  if (from < 0 || to < 0 || from === to) return list as T[];
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 /** 一覧を並べ替える。★ 元の配列は変えない。 */
 export function sortTherapistsForList<T>(
   list: readonly T[],

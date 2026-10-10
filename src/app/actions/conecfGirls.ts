@@ -4,7 +4,8 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { findMediaSite } from '@/lib/mediaSites';
 import { providerLabel } from '@/lib/mediaAudit';
-import { sortTherapistsByKana } from '@/lib/therapistOrder';
+import { sortTherapistsByManual } from '@/lib/therapistOrder';
+import { readConecfGirlOrder, isMissingOrderTable } from '@/app/lib/conecf/girlOrder';
 import { isNewFaceActive } from '@/lib/newFace';
 import {
   bodyTypeFromSizes, normalizeConecfGirl, CONECF_MAX_IMAGES, type ConecfGirlInput,
@@ -100,7 +101,53 @@ export async function listConecfGirls(): Promise<Result<{ salonId: number; girls
     isActive: t.is_active !== false,
     joinedOn: joined.get(Number(t.id)) ?? null,
   }));
-  return { ok: true, data: { salonId, girls: sortTherapistsByKana(rows, (x) => x.name, (x) => !x.isActive) } };
+  // ★ 第1384便: 店舗様が決めた順（無ければ今までどおり あいうえお順）
+  const order = await readConecfGirlOrder(svc, salonId);
+  return { ok: true, data: { salonId, girls: sortTherapistsByManual(rows, (x) => x.id, (x) => x.name, (x) => !x.isActive, order) } };
+}
+
+// ────────────────────────────────────────────────
+// ★★ セラピストの並び順（第1384便・2026-10-10・カッキーさん）。
+//   ・コネックエフのセラピスト一覧で、つまんで並べ替えた順を覚える（「先頭へ」も同じ受け口）。
+//   ・保存するのは【公開中の方の id を上から順に】。表は conecf_girl_order（店ごとに1行）。★ therapists の行には触らない。
+//   ・★ 書けるのは「コネックエフに切り替え済み」で止めていない自店だけ（resolveSalon の守り）。他店の id は断る。
+//   ・変わるのはコネックエフの中の並びだけ（フクエスの店舗ページ・各サイトへは送らない＝ revalidate もしない）。
+/** いまの並び（上から順の id）。★ セラピスト登録状況一覧が同じ順に並べるために読む */
+export async function getConecfGirlOrder(): Promise<Result<{ order: number[] }>> {
+  const r = await resolveSalon();
+  if (!r.ok) return r;
+  return { ok: true, data: { order: await readConecfGirlOrder(r.data.svc, r.data.salonId) } };
+}
+
+export async function saveConecfGirlOrder(input: { ids: number[] }): Promise<Result<{ count: number }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const raw = Array.isArray(input?.ids) ? input.ids : [];
+  if (raw.length > 2000) return { ok: false, error: '人数が多すぎます' };
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const x of raw) {
+    const n = Number(x);
+    if (!Number.isInteger(n) || n <= 0 || seen.has(n)) continue;
+    seen.add(n);
+    ids.push(n);
+  }
+  // ★ 自店のセラピストだけ（他店の id が混じっていたら、保存しない）
+  const { data: own, error: ownErr } = await svc.from('therapists').select('id').eq('salon_id', salonId);
+  if (ownErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+  const ownIds = new Set((own ?? []).map((t) => Number(t.id)));
+  if (ids.some((id) => !ownIds.has(id))) return { ok: false, error: '並び順を保存できませんでした。画面を読み込み直してから、もう一度お試しください' };
+
+  const { error } = await svc
+    .from('conecf_girl_order')
+    .upsert({ salon_id: salonId, therapist_ids: ids, updated_at: new Date().toISOString() }, { onConflict: 'salon_id' });
+  if (error) {
+    if (isMissingOrderTable(error.code)) return { ok: false, error: '並び順の保存先がまだ用意されていません（追加SQL 第1384便）。運営事務局までご連絡ください' };
+    console.error('[conecf] 並び順を保存できなかった', salonId, error.code, error.message);
+    return { ok: false, error: '並び順を保存できませんでした。時間をおいて、もう一度お試しください' };
+  }
+  return { ok: true, data: { count: ids.length } };
 }
 
 export async function createConecfGirl(input: { name: string; isNewFace: boolean }): Promise<Result<{ id: number }>> {

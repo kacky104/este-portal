@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { matchesSearch } from '@/lib/searchNormalize';
-import { listConecfGirls, createConecfGirl, type ConecfGirlRow } from '@/app/actions/conecfGirls';
+import { listConecfGirls, createConecfGirl, saveConecfGirlOrder, type ConecfGirlRow } from '@/app/actions/conecfGirls';
+import { manualOrderToSave, moveInList } from '@/lib/therapistOrder';
 import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getConecfFirstImport, requestConecfFirstImport, getConecfPhotoImport, requestConecfPhotoImport, type FirstImportStatus, type PhotoImportStatus } from '@/app/actions/conecfFirstImport';
@@ -30,7 +31,20 @@ const PINK_PILL = 'inline-flex items-center gap-1.5 h-10 px-5 rounded-[28px] bg-
 // ★ 第747便（カッキーさん）: PC では名前を固定幅（200px）にして、年齢との間の空白を無くす。★ 余りは右端（公開状態の右）に
 // ★ 第762便（カッキーさん）: 「新人」「入店日」の列を消した（新人は名前の上に NEW）
 // ★ 第877便（カッキーさん）: 公開状態の右に「セラピストページ連携」（PC 150px）。★ 第881便: スマホでは出さない
-const COLS = 'grid grid-cols-[84px_68px_1fr_48px] md:grid-cols-[96px_76px_150px_64px_210px_110px_150px_1fr]'; // ★ 第763便: 名前 200→150px（年齢を名前に寄せる）・サイズ 210px
+// ★ 第1384便（カッキーさん）: 左端に「つまみ」（並べ替え）・右端に「先頭へ」を足した。
+//   スマホ: つまみ＋チェック＋編集 96px｜写真 68px｜名前｜年齢 32px｜先頭へ 40px ／ PC: 先頭の列を 96→124px・「先頭へ」は右端の余り（1fr）
+const COLS = 'grid grid-cols-[96px_68px_1fr_32px_40px] md:grid-cols-[124px_76px_150px_64px_210px_110px_150px_1fr]'; // ★ 第763便: 名前 200→150px（年齢を名前に寄せる）・サイズ 210px
+
+/** つまみの絵（点が6つ） */
+function GripIcon() {
+  return (
+    <svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden>
+      <circle cx="3" cy="3" r="1.6" /><circle cx="9" cy="3" r="1.6" />
+      <circle cx="3" cy="9" r="1.6" /><circle cx="9" cy="9" r="1.6" />
+      <circle cx="3" cy="15" r="1.6" /><circle cx="9" cy="15" r="1.6" />
+    </svg>
+  );
+}
 
 function sizeLines(raw: string | null): [string, string] {
   const b = parseBodyType(raw);
@@ -129,6 +143,105 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const [photoBusy, setPhotoBusy] = useState(false);
 
   const needEnabled = (m: string) => { onToast(m); };
+
+  // ────────────────────────────────────────────────
+  // ★★ 並べ替え（第1384便・2026-10-10・カッキーさん）: つまみをつまんで上下に動かす／「先頭へ」。
+  //   ・動かせるのは公開中の方だけ（非公開の方は今までどおり下にまとめる）。
+  //   ・離したら自動で保存（公開中の方の id を上から順に。受け口 saveConecfGirlOrder）。
+  //   ・セラピスト登録状況一覧・週間スケジュールも、ここで決めた順になる。
+  //   ・★ 検索で絞り込んでいる間は、つまみでは動かせない（一部しか見えていない状態で動かすと、思った場所に入らない）。
+  //   ・★ マウスでも指でも動く形にするため、pointer の出来事を window で聞く（つまんだ行は並べ替えで DOM の中を動くので、
+  //     行そのものに付けた聞き手・ポインターの捕まえ（setPointerCapture）は途中で外れることがある）。
+  //     つまみには touch-none（指でつまんだとき、画面のスクロールにしない）。
+  //   ・★ 画面の端まで持っていくと、自動で上下にスクロールする（40人いても下から上まで運べる）。
+  const listRef = useRef<HTMLUListElement | null>(null);
+  const rowsRef = useRef<ConecfGirlRow[] | null>(null);
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [orderBusy, setOrderBusy] = useState(false);
+  const dragStop = useRef<(() => void) | null>(null);
+  useEffect(() => () => { dragStop.current?.(); }, []);
+
+  const persistOrder = async (list: ConecfGirlRow[]) => {
+    setOrderBusy(true);
+    const res = await saveConecfGirlOrder({ ids: manualOrderToSave(list, (x) => x.id, (x) => !x.isActive) });
+    setOrderBusy(false);
+    if (!res.ok) { onToast(res.error); void load(); return; }
+    onToast('並び順を保存しました');
+  };
+
+  const applyRows = (next: ConecfGirlRow[]) => { rowsRef.current = next; setRows(next); };
+
+  const onGripDown = (e: React.PointerEvent<HTMLButtonElement>, g: ConecfGirlRow) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!enabled) { needEnabled('並べ替えるには、ホームで「コネックエフに切り替える」を押してください'); return; }
+    if (q.trim() !== '') { onToast('並べ替えは、検索の文字を消してから行ってください'); return; }
+    if (orderBusy || dragStop.current) return;
+    e.preventDefault();
+    const pid = e.pointerId;
+    const d = { id: g.id, y: e.clientY, moved: false, raf: 0 };
+
+    // いま指（マウス）がある高さの行と入れ替える。★ 相手の行の半分を越えたときだけ（行ったり来たりしない）
+    const reorder = () => {
+      const ul = listRef.current;
+      const cur = rowsRef.current;
+      if (!ul || !cur) return;
+      const box = ul.getBoundingClientRect();
+      const el = document.elementFromPoint(box.left + Math.min(40, box.width / 2), d.y);
+      const li = el instanceof Element ? (el.closest('li[data-gid]') as HTMLElement | null) : null;
+      if (!li || !ul.contains(li) || li.dataset.pub !== '1') return;
+      const targetId = Number(li.dataset.gid);
+      if (targetId === d.id) return;
+      const from = cur.findIndex((x) => x.id === d.id);
+      const to = cur.findIndex((x) => x.id === targetId);
+      if (from < 0 || to < 0) return;
+      const r = li.getBoundingClientRect();
+      const mid = r.top + r.height / 2;
+      if (from < to ? d.y < mid : d.y > mid) return;
+      const next = moveInList(cur, (x) => x.id, d.id, targetId);
+      if (next === cur) return;
+      d.moved = true;
+      applyRows(next);
+    };
+    const tick = () => {
+      const edge = 90;
+      const h = window.innerHeight;
+      const v = d.y < edge ? -Math.ceil((edge - d.y) / 5) : d.y > h - edge ? Math.ceil((d.y - (h - edge)) / 5) : 0;
+      if (v !== 0) { window.scrollBy(0, v); reorder(); }
+      d.raf = requestAnimationFrame(tick);
+    };
+    const move = (ev: PointerEvent) => { if (ev.pointerId !== pid) return; d.y = ev.clientY; reorder(); };
+    const stop = () => {
+      cancelAnimationFrame(d.raf);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      dragStop.current = null;
+    };
+    const end = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      stop();
+      setDragId(null);
+      if (d.moved && rowsRef.current) void persistOrder(rowsRef.current);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    dragStop.current = stop;
+    d.raf = requestAnimationFrame(tick);
+    setDragId(g.id);
+  };
+
+  const onMoveTop = async (g: ConecfGirlRow) => {
+    if (!enabled) { needEnabled('並べ替えるには、ホームで「コネックエフに切り替える」を押してください'); return; }
+    const cur = rowsRef.current;
+    if (!cur || orderBusy || dragStop.current) return;
+    const me = cur.find((x) => x.id === g.id);
+    if (!me) return;
+    const next = [me, ...cur.filter((x) => x.id !== g.id)];
+    applyRows(next);
+    await persistOrder(next);
+  };
 
   const onBulk = async () => {
     if (!enabled) { needEnabled('更新するには、ホームで「コネックエフに切り替える」を押してください'); return; }
@@ -230,6 +343,8 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
 
   const shown = (rows ?? []).filter((r) => matchesSearch(r.name, q));   // ★ 第444便: ひらがな・カタカナ・大小文字の違いを気にせず絞り込む（フクエスと同じ規則）
   const total = rows?.length ?? 0;
+  const firstPublicId = (rows ?? []).find((r) => r.isActive)?.id ?? null;   // ★ 第1384便: いちばん上の方には「先頭へ」を出さない
+  const canSort = enabled && q.trim() === '' && !orderBusy;
   const st = imp.st;
   const canImport = !!st && st.hasEkichika && st.phase === 'none';
   const pst = photoImp.st;
@@ -386,9 +501,17 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           </label>
           <span className="ml-auto text-[14px] tabular-nums">{rows ? `${shown.length > 0 ? 1 : 0}-${shown.length}人 / ${total}人中` : ''}</span>
         </div>
+        {/* ★ 第1384便: 並べ替えの説明（2人以上いるときだけ） */}
+        {rows && rows.length > 1 && (
+          <p className="px-5 -mt-1.5 pb-3 text-[12px] leading-relaxed text-slate-500">
+            左の<span className="inline-block align-[-3px] mx-1 text-slate-400"><GripIcon /></span>をつまんで上下に動かすと、並び順を変えられます（「先頭へ」でいちばん上へ）。
+            セラピスト登録状況一覧・週間スケジュールも同じ順になります。
+          </p>
+        )}
 
         <div className={`${COLS} items-center px-2 h-9 border-b border-slate-200 text-[12px] font-bold text-black/50`}>
-          <label className="pl-2 flex items-center gap-1 font-normal cursor-pointer">
+          <label className="pl-1 md:pl-2 flex items-center gap-1 font-normal cursor-pointer">
+            <span className="w-7 md:mr-1" aria-hidden />
             <input
               type="checkbox"
               checked={shown.length > 0 && shown.every((g) => picked.has(g.id))}
@@ -404,16 +527,36 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           <span className="hidden md:block">サイズ</span>
           <span className="hidden md:block text-center">公開状態</span>
           <span className="hidden md:block text-center">セラピストページ連携</span>
+          <span />
         </div>
 
         {!rows && <p className="p-5 text-slate-400">読み込み中…</p>}
         {rows && rows.length === 0 && <p className="p-5 text-slate-500">まだセラピストが登録されていません。</p>}
-        <ul>
+        <ul ref={listRef} className={dragId != null ? 'select-none' : undefined}>
           {shown.map((g) => {
             const [t, bwh] = sizeLines(g.bodyType);
             return (
-              <li key={g.id} className={`${COLS} items-center px-2 py-2.5 border-b border-slate-100 hover:bg-black/[0.03]`}>
-                <span className="pl-2 flex items-center gap-2">
+              <li
+                key={g.id}
+                data-gid={g.id}
+                data-pub={g.isActive ? '1' : '0'}
+                className={`${COLS} items-center px-2 py-2.5 border-b border-slate-100 ${dragId === g.id ? 'relative z-10 bg-[#e3f2fd] shadow-[inset_0_0_0_2px_#1e88e5]' : 'hover:bg-black/[0.03]'}`}
+              >
+                <span className="pl-1 md:pl-2 flex items-center gap-1 md:gap-2">
+                  {/* ★ 第1384便: つまみ（公開中の方だけ）。つまんで上下に動かすと並び順が変わる */}
+                  {g.isActive ? (
+                    <button
+                      type="button"
+                      onPointerDown={(e) => onGripDown(e, g)}
+                      title={canSort ? 'つまんで上下に動かす' : q.trim() !== '' ? '検索の文字を消すと並べ替えられます' : undefined}
+                      aria-label={`${g.name}の並び順を動かす`}
+                      className={`w-7 h-11 flex-none grid place-items-center rounded touch-none select-none ${canSort ? 'cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 hover:bg-black/5' : 'text-slate-200'}`}
+                    >
+                      <GripIcon />
+                    </button>
+                  ) : (
+                    <span className="w-7 flex-none" aria-hidden />
+                  )}
                   <input
                     type="checkbox"
                     checked={picked.has(g.id)}
@@ -456,6 +599,22 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                 </span>
                 <span className="hidden md:block text-center">
                   {castLinked && <CastLinkMark linked={castLinked.has(String(g.id))} />}
+                </span>
+                {/* ★ 第1384便: 先頭へ（公開中で、いちばん上でない方） */}
+                <span className="flex justify-center md:justify-start md:pl-3">
+                  {g.isActive && g.id !== firstPublicId && (
+                    <button
+                      type="button"
+                      onClick={() => void onMoveTop(g)}
+                      disabled={orderBusy}
+                      title="いちばん上へ動かす"
+                      aria-label={`${g.name}をいちばん上へ動かす`}
+                      className="h-8 px-2 md:px-2.5 inline-flex items-center gap-1 rounded border border-slate-300 bg-white text-[11px] text-slate-600 whitespace-nowrap hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      <span aria-hidden className="text-[13px] leading-none">⤒</span>
+                      <span className="hidden md:inline">先頭へ</span>
+                    </button>
+                  )}
                 </span>
               </li>
             );
