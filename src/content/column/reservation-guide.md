@@ -29,7 +29,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/mai
 - **電話が苦手・夜中に予約したい** → ネット予約
 - **やり取りを残しておきたい** → LINE
 
-お店によって使える方法は違うので、お店のページで確認しましょう。
+お店によって使える方法は違うので、お店のページで確認しましょう。何時ごろに行くかで迷ったときは、[時間帯別ガイド](/column/time-of-day-guide)も参考にしてください。
 
 ## 予約時に伝えるとスムーズなこと
 

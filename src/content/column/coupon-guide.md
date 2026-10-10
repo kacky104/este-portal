@@ -29,7 +29,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/mai
 - [初回割](/glossary/shokai-wari): はじめての方向けの割引
 - [新人](/glossary/shinjin): 入店して間もないセラピストのこと
 - [フリー](/glossary/free): 指名せず、お店におまかせすること
-- [早割・深夜割](/glossary/hayawari-shinyawari): 時間帯による割引
+- [早割・深夜割](/glossary/hayawari-shinyawari): 時間帯による割引（時間帯ごとの特徴は[時間帯別ガイド](/column/time-of-day-guide)へ）
 - [クーポン](/glossary/coupon)・[割引](/glossary/waribiki): お店ごとの割引の案内
 
 ## クーポンの探し方
