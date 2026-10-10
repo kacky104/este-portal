@@ -44,5 +44,22 @@ eq('切り替え済み・契約あり: 通す', screen(ON), null);
 eq('★★★ 止めている店: 断る', [screen(STOPPED), screen(STOPPED_NULL)], [S.CONECF_STOPPED_MESSAGE, S.CONECF_STOPPED_MESSAGE]);
 eq('★★ 切り替える前の店: 断る（見るだけ）', typeof screen(LINK) === 'string' && screen(LINK).indexOf('コネックエフに切り替える') >= 0, true);
 
+console.log('\n── 4. ★★★ 書き方（第1381便・2026-10-10・カッキーさんの決定）: フクエスCRM ＋ 無料オプションのコネックエフ ──');
+{
+  const shown = [S.SET_PLAN_NAME, S.SET_PLAN_LINE, S.CONECF_OPTION_LINE, S.CONECF_ONLY_LINE, S.SET_PLAN_NEED_MESSAGE, S.CONECF_STOPPED_MESSAGE];
+  eq('★★★ 店舗様に見える文に「セット」と書いていない', shown.filter((t) => /セット/.test(t)), []);
+  eq('呼び名はフクエスCRM', S.SET_PLAN_NAME, 'フクエスCRM');
+  eq('★★ フクエスCRM の側の文: 金額・無料オプション・外部の連携サービス・コネックエフ', ['月額20,000円（税別）', '無料オプション', '外部の連携サービス', 'コネックエフ'].filter((w) => S.SET_PLAN_LINE.indexOf(w) < 0), []);
+  eq('★★ コネックエフの側の文: フクエスCRM の金額・無料オプション', ['フクエスCRM（月額20,000円（税別））', '無料オプション'].filter((w) => S.CONECF_OPTION_LINE.indexOf(w) < 0), []);
+  eq('★ 切り替えを断る文は、コネックエフの側の文＋お申し込み先', S.SET_PLAN_NEED_MESSAGE, S.CONECF_OPTION_LINE + S.SET_PLAN_APPLY_LINE);
+  eq('★ 止めている店の文は「フクエスCRMのご契約が確認できない」', S.CONECF_STOPPED_MESSAGE.indexOf('フクエスCRMのご契約が確認できないため') === 0, true);
+  const fs = require('fs'), path = require('path');
+  const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
+  const terms = read('src', 'app', 'lib', 'crm', 'termsText.ts').split('export const CRM_TERMS_TEXT')[1];
+  eq('★★★ 利用規約 第2条: 「セット」と書いていない・月額22,000円（税込）・無料のオプションでコネックエフ', [/セット/.test(terms), /利用料は、月額22,000円（税込）とし/.test(terms), /無料のオプションとして、[^\n]*「コネックエフ」を利用できます/.test(terms)], [false, true, true]);
+  eq('★★★ 版は上げていない（同意の画面を出し直さない・カッキーさんの決定）', /CRM_TERMS_VERSION: string \| null = '2026-10-06'/.test(read('src', 'app', 'lib', 'crm', 'terms.ts')), true);
+  eq('★★ ご案内の画像は、札を書き換えた v3', [/conecf-intro-v3\.webp/.test(read('src', 'app', 'mypage', 'conecf', 'page.tsx')), fs.existsSync(path.join(__dirname, '..', 'public', 'mypage', 'conecf', 'conecf-intro-v3.webp'))], [true, true]);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

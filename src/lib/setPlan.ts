@@ -5,20 +5,30 @@
 //   ・契約しているかどうかは、今までのフクエスCRM のスイッチ（salons.crm_until・/admin の店舗編集で運営が ON／OFF）で見る。
 //     ＝スイッチは1つ。ON の店だけ「コネックエフに切り替える」を押せて、フクエスCRM も使える。
 //   ・フクエスリンク（駅ちかからの反映専用）は今までどおり無料（このセットとは別）。
+// ★★★ 第1381便（2026-10-10・カッキーさんの決定）: 【書き方】を変えた。額・契約の中身・スイッチ（crm_until）は同じ。
+//   ・これまで … 「コネックエフとフクエスCRMは、セットで月額20,000円（税別）」。
+//   ・これから … 「フクエスCRM 月額20,000円（税別）」。契約すると【無料オプション】で、他サイトへの連携サービス「コネックエフ」が付く。
+//     コネックエフは外部のサービスという形。★ 店舗様に見える文に「セット」と書かないこと（番人 check:setplan）。
+//   ・/listing（掲載について）は第1380便で先に直した（そちらは「コネックエフ」の名前も出さない）。
+//   ・コード・注記の「セット」（isSetPlanActive・SET_PLAN_〜 など）は、契約のスイッチの呼び名としてそのまま残している。
 // ★ 金額・呼び名を変えるときはここだけ（ご案内・よくあるご質問・利用規約・/admin が同じ値を使う）。
-//   ★ 画像の中の金額（public/mypage/conecf/conecf-intro-v2.webp の札）は別に直すこと。
+//   ★ 画像の中の札（public/mypage/conecf/conecf-intro-v3.webp「フクエスCRMご契約で無料」）は別に直すこと。
 // ★ 純粋なデータと判定だけ（通信も DB も触らない）。
 
 /** 月額（税別） */
 export const SET_PLAN_PRICE_YEN = 20000;
 /** 例: 月額20,000円（税別） */
 export const SET_PLAN_PRICE_LABEL = `月額${SET_PLAN_PRICE_YEN.toLocaleString('ja-JP')}円（税別）`;
-export const SET_PLAN_NAME = 'コネックエフ＋フクエスCRM';
-/** ご案内に出す1文 */
-export const SET_PLAN_LINE = `コネックエフとフクエスCRMは、セットで${SET_PLAN_PRICE_LABEL}です。`;
+export const SET_PLAN_NAME = 'フクエスCRM';
+/** ご案内に出す1文（フクエスCRM の側） */
+export const SET_PLAN_LINE = `フクエスCRMは、${SET_PLAN_PRICE_LABEL}です。ご契約の店舗様は、無料オプションとして、他サイトへ一括で更新できる外部の連携サービス「コネックエフ」をお使いいただけます。`;
+/** ご案内に出す1文（コネックエフの側） */
+export const CONECF_OPTION_LINE = `コネックエフは、フクエスCRM（${SET_PLAN_PRICE_LABEL}）をご契約の店舗様が、無料オプションとしてお使いいただけます。`;
+/** コネックエフだけでは契約できない、の1文 */
+export const CONECF_ONLY_LINE = 'コネックエフだけのご契約はありません。';
 export const SET_PLAN_APPLY_LINE = 'お申し込みは運営事務局までご連絡ください。';
 /** 契約していない店が「コネックエフに切り替える」を押したときに返す文（サーバー） */
-export const SET_PLAN_NEED_MESSAGE = `コネックエフは、フクエスCRMとのセット（${SET_PLAN_PRICE_LABEL}）をご契約の店舗様がお使いいただけます。${SET_PLAN_APPLY_LINE}`;
+export const SET_PLAN_NEED_MESSAGE = `${CONECF_OPTION_LINE}${SET_PLAN_APPLY_LINE}`;
 
 /**
  * セットを契約しているか。★ actions/crm.ts の isCrmActive と同じ決まり（crm_until の日付が今日（JST の暦日）以降）。
@@ -38,7 +48,7 @@ export function isSetPlanActive(crmUntil: string | null | undefined, todayJst: s
 //     本当の解約のときは、運営が「マイページでの編集に戻す」（conecf_enabled_at を空にする）までがセット。
 /** 止めている店の画面・保存のエラーに出す文 */
 export const CONECF_STOPPED_MESSAGE =
-  `${SET_PLAN_NAME}（セット）のご契約が確認できないため、コネックエフでの保存と各サイトへの更新を止めています。お心当たりのない場合は、運営事務局までご連絡ください。`;
+  `${SET_PLAN_NAME}のご契約が確認できないため、コネックエフでの保存と各サイトへの更新を止めています。お心当たりのない場合は、運営事務局までご連絡ください。`;
 
 export function isConecfStopped(
   salon: { conecfEnabledAt: string | null | undefined; crmUntil: string | null | undefined },

@@ -206,7 +206,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
               //   ★ 自動が切られた店に「未設定です」と出していた（＝設定し忘れに見える）。「止まりました」と言う。
               //   ★ 詳しい説明と直し方は行き先の画面が出す。ここは1行と行き先だけ。
               note = stopped
-                ? { text: 'セットのご契約が確認できないため、更新を止めています', tone: 'text-amber-700', link: null }
+                ? { text: 'フクエスCRMのご契約が確認できないため、更新を止めています', tone: 'text-amber-700', link: null }
                 : s.problem
                 ? {
                     text: workProblemShort(s.problem), tone: 'text-rose-700',

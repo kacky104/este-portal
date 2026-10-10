@@ -20,13 +20,13 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CONECF_ORIGIN } from '@/lib/conecfHost';
-import { SET_PLAN_LINE, SET_PLAN_APPLY_LINE } from '@/lib/setPlan';
+import { CONECF_OPTION_LINE, CONECF_ONLY_LINE, SET_PLAN_APPLY_LINE } from '@/lib/setPlan';
 import { getConecfAccess } from '@/app/actions/conecf';
 
 export const metadata: Metadata = { title: 'コネックエフのご案内｜フクエス マイページ' };
 
 const INTRO_ALT =
-  'コネックエフ ご案内（フクエス契約店舗様へ）。入力は、1か所だけ。フクエス・駅ちか・エステ魂も、まとめて自動で更新されます。二度打ち ゼロ・月額 22,000円（税込）。' +
+  'コネックエフ ご案内（フクエス契約店舗様へ）。入力は、1か所だけ。フクエス・駅ちか・エステ魂も、まとめて自動で更新されます。二度打ち ゼロ・フクエスCRMご契約で無料。' +
   'コネックエフ（ここだけ入力）から、フクエス・駅ちか・エステ魂 など（まとめて自動で更新）。' +
   '01 まとめて更新できるもの：出勤（7日分をまとめて）、写メ日記（書くのは1回）、今すぐ（即ヒメ・即セラも）、セラピスト（登録・写真の更新）。エステラブへは写メ日記を送れます。全国エステランキングは準備中です。' +
   '02 始め方（4つのステップ）：1、「コネックエフを始める」を押す。フクエスと同じメールアドレス・パスワードでログインします。2、「コネックエフに切り替える」を押す。コネックエフのホームにあります。' +
@@ -51,19 +51,19 @@ export default async function ConecfIntroPage() {
       <div className="max-w-3xl mx-auto">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/mypage/conecf/conecf-intro-v2.webp"
+          src="/mypage/conecf/conecf-intro-v3.webp"
           alt={INTRO_ALT}
           width={1600}
           height={2262}
           className="block w-full h-auto border border-slate-200 mb-5"
         />
 
-        {/* ★ 第1241便: 料金（セット販売）とお申し込み先 */}
+        {/* ★ 第1241便: 料金とお申し込み先。★ 第1381便: 「セット」→「フクエスCRM の無料オプション」の書き方に（画像の札も v3 に） */}
         <div className="mb-5 border-2 border-[#2563eb] bg-white px-4 py-3.5 text-center">
           <p className="text-[15px] font-black text-[#1e3a8a]">ご利用料金</p>
-          <p className="mt-1 text-[14px] font-bold text-slate-700 leading-relaxed">{SET_PLAN_LINE}</p>
+          <p className="mt-1 text-[14px] font-bold text-slate-700 leading-relaxed">{CONECF_OPTION_LINE}</p>
           <p className="mt-0.5 text-[13px] text-slate-500 leading-relaxed">
-            コネックエフだけ・フクエスCRMだけのご契約はありません。{SET_PLAN_APPLY_LINE}ご契約後に「コネックエフに切り替える」を押せるようになります。
+            {CONECF_ONLY_LINE}{SET_PLAN_APPLY_LINE}ご契約後に「コネックエフに切り替える」を押せるようになります。
           </p>
         </div>
 

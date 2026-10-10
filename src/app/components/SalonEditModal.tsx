@@ -200,7 +200,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
     //   （間違えたときは、もう一度 ON にして保存すれば元どおり。データ・設定は消えない。CRM のデータは OFF のまま90日で消える）
     if (Boolean(salon.crm_until) && !crmUntil) {
       const okOff = window.confirm(
-        'コネックエフ＋フクエスCRM（セット）を OFF にします。\n\n' +
+        'フクエスCRM（無料オプションのコネックエフ付き）を OFF にします。\n\n' +
         '・フクエスCRM がすぐ使えなくなります（同意書の QR・セラピストのスケジュール表示も止まります）\n' +
         '・コネックエフでの保存と、各サイトへの更新（出勤・今すぐ・写メ日記・ココア）が止まります\n' +
         '・コネックエフに切り替え済みの店は、出勤とセラピストをマイページでも直せません。解約のときは「マイページでの編集に戻す」作業も必要です\n\n' +
@@ -398,7 +398,7 @@ export default function SalonEditModal({ salon, onClose, onSaved }: Props) {
               className="w-4 h-4 accent-pink-500"
             />
             {/* ★ 第1241便: コネックエフとフクエスCRM はセット販売。このスイッチ1つで両方（ON の店だけ「コネックエフに切り替える」を押せて、フクエスCRM も使える） */}
-            コネックエフ＋フクエスCRM（セット・{SET_PLAN_PRICE_LABEL}）
+            フクエスCRM（{SET_PLAN_PRICE_LABEL}・無料オプションのコネックエフ付き）
           </label>
 
           {/* 営業時間 */}

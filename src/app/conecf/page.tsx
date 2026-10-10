@@ -7,7 +7,7 @@ import { useConecfHref } from './ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { useState } from 'react';
 import { enableConecf } from '@/app/actions/conecf';
-import { SET_PLAN_LINE, SET_PLAN_APPLY_LINE } from '@/lib/setPlan';
+import { CONECF_OPTION_LINE, SET_PLAN_APPLY_LINE } from '@/lib/setPlan';
 import { FUKUES_ORIGIN } from '@/lib/crmHost';
 
 // コネックエフのホーム（第395便 1a → 第396便 1b で連携の状態を足した）。
@@ -28,9 +28,9 @@ function SwitchCard({ enabledAt, canSwitch, applyHref, onToast }: { enabledAt: s
   if (!canSwitch) {
     return (
       <div className="bg-white border-2 border-indigo-300 px-5 py-4 space-y-3">
-        <p className="text-[16px] font-black text-indigo-800">コネックエフは、フクエスCRMとのセットでご利用いただけます</p>
+        <p className="text-[16px] font-black text-indigo-800">コネックエフは、フクエスCRMの無料オプションです</p>
         <p className="text-[14px] text-slate-600 leading-relaxed">
-          いまは見るだけです。{SET_PLAN_LINE}{SET_PLAN_APPLY_LINE}ご契約後に「コネックエフに切り替える」を押せるようになります。
+          いまは見るだけです。{CONECF_OPTION_LINE}{SET_PLAN_APPLY_LINE}ご契約後に「コネックエフに切り替える」を押せるようになります。
         </p>
         <a href={applyHref} className="inline-block px-5 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
           運営に申し込む

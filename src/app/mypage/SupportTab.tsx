@@ -155,8 +155,8 @@ export function SupportTab({
     const fill = () => {
       setSubTab('inquiry');
       // ★ 第1241便: コネックエフとフクエスCRM はセット販売になった（コネックエフの「運営に申し込む」も同じ行き先）
-      setSubject('コネックエフ＋フクエスCRM（セット）のお申し込み');
-      setBody(`コネックエフとフクエスCRMのセット（${SET_PLAN_PRICE_LABEL}）を申し込みます。\n\n（ご質問・ご希望があれば、この下にご記入ください）`);
+      setSubject('フクエスCRMのお申し込み');
+      setBody(`フクエスCRM（${SET_PLAN_PRICE_LABEL}）を申し込みます。無料オプションのコネックエフも利用します。\n\n（ご質問・ご希望があれば、この下にご記入ください）`);
     };
     fill();
     url.searchParams.delete('apply');

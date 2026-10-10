@@ -202,7 +202,7 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
         await log('-', 'skipped:set_plan_off');
         return result;
       }
-      result.注意 = '試し打ち（1通も送っていません）／この店舗はセットのご契約が無いため、実運用では送られません';
+      result.注意 = '試し打ち（1通も送っていません）／この店舗はフクエスCRMのご契約が無いため、実運用では送られません';
     }
   }
   if (rows.length === 0) {
