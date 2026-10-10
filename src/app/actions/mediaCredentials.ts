@@ -25,6 +25,7 @@ import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
 import { nextDiaryMixedSince } from '@/lib/diarySource';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
 import { workProblemOf, type WorkProblem } from '@/lib/workProblem';
+import { loadLoginRejectPaused } from '@/app/lib/media/loginAutoPause';
 import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 // ★ 第372便: セラピストの既定画像（本人→店舗→運営）を当てる（第217便の決め方をそのまま使う）
@@ -200,6 +201,8 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
       consentAgreedAt: string | null;
       lastVerifiedAt: string | null;
       lastError: string | null;
+      /** ★ 第1378便: 一時停止の理由が「ID・パスワードが違う」（自動で止めた）ときだけ true が付く */
+      rejected?: boolean;
       /**
        * 連携の向き（第45便）。'none' | 'read' | 'write'。
        * ★ null は「取り込みの設定行そのものが無い」＝まだ連携の向きが決まっていない枠。
@@ -233,6 +236,14 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
     modeOf.set(`${String(s.provider)}:${Number(s.slot ?? 1)}`, String(s.link_mode ?? 'read'));
   }
 
+  // ★ 第1378便: 一時停止の枠のうち、「ID・パスワードが違う」ために自動で止めたもの
+  const rejectedPaused = await loadLoginRejectPaused(
+    svc, salonId,
+    (data ?? [])
+      .filter((r) => r.is_enabled === false && Boolean(r.password_enc))
+      .map((r) => ({ provider: String(r.provider), slot: Number(r.slot ?? 1) })),
+  );
+
   const rows = (data ?? [])
     .map((r) => ({
       provider: r.provider as string,
@@ -251,6 +262,7 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
       consentAgreedAt: (r.consent_agreed_at as string | null) ?? null,
       lastVerifiedAt: (r.last_verified_at as string | null) ?? null,
       lastError: (r.last_error as string | null) ?? null,
+      ...(rejectedPaused.has(String(r.provider) + '#' + Number(r.slot ?? 1)) ? { rejected: true } : {}),
       linkMode: modeOf.get(`${String(r.provider)}:${Number(r.slot ?? 1)}`) ?? null,
     }))
     .sort((a, b) => {
@@ -1916,6 +1928,11 @@ export async function getMediaOverview(input: { salonId: string | number; servic
       consentReadOnly?: boolean;
       /** ★ 第1294便: ID・パスワードを一時停止しているだけ（登録は残っている）ときだけ true が付く */
       credentialPaused?: boolean;
+      /**
+       * ★ 第1378便: 一時停止の理由が「ID・パスワードが違う」（続けてログインできず、自動で止めた）ときだけ true が付く。
+       *   ★ ホームのいちばん上に赤い帯を出す。店舗様が自分で止めた枠（credentialPaused だけ）と分ける。
+       */
+      credentialRejected?: boolean;
       /** 最後にその管理画面へログインできた時刻 */
       lastVerifiedAt: string | null;
       /** 最後の取り込み（当日の周） */
@@ -2051,6 +2068,14 @@ export async function getMediaOverview(input: { salonId: string | number; servic
     }
   }
 
+  // ★ 第1378便: 一時停止の枠のうち、「ID・パスワードが違う」ために自動で止めたもの（一時停止の枠が無い店では DB を読まない）
+  const rejectedPaused = await loadLoginRejectPaused(
+    svc, salonId,
+    (creds ?? [])
+      .filter((c) => c.is_enabled === false && Boolean(c.password_enc))
+      .map((c) => ({ provider: String(c.provider), slot: Number(c.slot ?? 1) })),
+  );
+
   // ★ 取り込みの枠と、ログイン情報だけある枠の【両方】を出す。
   //   ★ 片方しか無い状態は普通にある（読むだけの店は鍵を持たない／登録しただけで向き未決定）。
   const keys = new Set<string>([...(sources ?? []).map((s) => key(String(s.provider), Number(s.slot ?? 1))), ...credOf.keys()]);
@@ -2059,7 +2084,7 @@ export async function getMediaOverview(input: { salonId: string | number; servic
 
   const sites: Array<{
     provider: string; slot: number; label: string; direction: string; statusLabel: string;
-    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean; consentReadOnly?: boolean; credentialPaused?: boolean;
+    canSwitch: boolean; autoOn: boolean; hasCredential: boolean; needsConsent: boolean; consentReadOnly?: boolean; credentialPaused?: boolean; credentialRejected?: boolean;
     lastVerifiedAt: string | null;
     listLastRunAt: string | null; fullLastRunAt: string | null; lastWriteOkAt: string | null;
     /** ★ 第348便: 最後に【内容を確かめた】時刻（media_work_plans.created_at） */
@@ -2149,6 +2174,7 @@ export async function getMediaOverview(input: { salonId: string | number; servic
       needsConsent: cred != null && cred.needsConsent === true,
       ...(cred != null && cred.consentReadOnly === true ? { consentReadOnly: true } : {}),
       ...(cred != null && cred.paused === true ? { credentialPaused: true } : {}),
+      ...(cred != null && cred.paused === true && rejectedPaused.has(k) ? { credentialRejected: true } : {}),
       lastVerifiedAt: cred?.lastVerifiedAt ?? null,
       listLastRunAt,
       fullLastRunAt,

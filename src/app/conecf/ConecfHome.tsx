@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import { workProblemShort, type WorkProblem } from '@/lib/workProblem';
 import { consentRecheckNotice, conecfConsentNeededNotice } from '@/lib/mediaConsent';
+import { loginRejectNoticeText } from '@/lib/loginAutoPause';
 import { useConecfHref } from './ConecfBase';
 
 // コネックエフのホーム（第396便・1b・2026-09-17）。
@@ -28,6 +29,8 @@ type Site = {
   consentReadOnly?: boolean;
   /** ★ 第1294便: ID・パスワードを一時停止しているだけ（登録は残っている） */
   credentialPaused?: boolean;
+  /** ★ 第1378便: 「ID・パスワードが違う」ために自動で止めた（続けてログインできなかった） */
+  credentialRejected?: boolean;
   capabilities: string[];
   /** ★ 第1275便: いまうまくいっていないこと。無ければ null */
   problem?: WorkProblem | null;
@@ -87,9 +90,22 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
   const recheck = sites.filter((s) => s.needsConsent && !s.consentReadOnly);
   const needAgree = enabled ? sites.filter((s) => s.needsConsent && s.consentReadOnly) : [];
   const updating = sites.filter((s) => s.direction === 'write' && !s.needsConsent);
+  // ★ 第1378便（カッキーさん）: 「ID・パスワードが違う」ために自動で止めた枠。開いたとき、いちばん上で分かるように。
+  //   ★ メールを見ないオーナー様もいるので、画面で言う。入れ直して保存すると再開して、この帯は消える。
+  const rejected = sites.filter((s) => s.credentialRejected);
+  const slotName = (s: Site) => s.label + (s.slot > 1 ? `（枠${s.slot}）` : '');
 
   return (
     <div className="space-y-3">
+      {/* ── 第1378便: ID・パスワードが違うため、ログインを止めている（赤）── */}
+      {rejected.length > 0 && (
+        <div className="border-2 border-rose-300 bg-rose-50 px-4 py-3">
+          <p className="text-[15.5px] font-black text-rose-700">{loginRejectNoticeText(rejected.map(slotName)).title}</p>
+          <p className="mt-1 text-[14px] text-rose-900/80 leading-relaxed">{loginRejectNoticeText(rejected.map(slotName)).body}</p>
+          <Link href={href('/sites')} className="inline-block mt-2.5 px-3 py-1.5 border border-rose-400 bg-white text-[13.5px] font-bold text-rose-700 hover:bg-rose-100">ID・パスワードを入れ直す</Link>
+        </div>
+      )}
+
       {/* ── 同意の取り直し（琥珀）── */}
       {recheck.length > 0 && (
         <div className="border border-amber-300 bg-amber-50 px-4 py-3">
@@ -162,6 +178,10 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
             } else if (s.needsConsent) {
               status = { text: s.consentReadOnly ? 'ご同意が必要です（いまは更新していません）' : '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
+            } else if (!s.hasCredential && s.credentialRejected) {
+              // ★ 第1378便: 自動で止めた枠は、理由を言う（店舗様が自分で止めた「一時停止中」と分ける）
+              status = { text: 'ID・パスワードが違うため止めています', tone: 'text-rose-700' };
+              action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">入れ直す</Link>;
             } else if (!s.hasCredential && s.credentialPaused) {
               // ★ 第1294便: 一時停止しただけの枠を「未登録」と言わない（登録は残っている。再開は ID・パスワード登録から）
               status = { text: 'ID・パスワードを一時停止中', tone: 'text-slate-500' };

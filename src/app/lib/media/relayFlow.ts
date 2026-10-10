@@ -73,6 +73,9 @@ import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
 import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
 import { planEsutamaWork, pickEsutamaTargets, shouldHoldEsutamaClears } from '@/lib/esutamaPlan';
 import { isAutomaticActor, loginBackoff, LOGIN_BACKOFF_MIN } from '@/lib/loginBackoff';
+import { loginRejectStreak, decideLoginAutoPause, loginRejectPauseSummary, loginRejectPauseNote, LOGIN_REJECT_PAUSE_STREAK, LOGIN_REJECT_REASON, LOGIN_GUARD_ACTOR } from '@/lib/loginAutoPause';
+import { loadLoginPauseFacts } from '@/app/lib/media/loginAutoPause';
+import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
 import { isSiteGoneAudit } from '@/lib/girlDeleteFinish';
 import { finishGirlDelete } from '@/app/lib/conecf/girlDeleteFinish';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
@@ -477,14 +480,67 @@ export async function startRelayFlow(params: {
   if (isAutomaticActor(params.actor)) {
     const { data: logins, error: lgErr } = await supabase
       .from('salon_media_audit')
-      .select('event, outcome, created_at')
+      .select('event, outcome, created_at, summary, detail')
       .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
-      .in('event', ['login', 'credential_saved'])
+      // ★ 第1378便: credential_enabled / disabled / deleted も読む（「ID・パスワードが違う」の数え直しの仕切り）。
+      //   loginBackoff は login と credential_saved しか見ないので、見送りの判断は今までどおり。
+      .in('event', ['login', 'credential_saved', 'credential_enabled', 'credential_disabled', 'credential_deleted'])
       .order('created_at', { ascending: false })
-      .limit(6);
+      .limit(12);   // ★ 第1378便: 5回続いたかを数えるので、窓を 6 → 12 に（相手サイトの不調の行が混ざっても足りるように）
     if (lgErr) {
       console.error('[relay] ログインの記録を読めなかった（見送りの判断をせずに進む）', params.salonId, params.provider, lgErr.message);
     } else {
+      // ★★★ 第1378便（2026-10-10・カッキーさん）: 「ID・パスワードが違う」が【5回続いたら】、この枠のログインを一時停止する。
+      //   ★ 60分に1回の見送り（下）だけでは止まらず、間違ったログインが1日に20回以上続いていた（オイルクエスト様・駅ちか枠2）。
+      //   ★ 数えるのは「ID・パスワードが違う」とはっきり分かる失敗だけ。相手サイトの不調は数えない（判断は lib/loginAutoPause.ts）。
+      //   ★★ 5回で止めるのは、登録（または再開）してから1度も通っていない枠だけ（入れ間違い）。前は通っていた枠は、24時間続いたら止める。
+      //     相手サイトの側の不調で全店が一斉にログイン画面へ戻されたとき、通っていた店まで止めてしまわないため。
+      //   ★ 止めるのは自動の周だけが見つける（人が押した操作は、この block を通らない＝直したあとすぐ確かめられる）。
+      //   ★ 店舗様が ID・パスワードを保存し直すと is_enabled=true で書かれて再開する。ホームのいちばん上に赤い帯で出す。
+      //   ★ 止めた印は記録に残す（credential_disabled・detail.reason）。店舗様が自分で止めた枠と分けるため。
+      const rejectStreak = loginRejectStreak(
+        (logins ?? []).map((r) => ({ event: String(r.event), outcome: String(r.outcome), summary: (r.summary as string | null) ?? '', detail: r.detail as unknown })),
+      );
+      // ★ 5回続いているときだけ、止めるかどうかを決めるための事実を読む（ふだんの周では読まない）。読めなかったら止めない
+      const pauseFacts = rejectStreak >= LOGIN_REJECT_PAUSE_STREAK
+        ? await loadLoginPauseFacts(supabase, params.salonId, params.provider, params.slot)
+        : null;
+      const pauseDecision = pauseFacts
+        ? decideLoginAutoPause({
+            streak: rejectStreak,
+            everWorked: pauseFacts.everWorked,
+            firstFailAtMs: pauseFacts.firstFailAt ? Date.parse(pauseFacts.firstFailAt) : null,
+            nowMs: Date.now(),
+          })
+        : { pause: false, rule: null };
+      if (pauseDecision.pause && pauseDecision.rule) {
+        const siteLabel = (findMediaSite(params.provider)?.name ?? 'このサイト') + (params.slot > 1 ? `（枠${params.slot}）` : '');
+        // ★ is_enabled=true の行だけを倒す（同じ時刻に2つの周が来ても、記録は1回だけ書く）
+        const { data: paused, error: pauseErr } = await supabase
+          .from('salon_media_credentials')
+          .update({ is_enabled: false, updated_at: new Date().toISOString() })
+          .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+          .eq('is_enabled', true)
+          .select('slot');
+        if (pauseErr) {
+          // ★ 止められなかったら、今までどおり下の見送り（60分に1回）に任せる
+          console.error('[relay] ログインを一時停止にできなかった（見送りの判断へ進む）', params.salonId, params.provider, pauseErr.message);
+        } else {
+          if ((paused ?? []).length > 0) {
+            await recordMediaAudit({
+              salonId: params.salonId, provider: params.provider, slot: params.slot,
+              event: 'credential_disabled', outcome: 'stopped',
+              summary: loginRejectPauseSummary(siteLabel, pauseDecision.rule),
+              detail: { reason: LOGIN_REJECT_REASON, rule: pauseDecision.rule, streak: rejectStreak },
+              actor: LOGIN_GUARD_ACTOR,
+            });
+            // ★ 鍵を止めると、駅ちかから読む店は写メ日記を取り込めるかどうかが変わる（setMediaCredentialEnabled と同じ・第205便）
+            try { await syncDiarySource(supabase, params.salonId, LOGIN_GUARD_ACTOR); }
+            catch (e) { console.error('[relay] 一時停止のあと、写メ日記の取り込み元をそろえられなかった', params.salonId, e instanceof Error ? e.message : e); }
+          }
+          return { ok: false, reason: 'disabled', note: loginRejectPauseNote(siteLabel) };
+        }
+      }
       const bo = loginBackoff({
         rows: (logins ?? []).map((r) => ({ event: String(r.event), outcome: String(r.outcome), createdAt: String(r.created_at) })),
         nowMs: Date.now(),

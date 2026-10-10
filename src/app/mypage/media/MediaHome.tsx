@@ -14,6 +14,7 @@ import {
 } from '@/lib/mediaOverview';
 // ★ 同意の取り直しは、ログイン情報の中だけでは気づけない（第89便）。★ 入口にも出す
 import { consentRecheckNotice } from '@/lib/mediaConsent';
+import { loginRejectNoticeText } from '@/lib/loginAutoPause';
 // ★ 第688便: 写メ日記が取り込めているか（駅ちかの鍵あり・同意済み）の判定は diarySource と同じ物差し
 import { ekichikaReadReady } from '@/lib/diarySource';
 // ★ 第895便: 写メ日記の書き方（駅ちかで書く／フクエスで書く）
@@ -45,6 +46,8 @@ type Site = {
   /** ★ いま自動で反映しているか。★ 自動のまま戻させない（先に自動をやめてもらう） */
   autoOn: boolean;
   hasCredential: boolean;
+  /** ★ 第1378便: 「ID・パスワードが違う」ために自動で止めた（続けてログインできなかった） */
+  credentialRejected?: boolean;
   /** ★★★ 同意の取り直しが要るか。★ 要るあいだ、この枠へは何も送っていない（第89便） */
   needsConsent: boolean;
   lastVerifiedAt: string | null;
@@ -173,8 +176,26 @@ export function MediaHome({ salonId, onToast }: {
     reading ? 'read' : writing.length > 0 ? 'write' : offSite ? 'off' : 'unset';
   const topLabel = reading?.label ?? offSite?.label ?? '';
 
+  // ★ 第1378便（カッキーさん）: 「ID・パスワードが違う」ために自動で止めた枠。開いたとき、いちばん上で分かるように。
+  const rejected = sites.filter((s) => s.credentialRejected);
+  const slotName = (s: Site) => s.label + (s.slot > 1 ? `（枠${s.slot}）` : '');
+
   return (
     <div className="space-y-3">
+
+      {/* ── 第1378便: ID・パスワードが違うため、ログインを止めている（赤）。入れ直して保存すると再開して消える ── */}
+      {!loading && !error && rejected.length > 0 && (
+        <div className="border-2 border-rose-300 bg-rose-50 p-4">
+          <p className="text-[15.5px] font-black text-rose-700">{loginRejectNoticeText(rejected.map(slotName)).title}</p>
+          <p className="mt-1 text-[14px] text-rose-900/80 leading-relaxed">{loginRejectNoticeText(rejected.map(slotName)).body}</p>
+          <Link
+            href="/mypage/media/login"
+            className="inline-block mt-2.5 px-3 py-1.5 border border-rose-400 bg-white text-[13.5px] font-bold text-rose-700 hover:bg-rose-100"
+          >
+            ID・パスワードを入れ直す
+          </Link>
+        </div>
+      )}
 
       {/* ── ★★★ 同意の取り直し（第89便）─────────────────────
           ★★ ログイン情報の画面まで行かないと気づけない、をやめる。

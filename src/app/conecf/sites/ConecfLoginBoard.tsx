@@ -41,6 +41,8 @@ type CredRow = {
   provider: string; slot: number; shopId: string; loginId: string; passwordMask: string; hasPassword: boolean;
   isEnabled: boolean; needsConsent: boolean; consentReadOnly?: boolean; consentAgreedAt: string | null; lastVerifiedAt: string | null;
   lastError: string | null; linkMode: string | null;
+  /** ★ 第1378便: 一時停止の理由が「ID・パスワードが違う」（自動で止めた） */
+  rejected?: boolean;
 };
 
 type Tab = 'all' | 'registered' | 'unregistered';
@@ -193,6 +195,9 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
     if (siteRows.some((r) => r.needsConsent)) return { text: '同意の取り直しが必要です（いまは送っていません）', tone: 'text-amber-700' };
     if (siteRows.length === 0) return { text: '', tone: '' };
     const slots = mediaSiteSlots(site).length > 1 ? siteRows.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : '';
+    // ★ 第1378便: 「ID・パスワードが違う」ために自動で止めた枠は、理由を言う
+    const rej = siteRows.filter((r) => !r.isEnabled && r.rejected);
+    if (rej.length > 0) return { text: `${mediaSiteSlots(site).length > 1 ? rej.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : ''}ID・パスワードが違うため止めています`, tone: 'text-rose-600' };
     if (st === 'disabled') return { text: `${slots}一時停止中`, tone: 'text-slate-500' };
     return { text: `${slots}連携中`, tone: GREEN }; // ★ 第761便（カッキーさん）: 連携中は緑
   };
@@ -356,7 +361,9 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
                   <div className="pl-[132px] space-y-1.5 text-[12px]">
                     <p className="text-slate-500">
                       最終確認 {fmtDay(row.lastVerifiedAt)}
-                      {!row.isEnabled && <span className="ml-2 text-amber-700">一時停止中</span>}
+                      {!row.isEnabled && (row.rejected
+                        ? <span className="ml-2 font-bold text-rose-600">ID・パスワードが違うため止めています。正しいID・パスワードを入れ直して保存すると再開します</span>
+                        : <span className="ml-2 text-amber-700">一時停止中</span>)}
                       {row.lastError && <span className="ml-2 text-rose-600">直近のエラー：{row.lastError}</span>}
                     </p>
                     <p className="flex flex-wrap gap-x-4 gap-y-1">

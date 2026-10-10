@@ -28,6 +28,7 @@ import {
   credentialPausedNotice,
   CREDENTIAL_PAUSE_WHEN, CREDENTIAL_PAUSE_NOT_FOR_STOPPING,
 } from '@/lib/mediaOverview';
+import { loginRejectPausedLine } from '@/lib/loginAutoPause';
 import {
   getMediaCredentials,
   saveMediaCredential,
@@ -68,6 +69,8 @@ type CredRow = {
   consentAgreedAt: string | null;
   lastVerifiedAt: string | null;
   lastError: string | null;
+  /** ★ 第1378便: 一時停止の理由が「ID・パスワードが違う」（自動で止めた） */
+  rejected?: boolean;
   linkMode: string | null;
 };
 
@@ -618,11 +621,16 @@ export function LoginBoard({
                     )}
                     {/* ★★ いま一時停止しているなら、まずそれを言い切る（第89便）。
                         ★ ボタンには状態を書かない代わりに、状態はここに出す */}
-                    {!row.isEnabled && (
+                    {!row.isEnabled && (row.rejected ? (
+                      // ★ 第1378便: 自動で止めた枠は、理由と直し方を言う（入れ直して保存すると再開する）
+                      <p className="border-2 border-rose-300 bg-rose-50 px-3 py-2 text-[13.5px] font-bold text-rose-700 leading-relaxed">
+                        {loginRejectPausedLine(site.name)}
+                      </p>
+                    ) : (
                       <p className="border border-amber-200 bg-amber-50 px-3 py-2 text-[13.5px] font-bold text-amber-800 leading-relaxed">
                         {credentialPausedNotice(site.name)}
                       </p>
-                    )}
+                    ))}
 
                     {/* ── うまくいかないとき（第89便）─────────────────
                         ★★★ 接続テストと一時停止は【困ったときに押すもの】。

@@ -5,6 +5,8 @@ import { mediaSlotLabel } from '@/lib/mediaLinkStall';
 import { isWriteDirection } from '@/lib/mediaLinkMode';
 import { workProblemOf, workProblemShort } from '@/lib/workProblem';
 import { stallKey, type StallItem, type StallOverview } from '@/lib/stallDigest';
+import { loadLoginRejectPaused } from '@/app/lib/media/loginAutoPause';
+import { LOGIN_REJECT_WATCH_MESSAGE } from '@/lib/loginAutoPause';
 
 // 全店の「止まっているもの・うまくいっていないもの」の【材料集め】（第1340便・2026-10-09）。
 //
@@ -40,11 +42,14 @@ export async function collectStallOverview(svc: Svc, now: Date): Promise<StallOv
   if (credRes.error) errors.push('ログイン情報（salon_media_credentials）を読めなかった: ' + credRes.error.message);
   const sources = (srcRes.data ?? []) as Array<{ salon_id: number; provider: string; slot: number; link_mode: string | null }>;
   // ★ password_enc は「あるか」だけを見る。中身はどこにも出さない
-  const creds = ((credRes.data ?? []) as Array<{ salon_id: number; provider: string; slot: number | null; is_enabled: boolean | null; password_enc: string | null }>)
-    .filter((c) => c.is_enabled !== false && Boolean(c.password_enc))
-    .map((c) => ({ salonId: Number(c.salon_id), provider: String(c.provider), slot: Number(c.slot ?? 1) }));
+  const registered = ((credRes.data ?? []) as Array<{ salon_id: number; provider: string; slot: number | null; is_enabled: boolean | null; password_enc: string | null }>)
+    .filter((c) => Boolean(c.password_enc))
+    .map((c) => ({ salonId: Number(c.salon_id), provider: String(c.provider), slot: Number(c.slot ?? 1), enabled: c.is_enabled !== false }));
+  const creds = registered.filter((c) => c.enabled).map(({ salonId, provider, slot }) => ({ salonId, provider, slot }));
+  // ★ 第1378便: 一時停止している枠（登録は残っている）。「ID・パスワードが違う」ために自動で止めたものを、下の 4 で拾う
+  const pausedCreds = registered.filter((c) => !c.enabled).map(({ salonId, provider, slot }) => ({ salonId, provider, slot }));
 
-  const salonIds = Array.from(new Set([...sources.map((s) => Number(s.salon_id)), ...creds.map((c) => c.salonId)])).sort((a, b) => a - b);
+  const salonIds = Array.from(new Set([...sources.map((s) => Number(s.salon_id)), ...creds.map((c) => c.salonId), ...pausedCreds.map((c) => c.salonId)])).sort((a, b) => a - b);
   const nameOf = new Map<number, string>();
   if (salonIds.length > 0) {
     const { data: names, error: nameErr } = await svc.from('salons').select('id, name').in('id', salonIds);
@@ -140,6 +145,39 @@ export async function collectStallOverview(svc: Svc, now: Date): Promise<StallOv
       errors.push('店 ' + c.salonId + '・' + c.provider + '（枠' + c.slot + '）を調べている途中で落ちた: ' + (e instanceof Error ? e.message : '理由不明'));
     }
   });
+
+  // ── 4. 「ID・パスワードが違う」ために自動で一時停止した枠（第1378便）──
+  //   ★ 一時停止の枠は上の 3 が見ない（鍵が使える枠だけ）。そのままだと、自動で止めた瞬間に「ログインできていません」が消えて、
+  //     「全部直りました」のメールが出てしまう。★ 同じ名前（problem・login）で残す＝知らせ済みの続きとして扱われる（新しいメールも出ない）。
+  //   ★ 店舗様が自分で一時停止した枠は拾わない（記録の印で分ける・lib/loginAutoPause.ts）。
+  //   ★ 読めなかったときは errors に入れる（読めなかった回を「直った」と数えない）。
+  {
+    const bySalon = new Map<number, Array<{ provider: string; slot: number }>>();
+    for (const c of pausedCreds) {
+      const list = bySalon.get(c.salonId) ?? [];
+      list.push({ provider: c.provider, slot: c.slot });
+      bySalon.set(c.salonId, list);
+    }
+    await inBatches([...bySalon.entries()], async ([salonId, list]) => {
+      try {
+        const rejected = await loadLoginRejectPaused(svc, salonId, list, (m) => errors.push(m));
+        for (const p of list) {
+          if (!rejected.has(p.provider + '#' + p.slot)) continue;
+          const b4 = { watch: 'problem', salonId, provider: p.provider, slot: p.slot, reason: 'login' } as const;
+          items.push({
+            ...b4,
+            key: stallKey(b4),
+            salonName: nameOf.get(salonId) ?? '',
+            siteLabel: mediaSlotLabel(p.provider, p.slot),
+            elapsedHours: null,
+            message: LOGIN_REJECT_WATCH_MESSAGE,
+          });
+        }
+      } catch (e) {
+        errors.push('店 ' + salonId + ' の一時停止の理由を調べている途中で落ちた: ' + (e instanceof Error ? e.message : '理由不明'));
+      }
+    });
+  }
 
   return {
     items,
