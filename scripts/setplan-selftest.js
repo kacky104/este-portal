@@ -57,6 +57,8 @@ console.log('\n── 4. ★★★ 書き方（第1381便・2026-10-10・カッ�
   const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
   const terms = read('src', 'app', 'lib', 'crm', 'termsText.ts').split('export const CRM_TERMS_TEXT')[1];
   eq('★★★ 利用規約 第2条: 「セット」と書いていない・月額22,000円（税込）・無料のオプションでコネックエフ', [/セット/.test(terms), /利用料は、月額22,000円（税込）とし/.test(terms), /無料のオプションとして、[^\n]*「コネックエフ」を利用できます/.test(terms)], [false, true, true]);
+  eq('★★★ 利用規約 第2条4（第1382便）: コネックエフは予告なく止まることがある・その場合も利用料は変わらない',
+    [/コネックエフの全部または一部を、予告なく止めたり、内容を変えたりすることがあります/.test(terms), /その場合も、本サービスの利用料は変わりません/.test(terms)], [true, true]);
   eq('★★★ 版は上げていない（同意の画面を出し直さない・カッキーさんの決定）', /CRM_TERMS_VERSION: string \| null = '2026-10-06'/.test(read('src', 'app', 'lib', 'crm', 'terms.ts')), true);
   eq('★★ ご案内の画像は、札を書き換えた v3', [/conecf-intro-v3\.webp/.test(read('src', 'app', 'mypage', 'conecf', 'page.tsx')), fs.existsSync(path.join(__dirname, '..', 'public', 'mypage', 'conecf', 'conecf-intro-v3.webp'))], [true, true]);
 }
