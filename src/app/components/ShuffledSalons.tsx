@@ -617,11 +617,14 @@ export function AreaLinkTabsBlock({ areas, currentArea }: { areas: string[]; cur
         <h2 className="text-xl font-bold text-slate-900">エリアから探す</h2>
       </div>
       <div className="mb-2">
+        {/* ★ 第1379便（カッキーさん）: スマホは【上3つ・下3つ】に分ける（前は幅しだいで 4つ＋2つ になっていた）。
+            半分のところに幅いっぱいの見えない区切り（basis-full）を入れて、そこで必ず折り返す。sm 以上は今までどおり1行。
+            ★ 行のすき間は gap-y-0.5 ×2（区切りの上下）＝今までの gap-1 と同じ。★ 下の ShuffledSalons の tabs と同じ作り（片方を変えたらもう片方も）。 */}
         <div
-          className="flex flex-wrap justify-center gap-1 pb-2 sm:flex-nowrap sm:justify-start sm:gap-2 sm:overflow-x-auto"
+          className="flex flex-wrap justify-center gap-x-1 gap-y-0.5 pb-2 sm:flex-nowrap sm:justify-start sm:gap-2 sm:overflow-x-auto"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
         >
-          {areas.map((area) => {
+          {areas.map((area, i) => {
             const active = currentArea === area;
             const cls = `flex-shrink-0 flex items-center px-2 py-1 rounded-full text-sm font-medium transition-all sm:gap-1.5 sm:px-4 sm:py-2 ${
               active
@@ -629,9 +632,12 @@ export function AreaLinkTabsBlock({ areas, currentArea }: { areas: string[]; cur
                 : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
             }`;
             return (
-              <Link key={area} href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
-                {areaLabel(area)}
-              </Link>
+              <Fragment key={area}>
+                {i === Math.ceil(areas.length / 2) && <span aria-hidden="true" className="basis-full h-0 sm:hidden" />}
+                <Link href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
+                  {areaLabel(area)}
+                </Link>
+              </Fragment>
             );
           })}
         </div>
@@ -673,11 +679,12 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   const tabs = (
     // 地域バッジ列と直下（検索バー等）の間の余白。mb-8→mb-4→mb-2 とさらに半分に。
     <div className="mb-2">
+      {/* ★ 第1379便: スマホは上3つ・下3つ（AreaLinkTabsBlock と同じ作り・片方を変えたらもう片方も） */}
       <div
-        className="flex flex-wrap justify-center gap-1 pb-2 sm:flex-nowrap sm:justify-start sm:gap-2 sm:overflow-x-auto"
+        className="flex flex-wrap justify-center gap-x-1 gap-y-0.5 pb-2 sm:flex-nowrap sm:justify-start sm:gap-2 sm:overflow-x-auto"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
       >
-        {areas.map(area => {
+        {areas.map((area, i) => {
           const active = activeAreaEffective === area;
           const cls = `flex-shrink-0 flex items-center px-2 py-1 rounded-full text-sm font-medium transition-all sm:gap-1.5 sm:px-4 sm:py-2 ${
             active
@@ -685,14 +692,19 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
               : 'border border-slate-200 bg-white text-slate-600 hover:border-pink-300 hover:text-pink-600 shadow-sm'
           }`;
           const inner = areaLabel(area);
-          return tabsAsLinks ? (
-            <Link key={area} href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
-              {inner}
-            </Link>
-          ) : (
-            <button key={area} onClick={() => setActiveArea(area)} className={cls}>
-              {inner}
-            </button>
+          return (
+            <Fragment key={area}>
+              {i === Math.ceil(areas.length / 2) && <span aria-hidden="true" className="basis-full h-0 sm:hidden" />}
+              {tabsAsLinks ? (
+                <Link href={areaHref(area)} className={cls} aria-current={active ? 'page' : undefined}>
+                  {inner}
+                </Link>
+              ) : (
+                <button onClick={() => setActiveArea(area)} className={cls}>
+                  {inner}
+                </button>
+              )}
+            </Fragment>
           );
         })}
       </div>
