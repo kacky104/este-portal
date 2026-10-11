@@ -76,10 +76,13 @@ export function DiaryFeed({
 
             <div className="px-5 sm:px-6 pb-5 sm:pb-6 space-y-4">
               {/* 画像 */}
-              {d.image && (
+              {/* ★ 第1402便（2026-10-11・カッキーさん）: 写真の無い日記は、プロフィール写真を出す（駅ちかと同じ見せ方）。
+                  一覧（第1401便）でプロフィール写真を出すようにしたので、開いた先でも同じ写真が出るようにそろえる。
+                  縦長の写真の頭が切れないよう上寄せ。プロフィール写真も無い方は、今までどおり文字だけ。 */}
+              {(d.image || d.therapistImage) && (
                 <div className="-mx-5 sm:-mx-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={d.image} alt={d.title ?? d.therapistName} className="block w-full max-h-[70vh] object-cover" />
+                  <img src={(d.image || d.therapistImage) as string} alt={d.title ?? d.therapistName} className={`block w-full max-h-[70vh] object-cover${d.image ? '' : ' object-top'}`} />
                 </div>
               )}
 
