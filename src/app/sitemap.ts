@@ -4,7 +4,8 @@ import { fetchAllRows } from '@/app/lib/fetchAllRows';
 import { fetchActiveJobsForSitemap, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
 import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
 import { fetchPublishedMainArticlesForSitemap } from '@/app/lib/mainArticles';
-import { jobsAreaHref, AREA_SLUGS_LIST } from '@/app/lib/areas';
+import { jobsAreaHref, AREA_SLUGS_LIST, areaFromSlug, countSalonsInArea, isAreaPageIndexable } from '@/app/lib/areas';
+import { fetchAreaSalonRows } from '@/app/lib/areaSalonRows';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { badgeToSlug } from '@/lib/therapistBadgeSlugs';
 import { ARTICLE_CATEGORY_ORDER } from '@/app/lib/articleCategories';
@@ -67,6 +68,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       supabase.from('x_profiles').select('id, handle').eq('status', 'approved').order('id').range(from, to), 'sitemap:x_profiles'),
   ]);
 
+  // ★★★ 第1396便（2026-10-11・カッキーさん）: お店が 0件のエリア（/area/…・/working/…）は載せない。
+  //   物差しはページ側の noindex と同じ（areas.ts の isAreaPageIndexable）。1件でも入れば、また載る。
+  //   数が読めなかったとき（null）は全部載せる（今までどおり）。
+  const areaRows = await fetchAreaSalonRows();
+  const indexableAreaSlugs = AREA_SLUGS_LIST.filter((slug) => {
+    const a = areaFromSlug(slug);
+    return !a || isAreaPageIndexable(areaRows ? countSalonsInArea(areaRows, a) : null);
+  });
+
   // 主要な静的ページ（lastModified は実更新日時を持たないため省略）。
   const staticEntries: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, changeFrequency: 'daily', priority: 1 },
@@ -79,7 +89,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 出勤中一覧・新人一覧・サロン新着情報（2026-07-12 canonical 明示とセットで sitemap 掲載）。
     { url: `${SITE_URL}/working`, changeFrequency: 'daily', priority: 0.6 },
     // ★ 第1081便: エリア別の出勤中（/working/[area]・6本）
-    ...AREA_SLUGS_LIST.map((slug) => ({ url: `${SITE_URL}/working/${slug}`, changeFrequency: 'daily' as const, priority: 0.5 })),
+    //   ★ 第1396便: お店が 0件のエリアは載せない（下の indexableAreaSlugs）
+    ...indexableAreaSlugs.map((slug) => ({ url: `${SITE_URL}/working/${slug}`, changeFrequency: 'daily' as const, priority: 0.5 })),
     // 特徴バッジ・エリアでのセラピスト検索ページ。
     { url: `${SITE_URL}/therapists`, changeFrequency: 'daily', priority: 0.7 },
     // 人気ランキング（トップ・ハンバーガーメニューから導線があり実在するが、
@@ -123,7 +134,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // 本体フクエスのエリア別サロンページ（/area/[slug]・全6スラッグ）。
-  const areaPageEntries: MetadataRoute.Sitemap = AREA_SLUGS_LIST.map((slug) => ({
+  //   ★ 第1396便: お店が 0件のエリアは載せない（ページ側も noindex）
+  const areaPageEntries: MetadataRoute.Sitemap = indexableAreaSlugs.map((slug) => ({
     url: `${SITE_URL}/area/${slug}`,
     changeFrequency: 'daily',
     priority: 0.9,

@@ -1,6 +1,7 @@
 import { Logo } from '@/app/components/Logo';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst } from '@/app/lib/salons';
 import { weightedShuffleDaily } from '@/lib/shuffle';
@@ -15,7 +16,8 @@ import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
-import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea } from '@/app/lib/areas';
+import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea, areaHref, countSalonsInArea, isAreaPageIndexable, areasWithSalons } from '@/app/lib/areas';
+import { fetchAreaSalonRows } from '@/app/lib/areaSalonRows';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { toJsonLdString, buildBreadcrumbJsonLd, buildFaqPageJsonLd, buildItemListJsonLd } from '@/app/lib/jsonLd';
 import { AREA_SEO_CONTENT } from '@/app/lib/areaSeoContent';
@@ -48,10 +50,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const description =
     AREA_SEO_CONTENT[area]?.metaDescription ??
     `${label}エリアのメンズエステを掲載。口コミ評価の高い人気店舗をご紹介します。`;
+  // ★★★ 第1396便（2026-10-11・カッキーさん）: お店が 0件のエリアページは、検索に出さない（noindex）。
+  //   10/11 の時点で 北九州・小倉／久留米／その他福岡／出張 の4つが 0店なのに、登録してよい設定でサイトマップにも載っていた。
+  //   ・1件でも入れば、次の作り直し（10分以内）で自分で戻る。サイトマップ（sitemap.ts）も同じ物差し。
+  //   ・数が読めなかったときは出す側（isAreaPageIndexable）。★ noindex のページには canonical を付けない（サイト内の方針）。
+  //   ・リンクはたどらせる（follow）。記事・用語集からこのページへのリンクは消していない。
+  const rows = await fetchAreaSalonRows();
+  const indexable = isAreaPageIndexable(rows ? countSalonsInArea(rows, area) : null);
   return {
     title,
     description,
-    alternates: { canonical: `/area/${slug}` },
+    ...(indexable ? { alternates: { canonical: `/area/${slug}` } } : { robots: { index: false, follow: true } }),
     // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
     // （og:image も消える）。そのため url/siteName/type/images まで全て明示する。
     openGraph: {
@@ -89,6 +98,22 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。
   const areaSalons = salons.filter((s) => salonInArea(s, area));
   const areaSalonIds = areaSalons.map((s) => s.id);
+  // ★ 第1396便: 0件のエリアに来た人を行き止まりにしない。お店のあるエリアと、全店の一覧へ案内する
+  const emptyNote = areaSalons.length === 0 ? (
+    <div className="mt-6 flex flex-col items-center gap-3 px-4">
+      <p className="text-[13px] text-slate-500">お店は、こちらから探せます</p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {areasWithSalons(salons, area).map((a) => (
+          <Link key={a} href={areaHref(a)} className="inline-flex items-center px-4 py-2 border border-pink-300 bg-white text-[13px] font-bold text-pink-600 hover:bg-pink-50">
+            {areaLabel(a)}のお店を見る
+          </Link>
+        ))}
+        <Link href="/salons" className="inline-flex items-center px-4 py-2 border border-slate-300 bg-white text-[13px] font-bold text-slate-600 hover:bg-slate-50">
+          すべてのお店を見る
+        </Link>
+      </div>
+    </div>
+  ) : undefined;
   // ★ 第1159便: 画面へ渡すのはこのエリアの店のぶんだけ（ほかの地域の写メ日記の行まで HTML に入れない）
   const cardTabCounts: SalonCardTabCounts = {};
   for (const id of areaSalonIds) {
@@ -185,6 +210,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           salons={withBumpedFirst(weightedShuffleDaily(salons, `area:${slug}`, (s) => (s.cardBoost ? CARD_BOOST_WEIGHT : 1)))}
           areas={[...AREA_ORDER]}
           currentArea={area}
+          emptyNote={emptyNote}
           tabsAsLinks
           showAreaTitle
           includeDispatch={area === DISPATCH_AREA}

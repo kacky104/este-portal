@@ -93,6 +93,32 @@ export function salonInArea(
   );
 }
 
+/** 店の数を数えるのに要る3つ（一覧の Salon もこの形を満たす） */
+export type AreaSalonRow = { area: string; area2?: string | null; dispatchType: string };
+
+/** そのエリアに属する店の数。★ 判定は salonInArea（画面の一覧と同じ）。全域は全件 */
+export function countSalonsInArea(rows: ReadonlyArray<AreaSalonRow>, area: string): number {
+  return (rows ?? []).filter((r) => salonInArea(r, area)).length;
+}
+
+/**
+ * ★★★ 第1396便（2026-10-11・カッキーさん）: エリアページを検索に出してよいか。
+ *   ・店が 0件のエリアページは出さない（noindex・サイトマップにも載せない）。中身が「まだありません」だけのため。
+ *   ・1件でも入れば出す（ページの作り直し＝10分以内に自分で戻る）。
+ *   ・★ 数が分からない（null・undefined＝読めなかった）ときは【出す】側に倒す。
+ *     読み取りの不調で、店のあるエリアまで検索から外さないため。
+ */
+export function isAreaPageIndexable(count: number | null | undefined): boolean {
+  return count == null || count > 0;
+}
+
+/** 0件のエリアページから案内する先: 店のあるエリア（自分・全域・出張は除く。AREA_ORDER の順） */
+export function areasWithSalons(rows: ReadonlyArray<AreaSalonRow>, exceptArea: string): string[] {
+  return AREA_ORDER.filter(
+    (a) => a !== ALL_AREA && a !== DISPATCH_AREA && a !== exceptArea && countSalonsInArea(rows, a) > 0,
+  );
+}
+
 /** URLスラッグ → エリア値（不明なら null）。 */
 export function areaFromSlug(slug: string): string | null {
   for (const [value, s] of Object.entries(AREA_SLUGS)) {
