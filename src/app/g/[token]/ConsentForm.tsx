@@ -117,7 +117,8 @@ export function ConsentForm({
     const r = await submitConsent(token, bookingId, true, signatureDataUrl(c));
     if (!r.ok) { setBusy(false); setErr(r.error); return; }
     // s = お店の番号（第1404便・完了画面の「フクエスでこのお店を見る」用。フクエスで非表示のお店は付かない）
-    window.location.replace(`/g/done?t=${encodeURIComponent(r.timeLabel)}${r.salonId ? `&s=${r.salonId}` : ''}`);
+    // ★ 第1405便: 予約の時刻は完了画面へ渡さない（出さない・カッキーさん）
+    window.location.replace(`/g/done${r.salonId ? `?s=${r.salonId}` : ''}`);
   };
 
   return (
@@ -145,7 +146,8 @@ export function ConsentForm({
 
       {already ? (
         <div className="mt-5 border border-emerald-300 bg-emerald-50 p-4 text-center">
-          <p className="text-[16px] font-black text-emerald-800">{cur?.timeLabel}〜の予約はもう了承済みです</p>
+          <p className="text-[16px] font-black text-emerald-800">{/* 第1405便: 予約が1件のときは時刻を出さない（遅れて始まったときの勘違いを避ける）。2件以上のときだけ、どの予約か分かるように出す */}
+            {candidates.length > 1 ? `${cur?.timeLabel}〜の予約はもう了承済みです` : 'もう了承済みです'}</p>
           <button type="button" onClick={() => setRedo(true)} className="mt-3 border border-slate-300 bg-white px-4 py-2 text-[13px] font-bold text-slate-600">
             サインし直す
           </button>

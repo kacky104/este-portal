@@ -7,6 +7,8 @@ import { acrylicStandSalonHref } from '@/lib/ga';
 //    ・リンクには印（acrylic_stand / qr）だけ付ける。お客様や予約が分かる値は付けない（lib/ga.ts）
 //    ・★ <a rel="noreferrer"> のふつうのリンクにする（next/link にしない）。この画面の「前のページ」は同意書（合言葉入りのアドレス）なので、
 //       それを移動先や Google へ渡さないため。
+// ★ 第1405便（2026-10-12・カッキーさん）: 予約の時刻は出さない（「12:30〜の予約で了承しました」→「了承しました」）。
+//    お店の都合で開始が遅れたとき（13:00 の予約が 13:15 開始）に「13:00〜」と出ると、お客様が勘違いしてセラピストが責められるため。
 
 export const metadata: Metadata = {
   title: 'ご案内',
@@ -16,14 +18,13 @@ export const metadata: Metadata = {
   twitter: null,
 };
 
-export default async function GuideDonePage({ searchParams }: { searchParams: Promise<{ t?: string; s?: string }> }) {
-  const { t, s } = await searchParams;
-  const time = /^\d{2}:\d{2}$/.test(String(t ?? '')) ? String(t) : '';
+export default async function GuideDonePage({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
+  const { s } = await searchParams;
   const salonHref = acrylicStandSalonHref(typeof s === 'string' ? s : '');
   return (
     <main className="mx-auto w-full max-w-md bg-white px-5 py-16 text-center">
       <p className="text-[40px] leading-none text-emerald-600">✓</p>
-      <p className="mt-4 text-[18px] font-black text-slate-800">{time ? `${time}〜の予約で了承しました` : '了承しました'}</p>
+      <p className="mt-4 text-[18px] font-black text-slate-800">了承しました</p>
       <p className="mt-3 text-[14px] text-slate-500">ありがとうございました。この画面は閉じてください。</p>
       {salonHref && (
         <div className="mt-12 border-t border-slate-200 pt-8">
