@@ -4,7 +4,7 @@ import { fetchAllRows } from '@/app/lib/fetchAllRows';
 import { fetchActiveJobsForSitemap, fetchAreaTagPairsWithActiveJobs, fetchActiveDispatchJobs } from '@/app/lib/jobs';
 import { fetchPublishedArticlesForSitemap } from '@/app/lib/workArticles';
 import { fetchPublishedMainArticlesForSitemap } from '@/app/lib/mainArticles';
-import { jobsAreaHref, AREA_SLUGS_LIST, areaFromSlug, countSalonsInArea, isAreaPageIndexable } from '@/app/lib/areas';
+import { jobsAreaHref, AREA_SLUGS_LIST, areaFromSlug, countSalonsInArea, isAreaPageIndexable, paidAreaRows } from '@/app/lib/areas';
 import { fetchAreaSalonRows } from '@/app/lib/areaSalonRows';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { badgeToSlug } from '@/lib/therapistBadgeSlugs';
@@ -71,10 +71,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // ★★★ 第1396便（2026-10-11・カッキーさん）: お店が 0件のエリア（/area/…・/working/…）は載せない。
   //   物差しはページ側の noindex と同じ（areas.ts の isAreaPageIndexable）。1件でも入れば、また載る。
   //   数が読めなかったとき（null）は全部載せる（今までどおり）。
+  // ★★★ 第1398便: /area は【有料＋無料掲載】で数える（エリアページに無料掲載の店も並ぶ）。
+  //   /working は【有料だけ】（無料掲載の店にはセラピストがいない）。ページ側の noindex と同じ分け方。
   const areaRows = await fetchAreaSalonRows();
+  const paidRows = areaRows ? paidAreaRows(areaRows) : null;
   const indexableAreaSlugs = AREA_SLUGS_LIST.filter((slug) => {
     const a = areaFromSlug(slug);
     return !a || isAreaPageIndexable(areaRows ? countSalonsInArea(areaRows, a) : null);
+  });
+  const indexableWorkingSlugs = AREA_SLUGS_LIST.filter((slug) => {
+    const a = areaFromSlug(slug);
+    return !a || isAreaPageIndexable(paidRows ? countSalonsInArea(paidRows, a) : null);
   });
 
   // 主要な静的ページ（lastModified は実更新日時を持たないため省略）。
@@ -89,8 +96,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 出勤中一覧・新人一覧・サロン新着情報（2026-07-12 canonical 明示とセットで sitemap 掲載）。
     { url: `${SITE_URL}/working`, changeFrequency: 'daily', priority: 0.6 },
     // ★ 第1081便: エリア別の出勤中（/working/[area]・6本）
-    //   ★ 第1396便: お店が 0件のエリアは載せない（下の indexableAreaSlugs）
-    ...indexableAreaSlugs.map((slug) => ({ url: `${SITE_URL}/working/${slug}`, changeFrequency: 'daily' as const, priority: 0.5 })),
+    //   ★ 第1396便: お店が 0件のエリアは載せない（第1398便: 有料店だけで数えた indexableWorkingSlugs）
+    ...indexableWorkingSlugs.map((slug) => ({ url: `${SITE_URL}/working/${slug}`, changeFrequency: 'daily' as const, priority: 0.5 })),
     // 特徴バッジ・エリアでのセラピスト検索ページ。
     { url: `${SITE_URL}/therapists`, changeFrequency: 'daily', priority: 0.7 },
     // 人気ランキング（トップ・ハンバーガーメニューから導線があり実在するが、

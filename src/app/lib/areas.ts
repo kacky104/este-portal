@@ -93,8 +93,20 @@ export function salonInArea(
   );
 }
 
-/** 店の数を数えるのに要る3つ（一覧の Salon もこの形を満たす） */
-export type AreaSalonRow = { area: string; area2?: string | null; dispatchType: string };
+/**
+ * 店の数を数えるのに要る3つ（一覧の Salon・無料掲載の FreeListing もこの形を満たす）。
+ * ★ free: 無料掲載（listing_plan='free'）の店なら true（第1398便）。無ければ有料（standard）として扱う。
+ */
+export type AreaSalonRow = { area: string; area2?: string | null; dispatchType: string; free?: boolean };
+
+/**
+ * ★★★ 第1398便（2026-10-11・カッキーさん）: 有料（standard）の店だけにする。
+ *   エリアページ（/area/…）は、有料店の下に無料掲載の店も並べるので【有料＋無料】で数える。
+ *   出勤中のページ（/working/…）は、無料掲載の店にセラピストがいないので【有料だけ】で数える。こちらはそのための絞り込み。
+ */
+export function paidAreaRows<T extends AreaSalonRow>(rows: ReadonlyArray<T>): T[] {
+  return (rows ?? []).filter((r) => !r.free);
+}
 
 /** そのエリアに属する店の数。★ 判定は salonInArea（画面の一覧と同じ）。全域は全件 */
 export function countSalonsInArea(rows: ReadonlyArray<AreaSalonRow>, area: string): number {

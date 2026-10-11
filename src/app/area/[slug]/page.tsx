@@ -3,7 +3,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst } from '@/app/lib/salons';
+import { fetchSalons, fetchFreeListings, CARD_BOOST_WEIGHT, withBumpedFirst } from '@/app/lib/salons';
+import { FreeListingCards } from '@/app/components/FreeListingCards';
 import { weightedShuffleDaily } from '@/lib/shuffle';
 import { ShuffledSalons } from '@/app/components/ShuffledSalons';
 import { TherapistScroller } from '@/app/components/TherapistScroller';
@@ -55,6 +56,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   //   ・1件でも入れば、次の作り直し（10分以内）で自分で戻る。サイトマップ（sitemap.ts）も同じ物差し。
   //   ・数が読めなかったときは出す側（isAreaPageIndexable）。★ noindex のページには canonical を付けない（サイト内の方針）。
   //   ・リンクはたどらせる（follow）。記事・用語集からこのページへのリンクは消していない。
+  // ★★★ 第1398便（2026-10-11・カッキーさん）: 無料掲載の店もエリアページに並べるようにしたので、数は【有料＋無料】。
+  //   無料掲載の店が1件でもあれば、有料店が 0件のエリアでも検索に出す（fetchAreaSalonRows が両方を返す）。
   const rows = await fetchAreaSalonRows();
   const indexable = isAreaPageIndexable(rows ? countSalonsInArea(rows, area) : null);
   return {
@@ -86,7 +89,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
   // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。
   const supabase = createPublicClient();
-  const [salons, featuredSalons, pickupBanners, moreCardImage, allTabCounts] = await Promise.all([
+  const [salons, featuredSalons, pickupBanners, moreCardImage, allTabCounts, freeAll] = await Promise.all([
     fetchSalons(supabase),
     getFeaturedSalons(supabase, area), // このエリア専用のピックアップ（未設定なら空＝枠ごと非表示）
     fetchActiveTherapistPickupBanners(), // セラピストピックアップ枠（TOPと共通・20枚目直下・0件なら非表示）
@@ -94,6 +97,9 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
     // ★ 第1159便（カッキーさん）: 地域ページの店舗カードにも TOP と同じタブ（写メ日記・口コミ・新人・クーポン）を出す。
     //   TOP と同じ関数＝このページの作り直し（ISR 600）のときに 2本（写メ日記60h・クーポン）。中身は押したときに読む。
     fetchSalonCardTabCounts(supabase),
+    // ★★★ 第1398便（2026-10-11・カッキーさん）: 無料掲載の店も、エリアページに並べる（有料店の下・登録順・シャッフルしない）。
+    //   TOP と同じ簡易カード（FreeListingCards）。TOP と違い show_on_top は見ない（有料店もエリアページでは見ていない）。
+    fetchFreeListings(supabase, { includeNotOnTop: true }),
   ]);
   const label = areaLabel(area);
   const pickupTitle = `${area === DISPATCH_AREA ? '出張対応' : label}のピックアップ店舗`;
@@ -102,12 +108,16 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
   // 判定は共有の salonInArea（ShuffledSalons の matchesArea と同一）。サロン一覧と同じ所属になる。
   const areaSalons = salons.filter((s) => salonInArea(s, area));
   const areaSalonIds = areaSalons.map((s) => s.id);
+  // ★ 第1398便: このエリアの無料掲載の店（判定は有料店と同じ salonInArea）。
+  //   ★ 出勤中のスライダー・口コミ・カードのタブには混ぜない（areaSalonIds は有料店だけのまま）。
+  const areaFree = freeAll.filter((f) => salonInArea(f, area));
   // ★ 第1396便: 0件のエリアに来た人を行き止まりにしない。お店のあるエリアと、全店の一覧へ案内する
-  const emptyNote = areaSalons.length === 0 ? (
+  //   ★ 第1398便: 「0件」は有料も無料も無いとき。案内先のエリアも、無料掲載の店だけのエリアを含める
+  const emptyNote = areaSalons.length === 0 && areaFree.length === 0 ? (
     <div className="mt-6 flex flex-col items-center gap-3 px-4">
       <p className="text-[13px] text-slate-500">お店は、こちらから探せます</p>
       <div className="flex flex-wrap justify-center gap-2">
-        {areasWithSalons(salons, area).map((a) => (
+        {areasWithSalons([...salons, ...freeAll], area).map((a) => (
           <Link key={a} href={areaHref(a)} className="inline-flex items-center px-4 py-2 border border-pink-300 bg-white text-[13px] font-bold text-pink-600 hover:bg-pink-50">
             {areaLabel(a)}のお店を見る
           </Link>
@@ -132,10 +142,11 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
 
   // ItemList 構造化データ（2026-08-06 追加）。このエリアに掲載しているサロンの一覧
   // （画面の ShuffledSalons と同じ集合。並びは1日1回のシャッフルなので順序は保証しない）。
+  // ★ 第1398便: 画面に並ぶ無料掲載の店も、後ろに足す（画面と同じ集合にそろえる）。
   const itemListJsonLd =
-    areaSalons.length > 0
+    areaSalons.length + areaFree.length > 0
       ? buildItemListJsonLd(
-          areaSalons.map((s) => ({ name: s.name, path: `/salon/${s.id}` })),
+          [...areaSalons, ...areaFree].map((s) => ({ name: s.name, path: `/salon/${s.id}` })),
           { name: `${label}のメンズエステ一覧` },
         )
       : null;
@@ -215,6 +226,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           areas={[...AREA_ORDER]}
           currentArea={area}
           emptyNote={emptyNote}
+          hideEmptyMessage={areaFree.length > 0}
           tabsAsLinks
           showAreaTitle
           includeDispatch={area === DISPATCH_AREA}
@@ -229,11 +241,16 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           sideNode={areaReviews.length > 0 ? <LatestReviewsBlock reviews={areaReviews} variant="sidebar" /> : undefined}
           bleedTherapists
           largeThumbs
-          insertBlocks={
-            pickupBanners.length > 0
+          insertBlocks={[
+            ...(pickupBanners.length > 0
               ? [{ afterIndex: 20, node: <TherapistPickupBanner banners={pickupBanners} />, zoom: false }]
-              : undefined
-          }
+              : []),
+            // ★★★ 第1398便: 無料掲載の店は、必ずいちばん下（TOP と同じ差し込み方。有料店より上には出ない）。
+            //   有料店が 0件のエリアでは、ShuffledSalons の 0件の分岐がこのブロックだけを出す（hideEmptyMessage）。
+            ...(areaFree.length > 0
+              ? [{ afterIndex: Number.MAX_SAFE_INTEGER, node: <FreeListingCards items={areaFree} />, zoom: false }]
+              : []),
+          ]}
           heading={
             <div className="mb-4">
               {/* エリア固有の紹介文（SEO・h1直下）。タイトルバー自体を summary にしたアコーディオンで、

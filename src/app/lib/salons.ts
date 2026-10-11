@@ -120,17 +120,23 @@ export function withBumpedFirst(salons: Salon[]): Salon[] {
 // ── 無料掲載枠（listing_plan='free'）─────────────────────────────
 // TOP 最下部の簡易カード用。standard の一覧（fetchSalons）とは別に取る（混ぜない）。
 // ★ hours・area2 を追加（有料カードと同じ形にするため・第369便）。catchphrase はカードに出さないが残す。
-export type FreeListing = { id: number; name: string; area: string; area2: string; hours: string; catchphrase: string };
+// ★ 第1398便: dispatchType を追加（エリアページで「このエリアの店か」を salonInArea で決めるため。カードには出さない）。
+export type FreeListing = { id: number; name: string; area: string; area2: string; hours: string; catchphrase: string; dispatchType: string };
 
-/** 無料掲載枠（listing_plan='free'・公開・トップ表示ON）を登録順で返す。TOP 最下部の簡易カード用（第368便）。 */
-export async function fetchFreeListings(supabase: SupabaseClient): Promise<FreeListing[]> {
-  const { data } = await supabase
+/**
+ * 無料掲載枠（listing_plan='free'・公開）を登録順で返す。
+ * - 既定: トップ表示ON（show_on_top=true）だけ。TOP 最下部の簡易カード用（第368便）。
+ * - opts.includeNotOnTop: show_on_top を見ない。エリアページ用（第1398便）。
+ *   ★ 有料店も、TOP は show_on_top=true だけ・エリアページは全部（fetchSalons の showOnTopOnly）。それと同じ分け方。
+ */
+export async function fetchFreeListings(supabase: SupabaseClient, opts?: { includeNotOnTop?: boolean }): Promise<FreeListing[]> {
+  let q = supabase
     .from('salons')
-    .select('id, name, area, area2, hours, catchphrase')
+    .select('id, name, area, area2, hours, catchphrase, dispatch_type')
     .eq('listing_plan', 'free')
-    .eq('is_hidden', false)
-    .eq('show_on_top', true)
-    .order('id', { ascending: true });
+    .eq('is_hidden', false);
+  if (!opts?.includeNotOnTop) q = q.eq('show_on_top', true);
+  const { data } = await q.order('id', { ascending: true });
   return (data ?? []).map((r) => ({
     id: r.id as number,
     name: (r.name as string) ?? '',
@@ -138,5 +144,6 @@ export async function fetchFreeListings(supabase: SupabaseClient): Promise<FreeL
     area2: (r.area2 as string) ?? '',
     hours: (r.hours as string) ?? '',
     catchphrase: (r.catchphrase as string) ?? '',
+    dispatchType: (r.dispatch_type as string | null) ?? 'none',
   }));
 }

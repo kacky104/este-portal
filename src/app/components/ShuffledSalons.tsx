@@ -646,7 +646,7 @@ export function AreaLinkTabsBlock({ areas, currentArea }: { areas: string[]; cur
   );
 }
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null, cardTabCounts, emptyNote }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; /** ★ 第1396便: 0件のときに「まだありません」の下に出すもの（エリアページが、お店のあるエリアへの案内を渡す） */ emptyNote?: React.ReactNode; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null; cardTabCounts?: SalonCardTabCounts }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null, cardTabCounts, emptyNote, hideEmptyMessage = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; /** ★ 第1396便: 0件のときに「まだありません」の下に出すもの（エリアページが、お店のあるエリアへの案内を渡す） */ emptyNote?: React.ReactNode; /** ★ 第1398便: 有料店が 0件でも「まだありません」を出さない（エリアページが、無料掲載の店を insertBlocks で下に並べるとき） */ hideEmptyMessage?: boolean; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null; cardTabCounts?: SalonCardTabCounts }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
   // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
@@ -749,13 +749,15 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
     return (
       <>
         {tabsAndHeading}
-        <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-4 opacity-40">
-            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-          </svg>
-          <p className="text-sm">このエリアの掲載店舗はまだありません</p>
-          {emptyNote}
-        </div>
+        {!hideEmptyMessage && (
+          <div className="flex flex-col items-center justify-center py-24 text-slate-400">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-4 opacity-40">
+              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+            </svg>
+            <p className="text-sm">このエリアの掲載店舗はまだありません</p>
+            {emptyNote}
+          </div>
+        )}
         {/* 0件エリアでもピックアップ枠等の挿入ブロックは出す（カードが無いだけで枠は表示したい）。
             ラッパ幅は通常時の zoom:false ブロックと同じ（723px＝カード列と同じ幅感）。 */}
         {[...(insertBlocks ?? [])]

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { WorkingPageBody } from '../WorkingPageBody';
-import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA, countSalonsInArea, isAreaPageIndexable } from '@/app/lib/areas';
+import { areaFromSlug, AREA_SLUGS_LIST, DISPATCH_AREA, countSalonsInArea, isAreaPageIndexable, paidAreaRows } from '@/app/lib/areas';
 import { fetchAreaSalonRows } from '@/app/lib/areaSalonRows';
 import { areaLabel } from '@/app/lib/areaLabel';
 
@@ -28,7 +28,10 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
   const description = `${name}のメンズエステで現在出勤中のセラピスト一覧。いま施術を受けられるセラピストをフクエスでまとめてチェックできます。`;
   const path = `/working/${area}`;
   // ★ 第1396便: お店が 0件のエリアは、出勤中のセラピストも居ない。エリアページ（/area/…）と同じ物差しで検索に出さない
-  const rows = await fetchAreaSalonRows();
+  // ★★★ 第1398便: こちらは【有料店だけ】で数える。無料掲載の店にはセラピストがいないので、
+  //   無料掲載の店しか無いエリアの「出勤中」は空のまま＝検索に出さない（エリアページ /area/… は有料＋無料で数える）。
+  const allRows = await fetchAreaSalonRows();
+  const rows = allRows ? paidAreaRows(allRows) : null;
   const indexable = isAreaPageIndexable(rows ? countSalonsInArea(rows, areaValue) : null);
   return {
     title,

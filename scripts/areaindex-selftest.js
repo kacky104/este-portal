@@ -5,6 +5,8 @@
 //   ② 数が分からない（読めなかった）ときは【出す】側に倒す（店のあるエリアまで検索から外さない）
 //   ③ 数え方は画面の一覧（salonInArea）と同じ（古いエリアの値・第2エリア・出張対応を含む）
 //   ④ エリアページ・出勤中のページ・サイトマップが、同じ物差しを使っている
+//   ⑤ 第1398便: エリアページは【有料＋無料掲載】、出勤中は【有料だけ】で数える。
+//      無料掲載の店は、エリアページのいちばん下（有料店より上に出ない）
 //
 //   使い方:  npm run check:areaindex
 
@@ -41,6 +43,19 @@ const prod = Array.from({ length: 8 }, () => ({ area: '博多・天神・中洲'
 eq('★★★ 10/11 の本番の形: 出すのは 博多・天神・中洲 だけ',
   A.AREA_SLUGS_LIST.filter((slug) => A.isAreaPageIndexable(A.countSalonsInArea(prod, A.areaFromSlug(slug)))), ['hakata-tenjin-nakasu']);
 
+console.log('\n── 2b. ★★★ 第1398便: 無料掲載の店の数え方 ──');
+// 10/11 の本番の形: 有料8店＋無料1店（salon 13）が、ぜんぶ博多・天神・中洲
+const prodFree = [...prod, { area: '博多・天神・中洲', area2: '', dispatchType: 'none', free: true }];
+eq('★★★ エリアページは有料＋無料で数える（9）／有料だけなら 8', [A.countSalonsInArea(prodFree, '博多・天神・中洲'), A.countSalonsInArea(A.paidAreaRows(prodFree), '博多・天神・中洲')], [9, 8]);
+// 無料掲載の店だけが久留米に入った形
+const freeOnly = [...prod, { area: '久留米', area2: '', dispatchType: 'none', free: true }];
+const slugsOf = (rows) => A.AREA_SLUGS_LIST.filter((slug) => A.isAreaPageIndexable(A.countSalonsInArea(rows, A.areaFromSlug(slug))));
+eq('★★★ 無料掲載の店だけのエリアも、エリアページは検索に出す', slugsOf(freeOnly), ['hakata-tenjin-nakasu', 'kurume']);
+eq('★★★ 出勤中のページは有料店だけで数える（無料掲載だけのエリアは出さない）', slugsOf(A.paidAreaRows(freeOnly)), ['hakata-tenjin-nakasu']);
+eq('free の印が無い行は有料として扱う（一覧の Salon をそのまま渡せる）', A.paidAreaRows(rows).length, 4);
+eq('空・null でも落ちない', [A.paidAreaRows([]), A.paidAreaRows(null)], [[], []]);
+eq('★★ 0件のエリアからの案内先に、無料掲載の店だけのエリアも入る', A.areasWithSalons(freeOnly, '北九州・小倉'), ['博多・天神・中洲', '久留米']);
+
 console.log('\n── 3. 0件のエリアから案内する先 ──');
 eq('★★ 店のあるエリアだけ（自分・全域・出張は除く・並びは AREA_ORDER）', A.areasWithSalons(rows, '北九州・小倉'), ['博多・天神・中洲', '久留米']);
 eq('自分は出さない', A.areasWithSalons(rows, '久留米'), ['博多・天神・中洲']);
@@ -57,9 +72,25 @@ eq('★★★ エリアページ・出勤中のページが、0件なら noindex
 eq('★★★ 3か所とも isAreaPageIndexable で決めている（式を別に書かない）', [area, working, sitemap].map((s) => /isAreaPageIndexable\(/.test(s)), [true, true, true]);
 eq('★★★ 数が読めなかったら null を渡している（0 と決めつけない）', [area, working, sitemap].map((s) => /\? countSalonsInArea\([^)]*\) : null\)/.test(s)), [true, true, true]);
 eq('★★★ サイトマップは /area と /working の両方を、出してよいエリアだけにしている',
-  [/indexableAreaSlugs\.map\(\(slug\) => \(\{ url: `\$\{SITE_URL\}\/working\//.test(sitemap), /areaPageEntries: MetadataRoute\.Sitemap = indexableAreaSlugs\.map/.test(sitemap), /AREA_SLUGS_LIST\.map\(\(slug\) => \(\{\s*url: `\$\{SITE_URL\}\/(area|working)\//.test(sitemap)], [true, true, false]);
-eq('★★ 数える条件は一覧（fetchSalons）と同じ: 非表示でない・standard', [/\.eq\('is_hidden', false\)/.test(loader), /\.eq\('listing_plan', 'standard'\)/.test(loader), /return null;/.test(loader)], [true, true, true]);
+  [/indexableWorkingSlugs\.map\(\(slug\) => \(\{ url: `\$\{SITE_URL\}\/working\//.test(sitemap), /areaPageEntries: MetadataRoute\.Sitemap = indexableAreaSlugs\.map/.test(sitemap), /AREA_SLUGS_LIST\.map\(\(slug\) => \(\{\s*url: `\$\{SITE_URL\}\/(area|working)\//.test(sitemap)], [true, true, false]);
+eq('★★ 数える条件はエリアページに並ぶ店と同じ: 非表示でない・standard か free・free の印を付ける',
+  [/\.eq\('is_hidden', false\)/.test(loader), /\.in\('listing_plan', \['standard', 'free'\]\)/.test(loader), /free: \(r\.listing_plan as string \| null\) === 'free'/.test(loader), /return null;/.test(loader)], [true, true, true, true]);
 eq('★ 0件のときの案内を、エリアページが渡している', [/emptyNote=\{emptyNote\}/.test(area), /\{emptyNote\}/.test(read('src', 'app', 'components', 'ShuffledSalons.tsx'))], [true, true]);
+
+console.log('\n── 5. ★★★ 第1398便: 無料掲載の店をエリアページに並べる ──');
+const salonsLib = read('src', 'app', 'lib', 'salons.ts');
+const shuffled = read('src', 'app', 'components', 'ShuffledSalons.tsx');
+eq('★★★ 出勤中のページは paidAreaRows で有料だけにしてから数える', /const rows = allRows \? paidAreaRows\(allRows\) : null;/.test(working), true);
+eq('★★★ サイトマップの /working は有料だけ・/area は有料＋無料',
+  [/const paidRows = areaRows \? paidAreaRows\(areaRows\) : null;/.test(sitemap), /isAreaPageIndexable\(paidRows \? countSalonsInArea\(paidRows, a\) : null\)/.test(sitemap), /isAreaPageIndexable\(areaRows \? countSalonsInArea\(areaRows, a\) : null\)/.test(sitemap)], [true, true, true]);
+eq('★★★ エリアページは無料掲載の店を、いちばん下に差し込む（有料店より上に出ない）',
+  /afterIndex: Number\.MAX_SAFE_INTEGER, node: <FreeListingCards items=\{areaFree\} \/>/.test(area), true);
+eq('★★ このエリアの店かは、有料店と同じ salonInArea で決める', /const areaFree = freeAll\.filter\(\(f\) => salonInArea\(f, area\)\);/.test(area), true);
+eq('★★ エリアページは show_on_top を見ない（有料店と同じ）／TOP は今までどおり見る',
+  [/fetchFreeListings\(supabase, \{ includeNotOnTop: true \}\)/.test(area), /if \(!opts\?\.includeNotOnTop\) q = q\.eq\('show_on_top', true\);/.test(salonsLib), /fetchFreeListings\(supabase\),/.test(read('src', 'app', 'page.tsx'))], [true, true, true]);
+eq('★★ 無料掲載の店があるエリアでは「まだありません」を出さない', [/hideEmptyMessage=\{areaFree\.length > 0\}/.test(area), /\{!hideEmptyMessage && \(/.test(shuffled)], [true, true]);
+eq('★★ 「0件」の案内は、有料も無料も無いときだけ', /const emptyNote = areaSalons\.length === 0 && areaFree\.length === 0 \?/.test(area), true);
+eq('★ 出勤中のスライダー・口コミは有料店だけのまま', /const areaSalonIds = areaSalons\.map\(\(s\) => s\.id\);/.test(area), true);
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

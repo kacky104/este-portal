@@ -6,7 +6,7 @@ import { areaLabel } from '@/app/lib/areaLabel';
 import { DISPATCH_AREA } from '@/app/lib/areas';
 import type { FreeListing } from '@/app/lib/salons';
 
-// 無料掲載枠（listing_plan='free'）のカード。TOP のカード一覧の一番下に、
+// 無料掲載枠（listing_plan='free'）のカード。TOP とエリアページ（/area/…・第1398便）のカード一覧の一番下に、
 // 有料店のカードと同じ見た目で1列に並べる（第369便）。
 // ★ 見出しは付けない（有料店と地続きに見せる＝カッキーさん指示 2026-09-15）。
 // ★★ 有料カード（ShuffledSalons.tsx の SalonCard）との違いは3つだけ:
