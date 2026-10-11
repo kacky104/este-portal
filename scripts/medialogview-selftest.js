@@ -222,5 +222,39 @@ eq('★★★ ボタンと説明に「★」を混ぜない',
    [v.detailToggleLabel(3, false), v.detailToggleLabel(3, true), v.detailToggleNote(3)]
      .some((t) => t.indexOf('★') >= 0), false);
 
+// ── ★★★ 変更が無かったので送らずに終わった回（第1390便・2026-10-11・カッキーさん）──
+{
+  const base = { event: 'write_work', outcome: 'stopped', detail: { people: 30, saved: 0, changed: 0, flowId: 'f1' } };
+  eq('★★★ write_work・stopped・saved 0・changed 0 は「変更なし」', v.isNoChangeStop(base), true);
+  eq('★★★ 変更があるのに送れなかった回（changed 1・saved 0）は、変更なしではない', v.isNoChangeStop(Object.assign({}, base, { detail: { saved: 0, changed: 1 } })), false);
+  eq('★★ 送れた回（ok）・できなかった回（failed）は対象外', [v.isNoChangeStop(Object.assign({}, base, { outcome: 'ok' })), v.isNoChangeStop(Object.assign({}, base, { outcome: 'failed' }))], [false, false]);
+  eq('★★ ほかの段（plan_work・login）の stopped は対象外', [v.isNoChangeStop(Object.assign({}, base, { event: 'plan_work' })), v.isNoChangeStop(Object.assign({}, base, { event: 'login' }))], [false, false]);
+  eq('★★ detail が無い・数が無い古い行は、今までどおり（変更なしと決めつけない）', [v.isNoChangeStop({ event: 'write_work', outcome: 'stopped' }), v.isNoChangeStop({ event: 'write_work', outcome: 'stopped', detail: { people: 30 } }), v.isNoChangeStop({ event: 'write_work', outcome: 'stopped', detail: null })], [false, false, false]);
+
+  eq('★★★ 言い方は「変更なし」・色は失敗の色にしない', [v.outcomeLabel('stopped', 'write_work', true), v.outcomeTone('stopped', true)], ['変更なし', 'ok']);
+  eq('★★★ 印が無い stopped は今までどおり「途中で止めました」・warn', [v.outcomeLabel('stopped', 'write_work'), v.outcomeLabel('stopped', 'write_work', false), v.outcomeTone('stopped'), v.outcomeTone('stopped', false)], ['途中で止めました', '途中で止めました', 'warn', 'warn']);
+  eq('★ ok・failed の言い方は変えていない', [v.outcomeLabel('ok', 'write_work'), v.outcomeLabel('ok', 'plan_work'), v.outcomeLabel('failed', 'write_work')], ['できました', '確かめました', 'できませんでした']);
+
+  const L = [
+    row({ id: 1, outcome: 'ok' }),
+    row({ id: 2, outcome: 'stopped', noChange: true }),
+    row({ id: 3, outcome: 'stopped' }),
+    row({ id: 4, outcome: 'failed' }),
+  ];
+  eq('★★★ 「うまくいかなかったもの」の数に、変更なしの回を入れない', v.logTally({ known: true, rows: L }), { total: 4, failed: 2 });
+  eq('★★★ 「うまくいかなかったもの」で絞っても出ない', v.filterLogRows(L, { provider: '', outcome: 'failed' }).map((r) => r.id), [3, 4]);
+  eq('★★★ 「できたもの」の側に出る（どの行も、どちらか片方に必ず入る）', v.filterLogRows(L, { provider: '', outcome: 'ok' }).map((r) => r.id), [1, 2]);
+  eq('★ 絞り込みなしでは全部出る（記録は消さない）', v.filterLogRows(L, { provider: '', outcome: '' }).length, 4);
+
+  // ★★ 受け口が印を付け、画面が印を渡している（付け忘れると、画面は今までどおり失敗に数える）
+  const fs = require('fs'), path = require('path');
+  const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
+  eq('★★★ 受け口（getMediaAuditRows）が noChange を付けている', /noChange: isNoChangeStop\(\{ event: r\.event, outcome: r\.outcome, detail: r\.detail \}\)/.test(read('src', 'app', 'actions', 'mediaCredentials.ts')), true);
+  const board = read('src', 'app', 'mypage', 'media', 'LogBoard.tsx');
+  eq('★★★ 画面（更新結果）が、色と言い方に noChange を渡している', [/outcomeTone\(r\.outcome, r\.noChange\)/.test(board), /outcomeLabel\(r\.outcome, r\.event, r\.noChange\)/.test(board)], [true, true]);
+  // ★ 見分け方は、自動を切る判定（第1273便）と同じ式
+  eq('★★ 自動を切る判定（pushOutcomesForGiveUp）と同じ見分け方（saved 0・changed 0）', /d\['saved'\] === 0 && d\['changed'\] === 0/.test(read('src', 'lib', 'mediaLinkMode.ts')) && /d\['saved'\] === 0 && d\['changed'\] === 0/.test(read('src', 'lib', 'mediaLogView.ts')), true);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

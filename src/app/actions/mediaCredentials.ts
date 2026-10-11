@@ -22,6 +22,7 @@ import { isNewFaceActive } from '@/lib/newFace';
 import { isLegacyCastIdScope } from '@/lib/mediaCastIds';
 import { buildLinkPairs, canLink, canUnlink, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { providerLabel, isShopVisibleAudit } from '@/lib/mediaAudit';
+import { isNoChangeStop } from '@/lib/mediaLogView';
 import { nextDiaryMixedSince } from '@/lib/diarySource';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
 import { workProblemOf, type WorkProblem } from '@/lib/workProblem';
@@ -1224,7 +1225,7 @@ export async function startMediaTherapistCreatePush(input: {
  */
 export async function getMediaAuditRows(input: { salonId: string | number; limit?: number }): Promise<
   Result<{
-    rows: Array<{ id: number; provider: string; slot: number; event: string; outcome: string; summary: string; createdAt: string; visible: boolean }>;
+    rows: Array<{ id: number; provider: string; slot: number; event: string; outcome: string; summary: string; createdAt: string; visible: boolean; noChange: boolean }>;
     /**
      * ★★★ この先にまだ記録があるか（第149便）。
      *   ★ 行数からは判断できない。★ たたむ行が窓を食うと、
@@ -1259,6 +1260,8 @@ export async function getMediaAuditRows(input: { salonId: string | number; limit
       event: r.event,
       outcome: r.outcome, summary: r.summary, createdAt: r.createdAt,
       visible: isShopVisibleAudit({ event: r.event, outcome: r.outcome, detail: r.detail }),
+      // ★ 第1390便: 変更が無かったので送らずに終わった回か（うまくいかなかったものに数えない・「変更なし」と言う）
+      noChange: isNoChangeStop({ event: r.event, outcome: r.outcome, detail: r.detail }),
     }));
 
     // ★ 新しいほうから、店舗様に出す行が want 件たまるまで。★ 途中のたたむ行も一緒に持っていく

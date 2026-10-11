@@ -31,7 +31,32 @@ export type MediaLogRow = {
    *   ★★ 省略・undefined は【出す】。★ 印が無い行を黙らせない。
    */
   visible?: boolean;
+  /**
+   * ★★★ 第1390便: 「変更が無かったので送らずに終わった回」か。★ 決めるのは下の isNoChangeStop（受け口が1回だけ通す）。
+   *   ★ true の行は【うまくいかなかったもの】に数えない・「変更なし」と言う。省略・undefined は今までどおり。
+   */
+  noChange?: boolean;
 };
+
+/**
+ * ★★★ 第1390便（2026-10-11・カッキーさん）: 「変更が無かったので、送らずに終わった回」を見分ける。
+ *
+ * ★ 何が起きていたか（ラビリンス様・エステ魂・10/11 06:06）:
+ *   エステ魂の出勤の反映は、相手サイトを読んで【フクエスと同じ】だったとき、何も送らずに終わる。
+ *   その記録は write_work の 'stopped'・「エステ魂の出勤に変更はありませんでした（30人を確認）」（lib/esutamaFlow.ts）。
+ *   更新結果の画面は 'stopped' を全部「途中で止めました」＝【うまくいかなかったもの】に数えていたので、
+ *   何も失敗していないのに「うまくいかなかったもの 1件」と出ていた。
+ * ★ 見分け方は、自動を切る判定（lib/mediaLinkMode.ts の pushOutcomesForGiveUp・第1273便）・
+ *   ホームの「うまくいっていない」の判定（lib/workProblem.ts）と同じ:
+ *   write_work で 'stopped'、かつ detail.saved === 0 と detail.changed === 0。
+ *   ★ changed が1以上なのに saved が0（変更があるのに送れなかった）は、今までどおり「途中で止めました」。
+ * ★ 記録（salon_media_audit）の outcome は書き換えない。変えるのは【画面での数え方と言い方】だけ。
+ */
+export function isNoChangeStop(r: { event?: string; outcome: string; detail?: unknown }): boolean {
+  if (r?.event !== 'write_work' || r?.outcome !== 'stopped') return false;
+  const d = (r.detail && typeof r.detail === 'object' ? r.detail : {}) as Record<string, unknown>;
+  return d['saved'] === 0 && d['changed'] === 0;
+}
 
 // ────────────────────────────────────────────────
 // どうなったか
@@ -40,7 +65,8 @@ export type MediaLogRow = {
 export type LogTone = 'ok' | 'bad' | 'warn' | 'unknown';
 
 /** ★ 知らない値は 'unknown'。★ 成功側に倒さない（できたことにしない） */
-export function outcomeTone(outcome: string): LogTone {
+export function outcomeTone(outcome: string, noChange?: boolean): LogTone {
+  if (noChange === true) return 'ok';   // ★ 第1390便: 変更なしで終わった回は、失敗の色にしない
   if (outcome === 'ok') return 'ok';
   if (outcome === 'failed') return 'bad';
   if (outcome === 'stopped') return 'warn';
@@ -60,7 +86,8 @@ export function isPlanEvent(event: string | undefined): boolean {
   return typeof event === 'string' && event.startsWith('plan_');
 }
 
-export function outcomeLabel(outcome: string, event?: string): string {
+export function outcomeLabel(outcome: string, event?: string, noChange?: boolean): string {
+  if (noChange === true) return '変更なし';   // ★ 第1390便: 「途中で止めました」と言わない（何も失敗していない）
   if (outcome === 'ok') return isPlanEvent(event) ? '確かめました' : 'できました';
   if (outcome === 'failed') return 'できませんでした';
   if (outcome === 'stopped') return '途中で止めました';
@@ -70,6 +97,11 @@ export function outcomeLabel(outcome: string, event?: string): string {
 /** ★★ 「できました」と書いてよいのは 'ok' だけ。ここを点検で固定する */
 export function isFailure(outcome: string): boolean {
   return outcome === 'failed' || outcome === 'stopped';
+}
+
+/** ★ 第1390便: 行として【うまくいかなかったもの】か。★ 変更なしで終わった回（noChange）は数えない */
+export function isFailureRow(r: { outcome: string; noChange?: boolean }): boolean {
+  return isFailure(r.outcome) && r.noChange !== true;
 }
 
 // ────────────────────────────────────────────────
@@ -174,10 +206,11 @@ export function filterLogRows(rows: readonly MediaLogRow[], f: LogFilter): Media
   const outcome = f?.outcome ?? '';
   return list.filter((r) => {
     if (provider !== '' && r.provider !== provider) return false;
-    if (outcome === 'ok' && r.outcome !== 'ok') return false;
+    // ★ 第1390便: 変更なしで終わった回（noChange）は「できたもの」の側（どの行も、どちらか片方に必ず入る）
+    if (outcome === 'ok' && r.outcome !== 'ok' && r.noChange !== true) return false;
     // ★★ 「うまくいかなかったもの」は failed と stopped の両方。
     //   ★ stopped を落とすと、止めた記録が絞り込みから消える
-    if (outcome === 'failed' && !isFailure(r.outcome)) return false;
+    if (outcome === 'failed' && !isFailureRow(r)) return false;
     return true;
   });
 }
@@ -198,7 +231,7 @@ export function logTally(input: {
   const list = Array.isArray(input.rows) ? input.rows : [];
   return {
     total: list.length,
-    failed: list.filter((r) => isFailure(r.outcome)).length,
+    failed: list.filter((r) => isFailureRow(r)).length,
   };
 }
 

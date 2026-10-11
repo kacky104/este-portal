@@ -249,7 +249,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
         ) : (
           <ul className="divide-y divide-slate-100">
             {shown.map((r) => {
-              const tone = outcomeTone(r.outcome);
+              const tone = outcomeTone(r.outcome, r.noChange);
               return (
                 <li key={r.id} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-2.5">
                   <span
@@ -264,7 +264,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
                         {providerLabel(r.provider)}（枠{r.slot}）
                       </span>
                       <span className={`text-[13px] font-bold ${TONE_TEXT[tone]}`}>
-                        {outcomeLabel(r.outcome, r.event)}
+                        {outcomeLabel(r.outcome, r.event, r.noChange)}
                       </span>
                     </div>
                     <p className="text-[14px] text-slate-600 leading-relaxed mt-0.5">{r.summary}</p>
