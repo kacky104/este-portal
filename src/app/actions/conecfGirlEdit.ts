@@ -11,6 +11,7 @@ import { providerLabel } from '@/lib/mediaAudit';
 import { targetOffMessage } from '@/lib/conecfTargets';
 import { conecfPushSlots, pushSlotLabel, sitePushNotReadyMessage, summarizeSlotPushes, type SlotPush } from '@/lib/conecfSitePush';
 import { waitToastNote } from '@/lib/relayWait';
+import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 /** ★★ 第428便: 「消さずに更新」のときは消す手を外す（★ 既定は外す＝押す前に確認していない呼び出しでは消さない） */
 function keepRemoves(photos: PhotoSyncOp[], allowRemove: boolean | undefined): PhotoSyncOp[] {
@@ -29,8 +30,10 @@ async function resolve() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon } = await svc.from('salons').select('id, conecf_enabled_at, crm_until')
-    .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
+  // ★ 第1399便: 運営が店を選んでいるときは、その店（lib/conecf/actingSalon.ts）。店舗様は今までどおり自分の店
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon } = await scopeConecfSalon(svc.from('salons').select('id, conecf_enabled_at, crm_until'), user.id, actingId)
+    .limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   if (!salon.conecf_enabled_at) return { ok: false as const, error: '反映するには、ホームで「コネックエフに切り替える」を押してください' };
   // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）

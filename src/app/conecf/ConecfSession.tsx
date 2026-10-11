@@ -50,6 +50,13 @@ export function ConecfSessionProvider({ children }: { children: React.ReactNode 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
+/** ★ 第1399便: 運営が、ほかの人の店を操作中か（★ 分かるまでは false） */
+export function useConecfActing(): boolean {
+  const ctx = useContext(SessionContext);
+  const access = ctx?.state?.access;
+  return !!access && access.ok && access.acting === true;
+}
+
 /** ★ 外枠の状態。★ Provider の外（無いはず）では「読み込み中のまま」になる */
 export function useConecfSession(): Ctx {
   const ctx = useContext(SessionContext);

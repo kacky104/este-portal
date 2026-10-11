@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
-import { useConecfSession } from '../ConecfSession';
+import { useConecfSession, useConecfActing } from '../ConecfSession';
+import { OPERATOR_NOT_YET_MESSAGE } from '@/lib/conecfActing';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -36,10 +37,13 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  // ★ 第1399便: 写真のアップロードはブラウザから直接。運営がほかの人の店を操作中は、まだ使えない（次の便で対応）
+  const acting = useConecfActing();
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
+    if (acting) { onToast(OPERATOR_NOT_YET_MESSAGE); return; }
     setUploading(true);
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `cocoa-${salonId}-${Date.now()}.${ext}`;

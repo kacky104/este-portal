@@ -7,6 +7,7 @@ import { COCOA_TEMPLATES_MAX, COCOA_TITLE_MAX, COCOA_BODY_MAX, titleTooLong, bod
 import { postCocoaForSalon, hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
+import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「ココア店長ブログ」の受け口（第404便・2026-09-17）。
 // ★ 書き込みは「コネックエフに切り替え済み」の自店だけ（service_role）。
@@ -18,8 +19,10 @@ async function resolve(write: boolean) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon } = await svc.from('salons').select('id, conecf_enabled_at, crm_until')
-    .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
+  // ★ 第1399便: 運営が店を選んでいるときは、その店（lib/conecf/actingSalon.ts）。店舗様は今までどおり自分の店
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon } = await scopeConecfSalon(svc.from('salons').select('id, conecf_enabled_at, crm_until'), user.id, actingId)
+    .limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   if (write && !salon.conecf_enabled_at) return { ok: false as const, error: '保存するには、ホームで「コネックエフに切り替える」を押してください' };
   // ★ 第1243便: セット（コネックエフ＋フクエスCRM）を OFF にした店は、保存・取り込みを止める（見るのはできる）

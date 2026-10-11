@@ -24,7 +24,8 @@ import {
   startMediaConnectionTest,
 } from '@/app/actions/mediaCredentials';
 import { useConecfHref } from '../ConecfBase';
-import { useConecfSession } from '../ConecfSession';
+import { useConecfSession, useConecfActing } from '../ConecfSession';
+import { OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
 
 // コネックエフ「ID・PASS登録」（第412便・2026-09-17・カッキーさん）。
 //
@@ -88,6 +89,8 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
 
   // ★ 第1117便: ID・PASS を変えたら、外枠（赤帯・ココアの出し分け）も読み直す
   const { refresh: refreshShell } = useConecfSession();
+  // ★ 第1399便: 運営がほかの人の店を操作中か。説明への同意は店舗様ご本人のもの＝運営は同意の要る保存ができない（サーバーでも止めている）
+  const acting = useConecfActing();
   const load = useCallback(async () => {
     if (salonId == null) return;
     const res = await getMediaCredentials({ salonId, service: 'conecf' });   // ★ 第716便: コネックエフの版で見る（厳密）
@@ -409,7 +412,10 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
                     ))}
                   </ol>
                 </details>
-                {needConsent && (
+                {needConsent && acting && (
+                  <p className="border border-amber-400 bg-amber-50 px-3 py-2.5 text-[13px] leading-relaxed text-amber-900">{OPERATOR_FIRST_CONSENT_MESSAGE}</p>
+                )}
+                {needConsent && !acting && (
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1 accent-[#218925]" />
                     <span className="text-[13px] leading-relaxed">{MEDIA_CONSENT_AGREE_LABEL}</span>
@@ -424,7 +430,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
               <button
                 type="button"
                 onClick={() => void onSave()}
-                disabled={saving || (needConsent && !agreed)}
+                disabled={saving || (needConsent && (!agreed || acting))}
                 className="h-8 min-w-[80px] px-4 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40"
               >
                 {saving ? '保存中…' : '保存'}

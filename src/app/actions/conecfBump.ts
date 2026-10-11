@@ -6,6 +6,7 @@ import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { isValidBumpSetting, bumpSlotsPerDay } from '@/lib/ekichikaBump';
+import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「駅ちか上位表示」の受け口（第1305便・2026-10-08）。
 // ★ 駅ちかの管理画面トップの「上位表示する」を、自動（時間帯・間隔）と今すぐの2通りで押す。押すのは中継の流れ（bump_auto / bump_push）。
@@ -26,9 +27,10 @@ async function resolve(write: boolean) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon } = await svc
-    .from('salons').select('id, conecf_enabled_at, crm_until')
-    .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
+  // ★ 第1399便: 運営が店を選んでいるときは、その店（lib/conecf/actingSalon.ts）。店舗様は今までどおり自分の店
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon } = await scopeConecfSalon(svc.from('salons').select('id, conecf_enabled_at, crm_until'), user.id, actingId)
+    .limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   if (write && !salon.conecf_enabled_at) return { ok: false as const, error: '保存するには、ホームで「コネックエフに切り替える」を押してください' };
   if (write && isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon.crm_until as string | null) ?? null }, getCalendarDateJST())) {

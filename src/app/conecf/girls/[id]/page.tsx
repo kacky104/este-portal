@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ConecfShell } from '../../ConecfShell';
 import { useConecfHref } from '../../ConecfBase';
+import { useConecfActing } from '../../ConecfSession';
+import { OPERATOR_NOT_YET_MESSAGE } from '@/lib/conecfActing';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -72,6 +74,7 @@ function FieldPair({ a, b }: { a: { label: string; badge?: '必須'; children: R
 }
 
 function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = false }: { id: number; enabled: boolean; onToast: (m: string) => void; initialTab?: Tab; autoInvite?: boolean }) {
+  const acting = useConecfActing();
   const href = useConecfHref();
   const [d, setD] = useState<ConecfGirlDetail | null>(null);
   const [error, setError] = useState('');
@@ -136,6 +139,8 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    // ★ 第1399便: 写真のアップロードはブラウザから直接。運営がほかの人の店を操作中は、まだ使えない（次の便で対応）
+    if (acting) { onToast(OPERATOR_NOT_YET_MESSAGE); return; }
     setUploading(slot);
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `${id}-${Date.now()}.${ext}`;

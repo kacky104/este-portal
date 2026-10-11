@@ -6,6 +6,7 @@ import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { readDiaryMixedState, extendDiaryMixedPeriod, type DiaryMixedState } from '@/app/lib/conecf/diaryMixed';
 import { maybeStartDiaryBackfill } from '@/app/lib/media/diarySourceSync';
+import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「写メ日記転送」の、移行期間の受け口（第1265便・2026-10-07・カッキーさんの決定）。
 //   ・getConecfDiaryMixed    … 期限・残り日数・いま取り込んでいるか（読むだけ）
@@ -20,14 +21,10 @@ async function resolve(write: boolean) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon } = await svc
-    .from('salons')
-    .select('id, conecf_enabled_at, crm_until')
-    .eq('owner_id', user.id)
-    .order('is_hidden', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // ★ 第1399便: 運営が店を選んでいるときは、その店（lib/conecf/actingSalon.ts）。店舗様は今までどおり自分の店
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon } = await scopeConecfSalon(svc.from('salons').select('id, conecf_enabled_at, crm_until'), user.id, actingId)
+    .limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   if (write && !salon.conecf_enabled_at) {
     return { ok: false as const, error: '延長するには、ホームで「コネックエフに切り替える」を押してください' };

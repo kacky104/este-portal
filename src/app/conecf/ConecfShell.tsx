@@ -4,12 +4,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import type { ConecfAccess } from '@/app/actions/conecf';
+import { setConecfActingSalon } from '@/app/actions/conecf';
 import { MediaBrandProvider, brandText, type MediaBrandValue } from '@/app/mypage/media/mediaBrand';
 import { signOut } from '@/lib/auth';
 import { useConecfHref } from './ConecfBase';
 import { useConecfSession } from './ConecfSession';
 import { CONECF_NAV, type ConecfNavKey } from './conecfNav';
 import { CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
+import { OperatorBar } from './OperatorBar';
 
 // コネックエフの外枠（第395便・1a・2026-09-17）。
 // ★ 骨格はフクエスリンク（MediaShell）と同じ：左サイドバー・1画面1機能・スマホは三本線→ドロワー。
@@ -113,6 +115,10 @@ export function ConecfShell({
   }, [drawerOpen]);
 
   const onLogout = async () => {
+    // ★ 第1399便: 運営が店を選んでいたら、ログアウトのときに外す（次にログインしたとき、前の店のまま始めない）。失敗してもログアウトは進める
+    if (access && access.ok && access.role === 'operator') {
+      try { await setConecfActingSalon({ salonId: null }); } catch { /* ログアウトを止めない */ }
+    }
     try { await signOut(); } finally { window.location.replace(href('/login')); }
   };
 
@@ -220,6 +226,8 @@ export function ConecfShell({
       {/* ── 右側 ── */}
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+          {/* ★★★ 第1399便（カッキーさん）: 運営だけに出る帯。店を選んで開く／ほかの人の店を操作中は、どの画面でもいちばん上に出す */}
+          {access.role === 'operator' && <OperatorBar access={access} />}
           <Link
             href={href('/')}
             aria-label="ホームへ"

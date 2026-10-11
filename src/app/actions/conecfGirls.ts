@@ -22,6 +22,7 @@ import { splitSavableTherapistPhotos } from '@/lib/storageOwnPath';
 import {
   normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
 } from '@/lib/conecfSiteFields';
+import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「女性一覧・女性の編集」の受け口（第398便・1c・2026-09-17）。
 //
@@ -38,14 +39,10 @@ async function resolveSalon(opts: { write?: boolean } = {}): Promise<Result<{ sv
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon } = await svc
-    .from('salons')
-    .select('id, area, conecf_enabled_at, crm_until')
-    .eq('owner_id', user.id)
-    .order('is_hidden', { ascending: true })
-    .order('id', { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // ★ 第1399便: 運営が店を選んでいるときは、その店（lib/conecf/actingSalon.ts）。店舗様は今までどおり自分の店
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon } = await scopeConecfSalon(svc.from('salons').select('id, area, conecf_enabled_at, crm_until'), user.id, actingId)
+    .limit(1).maybeSingle();
   if (!salon) return { ok: false, error: '店舗情報が見つかりません' };
   // ★ 第399便: 書き込みは「コネックエフに切り替え済み」の店だけ（★ 切り替え前は見るだけ）
   if (opts.write && !salon.conecf_enabled_at) return { ok: false, error: '保存するには、ホームで「コネックエフに切り替える」を押してください' };

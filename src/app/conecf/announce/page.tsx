@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
+import { OperatorNotYet } from '../OperatorBar';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -481,7 +482,11 @@ export default function ConecfAnnouncePage() {
     <ConecfShell current="announce" title="フクエスお知らせ" toast={toast}>
       {(a) => (a.salonId == null
         ? <div className={`${CARD} p-5 text-[14px] text-slate-500`}>店舗が選ばれていません。</div>
-        : <Body salonId={a.salonId} enabled={!!a.enabledAt} onToast={showToast} />)}
+        // ★ 第1399便: この画面はブラウザから直接お知らせ・画像を読み書きする（DB の決まりが「持ち主だけ」）。
+        //   運営がほかの人の店を操作中は、一覧が空に見えたり保存が失敗したりするので、画面ごと案内に替える（次の便で対応）。
+        : a.acting
+          ? <OperatorNotYet what="フクエスお知らせ" />
+          : <Body salonId={a.salonId} enabled={!!a.enabledAt} onToast={showToast} />)}
     </ConecfShell>
   );
 }

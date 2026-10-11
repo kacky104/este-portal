@@ -5,6 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { firstImportPhase, type FirstImportPhase } from '@/lib/conecfFirstImport';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
+import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「駅ちかから最初に1回だけ取り込む」の受け口（第406便・2026-09-17）。
 // ★ 押すのは店舗様（切り替え済みの自店だけ）。★ 1店舗1回だけ（★ 戻すのは運営が SQL で）。
@@ -17,10 +18,10 @@ async function resolve() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon } = await svc
-    .from('salons')
-    .select('id, conecf_enabled_at, crm_until, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at')
-    .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
+  // ★ 第1399便: 運営が店を選んでいるときは、その店（lib/conecf/actingSalon.ts）。店舗様は今までどおり自分の店
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon } = await scopeConecfSalon(svc.from('salons').select('id, conecf_enabled_at, crm_until, conecf_import_requested_at, conecf_import_started_at, conecf_import_done_at'), user.id, actingId)
+    .limit(1).maybeSingle();
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   return { ok: true as const, svc, salon };
 }
@@ -128,10 +129,10 @@ async function resolvePhoto() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false as const, error: 'ログインが必要です' };
   const svc = createServiceClient();
-  const { data: salon, error } = await svc
-    .from('salons')
-    .select('id, conecf_enabled_at, crm_until, conecf_import_requested_at, conecf_import_done_at, conecf_photo_import_requested_at, conecf_photo_import_started_at, conecf_photo_import_done_at')
-    .eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true }).limit(1).maybeSingle();
+  // ★ 第1399便: 運営が店を選んでいるときは、その店（lib/conecf/actingSalon.ts）。店舗様は今までどおり自分の店
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon, error } = await scopeConecfSalon(svc.from('salons').select('id, conecf_enabled_at, crm_until, conecf_import_requested_at, conecf_import_done_at, conecf_photo_import_requested_at, conecf_photo_import_started_at, conecf_photo_import_done_at'), user.id, actingId)
+    .limit(1).maybeSingle();
   if (error) return { ok: false as const, error: '写真の取り込みの準備ができていません（SQL 未適用）' };
   if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
   return { ok: true as const, svc, salon: salon as Record<string, unknown> & { id: number } };

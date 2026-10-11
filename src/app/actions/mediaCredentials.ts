@@ -3,6 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
+import { operatorConsentBlocked, OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isReadOnlyConsent, conecfConsentMissingNote, consentSaveDecision } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
@@ -75,7 +76,7 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 const PROVIDERS = ['ekichika', 'esulove', 'esutama'];
 
 /** その店舗を操作してよいか（オーナー本人・運営）。 */
-async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string }>> {
+async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string; /** ★ 第1399便: 持ち主本人か（運営がほかの人の店を触っているときは false） */ isOwner: boolean }>> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'ログインが必要です' };
@@ -86,7 +87,7 @@ async function assertSalonOwner(salonId: number): Promise<Result<{ userId: strin
 
   const isOwner = (salon.owner_id as string | null) === user.id;
   if (!isOwner && user.id !== ADMIN_UUID) return { ok: false, error: 'この店舗の操作権限がありません' };
-  return { ok: true, data: { userId: user.id } };
+  return { ok: true, data: { userId: user.id, isOwner } };
 }
 
 function validTarget(provider: string, slot: number): string | null {
@@ -318,6 +319,21 @@ export async function saveMediaCredential(input: {
     agreed: input.agreed === true,
     incoming: input.consentVersion,
   });
+  // ★★★ 第1399便（2026-10-11・カッキーさんの決定）: 説明への同意は、店舗様ご本人のもの。運営が代わりに入れない。
+  //   この保存が「新しく同意を記録する保存」（はじめての登録・版が変わったあとの取り直し）になるのに、
+  //   押しているのが持ち主本人でない（＝運営がほかの人の店を操作中）なら、保存しない。
+  //   ★ チェックの有無に関係なく止める（チェックを入れて送ってきても通さない）。だから「チェックを入れたら」の形で確かめる。
+  //   ★ 同意済みの枠の ID・パスワードの変更は、運営でもできる（newlyAgreed が false）。
+  if (!guard.data.isOwner) {
+    const ifAgreed = consentSaveDecision({
+      existing: (existing?.consent_version as string | null) ?? null,
+      agreed: true,
+      incoming: input.consentVersion,
+    });
+    if (ifAgreed.ok && operatorConsentBlocked({ isOwner: guard.data.isOwner, newlyAgreed: ifAgreed.newlyAgreed })) {
+      return { ok: false, error: OPERATOR_FIRST_CONSENT_MESSAGE };
+    }
+  }
   if (!consent.ok) {
     // ★ 版がずれている場合もここに来る。画面が古いまま送ってきた可能性があるので、そう言う
     return {

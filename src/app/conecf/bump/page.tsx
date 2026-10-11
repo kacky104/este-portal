@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
+import { useConecfActing } from '../ConecfSession';
+import { OperatorNotYet } from '../OperatorBar';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { getConecfBump, saveConecfBump, runConecfBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
@@ -265,6 +267,8 @@ function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; hea
 function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: boolean; onToast: (m: string) => void }) {
   // ★ 見出しの左線の色でサイトを見分ける（フクエス＝ピンク・駅ちか＝オレンジ・エステ魂＝紫）
   const section = 'text-[15px] font-black text-slate-800 border-l-4 pl-2.5';
+  // ★ 第1399便: フクエスの上位表示（SalonBumpButton）は、DB の決まりが「持ち主だけ」。運営がほかの人の店を操作中は案内に替える（次の便で対応）
+  const acting = useConecfActing();
 
   // ★ 第1308便（カッキーさん・店舗様の声「窮屈」）: 下に余白を足し、最後のカードの下までスクロールできるようにする
   return (
@@ -277,7 +281,7 @@ function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: 
       <section className="space-y-2">
         <h2 className={`${section} border-rose-400`}>フクエス</h2>
         {salonId != null
-          ? <SalonBumpButton salonId={salonId} />
+          ? (acting ? <OperatorNotYet what="フクエスの上位表示" /> : <SalonBumpButton salonId={salonId} />)
           : <div className={`${CARD} p-5 text-[14px] text-slate-500`}>店舗情報が見つかりません</div>}
       </section>
 
