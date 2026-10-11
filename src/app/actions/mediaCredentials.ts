@@ -7,7 +7,8 @@ import { operatorConsentBlocked, OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/co
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isReadOnlyConsent, conecfConsentMissingNote, consentSaveDecision } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
-import { CONECF_NEED_SWITCH_MESSAGE } from '@/lib/setPlan';
+import { CONECF_NEED_SWITCH_MESSAGE, credentialSaveBlockMessage, isSetPlanActive } from '@/lib/setPlan';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { syncDiarySource, maybeStartDiaryBackfill } from '@/app/lib/media/diarySourceSync';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 // ★★★ 【第259便】セラピスト登録の材料づくり。★ 運営の curl の口（media-girl-create）と同じ1か所を呼ぶ（第257便）。
@@ -302,6 +303,24 @@ export async function saveMediaCredential(input: {
   if (!guard.ok) return guard;
 
   const svc = createServiceClient();
+
+  // ★★★ 第1400便（2026-10-11・カッキーさんの決定）: コネックエフでの ID・パスワードの保存は、契約している店だけ（lib/setPlan.ts）。
+  //   ・マイページのフクエスリンク（駅ちかの読み取り・無料）からの保存は対象外。
+  //     見分け方: 読める媒体（駅ちか）で、フクエスリンクの版の画面から来た保存。★ それ以外（コネックエフの版・書くだけの媒体）は契約を見る。
+  //     ＝契約の無い店が、フクエスリンクの版を名乗ってエステ魂などを保存することはできない。
+  //   ・★ 契約が読めなかったときは止めない（contract: null）。運営が代わりに操作しているときも、その店の契約で見る。
+  {
+    const viaFukuesLink = canReadProvider(input.provider) && input.consentVersion === FUKUES_LINK_CONSENT_VERSION;
+    const { data: plan, error: planErr } = await svc.from('salons').select('crm_until, conecf_enabled_at').eq('id', salonId).maybeSingle();
+    if (planErr) console.error('[media] 契約を読めなかった（止めずに進める）', salonId, planErr.code, planErr.message);
+    const blocked = credentialSaveBlockMessage({
+      viaFukuesLink,
+      contract: planErr || !plan ? null : isSetPlanActive((plan.crm_until as string | null) ?? null, getCalendarDateJST()),
+      conecfEnabledAt: (plan?.conecf_enabled_at as string | null) ?? null,
+    });
+    if (blocked) return { ok: false, error: blocked };
+  }
+
   const { data: existing } = await svc
     .from('salon_media_credentials')
     // ★ shop_id も読む（第117便）。★ 欄を出さないサイトで、空の上書きから守るため

@@ -63,5 +63,37 @@ console.log('\n── 4. ★★★ 書き方（第1381便・2026-10-10・カッ�
   eq('★★ ご案内の画像は、札を書き換えた v3', [/conecf-intro-v3\.webp/.test(read('src', 'app', 'mypage', 'conecf', 'page.tsx')), fs.existsSync(path.join(__dirname, '..', 'public', 'mypage', 'conecf', 'conecf-intro-v3.webp'))], [true, true]);
 }
 
+console.log('\n── 5. ★★★ 第1400便（2026-10-11・カッキーさんの決定）: コネックエフでの ID・パスワードの保存は、契約後だけ ──');
+{
+  const save = (o) => S.credentialSaveBlockMessage(o);
+  eq('★★★ 契約なし・切り替え前（見るだけの店）: 断る', save({ viaFukuesLink: false, contract: false, conecfEnabledAt: null }), S.CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE);
+  eq('★★★ 契約あり・切り替え前（代行の流れ）: 通す', save({ viaFukuesLink: false, contract: true, conecfEnabledAt: null }), null);
+  eq('契約あり・切り替え済み: 通す', save({ viaFukuesLink: false, contract: true, conecfEnabledAt: '2026-10-01T00:00:00Z' }), null);
+  eq('★★ 止めている店（切り替え済み・契約なし）: 止めている店の文で断る', save({ viaFukuesLink: false, contract: false, conecfEnabledAt: '2026-10-01T00:00:00Z' }), S.CONECF_STOPPED_MESSAGE);
+  eq('★★★ マイページのフクエスリンク（駅ちかの読み取り）は、契約が無くても通す', [save({ viaFukuesLink: true, contract: false, conecfEnabledAt: null }), save({ viaFukuesLink: true, contract: null, conecfEnabledAt: null })], [null, null]);
+  eq('★★★ 契約が読めなかった（null・undefined）ときは止めない', [save({ viaFukuesLink: false, contract: null, conecfEnabledAt: null }), save({ viaFukuesLink: false, contract: undefined, conecfEnabledAt: null })], [null, null]);
+  eq('★ 断る文: 何が・いつ・どこへ（「セット」と書かない）', [/ID・パスワードの登録は、フクエスCRMのご契約後にできます/.test(S.CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE), /運営事務局/.test(S.CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE), /セット/.test(S.CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE)], [true, true, false]);
+  const fs = require('fs'), path = require('path');
+  const read = (...p) => fs.readFileSync(path.join(__dirname, '..', ...p), 'utf8');
+  const cred = read('src', 'app', 'actions', 'mediaCredentials.ts');
+  const saveFn = cred.slice(cred.indexOf('export async function saveMediaCredential'), cred.indexOf('export async function setMediaCredentialEnabled'));
+  eq('★★★ サーバーの保存が、契約を見て断っている（画面だけで守らない）',
+    [/credentialSaveBlockMessage\(\{/.test(saveFn), /if \(blocked\) return \{ ok: false, error: blocked \};/.test(saveFn)], [true, true]);
+  eq('★★★ フクエスリンクの保存の見分け: 読める媒体（駅ちか）で、フクエスリンクの版の画面から来たものだけ',
+    /const viaFukuesLink = canReadProvider\(input\.provider\) && input\.consentVersion === FUKUES_LINK_CONSENT_VERSION;/.test(saveFn), true);
+  eq('★★ 持ち主の確認（assertSalonOwner）のあと・保存（upsert）より前で止めている',
+    saveFn.indexOf('assertSalonOwner(salonId)') < saveFn.indexOf('credentialSaveBlockMessage({') && saveFn.indexOf('credentialSaveBlockMessage({') < saveFn.indexOf(".from('salon_media_credentials').upsert("), true);
+  eq('★★ 契約が読めなかったときは null を渡す（止めない）', /contract: planErr \|\| !plan \? null : isSetPlanActive\(/.test(saveFn), true);
+  const others = ['setMediaCredentialEnabled', 'deleteMediaCredential', 'startMediaConnectionTest'].map((n) => {
+    const from = cred.indexOf('export async function ' + n);
+    const to = cred.indexOf('export async function ', from + 10);
+    return /credentialSaveBlockMessage/.test(cred.slice(from, to));
+  });
+  eq('★★ 一時停止・解除・接続テストは止めない（預けたものを消す道は開けておく）', others, [false, false, false]);
+  const board = read('src', 'app', 'conecf', 'sites', 'ConecfLoginBoard.tsx');
+  eq('★ 画面: 契約の無い店には先に言う・保存ボタンは押せない', [/\{!contract && !stopped && \(/.test(board), /disabled=\{saving \|\| !contract \|\|/.test(board)], [true, true]);
+  eq('★ マイページのフクエスリンクの画面（LoginBoard）は変えていない', /credentialSaveBlockMessage|CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE/.test(read('src', 'app', 'mypage', 'media', 'LoginBoard.tsx')), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

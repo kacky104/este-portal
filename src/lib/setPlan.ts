@@ -58,6 +58,31 @@ export function isConecfStopped(
   return !isSetPlanActive(salon.crmUntil, todayJst);
 }
 
+// ★★★ 第1400便（2026-10-11・カッキーさんの決定）: コネックエフでの ID・パスワードの【保存】は、契約後だけ。
+//   ・これまで … 契約していない店も、コネックエフに入って中を見られ、ID・パスワードの保存までできた（何も送られないが、預かる責任だけが残る）。
+//   ・これから … 中を見るのは今までどおり。ID・パスワードの保存だけ、契約している店に限る。
+//   ・切り替え前でも、契約があれば保存できる（代行の流れ: 店舗様が ID・パスワードまで入れる → あとの設定は運営）。
+//   ・★ マイページのフクエスリンク（駅ちかの読み取り・無料）からの保存は対象外（今までどおり契約なしで使える）。
+//   ・接続テスト・一時停止・登録の解除は止めない（預けたものを消す道は、いつでも開けておく）。
+//   ・★ 契約が読めなかったとき（null）は止めない（読み取りの不調で、契約している店の保存を止めないため）。
+/** 契約していない店が、コネックエフで ID・パスワードを保存しようとしたときに返す文 */
+export const CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE =
+  `ID・パスワードの登録は、${SET_PLAN_NAME}のご契約後にできます。${SET_PLAN_APPLY_LINE}`;
+
+/**
+ * ID・パスワードの保存を受けてよいか。★ 断るときだけ文を返す。
+ *   viaFukuesLink … マイページのフクエスリンク（駅ちかの読み取り）からの保存か。★ こちらは契約を見ない
+ *   contract      … 契約しているか（true／false）。読めなかったら null
+ *   conecfEnabledAt … 切り替え済みか。切り替え済みで契約が無い店（止めている店）には、止めている店の文を返す
+ */
+export function credentialSaveBlockMessage(input: {
+  viaFukuesLink: boolean; contract: boolean | null | undefined; conecfEnabledAt: string | null | undefined;
+}): string | null {
+  if (input.viaFukuesLink === true) return null;
+  if (input.contract !== false) return null;
+  return input.conecfEnabledAt ? CONECF_STOPPED_MESSAGE : CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE;
+}
+
 // ★★ 第1291便（2026-10-07）: 入口の守りを揃える。
 //   ① 各サイトを【書き換える】流れは、コネックエフに切り替えた店だけ（第1260便の決まり）。
 //      これまでは「向きを変えるとき」と自動の周だけが見ていた。運営が切り替えを戻した店（conecf_enabled_at を空にした店）に

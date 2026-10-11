@@ -12,7 +12,7 @@ export default function ConecfSitesPage() {
   const { toast, showToast } = useToast();
   return (
     <ConecfShell current="sites" title="ID・パスワード登録" toast={toast}>
-      {(a) => <ConecfLoginBoard salonId={a.salonId} onToast={showToast} />}
+      {(a) => <ConecfLoginBoard salonId={a.salonId} contract={a.contract} stopped={!!a.enabledAt && !a.contract} onToast={showToast} />}
     </ConecfShell>
   );
 }

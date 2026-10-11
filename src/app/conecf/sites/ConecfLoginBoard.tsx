@@ -26,6 +26,7 @@ import {
 import { useConecfHref } from '../ConecfBase';
 import { useConecfSession, useConecfActing } from '../ConecfSession';
 import { OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
+import { CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
 // コネックエフ「ID・PASS登録」（第412便・2026-09-17・カッキーさん）。
 //
@@ -67,7 +68,14 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null; onToast: (m: string) => void }) {
+export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }: {
+  salonId: number | null;
+  /** ★ 第1400便: 契約しているか。していない店は、見るだけ（ID・パスワードの保存はできない。サーバーでも止めている） */
+  contract: boolean;
+  /** 切り替え済みで契約が無い店（止めている店）。上の帯（ConecfShell）が言っているので、ここでは文を足さない */
+  stopped?: boolean;
+  onToast: (m: string) => void;
+}) {
   const href = useConecfHref();
   const [rows, setRows] = useState<CredRow[]>([]);
   const [known, setKnown] = useState(false);
@@ -212,6 +220,15 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
 
   return (
     <div className="text-[14px] text-[#212121]">
+      {/* ★★★ 第1400便（カッキーさん）: 契約していない店は、ID・パスワードを保存できない。先に言っておく（窓を開いてから気づかせない） */}
+      {!contract && !stopped && (
+        <div className="mb-3 border border-amber-400 bg-amber-50 px-3 py-2.5">
+          <p className="text-[14px] font-bold text-amber-800">いまは見るだけです</p>
+          <p className="mt-1 text-[13.5px] leading-relaxed text-amber-900">{CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE}</p>
+          {/* ★ 駅ちかの読み取り（フクエスリンク・無料）は、契約が無くても今までどおり使える。登録の場所だけ案内する */}
+          <p className="mt-1 text-[13px] leading-relaxed text-amber-900">駅ちかからフクエスへの反映（フクエスリンク）のログイン情報は、フクエスのマイページの「フクエスリンク」から登録できます。</p>
+        </div>
+      )}
       {/* ── タブ（ベンリーと同じ3枚）── */}
       <div className="flex gap-1 pl-0">
         {TABS.map(([k, label]) => (
@@ -412,10 +429,13 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
                     ))}
                   </ol>
                 </details>
-                {needConsent && acting && (
+                {!contract && (
+                  <p className="border border-amber-400 bg-amber-50 px-3 py-2.5 text-[13px] leading-relaxed text-amber-900">{stopped ? CONECF_STOPPED_MESSAGE : CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE}</p>
+                )}
+                {contract && needConsent && acting && (
                   <p className="border border-amber-400 bg-amber-50 px-3 py-2.5 text-[13px] leading-relaxed text-amber-900">{OPERATOR_FIRST_CONSENT_MESSAGE}</p>
                 )}
-                {needConsent && !acting && (
+                {contract && needConsent && !acting && (
                   <label className="flex items-start gap-2 cursor-pointer">
                     <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1 accent-[#218925]" />
                     <span className="text-[13px] leading-relaxed">{MEDIA_CONSENT_AGREE_LABEL}</span>
@@ -430,7 +450,7 @@ export function ConecfLoginBoard({ salonId, onToast }: { salonId: number | null;
               <button
                 type="button"
                 onClick={() => void onSave()}
-                disabled={saving || (needConsent && (!agreed || acting))}
+                disabled={saving || !contract || (needConsent && (!agreed || acting))}
                 className="h-8 min-w-[80px] px-4 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40"
               >
                 {saving ? '保存中…' : '保存'}
