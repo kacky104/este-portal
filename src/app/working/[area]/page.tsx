@@ -33,7 +33,10 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
   return {
     title,
     description,
-    ...(indexable ? { alternates: { canonical: path } } : { robots: { index: false, follow: true } }),
+    // ★ 検索に出さないときは canonical: null を明示（書かないと root layout の TOP 向け canonical を引き継ぐ・第1397便）
+    ...(indexable
+      ? { alternates: { canonical: path } }
+      : { robots: { index: false, follow: true }, alternates: { canonical: null } }),
     openGraph: { title, description, url: path, siteName: 'フクエス', type: 'website', images: [{ url: '/ogp.png', width: 1200, height: 630 }] },
     twitter: { card: 'summary_large_image', title, description, images: ['/ogp.png'] },
   };

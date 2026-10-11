@@ -53,7 +53,7 @@ const working = read('src', 'app', 'working', '[area]', 'page.tsx');
 const sitemap = read('src', 'app', 'sitemap.ts');
 const loader = read('src', 'app', 'lib', 'areaSalonRows.ts');
 eq('★★★ エリアページ・出勤中のページが、0件なら noindex・あれば canonical',
-  [area, working].map((s) => /indexable \? \{ alternates: \{ canonical: [^\n]+? \} \} : \{ robots: \{ index: false, follow: true \} \}/.test(s)), [true, true]);
+  [area, working].map((s) => /indexable\s*\? \{ alternates: \{ canonical: [^\n]+? \} \}\s*: \{ robots: \{ index: false, follow: true \}, alternates: \{ canonical: null \} \}/.test(s)), [true, true]);
 eq('★★★ 3か所とも isAreaPageIndexable で決めている（式を別に書かない）', [area, working, sitemap].map((s) => /isAreaPageIndexable\(/.test(s)), [true, true, true]);
 eq('★★★ 数が読めなかったら null を渡している（0 と決めつけない）', [area, working, sitemap].map((s) => /\? countSalonsInArea\([^)]*\) : null\)/.test(s)), [true, true, true]);
 eq('★★★ サイトマップは /area と /working の両方を、出してよいエリアだけにしている',

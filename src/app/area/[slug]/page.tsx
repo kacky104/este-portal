@@ -60,7 +60,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description,
-    ...(indexable ? { alternates: { canonical: `/area/${slug}` } } : { robots: { index: false, follow: true } }),
+    // ★ 検索に出さないときは canonical: null を明示する。書かないと root layout の canonical（TOP）を
+    //   そのまま引き継ぎ、「登録しないで」と「正しい URL は TOP」が同じページに並んでしまう（第1397便）。
+    ...(indexable
+      ? { alternates: { canonical: `/area/${slug}` } }
+      : { robots: { index: false, follow: true }, alternates: { canonical: null } }),
     // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
     // （og:image も消える）。そのため url/siteName/type/images まで全て明示する。
     openGraph: {
