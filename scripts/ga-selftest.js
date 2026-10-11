@@ -1,0 +1,70 @@
+// Google アナリティクス（GA4）をどこで読み込むか（src/lib/ga.ts）の自己点検（第1403便）。
+//   使い方:  npm run check:ga
+const v = require(require('path').join(__dirname, '..', '_tmpcheck', 'ga.js'));
+
+let fail = 0;
+const eq = (name, got, want) => {
+  const a = JSON.stringify(got), b = JSON.stringify(want);
+  if (a !== b) { console.log('NG ' + name + '\n   got  ' + a + '\n   want ' + b); fail++; }
+  else console.log('ok ' + name);
+};
+const ID = 'G-ABC123DEF4';
+
+console.log('── 1. ホスト: fukues.com だけ ──');
+eq('fukues.com', v.isGaHost('fukues.com'), true);
+eq('www も同じ', v.isGaHost('www.fukues.com'), true);
+eq('ポート・大文字', v.isGaHost('FUKUES.COM:443'), true);
+eq('★ fukuescrm.com は読み込まない', v.isGaHost('fukuescrm.com'), false);
+eq('★ conecf.com は読み込まない', v.isGaHost('conecf.com'), false);
+eq('★ 店舗様の独自ドメインは読み込まない', v.isGaHost('example-shop.com'), false);
+eq('★ 似た名前は読み込まない', v.isGaHost('fukues.com.example.com'), false);
+eq('★ notfukues.com は読み込まない', v.isGaHost('notfukues.com'), false);
+eq('localhost は読み込まない', v.isGaHost('localhost'), false);
+eq('プレビューは読み込まない', v.isGaHost('este-portal-abc.vercel.app'), false);
+eq('空は読み込まない', v.isGaHost(''), false);
+eq('null は読み込まない', v.isGaHost(null), false);
+
+console.log('── 2. パス: お客様向けページは数える ──');
+for (const p of ['/', '/area/hakata', '/salon/labyrinth', '/salons', '/therapist/12', '/therapists', '/diary', '/diary/55',
+  '/ranking', '/reviews', '/news', '/column/abc', '/glossary', '/glossary/kenzen-ten', '/about', '/listing', '/terms', '/privacy',
+  '/contact', '/join', '/working', '/x', '/x/post/9', '/x/u/abc', '/x/search', '/x-shops', '/jobs', '/jobs/12', '/jobs/area/hakata', '/jobs/column/a']) {
+  eq('数える ' + p, v.isGaExcludedPath(p), false);
+}
+
+console.log('── 3. パス: 管理・ログイン・合言葉つき・ひとりの画面は数えない ──');
+for (const p of ['/admin', '/admin/salons', '/mypage', '/mypage/crm/customers', '/mypage/media', '/cast', '/cast/login', '/owner/dashboard',
+  '/moderation', '/crm/login', '/conecf', '/conecf/home', '/login', '/forgot-password', '/reset-password', '/auth/callback',
+  '/g/abcdef123456', '/g/done', '/g', '/salon-intake/tok123', '/member', '/member/vip-letters', '/saved',
+  '/x/admin', '/x/login', '/x/signup', '/x/onboarding', '/x/messages', '/x/messages/7', '/x/notifications', '/x/settings', '/x/saved',
+  '/jobs/saved', '/embed/ranking', '/hp/some-shop', '/hp/example-shop.com/admin', '/api/revalidate']) {
+  eq('数えない ' + p, v.isGaExcludedPath(p), true);
+}
+
+console.log('── 4. パス: 区切りで見る（前方一致の取りこぼし・巻き込みが無い） ──');
+eq('★ /glossary は /g に巻き込まれない', v.isGaExcludedPath('/glossary'), false);
+eq('★ /x-shops は /x/... に巻き込まれない', v.isGaExcludedPath('/x-shops'), false);
+eq('★ /casting は /cast に巻き込まれない', v.isGaExcludedPath('/casting'), false);
+eq('★ /savedx は /saved に巻き込まれない', v.isGaExcludedPath('/savedx'), false);
+eq('★ 大文字でも数えない', v.isGaExcludedPath('/G/AbCdEf'), true);
+eq('★ 空は数えない側', v.isGaExcludedPath(''), true);
+eq('★ null は数えない側', v.isGaExcludedPath(null), true);
+eq('★ / で始まらないものは数えない側', v.isGaExcludedPath('g/abc'), true);
+
+console.log('── 5. 測定ID の形 ──');
+eq('正しい形', v.isValidGaId(ID), true);
+eq('前後の空白は許す', v.isValidGaId(' ' + ID + ' '), true);
+eq('★ 空は動かさない', v.isValidGaId(''), false);
+eq('★ GTM- は違う', v.isValidGaId('GTM-ABC1234'), false);
+eq('★ UA- は違う', v.isValidGaId('UA-12345-1'), false);
+eq('★ 記号入りは違う（スクリプトに混ざらない）', v.isValidGaId("G-ABC');alert(1);//"), false);
+eq('★ 小文字は違う', v.isValidGaId('G-abc123def4'), false);
+
+console.log('── 6. まとめ ──');
+eq('fukues.com のTOP', v.shouldRunGa(ID, 'fukues.com', '/'), true);
+eq('★ 同意書は動かさない', v.shouldRunGa(ID, 'fukues.com', '/g/abcdef'), false);
+eq('★ CRM のホストは動かさない', v.shouldRunGa(ID, 'fukuescrm.com', '/'), false);
+eq('★ ID が空なら動かさない', v.shouldRunGa('', 'fukues.com', '/'), false);
+eq('★ いまの GA_MEASUREMENT_ID は 空 か 正しい形', v.GA_MEASUREMENT_ID === '' || v.isValidGaId(v.GA_MEASUREMENT_ID), true);
+
+console.log(fail === 0 ? '\nALL OK' : '\n' + fail + ' 件 NG');
+process.exit(fail === 0 ? 0 : 1);

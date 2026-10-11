@@ -80,7 +80,18 @@ export default function PrivacyPage() {
 
         <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">5. Cookie・アクセス解析</h2>
         <p className="text-sm text-slate-600 leading-relaxed">
-          本サイトは、利便性の向上や利用状況の把握のためCookieおよび類似技術を使用します。また、アクセス解析ツールを利用する場合があります。これらにより取得される情報に、特定の個人を識別する情報は含まれません。ブラウザの設定によりCookieを無効にすることができますが、一部機能が利用できなくなる場合があります。
+          本サイトは、利便性の向上や利用状況の把握のためCookieおよび類似技術を使用します。これらにより取得される情報に、特定の個人を識別する情報は含まれません。ブラウザの設定によりCookieを無効にすることができますが、一部機能が利用できなくなる場合があります。
+        </p>
+        {/* 第1403便（2026-10-11）: Google アナリティクス（GA4）を入れたので、送る先・送る情報・目的・止め方を書く。読み込むページの判断は lib/ga.ts */}
+        <p className="text-sm text-slate-600 leading-relaxed mt-3">
+          本サイトは、利用状況を分析しサービスを改善するため、Google LLC が提供するアクセス解析ツール「Google アナリティクス」を利用しています。Google アナリティクスは Cookie 等を利用して、閲覧されたページのURL、閲覧日時、参照元、ご利用の端末・ブラウザの情報、IPアドレスから推定されるおおよその地域などの情報を収集し、Google LLC に送信します。これらの情報は Google のプライバシーポリシーに基づいて管理され、当事務局が氏名・電話番号・メールアドレスなど個人を特定する情報と結びつけて利用することはありません。
+        </p>
+        <p className="text-sm text-slate-600 leading-relaxed mt-3">
+          Google アナリティクスによる情報の収集を望まない場合は、Google が提供する
+          <a href="https://tools.google.com/dlpage/gaoptout?hl=ja" target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">Google アナリティクス オプトアウト アドオン</a>
+          をご利用いただくことで、収集を止めることができます。Google による情報の取り扱いについては、
+          <a href="https://policies.google.com/technologies/partner-sites?hl=ja" target="_blank" rel="noopener noreferrer" className="text-pink-600 hover:underline">Google のサービスを使用するサイトやアプリから収集した情報の Google による使用</a>
+          をご覧ください。
         </p>
 
         <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">6. 安全管理</h2>
@@ -109,6 +120,7 @@ export default function PrivacyPage() {
 
         <div className="mt-10 text-sm text-slate-500 leading-relaxed">
           <p>制定日：2026年7月9日</p>
+          <p>改定日：2026年10月11日</p>
           <p>フクエス運営事務局</p>
         </div>
       </main>

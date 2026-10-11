@@ -123,6 +123,7 @@
     "check:workinputhash": "tsc src/lib/workInputHash.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workinputhash-selftest.js",
     "check:conecfhost": "tsc src/lib/conecfHost.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/conecfhost-selftest.js",
     "check:crmhost": "tsc src/lib/crmHost.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmhost-selftest.js",
+    "check:ga": "tsc src/lib/ga.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/ga-selftest.js",
     "check:crmgroup": "tsc src/lib/crmGroup.ts src/lib/crmGroupApply.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmgroup-selftest.js",
     "check:vpswatch": "tsc src/lib/vpsWatch.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/vpswatch-selftest.js",
     "check:stalldigest": "tsc src/lib/stallDigest.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/stalldigest-selftest.js"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SaveStoreInit } from "./components/SaveStoreInit";
 import Wallpaper from "./components/Wallpaper";
+import GoogleAnalytics from "./components/GoogleAnalytics";
 
 // Geist / Geist_Mono（next/font）は削除（2026-08-05）。
 // globals.css の body { font-family: Arial, ... } が常に優先されており、
@@ -56,6 +57,8 @@ export default function RootLayout({
         <SaveStoreInit />
         <Wallpaper />
         {children}
+        {/* GA4（第1403便）: fukues.com のお客様向けページだけで読み込む。判断は lib/ga.ts */}
+        <GoogleAnalytics />
       </body>
     </html>
   );
