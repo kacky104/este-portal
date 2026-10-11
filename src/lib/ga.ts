@@ -61,6 +61,30 @@ export function isGaExcludedPath(pathname: string | null | undefined): boolean {
   return GA_EXCLUDED_PREFIXES.some((pre) => lower === pre || lower.startsWith(pre + '/'));
 }
 
+/** ★ 部屋のアクリルスタンド（同意書の QR）→ 同意の完了画面 → フクエスのお店ページ、の道につける印（第1404便）。
+ *  GA4 の「集客」で 参照元 acrylic_stand / メディア qr として人数が出る。★ お客様や予約が分かる値は入れない（印だけ）。 */
+export const ACRYLIC_STAND_UTM = 'utm_source=acrylic_stand&utm_medium=qr&utm_campaign=crm_consent';
+
+/** 完了画面から出すリンク先（お店の番号が正しい形のときだけ。違えば null＝リンクを出さない） */
+export function acrylicStandSalonHref(salonId: string | number | null | undefined): string | null {
+  const s = String(salonId ?? '').trim();
+  if (!/^[1-9]\d{0,8}$/.test(s)) return null;
+  return `/salon/${s}?${ACRYLIC_STAND_UTM}`;
+}
+
+/** ★ GA4 へ送る「どこから来たか」を安全にする（第1404便）。
+ *  GA4 は document.referrer をそのまま Google へ送る。フクエスの中の「読み込まないページ」（同意書 /g/合言葉 など）から来たときは、
+ *  アドレスを出さずサイトの頭だけにする。返り値 null ＝ 手を入れない（そのまま送ってよい）。 */
+export function gaSafeReferrer(referrer: string | null | undefined): string | null {
+  const r = (referrer ?? '').trim();
+  if (r === '') return null;
+  const m = /^https?:\/\/([^/?#]+)([^?#]*)/i.exec(r);
+  if (!m) return null;
+  if (!isGaHost(m[1])) return null; // よそのサイトから来た分はそのまま
+  const path = m[2] === '' ? '/' : m[2];
+  return isGaExcludedPath(path) ? 'https://fukues.com/' : null;
+}
+
 /** 測定ID の形（G- ＋ 英数字）。打ち間違いをそのまま読み込まないため */
 export function isValidGaId(id: string | null | undefined): boolean {
   return /^G-[A-Z0-9]{6,14}$/.test((id ?? '').trim());

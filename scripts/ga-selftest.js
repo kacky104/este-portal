@@ -66,5 +66,31 @@ eq('★ CRM のホストは動かさない', v.shouldRunGa(ID, 'fukuescrm.com', 
 eq('★ ID が空なら動かさない', v.shouldRunGa('', 'fukues.com', '/'), false);
 eq('★ いまの GA_MEASUREMENT_ID は 空 か 正しい形', v.GA_MEASUREMENT_ID === '' || v.isValidGaId(v.GA_MEASUREMENT_ID), true);
 
+console.log('── 7. アクリルスタンドの印とリンク（第1404便） ──');
+eq('リンクの形', v.acrylicStandSalonHref(5), '/salon/5?utm_source=acrylic_stand&utm_medium=qr&utm_campaign=crm_consent');
+eq('文字の番号でも同じ', v.acrylicStandSalonHref('12'), '/salon/12?' + v.ACRYLIC_STAND_UTM);
+eq('★ 空は出さない', v.acrylicStandSalonHref(''), null);
+eq('★ null は出さない', v.acrylicStandSalonHref(null), null);
+eq('★ 0 は出さない', v.acrylicStandSalonHref('0'), null);
+eq('★ 数字以外は出さない', v.acrylicStandSalonHref('5/../admin'), null);
+eq('★ よそのアドレスは出さない', v.acrylicStandSalonHref('//evil.example'), null);
+eq('★ 記号つきは出さない', v.acrylicStandSalonHref('5?x=1'), null);
+eq('★ 印にお客様や予約の値が無い（3つだけ）', v.ACRYLIC_STAND_UTM.split('&').map((x) => x.split('=')[0]), ['utm_source', 'utm_medium', 'utm_campaign']);
+eq('★ リンク先のお店ページは数える側', v.isGaExcludedPath('/salon/5'), false);
+
+console.log('── 8. どこから来たか を安全にする（第1404便） ──');
+eq('★ 同意書（合言葉入り）から → サイトの頭だけ', v.gaSafeReferrer('https://fukues.com/g/AbCdEf123456'), 'https://fukues.com/');
+eq('★ 完了画面から → サイトの頭だけ', v.gaSafeReferrer('https://fukues.com/g/done?t=12:30&s=5'), 'https://fukues.com/');
+eq('★ パスワード再設定から → サイトの頭だけ', v.gaSafeReferrer('https://fukues.com/reset-password?code=xyz'), 'https://fukues.com/');
+eq('★ www でも同じ', v.gaSafeReferrer('https://www.fukues.com/salon-intake/tok'), 'https://fukues.com/');
+eq('★ マイページから → サイトの頭だけ', v.gaSafeReferrer('https://fukues.com/mypage/crm/customers?customer=3'), 'https://fukues.com/');
+eq('お客様向けページから → そのまま', v.gaSafeReferrer('https://fukues.com/ranking'), null);
+eq('TOP から → そのまま', v.gaSafeReferrer('https://fukues.com'), null);
+eq('Google 検索から → そのまま', v.gaSafeReferrer('https://www.google.com/'), null);
+eq('よそのサイトの /g/… → そのまま（フクエスの話ではない）', v.gaSafeReferrer('https://example.com/g/abc'), null);
+eq('空 → そのまま', v.gaSafeReferrer(''), null);
+eq('null → そのまま', v.gaSafeReferrer(null), null);
+eq('読めない文字列 → そのまま', v.gaSafeReferrer('android-app://com.google.android.gm'), null);
+
 console.log(fail === 0 ? '\nALL OK' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

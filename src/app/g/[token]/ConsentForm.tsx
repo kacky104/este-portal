@@ -116,7 +116,8 @@ export function ConsentForm({
     setBusy(true); setErr('');
     const r = await submitConsent(token, bookingId, true, signatureDataUrl(c));
     if (!r.ok) { setBusy(false); setErr(r.error); return; }
-    window.location.replace(`/g/done?t=${encodeURIComponent(r.timeLabel)}`);
+    // s = お店の番号（第1404便・完了画面の「フクエスでこのお店を見る」用。フクエスで非表示のお店は付かない）
+    window.location.replace(`/g/done?t=${encodeURIComponent(r.timeLabel)}${r.salonId ? `&s=${r.salonId}` : ''}`);
   };
 
   return (

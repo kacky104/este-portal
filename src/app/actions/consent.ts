@@ -24,12 +24,12 @@ export type ConsentPageData =
 
 async function loadSalonConsent(svc: ReturnType<typeof createServiceClient>, salonId: number) {
   const [{ data: salon }, { data: st }] = await Promise.all([
-    svc.from('salons').select('crm_until').eq('id', salonId).maybeSingle(),
+    svc.from('salons').select('crm_until, is_hidden').eq('id', salonId).maybeSingle(), // is_hidden は第1404便（完了画面からフクエスのお店ページへ案内してよいか）
     svc.from('crm_settings').select('consent_enabled, consent_title, consent_body').eq('salon_id', salonId).maybeSingle(),
   ]);
   const active = !!salon?.crm_until && String(salon.crm_until).slice(0, 10) >= getCalendarDateJST();
   if (!active || !st?.consent_enabled || !String(st.consent_body ?? '').trim()) return null;
-  return { title: String(st.consent_title ?? ''), body: String(st.consent_body ?? '') };
+  return { title: String(st.consent_title ?? ''), body: String(st.consent_body ?? ''), salonPublic: !!salon && salon.is_hidden !== true };
 }
 
 export async function getConsentPage(token: string): Promise<ConsentPageData> {
@@ -58,7 +58,7 @@ export async function submitConsent(
   bookingId: string,
   agreed: boolean,
   signaturePng: string,
-): Promise<{ ok: true; timeLabel: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; timeLabel: string; salonId: number | null } | { ok: false; error: string }> {
   if (agreed !== true) return { ok: false, error: '「すべて了承します」に☑を入れてください' };
   const sig = String(signaturePng ?? '');
   // サインは PNG か WebP（第567便：縮めて WebP に。WebP を書き出せない端末は PNG）
@@ -101,5 +101,6 @@ export async function submitConsent(
     .update({ superseded_at: new Date().toISOString() })
     .eq('salon_id', room.salonId).eq('booking_id', target.bookingId).is('superseded_at', null).neq('id', ins.id);
   if (supErr) console.error('[consent] 前のサインを古くできなかった', target.bookingId, supErr.message); // ★ 新しいサインは入っている。画面側は最新を使う
-  return { ok: true, timeLabel: target.timeLabel };
+  // ★ 第1404便: 完了画面に「このお店のフクエスのページ」への案内を出すため、お店の番号だけ返す（★ フクエスで非表示のお店は返さない＝案内を出さない）。お客様の情報は返さない
+  return { ok: true, timeLabel: target.timeLabel, salonId: text.salonPublic ? room.salonId : null };
 }
