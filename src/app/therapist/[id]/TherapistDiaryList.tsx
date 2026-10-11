@@ -22,7 +22,7 @@ const clamp2: React.CSSProperties = {
   fontSize: '11px',
 };
 
-export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; name: string }) {
+export function TherapistDiaryList({ posts, name, fallbackImage = null }: { posts: DiaryPostView[]; name: string; /** ★ 第1401便: 写真の無い日記に出すプロフィール写真（駅ちかと同じ見せ方） */ fallbackImage?: string | null }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
 
@@ -49,7 +49,7 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
       onMouseLeave={stopAuto}
     >
       {posts.map((post) => {
-        const img = post.images[0] ?? null;
+        const img = post.images[0] ?? fallbackImage ?? null;
         return (
           <Link
             key={post.id}
@@ -66,7 +66,7 @@ export function TherapistDiaryList({ posts, name }: { posts: DiaryPostView[]; na
             <div className="relative w-full aspect-[130/185] sm:w-[130px] sm:h-[130px] sm:aspect-auto bg-slate-100">
               {img ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={img} alt={name} className="w-full h-full object-cover" />
+                <img src={img} alt={name} className={`w-full h-full object-cover${post.images[0] ? '' : ' object-top'}`} />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-slate-300 text-2xl font-bold">
                   {name.charAt(0)}

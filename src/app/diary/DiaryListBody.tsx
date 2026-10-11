@@ -155,8 +155,11 @@ export async function DiaryListBody({ page }: { page: number }) {
               const card = (
               <Link key={diary.id} href={`/diary/${diary.id}`} className="group bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <div className="aspect-square bg-slate-100 relative">
-                  {diary.image ? (
-                    <DiaryThumb src={diary.image} alt={diary.title || diary.therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  {/* ★ 第1401便（2026-10-11・カッキーさん）: 写真の無い日記は、プロフィール写真を出す（駅ちかと同じ見せ方）。
+                      駅ちかは、写真を付けずに投稿した日記にプロフィール写真を当てて見せている。フクエスは名前の1文字だけだったので、
+                      「駅ちかから写真が反映されていない」ように見えていた（取り込みの失敗ではない）。プロフィール写真も無い方だけ、今までどおり1文字。 */}
+                  {(diary.image || diary.therapistImage) ? (
+                    <DiaryThumb src={(diary.image || diary.therapistImage) as string} alt={diary.title || diary.therapistName} className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300${diary.image ? '' : ' object-top'}`} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-300 to-rose-400 text-white font-bold text-2xl">
                       {diary.therapistName.charAt(0)}

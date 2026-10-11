@@ -141,8 +141,9 @@ export async function TherapistDiaryBody({ id, page }: { id: string; page: numbe
             {diaries.map((d) => (
               <Link key={d.id} href={`/diary/${d.id}`} className="group bg-white border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                 <div className="aspect-square bg-slate-100 relative">
-                  {d.image ? (
-                    <DiaryThumb src={d.image} alt={d.title || therapistName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  {/* ★ 第1401便: 写真の無い日記は、プロフィール写真を出す（駅ちかと同じ見せ方。くわしくは diary/DiaryListBody.tsx） */}
+                  {(d.image || therapistImage) ? (
+                    <DiaryThumb src={(d.image || therapistImage) as string} alt={d.title || therapistName} className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300${d.image ? '' : ' object-top'}`} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-300 to-rose-400 text-white font-bold text-2xl">
                       {therapistName.charAt(0)}
