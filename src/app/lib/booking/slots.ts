@@ -41,17 +41,25 @@ export function jstWallToUtc(dateStr: string, hhmm: string, dayOffset = 0): Date
   return new Date(iso);
 }
 
+/** 出勤日の区切り（朝6時・lib/dutyStatus.ts の DAY_START_HOUR と同じ）。★ これより前に始まる出勤は「翌」 */
+export const SCHEDULE_DAY_START_MIN = 6 * 60;
+
 /**
  * 出勤日の start/end（"HH:MM"）から、出勤枠の UTC 開始・終了を返す。
  * end <= start のときは翌日跨ぎ（例 "18:00"〜"02:00"）として end を翌日で計算する。
+ * ★★ 第1408便（2026-10-12・ラビリンス様の苦情）: 開始が朝6時より前（00:00〜05:30）なら、出勤日の【翌日】の時刻として読む。
+ *   出勤の入力（コネックエフ・マイページ）は開始を「06:00〜翌05:30」から選ぶ＝土曜の欄の「00:00」は土曜の営業日の翌0時（日曜 0:00）。
+ *   ★ ここだけが暦日のまま読んでいたので、10/17 の「00:00〜05:00」が 10/17 の0時（金曜の夜中）になり、
+ *     フクエスCRM の 10/17 の表（6:00〜）からも 10/16 の表（10/16 までの出勤しか読まない）からも外れて、どこにも出なかった。
  */
 export function scheduleWindowUtc(
   dateStr: string,
   start: string,
   end: string,
 ): { startUtc: Date; endUtc: Date } {
-  const startUtc = jstWallToUtc(dateStr, start, 0);
-  const endDayOffset = toMin(end) <= toMin(start) ? 1 : 0;
+  const startDayOffset = toMin(start) < SCHEDULE_DAY_START_MIN ? 1 : 0;
+  const startUtc = jstWallToUtc(dateStr, start, startDayOffset);
+  const endDayOffset = startDayOffset + (toMin(end) <= toMin(start) ? 1 : 0);
   const endUtc = jstWallToUtc(dateStr, end, endDayOffset);
   return { startUtc, endUtc };
 }
