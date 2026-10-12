@@ -49,6 +49,7 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { fetchSalonTherapists } from "@/app/lib/salonTherapists";
 import { loadTherapistNews } from "@/app/lib/therapistNews";
+import { AutoFitLine } from "@/app/components/AutoFitLine";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { AutoFitText } from "@/app/components/AutoFitText";
@@ -810,7 +811,8 @@ export default async function SalonPage({
                     <li key={n.date}>
                       <Link href={`/salon/${id}/therapist-news#d-${n.date}`} className="flex items-baseline gap-2 py-2 text-[13px] hover:opacity-80">
                         <span className="flex-none tabular-nums" style={{ color: theme.body }}>{Number(n.date.slice(5, 7))}/{Number(n.date.slice(8, 10))}</span>
-                        <span className="min-w-0 truncate font-bold" style={{ color: theme.heading }}>{n.title.replace(/^\d+\/\d+\s*/, '')}</span>
+                        {/* ★ 第1425便: 名前が長くても1行に収まるまで文字を小さくする（13px → 9px） */}
+                        <AutoFitLine text={n.title.replace(/^\d+\/\d+\s*/, '')} max={13} min={9} color={theme.heading} className="flex-1" />
                       </Link>
                     </li>
                   ))}

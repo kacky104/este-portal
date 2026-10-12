@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { SalonTheme } from '@/app/lib/themes';
+import { AutoFitLine } from '@/app/components/AutoFitLine';
 
 // セラピストNEWS の1本（その日の出勤速報）（第1418便で作り、第1419便でセラピストNEWS の一覧ページへ・2026-10-13・カッキーさん）。
 // ★ サーバーで描く（クライアントの JS なし）＝ Google にもそのまま本文として見える。
@@ -40,7 +41,8 @@ export function DailyShiftNews({
           <span className={`px-1.5 py-0.5 text-[11px] font-bold text-white ${isToday ? 'bg-pink-500' : 'bg-slate-400'}`}>{isToday ? '本日の出勤' : '出勤速報'}</span>
           <span>{dateLabel}</span>
         </p>
-        <h2 className="mt-1.5 text-[16px] font-bold leading-snug" style={{ color: theme.heading }}>{title}</h2>
+        {/* ★ 第1425便: 名前が長くても1行に収まるまで文字を小さくする（16px → 10px） */}
+        <AutoFitLine as="h2" text={title} max={16} min={10} color={theme.heading} className="mt-1.5" />
       </div>
 
       {featured.length > 0 && (
