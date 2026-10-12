@@ -36,5 +36,14 @@ eq('人数: 0→0・1〜3→1・4以上→2', [0, 1, 3, 4, 9].map(m.dailyPickCou
   eq('★ 1人目がイチオシの割合はおよそ75%（1000日）', hit > 700 && hit < 800, true);
 }
 eq('題名', [m.dailyShiftTitle('2026-10-13', ['なぎさ', 'るい']), m.dailyShiftTitle('2026-10-03', [])], ['10/13 出勤速報｜なぎささん・るいさん', '10/3 出勤速報']);
+// ★ 第1421便: 題名をタグで変える（1人目のいちばん強いタグ）
+eq('題名（タグ）: NO.1・殿堂入りが先・新人の印・タグなし・2人', [
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'るい', badges: ['お姉さん系', 'NO.1'] }]),
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'りか', badges: ['NO.1', '殿堂入り'] }]),
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'みつは', badges: ['キレイ'], isNewFace: true }]),
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'あかね', badges: ['キレイ'] }]),
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'なぎさ', badges: ['店長おすすめ'] }, { name: 'るい', badges: ['NO.1'] }]),
+], ['10/13 ★NO.1★るいさん出勤♪', '10/13 👑殿堂入り👑りかさん出勤', '10/13 🌸新人🌸みつはさん出勤', '10/13 出勤速報｜あかねさん', '10/13 【店長イチオシ】なぎささん・るいさん出勤']);
+
 console.log(fail === 0 ? '\n全部 ok' : '\nNG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

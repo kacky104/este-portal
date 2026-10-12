@@ -1,7 +1,8 @@
 import type { createPublicClient } from '@/app/lib/supabase/public';
 import type { DailyShiftCard } from '@/app/salon/[id]/DailyShiftNews';
 import { getBusinessDateJST, addBusinessDays, toBusinessElapsed } from '@/lib/dutyStatus';
-import { pickDailyShift, dailyShiftTitle, DAILY_PICK_BADGE } from '@/lib/dailyShiftNews';
+import { pickDailyShift, dailyShiftTitleByTags, DAILY_PICK_BADGE } from '@/lib/dailyShiftNews';
+import { isNewFaceActive } from '@/lib/newFace';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { formatBodySizes } from '@/lib/bodyType';
 import { shiftRangeText } from '@/lib/scheduleFormat';
@@ -35,7 +36,7 @@ export async function loadTherapistNews(supabase: PublicClient, salonId: number,
 
   const { data: ths } = await supabase
     .from('therapists')
-    .select('id, name, age, body_type, profile_image_url, feature_badges, catchphrase')
+    .select('id, name, age, body_type, profile_image_url, feature_badges, catchphrase, is_new_face, new_face_since')
     .eq('salon_id', salonId)
     .eq('is_active', true);
   const byId = new Map((ths ?? []).map((t) => [Number(t.id), t]));
@@ -64,6 +65,8 @@ export async function loadTherapistNews(supabase: PublicClient, salonId: number,
       sizes: formatBodySizes((t.body_type as string | null) ?? null),
       catchphrase: String(t.catchphrase ?? '').trim(),
       imageUrl: (t.profile_image_url as string | null) ?? null,
+      badges: sanitizeBadges(t.feature_badges),
+      isNewFace: isNewFaceActive(t.is_new_face as boolean | null, (t.new_face_since as string | null) ?? null),
       startKey: toBusinessElapsed(h * 60 + (mi || 0)),
       isPick: sanitizeBadges(t.feature_badges).includes(DAILY_PICK_BADGE),
     });
@@ -75,7 +78,8 @@ export async function loadTherapistNews(supabase: PublicClient, salonId: number,
     const people = byDate.get(d);
     if (!people || people.length === 0) continue;
     const { featured, others } = pickDailyShift(people, salonId, d);
-    out.push({ date: d, title: dailyShiftTitle(d, featured.map((p) => p.name)), featured, others });
+    // ★ 第1421便: 題名は1人目のピックアップの方のタグで言い回しを変える
+    out.push({ date: d, title: dailyShiftTitleByTags(d, featured), featured, others });
     if (out.length >= limit) break;
   }
   return out;

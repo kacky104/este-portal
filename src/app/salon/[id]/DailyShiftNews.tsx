@@ -13,6 +13,9 @@ export type DailyShiftCard = {
   sizes: string;        // 「T161 B93(H) W57 H86」
   catchphrase: string;
   imageUrl: string | null;
+  /** ★ 第1421便: 題名の言い回しに使うタグ */
+  badges: string[];
+  isNewFace: boolean;
 };
 
 export function DailyShiftNews({

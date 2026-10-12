@@ -66,6 +66,37 @@ export function pickDailyShift<T extends DailyShiftPerson>(
   return { featured, others: byStart.filter((p) => !chosen.has(p.id)) };
 }
 
+/**
+ * ★ 第1421便（カッキーさん「タグで変える事が出来るならそれで」）: 題名の言い回しを、1人目のピックアップの方のタグで変える。
+ *   強い順に見て、最初に当たったタグの言い回し。新人は「新人」タグか、新人の印（is_new_face が有効）。どれも無ければ「出勤速報｜」。
+ *   名前は「なぎささん・るいさん」（ピックアップが2人の日は2人とも）。
+ */
+export const DAILY_TITLE_BY_TAG: ReadonlyArray<{ tag: string; make: (who: string) => string }> = [
+  { tag: '殿堂入り', make: (w) => `👑殿堂入り👑${w}出勤` },
+  { tag: 'NO.1', make: (w) => `★NO.1★${w}出勤♪` },
+  { tag: 'プレミア', make: (w) => `◆プレミア◆${w}出勤` },
+  { tag: '新人', make: (w) => `🌸新人🌸${w}出勤` },
+  { tag: '人気急上昇', make: (w) => `🔥人気急上昇🔥${w}出勤` },
+  { tag: '指名多数', make: (w) => `★指名多数★${w}出勤♪` },
+  { tag: 'リピーター多数', make: (w) => `♪リピーター続出♪${w}出勤` },
+  { tag: '店長おすすめ', make: (w) => `【店長イチオシ】${w}出勤` },
+  { tag: '要予約', make: (w) => `【要予約】人気の${w}出勤` },
+];
+
+/** 題名「10/13 ★NO.1★なぎささん・るいさん出勤♪」。タグが無ければ「10/13 出勤速報｜なぎささん」 */
+export function dailyShiftTitleByTags(
+  businessDate: string,
+  featured: ReadonlyArray<{ name: string; badges: readonly string[]; isNewFace?: boolean }>,
+): string {
+  const [, m, d] = businessDate.split('-').map(Number);
+  if (featured.length === 0) return `${m}/${d} 出勤速報`;
+  const who = featured.map((p) => `${p.name}さん`).join('・');
+  const lead = featured[0];
+  const has = (tag: string) => lead.badges.includes(tag) || (tag === '新人' && lead.isNewFace === true);
+  const hit = DAILY_TITLE_BY_TAG.find((t) => has(t.tag));
+  return `${m}/${d} ${hit ? hit.make(who) : `出勤速報｜${who}`}`;
+}
+
 /** 題名「10/13 出勤速報｜なぎささん・るいさん」（★ 一覧に日ごとに残るので「本日の」は付けない） */
 export function dailyShiftTitle(businessDate: string, featuredNames: readonly string[]): string {
   const [, m, d] = businessDate.split('-').map(Number);
