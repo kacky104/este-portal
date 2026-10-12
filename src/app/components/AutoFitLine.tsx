@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 // 1行に収まるまで文字を小さくする（第1425便・2026-10-13・カッキーさん）。
-// ★ セラピストのページの AutoFitName と同じ考え方で、色・太さを外から渡せる版（ピックアップセラピストNEWS の題名に使う）。
+// ★ セラピストのページの AutoFitName と同じ考え方で、色・太さを外から渡せる版（おすすめセラピストNEWS の題名に使う）。
 // ★ 最初は max で描き、画面に出たあとで測って小さくする。min まで下げても入らないときは末尾を「…」で切る。
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
