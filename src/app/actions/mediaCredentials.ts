@@ -53,6 +53,7 @@ import {
   type RosterSnapshot,
   type RosterLink,
 } from '@/lib/mediaRoster';
+import { ekichikaAreaFromUrl } from '@/lib/ekichikaArea';
 
 // 他媒体の管理画面ログイン情報の登録（第39便・第3弾の入口）。
 //
@@ -213,6 +214,8 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
        */
       linkMode: string | null;
     }>;
+    /** ★ 第1416便: 枠ごとのエリア（駅ちかのお店ページの URL から）。キーは「provider:slot」。URL が無い枠は入らない */
+    slotAreas: Record<string, string>;
   }>
 > {
   const salonId = Number(input.salonId);
@@ -232,11 +235,17 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
   //     向きを認証情報の側に置くことはできない。逆に書き込みの店は両方を持つ。
   const { data: srcs } = await svc
     .from('salon_import_sources')
-    .select('provider, slot, link_mode')
+    .select('provider, slot, link_mode, shop_url')
     .eq('salon_id', salonId);
   const modeOf = new Map<string, string>();
+  const slotAreas: Record<string, string> = {};
   for (const s of srcs ?? []) {
     modeOf.set(`${String(s.provider)}:${Number(s.slot ?? 1)}`, String(s.link_mode ?? 'read'));
+    // ★ 第1416便: 駅ちかの枠は、お店ページの URL のエリア（福岡市・博多／中洲・天神 など）
+    if (String(s.provider) === 'ekichika') {
+      const area = ekichikaAreaFromUrl(s.shop_url as string | null);
+      if (area) slotAreas[`ekichika:${Number(s.slot ?? 1)}`] = area;
+    }
   }
 
   // ★ 第1378便: 一時停止の枠のうち、「ID・パスワードが違う」ために自動で止めたもの
@@ -273,7 +282,7 @@ export async function getMediaCredentials(input: { salonId: string | number; ser
       return pi !== 0 ? pi : a.slot - b.slot;
     });
 
-  return { ok: true, data: { consentVersion: input.service === 'link' ? FUKUES_LINK_CONSENT_VERSION : MEDIA_CONSENT_VERSION, rows } };
+  return { ok: true, data: { consentVersion: input.service === 'link' ? FUKUES_LINK_CONSENT_VERSION : MEDIA_CONSENT_VERSION, rows, slotAreas } };
 }
 
 /**

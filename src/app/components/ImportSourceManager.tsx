@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { ekichikaAreaFromUrl, ekichikaShopSearchUrl } from '@/lib/ekichikaArea';
 import {
   adminListImportSources, adminUpsertImportSource, adminSetImportSourceEnabled, adminSetImportSourceImasugu, adminSetImportSourceSokuhimePush, extractEkichikaShopId,
   type ImportSourceRow,
@@ -150,6 +151,10 @@ export default function ImportSourceManager({ allSalons, onToast }: {
             placeholder="https://ranking-deli.jp/fukuoka/area175/style8/46440/"
             className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
           />
+          {/* ★ 第1416便: 貼った URL のエリア（枠と取り違えていないか、登録の前に見られるように） */}
+          {ekichikaAreaFromUrl(shopUrl) && (
+            <span className="mt-1 block text-[11px] font-bold text-indigo-700">エリア: {ekichikaAreaFromUrl(shopUrl)}</span>
+          )}
         </label>
         <label className="block">
           <span className="text-[11px] font-bold text-gray-500">掲載番号（URL 末尾の数字・自動で入ります）</span>
@@ -203,7 +208,16 @@ export default function ImportSourceManager({ allSalons, onToast }: {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-b border-gray-100">
-                  <td className="py-2 pr-3 font-bold text-gray-800">{r.salonName}{r.slot > 1 ? `（枠${r.slot}）` : ''}</td>
+                  <td className="py-2 pr-3 font-bold text-gray-800">
+                    {r.salonName}{r.slot > 1 ? `（枠${r.slot}）` : ''}
+                    {/* ★ 第1416便（カッキーさん）: この枠のエリア（URL から）と、駅ちかでこの店を探すリンク（どのエリアにお店ページがあるか） */}
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] font-normal">
+                      {ekichikaAreaFromUrl(r.shopUrl)
+                        ? <span className="bg-indigo-50 px-1 font-bold text-indigo-700">{ekichikaAreaFromUrl(r.shopUrl)}</span>
+                        : <span className="text-gray-400">エリア不明</span>}
+                      <a href={ekichikaShopSearchUrl(r.salonName)} target="_blank" rel="noreferrer" className="text-blue-600 underline">駅ちかで探す</a>
+                    </span>
+                  </td>
                   <td className="py-2 pr-3 tabular-nums">{r.externalId || <span className="text-rose-600 font-bold">未登録</span>}</td>
                   <td className="py-2 pr-3 max-w-[260px] truncate">
                     {r.shopUrl ? <a href={r.shopUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline">{r.shopUrl}</a> : '—'}

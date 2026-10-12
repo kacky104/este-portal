@@ -78,6 +78,9 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
 }) {
   const href = useConecfHref();
   const [rows, setRows] = useState<CredRow[]>([]);
+  // ★ 第1416便: 枠ごとのエリア（駅ちかのお店ページの URL から・キーは「provider:slot」）
+  const [slotAreas, setSlotAreas] = useState<Record<string, string>>({});
+  const areaOf = (provider: string, n: number) => slotAreas[`${provider}:${n}`] ?? '';
   const [known, setKnown] = useState(false);
   const [consentVersion, setConsentVersion] = useState('');
   const [loading, setLoading] = useState(true);
@@ -104,6 +107,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
     const res = await getMediaCredentials({ salonId, service: 'conecf' });   // ★ 第716便: コネックエフの版で見る（厳密）
     if (res.ok) {
       setRows(res.data.rows as CredRow[]);
+      setSlotAreas(res.data.slotAreas ?? {});
       setConsentVersion(res.data.consentVersion);
       setKnown(true);
       setLoadError('');
@@ -208,7 +212,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
     const slots = mediaSiteSlots(site).length > 1 ? siteRows.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : '';
     // ★ 第1378便: 「ID・パスワードが違う」ために自動で止めた枠は、理由を言う
     const rej = siteRows.filter((r) => !r.isEnabled && r.rejected);
-    if (rej.length > 0) return { text: `${mediaSiteSlots(site).length > 1 ? rej.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : ''}ID・パスワードが違うため止めています`, tone: 'text-rose-600' };
+    if (rej.length > 0) return { text: `${mediaSiteSlots(site).length > 1 ? rej.map((r) => `枠${r.slot}${areaOf(site.provider, r.slot) ? `（${areaOf(site.provider, r.slot)}）` : ''}`).join('・') + ' ／ ' : ''}ID・パスワードが違うため止めています`, tone: 'text-rose-600' };
     if (st === 'disabled') return { text: `${slots}一時停止中`, tone: 'text-slate-500' };
     return { text: `${slots}連携中`, tone: GREEN }; // ★ 第761便（カッキーさん）: 連携中は緑
   };
@@ -351,11 +355,18 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
                           aria-pressed={slot === n}
                           className={`h-8 px-3 rounded text-[12px] border ${slot === n ? 'border-[#1e88e5] bg-[#e5f1fc] text-[#1e88e5]' : 'border-slate-200 bg-white text-slate-500'}`}
                         >
-                          枠{n}{rowAt(edit.provider, n) ? '（登録済み）' : ''}
+                          枠{n}{areaOf(edit.provider, n) ? ` ${areaOf(edit.provider, n)}` : ''}{rowAt(edit.provider, n) ? '（登録済み）' : ''}
                         </button>
                       ))}
                     </div>
                   </div>
+                )}
+                {/* ★ 第1416便（カッキーさん）: この枠がどのエリアのお店ページか。違うエリアの管理画面の ID・パスワードを入れるのを防ぐ */}
+                {mediaSiteSlots(edit).length > 1 && areaOf(edit.provider, slot) && (
+                  <p className="ml-[132px] -mt-1 text-[12px] leading-relaxed text-slate-600">
+                    枠{slot}は、{edit.name}の<b className="text-[#1e88e5]">「{areaOf(edit.provider, slot)}」</b>のお店ページです。
+                    このエリアのお店ページの管理画面に入る ID・パスワードを入れてください（ほかのエリアのものを入れると、ログインできずに止まります）。
+                  </p>
                 )}
 
                 {edit.needsShopId && (
