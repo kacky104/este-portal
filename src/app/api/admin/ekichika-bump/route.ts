@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { shouldBumpNow, type BumpSetting } from '@/lib/ekichikaBump';
+import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaBump';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -67,6 +67,8 @@ export async function POST(req: Request) {
     const judge = shouldBumpNow({
       now, setting,
       state: { lastAt: r.bump_last_at, remaining: r.bump_remaining, readAt: r.bump_read_at, autoAt: r.bump_auto_at },
+      // ★ 第1407便: 0回を読んだあとは、サイトの回数が戻る時刻（駅ちか 0:00・エステ魂 6:00）を過ぎたらまた見に行く
+      resetMin: bumpResetMinOf(r.provider),
     });
     if (!judge.bump || !apply) { results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: judge.reason }); continue; }
 

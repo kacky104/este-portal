@@ -36,18 +36,51 @@ export const EKICHIKA_BUMP_DEFAULT_INTERVAL_MIN = 20;
 export { BUMP_AUTO_INTERVALS as EKICHIKA_BUMP_INTERVALS };
 
 /**
+ * ★★★ 第1407便（2026-10-12・カッキーさんが確かめた）: サイトの「1日の回数が戻る時刻」（日本時間・0時からの分）。
+ *   駅ちか … 午前0時（ラビリンス様の管理画面で 0時すぎに 40/40 に戻っていた）／エステ魂 … 午前6時（エステ魂の画面の注記）。
+ *   ★ これまでは戻る時刻が分からなかったので、0回を読んだら「次の時間帯のはじめ」まで待っていた（第1311便）。
+ *     日をまたぐ時間帯（ラビリンス様 12:00〜翌1:00）だと、0時に回数が戻っても 0:00〜1:00 の分を押さず、
+ *     画面も昨夜の「0回」のまま手動のボタンまで押せなかった。
+ */
+export const BUMP_RESET_MIN: Readonly<Record<'ekichika' | 'esutama', number>> = { ekichika: 0, esutama: 360 };
+
+/** サイトの回数が戻る時刻（分）。★ 知らないサイトは null（＝今までどおり時間帯のはじめで待つ） */
+export function bumpResetMinOf(provider: string): number | null {
+  return provider === 'ekichika' || provider === 'esutama' ? BUMP_RESET_MIN[provider] : null;
+}
+
+/** at のあとで、最初に「日本時間の minOfDay」になる時刻（ISO）。★ ちょうどその分なら翌日。読めなければ null */
+function nextMinuteOfDayAfter(at: string | null, minOfDay: number): string | null {
+  const ms = at ? Date.parse(at) : NaN;
+  if (!Number.isFinite(ms) || !isValidMinuteOfDay(minOfDay)) return null;
+  let delta = (minOfDay - minuteOfDayJST(new Date(ms)) + 1440) % 1440;
+  if (delta === 0) delta = 1440;
+  return new Date(ms - (ms % 60000) + delta * 60000).toISOString();
+}
+
+/**
+ * 読んだ残り回数が、もう古いか（読んだあとにサイトの回数が戻る時刻を過ぎたか）。第1407便。
+ *   ★ 古いときは、サイトの側では1日の回数に戻っている。★ 読んだ時刻・戻る時刻が分からなければ false（今までどおり）
+ */
+export function bumpCountStale(readAt: string | null, resetMin: number | null | undefined, now: Date): boolean {
+  if (resetMin == null) return false;
+  const next = nextMinuteOfDayAfter(readAt, resetMin);
+  return next !== null && now.getTime() >= Date.parse(next);
+}
+
+/**
  * 残り0回を読んだあと、次に見に行ってよい時刻（ISO）＝読んだあとの【時間帯のはじめ】（第1311便）。
+ *   ★ 第1407便: サイトの回数が戻る時刻（resetMin）が分かっていれば、そちらが先ならそちらまで（駅ちか 0:00・エステ魂 6:00）。
+ *     戻る時刻が時間帯の外なら、周は out_of_window で押さないので、余計なログインは増えない。
  *   例: 10:00〜23:00 の店が 21:20 に0回を読んだ → 翌朝 10:00。★ 9:00 に0回を読んだ → 同じ日の 10:00。
  *   ★ 読んだ時刻が読めないときは null（＝待たせない。「読めていない」と「0回」を混ぜない）。
  */
-export function bumpZeroResumeAt(readAt: string | null, startMin: number): string | null {
-  const readMs = readAt ? Date.parse(readAt) : NaN;
-  if (!Number.isFinite(readMs) || !isValidMinuteOfDay(startMin)) return null;
-  const readMin = minuteOfDayJST(new Date(readMs));
-  let delta = (startMin - readMin + 1440) % 1440;
-  if (delta === 0) delta = 1440;   // ★ ちょうど 10:00 に読んだ0回 → 翌日の 10:00
-  const minuteStartMs = readMs - (readMs % 60000);
-  return new Date(minuteStartMs + delta * 60000).toISOString();
+export function bumpZeroResumeAt(readAt: string | null, startMin: number, resetMin?: number | null): string | null {
+  // ★ ちょうど 10:00 に読んだ0回 → 翌日の 10:00
+  const atStart = nextMinuteOfDayAfter(readAt, startMin);
+  if (atStart === null) return null;
+  const atReset = resetMin == null ? null : nextMinuteOfDayAfter(readAt, resetMin);
+  return atReset !== null && Date.parse(atReset) < Date.parse(atStart) ? atReset : atStart;
 }
 /** 周が流れを始めてから、同じ枠で次を始めない時間（分）。★ 中継が引き取って押し終えるまでの余裕 */
 export const EKICHIKA_BUMP_RUNNING_MIN = 4;
@@ -168,7 +201,11 @@ export function currentBumpSlotAt(now: Date, s: Pick<BumpSetting, 'startMin' | '
  * いま自動で押すか。
  *   周（中継を始める前）では state に DB の写し、流れの中（トップを読んだあと）では読んだばかりの値を渡す。
  */
-export function shouldBumpNow(input: { now: Date; setting: BumpSetting; state: BumpState; atRead?: boolean }): { bump: boolean; reason: BumpReason } {
+export function shouldBumpNow(input: {
+  now: Date; setting: BumpSetting; state: BumpState; atRead?: boolean;
+  /** ★ 第1407便: サイトの回数が戻る時刻（bumpResetMinOf）。周から渡す。★ 無ければ今までどおり時間帯のはじめまで待つ */
+  resetMin?: number | null;
+}): { bump: boolean; reason: BumpReason } {
   const { now, setting: s, state } = input;
   const no = (reason: BumpReason) => ({ bump: false, reason });
   if (!s.enabled) return no('off');
@@ -176,10 +213,10 @@ export function shouldBumpNow(input: { now: Date; setting: BumpSetting; state: B
   const slotAt = currentBumpSlotAt(now, s);
   if (!slotAt) return no('out_of_window');
 
-  // 残り0回（★ 周のときは「次の時間帯のはじめまで見に行かない」第1311便。読んだ直後は、その値で決める）
+  // 残り0回（★ 周のときは「次の時間帯のはじめ（第1407便: かサイトの回数が戻る時刻の早いほう）まで見に行かない」第1311便。読んだ直後は、その値で決める）
   if (state.remaining !== null && state.remaining <= 0) {
     if (input.atRead) return no('no_quota');
-    const resume = bumpZeroResumeAt(state.readAt, s.startMin);
+    const resume = bumpZeroResumeAt(state.readAt, s.startMin, input.resetMin);
     if (resume && now.getTime() < Date.parse(resume)) return no('no_quota');
   }
   // 流れを始めたばかり（周のときだけ）

@@ -81,6 +81,10 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
   const endMin = minuteFromLabel(end);
   const perDay = startMin !== null && endMin !== null ? bumpSlotsPerDay({ startMin, endMin, intervalMin: interval }) : 0;
   const quota = s.quota ?? site.defaultQuota;
+  // ★ 第1407便: 読んだあとにサイトの回数が戻る時刻を過ぎていたら、サイトでは1日の回数に戻っている。
+  //   ★ 古い「0回」のままボタンを止めない（本当の残りは、押しに行ったときにサイトの画面で確かめる）
+  const remaining = s.countStale && quota != null ? quota : s.remaining;
+  const resetLabel = s.resetMin != null ? minuteLabel(s.resetMin) : null;
   const dirty = on !== s.enabled || startMin !== s.startMin || endMin !== s.endMin || interval !== s.intervalMin;
   const usable = s.hasCredential && !s.linkOff;
   const name = site.name + (many ? `（枠${s.slot}）` : '');
@@ -106,7 +110,7 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
   const runNow = async () => {
     if (!guard()) return;
     // ★ 第1315便（カッキーさん）: フクエスと同じく、押す前に1回確かめる
-    const left = s.remaining !== null ? `（本日残り ${s.remaining}回）` : '';
+    const left = remaining !== null ? `（本日残り ${remaining}回）` : '';
     if (!window.confirm(`${name}の${site.what}を実行しますか？${left}`)) return;
     setBusy('run');
     const res = await runConecfBumpNow({ provider: site.provider, slot: s.slot });
@@ -125,20 +129,22 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
         {s.lastAt && <span className={`text-xs font-bold ${site.accent}`}>※ {hm(s.lastAt)} に実行</span>}
       </div>
 
-      {s.remaining !== null ? (
+      {remaining !== null ? (
         <p className="flex items-baseline justify-center gap-1 text-lg font-bold text-slate-500 tabular-nums py-1">
           <span>本日残り</span>
-          <span className={`${site.big} text-6xl font-black leading-none`}>{s.remaining}</span>
+          <span className={`${site.big} text-6xl font-black leading-none`}>{remaining}</span>
           <span>{quota != null ? `/ ${quota}回` : '回'}</span>
         </p>
       ) : (
         <p className="text-center text-[13px] text-slate-500 py-2">まだ{site.name}の残り回数を読んでいません（押しに行ったときに読みます）</p>
       )}
-      {s.readAt && <p className="-mt-2 text-center text-[11px] text-slate-400 tabular-nums">{hm(s.readAt)} 時点の{site.name}の回数</p>}
+      {s.readAt && (s.countStale
+        ? <p className="-mt-2 text-center text-[11px] text-slate-400 tabular-nums">{resetLabel ? `毎日${resetLabel}に` : ''}{site.name}の回数が戻っています（最後に読んだのは {hm(s.readAt)}）</p>
+        : <p className="-mt-2 text-center text-[11px] text-slate-400 tabular-nums">{hm(s.readAt)} 時点の{site.name}の回数</p>)}
 
-      <button type="button" disabled={busy !== '' || s.remaining === 0} onClick={() => void runNow()}
+      <button type="button" disabled={busy !== '' || remaining === 0} onClick={() => void runNow()}
         className={`w-full py-3 text-sm font-black text-white shadow-md transition-all disabled:opacity-40 ${site.btn} active:scale-[0.99]`}>
-        {busy === 'run' ? '受け付けています…' : s.remaining === 0 ? '本日の回数を使い切りました' : site.btnLabel}
+        {busy === 'run' ? '受け付けています…' : remaining === 0 ? '本日の回数を使い切りました' : site.btnLabel}
       </button>
 
       {!usable && (
@@ -217,7 +223,9 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
           <ul className="text-[11px] text-slate-500 leading-relaxed list-disc pl-4 space-y-0.5">
             <li>手動のボタンはいつでも押せます。</li>
             <li>{site.name}で手で押した直後は、自動では押しません。</li>
-            <li>残りが0回になったら、次の日の時間帯のはじめ（{start}）まで自動は止まります。</li>
+            <li>{s.resetMin != null
+              ? `残りが0回になったら、${site.name}の回数が戻る${minuteLabel(s.resetMin)}まで自動は止まります（その時刻が時間帯の外なら、時間帯のはじめ ${start} から）。`
+              : `残りが0回になったら、次の日の時間帯のはじめ（${start}）まで自動は止まります。`}</li>
             <li>反映まで1〜2分かかります。</li>
           </ul>
         </div>

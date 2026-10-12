@@ -86,6 +86,32 @@ console.log('\n── 3. ★★★ 自動の押し方（10:00〜23:00・20分ご
   eq('周が流れを始めて2分 → 始めない／読んだあとは見ない', [at(12, 4, { autoAt: jst(2026, 10, 8, 12, 2).toISOString() }), at(12, 4, { autoAt: jst(2026, 10, 8, 12, 2).toISOString() }, true)], ['running', 'ok']);
   eq('★ 時刻が読めないときは押さない', at(12, 4, { lastAt: 'x' }), 'unknown');
   eq('止めている・設定が壊れている', [m.shouldBumpNow({ now: jst(2026, 10, 8, 12, 4), setting: { ...setting, enabled: false }, state: st() }).reason, m.shouldBumpNow({ now: jst(2026, 10, 8, 12, 4), setting: { ...setting, intervalMin: 7 }, state: st() }).reason], ['off', 'bad_setting']);
+  // ★★★ 第1407便: サイトの回数が戻る時刻（駅ちか 0:00・エステ魂 6:00）を過ぎたら、古い「0回」で止めない
+  {
+    const lab = { enabled: true, startMin: 12 * 60, endMin: 60, intervalMin: 20 };   // ラビリンス様 12:00〜翌1:00・20分
+    const zero = { remaining: 0, readAt: jst(2026, 10, 11, 23, 45).toISOString(), lastAt: jst(2026, 10, 11, 23, 45).toISOString() };
+    const j = (h, mi, reset) => m.shouldBumpNow({ now: jst(2026, 10, 12, h, mi), setting: lab, state: st(zero), resetMin: reset }).reason;
+    eq('戻る時刻: 駅ちか 0:00・エステ魂 6:00・ほかは null', [m.bumpResetMinOf('ekichika'), m.bumpResetMinOf('esutama'), m.bumpResetMinOf('x')], [0, 360, null]);
+    eq('★★★ 23:45 に0回（12:00〜翌1:00）→ 0:04・0:44 は押しに行く（駅ちかは0時に戻る）', [j(0, 4, 0), j(0, 44, 0)], ['ok', 'ok']);
+    eq('　→ 戻る時刻を渡さなければ今までどおり（12:00 まで待つ）', j(0, 4, null), 'no_quota');
+    eq('★ 23:50 はまだ戻っていない', m.shouldBumpNow({ now: jst(2026, 10, 11, 23, 50), setting: lab, state: st({ ...zero, lastAt: jst(2026, 10, 11, 23, 40).toISOString() }), resetMin: 0 }).reason, 'no_quota');
+    eq('★ 早いほう: 21:20 に0回・時間帯 10:00 → 駅ちかは翌0:00／エステ魂（6:00）も翌6:00／時間帯のはじめ 5:00 なら 5:00', [
+      m.bumpZeroResumeAt(jst(2026, 10, 8, 21, 20).toISOString(), 600, 0),
+      m.bumpZeroResumeAt(jst(2026, 10, 8, 21, 20).toISOString(), 600, 360),
+      m.bumpZeroResumeAt(jst(2026, 10, 8, 21, 20).toISOString(), 300, 360),
+    ], [jst(2026, 10, 9, 0, 0).toISOString(), jst(2026, 10, 9, 6, 0).toISOString(), jst(2026, 10, 9, 5, 0).toISOString()]);
+    eq('★ 0時に戻っても時間帯（10:00〜23:00）の外なら押さない', m.shouldBumpNow({ now: jst(2026, 10, 9, 0, 4), setting, state: st({ remaining: 0, readAt: jst(2026, 10, 8, 23, 4).toISOString() }), resetMin: 0 }).reason, 'out_of_window');
+    eq('古いか: 駅ちか 23:45 に読んだ → 0:00 から古い／エステ魂 10/8 16:50 → 10/12 は古い・同じ日の 5:59 に読んで 5:59 はまだ／読めない・戻る時刻なしは false', [
+      m.bumpCountStale(jst(2026, 10, 11, 23, 45).toISOString(), 0, jst(2026, 10, 11, 23, 59)),
+      m.bumpCountStale(jst(2026, 10, 11, 23, 45).toISOString(), 0, jst(2026, 10, 12, 0, 0)),
+      m.bumpCountStale(jst(2026, 10, 8, 16, 50).toISOString(), 360, jst(2026, 10, 12, 11, 40)),
+      m.bumpCountStale(jst(2026, 10, 12, 5, 59).toISOString(), 360, jst(2026, 10, 12, 5, 59, 50)),
+      m.bumpCountStale(null, 0, jst(2026, 10, 12, 11, 40)),
+      m.bumpCountStale(jst(2026, 10, 8, 16, 50).toISOString(), null, jst(2026, 10, 12, 11, 40)),
+    ], [false, true, true, false, false, false]);
+    const route = read('src', 'app', 'api', 'admin', 'ekichika-bump', 'route.ts');
+    eq('★★ 周は戻る時刻を渡している', route.includes('resetMin: bumpResetMinOf(r.provider)'), true);
+  }
   const night = { enabled: true, startMin: 22 * 60, endMin: 2 * 60, intervalMin: 30 };
   eq('日をまたぐ時間帯（22:00〜翌2:00・30分）: 1:10 の区切りは 1:00', m.currentBumpSlotAt(jst(2026, 10, 9, 1, 10), night), jst(2026, 10, 9, 1, 0).toISOString());
 }

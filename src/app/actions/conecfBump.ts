@@ -5,7 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { isValidBumpSetting, bumpSlotsPerDay } from '@/lib/ekichikaBump';
+import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf } from '@/lib/ekichikaBump';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「駅ちか上位表示」の受け口（第1305便・2026-10-08）。
@@ -54,6 +54,10 @@ export type ConecfBumpSlot = {
   remaining: number | null;
   quota: number | null;
   readAt: string | null;
+  /** ★ 第1407便: 読んだあとにサイトの回数が戻る時刻（駅ちか 0:00・エステ魂 6:00）を過ぎた＝remaining は古い（サイトでは1日の回数に戻っている） */
+  countStale: boolean;
+  /** サイトの回数が戻る時刻（分）。画面の注記に使う */
+  resetMin: number | null;
 };
 
 /** ready=false … 列がまだ無い（追加SQL_第1305便が未適用）。画面は「準備中」を出す */
@@ -73,6 +77,8 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
     if (/bump_/.test(src.error.message ?? '')) return { ok: true, data: { salonId, ready: false, slots: [] } };
     return { ok: false, error: '設定を読み込めませんでした。時間をおいてお試しください' };
   }
+  const now = new Date();
+  const resetMin = bumpResetMinOf(provider);
   const credOn = new Map((cred.data ?? []).map((c) => [Number(c.slot ?? 1), c.is_enabled === true]));
   const slots: ConecfBumpSlot[] = (src.data ?? []).map((x) => {
     const slot = Number(x.slot ?? 1);
@@ -93,6 +99,8 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
       remaining: x.bump_remaining == null ? null : Number(x.bump_remaining),
       quota: x.bump_quota == null ? null : Number(x.bump_quota),
       readAt: (x.bump_read_at as string | null) ?? null,
+      countStale: x.bump_remaining != null && bumpCountStale((x.bump_read_at as string | null) ?? null, resetMin, now),
+      resetMin,
     };
   });
   return { ok: true, data: { salonId, ready: true, slots } };
