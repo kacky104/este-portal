@@ -30,7 +30,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return buildSalonSubpageMetadata(id, "therapist-news", "セラピストNEWS");
+  return buildSalonSubpageMetadata(id, "therapist-news", "ピックアップセラピストNEWS");
 }
 
 function formatDate(iso: string): string {
@@ -122,7 +122,7 @@ export default async function SalonTherapistNewsPage({
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLdString(buildBreadcrumbJsonLd([
           { name: 'トップ', path: '/' },
           { name: salonName || '店舗', path: `/salon/${id}` },
-          { name: 'セラピストNEWS', path: `/salon/${id}/therapist-news` },
+          { name: 'ピックアップセラピストNEWS', path: `/salon/${id}/therapist-news` },
         ])) }} />
         <nav aria-label="パンくずリスト" className="flex items-center gap-1.5 mb-3" style={{ fontSize: '13px' }}>
           <Link href="/" className="hover:opacity-80 transition-opacity flex-shrink-0 whitespace-nowrap" style={{ color: '#ec4899' }}>
@@ -133,7 +133,7 @@ export default async function SalonTherapistNewsPage({
             {salonName || '店舗'}
           </Link>
           <span aria-hidden className="flex-shrink-0" style={{ color: '#999' }}>›</span>
-          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>セラピストNEWS</span>
+          <span aria-current="page" className="flex-shrink-0 whitespace-nowrap" style={{ color: breadcrumbCurrentColor(theme.key), fontWeight: 600 }}>ピックアップセラピストNEWS</span>
         </nav>
 
         {/* タイトル */}
@@ -142,7 +142,7 @@ export default async function SalonTherapistNewsPage({
         <SalonMobileNav
           mode="subpage"
           salonName={salonName}
-          pageLabel="セラピストNEWS"
+          pageLabel="ピックアップセラピストNEWS"
           items={salonNavItems}
           colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
         />
@@ -150,7 +150,7 @@ export default async function SalonTherapistNewsPage({
         {/* セラピストNEWS 一覧（新しい順） */}
         {entries.length === 0 ? (
           <div className="text-center py-12 text-sm rounded-2xl border" style={{ color: theme.body, backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-            セラピストNEWSはまだありません
+            ピックアップセラピストNEWSはまだありません
           </div>
         ) : (
           entries.map((e) => (

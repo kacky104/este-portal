@@ -802,7 +802,7 @@ export default async function SalonPage({
             {therapistNews.length > 0 && (
               <section className="mt-[5px] rounded-3xl px-5 py-3 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <h2 className="text-base font-bold" style={{ color: theme.heading }}>セラピストNEWS</h2>
+                  <h2 className="text-base font-bold" style={{ color: theme.heading }}>ピックアップセラピストNEWS</h2>
                   <Link href={`/salon/${id}/therapist-news`} className="flex-shrink-0 text-[13px] font-bold text-pink-600 hover:opacity-80">一覧を見る →</Link>
                 </div>
                 <ul className="divide-y" style={{ borderColor: theme.cardBorder }}>
