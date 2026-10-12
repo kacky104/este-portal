@@ -217,6 +217,24 @@ export default async function TherapistPublicPage({
     created_at: String(p.created_at),
   }));
 
+  // ★ 第1413便（2026-10-12・カッキーさん・GSC「クロール済み - インデックス未登録」の点検）: 新しい写メ日記3件の本文の書き出し。
+  //   これまで写メ日記は日付・題名（「出勤したよ♡」など）・写真だけで、ページの本文が薄かった（セラピストのページが約110件 未登録）。
+  //   ★ 本文を読むのは新しい3件だけ（全件の本文は読まない）。★ タグは外して、改行・空白は1つにまとめて約70字。
+  //   ★ 画面にも見える形で出す（Google のためだけに隠した文は置かない）。
+  const DIARY_EXCERPT_COUNT = 3;
+  const excerptIds = diaryPosts.slice(0, DIARY_EXCERPT_COUNT).map((p) => p.id);
+  const diaryExcerpts: Array<{ id: number; date: string; title: string; text: string }> = [];
+  if (excerptIds.length > 0) {
+    const { data: bodyRows } = await supabase.from('diary_posts').select('id, content').in('id', excerptIds);
+    const bodyById = new Map((bodyRows ?? []).map((b) => [Number(b.id), String(b.content ?? '')]));
+    const md = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' });
+    for (const p of diaryPosts.slice(0, DIARY_EXCERPT_COUNT)) {
+      const text = truncatePlain((bodyById.get(p.id) ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' '), 70);
+      if (!text && !p.title) continue;
+      diaryExcerpts.push({ id: p.id, date: md.format(new Date(p.created_at)), title: p.title ?? '', text });
+    }
+  }
+
   const dates = getBusinessDateRangeJST(7);
 
   const { data: schedRows } = await supabase
@@ -685,6 +703,22 @@ export default async function TherapistPublicPage({
                 <div className="-mx-6 sm:mx-0">
                   <TherapistDiaryList posts={diaryPosts.slice(0, 6)} name={therapist.name} fallbackImage={images[0] ?? null} />
                 </div>
+                {/* ★ 第1413便: 新しい3件の書き出し（日付・題名・本文の初め約70字）。押すとその日記へ */}
+                {diaryExcerpts.length > 0 && (
+                  <ul className="mt-2 divide-y divide-slate-100 border-t border-slate-100">
+                    {diaryExcerpts.map((x) => (
+                      <li key={x.id}>
+                        <Link href={`/diary/${x.id}`} className="block py-2 hover:bg-slate-50">
+                          <p className="flex items-baseline gap-2 text-[12px]">
+                            <span className="flex-none text-slate-400 tabular-nums">{x.date}</span>
+                            {x.title && <span className="truncate font-bold text-slate-700">{x.title}</span>}
+                          </p>
+                          {x.text && <p className="mt-0.5 text-[12px] leading-relaxed text-slate-500 line-clamp-2 break-all">{x.text}</p>}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
 
