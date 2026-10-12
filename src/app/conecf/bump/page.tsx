@@ -47,7 +47,7 @@ const SITES: Record<'ekichika' | 'esutama', SiteTheme> = {
     provider: 'ekichika', name: '駅ちか', what: '上位表示',
     heading: 'の上位表示（エリア・市区町村・駅の一覧）', btnLabel: '⬆ 上位表示する',
     lead: <>駅ちかの一覧でお店が<span className="font-bold text-orange-600">上位に表示</span>されます。</>,
-    details: ['駅ちかの管理画面トップにある「上位表示する」を、コネックエフから押します。', '回数は駅ちかの画面の値です（駅ちかで手で押した分も入ります）。'],
+    details: ['駅ちかの管理画面トップにある「上位表示する」を、コネックエフから押します。', '回数は、コネックエフが最後に駅ちかの画面を読んだときの値です。駅ちかで手で押した分は、次にコネックエフから押したとき（自動を含む）に反映されます。'],
     defaultQuota: 40,
     border: 'border-orange-100', accent: 'text-orange-600', big: 'text-orange-500',
     btn: 'bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600',
@@ -57,7 +57,7 @@ const SITES: Record<'ekichika' | 'esutama', SiteTheme> = {
     provider: 'esutama', name: 'エステ魂', what: 'アピール',
     heading: 'の集客アピール（店舗情報）', btnLabel: '⬆ アピールする',
     lead: <>エステ魂のトップページ・お店一覧でお店が<span className="font-bold text-violet-600">上位に表示</span>されます。</>,
-    details: ['エステ魂の管理画面「集客ワンクリックアピール」の、店舗情報の「アピールする」をコネックエフから押します（クーポン・体験談は押しません）。', '残り回数はエステ魂の画面の値です（エステ魂で手で押した分も入ります）。1日10回で、毎朝6時に戻ります。'],
+    details: ['エステ魂の管理画面「集客ワンクリックアピール」の、店舗情報の「アピールする」をコネックエフから押します（クーポン・体験談は押しません）。', '残り回数は、コネックエフが最後にエステ魂の画面を読んだときの値です。エステ魂で手で押した分は、次にコネックエフから押したとき（自動を含む）に反映されます。1日10回で、毎朝6時に戻ります。'],
     defaultQuota: 10,   // ★ 第1314便の2: エステ魂は1日10回（画面に上限が出ないため、ここで持つ）
     border: 'border-violet-100', accent: 'text-violet-600', big: 'text-violet-500',
     btn: 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700',
@@ -134,12 +134,14 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
           <span>本日残り</span>
           <span className={`${site.big} text-6xl font-black leading-none`}>{remaining}</span>
           <span>{quota != null ? `/ ${quota}回` : '回'}</span>
+          {/* ★ 第1417便: 戻る時刻を過ぎて計算した数字は見込み（サイトで手で押した分はまだ入っていない） */}
+          {s.countStale && <span className="ml-1 text-[12px] font-bold text-slate-400">（見込み）</span>}
         </p>
       ) : (
         <p className="text-center text-[13px] text-slate-500 py-2">まだ{site.name}の残り回数を読んでいません（押しに行ったときに読みます）</p>
       )}
       {s.readAt && (s.countStale
-        ? <p className="-mt-2 text-center text-[11px] text-slate-400 tabular-nums">{resetLabel ? `毎日${resetLabel}に` : ''}{site.name}の回数が戻っています（最後に読んだのは {hm(s.readAt)}）</p>
+        ? <p className="-mt-2 text-center text-[11px] text-slate-400 tabular-nums">{resetLabel ? `毎日${resetLabel}に` : ''}{site.name}の回数が戻るので、その分を足した見込みです（最後に読んだのは {hm(s.readAt)}・{site.name}で手で押した分は入っていません）</p>
         : <p className="-mt-2 text-center text-[11px] text-slate-400 tabular-nums">{hm(s.readAt)} 時点の{site.name}の回数</p>)}
 
       <button type="button" disabled={busy !== '' || remaining === 0} onClick={() => void runNow()}
