@@ -43,7 +43,21 @@ eq('題名（タグ）: NO.1・殿堂入りが先・新人の印・タグなし�
   m.dailyShiftTitleByTags('2026-10-13', [{ name: 'みつは', badges: ['キレイ'], isNewFace: true }]),
   m.dailyShiftTitleByTags('2026-10-13', [{ name: 'あかね', badges: ['キレイ'] }]),
   m.dailyShiftTitleByTags('2026-10-13', [{ name: 'なぎさ', badges: ['店長おすすめ'] }, { name: 'るい', badges: ['NO.1'] }]),
-], ['10/13 ★NO.1★るいさん出勤♪', '10/13 👑殿堂入り👑りかさん出勤', '10/13 🌸新人🌸みつはさん出勤', '10/13 出勤速報｜あかねさん', '10/13 【店長イチオシ】なぎささん・るいさん出勤']);
+], ['10/13 ★NO.1★るいさん出勤♪', '10/13 👑殿堂入り👑りかさん出勤', '10/13 🌸新人🌸みつはさん出勤', '10/13 ✨美人✨あかねさん出勤', '10/13 【店長イチオシ】なぎささん・るいさん出勤']);
+// ★ 第1423便: 外見・タイプは付けた順の最初・ランクが先・どれも無ければ出勤速報
+eq('題名（外見・タイプ）', [
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'えま', badges: ['経験者', '癒し系', 'ギャル'] }]),
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'えま', badges: ['ギャル', 'NO.1'] }]),
+  m.dailyShiftTitleByTags('2026-10-13', [{ name: 'えま', badges: ['経験者', 'アロマ得意'] }]),
+], ['10/13 🌿癒し系🌿えまさん出勤', '10/13 ★NO.1★えまさん出勤♪', '10/13 出勤速報｜えまさん']);
+// 外見・タイプの全語に言い回しがある（タグ表と食い違わない）
+{
+  const fs = require('fs');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'therapistBadges.ts'), 'utf8');
+  const pick = (k) => (new RegExp(k + ":\\s*\\[([^\\]]*)\\]").exec(src) || [, ''])[1].match(/'([^']+)'/g).map((x) => x.slice(1, -1));
+  const words = [...pick('look'), ...pick('mood')];
+  eq('★ 外見・タイプの全語に言い回しがある', words.filter((w) => !m.DAILY_TITLE_BY_LOOK[w]), []);
+}
 
 console.log(fail === 0 ? '\n全部 ok' : '\nNG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

@@ -83,6 +83,22 @@ export const DAILY_TITLE_BY_TAG: ReadonlyArray<{ tag: string; make: (who: string
   { tag: '要予約', make: (w) => `【要予約】人気の${w}出勤` },
 ];
 
+/**
+ * ★ 第1423便（カッキーさん「外見・タイプタグも題名が変わるのに入れる事はできますか」）:
+ *   上（ランク・新人）のどれも無いときは、外見・タイプのタグの言い回し。1人目の方のタグを【付けた順】に見て、最初に当たったもの。
+ *   ★ 言葉は表に出る題名なので、からだの直接の言い方はしない（巨乳→グラマー・熟女→大人の魅力）。
+ */
+export const DAILY_TITLE_BY_LOOK: Readonly<Record<string, string>> = {
+  // 外見
+  'ギャル': '💖ギャル系💖', '清楚': '✨清楚系✨', 'キレイ': '✨美人✨', 'かわいい': '💕かわいい💕',
+  'お姉さん系': '◇お姉さん系◇', '妹系': '🎀妹系🎀', '童顔': '☆童顔☆', 'モデル系': '👠モデル系👠',
+  'スレンダー': '◇スレンダー美女◇', '美脚': '◇美脚◇', '低身長': '🌷小柄な', '高身長': '◇長身◇',
+  '熟女': '◆大人の魅力◆', '巨乳': '◆グラマー◆', 'アイドル系': '⭐アイドル系⭐', 'キャバ嬢': '🥂華やか🥂',
+  // タイプ（雰囲気）
+  '癒し系': '🌿癒し系🌿', '笑顔が素敵': '😊笑顔が素敵😊', '明るい': '☀明るい☀', '天然': '🌼天然🌼',
+  'トーク上手': '💬トーク上手💬', 'おしとやか': '🌸おしとやか🌸', 'ツンデレ': '💘ツンデレ💘',
+};
+
 /** 題名「10/13 ★NO.1★なぎささん・るいさん出勤♪」。タグが無ければ「10/13 出勤速報｜なぎささん」 */
 export function dailyShiftTitleByTags(
   businessDate: string,
@@ -94,7 +110,11 @@ export function dailyShiftTitleByTags(
   const lead = featured[0];
   const has = (tag: string) => lead.badges.includes(tag) || (tag === '新人' && lead.isNewFace === true);
   const hit = DAILY_TITLE_BY_TAG.find((t) => has(t.tag));
-  return `${m}/${d} ${hit ? hit.make(who) : `出勤速報｜${who}`}`;
+  if (hit) return `${m}/${d} ${hit.make(who)}`;
+  // ★ 第1423便: 外見・タイプのタグ（付けた順の最初の1つ）
+  const look = lead.badges.find((b) => DAILY_TITLE_BY_LOOK[b]);
+  if (look) return `${m}/${d} ${DAILY_TITLE_BY_LOOK[look]}${who}出勤`;
+  return `${m}/${d} 出勤速報｜${who}`;
 }
 
 /** 題名「10/13 出勤速報｜なぎささん・るいさん」（★ 一覧に日ごとに残るので「本日の」は付けない） */
