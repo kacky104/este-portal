@@ -39,7 +39,14 @@ export default function CrmMoneyPage() {
   const { access, adminSalonQuery } = useCrmAccess();
   return (
     <CrmShell access={access} adminSalonQuery={adminSalonQuery} current="money">
-      {(a) => <MoneyBody salonId={a.salonId} />}
+      {(a) => a.moneyEnabled
+        ? <MoneyBody salonId={a.salonId} />
+        : (
+          // ★ 第1415便: 金銭授受を使わない設定のお店（タブは出していない・アドレスを直接開いたとき）
+          <p className="mx-auto max-w-[640px] border border-slate-200 bg-white p-8 text-center text-[14px] leading-relaxed text-slate-500">
+            金銭授受は「使わない」設定になっています。<br />使うときは「設定」→「金銭授受」で ON にしてください。
+          </p>
+        )}
     </CrmShell>
   );
 }

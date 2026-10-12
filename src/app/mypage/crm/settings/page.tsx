@@ -36,6 +36,7 @@ const SETTING_TABS = [
   { key: 'alarms', label: '予約アラーム' },
   { key: 'consent', label: '来店時の同意書（QR）' },
   { key: 'cast', label: 'セラピストへの公開' },
+  { key: 'money', label: '金銭授受' },
   { key: 'import', label: 'データの取り込み' },
 ] as const;
 type SettingTab = (typeof SETTING_TABS)[number]['key'];
@@ -437,9 +438,43 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
           <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
             ON にすると、セラピスト本人のページ（/cast）に「スケジュール」タブが出て、<b>自分の出勤と予約</b>をタイムラインで見られます（日付を切り替えられます）。
             左の枠にはその日の待機場所（部屋）、予約には時間・お客様の名前・コースを出します。
-            お客様の電話番号・料金・報酬・お店のメモ・女子メモ・ほかのセラピストの予定は見せません。
+            報酬はその日の合計だけを出します（予約ごとの料金・報酬は出しません）。お客様の電話番号・お店のメモ・女子メモ・ほかのセラピストの予定は見せません。
           </p>
           <p className="mt-1 text-[12px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
+        </section>
+      )}
+
+      {/* ★ 第1415便（カッキーさん）: 金銭授受を使うか／受領が未入力の予約を「女子が受領」とみなすか */}
+      {tab === 'money' && (
+        <section className="space-y-4 border border-slate-200 bg-white p-5">
+          <h2 className="text-[17px] font-black text-slate-800">金銭授受</h2>
+          <div>
+            <label className="flex cursor-pointer items-center gap-2 text-[15px] font-bold">
+              <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.moneyEnabled} onChange={(e) => setSt({ ...st, moneyEnabled: e.target.checked })} />
+              金銭授受を使う
+            </label>
+            <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+              OFF にすると、「金銭授受」のタブと、報酬確定の画面の「精算」の欄を出しません。予約の「未受領」の表示・締め作業の未受領と未精算の注意も出しません。
+              精算を毎日その場で済ませていて、記録が要らないお店向けです。記録したものは消えません（ON に戻すと、また見られます）。
+            </p>
+          </div>
+          <div className={st.moneyEnabled ? '' : 'opacity-50'}>
+            <label className="flex cursor-pointer items-center gap-2 text-[15px] font-bold">
+              <input type="checkbox" className="h-5 w-5 accent-indigo-600" disabled={!st.moneyEnabled} checked={!!st.autoReceivedFrom} onChange={(e) => setSt({ ...st, autoReceivedFrom: e.target.checked ? (st.autoReceivedFrom ?? 'on') : null })} />
+              受領が未入力の予約は「女子が受領」とみなす
+            </label>
+            <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+              お客様がセラピストに直接お支払いするお店向けです。予約ごとに「受領」を選ばなくても、料金をセラピストが受け取ったものとして残高を数えます。
+              支払いが<b>カード・PayPay</b>の分は「お店が受領」として数えます（現金とカードに分けた予約は、現金の分だけ女子が受領）。
+              「受領」を選んだ予約は、選んだとおりに数えます。
+            </p>
+            <p className="mt-1 text-[12px] text-slate-500">
+              {st.autoReceivedFrom && st.autoReceivedFrom !== 'on'
+                ? `${st.autoReceivedFrom.replaceAll('-', '/')} の営業日から先の予約に効いています（それより前の残高は変えていません）。`
+                : 'ON にして保存した日（今日の営業日）から先の予約に効きます。それより前の残高は変わりません。'}
+            </p>
+          </div>
+          <p className="text-[12px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
         </section>
       )}
 

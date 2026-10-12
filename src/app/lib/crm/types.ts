@@ -93,6 +93,10 @@ export type CrmAccess =
       groupPending: boolean;
       /** この店が、まだ返事をしていない署名・承認の数（第1328便）。★ タブに赤い印を付ける */
       groupTodo: number;
+      /** ★ 第1415便: 金銭授受を使うか（設定）。false のお店には「金銭授受」のタブを出さない */
+      moneyEnabled: boolean;
+      /** ★ 第1415便: 受領が未入力の予約を「女子が受領」とみなす日（から先）。null＝しない */
+      autoReceivedFrom: string | null;
     }
   | { ok: false; error: string; needLogin?: boolean };
 
@@ -322,9 +326,43 @@ export const CRM_PLAY_LABEL: Record<CrmPlayStatus, string> = { '': '予約', add
 export const CRM_RECEIVED = ['', 'therapist', 'shop'] as const;
 export type CrmReceivedBy = (typeof CRM_RECEIVED)[number];
 export const CRM_RECEIVED_LABEL: Record<CrmReceivedBy, string> = { '': '未受領', therapist: '女子が受領', shop: 'お店が受領' };
-/** 未受領として数える予約か：キャンセル以外・料金が入っている・開始を過ぎた */
-export function isUnreceived(b: { status: string; priceTotal: number | null; receivedBy: string; slotStartISO: string }, nowMs: number): boolean {
+/** 未受領として数える予約か：キャンセル以外・料金が入っている・開始を過ぎた。
+ *  ★ 第1415便: 設定「受領を自動で」（autoReceivedFrom）の日から先の予約は、未入力でも受領済み扱い（未受領に数えない） */
+export function isUnreceived(b: { status: string; priceTotal: number | null; receivedBy: string; slotStartISO: string }, nowMs: number, autoReceivedFrom?: string | null): boolean {
+  if (autoReceivedFrom && crmBusinessDateOf(b.slotStartISO) >= autoReceivedFrom) return false;
   return b.status !== 'cancelled' && b.priceTotal != null && !b.receivedBy && new Date(b.slotStartISO).getTime() <= nowMs;
+}
+
+/** ★ 第1415便: 予約の開始（ISO）→ 営業日（朝6時区切り・JST）YYYY-MM-DD */
+export function crmBusinessDateOf(iso: string): string {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return '';
+  return new Date(ms + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
+}
+
+/** ★ 第1415便: お店（店頭の端末）に入る払い方。受領が未入力のとき、この分は「お店が受領」として数える */
+export const CRM_SHOP_PAYMENT_METHODS = ['カード', 'PayPay'] as const;
+
+/**
+ * ★ 第1415便: その予約で「女子が受領した料金」として数える額。
+ *   ・受領が入っていれば今までどおり（女子が受領＝料金の全額／お店が受領＝0）
+ *   ・未入力で、設定「受領を自動で」の日から先の予約なら、料金からカード・PayPay の分を引いた額（現金・その他・未入力の払い方は女子が受領）
+ *   ・それ以外（未入力・設定なし）は 0（今までどおり）
+ *   ★ DB の関数 crm_money_balances（追加SQL_第1415便）も同じ決め方。変えるときは両方そろえること。
+ */
+export function crmReceivedByTherapist(
+  b: { receivedBy: string; priceTotal: number | null; paymentMethod: string; paymentSplit: CrmPaymentSplit[]; slotStartISO: string },
+  autoReceivedFrom: string | null | undefined,
+): number {
+  const price = b.priceTotal ?? 0;
+  if (b.receivedBy === 'therapist') return price;
+  if (b.receivedBy) return 0;
+  if (!autoReceivedFrom || crmBusinessDateOf(b.slotStartISO) < autoReceivedFrom) return 0;
+  const shop = (m: string) => (CRM_SHOP_PAYMENT_METHODS as readonly string[]).includes(m);
+  const shopPart = b.paymentSplit.length > 0
+    ? b.paymentSplit.filter((x) => shop(x.method)).reduce((a, x) => a + x.amount, 0)
+    : (shop(b.paymentMethod) ? price : 0);
+  return Math.max(0, price - shopPart);
 }
 
 /** 指名のバッジ：本指名＝本／フリー＝ﾌﾘｰ／ネット指名＝ﾈｯﾄ（第614便で追加）／それ以外（お店が足した指名）は出さない */
@@ -371,6 +409,13 @@ export type CrmSettings = {
   castPayEnabled: boolean;
   /** 自由に作れる出勤情報の項目（最大2つ・第597便）。例：掛け持ち出勤／A・B・C */
   customToggles: CrmToggle[];
+  /** ★ 第1415便: 金銭授受を使う（false＝「金銭授受」のタブと、報酬確定の画面の精算欄を出さない）。既定 true */
+  moneyEnabled: boolean;
+  /**
+   * ★ 第1415便: 受領が未入力の予約を「女子が受領」とみなす（その日から先の営業日 YYYY-MM-DD・null＝しない）。
+   *   カード・PayPay で払われた分は「お店が受領」として数える（crmReceivedByTherapist）。ON にした日より前の予約は変えない。
+   */
+  autoReceivedFrom: string | null;
 };
 
 /**
@@ -458,7 +503,7 @@ export function normalizeCrmAlarms(raw: unknown): CrmAlarm[] {
   return out;
 }
 
-export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS, consentEnabled: false, consentTitle: '', consentBody: '', castPayEnabled: false, customToggles: [] };
+export const CRM_DEFAULT_SETTINGS: CrmSettings = { dayStartMin: 600, dayEndMin: 1740, defaultEndType: 'finish', rooms: [], roomColors: {}, alarms: CRM_DEFAULT_ALARMS, consentEnabled: false, consentTitle: '', consentBody: '', castPayEnabled: false, customToggles: [], moneyEnabled: true, autoReceivedFrom: null };
 
 /** 同意書（第560便）：CRM で見る1件 */
 export type CrmConsent = {

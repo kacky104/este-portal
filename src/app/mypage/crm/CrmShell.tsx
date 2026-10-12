@@ -135,7 +135,8 @@ export function CrmShell({
         {access.active ? (
           <nav className="mt-1 flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] md:mt-2 md:gap-1 md:px-3">
             {/* ★ スマホでタブが収まらないときは横にすべらせる（第541便） */}
-            {(access.inGroup || access.groupPending ? [...NAV.slice(0, 2), NAV_GROUP, ...NAV.slice(2)] : NAV).map((n) => (
+            {/* ★ 第1415便: 設定で「金銭授受を使う」を OFF にしたお店には、金銭授受のタブを出さない */}
+            {(access.inGroup || access.groupPending ? [...NAV.slice(0, 2), NAV_GROUP, ...NAV.slice(2)] : NAV).filter((n) => n.key !== 'money' || access.moneyEnabled).map((n) => (
               <Link
                 key={n.key}
                 href={links.href(n.href) + adminSalonQuery}

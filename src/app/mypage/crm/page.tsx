@@ -438,7 +438,11 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       + data.confirms.reduce((a, c) => a + c.allowance, 0);
     const workingCount = therapistRows.filter((r) => (r.therapist?.schedules.length ?? 0) > 0).length;
     // ★ 第1228便: 未受領の予約そのもの（時間順）も返す＝「未受領 N件」を押すと最初の1件の詳細を開ける
-    const unreceivedList = visibleBookings.filter((b) => isUnreceived(b, nowMs)).sort((a, b) => a.slotStartISO.localeCompare(b.slotStartISO));
+    // ★ 第1415便: 金銭授受を使わないお店は「未受領」を出さない。受領を自動にした日から先は未受領に数えない
+    const moneyOn = data.settings?.moneyEnabled !== false;
+    const unreceivedList = moneyOn
+      ? visibleBookings.filter((b) => isUnreceived(b, nowMs, data.settings?.autoReceivedFrom ?? null)).sort((a, b) => a.slotStartISO.localeCompare(b.slotStartISO))
+      : [];
     const unreceived = unreceivedList.length;
     return { rows, startMin, endMin, activeCount, workingCount, sales, payAll, unreceived, unreceivedList };
   }, [data, date, baseMs, nowMs]);
@@ -658,6 +662,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           baseMs={baseMs}
           bookings={data.bookings.filter((b) => b.therapistId === confirmFor.id)}
           confirm={data.confirms.find((c) => c.therapistId === confirmFor.id) ?? null}
+          moneyEnabled={data.settings?.moneyEnabled !== false}
           onClose={() => setConfirmFor(null)}
           onDone={() => { setConfirmFor(null); reload(); }}
         />
@@ -2058,8 +2063,10 @@ function MemoDialog({
 
 // ── 報酬確定 ───────────────────────────────────────
 function ConfirmDialog({
-  therapist, salonId, date, baseMs, bookings, confirm, transport, onClose, onDone,
+  therapist, salonId, date, baseMs, bookings, confirm, transport, onClose, onDone, moneyEnabled,
 }: {
+  /** ★ 第1415便: 金銭授受を使うか。false なら下の精算欄を出さない */
+  moneyEnabled: boolean;
   /** 出勤情報の交通費（まだ確定していないときの手当の初期値・第550便） */
   transport: number;
   therapist: CrmScheduleTherapist;
@@ -2175,7 +2182,7 @@ function ConfirmDialog({
                 )
               )}
             </div>
-            <SettleBox salonId={salonId} therapistId={therapist.id} date={date} />
+            {moneyEnabled && <SettleBox salonId={salonId} therapistId={therapist.id} date={date} />}
           </div>
         </div>
       </div>

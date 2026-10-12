@@ -56,6 +56,7 @@ import {
   CRM_TOGGLE_OPTION_MAX,
   CRM_TOGGLE_OPTION_LEN,
   isUnreceived,
+  crmReceivedByTherapist,
   nominationBadge,
   CRM_MONEY_CATEGORIES,
   CRM_MONEY_DIRECTIONS,
@@ -119,6 +120,7 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
   const active = isAdmin || isCrmActive(crmUntil);
   // ★ 第1328便: 申込み・承認の途中の店にもタブを出す（groupPending）。返事を待っていることがあれば赤い印（groupTodo）
   const grp = active ? await readCrmGroupAccess(svc, Number(data.id)) : { inGroup: false, groupPending: false, groupTodo: 0 };
+  const money = active ? await readMoneyOpts(svc, Number(data.id)) : { moneyEnabled: true, autoReceivedFrom: null };
   return {
     ok: true,
     salonId: Number(data.id),
@@ -130,6 +132,8 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
     inGroup: grp.inGroup,
     groupPending: grp.groupPending,
     groupTodo: grp.groupTodo,
+    moneyEnabled: money.moneyEnabled,
+    autoReceivedFrom: money.autoReceivedFrom,
   };
 }
 
@@ -1343,11 +1347,12 @@ async function unsettledNames(svc: Svc, salonId: number, dateISO: string, known:
 }
 
 async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<CrmDaySummary> {
-  const [bookings, confirms, working, report] = await Promise.all([
+  const [bookings, confirms, working, report, money] = await Promise.all([
     readDayBookings(svc, salonId, dateISO),
     readConfirms(svc, salonId, dateISO),
     readWorking(svc, salonId, dateISO),
     readReport(svc, salonId, dateISO),
+    readMoneyOpts(svc, salonId),   // ★ 第1415便
   ]);
   const active = bookings.filter((b) => b.status !== 'cancelled');
   const sales = active.reduce((a, b) => a + b.priceTotal, 0);
@@ -1375,8 +1380,11 @@ async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<C
     allowance,
     freeUnassigned: active.filter((b) => b.therapistId == null).length,
     unconfirmed: needIds.map((id) => names.get(id) ?? '(不明)'),
-    unreceived: bookings.filter((b) => isUnreceived({ ...b, priceTotal: b.hasPrice ? b.priceTotal : null }, Date.now())).length,
-    unsettled: await unsettledNames(svc, salonId, dateISO, names),
+    // ★ 第1415便: 金銭授受を使わないお店は、未受領・未精算の注意を出さない。受領を自動にした日から先は未受領に数えない
+    unreceived: money.moneyEnabled
+      ? bookings.filter((b) => isUnreceived({ ...b, priceTotal: b.hasPrice ? b.priceTotal : null }, Date.now(), money.autoReceivedFrom)).length
+      : 0,
+    unsettled: money.moneyEnabled ? await unsettledNames(svc, salonId, dateISO, names) : [],
     report,
   };
 }
@@ -1645,11 +1653,23 @@ export async function setCrmReceived(
 }
 
 // ── 設定と「受まで／上がり」（第548便）──────────────────
+/**
+ * ★ 第1415便: 金銭授受の設定（使うか・受領を自動で）だけを読む。
+ *   ★ 列が無い（追加SQL_第1415便がまだ）・読めないときは既定（使う・自動なし）＝今までどおり。
+ */
+async function readMoneyOpts(svc: Svc, salonId: number): Promise<{ moneyEnabled: boolean; autoReceivedFrom: string | null }> {
+  const { data, error } = await svc.from('crm_settings').select('money_enabled, auto_received_from').eq('salon_id', salonId).maybeSingle();
+  if (error || !data) return { moneyEnabled: true, autoReceivedFrom: null };
+  const from = data.auto_received_from ? String(data.auto_received_from).slice(0, 10) : null;
+  return { moneyEnabled: data.money_enabled !== false, autoReceivedFrom: from && /^\d{4}-\d{2}-\d{2}$/.test(from) ? from : null };
+}
+
 async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
+  const money = await readMoneyOpts(svc, salonId);
   const { data, error } = await svc
     .from('crm_settings').select('day_start_min, day_end_min, default_end_type, rooms, room_colors, alarms, consent_enabled, consent_title, consent_body, cast_pay_enabled, custom_toggles').eq('salon_id', salonId).maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) return { ...CRM_DEFAULT_SETTINGS, alarms: normalizeCrmAlarms(null) };
+  if (!data) return { ...CRM_DEFAULT_SETTINGS, alarms: normalizeCrmAlarms(null), ...money };
   return {
     dayStartMin: Number(data.day_start_min) || CRM_DEFAULT_SETTINGS.dayStartMin,
     dayEndMin: Number(data.day_end_min) || CRM_DEFAULT_SETTINGS.dayEndMin,
@@ -1664,6 +1684,7 @@ async function readSettings(svc: Svc, salonId: number): Promise<CrmSettings> {
     consentBody: String(data.consent_body ?? ''),
     castPayEnabled: Boolean(data.cast_pay_enabled),
     customToggles: normalizeCrmToggles(data.custom_toggles),
+    ...money,
   };
 }
 
@@ -1790,6 +1811,21 @@ export async function saveCrmSettings(
     updated_at: new Date().toISOString(),
   });
   if (error) return { ok: false, error: dbMessage(error) };
+  // ★ 第1415便: 金銭授受の設定は別に書く（列が無い＝追加SQL_第1415便がまだのときも、ほかの設定の保存は止めない）
+  {
+    const cur = await readMoneyOpts(auth.svc, salonId);
+    const wantAuto = !!settings.autoReceivedFrom;
+    // ★ 受領の自動は、ON にした日（今日の営業日）から先だけ。すでに ON なら日付は動かさない（過去の残高を変えない）
+    const autoFrom = wantAuto ? (cur.autoReceivedFrom ?? businessDateNowJST()) : null;
+    const { error: mErr } = await auth.svc.from('crm_settings')
+      .update({ money_enabled: settings.moneyEnabled !== false, auto_received_from: autoFrom })
+      .eq('salon_id', salonId);
+    if (mErr) {
+      if (settings.moneyEnabled === false || wantAuto) {
+        return { ok: false, error: 'ほかの設定は保存しました。金銭授受の設定は、まだ保存先が用意されていません（運営事務局までご連絡ください）' };
+      }
+    }
+  }
   return { ok: true };
 }
 
@@ -1996,7 +2032,7 @@ async function moneyByDay(
   const untilEnd = opt.untilDate ? businessWindow(opt.untilDate).endISO : null;
   const bookings = await readAll<Record<string, unknown>>((from, to) => {
     let q = svc.from('salon_bookings')
-      .select('therapist_id, price_total, pay_total, received_by, slot_start')
+      .select('therapist_id, price_total, pay_total, received_by, slot_start, payment_method, payment_split')
       .eq('salon_id', salonId)
       .neq('status', 'cancelled')
       .not('therapist_id', 'is', null)
@@ -2019,6 +2055,8 @@ async function moneyByDay(
     return q.order('id').range(from, to);
   });
 
+  // ★ 第1415便: 受領が未入力の予約を「女子が受領」とみなす設定（DB の関数 crm_money_balances と同じ決め方）
+  const { autoReceivedFrom } = await readMoneyOpts(svc, salonId);
   const out = new Map<number, Map<string, MoneyAgg>>();
   const cell = (tid: number, date: string) => {
     let m = out.get(tid);
@@ -2035,7 +2073,13 @@ async function moneyByDay(
     const tid = Number(b.therapist_id);
     const date = businessDateOf(String(b.slot_start));
     const a = cell(tid, date);
-    if (b.received_by === 'therapist') a.received += Number(b.price_total) || 0;
+    a.received += crmReceivedByTherapist({
+      receivedBy: String(b.received_by ?? ''),
+      priceTotal: b.price_total == null ? null : Number(b.price_total),
+      paymentMethod: String(b.payment_method ?? ''),
+      paymentSplit: parsePaymentSplit(b.payment_split),
+      slotStartISO: String(b.slot_start),
+    }, autoReceivedFrom);
     if (!confirmed.has(`${tid}|${date}`)) a.pay += Number(b.pay_total) || 0;
   }
   for (const [key, pay] of confirmed) {

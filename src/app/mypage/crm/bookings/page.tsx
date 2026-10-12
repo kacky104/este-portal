@@ -38,7 +38,7 @@ export default function CrmBookingsPage() {
   const { access, adminSalonQuery } = useCrmAccess();
   return (
     <CrmShell access={access} adminSalonQuery={adminSalonQuery} current="bookings">
-      {(a) => <BookingsBody salonId={a.salonId} adminSalonQuery={adminSalonQuery} />}
+      {(a) => <BookingsBody salonId={a.salonId} adminSalonQuery={adminSalonQuery} autoReceivedFrom={a.moneyEnabled ? a.autoReceivedFrom : null} moneyEnabled={a.moneyEnabled} />}
     </CrmShell>
   );
 }
@@ -47,7 +47,7 @@ const STATUS_OPTIONS: Array<[CrmBookingSearch['status'], string]> = [
   ['all', 'すべて'], ['active', 'キャンセル以外'], ['unconfirmed', '未確定'], ['cancelled', 'キャンセル'], ['bad', '悪質キャンセル'],
 ];
 
-function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
+function BookingsBody({ salonId, adminSalonQuery, autoReceivedFrom, moneyEnabled }: { salonId: number; adminSalonQuery: string; /** ★ 第1415便 */ autoReceivedFrom: string | null; moneyEnabled: boolean }) {
   const crm = useCrmLinks();
   const today = businessTodayJST();
   // ★ 第1218便: 既定の期間は「今月1日〜月末」（前は〜今日で、これからの予約＝未確定のネット予約が既定で出なかった）
@@ -156,7 +156,7 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         <div className="divide-y divide-slate-200 border border-slate-200 bg-white md:hidden">
           {list.map((b) => {
             const cancelled = b.status === 'cancelled';
-            const received = b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : isUnreceived(b, nowMs) ? '未受領' : '';
+            const received = b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : (moneyEnabled && isUnreceived(b, nowMs, autoReceivedFrom)) ? '未受領' : '';
             return (
               <div key={b.id} className={`px-3 py-2 text-[13px] ${cancelled ? 'text-slate-400' : ''}`}>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -249,7 +249,7 @@ function BookingsBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
                     </td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{yen(b.priceTotal)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">{yen(b.payTotal)}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-[12px]">{b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : isUnreceived(b, nowMs) ? '未受領' : ''}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-[12px]">{b.receivedBy ? CRM_RECEIVED_LABEL[b.receivedBy as CrmReceivedBy] ?? '' : (moneyEnabled && isUnreceived(b, nowMs, autoReceivedFrom)) ? '未受領' : ''}</td>
                     <td className="min-w-[140px] px-2 py-1.5 text-[12px]">
                       {b.consentAt ? (
                         <ConsentView
