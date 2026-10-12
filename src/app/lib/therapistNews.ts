@@ -10,13 +10,14 @@ import { shiftRangeText } from '@/lib/scheduleFormat';
 //
 // ★ お知らせとは別のカテゴリー。その日の出勤から「本日の出勤速報」を1日1本作る（エステ魂の出勤速報ニュースと同じ形）。
 // ★ DB には何も書かない。ページを作るたびに、出勤（therapist_schedules）と在籍のセラピストから作る。
-// ★ 始まりは 2026-10-13（カッキーさん「過去の分はいらない・今日から」）。新しい順・最大30日。出勤0人の日は無い。
+// ★ 始まりは 2026-10-12 の営業日（カッキーさん「過去の分はいらない・今日から」）。新しい順・最大30日。出勤0人の日は無い。
 // ★ ピックアップの決まりは lib/dailyShiftNews.ts（イチオシ＝「店長おすすめ」タグから75%・お店×日で決まる）。
 // ★ 過去の日の分も、その日の出勤から作り直す（いまの在籍・プロフィールで）。退店した方はその日の分から消える。
 
 type PublicClient = ReturnType<typeof createPublicClient>;
 
-export const THERAPIST_NEWS_START = '2026-10-13';
+// ★ 第1420便: 10/13 にすると、10/13 の 6:00 まで（営業日は 10/12）1本も出なかった（カッキーさんが localhost で 1:15 に確かめた）。今の営業日から出す
+export const THERAPIST_NEWS_START = '2026-10-12';
 export const THERAPIST_NEWS_MAX_DAYS = 30;
 
 export type TherapistNewsEntry = { date: string; title: string; featured: DailyShiftCard[]; others: DailyShiftCard[] };
