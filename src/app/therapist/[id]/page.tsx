@@ -223,13 +223,14 @@ export default async function TherapistPublicPage({
   //   ★ 画面にも見える形で出す（Google のためだけに隠した文は置かない）。
   const DIARY_EXCERPT_COUNT = 3;
   const excerptIds = diaryPosts.slice(0, DIARY_EXCERPT_COUNT).map((p) => p.id);
-  const diaryExcerpts: Array<{ id: number; date: string; title: string; text: string }> = [];
+  const diaryExcerpts: Array<{ id: DiaryPostView['id']; date: string; title: string; text: string }> = [];
   if (excerptIds.length > 0) {
     const { data: bodyRows } = await supabase.from('diary_posts').select('id, content').in('id', excerptIds);
-    const bodyById = new Map((bodyRows ?? []).map((b) => [Number(b.id), String(b.content ?? '')]));
+    // ★ 第1414便: 写メ日記の id は文字列（uuid）。数字に直すと突き合わせられず、本文が全部空になっていた（第1413便のミス）
+    const bodyById = new Map((bodyRows ?? []).map((b) => [String(b.id), String(b.content ?? '')]));
     const md = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' });
     for (const p of diaryPosts.slice(0, DIARY_EXCERPT_COUNT)) {
-      const text = truncatePlain((bodyById.get(p.id) ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' '), 70);
+      const text = truncatePlain((bodyById.get(String(p.id)) ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' '), 70);
       if (!text && !p.title) continue;
       diaryExcerpts.push({ id: p.id, date: md.format(new Date(p.created_at)), title: p.title ?? '', text });
     }
