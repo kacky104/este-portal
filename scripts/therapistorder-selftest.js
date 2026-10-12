@@ -100,5 +100,12 @@ eq('空の一覧は空のまま', m.sortTherapistsForList([], () => true, () => 
     [/resolveSalon\(\{ write: true \}\)/.test(save.slice(0, 400)), /ownIds\.has\(id\)/.test(save), /from\('therapists'\)\s*\.update|from\('therapists'\)\.update/.test(save.slice(0, save.indexOf('\n}\n')))], [true, true, false]);
 }
 
+// ── ★ 第1410便: フクエスCRM（その日の方だけ）の並べ替えを全体に差し込む ──
+eq('★ その日の方（2・4）を入れ替える → ほかの方（1・3・5）の位置は動かない', m.placeSubsetOrder([1, 2, 3, 4, 5], [4, 2]), [1, 4, 3, 2, 5]);
+eq('3人を回す', m.placeSubsetOrder([1, 2, 3, 4, 5], [5, 1, 3]), [5, 2, 1, 4, 3]);
+eq('★ 並びに無い id・同じ id 2つは入れない', m.placeSubsetOrder([1, 2, 3], [3, 9, 3, 1]), [3, 2, 1]);
+eq('変えていなければ同じ', m.placeSubsetOrder([1, 2, 3], [1, 3]), [1, 2, 3]);
+eq('位置: 並びにある→その位置／無い→-1／並びが空→-1', [m.manualOrderRank([7, 8], 8), m.manualOrderRank([7, 8], 9), m.manualOrderRank([], 7)], [1, -1, -1]);
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

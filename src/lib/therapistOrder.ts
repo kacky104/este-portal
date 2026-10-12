@@ -97,6 +97,33 @@ export function manualOrderToSave<T>(list: readonly T[], getId: (t: T) => number
   return out;
 }
 
+/**
+ * ★ 第1410便（2026-10-12・ラビリンス様のご要望）: 一部の方だけを並べ替えた結果を、全体の並びに差し込む。
+ *   フクエスCRM のタイムラインは【その日に出勤している方だけ】を出すので、その方たちの順だけを変える。
+ *   ・base … いまの全体の並び（公開中の方の id を上から順に＝コネックエフのセラピスト一覧と同じ）
+ *   ・subset … 並べ替えたあとの、その日の方たち（上から順）
+ *   → base の中で subset の方たちがいた場所（の集まり）に、subset の順で入れ直す。★ ほかの方の位置は動かさない。
+ *   ★ base に無い id は入れない（呼ぶ側で自店の公開中の方か確かめる）。
+ */
+export function placeSubsetOrder(base: readonly number[], subset: readonly number[]): number[] {
+  const inBase = new Set(base);
+  const seen = new Set<number>();
+  const sub = subset.filter((id) => inBase.has(id) && !seen.has(id) && (seen.add(id), true));
+  const subSet = new Set(sub);
+  let k = 0;
+  return base.map((id) => (subSet.has(id) ? sub[k++] : id));
+}
+
+/**
+ * ★ 第1410便: 並びの中の位置（フクエスCRM の行の順に使う）。
+ *   並びに入っていない方は -1（コネックエフと同じく、新しく登録した方はいちばん上）。★ 同じ値どうしは呼ぶ側が出勤の早い順にする
+ */
+export function manualOrderRank(order: readonly number[] | null | undefined, id: number): number {
+  if (!order || order.length === 0) return -1;
+  const i = order.indexOf(id);
+  return i;
+}
+
 /** 一覧の中で、id の方を target の方の位置へ動かす（つまんで動かす途中の並び）。★ 元の配列は変えない。動かせないときは同じ配列を返す */
 export function moveInList<T>(list: readonly T[], getId: (t: T) => number, id: number, targetId: number): T[] {
   const from = list.findIndex((t) => getId(t) === id);

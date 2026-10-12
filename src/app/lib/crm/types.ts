@@ -155,6 +155,8 @@ export type CrmScheduleData = {
   /** グループ・提携店の共有リストを読めなかった（第1325便）。★ true のとき、印が出ていなくても「当たりなし」とは限らない */
   groupFailed: boolean;
   therapists: CrmScheduleTherapist[];
+  /** ★ 第1410便: セラピストの並び（公開中の方の id を上から順に・コネックエフのセラピスト一覧と同じ表）。無ければ []＝出勤の早い順 */
+  therapistOrder: number[];
   bookings: CrmScheduleBooking[];
   /** 受付フォームのコース候補（salons.booking_courses・予約ボードと同じ） */
   courses: Array<{ name: string; durationMin: number; price: string }>;

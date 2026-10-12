@@ -17,6 +17,8 @@ import { normalizePhone } from '@/app/lib/validation/phone';
 // ★ 第1113便: 予約ボードの読む部分を直接使う（getBookingBoardData を呼ぶと認証が二重・予約を2回読むため）
 import { loadBookingBoard, normalizeIntervalMin } from '@/app/lib/booking/boardData';
 import { scheduleWindowUtc } from '@/app/lib/booking/slots';
+import { readConecfGirlOrder, isMissingOrderTable } from '@/app/lib/conecf/girlOrder';
+import { sortTherapistsByManual, placeSubsetOrder } from '@/lib/therapistOrder';
 import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
 import { assertCrmOwner, isCrmActive } from '@/app/lib/crm/auth';
 import { dbMessage } from '@/app/lib/crm/dbError';
@@ -679,9 +681,11 @@ export async function getCrmSchedule(
         console.error('[crm] グループ共有を読めなかった', salonId, e instanceof Error ? e.message : String(e));
         return { failed: true, byPhone: new Map<string, CrmGroupHit[]>() };
       }),
+    // ★ 第1410便: セラピストの並び（コネックエフと同じ表）。★ 読めなければ []＝今までどおり出勤の早い順（ここで投げない）
+    readConecfGirlOrder(svc, salonId),
   ]).catch((e: unknown) => readFail(e));
   if (!Array.isArray(reads)) return reads;
-  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits] = reads;
+  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits, therapistOrder] = reads;
 
   const consentAt = new Map<string, string>();
   for (const c of consentRows) consentAt.set(String(c.booking_id), String(c.created_at));
@@ -716,6 +720,7 @@ export async function getCrmSchedule(
         memo: memos.get(t.id) ?? '',
         schedules: t.schedules.map((w) => ({ start: w.start, end: w.end, startISO: w.startISO, endISO: w.endISO })),
       })),
+      therapistOrder,
       bookings: bookings.map((b) => {
         const e = extra.get(b.id);
         return {
@@ -748,6 +753,41 @@ export async function getCrmSchedule(
   };
   if (lite || settings === null) return { ok: true, lite: true, data: base };
   return { ok: true, lite: false, data: { ...base, settings, priceItems } };
+}
+
+/**
+ * ★ 第1410便（2026-10-12・ラビリンス様のご要望）: フクエスCRM のタイムラインで並べ替えた順を保存する。
+ *   ・保存先はコネックエフのセラピスト一覧と同じ表（conecf_girl_order・店ごとに1行）＝どちらで変えても両方に効く。
+ *   ・CRM に出ているのはその日の方だけなので、その方たちの順だけを全体の並びに差し込む（placeSubsetOrder）。ほかの方の位置は動かさない。
+ *   ・書けるのは CRM を使える自店だけ（assertCrm）。★ 自店の公開中の方以外の id が混じっていたら保存しない。
+ *   ・therapists の行には触らない。フクエスの店舗ページ・各サイトへは送らない（revalidate もしない）。
+ */
+export async function saveCrmTherapistOrder(salonId: number, ids: number[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const raw = Array.isArray(ids) ? ids.map(Number).filter((n) => Number.isInteger(n) && n > 0) : [];
+  if (raw.length === 0 || raw.length > 500) return { ok: false, error: '並び順を保存できませんでした' };
+  const { data: ths, error: thErr } = await svc.from('therapists').select('id, name, is_active').eq('salon_id', salonId);
+  if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+  const all = (ths ?? []).map((t) => ({ id: Number(t.id), name: (t.name as string | null) ?? '', hidden: t.is_active === false }));
+  const order = await readConecfGirlOrder(svc, salonId);
+  // ★ いまの全体の並び（コネックエフの一覧と同じ並べ方）。公開中の方だけ
+  const base = sortTherapistsByManual(all, (t) => t.id, (t) => t.name, (t) => t.hidden, order).filter((t) => !t.hidden).map((t) => t.id);
+  const baseSet = new Set(base);
+  // ★ 自店の公開中の方だけ（他店の id・非公開の方は入れない＝ placeSubsetOrder も base に無い id は無視する）
+  const subset = raw.filter((id) => baseSet.has(id));
+  if (subset.length === 0) return { ok: false, error: '並び順を保存できませんでした。画面を更新してから、もう一度お試しください' };
+  const next = placeSubsetOrder(base, subset);
+  const { error } = await svc
+    .from('conecf_girl_order')
+    .upsert({ salon_id: salonId, therapist_ids: next, updated_at: new Date().toISOString() }, { onConflict: 'salon_id' });
+  if (error) {
+    if (isMissingOrderTable(error.code)) return { ok: false, error: '並び順の保存先がまだ用意されていません。運営事務局までご連絡ください' };
+    console.error('[crm] 並び順を保存できなかった', salonId, error.code, error.message);
+    return { ok: false, error: '並び順を保存できませんでした。時間をおいて、もう一度お試しください' };
+  }
+  return { ok: true };
 }
 
 /**

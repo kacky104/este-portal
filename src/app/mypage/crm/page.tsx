@@ -21,6 +21,7 @@ import {
   setCrmReceived,
   setCrmWorkEnd,
   saveCrmWorkDay,
+  saveCrmTherapistOrder,
   unconfirmCrmPay,
 } from '@/app/actions/crm';
 import {
@@ -93,6 +94,7 @@ import { ConsentView } from './ConsentView';
 import { GroupHitBand } from './GroupShare';
 import { CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_BADGE_LABEL, crmGroupBadge, type CrmGroupHit } from '@/lib/crmGroup';
 import { shiftRangeText, shiftNextDayMarks } from '@/lib/scheduleFormat';
+import { manualOrderRank } from '@/lib/therapistOrder';
 
 // フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
 //
@@ -326,6 +328,26 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   }, []);
 
   const reload = useCallback(() => setTick((v) => v + 1), []);
+  // ★ 第1410便: 行の並べ替え（▲▼）。同じ組（確定していない／確定した）の中で、となりの方と入れ替える。
+  //   ★ 画面はすぐ入れ替え、保存はコネックエフと同じ表へ（saveCrmTherapistOrder がその日の方の順だけを全体に差し込む）。
+  const orderBusyRef = useRef(false);
+  const moveRow = async (ids: number[], tid: number, dir: -1 | 1) => {
+    if (orderBusyRef.current) return;
+    const i = ids.indexOf(tid);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    const next = [...ids];
+    [next[i], next[j]] = [next[j], next[i]];
+    orderBusyRef.current = true;
+    setData((d) => (d ? { ...d, therapistOrder: [...next, ...d.therapistOrder.filter((x) => !next.includes(x))] } : d));
+    try {
+      const r = await safeCall(() => saveCrmTherapistOrder(salonId, next));
+      if (!r.ok) { setErr(r.error); reload(); return; }
+    } finally {
+      orderBusyRef.current = false;
+    }
+  };
+
   // 「受まで／上がり」の切り替え（表のバッジと、出勤情報の小窓の両方から）
   const toggleEnd = async (tid: number, next: CrmEndType) => {
     // ★ 第1218便: 保存が終わるまで同じ人の切り替えを受け付けない（反応が無いと思って2回押すと元に戻っていた）
@@ -398,7 +420,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     // 出勤の早い順（出勤なし・予約だけの人は後ろ）
     const firstStart = (r: Row) => r.therapist?.schedules[0] ? minOfDay(r.therapist.schedules[0].startISO, baseMs) : 99999;
     // ★ 報酬を確定した人は灰色にして下へ（風俗CTIv2 と同じ・第543便）。取り消すと元の位置に戻る。
-    therapistRows.sort((a, b) => Number(!!a.done) - Number(!!b.done) || firstStart(a) - firstStart(b));
+    // ★ 第1410便（ラビリンス様のご要望）: 確定した人を下へ、の次は【店舗様が決めた並び】（コネックエフのセラピスト一覧と同じ・CRM の ▲▼ でも変えられる）。
+    //   並びに無い方は上（-1）。並びが無い店・同じ位置どうしは今までどおり出勤の早い順。
+    const orderRank = (r: Row) => (r.therapist ? manualOrderRank(data.therapistOrder, r.therapist.id) : -1);
+    therapistRows.sort((a, b) => Number(!!a.done) - Number(!!b.done) || orderRank(a) - orderRank(b) || firstStart(a) - firstStart(b));
     rows.push(...therapistRows);
 
     const startMin = Math.floor(minStart / 60) * 60;
@@ -531,6 +556,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           castNotifyOn={Boolean(data?.settings.castPayEnabled)}
           nowJump={nowJump}
           onWork={setWorkFor}
+          onMoveRow={moveRow}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
           onToggleEnd={toggleEnd}
           onEmpty={(therapistId, min) => {
@@ -675,8 +701,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, endTypeOf, onToggleEnd, onEmpty, date, castNotifyOn, nowJump,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, onMoveRow, endTypeOf, onToggleEnd, onEmpty, date, castNotifyOn, nowJump,
 }: {
+  /** ★ 第1410便: 行を上下に動かす（ids … 同じ組の方の id を上から順に） */
+  onMoveRow: (ids: number[], therapistId: number, dir: -1 | 1) => void;
   /** いま開いている日（YYYY-MM-DD）。「LINE」で知らせる文面とリンクに使う（第1209便） */
   date: string;
   /** 設定「セラピストへの公開」が ON か。OFF だとセラピストページにスケジュールが出ないので、「LINE」は押せない形で出す（第1209便） */
@@ -839,6 +867,19 @@ function Grid({
                       if (!room) return null;
                       const c = roomColor(roomColorOf(room));
                       return <span className="flex-none truncate px-1 text-[10px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
+                    })()}
+                    {/* ★ 第1410便（ラビリンス様のご要望）: 並べ替え ▲▼（同じ組＝確定していない方どうし／確定した方どうし）。決めた順はコネックエフのセラピスト一覧にも効く */}
+                    {(() => {
+                      const ids = rows.filter((x) => x.therapist && !!x.done === !!r.done).map((x) => x.therapist!.id);
+                      if (ids.length < 2) return null;
+                      const i = ids.indexOf(r.therapist!.id);
+                      const btn = 'block h-[11px] w-[16px] text-[8px] leading-[11px] text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 disabled:opacity-25 disabled:hover:bg-transparent';
+                      return (
+                        <span className="ml-auto flex flex-none flex-col border border-slate-300 bg-white">
+                          <button type="button" aria-label="上へ" title="上へ" disabled={i <= 0} onClick={() => onMoveRow(ids, r.therapist!.id, -1)} className={btn}>▲</button>
+                          <button type="button" aria-label="下へ" title="下へ" disabled={i >= ids.length - 1} onClick={() => onMoveRow(ids, r.therapist!.id, 1)} className={btn}>▼</button>
+                        </span>
+                      );
                     })()}
                   </p>
                   {/* ★ 第1369便: 出勤時刻と本数は必ず全部出す（flex-none・折り返さない）。幅が足りないときはバッジの側が切れる（前は時刻が「11:00…」と切れた） */}
