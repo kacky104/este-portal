@@ -1,7 +1,7 @@
 import type { createPublicClient } from '@/app/lib/supabase/public';
 import type { DailyShiftCard } from '@/app/salon/[id]/DailyShiftNews';
 import { getBusinessDateJST, addBusinessDays, toBusinessElapsed } from '@/lib/dutyStatus';
-import { pickDailyShift, dailyShiftTitleByTags, DAILY_PICK_BADGE } from '@/lib/dailyShiftNews';
+import { pickDailyShift, dailyShiftTitleByTags } from '@/lib/dailyShiftNews';
 import { isNewFaceActive } from '@/lib/newFace';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { formatBodySizes } from '@/lib/bodyType';
@@ -12,7 +12,7 @@ import { shiftRangeText } from '@/lib/scheduleFormat';
 // ★ お知らせとは別のカテゴリー。その日の出勤から「本日の出勤速報」を1日1本作る（エステ魂の出勤速報ニュースと同じ形）。
 // ★ DB には何も書かない。ページを作るたびに、出勤（therapist_schedules）と在籍のセラピストから作る。
 // ★ 始まりは 2026-10-12 の営業日（カッキーさん「過去の分はいらない・今日から」）。新しい順・最大30日。出勤0人の日は無い。
-// ★ ピックアップの決まりは lib/dailyShiftNews.ts（イチオシ＝「店長おすすめ」タグから75%・お店×日で決まる）。
+// ★ ピックアップの決まりは lib/dailyShiftNews.ts（その日の出勤から完全にランダム・お店×日で決まる・第1424便）。
 // ★ 過去の日の分も、その日の出勤から作り直す（いまの在籍・プロフィールで）。退店した方はその日の分から消える。
 
 type PublicClient = ReturnType<typeof createPublicClient>;
@@ -48,7 +48,7 @@ export async function loadTherapistNews(supabase: PublicClient, salonId: number,
     .in('schedule_date', dates)
     .eq('is_active', true);
 
-  const byDate = new Map<string, Array<DailyShiftCard & { startKey: number; isPick: boolean }>>();
+  const byDate = new Map<string, Array<DailyShiftCard & { startKey: number }>>();
   for (const r of sch ?? []) {
     if (!r.start_time || !r.end_time) continue;
     const t = byId.get(Number(r.therapist_id));
@@ -68,7 +68,6 @@ export async function loadTherapistNews(supabase: PublicClient, salonId: number,
       badges: sanitizeBadges(t.feature_badges),
       isNewFace: isNewFaceActive(t.is_new_face as boolean | null, (t.new_face_since as string | null) ?? null),
       startKey: toBusinessElapsed(h * 60 + (mi || 0)),
-      isPick: sanitizeBadges(t.feature_badges).includes(DAILY_PICK_BADGE),
     });
     byDate.set(String(r.schedule_date), list);
   }

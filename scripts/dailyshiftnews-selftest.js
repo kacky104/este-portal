@@ -8,32 +8,27 @@ const eq = (name, got, want) => {
   if (g !== w) { console.log('NG ' + name + '\n   got  ' + g + '\n   want ' + w); fail++; }
   else console.log('ok ' + name);
 };
-const P = (id, startKey, isPick) => ({ id, name: 'n' + id, startKey, isPick });
+const P = (id, startKey) => ({ id, name: 'n' + id, startKey });
 const seq = (...xs) => { let i = 0; return () => xs[i++ % xs.length]; };
 
 eq('人数: 0→0・1〜3→1・4以上→2', [0, 1, 3, 4, 9].map(m.dailyPickCount), [0, 1, 1, 2, 2]);
+// ★ 第1424便: 出勤の方みんなから完全にランダム
 {
-  const ppl = [P(1, 600, false), P(2, 300, true), P(3, 900, false), P(4, 100, true)];
-  // 0.1 < 0.75 → イチオシから（出勤の早い順のイチオシ [4,2] の 0番）→ 4。次 0.9 → それ以外 [1,3] の 0番 → 1
-  const r = m.pickDailyShift(ppl, 6, '2026-10-13', seq(0.1, 0.0, 0.9, 0.0));
-  eq('★ 75% はイチオシから・25% はそれ以外から', r.featured.map((p) => p.id), [4, 1]);
+  const ppl = [P(1, 600), P(2, 300), P(3, 900), P(4, 100)];
+  // 出勤の早い順 [4,2,1,3]。0.6 → 4人の 2番 = 1。残り [4,2,3] で 0.0 → 4
+  const r = m.pickDailyShift(ppl, 6, '2026-10-13', seq(0.6, 0.0));
+  eq('乱数どおりに選ぶ', r.featured.map((p) => p.id), [1, 4]);
   eq('それ以外は出勤の早い順（選んだ方を除く）', r.others.map((p) => p.id), [2, 3]);
 }
 {
-  const ppl = [P(1, 600, false), P(2, 300, false)];
-  eq('★ イチオシがいない日は、それ以外から', m.pickDailyShift(ppl, 6, 'x', seq(0.1, 0.0)).featured.map((p) => p.id), [2]);
-  const ppl2 = [P(1, 600, true), P(2, 300, true)];
-  eq('★ それ以外がいない日は、イチオシから', m.pickDailyShift(ppl2, 6, 'x', seq(0.9, 0.99)).featured.map((p) => p.id), [1]);
-}
-{
-  const ppl = Array.from({ length: 6 }, (_, i) => P(i + 1, i * 60, i < 2));
+  const ppl = Array.from({ length: 6 }, (_, i) => P(i + 1, i * 60));
   const a = m.pickDailyShift(ppl, 6, '2026-10-13').featured.map((p) => p.id);
   const b = m.pickDailyShift(ppl, 6, '2026-10-13').featured.map((p) => p.id);
   eq('★ 同じお店・同じ日は同じ方（作り直しても変わらない）', a, b);
-  // 確率の見当: 1000日ぶん、1人目がイチオシになる割合が 0.7〜0.8
-  let hit = 0;
-  for (let d = 0; d < 1000; d++) { const f = m.pickDailyShift(ppl, 6, 'd' + d).featured; if (f[0].isPick) hit++; }
-  eq('★ 1人目がイチオシの割合はおよそ75%（1000日）', hit > 700 && hit < 800, true);
+  // ★ 偏りの見当: 3000日ぶん、1人目に選ばれる回数が6人とも 350〜650 回（平均500）
+  const cnt = {};
+  for (let d = 0; d < 3000; d++) { const f = m.pickDailyShift(ppl, 6, 'd' + d).featured; cnt[f[0].id] = (cnt[f[0].id] || 0) + 1; }
+  eq('★ 6人とも同じくらい選ばれる（3000日）', Object.values(cnt).length === 6 && Object.values(cnt).every((c) => c > 350 && c < 650), true);
 }
 eq('題名', [m.dailyShiftTitle('2026-10-13', ['なぎさ', 'るい']), m.dailyShiftTitle('2026-10-03', [])], ['10/13 出勤速報｜なぎささん・るいさん', '10/3 出勤速報']);
 // ★ 第1421便: 題名をタグで変える（1人目のいちばん強いタグ）

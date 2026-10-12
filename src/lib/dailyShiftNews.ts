@@ -4,23 +4,18 @@
 //   ほかの出勤の方を短く並べる）と同じものを、フクエスのお店のお知らせページのいちばん上に出す。
 // ★ 決まり（カッキーさん）:
 //   ・ピックアップ（大きく紹介する方）は、出勤4人以上なら2人、1〜3人なら1人。
-//   ・1人ずつ、75% の確率で「イチオシ」（コネックエフで付ける「店長おすすめ」タグ）の方から、
-//     25% でそれ以外の方から、ランダムに選ぶ。★ 片方に出勤の方がいなければ、もう片方から。
+//   ・★ 第1424便（カッキーさん）: その日に出勤する方から【完全にランダム】に選ぶ。
+//     （第1418便の「イチオシ（店長おすすめタグ）から75%・それ以外から25%」はやめた）
 //   ・選び方は【お店×営業日】で決まる（同じ日に何度ページを作り直しても同じ方が出る）。
 // ★ DB には何も書かない（毎回、出勤とセラピストから作る）。
 
 import { mulberry32 } from './shuffle';
-
-export const DAILY_PICK_RATE = 0.75;
-export const DAILY_PICK_BADGE = '店長おすすめ';
 
 export type DailyShiftPerson = {
   id: number;
   name: string;
   /** その日の出勤の始まり（営業日の 6:00 からの分・並べ順に使う） */
   startKey: number;
-  /** イチオシか（「店長おすすめ」タグ） */
-  isPick: boolean;
 };
 
 /** 文字列から 32bit の種（FNV-1a） */
@@ -52,13 +47,10 @@ export function pickDailyShift<T extends DailyShiftPerson>(
   const r = rand ?? mulberry32(dailySeed(salonId, businessDate));
   const byStart = [...people].sort((a, b) => a.startKey - b.startKey || a.id - b.id);
   const n = dailyPickCount(byStart.length);
-  const pickPool = byStart.filter((p) => p.isPick);
-  const otherPool = byStart.filter((p) => !p.isPick);
+  // ★ 第1424便: 出勤の方みんなから同じ確率で（選んだ方は除いて次を選ぶ）
+  const pool = [...byStart];
   const featured: T[] = [];
-  for (let k = 0; k < n; k++) {
-    const wantPick = r() < DAILY_PICK_RATE;
-    const pool = (wantPick ? pickPool : otherPool).length > 0 ? (wantPick ? pickPool : otherPool) : (wantPick ? otherPool : pickPool);
-    if (pool.length === 0) break;
+  for (let k = 0; k < n && pool.length > 0; k++) {
     const i = Math.floor(r() * pool.length) % pool.length;
     featured.push(pool.splice(i, 1)[0]);
   }
