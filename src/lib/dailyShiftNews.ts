@@ -1,0 +1,74 @@
+// お店のお知らせページの「本日の出勤速報」（第1418便・2026-10-13・カッキーさん）。★ 純粋関数だけ。
+//
+// ★ エステ魂の店舗ページにある「本日の出勤速報」のニュース（その日の出勤から1〜2人を大きく紹介し、
+//   ほかの出勤の方を短く並べる）と同じものを、フクエスのお店のお知らせページのいちばん上に出す。
+// ★ 決まり（カッキーさん）:
+//   ・ピックアップ（大きく紹介する方）は、出勤4人以上なら2人、1〜3人なら1人。
+//   ・1人ずつ、75% の確率で「イチオシ」（コネックエフで付ける「店長おすすめ」タグ）の方から、
+//     25% でそれ以外の方から、ランダムに選ぶ。★ 片方に出勤の方がいなければ、もう片方から。
+//   ・選び方は【お店×営業日】で決まる（同じ日に何度ページを作り直しても同じ方が出る）。
+// ★ DB には何も書かない（毎回、出勤とセラピストから作る）。
+
+import { mulberry32 } from './shuffle';
+
+export const DAILY_PICK_RATE = 0.75;
+export const DAILY_PICK_BADGE = '店長おすすめ';
+
+export type DailyShiftPerson = {
+  id: number;
+  name: string;
+  /** その日の出勤の始まり（営業日の 6:00 からの分・並べ順に使う） */
+  startKey: number;
+  /** イチオシか（「店長おすすめ」タグ） */
+  isPick: boolean;
+};
+
+/** 文字列から 32bit の種（FNV-1a） */
+export function dailySeed(salonId: number, businessDate: string): number {
+  let h = 0x811c9dc5;
+  for (const ch of `${salonId}|${businessDate}|daily-shift-news`) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h >>> 0;
+}
+
+/** ピックアップの人数（出勤4人以上→2人・1〜3人→1人・0人→0） */
+export function dailyPickCount(working: number): number {
+  if (working <= 0) return 0;
+  return working >= 4 ? 2 : 1;
+}
+
+/**
+ * ピックアップと、それ以外（出勤の早い順）を返す。
+ * @param rand 0〜1 を返す関数（テスト用に差し替えられる）。省略時は dailySeed から作る
+ */
+export function pickDailyShift<T extends DailyShiftPerson>(
+  people: readonly T[],
+  salonId: number,
+  businessDate: string,
+  rand?: () => number,
+): { featured: T[]; others: T[] } {
+  const r = rand ?? mulberry32(dailySeed(salonId, businessDate));
+  const byStart = [...people].sort((a, b) => a.startKey - b.startKey || a.id - b.id);
+  const n = dailyPickCount(byStart.length);
+  const pickPool = byStart.filter((p) => p.isPick);
+  const otherPool = byStart.filter((p) => !p.isPick);
+  const featured: T[] = [];
+  for (let k = 0; k < n; k++) {
+    const wantPick = r() < DAILY_PICK_RATE;
+    const pool = (wantPick ? pickPool : otherPool).length > 0 ? (wantPick ? pickPool : otherPool) : (wantPick ? otherPool : pickPool);
+    if (pool.length === 0) break;
+    const i = Math.floor(r() * pool.length) % pool.length;
+    featured.push(pool.splice(i, 1)[0]);
+  }
+  const chosen = new Set(featured.map((p) => p.id));
+  return { featured, others: byStart.filter((p) => !chosen.has(p.id)) };
+}
+
+/** 題名「10/13 本日の出勤速報｜なぎささん・るいさん」 */
+export function dailyShiftTitle(businessDate: string, featuredNames: readonly string[]): string {
+  const [, m, d] = businessDate.split('-').map(Number);
+  const who = featuredNames.length > 0 ? `｜${featuredNames.map((n) => `${n}さん`).join('・')}` : '';
+  return `${m}/${d} 本日の出勤速報${who}`;
+}
