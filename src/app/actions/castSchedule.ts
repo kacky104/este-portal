@@ -7,6 +7,9 @@
 //   ★ 第630便: ニックネーム（cast_customer_nicknames・本人だけ）と「あなたの接客 ◯回目」を足した。★ 鍵の customer_id は画面に渡さない。
 //   ★ 第628便: ポップアップ用に 指名の名前・延長とオプションの名前 を足した（どれも料金なし）。
 //   ★ 電話番号・料金・報酬・お店のメモ・ほかのセラピストの予定は返さない。
+//   ★★ 第1412便（2026-10-12・ラビリンス様のご要望・カッキーさん）: 本人の【その日の報酬の合計】だけは返す（出勤の行に「報酬 ¥25,000」と出す）。
+//     中身はフクエスCRM のセラピスト欄と同じ（確定済みなら 確定の報酬＋手当、まだなら キャンセル以外の予約の報酬の合計）。
+//     ★ 予約1件ごとの料金・報酬は今までどおり返さない。★ 上の「今日の報酬」（記録帳でセラピストが入れた値）とは別物で、そちらは変えない。
 // ★ ログイン中の user_id → therapists.id を確かめてから service_role で読む（castCustomers と同じ流儀・旧 castPay も同じだった）。
 
 import { nominationBadge, type CrmBookingItem, type CrmNominationBadge } from '@/app/lib/crm/types';
@@ -51,6 +54,10 @@ export type CastScheduleDay = {
   breakStartMin: number | null;
   breakEndMin: number | null;
   bookings: CastScheduleBooking[];
+  /** ★ 第1412便: その日の報酬の合計（CRM のセラピスト欄と同じ）。出勤も予約も無い日は 0 */
+  pay: number;
+  /** ★ 第1412便: お店が報酬を確定済みか */
+  payConfirmed: boolean;
 };
 
 /** 予約の crm_items（jsonb）から、指名・延長・オプションの【名前だけ】拾う。★ 料金・報酬は読まない（/cast には出さないため） */
@@ -122,15 +129,18 @@ export async function getCastScheduleDay(
   const from = new Date(base + 6 * 3600_000).toISOString();
   const to = new Date(base + 30 * 3600_000).toISOString();
 
-  const [{ data: sch }, { data: wd }, { data: bs, error: bErr }] = await Promise.all([
+  const [{ data: sch }, { data: wd }, { data: bs, error: bErr }, { data: cf }] = await Promise.all([
     m.svc.from('therapist_schedules').select('start_time, end_time')
       .eq('therapist_id', m.therapistId).eq('schedule_date', date).eq('is_active', true),
     m.svc.from('crm_work_days').select('room, break_start_min, break_end_min')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).eq('business_date', date).maybeSingle(),
     // ★ 第1213便: キャンセルの予約も読む（消えたように見せず「キャンセル」と出すため）。画面側でタイムラインからは外す
-    m.svc.from('salon_bookings').select('id, customer_id, slot_start, slot_end, course_name, customer_name, crm_items, status')
+    m.svc.from('salon_bookings').select('id, customer_id, slot_start, slot_end, course_name, customer_name, crm_items, status, pay_total')
       .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId)
       .gte('slot_start', from).lt('slot_start', to).order('slot_start').order('id'),
+    // ★ 第1412便: お店の報酬確定（あれば、確定の報酬＋手当を出す＝CRM のセラピスト欄と同じ）
+    m.svc.from('crm_pay_confirms').select('pay_total, allowance')
+      .eq('salon_id', m.salonId).eq('therapist_id', m.therapistId).eq('business_date', date).maybeSingle(),
   ]);
   if (bErr) return { ok: false, error: '読み込めませんでした' };
 
@@ -140,7 +150,9 @@ export async function getCastScheduleDay(
     let e = hmToMin(r.end_time);
     if (s == null || e == null) continue;
     if (e <= s) e += 1440; // 翌日にまたぐ
-    shifts.push({ startMin: s, endMin: e });
+    // ★ 第1412便: 朝6時より前に始まる出勤（00:00〜05:30 開始）は、その日の営業日の翌0時台（第1408便 scheduleWindowUtc と同じ読み方）
+    if (s < 6 * 60) shifts.push({ startMin: s + 1440, endMin: e + 1440 });
+    else shifts.push({ startMin: s, endMin: e });
   }
   // ★ 第630便: 台帳にひも付く予約のお客様について、本人のニックネームと、本人の接客の順番を引く
   const custIds = [...new Set((bs ?? []).map((b) => b.customer_id).filter((v) => v != null).map(Number))];
@@ -196,6 +208,11 @@ export async function getCastScheduleDay(
       breakStartMin: wd?.break_start_min == null ? null : Number(wd.break_start_min),
       breakEndMin: wd?.break_end_min == null ? null : Number(wd.break_end_min),
       bookings,
+      // ★ 第1412便: 報酬の合計。確定済みなら 確定の報酬＋手当、まだなら キャンセル以外の予約の報酬の合計（CRM のセラピスト欄と同じ）
+      pay: cf
+        ? (Number(cf.pay_total) || 0) + (Number(cf.allowance) || 0)
+        : (bs ?? []).filter((b) => String(b.status) !== 'cancelled').reduce((a, b) => a + (Number(b.pay_total) || 0), 0),
+      payConfirmed: !!cf,
     },
   };
 }

@@ -161,6 +161,13 @@ export function CastSchedule({
             <span>出勤 {day.shifts.length > 0 ? day.shifts.map((w) => `${hhmm(w.startMin)}〜${hhmm(w.endMin)}`).join(' / ') : 'なし'}
 </span>
             {day.breakStartMin != null && day.breakEndMin != null && <span className="text-slate-400">休憩 {hhmm(day.breakStartMin)}〜{hhmm(day.breakEndMin)}</span>}
+            {/* ★ 第1412便（ラビリンス様のご要望）: その日の報酬（フクエスCRM のセラピスト欄と同じ）。出勤も予約も無い日は出さない。
+                ★ 上の「今日の報酬」（記録帳で自分で入れた値）とは別で、そちらは変えない */}
+            {(day.shifts.length > 0 || day.bookings.some((b) => !b.cancelled)) && (
+              <span className="bg-cyan-50 px-1.5 py-0.5 text-[12px] font-black text-slate-700">
+                報酬 ¥{day.pay.toLocaleString('ja-JP')}{day.payConfirmed && <span className="ml-1 text-emerald-600">確定</span>}
+              </span>
+            )}
           </p>
 
           {/* タイムライン：横いっぱい・横にスクロール（第600便で左の部屋の枠を外した） */}
