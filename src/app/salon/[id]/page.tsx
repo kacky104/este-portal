@@ -358,8 +358,9 @@ export default async function SalonPage({
     // 在籍セラピスト一覧セクション用。props で渡すことで初期HTMLに
     // <a href="/therapist/[id]"> が載る（SEO対応 2026-07-28）。
     fetchSalonTherapists(Number(id), supabase),
-    // ★ 第1419便: セラピストNEWS（写メ日記の下のブロック）。題名だけ使うので新しい3本
-    loadTherapistNews(supabase, Number(id), 3),
+    // ★ 第1419便: セラピストNEWS（写メ日記の下のブロック）。題名だけ使う
+    // ★ 第1427便（カッキーさん）: 店舗トップは最新の1本だけ（以前は3本）
+    loadTherapistNews(supabase, Number(id), 1),
   ]);
 
   // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
