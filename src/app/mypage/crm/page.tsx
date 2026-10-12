@@ -868,19 +868,6 @@ function Grid({
                       const c = roomColor(roomColorOf(room));
                       return <span className="flex-none truncate px-1 text-[10px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
                     })()}
-                    {/* ★ 第1410便（ラビリンス様のご要望）: 並べ替え ▲▼（同じ組＝確定していない方どうし／確定した方どうし）。決めた順はコネックエフのセラピスト一覧にも効く */}
-                    {(() => {
-                      const ids = rows.filter((x) => x.therapist && !!x.done === !!r.done).map((x) => x.therapist!.id);
-                      if (ids.length < 2) return null;
-                      const i = ids.indexOf(r.therapist!.id);
-                      const btn = 'block h-[11px] w-[16px] text-[8px] leading-[11px] text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 disabled:opacity-25 disabled:hover:bg-transparent';
-                      return (
-                        <span className="ml-auto flex flex-none flex-col border border-slate-300 bg-white">
-                          <button type="button" aria-label="上へ" title="上へ" disabled={i <= 0} onClick={() => onMoveRow(ids, r.therapist!.id, -1)} className={btn}>▲</button>
-                          <button type="button" aria-label="下へ" title="下へ" disabled={i >= ids.length - 1} onClick={() => onMoveRow(ids, r.therapist!.id, 1)} className={btn}>▼</button>
-                        </span>
-                      );
-                    })()}
                   </p>
                   {/* ★ 第1369便: 出勤時刻と本数は必ず全部出す（flex-none・折り返さない）。幅が足りないときはバッジの側が切れる（前は時刻が「11:00…」と切れた） */}
                   <p className="flex items-center gap-1 overflow-hidden text-[12px] font-bold text-slate-600">
@@ -932,9 +919,23 @@ function Grid({
                         ) : (
                           <>
                             <span className="bg-cyan-50 px-1 font-bold text-slate-700">報酬 {yen(pay)}</span>
-                            <button type="button" onClick={() => onConfirm(r.therapist!)} className="min-h-[20px] bg-[#3f51b5] px-1.5 font-bold text-white">確定</button>
+                            <button type="button" onClick={() => onConfirm(r.therapist!)} className={`min-h-[20px] bg-[#3f51b5] font-bold text-white ${narrow ? 'px-1' : 'px-1.5'}`}>確定</button>
                           </>
                         )}
+                        {/* ★ 第1410便（ラビリンス様のご要望）: 並べ替え ▲▼（同じ組＝確定していない方どうし／確定した方どうし）。決めた順はコネックエフのセラピスト一覧にも効く。
+                            ★ 第1411便: 1行目（名前の行）だとスマホで名前が「な…」まで縮んだので、いちばん空いている3行目の右端へ移した */}
+                        {(() => {
+                          const ids = rows.filter((x) => x.therapist && !!x.done === !!r.done).map((x) => x.therapist!.id);
+                          if (ids.length < 2) return null;
+                          const i = ids.indexOf(r.therapist!.id);
+                          const btn = 'block h-[10px] w-[14px] text-[8px] leading-[10px] text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 disabled:opacity-25 disabled:hover:bg-transparent';
+                          return (
+                            <span className="ml-auto flex flex-none flex-col border border-slate-300 bg-white">
+                              <button type="button" aria-label="上へ" title="上へ" disabled={i <= 0} onClick={() => onMoveRow(ids, r.therapist!.id, -1)} className={btn}>▲</button>
+                              <button type="button" aria-label="下へ" title="下へ" disabled={i >= ids.length - 1} onClick={() => onMoveRow(ids, r.therapist!.id, 1)} className={btn}>▼</button>
+                            </span>
+                          );
+                        })()}
                       </div>
                     );
                   })()}
