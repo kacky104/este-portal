@@ -138,7 +138,7 @@ export function ScheduleGrid(props: {
                             <span className="block text-[11px] font-bold text-pink-600">出勤</span>
                             {c.start_time && c.end_time ? (
                               <>
-                                <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{c.start_time}</span>
+                                <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{shiftLabel({ isActive: true, start: c.start_time, end: c.end_time }).split('〜')[0]}</span>
                                 <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{endLabel(c)}</span>
                               </>
                             ) : <span className="block text-[12px] font-bold text-slate-500 leading-tight">時間未設定</span>}

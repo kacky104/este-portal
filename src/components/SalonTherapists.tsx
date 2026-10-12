@@ -18,6 +18,7 @@ import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import { dutyRank, sameRankOrder, sortSalonTherapists, photoRank } from '@/lib/therapistSort';
 import type { SalonTheme } from '@/app/lib/themes';
 import { IMASUGU_COLUMNS, SALON_THERAPIST_COLUMNS } from '@/lib/therapistColumns';
+import { buildDisplayHours as buildDisplayHoursShared } from '@/lib/scheduleFormat';
 
 // GridCard は initialList 経由でサーバー描画されるようになった（SEO対応 2026-07-28）。
 // useLayoutEffect はサーバーでは動作せず React が警告を出すため、SSR時は useEffect にフォールバックする。
@@ -64,14 +65,8 @@ function formatJoinDate(since: string | null): string {
   return `${text}入店`;
 }
 
-function buildDisplayHours(start: string | null, end: string | null): string {
-  if (!start || !end) return '';
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const prefix = (eh * 60 + (em || 0)) < (sh * 60 + (sm || 0)) ? '翌' : '';
-  return `${sh}:${pad(sm || 0)}〜${prefix}${eh}:${pad(em || 0)}`;
-}
+// ★ 第1409便: 「翌」の付け方は lib/scheduleFormat.ts の1か所（朝6時より前の開始にも「翌」）
+const buildDisplayHours = buildDisplayHoursShared;
 
 // ── types ─────────────────────────────────────────────────────
 

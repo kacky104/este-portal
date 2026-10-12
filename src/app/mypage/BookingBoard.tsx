@@ -14,6 +14,7 @@ import {
 import type { BookingBoardData, BoardBooking, BoardTherapist } from '@/app/lib/booking/boardData';
 import { callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { useToast } from '@/app/components/useToast';
+import { shiftRangeText, shiftNextDayMarks } from '@/lib/scheduleFormat';
 
 // /mypage「予約ボード」タブ本体（2026-08-14 新設）。
 // 1日タイムライン：縦＝セラピスト（行）・横＝時間（同日中に縦横を反転。当初は縦＝時間だった）。
@@ -107,9 +108,9 @@ function formatDateHeading(dateStr: string): string {
 }
 
 // 出勤帯の表示（"12:00〜翌2:00"）。end<=start は翌日跨ぎ。
+// ★ 第1409便: 「翌」の付け方は lib/scheduleFormat.ts の1か所（朝6時より前の開始にも「翌」）
 function shiftLabel(start: string, end: string): string {
-  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
-  return `${start}〜${toMin(end) <= toMin(start) ? '翌' : ''}${end}`;
+  return shiftRangeText(start, end);
 }
 
 // 名前列（幅44px）の縦表示用ヘルパー。"02:00"→"2:00" と頭のゼロを落とす。
@@ -119,8 +120,7 @@ function trimHourZero(t: string): string {
 
 // 出勤終了が日跨ぎ（＝終了側に「翌」を付ける）か。
 function isOvernight(start: string, end: string): boolean {
-  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
-  return toMin(end) <= toMin(start);
+  return shiftNextDayMarks(start, end).end;
 }
 
 function hourLabel(min: number): string {
@@ -792,7 +792,7 @@ export function BookingBoard({ salonId, active, io = defaultIO }: {
                       <p className="w-full text-[11px] font-bold text-slate-700 truncate leading-tight">{t.name}</p>
                       {todayWin ? (
                         <>
-                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{trimHourZero(todayWin.start)}</p>
+                          <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{shiftNextDayMarks(todayWin.start, todayWin.end).start ? '翌' : ''}{trimHourZero(todayWin.start)}</p>
                           <p className="text-[8px] text-slate-300 leading-none">｜</p>
                           <p className="text-[9px] text-slate-400 leading-tight tracking-tight">{isOvernight(todayWin.start, todayWin.end) ? '翌' : ''}{trimHourZero(todayWin.end)}</p>
                         </>

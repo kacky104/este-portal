@@ -177,7 +177,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                               {c.start && c.end
                                 ? (
                                   <>
-                                    <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{c.start}</span>
+                                    <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{shiftLabel(c).split('〜')[0]}</span>
                                     <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{endLabel(c)}</span>
                                   </>
                                 )

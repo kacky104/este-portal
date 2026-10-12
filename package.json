@@ -53,7 +53,7 @@
     "check:relayretry": "tsc src/lib/relayRetry.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/relayretry-selftest.js",
     "check:diaryattach": "tsc src/lib/diaryAttach.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/diaryattach-selftest.js",
     "check:esutamaappeal": "tsc src/lib/esutamaAppeal.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutamaappeal-selftest.js",
-    "check:schedulewindow": "tsc src/app/lib/booking/slots.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/schedulewindow-selftest.js",
+    "check:schedulewindow": "tsc src/app/lib/booking/slots.ts src/lib/scheduleFormat.ts --rootDir src --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/schedulewindow-selftest.js",
     "check:ekichikabump": "tsc src/lib/ekichikaBump.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/ekichikabump-selftest.js",
     "check:listingplan": "tsc src/lib/listingPlan.ts src/lib/setPlan.ts src/lib/hpPlan.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/listingplan-selftest.js",
     "check:relaywait": "tsc src/lib/relayWait.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/relaywait-selftest.js",

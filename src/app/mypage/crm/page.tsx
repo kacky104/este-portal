@@ -92,6 +92,7 @@ import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vib
 import { ConsentView } from './ConsentView';
 import { GroupHitBand } from './GroupShare';
 import { CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_BADGE_LABEL, crmGroupBadge, type CrmGroupHit } from '@/lib/crmGroup';
+import { shiftRangeText, shiftNextDayMarks } from '@/lib/scheduleFormat';
 
 // フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
 //
@@ -844,7 +845,7 @@ function Grid({
                   <p className="flex items-center gap-1 overflow-hidden text-[12px] font-bold text-slate-600">
                     <span className="flex-none whitespace-nowrap">
                       {r.therapist.schedules.length > 0
-                        ? r.therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ')
+                        ? r.therapist.schedules.map((w) => shiftRangeText(w.start, w.end, '-')).join(' / ')
                         : '出勤なし'}
                       {/* ★ 第1367便: 本数はここ（3行目は「報酬 ¥100,000 確定」だけにして、6桁でも折れないように） */}
                       <span className="ml-1 font-normal text-slate-500">{r.bookings.filter((b) => b.status !== 'cancelled' && inBusinessDay(Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000))).length}本</span>
@@ -973,7 +974,7 @@ function Grid({
                       }`}
                       style={outside ? { left: x(e) + 3 } : { left: Math.max(x(s), x(e) - 2), transform: 'translateX(-100%)' }}
                     >
-                      {CRM_END_LABEL[et]} {w.end <= w.start ? `翌${Number(w.end.slice(0, 2))}:${w.end.slice(3, 5)}` : w.end}
+                      {CRM_END_LABEL[et]} {shiftNextDayMarks(w.start, w.end).end ? `翌${Number(w.end.slice(0, 2))}:${w.end.slice(3, 5)}` : w.end}
                     </button>
                   </div>
                 );
@@ -2609,7 +2610,7 @@ function WorkDayDialog({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px]">
               <span className="font-bold text-slate-500">{dateLabel(date)}</span>
               <span className="font-bold text-slate-800">
-                出勤 {therapist.schedules.length > 0 ? therapist.schedules.map((w) => `${w.start}-${w.end}`).join(' / ') : 'なし'}
+                出勤 {therapist.schedules.length > 0 ? therapist.schedules.map((w) => shiftRangeText(w.start, w.end, '-')).join(' / ') : 'なし'}
               </span>
               <button
                 type="button"

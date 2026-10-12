@@ -26,12 +26,39 @@ export function formatTime(t: string | null): string {
   return `${h}:${pad(m || 0)}`;
 }
 
-/** 開始・終了から "H:MM〜H:MM" を作る。終了が開始より小さい（深夜またぎ）なら終了に「翌」を付与。 */
+/** 出勤日の区切り（朝6時・lib/dutyStatus.ts の DAY_START_HOUR と同じ）。★ これより前に始まる出勤は「翌」 */
+export const SHIFT_DAY_START_MIN = 6 * 60;
+
+/**
+ * 出勤の開始・終了に「翌」を付けるか（第1409便・2026-10-12・カッキーさん「揃えます」）。
+ *   ・開始が朝6時より前（00:00〜05:30）… 開始も終了も「翌」（出勤の入力は 06:00〜翌05:30 から選ぶ＝その日の営業日の翌0時台）
+ *   ・終了が開始以前（深夜またぎ 21:00〜翌03:00）… 終了だけ「翌」
+ *   ★ 時刻の読み方は lib/booking/slots.ts の scheduleWindowUtc（第1408便）と同じ。
+ */
+export function shiftNextDayMarks(start: string | null, end: string | null): { start: boolean; end: boolean } {
+  const toMin = (t: string | null) => {
+    const m = /^(\d{1,2}):(\d{2})/.exec(t ?? '');
+    return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+  };
+  const s = toMin(start), e = toMin(end);
+  if (s === null) return { start: false, end: false };
+  const startNext = s < SHIFT_DAY_START_MIN;
+  return { start: startNext, end: startNext || (e !== null && e <= s) };
+}
+
+/** "20:00〜翌02:00"・"翌00:00〜翌05:00"（時刻の文字はそのまま使う）。★ どちらか無ければ空文字 */
+export function shiftRangeText(start: string | null, end: string | null, sep = '〜'): string {
+  if (!start || !end) return '';
+  const k = shiftNextDayMarks(start, end);
+  return `${k.start ? '翌' : ''}${start}${sep}${k.end ? '翌' : ''}${end}`;
+}
+
+/** 開始・終了から "H:MM〜H:MM" を作る。深夜またぎは終了に、朝6時より前の開始は両方に「翌」を付与（第1409便）。 */
 export function buildDisplayHours(start: string | null, end: string | null): string {
   if (!start || !end) return '';
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
   const pad    = (n: number) => String(n).padStart(2, '0');
-  const prefix = (eh * 60 + (em || 0)) < (sh * 60 + (sm || 0)) ? '翌' : '';
-  return `${sh}:${pad(sm || 0)}〜${prefix}${eh}:${pad(em || 0)}`;
+  const k = shiftNextDayMarks(start, end);
+  return `${k.start ? '翌' : ''}${sh}:${pad(sm || 0)}〜${k.end ? '翌' : ''}${eh}:${pad(em || 0)}`;
 }

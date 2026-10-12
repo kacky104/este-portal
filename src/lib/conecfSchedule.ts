@@ -5,6 +5,8 @@
 // ★ 時刻は30分刻み（連携先4サイトとも30分刻み・lib/timeSnap.ts 第75便）。★ 画面は選ぶだけにして、手打ちを無くした。
 // ★ 日付の区切りは朝6時（lib/dutyStatus.ts の DAY_START_HOUR・カッキーさんの決定 6:00）。
 
+import { shiftRangeText } from './scheduleFormat';
+
 export const CONECF_SCHEDULE_DAYS = 7;
 
 /** 開始の選択肢（06:00〜翌05:30） */
@@ -42,7 +44,8 @@ export function shiftLabel(d: { isActive: boolean; start: string | null; end: st
   if (!d.isActive) return '';
   const s = parseHM(d.start), e = parseHM(d.end);
   if (s === null || e === null) return '時間未設定';
-  return `${d.start}〜${e <= s ? '翌' : ''}${d.end}`;
+  // ★ 第1409便: 朝6時より前の開始は開始にも「翌」（lib/scheduleFormat.ts と同じ決め方）
+  return shiftRangeText(d.start, d.end);
 }
 
 export type ConecfShiftInput = { date: unknown; isActive: unknown; start: unknown; end: unknown };

@@ -14,6 +14,7 @@ import { useHydrated } from '@/lib/useHydrated';
 import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
 import { ImpressionMark } from './ImpressionMark';
 import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
+import { buildDisplayHours as buildDisplayHoursShared } from '@/lib/scheduleFormat';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
 
@@ -41,14 +42,8 @@ export function getScheduleStatus(s: TodaySchedule): StatusResult {
   }
 }
 
-function buildDisplayHours(start: string | null, end: string | null): string {
-  if (!start || !end) return '';
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  const pad    = (n: number) => String(n).padStart(2, '0');
-  const prefix = (eh * 60 + (em || 0)) < (sh * 60 + (sm || 0)) ? '翌' : '';
-  return `${sh}:${pad(sm || 0)}〜${prefix}${eh}:${pad(em || 0)}`;
-}
+// ★ 第1409便: 「翌」の付け方は lib/scheduleFormat.ts の1か所（朝6時より前の開始にも「翌」）
+const buildDisplayHours = buildDisplayHoursShared;
 
 // ── types ─────────────────────────────────────────────────────
 

@@ -8,7 +8,8 @@
 //   使い方:  npm run check:schedulewindow
 
 const path = require('path');
-const m = require(path.join(__dirname, '..', '_tmpcheck', 'slots.js'));
+const m = require(path.join(__dirname, '..', '_tmpcheck', 'app', 'lib', 'booking', 'slots.js'));
+const f = require(path.join(__dirname, '..', '_tmpcheck', 'lib', 'scheduleFormat.js'));
 
 let fail = 0;
 const eq = (name, got, want) => {
@@ -28,6 +29,13 @@ eq('★ 開始 06:00 ちょうどは同じ日（区切り）', w('2026-10-17', '
 eq('★ 開始 01:00〜終わり 00:30（ほぼ24時間）は 翌1:00〜翌々0:30', w('2026-10-17', '01:00', '00:30'), [j('2026-10-18', '01:00'), j('2026-10-19', '00:30')]);
 eq('月をまたぐ（10/31 の 00:00〜05:00 → 11/1）', w('2026-10-31', '00:00', '05:00'), [j('2026-11-01', '00:00'), j('2026-11-01', '05:00')]);
 eq('区切りの値は朝6時', m.SCHEDULE_DAY_START_MIN, 360);
+
+// ★★ 第1409便: 表示の「翌」も同じ決め方（朝6時より前の開始は開始にも「翌」）
+eq('表示: 昼・夜跨ぎ・0時開始・5:30開始・6:00開始', [
+  f.shiftRangeText('14:30', '19:30'), f.shiftRangeText('21:00', '03:00'), f.shiftRangeText('00:00', '05:00'),
+  f.shiftRangeText('05:30', '08:00'), f.shiftRangeText('06:00', '12:00'), f.shiftRangeText('20:30', '00:30', '-'),
+], ['14:30〜19:30', '21:00〜翌03:00', '翌00:00〜翌05:00', '翌05:30〜翌08:00', '06:00〜12:00', '20:30-翌00:30']);
+eq('表示（H:MM 形）: 0時開始・夜跨ぎ', [f.buildDisplayHours('00:00', '05:00'), f.buildDisplayHours('21:00', '03:00')], ['翌0:00〜翌5:00', '21:00〜翌3:00']);
 
 console.log(fail === 0 ? '\n全部 ok' : '\nNG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

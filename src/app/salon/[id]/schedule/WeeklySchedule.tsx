@@ -11,6 +11,7 @@ import { NewBadge } from '@/components/NewBadge';
 import { FeatureBadges } from '@/components/FeatureBadges';
 import { SaveButton } from '@/app/components/SaveButton';
 import { isImasuguLiveCamel } from '@/lib/imasugu';
+import { shiftRangeText } from '@/lib/scheduleFormat';
 
 export type DaySchedule = {
   id:             string;
@@ -72,11 +73,9 @@ function dayColor(dateStr: string): string | null {
   return null;
 }
 
+// ★ 第1409便: 「翌」の付け方は lib/scheduleFormat.ts の1か所（朝6時より前の開始にも「翌」）
 function displayHours(start: string, end: string): string {
-  const [sh, sm] = start.split(':').map(Number);
-  const [eh, em] = end.split(':').map(Number);
-  const overnight = (eh * 60 + (em || 0)) < (sh * 60 + (sm || 0));
-  return `${start}〜${overnight ? '翌' : ''}${end}`;
+  return shiftRangeText(start, end);
 }
 
 // 出勤ステータスのバッジ表示（本日のみライブ判定。未来日は一律「出勤予定」）
