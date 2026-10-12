@@ -35,6 +35,6 @@ eq('人数: 0→0・1〜3→1・4以上→2', [0, 1, 3, 4, 9].map(m.dailyPickCou
   for (let d = 0; d < 1000; d++) { const f = m.pickDailyShift(ppl, 6, 'd' + d).featured; if (f[0].isPick) hit++; }
   eq('★ 1人目がイチオシの割合はおよそ75%（1000日）', hit > 700 && hit < 800, true);
 }
-eq('題名', [m.dailyShiftTitle('2026-10-13', ['なぎさ', 'るい']), m.dailyShiftTitle('2026-10-03', [])], ['10/13 本日の出勤速報｜なぎささん・るいさん', '10/3 本日の出勤速報']);
+eq('題名', [m.dailyShiftTitle('2026-10-13', ['なぎさ', 'るい']), m.dailyShiftTitle('2026-10-03', [])], ['10/13 出勤速報｜なぎささん・るいさん', '10/3 出勤速報']);
 console.log(fail === 0 ? '\n全部 ok' : '\nNG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

@@ -16,12 +16,6 @@ import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { SalonMobileNav } from '../SalonMobileNav';
 import { fetchSalonNavItems } from '../salonNavItems';
-import { DailyShiftNews, type DailyShiftCard } from '../DailyShiftNews';
-import { getBusinessDateJST, toBusinessElapsed } from '@/lib/dutyStatus';
-import { pickDailyShift, dailyShiftTitle, DAILY_PICK_BADGE } from '@/lib/dailyShiftNews';
-import { sanitizeBadges } from '@/lib/therapistBadges';
-import { formatBodySizes } from '@/lib/bodyType';
-import { shiftRangeText } from '@/lib/scheduleFormat';
 
 // 自己参照 canonical＋固有 title（root の canonical '/' 継承による重複扱いを防ぐ）。詳細は ../subpageMetadata.ts。
 export async function generateMetadata({
@@ -121,47 +115,6 @@ export default async function SalonNewsPage({
   // ★ スマホ右ドロワーの中身（第219便）。★ 数字は店舗トップと同じ数え方（salonNavItems.ts）。
   const salonNavItems = await fetchSalonNavItems(Number(id));
 
-  // ★ 第1418便（カッキーさん）: いちばん上の「本日の出勤速報」。その営業日に出勤（時刻あり）の在籍の方から作る。
-  //   ピックアップは lib/dailyShiftNews.ts（イチオシ＝「店長おすすめ」タグから75%・それ以外から25%・お店×日で決まる）。
-  //   出勤0人の日は出さない。★ 読めなかったときも出さない（お知らせ一覧はそのまま）。
-  const today = getBusinessDateJST();
-  let daily: { title: string; featured: DailyShiftCard[]; others: DailyShiftCard[] } | null = null;
-  {
-    const { data: ths } = await supabase
-      .from('therapists')
-      .select('id, name, age, body_type, profile_image_url, feature_badges, catchphrase')
-      .eq('salon_id', Number(id))
-      .eq('is_active', true);
-    const ids = (ths ?? []).map((t) => Number(t.id));
-    const { data: sch } = ids.length > 0
-      ? await supabase.from('therapist_schedules').select('therapist_id, start_time, end_time')
-          .in('therapist_id', ids).eq('schedule_date', today).eq('is_active', true)
-      : { data: [] as Array<Record<string, unknown>> };
-    const shiftOf = new Map<number, { start: string; end: string }>();
-    for (const r of sch ?? []) {
-      if (!r.start_time || !r.end_time) continue;
-      shiftOf.set(Number(r.therapist_id), { start: String(r.start_time).slice(0, 5), end: String(r.end_time).slice(0, 5) });
-    }
-    const people = (ths ?? []).filter((t) => shiftOf.has(Number(t.id))).map((t) => {
-      const sh = shiftOf.get(Number(t.id))!;
-      const [h, mi] = sh.start.split(':').map(Number);
-      const card: DailyShiftCard = {
-        id: Number(t.id),
-        name: String(t.name ?? ''),
-        age: typeof t.age === 'number' ? t.age : (Number(t.age) || null),
-        hours: shiftRangeText(sh.start, sh.end),
-        sizes: formatBodySizes((t.body_type as string | null) ?? null),
-        catchphrase: String(t.catchphrase ?? '').trim(),
-        imageUrl: (t.profile_image_url as string | null) ?? null,
-      };
-      return { ...card, startKey: toBusinessElapsed(h * 60 + (mi || 0)), isPick: sanitizeBadges(t.feature_badges).includes(DAILY_PICK_BADGE) };
-    });
-    if (people.length > 0) {
-      const { featured, others } = pickDailyShift(people, Number(id), today);
-      daily = { title: dailyShiftTitle(today, featured.map((p) => p.name)), featured, others };
-    }
-  }
-
   return (
     <div className="relative min-h-screen overflow-x-clip" style={{ color: theme.text }}>
 
@@ -209,25 +162,13 @@ export default async function SalonNewsPage({
           colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
         />
 
-        {/* ★ 第1418便: 本日の出勤速報（いちばん上） */}
-        {daily && (
-          <DailyShiftNews
-            title={daily.title}
-            dateLabel={formatDate(`${today}T12:00:00+09:00`)}
-            featured={daily.featured}
-            others={daily.others}
-            scheduleHref={`/salon/${id}/schedule`}
-            theme={theme}
-          />
-        )}
-
         {/* お知らせ一覧 */}
-        {announcements.length === 0 && !daily ? (
+        {announcements.length === 0 ? (
           <div className="text-center py-12 text-sm rounded-2xl border" style={{ color: theme.body, backgroundColor: theme.card, borderColor: theme.cardBorder }}>
             お知らせはまだありません
           </div>
         ) : (
-          announcements.length > 0 && <NewsAccordion items={announcements} theme={theme} />
+          <NewsAccordion items={announcements} theme={theme} />
         )}
       </main>
     </div>

@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import type { SalonTheme } from '@/app/lib/themes';
 
-// お知らせページのいちばん上の「本日の出勤速報」（第1418便・2026-10-13・カッキーさん）。
+// セラピストNEWS の1本（その日の出勤速報）（第1418便で作り、第1419便でセラピストNEWS の一覧ページへ・2026-10-13・カッキーさん）。
 // ★ サーバーで描く（クライアントの JS なし）＝ Google にもそのまま本文として見える。
-// ★ 中身はページ側（news/page.tsx）が出勤とセラピストから作って渡す。決まりは lib/dailyShiftNews.ts。
+// ★ 中身は lib/therapistNews.ts（loadTherapistNews）が出勤とセラピストから作って渡す。決まりは lib/dailyShiftNews.ts。
 
 export type DailyShiftCard = {
   id: number;
@@ -16,8 +16,12 @@ export type DailyShiftCard = {
 };
 
 export function DailyShiftNews({
-  title, dateLabel, featured, others, scheduleHref, theme,
+  title, dateLabel, featured, others, scheduleHref, theme, isToday, anchorId,
 }: {
+  /** 今日の分か（文言を「本日は」と「この日は」で言い分ける） */
+  isToday: boolean;
+  /** ページ内リンクの行き先（店舗トップの題名から飛ぶ） */
+  anchorId?: string;
   title: string;
   dateLabel: string;
   featured: DailyShiftCard[];
@@ -27,10 +31,10 @@ export function DailyShiftNews({
 }) {
   const nameAge = (p: DailyShiftCard) => `${p.name}${p.age ? `（${p.age}）` : ''}`;
   return (
-    <article className="mb-4 border shadow-sm overflow-hidden" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+    <article id={anchorId} className="mb-4 scroll-mt-20 border shadow-sm overflow-hidden" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
       <div className="px-4 pt-4 sm:px-5">
         <p className="flex items-center gap-2 text-[12px]" style={{ color: theme.body }}>
-          <span className="bg-pink-500 px-1.5 py-0.5 text-[11px] font-bold text-white">本日の出勤</span>
+          <span className={`px-1.5 py-0.5 text-[11px] font-bold text-white ${isToday ? 'bg-pink-500' : 'bg-slate-400'}`}>{isToday ? '本日の出勤' : '出勤速報'}</span>
           <span>{dateLabel}</span>
         </p>
         <h2 className="mt-1.5 text-[16px] font-bold leading-snug" style={{ color: theme.heading }}>{title}</h2>
@@ -54,7 +58,9 @@ export function DailyShiftNews({
       <div className="space-y-3 px-4 py-4 text-[13px] leading-relaxed sm:px-5" style={{ color: theme.body }}>
         {featured.length > 0 && (
           <p>
-            本日は{featured.map((p) => `『${p.name}』さん`).join('と')}が出勤します。ご予約・ご指名をお待ちしております。
+            {isToday
+              ? <>本日は{featured.map((p) => `『${p.name}』さん`).join('と')}が出勤します。ご予約・ご指名をお待ちしております。</>
+              : <>この日は{featured.map((p) => `『${p.name}』さん`).join('と')}が出勤しました。</>}
           </p>
         )}
         {featured.map((p) => (
@@ -67,7 +73,7 @@ export function DailyShiftNews({
         ))}
         {others.length > 0 && (
           <div>
-            <p className="font-bold" style={{ color: theme.heading }}>☆ ほかにも本日出勤のセラピスト ☆</p>
+            <p className="font-bold" style={{ color: theme.heading }}>☆ ほかにも{isToday ? '本日' : 'この日'}出勤のセラピスト ☆</p>
             <ul className="mt-1 space-y-0.5">
               {others.map((p) => (
                 <li key={p.id}>

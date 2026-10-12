@@ -66,9 +66,9 @@ export function pickDailyShift<T extends DailyShiftPerson>(
   return { featured, others: byStart.filter((p) => !chosen.has(p.id)) };
 }
 
-/** 題名「10/13 本日の出勤速報｜なぎささん・るいさん」 */
+/** 題名「10/13 出勤速報｜なぎささん・るいさん」（★ 一覧に日ごとに残るので「本日の」は付けない） */
 export function dailyShiftTitle(businessDate: string, featuredNames: readonly string[]): string {
   const [, m, d] = businessDate.split('-').map(Number);
   const who = featuredNames.length > 0 ? `｜${featuredNames.map((n) => `${n}さん`).join('・')}` : '';
-  return `${m}/${d} 本日の出勤速報${who}`;
+  return `${m}/${d} 出勤速報${who}`;
 }

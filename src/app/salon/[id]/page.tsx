@@ -48,6 +48,7 @@ const HEART_COLORS: Record<ThemeKey, { fill: string; num: string }> = {
 };
 import { SalonTherapists, SalonAllTherapists, SalonNewFaceTherapists } from "@/components/SalonTherapists";
 import { fetchSalonTherapists } from "@/app/lib/salonTherapists";
+import { loadTherapistNews } from "@/app/lib/therapistNews";
 import { SalonDiaryCircles } from "@/components/DiarySection";
 import SalonHeaderSlider from "@/components/SalonHeaderSlider";
 import { AutoFitText } from "@/app/components/AutoFitText";
@@ -337,7 +338,7 @@ export default async function SalonPage({
   // therapistIds が空のときは .in('therapist_id', []) が0件を返すため、件数は従来どおり0になる。
   const today = getBusinessDateJST();
   const diaryCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-  const [schedRes, diaryRes, wallpaperRes, allTherapists] = await Promise.all([
+  const [schedRes, diaryRes, wallpaperRes, allTherapists, therapistNews] = await Promise.all([
     supabase
       .from('therapist_schedules')
       .select('therapist_id, is_active, start_time, end_time')
@@ -356,6 +357,8 @@ export default async function SalonPage({
     // 在籍セラピスト一覧セクション用。props で渡すことで初期HTMLに
     // <a href="/therapist/[id]"> が載る（SEO対応 2026-07-28）。
     fetchSalonTherapists(Number(id), supabase),
+    // ★ 第1419便: セラピストNEWS（写メ日記の下のブロック）。題名だけ使うので新しい3本
+    loadTherapistNews(supabase, Number(id), 3),
   ]);
 
   // 本日出勤セラピスト数（GridCardの「N名」と同一ロジック：当日の is_active スケジュールを持つ人数）。
@@ -793,6 +796,27 @@ export default async function SalonPage({
 
             {/* 写メ日記（円形サムネ横スクロール・本日の出勤セラピストの上）。空なら自動で非表示。 */}
             <SalonDiaryCircles salonId={id} heading={theme.heading} />
+
+            {/* ★ 第1419便（カッキーさん）: セラピストNEWS（お知らせとは別のカテゴリー・その日の出勤速報）。
+                題名を押すと一覧ページのその日の記事へ。1本も無い（出勤が無い）ときは出さない */}
+            {therapistNews.length > 0 && (
+              <section className="mt-[5px] rounded-3xl px-5 py-3 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <h2 className="text-base font-bold" style={{ color: theme.heading }}>セラピストNEWS</h2>
+                  <Link href={`/salon/${id}/therapist-news`} className="flex-shrink-0 text-[13px] font-bold text-pink-600 hover:opacity-80">一覧を見る →</Link>
+                </div>
+                <ul className="divide-y" style={{ borderColor: theme.cardBorder }}>
+                  {therapistNews.map((n) => (
+                    <li key={n.date}>
+                      <Link href={`/salon/${id}/therapist-news#d-${n.date}`} className="flex items-baseline gap-2 py-2 text-[13px] hover:opacity-80">
+                        <span className="flex-none tabular-nums" style={{ color: theme.body }}>{Number(n.date.slice(5, 7))}/{Number(n.date.slice(8, 10))}</span>
+                        <span className="min-w-0 truncate font-bold" style={{ color: theme.heading }}>{n.title.replace(/^\d+\/\d+\s*/, '')}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {/* Today's therapists（枠内の上下余白を半分に：p-5→px-5 py-2.5。写メ日記との間隔は mt-4→mt-[5px] で約1/3に） */}
             <div className="mt-[5px] rounded-3xl px-5 py-2.5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
