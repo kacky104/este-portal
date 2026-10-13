@@ -1840,8 +1840,22 @@ function BookingForm({
               {/* ★ 第1441便（店舗様の要望）: 割引も押して選ぶ（料金設定の「割引」の項目。1つだけ） */}
               {priceItems.some((p) => p.kind === 'discount') && (
                 <div className="col-span-2">
-                  <label className={labCls}>割引（使うときだけ1つ押す）</label>
+                  <label className={labCls}>割引（1つ押す）</label>
                   <div className="flex flex-wrap gap-1.5">
+                    {/* ★ 第1442便（カッキーさん）: 「なし」のボタン。割引を1つも選んでいないときは押された見た目。押すと割引を外す */}
+                    {(() => {
+                      const discountIds = priceItems.filter((x) => x.kind === 'discount').map((x) => x.id);
+                      const none = !f.selIds.some((id) => discountIds.includes(id));
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setF((prev) => ({ ...prev, selIds: prev.selIds.filter((id) => !discountIds.includes(id)) }))}
+                          className={`border px-3 py-1.5 text-[13px] font-bold ${none ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
+                        >
+                          なし
+                        </button>
+                      );
+                    })()}
                     {priceItems.filter((p) => p.kind === 'discount').map((p) => {
                       const on = f.selIds.includes(p.id);
                       return (
