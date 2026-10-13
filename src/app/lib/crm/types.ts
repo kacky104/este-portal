@@ -667,3 +667,8 @@ export type CrmBookingListRow = {
   receivedBy: string;
   consentAt: string | null; // 同意書を了承した時刻（第574便）
 };
+
+// ── 部屋メモ（第1443便）──────────────────────────────
+/** 部屋ごとの、ずっと残るメモ（crm_settings.room_notes） */
+export type CrmRoomNote = { text: string; at: string | null };
+export const CRM_ROOM_NOTE_MAX = 500;

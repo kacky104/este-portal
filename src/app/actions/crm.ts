@@ -79,6 +79,8 @@ import {
   CRM_PAYMENT_METHODS,
   parsePaymentSplit,
   paymentLabel,
+  CRM_ROOM_NOTE_MAX,
+  type CrmRoomNote,
 } from '@/app/lib/crm/types';
 
 type Svc = ReturnType<typeof createServiceClient>;
@@ -1765,7 +1767,79 @@ export async function renameCrmRoom(
   // 4) 同意書の履歴の部屋名
   const r4 = await svc.from('crm_consents').update({ room: t }).eq('salon_id', salonId).eq('room', f);
   if (r4.error) return { ok: false, error: `同意書の書き換えに失敗しました（設定・出勤情報・QR は変わっています）: ${r4.error.message}` };
+  // 5) ★ 第1443便: 部屋メモも新しい名前へ（列がまだ無い・読めないときは何もしない＝名前の変更そのものは済んでいる）
+  const n1 = await svc.from('crm_settings').select('room_notes').eq('salon_id', salonId).maybeSingle();
+  if (!n1.error) {
+    const notes = parseRoomNotes(n1.data?.room_notes);
+    if (notes[f] && !notes[t]) {
+      notes[t] = notes[f];
+      delete notes[f];
+      await svc.from('crm_settings').update({ room_notes: notes }).eq('salon_id', salonId);
+    }
+  }
   return { ok: true };
+}
+
+// ── 部屋メモ（第1443便・2026-10-13・店舗様の要望）──
+// ★ 部屋ごとに1つ、ずっと残るメモ（「G401 タオルたたむ」「G1011 オイル補充」）。お店だけ（/cast には出さない）。
+// ★ 置き場所は crm_settings.room_notes（jsonb: { 部屋名: { text, at } }）。追加SQL_第1443便。
+// ★ 列がまだ無い（SQL 前）ときは、読むと空・保存は「準備中」で断る（CRM のほかの画面には影響しない）。
+const ROOM_NOTES_NOT_READY = '部屋メモの準備がまだです（運営に「追加SQL_第1443便」を流してもらってください）';
+
+function parseRoomNotes(raw: unknown): Record<string, CrmRoomNote> {
+  const out: Record<string, CrmRoomNote> = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== 'object') continue;
+    const o = v as Record<string, unknown>;
+    out[k] = { text: String(o.text ?? ''), at: typeof o.at === 'string' ? o.at : null };
+  }
+  return out;
+}
+
+/** 列が無い（SQL 前）ときのエラーか */
+function isMissingRoomNotes(e: { message?: string | null; code?: string | null } | null | undefined): boolean {
+  const m = String(e?.message ?? '');
+  return e?.code === '42703' || e?.code === 'PGRST204' || /room_notes/.test(m);
+}
+
+export async function getCrmRoomNotes(
+  salonId: number,
+): Promise<{ ok: true; rooms: string[]; roomColors: Record<string, string>; notes: Record<string, CrmRoomNote>; ready: boolean } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  let st: CrmSettings;
+  try { st = await readSettings(auth.svc, salonId); } catch (e) { return readFail(e); }
+  const { data, error } = await auth.svc.from('crm_settings').select('room_notes').eq('salon_id', salonId).maybeSingle();
+  if (error) {
+    if (isMissingRoomNotes(error)) return { ok: true, rooms: st.rooms, roomColors: st.roomColors, notes: {}, ready: false };
+    return readFail(new Error(error.message));
+  }
+  return { ok: true, rooms: st.rooms, roomColors: st.roomColors, notes: parseRoomNotes(data?.room_notes), ready: true };
+}
+
+/** 1部屋ぶんのメモを保存（空にすると消える）。★ ほかの部屋のメモは読み直してから書く（別の端末で書いた分を消さない） */
+export async function saveCrmRoomNote(
+  salonId: number,
+  room: string,
+  text: string,
+): Promise<{ ok: true; note: CrmRoomNote } | { ok: false; error: string }> {
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const r = String(room ?? '').trim();
+  const t = String(text ?? '').replace(/\r\n/g, '\n').trim();
+  if (t.length > CRM_ROOM_NOTE_MAX) return { ok: false, error: `メモは${CRM_ROOM_NOTE_MAX}文字までです` };
+  let st: CrmSettings;
+  try { st = await readSettings(auth.svc, salonId); } catch (e) { return readFail(e); }
+  if (!st.rooms.includes(r)) return { ok: false, error: 'この部屋は設定にありません（設定の「待機場所（部屋）」を確かめてください）' };
+  const { data, error } = await auth.svc.from('crm_settings').select('room_notes').eq('salon_id', salonId).maybeSingle();
+  if (error) return { ok: false, error: isMissingRoomNotes(error) ? ROOM_NOTES_NOT_READY : dbMessage(error, '読み込み') };
+  const notes = parseRoomNotes(data?.room_notes);
+  const note: CrmRoomNote = { text: t, at: new Date().toISOString() };
+  if (t === '') delete notes[r]; else notes[r] = note;
+  const up = await auth.svc.from('crm_settings').update({ room_notes: notes }).eq('salon_id', salonId);
+  if (up.error) return { ok: false, error: isMissingRoomNotes(up.error) ? ROOM_NOTES_NOT_READY : dbMessage(up.error, '保存') };
+  return { ok: true, note: t === '' ? { text: '', at: null } : note };
 }
 
 export async function getCrmSettings(

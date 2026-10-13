@@ -17,7 +17,7 @@ import { CrmOperatorBar } from './CrmOperatorBar';
 //   ・契約中 → 上の帯（スケジュール／顧客台帳）＋中身
 // ★ 運営（ADMIN）は ?salon=店舗ID で、その店を確認・操作できる（タブを移っても ?salon を引き継ぐ）。★ 第1438便: 店は帯の「店舗を選んで開く」から選ぶ（CrmOperatorBar）
 
-export type CrmNavKey = 'schedule' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'settings' | 'group';
+export type CrmNavKey = 'schedule' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'rooms' | 'settings' | 'group';
 
 // ★ 第631便: href は CRM の中のパス。★ 実際のリンク先は useCrmLinks().href で作る（fukuescrm.com では '/customers'、本体では '/mypage/crm/customers'）。
 const NAV: Array<{ key: CrmNavKey; label: string; href: string }> = [
@@ -28,6 +28,7 @@ const NAV: Array<{ key: CrmNavKey; label: string; href: string }> = [
   { key: 'money', label: '金銭授受', href: '/money' },
   { key: 'stats', label: 'レポート', href: '/stats' },
   { key: 'prices', label: '料金設定', href: '/prices' },
+  { key: 'rooms', label: '部屋メモ', href: '/rooms' }, // ★ 第1443便
   { key: 'settings', label: '設定', href: '/settings' },
 ];
 // ★ 第1325便: グループ・提携店の共有リスト。★ グループに入っている店にだけ出す（access.inGroup・サーバーが判定）。「顧客台帳」の右に置く
