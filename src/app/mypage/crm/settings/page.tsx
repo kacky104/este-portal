@@ -522,6 +522,9 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
     if (action === 'revert') setMsg(`一つ前の QR（${day(r.createdAt)} 作成）に戻しました。`);
   };
 
+  // ★ 第1440便: 開いた QR を閉じて「QRコードを出す」に戻す（画面の表示だけ。QR そのものは変わらない）
+  const close = () => { setImg(''); setUrl(''); setSure(''); setMsg(''); setErr(''); };
+
   const printIt = () => {
     const w = window.open('', '_blank');
     if (!w) return;
@@ -532,7 +535,13 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
 
   return (
     <div className="border border-slate-200 p-3 text-center">
-      <p className="text-[14px] font-black text-slate-800">{room}</p>
+      <div className="relative">
+        <p className="text-[14px] font-black text-slate-800">{room}</p>
+        {img && (
+          <button type="button" onClick={close} aria-label="閉じる" title="閉じる"
+            className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center text-[20px] font-bold leading-none text-slate-500 hover:text-slate-800">×</button>
+        )}
+      </div>
       {!img ? (
         <button type="button" disabled={busy} onClick={() => run('get')} className="mt-2 border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700 disabled:opacity-50">
           QRコードを出す
@@ -546,6 +555,8 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
           <div className="mt-2 flex flex-wrap justify-center gap-2">
             <button type="button" onClick={printIt} className="bg-indigo-600 px-3 py-1.5 text-[12px] font-bold text-white">印刷用に開く</button>
             <a href={img} download={`QR_${room}.png`} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-600">画像を保存</a>
+            {/* ★ 第1440便（カッキーさん）: 閉じ方が分からず「作り直す」を押してしまわないよう、閉じるボタンを置く（QR は変わらない・出し直せる） */}
+            <button type="button" onClick={close} className="border-2 border-slate-700 bg-white px-4 py-1.5 text-[12px] font-bold text-slate-800">閉じる</button>
             <button type="button" onClick={() => setSure(sure === 'regenerate' ? '' : 'regenerate')} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-500">作り直す</button>
             {prevAt && (
               <button type="button" onClick={() => setSure(sure === 'revert' ? '' : 'revert')} className="border border-slate-300 bg-white px-3 py-1.5 text-[12px] font-bold text-slate-500">
