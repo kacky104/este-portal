@@ -137,6 +137,8 @@ export default async function MemberPage() {
       </div>
 
       <main className="max-w-5xl mx-auto px-4 py-8 sm:py-10">
+        {/* ★ 第1444便→第1446便: 同意書の完了画面で受け取らなかった来店ポイント（このブラウザ・24時間）。いちばん上に出す */}
+        <PendingPointsBanner />
 
         {/* ─── 挨拶エリア ─── */}
         <section className="mb-8">
@@ -260,9 +262,6 @@ export default async function MemberPage() {
             </div>
           </section>
         )}
-
-        {/* ★ 第1444便: 同意書の完了画面で受け取らなかった来店ポイント（このブラウザ・24時間） */}
-        <PendingPointsBanner />
 
         {/* ─── 会員メニュー（実装済み機能への導線） ─── */}
         <section className="mb-4">
