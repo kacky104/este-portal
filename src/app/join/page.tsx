@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_VISIT_NOTE } from '@/lib/points';
+import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE, REVIEW_BODY_MIN } from '@/lib/points';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -20,7 +20,7 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 
 const TITLE = '無料会員登録のご案内｜福岡メンズエステ【フクエス】';
 const DESCRIPTION =
-  'フクエスの会員登録は無料。気になる店舗・セラピストの保存、保存したお店から届くVIPレターや新着のお知らせ、閲覧履歴、口コミ投稿がご利用いただけます。メールアドレスとパスワードだけで登録できます。';
+  'フクエスの会員登録は無料。今なら登録で50pt・はじめての口コミで50pt・加盟店のご来店1回で50pt。1,000ptで1,000円引き（お店のクーポンと併用OK）。お気に入りの保存・VIPレター・新着通知・口コミ投稿も。メールアドレスとパスワードだけで登録できます。';
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -45,7 +45,12 @@ export const revalidate = 300;
 
 // 会員特典。実装済みの機能だけを載せる（未実装の予告は書かない）。
 // リンク先は未ログインでも見られるページ、もしくはログインへリダイレクトされる会員ページ。
-const BENEFITS: { title: string; body: string; icon: 'bookmark' | 'letter' | 'bell' | 'history' | 'review' | 'user' }[] = [
+const BENEFITS: { title: string; body: string; icon: 'point' | 'bookmark' | 'letter' | 'bell' | 'history' | 'review' | 'user' }[] = [
+  {
+    icon: 'point',
+    title: 'フクエスポイントが貯まる',
+    body: '会員登録・はじめての口コミ・加盟店のご来店でポイントが貯まり、1,000ptで1,000円引き。お店のクーポンとも併用できます。',
+  },
   {
     icon: 'bookmark',
     title: 'お気に入りの保存',
@@ -91,6 +96,8 @@ function BenefitIcon({ name }: { name: (typeof BENEFITS)[number]['icon'] }) {
     strokeLinejoin: 'round' as const,
   };
   switch (name) {
+    case 'point':
+      return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M9.5 16.5V7.5h3.2a2.6 2.6 0 0 1 0 5.2H9.5" /></svg>;
     case 'bookmark':
       return <svg {...common}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>;
     case 'letter':
@@ -115,6 +122,8 @@ const STEPS: { no: string; title: string; body: string }[] = [
 
 // よくある質問。
 const FAQS: { q: string; a: string }[] = [
+  { q: 'フクエスポイントはどうやって貯まりますか？', a: `会員登録で${POINT_SIGNUP}pt、はじめての口コミ（${REVIEW_BODY_MIN}文字以上・運営の承認後）で${POINT_FIRST_REVIEW}pt、フクエスポイント加盟店のご来店1回で${POINT_VISIT}pt（お部屋のQRコードから同意書を送ったあとに受け取り・1日1回まで）が貯まります（キャンペーン中）。有効期限は最後に貯めた日から1年です。` },
+  { q: 'お店のクーポンと一緒に使えますか？', a: `使えます。フクエスポイントの${POINT_USE_YEN.toLocaleString()}円引きは、お店のクーポンとは別の割引です（1回のご来店で${POINT_USE_YEN.toLocaleString()}円まで）。加盟店で、ご予約のときに「フクエスポイントを使います」とお伝えください。` },
   { q: '登録にお金はかかりますか？', a: '一切かかりません。会員登録・利用ともに無料です。有料プランや課金要素はありません。' },
   { q: '本名や電話番号は必要ですか？', a: '必要ありません。登録に使うのはメールアドレスとパスワードだけです。サイト上に表示されるのは自分で決めたニックネームのみで、メールアドレスが他の利用者に見えることはありません。' },
   { q: 'お店に自分の情報が伝わりますか？', a: '伝わりません。店舗側から見えるのは口コミに表示されるニックネームだけで、メールアドレスや保存の状況が店舗に渡ることはありません。' },
@@ -122,6 +131,70 @@ const FAQS: { q: string; a: string }[] = [
   { q: '退会はできますか？', a: 'できます。マイページの「プロフィール」からご自身の操作でいつでも退会でき、アカウントと保存データは削除されます（元に戻すことはできません）。投稿済みの口コミは他の方の店舗選びの参考情報として残りますが、表示名は「ゲスト」に変わり、あなたのアカウントとは結びつかなくなります。なお、メンズエステ専用SNS「fukuX」のアカウントをお持ちの場合は、ログインが共通のため、先に fukuX 側で削除してから退会してください。' },
   { q: '年齢の制限はありますか？', a: '本サイトは18歳未満の方はご利用いただけません。会員登録も18歳以上の方に限らせていただきます。' },
 ];
+
+// ★ 第1451便: フクエスポイントのご案内（会員だけの特典）。数字は lib/points.ts の値（変えるとここも変わる）。
+const GRAD = 'linear-gradient(95deg,#FB923C,#DB2777)';
+function PointsShowcase() {
+  const earns: { label: string; pt: number; note: string; tag?: string }[] = [
+    { label: '会員登録', pt: POINT_SIGNUP, note: '確認メールのリンクで登録が終わったとき', tag: POINT_VISIT_NOTE },
+    { label: 'はじめての口コミ', pt: POINT_FIRST_REVIEW, note: `${REVIEW_BODY_MIN}文字以上・運営の承認後`, tag: POINT_VISIT_NOTE },
+    { label: 'ご来店1回ごと', pt: POINT_VISIT, note: 'フクエスポイント加盟店で・1日1回まで', tag: POINT_VISIT_NOTE },
+  ];
+  const visitsToGo = Math.max(0, Math.ceil((POINT_USE_UNIT - POINT_SIGNUP - POINT_FIRST_REVIEW) / POINT_VISIT));
+  return (
+    <section aria-label="フクエスポイント" className="mb-6">
+      <div className="relative overflow-hidden rounded-3xl p-[2px] shadow-lg shadow-pink-500/10" style={{ background: GRAD }}>
+        <div className="rounded-[22px] bg-white px-4 py-6 sm:px-8 sm:py-8">
+          <p className="text-center text-[11px] font-bold tracking-[0.3em] text-pink-500">MEMBER ONLY</p>
+          <h2 className="mt-1 text-center text-xl font-black text-slate-800 sm:text-2xl">会員だけの「フクエスポイント」</h2>
+
+          {/* いちばん大きく: 1,000pt で 1,000円引き・クーポンと併用OK */}
+          <div className="mt-4 text-center">
+            <p className="font-black leading-tight">
+              <span className="text-[40px] sm:text-[56px]" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{POINT_USE_UNIT.toLocaleString()}pt</span>
+              <span className="mx-1 text-lg text-slate-700 sm:text-2xl">で</span>
+              <span className="text-[40px] sm:text-[56px]" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{POINT_USE_YEN.toLocaleString()}円引き</span>
+            </p>
+            <p className="mt-2 inline-block rounded-full bg-amber-100 px-4 py-1.5 text-[13px] font-black text-amber-800 sm:text-sm">
+              お店のクーポンと<span className="text-rose-600">併用OK</span>！ クーポンとは別に {POINT_USE_YEN.toLocaleString()}円引き
+            </p>
+          </div>
+
+          {/* 貯め方 3つ */}
+          <ul className="mt-6 grid gap-3 sm:grid-cols-3">
+            {earns.map((e) => (
+              <li key={e.label} className="rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 to-white px-4 py-4 text-center">
+                <p className="text-sm font-bold text-slate-700">{e.label}で</p>
+                <p className="mt-0.5 font-black leading-none">
+                  <span className="text-[40px]" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{e.pt}</span>
+                  <span className="ml-0.5 text-lg text-pink-600">pt</span>
+                </p>
+                <p className="mt-1.5 text-[11.5px] leading-relaxed text-slate-500">{e.note}</p>
+                {e.tag && <p className="mt-1 text-[11px] font-bold text-pink-600">（{e.tag}）</p>}
+              </li>
+            ))}
+          </ul>
+
+          {/* 例 */}
+          <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-center text-[13px] leading-relaxed text-slate-600">
+            たとえば… <b>登録 {POINT_SIGNUP}pt ＋ 口コミ {POINT_FIRST_REVIEW}pt ＋ ご来店 {visitsToGo}回</b> で <b className="text-pink-600">{POINT_USE_YEN.toLocaleString()}円引き</b>
+          </p>
+
+          {/* 定期的なキャンペーン */}
+          <p className="mt-4 flex items-center justify-center gap-2 text-center text-[13px] font-bold text-slate-700 sm:text-sm">
+            <span aria-hidden className="text-lg">🎉</span>
+            ほかにも、ポイントが貯まるキャンペーンを定期的に行います
+          </p>
+
+          <p className="mt-4 text-center text-[11.5px] leading-relaxed text-slate-500">
+            ご来店のポイントが貯まる・使えるのは「フクエスポイント加盟店」です。使うときは、ご予約のときにお伝えください（1回のご来店で{POINT_USE_YEN.toLocaleString()}円まで）。有効期限は最後に貯めた日から1年。
+            <Link href="/points" className="ml-1 font-bold text-pink-600 underline">加盟店・くわしく</Link>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default async function JoinPage() {
   const [hero, wallpapers, adBanners] = await Promise.all([
@@ -173,15 +246,12 @@ export default async function JoinPage() {
           </h1>
           <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-pink-400/70 to-transparent" />
           <p className="mx-auto mt-4 max-w-md text-xs sm:text-sm leading-relaxed text-slate-600">
-            お気に入りの保存・VIPレター・新着通知・口コミ投稿。<br />メールアドレスだけで、フクエスがもっと使いやすくなります
+            <b className="text-pink-600">ポイントが貯まって、1,000円引き。</b><br />お気に入りの保存・VIPレター・新着通知・口コミ投稿も、メールアドレスだけで
           </p>
         </div>
 
-        {/* ★ 第1450便: 会員登録のポイント（キャンペーン） */}
-        <p className="mx-auto mb-3 max-w-md rounded-xl border border-pink-100 bg-pink-50 px-3 py-2 text-center text-[13px] font-bold text-pink-700">
-          🎁 今なら会員登録で {POINT_SIGNUP}pt（{POINT_VISIT_NOTE}）・はじめての口コミで {POINT_FIRST_REVIEW}pt
-          <a href="/points" className="ml-1 underline">くわしく</a>
-        </p>
+        {/* ★ 第1451便: フクエスポイント（会員だけの特典・目立つように CTA の上に） */}
+        <PointsShowcase />
 
         {/* ─── CTA（ログイン状態でボタンだけ差し替わる） ─── */}
         <JoinCta />
