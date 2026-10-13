@@ -30,13 +30,15 @@ async function getJwt(): Promise<string> {
 /** 会計 API を GET で読む。query の値は文字列・数値・配列 */
 export async function mfGet(path: string, query: Record<string, string | number | string[] | undefined> = {}): Promise<unknown> {
   const office = (process.env.MF_OFFICE_CODE || DEFAULT_OFFICE).trim();
-  const qs = new URLSearchParams({ office_code: office });
+  // ★ MF の ID はエンコード済み（%3D など）で返ってくる → もう一度エンコードすると 400（invalid_query_parameter_value）。
+  //   %XX を含む値はそのまま、それ以外だけエンコードする。配列は k=v1&k=v2（[] を付けると 400）
+  const enc = (v: string) => (/%[0-9A-Fa-f]{2}/.test(v) ? v : encodeURIComponent(v));
+  const qs: string[] = [`office_code=${enc(office)}`];
   for (const [k, v] of Object.entries(query)) {
     if (v === undefined) continue;
-    if (Array.isArray(v)) v.forEach((x) => qs.append(`${k}[]`, x));
-    else qs.set(k, String(v));
+    for (const item of Array.isArray(v) ? v : [v]) qs.push(`${k}=${enc(String(item))}`);
   }
-  const res = await fetch(`${API_BASE}${path}?${qs.toString()}`, {
+  const res = await fetch(`${API_BASE}${path}?${qs.join('&')}`, {
     headers: { Authorization: `Bearer ${await getJwt()}`, Accept: 'application/json' },
     cache: 'no-store',
   });
