@@ -8,6 +8,7 @@ import {
   type BillingAdminData, type BillingSettings, type ContractLineRow, type InvoiceRow,
 } from '@/app/actions/billingAdmin';
 import { InvoiceSheet } from '@/app/components/billing/InvoiceSheet';
+import { DepositCandidates } from './DepositCandidates';
 import { addMonths, billingMonthForIssueDay, calcTotals, dateLabel, dueDateOf, issueMonthOf, lineAmount, linesForMonth, monthLabel, yen } from '@/lib/billing';
 
 // 管理画面「請求書」（第825便で1枚の表に・第826便で事務員さん向けの並びに・第827便で左のサイドバー＋ページ分けに・2026-09-25・カッキーさん）。
@@ -340,8 +341,10 @@ export function BillingAdmin({
                 <>
                   <div className="mt-4">
                     <h2 className="font-black text-lg">② 入金待ち</h2>
-                    <p className="text-sm text-slate-500">発行済みで、まだ入金のない {issued.length}店・合計 ¥{yen(sumOf(issued))}。振込を確かめたら「入金済みにする」。{canNotice ? `${md(noticeFrom)}を過ぎたので、まだの店に「マイページに帯を出す」が押せます（押した店だけ出ます）。` : `${md(noticeFrom)}から「マイページに帯を出す」が押せます。`}{lateCount > 0 && <b className="text-rose-600">期限を過ぎた店が {lateCount}店あります。「期限切れメールを送る」で、お支払いのお願いを送れます（自動では送りません）。</b>}</p>
+                    <p className="text-sm text-slate-500">発行済みで、まだ入金のない {issued.length}店・合計 ¥{yen(sumOf(issued))}。振込を確かめたら「入金済みにする」。{canNotice ? `${md(noticeFrom)}を過ぎたので、まだの店に「マイページに帯を出す」が押せます（押した店だけ出ます）。` : `${md(noticeFrom)}から「マイページに帯を出す」が押せます。`}{lateCount > 0 && <b className="text-rose-600">期限を過ぎた店が {lateCount}店あります。期限の翌日と5日後に、期限切れメールが自動で送られます（第1433便）。「もう一度 期限切れメール」で手でも送れます。</b>}</p>
                   </div>
+                  {/* ★ 第1437便: 楽天口座の入金（マネーフォワード経由）を、どの請求書の入金か決める */}
+                  <DepositCandidates onChanged={() => { void load(); }} />
                   {listBox([...issued].sort((a, b) => (a.invoice?.due_date ?? '').localeCompare(b.invoice?.due_date ?? '')), '入金待ちの店はありません。')}
                 </>
               )}

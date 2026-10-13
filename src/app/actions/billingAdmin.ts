@@ -5,6 +5,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID, MODERATOR_UUIDS } from '@/app/lib/admin';
 import { createDraftsCore } from '@/app/lib/billing/createDrafts';
 import { issueInvoiceCore, sendOverdueReminderCore } from '@/app/lib/billing/issue';
+import { syncBankDeposits } from '@/app/lib/billing/bankDeposits';
+import { cleanPayerName } from '@/lib/bankDeposit';
 import {
   calcTotals, isMonth, lineAmount,
   type BillingLineInput,
@@ -281,5 +283,76 @@ export async function voidInvoice(id: number): Promise<{ ok: true } | Err> {
   const auth = await requireStaff(); if (!auth.ok) return auth;
   const svc = createServiceClient();
   const { error } = await svc.from('invoices').update({ status: 'void', updated_at: new Date().toISOString() }).eq('id', id).in('status', ['issued', 'paid']);
+  return error ? { ok: false, error: error.message } : { ok: true };
+}
+
+
+// ── 入金の候補（第1437便・2026-10-13・カッキーさん）────────────────
+//   ・マネーフォワードから読んだ楽天口座の入金（bank_deposits）を、どの請求書の入金か決める
+//   ・決めると: 請求書を入金済み（振込・入金日＝明細の日付）＋ その店の振込名義が空なら明細の名義を覚える
+//   ・★ 自動では決めない（最初の1〜2か月は全部ここで押す・lib/bankDeposit.ts AUTO_MARK_PAID）
+export type DepositRow = { mf_id: string; deposit_date: string; amount: number; content: string; suggested_invoice_id: number | null; suggest_reason: string | null };
+export type OpenInvoice = { id: number; salon_id: number; salon_name: string; billing_month: string; invoice_no: string | null; total: number; due_date: string | null };
+
+export async function getDepositCandidates(): Promise<Ok<{ deposits: DepositRow[]; invoices: OpenInvoice[]; missingTable?: boolean }> | Err> {
+  const auth = await requireStaff(); if (!auth.ok) return auth;
+  const svc = createServiceClient();
+  const { data: deps, error } = await svc.from('bank_deposits')
+    .select('mf_id, deposit_date, amount, content, suggested_invoice_id, suggest_reason')
+    .eq('status', 'pending').order('deposit_date', { ascending: false }).limit(100);
+  if (error) {
+    if (error.code === '42P01' || error.code === 'PGRST205') return { ok: true, deposits: [], invoices: [], missingTable: true };
+    return { ok: false, error: error.message };
+  }
+  const { data: invs } = await svc.from('invoices').select('id, salon_id, billing_month, invoice_no, total, due_date').eq('status', 'issued').order('due_date');
+  const salonIds = [...new Set((invs ?? []).map((i) => Number(i.salon_id)))];
+  const { data: salons } = salonIds.length ? await svc.from('salons').select('id, name').in('id', salonIds) : { data: [] as { id: number; name: string }[] };
+  const nameOf = new Map((salons ?? []).map((x) => [Number(x.id), String(x.name ?? '')]));
+  return {
+    ok: true,
+    deposits: (deps ?? []).map((d) => ({ mf_id: String(d.mf_id), deposit_date: String(d.deposit_date), amount: Number(d.amount), content: String(d.content ?? ''), suggested_invoice_id: d.suggested_invoice_id == null ? null : Number(d.suggested_invoice_id), suggest_reason: (d.suggest_reason as string | null) ?? null })),
+    invoices: (invs ?? []).map((i) => ({ id: Number(i.id), salon_id: Number(i.salon_id), salon_name: nameOf.get(Number(i.salon_id)) ?? '', billing_month: String(i.billing_month), invoice_no: (i.invoice_no as string | null) ?? null, total: Number(i.total), due_date: (i.due_date as string | null) ?? null })),
+  };
+}
+
+export async function syncDepositsNow(): Promise<{ ok: true; mail: string } | Err> {
+  const auth = await requireStaff(); if (!auth.ok) return auth;
+  const r = await syncBankDeposits();
+  if (!r.ok) return { ok: false, error: r.error };
+  return { ok: true, mail: `マネーフォワードを読みました（明細 ${r.read}件・新しい入金 ${r.pending}件）` };
+}
+
+export async function confirmDeposit(mfId: string, invoiceId: number): Promise<{ ok: true; mail: string } | Err> {
+  const auth = await requireStaff(); if (!auth.ok) return auth;
+  const svc = createServiceClient();
+  const { data: dep } = await svc.from('bank_deposits').select('mf_id, deposit_date, amount, content, status').eq('mf_id', mfId).maybeSingle();
+  if (!dep) return { ok: false, error: '入金の明細が見つかりません' };
+  if (dep.status !== 'pending') return { ok: false, error: 'この入金はもう決めてあります' };
+  const { data: inv } = await svc.from('invoices').select('id, salon_id, total, status').eq('id', invoiceId).maybeSingle();
+  if (!inv || inv.status !== 'issued') return { ok: false, error: '入金待ちの請求書ではありません' };
+  const now = new Date().toISOString();
+  const { data: upd, error: ie } = await svc.from('invoices').update({
+    status: 'paid', paid_method: 'transfer', paid_at: `${dep.deposit_date}T12:00:00+09:00`, updated_at: now,
+  }).eq('id', invoiceId).eq('status', 'issued').select('id');
+  if (ie) return { ok: false, error: ie.message };
+  if (!upd || upd.length === 0) return { ok: false, error: 'ほかの画面で先に入金済みになりました' };
+  await svc.from('bank_deposits').update({ status: 'matched', invoice_id: invoiceId, decided_at: now }).eq('mf_id', mfId);
+  // 振込名義を覚える（空のときだけ・次からの候補に使う）
+  const payer = cleanPayerName(String(dep.content ?? ''));
+  let learned = '';
+  if (payer) {
+    const sid = Number(inv.salon_id);
+    const { data: prof } = await svc.from('salon_billing_profiles').select('salon_id, transfer_name').eq('salon_id', sid).maybeSingle();
+    if (!prof) { await svc.from('salon_billing_profiles').insert({ salon_id: sid, transfer_name: payer }); learned = payer; }
+    else if (!String(prof.transfer_name ?? '').trim()) { await svc.from('salon_billing_profiles').update({ transfer_name: payer, updated_at: now }).eq('salon_id', sid); learned = payer; }
+  }
+  const diff = Number(dep.amount) !== Number(inv.total) ? `（★ 金額が違います: 入金 ¥${Number(dep.amount).toLocaleString('ja-JP')}／請求 ¥${Number(inv.total).toLocaleString('ja-JP')}）` : '';
+  return { ok: true, mail: `入金済みにしました${diff}${learned ? `。振込名義「${learned}」を覚えました` : ''}` };
+}
+
+export async function ignoreDeposit(mfId: string): Promise<{ ok: true } | Err> {
+  const auth = await requireStaff(); if (!auth.ok) return auth;
+  const svc = createServiceClient();
+  const { error } = await svc.from('bank_deposits').update({ status: 'ignored', decided_at: new Date().toISOString() }).eq('mf_id', mfId).eq('status', 'pending');
   return error ? { ok: false, error: error.message } : { ok: true };
 }
