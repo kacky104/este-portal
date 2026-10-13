@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getMyInvoices } from '@/app/actions/billingOwner';
 import { dateLabel, monthLabel, yen } from '@/lib/billing';
+import MarkInvoicesSeen from './MarkInvoicesSeen';
 
 // 店舗マイページ「ご請求書」一覧（第816便）。★ 発行済み・入金済み・取り消しだけが並ぶ（下書きは RLS で見えない）。
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export default async function MyInvoicesPage() {
           <p className="text-sm text-slate-500 bg-white border border-slate-200 p-6">まだご請求書はありません。</p>
         ) : (
           <ul className="space-y-2">
+            <MarkInvoicesSeen ids={r.items.map((it) => String(it.id))} />
             {r.items.map((it) => {
               const s = STATUS[it.status] ?? STATUS.issued;
               return (

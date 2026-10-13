@@ -54,6 +54,7 @@ import { canReadProvider } from '@/lib/mediaOverview';
 // ★ 第1176便: 運営からのお知らせの帯は「運営事務局」の画面の中へ移した（SupportTab が出す）。ここでは読むだけ（バッジ用）
 import { useOpsNotices } from './OpsNoticeParts';
 import { addSeenIds, freshNotices, loadSeenIds, unseenFreshCount } from '@/lib/opsNotices';
+import { loadSeenInvoiceIds } from '@/lib/invoiceSeen';
 import { AgreementNoticeBar } from './AgreementNoticeBar';
 // ★ 第885便: セラピストページ連携の連携率（コネックエフのホームと同じ部品）
 import { CastLinkProgress } from '@/app/components/CastLinkProgress';
@@ -902,7 +903,8 @@ export default function MyPage() {
   const [mediaAlerts, setMediaAlerts] = useState<MediaLinkAlert[]>([]);
   // ★ 第816便: お支払い待ちの請求書の数（★ RLS で自分の店の発行済みだけが数えられる）。★ 0 なら何も出さない
   // ★ 第833便: 黄色い帯は【運営が管理画面で押した請求書だけ】（payment_notice_on）。数のバッジは今までどおり発行済みの数
-  const [unpaidInvoices, setUnpaidInvoices] = useState(0);
+  // ★ 第1432便（カッキーさん）: まだ一覧で見ていない請求書の数（サイドバーの赤い数字・店名の下の案内）。一覧を開くと 0 になる（lib/invoiceSeen.ts）
+  const [unseenInvoices, setUnseenInvoices] = useState(0);
   const [paymentNotice, setPaymentNotice] = useState<{ dueDate: string | null; overdue: boolean } | null>(null);
   useEffect(() => {
     let alive = true;
@@ -910,7 +912,8 @@ export default function MyPage() {
       .then(({ data }) => {
         if (!alive) return;
         const rows = data ?? [];
-        setUnpaidInvoices(rows.length);
+        const seen = new Set(loadSeenInvoiceIds());
+        setUnseenInvoices(rows.filter((r) => !seen.has(String(r.id))).length);
         const on = rows.find((r) => r.payment_notice_on);
         if (!on) { setPaymentNotice(null); return; }
         const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
@@ -3054,19 +3057,19 @@ export default function MyPage() {
   );
 
   // ★ 第1431便（カッキーさん）: 請求書・運営からの新しいお知らせが届いたら、サイドバーの上（店名の下）に出す。
-  //   ・ご請求書 ＝ お支払い待ちの数（unpaidInvoices）→ /mypage/invoices
+  //   ・ご請求書 ＝ まだ一覧で見ていない数（unseenInvoices・第1432便）→ /mypage/invoices
   //   ・お知らせ ＝ 運営事務局のバッジと同じ数（未読＋運営からのお知らせの新着）→「運営事務局」を開く（開くと消える）
   //   ・どちらも 0 なら何も出さない。PC のサイドバーとスマホの「その他」の中の両方
   const supportNew = supportUnread + opsUnseen;
   const renderSidebarAlerts = (onGo?: () => void) => {
-    if (unpaidInvoices <= 0 && supportNew <= 0) return null;
+    if (unseenInvoices <= 0 && supportNew <= 0) return null;
     const row = 'flex w-full items-center gap-1.5 border px-2.5 py-1.5 text-left text-[12.5px] font-bold leading-snug hover:opacity-80';
     return (
       <div className="mt-2 space-y-1.5">
-        {unpaidInvoices > 0 && (
+        {unseenInvoices > 0 && (
           <Link href="/mypage/invoices" onClick={onGo} className={`${row} border-amber-300 bg-amber-50 text-amber-900`}>
             <span aria-hidden>📄</span>
-            <span className="flex-1">ご請求書が届いています（{unpaidInvoices}件）</span>
+            <span className="flex-1">新しいご請求書が届いています（{unseenInvoices}件）</span>
             <span aria-hidden>›</span>
           </Link>
         )}
@@ -3089,8 +3092,9 @@ export default function MyPage() {
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 2h9l5 5v15H6z" /><path d="M14 2v6h6M9 13h6M9 17h6" /></svg>
       ご請求書
-      {unpaidInvoices > 0 && (
-        <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-amber-500 text-white text-[9px] font-black leading-none">{unpaidInvoices}</span>
+      {/* ★ 第1432便: 未読の数（一覧を一度開くと消える）。前はお支払い待ちの数（黄色）だった */}
+      {unseenInvoices > 0 && (
+        <span className="ml-auto inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-pink-500 text-white text-[9px] font-black leading-none">{unseenInvoices}</span>
       )}
     </Link>
   );
