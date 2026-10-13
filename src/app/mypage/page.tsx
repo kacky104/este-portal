@@ -3053,6 +3053,34 @@ export default function MyPage() {
     />
   );
 
+  // ★ 第1431便（カッキーさん）: 請求書・運営からの新しいお知らせが届いたら、サイドバーの上（店名の下）に出す。
+  //   ・ご請求書 ＝ お支払い待ちの数（unpaidInvoices）→ /mypage/invoices
+  //   ・お知らせ ＝ 運営事務局のバッジと同じ数（未読＋運営からのお知らせの新着）→「運営事務局」を開く（開くと消える）
+  //   ・どちらも 0 なら何も出さない。PC のサイドバーとスマホの「その他」の中の両方
+  const supportNew = supportUnread + opsUnseen;
+  const renderSidebarAlerts = (onGo?: () => void) => {
+    if (unpaidInvoices <= 0 && supportNew <= 0) return null;
+    const row = 'flex w-full items-center gap-1.5 border px-2.5 py-1.5 text-left text-[12.5px] font-bold leading-snug hover:opacity-80';
+    return (
+      <div className="mt-2 space-y-1.5">
+        {unpaidInvoices > 0 && (
+          <Link href="/mypage/invoices" onClick={onGo} className={`${row} border-amber-300 bg-amber-50 text-amber-900`}>
+            <span aria-hidden>📄</span>
+            <span className="flex-1">ご請求書が届いています（{unpaidInvoices}件）</span>
+            <span aria-hidden>›</span>
+          </Link>
+        )}
+        {supportNew > 0 && (
+          <button type="button" onClick={() => { goTab('support'); onGo?.(); }} className={`${row} border-pink-300 bg-pink-50 text-pink-700`}>
+            <span aria-hidden>🔔</span>
+            <span className="flex-1">運営から新しいお知らせがあります（{supportNew}件）</span>
+            <span aria-hidden>›</span>
+          </button>
+        )}
+      </div>
+    );
+  };
+
   // ★ 第816便: ご請求書（/mypage/invoices）。★ お支払い待ちがあれば数を出す。
   const renderInvoicesLink = (pc: boolean) => (
     <Link
@@ -3239,6 +3267,7 @@ export default function MyPage() {
               >
                 {salonForm.name ?? ''}
               </div>
+              {renderSidebarAlerts()}
             </div>
           </div>
 
@@ -3345,6 +3374,7 @@ export default function MyPage() {
                   >
                     {salonForm.name ?? ''}
                   </div>
+                  {renderSidebarAlerts(() => setDrawerOpen(false))}
                 </div>
                 {MOBILE_OTHER_SECTIONS.map((sec) => {
                   const keys = sec.keys.filter(navVisible);
