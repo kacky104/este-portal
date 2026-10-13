@@ -14,6 +14,7 @@ export function PendingPointsBanner() {
   const [points, setPoints] = useState(0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     let raw: string | null = null;
@@ -27,16 +28,25 @@ export function PendingPointsBanner() {
   }, []);
 
   if (!token) return null;
+  if (done) {
+    return (
+      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+        <p className="flex-1 text-sm font-bold text-slate-600">{msg}</p>
+        <button type="button" onClick={() => setToken(null)} aria-label="閉じる" className="px-2 text-lg font-bold text-slate-400">×</button>
+      </div>
+    );
+  }
 
   const claim = async () => {
     setBusy(true); setMsg('');
     try {
       const r = await claimVisitPoints(token);
       if (!r.ok) { setMsg(r.error); return; }
-      try { if (r.status !== 'daily') localStorage.removeItem(POINT_PENDING_KEY); } catch { /* 何もしない */ }
+      // ★ 第1447便: 受け取れても受け取れなくても（1日1回・受け取り済み・期限切れ）、この券はもう使えない → 覚えた券を消して、ボタンを出さない
+      try { localStorage.removeItem(POINT_PENDING_KEY); } catch { /* 何もしない */ }
       if (r.status === 'ok') { window.location.reload(); return; }
       setMsg(r.message);
-      if (r.status !== 'daily') setToken(null);
+      setDone(true);
     } catch {
       setMsg('通信できませんでした。もう一度お試しください');
     } finally {

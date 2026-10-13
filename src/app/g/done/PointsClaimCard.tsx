@@ -51,7 +51,8 @@ export function PointsClaimCard({
       if (r.status === 'ok' || r.status === 'mine') setState({ kind: 'claimed', points: r.points || points, mine: true });
       else if (r.status === 'expired') setState({ kind: 'expired', points });
       else if (r.status === 'taken') setState({ kind: 'claimed', points, mine: false });
-      try { if (r.status !== 'daily') localStorage.removeItem(POINT_PENDING_KEY); } catch { /* 何もしない */ }
+      else setState({ kind: 'expired', points }); // ★ 第1447便: 1日1回・無効も、この券はもう使えない（ボタンを出さない・文は msg）
+      try { localStorage.removeItem(POINT_PENDING_KEY); } catch { /* 何もしない */ }
     } catch {
       setErr('通信できませんでした。もう一度お試しください');
     } finally {
@@ -103,7 +104,7 @@ export function PointsClaimCard({
       {state.kind === 'claimed' && state.mine && bal != null && (
         <p className="mt-1 text-[13px] text-slate-600">いまのポイント：<b className="text-slate-800">{bal.toLocaleString()}pt</b></p>
       )}
-      {state.kind === 'expired' && <p className="mt-2 text-[13px] font-bold text-slate-500">受け取りの期限（同意から{POINT_CLAIM_HOURS}時間）が過ぎました</p>}
+      {state.kind === 'expired' && <p className="mt-2 text-[13px] font-bold text-slate-500">{msg || `受け取りの期限（同意から${POINT_CLAIM_HOURS}時間）が過ぎました`}</p>}
       {state.kind === 'open' && msg && <p className="mt-2 text-[13px] font-bold text-amber-700">{msg}</p>}
       {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
 
