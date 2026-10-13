@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { acrylicStandSalonHref } from '@/lib/ga';
+import CloseX from './CloseX';
 
 // 同意書の送信が終わったあとの画面（第560便）。★ 同意書の中身は出さない（戻るボタンで同意書に戻れないように、送信後はここへ置き換える）。
 // ★ 第1404便（2026-10-11・カッキーさん）: 「フクエスでこのお店を見る」を出す（部屋のアクリルスタンド → 同意書 → ここ → お店ページ）。
@@ -69,7 +70,9 @@ export default async function GuideDonePage({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <main className="mx-auto w-full max-w-md bg-white">
+    <main className="relative mx-auto w-full max-w-md bg-white">
+      {/* ★ 第1428便: お店のページへ行かずに終わる ✕（画像のリンクの外に置く＝押してもお店へ飛ばない） */}
+      <CloseX />
       <a href={salonHref} rel="noreferrer" className="relative block text-slate-800">
         {picture}
         {/* 下の白い余白: 案内とボタン */}
