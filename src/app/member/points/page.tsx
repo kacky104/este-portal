@@ -102,10 +102,10 @@ export default async function MemberPointsPage() {
                   {p.rows.map((r) => (
                     <li key={r.id} className="flex items-center gap-3 px-4 py-3 text-sm">
                       <span className="w-24 flex-none text-xs text-slate-400">{day(r.createdAt)}</span>
-                      {/* ★ 第1448便: 店名を2行目に（スマホで見切れていた） */}
+                      {/* ★ 第1448便: 店名を2行目に（スマホで見切れていた）。★ 第1449便: 店名は1行に収め、はみ出す分は「…」（3行目に行かない） */}
                       <span className="min-w-0 flex-1 text-slate-700">
                         <span className="block">{KIND_LABEL[r.kind] ?? r.kind}</span>
-                        {r.salonName && <span className="block break-words text-xs text-slate-500">{r.salonName}</span>}
+                        {r.salonName && <span className="block truncate text-xs text-slate-500" title={r.salonName}>{r.salonName}</span>}
                       </span>
                       <span className={`flex-none font-bold ${r.delta > 0 ? 'text-pink-600' : 'text-slate-500'}`}>
                         {r.delta > 0 ? '+' : ''}{r.delta.toLocaleString()}pt
