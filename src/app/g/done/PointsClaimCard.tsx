@@ -66,7 +66,7 @@ export function PointsClaimCard({
     <section className="mx-4 mb-6 mt-2 border border-pink-200 bg-gradient-to-b from-pink-50 to-white px-4 py-4 text-center text-slate-800">
       <p className="text-[12px] font-bold tracking-[0.08em] text-pink-600">フクエスポイント</p>
       <p className="mt-1 text-[18px] font-black">
-        来店ポイント <span className="bg-clip-text text-[26px] text-transparent" style={{ backgroundImage: BRAND }}>{points}pt</span>
+        来店ポイント <span className="bg-clip-text text-[36px] leading-none text-transparent" style={{ backgroundImage: BRAND }}>{points}pt</span>
         {POINT_VISIT_NOTE && <span className="ml-1 align-middle text-[11px] font-bold text-pink-600">（{POINT_VISIT_NOTE}）</span>}
       </p>
 
@@ -108,9 +108,12 @@ export function PointsClaimCard({
       {err && <p className="mt-2 text-[13px] font-bold text-rose-600">{err}</p>}
 
       <p className="mt-3 text-[11.5px] leading-relaxed text-slate-500">
-        {POINT_USE_UNIT.toLocaleString()}pt で {POINT_USE_YEN.toLocaleString()}円引き（フクエスポイント加盟店で）。
-        <a href="/points" rel="noreferrer" className="ml-1 font-bold text-pink-600 underline">くわしく</a>
-        {state.kind === 'claimed' && state.mine && <a href="/member/points" rel="noreferrer" className="ml-2 font-bold text-pink-600 underline">ポイントを見る</a>}
+        {POINT_USE_UNIT.toLocaleString()}pt で {POINT_USE_YEN.toLocaleString()}円引き（フクエスポイント加盟店で）
+      </p>
+      {/* ★ 第1445便: 「くわしく」は折り返さないよう2行目に1つで出す */}
+      <p className="mt-1 whitespace-nowrap text-[12px]">
+        <a href="/points" rel="noreferrer" className="font-bold text-pink-600 underline">くわしく</a>
+        {state.kind === 'claimed' && state.mine && <a href="/member/points" rel="noreferrer" className="ml-3 font-bold text-pink-600 underline">ポイントを見る</a>}
       </p>
     </section>
   );
