@@ -70,6 +70,9 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
+/** ★ 第1439便: サイドバーにフクエスリンクのバナーを出すお店（12＝アロマメイ様・5＝オイルクエスト様） */
+const MEDIA_BANNER_SALON_IDS: readonly number[] = [12, 5];
+
 const supabase = createClient();
 
 
@@ -3119,6 +3122,9 @@ export default function MyPage() {
   // ★★ 第674便（2026-09-22・カッキーさんの指示）: フクエスリンクも画像バナーに（./SidebarBanner.tsx）。
   //   ★ 行き先は今までどおり /mypage/media（別タブ）。★ 出す相手も今までどおり（withMedia の店だけ）。
   //   ★ 第852便: 使っていないお店（mediaInUse === false）はご案内ページ /mypage/media/intro へ。
+  // ★★ 第1439便（2026-10-13・カッキーさん）: サイドバーのフクエスリンクのバナーは、アロマメイ様（12）・オイルクエスト様（5）にだけ出す。
+  //   ★ ほかのお店には出さない（/mypage/media・ご案内ページ自体は残す＝URL を直接開けば今までどおり）。★ 出す店を増やすときはここに番号を足す。
+  const mediaBannerOn = MEDIA_BANNER_SALON_IDS.includes(Number(salon?.id));
   const renderMediaLink = (pc: boolean) => (
     <SidebarBanner
       pc={pc}
@@ -3400,7 +3406,7 @@ export default function MyPage() {
                 {MOBILE_OTHER_SECTIONS.map((sec) => {
                   const keys = sec.keys.filter(navVisible);
                   const isSites = sec.group === '関連サイト';
-                  const withMedia = isSites && mediaVisible;
+                  const withMedia = isSites && mediaVisible && mediaBannerOn;
                   // ★ 「関連サイト」は中の画面が0個でも残す（★ 全店舗に出す外部リンクが入っているため）。
                   if (keys.length === 0 && !isSites) return null;
                   return (
@@ -3463,7 +3469,7 @@ export default function MyPage() {
               // 求人はフクエスワーク掲載（jobs_enabled）契約店のみ表示。
               const keys = sec.keys.filter(navVisible);
               // ★ 「関連サイト」にはフクエスリンク（媒体連携）も入る。★ 出す相手にしか描かない（第54便）。
-              const withMedia = sec.group === '関連サイト' && mediaVisible;
+              const withMedia = sec.group === '関連サイト' && mediaVisible && mediaBannerOn;
               // ★★ 「関連サイト」には、契約に関係なく全店舗に出すものが入っている
               //   （フクエスサイト・フクエックス・フクエスCRM）。★ 見出しごと消してはいけない。
               //   ★ 第184便より前は、求人も媒体連携も無い店舗で「関連サイト」が丸ごと消えていた。
