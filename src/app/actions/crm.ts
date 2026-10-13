@@ -106,7 +106,11 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
     q = q.eq('owner_id', user.id).order('is_hidden', { ascending: true }).order('id', { ascending: true });
   }
   const { data, error } = await q.limit(1).maybeSingle();
-  if (error || !data) return { ok: false, error: '店舗情報が見つかりません' };
+  if (error || !data) {
+    // ★ 運営アカウントで店舗を選んでいない（運営自身の店が無い）ときは、店を選ぶ帯を出す
+    if (isAdmin && !error) return { ok: false, error: '運営アカウントでログインしています。上の「店舗を選んで開く」から、開く店舗を選んでください。', operator: true };
+    return { ok: false, error: '店舗情報が見つかりません' };
+  }
 
   const crmUntil = (data.crm_until as string | null) ?? null;
   // 規約への同意（第569便）：版が決まっていて、まだその版に同意していなければ false（運営は見るだけなので true）
@@ -135,6 +139,29 @@ export async function getCrmAccess(salonIdForAdmin?: number): Promise<CrmAccess>
     moneyEnabled: money.moneyEnabled,
     autoReceivedFrom: money.autoReceivedFrom,
   };
+}
+
+// ── 運営が店舗様の CRM を開く（第1438便・2026-10-13・カッキーさん）──
+// ★ 店は URL の ?salon=店舗ID で決める（cookie を使わない＝タブごとに店がはっきりしていて、別のタブの選択に引きずられない）。
+// ★ 保存の可否は今までどおり assertCrmOwner（運営アカウントならどの店でも通る）。ここは一覧を返すだけ。
+export type CrmOperatorSalon = { id: number; name: string; hidden: boolean; contract: boolean };
+
+/** 店を選ぶ一覧（運営だけ）。契約中の店を先に、そのあと id の若い順。非表示の店も出す */
+export async function listCrmOperatorSalons(): Promise<{ ok: true; data: CrmOperatorSalon[] } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.id !== ADMIN_UUID) return { ok: false, error: '運営アカウントでログインしてください' };
+  const svc = createServiceClient();
+  const { data, error } = await svc.from('salons').select('id, name, is_hidden, crm_until').order('id', { ascending: true }).limit(1000);
+  if (error) return { ok: false, error: error.message };
+  const rows: CrmOperatorSalon[] = (data ?? []).map((r) => ({
+    id: Number(r.id),
+    name: (r.name as string | null) ?? '',
+    hidden: r.is_hidden === true,
+    contract: isCrmActive((r.crm_until as string | null) ?? null),
+  }));
+  rows.sort((a, b) => (a.contract === b.contract ? a.id - b.id : a.contract ? -1 : 1));
+  return { ok: true, data: rows };
 }
 
 /** 有料CRMを使ってよいか確かめてから service_role を返す */

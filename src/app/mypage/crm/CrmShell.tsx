@@ -9,12 +9,13 @@ import { isCrmHost } from '@/lib/crmHost';
 import { createClient } from '@/app/lib/supabase/client';
 import { crmLeaveOk, safeAction, useCrmLinks } from './CrmBase';
 import { CrmIntro } from './CrmIntro';
+import { CrmOperatorBar } from './CrmOperatorBar';
 
 // フクエスCRM の外枠（2026-09-19）。★ 画面が増えても、入口の判定と上の帯はここ1か所。
 //   ・未ログイン → オーナーログインへ
 //   ・未契約 → 「有料機能です」のご案内だけ（★ 中身はサーバーも返さない）
 //   ・契約中 → 上の帯（スケジュール／顧客台帳）＋中身
-// ★ 運営（ADMIN）は ?salon=店舗ID で、その店を確認できる（タブを移っても ?salon を引き継ぐ）。
+// ★ 運営（ADMIN）は ?salon=店舗ID で、その店を確認・操作できる（タブを移っても ?salon を引き継ぐ）。★ 第1438便: 店は帯の「店舗を選んで開く」から選ぶ（CrmOperatorBar）
 
 export type CrmNavKey = 'schedule' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'settings' | 'group';
 
@@ -66,7 +67,15 @@ export function CrmShell({
 }) {
   const links = useCrmLinks();
   if (!access) return <p className="p-10 text-center text-[14px] text-slate-400">読み込み中です…</p>;
-  if (!access.ok) return <p className="whitespace-pre-line p-10 text-center text-[14px] text-slate-500">{access.error}</p>;
+  if (!access.ok) {
+    return (
+      <>
+        {/* ★ 第1438便: 運営アカウントで店をまだ選んでいないときは、店を選ぶ帯だけ出す */}
+        {access.operator && <CrmOperatorBar salonId={null} salonName="" />}
+        <p className="whitespace-pre-line p-10 text-center text-[14px] text-slate-500">{access.error}</p>
+      </>
+    );
+  }
 
   return (
     <>
@@ -158,6 +167,8 @@ export function CrmShell({
         ) : (
           <div className="h-3" />
         )}
+        {/* ★ 第1438便: 運営だけ。?salon= で店を選んでいるときは黄色い「運営として『◯◯』を操作中」 */}
+        {access.isAdmin && <CrmOperatorBar salonId={adminSalonQuery ? access.salonId : null} salonName={access.salonName} />}
       </header>
       {!access.active ? <CrmIntro salonName={access.salonName} />
         : !access.termsOk ? <TermsGate salonId={access.salonId} />

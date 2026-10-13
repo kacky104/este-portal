@@ -98,7 +98,8 @@ export type CrmAccess =
       /** ★ 第1415便: 受領が未入力の予約を「女子が受領」とみなす日（から先）。null＝しない */
       autoReceivedFrom: string | null;
     }
-  | { ok: false; error: string; needLogin?: boolean };
+  /** ★ operator: 運営アカウントで、まだ店舗を選んでいない（上の「店舗を選んで開く」を出す） */
+  | { ok: false; error: string; needLogin?: boolean; operator?: boolean };
 
 // ── 本日スケジュール（CRM版・2026-09-19）────────────────
 /** 予約に重ねるお客様の情報（台帳にひも付いている予約だけ） */
