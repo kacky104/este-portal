@@ -32,6 +32,9 @@ export default async function MemberPage() {
   // ── ログインガード（サーバー側） ──
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/member');
+  // ★ 第1448便: いまのフクエスポイント（本人の行だけ読める・RLS）。読めないとき（SQL 前など）は出さない
+  const { data: pointRows, error: pointErr } = await supabase.from('member_points').select('delta').eq('user_id', user.id).limit(5000);
+  const pointBalance: number | null = pointErr ? null : (pointRows ?? []).reduce((t, r) => t + (Number(r.delta) || 0), 0);
 
   // ── 保存アイテム＋プロフィール（ニックネーム）を並列取得（互いに独立）。実体は既存の saved_items / profiles。 ──
   const [savedRes, profileRes] = await Promise.all([
@@ -141,7 +144,9 @@ export default async function MemberPage() {
         <PendingPointsBanner />
 
         {/* ─── 挨拶エリア ─── */}
-        <section className="mb-8">
+        {/* ★ 第1448便: 名前の右にいまのフクエスポイント（押すとポイントのページ） */}
+        <section className="mb-8 flex items-end justify-between gap-3">
+          <div className="min-w-0">
           <p className="text-[13px] text-slate-400">ようこそ</p>
           <h1
             className="text-2xl sm:text-3xl font-bold leading-tight inline-block"
@@ -151,6 +156,16 @@ export default async function MemberPage() {
           </h1>
           {user.email && (
             <p className="text-xs text-slate-400 mt-1.5 truncate">{user.email}</p>
+          )}
+          </div>
+          {pointBalance !== null && (
+            <Link href="/member/points" className="flex-none rounded-2xl border border-pink-100 bg-white px-4 py-2.5 text-right shadow-sm hover:border-pink-300">
+              <span className="block text-[11px] font-bold text-slate-400">フクエスポイント</span>
+              <span className="block font-black leading-none">
+                <span className="text-2xl sm:text-3xl" style={{ background: 'linear-gradient(95deg,#FB923C,#DB2777)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{pointBalance.toLocaleString()}</span>
+                <span className="ml-0.5 text-sm text-pink-600">pt</span>
+              </span>
+            </Link>
           )}
         </section>
 
