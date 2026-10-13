@@ -1566,6 +1566,16 @@ function BookingForm({
   const setPayAll = (m: string) => setF((p) => ({ ...p, paymentMethod: '', payAmounts: { [m]: String(Math.max(0, sums.price + priceAdj)) } }));
 
   /** 項目を押した：コース・指名は入れ替え、他は付け外し。コース・延長を選んだら時間とコース名も合わせる */
+  // ★ 第1441便（店舗様の要望）: かんたん受付の割引は【1つだけ】選ぶ（-1,000〜-5,000 から1つ）。押し直すと外れる。
+  //   ★ くわしく入れるほうは今までどおり、いくつでも（CRM_PRICE_SINGLE.discount は false のまま）。
+  const pickQuickDiscount = (p: CrmPriceItem) => {
+    setF((prev) => {
+      const discountIds = priceItems.filter((x) => x.kind === 'discount').map((x) => x.id);
+      const on = prev.selIds.includes(p.id);
+      const ids = prev.selIds.filter((id) => !discountIds.includes(id));
+      return { ...prev, selIds: on ? ids : [...ids, p.id] };
+    });
+  };
   const togglePrice = (p: CrmPriceItem) => {
     setF((prev) => {
       let ids = prev.selIds;
@@ -1827,6 +1837,27 @@ function BookingForm({
                   </div>
                 </div>
               )}
+              {/* ★ 第1441便（店舗様の要望）: 割引も押して選ぶ（料金設定の「割引」の項目。1つだけ） */}
+              {priceItems.some((p) => p.kind === 'discount') && (
+                <div className="col-span-2">
+                  <label className={labCls}>割引（使うときだけ1つ押す）</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {priceItems.filter((p) => p.kind === 'discount').map((p) => {
+                      const on = f.selIds.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => pickQuickDiscount(p)}
+                          className={`border px-3 py-1.5 text-[13px] font-bold ${on ? 'border-rose-600 bg-rose-600 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
+                        >
+                          {p.name}<span className={on ? 'text-rose-100' : 'text-slate-400'}> -{p.price.toLocaleString()}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div>
                 <label className={labCls}>料金（円・指名を除く）</label>
                 <input className={fieldCls} inputMode="numeric" value={f.priceAdjust} onChange={(e) => set('priceAdjust', e.target.value.replace(/[^0-9]/g, ''))} placeholder="例）16000" />
@@ -1838,8 +1869,8 @@ function BookingForm({
                 {priceAdj > 0 && sums.pay + payAdj === 0 && <p className="mt-0.5 text-[11px] font-bold text-amber-700">女子報酬が 0円で入ります</p>}
               </div>
               <p className="col-span-2 -mt-1 text-[12px] text-slate-500">
-                {sums.price > 0 || sums.pay > 0
-                  ? `指名の分（料金 ${sums.price.toLocaleString()}円・報酬 ${sums.pay.toLocaleString()}円）はこの上に足されます → 料金 ${(sums.price + priceAdj).toLocaleString()}円・女子報酬 ${(sums.pay + payAdj).toLocaleString()}円`
+                {allItems.length > 0
+                  ? `${allItems.some((it) => it.kind === 'discount') ? '指名・割引' : '指名'}の分（料金 ${sums.price.toLocaleString()}円・報酬 ${sums.pay.toLocaleString()}円）をこの数字に足し引きします → 料金 ${(sums.price + priceAdj).toLocaleString()}円・女子報酬 ${(sums.pay + payAdj).toLocaleString()}円`
                   : '指名を押すと、その料金がこの上に足されます。'}
                 コースなどは、あとでカードを押して「変更する」から料金表で選び直せます。
               </p>
