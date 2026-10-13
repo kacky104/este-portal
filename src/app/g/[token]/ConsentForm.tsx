@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { submitConsent } from '@/app/actions/consent';
+import { SignatureFullscreen } from './SignatureFullscreen';
 
 // 同意書の入力（第560便）。☑＋スマホの画面に指でサイン → セラピストが確認して送信。
 // ★ 端末には何も保存しない（localStorage・クッキーを使わない）。
@@ -45,6 +46,7 @@ export function ConsentForm({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [redo, setRedo] = useState(false);
+  const [big, setBig] = useState(false); // ★ 第1429便: 横向き・画面いっぱいで書く
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef<{ x: number; y: number } | null>(null);
 
@@ -106,6 +108,25 @@ export function ConsentForm({
     g.fillStyle = '#ffffff';
     g.fillRect(0, 0, r.width, r.height);
     setInk(0);
+  };
+
+  // ★ 第1429便: 大きく書いたサインを、このサイン欄に縮めて写す（縦横の比はそのまま・真ん中に）
+  const takeBig = (src: HTMLCanvasElement, bigInk: number) => {
+    const c = canvasRef.current;
+    const g = c?.getContext('2d');
+    setBig(false);
+    if (!c || !g) return;
+    const r = c.getBoundingClientRect();
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, r.width, r.height);
+    const k = Math.min(r.width / src.width, r.height / src.height);
+    const w = src.width * k;
+    const h = src.height * k;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(src, (r.width - w) / 2, (r.height - h) / 2, w, h);
+    // 線の長さは縮めた分に合わせる（点だけ・空欄では送れない決まりはそのまま）
+    const dpr = window.devicePixelRatio || 1;
+    setInk(bigInk * k * dpr);
   };
 
   const canSend = !!bookingId && checked && ink >= MIN_INK && !busy;
@@ -173,7 +194,16 @@ export function ConsentForm({
               onPointerLeave={up}
               className="h-[180px] w-full touch-none border-2 border-dashed border-slate-400 bg-white"
             />
+            {/* ★ 第1429便: 横向き・画面いっぱいで書く */}
+            <button
+              type="button"
+              onClick={() => setBig(true)}
+              className="mt-2 w-full border-2 border-indigo-600 bg-white py-2.5 text-[15px] font-bold text-indigo-700"
+            >
+              ⤢ 横向きで大きく書く
+            </button>
           </div>
+          {big && <SignatureFullscreen onDone={takeBig} onClose={() => setBig(false)} />}
 
           <p className="mt-4 text-[13px] leading-relaxed text-slate-600">セラピストが内容を確認のうえ、送信してください。</p>
           {err && <p className="mt-2 text-[14px] font-bold text-rose-600">{err}</p>}
