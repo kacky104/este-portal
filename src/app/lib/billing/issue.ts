@@ -68,3 +68,29 @@ export async function sendOverdueReminderCore(id: number): Promise<{ ok: true; m
   await svc.from('invoices').update({ reminder_sent_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', id);
   return { ok: true, mail: `お支払い期限のお知らせを送りました（${to}）` };
 }
+
+// ── 自動催促（第1433便・2026-10-13・カッキーさん）──────────────
+//   ★ /api/cron/invoice-remind（毎日 10:00）から呼ぶ。いつ送るかは lib/invoiceAutoRemind.ts（planInvoiceRemind）。
+//   ★ メールの中身は手動の催促（sendOverdueMail）と同じ。
+//   ★ 順番: メールを出してから表に書く（書けなかったら次の日にもう一度出る＝漏れるより重なるほうを選ぶ）。
+//   ★ 1回目は帯（payment_notice_on）も ON にする＝マイページの上に赤い帯（期限切れ）。2回目はメールだけ。
+export async function autoRemindCore(
+  inv: { id: number; salon_id: number; recipient_name: string; billing_month: string; invoice_no: string | null; total: number; due_date: string },
+  kind: 'first' | 'second',
+): Promise<{ ok: true; to: string } | { ok: false; error: string }> {
+  const svc = createServiceClient();
+  const to = await mailTo(svc, inv.salon_id);
+  const r = await sendOverdueMail({
+    to, recipientName: inv.recipient_name, billingMonth: inv.billing_month, invoiceNo: inv.invoice_no ?? '',
+    total: inv.total, dueDate: inv.due_date, invoiceId: inv.id,
+  });
+  if (!r.ok) return { ok: false, error: r.error };
+  const now = new Date().toISOString();
+  const patch = kind === 'first'
+    ? { auto_remind1_at: now, reminder_sent_at: now, payment_notice_on: true, updated_at: now }
+    : { auto_remind2_at: now, reminder_sent_at: now, updated_at: now };
+  // ★ 入金済みに変わっていたら書かない（status = issued のときだけ）
+  const { error } = await svc.from('invoices').update(patch).eq('id', inv.id).eq('status', 'issued');
+  if (error) return { ok: false, error: `メールは送ったが記録できなかった：${error.message}` };
+  return { ok: true, to };
+}

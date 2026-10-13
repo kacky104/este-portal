@@ -3542,7 +3542,8 @@ export default function MyPage() {
         {/* ★ 第816便 → 第833便: お支払いのお願いの帯。★ 運営が管理画面で「マイページに帯を出す」を押した店だけ・入金済みで自動で消える */}
         {paymentNotice && (
           <div className="max-w-2xl mx-auto px-3 pt-2">
-            <Link href="/mypage/invoices" className="block border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {/* ★ 第1433便（カッキーさん）: 期限を過ぎたら赤（自動催促の1回目で帯が ON になる）。期限前は今までどおり黄色 */}
+            <Link href="/mypage/invoices" className={`block border px-3 py-2 text-sm ${paymentNotice.overdue ? 'border-rose-400 bg-rose-50 text-rose-700' : 'border-amber-300 bg-amber-50 text-amber-900'}`}>
               <span className="font-bold">
                 {paymentNotice.dueDate
                   ? `ご請求のお支払い期限（${paymentNotice.dueDate.replace(/^\d+-(\d+)-(\d+)$/, (_, m, d) => `${Number(m)}月${Number(d)}日`)}）${paymentNotice.overdue ? 'を過ぎております' : 'が近づいております'}。`

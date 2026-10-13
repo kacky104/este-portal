@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/vps-watch", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/stall-watch", "schedule": "3,33 * * * *" }
+    { "path": "/api/cron/stall-watch", "schedule": "3,33 * * * *" },
+    { "path": "/api/cron/invoice-remind", "schedule": "0 1 * * *" }
   ]
 }
