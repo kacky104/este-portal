@@ -906,17 +906,22 @@ export default function MyPage() {
   // ★ 第1432便（カッキーさん）: まだ一覧で見ていない請求書の数（サイドバーの赤い数字・店名の下の案内）。一覧を開くと 0 になる（lib/invoiceSeen.ts）
   const [unseenInvoices, setUnseenInvoices] = useState(0);
   const [paymentNotice, setPaymentNotice] = useState<{ dueDate: string | null; overdue: boolean } | null>(null);
+  // ★ 第1434便（カッキーさん）: 期限の5日前〜当日で入金待ちの請求書（いちばん期限の近いもの）。店名の下に「もうすぐお支払い期限です」と金額
+  const [dueSoon, setDueSoon] = useState<{ dueDate: string; total: number } | null>(null);
   useEffect(() => {
     let alive = true;
-    void supabase.from('invoices').select('id, due_date, payment_notice_on').eq('status', 'issued').order('due_date')
+    void supabase.from('invoices').select('id, due_date, total, payment_notice_on').eq('status', 'issued').order('due_date')
       .then(({ data }) => {
         if (!alive) return;
         const rows = data ?? [];
         const seen = new Set(loadSeenInvoiceIds());
         setUnseenInvoices(rows.filter((r) => !seen.has(String(r.id))).length);
+        const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+        const soonFrom = (ymd: string) => { const d = new Date(`${ymd}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 5); return d.toISOString().slice(0, 10); };
+        const soon = rows.find((r) => r.due_date && today <= (r.due_date as string) && today >= soonFrom(r.due_date as string));
+        setDueSoon(soon ? { dueDate: soon.due_date as string, total: Number(soon.total ?? 0) } : null);
         const on = rows.find((r) => r.payment_notice_on);
         if (!on) { setPaymentNotice(null); return; }
-        const today = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
         setPaymentNotice({ dueDate: (on.due_date as string | null) ?? null, overdue: !!on.due_date && (on.due_date as string) < today });
       });
     return () => { alive = false; };
@@ -3062,21 +3067,33 @@ export default function MyPage() {
   //   ・どちらも 0 なら何も出さない。PC のサイドバーとスマホの「その他」の中の両方
   const supportNew = supportUnread + opsUnseen;
   const renderSidebarAlerts = (onGo?: () => void) => {
-    if (unseenInvoices <= 0 && supportNew <= 0) return null;
+    if (unseenInvoices <= 0 && supportNew <= 0 && !dueSoon) return null;
     const row = 'flex w-full items-center gap-1.5 border px-2.5 py-1.5 text-left text-[12.5px] font-bold leading-snug hover:opacity-80';
     return (
       <div className="mt-2 space-y-1.5">
+        {dueSoon && (
+          <Link href="/mypage/invoices" onClick={onGo} className={`${row} border-rose-300 bg-rose-50 text-rose-700`}>
+            <span aria-hidden>⏰</span>
+            <span className="flex-1">
+              もうすぐお支払い期限です
+              <span className="block text-[11.5px] font-bold">
+                {Number(dueSoon.dueDate.slice(5, 7))}月{Number(dueSoon.dueDate.slice(8, 10))}日まで・¥{dueSoon.total.toLocaleString('ja-JP')}
+              </span>
+            </span>
+            <span aria-hidden>›</span>
+          </Link>
+        )}
         {unseenInvoices > 0 && (
           <Link href="/mypage/invoices" onClick={onGo} className={`${row} border-amber-300 bg-amber-50 text-amber-900`}>
             <span aria-hidden>📄</span>
-            <span className="flex-1">新しいご請求書が届いています（{unseenInvoices}件）</span>
+            <span className="flex-1">新しいご請求書があります<span className="whitespace-nowrap">（{unseenInvoices}件）</span></span>
             <span aria-hidden>›</span>
           </Link>
         )}
         {supportNew > 0 && (
           <button type="button" onClick={() => { goTab('support'); onGo?.(); }} className={`${row} border-pink-300 bg-pink-50 text-pink-700`}>
             <span aria-hidden>🔔</span>
-            <span className="flex-1">運営から新しいお知らせがあります（{supportNew}件）</span>
+            <span className="flex-1">運営から新しいお知らせ<span className="whitespace-nowrap">（{supportNew}件）</span></span>
             <span aria-hidden>›</span>
           </button>
         )}
