@@ -13,6 +13,7 @@ import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { PendingPointsBanner } from './PendingPointsBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 
 // 会員個別の内容（ログイン必須・保存状況に依存）のため ISR はかけず動的のままにする。
@@ -260,6 +261,9 @@ export default async function MemberPage() {
           </section>
         )}
 
+        {/* ★ 第1444便: 同意書の完了画面で受け取らなかった来店ポイント（このブラウザ・24時間） */}
+        <PendingPointsBanner />
+
         {/* ─── 会員メニュー（実装済み機能への導線） ─── */}
         <section className="mb-4">
           <h2 className="flex items-center gap-2 text-base font-bold text-slate-700 mb-4">
@@ -281,6 +285,20 @@ export default async function MemberPage() {
               <p className="text-xs text-slate-400 mt-1.5">
                 {nickname ? 'プロフィールの確認・編集' : 'ニックネームを設定'}
               </p>
+            </Link>
+
+            {/* ★ 第1444便: フクエスポイント */}
+            <Link
+              href="/member/points"
+              className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-bold text-slate-700">フクエスポイント</p>
+                <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
+                  見る <span aria-hidden>→</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">来店で貯まる・1,000ptで1,000円引き</p>
             </Link>
 
             {/* 閲覧履歴（最近見たサロン・セラピスト） */}

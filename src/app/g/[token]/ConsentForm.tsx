@@ -139,7 +139,11 @@ export function ConsentForm({
     if (!r.ok) { setBusy(false); setErr(r.error); return; }
     // s = お店の番号（第1404便・完了画面の「フクエスでこのお店を見る」用。フクエスで非表示のお店は付かない）
     // ★ 第1405便: 予約の時刻は完了画面へ渡さない（出さない・カッキーさん）
-    window.location.replace(`/g/done${r.salonId ? `?s=${r.salonId}` : ''}`);
+    // ★ 第1444便: フクエスポイントの受け取り券（c）も渡す（加盟店だけ）
+    const q = new URLSearchParams();
+    if (r.salonId) q.set('s', String(r.salonId));
+    if (r.pointToken) q.set('c', r.pointToken);
+    window.location.replace(`/g/done${q.toString() ? `?${q.toString()}` : ''}`);
   };
 
   return (

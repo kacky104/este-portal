@@ -119,6 +119,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // ポリシー類（法令対応・E-E-A-T用の静的ページ。更新頻度は低い）。
     // 運営者情報（E-E-A-T用の静的ページ。2026-07-23追加）。
     { url: `${SITE_URL}/about`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/points`, changeFrequency: 'weekly', priority: 0.4 }, // ★ 第1444便: フクエスポイント
     { url: `${SITE_URL}/terms`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/privacy`, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${SITE_URL}/listing`, changeFrequency: 'yearly', priority: 0.3 },

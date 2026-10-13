@@ -1,6 +1,12 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import Image from 'next/image';
 import { acrylicStandSalonHref } from '@/lib/ga';
+import { createClient } from '@/app/lib/supabase/server';
+import { createServiceClient } from '@/app/lib/supabase/service';
+import { isPointToken } from '@/lib/points';
+import { readClaim, readMyPoints, type ClaimView } from '@/app/lib/points/server';
+import { PointsClaimCard } from './PointsClaimCard';
 
 // 同意書の送信が終わったあとの画面（第560便）。★ 同意書の中身は出さない（戻るボタンで同意書に戻れないように、送信後はここへ置き換える）。
 // ★ 第1404便（2026-10-11・カッキーさん）: 「フクエスでこのお店を見る」を出す（部屋のアクリルスタンド → 同意書 → ここ → お店ページ）。
@@ -27,9 +33,23 @@ export const metadata: Metadata = {
 const SERIF = { fontFamily: '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif' } as const;
 const BRAND = 'linear-gradient(90deg, #FB923C, #DB2777)';
 
-export default async function GuideDonePage({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
-  const { s } = await searchParams;
+export default async function GuideDonePage({ searchParams }: { searchParams: Promise<{ s?: string; c?: string }> }) {
+  const { s, c } = await searchParams;
   const salonHref = acrylicStandSalonHref(typeof s === 'string' ? s : '');
+
+  // ★ 第1444便: フクエスポイント（加盟店で同意したときだけ c＝受け取り券がある）。★ 読めないときは欄を出さない
+  let points: ReactNode = null;
+  if (isPointToken(c)) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const svc = createServiceClient();
+    const view: ClaimView = await readClaim(svc, c, user?.id ?? null);
+    const mine = user && view.kind === 'claimed' && view.mine ? await readMyPoints(svc, user.id, 1) : null;
+    const back = `/g/done?${new URLSearchParams({ ...(typeof s === 'string' && s ? { s } : {}), c }).toString()}`;
+    if (view.kind !== 'none') {
+      points = <PointsClaimCard token={c} view={view} loggedIn={!!user} balance={mine?.balance ?? null} returnPath={back} />;
+    }
+  }
 
   const picture = (
     <>
@@ -64,6 +84,7 @@ export default async function GuideDonePage({ searchParams }: { searchParams: Pr
             <p className="text-[14px] text-slate-500">この画面は閉じてください。</p>
           </div>
         </div>
+        {points}
       </main>
     );
   }
@@ -85,6 +106,7 @@ export default async function GuideDonePage({ searchParams }: { searchParams: Pr
           </span>
         </div>
       </a>
+      {points}
     </main>
   );
 }

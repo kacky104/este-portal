@@ -63,7 +63,8 @@ function LoginInner() {
     setLoading(true);
     try {
       if (mode === 'signup') {
-        const res = await signUpWithEmail(email.trim(), password);
+        // ★ 第1444便: redirectTo があれば、確認メールのリンクからも同じ場所へ戻す（同意書の完了画面 → 来店ポイントの受け取り）
+        const res = await signUpWithEmail(email.trim(), password, dest !== '/' ? dest : undefined);
         if (!res.ok) { setError(res.error ?? '登録に失敗しました。'); return; }
         if (res.alreadyRegistered) {
           // 既存メール（確認メールは届かない）。ログインへ誘導。

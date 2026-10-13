@@ -409,6 +409,13 @@ export default function AdminDashboard() {
             >
               請求書
             </Link>
+            {/* ★ 第1444便: フクエスポイント（加盟店・集計） */}
+            <Link
+              href="/admin/points"
+              className="text-xs text-pink-600 hover:text-pink-700 font-bold transition-colors"
+            >
+              ポイント
+            </Link>
             {/* ★ 第1174便: 広告掲載 申込書 兼 誓約書（店舗に送るリンク・提出の様子） */}
             <Link
               href="/admin/agreements"

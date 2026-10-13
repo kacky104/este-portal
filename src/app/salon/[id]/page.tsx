@@ -1,3 +1,5 @@
+import { POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE } from '@/lib/points';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
 import Link from "next/link";
 import type { Metadata } from "next";
 import { areaLabel } from "@/app/lib/areaLabel";
@@ -321,6 +323,9 @@ export default async function SalonPage({
         .map((b) => ({ imgPc: b.pc || b.sp, imgSp: b.sp || b.pc, link: b.link }))
         .filter((b): b is { imgPc: string; imgSp: string; link: string } => Boolean(b.imgPc))
     : [];
+  // ★ 第1444便: フクエスポイント加盟店の札。★ 列が未追加（SQL 前）・読めないときは出さない（本体の表示を壊さないよう単独取得）
+  const { data: pointRow } = await supabase.from('salons').select('points_member, crm_until').eq('id', Number(id)).maybeSingle();
+  const isPointShop = !!pointRow && pointRow.points_member === true && !!pointRow.crm_until && String(pointRow.crm_until).slice(0, 10) >= getCalendarDateJST();
   const qn = QUICKNAV_COLORS[theme.key];
   const heart = HEART_COLORS[theme.key];
 
@@ -865,6 +870,18 @@ export default async function SalonPage({
                   );
                 })}
               </div>
+            )}
+
+            {/* ★ 第1444便: フクエスポイント加盟店の札（/points へ） */}
+            {isPointShop && (
+              <Link href="/points" className="mt-3 flex items-center gap-3 rounded-2xl border border-pink-200 bg-gradient-to-r from-orange-50 to-pink-50 px-4 py-3 shadow-sm">
+                <span className="flex-none rounded-full px-2.5 py-1 text-[11px] font-black text-white" style={{ background: 'linear-gradient(90deg,#FB923C,#DB2777)' }}>P</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-slate-800">フクエスポイント加盟店</span>
+                  <span className="block text-xs text-slate-500">ご来店で{POINT_VISIT}pt{POINT_VISIT_NOTE ? `（${POINT_VISIT_NOTE}）` : ''}・{POINT_USE_UNIT.toLocaleString()}ptで{POINT_USE_YEN.toLocaleString()}円引き</span>
+                </span>
+                <span className="flex-none text-xs font-bold text-pink-600">くわしく →</span>
+              </Link>
             )}
 
             {/* Courses — shown only when DB data is available（折り畳み式） */}
