@@ -30,4 +30,12 @@ assert.strictEqual(m.parsePendingClaim(null, now), null);
 // 文
 assert.strictEqual(m.pointClaimMessage('ok', 50), '50pt 貯まりました');
 assert.ok(m.pointClaimMessage('daily').includes('1日1回'));
+// 第1450便
+assert.strictEqual(m.POINT_SIGNUP, 50);
+assert.strictEqual(m.REVIEW_BODY_MIN, 50);
+assert.ok(m.signupPointEligible('2026-10-14T03:00:00Z', '2026-10-14T03:05:00Z'));
+assert.ok(!m.signupPointEligible('2026-10-13T10:00:00Z', '2026-10-13T10:05:00Z'));
+assert.ok(!m.signupPointEligible('2026-10-14T03:00:00Z', null));
+assert.strictEqual(m.reviewBodyLength('  あいう  '), 3);
+assert.strictEqual(m.reviewBodyLength('😀あ'), 2);
 console.log('✔ points ok');

@@ -115,7 +115,7 @@ export function PointsAdmin() {
               <tbody>
                 {[...stats.rows, stats.total].map((r, i) => (
                   <tr key={i} className={`border-b border-slate-100 ${r === stats.total ? 'bg-slate-50 font-bold' : ''}`}>
-                    <td className={td}>{r === stats.total ? '合計' : r.salonId == null ? '（お店なし）' : r.salonName}</td>
+                    <td className={td}>{r === stats.total ? '合計' : r.salonId == null ? '会員登録・口コミ・期限切れ（お店なし）' : r.salonName}</td>
                     <td className={td}>{yen(r.earned)}pt・{r.earnedCount}件</td>
                     <td className={td}>¥{yen(r.used)}・{r.usedCount}件</td>
                     <td className={td}>{r.expired ? `${yen(r.expired)}pt` : '—'}</td>

@@ -6,6 +6,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { submitReview } from '@/app/actions/reviews';
 import { StarRatingInput } from '@/app/components/StarRatingInput';
 import { useHydrated } from '@/lib/useHydrated';
+import { POINT_FIRST_REVIEW, POINT_VISIT_NOTE, REVIEW_BODY_MIN, reviewBodyLength } from '@/lib/points';
 
 // 店舗単位の口コミ投稿フォーム（クライアント）。components/ReviewForm.tsx とは別物。
 // マウント時にログイン判定し、未ログインなら案内＋導線、ログイン済みならフォームを表示。
@@ -23,12 +24,15 @@ export function SalonReviewForm({
   salonName,
   therapists,
   storeLevel = false,
+  firstReviewBonus = false,
 }: {
   salonId: number;
   salonName: string;
   therapists: { id: number; name: string }[];
   /** 無料掲載枠（第368便）＝セラピスト選択なしの店舗宛て口コミ。 */
   storeLevel?: boolean;
+  /** ★ 第1450便: はじめての口コミのポイント（承認後）の対象の会員か（サーバーが判定） */
+  firstReviewBonus?: boolean;
 }) {
   const mounted = useHydrated();
   const [loggedIn, setLoggedIn] = useState(false);
@@ -97,6 +101,9 @@ export function SalonReviewForm({
         <p className="text-sm text-emerald-700 font-medium">
           投稿ありがとうございます。運営の承認後に公開されます。
         </p>
+        {firstReviewBonus && (
+          <p className="text-sm font-bold text-pink-600">承認されると {POINT_FIRST_REVIEW}pt が付きます（はじめての口コミのみ）</p>
+        )}
         <Link
           href={`/salon/${salonId}`}
           className="inline-block px-5 py-2.5 rounded-xl text-white font-bold text-sm shadow-sm"
@@ -117,7 +124,7 @@ export function SalonReviewForm({
     ratingsOk &&
     visitedOn !== '' &&
     visitedOn <= today &&
-    trimmed.length >= 1 &&
+    reviewBodyLength(trimmed) >= REVIEW_BODY_MIN && // ★ 第1450便: 50文字以上
     trimmed.length <= BODY_MAX &&
     !submitting;
 
@@ -214,6 +221,8 @@ export function SalonReviewForm({
         <label htmlFor="body" className={labelClass}>
           本文
         </label>
+        {/* ★ 第1450便: 50文字以上 */}
+        <p className="text-[12px] text-slate-500 -mt-1 mb-1.5">{REVIEW_BODY_MIN}文字以上でお書きください。</p>
         <textarea
           id="body"
           rows={5}
@@ -223,12 +232,26 @@ export function SalonReviewForm({
           placeholder="施術やサービスの感想を入力してください。"
           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none"
         />
-        <p className="text-[11px] text-slate-400 mt-1 text-right">残り {BODY_MAX - body.length} 文字</p>
+        {(() => {
+          const n = reviewBodyLength(trimmed);
+          return (
+            <p className={`text-[11px] mt-1 text-right ${n < REVIEW_BODY_MIN ? 'text-amber-600 font-bold' : 'text-slate-400'}`}>
+              {n}文字{n < REVIEW_BODY_MIN ? `／あと${REVIEW_BODY_MIN - n}文字で投稿できます` : `（残り ${BODY_MAX - body.length} 文字）`}
+            </p>
+          );
+        })()}
       </div>
 
       {error && (
         <p className="text-xs text-rose-500 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
           {error}
+        </p>
+      )}
+
+      {/* ★ 第1450便: はじめての口コミのポイント（対象の会員だけ） */}
+      {firstReviewBonus && (
+        <p className="rounded-xl border border-pink-100 bg-pink-50 px-3 py-2 text-[12.5px] leading-relaxed text-pink-700">
+          🎁 <b>はじめての口コミで {POINT_FIRST_REVIEW}pt</b>{POINT_VISIT_NOTE ? `（${POINT_VISIT_NOTE}）` : ''}。運営の承認後に付きます。
         </p>
       )}
 

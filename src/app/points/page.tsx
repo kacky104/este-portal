@@ -11,7 +11,7 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
-import { POINT_CLAIM_HOURS, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE } from '@/lib/points';
+import { POINT_CLAIM_HOURS, POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE, REVIEW_BODY_MIN } from '@/lib/points';
 
 // フクエスポイントのご案内と加盟店の一覧（第1444便・2026-10-14・カッキーさん）。
 // ★ お客様向けの呼び方は「フクエスポイント加盟店」（「CRM」とは書かない）。
@@ -76,7 +76,12 @@ export default async function PointsPage() {
         </section>
 
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-relaxed text-slate-600">
-          <h2 className="mb-2 text-base font-bold text-slate-700">貯め方</h2>
+          <h2 className="mb-2 text-base font-bold text-slate-700">キャンペーン中</h2>
+          <ul className="mb-4 space-y-1.5">
+            <li>・<b>会員登録で {POINT_SIGNUP}pt</b>（これから登録する方・確認メールのリンクで登録が終わったとき）</li>
+            <li>・<b>はじめての口コミで {POINT_FIRST_REVIEW}pt</b>（{REVIEW_BODY_MIN}文字以上・運営の承認後に付きます）</li>
+          </ul>
+          <h2 className="mb-2 text-base font-bold text-slate-700">貯め方（ご来店）</h2>
           <ol className="space-y-1.5">
             <li>1. 加盟店のお部屋にある QR コードをスマホで読み、同意書を送ります。</li>
             <li>2. 最後の画面の「{POINT_VISIT}pt を受け取る」を押します（フクエスにログインしてください）。</li>

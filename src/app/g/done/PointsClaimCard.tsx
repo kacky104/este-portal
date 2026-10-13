@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { claimVisitPoints } from '@/app/actions/points';
-import { POINT_CLAIM_HOURS, POINT_PENDING_KEY, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT_NOTE } from '@/lib/points';
+import { POINT_CLAIM_HOURS, POINT_PENDING_KEY, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT_NOTE } from '@/lib/points';
 import type { ClaimView } from '@/app/lib/points/server';
 
 // 同意書の完了画面の「来店ポイント」（第1444便・2026-10-14・カッキーさん）。
@@ -80,7 +80,11 @@ export function PointsClaimCard({
 
       {state.kind === 'open' && !loggedIn && (
         <>
-          <p className="mt-2 text-[13px] leading-relaxed text-slate-600">フクエス会員（無料）になると受け取れます。</p>
+          <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+            フクエス会員（無料）になると受け取れます。
+            {/* ★ 第1450便: 会員登録のポイントも合わせて */}
+            <br /><b className="text-pink-600">今なら会員登録で {POINT_SIGNUP}pt ＋ 来店 {points}pt ＝ {POINT_SIGNUP + points}pt</b>
+          </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <a href={signupHref} rel="noreferrer" className="py-3 text-[14px] font-bold text-white" style={{ backgroundImage: BRAND }}>無料で会員登録</a>
             <a href={loginHref} rel="noreferrer" className="border border-pink-300 bg-white py-3 text-[14px] font-bold text-pink-600">ログインして受け取る</a>

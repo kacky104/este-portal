@@ -11,6 +11,16 @@
 export const POINT_VISIT = 50;
 /** 「来店1回 50pt（キャンペーン中）」の かっこ の中。空にすると出さない */
 export const POINT_VISIT_NOTE = 'キャンペーン中';
+/** ★ 第1450便: 会員登録で付くポイント・はじめての口コミ（承認後）で付くポイント（キャンペーン中） */
+export const POINT_SIGNUP = 50;
+export const POINT_FIRST_REVIEW = 50;
+/** ★ キャンペーンの始まり（日本時間）。この時刻より前に登録した会員には登録ポイントを付けない／この時刻より前に承認された口コミがある人は口コミポイントの対象外 */
+export const POINT_CAMPAIGN_START = '2026-10-14T00:00:00+09:00';
+/** ★ 第1450便: 口コミ本文の最低文字数（1文字だけでポイントを取るのを防ぐ） */
+export const REVIEW_BODY_MIN = 50;
+/** 貯まる種類（残高を増やすもの）。★ 有効期限は「このどれかを最後に貯めた日」から数える */
+export const POINT_EARN_KINDS: readonly string[] = ['visit', 'signup', 'review'];
+
 /** 1回の利用の単位（pt）と、そのときの割引（円・税込） */
 export const POINT_USE_UNIT = 1000;
 export const POINT_USE_YEN = 1000;
@@ -74,4 +84,16 @@ export function parsePendingClaim(raw: string | null, now: number = Date.now()):
 /** 受け取り券の形（英数字・-_ だけ・20〜80字）。★ URL から来た値はまずこれで確かめる */
 export function isPointToken(v: unknown): v is string {
   return typeof v === 'string' && /^[A-Za-z0-9_-]{20,80}$/.test(v);
+}
+
+/** 会員登録のポイントを付けてよい会員か（登録がキャンペーン開始より後・メール確認済み） */
+export function signupPointEligible(createdAt: string | null | undefined, emailConfirmedAt: string | null | undefined): boolean {
+  if (!createdAt || !emailConfirmedAt) return false;
+  const c = Date.parse(createdAt);
+  return Number.isFinite(c) && c >= Date.parse(POINT_CAMPAIGN_START);
+}
+
+/** 口コミ本文の文字数（前後の空白を除く・改行も1文字） */
+export function reviewBodyLength(body: string): number {
+  return [...(body ?? '').trim()].length;
 }

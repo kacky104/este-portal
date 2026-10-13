@@ -4,6 +4,8 @@ import { Logo } from '@/app/components/Logo';
 import Image from 'next/image';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { createClient } from '@/app/lib/supabase/server';
+import { createServiceClient } from '@/app/lib/supabase/service';
+import { ensureSignupPoints } from '@/app/lib/points/server';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
@@ -32,6 +34,8 @@ export default async function MemberPage() {
   // ── ログインガード（サーバー側） ──
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?redirectTo=/member');
+  // ★ 第1450便: 会員登録のポイント（確認のリンクを別のブラウザで開いた人の取りこぼし）。1人1回・失敗は無視
+  await ensureSignupPoints(createServiceClient(), user);
   // ★ 第1448便: いまのフクエスポイント（本人の行だけ読める・RLS）。読めないとき（SQL 前など）は出さない
   const { data: pointRows, error: pointErr } = await supabase.from('member_points').select('delta').eq('user_id', user.id).limit(5000);
   const pointBalance: number | null = pointErr ? null : (pointRows ?? []).reduce((t, r) => t + (Number(r.delta) || 0), 0);

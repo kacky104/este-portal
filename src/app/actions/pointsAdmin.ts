@@ -89,6 +89,7 @@ export async function getPointStats(month: string): Promise<{ ok: true; rows: Po
     const sid = p.salon_id == null ? null : Number(p.salon_id);
     const d = Number(p.delta) || 0;
     if (p.kind === 'visit') { const r = get(sid); r.earned += d; r.earnedCount += 1; }
+    else if (p.kind === 'signup' || p.kind === 'review') { const r = get(null); r.earned += d; r.earnedCount += 1; } // ★ 第1450便: 会員登録・口コミ（お店なし）
     else if (p.kind === 'use') { const r = get(sid); r.used += -d; r.usedCount += 1; }
     else if (p.kind === 'expire') { get(null).expired += -d; }
     else if (p.kind === 'revoke') { get(sid).revoked += -d; }

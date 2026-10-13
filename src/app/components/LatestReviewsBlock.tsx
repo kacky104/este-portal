@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ReviewBonusNote } from './ReviewBonusNote';
 import type { ApprovedReview } from '@/app/lib/reviews';
 import { Stars } from './Stars';
 
@@ -165,8 +166,9 @@ export function LatestReviewsBlock({
   if (reviews.length === 0) {
     if (variant === 'section' && writeHref) {
       return (
-        <div className={`${className}${mobileOnly ? ' lg:hidden' : ''} flex justify-center`}>
+        <div className={`${className}${mobileOnly ? ' lg:hidden' : ''} flex flex-col items-center`}>
           <WriteLink href={writeHref} />
+          <ReviewBonusNote className="mt-1.5 text-center" />
         </div>
       );
     }
@@ -205,6 +207,7 @@ export function LatestReviewsBlock({
         <div className="grid grid-cols-2 gap-2 mt-4">
           <WriteLink href={writeHref} full />
           <MoreLink full pair href={moreHref} label={moreLabel} />
+          <ReviewBonusNote className="col-span-2 text-center" />
         </div>
       ) : (
         <div className="flex justify-center mt-4">

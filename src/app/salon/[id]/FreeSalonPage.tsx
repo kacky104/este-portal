@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReviewBonusNote } from '@/app/components/ReviewBonusNote';
 import { areaLabel } from "@/app/lib/areaLabel";
 import { toJsonLdString, buildBreadcrumbJsonLd } from "@/app/lib/jsonLd";
 import { Logo } from '@/app/components/Logo';
@@ -185,6 +186,7 @@ export async function FreeSalonPage({ id, row }: { id: number; row: Record<strin
               この店舗の口コミを書く
             </Link>
           </div>
+          <ReviewBonusNote className="mt-1.5 text-center" />
         </section>
       </main>
 

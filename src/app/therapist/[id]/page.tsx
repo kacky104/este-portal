@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { ReviewBonusNote } from '@/app/components/ReviewBonusNote';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
@@ -790,6 +791,7 @@ export default async function TherapistPublicPage({
                   口コミを書く
                 </Link>
               </div>
+              <ReviewBonusNote className="-mt-2 mb-3 text-right" />
 
               <ReviewSummary stats={reviewStats} />
               {/* 詳細ページでは最新3件を表示（getApprovedReviews は新しい順）。4件以上あれば専用ページへ。

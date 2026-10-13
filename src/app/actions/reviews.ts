@@ -5,6 +5,8 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID, MODERATOR_UUIDS } from '@/app/lib/admin';
 import { syncSalonRating } from '@/app/lib/reviews';
+import { grantFirstReviewPoints } from '@/app/lib/points/server';
+import { REVIEW_BODY_MIN, reviewBodyLength } from '@/lib/points';
 
 // 口コミ（therapist_reviews）の Server Actions。
 //
@@ -106,8 +108,9 @@ export async function submitReview(input: SubmitInput): Promise<void> {
     throw new Error('評価は各項目とも0.5〜5.0の0.5刻みで選んでください');
   }
   const text = (body ?? '').trim();
-  if (text.length < 1 || text.length > 2000) {
-    throw new Error('本文は1〜2000文字で入力してください');
+  // ★ 第1450便: 本文は50文字以上（1文字だけでポイントを取るのを防ぐ・画面を通さずに送られても止める）
+  if (reviewBodyLength(text) < REVIEW_BODY_MIN || text.length > 2000) {
+    throw new Error(`本文は${REVIEW_BODY_MIN}〜2000文字で入力してください`);
   }
   if (!isValidDateString(visitedOn)) {
     throw new Error('来店日が正しくありません');
@@ -215,7 +218,7 @@ export async function approveReview(reviewId: string): Promise<void> {
 
   const { data: row, error: selErr } = await svc
     .from('therapist_reviews')
-    .select('therapist_id, salon_id')
+    .select('therapist_id, salon_id, user_id')
     .eq('id', reviewId)
     .single();
   if (selErr || !row) throw new Error('対象の口コミが見つかりません');
@@ -225,6 +228,9 @@ export async function approveReview(reviewId: string): Promise<void> {
     .update({ status: 'approved', reviewed_at: new Date().toISOString() })
     .eq('id', reviewId);
   if (error) throw new Error(error.message);
+
+  // ★ 第1450便: はじめての口コミのポイント（キャンペーン・1人1回）。失敗しても承認は止めない
+  await grantFirstReviewPoints(svc, (row.user_id as string | null) ?? null, reviewId);
 
   // salons のキャッシュ列を最新化してから revalidate（同期後の値を反映させるため）。
   // 店舗宛て（第368便）は row.salon_id、セラピスト宛ては therapist_id から店舗を引く。

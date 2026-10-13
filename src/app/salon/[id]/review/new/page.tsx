@@ -4,6 +4,9 @@ import { Logo } from '@/app/components/Logo';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getSalonActiveTherapists } from '@/app/lib/reviews';
 import { SalonReviewForm } from './SalonReviewForm';
+import { createClient } from '@/app/lib/supabase/server';
+import { createServiceClient } from '@/app/lib/supabase/service';
+import { firstReviewPointOpen } from '@/app/lib/points/server';
 import type { Metadata } from 'next';
 import { buildSalonSubpageMetadata } from '../../subpageMetadata';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
@@ -44,6 +47,9 @@ export default async function SalonReviewNewPage({
   const storeLevel = salon.listing_plan === 'free';
   const therapists = storeLevel ? [] : await getSalonActiveTherapists(salonId);
   const salonName = (salon.name as string) ?? '';
+  // ★ 第1450便: はじめての口コミのポイントの対象か（ログイン中の会員だけ・読めないときは出さない）
+  const { data: { user } } = await (await createClient()).auth.getUser();
+  const firstReviewBonus = user ? await firstReviewPointOpen(createServiceClient(), user.id) : false;
 
   return (
     <div className="min-h-screen bg-pink-50/40">
@@ -67,7 +73,7 @@ export default async function SalonReviewNewPage({
         </div>
         <p className="text-sm text-slate-500 mb-6 truncate">{salonName}</p>
 
-        <SalonReviewForm salonId={salonId} salonName={salonName} therapists={therapists} storeLevel={storeLevel} />
+        <SalonReviewForm salonId={salonId} salonName={salonName} therapists={therapists} storeLevel={storeLevel} firstReviewBonus={firstReviewBonus} />
       </main>
     </div>
   );

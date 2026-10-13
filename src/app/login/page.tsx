@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
+import { POINT_SIGNUP, POINT_VISIT_NOTE } from '@/lib/points';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -158,6 +159,12 @@ function LoginInner() {
                 </button>
               ))}
             </div>
+            {/* ★ 第1450便: 会員登録のポイント（キャンペーン） */}
+            {mode === 'signup' && (
+              <p className="mb-4 rounded-xl border border-pink-100 bg-pink-50 px-3 py-2 text-center text-[12.5px] font-bold text-pink-700">
+                🎁 今なら会員登録で {POINT_SIGNUP}pt{POINT_VISIT_NOTE ? `（${POINT_VISIT_NOTE}）` : ''}
+              </p>
+            )}
 
             <form onSubmit={submit} className="space-y-4">
               {info && (

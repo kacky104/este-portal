@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_VISIT_NOTE } from '@/lib/points';
 import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -175,6 +176,12 @@ export default async function JoinPage() {
             お気に入りの保存・VIPレター・新着通知・口コミ投稿。<br />メールアドレスだけで、フクエスがもっと使いやすくなります
           </p>
         </div>
+
+        {/* ★ 第1450便: 会員登録のポイント（キャンペーン） */}
+        <p className="mx-auto mb-3 max-w-md rounded-xl border border-pink-100 bg-pink-50 px-3 py-2 text-center text-[13px] font-bold text-pink-700">
+          🎁 今なら会員登録で {POINT_SIGNUP}pt（{POINT_VISIT_NOTE}）・はじめての口コミで {POINT_FIRST_REVIEW}pt
+          <a href="/points" className="ml-1 underline">くわしく</a>
+        </p>
 
         {/* ─── CTA（ログイン状態でボタンだけ差し替わる） ─── */}
         <JoinCta />

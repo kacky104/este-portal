@@ -3,7 +3,7 @@
 // ★ 表がまだ無い（SQL 前）・読めないときは、同意書や会員ページを壊さない（null・空を返す）。
 import { randomBytes } from 'crypto';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { POINT_CLAIM_HOURS, POINT_VISIT, isPointToken, pointExpiresAt, pointsExpired } from '@/lib/points';
+import { POINT_CAMPAIGN_START, POINT_CLAIM_HOURS, POINT_EARN_KINDS, POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_VISIT, isPointToken, pointExpiresAt, pointsExpired, signupPointEligible } from '@/lib/points';
 
 type Svc = ReturnType<typeof createServiceClient>;
 
@@ -74,7 +74,7 @@ export async function readMyPoints(svc: Svc, userId: string, historyLimit = 100)
     if (error) return null;
     const all = data ?? [];
     const balance = all.reduce((s, r) => s + (Number(r.delta) || 0), 0);
-    const lastEarn = all.find((r) => r.kind === 'visit')?.created_at as string | undefined;
+    const lastEarn = all.find((r) => POINT_EARN_KINDS.includes(String(r.kind)))?.created_at as string | undefined; // ★ 第1450便: 登録・口コミも「貯めた日」
     const top = all.slice(0, historyLimit);
     const ids = [...new Set(top.map((r) => Number(r.salon_id)).filter((n) => Number.isInteger(n) && n > 0))];
     const names = new Map<number, string>();
@@ -105,7 +105,59 @@ export async function expireIfNeeded(svc: Svc, userId: string): Promise<void> {
   if (error || !data || data.length === 0) return;
   const balance = data.reduce((s, r) => s + (Number(r.delta) || 0), 0);
   if (balance <= 0) return;
-  const lastEarn = data.filter((r) => r.kind === 'visit').map((r) => String(r.created_at)).sort().pop() ?? null;
+  const lastEarn = data.filter((r) => POINT_EARN_KINDS.includes(String(r.kind))).map((r) => String(r.created_at)).sort().pop() ?? null;
   if (!pointsExpired(lastEarn)) return;
   await svc.from('member_points').insert({ user_id: userId, delta: -balance, kind: 'expire', note: '有効期限（最後に貯めた日から1年）' });
+}
+
+/**
+ * ★ 第1450便: 会員登録のポイント（50pt・キャンペーン）。確認メールのリンクで登録が終わったとき（/auth/callback）と、
+ *   会員ページを開いたとき（確認のリンクを別のブラウザで開いてログインし直した人の取りこぼし）に呼ぶ。
+ * ★ 付けるのは「キャンペーン開始より後に登録した・メール確認済み」の会員だけ。1人1回（DB の一意の決まり）。何度呼んでも同じ。
+ */
+export async function ensureSignupPoints(
+  svc: Svc,
+  user: { id: string; created_at?: string | null; email_confirmed_at?: string | null },
+): Promise<boolean> {
+  try {
+    if (!signupPointEligible(user.created_at ?? null, user.email_confirmed_at ?? null)) return false;
+    const { data: had } = await svc.from('member_points').select('id').eq('user_id', user.id).eq('kind', 'signup').maybeSingle();
+    if (had) return false;
+    const { error } = await svc.from('member_points').insert({ user_id: user.id, delta: POINT_SIGNUP, kind: 'signup', note: '会員登録（キャンペーン）' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ★ 第1450便: はじめての口コミのポイント（50pt・キャンペーン）。運営が口コミを承認したときに呼ぶ。
+ * ★ キャンペーン開始より前に承認された口コミがある人は対象外。1人1回（DB の一意の決まり）。失敗しても承認は止めない。
+ */
+export async function grantFirstReviewPoints(svc: Svc, userId: string | null, reviewId: string): Promise<boolean> {
+  try {
+    if (!userId) return false;
+    const { count, error: cErr } = await svc.from('therapist_reviews').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('status', 'approved').lt('reviewed_at', new Date(POINT_CAMPAIGN_START).toISOString());
+    if (cErr || (count ?? 0) > 0) return false;
+    const { data: had } = await svc.from('member_points').select('id').eq('user_id', userId).eq('kind', 'review').maybeSingle();
+    if (had) return false;
+    const { error } = await svc.from('member_points').insert({ user_id: userId, delta: POINT_FIRST_REVIEW, kind: 'review', ref_id: String(reviewId), note: 'はじめての口コミ（キャンペーン）' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/** ★ 第1450便: まだ「はじめての口コミのポイント」の対象か（投稿フォームの案内を出すかどうか） */
+export async function firstReviewPointOpen(svc: Svc, userId: string): Promise<boolean> {
+  try {
+    const { data: had, error } = await svc.from('member_points').select('id').eq('user_id', userId).eq('kind', 'review').maybeSingle();
+    if (error || had) return false;
+    const { count } = await svc.from('therapist_reviews').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('status', 'approved').lt('reviewed_at', new Date(POINT_CAMPAIGN_START).toISOString());
+    return (count ?? 0) === 0;
+  } catch {
+    return false;
+  }
 }

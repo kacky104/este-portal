@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/app/lib/supabase/service';
+import { ensureSignupPoints } from '@/app/lib/points/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
 import { createClient } from '@/app/lib/supabase/server';
 
@@ -12,6 +14,15 @@ import { createClient } from '@/app/lib/supabase/server';
 function safeNext(raw: string | null): string {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
   return raw;
+}
+
+// ★ 第1450便: 会員登録のポイント（キャンペーン・これからの会員だけ・1人1回）。確認メールのリンクで登録が終わったとき。
+//   ★ 何があってもログインの流れは止めない（失敗は無視。会員ページを開いたときにも付け直す）。
+async function grantSignup(supabase: Awaited<ReturnType<typeof createClient>>): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) await ensureSignupPoints(createServiceClient(), user);
+  } catch { /* 何もしない */ }
 }
 
 export async function GET(request: Request) {
@@ -47,6 +58,7 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) return fail('verification_failed');
+    if (!isCast && !isRecovery) await grantSignup(supabase);
     return NextResponse.redirect(`${base}${next}`);
   }
 
@@ -54,6 +66,7 @@ export async function GET(request: Request) {
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
     if (error) return fail('verification_failed');
+    if (!isCast && !isRecovery) await grantSignup(supabase);
     return NextResponse.redirect(`${base}${next}`);
   }
 

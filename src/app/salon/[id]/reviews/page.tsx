@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ReviewBonusNote } from '@/app/components/ReviewBonusNote';
 import Link from "next/link";
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -206,6 +207,7 @@ export default async function SalonReviewsPage({
             口コミを書く
           </Link>
         </div>
+        <ReviewBonusNote className="-mt-2 mb-3 text-right" />
 
         {/* 口コミ一覧 */}
         {reviews.length === 0 ? (
