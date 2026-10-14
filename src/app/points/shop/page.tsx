@@ -65,7 +65,7 @@ export default function PointsShopGuidePage() {
             店舗様の作業は、ほぼ0
           </p>
           <p className="mt-3 text-[13px] text-slate-500">
-            お客様はご来店で {POINT_VISIT}pt 貯まり、{yen(POINT_USE_UNIT)}pt で {yen(POINT_USE_YEN)}円引きになります。
+            お客様はご来店で {POINT_VISIT}pt 貯まり、<br />{yen(POINT_USE_UNIT)}pt で {yen(POINT_USE_YEN)}円引きになります。
           </p>
         </div>
 
