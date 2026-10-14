@@ -12,7 +12,7 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ensureSignupPoints, readMyPoints } from '@/app/lib/points/server';
-import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE, REVIEW_BODY_MIN, pointsToNextUse } from '@/lib/points';
+import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE, pointsToNextUse } from '@/lib/points';
 import { PendingPointsBanner } from '../PendingPointsBanner';
 
 // 会員の「フクエスポイント」（第1444便・2026-10-14）。★ 本人の残高・期限・履歴だけ（ログイン必須・ISR なし）。
@@ -86,7 +86,7 @@ export default async function MemberPointsPage() {
               <ul className="space-y-1.5">
                 <li>・<b>フクエスポイント加盟店</b>で、お部屋の QR コードから同意書を送ると、来店ポイント <b>{POINT_VISIT}pt</b>{POINT_VISIT_NOTE ? `（${POINT_VISIT_NOTE}）` : ''} を受け取れます（1日1回まで）。</li>
                 <li>・<b>{POINT_USE_UNIT.toLocaleString()}pt で {POINT_USE_YEN.toLocaleString()}円引き</b>（税込）。加盟店で、ご予約のときにお伝えください。当日は同意書を送ったあとの画面で「{POINT_USE_UNIT.toLocaleString()}pt 使う」を押し、お支払いの前にその画面をセラピストにお見せください（1回の来店で {POINT_USE_YEN.toLocaleString()}円まで）。</li>
-                <li>・キャンペーン中：<b>会員登録で {POINT_SIGNUP}pt</b>・<b>はじめての口コミで {POINT_FIRST_REVIEW}pt</b>（{REVIEW_BODY_MIN}文字以上・運営の承認後）。</li>
+                <li>・キャンペーン中：<b>会員登録で {POINT_SIGNUP}pt</b>・<b>はじめての口コミで {POINT_FIRST_REVIEW}pt</b>（運営の承認後）。</li>
                 <li>・有効期限は、最後に貯めた日から1年です。</li>
               </ul>
               <Link href="/points" className="mt-3 inline-block font-bold text-pink-600 hover:underline">加盟店を見る →</Link>

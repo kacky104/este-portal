@@ -6,7 +6,7 @@ import { areaLabel } from '@/app/lib/areaLabel';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ensureSignupPoints, firstReviewPointOpen } from '@/app/lib/points/server';
-import { POINT_FIRST_REVIEW, REVIEW_BODY_MIN } from '@/lib/points';
+import { POINT_FIRST_REVIEW } from '@/lib/points';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
@@ -179,7 +179,7 @@ export default async function MemberPage() {
         {/* ★ 第1453便: はじめての口コミのポイントの案内（対象の会員だけ） */}
         {pointBalance !== null && firstReviewBonus && (
           <p className="mt-2 text-right text-[11px] font-bold text-pink-600">
-            🎁 はじめての口コミで{POINT_FIRST_REVIEW}pt進呈！<span className="font-normal text-slate-400">（{REVIEW_BODY_MIN}文字以上・運営の承認後）</span>
+            🎁 はじめての口コミで{POINT_FIRST_REVIEW}pt進呈！<span className="font-normal text-slate-400">（運営の承認後）</span>
           </p>
         )}
         </div>
