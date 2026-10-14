@@ -8,6 +8,15 @@
 import { shiftRangeText } from './scheduleFormat';
 
 export const CONECF_SCHEDULE_DAYS = 7;
+/** ★ 第1472便（カッキーさん）: 店舗様が選べる日数（7〜30日・salons.conecf_schedule_days）。既定は CONECF_SCHEDULE_DAYS */
+export const CONECF_SCHEDULE_DAYS_MIN = 7;
+export const CONECF_SCHEDULE_DAYS_MAX = 30;
+/** 日数を 7〜30 の整数に収める（変な値は既定の7） */
+export function clampScheduleDays(n: unknown): number {
+  const v = Math.trunc(Number(n));
+  if (!Number.isFinite(v)) return CONECF_SCHEDULE_DAYS;
+  return Math.min(CONECF_SCHEDULE_DAYS_MAX, Math.max(CONECF_SCHEDULE_DAYS_MIN, v));
+}
 
 /** 開始の選択肢（06:00〜翌05:30） */
 export function startTimeOptions(): Array<{ value: string; label: string }> {
@@ -53,7 +62,7 @@ export type ConecfShift = { date: string; isActive: boolean; start: string | nul
 
 /**
  * ★ 画面から来た1人ぶんの7日を確かめる。
- * ★ 送ってよい日付は allowedDates（今日から7日）だけ。★ 出勤なのに時刻が無い・30分刻みでない・開始と終了が同じは断る。
+ * ★ 送ってよい日付は allowedDates（今日から 7〜30日・第1472便）だけ。★ 出勤なのに時刻が無い・30分刻みでない・開始と終了が同じは断る。
  */
 export function normalizeShifts(input: readonly ConecfShiftInput[], allowedDates: readonly string[]):
   { ok: true; shifts: ConecfShift[] } | { ok: false; error: string } {

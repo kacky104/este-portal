@@ -5,7 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateRangeJST, getCalendarDateJST } from '@/lib/dutyStatus';
 import { sortTherapistsByManual } from '@/lib/therapistOrder';
 import { readConecfGirlOrder } from '@/app/lib/conecf/girlOrder';
-import { CONECF_SCHEDULE_DAYS, normalizeShifts, type ConecfShift, type ConecfShiftInput } from '@/lib/conecfSchedule';
+import { CONECF_SCHEDULE_DAYS, CONECF_SCHEDULE_DAYS_MAX, CONECF_SCHEDULE_DAYS_MIN, clampScheduleDays, normalizeShifts, type ConecfShift, type ConecfShiftInput } from '@/lib/conecfSchedule';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
@@ -36,10 +36,22 @@ async function resolve(write: boolean) {
 
 export type ConecfScheduleRow = { id: number; name: string; imageUrl: string | null; isActive: boolean; days: ConecfShift[] };
 
-export async function getConecfSchedule(): Promise<Result<{ salonId: number; dates: string[]; rows: ConecfScheduleRow[] }>> {
+/** ★ 第1472便: その店の「入れられる日数」（7〜30）。★ 列が無い（SQL 前）・読めないときは 7 */
+async function readScheduleDays(svc: ReturnType<typeof createServiceClient>, salonId: number): Promise<number> {
+  try {
+    const { data, error } = await svc.from('salons').select('conecf_schedule_days').eq('id', salonId).maybeSingle();
+    if (error || !data) return CONECF_SCHEDULE_DAYS;
+    return clampScheduleDays((data as { conecf_schedule_days?: unknown }).conecf_schedule_days);
+  } catch {
+    return CONECF_SCHEDULE_DAYS;
+  }
+}
+
+export async function getConecfSchedule(): Promise<Result<{ salonId: number; days: number; dates: string[]; rows: ConecfScheduleRow[] }>> {
   const r = await resolve(false);
   if (!r.ok) return r;
-  const dates = getBusinessDateRangeJST(CONECF_SCHEDULE_DAYS);
+  const days = await readScheduleDays(r.svc, r.salonId);
+  const dates = getBusinessDateRangeJST(days);
   const { data: ts, error } = await r.svc
     .from('therapists')
     .select('id, name, profile_image_url, is_active')
@@ -72,7 +84,7 @@ export async function getConecfSchedule(): Promise<Result<{ salonId: number; dat
   const order = await readConecfGirlOrder(r.svc, r.salonId);
   return {
     ok: true,
-    data: { salonId: r.salonId, dates, rows: sortTherapistsByManual(rows, (x) => x.id, (x) => x.name, (x) => !x.isActive, order) },
+    data: { salonId: r.salonId, days, dates, rows: sortTherapistsByManual(rows, (x) => x.id, (x) => x.name, (x) => !x.isActive, order) },
   };
 }
 
@@ -81,7 +93,8 @@ export async function saveConecfSchedule(input: {
 }): Promise<Result<{ therapists: number; days: number }>> {
   const r = await resolve(true);
   if (!r.ok) return r;
-  const dates = getBusinessDateRangeJST(CONECF_SCHEDULE_DAYS);
+  // ★ 第1472便: 入れてよい日付は今日から最大30日（日数を変えた直後に、前の画面から保存されても断らないように上限で見る）
+  const dates = getBusinessDateRangeJST(CONECF_SCHEDULE_DAYS_MAX);
   const changes = Array.isArray(input.changes) ? input.changes : [];
   if (changes.length === 0) return { ok: true, data: { therapists: 0, days: 0 } };
 
@@ -108,4 +121,17 @@ export async function saveConecfSchedule(input: {
   const { error } = await r.svc.from('therapist_schedules').upsert(rows, { onConflict: 'therapist_id,schedule_date' });
   if (error) return { ok: false, error: `保存に失敗しました: ${error.message}` };
   return { ok: true, data: { therapists: ids.length, days: rows.length } };
+}
+
+/** ★ 第1472便（カッキーさん）: 週間スケジュールで入れられる日数（7〜30日）を変える。店舗様ごと（salons.conecf_schedule_days） */
+export async function setConecfScheduleDays(days: number): Promise<Result<{ days: number }>> {
+  const r = await resolve(false);
+  if (!r.ok) return r;
+  const n = Math.trunc(Number(days));
+  if (!Number.isFinite(n) || n < CONECF_SCHEDULE_DAYS_MIN || n > CONECF_SCHEDULE_DAYS_MAX) {
+    return { ok: false, error: `日数は${CONECF_SCHEDULE_DAYS_MIN}〜${CONECF_SCHEDULE_DAYS_MAX}日から選んでください` };
+  }
+  const { error } = await r.svc.from('salons').update({ conecf_schedule_days: n }).eq('id', r.salonId);
+  if (error) return { ok: false, error: /conecf_schedule_days/.test(error.message) ? '準備がまだです（運営にお問い合わせください）' : `保存に失敗しました: ${error.message}` };
+  return { ok: true, data: { days: n } };
 }

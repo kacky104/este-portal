@@ -6,9 +6,9 @@ import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { matchesSearch } from '@/lib/searchNormalize';
-import { getConecfSchedule, saveConecfSchedule, type ConecfScheduleRow } from '@/app/actions/conecfSchedule';
+import { getConecfSchedule, saveConecfSchedule, setConecfScheduleDays, type ConecfScheduleRow } from '@/app/actions/conecfSchedule';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
-import { startTimeOptions, endTimeOptions, shiftLabel, type ConecfShift } from '@/lib/conecfSchedule';
+import { startTimeOptions, endTimeOptions, shiftLabel, CONECF_SCHEDULE_DAYS, CONECF_SCHEDULE_DAYS_MAX, CONECF_SCHEDULE_DAYS_MIN, type ConecfShift } from '@/lib/conecfSchedule';
 
 // コネックエフ「週間スケジュール」（第399便・1d・2026-09-17）。
 // ★ ベンリーの週間スケジュールと同じ形：女性×7日のマス。★ マスを押すと、その日の出勤を選ぶ小窓が開く。
@@ -34,11 +34,14 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
+  // ★ 第1472便（カッキーさん）: 入れられる日数（7〜30日・店舗様ごと）
+  const [days, setDays] = useState<number>(CONECF_SCHEDULE_DAYS);
+  const [daysBusy, setDaysBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await getConecfSchedule();
     if (!res.ok) { setError(res.error); return; }
-    setDates(res.data.dates); setRows(res.data.rows); setSalonId(res.data.salonId); setEdits({}); setError('');
+    setDates(res.data.dates); setDays(res.data.days); setRows(res.data.rows); setSalonId(res.data.salonId); setEdits({}); setError('');
   }, []);
   useEffect(() => { void load(); }, [load]);
 
@@ -82,6 +85,16 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     await load();
   };
 
+  const onDays = async (n: number) => {
+    if (n === days || dirtyCount > 0) return;
+    setDaysBusy(true);
+    const res = await setConecfScheduleDays(n);
+    setDaysBusy(false);
+    if (!res.ok) { onToast(res.error); return; }
+    onToast(`${res.data.days}日分を入れられるようにしました`);
+    await load();
+  };
+
   if (error) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>;
   if (!rows) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
 
@@ -110,20 +123,31 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       <div className={`${CARD} p-3 flex flex-wrap items-center gap-3`}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="セラピスト名で検索"
           className="flex-1 min-w-[160px] border border-slate-200 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+        {/* ★ 第1472便: 入れられる日数（7〜30日）。保存していない変更があるときは変えられない */}
+        <label className="flex items-center gap-1.5 text-[13px] font-bold text-slate-500" title={dirtyCount > 0 ? '先に変更を保存してください' : ''}>
+          表示する日数
+          <select value={days} disabled={daysBusy || dirtyCount > 0} onChange={(e) => void onDays(Number(e.target.value))}
+            className="border border-slate-300 bg-white px-2 py-1.5 text-[14px] font-bold text-slate-700 disabled:opacity-50">
+            {Array.from({ length: CONECF_SCHEDULE_DAYS_MAX - CONECF_SCHEDULE_DAYS_MIN + 1 }, (_, i) => CONECF_SCHEDULE_DAYS_MIN + i).map((n) => (
+              <option key={n} value={n}>{n}日</option>
+            ))}
+          </select>
+        </label>
         <span className="text-[13px] font-bold text-slate-500">今日の出勤 <b className="text-indigo-700 text-[16px] tabular-nums">{todayCount}</b>名</span>
         <Link href={href('/schedule/sync')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">出勤をサイトへ ›</Link>
       </div>
 
       <div className={`${CARD} overflow-x-auto`}>
         {/* ★★ 第438便（カッキーさん）: 日付のマスは【いつも同じ幅】。★ table-fixed で中身の文字数に引っぱられない */}
-        <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]">
+        {/* ★ 第1472便: 8日以上は1日を 96px にして横にスクロール（セラピストの列は左に貼り付く） */}
+        <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]" style={dates.length > 7 ? { minWidth: 150 + dates.length * 96 } : undefined}>
           <thead>
             <tr className="bg-slate-50">
               <th className="sticky left-0 z-10 bg-slate-50 text-left px-1.5 sm:px-3 py-2 border-b border-slate-200 w-[64px] sm:w-[150px] text-[12px] text-slate-400">セラピスト</th>
               {dates.map((d, i) => {
                 const h = dateHead(d, i);
                 return (
-                  <th key={d} className={`w-[calc((100%-64px)/7)] sm:w-[calc((100%-150px)/7)] px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
+                  <th key={d} style={dates.length > 7 ? { width: 96 } : undefined} className={`${dates.length > 7 ? '' : 'w-[calc((100%-64px)/7)] sm:w-[calc((100%-150px)/7)] '}px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
                     <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
                     <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
                     <div className="mt-0.5">
