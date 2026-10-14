@@ -114,17 +114,17 @@ export default async function PointsPage() {
           </ul>
           <h2 className="mb-2 text-base font-bold" style={{ color: THEME.heading }}>貯め方</h2>
           <ol className="mb-1 space-y-1">
-            <li>1. 加盟店のお部屋の QR コードから同意書を送る</li>
-            <li>2. 最後の画面で「{POINT_VISIT}pt を受け取る」を押す（要ログイン）</li>
+            <li>1. 加盟店のお部屋の QR コードを読む</li>
+            <li>2. 「{POINT_VISIT}pt を受け取る」を押す</li>
           </ol>
           <p className="mb-5 text-xs text-slate-500">※ 押し忘れても、{POINT_CLAIM_HOURS}時間以内なら会員ページで受け取れます</p>
           <h2 className="mb-2 text-base font-bold" style={{ color: THEME.heading }}>使い方</h2>
           <ol className="mb-1 space-y-1">
             <li>1. ご予約のときに「フクエスポイントを使います」と伝える</li>
-            <li>2. 同意書を送ったあとの画面で「{POINT_USE_UNIT.toLocaleString()}pt 使う」を押す</li>
+            <li>2. QR コードを読んだ画面で「{POINT_USE_UNIT.toLocaleString()}pt 使う」を押す</li>
             <li>3. お支払いの前に、その画面をセラピストに見せる</li>
           </ol>
-          <p className="mb-5 text-xs text-slate-500">※ お店のクーポンと一緒に使えます</p>
+          <p className="mb-5 text-xs text-slate-500">※ お店のクーポンと併用可能です</p>
           <h2 className="mb-2 text-base font-bold" style={{ color: THEME.heading }}>ご注意</h2>
           <ul className="space-y-1">
             <li>・来店ポイントは1日1回まで</li>
