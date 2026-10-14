@@ -179,11 +179,29 @@ export async function rekickWaitingAddresses(): Promise<Array<{ salonId: number;
     const cur = oldest.get(key);
     if (!cur || at < cur.at) oldest.set(key, { salonId, slot, at });
   }
+  // ★ 待っている方の、駅ちかの番号の結びつけ（therapist_media_ids）がいつ変わったか。
+  //   ★ 読み込みのあとに店舗様が「サイトへ登録」で連携した（または第1495便の自動の結びつけ）なら、もう一度読めばアドレスが入る。
+  const linkAt = new Map<string, number>();   // key: salonId#slot → いちばん新しい結びつけの時刻
+  {
+    const { data: links } = await svc
+      .from('therapist_media_ids').select('therapist_id, slot, updated_at')
+      .eq('provider', PROVIDER).in('therapist_id', tids);
+    for (const l of links ?? []) {
+      const salonId = salonOf.get(Number(l.therapist_id));
+      if (salonId == null) continue;
+      const key = salonId + '#' + Number(l.slot ?? 1);
+      const at = Date.parse(String(l.updated_at ?? ''));
+      if (!Number.isFinite(at)) continue;
+      if ((linkAt.get(key) ?? 0) < at) linkAt.set(key, at);
+    }
+  }
   for (const t of oldest.values()) {
     // ★★ 待ち始めてから【読めた】回があるのに、まだアドレスが無い＝駅ちかの一覧にその方が居ない（番号が結びついていない 等）。
-    //   読み直しても同じなので、周のたびに読みにいかない（駅ちかへの負荷を増やさない）。読めた回が無いときだけ再挑戦する。
+    //   読み直しても同じなので、周のたびに読みにいかない（駅ちかへの負荷を増やさない）。
+    //   再挑戦するのは「待ち始めてから読めた回が無い」か「読めた回より、番号の結びつけのほうが新しい」とき。
     const { lastOk } = await lastReads(svc, { salonId: t.salonId, slot: t.slot });
-    if (lastOk != null && lastOk > t.at) { out.push({ salonId: t.salonId, slot: t.slot, result: 'read_after_wait' }); continue; }
+    const linked = linkAt.get(t.salonId + '#' + t.slot) ?? 0;
+    if (lastOk != null && lastOk > t.at && lastOk > linked) { out.push({ salonId: t.salonId, slot: t.slot, result: 'read_after_wait' }); continue; }
     out.push({ salonId: t.salonId, slot: t.slot, result: await kickMailImport(t.salonId, t.slot, { fromCron: true }) });
   }
   return out;
