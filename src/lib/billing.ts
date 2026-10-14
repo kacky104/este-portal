@@ -60,6 +60,32 @@ export function calcTotals(lines: BillingLineInput[], taxRatePct: number): { sub
   return { subtotal, tax, total: subtotal + tax };
 }
 
+/**
+ * ★ 第1454便: 税込 inclusiveYen を差し引く行の【税抜の額】（正の数・行の単価はこのマイナス）。
+ *   請求書の行は税抜で、税は小計にまとめてかける（切り捨て）ので、ほかの行と合わせたときに
+ *   合計がちょうど inclusiveYen 減る額を、税抜の目安（四捨五入）の前後から選ぶ。見つからなければ目安のまま。
+ */
+export function exclusiveForInclusiveCut(lines: BillingLineInput[], taxRatePct: number, inclusiveYen: number): number {
+  const n = Math.max(0, Math.trunc(inclusiveYen));
+  if (n === 0) return 0;
+  const t0 = calcTotals(lines, taxRatePct);
+  const base = t0.total;
+  // ★ 引いた結果が 0 以下（利用が請求額より多い）なら税は 0 になる → 小計から差がそのまま出るように
+  if (base - n <= 0) return t0.subtotal - (base - n);
+  const guess = Math.round((n * 100) / (100 + taxRatePct));
+  for (const d of [0, 1, -1, 2, -2, 3, -3]) {
+    const x = guess + d;
+    if (x <= 0) continue;
+    if (calcTotals([...lines, { label: '', unit_price: -x, quantity: 1 }], taxRatePct).total === base - n) return x;
+  }
+  return guess;
+}
+
+/** ★ 第1454便: その月分（billingMonth）の請求書で差し引くフクエスポイントの利用の月＝発行する月の前の月（11月分＝10月1日発行 → 9月の利用） */
+export function pointUsageMonthOf(billingMonth: string): string {
+  return addMonths(billingMonth, -2);
+}
+
 // ★★ 第822便（カッキーさん）: 【前月に前払い】。「11月分」は 10月1日に発行・10月25日が期限。
 //   ★ billing_month は【ご利用の月】（請求書の「◯月分」）。★ 発行と期限は、その前の月。
 

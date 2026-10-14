@@ -3,7 +3,7 @@
 // ★ 表がまだ無い（SQL 前）・読めないときは、同意書や会員ページを壊さない（null・空を返す）。
 import { randomBytes } from 'crypto';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { POINT_CAMPAIGN_START, POINT_CLAIM_HOURS, POINT_EARN_KINDS, POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_VISIT, isPointToken, pointExpiresAt, pointsExpired, signupPointEligible } from '@/lib/points';
+import { POINT_CAMPAIGN_START, POINT_CLAIM_HOURS, POINT_EARN_KINDS, POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_VISIT, isPointToken, pointExpiresAt, pointsExpired, pointsYenOf, signupPointEligible } from '@/lib/points';
 
 type Svc = ReturnType<typeof createServiceClient>;
 
@@ -160,4 +160,118 @@ export async function firstReviewPointOpen(svc: Svc, userId: string): Promise<bo
   } catch {
     return false;
   }
+}
+
+// ── ★ 第1454便: 第2弾「使う」（1,000pt で税込 1,000円引き）──────────────────
+//   ・使うのは同意書の完了画面（受け取り券 c の画面）で、ログインした会員本人。予約1件に1回・予約の終わりの時刻まで。
+//   ・記録は member_points の kind='use'（−1,000・booking_id 付き）。運営が取り消すと kind='refund'（＋1,000）。
+//   ・お店（CRM）には「この予約でフクエスポイントが何円使われたか」だけ渡す（会員・残高は渡さない）。
+
+export type UseView =
+  | { kind: 'none' }                                   // 券が無い・加盟店でない
+  | { kind: 'closed' }                                 // 予約が終わった・取り消された・券の期限切れ（まだ使っていない）
+  | { kind: 'used'; mine: boolean; yen: number }      // この予約で使用済み
+  | { kind: 'open'; balance: number | null };         // 使える（balance＝ログインしていなければ null）
+
+/** 完了画面に出す「使う」の状態（★ お店の名前・予約の中身は返さない） */
+export async function readUse(svc: Svc, token: string, userId: string | null): Promise<UseView> {
+  if (!isPointToken(token)) return { kind: 'none' };
+  try {
+    const { data: c, error } = await svc.from('point_claims').select('salon_id, booking_id, expires_at').eq('token', token).maybeSingle();
+    if (error || !c) return { kind: 'none' };
+    const bookingId = String(c.booking_id);
+    const [{ data: rows, error: uErr }, { data: salon }, { data: bk }] = await Promise.all([
+      svc.from('member_points').select('user_id, delta, kind').eq('booking_id', bookingId).in('kind', ['use', 'refund']),
+      svc.from('salons').select('points_member').eq('id', Number(c.salon_id)).maybeSingle(),
+      svc.from('salon_bookings').select('status, slot_end').eq('id', bookingId).maybeSingle(),
+    ]);
+    if (uErr || salon?.points_member !== true) return { kind: 'none' };
+    const yen = pointsYenOf((rows ?? []).map((r) => Number(r.delta)));
+    if (yen > 0) {
+      const use = (rows ?? []).find((r) => r.kind === 'use');
+      return { kind: 'used', mine: !!userId && use?.user_id === userId, yen };
+    }
+    if ((rows ?? []).some((r) => r.kind === 'use')) return { kind: 'closed' }; // ★ 使ったあと運営が取り消した＝この予約ではもう使えない
+    const now = Date.now();
+    if (!bk || bk.status === 'cancelled' || new Date(String(bk.slot_end)).getTime() < now || new Date(String(c.expires_at)).getTime() < now) return { kind: 'closed' };
+    if (!userId) return { kind: 'open', balance: null };
+    await expireIfNeeded(svc, userId);
+    const { data: pts, error: pErr } = await svc.from('member_points').select('delta').eq('user_id', userId).limit(5000);
+    if (pErr) return { kind: 'none' };
+    return { kind: 'open', balance: (pts ?? []).reduce((a, r) => a + (Number(r.delta) || 0), 0) };
+  } catch {
+    return { kind: 'none' };
+  }
+}
+
+/**
+ * 予約ごとのフクエスポイントの利用額（円）。★ CRM の予約カード・日報・金銭授受に使う。会員・残高は返さない。
+ * ★ 読めないときは空（CRM の画面は止めない）。
+ */
+export async function pointsYenByBooking(svc: Svc, bookingIds: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const ids = [...new Set(bookingIds.map(String))];
+  try {
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await svc.from('member_points').select('booking_id, delta').in('booking_id', ids.slice(i, i + 200)).in('kind', ['use', 'refund']);
+      if (error) return new Map();
+      const by = new Map<string, number[]>();
+      for (const r of data ?? []) {
+        const k = String(r.booking_id);
+        const arr = by.get(k) ?? []; arr.push(Number(r.delta)); by.set(k, arr);
+      }
+      for (const [k, ds] of by) { const y = pointsYenOf(ds); if (y > 0) out.set(k, y); }
+    }
+  } catch {
+    return new Map();
+  }
+  return out;
+}
+
+/** お店の、予約ごとのフクエスポイントの利用額（円）。★ 金銭授受の読み方の予備（DB の関数が無いとき）用 */
+export async function pointsYenBySalon(svc: Svc, salonId: number): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  try {
+    const { data, error } = await svc.from('member_points').select('booking_id, delta').eq('salon_id', salonId).in('kind', ['use', 'refund']).not('booking_id', 'is', null).limit(50000);
+    if (error) return out;
+    const by = new Map<string, number[]>();
+    for (const r of data ?? []) {
+      const k = String(r.booking_id);
+      const arr = by.get(k) ?? []; arr.push(Number(r.delta)); by.set(k, arr);
+    }
+    for (const [k, ds] of by) { const y = pointsYenOf(ds); if (y > 0) out.set(k, y); }
+  } catch { /* 空のまま */ }
+  return out;
+}
+
+/**
+ * 月の請求書で差し引く、お店ごとのフクエスポイントの利用（円・件）。★ usageMonth＝'YYYY-MM-01'（日本時間のその月に使われた分）。
+ * ★ 運営が取り消した（refund のある）予約は数えない。読めなければ error（請求書を差し引き無しで作らない）。
+ */
+export async function pointUsesForMonth(svc: Svc, usageMonth: string): Promise<{ ok: true; bySalon: Map<number, { count: number; yen: number }> } | { ok: false; error: string }> {
+  const y = Number(usageMonth.slice(0, 4));
+  const m = Number(usageMonth.slice(5, 7));
+  const from = new Date(Date.UTC(y, m - 1, 1) - 9 * 3600_000).toISOString();
+  const to = new Date(Date.UTC(y, m, 1) - 9 * 3600_000).toISOString();
+  const { data: uses, error } = await svc.from('member_points').select('salon_id, booking_id, delta')
+    .eq('kind', 'use').gte('created_at', from).lt('created_at', to).not('salon_id', 'is', null).limit(50000);
+  if (error) return { ok: false, error: `フクエスポイントの利用を読めませんでした：${error.message}` };
+  const list = uses ?? [];
+  const refunded = new Set<string>();
+  const bids = [...new Set(list.map((u) => String(u.booking_id)).filter((b) => b && b !== 'null'))];
+  for (let i = 0; i < bids.length; i += 200) {
+    const { data: rf, error: rErr } = await svc.from('member_points').select('booking_id').eq('kind', 'refund').in('booking_id', bids.slice(i, i + 200));
+    if (rErr) return { ok: false, error: `フクエスポイントの取り消しを読めませんでした：${rErr.message}` };
+    for (const r of rf ?? []) refunded.add(String(r.booking_id));
+  }
+  const bySalon = new Map<number, { count: number; yen: number }>();
+  for (const u of list) {
+    if (refunded.has(String(u.booking_id))) continue;
+    const sid = Number(u.salon_id);
+    const a = bySalon.get(sid) ?? { count: 0, yen: 0 };
+    a.count += 1;
+    a.yen += Math.max(0, -Number(u.delta) || 0);
+    bySalon.set(sid, a);
+  }
+  return { ok: true, bySalon };
 }

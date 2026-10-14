@@ -89,7 +89,8 @@ export default async function PointsPage() {
           </ol>
           <h2 className="mb-2 mt-5 text-base font-bold text-slate-700">使い方</h2>
           <ul className="space-y-1.5">
-            <li>・ご予約のときに「フクエスポイントを使います」とお伝えください（お会計の前までに）。</li>
+            <li>・ご予約のときに「フクエスポイントを使います」とお伝えください。</li>
+            <li>・当日、お部屋の QR コードから同意書を送ったあとの画面で「{POINT_USE_UNIT.toLocaleString()}pt 使って {POINT_USE_YEN.toLocaleString()}円引きにする」を押し、お支払いの前にその画面をセラピストにお見せください（{POINT_USE_UNIT.toLocaleString()}pt 以上お持ちの方・1回のご来店で {POINT_USE_YEN.toLocaleString()}円まで・お店のクーポンと一緒に使えます）。</li>
             <li>・来店ポイントは1日1回まで。有効期限は、最後に貯めた日から1年です。</li>
           </ul>
           <Link href="/member/points" className="mt-3 inline-block font-bold text-pink-600 hover:underline">自分のポイントを見る →</Link>

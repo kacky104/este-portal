@@ -5,8 +5,9 @@ import { acrylicStandSalonHref } from '@/lib/ga';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { isPointToken } from '@/lib/points';
-import { readClaim, readMyPoints, type ClaimView } from '@/app/lib/points/server';
+import { readClaim, readMyPoints, readUse, type ClaimView } from '@/app/lib/points/server';
 import { PointsClaimCard } from './PointsClaimCard';
+import { PointsUseCard } from './PointsUseCard';
 
 // 同意書の送信が終わったあとの画面（第560便）。★ 同意書の中身は出さない（戻るボタンで同意書に戻れないように、送信後はここへ置き換える）。
 // ★ 第1404便（2026-10-11・カッキーさん）: 「フクエスでこのお店を見る」を出す（部屋のアクリルスタンド → 同意書 → ここ → お店ページ）。
@@ -43,11 +44,18 @@ export default async function GuideDonePage({ searchParams }: { searchParams: Pr
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     const svc = createServiceClient();
-    const view: ClaimView = await readClaim(svc, c, user?.id ?? null);
+    // ★ 第1454便: 「使う」の状態も一緒に読む（使用済みなら、この画面をセラピストに見せてもらう）
+    const [view, spendView]: [ClaimView, Awaited<ReturnType<typeof readUse>>] = await Promise.all([readClaim(svc, c, user?.id ?? null), readUse(svc, c, user?.id ?? null)]);
     const mine = user && view.kind === 'claimed' && view.mine ? await readMyPoints(svc, user.id, 1) : null;
     const back = `/g/done?${new URLSearchParams({ ...(typeof s === 'string' && s ? { s } : {}), c }).toString()}`;
-    if (view.kind !== 'none') {
-      points = <PointsClaimCard token={c} view={view} loggedIn={!!user} balance={mine?.balance ?? null} returnPath={back} />;
+    if (view.kind !== 'none' || spendView.kind !== 'none') {
+      points = (
+        <>
+          {/* ★ 第1454便: 使う（お支払いに関わるので来店ポイントより上） */}
+          {spendView.kind !== 'none' && <PointsUseCard token={c} view={spendView} loggedIn={!!user} returnPath={back} />}
+          {view.kind !== 'none' && <PointsClaimCard token={c} view={view} loggedIn={!!user} balance={mine?.balance ?? null} returnPath={back} />}
+        </>
+      );
     }
   }
 

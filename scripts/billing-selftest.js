@@ -32,5 +32,16 @@ eq('請求番号', m.invoiceNo('2026-10-01', 7), 'FK-202610-0007');
 eq('次の番号', m.nextInvoiceSeq('2026-10-01', ['FK-202610-0001', 'FK-202610-0003', 'FK-202609-0009', null]), 4);
 eq('次の番号（まだ無い）', m.nextInvoiceSeq('2026-10-01', []), 1);
 eq('表示', [m.monthLabel('2026-10-01'), m.dateLabel('2026-10-25'), m.yen(66000)], ['2026年10月分', '2026年10月25日', '66,000']);
+// 第1454便: フクエスポイントの差し引き（税込でちょうど引く）
+{
+  const base = [{ label: 'CRM', unit_price: 10000, quantity: 1 }];
+  for (const n of [1000, 2000, 3000, 7000, 13000]) {
+    const x = m.exclusiveForInclusiveCut(base, 10, n);
+    eq(`税込${n}円をちょうど引く`, m.calcTotals(base, 10).total - m.calcTotals([...base, { label: 'pt', unit_price: -x, quantity: 1 }], 10).total, n);
+  }
+  eq('0円は0', m.exclusiveForInclusiveCut(base, 10, 0), 0);
+  eq('11月分は9月の利用', m.pointUsageMonthOf('2026-11-01'), '2026-09-01');
+  eq('1月分は前年11月の利用', m.pointUsageMonthOf('2027-01-01'), '2026-11-01');
+}
 console.log(fail ? `\n★ NG ${fail} 件` : '\n★ すべて通った');
 process.exit(fail ? 1 : 0);

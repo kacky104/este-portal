@@ -60,7 +60,9 @@ export function PointsAdmin() {
   };
 
   const revoke = async (f: PointFlagRow) => {
-    if (!window.confirm(`この来店ポイント（${f.delta}pt・${f.salonName}）を取り消します。よろしいですか？`)) return;
+    if (!window.confirm(f.kind === 'use'
+      ? `このポイントの利用（${-f.delta}pt・${f.salonName}）を取り消して、会員にポイントを戻します。請求書でも差し引かなくなります。よろしいですか？`
+      : `この来店ポイント（${f.delta}pt・${f.salonName}）を取り消します。よろしいですか？`)) return;
     const r = await revokeVisitPoint(f.pointId);
     if (!r.ok) { setErr(r.error); return; }
     await loadFlags();
@@ -130,14 +132,14 @@ export function PointsAdmin() {
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h2 className="mb-1 text-sm font-black">③ 予約が取り消された・消された来店ポイント（直近90日）</h2>
+        <h2 className="mb-1 text-sm font-black">③ 予約が取り消された・消された来店ポイント・ポイントの利用（直近90日）</h2>
         <p className="mb-2 text-xs text-slate-500">自動では戻しません。施術せずに帰った等で取り消すときだけ押してください。</p>
         {!flags ? <p className="text-xs text-slate-400">読み込み中…</p> : flags.length === 0 ? <p className="text-xs text-slate-400">ありません</p> : (
           <ul className="divide-y divide-slate-100">
             {flags.map((f) => (
               <li key={f.pointId} className="flex flex-wrap items-center gap-2 py-2 text-[13px]">
                 <span className="w-28 text-xs text-slate-400">{dt(f.createdAt)}</span>
-                <span className="flex-1">{f.salonName}・{f.delta}pt・予約が{f.reason === 'cancelled' ? '取り消し' : '削除'}</span>
+                <span className="flex-1">{f.salonName}・{f.kind === 'use' ? `利用 ${-f.delta}pt（${-f.delta}円引き）` : `来店 ${f.delta}pt`}・予約が{f.reason === 'cancelled' ? '取り消し' : '削除'}</span>
                 {f.revoked ? <span className="text-xs font-bold text-slate-400">取り消し済み</span> : (
                   <button type="button" onClick={() => revoke(f)} className="border border-rose-300 bg-white px-3 py-1 text-xs font-bold text-rose-600">取り消す</button>
                 )}

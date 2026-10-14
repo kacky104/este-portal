@@ -1,5 +1,7 @@
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { calcTotals, dueDateOf, isMonth, lineAmount, linesForMonth, type ContractLine } from '@/lib/billing';
+import { addMonths, calcTotals, dueDateOf, exclusiveForInclusiveCut, isMonth, lineAmount, linesForMonth, pointUsageMonthOf, type BillingLineInput, type ContractLine } from '@/lib/billing';
+import { pointUsesForMonth } from '@/app/lib/points/server';
+import { jstTodayYmd } from '@/app/lib/salonStats';
 
 // 月の請求書の下書きをまとめて作る（第816便）。★ 管理画面（requireAdmin のあと）と cron（CRON_SECRET）から呼ぶ。
 // ★ 'use server' の外に置く＝ブラウザから直接は呼べない。
@@ -28,6 +30,16 @@ export async function createDraftsCore(
   const e = st.error ?? sa.error ?? pr.error ?? li.error ?? iv.error;
   if (e) return { ok: false, error: e.message };
   const taxRate = (st.data?.tax_rate_pct as number | undefined) ?? 10;
+  // ★ 第1454便: フクエスポイントの利用分（フクエス負担）を差し引く。その月分の請求書で、発行する月の前の月（11月分なら9月）に使われた分。
+  //   ★ その利用の月が終わってから作るときだけ（途中で作ると数え漏れる）。読めなければ下書きを作らない（差し引き無しで出さない）
+  const usageMonth = pointUsageMonthOf(month);
+  const usageDone = jstTodayYmd() >= addMonths(usageMonth, 1);
+  let pointUses = new Map<number, { count: number; yen: number }>();
+  if (usageDone) {
+    const pu = await pointUsesForMonth(svc, usageMonth);
+    if (!pu.ok) return { ok: false, error: pu.error };
+    pointUses = pu.bySalon;
+  }
   const dueDay = (st.data?.due_day as number | undefined) ?? 25;
   const names = new Map((sa.data ?? []).map((s) => [s.id as number, s.name as string]));
   const profiles = new Map((pr.data ?? []).map((p) => [p.salon_id as number, p]));
@@ -41,9 +53,15 @@ export async function createDraftsCore(
   const only = opts.salonIds ? new Set(opts.salonIds) : null;
   for (const [salonId, all] of bySalon) {
     if (only && !only.has(salonId)) continue;
-    const lines = linesForMonth(all, month);
-    if (lines.length === 0) continue;
+    const contract = linesForMonth(all, month);
+    if (contract.length === 0) continue;
     if (taken.has(salonId)) { skipped++; continue; }
+    const lines: BillingLineInput[] = contract.map((l) => ({ label: l.label, unit_price: l.unit_price, quantity: l.quantity }));
+    const use = pointUses.get(salonId);
+    if (use && use.yen > 0) {
+      const x = exclusiveForInclusiveCut(lines, taxRate, use.yen);
+      lines.push({ label: `フクエスポイント利用分（${Number(usageMonth.slice(5, 7))}月・${use.count}件・税込 ${use.yen.toLocaleString('ja-JP')}円）`, unit_price: -x, quantity: 1 });
+    }
     const prof = profiles.get(salonId);
     const t = calcTotals(lines, taxRate);
     const { data: inv, error: ie } = await svc.from('invoices').insert({

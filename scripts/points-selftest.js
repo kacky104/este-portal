@@ -38,4 +38,10 @@ assert.ok(!m.signupPointEligible('2026-10-13T10:00:00Z', '2026-10-13T10:05:00Z')
 assert.ok(!m.signupPointEligible('2026-10-14T03:00:00Z', null));
 assert.strictEqual(m.reviewBodyLength('  あいう  '), 3);
 assert.strictEqual(m.reviewBodyLength('😀あ'), 2);
+// 第1454便: 使う
+assert.ok(m.pointUseMessage('ok').includes('1,000円引き'));
+assert.ok(m.pointUseMessage('short').includes('1,000pt'));
+assert.strictEqual(m.pointsYenOf([-1000]), 1000);
+assert.strictEqual(m.pointsYenOf([-1000, 1000]), 0);
+assert.strictEqual(m.pointsYenOf([]), 0);
 console.log('✔ points ok');

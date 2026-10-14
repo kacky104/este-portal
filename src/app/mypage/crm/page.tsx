@@ -1131,6 +1131,10 @@ function BookingCard({
             受領済{b.receivedBy === 'therapist' ? '(女)' : b.receivedBy === 'shop' ? '(店)' : ''}
           </span>
         )}
+        {/* ★ 第1454便: お客様がフクエスポイントを使った（フクエス負担・お客様から受け取る額が少なくなる） */}
+        {!cancelled && b.pointsYen > 0 && (
+          <span className="bg-orange-500 px-1 text-[10px] font-bold text-white" title={`フクエスポイント −${b.pointsYen.toLocaleString()}円（フクエス負担）`}>Pt−{b.pointsYen.toLocaleString()}</span>
+        )}
         {(() => {
           const nb = nominationBadge(b.items);
           if (!nb) return null;
@@ -1266,6 +1270,19 @@ function DetailPanel({
             <dd className="font-bold text-slate-800">
               {yen(b.priceTotal)}{b.paymentMethod ? <span className="ml-1 text-[12px] font-normal text-slate-500">（{paymentLabel(b.paymentMethod, b.paymentSplit)}）</span> : null}
             </dd>
+            {/* ★ 第1454便: フクエスポイント（フクエス負担）。売上・女子報酬は変えない。受け取る額だけ少なくなる */}
+            {b.pointsYen > 0 && (
+              <>
+                <dt className="font-bold text-slate-400">ポイント</dt>
+                <dd>
+                  <span className="inline-block bg-orange-500 px-1.5 py-0.5 text-[12px] font-bold text-white">フクエスポイント −{b.pointsYen.toLocaleString()}円（フクエス負担）</span>
+                  <p className="mt-1 text-[13px] text-slate-700">
+                    お客様から受け取る額：<b>{b.priceTotal != null ? yen(Math.max(0, b.priceTotal - b.pointsYen)) : `料金から ${b.pointsYen.toLocaleString()}円 引いた額`}</b>
+                  </p>
+                  <p className="text-[11px] leading-relaxed text-slate-500">売上・女子報酬は変わりません。{b.pointsYen.toLocaleString()}円は月の請求書でフクエスが差し引きます。</p>
+                </dd>
+              </>
+            )}
             <dt className="font-bold text-slate-400">女子報酬</dt>
             <dd className="font-bold text-slate-800">{yen(b.payTotal)}</dd>
             {b.items.length > 0 && (
@@ -1562,6 +1579,8 @@ function BookingForm({
     .filter((s) => s.amount > 0);
   const paySum = paySplit.reduce((a, s) => a + s.amount, 0);
   const payMismatch = paySplit.length > 0 && hasPricing && paySum !== sums.price + priceAdj;
+  // ★ 第1454便: このご予約でお客様が使ったフクエスポイント（円）
+  const formPointsYen = initial.bookingId ? (dayBookings.find((x) => x.id === initial.bookingId)?.pointsYen ?? 0) : 0;
   const setPayAmount = (m: string, v: string) => setF((p) => ({ ...p, paymentMethod: '', payAmounts: { ...p.payAmounts, [m]: v.replace(/[^0-9]/g, '') } }));
   const setPayAll = (m: string) => setF((p) => ({ ...p, paymentMethod: '', payAmounts: { [m]: String(Math.max(0, sums.price + priceAdj)) } }));
 
@@ -1968,6 +1987,11 @@ function BookingForm({
                 )}
                 {f.paymentMethod && paySplit.length === 0 && (
                   <p className="mt-1 text-[11px] text-slate-500">いまの支払い：{f.paymentMethod}（金額欄に入れ直すと内訳になります）</p>
+                )}
+                {formPointsYen > 0 && (
+                  <p className="mt-1 border-l-4 border-orange-400 bg-orange-50 px-2 py-1 text-[12px] font-bold leading-relaxed text-orange-800">
+                    このご予約はフクエスポイント −{formPointsYen.toLocaleString()}円（フクエス負担）。支払いは料金の全額で入れてください（お客様から受け取るのは{hasPricing ? ` ${yen(Math.max(0, sums.price + priceAdj - formPointsYen))}` : `料金 −${formPointsYen.toLocaleString()}円`}。差の分は自動で引きます）。
+                  </p>
                 )}
               </div>
               <div className="mt-3 flex gap-4 border-t border-indigo-200 pt-2 text-[15px] font-black">
@@ -2609,6 +2633,12 @@ function CloseDialog({
                 ))}
               </div>
               {sum.allowance !== 0 && <p className="text-[12px] text-slate-500">女子報酬には、確定のときの手当 {yen(sum.allowance)} を含みます</p>}
+              {/* ★ 第1454便 */}
+              {sum.pointsCount > 0 && (
+                <p className="text-[12px] text-slate-500">
+                  フクエスポイントの利用 {sum.pointsCount}件 −{yen(sum.pointsYen)}（フクエス負担）。売上・女子報酬はそのまま、「うち現金」からは引いています。月の請求書でフクエスが差し引きます。
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labCls}>経費（円）</label>

@@ -24,6 +24,7 @@ import { assertCrmOwner, isCrmActive } from '@/app/lib/crm/auth';
 import { dbMessage } from '@/app/lib/crm/dbError';
 import { headers } from 'next/headers';
 import { businessDateNowJST } from '@/app/lib/crm/consentMatch';
+import { pointsYenByBooking, pointsYenBySalon } from '@/app/lib/points/server';
 // ★ 第1325便: グループ・提携店で共有するNG・要注意リスト（受付・スケジュールに出す）
 import { crmGroupHitsForSalon, crmGroupTableMissing } from '@/app/lib/crm/groupAlerts';
 // ★ 第1328便: 画面での申込み・承認（「グループ共有」のタブを出すか・赤い印を付けるか）
@@ -716,9 +717,11 @@ export async function getCrmSchedule(
       }),
     // ★ 第1410便: セラピストの並び（コネックエフと同じ表）。★ 読めなければ []＝今までどおり出勤の早い順（ここで投げない）
     readConecfGirlOrder(svc, salonId),
+    // ★ 第1454便: 予約ごとのフクエスポイントの利用額（円）。★ 読めなければ空（ここで投げない）。会員・残高は読まない
+    pointsYenByBooking(svc, bookingIds.map(String)),
   ]).catch((e: unknown) => readFail(e));
   if (!Array.isArray(reads)) return reads;
-  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits, therapistOrder] = reads;
+  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits, therapistOrder, pointsYen] = reads;
 
   const consentAt = new Map<string, string>();
   for (const c of consentRows) consentAt.set(String(c.booking_id), String(c.created_at));
@@ -781,6 +784,7 @@ export async function getCrmSchedule(
           receivedBy: e?.receivedBy ?? '',
           consentAt: consentAt.get(String(b.id)) ?? null,
           groupHits: groupHits.byPhone.get(normalizePhone(String(b.customerTel ?? ''))) ?? [],
+          pointsYen: pointsYen.get(String(b.id)) ?? 0,
         };
       }),
   };
@@ -1201,6 +1205,7 @@ function validDate(dateISO: string): boolean {
 }
 
 type DayBooking = {
+  id: string;
   therapistId: number | null; status: string; priceTotal: number; payTotal: number; paymentMethod: string; paymentSplit: CrmPaymentSplit[];
   hasPrice: boolean; receivedBy: string; slotStartISO: string;
 };
@@ -1209,7 +1214,7 @@ async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Prom
   const { startISO, endISO } = businessWindow(dateISO);
   const { data, error } = await svc
     .from('salon_bookings')
-    .select('therapist_id, status, price_total, pay_total, payment_method, payment_split, received_by, slot_start')
+    .select('id, therapist_id, status, price_total, pay_total, payment_method, payment_split, received_by, slot_start')
     .eq('salon_id', salonId)
     .gte('slot_start', startISO)
     .lt('slot_start', endISO)
@@ -1217,6 +1222,7 @@ async function readDayBookings(svc: Svc, salonId: number, dateISO: string): Prom
   // ★ 2026-10-09 点検#1: 読めなかったら投げる（空のふりをすると 0本・報酬0円の確定や売上0の日報が書かれる）。第1219便と同じ
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => ({
+    id: String(r.id),
     therapistId: r.therapist_id == null ? null : Number(r.therapist_id),
     status: String(r.status),
     priceTotal: Number(r.price_total) || 0,
@@ -1385,8 +1391,13 @@ async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<C
   ]);
   const active = bookings.filter((b) => b.status !== 'cancelled');
   const sales = active.reduce((a, b) => a + b.priceTotal, 0);
+  // ★ 第1454便: フクエスポイントが使われた予約（フクエス負担）。売上はそのまま・現金で受け取らない分を「うち現金」から引く
+  const pts = await pointsYenByBooking(svc, active.map((b) => b.id));
+  const pointsYen = active.reduce((a, b) => a + (pts.get(b.id) ?? 0), 0);
+  const pointsCount = active.filter((b) => (pts.get(b.id) ?? 0) > 0).length;
   // ★ 第1363便: 分けた予約は現金の分だけ（内訳が無ければ今までどおり payment_method が現金なら全額）
-  const cashSales = active.reduce((a, b) => a + (b.paymentSplit.length > 1 ? b.paymentSplit.filter((s) => s.method === '現金').reduce((x, s) => x + s.amount, 0) : (b.paymentMethod === '現金' ? b.priceTotal : 0)), 0);
+  const cashOf = (b: DayBooking) => (b.paymentSplit.length > 1 ? b.paymentSplit.filter((s) => s.method === '現金').reduce((x, s) => x + s.amount, 0) : (b.paymentMethod === '現金' ? b.priceTotal : 0));
+  const cashSales = active.reduce((a, b) => { const c = cashOf(b); return a + Math.max(0, c - (c > 0 ? (pts.get(b.id) ?? 0) : 0)); }, 0);
   const allowance = confirms.reduce((a, c) => a + c.allowance, 0);
   const pay = active.reduce((a, b) => a + b.payTotal, 0) + allowance;
   const confirmed = new Set(confirms.map((c) => c.therapistId));
@@ -1414,6 +1425,8 @@ async function computeDay(svc: Svc, salonId: number, dateISO: string): Promise<C
       ? bookings.filter((b) => isUnreceived({ ...b, priceTotal: b.hasPrice ? b.priceTotal : null }, Date.now(), money.autoReceivedFrom)).length
       : 0,
     unsettled: money.moneyEnabled ? await unsettledNames(svc, salonId, dateISO, names) : [],
+    pointsCount,
+    pointsYen,
     report,
   };
 }
@@ -2133,7 +2146,7 @@ async function moneyByDay(
   const untilEnd = opt.untilDate ? businessWindow(opt.untilDate).endISO : null;
   const bookings = await readAll<Record<string, unknown>>((from, to) => {
     let q = svc.from('salon_bookings')
-      .select('therapist_id, price_total, pay_total, received_by, slot_start, payment_method, payment_split')
+      .select('id, therapist_id, price_total, pay_total, received_by, slot_start, payment_method, payment_split')
       .eq('salon_id', salonId)
       .neq('status', 'cancelled')
       .not('therapist_id', 'is', null)
@@ -2158,6 +2171,8 @@ async function moneyByDay(
 
   // ★ 第1415便: 受領が未入力の予約を「女子が受領」とみなす設定（DB の関数 crm_money_balances と同じ決め方）
   const { autoReceivedFrom } = await readMoneyOpts(svc, salonId);
+  // ★ 第1454便: フクエスポイントの分は受け取った額から引く（DB の関数と同じ）
+  const ptsByBooking = await pointsYenBySalon(svc, salonId);
   const out = new Map<number, Map<string, MoneyAgg>>();
   const cell = (tid: number, date: string) => {
     let m = out.get(tid);
@@ -2180,6 +2195,7 @@ async function moneyByDay(
       paymentMethod: String(b.payment_method ?? ''),
       paymentSplit: parsePaymentSplit(b.payment_split),
       slotStartISO: String(b.slot_start),
+      pointsYen: ptsByBooking.get(String(b.id)) ?? 0,
     }, autoReceivedFrom);
     if (!confirmed.has(`${tid}|${date}`)) a.pay += Number(b.pay_total) || 0;
   }

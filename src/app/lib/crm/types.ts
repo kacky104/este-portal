@@ -143,6 +143,9 @@ export type CrmScheduleBooking = {
   consentAt: string | null;
   /** この予約の電話番号が、グループ・提携店の共有リストに当たった分（第1325便）。★ 出した店の名前は入っていない */
   groupHits: CrmGroupHit[];
+  /** ★ 第1454便: この予約でお客様が使ったフクエスポイント（円・0＝なし）。負担はフクエス＝売上・女子報酬は変えない。
+   *  お客様から受け取る額は「料金 − これ」。★ 会員の名前・残高はお店に渡さない */
+  pointsYen: number;
 };
 
 export type CrmScheduleTherapist = {
@@ -292,6 +295,9 @@ export type CrmDaySummary = {
   unconfirmed: string[];  // まだ報酬を確定していない人の名前
   unreceived: number;     // 未受領（キャンセル以外・料金あり・開始を過ぎた予約）（第554便）
   unsettled: string[];    // その日に動きがあって、残高が 0 でない人（名前）（第558便）
+  /** ★ 第1454便: フクエスポイントが使われた予約の件数と額（円）。売上には含めたまま・「うち現金」からは引いている */
+  pointsCount: number;
+  pointsYen: number;
   report: CrmDailyReport | null;
 };
 
@@ -352,10 +358,12 @@ export const CRM_SHOP_PAYMENT_METHODS = ['カード', 'PayPay'] as const;
  *   ★ DB の関数 crm_money_balances（追加SQL_第1415便）も同じ決め方。変えるときは両方そろえること。
  */
 export function crmReceivedByTherapist(
-  b: { receivedBy: string; priceTotal: number | null; paymentMethod: string; paymentSplit: CrmPaymentSplit[]; slotStartISO: string },
+  b: { receivedBy: string; priceTotal: number | null; paymentMethod: string; paymentSplit: CrmPaymentSplit[]; slotStartISO: string; pointsYen?: number },
   autoReceivedFrom: string | null | undefined,
 ): number {
-  const price = b.priceTotal ?? 0;
+  // ★ 第1454便: フクエスポイントの分（フクエス負担）はお客様から受け取らない＝受け取った額から引く（DB の crm_money_balances と同じ）
+  const pts = Math.max(0, b.pointsYen ?? 0);
+  const price = Math.max(0, (b.priceTotal ?? 0) - pts);
   if (b.receivedBy === 'therapist') return price;
   if (b.receivedBy) return 0;
   if (!autoReceivedFrom || crmBusinessDateOf(b.slotStartISO) < autoReceivedFrom) return 0;

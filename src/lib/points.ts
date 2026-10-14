@@ -2,7 +2,7 @@
 //
 // ★★ 決まっていること
 //   ・フクエス共通ポイント（運営が負担）。お客様向けの呼び方は「フクエスポイント」「フクエスポイント加盟店」（「CRM」とは言わない）。
-//   ・来店1回 50pt（キャンペーン中）。1,000pt で税込 1,000円引き（使うのは第2弾・1回の来店で 1,000円まで）。
+//   ・来店1回 50pt（キャンペーン中）。1,000pt で税込 1,000円引き（第1454便で「使う」・1回の来店で 1,000円まで・同意書の完了画面で使う）。
 //   ・貯まるのは加盟店の部屋の QR で同意したあと、完了画面で「受け取る」を押した会員だけ。予約1件1回・同じ会員は1日1回まで。
 //   ・受け取りは同意から24時間以内。有効期限は「最後に貯めた日から1年」。
 //   ・お店には、誰が会員か・何ポイントかは見せない。
@@ -24,6 +24,29 @@ export const POINT_EARN_KINDS: readonly string[] = ['visit', 'signup', 'review']
 /** 1回の利用の単位（pt）と、そのときの割引（円・税込） */
 export const POINT_USE_UNIT = 1000;
 export const POINT_USE_YEN = 1000;
+/**
+ * ★ 第1454便: 使う（1,000pt で税込 1,000円引き）の結果（use_visit_points の r_status）→ お客様に出す文。
+ *   ・使えるのは同意書の完了画面で、ログインした会員本人だけ。予約1件に1回。予約の終わりの時刻まで（券の期限 24時間 の内）。
+ *   ・負担はフクエス。お店の売上・女子報酬は変えない（お客様から受け取る額が 1,000円少なくなる分は、月の請求書でフクエスが差し引く）。
+ */
+export type PointUseStatus = 'ok' | 'used' | 'taken' | 'short' | 'closed' | 'invalid';
+export function pointUseMessage(status: PointUseStatus): string {
+  switch (status) {
+    case 'ok': return `${POINT_USE_YEN.toLocaleString()}円引きにしました`;
+    case 'used': return `このご予約は ${POINT_USE_YEN.toLocaleString()}円引き（使用済み）です`;
+    case 'taken': return 'このご予約では、ほかのアカウントでポイントが使われています';
+    case 'short': return `ポイントが足りません（${POINT_USE_UNIT.toLocaleString()}pt から使えます）`;
+    case 'closed': return 'このご予約では、もうポイントを使えません';
+    default: return 'ポイントを使えません';
+  }
+}
+/** ★ 第1454便: 予約1件のフクエスポイントの利用額（円）。use（−）と refund（＋）の delta の合計を反対にした額（取り消し済みは 0）。
+ *  ★ 1pt＝1円（POINT_USE_UNIT と POINT_USE_YEN が同じ）の前提。DB の crm_money_balances も同じ数え方。変えるときは両方 */
+export function pointsYenOf(deltas: number[]): number {
+  const s = deltas.reduce((a, d) => a + (Number(d) || 0), 0);
+  return Math.max(0, -s);
+}
+
 /** 受け取りの期限（同意してから） */
 export const POINT_CLAIM_HOURS = 24;
 /** 有効期限（最後に貯めた日から・か月） */

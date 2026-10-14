@@ -91,6 +91,7 @@ export async function getPointStats(month: string): Promise<{ ok: true; rows: Po
     if (p.kind === 'visit') { const r = get(sid); r.earned += d; r.earnedCount += 1; }
     else if (p.kind === 'signup' || p.kind === 'review') { const r = get(null); r.earned += d; r.earnedCount += 1; } // ★ 第1450便: 会員登録・口コミ（お店なし）
     else if (p.kind === 'use') { const r = get(sid); r.used += -d; r.usedCount += 1; }
+    else if (p.kind === 'refund') { const r = get(sid); r.used -= d; r.usedCount -= 1; } // ★ 第1454便: 利用の取り消し（ポイントを戻した分）
     else if (p.kind === 'expire') { get(null).expired += -d; }
     else if (p.kind === 'revoke') { get(sid).revoked += -d; }
   }
@@ -114,16 +115,16 @@ export async function getPointStats(month: string): Promise<{ ok: true; rows: Po
   return { ok: true, rows, total };
 }
 
-export type PointFlagRow = { pointId: number; salonName: string; bookingId: string; delta: number; createdAt: string; reason: 'cancelled' | 'deleted'; revoked: boolean };
+export type PointFlagRow = { pointId: number; kind: 'visit' | 'use'; salonName: string; bookingId: string; delta: number; createdAt: string; reason: 'cancelled' | 'deleted'; revoked: boolean };
 
-/** 直近90日の来店ポイントのうち、予約が取り消された・消されたもの */
+/** 直近90日の来店ポイント・ポイントの利用（第1454便）のうち、予約が取り消された・消されたもの */
 export async function listFlaggedPoints(): Promise<{ ok: true; rows: PointFlagRow[] } | Err> {
   const a = await requireAdmin();
   if (!a.ok) return a;
   const svc = createServiceClient();
   const since = new Date(Date.now() - 90 * 86400_000).toISOString();
-  const { data: pts, error } = await svc.from('member_points').select('id, delta, salon_id, booking_id, created_at')
-    .eq('kind', 'visit').gte('created_at', since).not('booking_id', 'is', null).limit(5000);
+  const { data: pts, error } = await svc.from('member_points').select('id, kind, delta, salon_id, booking_id, created_at')
+    .in('kind', ['visit', 'use']).gte('created_at', since).not('booking_id', 'is', null).limit(5000);
   if (error) return { ok: false, error: error.message };
   const list = pts ?? [];
   if (list.length === 0) return { ok: true, rows: [] };
@@ -134,8 +135,9 @@ export async function listFlaggedPoints(): Promise<{ ok: true; rows: PointFlagRo
     if (bErr) return { ok: false, error: bErr.message };
     for (const r of b ?? []) found.set(String(r.id), String(r.status ?? ''));
   }
-  const { data: rev } = await svc.from('member_points').select('booking_id').eq('kind', 'revoke').in('booking_id', bookingIds);
-  const revoked = new Set((rev ?? []).map((r) => String(r.booking_id)));
+  const { data: rev } = await svc.from('member_points').select('booking_id, kind').in('kind', ['revoke', 'refund']).in('booking_id', bookingIds);
+  // ★ 来店ポイントの取り消し＝revoke／利用の取り消し＝refund（第1454便）
+  const revoked = new Set((rev ?? []).map((r) => `${r.kind === 'refund' ? 'use' : 'visit'}|${String(r.booking_id)}`));
   const flagged = list.filter((p) => !found.has(String(p.booking_id)) || found.get(String(p.booking_id)) === 'cancelled');
   const sids = [...new Set(flagged.map((p) => Number(p.salon_id)).filter((n) => n > 0))];
   const names = new Map<number, string>();
@@ -147,24 +149,37 @@ export async function listFlaggedPoints(): Promise<{ ok: true; rows: PointFlagRo
     ok: true,
     rows: flagged.map((p) => ({
       pointId: Number(p.id),
+      kind: (p.kind === 'use' ? 'use' : 'visit') as 'visit' | 'use',
       salonName: names.get(Number(p.salon_id)) ?? '',
       bookingId: String(p.booking_id),
       delta: Number(p.delta),
       createdAt: String(p.created_at),
       reason: found.has(String(p.booking_id)) ? 'cancelled' : 'deleted',
-      revoked: revoked.has(String(p.booking_id)),
+      revoked: revoked.has(`${p.kind === 'use' ? 'use' : 'visit'}|${String(p.booking_id)}`),
     })),
   };
 }
 
-/** 来店ポイントを手で取り消す（revoke の行を足す・同じ予約は1回まで） */
+/**
+ * 来店ポイントを手で取り消す（revoke の行を足す・同じ予約は1回まで）。
+ * ★ 第1454便: ポイントの利用（use）なら「利用の取り消し」＝ refund の行（ポイントを会員に戻す）。CRM の「Pt−1,000」も消え、請求書でも差し引かない。
+ */
 export async function revokeVisitPoint(pointId: number): Promise<{ ok: true } | Err> {
   const a = await requireAdmin();
   if (!a.ok) return a;
   const svc = createServiceClient();
   const { data: p, error } = await svc.from('member_points').select('id, user_id, delta, kind, salon_id, booking_id, business_date').eq('id', Math.trunc(Number(pointId))).maybeSingle();
   if (error || !p) return { ok: false, error: '記録が見つかりません' };
-  if (p.kind !== 'visit') return { ok: false, error: '来店ポイントだけ取り消せます' };
+  if (p.kind === 'use') {
+    const { count: rc } = await svc.from('member_points').select('id', { count: 'exact', head: true }).eq('kind', 'refund').eq('booking_id', String(p.booking_id));
+    if ((rc ?? 0) > 0) return { ok: false, error: 'すでに取り消しています' };
+    const { error: rErr } = await svc.from('member_points').insert({
+      user_id: p.user_id, delta: -Number(p.delta), kind: 'refund', salon_id: p.salon_id, booking_id: p.booking_id, business_date: p.business_date, note: '運営が利用を取り消し（ポイントを戻した）',
+    });
+    if (rErr) return { ok: false, error: /member_points_kind_check/.test(rErr.message) ? '準備がまだです（追加SQL_第1454便を流してください）' : rErr.message };
+    return { ok: true };
+  }
+  if (p.kind !== 'visit') return { ok: false, error: '来店ポイント・ポイントの利用だけ取り消せます' };
   const { count } = await svc.from('member_points').select('id', { count: 'exact', head: true }).eq('kind', 'revoke').eq('booking_id', String(p.booking_id));
   if ((count ?? 0) > 0) return { ok: false, error: 'すでに取り消しています' };
   const { error: insErr } = await svc.from('member_points').insert({
