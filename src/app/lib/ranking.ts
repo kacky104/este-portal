@@ -41,13 +41,13 @@ export type TherapistRankItem = {
   hasFukuX: boolean; // 第1026便：承認済みの fukuX セラピストアカウントがある（カードにマーク表示）
 };
 
-// 第1026便：承認済み fukuX セラピストアカウントを持つセラピストは毎週この点数からスタート（週間アクセス数に上乗せ）。
-export const FUKUX_ACCOUNT_BONUS = 10;
+// ★ 第1476便（2026-10-14・カッキーさん）: 「fukuX 開設で毎週+10点」（第1026便の FUKUX_ACCOUNT_BONUS）は廃止。
+//   セラピストページの開設と同時に fukuX も開設されるようになった（第1475便）ため、点はセラピストページの開設（CAST_LINK_BONUS＝10）に付け替えた。
 // ★ 第1058便（2026-10-01・カッキーさん）：fukuX の赤い認証バッジ（x_profiles.is_verified・セラピストは所属＋画像付き投稿10件で自動付与）
-//   が付いていると、さらに毎週この点数を上乗せ（開設10＋赤バッジ5＝最大15）。
+//   が付いていると、さらに毎週この点数を上乗せ。
 export const FUKUX_VERIFIED_BONUS = 5;
 // ★ 第1093便（2026-10-02・カッキーさん）：お店と連携してセラピストページを開設している（therapists.user_id あり）と、
-//   毎週 CAST_LINK_BONUS（5点）を上乗せ（連携5＋fukuX開設10＋赤バッジ5＝最大20）。数字は src/lib/rankingPoints.ts。
+//   毎週 CAST_LINK_BONUS を上乗せ（第1476便から 10点。連携10＋赤バッジ5＝最大15）。数字は src/lib/rankingPoints.ts。
 export { CAST_LINK_BONUS };
 
 // 現在時刻(JST)が属する週の「月曜」の 'YYYY-MM-DD'。
@@ -199,8 +199,8 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
   const bonusIds = ((bonusIdRows ?? []) as Array<{ id: number }>).map((r) => Number(r.id));
 
   // 第1026便：承認済み fukuX セラピストアカウント（x_profiles kind='therapist' status='approved'）を
-  // therapists.user_id === x_profiles.auth_user_id で突き合わせ、該当セラピストに FUKUX_ACCOUNT_BONUS を加算。
-  // アクセス0でもアカウントがあれば母集団に入る（＝毎週10点からスタート）。
+  // therapists.user_id === x_profiles.auth_user_id で突き合わせる（カードの fukuX マークと赤バッジの加点に使う）。
+  // ★ 第1476便: 開設だけの加点（+10）は廃止。
   const [{ data: xRows }, { data: linkRows }] = await Promise.all([
     supabase.from('x_profiles').select('auth_user_id, is_verified').eq('kind', 'therapist').eq('status', 'approved'),
     supabase.from('therapists').select('id, user_id').eq('is_active', true).not('user_id', 'is', null),
@@ -222,7 +222,8 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
   //   アクセス0でも連携していれば母集団に入る（＝毎週5点からスタート）。
   const castLinkedIds = new Set<number>(links.filter((r) => r.user_id).map((r) => Number(r.id)));
 
-  const candidateIds = [...new Set<number>([...viewMap.keys(), ...bonusIds, ...fukuxIds, ...castLinkedIds])];
+  // ★ fukuxIds は castLinkedIds に含まれる（どちらも links の行）ので、母集団には castLinkedIds だけ足せばよい
+  const candidateIds = [...new Set<number>([...viewMap.keys(), ...bonusIds, ...castLinkedIds])];
   if (candidateIds.length === 0) return [];
 
   const { data: tRows } = await supabase
@@ -259,7 +260,6 @@ export async function fetchTherapistWeeklyRanking(limit = 30, week: string = cur
         (viewMap.get(Number(t.id)) ?? 0) +
         Number(t.ranking_bonus ?? 0) +
         (castLinkedIds.has(Number(t.id)) ? CAST_LINK_BONUS : 0) +
-        (hasFukuX ? FUKUX_ACCOUNT_BONUS : 0) +
         (hasFukuXVerified ? FUKUX_VERIFIED_BONUS : 0);
       return {
         id: Number(t.id),

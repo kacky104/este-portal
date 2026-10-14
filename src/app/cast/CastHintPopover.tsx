@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 // ★ 第1061便（2026-10-01・カッキーさん）: fukuX の加点の案内を、本文のカードからヘッダーの「？」アイコンに移した。
-//   ・未開設の子: 「サイトを見る」の左に「？」→ 押すと「開設すると毎週+10点」のカード（紫）
+//   ・未開設の子: 「サイトを見る」の左に「？」→ 押すと fukuX 開設の案内カード（紫）
+//     ★ 第1476便: 「開設で毎週+10点」は廃止（点はセラピストページの開設に付け替え）。閲覧の加算と赤バッジ+5の案内にした
 //   ・開設済みで赤バッジがまだの子: fukuX の丸いアイコンの左に「？」→ 押すと「赤バッジで毎週+5点」のカード（赤）
 //   ・赤バッジを取ったら「？」は出ない（page.tsx 側の条件）
 //   ★ 赤バッジの条件（件数）は秘密。画面には「投稿をがんばると」とだけ書く（第1059便）。
@@ -33,7 +34,7 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
     };
   }, [open]);
 
-  const label = kind === 'open' ? 'fukuXを開設するとランキングに加点' : '赤い認証バッジでランキングに加点';
+  const label = kind === 'open' ? 'fukuXを開設するとランキングに加算' : '赤い認証バッジでランキングに加点';
   const ring = kind === 'open' ? { borderColor: '#C4B5FD', color: '#7C3AED' } : { borderColor: '#FCA5A5', color: '#EF4444' };
 
   return (
@@ -67,8 +68,8 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/fukux-mark.png" alt="fukuX" className="w-9 h-9 flex-shrink-0" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-bold text-violet-800 leading-snug">fukuXを開設すると、人気セラピストランキングに毎週+10点</span>
-                <span className="block text-[11px] text-violet-600/90 leading-snug mt-0.5">fukuXのアカウントページの閲覧もランキングに加算されます</span>
+                <span className="block text-[13px] font-bold text-violet-800 leading-snug">fukuXを開設すると、アカウントページの閲覧も人気セラピストランキングに加算されます</span>
+                <span className="block text-[11px] text-violet-600/90 leading-snug mt-0.5">赤い認証バッジが付くと、さらに毎週+5点</span>
               </span>
               <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-bold whitespace-nowrap">開設する</span>
             </Link>
