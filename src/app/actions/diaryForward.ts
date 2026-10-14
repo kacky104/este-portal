@@ -496,7 +496,6 @@ export async function getDiaryForwardHistory(input: { therapistId: string | numb
  * ★★ 第1496便: 「写メ日記がサイトに届かない方」を店ごとに数える（コネックエフのホームの帯）。
  *   ★ 駅ちか … 「フクエスから反映」している枠に、投稿用アドレスが無く、番号（castId）も結びついていない公開中の方。
  *       （番号が結びついていれば、アドレスは読み直しで入る。結びついていなければ、読み直しても入らない＝10/14 の形）
- *   ★ エステ魂 … 「フクエスから反映」していて、本人の了承がまだ「未確認」の公開中の方（了承あり にしないと一生送らない）。
  *   ★ 数えるのは、写メ日記の入口がフクエスの店だけ（ほかの店は送らないので、帯も出さない）。
  *   ★ 読めなかった項目は空で返さず error にする（「問題なし」と見せない）。
  */
@@ -504,7 +503,6 @@ export async function getDiaryReadiness(input: { salonId: string | number }): Pr
   Result<{
     applies: boolean;
     ekichikaUnlinked: Array<{ id: number; name: string }>;
-    esutamaUnconfirmed: Array<{ id: number; name: string }>;
   }>
 > {
   const salonId = Number(input.salonId);
@@ -517,7 +515,7 @@ export async function getDiaryReadiness(input: { salonId: string | number }): Pr
   if (!salon) return { ok: false, error: '店舗が見つかりません' };
   if ((salon.owner_id as string | null) !== user.id && user.id !== ADMIN_UUID) return { ok: false, error: 'この店舗の操作権限がありません' };
 
-  const empty = { applies: false, ekichikaUnlinked: [], esutamaUnconfirmed: [] };
+  const empty = { applies: false, ekichikaUnlinked: [] };
   if (!forwardsDiaryFromFukues((salon.diary_source as string | null) ?? 'benry')) return { ok: true, data: empty };
   const pref = (salon as { diary_write_pref?: string | null }).diary_write_pref ?? null;
 
@@ -528,14 +526,12 @@ export async function getDiaryReadiness(input: { salonId: string | number }): Pr
   ]);
   const credOn = new Set((creds ?? []).filter((c) => c.is_enabled === true).map((c) => String(c.provider) + '#' + Number(c.slot ?? 1)));
   const ekichikaSlots: number[] = [];
-  let esutamaWrites = false;
   for (const r of srcs ?? []) {
     const key = String(r.provider) + '#' + Number(r.slot ?? 1);
     if (!credOn.has(key) || !diaryForwardAllowed((r.link_mode as string | null) ?? null, pref)) continue;
     if (r.provider === 'ekichika') ekichikaSlots.push(Number(r.slot ?? 1));
-    if (r.provider === 'esutama') esutamaWrites = true;
   }
-  if (ekichikaSlots.length === 0 && !esutamaWrites) return { ok: true, data: empty };
+  if (ekichikaSlots.length === 0) return { ok: true, data: empty };
 
   const { data: ths, error: thErr } = await svc
     .from('therapists').select('id, name, import_cast_id').eq('salon_id', salonId).eq('is_active', true).order('id', { ascending: true });
@@ -563,18 +559,7 @@ export async function getDiaryReadiness(input: { salonId: string | number }): Pr
     }
   }
 
-  const esutamaUnconfirmed: Array<{ id: number; name: string }> = [];
-  if (esutamaWrites && ids.length > 0) {
-    const { data: cs, error: csErr } = await svc
-      .from('therapist_media_consent').select('therapist_id, state').eq('provider', 'esutama').eq('kind', 'diary').in('therapist_id', ids);
-    if (csErr) return { ok: false, error: '了承の記録を読み込めませんでした' };
-    const stateOf = new Map<number, string>();
-    for (const r of cs ?? []) stateOf.set(Number(r.therapist_id), String(r.state ?? 'unknown'));
-    for (const t of trows) {
-      const st = stateOf.get(Number(t.id)) ?? 'unknown';
-      if (st !== 'agreed' && st !== 'declined') esutamaUnconfirmed.push(nameOf(t));
-    }
-  }
-
-  return { ok: true, data: { applies: true, ekichikaUnlinked, esutamaUnconfirmed } };
+  // ★ エステ魂の「了承が未確認」の方は数えない（カッキーさん・2026-10-15）: 魂セラピストを始めているかは DB に無く
+  //   （エステ魂の一覧を読んだ流れの中でしか分からない）、始めていない方まで「届かない方」として並んでしまうため。
+  return { ok: true, data: { applies: true, ekichikaUnlinked } };
 }
