@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
@@ -37,6 +37,27 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   // ★ 第1472便（カッキーさん）: 入れられる日数（7〜30日・店舗様ごと）
   const [days, setDays] = useState<number>(CONECF_SCHEDULE_DAYS);
   const [daysBusy, setDaysBusy] = useState(false);
+  // ★ 第1473便（カッキーさん）: 横のスクロールバーを表の上にも。上下のバーは同じ位置に動く
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const tableBoxRef = useRef<HTMLDivElement>(null);
+  const [scrollW, setScrollW] = useState(0);
+  const [clientW, setClientW] = useState(0);
+  useEffect(() => {
+    const box = tableBoxRef.current;
+    if (!box) return;
+    const measure = () => { setScrollW(box.scrollWidth); setClientW(box.clientWidth); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(box);
+    if (box.firstElementChild) ro.observe(box.firstElementChild);
+    return () => ro.disconnect();
+  }, [rows, dates.length]);
+  const syncScroll = (from: 'top' | 'box') => {
+    const top = topBarRef.current, box = tableBoxRef.current;
+    if (!top || !box) return;
+    const [src, dst] = from === 'top' ? [top, box] : [box, top];
+    if (Math.abs(dst.scrollLeft - src.scrollLeft) > 0.5) dst.scrollLeft = src.scrollLeft; // ★ 同じ位置なら動かさない（行ったり来たりしない）
+  };
 
   const load = useCallback(async () => {
     const res = await getConecfSchedule();
@@ -137,7 +158,13 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
         <Link href={href('/schedule/sync')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">出勤をサイトへ ›</Link>
       </div>
 
-      <div className={`${CARD} overflow-x-auto`}>
+      {/* ★ 第1473便: 上の横スクロールバー（表が横にはみ出すときだけ） */}
+      {scrollW > clientW + 1 && (
+        <div ref={topBarRef} onScroll={() => syncScroll('top')} className="sticky top-0 z-20 overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
+          <div style={{ width: scrollW, height: 1 }} />
+        </div>
+      )}
+      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto`}>
         {/* ★★ 第438便（カッキーさん）: 日付のマスは【いつも同じ幅】。★ table-fixed で中身の文字数に引っぱられない */}
         {/* ★ 第1472便: 8日以上は1日を 96px にして横にスクロール（セラピストの列は左に貼り付く） */}
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]" style={dates.length > 7 ? { minWidth: 150 + dates.length * 96 } : undefined}>
