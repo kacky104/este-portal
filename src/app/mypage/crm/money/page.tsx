@@ -271,12 +271,15 @@ function AddMoveForm({ salonId, therapists, onDone }: { salonId: number; therapi
     onDone();
   };
 
-  const field = 'w-full border border-slate-300 bg-white px-2 py-1.5 text-[14px]';
+  // ★ 第1491便（カッキーさん）: iPhone で「営業日」と「向き」が重なっていた。iOS の日付の入力欄は中身の幅より狭くならず、
+  //   2列の枠からはみ出して隣の欄に重なる → 欄も枠も min-w-0（縮んでよい）にし、日付の欄は見た目の既定（appearance）を外す。
+  const field = 'w-full min-w-0 border border-slate-300 bg-white px-2 py-1.5 text-[14px]';
+  const dateField = field + ' block appearance-none min-h-[38px] [&::-webkit-date-and-time-value]:text-left';
   const lab = 'mb-0.5 block text-[11px] font-bold text-slate-500';
   return (
     <div className="border border-slate-200 bg-slate-50 p-3">
       <p className="mb-2 text-[14px] font-black text-slate-800">動きを手で入れる（釣銭の前渡し・前借りなど）</p>
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-6 [&>div]:min-w-0">
         <div className="col-span-2 md:col-span-1">
           <label className={lab}>女子</label>
           <select className={field} value={therapistId} onChange={(e) => setTherapistId(e.target.value)}>
@@ -286,7 +289,7 @@ function AddMoveForm({ salonId, therapists, onDone }: { salonId: number; therapi
         </div>
         <div>
           <label className={lab}>営業日</label>
-          <input type="date" className={field} value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
+          <input type="date" className={dateField} value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
         </div>
         <div>
           <label className={lab}>向き</label>

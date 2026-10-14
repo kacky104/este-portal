@@ -149,7 +149,7 @@ function AlertForm({
         </div>
         <div>
           <label className={labelCls}>起きた日 <span className="text-rose-500">必須</span></label>
-          <input type="date" className={inputCls} value={f.happenedOn} max={todayJST()} onChange={(e) => set('happenedOn', e.target.value)} />
+          <input type="date" className={inputCls + ' block min-w-0 appearance-none min-h-[40px] [&::-webkit-date-and-time-value]:text-left'} value={f.happenedOn} max={todayJST()} onChange={(e) => set('happenedOn', e.target.value)} />
         </div>
         <div>
           <span className={labelCls}>確かさ</span>
