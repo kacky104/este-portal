@@ -3002,6 +3002,11 @@ export default function MyPage() {
       href={crmBannerHref}
       src="/mypage/sidebar/crm-v2.webp"
       alt="フクエスCRM　顧客管理、セラピスト管理を効率化"
+      // ★ 第1465便（カッキーさん）: まだ契約していないお店にだけ「3ヶ月無料」の札（左上。右上は CRM のマーク）
+      badge={crmOn ? undefined : (
+        <span className="inline-block -rotate-3 border-2 border-white bg-gradient-to-r from-amber-300 to-yellow-300 px-2 py-0.5 text-[12px] font-black tracking-wide text-rose-700 shadow-md">3ヶ月無料</span>
+      )}
+      badgeAt="top-left"
     />
   );
 
@@ -3450,9 +3455,10 @@ export default function MyPage() {
                       {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
                       {isSites && salon && renderJobsLink(false)}
                       {withMedia && renderMediaLink(false)}
-                      {isSites && salon && renderConecfLink(false)}
                       {isSites && renderFukuxLink(false)}
                       {isSites && renderCrmSoon(false)}
+                      {/* ★ 第1465便（カッキーさん）: コネックエフはフクエスCRM の下 */}
+                      {isSites && salon && renderConecfLink(false)}
                       {isSites && renderHpLink(false)}
                     </div>
                   );
@@ -3541,10 +3547,11 @@ export default function MyPage() {
                   {/* ★ フクエスワーク（求人）→ フクエスリンク の順（★ 第184便までの並びのまま）。 */}
                   {open && sec.group === '関連サイト' && salon && renderJobsLink(true)}
                   {open && withMedia && renderMediaLink(true)}
-                  {open && sec.group === '関連サイト' && salon && renderConecfLink(true)}
                   {/* ★ フクエックス（SNS）。★ 媒体連携と違い、契約に関係なく全店舗に出す。 */}
                   {open && sec.group === '関連サイト' && renderFukuxLink(true)}
                   {open && sec.group === '関連サイト' && renderCrmSoon(true)}
+                  {/* ★ 第1465便（カッキーさん）: コネックエフはフクエスCRM の下 */}
+                  {open && sec.group === '関連サイト' && salon && renderConecfLink(true)}
                   {/* ★★ フクエスサイト（公式HP）。★ 契約に関係なく全店舗に出す（第184便）。
                       ★ 中身（申し込み受付中／制作中／公式HP）は hpNav が決める。
                       ★ 位置は【いちばん下】（2026-09-06・カッキーさんの指示でCRMの下へ）。 */}

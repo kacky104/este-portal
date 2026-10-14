@@ -6,11 +6,13 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-export function SidebarBanner({ href, src, alt, badge, pc, disabledLabel = '準備中' }: {
+// ★ 第1465便: badgeAt で札の位置を選べる（既定は右上。右上に絵の大事なところがあるバナーは左上に）。
+export function SidebarBanner({ href, src, alt, badge, badgeAt = 'top-right', pc, disabledLabel = '準備中' }: {
   href: string | null;
   src: string;
   alt: string;
   badge?: ReactNode;
+  badgeAt?: 'top-right' | 'top-left';
   pc: boolean;
   disabledLabel?: string;
 }) {
@@ -35,7 +37,7 @@ export function SidebarBanner({ href, src, alt, badge, pc, disabledLabel = '準�
           className="relative block overflow-hidden border border-slate-100 shadow-sm transition hover:opacity-90 hover:shadow-md"
         >
           {img}
-          {badge && <span className="absolute top-1.5 right-1.5">{badge}</span>}
+          {badge && <span className={`absolute top-1.5 ${badgeAt === 'top-left' ? 'left-1.5' : 'right-1.5'}`}>{badge}</span>}
         </Link>
       )}
     </div>
