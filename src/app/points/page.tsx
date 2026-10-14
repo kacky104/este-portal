@@ -103,6 +103,14 @@ export default async function PointsPage() {
             <p className="mt-1 text-lg font-black text-slate-800"><span className="text-3xl" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{POINT_USE_UNIT.toLocaleString()}pt</span> で {POINT_USE_YEN.toLocaleString()}円引き</p>
             <p className="mt-0.5 text-xs text-slate-500">税込・1回のご来店で{POINT_USE_YEN.toLocaleString()}円まで</p>
           </div>
+          {/* ★ 第1463便（カッキーさん）: お店のクーポンと併用可能（例つき）。2つ並びの下に横いっぱい */}
+          <div className="rounded-3xl border border-blue-100 bg-white p-5 text-center shadow-sm sm:col-span-2">
+            <p className="text-xs font-bold text-slate-400">併用可能</p>
+            <p className="mt-1 text-lg font-black text-slate-800">お店のクーポンと <span className="text-2xl" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>併用OK</span></p>
+            <p className="mt-2 text-sm text-slate-600">
+              例）クーポン割引 1,000円 ＋ ポイント割引 {POINT_USE_YEN.toLocaleString()}円 ＝ <b className="text-blue-700">合計 {(1000 + POINT_USE_YEN).toLocaleString()}円もお得！</b>
+            </p>
+          </div>
         </section>
 
         {/* ★ 第1461便（カッキーさん「もっと端的に短く」）: 説明は箇条書きで短く。細かい決まりは最後の「ご注意」にまとめる */}
