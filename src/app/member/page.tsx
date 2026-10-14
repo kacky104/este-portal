@@ -5,7 +5,8 @@ import Image from 'next/image';
 import { areaLabel } from '@/app/lib/areaLabel';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { ensureSignupPoints } from '@/app/lib/points/server';
+import { ensureSignupPoints, firstReviewPointOpen } from '@/app/lib/points/server';
+import { POINT_FIRST_REVIEW, REVIEW_BODY_MIN } from '@/lib/points';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
@@ -36,6 +37,8 @@ export default async function MemberPage() {
   if (!user) redirect('/login?redirectTo=/member');
   // ★ 第1450便: 会員登録のポイント（確認のリンクを別のブラウザで開いた人の取りこぼし）。1人1回・失敗は無視
   await ensureSignupPoints(createServiceClient(), user);
+  // ★ 第1453便: まだ「はじめての口コミのポイント」の対象なら、ポイントの下に案内を出す
+  const firstReviewBonus = await firstReviewPointOpen(createServiceClient(), user.id);
   // ★ 第1448便: いまのフクエスポイント（本人の行だけ読める・RLS）。読めないとき（SQL 前など）は出さない
   const { data: pointRows, error: pointErr } = await supabase.from('member_points').select('delta').eq('user_id', user.id).limit(5000);
   const pointBalance: number | null = pointErr ? null : (pointRows ?? []).reduce((t, r) => t + (Number(r.delta) || 0), 0);
@@ -149,7 +152,8 @@ export default async function MemberPage() {
 
         {/* ─── 挨拶エリア ─── */}
         {/* ★ 第1448便: 名前の右にいまのフクエスポイント（押すとポイントのページ） */}
-        <section className="mb-8 flex items-end justify-between gap-3">
+        <div className="mb-8">
+        <section className="flex items-end justify-between gap-3">
           <div className="min-w-0">
           <p className="text-[13px] text-slate-400">ようこそ</p>
           <h1
@@ -172,6 +176,13 @@ export default async function MemberPage() {
             </Link>
           )}
         </section>
+        {/* ★ 第1453便: はじめての口コミのポイントの案内（対象の会員だけ） */}
+        {pointBalance !== null && firstReviewBonus && (
+          <p className="mt-2 text-right text-[11px] font-bold text-pink-600">
+            🎁 はじめての口コミで{POINT_FIRST_REVIEW}pt進呈！<span className="font-normal text-slate-400">（{REVIEW_BODY_MIN}文字以上・運営の承認後）</span>
+          </p>
+        )}
+        </div>
 
         {/* ─── 保存サマリー（2カード横並び） ─── */}
         <section className="grid grid-cols-2 gap-3 sm:gap-4 mb-10">
