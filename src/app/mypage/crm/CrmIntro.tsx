@@ -2,6 +2,7 @@
 
 import { useCrmLinks } from './CrmBase';
 import { CRM_INTRO } from '@/lib/crmIntro';
+import { CrmMerits } from './CrmMerits';
 
 // フクエスCRM「ご案内」（第1144便・2026-10-04・カッキーさん）。★ 未契約の店舗様が入口を押したときに出る。
 //   ★ ログイン不要のご案内ページ（fukuescrm.com/about・第1145便）と、マイページの中（CrmShell の未契約）の両方で使う。
@@ -38,6 +39,8 @@ export function CrmIntro({ salonName }: { salonName?: string; publicPage?: boole
   return (
     <div className="mx-auto max-w-3xl px-3 py-6 sm:px-4 sm:py-8">
       {salonName && <p className="mb-2 text-[12px] font-bold" style={{ color: BLUE }}>{salonName}</p>}
+      {/* ★ 第1466便: 契約すると付いてくるもの（いちばん上）。今の画像はこの下 */}
+      <CrmMerits />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/mypage/crm/crm-intro.webp"
