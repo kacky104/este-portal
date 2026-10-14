@@ -15,6 +15,7 @@ import { ImpressionMark } from './ImpressionMark';
 import { areaLabel } from '../lib/areaLabel';
 import { areaHref, DISPATCH_AREA, normalizeAreaKey } from '../lib/areas';
 import { type Salon } from '@/app/lib/salons';
+import { PointShopRibbon } from '@/app/components/PointShopRibbon';
 import { SalonCardTabs } from './SalonCardTabs';
 import { type SalonCardTabCount, type SalonCardTabCounts } from '@/lib/salonCardTabs';
 
@@ -560,6 +561,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
           <SalonNameRow salonId={salon.id} salonName={salon.name} showSaveButton={showSaveButton} nameBanner />
         </div>
       )}
+
+      {/* ★ 第1456便: フクエスポイント加盟店のリボン（店名の帯の下・白い枠のいちばん上・左端から出る） */}
+      {salon.pointsMember && <PointShopRibbon />}
 
       {/* トップページ（compactTherapists）はカード下の余白を約1/3（pb 20px→7px）に。
           nameBanner 時は店名が上端のバナー帯へ移っているため、本体の上パディングを pt-5(20px)→pt-2.5(10px) に

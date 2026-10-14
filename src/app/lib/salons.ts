@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { cheapestCoursePrice } from '@/lib/coursePrice';
 
 // リンクバナー設置特典で「カード優先表示」に使う重み。
@@ -25,6 +26,7 @@ export type Salon = {
   cardBoost:    boolean; // カード優先表示（バナー設置特典）。true で一覧の上側に来やすい。
   bumpedAt:     string | null; // 上位表示（bump）ボタンを最後に押した時刻。今朝6時以降なら先頭に出す。
   listingPlan:  'standard' | 'free'; // 掲載プラン。standard=本契約（既存の全店）／free=無料掲載枠（第368便）。
+  pointsMember: boolean; // ★ 第1456便: フクエスポイント加盟店（points_member が ON で CRM 契約中）。店舗カードのリボンに使う
 };
 
 export type DispatchType = Salon['dispatchType'];
@@ -35,6 +37,8 @@ const SALON_COLUMNS_BASE =
   'id, name, rating, review_count, tags, price, area, area2, hours, description, show_on_top, dispatch_type, courses';
 // card_boost を含む本番用。マイグレーション未適用の環境では下記フォールバックで BASE に切替える。
 const SALON_COLUMNS = `${SALON_COLUMNS_BASE}, card_boost, catchphrase, bumped_at, listing_plan`;
+// ★ 第1456便: フクエスポイント加盟店（列が読めないときは SALON_COLUMNS に戻る＝加盟店のリボンを出さないだけ）
+const SALON_COLUMNS_WITH_POINTS = `${SALON_COLUMNS}, points_member, crm_until`;
 
 function mapSalonRow(row: Record<string, unknown>): Salon {
   return {
@@ -56,6 +60,7 @@ function mapSalonRow(row: Record<string, unknown>): Salon {
     cardBoost:    (row.card_boost as boolean) ?? false,
     bumpedAt:     (row.bumped_at as string | null) ?? null,
     listingPlan:  (row.listing_plan as 'standard' | 'free') ?? 'standard',
+    pointsMember: row.points_member === true && typeof row.crm_until === 'string' && row.crm_until.slice(0, 10) >= getCalendarDateJST(),
   };
 }
 
@@ -87,7 +92,8 @@ export async function fetchSalons(
   };
   // card_boost 列を含めて取得。マイグレーション未適用の環境では列が無くクエリが失敗するため、
   // その場合は BASE 列（card_boost なし）で再取得してフォールバックする（サイトを落とさない）。
-  let res = await build(SALON_COLUMNS);
+  let res = await build(SALON_COLUMNS_WITH_POINTS);
+  if (res.error) res = await build(SALON_COLUMNS);
   if (res.error) res = await build(SALON_COLUMNS_BASE);
   return (res.data ?? []).map(row => mapSalonRow(row as unknown as Record<string, unknown>));
 }
