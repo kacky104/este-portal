@@ -463,6 +463,78 @@ export async function retryFailedForwards(opts: { limit?: number; apply?: boolea
 }
 
 
+// ── 転送の記録が無い日記を拾って送る（第1495便・2026-10-15・カッキーさん）──────────────────
+//
+// ★ なぜ要るか: 転送は、日記の保存（postMyDiary）のあとに【ブラウザが別に】/api/diary/forward を呼ぶ作り
+//   （src/app/cast/CastDiary.tsx・src/app/mypage/page.tsx）。保存と転送のあいだでアプリを閉じる・電波が切れると、
+//   diary_forward_log に行が1つも残らず、再送（retryFailedForwards）も拾えない＝永久に届かない。しかも手がかりが残らない。
+//   → サーバー側で「記録の無い日記」を拾い、ふつうの forwardDiary を通す（送る・送らないの判断は forwardDiary の1本線のまま）。
+//   ★ ブラウザからの即時送信はそのまま（即時反映の売りは変えない）。ここは取りこぼしの保険。
+//
+// ★★ 取り込んだ日記（駅ちか→フクエス）を駅ちかへ送り返さないこと（10/07 のメモの注意）:
+//   取り込みの印（salon_diary_imports）は日記を入れた【あと】に付く。だから入れてすぐの日記は拾わない（SWEEP_MIN_AGE_MIN）。
+//   印のある日記は拾わない。★ forwardDiary 自身も正本（diary_source）で止めるので二重の守り。
+// ★★ 二重送信の防止: diary_forward_log に行がある日記は拾わない（forwardDiary は apply のとき、どの分岐でも必ず1行残す）。
+//   ★ ブラウザの転送が走っている最中（画像の変換で数十秒かかる）に拾わないよう、SWEEP_MIN_AGE_MIN は /api/diary/forward の
+//     maxDuration（60秒）より長くとる。
+// ★ 古い日記は送らない（SWEEP_MAX_AGE_H）。何日も前の日記が突然 駅ちかに載ると、かえって困る。
+const SWEEP_MIN_AGE_MIN = 5;
+const SWEEP_MAX_AGE_H = 24;
+
+export async function sweepUnforwardedDiaries(opts: { apply?: boolean; limit?: number } = {}): Promise<{
+  ok: boolean; 対象件数: number; 結果: Array<{ diaryId: string; salonId: number; status: string }>;
+}> {
+  const apply = opts.apply === true;
+  const limit = Math.min(Math.max(Math.trunc(opts.limit ?? 20), 1), 100);
+  const svc = createServiceClient();
+  const out = { ok: true, 対象件数: 0, 結果: [] as Array<{ diaryId: string; salonId: number; status: string }> };
+
+  // ★ 送る店（正本がフクエス）だけ。★ 物差しは forwardDiary と同じ（forwardsDiaryFromFukues）
+  const { data: salons, error: sErr } = await svc.from('salons').select('id, diary_source').not('diary_source', 'is', null);
+  if (sErr) return { ...out, ok: false };
+  const salonIds = (salons ?? []).filter((s) => forwardsDiaryFromFukues(String(s.diary_source))).map((s) => Number(s.id));
+  if (salonIds.length === 0) return out;
+
+  const newest = new Date(Date.now() - SWEEP_MIN_AGE_MIN * 60_000).toISOString();
+  const oldest = new Date(Date.now() - SWEEP_MAX_AGE_H * 3600_000).toISOString();
+  const { data: posts, error: pErr } = await svc
+    .from('diary_posts')
+    .select('id, salon_id, created_at')
+    .in('salon_id', salonIds)
+    .gte('created_at', oldest).lte('created_at', newest)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (pErr) return { ...out, ok: false };
+  if (!posts || posts.length === 0) return out;
+
+  const ids = posts.map((p) => String(p.id));
+  const [{ data: logged, error: lErr }, { data: imported, error: iErr }] = await Promise.all([
+    svc.from('diary_forward_log').select('diary_id').in('diary_id', ids),
+    svc.from('salon_diary_imports').select('diary_post_id').in('diary_post_id', ids),
+  ]);
+  // ★★★ 記録が読めなければ拾わない（読めないまま送ると二重に送る）
+  if (lErr || iErr) return { ...out, ok: false };
+  const hasLog = new Set((logged ?? []).map((r) => String(r.diary_id)));
+  const isImport = new Set((imported ?? []).map((r) => String(r.diary_post_id)));
+
+  const targets = posts.filter((p) => !hasLog.has(String(p.id)) && !isImport.has(String(p.id))).slice(0, limit);
+  out.対象件数 = targets.length;
+  for (const p of targets) {
+    const diaryId = String(p.id);
+    const salonId = Number(p.salon_id);
+    try {
+      const r = await forwardDiary(diaryId, apply);
+      const st = r.宛先.map((x) => x.provider + ':' + x.status).join(' / ') || r.注意;
+      out.結果.push({ diaryId, salonId, status: (apply ? '' : '[試し打ち] ') + st });
+      if (!r.ok) out.ok = false;
+    } catch (e) {
+      out.結果.push({ diaryId, salonId, status: 'error: ' + (e instanceof Error ? e.message : 'unknown').slice(0, 120) });
+      out.ok = false;
+    }
+  }
+  return out;
+}
+
 // ── 投稿用アドレスを待っている日記を送る（第1478便）────────────────────────────
 //
 // ★ forwardDiary で 'waiting_address' にした行（駅ちかのアドレスがまだ無かった）を拾い、アドレスが入っていれば送る。

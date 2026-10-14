@@ -1085,6 +1085,16 @@ export type FlowOutcome =
        */
       mediaCreated?: { therapistId: number; castId: string; name: string };
       /**
+       * ★★★ 第1495便（2026-10-15・カッキーさん）: 登録しようとしたら、**同じ名前の人がもう媒体に居た**。
+       *   ★ 店舗様が駅ちか・エステ魂で先に登録してから「サイトへ登録」を押す、はよくある順番。
+       *   ★★ 10/14 の事件と同じ形: 番号が結びつかないままだと、投稿用アドレスも出勤も写真もその方には届かず、
+       *     「登録しませんでした」の記録だけが残る。
+       *   → 「誰の番号がいくつか」を返す。★ **結ぶかどうか（番号が空いているか）を決めて書くのは呼び出し側**
+       *     （このファイルは DB を知らない。★ mediaCreated と同じ分け方）。
+       *   ★ mediaName … 媒体側の表示名（記録に出す）。
+       */
+      mediaFound?: { therapistId: number; castId: string; name: string; mediaName: string };
+      /**
        * ★★★★★ 媒体からその人が**居なくなった**（第239便＝駅ちかの削除）。
        *   ★ `mediaCreated` の裏返し。★ **結びつき（therapist_media_ids）を外すのは呼び出し側**。
        *   ★ このファイルは DB を知らない。★ 「どの番号が居なくなったか」を返すところまでが仕事。
@@ -2560,14 +2570,20 @@ function girlCreateAfterGirls(
   // ★★★ 同じ名前がもう居たら作らない。★ 二重掲載を自分で作らないための止め
   const same = page.rows.find((r) => normalizeName(r.name) === normalizeName(want)) ?? null;
   if (same) {
+    // ★ 第1495便: 同じ名前が【ちょうど1人】なら、番号を呼び出し側へ渡す（結ぶかは呼び出し側が番号の空きを見て決める）。
+    //   ★ 2人以上居るときは渡さない（どちらか機械には決められない・mediaMatch の 'ambiguous' と同じ考え）。
+    const sameCount = page.rows.filter((r) => normalizeName(r.name) === normalizeName(want)).length;
+    const therapistId = Number(ctx.createTherapistId ?? 0);
+    const canOffer = sameCount === 1 && therapistId > 0;
     return {
       kind: 'done',
       audits: [{
         event: 'create_girl', outcome: 'stopped',
         summary: want + 'さんは、すでに駅ちかに居ます（castId ' + same.castId + '）。登録しませんでした',
-        detail: { name: want, castId: same.castId, reason: 'already_listed', flowId },
+        detail: { name: want, castId: same.castId, reason: 'already_listed', sameCount, flowId },
       }],
-      note: 'すでに同じ名前が居るので登録しない',
+      note: 'すでに同じ名前が居るので登録しない' + (canOffer ? '（★ 番号を結びつけられるか、呼び出し側が見る）' : sameCount > 1 ? '（★ 同名が' + sameCount + '人・結ばない）' : ''),
+      ...(canOffer ? { mediaFound: { therapistId, castId: same.castId, name: want, mediaName: same.name } } : {}),
     };
   }
   // ★★★ Cookie を畳み直す（第234便の修正3）。★ エステ魂の流れでは各段でやっていたのに、

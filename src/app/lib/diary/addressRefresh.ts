@@ -110,8 +110,10 @@ export async function refreshDiaryAddressesDaily(): Promise<Array<{ salonId: num
 /**
  * ② 日記を送るときにアドレスが無かった → その店・枠の読み込みを始める（前の読み込みから KICK_GAP_MIN 分以内なら行かない）。
  * ★ 失敗しても投げない（日記の投稿は成立させる）。
+ * @param opts.fromCron 第1495便: 周からの再挑戦。「待っている日記の行が2件以上＝もう読みにいった」の見分けは使わない
+ *   （周が見るのは、まさにその待っている行なので）。前の読み込みからの間隔（KICK_GAP_MIN）だけで決める。
  */
-export async function kickMailImport(salonId: number, slot: number): Promise<string> {
+export async function kickMailImport(salonId: number, slot: number, opts: { fromCron?: boolean } = {}): Promise<string> {
   try {
     const svc = createServiceClient();
     const targets = await loadTargets(svc, salonId);
@@ -119,22 +121,70 @@ export async function kickMailImport(salonId: number, slot: number): Promise<str
     if (!t) return 'not_target';
     const { lastAny } = await lastReads(svc, t);
     if (lastAny != null && Date.now() - lastAny < KICK_GAP_MIN * 60_000) return 'recent';
-    // ★ 同じ店で少し前に読みにいったばかり（まだ記録が付く前）なら行かない＝待っている日記の記録で見分ける
-    const since = new Date(Date.now() - KICK_GAP_MIN * 60_000).toISOString();
-    // ★ diary_forward_log.therapist_id には外部キーが無い（結合で絞れない）ので、店のセラピストの id で絞る
-    const { data: ths } = await svc.from('therapists').select('id').eq('salon_id', salonId);
-    const tids = (ths ?? []).map((r) => Number(r.id));
-    const { data: waiting } = tids.length
-      ? await svc
-          .from('diary_forward_log').select('id')
-          .eq('provider', PROVIDER).eq('slot', slot).eq('status', 'waiting_address')
-          .in('therapist_id', tids).gt('created_at', since).limit(2)
-      : { data: [] as Array<{ id: number }> };
-    // ★ 今回の日記の行はこの直前に入っているので、2件目があれば「もう誰かが読みにいった」
-    if ((waiting ?? []).length >= 2) return 'already_kicked';
-    return await start(t, 'system:diary-address');
+    if (!opts.fromCron) {
+      // ★ 同じ店で少し前に読みにいったばかり（まだ記録が付く前）なら行かない＝待っている日記の記録で見分ける
+      const since = new Date(Date.now() - KICK_GAP_MIN * 60_000).toISOString();
+      // ★ diary_forward_log.therapist_id には外部キーが無い（結合で絞れない）ので、店のセラピストの id で絞る
+      const { data: ths } = await svc.from('therapists').select('id').eq('salon_id', salonId);
+      const tids = (ths ?? []).map((r) => Number(r.id));
+      const { data: waiting } = tids.length
+        ? await svc
+            .from('diary_forward_log').select('id')
+            .eq('provider', PROVIDER).eq('slot', slot).eq('status', 'waiting_address')
+            .in('therapist_id', tids).gt('created_at', since).limit(2)
+        : { data: [] as Array<{ id: number }> };
+      // ★ 今回の日記の行はこの直前に入っているので、2件目があれば「もう誰かが読みにいった」
+      if ((waiting ?? []).length >= 2) return 'already_kicked';
+    }
+    return await start(t, opts.fromCron ? 'cron:diary-address' : 'system:diary-address');
   } catch (e) {
     console.error('[diary] 投稿用アドレスの読み込みを始められなかった', salonId, slot, e instanceof Error ? e.message : e);
     return 'error';
   }
+}
+
+/**
+ * ③ 第1495便（2026-10-15・カッキーさん）: アドレス待ちの日記が残っている店・枠は、周のたびに読み直しをもう一度試す。
+ *
+ * ★ なぜ要るか: ②の読みにいきは startRelayFlow を1回呼ぶだけ。駅ちかで別の更新（上位表示・即ヒメ・出勤・取り込み）が
+ *   動いていると busy で断られ、そのあと誰も再挑戦しなかった（次に誰かが日記を書くか、毎日の読み直し（20時間）まで）。
+ *   その間に WAIT_MAX_H（6時間）が過ぎると、日記は黙って 'skipped:no_address' で終わる＝10/14 と同じ症状。
+ * ★ 読みにいく間隔は②と同じ KICK_GAP_MIN（前の読み込みから15分）。busy で断られた回は記録に残らない（flow_stalled は店舗様に見せない）。
+ * ★ 駅ちかへは読むだけ。
+ */
+export async function rekickWaitingAddresses(): Promise<Array<{ salonId: number; slot: number; result: string }>> {
+  const svc = createServiceClient();
+  const out: Array<{ salonId: number; slot: number; result: string }> = [];
+  // ★ 読みにいってから結果が返るまで数分かかる。入れたばかりの行（KICK_GAP_MIN 分未満）は②がもう読みにいっている
+  const until = new Date(Date.now() - KICK_GAP_MIN * 60_000).toISOString();
+  const { data: rows, error } = await svc
+    .from('diary_forward_log')
+    .select('therapist_id, slot, created_at')
+    .eq('provider', PROVIDER).eq('status', 'waiting_address')
+    .lt('created_at', until)
+    .limit(200);
+  if (error || !rows || rows.length === 0) return out;
+  const tids = [...new Set(rows.map((r) => Number(r.therapist_id)))];
+  const { data: ths } = await svc.from('therapists').select('id, salon_id').in('id', tids);
+  const salonOf = new Map<number, number>();
+  for (const t of ths ?? []) salonOf.set(Number(t.id), Number(t.salon_id));
+  // ★ 店×枠で1回だけ。★ いちばん古い待ちの時刻を控える
+  const oldest = new Map<string, { salonId: number; slot: number; at: number }>();
+  for (const r of rows) {
+    const salonId = salonOf.get(Number(r.therapist_id));
+    if (salonId == null) continue;
+    const slot = Number(r.slot ?? 1);
+    const at = Date.parse(String(r.created_at));
+    const key = salonId + '#' + slot;
+    const cur = oldest.get(key);
+    if (!cur || at < cur.at) oldest.set(key, { salonId, slot, at });
+  }
+  for (const t of oldest.values()) {
+    // ★★ 待ち始めてから【読めた】回があるのに、まだアドレスが無い＝駅ちかの一覧にその方が居ない（番号が結びついていない 等）。
+    //   読み直しても同じなので、周のたびに読みにいかない（駅ちかへの負荷を増やさない）。読めた回が無いときだけ再挑戦する。
+    const { lastOk } = await lastReads(svc, { salonId: t.salonId, slot: t.slot });
+    if (lastOk != null && lastOk > t.at) { out.push({ salonId: t.salonId, slot: t.slot, result: 'read_after_wait' }); continue; }
+    out.push({ salonId: t.salonId, slot: t.slot, result: await kickMailImport(t.salonId, t.slot, { fromCron: true }) });
+  }
+  return out;
 }

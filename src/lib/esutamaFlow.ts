@@ -535,14 +535,21 @@ function castCreateAfterList(
   // ★★★ 同じ名前がもう居たら作らない。★ 二重掲載を自分で作らないための止め
   const same = rows.find((r) => normalizeName(r.name) === normalizeName(want)) ?? null;
   if (same) {
+    // ★ 第1495便: 同じ名前が【ちょうど1人】なら、番号を呼び出し側へ渡す（結ぶかは呼び出し側が番号の空きを見て決める）。
+    //   ★ 駅ちかの girlCreateAfterGirls と同じ形。★ 非表示の方でも渡す（結びつけておけば「公開」で戻せる）。
+    const sameCount = rows.filter((r) => normalizeName(r.name) === normalizeName(want)).length;
+    const therapistId = Number(ctx.createTherapistId ?? 0);
+    const canOffer = sameCount === 1 && therapistId > 0;
     return {
       kind: 'done',
       audits: [{
         event: 'create_cast', outcome: 'stopped',
         summary: want + 'さんは、すでにエステ魂に居ます（cast_id ' + same.castId + '）。登録しませんでした',
-        detail: { name: want, castId: same.castId, disabled: same.disabled, reason: 'already_listed', flowId },
+        detail: { name: want, castId: same.castId, disabled: same.disabled, reason: 'already_listed', sameCount, flowId },
       }],
-      note: 'すでに同じ名前が居るので登録しない（' + (same.disabled ? '★ その方はいま非表示' : '表示中') + '）',
+      note: 'すでに同じ名前が居るので登録しない（' + (same.disabled ? '★ その方はいま非表示' : '表示中') + '）'
+        + (canOffer ? '（★ 番号を結びつけられるか、呼び出し側が見る）' : sameCount > 1 ? '（★ 同名が' + sameCount + '人・結ばない）' : ''),
+      ...(canOffer ? { mediaFound: { therapistId, castId: same.castId, name: want, mediaName: same.name } } : {}),
     };
   }
   if (!readEsutamaCsrf(body)) {

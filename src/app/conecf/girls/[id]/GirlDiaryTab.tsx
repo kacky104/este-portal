@@ -99,8 +99,11 @@ export function GirlDiaryTab({ id, salonId, onToast }: { id: number; salonId: nu
           )} />
         </div>
         <p className="text-[13.5px] font-bold text-slate-700 pt-3 pb-1 border-b border-slate-200">写メ日記の転送先</p>
-        <p className="text-[12px] text-slate-500 py-2">
-          各サイトで発行された「日記の投稿用メールアドレス」を貼ってください。空なら送りません。
+        {/* ★ 第1495便: 駅ちかは自動で読み込む（第1478便）ことを書く。手で入れても、読み直しで駅ちかの一覧の値にそろう */}
+        <p className="text-[12px] text-slate-500 py-2 leading-relaxed">
+          駅ちかの「日記の投稿用メールアドレス」は、駅ちかの管理画面から自動で読み込みます（毎日1回と、新しい方が日記を書いたとき）。
+          手で入れた値は、読み込みのたびに駅ちかの一覧の値にそろえます。駅ちかの一覧にこの方が無いときは、「サイトへ登録」の画面で駅ちかとの連携をご確認ください。
+          ほかのサイトは、発行されたアドレスを貼ってください。空なら送りません。
         </p>
         {error ? (
           <p className="text-[13px] text-rose-600 py-2">読み込めませんでした: {error}</p>

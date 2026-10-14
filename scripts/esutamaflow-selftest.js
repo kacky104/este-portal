@@ -434,6 +434,13 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
     eq('★★★ 登録①: 同じ名前が居たら作らない', [r.kind, r.audits[0].outcome, r.audits[0].detail.reason], ['done', 'stopped', 'already_listed']);
     eq('★★ そのとき次の手順は無い', r.next === undefined, true);
     eq('★ その人の cast_id を記録に残す', r.audits[0].detail.castId, '900001');
+    // ★ 第1495便: 同名がちょうど1人なら、番号を呼び出し側へ渡す（結ぶかは呼び出し側が番号の空きを見て決める）
+    eq('★★★ 第1495便: 同名が1人なら mediaFound で番号を渡す',
+       r.mediaFound, { therapistId: ctxC.createTherapistId, castId: '900001', name: 'さくら', mediaName: 'さくら' });
+  }
+  {
+    const r = F.afterEsutamaCastList({ status: 200, headers: {}, body: listPage([...OTHERS, row('900001', 'さくら'), row('900002', 'さくら')]) }, ctxC);
+    eq('★★★ 第1495便: 同名が2人なら登録もしないし番号も渡さない', [r.kind, r.audits[0].detail.reason, r.audits[0].detail.sameCount, r.mediaFound], ['done', 'already_listed', 2, undefined]);
   }
   {
     // ★★ 非表示の人も「居る」。★ 見えないからといって、もう1人作らない

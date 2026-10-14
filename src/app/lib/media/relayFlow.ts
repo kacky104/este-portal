@@ -1014,6 +1014,55 @@ export async function advanceRelayFlow(params: {
     }
   }
 
+  // ★★★ 第1495便（2026-10-15・カッキーさん）: 登録しようとしたら同じ名前がもう媒体に居た → 番号が空いていれば**その場で結びつける**。
+  //   ★ 10/14 の事件（新人の投稿用アドレスが結びつかない）と同じ根: 店舗様が駅ちかで先に登録してから「サイトへ登録」を押すと、
+  //     これまでは「すでに居ます。登録しませんでした」で終わり、番号（castId）が結びつかないままだった。
+  //     番号が無いと、投稿用アドレス（saveMailList）・出勤（planWork）・写真のどれもその方には届かない。
+  //   ★★ 結ぶ条件（緩めない）: 媒体側で同名が1人だけ（純粋関数側が見る）／その番号がまだ誰にも結ばれていない／
+  //     その方にこの媒体・枠の番号がまだ無い。★ 第1290便（増えた1人は名前が合うときだけ結ぶ）と同じ物差し。
+  //   ★ 結べなかったときも黙らない（記録に理由を残す）。★ 結んでも相手サイトには何も書かない。
+  if (outcome.kind === 'done' && outcome.mediaFound) {
+    const f = outcome.mediaFound;
+    const svc = createServiceClient();
+    const siteLabel = (findMediaSite(params.provider)?.name ?? 'このサイト') + (params.slot > 1 ? `（枠${params.slot}）` : '');
+    const { data: ths } = await svc.from('therapists').select('id, import_cast_id').eq('salon_id', params.salonId);
+    const { maps, error: mapErr } = await loadCastIds(svc, {
+      therapists: (ths ?? []) as Array<{ id: number; import_cast_id?: string | null }>,
+      provider: params.provider, slot: params.slot,
+    });
+    const takenBy = mapErr ? undefined : maps.byCastId.get(f.castId);
+    const mine = mapErr ? undefined : (maps.castIdOf.get(f.therapistId) ?? null);
+    if (mapErr) {
+      note = note + ' → ★ 番号の表を読めなかったので結ばない: ' + mapErr;
+    } else if (takenBy !== undefined && takenBy !== f.therapistId) {
+      audits.push({
+        event: 'cast_id_linked', outcome: 'stopped',
+        summary: `${siteLabel}の「${f.mediaName}」は、すでに別の方と結びついているため、${f.name}さんとは結びつけませんでした。「サイトへ登録」の画面でご確認ください`,
+        detail: { therapistId: f.therapistId, castId: f.castId, reason: 'taken', flowId: context.flowId },
+      });
+      note = note + ' → ★ 番号は別の方のもの（結ばない）';
+    } else if (takenBy === f.therapistId) {
+      note = note + ' → 番号はもう結びついている（何もしない）';
+    } else if (mine) {
+      audits.push({
+        event: 'cast_id_linked', outcome: 'stopped',
+        summary: `${f.name}さんには${siteLabel}の番号がすでにあるため、「${f.mediaName}」とは結びつけませんでした。「サイトへ登録」の画面でご確認ください`,
+        detail: { therapistId: f.therapistId, castId: f.castId, current: mine, reason: 'has_other', flowId: context.flowId },
+      });
+      note = note + ' → ★ この方は別の番号を持っている（結ばない）';
+    } else {
+      const r = await rememberCastId(svc, { therapistId: f.therapistId, provider: params.provider, slot: params.slot, castId: f.castId });
+      audits.push({
+        event: 'cast_id_linked', outcome: r.ok ? 'ok' : 'failed',
+        summary: r.ok
+          ? `${siteLabel}の「${f.mediaName}」と、${f.name}さんを結びつけました（同じ名前の登録がすでにあったため、新しく登録はしていません）`
+          : `${siteLabel}の「${f.mediaName}」と、${f.name}さんを結びつけられませんでした`,
+        detail: { therapistId: f.therapistId, castId: f.castId, reason: r.ok ? 'already_listed_linked' : 'link_failed', note: r.error ?? null, flowId: context.flowId },
+      });
+      note = note + (r.ok ? ' → 同名の登録に結びつけた（cast_id ' + f.castId + '）' : ' → ★ 結びつけに失敗: ' + (r.error ?? '理由不明'));
+    }
+  }
+
   // ★★ 第1305便: 駅ちかの上位表示の状態（残り回数・最終更新日）を表に書く。★ 周が次に押すかを決める材料。
   //   ★ 書けなくても流れは止めない（次の周がもう一度読みに行くだけ）。★ ただし黙らない（ログに残す）。
   //   ★ 列が無い（追加SQL_第1305便が未適用）ときもここで失敗するだけ。
