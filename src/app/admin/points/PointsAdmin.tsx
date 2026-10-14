@@ -133,7 +133,7 @@ export function PointsAdmin() {
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-1 text-sm font-black">③ 予約が取り消された・消された来店ポイント・ポイントの利用（直近90日）</h2>
-        <p className="mb-2 text-xs text-slate-500">自動では戻しません。施術せずに帰った等で取り消すときだけ押してください。</p>
+        <p className="mb-2 text-xs text-slate-500">予約がキャンセル・削除されると、来店ポイントの取り消しと、ポイントの利用の払い戻しを自動で行います（第1455便）。ここは確認用です。「取り消す」が残っている行（自動の前の分など）だけ、必要なら押してください。</p>
         {!flags ? <p className="text-xs text-slate-400">読み込み中…</p> : flags.length === 0 ? <p className="text-xs text-slate-400">ありません</p> : (
           <ul className="divide-y divide-slate-100">
             {flags.map((f) => (
