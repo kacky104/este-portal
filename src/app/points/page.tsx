@@ -90,7 +90,7 @@ export default async function PointsPage() {
             フクエスポイント
           </span>
         </h1>
-        <p className="mt-3 text-center text-sm" style={{ color: THEME.body }}>フクエスポイント加盟店に行くと貯まる、フクエス会員（無料）のポイントです。</p>
+        <p className="mt-3 text-center text-sm" style={{ color: THEME.body }}>加盟店のご来店で貯まる、フクエス会員（無料）のポイントです。</p>
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2">
           <div className="rounded-3xl border border-blue-100 bg-white p-5 text-center shadow-sm">
@@ -105,31 +105,44 @@ export default async function PointsPage() {
           </div>
         </section>
 
+        {/* ★ 第1461便（カッキーさん「もっと端的に短く」）: 説明は箇条書きで短く。細かい決まりは最後の「ご注意」にまとめる */}
         <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-relaxed text-slate-600">
-          <h2 className="mb-2 text-base font-bold text-slate-700">キャンペーン中</h2>
-          <ul className="mb-4 space-y-1.5">
-            <li>・<b>会員登録で {POINT_SIGNUP}pt</b>（これから登録する方・確認メールのリンクで登録が終わったとき）</li>
-            <li>・<b>はじめての口コミで {POINT_FIRST_REVIEW}pt</b>（運営の承認後に付きます）</li>
+          <h2 className="mb-2 text-base font-bold" style={{ color: THEME.heading }}>キャンペーン中</h2>
+          <ul className="mb-5 space-y-1">
+            <li>・会員登録で <b>{POINT_SIGNUP}pt</b></li>
+            <li>・はじめての口コミで <b>{POINT_FIRST_REVIEW}pt</b>（承認後）</li>
           </ul>
-          <h2 className="mb-2 text-base font-bold text-slate-700">貯め方（ご来店）</h2>
-          <ol className="space-y-1.5">
-            <li>1. 加盟店のお部屋にある QR コードをスマホで読み、同意書を送ります。</li>
-            <li>2. 最後の画面の「{POINT_VISIT}pt を受け取る」を押します（フクエスにログインしてください）。</li>
-            <li>3. その場で受け取れなかったときも、{POINT_CLAIM_HOURS}時間以内なら、同じスマホでフクエスの会員ページから受け取れます。</li>
+          <h2 className="mb-2 text-base font-bold" style={{ color: THEME.heading }}>貯め方</h2>
+          <ol className="mb-1 space-y-1">
+            <li>1. 加盟店のお部屋の QR コードから同意書を送る</li>
+            <li>2. 最後の画面で「{POINT_VISIT}pt を受け取る」を押す（要ログイン）</li>
           </ol>
-          <h2 className="mb-2 mt-5 text-base font-bold text-slate-700">使い方</h2>
-          <ul className="space-y-1.5">
-            <li>・ご予約のときに「フクエスポイントを使います」とお伝えください。</li>
-            <li>・当日、お部屋の QR コードから同意書を送ったあとの画面で「{POINT_USE_UNIT.toLocaleString()}pt 使って {POINT_USE_YEN.toLocaleString()}円引きにする」を押し、お支払いの前にその画面をセラピストにお見せください（{POINT_USE_UNIT.toLocaleString()}pt 以上お持ちの方・1回のご来店で {POINT_USE_YEN.toLocaleString()}円まで・お店のクーポンと一緒に使えます）。</li>
-            <li>・来店ポイントは1日1回まで。有効期限は、最後に貯めた日から1年です。</li>
+          <p className="mb-5 text-xs text-slate-500">※ 押し忘れても、{POINT_CLAIM_HOURS}時間以内なら会員ページで受け取れます</p>
+          <h2 className="mb-2 text-base font-bold" style={{ color: THEME.heading }}>使い方</h2>
+          <ol className="mb-1 space-y-1">
+            <li>1. ご予約のときに「フクエスポイントを使います」と伝える</li>
+            <li>2. 同意書を送ったあとの画面で「{POINT_USE_UNIT.toLocaleString()}pt 使う」を押す</li>
+            <li>3. お支払いの前に、その画面をセラピストに見せる</li>
+          </ol>
+          <p className="mb-5 text-xs text-slate-500">※ お店のクーポンと一緒に使えます</p>
+          <h2 className="mb-2 text-base font-bold" style={{ color: THEME.heading }}>ご注意</h2>
+          <ul className="space-y-1">
+            <li>・来店ポイントは1日1回まで</li>
+            <li>・有効期限は、最後に貯めた日から1年</li>
           </ul>
-          <Link href="/member/points" className="mt-3 inline-block font-bold text-blue-600 hover:underline">自分のポイントを見る →</Link>
+          <Link href="/member/points" className="mt-4 inline-block font-bold text-blue-600 hover:underline">自分のポイントを見る →</Link>
         </section>
 
         <section className="mt-8">
-          <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-700">
-            <span className="w-1 h-5 rounded-full" style={{ background: BLUE }} />
-            フクエスポイント加盟店
+          {/* ★ 第1461便: 見出しもタイトルと同じ形のリボン（小さめ・白い文字・左にコイン） */}
+          <h2 className="mb-3">
+            <span
+              className="inline-flex h-8 items-center gap-1.5 px-7 text-[15px] font-bold tracking-wide text-white whitespace-nowrap"
+              style={{ background: BLUE, clipPath: 'polygon(0 0, 100% 0, calc(100% - 13px) 50%, 100% 100%, 0 100%, 13px 50%)' }}
+            >
+              <Image src="/points/coin.png" alt="" width={24} height={24} className="h-6 w-6" />
+              フクエスポイント加盟店
+            </span>
           </h2>
           {shops.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-slate-200 bg-white/40 py-10 text-center text-sm text-slate-400">加盟店は準備中です</p>
