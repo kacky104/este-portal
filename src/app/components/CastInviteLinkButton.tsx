@@ -1,5 +1,6 @@
 'use client';
 
+import { CAST_EMAIL_NOTE } from '@/lib/castInviteNote';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { createCastInviteLink } from '@/app/actions/castInvite';
@@ -73,7 +74,8 @@ export function CastInviteLinkButton({ therapistId, salonId, therapistName, onTo
     catch { onToast('コピーできませんでした。リンクを長押しでコピーしてください'); }
   };
 
-  const lineText = link ? `セラピストページの連携はこちらから（24時間有効）\n${link.url}` : '';
+  // ★ 第1468便（カッキーさん）: 安心して登録してもらえるよう、メールアドレスの扱いの一文を添える（文は lib/castInviteNote.ts）
+  const lineText = link ? `セラピストページの連携はこちらから（24時間有効）\n${link.url}\n\n${CAST_EMAIL_NOTE}` : '';
 
   const primary = tone === 'indigo' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-pink-500 hover:bg-pink-600 text-white';
   const outline = tone === 'indigo' ? 'border-indigo-300 text-indigo-700 hover:bg-indigo-50' : 'border-pink-300 text-pink-600 hover:bg-pink-50';
@@ -106,6 +108,7 @@ export function CastInviteLinkButton({ therapistId, salonId, therapistName, onTo
             </div>
             <p className="text-[12.5px] text-slate-500 leading-relaxed">
               本人にQRを読み取ってもらうか、リンクを送ってください。本人が自分のメールアドレスを入れると招待メールが届き、パスワードを決めると連携されます。
+              <span className="mt-1 block text-[12px] text-emerald-700">🔒 送る文と登録の画面に「メールアドレスは公開されず、宣伝のメールも届かない」ことを書いてあります。</span>
             </p>
             {busy && !link ? (
               <p className="text-[13px] text-slate-400 py-6 text-center">リンクを作っています…</p>

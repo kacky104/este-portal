@@ -1,5 +1,6 @@
 'use client';
 
+import { CAST_EMAIL_NOTE } from '@/lib/castInviteNote';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -106,6 +107,11 @@ export default function CastJoinPage() {
               />
               {/* ★ 第1094便（カッキーさん）: ランキングの加点は、目立たせずにこの注意書きの続きに書く（数字は src/lib/rankingPoints.ts＝計算と同じ） */}
               <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">ご自分で確認できるメールアドレスを入れてください。招待メールが届きます。連携すると、セラピストランキングに毎週+{CAST_LINK_BONUS}ポイント加点されます。</p>
+              {/* ★ 第1468便（カッキーさん）: 安心して登録してもらうための一文（lib/castInviteNote.ts） */}
+              <p className="mt-3 flex gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2.5 text-[12px] leading-relaxed text-emerald-800">
+                <span aria-hidden className="flex-none">🔒</span>
+                <span>{CAST_EMAIL_NOTE}</span>
+              </p>
             </div>
             {formError && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{formError}</p>}
             <button
