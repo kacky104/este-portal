@@ -13,7 +13,8 @@ import { SET_PLAN_PRICE_LABEL } from '@/lib/setPlan';
 const NAVY = '#1e2a5a';
 const BLUE = '#2c4a84';
 
-type Merit = { title: string; body: string; tag?: string; icon: ReactNode };
+// ★ 第1483便: more … 「くわしく」の行き先（フクエスのパス）。fukuescrm.com からも開けるように links.fukues で絶対URLにする
+type Merit = { title: string; body: string; tag?: string; icon: ReactNode; more?: string };
 
 const ic = (d: ReactNode) => (
   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{d}</svg>
@@ -46,6 +47,7 @@ const MERITS: Merit[] = [
     title: 'フクエスポイント加盟店',
     tag: '参加資格',
     body: '来店で貯まる・使えるポイントで集客。お客様の割引分はフクエスが負担します。',
+    more: '/points/shop',
     icon: ic(<><circle cx="12" cy="12" r="8.5" /><path d="M9.5 16V8h3.2a2.4 2.4 0 0 1 0 4.8H9.5" /></>),
   },
   {
@@ -80,6 +82,9 @@ export function CrmMerits() {
                 {m.tag && <span className="bg-rose-600 px-1.5 py-0.5 text-[11px] font-black text-white">{m.tag}</span>}
               </span>
               <span className="mt-0.5 block text-[13px] leading-relaxed text-slate-600">{m.body}</span>
+              {m.more && (
+                <a href={links.fukues(m.more)} className="mt-1 inline-block text-[12.5px] font-bold hover:underline" style={{ color: BLUE }}>くわしく →</a>
+              )}
             </span>
           </li>
         ))}
