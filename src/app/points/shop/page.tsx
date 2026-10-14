@@ -33,7 +33,7 @@ const START = [
 const STEPS = [
   { who: 'お客様', text: 'ご予約のときに「ポイントを使います」と伝える' },
   { who: 'お客様', text: 'お部屋の QR コードを読んで「ポイントを使う」を押す' },
-  { who: 'セラピスト', text: `緑の「使用済み」の画面を見て、${yen(POINT_USE_YEN)}円引いて受け取る`, hl: true },
+  { who: 'セラピスト', text: `緑の「使用済み」の画面を見て、${yen(POINT_USE_YEN)}円引いて料金を受け取る`, hl: true },
 ];
 
 export default function PointsShopGuidePage() {
@@ -60,7 +60,11 @@ export default function PointsShopGuidePage() {
             お客様の割引は、<br className="sm:hidden" />
             <span className="text-[22px]" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>ぜんぶフクエスが負担</span>します。
           </p>
-          <p className="mt-2 text-[13px] text-slate-500">
+          {/* ★ 第1485便（カッキーさん）: 上の方に「店舗様の作業はほぼ0」 */}
+          <p className="mt-3 inline-block -rotate-1 rounded-lg border-2 border-white bg-gradient-to-r from-amber-300 to-yellow-300 px-4 py-1.5 text-[17px] font-black tracking-wide text-rose-700 shadow-md">
+            店舗様の作業は、ほぼ0
+          </p>
+          <p className="mt-3 text-[13px] text-slate-500">
             お客様はご来店で {POINT_VISIT}pt 貯まり、{yen(POINT_USE_UNIT)}pt で {yen(POINT_USE_YEN)}円引きになります。
           </p>
         </div>
