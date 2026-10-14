@@ -1,8 +1,9 @@
 {
   "crons": [
-    { "path": "/api/cron/vps-watch", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/stall-watch", "schedule": "3,33 * * * *" },
-    { "path": "/api/cron/invoice-remind", "schedule": "0 1 * * *" },
-    { "path": "/api/cron/bank-deposits", "schedule": "0 0 * * *" }
+    {"path": "/api/cron/vps-watch", "schedule": "*/10 * * * *"},
+    {"path": "/api/cron/stall-watch", "schedule": "3,33 * * * *"},
+    {"path": "/api/cron/invoice-remind", "schedule": "0 1 * * *"},
+    {"path": "/api/cron/bank-deposits", "schedule": "0 0 * * *"},
+    {"path": "/api/cron/diary-address", "schedule": "*/10 * * * *"}
   ]
 }

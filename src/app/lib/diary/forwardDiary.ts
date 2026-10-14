@@ -3,6 +3,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { attachKindOf, attachNeedsJpeg, attachExt } from '@/lib/diaryAttach';
 import { forwardsDiaryFromFukues, readDiarySource, diaryForwardAllowed } from '@/lib/diarySource';
 import { conecfStopNote } from '@/app/lib/conecf/contract';
+import { kickMailImport } from '@/app/lib/diary/addressRefresh';
 
 // ── 写メ日記の他媒体転送（第36便・第2弾）────────────────────────────────
 //
@@ -205,7 +206,25 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
       result.注意 = '試し打ち（1通も送っていません）／この店舗はフクエスCRMのご契約が無いため、実運用では送られません';
     }
   }
-  if (rows.length === 0) {
+  // ★ 媒体ごとの「フクエスから反映」の向き（下の 5-2 と、第1478便の「駅ちかのアドレスが無い」の判定で使う）
+  const { data: linkRows } = await svc
+    .from('salon_import_sources').select('provider, slot, link_mode').eq('salon_id', salonId);
+  const linkModeOf = new Map<string, string | null>();
+  for (const r of linkRows ?? []) linkModeOf.set(String(r.provider) + '#' + Number(r.slot ?? 1), (r.link_mode as string | null) ?? null);
+
+  // ★★ 第1478便（2026-10-14・カッキーさん）: 駅ちかへ送る枠なのに、この子の投稿用アドレスがまだ無い。
+  //   ★ 起きたこと: 「フクエスで書く」に切り替えたあとに入った新人のアドレスが、いつまでも空だった（読み込みが切り替えの1回だけ）。
+  //   → その場で駅ちかの投稿用アドレスの一覧を読みにいき（kickMailImport）、この日記は 'waiting_address' で残す。
+  //     読めたら /api/cron/diary-address（10分ごと）が送る（sendWaitingForwards）。読めないまま WAIT_MAX_H 時間たったら諦める。
+  const haveSlot = new Set<string>(rows.map((r) => String(r.provider) + '#' + Number((r as { slot?: number }).slot ?? 1)));
+  const missingEkichika: number[] = [];
+  for (const [key, lm] of linkModeOf) {
+    const [prov, slotStr] = key.split('#');
+    if (prov !== 'ekichika' || haveSlot.has(key)) continue;
+    if (diaryForwardAllowed(lm, writePref)) missingEkichika.push(Number(slotStr));
+  }
+
+  if (rows.length === 0 && missingEkichika.length === 0) {
     result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:no_address' });
     if (apply) await log('-', 'skipped:no_address');
     return result;
@@ -214,6 +233,15 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
     result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:empty' });
     if (apply) await log('-', 'skipped:empty');
     return result;
+  }
+  for (const slot of missingEkichika) {
+    if (!apply) {
+      result.宛先.push({ provider: 'ekichika', 枠: slot, 宛先: '-', status: 'would_wait_address' });
+      continue;
+    }
+    await log('ekichika', 'waiting_address', undefined, slot);   // ★ 先に残す（kickMailImport はこの行の数で「もう読みにいったか」を見る）
+    const kick = await kickMailImport(Number(salonId), slot);
+    result.宛先.push({ provider: 'ekichika', 枠: slot, 宛先: '-', status: 'waiting_address', error: 'アドレスを読み込み中（' + kick + '）' });
   }
 
   const apiKey = process.env.RESEND_API_KEY;
@@ -230,10 +258,7 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
   //     駅ちかの投稿用アドレスへメールを出さないため。★ 「フクエスから反映しているサイトへだけ送る」。
   //   ★ 行が無い媒体（エステラブ・接続できないので取り込み設定の行を持たない）は従来どおり通す。
   //   ★★ 画面だけで守らない（第38便 §17-16）。★ 決め方は link_mode の1列（mediaLinkMode.isWriteDirection）。
-  const { data: linkRows } = await svc
-    .from('salon_import_sources').select('provider, slot, link_mode').eq('salon_id', salonId);
-  const linkModeOf = new Map<string, string | null>();
-  for (const r of linkRows ?? []) linkModeOf.set(String(r.provider) + '#' + Number(r.slot ?? 1), (r.link_mode as string | null) ?? null);
+  // ★ 第1478便: linkModeOf は上（宛先が無いときの判定の前）で読んでいる
 
   // 6. 送る
   for (const row of rows) {
@@ -434,5 +459,104 @@ export async function retryFailedForwards(opts: { limit?: number; apply?: boolea
     }
   }
 
+  return out;
+}
+
+
+// ── 投稿用アドレスを待っている日記を送る（第1478便）────────────────────────────
+//
+// ★ forwardDiary で 'waiting_address' にした行（駅ちかのアドレスがまだ無かった）を拾い、アドレスが入っていれば送る。
+//   /api/cron/diary-address（10分ごと）から呼ぶ。★ 読み込み（kickMailImport）は数分で終わる。
+// ★ WAIT_MAX_H 時間たってもアドレスが入らなければ 'skipped:no_address' で終わりにする（古い日記を何時間も後に送らない）。
+// ★ 二重送信の防止: 拾うときに status を 'waiting_address' → 'retrying' へ compare-and-swap（cronの周が重なっても1回だけ送る）。
+//   送れなければ 'failed' にする＝ふつうの再送（retryFailedForwards）が拾う。
+const WAIT_MAX_H = 6;
+
+export async function sendWaitingForwards(opts: { apply?: boolean; limit?: number } = {}): Promise<{
+  ok: boolean; 対象件数: number; 結果: Array<{ diaryId: string; 枠: number; status: string; error?: string }>;
+}> {
+  const apply = opts.apply === true;
+  const limit = Math.min(Math.max(Math.trunc(opts.limit ?? 30), 1), 100);
+  const svc = createServiceClient();
+  const out = { ok: true, 対象件数: 0, 結果: [] as Array<{ diaryId: string; 枠: number; status: string; error?: string }> };
+
+  const { data: rows, error } = await svc
+    .from('diary_forward_log')
+    .select('id, diary_id, therapist_id, provider, slot, created_at')
+    .eq('status', 'waiting_address')
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  if (error) return { ...out, ok: false };
+  out.対象件数 = (rows ?? []).length;
+  if (out.対象件数 === 0) return out;
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apply && !apiKey) return { ...out, ok: false };
+  const resend = new Resend(apiKey ?? 'dry-run');
+
+  for (const row of rows ?? []) {
+    const diaryId = String(row.diary_id);
+    const provider = String(row.provider);
+    const slot = Number((row as { slot?: number }).slot ?? 1);
+    const note = (status: string, err?: string) => out.結果.push({ diaryId, 枠: slot, status, ...(err ? { error: err } : {}) });
+    const finish = async (status: string, err?: string | null) => {
+      if (apply) await svc.from('diary_forward_log').update({ status, error: err ?? null }).eq('id', row.id).eq('status', 'waiting_address');
+    };
+
+    const { data: fwd } = await svc
+      .from('therapist_diary_forward')
+      .select('address, is_enabled')
+      .eq('therapist_id', row.therapist_id).eq('provider', provider).eq('slot', slot)
+      .maybeSingle();
+    if (!fwd) {
+      const ageH = (Date.now() - Date.parse(String(row.created_at))) / 3600_000;
+      if (ageH >= WAIT_MAX_H) { note('skipped:no_address'); await finish('skipped:no_address', `${WAIT_MAX_H}時間待ってもアドレスが入らなかった`); }
+      else note('still_waiting');
+      continue;
+    }
+    if (fwd.is_enabled === false) { note('skipped:disabled'); await finish('skipped:disabled'); continue; }
+    const address = String(fwd.address);
+
+    const built = await buildPayload(svc, diaryId);
+    if (!built.ok) { note('skipped:diary_gone', built.error); await finish('skipped:diary_gone', built.error); continue; }
+    if (!forwardsDiaryFromFukues(built.payload.source)) {
+      const why = 'skipped:source_is_' + readDiarySource(built.payload.source);
+      note(why); await finish(why); continue;
+    }
+    if (built.payload.salonId != null && (await conecfStopNote(svc, Number(built.payload.salonId)))) {
+      note('skipped:set_plan_off'); await finish('skipped:set_plan_off'); continue;
+    }
+    if (!apply) { note('would_send'); continue; }
+
+    const { data: claimed } = await svc
+      .from('diary_forward_log')
+      .update({ status: 'retrying' })
+      .eq('id', row.id).eq('status', 'waiting_address')
+      .select('id');
+    if (!claimed || claimed.length === 0) { note('skipped:taken'); continue; }
+
+    const { title, content, attachments } = built.payload;
+    try {
+      const { error: sErr } = await resend.emails.send({
+        from: FROM, to: address,
+        subject: title ?? '写メ日記',
+        text: content ?? '',
+        ...(attachments.length ? { attachments } : {}),
+      });
+      if (sErr) {
+        note('failed', sErr.message);
+        await svc.from('diary_forward_log').update({ status: 'failed', error: sErr.message }).eq('id', row.id);
+        out.ok = false;
+      } else {
+        note('sent');
+        await svc.from('diary_forward_log').update({ status: 'sent', error: null }).eq('id', row.id);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'unknown';
+      note('failed', msg);
+      await svc.from('diary_forward_log').update({ status: 'failed', error: msg }).eq('id', row.id);
+      out.ok = false;
+    }
+  }
   return out;
 }
