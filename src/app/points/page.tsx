@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import Image from 'next/image';
+import { getTheme } from '@/app/lib/themes';
 import type { Metadata } from 'next';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -39,13 +41,34 @@ async function loadShops(): Promise<Shop[]> {
   }
 }
 
-const GRAD = 'linear-gradient(95deg,#FB923C,#DB2777)';
+// ★ 第1460便（カッキーさん）: 店舗ページのテーマ「ブルー」の壁紙と色にそろえる。数字は青のグラデーション
+const THEME = getTheme('blue');
+const BLUE = '#2563EB';
+const GRAD = 'linear-gradient(95deg,#3B82F6,#1D4ED8)';
+
+/** テーマ「ブルー」の壁紙（店舗ページと同じ表 theme_wallpapers）。★ 読めなければ色だけ */
+async function loadWallpaper(): Promise<string | null> {
+  try {
+    const { data } = await createServiceClient().from('theme_wallpapers').select('image_url').eq('theme_key', 'blue').maybeSingle();
+    return (data?.image_url as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export default async function PointsPage() {
-  const shops = await loadShops();
+  const [shops, wallpaperUrl] = await Promise.all([loadShops(), loadWallpaper()]);
+  // 店舗ページと同じ: 壁紙をテーマの背景色で薄く覆う（固定のレイヤー・モバイルでも効く）
+  const bgLayerStyle: React.CSSProperties = {
+    backgroundColor: THEME.bg,
+    ...(wallpaperUrl
+      ? { backgroundImage: `linear-gradient(${THEME.bg}D9, ${THEME.bg}D9), url(${wallpaperUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+      : {}),
+  };
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+    <div className="min-h-screen text-slate-900">
+      <div aria-hidden className="fixed inset-0 -z-10" style={bgLayerStyle} />
+      <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${THEME.card}E6`, borderColor: THEME.cardBorder }}>
         <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-2">
@@ -57,18 +80,25 @@ export default async function PointsPage() {
       <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-8 sm:py-10">
-        <h1 className="text-2xl font-bold leading-tight inline-block" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', color: 'transparent' }}>
-          フクエスポイント
+        {/* ★ 第1460便: タイトルは店舗詳細ページの加盟店バッジと同じ形（両端が切り込んだ青いリボン・白い文字・左にコイン） */}
+        <h1 className="text-center">
+          <span
+            className="inline-flex h-11 items-center gap-2.5 px-10 text-[22px] font-black tracking-wide text-white whitespace-nowrap"
+            style={{ background: BLUE, clipPath: 'polygon(0 0, 100% 0, calc(100% - 18px) 50%, 100% 100%, 0 100%, 18px 50%)' }}
+          >
+            <Image src="/points/coin.png" alt="" width={34} height={34} className="h-[34px] w-[34px]" priority />
+            フクエスポイント
+          </span>
         </h1>
-        <p className="mt-2 text-sm text-slate-600">フクエスポイント加盟店に行くと貯まる、フクエス会員（無料）のポイントです。</p>
+        <p className="mt-3 text-center text-sm" style={{ color: THEME.body }}>フクエスポイント加盟店に行くと貯まる、フクエス会員（無料）のポイントです。</p>
 
         <section className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-3xl border border-pink-100 bg-white p-5 text-center shadow-sm">
+          <div className="rounded-3xl border border-blue-100 bg-white p-5 text-center shadow-sm">
             <p className="text-xs font-bold text-slate-400">貯まる</p>
             <p className="mt-1 text-lg font-black text-slate-800">ご来店1回で <span className="text-3xl" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{POINT_VISIT}pt</span></p>
-            {POINT_VISIT_NOTE && <p className="mt-0.5 text-xs font-bold text-pink-600">（{POINT_VISIT_NOTE}）</p>}
+            {POINT_VISIT_NOTE && <p className="mt-0.5 text-xs font-bold text-blue-600">（{POINT_VISIT_NOTE}）</p>}
           </div>
-          <div className="rounded-3xl border border-pink-100 bg-white p-5 text-center shadow-sm">
+          <div className="rounded-3xl border border-blue-100 bg-white p-5 text-center shadow-sm">
             <p className="text-xs font-bold text-slate-400">使える</p>
             <p className="mt-1 text-lg font-black text-slate-800"><span className="text-3xl" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{POINT_USE_UNIT.toLocaleString()}pt</span> で {POINT_USE_YEN.toLocaleString()}円引き</p>
             <p className="mt-0.5 text-xs text-slate-500">税込・1回のご来店で{POINT_USE_YEN.toLocaleString()}円まで</p>
@@ -93,12 +123,12 @@ export default async function PointsPage() {
             <li>・当日、お部屋の QR コードから同意書を送ったあとの画面で「{POINT_USE_UNIT.toLocaleString()}pt 使って {POINT_USE_YEN.toLocaleString()}円引きにする」を押し、お支払いの前にその画面をセラピストにお見せください（{POINT_USE_UNIT.toLocaleString()}pt 以上お持ちの方・1回のご来店で {POINT_USE_YEN.toLocaleString()}円まで・お店のクーポンと一緒に使えます）。</li>
             <li>・来店ポイントは1日1回まで。有効期限は、最後に貯めた日から1年です。</li>
           </ul>
-          <Link href="/member/points" className="mt-3 inline-block font-bold text-pink-600 hover:underline">自分のポイントを見る →</Link>
+          <Link href="/member/points" className="mt-3 inline-block font-bold text-blue-600 hover:underline">自分のポイントを見る →</Link>
         </section>
 
         <section className="mt-8">
           <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-700">
-            <span className="w-1 h-5 rounded-full" style={{ background: '#EC4899' }} />
+            <span className="w-1 h-5 rounded-full" style={{ background: BLUE }} />
             フクエスポイント加盟店
           </h2>
           {shops.length === 0 ? (
@@ -107,12 +137,12 @@ export default async function PointsPage() {
             <ul className="grid gap-2 sm:grid-cols-2">
               {shops.map((s) => (
                 <li key={s.id}>
-                  <Link href={`/salon/${s.id}`} className="flex items-center gap-3 rounded-2xl border border-pink-100 bg-white px-4 py-3 shadow-sm transition-all hover:border-pink-300 hover:shadow-md">
+                  <Link href={`/salon/${s.id}`} className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-bold text-slate-800">{s.name}</span>
                       {s.area && <span className="text-xs text-slate-400">{areaLabel(s.area)}</span>}
                     </span>
-                    <span className="flex-none text-xs font-bold text-pink-600">見る →</span>
+                    <span className="flex-none text-xs font-bold text-blue-600">見る →</span>
                   </Link>
                 </li>
               ))}
