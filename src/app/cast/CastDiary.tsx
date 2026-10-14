@@ -104,7 +104,8 @@ export function CastDiary({
   const [diaryUploading, setDiaryUploading] = useState(false);
   const [diaryPosting, setDiaryPosting] = useState(false);
   const [crosspostX, setCrosspostX] = useState(true); // fukuX 同時投稿（デフォルトON・連携時のみ表示。外したいときだけチェックを外す）
-  const [crosspostXNoReplies, setCrosspostXNoReplies] = useState(false); // fukuX投稿のリプライ禁止（fukuX ON時のみ表示・デフォルトOFF）
+  // fukuX投稿のリプライ禁止（fukuX ON時のみ表示）。★ 第1477便（カッキーさん）: デフォルトON（受け付けたいときだけ外す）
+  const [crosspostXNoReplies, setCrosspostXNoReplies] = useState(true);
 
   // ── 一覧 ──
   const [posts, setPosts] = useState<CastDiaryPost[]>([]);
@@ -234,7 +235,7 @@ export function CastDiary({
     setDiaryTitle('');
     setDiaryBody('');
     setCrosspostX(true); // 毎回デフォルトONに戻す（外すのは都度オプトアウト）
-    setCrosspostXNoReplies(false); // リプライ禁止チェックも都度OFFへ
+    setCrosspostXNoReplies(true); // リプライ禁止チェックも毎回デフォルトON（第1477便）へ戻す
     revalidateSalon(salonId, { top: false }); // 公開側（サロン詳細・セラピスト日記）を更新（best-effort）
     showToast('写メ日記を投稿しました');
     loadPosts();
@@ -402,7 +403,7 @@ export function CastDiary({
                 onChange={(e) => {
                   const on = e.target.checked;
                   setCrosspostX(on);
-                  if (!on) setCrosspostXNoReplies(false); // fukuX OFF でリプライ禁止もリセット
+                  if (!on) setCrosspostXNoReplies(true); // fukuX OFF でリプライ禁止もデフォルト（ON）に戻す
                 }}
                 className="w-4 h-4 rounded border-slate-300 text-pink-500 focus:ring-pink-200"
               />

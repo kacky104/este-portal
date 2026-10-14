@@ -67,6 +67,9 @@ export async function createMyXProfile(input: {
     //   x_profiles.bio は null を受け付けない列。空欄は null ではなく【空文字】で送る。
     bio: String(input.bio ?? '').trim(),
     avatar_url: input.avatarUrl || null,
+    // ★ 第1477便（2026-10-14・カッキーさん）: セラピストは「メッセージ（DM）を受け付けない」で始める（受けたい子は設定で外す）。
+    //   お店・一般会員はいままでどおり（DB の既定＝false）。運営とのDMは dm_disabled に関係なく届く。
+    ...(input.kind === 'therapist' ? { dm_disabled: true } : {}),
   });
   if (error) {
     const msg = error.message ?? '';
