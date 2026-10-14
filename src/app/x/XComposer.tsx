@@ -63,7 +63,10 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
   const [uploading, setUploading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState('');
-  const [repliesDisabled, setRepliesDisabled] = useState(editPost?.repliesDisabled ?? false);
+  // ★ 第1482便（2026-10-14・カッキーさん）: セラピストの新しい投稿は「リプライを受け付けない」で始める（写メ日記の同時投稿・第1477便とそろえる）。
+  //   お店・運営はいままでどおり（受け付ける）。編集は今の投稿の設定のまま。
+  const repliesOffByDefault = me.kind === 'therapist';
+  const [repliesDisabled, setRepliesDisabled] = useState(editPost?.repliesDisabled ?? repliesOffByDefault);
 
   // ── 下書き関連 ──
   // activeDraftId: いま編集中の下書きの id（null=下書き由来ではない新規作成）。
@@ -164,7 +167,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
       setBody('');
       setImages([]);
       setLink('');
-      setRepliesDisabled(false);
+      setRepliesDisabled(repliesOffByDefault);
       setActiveDraftId(null);
     }
     return ok;

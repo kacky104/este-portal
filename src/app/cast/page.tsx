@@ -40,12 +40,10 @@ export default async function CastHomePage({ searchParams }: { searchParams: Pro
   // 非連携（user_id に対応する x_profiles が無い／非approved）なら null＝チェックボックス自体を出さない。
   let xProfileId: string | null = null;
   let xHandle: string | null = null; // 連携 fukuX の handle（タブ「fukuX」のリンク先。未連携/未設定は null＝タブを出さない）
-  let xVerified = false; // ★ 第1058便: 赤い認証バッジ（is_verified）。開設済みで未取得の子にだけ加点の案内を出す
   if (therapist) {
     const linked = await getLinkedXProfileForTherapist(user.id);
     xProfileId = linked?.profileId ?? null;
     xHandle = linked?.handle ?? null;
-    xVerified = linked?.isVerified ?? false;
   }
 
   // 所属サロン名（挨拶ブロックのサブ情報）。本人セッションのクライアントで salons から取得。
@@ -140,7 +138,7 @@ export default async function CastHomePage({ searchParams }: { searchParams: Pro
                 未開設の子＝「サイトを見る」の左（紫・開設+10）／開設済みで赤バッジがまだの子＝fukuX アイコンの左（赤・赤バッジ+5）。
                 赤バッジを取ったら「？」は出ない。 */}
             {therapist && !xHandle && <CastHintPopover kind="open" />}
-            {xHandle && !xVerified && <CastHintPopover kind="badge" />}
+            {/* ★ 第1482便（カッキーさん）: 赤バッジの「？」は出さない */}
             {/* ★ 第516便: fukuX はタブから外してヘッダーの丸いアイコンに（スマホの下タブを5つに収めるため）。連携 handle があるときだけ */}
             {xHandle && <CastXIcon handle={xHandle} profileId={xProfileId} />}
             <Link
