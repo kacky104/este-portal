@@ -1,6 +1,7 @@
 import { POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE } from '@/lib/points';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import Link from "next/link";
+import { PointShopBadgeCenter } from "@/app/components/PointShopBadgeCenter";
 import type { Metadata } from "next";
 import { areaLabel } from "@/app/lib/areaLabel";
 import { truncatePlain } from "@/app/lib/truncatePlain";
@@ -558,6 +559,9 @@ export default async function SalonPage({
         <div className="border shadow-sm overflow-hidden mb-3" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
           <SalonHeaderSlider images={salonImages} alt={salon.name} />
         </div>
+
+        {/* ★ 第1458便: フクエスポイント加盟店のバッジ（トップスライダーと店名の間・まん中・押すと /points） */}
+        {isPointShop && <PointShopBadgeCenter />}
 
         {/* ─── 店名＋情報行（TOP画像の下・枠なし・背景の上・中央寄せ） ─── */}
         {/* ★ スマホ（md未満）は SalonMobileNav（店名＋2行＋三本線／スクロールで貼り付く小バー／右ドロワー・第219便）。
