@@ -46,6 +46,7 @@ export default function PrivacyPage() {
           <li>口コミ・レビュー等の投稿内容</li>
           <li>求人への応募時にご提供いただく情報（氏名、連絡先、応募内容等）</li>
           <li>店舗掲載のお申し込み・お問い合わせの際にご提供いただく情報</li>
+          <li>フクエスポイントのご利用に伴う情報（フクエスポイント加盟店でのご来店の記録〔来店した店舗・来店日〕、ポイントの付与・利用・失効の履歴）</li>
           <li>本サイトの利用に伴い自動的に取得される情報（Cookie、IPアドレス、閲覧履歴等のアクセスログ）</li>
         </ul>
 
@@ -60,6 +61,7 @@ export default function PrivacyPage() {
           <li>お問い合わせへの対応のため</li>
           <li>利用規約に違反する行為への対応、不正利用の防止のため</li>
           <li>本サイトの品質向上、利用状況の分析のため</li>
+          <li>フクエスポイントの付与・利用・失効の管理、および不正な取得の防止のため</li>
           <li>重要なお知らせ等の連絡のため</li>
         </ol>
 
@@ -72,6 +74,10 @@ export default function PrivacyPage() {
           <li>法令に基づく場合</li>
           <li>人の生命、身体または財産の保護のために必要がある場合であって、ご本人の同意を得ることが困難であるとき</li>
         </ul>
+        {/* 2026-10-14: フクエスポイント（来店の記録）をお店に見せないことを明記 */}
+        <p className="text-sm text-slate-600 leading-relaxed mt-3">
+          フクエスポイント加盟店でのご来店の記録は、フクエスポイントの管理のために当事務局が利用するものであり、加盟店に会員情報やポイントの保有・利用状況を提供することはありません。
+        </p>
 
         <h2 className="text-lg font-bold text-slate-800 mt-8 mb-3">4. 業務委託</h2>
         <p className="text-sm text-slate-600 leading-relaxed">
@@ -120,7 +126,7 @@ export default function PrivacyPage() {
 
         <div className="mt-10 text-sm text-slate-500 leading-relaxed">
           <p>制定日：2026年7月9日</p>
-          <p>改定日：2026年10月11日</p>
+          <p>改定日：2026年10月14日</p>
           <p>フクエス運営事務局</p>
         </div>
       </main>
