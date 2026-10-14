@@ -18,6 +18,7 @@ import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
 import { ScheduleGrid } from './ScheduleGrid';
 import { SidebarBanner } from './SidebarBanner';
+import { maskEmail } from '@/lib/maskEmail';
 import { CONECF_ORIGIN } from '@/lib/conecfHost';
 import { SALON_THEMES, type ThemeKey } from '@/app/lib/themes';
 import { COUPON_COLORS, getCouponColor, DEFAULT_COUPON_COLOR_KEY, type CouponColorKey } from '@/app/lib/couponColors';
@@ -2215,7 +2216,7 @@ export default function MyPage() {
 
   const handleCancelInvite = async (therapistId: string, email: string) => {
     if (!salon) return;
-    if (!window.confirm(`招待を取り消します（${email}）。本人未ログインの仮登録は削除されますが、fukuX 利用中のアカウントは保持されます。\nよろしいですか？`)) return;
+    if (!window.confirm(`招待を取り消します（${maskEmail(email)}）。本人未ログインの仮登録は削除されますが、fukuX 利用中のアカウントは保持されます。\nよろしいですか？`)) return;
     setInviteBusyId(therapistId);
     const res = await cancelCastInvite({ therapistId, salonId: Number(salon.id) });
     setInviteBusyId(null);
@@ -4958,10 +4959,11 @@ export default function MyPage() {
                     </div>
                     {t.invited_email && (
                       <p
-                        title={t.invited_email}
+                        title={maskEmail(t.invited_email)}
                         className="text-[10px] font-bold text-emerald-600 whitespace-nowrap overflow-hidden text-ellipsis"
                       >
-                        {t.invited_email}
+                        {/* ★ 第1469便: 伏せ字（lib/maskEmail.ts） */}
+                        {maskEmail(t.invited_email)}
                       </p>
                     )}
                     {/* ★ 第1027便: fukuX の開設状況。開設済みは紫で「開設済み」、未開設は加点の案内（お店から声をかけてもらう用） */}
@@ -4981,7 +4983,7 @@ export default function MyPage() {
                   // 招待済み・本人未ログイン
                   <div className="space-y-2">
                     <span className="text-[11px] font-bold text-amber-600">
-                      ⏳ 招待中（{t.invited_email}）— 本人のログイン待ち
+                      ⏳ 招待中（{maskEmail(t.invited_email)}）— 本人のログイン待ち
                     </span>
                     <div className="flex flex-wrap gap-2">
                       <button

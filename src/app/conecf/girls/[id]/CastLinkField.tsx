@@ -1,5 +1,6 @@
 'use client';
 
+import { maskEmail } from '@/lib/maskEmail';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import {
@@ -70,7 +71,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
 
   const onCancel = async () => {
     if (!st?.email) return;
-    if (!window.confirm(`招待を取り消します（${st.email}）。\nよろしいですか？`)) return;
+    if (!window.confirm(`招待を取り消します（${maskEmail(st.email)}）。\nよろしいですか？`)) return;
     setBusy(true);
     const res = await cancelCastInvite({ therapistId: tid, salonId });
     setBusy(false);
@@ -120,7 +121,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
       {st.status === 'linked' && (
         <div className="flex flex-wrap items-center gap-3 pt-1.5">
           <span className="text-[14px] font-bold text-emerald-600">✓ 連携済み</span>
-          {st.email && <span className="text-[14px] text-slate-700 break-all">{st.email}</span>}
+          {st.email && <span className="text-[14px] text-slate-700 break-all">{maskEmail(st.email)}</span>}
           <button type="button" disabled={busy} onClick={() => void onUnlink()}
             className={`${BTN} ml-auto border-slate-300 bg-white text-slate-500 hover:border-rose-300 hover:text-rose-600`}>
             {busy ? '処理中…' : '連携を解除'}
@@ -132,7 +133,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
         <>
           <div className="flex flex-wrap items-center gap-2 pt-1.5">
             <span className="text-[14px] font-bold text-amber-600">招待中</span>
-            <span className="text-[14px] text-slate-700 break-all">{st.email}</span>
+            <span className="text-[14px] text-slate-700 break-all">{maskEmail(st.email)}</span>
             <span className="text-[12.5px] text-slate-400">（本人のログイン待ち）</span>
             <div className="ml-auto flex gap-2">
               <button type="button" disabled={busy} onClick={() => void onResend()}
