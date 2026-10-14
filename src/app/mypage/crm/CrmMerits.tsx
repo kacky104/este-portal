@@ -88,7 +88,7 @@ export function CrmMerits() {
       {/* 料金とお申し込み */}
       <div className="px-4 py-5 text-center sm:px-6">
         <p className="text-[13px] text-slate-500">4ヶ月目から</p>
-        <p className="text-[18px] font-black sm:text-[20px]" style={{ color: NAVY }}>フクエスCRM {SET_PLAN_PRICE_LABEL}</p>
+        <p className="text-[18px] font-black sm:text-[20px]" style={{ color: NAVY }}>フクエスCRM <span className="whitespace-nowrap">{SET_PLAN_PRICE_LABEL}</span></p>
         <p className="mt-1 text-[12px] text-slate-500">コネックエフ・QR コードスタンド・フクエスポイント加盟店への参加は、この中に含まれます。</p>
         <a
           href={links.fukues('/mypage?tab=support&apply=crm')}
