@@ -19,7 +19,7 @@ const yen = (n: number) => n.toLocaleString();
 
 const MERITS = [
   { big: '0円', title: 'お店の負担', body: `割引の${yen(POINT_USE_YEN)}円は、フクエスが負担します。` },
-  { big: '集客', title: '加盟店の印', body: 'お店のカードとページに、青い「加盟店」の印が付きます。' },
+  { big: '集客', title: '加盟店の印', body: <>お店のカードとページに、<br className="sm:hidden" />青い「加盟店」の印が付きます。</> },
   { big: 'そのまま', title: '売上・女子報酬', body: '売上も女子報酬も、何も変わりません。' },
 ];
 
@@ -126,7 +126,7 @@ export default function PointsShopGuidePage() {
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="mb-2 text-[15px] font-black text-slate-800">あとは自動です</h2>
           <ul className="space-y-1.5 text-[13.5px] leading-relaxed text-slate-600">
-            <li>・{yen(POINT_USE_YEN)}円は、翌月の請求書でフクエスが差し引きます</li>
+            <li>・{yen(POINT_USE_YEN)}円は、自動で計算され、翌月の請求書でフクエスが差し引きます</li>
             <li>・フクエスCRM の予約に「Pt−{yen(POINT_USE_YEN)}」と出ます</li>
             <li>・ご予約をキャンセル・削除すると、ポイントは自動で戻ります</li>
           </ul>
