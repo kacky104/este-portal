@@ -3,7 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { isDiarySource } from '@/lib/diarySource';
+import { isDiarySource, forwardsDiaryFromFukues, diaryForwardAllowed } from '@/lib/diarySource';
 import { isConsentState } from '@/lib/therapistMediaConsent';
 import { findMediaSite } from '@/lib/mediaSites';
 // ★ 第372便: セラピストの既定画像（本人→店舗→運営）を当てる（第217便の決め方をそのまま使う）
@@ -443,4 +443,138 @@ export async function getEsutamaDiaryStatus(input: { salonId: string | number })
       nextStep: diaryNextStep(status),
     },
   };
+}
+
+// ── 第1496便（2026-10-15・カッキーさん）: 写メ日記の転送の記録を、店舗様が見られるように ──────────────
+//
+// ★ なぜ要るか: 10/14 の「新人の写メ日記が駅ちかに載らない」は、記録（diary_forward_log）には残っていたのに、
+//   それを見る画面がどこにも無かった。店舗様に言われて初めて分かった。
+// ★ 宛先（アドレス）は秘密値なので返さない。返すのは 媒体・枠・状態・時刻・日記のタイトル だけ。
+
+export async function getDiaryForwardHistory(input: { therapistId: string | number; days?: number }): Promise<
+  Result<{ rows: Array<{ at: string; provider: string; slot: number; status: string; title: string }> }>
+> {
+  const therapistId = Number(input.therapistId);
+  if (!Number.isFinite(therapistId)) return { ok: false, error: 'セラピストの指定が不正です' };
+  const guard = await assertCanEdit(therapistId);
+  if (!guard.ok) return guard;
+  const days = Math.min(Math.max(Math.trunc(Number(input.days ?? 14)), 1), 60);
+
+  const svc = createServiceClient();
+  const since = new Date(Date.now() - days * 24 * 3600_000).toISOString();
+  const { data: logs, error } = await svc
+    .from('diary_forward_log')
+    .select('diary_id, provider, slot, status, created_at')
+    .eq('therapist_id', therapistId)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(40);
+  if (error) return { ok: false, error: '送信の記録を読み込めませんでした' };
+  const rows = logs ?? [];
+  const ids = [...new Set(rows.map((r) => String(r.diary_id)))].filter((x) => x && x !== '-');
+  const titleOf = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data: posts } = await svc.from('diary_posts').select('id, title').in('id', ids);
+    for (const p of posts ?? []) titleOf.set(String(p.id), String((p.title as string | null) ?? '').trim());
+  }
+  return {
+    ok: true,
+    data: {
+      rows: rows.map((r) => ({
+        at: String(r.created_at),
+        provider: String(r.provider),
+        slot: Number(r.slot ?? 1),
+        status: String(r.status ?? ''),
+        // ★ 消された日記は「（消された日記）」。タイトル無しは「（タイトルなし）」
+        title: titleOf.has(String(r.diary_id)) ? (titleOf.get(String(r.diary_id)) || '（タイトルなし）') : '（消された日記）',
+      })),
+    },
+  };
+}
+
+/**
+ * ★★ 第1496便: 「写メ日記がサイトに届かない方」を店ごとに数える（コネックエフのホームの帯）。
+ *   ★ 駅ちか … 「フクエスから反映」している枠に、投稿用アドレスが無く、番号（castId）も結びついていない公開中の方。
+ *       （番号が結びついていれば、アドレスは読み直しで入る。結びついていなければ、読み直しても入らない＝10/14 の形）
+ *   ★ エステ魂 … 「フクエスから反映」していて、本人の了承がまだ「未確認」の公開中の方（了承あり にしないと一生送らない）。
+ *   ★ 数えるのは、写メ日記の入口がフクエスの店だけ（ほかの店は送らないので、帯も出さない）。
+ *   ★ 読めなかった項目は空で返さず error にする（「問題なし」と見せない）。
+ */
+export async function getDiaryReadiness(input: { salonId: string | number }): Promise<
+  Result<{
+    applies: boolean;
+    ekichikaUnlinked: Array<{ id: number; name: string }>;
+    esutamaUnconfirmed: Array<{ id: number; name: string }>;
+  }>
+> {
+  const salonId = Number(input.salonId);
+  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'ログインが必要です' };
+  const svc = createServiceClient();
+  const { data: salon } = await svc.from('salons').select('owner_id, diary_source, diary_write_pref').eq('id', salonId).maybeSingle();
+  if (!salon) return { ok: false, error: '店舗が見つかりません' };
+  if ((salon.owner_id as string | null) !== user.id && user.id !== ADMIN_UUID) return { ok: false, error: 'この店舗の操作権限がありません' };
+
+  const empty = { applies: false, ekichikaUnlinked: [], esutamaUnconfirmed: [] };
+  if (!forwardsDiaryFromFukues((salon.diary_source as string | null) ?? 'benry')) return { ok: true, data: empty };
+  const pref = (salon as { diary_write_pref?: string | null }).diary_write_pref ?? null;
+
+  // 「フクエスから反映」している枠（鍵があって止まっていないもの）
+  const [{ data: srcs }, { data: creds }] = await Promise.all([
+    svc.from('salon_import_sources').select('provider, slot, link_mode').eq('salon_id', salonId),
+    svc.from('salon_media_credentials').select('provider, slot, is_enabled').eq('salon_id', salonId),
+  ]);
+  const credOn = new Set((creds ?? []).filter((c) => c.is_enabled === true).map((c) => String(c.provider) + '#' + Number(c.slot ?? 1)));
+  const ekichikaSlots: number[] = [];
+  let esutamaWrites = false;
+  for (const r of srcs ?? []) {
+    const key = String(r.provider) + '#' + Number(r.slot ?? 1);
+    if (!credOn.has(key) || !diaryForwardAllowed((r.link_mode as string | null) ?? null, pref)) continue;
+    if (r.provider === 'ekichika') ekichikaSlots.push(Number(r.slot ?? 1));
+    if (r.provider === 'esutama') esutamaWrites = true;
+  }
+  if (ekichikaSlots.length === 0 && !esutamaWrites) return { ok: true, data: empty };
+
+  const { data: ths, error: thErr } = await svc
+    .from('therapists').select('id, name, import_cast_id').eq('salon_id', salonId).eq('is_active', true).order('id', { ascending: true });
+  if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+  const trows = (ths ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null }>;
+  const ids = trows.map((t) => Number(t.id));
+  const nameOf = (t: { id: number; name: string | null }) => ({ id: Number(t.id), name: String(t.name ?? '').trim() });
+
+  const ekichikaUnlinked: Array<{ id: number; name: string }> = [];
+  if (ekichikaSlots.length > 0 && ids.length > 0) {
+    const { data: fwd, error: fErr } = await svc
+      .from('therapist_diary_forward').select('therapist_id, slot').eq('provider', 'ekichika').in('therapist_id', ids);
+    if (fErr) return { ok: false, error: '転送先を読み込めませんでした' };
+    const hasAddr = new Set((fwd ?? []).map((r) => Number(r.therapist_id) + '#' + Number(r.slot ?? 1)));
+    const linked = new Set<string>();
+    for (const slot of ekichikaSlots) {
+      const { maps, error: mErr } = await loadCastIds(svc, { therapists: trows, provider: 'ekichika', slot });
+      if (mErr) return { ok: false, error: '番号の表を読み込めませんでした' };
+      for (const [tid, cid] of maps.castIdOf) if (cid) linked.add(Number(tid) + '#' + slot);
+    }
+    for (const t of trows) {
+      // ★ どの枠でも「アドレス無し かつ 番号無し」の方だけ（1枠でも結びついていれば読み直しで入る）
+      const stuck = ekichikaSlots.every((slot) => !hasAddr.has(Number(t.id) + '#' + slot) && !linked.has(Number(t.id) + '#' + slot));
+      if (stuck) ekichikaUnlinked.push(nameOf(t));
+    }
+  }
+
+  const esutamaUnconfirmed: Array<{ id: number; name: string }> = [];
+  if (esutamaWrites && ids.length > 0) {
+    const { data: cs, error: csErr } = await svc
+      .from('therapist_media_consent').select('therapist_id, state').eq('provider', 'esutama').eq('kind', 'diary').in('therapist_id', ids);
+    if (csErr) return { ok: false, error: '了承の記録を読み込めませんでした' };
+    const stateOf = new Map<number, string>();
+    for (const r of cs ?? []) stateOf.set(Number(r.therapist_id), String(r.state ?? 'unknown'));
+    for (const t of trows) {
+      const st = stateOf.get(Number(t.id)) ?? 'unknown';
+      if (st !== 'agreed' && st !== 'declined') esutamaUnconfirmed.push(nameOf(t));
+    }
+  }
+
+  return { ok: true, data: { applies: true, ekichikaUnlinked, esutamaUnconfirmed } };
 }

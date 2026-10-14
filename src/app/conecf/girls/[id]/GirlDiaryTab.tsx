@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getDiaryForwards, saveDiaryForward, getSalonDiaryConsents, setDiaryConsent } from '@/app/actions/diaryForward';
+import { getDiaryForwards, saveDiaryForward, getSalonDiaryConsents, setDiaryConsent, getDiaryForwardHistory } from '@/app/actions/diaryForward';
 import { toConsentState, consentLabel, type ConsentState } from '@/lib/therapistMediaConsent';
+import { diaryForwardLabel } from '@/lib/diaryForwardLabel';
+import { findMediaSite } from '@/lib/mediaSites';
 import { CastLinkField } from './CastLinkField';
 
 // コネックエフ「女性プロフィール編集」の【写メ日記】タブ（第731便・2026-09-23・カッキーさん）。
@@ -27,6 +29,19 @@ export function GirlDiaryTab({ id, salonId, onToast }: { id: number; salonId: nu
   const [saving, setSaving] = useState<string | null>(null);
   const [consent, setConsent] = useState<ConsentState | null>(null);
   const [consentBusy, setConsentBusy] = useState(false);
+  // ★ 第1496便: 直近の送信の記録（宛先は入っていない）
+  type HistRow = { at: string; provider: string; slot: number; status: string; title: string };
+  const [hist, setHist] = useState<HistRow[] | null>(null);
+  const [histError, setHistError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    getDiaryForwardHistory({ therapistId: id }).then((r) => {
+      if (!alive) return;
+      if (r.ok) setHist(r.data.rows); else setHistError(r.error);
+    }).catch(() => { if (alive) setHistError('読み込めませんでした'); });
+    return () => { alive = false; };
+  }, [id]);
 
   useEffect(() => {
     let alive = true;
@@ -163,6 +178,35 @@ export function GirlDiaryTab({ id, salonId, onToast }: { id: number; salonId: nu
         <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded px-3 py-2 my-3 leading-relaxed">
           ※ この宛先を知っている人は誰でもこのセラピストとして各サイトに投稿できます。取り扱いにご注意ください。
         </p>
+        {/* ── 第1496便: 直近の送信の記録（14日） ── */}
+        <p className="text-[13.5px] font-bold text-slate-700 pt-3 pb-1 border-b border-slate-200">写メ日記の送信状況（直近14日）</p>
+        {histError ? (
+          <p className="text-[13px] text-rose-600 py-2">読み込めませんでした: {histError}</p>
+        ) : hist === null ? (
+          <p className="text-[13px] text-slate-400 py-2">読み込み中…</p>
+        ) : hist.length === 0 ? (
+          <p className="text-[13px] text-slate-500 py-2">この14日に、フクエスから各サイトへ送った写メ日記はありません。</p>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {hist.map((h, i) => {
+              const l = diaryForwardLabel(h.status);
+              const tone = l.tone === 'ok' ? 'text-emerald-700' : l.tone === 'ng' ? 'text-rose-700 font-bold' : l.tone === 'wait' ? 'text-amber-700' : 'text-slate-500';
+              const site = h.provider === '-' ? '（送り先なし）' : (findMediaSite(h.provider)?.name ?? h.provider) + (h.slot > 1 ? `（枠${h.slot}）` : '');
+              const d = new Date(h.at);
+              const when = Number.isNaN(d.getTime()) ? '' : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+              return (
+                <li key={i} className="py-2 text-[13px]">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-slate-500 tabular-nums">{when}</span>
+                    <span className={tone}>{site}: {l.text}</span>
+                  </div>
+                  <div className="text-slate-600 truncate">{h.title}</div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="text-[12px] text-slate-500 py-2 leading-relaxed">「送れませんでした」が続くとき、「投稿用アドレスが無い」と出るときは、上の「サイトへ登録」の画面で駅ちかとの連携をご確認ください。</p>
       </div>
     </div>
   );

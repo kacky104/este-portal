@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getMediaOverview, setMediaLinkMode } from '@/app/actions/mediaCredentials';
+import { getDiaryReadiness } from '@/app/actions/diaryForward';
 import { workProblemShort, type WorkProblem } from '@/lib/workProblem';
 import { consentRecheckNotice, conecfConsentNeededNotice } from '@/lib/mediaConsent';
 import { loginRejectNoticeText } from '@/lib/loginAutoPause';
@@ -49,6 +50,19 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
+  // ★ 第1496便（カッキーさん）: 写メ日記がサイトに届かない方（駅ちかと結びついていない／エステ魂の了承が未確認）
+  type Person = { id: number; name: string };
+  const [diaryReady, setDiaryReady] = useState<{ ekichikaUnlinked: Person[]; esutamaUnconfirmed: Person[] } | null>(null);
+
+  useEffect(() => {
+    if (salonId == null || !enabled) return;
+    let alive = true;
+    getDiaryReadiness({ salonId }).then((r) => {
+      if (!alive || !r.ok || !r.data.applies) return;
+      setDiaryReady({ ekichikaUnlinked: r.data.ekichikaUnlinked, esutamaUnconfirmed: r.data.esutamaUnconfirmed });
+    }).catch(() => { /* ★ 読めなければ帯を出さないだけ */ });
+    return () => { alive = false; };
+  }, [salonId, enabled]);
 
   useEffect(() => {
     if (salonId == null) return;
@@ -121,6 +135,31 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
           <p className="text-[15px] font-bold text-amber-800">{conecfConsentNeededNotice(needAgree.map((x) => x.label)).title}</p>
           <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">{conecfConsentNeededNotice(needAgree.map((x) => x.label)).body}</p>
           <Link href={href('/sites')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">ID・パスワード登録を開く ›</Link>
+        </div>
+      )}
+
+      {/* ── 第1496便: 写メ日記がサイトに届かない方（琥珀）。10/14 の「新人の日記が駅ちかに載らない」を、言われる前に分かるように ── */}
+      {!stopped && diaryReady && (diaryReady.ekichikaUnlinked.length > 0 || diaryReady.esutamaUnconfirmed.length > 0) && (
+        <div className="border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-[15px] font-bold text-amber-800">写メ日記がサイトに届かない方がいます</p>
+          {diaryReady.ekichikaUnlinked.length > 0 && (
+            <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">
+              <b className="font-bold">駅ちか</b>: {diaryReady.ekichikaUnlinked.map((p) => p.name).join('・')}（{diaryReady.ekichikaUnlinked.length}名）
+              — 駅ちかの登録と結びついていないため、投稿用アドレスを読み込めません。
+              <Link href={href('/girls/sync')} className="ml-1 font-bold underline underline-offset-4">「サイトへ登録」で連携する ›</Link>
+            </p>
+          )}
+          {diaryReady.esutamaUnconfirmed.length > 0 && (
+            <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">
+              <b className="font-bold">エステ魂</b>: {diaryReady.esutamaUnconfirmed.map((p) => p.name).join('・')}（{diaryReady.esutamaUnconfirmed.length}名）
+              — ご本人の了承が「未確認」のままです。了承ありにするまで送りません。
+              {diaryReady.esutamaUnconfirmed.length === 1 ? (
+                <Link href={href(`/girls/${diaryReady.esutamaUnconfirmed[0].id}`)} className="ml-1 font-bold underline underline-offset-4">この方の編集画面を開く（写メ日記タブ） ›</Link>
+              ) : (
+                <Link href={href('/girls')} className="ml-1 font-bold underline underline-offset-4">セラピスト一覧から開く ›</Link>
+              )}
+            </p>
+          )}
         </div>
       )}
 
