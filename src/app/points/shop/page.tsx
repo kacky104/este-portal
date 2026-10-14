@@ -122,7 +122,7 @@ export default function PointsShopGuidePage() {
             ))}
           </ol>
           <p className="mt-4 rounded-xl bg-blue-50 px-3 py-2 text-center text-[12.5px] font-bold text-blue-700">
-            すでに同意書の QR コードを置いているお店は、そのままで大丈夫です
+            すでに同意書の QR コードを置いているお店は、<br className="sm:hidden" />そのままで大丈夫です
           </p>
         </section>
 
