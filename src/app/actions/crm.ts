@@ -32,6 +32,9 @@ import { readCrmGroupAccess } from '@/app/lib/crm/groupJoin';
 import type { CrmGroupHit } from '@/lib/crmGroup';
 import {
   toCrmCategory,
+  CRM_CATEGORIES,
+  CRM_CATEGORY_LABEL,
+  type CrmCategory,
   type CrmAccess,
   type CrmBookingRow,
   type CrmCustomerDetail,
@@ -247,10 +250,10 @@ async function phonesFor(svc: Svc, ids: number[]): Promise<Map<number, string[]>
 type CustomerDbRow = {
   id: number; name: string | null; name_kana: string | null; category: string | null;
   member_no: string | null; caution_memo: string | null; memo?: string | null;
-  ng_therapist_ids?: number[] | null; created_at?: string | null;
+  ng_therapist_ids?: number[] | null; created_at?: string | null; updated_at?: string | null;
 };
 
-const LIST_COLS = 'id, name, name_kana, category, member_no, caution_memo, memo';
+const LIST_COLS = 'id, name, name_kana, category, member_no, caution_memo, memo, updated_at'; // ★ 第1492便: updated_at（印の検索とまとめて並べ直す）
 
 /**
  * 顧客を探す。
@@ -299,6 +302,22 @@ export async function searchCrmCustomers(
       .order('updated_at', { ascending: false }).limit(LIST_LIMIT);
     if (error) return { ok: false, error: dbMessage(error) };
     rows = (data ?? []) as CustomerDbRow[];
+
+    // ★ 第1492便（カッキーさん）: 印の名前で探す。「要注意」＝要注意メモがあるお客様全員、「NG」「VIP」「常連」「会員」＝その分類のお客様全員。
+    //   言葉そのものがメモに書いてある人（上の結果）とまとめて、更新の新しい順に50人まで。
+    const special = specialSearchOf(q);
+    if (special) {
+      let sq = svc.from('salon_customers').select(LIST_COLS).eq('salon_id', salonId);
+      sq = special.kind === 'caution'
+        ? sq.not('caution_memo', 'is', null).neq('caution_memo', '')
+        : sq.eq('category', special.category);
+      const { data: sp, error: spErr } = await sq.order('updated_at', { ascending: false }).limit(LIST_LIMIT);
+      if (spErr) return { ok: false, error: dbMessage(spErr) };
+      const seen = new Set(rows.map((r) => Number(r.id)));
+      for (const r of (sp ?? []) as CustomerDbRow[]) if (!seen.has(Number(r.id))) { rows.push(r); seen.add(Number(r.id)); }
+      rows.sort((a, b) => String(b.updated_at ?? '').localeCompare(String(a.updated_at ?? '')));
+      rows = rows.slice(0, LIST_LIMIT);
+    }
   }
 
   const ids = rows.map((r) => Number(r.id));
@@ -314,7 +333,7 @@ export async function searchCrmCustomers(
       phones: phones.get(Number(r.id)) ?? [],
       cautionMemo: r.caution_memo ?? '',
       stats: stats.get(Number(r.id)) ?? emptyStats(),
-      ...(memoHitOf(q, r) ? { memoHit: memoHitOf(q, r)! } : {}),
+      ...(memoHitOf(q, r) ? { memoHit: memoHitOf(q, r)! } : cautionPeekOf(q, r) ? { memoHit: cautionPeekOf(q, r)! } : {}),
     })),
   };
 }
@@ -359,6 +378,28 @@ export async function listCrmDormantCustomers(
   }
   out.sort((a, b) => a.lastVisitISO.localeCompare(b.lastVisitISO));
   return { ok: true, customers: out.slice(0, 200), total: out.length };
+}
+
+/**
+ * ★ 第1492便: 印の名前での検索（「要注意」・分類の名前）。全角・半角、大文字・小文字は区別しない。
+ *   「一般」は全員に近いので対象にしない。
+ */
+function specialSearchOf(q: string): { kind: 'caution' } | { kind: 'category'; category: CrmCategory } | null {
+  const w = q.normalize('NFKC').trim().toUpperCase();
+  if (w === '要注意') return { kind: 'caution' };
+  for (const c of CRM_CATEGORIES) {
+    if (c === 'general') continue;
+    if (CRM_CATEGORY_LABEL[c].toUpperCase() === w) return { kind: 'category', category: c };
+  }
+  return null;
+}
+
+/** ★ 第1492便: 「要注意」で出した人は、要注意メモの書き出しを一覧に出す（メモに「要注意」の言葉が無くても） */
+function cautionPeekOf(q: string, r: CustomerDbRow): { kind: 'caution'; text: string } | null {
+  if (specialSearchOf(q)?.kind !== 'caution') return null;
+  const text = String(r.caution_memo ?? '').replace(/\s+/g, ' ').trim();
+  if (!text) return null;
+  return { kind: 'caution', text: text.length > 30 ? text.slice(0, 30) + '…' : text };
 }
 
 /** 検索の言葉がメモ・要注意メモのどこに当たったか（前後を少し切り出す・第553便） */
