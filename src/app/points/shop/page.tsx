@@ -23,6 +23,13 @@ const MERITS = [
   { big: 'そのまま', title: '売上・女子報酬', body: '売上も女子報酬も、何も変わりません。' },
 ];
 
+// ★ 第1484便（カッキーさん）: ご契約店さま向けの「はじめ方」。運営が QR コードスタンドを無料で用意 → お部屋に置く → それだけで使える
+const START = [
+  { title: 'QR コードスタンドが届きます', body: '運営が無料でご用意して、お届けします。' },
+  { title: 'お部屋に置きます', body: 'お客様から見える場所に置いてください。' },
+  { title: 'これで準備完了', body: 'お客様が QR コードを読むと、ポイントが貯まる・使えるようになります。' },
+];
+
 const STEPS = [
   { who: 'お客様', text: 'ご予約のときに「ポイントを使います」と伝える' },
   { who: 'お客様', text: 'お部屋の QR コードを読んで「ポイントを使う」を押す' },
@@ -69,6 +76,26 @@ export default function PointsShopGuidePage() {
           ))}
         </section>
 
+        {/* はじめ方（ご契約店さま向け） */}
+        <section className="mt-8 rounded-3xl border-2 border-blue-300 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-center text-[17px] font-black text-slate-800">はじめ方は、置くだけ</h2>
+          <p className="mt-1 text-center text-[12.5px] text-slate-500">フクエスCRM をご契約のお店さま</p>
+          <ol className="mt-4 space-y-3">
+            {START.map((s, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-8 w-8 flex-none items-center justify-center rounded-full text-[15px] font-black text-white" style={{ background: GRAD }}>{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-black leading-snug text-slate-800">{s.title}</span>
+                  <span className="mt-0.5 block text-[13px] leading-relaxed text-slate-600">{s.body}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-4 rounded-xl bg-blue-50 px-3 py-2 text-center text-[12.5px] font-bold text-blue-700">
+            すでに同意書の QR コードを置いているお店は、そのままで大丈夫です
+          </p>
+        </section>
+
         {/* 使われたときの流れ */}
         <section className="mt-8">
           <h2 className="mb-3 text-center text-[17px] font-black text-slate-800">ポイントが使われたとき</h2>
@@ -101,10 +128,10 @@ export default function PointsShopGuidePage() {
           </ul>
         </section>
 
-        {/* 参加のしかた */}
+        {/* 参加のしかた（まだご契約でないお店） */}
         <section className="mt-8 rounded-3xl border border-blue-100 bg-white p-6 text-center shadow-sm">
-          <p className="text-[13px] font-bold text-slate-400">参加できるお店</p>
-          <p className="mt-1 text-[17px] font-black text-slate-800">フクエスCRM をご契約のお店</p>
+          <p className="text-[13px] font-bold text-slate-400">まだフクエスCRM をご契約でないお店</p>
+          <p className="mt-1 text-[17px] font-black text-slate-800">ご契約で、加盟店になれます</p>
           <p className="mt-1 text-[13px] text-slate-500">はじめの3ヶ月は無料です</p>
           <Link
             href="/mypage?tab=support"
