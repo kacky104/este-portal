@@ -137,7 +137,7 @@ export default async function CastHomePage({ searchParams }: { searchParams: Pro
           </span>
           <div className="flex items-center gap-2">
             {/* ★ 第1061便（カッキーさん）: fukuX の加点の案内は「？」アイコンから。
-                未開設の子＝「サイトを見る」の左（紫・開設の案内。第1476便で開設+10は廃止）／開設済みで赤バッジがまだの子＝fukuX アイコンの左（赤・赤バッジ+5）。
+                未開設の子＝「サイトを見る」の左（紫・開設+10）／開設済みで赤バッジがまだの子＝fukuX アイコンの左（赤・赤バッジ+5）。
                 赤バッジを取ったら「？」は出ない。 */}
             {therapist && !xHandle && <CastHintPopover kind="open" />}
             {xHandle && !xVerified && <CastHintPopover kind="badge" />}
@@ -172,7 +172,7 @@ export default async function CastHomePage({ searchParams }: { searchParams: Pro
         )}
         {therapist ? (
           <div className="space-y-5">
-            {/* ★ 第1061便: fukuX の加点の案内カード（開設の案内／赤バッジ+5）は、本文からヘッダーの「？」（CastHintPopover）へ移した。 */}
+            {/* ★ 第1061便: fukuX の加点の案内カード（開設+10／赤バッジ+5）は、本文からヘッダーの「？」（CastHintPopover）へ移した。 */}
             {/* ★ 第516便: 挨拶カードを横長にして高さを約1/3に（スマホの1画面目にタブの中身まで入るように）。
                 左に写真・右に名前と店名。★ 第524便: 本日の出勤の札は「今日のまとめ」へ移した。 */}
             <div className="bg-white/90 backdrop-blur rounded-3xl border border-pink-100 shadow-sm px-2 py-3.5 flex items-center gap-3.5">

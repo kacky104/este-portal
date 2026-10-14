@@ -4975,7 +4975,7 @@ export default function MyPage() {
                       </p>
                     ) : (
                       <p className="text-[10px] font-bold text-amber-600 leading-snug">
-                        fukuX 未開設 — セラピストページの fukuX のマークから開設できます
+                        fukuX 未開設 — 開設するとセラピストランキングに毎週+10点
                       </p>
                     )}
                   </div>
