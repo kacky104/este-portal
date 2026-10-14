@@ -1,4 +1,3 @@
-import { POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE } from '@/lib/points';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import Link from "next/link";
 import { PointShopBadgeCenter } from "@/app/components/PointShopBadgeCenter";
@@ -876,17 +875,7 @@ export default async function SalonPage({
               </div>
             )}
 
-            {/* ★ 第1444便: フクエスポイント加盟店の札（/points へ） */}
-            {isPointShop && (
-              <Link href="/points" className="mt-3 flex items-center gap-3 rounded-2xl border border-pink-200 bg-gradient-to-r from-orange-50 to-pink-50 px-4 py-3 shadow-sm">
-                <span className="flex-none rounded-full px-2.5 py-1 text-[11px] font-black text-white" style={{ background: 'linear-gradient(90deg,#FB923C,#DB2777)' }}>P</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold text-slate-800">フクエスポイント加盟店</span>
-                  <span className="block text-xs text-slate-500">ご来店で{POINT_VISIT}pt{POINT_VISIT_NOTE ? `（${POINT_VISIT_NOTE}）` : ''}・{POINT_USE_UNIT.toLocaleString()}ptで{POINT_USE_YEN.toLocaleString()}円引き</span>
-                </span>
-                <span className="flex-none text-xs font-bold text-pink-600">くわしく →</span>
-              </Link>
-            )}
+            {/* ★ 第1474便（カッキーさん）: 第1444便の加盟店の札は消した（スライダーと店名の間の青いバッジ・第1458便だけにする） */}
 
             {/* Courses — shown only when DB data is available（折り畳み式） */}
             {salon.courses.length > 0 && (
