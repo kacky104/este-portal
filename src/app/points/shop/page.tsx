@@ -80,6 +80,32 @@ export default function PointsShopGuidePage() {
           ))}
         </section>
 
+        {/* ★ 第1488便（カッキーさん「大切なこと」）: お店のクーポンとの併用のお願い。角が立たないように・目立つように。
+            お客様向けの /points でも「併用可能」と案内している（第1463便）。お店の負担はクーポン分だけ（いつもと同じ）＝ポイント分はフクエス負担 */}
+        <section className="mt-8 rounded-3xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm sm:p-6">
+          <p className="text-center">
+            <span className="inline-block rounded-full bg-amber-400 px-3 py-0.5 text-[12px] font-black text-white">ひとつだけ、お願いです</span>
+          </p>
+          <h2 className="mt-2 text-center text-[18px] font-black leading-snug text-slate-800">
+            お店のクーポンと、<br className="sm:hidden" />一緒に使えるようにお願いします
+          </h2>
+          <p className="mt-3 text-center text-[13.5px] leading-relaxed text-slate-700">
+            お客様には「お店のクーポンと併用OK」と<br className="sm:hidden" />ご案内しています。<br />
+            ご協力いただけると、とても助かります。
+          </p>
+          <div className="mt-4 rounded-2xl bg-white p-4 text-center">
+            <p className="text-[12px] font-bold text-slate-400">たとえば</p>
+            <p className="mt-1 text-[14px] font-bold text-slate-700">
+              クーポン 1,000円 ＋ ポイント {yen(POINT_USE_YEN)}円<br />
+              ＝ <span className="text-[17px] font-black text-blue-700">お客様は {yen(1000 + POINT_USE_YEN)}円お得</span>
+            </p>
+            <p className="mt-2 text-[12.5px] leading-relaxed text-slate-500">
+              ポイントの{yen(POINT_USE_YEN)}円はフクエスが負担します。<br />
+              お店のご負担は、いつものクーポン分だけです。
+            </p>
+          </div>
+        </section>
+
         {/* はじめ方（ご契約店さま向け） */}
         <section className="mt-8 rounded-3xl border-2 border-blue-300 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-center text-[17px] font-black text-slate-800">はじめ方は、置くだけ</h2>
