@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from 'react';
 //   ・赤バッジを取ったら「？」は出ない（page.tsx 側の条件）
 //   ★ 赤バッジの条件（件数）は秘密。画面には「投稿をがんばると」とだけ書く（第1059便）。
 //   見た目は CastXIcon と同じ 36px 角丸の枠。外側タップ・Esc で閉じる。
+// ★ 第1481便（2026-10-14・カッキーさん）: 未開設の子のボタンは「？」ではなく fukuX のロゴに。カードは開設のハードルを下げる文言
+//   （写メ日記と一緒に投稿できる・DM とコメントは最初からオフ・開設したら何もしなくてよい）。加点の話はカードから外した。
 
 const BADGE_PATH =
   'M12 1.5l2.5 2.1 3.3-.3.9 3.2 2.8 1.8-1.3 3 1.3 3-2.8 1.8-.9 3.2-3.3-.3L12 22.5l-2.5-2.1-3.3.3-.9-3.2L2.5 15.7l1.3-3-1.3-3 2.8-1.8.9-3.2 3.3.3z';
@@ -33,7 +35,7 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
     };
   }, [open]);
 
-  const label = kind === 'open' ? 'fukuXを開設するとランキングに加点' : '赤い認証バッジでランキングに加点';
+  const label = kind === 'open' ? 'fukuXの開設のご案内' : '赤い認証バッジでランキングに加点';
   const ring = kind === 'open' ? { borderColor: '#C4B5FD', color: '#7C3AED' } : { borderColor: '#FCA5A5', color: '#EF4444' };
 
   return (
@@ -49,7 +51,10 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
         className="w-9 h-9 rounded-xl border bg-white/80 flex items-center justify-center text-[17px] font-black leading-none hover:opacity-80 transition-opacity"
         style={ring}
       >
-        ?
+        {kind === 'open' ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src="/fukux-mark.png" alt="" className="w-6 h-6" />
+        ) : '?'}
       </button>
 
       {open && (
@@ -67,8 +72,8 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/fukux-mark.png" alt="fukuX" className="w-9 h-9 flex-shrink-0" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-bold text-violet-800 leading-snug">fukuXを開設すると、人気セラピストランキングに毎週+10点</span>
-                <span className="block text-[11px] text-violet-600/90 leading-snug mt-0.5">fukuXのアカウントページの閲覧もランキングに加算されます</span>
+                <span className="block text-[13px] font-bold text-violet-800 leading-snug">fukuXを開設すると、写メ日記を書いたときに一緒に投稿できるようになります</span>
+                <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">メッセージとコメントは最初からオフになっています。開設したあとは、特に何もしなくて大丈夫です。ぜひ開設してください。</span>
               </span>
               <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-bold whitespace-nowrap">開設する</span>
             </Link>
