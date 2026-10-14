@@ -12,7 +12,7 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ensureSignupPoints, readMyPoints } from '@/app/lib/points/server';
-import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE, pointsToNextUse } from '@/lib/points';
+import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, pointsToNextUse } from '@/lib/points';
 import { PendingPointsBanner } from '../PendingPointsBanner';
 
 // 会員の「フクエスポイント」（第1444便・2026-10-14）。★ 本人の残高・期限・履歴だけ（ログイン必須・ISR なし）。
@@ -82,12 +82,24 @@ export default async function MemberPointsPage() {
             </section>
 
             <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm leading-relaxed text-slate-600">
-              <h2 className="mb-2 text-base font-bold text-slate-700">貯め方・使い方</h2>
-              <ul className="space-y-1.5">
-                <li>・<b>フクエスポイント加盟店</b>で、お部屋の QR コードから同意書を送ると、来店ポイント <b>{POINT_VISIT}pt</b>{POINT_VISIT_NOTE ? `（${POINT_VISIT_NOTE}）` : ''} を受け取れます（1日1回まで）。</li>
-                <li>・<b>{POINT_USE_UNIT.toLocaleString()}pt で {POINT_USE_YEN.toLocaleString()}円引き</b>。加盟店で、ご予約のときにお伝えください。当日は同意書を送ったあとの画面で「{POINT_USE_UNIT.toLocaleString()}pt 使う」を押し、お支払いの前にその画面をセラピストにお見せください（1回の来店で {POINT_USE_YEN.toLocaleString()}円まで）。</li>
-                <li>・キャンペーン中：<b>会員登録で {POINT_SIGNUP}pt</b>・<b>はじめての口コミで {POINT_FIRST_REVIEW}pt</b>（運営の承認後）。</li>
-                <li>・有効期限は、最後に貯めた日から1年です。</li>
+              {/* ★ 第1471便（カッキーさん）: 「同意書を送る」の下りを消し、/points と同じ短い書き方に */}
+              <h2 className="mb-1.5 text-base font-bold text-slate-700">貯め方</h2>
+              <ol className="mb-1 space-y-1">
+                <li>1. 加盟店のお部屋の QR コードを読む</li>
+                <li>2. 「{POINT_VISIT}pt を受け取る」を押す</li>
+              </ol>
+              <p className="mb-4 text-xs text-slate-500">※ キャンペーン中は、会員登録で {POINT_SIGNUP}pt・はじめての口コミで {POINT_FIRST_REVIEW}pt（承認後）も貯まります</p>
+              <h2 className="mb-1.5 text-base font-bold text-slate-700">使い方</h2>
+              <ol className="mb-1 space-y-1">
+                <li>1. ご予約のときに「フクエスポイントを使います」と伝える</li>
+                <li>2. QR コードを読んだ画面で「{POINT_USE_UNIT.toLocaleString()}pt 使う」を押す</li>
+                <li>3. お支払いの前に、その画面をセラピストに見せる</li>
+              </ol>
+              <p className="mb-4 text-xs text-slate-500">※ {POINT_USE_UNIT.toLocaleString()}pt で {POINT_USE_YEN.toLocaleString()}円引き・1回のご来店で {POINT_USE_YEN.toLocaleString()}円まで・お店のクーポンと併用可能です</p>
+              <h2 className="mb-1.5 text-base font-bold text-slate-700">ご注意</h2>
+              <ul className="space-y-1">
+                <li>・来店ポイントは1日1回まで</li>
+                <li>・有効期限は、最後に貯めた日から1年</li>
               </ul>
               <Link href="/points" className="mt-3 inline-block font-bold text-pink-600 hover:underline">加盟店を見る →</Link>
             </section>
