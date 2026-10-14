@@ -1,5 +1,6 @@
 'use client';
 
+import { MEMBER_EMAIL_NOTE } from '@/lib/castInviteNote';
 import { Suspense, useEffect, useState } from 'react';
 import { POINT_SIGNUP, POINT_VISIT_NOTE } from '@/lib/points';
 import Link from 'next/link';
@@ -191,6 +192,13 @@ function LoginInner() {
                   disabled={loading}
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent"
                 />
+                {/* ★ 第1470便（カッキーさん）: 新規登録のときだけ、メールアドレスの扱いの一文（lib/castInviteNote.ts） */}
+                {mode === 'signup' && (
+                  <p className="flex gap-1.5 px-1 pt-1 text-[11px] leading-relaxed text-emerald-700">
+                    <span aria-hidden>🔒</span>
+                    <span>{MEMBER_EMAIL_NOTE}</span>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
