@@ -101,7 +101,7 @@ export default async function PointsPage() {
           <div className="rounded-3xl border border-blue-100 bg-white p-5 text-center shadow-sm">
             <p className="text-xs font-bold text-slate-400">使える</p>
             <p className="mt-1 text-lg font-black text-slate-800"><span className="text-3xl" style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{POINT_USE_UNIT.toLocaleString()}pt</span> で {POINT_USE_YEN.toLocaleString()}円引き</p>
-            <p className="mt-0.5 text-xs text-slate-500">税込・1回のご来店で{POINT_USE_YEN.toLocaleString()}円まで</p>
+            <p className="mt-0.5 text-xs text-slate-500">1回のご来店で{POINT_USE_YEN.toLocaleString()}円まで</p>
           </div>
           {/* ★ 第1463便（カッキーさん）: お店のクーポンと併用可能（例つき）。2つ並びの下に横いっぱい */}
           <div className="rounded-3xl border border-blue-100 bg-white p-5 text-center shadow-sm sm:col-span-2">
