@@ -5,7 +5,6 @@ import type { CSSProperties } from 'react';
 import type { Metadata } from 'next';
 import { fetchActiveJobs, getFeaturedJobs, JOB_BOOST_WEIGHT } from '@/app/lib/jobs';
 import { shuffleJobs } from '@/app/lib/shuffleJobs';
-import { BRAND_TITLE } from './layout';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
 import { AreaBrowse } from './AreaBrowse';
@@ -28,8 +27,50 @@ export const revalidate = 600;
 // ※ layout の title.template は子セグメント（/jobs/[id]・/jobs/tag/[slug]）にのみ効き、
 //   同一セグメントのこの page.tsx には適用されない。未指定/生文字列だと Google が
 //   ドメイン由来の「- フクエス」を付与してしまうため、ブランド名を明示する。
+// ★ 第1494便（2026-10-15・カッキーさん・Search Console）: /jobs は3か月で表示 約3,200回・平均29位。
+//   タイトルを探される言葉（福岡 メンズエステ 求人）から始める。共有用の OGP は layout の BRAND_TITLE のまま。
+const JOBS_TOP_TITLE = '福岡メンズエステ求人｜高収入・日払い・未経験歓迎のセラピスト求人【フクエスワーク】';
+
+// ★ 第1494便: ページ下の「よくある質問」（画面と構造化データ FAQPage で同じ文を使う）。
+//   ★ 答えはお店ごとに違うことを言い切らない（「お店によって違います」・各求人の特徴で確かめる）。
+const JOBS_FAQ: { q: string; a: string; links: { href: string; label: string }[] }[] = [
+  {
+    q: '未経験でも働けますか？',
+    a: '働けます。「未経験歓迎」のお店の求人がたくさんあります。施術の教え方はお店ごとに違うので、面接や体験入店で確かめると安心です。',
+    links: [{ href: '/jobs/tag/mikeiken', label: '未経験歓迎の求人を見る' }],
+  },
+  {
+    q: '日払いはできますか？',
+    a: '「日払いOK」のお店では、働いたその日にお給料を受け取れます。受け取り方はお店によって違うので、求人の内容で確かめてください。',
+    links: [{ href: '/jobs/tag/hibarai', label: '日払いOKの求人を見る' }],
+  },
+  {
+    q: '体験入店はできますか？',
+    a: '「体験入店OK」のお店では、本格的に働く前にお試しで働けます。お店の雰囲気やお客様の層を知ってから決められます。',
+    links: [
+      { href: '/jobs/tag/taiken', label: '体験入店OKの求人を見る' },
+      { href: '/jobs/glossary/taiken-nyuten', label: '用語集「体験入店」' },
+    ],
+  },
+  {
+    q: '寮や住む所はありますか？',
+    a: 'お店によっては寮や住む所を用意しています。遠方から働きたい方は、求人の内容を見るか、お店に問い合わせてみてください。',
+    links: [{ href: '/jobs/glossary/ryo-sumikomi', label: '用語集「寮・住み込み」' }],
+  },
+  {
+    q: 'どのエリアの求人がありますか？',
+    a: '博多・天神・中洲、北九州・小倉、久留米など、福岡県内のメンズエステの求人を掲載しています。ページ上の「エリアから探す」から選べます。',
+    links: [],
+  },
+  {
+    q: 'お店選びに迷ったら？',
+    a: 'フクエスワークの公式マッチングに希望のエリアや条件を伝えると、合いそうなお店を無料でご紹介します。',
+    links: [{ href: '/jobs/matching', label: '公式マッチングで相談する（無料）' }],
+  },
+];
+
 export const metadata: Metadata = {
-  title: { absolute: BRAND_TITLE },
+  title: { absolute: JOBS_TOP_TITLE },
   description:
     '福岡のメンズエステで働くセラピスト求人をまとめて掲載。エリア・給与・こだわり条件から気になるお店の求人をチェックできます。未経験歓迎のメンズエステ求人も掲載中。',
   alternates: { canonical: '/jobs' },
@@ -80,6 +121,13 @@ export default async function JobsPage() {
       {/* ★ 第1056便: h1 をページ上部に（以前は「店舗新着情報」など h2 が4つ先に来てから h1 だった）。
           見た目は変えない（ヒーロー画像がその役を担うので sr-only）。下の JobHeroBanners は h2 に落とした。 */}
       <h1 className="sr-only">福岡メンズエステのセラピスト求人｜フクエスワーク</h1>
+
+      {/* ★ 第1494便（カッキーさん・SEO）: 見える紹介文（2〜3行）。本文に説明の文章がほとんど無かったため */}
+      <p className="mb-6 text-[13px] leading-relaxed text-slate-600">
+        フクエスワークは、福岡のメンズエステで働きたい方のための求人サイトです。
+        博多・天神・中洲、北九州・小倉、久留米など福岡県内のお店のセラピスト求人を、
+        日払いOK・未経験歓迎・体験入店OKなどの条件から探せます。
+      </p>
 
 
       {/* お仕事マッチングへの導線（/jobs/matching）。希望を入力→運営が合うお店を無料で紹介・斡旋する入口。
@@ -219,6 +267,43 @@ export default async function JobsPage() {
           </ul>
         )}
       </div>
+
+      {/* ★ 第1494便（カッキーさん・SEO）: よくある質問。構造化データ（FAQPage）も同じ文で出す */}
+      <section className="mt-12">
+        <h2 className="mb-3 font-bold text-slate-900">よくある質問</h2>
+        <div className="space-y-2">
+          {JOBS_FAQ.map((f) => (
+            <details key={f.q} className="group rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[14px] font-bold text-slate-800">
+                <span>Q. {f.q}</span>
+                <span className="flex-none text-emerald-600 transition-transform group-open:rotate-45" aria-hidden>＋</span>
+              </summary>
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">{f.a}</p>
+              {f.links.length > 0 && (
+                <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {f.links.map((l) => (
+                    <Link key={l.href} href={l.href} className="text-[12.5px] font-bold hover:underline" style={{ color: '#059669' }}>{l.label} →</Link>
+                  ))}
+                </p>
+              )}
+            </details>
+          ))}
+        </div>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: JOBS_FAQ.map((f) => ({
+                '@type': 'Question',
+                name: f.q,
+                acceptedAnswer: { '@type': 'Answer', text: f.a },
+              })),
+            }).replace(/</g, '\\u003c'),
+          }}
+        />
+      </section>
     </main>
     </>
   );
