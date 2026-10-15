@@ -124,6 +124,20 @@ export default function PointsShopGuidePage() {
           <p className="mt-4 rounded-xl bg-blue-50 px-3 py-2 text-center text-[12.5px] font-bold text-blue-700">
             すでに同意書の QR コードを置いているお店は、<br className="sm:hidden" />そのままで大丈夫です
           </p>
+          {/* ★ 第1507便（カッキーさん・2026-10-16）: 「契約していれば QR を読むだけで付く」と思われないように。
+              ポイントは「部屋の QR → その部屋に入っている予約 → 同意書の完了画面」で付く・使う。予約が CRM に無い来店では動かない */}
+          <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+            <p className="text-[13.5px] font-black text-rose-700">ひとつだけ、条件があります</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-slate-700">
+              ポイントは、<span className="font-black">フクエスCRM の予約に入っているご来店</span>だけが対象です。
+              QR コードは「その部屋に入っている予約」とつながって動くため、予約がフクエスCRM に無いご来店では、お客様が QR を読んでもポイントは付かず、使えません。
+            </p>
+            <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-slate-600">
+              <li>・ネット予約は自動で入ります。お電話・ご来店の予約は「かんたん受付」で、お名前と電話番号だけ入れてください</li>
+              <li>・予約にお部屋を割り当ててください（QR はお部屋ごとに違います）</li>
+              <li>・台帳のメモや分類は、埋めなくても動きます</li>
+            </ul>
+          </div>
         </section>
 
         {/* 使われたときの流れ */}
