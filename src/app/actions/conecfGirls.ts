@@ -225,6 +225,40 @@ async function registerSitesOf(svc: Svc, salonId: number): Promise<RegisterSite[
   return out;
 }
 
+/**
+ * ★ 第1505便（2026-10-15・カッキーさん・案2）: 「保存」だけで各サイトへ送ってよいサイト＝【番号は結びついているが、写真をまだ1枚も送っていない】サイト。
+ *   登録直後の子は相手サイトに名前だけで載っている。その間だけ「保存」で自動的に送り、写真が1枚でも送られたら今までどおり「保存して更新」を押してもらう。
+ *   ★ 物差しは conecf_photo_pushes（第421便・送った写真の記録）に行が無いこと。★ 鍵が無い・止めている・番号が無いサイトは対象外。
+ */
+export async function listConecfFreshPhotoSites(input: { id: number }): Promise<Result<{ providers: string[] }>> {
+  const r = await resolveSalon();
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const t = await ownTherapist(svc, salonId, Number(input.id));
+  if (!t) return { ok: false, error: 'セラピストが見つかりません' };
+  const { data: creds } = await svc
+    .from('salon_media_credentials').select('provider, slot, is_enabled')
+    .eq('salon_id', salonId).in('provider', ['ekichika', 'esutama']);
+  const providers = new Set<string>();
+  for (const c of creds ?? []) {
+    if (c.is_enabled !== true) continue;
+    const provider = String(c.provider);
+    const slot = Number(c.slot ?? 1);
+    if (providers.has(provider)) continue;
+    const { maps, error: mErr } = await loadCastIds(svc, {
+      therapists: [{ id: Number(t.id), import_cast_id: (t as { import_cast_id?: string | null }).import_cast_id ?? null }], provider, slot,
+    });
+    if (mErr) continue;                         // ★ 読めなければ送らない側
+    if (!maps.castIdOf.get(Number(t.id))) continue;   // ★ 番号が無い＝まだ登録していない（送れない）
+    const { count, error: pErr } = await svc
+      .from('conecf_photo_pushes').select('image_slot', { count: 'exact', head: true })
+      .eq('therapist_id', Number(t.id)).eq('provider', provider).eq('slot', slot);
+    if (pErr) continue;
+    if ((count ?? 0) === 0) providers.add(provider);
+  }
+  return { ok: true, data: { providers: [...providers] } };
+}
+
 /** 登録直後の小窓に出す「登録できるサイト」。★ 無ければ小窓を出さない */
 export async function listConecfRegisterSites(): Promise<Result<{ sites: RegisterSite[] }>> {
   const r = await resolveSalon({ write: true });

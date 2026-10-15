@@ -12,6 +12,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { cleanupTherapistPhotos, setTherapistActive } from '@/app/actions/therapistAdmin';
+import { listConecfFreshPhotoSites } from '@/app/actions/conecfGirls';
 import { FUKUES_TARGET_NOTE } from '@/lib/conecfTargets';
 import { GirlExtraTab } from './GirlExtraTabs';
 import { GirlDiaryTab } from './GirlDiaryTab';
@@ -116,6 +117,20 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
   if (!d || !form) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
 
   const set = (k: keyof Form, v: string | boolean) => setForm((f) => (f ? { ...f, [k]: v } : f));
+
+  // ★ 第1505便（カッキーさん・案2）: 「保存」だけでも、相手サイトに【写真をまだ1枚も送っていない】子（登録直後）は、そのサイトへ自動で送る。
+  //   店舗様が「保存」だけ押して「サイトに写真が出ない」になるのを防ぐ。★ 写真が1枚でも送られたら、今までどおり「保存して更新」。
+  //   ★ 送るのは、コネックエフに写真が1枚以上あるときだけ（写真が無いのに送っても、名前だけの状態は変わらない）。
+  const autoPushFresh = async (currentImages: string[]): Promise<string> => {
+    if (!enabled || currentImages.length === 0) return '';
+    const fresh = await listConecfFreshPhotoSites({ id }).catch(() => null);
+    if (!fresh || !fresh.ok || fresh.data.providers.length === 0) return '';
+    const outs: SitePushOutcome[] = [];
+    if (fresh.data.providers.includes('ekichika')) { const a = await pushEk.onUpdate({ quiet: true, silent: true }); if (a) outs.push(a); }
+    if (fresh.data.providers.includes('esutama')) { const b = await pushEs.onUpdate({ quiet: true, silent: true }); if (b) outs.push(b); }
+    const msg = sitePushToast(outs);
+    return msg ? '写真をまだ送っていなかったので、あわせて送りました。' + msg : '';
+  };
 
   const onSaveBasic = async (): Promise<boolean> => {
     setSaving(true);
@@ -233,7 +248,12 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
         )}
         <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-end gap-3">
           {!enabled && <span className="text-[12.5px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
-          <button type="button" disabled={saving || pushing || !enabled} onClick={() => void onSave()}
+          <button type="button" disabled={saving || pushing || !enabled}
+            onClick={() => void (async () => {
+              const ok = await onSave();
+              // ★ 第1505便: 登録直後（相手サイトに写真が無い）の子は、「保存」だけでも送る
+              if (ok) { const extra = await autoPushFresh(images); if (extra) onToast(extra); }
+            })()}
             className="h-8 min-w-[80px] px-5 rounded border border-[#218925] bg-white text-[#218925] text-[12px] disabled:opacity-40">
             {saving ? '保存中…' : label}
           </button>
@@ -268,8 +288,8 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
               <b className="font-bold">写真・年齢・サイズを入れて「保存して更新」</b>（このページの基本情報・画像のタブ）
             </li>
             <li>
-              <b className="font-bold">駅ちか・エステ魂へ登録</b>（セラピスト一覧の「サイトへ登録」） →
-              <Link href={href('/girls/sync')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">セラピスト登録状況一覧を開く ›</Link>
+              <b className="font-bold">駅ちか・エステ魂へ登録</b> →
+              <Link href={href('/girls/sync')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">「サイトへ登録」を開く ›</Link>
               <span className="block text-[13px] text-slate-500">駅ちかやエステ魂で先に登録してある方は、同じ名前なら新しく作らずに結びつけます。これが無いと、出勤・写真・写メ日記がその方に届きません。</span>
             </li>
             <li>
