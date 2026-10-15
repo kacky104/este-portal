@@ -133,7 +133,6 @@ export default function PointsShopGuidePage() {
               QR コードは「その部屋に入っている予約」とつながって動くため、予約がフクエスCRM に無いご来店では、お客様が QR を読んでもポイントは付かず、使えません。
             </p>
             <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-slate-600">
-              <li>・ネット予約は自動で入ります。お電話・ご来店の予約は「かんたん受付」で、お名前と電話番号だけ入れてください</li>
               <li>・予約にお部屋を割り当ててください（QR はお部屋ごとに違います）</li>
             </ul>
           </div>
