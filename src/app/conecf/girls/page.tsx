@@ -6,7 +6,7 @@ import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { matchesSearch } from '@/lib/searchNormalize';
-import { listConecfGirls, createConecfGirl, saveConecfGirlOrder, type ConecfGirlRow } from '@/app/actions/conecfGirls';
+import { listConecfGirls, createConecfGirl, saveConecfGirlOrder, listConecfRegisterSites, registerConecfGirlToSites, type ConecfGirlRow } from '@/app/actions/conecfGirls';
 import { manualOrderToSave, moveInList } from '@/lib/therapistOrder';
 import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
@@ -124,6 +124,9 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const [bulkNote, setBulkNote] = useState('');
   // ★★ 第428便: 駅ちかから写真が消える人がいるときの確認
   const [bulkRemovals, setBulkRemovals] = useState<PhotoRemoval[] | null>(null);
+  // ★ 第1504便（カッキーさん・A）: 「＋新規登録」の直後に「駅ちか・エステ魂へも登録しますか？」
+  const [askSites, setAskSites] = useState<{ id: number; name: string; sites: string[] } | null>(null);
+  const [askBusy, setAskBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await listConecfGirls();
@@ -302,8 +305,33 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     setBusy(false);
     if (!res.ok) { onToast(res.error); return; }
     if (salonId != null) void revalidateSalon(salonId);
+    // ★ 第1504便（カッキーさん・A）: 登録できるサイト（ID・PASS あり）があれば、先に「各サイトへも登録しますか？」を聞く。
+    //   10/15 ラビリンス様: 「＋新規登録」だけで終わり、駅ちかへの登録を押していなかった。★ 無ければ今までどおり編集ページへ
+    const sites = await listConecfRegisterSites().catch(() => null);
+    if (sites && sites.ok && sites.data.sites.length > 0) {
+      setAskSites({ id: res.data.id, name: newName.trim(), sites: sites.data.sites.map((x) => x.label) });
+      return;
+    }
     // ★ 第889便（カッキーさん）: 登録したら、編集ページで「リンク・QRで招待」の小窓をすぐ開く
     window.location.href = href(`/girls/${res.data.id}?invite=1`);
+  };
+
+  // ★ 第1504便: 小窓の「登録する」＝「サイトへ登録」の「登録」と同じ action を、登録できるサイトすべてに
+  const onRegisterSites = async () => {
+    if (!askSites) return;
+    setAskBusy(true);
+    const r = await registerConecfGirlToSites({ id: askSites.id });
+    setAskBusy(false);
+    if (!r.ok) { onToast(r.error); return; }
+    const okOnes = r.data.results.filter((x) => x.ok).map((x) => x.label + (x.waiting ? '（順番待ち）' : ''));
+    const ngOnes = r.data.results.filter((x) => !x.ok).map((x) => `${x.label}：${x.note}`);
+    onToast([
+      okOnes.length > 0 ? `${okOnes.join('・')}へ登録を受け付けました。結果は「更新結果」に出ます` : '',
+      ngOnes.length > 0 ? `始められなかったサイト：${ngOnes.join('／')}` : '',
+    ].filter(Boolean).join('　'));
+    const id = askSites.id;
+    setAskSites(null);
+    window.setTimeout(() => { window.location.href = href(`/girls/${id}?invite=1`); }, okOnes.length > 0 ? 1500 : 3000);
   };
 
   const onToggle = async (g: ConecfGirlRow) => {
@@ -410,6 +438,33 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       )}
       {bulkNote && <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-amber-700">{bulkNote}</p>}
 
+      {/* ── 第1504便: 登録直後の「各サイトへも登録しますか？」 ── */}
+      {askSites && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-white w-full max-w-[460px] p-5 space-y-3 shadow-xl">
+            <p className="text-[16px] font-black text-slate-800">{askSites.name}さんをフクエスに登録しました</p>
+            <p className="text-[14px] text-slate-700 leading-relaxed">
+              <b className="font-bold">{askSites.sites.join('・')}</b>へも、いま登録しますか？
+            </p>
+            <ul className="text-[12.5px] text-slate-500 leading-relaxed list-disc pl-5 space-y-0.5">
+              <li>名前・年齢・サイズで登録します。写真は、あとで編集画面の「保存して更新」で送れます。</li>
+              <li>すでに同じ名前の方がそのサイトにいる場合は、新しく作らずに結びつけます。</li>
+              <li>登録しないと、出勤・写真・写メ日記はそのサイトのこの方には届きません。</li>
+            </ul>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button type="button" disabled={askBusy} onClick={() => void onRegisterSites()}
+                className="h-10 px-5 rounded bg-[#218925] text-white text-[14px] font-bold disabled:opacity-40">
+                {askBusy ? '登録しています…' : '各サイトへも登録する（おすすめ）'}
+              </button>
+              <button type="button" disabled={askBusy} onClick={() => { const id = askSites.id; setAskSites(null); window.location.href = href(`/girls/${id}?invite=1`); }}
+                className="h-10 px-4 rounded border border-slate-300 bg-white text-[14px] text-slate-600 disabled:opacity-40">
+                あとで（フクエスだけ）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 新規登録 ── */}
       {adding && (
         <div className="bg-white border border-slate-200 p-4 space-y-3">
@@ -430,7 +485,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
               {busy ? '登録しています…' : '登録して編集へ'}
             </button>
           </div>
-          <p className="text-[12px] text-slate-500">登録するとフクエスにも公開の状態で追加されます。駅ちか・エステ魂への登録は「サイトへ登録」から行います。</p>
+          <p className="text-[12px] text-slate-500">登録するとフクエスに公開の状態で追加され、続けて駅ちか・エステ魂へも登録するかを聞きます（あとから「サイトへ登録」でもできます）。</p>
         </div>
       )}
 
@@ -579,6 +634,10 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                     <span className="block w-fit mb-1 px-1.5 rounded-sm bg-[#e91e63] text-white text-[10.5px] font-bold leading-[18px] tracking-wide">NEW</span>
                   )}
                   <span className="block truncate">{g.name || '（名前なし）'}</span>
+                  {/* ★ 第1504便（カッキーさん・C）: 駅ちかの番号が結びついていない方に札。押すとセラピスト登録状況一覧へ */}
+                  {g.ekichikaLinked === false && g.isActive && (
+                    <Link href={href('/girls/sync')} className="block w-fit mt-1 px-1.5 rounded-sm bg-rose-600 text-white text-[10.5px] font-bold leading-[18px] tracking-wide hover:bg-rose-700">駅ちか未登録</Link>
+                  )}
                 </span>
                 <span className="text-center tabular-nums">{g.age ?? ''}</span>
                 <span className="hidden md:block leading-snug tabular-nums">

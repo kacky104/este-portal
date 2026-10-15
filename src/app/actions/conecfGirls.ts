@@ -23,6 +23,9 @@ import {
   normalizeComments, normalizeQa, normalizeSiteFields, SITE_FIELD_PROVIDERS, type QaItem,
 } from '@/lib/conecfSiteFields';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
+import { loadCastIds } from '@/lib/mediaCastIds';
+import { needsConsent } from '@/lib/mediaConsent';
+import { startMediaTherapistCreatePush } from '@/app/actions/mediaCredentials';
 
 // コネックエフ「女性一覧・女性の編集」の受け口（第398便・1c・2026-09-17）。
 //
@@ -71,6 +74,12 @@ function imagesOf(t: { profile_images?: unknown; profile_image_url?: unknown }):
 export type ConecfGirlRow = {
   id: number; name: string; age: string | null; bodyType: string | null; imageUrl: string | null;
   isNewFace: boolean; isActive: boolean; joinedOn: string | null;
+  /**
+   * ★ 第1504便（カッキーさん・C）: 駅ちかの番号（castId）が結びついているか。
+   *   null ＝ この店は駅ちかの ID・PASS を登録していない（札を出さない）。false ＝ 「駅ちか未登録」の札。
+   *   10/15 ラビリンス様: 「＋新規登録」だけで駅ちかへの登録（サイトへ登録）を押していなかった＝一覧で分かるように。
+   */
+  ekichikaLinked: boolean | null;
 };
 
 export async function listConecfGirls(): Promise<Result<{ salonId: number; girls: ConecfGirlRow[] }>> {
@@ -88,6 +97,26 @@ export async function listConecfGirls(): Promise<Result<{ salonId: number; girls
     const { data: prof } = await svc.from('conecf_therapist_profiles').select('therapist_id, joined_on').in('therapist_id', ids);
     (prof ?? []).forEach((p) => joined.set(Number(p.therapist_id), (p.joined_on as string | null) ?? null));
   }
+  // ★ 第1504便: 駅ちかの番号の結び（C・「駅ちか未登録」の札）。★ 鍵が無い店は null（札を出さない）。読めなければ null（「未登録」と決めつけない）
+  const linkedEk = new Set<number>();
+  let ekichikaKnown = false;
+  {
+    const { data: creds } = await svc.from('salon_media_credentials').select('slot, is_enabled').eq('salon_id', salonId).eq('provider', 'ekichika');
+    const slots = (creds ?? []).filter((c) => c.is_enabled === true).map((c) => Number(c.slot ?? 1));
+    if (slots.length > 0 && ids.length > 0) {
+      ekichikaKnown = true;
+      for (const slot of slots) {
+        const { maps, error: mErr } = await loadCastIds(svc, {
+          therapists: (data ?? []).map((t) => ({ id: Number(t.id), import_cast_id: null })), provider: 'ekichika', slot,
+        });
+        if (mErr) { ekichikaKnown = false; break; }
+        for (const [tid, cid] of maps.castIdOf) if (cid) linkedEk.add(Number(tid));
+      }
+      // ★ 旧列（import_cast_id）も枠1の番号として数える（loadCastIds に旧列を渡していないので、ここで足す）
+      const { data: legacy } = await svc.from('therapists').select('id, import_cast_id').eq('salon_id', salonId).not('import_cast_id', 'is', null);
+      for (const t of legacy ?? []) if (String(t.import_cast_id ?? '').trim()) linkedEk.add(Number(t.id));
+    }
+  }
   const rows: ConecfGirlRow[] = (data ?? []).map((t) => ({
     id: Number(t.id),
     name: (t.name as string | null) ?? '',
@@ -97,6 +126,7 @@ export async function listConecfGirls(): Promise<Result<{ salonId: number; girls
     isNewFace: isNewFaceActive(t.is_new_face as boolean | null, t.new_face_since as string | null),
     isActive: t.is_active !== false,
     joinedOn: joined.get(Number(t.id)) ?? null,
+    ekichikaLinked: ekichikaKnown ? linkedEk.has(Number(t.id)) : null,
   }));
   // ★ 第1384便: 店舗様が決めた順（無ければ今までどおり あいうえお順）
   const order = await readConecfGirlOrder(svc, salonId);
@@ -167,6 +197,58 @@ export async function createConecfGirl(input: { name: string; isNewFace: boolean
   if (dup) return { ok: false, error: dup };
   if (error || !data) return { ok: false, error: `追加に失敗しました: ${error?.message ?? ''}` };
   return { ok: true, data: { id: Number(data.id) } };
+}
+
+// ── 第1504便（2026-10-15・カッキーさん・A）: 「＋新規登録」の直後に、各サイトへも登録する ─────────────────
+//
+// ★ 10/15 ラビリンス様: 「＋新規登録」だけでコネックエフの登録は終わりと思い、駅ちかへの登録（「サイトへ登録」→「登録」）を押していなかった。
+//   → 登録した直後に「駅ちか・エステ魂へも登録しますか？」と聞き、「はい」ならここで各サイトの登録の流れを始める。
+// ★ 中身は「サイトへ登録」の画面の「登録」ボタンと【同じ action】（startMediaTherapistCreatePush）。★ 写真は無ければ飛ばして登録だけ（既定どおり）。
+//   同じ名前がもう相手サイトに居れば、新しく作らず結びつける（第1495便）。前の更新が動いていても順番待ち（第1296便）。
+// ★ 送る先は「ID・PASS が登録されて止めていないサイト」（駅ちか・エステ魂）。向き（フクエスから反映）・同意は startRelayFlow の入口が見る。
+
+type RegisterSite = { provider: string; slot: number; label: string };
+
+async function registerSitesOf(svc: Svc, salonId: number): Promise<RegisterSite[]> {
+  const { data: creds } = await svc
+    .from('salon_media_credentials').select('provider, slot, is_enabled, consent_version')
+    .eq('salon_id', salonId).in('provider', ['ekichika', 'esutama']);
+  const out: RegisterSite[] = [];
+  for (const c of creds ?? []) {
+    if (c.is_enabled !== true) continue;
+    if (needsConsent((c.consent_version as string | null) ?? null)) continue;
+    const provider = String(c.provider);
+    const slot = Number(c.slot ?? 1);
+    if (out.some((x) => x.provider === provider && x.slot === slot)) continue;
+    out.push({ provider, slot, label: (findMediaSite(provider)?.name ?? providerLabel(provider)) + (slot > 1 ? `（枠${slot}）` : '') });
+  }
+  return out;
+}
+
+/** 登録直後の小窓に出す「登録できるサイト」。★ 無ければ小窓を出さない */
+export async function listConecfRegisterSites(): Promise<Result<{ sites: RegisterSite[] }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  return { ok: true, data: { sites: await registerSitesOf(r.data.svc, r.data.salonId) } };
+}
+
+/** その方を、登録できるサイトすべてへ登録する（1サイトずつ・結果を返す）。★ 相手に人が増える操作 */
+export async function registerConecfGirlToSites(input: { id: number }): Promise<Result<{ results: Array<{ label: string; ok: boolean; note: string; waiting: boolean }> }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const own = await ownTherapist(svc, salonId, Number(input.id));
+  if (!own) return { ok: false, error: 'セラピストが見つかりません' };
+  const sites = await registerSitesOf(svc, salonId);
+  if (sites.length === 0) return { ok: false, error: '登録できるサイトがありません（ID・パスワード登録をご確認ください）' };
+  const results: Array<{ label: string; ok: boolean; note: string; waiting: boolean }> = [];
+  for (const s of sites) {
+    const res = await startMediaTherapistCreatePush({ salonId, provider: s.provider, slot: s.slot, therapistId: Number(input.id) });
+    results.push(res.ok
+      ? { label: s.label, ok: true, note: res.data.note, waiting: res.data.waiting }
+      : { label: s.label, ok: false, note: res.error, waiting: false });
+  }
+  return { ok: true, data: { results } };
 }
 
 // ────────────────────────────────────────────────
