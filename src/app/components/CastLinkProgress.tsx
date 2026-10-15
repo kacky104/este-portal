@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { getSalonCastLinkRoster } from '@/app/actions/castInvite';
 // ★ 第893便: 「招待する」の左横に「QR」（リンク・QRで招待の小窓）
 import { CastInviteLinkButton } from './CastInviteLinkButton';
-import { CAST_LINK_BONUS, recommendCastLinkPoints } from '@/lib/rankingPoints';
 
 // ★ 第884便（カッキーさん）: 「セラピストページ連携」の連携率と、まだ連携していない方の一覧。
 // ★ 第885便: コネックエフのホームとフクエスのマイページ（今すぐの画面）で同じ部品を使う（tone で色だけ変える）。
@@ -93,12 +92,10 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
       <div className="h-2.5 bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className={`h-full ${T.bar} transition-all`} style={{ width: `${pct}%` }} />
       </div>
-      {/* ★ 第1095便（カッキーさん）: ランキングの加点は枠で目立たせず、説明文の中に書く（数字は src/lib/rankingPoints.ts＝計算と同じ） */}
+      {/* ★ 第1503便（カッキーさん・2026-10-15）: ランキングの加点の説明（セラピスト+5・お店は連携率の半分）と「公開中の方だけ数えています」は消した。
+          ★ 加点そのものは変えていない（src/lib/rankingPoints.ts）。説明は作り方ページのほうに残っている */}
       <p className="text-[13px] text-slate-500 leading-relaxed">
-        連携したセラピストは、写メ日記や今すぐなど、自分のスマホから更新できます。セラピストランキングにも毎週+{CAST_LINK_BONUS}ポイント加点されます。
-        {/* ★ 例の数字は、いまの連携率から出す（★ 1%以下は0点になるので、そのときは100%の例を出す） */}
-        お店のおすすめランキングにも、連携率の半分のポイントが毎週加点されます（{recommendCastLinkPoints(pct) > 0 ? `${pct}%なら${recommendCastLinkPoints(pct)}` : `100%なら${recommendCastLinkPoints(100)}`}ポイント）。
-        <span className="text-slate-400">（公開中の方だけ数えています）</span>
+        連携したセラピストは、写メ日記や今すぐなど、自分のスマホから更新できます。
       </p>
 
       {rest.length === 0 ? (
