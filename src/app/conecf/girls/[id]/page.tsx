@@ -81,6 +81,10 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
   const [tab, setTab] = useState<Tab>(initialTab);
   // ★ 第889便: 新規登録の直後だけ小窓を開く（★ 閉じたら、タブを行き来しても再び開かない）
   const [autoInv, setAutoInv] = useState(autoInvite);
+  // ★ 第1501便（2026-10-15・カッキーさん）: 新規登録の直後だけ「次にやること」を出す。
+  //   10/14 の「新人の写メ日記が駅ちかに載らない」は、登録のあとにやることが1か所にまとまっていなかったのも一因。
+  //   ★ 閉じたら再び出ない（再読み込みでは ?invite=1 が消えているので出ない）。
+  const [showNext, setShowNext] = useState(autoInvite);
   const [form, setForm] = useState<Form | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [sites, setSites] = useState<ConecfGirlDetail['sites']>([]);
@@ -251,6 +255,35 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
           {form.isActive ? '公開中（押すと非公開）' : '非公開（押すと公開）'}
         </button>
       </div>
+
+      {/* ── 第1501便: 新規登録の直後の「次にやること」── */}
+      {showNext && (
+        <div className="border border-indigo-200 bg-indigo-50/60 px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[15px] font-bold text-indigo-800">{form.name ? form.name + 'さんを登録しました。' : '登録しました。'}次にやること</p>
+            <button type="button" onClick={() => setShowNext(false)} className="text-[13px] text-slate-500 hover:text-slate-700 whitespace-nowrap">閉じる ×</button>
+          </div>
+          <ol className="mt-2 space-y-1.5 text-[14px] text-slate-700 leading-relaxed list-decimal pl-5">
+            <li>
+              <b className="font-bold">写真・年齢・サイズを入れて「保存して更新」</b>（このページの基本情報・画像のタブ）
+            </li>
+            <li>
+              <b className="font-bold">駅ちか・エステ魂へ登録</b> →
+              <Link href={href('/girls/sync')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">「サイトへ登録」を開く ›</Link>
+              <span className="block text-[13px] text-slate-500">駅ちかやエステ魂で先に登録してある方は、同じ名前なら新しく作らずに結びつけます。これが無いと、出勤・写真・写メ日記がその方に届きません。</span>
+            </li>
+            <li>
+              <b className="font-bold">写メ日記を書いてもらうなら、本人をセラピストページに招待</b>（下の「リンク・QRで招待」）
+              <span className="block text-[13px] text-slate-500">駅ちかへの写メ日記は、登録が結びついていれば自動で届きます。エステ魂へも送るなら、本人が「魂セラピスト」を始めてから【写メ日記】タブで「了承あり」にしてください。</span>
+            </li>
+            <li>
+              <b className="font-bold">出勤を入れる</b> →
+              <Link href={href('/schedule')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">週間スケジュールを開く ›</Link>
+              <span className="block text-[13px] text-slate-500">出勤の自動更新が ON なら、各サイトへは30分以内に反映します。</span>
+            </li>
+          </ol>
+        </div>
+      )}
 
       {/* ★ 第734便: 上の3ブロック（フクエス 自動更新／駅ちか・エステ魂の「更新する」）は消した。
           ★ 更新は各タブの「保存して○○へ更新」から（★ 保存せずに更新だけ、は無くなった。どれかのタブで保存して更新すれば同じ） */}
