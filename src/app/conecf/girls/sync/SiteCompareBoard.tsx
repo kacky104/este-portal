@@ -173,10 +173,12 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
     return true;
   });
 
-  const MARK: Record<Cell, { text: string; cls: string; title: string }> = {
+  // ★ 第1506便（2026-10-15・カッキーさん）: △・× は「押せるボタン」に見えていなかった（ラビリンス様は見出しの「△× 2人」のほうを押していた）。
+  //   → △・× は枠つきのボタンに「登録する」「確認する」の文字を添える。○ と — は今までどおり記号だけ。
+  const MARK: Record<Cell, { text: string; cls: string; title: string; label?: string; btn?: string }> = {
     ok: { text: '○', cls: 'text-sky-500', title: '連携済み' },
-    unlinked: { text: '△', cls: 'text-amber-500', title: '確かめられません（番号が無い）。押すと連携・登録できます' },
-    missing: { text: '×', cls: 'text-rose-500', title: `名簿にいません。押すと登録できます` },
+    unlinked: { text: '△', cls: 'text-amber-600', title: '確かめられません（番号が無い）。押すと連携・登録できます', label: '登録する', btn: 'border-amber-400 bg-amber-50 hover:bg-amber-100' },
+    missing: { text: '×', cls: 'text-rose-600', title: `名簿にいません。押すと登録できます`, label: '確認する', btn: 'border-rose-300 bg-rose-50 hover:bg-rose-100' },
     unknown: { text: '—', cls: 'text-slate-300', title: 'まだ読んでいません' },
   };
 
@@ -191,7 +193,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
           <li className="whitespace-nowrap"><b className="text-amber-500 font-black text-[15px] mr-1">△</b>確かめられません（名前が違うなど）</li>
           <li className="whitespace-nowrap"><b className="text-rose-500 font-black text-[15px] mr-1">×</b>サイトにいません</li>
         </ul>
-        <p className="text-slate-500"><b className="text-amber-500 font-black">△</b>・<b className="text-rose-500 font-black">×</b> を押すと、その場で連携・登録できます。</p>
+        <p className="text-slate-500"><b className="text-amber-600 font-black">△ 登録する</b>・<b className="text-rose-600 font-black">× 確認する</b> のボタンを押すと、その場で連携・登録できます（○ は押す必要がありません）。</p>
       </div>
 
       <div className={`${CARD} p-3 flex flex-wrap items-center gap-3`}>
@@ -236,9 +238,16 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                           <div className="text-[12.5px] text-slate-500 font-normal mt-0.5">
                             {p?.readAt ? `最終確認 ${fmtAt(p.readAt)}` : 'まだ読んでいません'}
                           </div>
-                          <div className={`text-[13px] font-bold ${bad > 0 ? 'text-rose-500' : 'text-slate-400'}`}>
-                            {`△× ${bad}人`}
-                          </div>
+                          {/* ★ 第1506便: 押すと「差異がある方だけ表示」に絞り込む（押した場所に意味を持たせる） */}
+                          {bad > 0 ? (
+                            <button type="button" onClick={() => setOnlyDiff((v) => !v)}
+                              title="押すと、△・× の方だけを表示します"
+                              className={`text-[13px] font-bold text-rose-600 underline decoration-dotted underline-offset-4 ${onlyDiff ? 'bg-rose-50 px-1 rounded' : ''}`}>
+                              {`△× ${bad}人`}{onlyDiff ? '（絞り込み中）' : ''}
+                            </button>
+                          ) : (
+                            <div className="text-[13px] font-bold text-slate-400">△× 0人</div>
+                          )}
                           <button type="button" disabled={reading === key(s)} onClick={() => void onRead(s)}
                             className="mt-1 text-[12.5px] text-indigo-600 underline disabled:opacity-40">
                             {reading === key(s) ? '読み直しています…' : '再読み込み'}
@@ -280,11 +289,17 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                     const off = targetOffs.has(`${t.id}#${s.provider}#${s.slot}`);
                     return (
                       <td key={key(s)} className="px-1 sm:px-3 py-1.5 text-center">
-                        <button type="button" title={m.title} disabled={c === 'unknown' || c === 'ok'}
-                          onClick={() => { setOpen({ tid: t.id, key: key(s) }); setPick(''); setPreview(null); }}
-                          className={`text-[24px] leading-none ${m.cls} ${c === 'ok' || c === 'unknown' ? 'cursor-default' : 'hover:scale-110 transition-transform'}`}>
-                          {m.text}
-                        </button>
+                        {m.btn ? (
+                          <button type="button" title={m.title}
+                            onClick={() => { setOpen({ tid: t.id, key: key(s) }); setPick(''); setPreview(null); }}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded border ${m.btn} ${m.cls} text-[12px] font-bold whitespace-nowrap`}>
+                            <span className="text-[18px] leading-none">{m.text}</span>
+                            <span>{m.label}</span>
+                            <span aria-hidden="true">›</span>
+                          </button>
+                        ) : (
+                          <span title={m.title} className={`text-[24px] leading-none ${m.cls}`}>{m.text}</span>
+                        )}
                         {off && <div className="text-[10px] text-slate-400">送らない設定</div>}
                       </td>
                     );
@@ -327,7 +342,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                     </ul>
                   )}
                   <p className="text-[12.5px] text-slate-500 leading-relaxed">
-                    登録は{s.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。消すときは、{s.label}の管理画面から直接消してください（この画面からは消せません）。同じ名前の方が{s.label}にすでにいる場合は、新しく登録せず、その方と結びつけます。
+                    登録は{s.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。消すときは、{s.label}の管理画面から直接消してください（この画面からは消せません）。同じ名前の方が{s.label}にすでにいる場合は、登録されずに終わります。
                   </p>
                   <div className="flex gap-2">
                     <button type="button" disabled={busy !== ''} onClick={() => setPreview(null)}
