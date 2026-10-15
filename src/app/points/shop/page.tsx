@@ -135,7 +135,6 @@ export default function PointsShopGuidePage() {
             <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-slate-600">
               <li>・ネット予約は自動で入ります。お電話・ご来店の予約は「かんたん受付」で、お名前と電話番号だけ入れてください</li>
               <li>・予約にお部屋を割り当ててください（QR はお部屋ごとに違います）</li>
-              <li>・台帳のメモや分類は、埋めなくても動きます</li>
             </ul>
           </div>
         </section>
