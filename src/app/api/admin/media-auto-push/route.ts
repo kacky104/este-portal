@@ -31,8 +31,10 @@ import {
 // ★ 送るのはこの周ではない。ここは中継ジョブを積むだけで、実際に駅ちかを叩くのは
 //   毎分の relay.sh（VPS）。★ だから VPS 側に新しい実装は要らない。**crontab に1行だけ。**
 //
-// crontab（VPS・30分ごと。周期の意味は §57）:
-//   5,35 * * * * set -a; . /root/import.env; /usr/bin/curl -s -X POST https://fukues.com/api/admin/media-auto-push -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{"apply":true}' >> /root/import.log 2>&1
+// crontab（VPS。周期の意味は §57）:
+//   ★ 第1500便（2026-10-15・カッキーさん）: 5,35 → 10分ごと。相手サイトへ行くかは指紋（変更なしなら行かない）と20分の間隔で決まるので、
+//     行く回数は増えない（DB を見る回数だけ増える）。busy で断られた回の取り戻しが 最長30分 → 最長10分 に。VPS の crontab は 10/15 09:00 に置き換え済み。
+//   5,15,25,35,45,55 * * * * set -a; . /root/import.env; /usr/bin/curl -s -X POST https://fukues.com/api/admin/media-auto-push -H "Authorization: Bearer $CRON_SECRET" -H "Content-Type: application/json" -d '{"apply":true}' >> /root/import.log 2>&1
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
