@@ -147,7 +147,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
             <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">
               <b className="font-bold">駅ちか</b>: {diaryReady.ekichikaUnlinked.map((p) => p.name).join('・')}（{diaryReady.ekichikaUnlinked.length}名）
               — 駅ちかの登録と結びついていないため、投稿用アドレスを読み込めません。
-              <Link href={href('/girls/sync')} className="ml-1 font-bold underline underline-offset-4">「サイトへ登録」で連携する ›</Link>
+              <Link href={href('/girls/sync')} className="ml-1 font-bold underline underline-offset-4">セラピスト登録状況一覧で連携する ›</Link>
             </p>
           )}
         </div>

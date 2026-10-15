@@ -268,8 +268,8 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
               <b className="font-bold">写真・年齢・サイズを入れて「保存して更新」</b>（このページの基本情報・画像のタブ）
             </li>
             <li>
-              <b className="font-bold">駅ちか・エステ魂へ登録</b> →
-              <Link href={href('/girls/sync')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">「サイトへ登録」を開く ›</Link>
+              <b className="font-bold">駅ちか・エステ魂へ登録</b>（セラピスト一覧の「サイトへ登録」） →
+              <Link href={href('/girls/sync')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">セラピスト登録状況一覧を開く ›</Link>
               <span className="block text-[13px] text-slate-500">駅ちかやエステ魂で先に登録してある方は、同じ名前なら新しく作らずに結びつけます。これが無いと、出勤・写真・写メ日記がその方に届きません。</span>
             </li>
             <li>
