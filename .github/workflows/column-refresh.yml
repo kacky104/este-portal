@@ -1,0 +1,74 @@
+name: コラム自動更新
+
+# 毎月1回、各コラムで最も古い記事を1本 Claude でリライトして commit → push する。
+# カッキーさん決定 2026-10-16。人の確認は挟まず、歯止め（columnRefreshGuard）で守る。
+on:
+  schedule:
+    - cron: '43 0 5 * *' # JST 09:43 毎月5日 … フクエス本体（src/content/column）
+    - cron: '43 0 20 * *' # JST 09:43 毎月20日 … フクエスワーク（src/content/work-column）
+  workflow_dispatch:
+    inputs:
+      dir:
+        description: 対象ディレクトリ
+        required: true
+        default: src/content/column
+        type: choice
+        options:
+          - src/content/column
+          - src/content/work-column
+      dry:
+        description: dry（書き込まない・選んだ記事と結果だけ）
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24' # .ts をそのまま import する（型ストリップ）。npm ci は不要。
+
+      - name: 対象ディレクトリを決める
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DIR="${{ github.event.inputs.dir }}"
+            DRY="${{ github.event.inputs.dry }}"
+          elif [ "${{ github.event.schedule }}" = "43 0 5 * *" ]; then
+            DIR="src/content/column"
+            DRY="false"
+          else
+            DIR="src/content/work-column"
+            DRY="false"
+          fi
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          echo "dry=$DRY" >> "$GITHUB_OUTPUT"
+
+      - name: リライト実行
+        id: refresh
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          ARGS="--dir ${{ steps.pick.outputs.dir }}"
+          if [ "${{ steps.pick.outputs.dry }}" = "true" ]; then ARGS="$ARGS --dry"; fi
+          node scripts/column-refresh.mjs $ARGS
+
+      - name: コミットしてプッシュ
+        if: steps.pick.outputs.dry != 'true' && steps.refresh.outputs.slug != ''
+        run: |
+          git config user.name "fukues-column-bot"
+          git config user.email "fukues-column-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "変更なし"
+            exit 0
+          fi
+          git commit -m "コラム自動更新: ${{ steps.refresh.outputs.slug }}（${{ steps.refresh.outputs.kind }}）"
+          git push
