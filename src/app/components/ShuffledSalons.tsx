@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { fitFontBatched } from '@/lib/fitFont';
 import { checkDutyStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { isImasuguLiveCamel } from '@/lib/imasugu';
@@ -263,36 +264,44 @@ function AutoFitAreaBadges({ labels, dispatchOnly }: { labels: string[]; dispatc
   const innerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(BADGE_MAX);
   const [wrapFallback, setWrapFallback] = useState(false);
+  // リサイズのたびに測り直すためのカウンタ（effect の依存に入れる）
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const fit = () => {
-      // いったん通常状態（nowrap・flex-1）に戻してから、リフロー後に計測する。
-      setWrapFallback(false);
-      requestAnimationFrame(() => {
-        const c = containerRef.current;
-        const t = innerRef.current;
-        if (!c || !t) return;
-        let s = BADGE_MAX;
-        t.style.fontSize = `${s}px`;
-        while (t.scrollWidth > c.clientWidth && s > BADGE_MIN) {
-          s = Math.max(BADGE_MIN, s - 0.5);
-          t.style.fontSize = `${s}px`;
-        }
-        if (t.scrollWidth > c.clientWidth) {
+    const onResize = () => { setWrapFallback(false); setTick(t => t + 1); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // ★ 第1524便: 計測は lib/fitFont（ページ全体で読む→書くをまとめる・比例で 1 発）。
+  //   fallback 中はコンテナ幅が「残り幅」でなくなるため、必ず通常状態（nowrap・flex-1）に戻してから測る。
+  //   戻す＝state を変えて再描画 → この effect が wrapFallback=false でもう一度走る、という順で測る。
+  useEffect(() => {
+    if (wrapFallback) return;
+    const c = containerRef.current;
+    const t = innerRef.current;
+    if (!c || !t) return;
+    const cancel = fitFontBatched({
+      container: c,
+      text: t,
+      max: BADGE_MAX,
+      min: BADGE_MIN,
+      step: 0.5,
+      start: size,
+      onDone: (s, overflowAtMin) => {
+        if (overflowAtMin) {
           // 最小でも収まらない → 元サイズで折り返し（従来表示）に戻す。
           setWrapFallback(true);
           setSize(BADGE_MAX);
         } else {
           setSize(s);
         }
-      });
-    };
-    fit();
-    window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-    // labels は配列だが中身は salon 由来で不変。join した文字列を依存に使う。
+      },
+    });
+    return cancel;
+    // labels は配列だが中身は salon 由来で不変。join した文字列を依存に使う。size は計測の開始値なので依存に入れない。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [labels.join('|'), dispatchOnly]);
+  }, [labels.join('|'), dispatchOnly, wrapFallback, tick]);
 
   if (labels.length === 0 && !dispatchOnly) return null;
 
@@ -650,7 +659,7 @@ export function AreaLinkTabsBlock({ areas, currentArea }: { areas: string[]; cur
   );
 }
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null, cardTabCounts, emptyNote, hideEmptyMessage = false }: { salons: Salon[]; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; /** ★ 第1396便: 0件のときに「まだありません」の下に出すもの（エリアページが、お店のあるエリアへの案内を渡す） */ emptyNote?: React.ReactNode; /** ★ 第1398便: 有料店が 0件でも「まだありません」を出さない（エリアページが、無料掲載の店を insertBlocks で下に並べるとき） */ hideEmptyMessage?: boolean; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null; cardTabCounts?: SalonCardTabCounts }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null, cardTabCounts, emptyNote, hideEmptyMessage = false, sharedTherapistFeed = false }: { salons: Salon[]; /** ★ 第1524便: トップで true。セラピストのサムネ列を TherapistScroller と同じ1回の取得から切り出す（二重取得をやめる） */ sharedTherapistFeed?: boolean; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; /** ★ 第1396便: 0件のときに「まだありません」の下に出すもの（エリアページが、お店のあるエリアへの案内を渡す） */ emptyNote?: React.ReactNode; /** ★ 第1398便: 有料店が 0件でも「まだありません」を出さない（エリアページが、無料掲載の店を insertBlocks で下に並べるとき） */ hideEmptyMessage?: boolean; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null; cardTabCounts?: SalonCardTabCounts }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
   // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
@@ -664,7 +673,7 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
   const activeAreaEffective = currentArea ?? activeArea;
 
   // セラピストサムネイル取得は共有フックに集約（保存ページと同一ロジック）
-  const salonTherapists = useSalonTherapists(salons);
+  const salonTherapists = useSalonTherapists(salons, { feedAll: sharedTherapistFeed });
 
   // wideDesktop 一覧のカラム定義。mobileSingleColumn=true（TOP用）は lg 未満を常に1列に
   // （既定は sm:grid-cols-2＝640px以上で2列）。lg は元々ワイド1列なので grid-cols-1 で不変。

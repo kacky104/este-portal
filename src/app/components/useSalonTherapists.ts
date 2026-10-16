@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
 import { pickWithTable } from '@/lib/therapistPlaceholder';
-import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { loadTherapistFeed, runWhenIdle } from '@/app/lib/therapistFeed.client';
 import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import type { Salon } from '@/app/lib/salons';
-import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 export type TherapistThumb = {
   id:             string;
@@ -30,50 +29,41 @@ export type TherapistThumb = {
 // トップ／一覧（ShuffledSalons）と保存ページで同じデータ形を共有し、
 // SalonCard の見た目を揃える。
 export function useSalonTherapists(
-  salons: Salon[]
+  salons: Salon[],
+  /** ★ 第1524便: feedAll=true のとき、公開中の全セラピストの共有取得（TherapistScroller と同じ1回）から切り出す（トップ用）。
+   *  false（既定）は従来どおり salon_id で絞って取る（保存ページなど・絞った方が小さいとき）。 */
+  opts: { feedAll?: boolean } = {},
 ): Record<number, TherapistThumb[]> {
   const [salonTherapists, setSalonTherapists] = useState<Record<number, TherapistThumb[]>>({});
+  const feedAll = opts.feedAll === true;
 
   useEffect(() => {
     if (salons.length === 0) {
       setSalonTherapists({});
       return;
     }
-    (async () => {
+    // ★ 第1524便: 取得は共有ローダー（lib/therapistFeed.client）。初期描画が落ち着いてから投げる（runWhenIdle）。
+    let cancelled = false;
+    const cancelIdle = runWhenIdle(() => { void run(); });
+    async function run() {
       const supabase = createClient();
       const salonIds = salons.map(s => s.id);
+      const wantSalon = new Set(salonIds);
 
-      const { data: therapistRowsWithAvail, error: tErr } = await supabase
-        .from('therapists')
-        .select(`id, name, age, salon_id, profile_image_url, work_hours, ${IMASUGU_COLUMNS}, is_new_face, new_face_since`)
-        // ★ 非公開（is_active=false）は出さない（第216便の方針）。★ 本人ページは404なので、出すとリンク切れになる。
-        .eq('is_active', true)
-        .in('salon_id', salonIds);
-
-      let therapistRows = therapistRowsWithAvail;
-      if (tErr) {
-        const { data: fb } = await supabase
-          .from('therapists')
-          .select('id, name, age, salon_id, profile_image_url, work_hours')
-          .eq('is_active', true)
-          .in('salon_id', salonIds);
-        // ★ 列が無い環境へのフォールバック。3枠すべてを明示的に埋めること（枠を増やしたらここも増やす）。
-        therapistRows = (fb ?? []).map(t => ({ ...t, is_available_now: false, available_until: null, is_available_now_cast: false, available_until_cast: null, is_available_now_import: false, available_until_import: null, is_new_face: false, new_face_since: null }));
-      }
+      const feed = await loadTherapistFeed(feedAll ? null : salonIds);
+      if (cancelled) return;
+      // feedAll のときは全件から、このページの店舗ぶんだけ切り出す
+      const therapistRows = feedAll
+        ? feed.therapists.filter(t => wantSalon.has(t.salon_id as number))
+        : feed.therapists;
 
       if (!therapistRows || therapistRows.length === 0) {
         setSalonTherapists({});
         return;
       }
 
-      const today        = getBusinessDateJST();
-      const therapistIds = therapistRows.map(t => t.id);
-
-      const { data: schedRowsRaw } = await supabase
-        .from('therapist_schedules')
-        .select('therapist_id, start_time, end_time, is_active')
-        .in('therapist_id', therapistIds)
-        .eq('schedule_date', today);
+      const therapistIds = new Set(therapistRows.map(t => t.id as number));
+      const schedRowsRaw = feed.schedules.filter(r => therapistIds.has(r.therapist_id as number));
 
       // is_active をクライアント側でフィルター（DB型の不一致を回避）
       const schedRows = (schedRowsRaw ?? []).filter(r => Boolean(r.is_active));
@@ -147,9 +137,11 @@ export function useSalonTherapists(
         });
       }
 
+      if (cancelled) return;
       setSalonTherapists(result);
-    })();
-  }, [salons]);
+    }
+    return () => { cancelled = true; cancelIdle(); };
+  }, [salons, feedAll]);
 
   return salonTherapists;
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { fitFontBatched } from '@/lib/fitFont';
 
 // SSR警告回避: クライアントのみ useLayoutEffect（描画前測定＝チラつき防止）。本体サイトの AutoFitSalonName と同手法。
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -35,24 +36,31 @@ export function AutoFitName({
   const textRef = useRef<HTMLElement | null>(null);
   const [size, setSize] = useState(max);
 
+  // ★ 第1524便: 計測は lib/fitFont（ページ全体で読む→書くをまとめる・比例で 1 発）。
+  //   以前は「0.5px 下げて scrollWidth を読む」の同期ループで、行ごとに強制リフローが起きていた（PageSpeed 指摘）。
+  //   描画前測定（useLayoutEffect）は維持。最初のフレームは SSR のサイズ（max）で出て、次のフレームで確定する。
+  const [tick, setTick] = useState(0);
   useIsomorphicLayoutEffect(() => {
     const c = containerRef.current;
-    const t = textRef.current;
-    if (!c || !t) return;
-    const fit = () => {
-      let s = max;
-      t.style.fontSize = `${s}px`;
-      while (t.scrollWidth > t.clientWidth && s > min) {
-        s = Math.max(min, s - step);
-        t.style.fontSize = `${s}px`;
-      }
-      setSize(s);
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
+    if (!c) return;
+    const ro = new ResizeObserver(() => setTick(t => t + 1));
     ro.observe(c);
     return () => ro.disconnect();
-  }, [name, max, min, step]);
+  }, []);
+  useIsomorphicLayoutEffect(() => {
+    const t = textRef.current;
+    if (!t) return;
+    return fitFontBatched({
+      container: t, // テキスト自身が min-w-0 の flex 子＝clientWidth が利用可能幅で頭打ちになる
+      text: t,
+      max,
+      min,
+      step,
+      start: size,
+      onDone: (s) => setSize(s),
+    });
+    // size は計測の開始値なので依存に入れない
+  }, [name, max, min, step, tick]);
 
   const TextTag = textTag;
   return (

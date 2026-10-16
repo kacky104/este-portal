@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
-import { getBusinessDateJST, getScheduleWindowStatus } from '@/lib/dutyStatus';
+import { getScheduleWindowStatus } from '@/lib/dutyStatus';
 import { isNewFaceActive } from '@/lib/newFace';
 import { NewBadge } from '@/components/NewBadge';
 import { sanitizeBadges } from '@/lib/therapistBadges';
@@ -13,7 +13,7 @@ import { isImasuguLiveCamel, imasuguUntilCamel } from '@/lib/imasugu';
 import { useHydrated } from '@/lib/useHydrated';
 import { seededShuffle, thirtyMinSeed } from '@/lib/shuffle';
 import { ImpressionMark } from './ImpressionMark';
-import { THERAPIST_CARD_COLUMNS } from '@/lib/therapistColumns';
+import { loadTherapistFeed, runWhenIdle } from '@/app/lib/therapistFeed.client';
 import { buildDisplayHours as buildDisplayHoursShared } from '@/lib/scheduleFormat';
 
 const GRADIENTS = ['from-pink-300 to-rose-400', 'from-fuchsia-300 to-pink-400', 'from-rose-300 to-pink-500', 'from-pink-400 to-fuchsia-400'];
@@ -183,19 +183,18 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
   const [list, setList] = useState<TherapistItem[]>([]);
 
   useEffect(() => {
-    (async () => {
+    // ★ 第1524便: 取得は共有ローダー（lib/therapistFeed.client）に。店舗カード側（useSalonTherapists）と同じ結果を使う＝二重取得をやめる。
+    //   さらに初期描画が落ち着いてから投げる（runWhenIdle）。ヒーロー画像の描画と取り合わない。
+    let cancelled = false;
+    const cancelIdle = runWhenIdle(() => { void run(); });
+    async function run() {
       const supabase = createClient();
 
       // 地域ページ：そのエリアのサロン所属者のみに絞る（filterSalonIds 指定時）。未指定（トップ）は全件。
-      // salons!inner＋is_hidden=false で、非表示サロン所属のセラピストは公開表示から除外する。
-      let query = supabase
-        .from('therapists')
-        .select(THERAPIST_CARD_COLUMNS)
-        .eq('salons.is_hidden', false)
-        // ★ 非公開（is_active=false）は出さない（第216便の方針）。★ 本人ページは404なので、出すとリンク切れになる。
-        .eq('is_active', true);
-      if (filterSalonIds) query = query.in('salon_id', filterSalonIds);
-      const { data: therapistData } = await query;
+      // salons!inner＋is_hidden=false で、非表示サロン所属のセラピストは公開表示から除外する（ローダー側）。
+      const feed = await loadTherapistFeed(filterSalonIds ?? null);
+      if (cancelled) return;
+      const therapistData = feed.therapists;
 
       const salonIds = [...new Set(
         (therapistData ?? []).map(t => t.salon_id as number).filter(Boolean)
@@ -212,18 +211,7 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
         );
       }
 
-      const rawIds = (therapistData ?? []).map(t => t.id);
-      const today  = getBusinessDateJST();
-
-      let schedRows: Array<{ therapist_id: unknown; is_active: unknown; start_time: unknown; end_time: unknown }> = [];
-      if (rawIds.length > 0) {
-        const { data } = await supabase
-          .from('therapist_schedules')
-          .select('therapist_id, is_active, start_time, end_time')
-          .in('therapist_id', rawIds)
-          .eq('schedule_date', today);
-        schedRows = data ?? [];
-      }
+      const schedRows = feed.schedules;
 
       const schedMap: Record<number, TodaySchedule> = {};
       schedRows.forEach(row => {
@@ -285,8 +273,10 @@ export function TherapistScroller({ showAge = false, filterSalonIds, workingHref
         onDuty.filter(t => !isAvailableNowActive(t)),
         thirtyMinSeed(),
       ).sort((a, b) => (photo(a) - photo(b)) || (startMinutes(a) - startMinutes(b)));
+      if (cancelled) return;
       setList([...imasugu, ...rest]);
-    })();
+    }
+    return () => { cancelled = true; cancelIdle(); };
   }, [filterSalonIds?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (list.length === 0) {
