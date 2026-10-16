@@ -6,6 +6,8 @@ category: hatarakikata
 summary: メンズエステやマッサージの仕事をしたことがないこと。求人の「未経験歓迎」は、講習で一から教えるという意味。始めたばかりの時期の支え（保証・新人期間）があるかを確かめる。
 description: 未経験とは、メンズエステやマッサージの仕事をしたことがないこと。求人の「未経験歓迎」が何を意味するか、始めるまでの流れ、最初の1か月の支えの見方、面接で確かめることを、はじめての人の目線で解説します。
 publishedAt: 2026-10-08
+heroImage: /work-glossary/mikeiken/hero.webp
+heroAlt: 明るい講習の部屋で、ミント色の制服の新人セラピストが施術ベッドの上でタオルをたたみ、紺の制服の先輩が手を添えて笑顔で教えている様子を、横から近くで
 related: [koshu, taiken-nyuten, hosho, mensetsu, yoshi-fumon]
 faq:
   - q: マッサージの資格がなくても働けますか？

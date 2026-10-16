@@ -6,6 +6,8 @@ category: kyuyo
 summary: 出勤したのに、その日お客様が1人もつかないこと。歩合で働くとお給料が0円になることもあるので、保証や待機の決まりを先に確かめておく。
 description: お茶引きとは、出勤したのにお客様が1人もつかないこと。起きやすい日や時間、お給料はどうなるか、保証との関係、減らすための工夫と、求人で確かめることを、メンズエステで働く前に知りたい目線で解説します。
 publishedAt: 2026-10-15
+heroImage: /work-glossary/ochahiki/hero.webp
+heroAlt: 雨の降る窓と壁の時計がある待機室で、薄紫の制服のセラピストがソファに座り、お茶を横に置いて落ち着いた表情でスマホに文字を打っている様子を、右前から
 related: [hosho, taiki, buai, jiyu-shukkin, shame-nikki]
 faq:
   - q: お茶引きの日は、お給料はどうなりますか？

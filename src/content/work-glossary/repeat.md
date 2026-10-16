@@ -6,6 +6,8 @@ category: hatarakikata
 summary: 一度担当したお客様が、もう一度来てくれること。本指名につながりやすく、お給料が安定するいちばんの近道。ていねいな施術と、また会いたくなる接客が決め手になる。
 description: リピートとは、一度担当したお客様がもう一度来てくれること。本指名との違い、リピートが増えると何が変わるか、つながりやすい接客のポイント、気をつけたいことを、メンズエステで働く人の目線で解説します。
 publishedAt: 2026-10-13
+heroImage: /work-glossary/repeat/hero.webp
+heroAlt: 明るい廊下の奥から見た玄関で、ベージュの制服のセラピストがにこやかにおじぎをし、手を振って出ていくお客様の後ろ姿を見送っている様子を、広めに
 related: [free-hon-shimei, shimei-back, shame-nikki, ng-koi]
 faq:
   - q: リピートと本指名は、同じ意味ですか？
