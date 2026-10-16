@@ -25,6 +25,7 @@ import { dbMessage } from '@/app/lib/crm/dbError';
 import { headers } from 'next/headers';
 import { businessDateNowJST } from '@/app/lib/crm/consentMatch';
 import { pointsYenByBooking, pointsYenBySalon } from '@/app/lib/points/server';
+import { crmBookingOrdinals } from '@/lib/crmBookingOrdinal';
 // ★ 第1325便: グループ・提携店で共有するNG・要注意リスト（受付・スケジュールに出す）
 import { crmGroupHitsForSalon, crmGroupTableMissing } from '@/app/lib/crm/groupAlerts';
 // ★ 第1328便: 画面での申込み・承認（「グループ共有」のタブを出すか・赤い印を付けるか）
@@ -230,6 +231,38 @@ async function statsFor(svc: Svc, salonId: number, ids: number[]): Promise<Map<n
     }
   }
   return out;
+}
+
+/**
+ * ★ 第1514便（2026-10-16・ラビリンス様のご要望）: 予約ID → そのお客様の何件目の予約か（キャンセル込み・入れた順）。
+ *   ・数え方は src/lib/crmBookingOrdinal.ts。状態（キャンセル）・日時の過ぎた/まだ は見ない。
+ *   ・★ 台帳の「利用◯回」（crm_customer_stats＝来店回数）は変えない。
+ *   ・読めなければ null（カードに「新規／◯回目」を出さない＝間違った数字を出さない）。
+ */
+async function bookingOrdinalsFor(svc: Svc, salonId: number, customerIds: number[]): Promise<Map<string, number> | null> {
+  if (customerIds.length === 0) return new Map();
+  try {
+    const rows: Array<{ id: string; customerId: number | null; createdAt: string }> = [];
+    for (let i = 0; i < customerIds.length; i += 200) {
+      const { data, error } = await svc
+        .from('salon_bookings')
+        .select('id, customer_id, created_at')
+        .eq('salon_id', salonId)
+        .in('customer_id', customerIds.slice(i, i + 200))
+        .limit(20000);
+      if (error) {
+        console.error('[crm] 予約の何件目を読めなかった', salonId, error.message);
+        return null;
+      }
+      for (const r of data ?? []) {
+        rows.push({ id: String(r.id), customerId: r.customer_id == null ? null : Number(r.customer_id), createdAt: String(r.created_at) });
+      }
+    }
+    return crmBookingOrdinals(rows);
+  } catch (e) {
+    console.error('[crm] 予約の何件目を読めなかった', salonId, e instanceof Error ? e.message : String(e));
+    return null;
+  }
 }
 
 async function phonesFor(svc: Svc, ids: number[]): Promise<Map<number, string[]>> {
@@ -760,9 +793,11 @@ export async function getCrmSchedule(
     readConecfGirlOrder(svc, salonId),
     // ★ 第1454便: 予約ごとのフクエスポイントの利用額（円）。★ 読めなければ空（ここで投げない）。会員・残高は読まない
     pointsYenByBooking(svc, bookingIds.map(String)),
+    // ★ 第1514便: 予約カードの「新規／◯回目」。★ 読めなければ null＝カードに出さない（ここで投げない）
+    bookingOrdinalsFor(svc, salonId, customerIds),
   ]).catch((e: unknown) => readFail(e));
   if (!Array.isArray(reads)) return reads;
-  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits, therapistOrder, pointsYen] = reads;
+  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits, therapistOrder, pointsYen, ordinals] = reads;
 
   const consentAt = new Map<string, string>();
   for (const c of consentRows) consentAt.set(String(c.booking_id), String(c.created_at));
@@ -826,6 +861,7 @@ export async function getCrmSchedule(
           consentAt: consentAt.get(String(b.id)) ?? null,
           groupHits: groupHits.byPhone.get(normalizePhone(String(b.customerTel ?? ''))) ?? [],
           pointsYen: pointsYen.get(String(b.id)) ?? 0,
+          ordinal: e?.customerId != null && ordinals ? ordinals.get(String(b.id)) ?? null : null,
         };
       }),
   };

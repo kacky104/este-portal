@@ -130,6 +130,7 @@
     "check:points": "tsc src/lib/points.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/points-selftest.js",
     "check:crmhost": "tsc src/lib/crmHost.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmhost-selftest.js",
     "check:ga": "tsc src/lib/ga.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/ga-selftest.js",
+    "check:crmordinal": "tsc src/lib/crmBookingOrdinal.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmordinal-selftest.js",
     "check:crmgroup": "tsc src/lib/crmGroup.ts src/lib/crmGroupApply.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/crmgroup-selftest.js",
     "check:vpswatch": "tsc src/lib/vpsWatch.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/vpswatch-selftest.js",
     "check:stalldigest": "tsc src/lib/stallDigest.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/stalldigest-selftest.js",

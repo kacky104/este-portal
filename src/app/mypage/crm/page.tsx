@@ -95,6 +95,7 @@ import { GroupHitBand } from './GroupShare';
 import { CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_BADGE_LABEL, crmGroupBadge, type CrmGroupHit } from '@/lib/crmGroup';
 import { shiftRangeText, shiftNextDayMarks } from '@/lib/scheduleFormat';
 import { manualOrderRank } from '@/lib/therapistOrder';
+import { crmOrdinalLabel } from '@/lib/crmBookingOrdinal';
 
 // フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
 //
@@ -1142,6 +1143,8 @@ function BookingCard({
         })()}
         {/* ★ 「一般」は出さない（枠の場所をとるため・2026-09-19 カッキーさんの指示）。会員・常連・VIP・NG だけ */}
         {c && c.category !== 'general' && <span className={`border px-1 text-[10px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>}
+        {/* ★ 第1514便: 1件目の予約（キャンセル込み・入れた順）は「新規」。紫＝ほかのバッジと色を重ねない */}
+        {b.ordinal === 1 && <span className="flex-none bg-violet-600 px-1 text-[10px] font-bold text-white">新規</span>}
         <span className="truncate font-bold">{c?.name || b.customerName || '(名前なし)'}</span>
       </p>
       <p className="flex items-center gap-1 truncate text-[11px]">
@@ -1150,7 +1153,8 @@ function BookingCard({
         {/* ★ 第1325便: グループ・提携店の共有リストに当たった印（★ 出した店の名前は出さない。受けるかは店が決める） */}
         {groupBadge && <span className={groupBadge === 'ng' ? 'flex-none bg-rose-700 px-1 font-bold text-white' : 'flex-none bg-amber-400 px-1 font-bold text-slate-900'}>{CRM_GROUP_BADGE_LABEL[groupBadge]}</span>}
         {b.priceTotal != null && <span className="font-bold text-slate-700">{yen(b.priceTotal)}</span>}
-        {c && <span className="text-slate-500">利用{c.stats.visits}</span>}
+        {/* ★ 第1514便: 「利用◯」（来店回数）→「◯回目」（キャンセル込みの予約の順番）。1件目は上の「新規」。台帳の利用◯回は来店回数のまま */}
+        {b.ordinal != null && b.ordinal > 1 && <span className="text-slate-500">{crmOrdinalLabel(b.ordinal)}</span>}
         <span className="truncate text-slate-500">{b.courseName}</span>
       </p>
     </button>
