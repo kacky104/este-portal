@@ -183,8 +183,8 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
       >
         {moreImageUrl ? (
           // ★ 画像は文字入りで作る前提。★ こちらからは何も重ねない（第218便）。
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={moreImageUrl} alt="一覧を見る" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+          // ★ 第1522便: 素の <img> → next/image（原寸 1000×1448 を 116×169・2x に縮める。PageSpeed 指摘）
+          <Image src={moreImageUrl} alt="一覧を見る" width={116} height={169} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <>
             <div className="w-10 h-10 rounded-full bg-white/70 flex items-center justify-center shadow-sm">

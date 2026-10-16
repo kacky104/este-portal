@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import type { SalonNewsItem } from '@/app/lib/salonNews';
 // 名前・タイトルの1行自動縮小フィット。fukuX用に作った共通コンポーネントだが中身はサイト非依存なので流用。
 import { AutoFitName } from '@/app/x/AutoFitName';
@@ -36,8 +37,8 @@ export function SalonNewsList({ items }: { items: SalonNewsItem[] }) {
             {/* サムネイル（角90度・画像なしはフクエスのロゴ）。行の上下余白は py-[3px]（従来py-2.5=10pxの約1/3）。 */}
             <span className="w-12 h-12 overflow-hidden bg-white flex items-center justify-center flex-shrink-0">
               {n.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={n.imageUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                // ★ 第1522便: 素の <img> だと原寸（300KB 超）を 48px に流していた（PageSpeed 指摘）。next/image で 96px（2x）に縮める。
+                <Image src={n.imageUrl} alt="" width={96} height={96} className="w-full h-full object-cover" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src="/logo.png" alt="" className="w-8 h-8 object-contain" loading="lazy" />

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { ReviewBonusNote } from './ReviewBonusNote';
 import type { ApprovedReview } from '@/app/lib/reviews';
 import { Stars } from './Stars';
@@ -50,8 +51,9 @@ function ReviewMiniCard({
         <div className="flex items-center gap-2 mb-1.5">
           <span className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-pink-300 to-rose-400 flex items-center justify-center">
             {r.therapistImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={r.therapistImage} alt={r.therapistName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+              // ★ 第1522便: 素の <img> だと Supabase の原寸（PNG 1MB 超）を 28px の丸に流していた（PageSpeed 指摘）。
+              //   next/image で 56px（2x）に縮める。固定サイズなので width/height 指定＝srcset 2本（第1078便と同じ形）。
+              <Image src={r.therapistImage} alt={r.therapistName} width={56} height={56} className="w-full h-full object-cover" />
             ) : (
               <span className="text-white text-xs font-bold">{r.therapistName.charAt(0)}</span>
             )}

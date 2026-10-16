@@ -162,8 +162,8 @@ export function MoreCard({ href, imageUrl, className = 'w-[105px] h-[153px]' }: 
         // ★ 画像は文字入りで作る前提。★ こちらからは矢印も「一覧を見る」も重ねない（2026-09-08・カッキーさんの指示）。
         // ★ 第1084便: loading="lazy" を付ける。React は lazy でない <img> を SSR 時に自動で <link rel=preload> にする（先頭10枚）ため、
         //   付けないと生の Supabase URL が hero より先に preload され、LCP の帯域を食う。
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="一覧を見る" loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+        // ★ 第1522便: 素の <img> → next/image（原寸 1000×1448 を 176×256・2x に縮める。PageSpeed 指摘）。next/image は既定で lazy なので preload の件はそのまま解決。
+        <Image src={imageUrl} alt="一覧を見る" width={176} height={256} className="absolute inset-0 w-full h-full object-cover" />
       ) : (
         <>
           <span className="relative flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20">
