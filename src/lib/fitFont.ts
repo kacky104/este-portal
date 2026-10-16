@@ -34,8 +34,12 @@ export function batchLayout(p: Pass): void {
   queue.push(p);
   if (!scheduled) {
     scheduled = true;
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(flush);
-    else setTimeout(flush, 0);
+    // ★ rAF が止まる場面（裏タブ・画面外の埋め込み・プリレンダー）でも必ず進むよう、短い setTimeout を保険に付ける。
+    //   先に来た方が flush し、もう一方は何もしない（scheduled=false で queue も空）。
+    let fired = false;
+    const once = () => { if (fired) return; fired = true; flush(); };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(once);
+    setTimeout(once, 60);
   }
 }
 
