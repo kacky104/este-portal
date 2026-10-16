@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Logo } from '@/app/components/Logo';
 import { ShuffledSalons, AreaLinkTabsBlock } from "./components/ShuffledSalons";
 import { TherapistScroller } from "./components/TherapistScroller";
@@ -335,6 +336,11 @@ export default async function Home() {
         )}
 
         {/* ─── Today's therapists ──────────────────────────────── */}
+        {/* ★ 第1526便: <Suspense> で区切る（PageSpeed: LCP の「要素のレンダリング遅延 2秒」＝初期 HTML 4,000 要素の hydration が
+            1 本の長いタスクになって、ヒーロー画像の描画まで止めていた）。中身は SSR 済みで何も suspend しないので fallback は出ない。
+            React は Suspense の境界ごとに hydration を別タスクに分け、間でブラウザに描画の機会を渡す（selective hydration）。
+            ★ 境界の外（ヘッダー・ヒーロー画像・エリアタブ）が先に hydrate され、下の重い区画は後回しになる。 */}
+        <Suspense fallback={null}>
         <section className="pt-5 pb-[5px] sm:pt-10 sm:pb-5 bg-white border-t border-pink-50">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex items-center justify-between mb-1.5">
@@ -368,9 +374,12 @@ export default async function Home() {
             <TherapistScroller showAge bleedMobile largeMobile moreImageUrl={moreCardImage} />
           </div>
         </section>
+        </Suspense>
 
         {/* ─── Salon list ──────────────────────────────────────── */}
         {/* 上余白はタイトルバナー圧縮に合わせて半分（pt-4→pt-2）。 */}
+        {/* ★ 第1526便: 店舗カード一覧も <Suspense> で区切る（上の出勤中の帯と同じ理由・いちばん大きい区画） */}
+        <Suspense fallback={null}>
         <section id="salons" className="pt-2 pb-12">
           {/* スマホは左右余白を px-4(16px)→px-1(4px) に詰めてカードを幅広に。PC(lg)は従来の16pxのまま。 */}
           <div className="max-w-5xl mx-auto px-1 lg:px-4">
@@ -556,6 +565,7 @@ export default async function Home() {
             </section>
           </div>
         </section>
+        </Suspense>
       </main>
 
       {/* ─── Footer ─────────────────────────────────────────── */}
