@@ -13,6 +13,11 @@ const SITE_TITLE = "福岡メンズエステ情報・口コミポータルサイ
 const SITE_DESCRIPTION =
   "福岡メンズエステ情報・口コミポータルサイト『フクエス』。博多・天神・北九州・久留米など福岡全域から、口コミ評価の高い人気店舗をご紹介。あなたとお店をマッチングします。";
 const SITE_URL = "https://fukues.com";
+// ★ 第1523便: Supabase（画像・API の取得先）へ事前接続（PageSpeed「事前接続の候補」・推定 LCP 300ms 短縮）。
+//   ヒーロー画像は /_next/image 経由だが、サムネ・API は直接 supabase.co へ行くので接続を先に張っておく。
+const SUPABASE_ORIGIN = (() => {
+  try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').origin; } catch { return null; }
+})();
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -53,6 +58,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja" className="h-full antialiased">
+      <head>
+        {SUPABASE_ORIGIN && <link rel="preconnect" href={SUPABASE_ORIGIN} crossOrigin="anonymous" />}
+        {SUPABASE_ORIGIN && <link rel="preconnect" href={SUPABASE_ORIGIN} />}
+      </head>
       <body className="min-h-full flex flex-col">
         <SaveStoreInit />
         <Wallpaper />

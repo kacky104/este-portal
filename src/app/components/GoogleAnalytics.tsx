@@ -41,12 +41,14 @@ export default function GoogleAnalytics() {
 
   return (
     <>
-      <Script id="ga4-init" strategy="afterInteractive">
+      {/* ★ 第1523便: afterInteractive → lazyOnload（PageSpeed: gtag 176KB が TBT の長時間タスク 2 件・CPU 300ms）。
+          ページの読み込みが終わってから読む。計測の中身は同じ（ページビューは gtag が読まれた時点で送られる）。 */}
+      <Script id="ga4-init" strategy="lazyOnload">
         {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GA_ID}'${config});`}
       </Script>
       <Script
         id="ga4-src"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
       />
     </>
