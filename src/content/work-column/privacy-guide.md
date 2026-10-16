@@ -78,7 +78,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 - 「辞めたあと、写真やプロフィールはいつ消してもらえますか？」
 - 「提出した身分証のコピーは、どのように保管されていますか？」
 
-遠慮せずに聞いて大丈夫です。面接の受け答えは[面接でよく聞かれる質問](/jobs/column/interview-questions-guide)も参考になります。
+遠慮せずに聞いて大丈夫です。実際に辞めるときの流れは[辞め方ガイド](/jobs/column/quit-guide)にまとめています。面接の受け答えは[面接でよく聞かれる質問](/jobs/column/interview-questions-guide)も参考になります。
 
 ## よくある質問
 
