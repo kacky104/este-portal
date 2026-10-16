@@ -3,7 +3,7 @@ slug: quit-guide
 title: メンズエステの辞め方ガイド｜お店への伝え方・タイミング・移籍するときの注意点
 category: work-guide
 excerpt: メンズエステのお店を辞めたいけれど、どう切り出せばいいか分からない。そんな人へ、辞める前に確かめること、伝えるタイミングと伝え方の例、引き止められたときの答え方、写真や名前の掲載の止め方、お店を移るときの注意点、トラブルの相談先までまとめました。
-publishedAt: 2026-10-16
+publishedAt: 2026-10-05
 heroImage: /work-column/quit-guide/hero.webp
 ---
 

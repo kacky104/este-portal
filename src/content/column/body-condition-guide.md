@@ -3,7 +3,7 @@ slug: body-condition-guide
 title: 体調や体の悩みがあるときのメンズエステ｜受けてもいい？控える？伝え方ガイド
 category: beginner
 excerpt: 風邪ぎみ、肌が弱い、腰や首が気になる、くすぐったがり。体調や体の悩みがあるとき、メンズエステを受けてもいいのか迷う方へ。控えたほうがよいとき、伝えれば受けやすくなること、予約と当日の伝え方の例をまとめました。
-publishedAt: 2026-10-16
+publishedAt: 2026-10-14
 heroImage: /column/body-condition-guide/hero.webp
 ---
 

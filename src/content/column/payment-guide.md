@@ -3,7 +3,7 @@ slug: payment-guide
 title: メンズエステの支払い方法ガイド｜現金・カード・電子決済と支払いのタイミング
 category: howto
 excerpt: メンズエステの支払いは、現金だけのお店もあれば、カードや電子決済が使えるお店もあります。主な支払い方法の特徴と注意点、前払い・後払いの違い、総額の出し方、領収書のことまで、当日に慌てないためのポイントをまとめました。
-publishedAt: 2026-10-16
+publishedAt: 2026-10-07
 heroImage: /column/payment-guide/hero.webp
 ---
 

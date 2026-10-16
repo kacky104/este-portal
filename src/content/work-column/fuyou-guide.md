@@ -3,7 +3,7 @@ slug: fuyou-guide
 title: メンズエステで働くと扶養はどうなる？年収の壁・税金・健康保険の基礎知識
 category: money
 excerpt: 家族の扶養に入ったままメンズエステで働けるのか、いくらまでなら大丈夫なのか。業務委託の収入と「年収の壁」の関係、税金の扶養と健康保険の扶養の違い、2026年分からの変更点、扶養を外れたときの手続きまで、基礎を分かりやすくまとめました。
-publishedAt: 2026-10-16
+publishedAt: 2026-10-12
 heroImage: /work-column/fuyou-guide/hero.webp
 ---
 
