@@ -21,11 +21,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { checkRefresh, charCount } from '../src/lib/columnRefreshGuard.ts';
 
-// 使うモデル。
-// ※ 指示書のモデル名「claude-sonnet-5-5」は Claude のモデル一覧に存在しない（現行の Sonnet は
-//   claude-sonnet-4-6）。ここでは実在する現行 Sonnet を既定にし、環境変数で差し替えられるようにした。
-//   本当に別のモデル名で動かしたいときは ANTHROPIC_MODEL で上書きする。
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
+// 使うモデル（カッキーさん指定）。別モデルで動かすときは環境変数 ANTHROPIC_MODEL で上書きする。
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
