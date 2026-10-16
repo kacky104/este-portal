@@ -21,7 +21,7 @@ heroImage: https://efjrpanojfahqjwqpagg.supabase.co/storage/v1/object/public/wor
 - お迎えからお見送りまでの接客の流れ
 - お店のルールや[NG行為](/jobs/glossary/ng-koi)の線引き
 
-研修の時間や回数はお店によって違うので、面接で確認しておくと安心です。くわしくは[研修・講習ガイド](/jobs/column/training-guide)をどうぞ。
+研修の時間や回数はお店によって違うので、面接で確認しておくと安心です。くわしくは[研修・講習ガイド](/jobs/column/training-guide)をどうぞ。「未経験歓迎」の見方は用語集の[未経験](/jobs/glossary/mikeiken)にまとめています。
 
 ## Q. 年齢は関係ありますか？
 
