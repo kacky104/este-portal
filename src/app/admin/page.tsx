@@ -452,7 +452,7 @@ export default function AdminDashboard() {
           <AdminNavList selected={selectedSection} onSelect={selectSection} badges={navBadges} redBadges={NAV_RED_BADGES} />
         </aside>
 
-      <main className="flex-1 min-w-0 max-w-5xl mx-auto px-4 py-6">
+      <main className="flex-1 min-w-0 max-w-7xl mx-auto px-4 lg:px-6 py-6">
 
         {/* ══════════ 本体タブ ══════════ */}
         <div className={`${activeTab === 'main' ? '' : 'hidden'}`}>
@@ -538,7 +538,7 @@ export default function AdminDashboard() {
           </AccordionSection>
 
           {/* ── 無料掲載枠（/salons のテキスト行）管理 ── */}
-          <AccordionSection id="free-salon-listings" title="テキスト掲載（/salons の店名・電話のみ）" expanded={expandedSections} onToggle={toggleSection}>
+          <AccordionSection id="free-salon-listings" title="無料掲載（/salons の店名・電話のみ）" expanded={expandedSections} onToggle={toggleSection}>
             <FreeSalonListingsManager onToast={showToast} />
           </AccordionSection>
 
@@ -753,8 +753,8 @@ export default function AdminDashboard() {
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">状態</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">料金</th>
                     <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 w-16">評価</th>
-                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400">オーナーUUID</th>
-                    <th className="px-4 py-3 w-44" />
+                    <th className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 whitespace-nowrap">オーナー</th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
@@ -764,7 +764,7 @@ export default function AdminDashboard() {
                       className={`border-b border-slate-100 hover:bg-pink-50/20 transition-colors ${salon.is_hidden ? 'opacity-50' : i % 2 === 0 ? '' : 'bg-slate-50/30'}`}
                     >
                       <td className="px-4 py-3 text-xs text-slate-500 font-mono">{salon.id}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-slate-800">
+                      <td className="px-4 py-3 text-xs font-bold text-slate-800 whitespace-nowrap">
                         <span className="align-middle">{salon.name ?? '—'}</span>
                         {salon.listing_plan === 'free' && (
                           <span className="ml-1.5 align-middle text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 border border-sky-200 font-bold">無料</span>
@@ -775,13 +775,13 @@ export default function AdminDashboard() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-100 font-medium">
                           {salon.area ? areaLabel(salon.area) + (salon.area2 ? ` / ${areaLabel(salon.area2)}` : '') : '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-nowrap gap-1 whitespace-nowrap">
                           {salon.is_hidden && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 border border-rose-200 font-bold">非表示中</span>
                           )}
@@ -801,15 +801,25 @@ export default function AdminDashboard() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs text-slate-600">{salon.price ?? '—'}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-pink-600">
+                      <td className="px-4 py-3 text-xs text-slate-600 whitespace-nowrap">{salon.price ?? '—'}</td>
+                      <td className="px-4 py-3 text-xs font-bold text-pink-600 whitespace-nowrap">
                         {salon.rating != null ? `★${salon.rating}` : '—'}
                       </td>
-                      <td className="px-4 py-3 text-[10px] text-slate-400 font-mono break-all">
-                        {salon.owner_id ?? <span className="text-slate-300">未設定</span>}
+                      {/* ★ 第1541便: UUID は頭の8文字だけ（押すと全部コピー）。★ 36文字を出すと列が太って行が数行に折れていた */}
+                      <td className="px-4 py-3 text-[11px] text-slate-400 font-mono whitespace-nowrap">
+                        {salon.owner_id ? (
+                          <button
+                            type="button"
+                            title={`${salon.owner_id}（押すとコピー）`}
+                            onClick={() => { void navigator.clipboard?.writeText(salon.owner_id ?? '').then(() => showToast('オーナーUUIDをコピーしました')); }}
+                            className="hover:text-pink-600 underline decoration-dotted underline-offset-2"
+                          >
+                            {salon.owner_id.slice(0, 8)}…
+                          </button>
+                        ) : <span className="text-slate-300">未設定</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                           <button
                             onClick={() => handleToggleHidden(salon)}
                             disabled={hidingId === salon.id}

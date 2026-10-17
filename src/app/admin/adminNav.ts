@@ -24,7 +24,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { id: 'listing-inquiries', label: '掲載お問い合わせ' },
       { id: 'salon-intakes', label: '新規店舗 入力フォーム発行' },
-      { id: 'free-salon-listings', label: 'テキスト掲載' },
+      { id: 'free-salon-listings', label: '無料掲載' },
       { id: 'add-salon', label: '新規店舗追加' },
       { id: 'import-sources', label: 'フクエスリンク：駅ちか店舗ページ' },
       { id: 'crm-groups', label: 'CRM：グループ・提携店' },
