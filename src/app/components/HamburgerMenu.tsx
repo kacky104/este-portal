@@ -98,7 +98,9 @@ export function HamburgerMenu({ items = ITEMS, tone = 'pink' }: { items?: MenuIt
 
           {/* 右側からスライドインするドロワー（角は直角・背景は白） */}
           <div
-            role="menu"
+            // ★ 第1528便: role="menu" は子が menuitem でないと不正（PageSpeed ユーザー補助）。中身は nav＋リンクなので dialog
+            role="dialog"
+            aria-modal="true"
             aria-label="メニュー"
             className={`fixed top-0 right-0 z-[110] h-full w-64 max-w-[80vw] bg-white shadow-2xl border-l border-slate-200 transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
           >

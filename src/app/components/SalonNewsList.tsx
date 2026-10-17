@@ -48,13 +48,13 @@ export function SalonNewsList({ items }: { items: SalonNewsItem[] }) {
             <div className="min-w-0 flex-1">
               {/* 1段目: 日付（固定）＋サロン名（11→8pxの1行フィット）＋NEW!!（縮めない・after配置） */}
               <div className="flex items-center gap-2 text-[11px] leading-none">
-                <span className="text-slate-400 flex-shrink-0">{formatShortDate(n.publishedAt)}</span>
+                <span className="text-slate-500 flex-shrink-0">{formatShortDate(n.publishedAt)}</span>
                 <AutoFitName
                   name={n.salonName}
                   max={11}
                   min={8}
                   className="gap-2"
-                  textClassName="font-bold text-pink-500 leading-none"
+                  textClassName="font-bold text-pink-600 leading-none"
                   after={
                     isNew ? (
                       <span className="flex-shrink-0 text-[9px] font-black text-white bg-gradient-to-r from-pink-500 to-rose-500 rounded-full px-1.5 py-0.5 leading-none">

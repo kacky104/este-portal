@@ -31,7 +31,7 @@ function Star({ fill, size }: { fill: number; size: number }) {
 export function Stars({ value, size = 16 }: { value: number; size?: number }) {
   const v = Number.isFinite(value) ? value : 0;
   return (
-    <span className="inline-flex items-center gap-0.5" aria-label={`5段階中 ${v} の評価`}>
+    <span role="img" className="inline-flex items-center gap-0.5" aria-label={`5段階中 ${v} の評価`}>
       {[0, 1, 2, 3, 4].map((i) => (
         <Star key={i} fill={v - i} size={size} />
       ))}

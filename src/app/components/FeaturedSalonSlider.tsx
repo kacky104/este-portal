@@ -128,7 +128,7 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
 
                 {/* PICKUP badge */}
-                <span className="absolute top-4 left-4 text-[11px] font-black text-white bg-pink-500 px-3 py-1 rounded-full shadow-lg tracking-wide">
+                <span className="absolute top-4 left-4 text-[11px] font-black text-white bg-pink-600 px-3 py-1 rounded-full shadow-lg tracking-wide">
                   ✦ PICKUP
                 </span>
 
@@ -207,18 +207,23 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
 
       {/* ── Dot indicators ─────────────────────────────────── */}
       {displaySalons.length > 1 && (
-        <div className="flex justify-center items-center gap-2 mt-3">
+        <div className="flex justify-center items-center gap-0 mt-3">
           {displaySalons.map((_, i) => (
             <button
               key={i}
               onClick={() => setCurrent(i)}
-              className={`transition-all duration-300 rounded-full ${
-                i === current
-                  ? 'w-6 h-2 bg-pink-500'
-                  : 'w-2 h-2 bg-slate-300 hover:bg-pink-300'
-              }`}
+              // ★ 第1528便: タップの当たり判定を 24×24 に（PageSpeed ユーザー補助「タップターゲット」。見える点は中の span のまま 8px）
+              className="group flex items-center justify-center w-6 h-6"
               aria-label={`スライド${i + 1}へ`}
-            />
+            >
+              <span
+                className={`block transition-all duration-300 rounded-full ${
+                  i === current
+                    ? 'w-6 h-2 bg-pink-500'
+                    : 'w-2 h-2 bg-slate-300 group-hover:bg-pink-300'
+                }`}
+              />
+            </button>
           ))}
         </div>
       )}

@@ -296,7 +296,7 @@ export default async function Home() {
                   <h2 className="text-xl font-bold text-slate-600 leading-none flex items-center gap-2.5">
                     店舗新着情報
                   </h2>
-                  <Link href="/news" className="text-xs font-bold text-pink-600 flex-shrink-0 hover:opacity-80 transition-opacity">
+                  <Link href="/news" className="text-xs font-bold text-pink-700 flex-shrink-0 hover:opacity-80 transition-opacity">
                     もっと見る →
                   </Link>
                 </div>
@@ -345,9 +345,9 @@ export default async function Home() {
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 whitespace-nowrap">現在出勤中のセラピスト</h2>
                 <div className="flex items-baseline gap-0.5 flex-shrink-0">
-                  <span className="text-[11px] sm:text-[13px]" style={{ color: '#ec4899', fontWeight: 600 }}>本日出勤総数</span>
+                  <span className="text-[11px] sm:text-[13px]" style={{ color: '#db2777', fontWeight: 600 }}>本日出勤総数</span>
                   <span className="text-base sm:text-lg" style={{ background: 'linear-gradient(to right, #ec4899, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700 }}>{todayTherapistCount}</span>
-                  <span className="text-[11px] sm:text-[13px]" style={{ color: '#ec4899', fontWeight: 600 }}>人</span>
+                  <span className="text-[11px] sm:text-[13px]" style={{ color: '#db2777', fontWeight: 600 }}>人</span>
                 </div>
               </div>
               {/* デスクトップのみ：タイトル行の右端に「一覧を見る →」 */}
