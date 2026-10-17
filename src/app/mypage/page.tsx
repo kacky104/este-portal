@@ -965,6 +965,8 @@ export default function MyPage() {
   const [newTherapistName, setNewTherapistName] = useState('');
   // ★ 第398便（コネックエフ 1c・案B）: コネックエフを使う店は、セラピストの追加をコネックエフで行う
   const [conecfOn, setConecfOn] = useState(false);
+  // ★ 第1537便: conecfOn を読み終えたか（フクエスリンクのバナーを、切り替え済みの店で一瞬出さないため）
+  const [conecfLoaded, setConecfLoaded] = useState(false);
   // ★ 第1145便: フクエスCRM を契約している店か（crm_until が今日以降）。★ 未契約の店はバナーの行き先を「ご案内」（ログイン不要）にする
   const [crmOn, setCrmOn] = useState(false);
   // ★ 第889便: 追加した直後のセラピスト（招待の小窓を開く）
@@ -1244,6 +1246,7 @@ export default function MyPage() {
         .then(({ data }) => {
           const row = data as { conecf_enabled_at?: string | null; crm_until?: string | null } | null;
           setConecfOn(!!row?.conecf_enabled_at);
+          setConecfLoaded(true);
           // ★ 第1145便: 判定は actions/crm.ts の isCrmActive と同じ（crm_until の日付が今日（JST）以降）
           setCrmOn(!!row?.crm_until && String(row.crm_until).slice(0, 10) >= getCalendarDateJST());
         });
@@ -3130,7 +3133,9 @@ export default function MyPage() {
   //   ★ 第852便: 使っていないお店（mediaInUse === false）はご案内ページ /mypage/media/intro へ。
   // ★★ 第1439便（2026-10-13・カッキーさん）: サイドバーのフクエスリンクのバナーは、アロマメイ様（12）・オイルクエスト様（5）にだけ出す。
   //   ★ ほかのお店には出さない（/mypage/media・ご案内ページ自体は残す＝URL を直接開けば今までどおり）。★ 出す店を増やすときはここに番号を足す。
-  const mediaBannerOn = MEDIA_BANNER_SALON_IDS.includes(Number(salon?.id));
+  // ★★ 第1537便（2026-10-17・カッキーさん）: コネックエフに切り替えたら（salons.conecf_enabled_at あり）バナーを出さない。
+  //   ★ 運営が手順の SQL で切り替えを外せば（フクエスリンクに戻す）また出る。★ 読み終えるまでは出さない（切り替え済みの店で一瞬見えないように）。
+  const mediaBannerOn = MEDIA_BANNER_SALON_IDS.includes(Number(salon?.id)) && conecfLoaded && !conecfOn;
   const renderMediaLink = (pc: boolean) => (
     <SidebarBanner
       pc={pc}
