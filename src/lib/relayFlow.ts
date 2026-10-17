@@ -663,6 +663,13 @@ export type RelayFlowContext = {
   /** ★ 送った組と変わる欄（★ 照合に使う） */
   editPlan?: EditPlan;
   /**
+   * ★ 第1548便: プロフィールを送った直後の駅ちかの応答（★ 保存を断ったときの理由を記録に残すため）。
+   *   ★ ラビリンス様のみさきさんで、10欄とも保存されず理由が分からなかった（2026-10-17）。
+   */
+  editPostStatus?: number;
+  editPostLocation?: string;
+  editPostMessage?: string | null;
+  /**
    * ★★ 第420便: まとめて更新の残り（★ 1回のログインで順に回す）。★ 1人終わるたびに先頭を取り出す
    *   ★ 1人が止まっても次の人へ進む。★ ログイン・セッション切れは全体を止める
    */
@@ -1482,7 +1489,7 @@ function advanceQueueOrEnd(
           context: {
             ...ctx, cookie,
             editCastId: String(head.castId), editName: head.name, editValues: head.values,
-            editStage: undefined, editPlan: undefined, editQueue: rest,
+            editStage: undefined, editPlan: undefined, editQueue: rest, editPostStatus: undefined, editPostLocation: undefined, editPostMessage: undefined,
             // ★★ 第421便: 前の人の写真の道を持ち越さない
             editTherapistId: head.therapistId, editPhotos: head.photos, editPhotoSkipped: head.photoSkipped,
             photoSync: undefined, photoSyncOps: undefined, photoSyncCur: undefined, photoRemoved: undefined, photoPut: undefined, photoKept: undefined,
@@ -4638,7 +4645,13 @@ function afterGirlEditForm(
         note: '読み直して ' + v.ok + ' 欄とも変わっていた',
       };
     }
-    return stop([{ event: 'edit_girl', outcome: 'failed', summary: who + 'さんの駅ちかのプロフィールで、変わっていない欄がありました（' + v.ng.join('・').slice(0, 80) + '）', detail: { castId, ok: v.ok, ng: v.ng.length, hint: (v.hints[0] ?? '').slice(0, 110), flowId } }], '読み直したら変わっていない欄があった: ' + v.hints.join(' ／ '));
+    return stop([{ event: 'edit_girl', outcome: 'failed', summary: who + 'さんの駅ちかのプロフィールで、変わっていない欄がありました（' + v.ng.join('・').slice(0, 80) + '）', detail: {
+      castId, ok: v.ok, ng: v.ng.length, hint: (v.hints[0] ?? '').slice(0, 110), flowId,
+      // ★ 第1548便: 駅ちかが送った直後に返したもの（保存を断った理由の手がかり）と、送った欄の名前
+      postStatus: ctx.editPostStatus ?? null, postLocation: ctx.editPostLocation ?? null,
+      postMessage: (ctx.editPostMessage ?? null) ? String(ctx.editPostMessage).slice(0, 300) : null,
+      sentFields: plan.changes.map((c) => c.label).join('・').slice(0, 200),
+    } }], '読み直したら変わっていない欄があった: ' + v.hints.join(' ／ ') + (ctx.editPostMessage ? '（駅ちかのことば: ' + ctx.editPostMessage + '）' : ''));
   }
 
   // ── 1回目：何が変わるかを組み立てる ──
@@ -4682,6 +4695,19 @@ function afterGirlEditForm(
   };
 }
 
+/**
+ * ★ 第1548便: 送った直後の画面から、エラーらしい文を拾う（readEkichikaMessage が拾えなかったときの予備）。
+ *   ★ 「入力」「エラー」「正しく」「必須」「文字」「できません」を含む短い文を最大3つ。本文全体は残さない。
+ */
+function postErrorText(html: string): string | null {
+  const text = String(html ?? '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, '\n').replace(/&nbsp;/g, ' ');
+  const lines = text.split(/\n+/).map((x) => x.replace(/\s+/g, ' ').trim()).filter((x) => x.length >= 4 && x.length <= 120);
+  const hits = lines.filter((x) => /エラー|正しく|必須|入力して|文字以内|できません|不正|禁止/.test(x));
+  const uniq = Array.from(new Set(hits)).slice(0, 3);
+  return uniq.length > 0 ? uniq.join(' ／ ').slice(0, 300) : null;
+}
+
 function afterGirlEdit(
   input: { status: number; headers: Record<string, string | string[]>; body: string },
   ctx: RelayFlowContext,
@@ -4702,7 +4728,11 @@ function afterGirlEdit(
     kind: 'next',
     audits: [],
     note: 'プロフィールを送った。★ 成否は編集ページを読み直して確かめる' + (message ? '（画面のことば: ' + message + '）' : ''),
-    next: { purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '', context: { ...ctx, cookie, editStage: 'verify' } },
+    next: {
+      purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '',
+      // ★ 第1548便: 送った直後の応答を持ち回して、失敗の記録に残す
+      context: { ...ctx, cookie, editStage: 'verify', editPostStatus: input.status, editPostLocation: location.slice(0, 120), editPostMessage: message ?? postErrorText(input.body) },
+    },
   };
 }
 
