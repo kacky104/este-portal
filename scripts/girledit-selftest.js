@@ -21,7 +21,8 @@ function page(o) {
   h += '<textarea name="girl_comments">よろしく</textarea><input name="title" value=""><textarea name="comments">' + o.comments + '</textarea>';
   for (let i = 1; i <= 10; i++) h += '<input name="questions[' + i + ']" value=""><input name="answers[' + i + ']" value="">';
   h += '<textarea name="options">なし</textarea>';
-  for (const id of ['1', '59', '11', '8', '17']) h += '<input type="checkbox" name="p_genre[' + id + ']" value="1"' + (o.p.includes(id) ? ' checked' : '') + '>';
+  // ★ 第1551便: 本物の駅ちかは優先タグの値＝タグの番号（p_genre[8] value="8"）。ジャンル（genre[8] value="1"）とは違う
+  for (const id of ['1', '59', '11', '8', '17']) h += '<input type="checkbox" name="p_genre[' + id + ']" value="' + id + '"' + (o.p.includes(id) ? ' checked' : '') + '>';
   for (const id of ids) h += '<input type="checkbox" name="genre[' + id + ']" value="1"' + (o.checked.includes(id) ? ' checked' : '') + '>';
   h += '<input type="radio" name="rookie_flg" value="1"' + (o.rookie === '1' ? ' checked' : '') + '><input type="radio" name="rookie_flg" value="2"' + (o.rookie === '2' ? ' checked' : '') + '>';
   h += '<input type="hidden" name="fuel_csrf_token" value="tok123"><input type="hidden" name="p_genre_max_num" value="3"><input type="hidden" name="girls_genre_max_num" value="19">';
@@ -55,6 +56,7 @@ eq('★ 同じ年齢は変化に数えない', p1.changes.some((c) => c.field ==
 eq('カップはラベルで番号を引く', p1.pairs.find(([k]) => k === 'cup'), ['cup', '4']);
 eq('★ ジャンルは選んだ順で丸ごと差し替え', p1.pairs.filter(([k]) => /^genre\[/.test(k)).map(([k]) => k), ['genre[22]', 'genre[49]', 'genre[1]']);
 eq('★ 優先タグ', p1.pairs.filter(([k]) => /^p_genre\[/.test(k)).map(([k]) => k), ['p_genre[8]', 'p_genre[17]', 'p_genre[59]']);
+eq('★ 優先タグの値は番号（第1551便）', p1.pairs.filter(([k]) => /^p_genre\[/.test(k)).map(([k, v]) => k + '=' + v), ['p_genre[8]=8', 'p_genre[17]=17', 'p_genre[59]=59']);
 eq('★ Q&A は10問ぶん送る', p1.pairs.filter(([k]) => /^questions\[/.test(k)).length, 10);
 eq('新人', p1.pairs.find(([k]) => k === 'rookie_flg'), ['rookie_flg', '1']);
 eq('送信ボタンを押す', p1.pairs[p1.pairs.length - 1], ['update-btn', '']);

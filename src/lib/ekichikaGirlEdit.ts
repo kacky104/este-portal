@@ -266,7 +266,10 @@ export function planEkichikaGirlEdit(form: EkichikaGirlFormParse, v: EkichikaGir
     pairs.push([f.name, f.value]);
   }
   for (const k of Object.keys(ov)) if (!used.has(k)) pairs.push([k, ov[k]]);
-  for (const id of sendP) pairs.push(['p_genre[' + id + ']', '1']);
+  // ★★ 第1551便（2026-10-17）: 優先タグのチェックボックスは【値＝タグの番号】（p_genre[8]=8・p_genre[25]=25）。
+  //   ★ ジャンル（genre[8]=1）と同じく '1' で送っていたので、駅ちかは番号1（no1）と読み、何を選んでも「no1」だけが入っていた
+  //     （ラビリンス様の在籍39人のうち23人が no1・新人3人も no1。店舗様が駅ちかの画面で入れると入る＝送り方の誤り）。
+  for (const id of sendP) pairs.push(['p_genre[' + id + ']', id]);
   for (const id of sendGenres) pairs.push(['genre2[' + id + ']', '1']);
   for (const id of sendGenres) pairs.push(['genre[' + id + ']', '1']);
   if (sendRookie === '1' || sendRookie === '2') pairs.push(['rookie_flg', sendRookie]);
