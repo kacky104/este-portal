@@ -66,7 +66,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { id: 'ad-banners', label: 'ルックバナー' },
       { id: 'theme-wallpaper', label: 'テーマ壁紙' },
       { id: 'therapist-placeholder', label: 'セラピスト共通画像' },
-      { id: 'top-banners', label: 'トップバナースライダー（使用中止）' },
     ],
   },
   {

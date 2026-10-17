@@ -8,7 +8,6 @@ import { TimeRangePicker } from '@/components/TimeRangePicker';
 import HeaderSliderManager from '@/app/components/HeaderSliderManager';
 import FeaturedSalonsManager from '@/app/components/FeaturedSalonsManager';
 import CardBoostManager from '@/app/components/CardBoostManager';
-import TopBannerManager from '@/app/components/TopBannerManager';
 import RecommendedSalonBannerManager from '@/app/components/RecommendedSalonBannerManager';
 import OptionBannerManager from '@/app/components/OptionBannerManager';
 import TherapistPickupBannerManager from '@/app/components/TherapistPickupBannerManager';
@@ -501,13 +500,6 @@ export default function AdminDashboard() {
           {/* ★ セラピスト共通画像（運営）: 写真なしの既定画像（第217便）＋「一覧を見る」カードの画像（第218便） */}
           <AccordionSection id="therapist-placeholder" title="セラピスト共通画像設定（写真なしの既定画像・「一覧を見る」カード）" expanded={expandedSections} onToggle={toggleSection}>
             <TherapistPlaceholderManager onToast={showToast} />
-          </AccordionSection>
-
-          <AccordionSection id="top-banners" title="トップバナースライダー設定（使用中止）" expanded={expandedSections} onToggle={toggleSection}>
-            <p className="mb-3 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-              ※現在、このバナーはトップページには表示されません。新規の入稿は不要です。
-            </p>
-            <TopBannerManager onToast={showToast} />
           </AccordionSection>
 
         </div>
