@@ -20,7 +20,7 @@ const sb = createClient();
 
 // 上位表示（bump）ボタン。/mypage の「店舗」タブに置く。
 // 押すと自店カードが TOP・地域ページの先頭に出る（後から押した店が1位、前の店は2位…）。
-// 回数は1日20回・フクエスワーク掲載店（jobs_enabled）は40回・毎朝6時リセット・持ち越しなし。
+// 回数は1日40回（第1538便から全店同じ）・毎朝6時リセット・持ち越しなし。
 // 実処理はDBの salon_bump RPC（オーナー検証・回数管理）。bump系列の直接UPDATEはトリガで禁止。
 // 押下成功後は revalidateTopAndAreas() で TOP・全地域ページの ISR を即時更新する。
 //
@@ -239,7 +239,7 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
         <div className="space-y-2">
           <ul className="text-[11px] text-slate-500 leading-relaxed list-disc pl-4 space-y-0.5">
             <li>あとから他のお店が押すとその店が1位になり、あなたのお店は2位、3位…と順に下がります。</li>
-            <li>回数は毎朝6時にリセットされます（1日20回・フクエスワーク掲載店は40回）。</li>
+            <li>回数は毎朝6時にリセットされます（1日40回）。</li>
             <li>上位表示の効果も翌朝6時に解除され、通常の表示順（6時間ごとにシャッフル）に戻ります。</li>
             <li>反映まで数分かかる場合があります。</li>
           </ul>

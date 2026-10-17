@@ -18,7 +18,7 @@ import { shouldAutoBump, bumpRemaining, minuteLabel } from '@/lib/bumpAuto';
 //   ここは【DBを読んで渡し、結果のとおりに押す】だけ。判断をこのファイルに書かない。
 //
 // ★★★ 押すのは SQL の RPC（salon_bump_auto_run）。★ ここから salons を直接 UPDATE しない。
-//   ★ 回数の管理（20回／ワーク掲載店40回・朝6時リセット）は RPC の中だけが持つ（第385便で1本化）。
+//   ★ 回数の管理（第1538便から全店40回・朝6時リセット）は RPC の中だけが持つ（第385便で1本化）。
 //   ★ ガードトリガも直接 UPDATE を弾く。
 //
 // ★ 間隔がいちばん短くて10分なので、周は5分ごと。

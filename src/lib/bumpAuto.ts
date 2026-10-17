@@ -23,10 +23,10 @@ import { businessDateJSTFrom } from './dutyStatus';
 // 回数の上限（★ SQL 側 salon_bump_apply と同じ数字）
 // ─────────────────────────────────────────────────────────
 
-/** 1日に押せる回数の土台。 */
-export const BUMP_QUOTA_BASE = 20;
-/** フクエスワーク掲載店（jobs_enabled）の上乗せ。 */
-export const BUMP_QUOTA_JOBS_BONUS = 20;
+/** 1日に押せる回数。★ 第1538便（2026-10-17）: フクエス＋フクエスワークがセットになったので全店 40回（以前は 20回／ワーク掲載店 40回）。 */
+export const BUMP_QUOTA_BASE = 40;
+/** フクエスワーク掲載店（jobs_enabled）の上乗せ。★ 第1538便で 0（差を付けない）。引数は呼び出し側をそのまま残すため受け取る。 */
+export const BUMP_QUOTA_JOBS_BONUS = 0;
 
 /** その店の1日の上限回数。★ 画面も周もここを読む（20 と 40 を各所に書かない）。 */
 export function bumpQuota(jobsEnabled: boolean): number {
