@@ -5,7 +5,7 @@ export function NewBadge({ className }: { className?: string }) {
     <span
       className={className}
       style={{
-        background: '#22c55e',
+        background: '#15803d', // ★ 第1529便: #22c55e → green-700（白文字のコントラスト 2.3→5.0・PageSpeed ユーザー補助）
         color: 'white',
         fontSize: '11px',
         fontWeight: 700,

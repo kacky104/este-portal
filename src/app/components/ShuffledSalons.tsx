@@ -313,7 +313,7 @@ function AutoFitAreaBadges({ labels, dispatchOnly }: { labels: string[]; dispatc
         style={{ fontSize: `${size}px` }}
       >
         {labels.map((label) => (
-          <span key={label} className="flex-shrink-0 font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+          <span key={label} className="flex-shrink-0 font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
             {label}
           </span>
         ))}
@@ -350,7 +350,7 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
-      出勤 <span style={{ color: '#ec4899', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
+      出勤 <span style={{ color: '#be185d', fontSize: '15px', fontWeight: 700 }}>{onDutyCount}</span>名
     </span>
   );
   // 出張バッジ：only（出張のみ）のときだけ出す（青）。available/none では出さない。
@@ -364,13 +364,13 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   const areaBadge = (
     <>
       {salon.area !== DISPATCH_AREA && (
-        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
           {areaLabel(salon.area)}
         </span>
       )}
       {/* 第2エリア（任意）。設定時のみ2個目の地域バッジを出す。第1と同値・出張は念のため除外。 */}
       {salon.area2 && salon.area2 !== salon.area && salon.area2 !== DISPATCH_AREA && (
-        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+        <span className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
           {areaLabel(salon.area2)}
         </span>
       )}
