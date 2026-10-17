@@ -59,7 +59,7 @@ export function FreeListingCards({ items }: { items: FreeListing[] }) {
                   </div>
                 )}
                 {badges.map((b) => (
-                  <span key={b} className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-600 border border-pink-200">
+                  <span key={b} className="flex-shrink-0 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
                     {b}
                   </span>
                 ))}

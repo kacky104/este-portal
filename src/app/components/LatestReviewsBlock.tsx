@@ -94,7 +94,7 @@ function ReviewMiniCard({
       </p>
 
       {r.visitedOn && (
-        <p className="mt-1.5 text-[11px] text-pink-500 font-medium">{formatVisited(r.visitedOn)}</p>
+        <p className="mt-1.5 text-[11px] text-pink-600 font-medium">{formatVisited(r.visitedOn)}</p>
       )}
     </li>
   );
