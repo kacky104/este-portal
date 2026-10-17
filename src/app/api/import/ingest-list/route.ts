@@ -5,6 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { normalizeName } from '@/lib/ekichikaParse';
 import { parseEkichikaList, sokuhimeMisread, type EkichikaListCast } from '@/lib/ekichikaListParse';
 import { loadCastIds, rememberCastId } from '@/lib/mediaCastIds';
+import { notifyAdmin } from '@/app/lib/notifyAdmin';
 
 // ── 外部媒体取り込み・girlslist方式（第36便・フェーズ4）────────────────────
 // 駅ちかの「女の子一覧」(girlslist) のHTMLを受け取り、当日ぶんの出勤を反映する。
@@ -242,19 +243,37 @@ export async function POST(req: Request) {
   const imasuguSeenIds: number[] = [];
   let matched = 0, unknownStatus = 0;
 
+  // ★★★ 第1544便（2026-10-17・カッキーさん）: 辞めた子の名前を新しい子に使い回すことがある（オイルクエスト様の ゆあ・みみ で実測）。
+  //   名前で当たった人に【別の castId】が入っていて、その castId がもう一覧に無い（＝前の子は駅ちかから消えた）なら、
+  //   同じ名前の【別人】とみなして新しく作る。前の人の登録（写真・紹介文・口コミ）は混ぜない。
+  //   ★ 以前は名前で前の人に当たり、出勤・今すぐが前の人（非公開のことも）に書かれ、写メ日記は castId で照合するので見送られていた。
+  //   ★ 古い castId がまだ一覧にある＝同じ子の重複掲載（第36便）は今までどおり（下の claimedBy の決着）。
+  const listedCastIds = new Set<string>([...listed.keys()]);
+  const replacedSameName: string[] = [];          // 運営への知らせ（作ったときだけ）
+
   for (const c of listed.values()) {
     if (!c.name || !c.nameKey) { unmatched.push(`${c.name ?? c.castId}（名前が読めない）`); continue; }
 
     let id: number | undefined = byCastId.get(c.castId);
     const viaCastId = id !== undefined;          // ★ castId で確定したか（名前照合より確実）
+    let replacedFrom: { id: number; castId: string } | null = null;
     if (id === undefined) {
       if (dupNames.has(c.nameKey)) { unmatched.push(`${c.name}（同名2名以上・自動更新を保留）`); continue; }
       id = byName.get(c.nameKey);
+      // ★ 第1544便: 同じ名前の別人（前の子の castId が一覧から消えている）
+      const oldCast = id !== undefined ? castIdOf.get(id) : undefined;
+      if (id !== undefined && oldCast && oldCast !== c.castId && !listedCastIds.has(oldCast)) {
+        replacedFrom = { id, castId: oldCast };
+        id = undefined;
+      }
     }
 
     let isNew = false;
     if (id === undefined) {
-      if (!source.create_missing) { unmatched.push(c.name); continue; }
+      if (!source.create_missing) {
+        unmatched.push(replacedFrom ? `${c.name}（前の同名の方 #${replacedFrom.id} は駅ちかから消えている・別人として作る設定がオフ）` : c.name);
+        continue;
+      }
       if (!isCreatableName(c.name)) { unmatched.push(`${c.name}（伏字・記号のみ・作成せず）`); continue; }
       if (!apply) { createdNames.push(c.name.trim()); continue; }   // 試し打ちでは作らない
       // ★★★ 第227便（2026-09-09・カッキーさんの決定）: **公開（is_active=true）＋新人（NEW）で作る**。
@@ -285,6 +304,11 @@ export async function POST(req: Request) {
       byName.set(c.nameKey, id); byCastId.set(c.castId, id); nameOf.set(id, c.name.trim());
       createdNames.push(c.name.trim());
       isNew = true;
+      if (replacedFrom) {
+        replacedSameName.push(
+          `・${c.name.trim()}：新しく #${id} を作りました（駅ちかの番号 ${c.castId}）。前の同名の方 #${replacedFrom.id}（駅ちかの番号 ${replacedFrom.castId}）は駅ちかの一覧から消えているので、別人とみなしました。`,
+        );
+      }
     }
     if (!isNew) matched++;
     seenIds.add(id);   // ★ 衝突した子も「一覧に居た」ので掃除の対象からは外す
@@ -445,6 +469,20 @@ export async function POST(req: Request) {
         if (error) return NextResponse.json({ ok: false, error: error.message, stage: 'imasugu-clear' }, { status: 500 });
         imasuguCleared = (cleared ?? []).length;
       }
+    }
+
+    // ★ 第1544便: 同じ名前の別人として作ったら運営へ1通（同じ人の再登録だったら手でまとめられるように）
+    if (replacedSameName.length > 0) {
+      const { data: sn } = await supabase.from('salons').select('name').eq('id', source.salon_id).maybeSingle();
+      await notifyAdmin(
+        `【フクエス】同じ名前の別人としてセラピストを作りました（${(sn?.name as string | undefined) ?? '店舗 ' + source.salon_id}）`,
+        [
+          ...replacedSameName,
+          '',
+          '前の方の登録（写真・紹介文・口コミ）はそのまま残しています。',
+          '同じ方の再登録だった場合は、管理画面で前の方の登録とまとめてください。',
+        ],
+      );
     }
 
     for (const f of castIdFills) {

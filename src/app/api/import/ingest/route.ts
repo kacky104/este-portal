@@ -279,6 +279,14 @@ export async function POST(req: Request) {
     if (therapistId === undefined) {
       if (dupNames.has(key)) { unmatched.push(`${cast.name}（同名2名以上・自動更新を保留）`); continue; }
       therapistId = byName.get(key);
+      // ★ 第1544便: 名前で当たった人に【別の castId】が入っている＝同じ名前の別人の可能性（辞めた子の名前の使い回し）。
+      //   1日1回のこの周は一覧の全員を見ているとは限らないので、ここでは作らず【触らない】（作るのは ingest-list 側）。
+      //   ★ 前の人に新しい子の出勤・プロフィールを書かないため。
+      const oldCast = therapistId !== undefined ? castIdOf.get(therapistId) : undefined;
+      if (therapistId !== undefined && c.castId && oldCast && oldCast !== c.castId) {
+        unmatched.push(`${cast.name}（同じ名前の別人の可能性: 前の方 #${therapistId} は別の番号・自動更新を保留）`);
+        continue;
+      }
     }
 
     // 4-0b. どちらでも当たらなかった子。create_missing が ON なら作る（第35便）。
