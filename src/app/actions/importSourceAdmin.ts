@@ -153,7 +153,10 @@ export async function adminUpsertImportSource(input: {
     create_missing: true,
     list_mode: true,
     import_interval_min: IMPORT_LIST_INTERVAL_MIN,
-    is_enabled: true,
+    // ★★ 第1547便（2026-10-17・カッキーさん）: 取り込むのは枠1だけ。枠2以降は【止めた状態】で登録する
+    //   （店舗様は枠1しか更新しない・枠2の取り込みが同名の取り違えのきっかけになった（オイルクエスト様）・駅ちかへ見に行く回数も倍になる）。
+    //   ★ 動かしたいときは一覧の「再開」。★ 既にある行を登録し直したときも、枠2以降は止める。
+    is_enabled: slot === 1,
     updated_at: now,
   };
   let error: { message: string } | null = null;
