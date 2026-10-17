@@ -534,8 +534,8 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
         {detailBtn}
       </div>
 
-      {/* 4. タブ（第1126便・TOP と、第1159便から地域ページ）。★ 第1139便（カッキーさん）: 料金の行と入れ替えて、カードのいちばん下に置く（開くと下へ伸びる） */}
-      {cardTabs}
+      {/* 4. タブ（第1126便・TOP と、第1159便から地域ページ）。★ 第1139便（カッキーさん）: 料金の行と入れ替えて、カードのいちばん下に置く（開くと下へ伸びる）
+          ★ 第1536便: タブはスマホ・PC 共通でカードの最下段なので、2つのレイアウトの外（下の本体 div の最後）で1回だけ描く。 */}
     </div>
   );
 
@@ -569,14 +569,15 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       {/* 3段目: セラピストサムネ列 */}
       {therapistThumbs}
 
-      {/* 4段目: タブ（第1126便・TOP と、第1159便から地域ページ） */}
-      {cardTabs}
+      {/* 4段目: タブ（第1126便・TOP と、第1159便から地域ページ）→ ★ 第1536便: 下の本体 div で1回だけ描く */}
     </div>
   );
 
   return (
     <div
-      className={`group border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden${
+      // ★ 第1536便: [content-visibility:auto]＝画面から遠いカードはスタイル計算・レイアウト・描画を後回しにする（HTML・SEO は同じ）。
+      //   トップの LCP の内訳「要素のレンダリング遅延」は、ファーストビューの下の大きな DOM の計算待ち。高さの仮置きは auto 420px（一度描いたら実寸を覚える）。
+      className={`group [content-visibility:auto] [contain-intrinsic-size:auto_420px] border border-slate-200 bg-white shadow-sm hover:border-pink-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-pink-500/10 transition-all duration-300 flex flex-col cursor-pointer overflow-hidden${
         // デスクトップ(lg)はセラピストカード5枚ぶん（5×92+4×3=472）＋左右パディング40 = 512px。
         // salon-card-zoom で lg のみ比率そのまま拡大（512px×1.413≒723px）。左寄せのため右側に余白。モバイル/タブレットは無効。
         wideDesktop ? ' lg:w-[512px] lg:max-w-full salon-card-zoom' : ''
@@ -613,6 +614,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       <div className={`${compactTherapists ? `px-5 ${nameBanner ? 'pt-2.5' : 'pt-5'} pb-[7px]` : nameBanner ? 'px-5 pt-2.5 pb-5' : 'p-5'} flex flex-col flex-1`}>
         {stackedLayout}
         {wideLayout}
+        {/* ★ 第1536便: 以前は stackedLayout と wideLayout の両方に入れて片方を CSS で隠していた（HTML・hydration が二重）。
+            どちらのレイアウトでもカードの最下段なので、ここで1回だけ描く＝見た目は同じ。 */}
+        {cardTabs}
       </div>
     </div>
   );
