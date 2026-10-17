@@ -4,7 +4,7 @@ import { conecfTargetBlock } from '@/app/lib/conecf/targets';
 import { parseBodyType } from '@/lib/bodyType';
 import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
 import { PHOTO_SLOT_MAX, type PhotoSyncOp } from '@/lib/ekichikaPhoto';
-import { resolveTherapistPhotoFile } from '@/app/lib/media/therapistPhotoFile';
+import { resolveTherapistPhotoFile, PLACEHOLDER_BUCKET, isPlaceholderPath } from '@/app/lib/media/therapistPhotoFile';
 import { photoKey, esutamaRemovalSlots, ESUTAMA_SYNC_MAX } from '@/lib/esutamaPhotoSync';
 import type { EsutamaEditPhotos } from '@/lib/relayFlow';
 
@@ -69,10 +69,19 @@ export async function buildGirlEditValues(
     pGenres: arr(f.pGenres),
     rookie: str(f.rookie),
   };
-  const ph = await buildGirlEditPhotos(svc, {
-    therapistId, slot,
-    images: imagesOf(th as { profile_images?: unknown; profile_image_url?: unknown }),
-  });
+  // ★★ 第1549便（2026-10-17・カッキーさん）: 駅ちかは【1枚目の写真が無い子のプロフィールを保存しない】
+  //   （ラビリンス様のみさきさんで実測: 「※必ず１枚目の画像を正方形に…」で10欄とも断られた）。
+  //   写真が1枚も無い子は、【お店の既定画像】（/mypage で店舗様が入れた salons.therapist_placeholder_url）を1枚目として送る。
+  //   ★ フクエス共通（運営）の既定画像は送らない（お店の画像ではないため）。お店の既定画像が無ければ送らない（画面で写真を入れるよう案内）。
+  //   ★ 本物の写真が入れば、コネックエフが正なので駅ちかの1枚目も本物に入れ替わる（いつもの写真の合わせ方）。
+  let images = imagesOf(th as { profile_images?: unknown; profile_image_url?: unknown });
+  if (images.length === 0) {
+    const { data: sal } = await svc.from('salons').select('therapist_placeholder_url').eq('id', salonId).maybeSingle();
+    const ph0 = String((sal as { therapist_placeholder_url?: string | null } | null)?.therapist_placeholder_url ?? '');
+    const j = ph0.indexOf('/' + PLACEHOLDER_BUCKET + '/');
+    if (j >= 0 && isPlaceholderPath(ph0.slice(j + PLACEHOLDER_BUCKET.length + 2).split('?')[0])) images = [ph0];
+  }
+  const ph = await buildGirlEditPhotos(svc, { therapistId, slot, images });
   return { ok: true, data: { castId, name: str(th.name), values, therapistId, photos: ph.photos, photoSkipped: ph.skipped } };
 }
 

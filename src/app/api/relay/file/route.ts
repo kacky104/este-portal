@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { PLACEHOLDER_BUCKET, isPlaceholderPath } from '@/app/lib/media/therapistPhotoFile';
 
 // ── 中継役が画像を取りに来る口（第106便・案B）────────────────────────────
 //   GET /api/relay/file?bucket=<bucket>&path=<path>  (Authorization: Bearer <CRON_SECRET>)
@@ -33,7 +34,9 @@ export async function GET(req: Request) {
   const bucket = url.searchParams.get('bucket') ?? '';
   const path = url.searchParams.get('path') ?? '';
 
-  if (!ALLOWED_BUCKETS.includes(bucket)) {
+  // ★ 第1549便: お店の既定画像（salon-images の therapist_placeholder_ だけ）は取りに来てよい（写真の無い子の駅ちかの1枚目）
+  const placeholderOk = bucket === PLACEHOLDER_BUCKET && isPlaceholderPath(path);
+  if (!ALLOWED_BUCKETS.includes(bucket) && !placeholderOk) {
     return Response.json({ ok: false, error: '取りに来てよいバケットではない' }, { status: 400 });
   }
   if (!SAFE_PATH.test(path) || path.includes('..') || path.includes('//')) {

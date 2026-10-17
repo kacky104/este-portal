@@ -670,6 +670,13 @@ export type RelayFlowContext = {
   editPostLocation?: string;
   editPostMessage?: string | null;
   /**
+   * ★★ 第1549便: プロフィールが断られたあとに写真を入れに行った（＝写真が入ったら、プロフィールをもう1回だけ送る）。
+   *   ★ 駅ちかは1枚目の写真が無い子のプロフィールを保存しないのに、こちらは「プロフィール → 写真」の順で送っていた。
+   */
+  editRetryAfterPhoto?: boolean;
+  /** ★ 第1549便: もう1回送ったあと（★ 2回目は送り直さない＝回り続けない） */
+  editRetried?: boolean;
+  /**
    * ★★ 第420便: まとめて更新の残り（★ 1回のログインで順に回す）。★ 1人終わるたびに先頭を取り出す
    *   ★ 1人が止まっても次の人へ進む。★ ログイン・セッション切れは全体を止める
    */
@@ -1442,8 +1449,12 @@ export function advanceFlow(input: {
     const ops = ctx.editPhotos ?? [];
     if (ops.length > 0 && /^\d{1,12}$/.test(castId)) {
       const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+      // ★ 第1549便: プロフィールが断られていて、写真を入れる枠がある → 写真が入ったらプロフィールを送り直す
+      const editFailed = out.audits.some((a) => a.event === 'edit_girl' && a.outcome === 'failed');
+      const willPut = ops.some((o) => o.action === 'put');
       const syncCtx: RelayFlowContext = {
         ...ctx, cookie,
+        editRetryAfterPhoto: editFailed && willPut && ctx.editRetried !== true,
         editPhotos: undefined, editPhotoSkipped: undefined,
         photoSync: true, photoSyncOps: ops, photoSyncCur: undefined, photoRemoved: [], photoPut: [], photoKept: [],
         photoGirlId: castId, photoStage: 'sync',
@@ -1459,6 +1470,38 @@ export function advanceFlow(input: {
     }
     // ★ 送れる写真が無い（理由だけ残す）。★ 次の人へは下の段が進める
     return advanceQueueOrEnd(input, { ...ctx, editPhotoSkipped: undefined, editPhotos: undefined }, { ...out, audits: [...out.audits, ...skippedAudits] });
+  }
+  // ★★ 第1549便: 写真を入れ終えたら、断られていたプロフィールをもう1回だけ送る（同じ人・同じ内容）。
+  //   ★ 写真の段がうまくいったとき（done）だけ。★ 送り直しは1回まで（editRetried）。★ 写真はもう送らない（editPhotos なし）
+  if (
+    ctx.intent === 'girl_edit'
+    && ctx.editApply === true
+    && ctx.photoSync === true
+    && ctx.editRetryAfterPhoto === true
+    && ctx.editRetried !== true
+    && out.kind === 'done'
+    && /^\d{1,12}$/.test(String(ctx.editCastId ?? ''))
+  ) {
+    const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined) || ctx.cookie;
+    const req = buildEkichikaGirlEditFormRequest(cookie, String(ctx.editCastId));
+    return {
+      kind: 'next',
+      audits: out.audits,
+      note: out.note + '。★ 写真が入ったので、プロフィールをもう1回送ります',
+      ...(out.photoSynced && out.photoSynced.length > 0 ? { photoSynced: out.photoSynced } : {}),
+      next: {
+        purpose: 'girl_edit_form', method: req.method, url: req.url, headers: req.headers, body: '',
+        context: {
+          ...ctx, cookie,
+          editStage: undefined, editPlan: undefined, editRetried: true, editRetryAfterPhoto: undefined,
+          editPostStatus: undefined, editPostLocation: undefined, editPostMessage: undefined,
+          editPhotos: undefined, editPhotoSkipped: undefined,
+          photoSync: undefined, photoSyncOps: undefined, photoSyncCur: undefined, photoRemoved: undefined, photoPut: undefined, photoKept: undefined,
+          photoGirlId: undefined, photoStage: undefined, photoSlot: undefined, photoFile: undefined, photoSrc: undefined,
+          photoSlotsBefore: undefined, photoMainRect: undefined, photoThumbRect: undefined,
+        },
+      },
+    };
   }
   return advanceQueueOrEnd(input, ctx, out);
 }
@@ -1490,6 +1533,7 @@ function advanceQueueOrEnd(
             ...ctx, cookie,
             editCastId: String(head.castId), editName: head.name, editValues: head.values,
             editStage: undefined, editPlan: undefined, editQueue: rest, editPostStatus: undefined, editPostLocation: undefined, editPostMessage: undefined,
+            editRetryAfterPhoto: undefined, editRetried: undefined,
             // ★★ 第421便: 前の人の写真の道を持ち越さない
             editTherapistId: head.therapistId, editPhotos: head.photos, editPhotoSkipped: head.photoSkipped,
             photoSync: undefined, photoSyncOps: undefined, photoSyncCur: undefined, photoRemoved: undefined, photoPut: undefined, photoKept: undefined,

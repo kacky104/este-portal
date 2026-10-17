@@ -18,7 +18,10 @@ export function photoKey(s: string | null | undefined): string {
   const v = String(s ?? '').trim();
   if (!v) return '';
   const i = v.indexOf('therapist-photos/');
-  return i >= 0 ? v.slice(i).split('?')[0].split('#')[0] : v.split('?')[0];
+  if (i >= 0) return v.slice(i).split('?')[0].split('#')[0];
+  // ★ 第1549便: お店の既定画像（salon-images/<店>/therapist_placeholder_…）も同じ形でそろえる（送った記録と比べるため）
+  const j = v.indexOf('salon-images/');
+  return j >= 0 ? v.slice(j).split('?')[0].split('#')[0] : v.split('?')[0];
 }
 
 export type EsutamaSyncPlan =

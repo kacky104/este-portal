@@ -341,6 +341,14 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
                   <p className="text-[12px] text-slate-400 mt-1">{[...form.name].length}/{CONECF_NAME_MAX}文字。</p>
                   {/* ★★ 第450便（カッキーさん）: 名前だけは自動で送れないので、赤字で気づけるようにした */}
                   <p className="text-[12.5px] font-bold text-rose-700 mt-1">名前の変更は駅ちか・エステ魂はサイトでも直接変更が必要です。</p>
+                  {/* ★★ 第1549便: 駅ちかは1枚目の写真が無いとプロフィールを保存しない。お店の既定画像があればそれを送るので、無いときだけ案内 */}
+                  {images.length === 0 && !d.hasSalonPlaceholder && (
+                    <p className="text-[12.5px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 mt-2 leading-relaxed">
+                      写真がまだありません。駅ちかは写真が1枚も無いとプロフィール（年齢・サイズ・紹介文）を保存しません。
+                      「画像」タブで写真を入れてから「保存してフクエス・駅ちか・エステ魂へ更新」を押してください。
+                      （フクエスのマイページで「セラピストの既定画像」を入れておくと、写真の無い子にはその画像を自動で使います）
+                    </p>
+                  )}
                 </div>
               </div>
             </Field>

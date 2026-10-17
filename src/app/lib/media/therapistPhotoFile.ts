@@ -52,19 +52,33 @@ export type TherapistPhotoResult =
  * @param profileImageUrl  その方の profile_image_url（★ path を省いたときの出どころ）
  * @param path         Storage の中の場所（★ 指定があればこちらが優先）
  */
+/** ★ 第1549便: お店の既定画像の置き場（/mypage で店舗様が入れる・salons.therapist_placeholder_url） */
+export const PLACEHOLDER_BUCKET = 'salon-images';
+/** ★ 既定画像の場所の形だけを許す（<店の番号>/therapist_placeholder_<時刻>.<拡張子>）。★ 店のほかの画像は読ませない */
+export function isPlaceholderPath(p: string): boolean {
+  return /^\d{1,10}\/therapist_placeholder_[A-Za-z0-9_.\-]{1,80}$/.test(p) && !p.includes('..');
+}
+
 export async function resolveTherapistPhotoFile(
   svc: SupabaseClient,
   input: { therapistId: number; imageSetId: number; profileImageUrl?: string | null; path?: string },
 ): Promise<TherapistPhotoResult> {
   // ── ① 在処 ──────────────────────────────────────────────
   let path = typeof input.path === 'string' ? input.path : '';
+  let bucket: string = THERAPIST_PHOTO_BUCKET;
   if (!path) {
     const url = String(input.profileImageUrl ?? '');
     const i = url.indexOf('/' + THERAPIST_PHOTO_BUCKET + '/');
-    if (i < 0) {
+    // ★★ 第1549便: 写真が1枚も無い子に使う【お店の既定画像】（salon-images/<店>/therapist_placeholder_…）だけは読んでよい
+    const j = url.indexOf('/' + PLACEHOLDER_BUCKET + '/');
+    if (i >= 0) {
+      path = url.slice(i + THERAPIST_PHOTO_BUCKET.length + 2).split('?')[0];
+    } else if (j >= 0 && isPlaceholderPath(url.slice(j + PLACEHOLDER_BUCKET.length + 2).split('?')[0])) {
+      bucket = PLACEHOLDER_BUCKET;
+      path = url.slice(j + PLACEHOLDER_BUCKET.length + 2).split('?')[0];
+    } else {
       return { ok: false, status: 400, error: 'この子のプロフィール写真が ' + THERAPIST_PHOTO_BUCKET + ' に無い（path を指定する）' };
     }
-    path = url.slice(i + THERAPIST_PHOTO_BUCKET.length + 2).split('?')[0];
   }
   // ★★ ② フクエスの中だけを指していること。★ `..` や `//` で外へ出さない
   if (!/^[A-Za-z0-9_\-][A-Za-z0-9_\-./]{0,200}$/.test(path) || path.includes('..') || path.includes('//')) {
@@ -72,7 +86,7 @@ export async function resolveTherapistPhotoFile(
   }
 
   // ── ③ 実物を読む ────────────────────────────────────────
-  const { data: blob, error: dlErr } = await svc.storage.from(THERAPIST_PHOTO_BUCKET).download(path);
+  const { data: blob, error: dlErr } = await svc.storage.from(bucket).download(path);
   if (dlErr || !blob) {
     return { ok: false, status: 404, error: '写真を Storage から読めない: ' + (dlErr?.message ?? '') };
   }
@@ -93,7 +107,7 @@ export async function resolveTherapistPhotoFile(
   return {
     ok: true,
     file: {
-      bucket: THERAPIST_PHOTO_BUCKET,
+      bucket,
       path,
       filename: 'fukues_' + input.therapistId + '_' + input.imageSetId + '.' + ext,
       contentType: size.type,

@@ -1,5 +1,6 @@
 'use server';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { findMediaSite } from '@/lib/mediaSites';
@@ -298,7 +299,15 @@ export type ConecfGirlDetail = {
     bloodType: string; style: string; lookType: string;
   };
   sites: Array<{ provider: string; slot: number; label: string; enabled: boolean }>;
+  /** ★ 第1549便: お店の既定画像（/mypage）が入っているか。★ 写真の無い子は、これを駅ちかの1枚目として送る */
+  hasSalonPlaceholder: boolean;
 };
+
+/** ★ 第1549便: お店の既定画像が入っているか（salons.therapist_placeholder_url）。★ 読めなければ false（案内を出す側に倒す） */
+async function salonHasPlaceholder(svc: SupabaseClient, salonId: number): Promise<boolean> {
+  const { data } = await svc.from('salons').select('therapist_placeholder_url').eq('id', salonId).maybeSingle();
+  return !!String((data as { therapist_placeholder_url?: string | null } | null)?.therapist_placeholder_url ?? '').trim();
+}
 
 export async function getConecfGirl(input: { id: number }): Promise<Result<ConecfGirlDetail>> {
   const r = await resolveSalon();
@@ -333,6 +342,7 @@ export async function getConecfGirl(input: { id: number }): Promise<Result<Conec
       salonId,
       id: Number(t.id),
       images: imagesOf(t),
+      hasSalonPlaceholder: await salonHasPlaceholder(svc, salonId),
       form: {
         name: s(t.name),
         nameKana: s(p?.name_kana), nameHira: s(p?.name_hira), nameRomaji: s(p?.name_romaji),
