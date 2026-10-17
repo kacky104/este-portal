@@ -128,12 +128,12 @@ function FooterGroup({
     <nav aria-label={title} className={className}>
       {/* 見出しはスマホ・PCとも表示（PCは3カラムの列見出しになる） */}
       <p
-        className={`text-[11px] font-bold tracking-[0.15em] mb-1 sm:mb-2 ${textColor ? 'opacity-60' : 'text-slate-400'}`}
+        className={`text-[11px] font-bold tracking-[0.15em] mb-1 sm:mb-2 ${textColor ? 'opacity-60' : 'text-slate-500'}`}
         style={textColor ? { color: textColor } : undefined}
       >
         {title}
       </p>
-      <ul className="grid grid-cols-2 gap-x-4 sm:grid-cols-1 sm:gap-x-0">
+      <ul className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-1 sm:gap-x-0 sm:gap-y-0">
         {links.map((l) => (
           <li key={l.href}>
             <FooterLink href={l.href} label={l.label} mobile={l.mobile} textColor={textColor} />
@@ -191,7 +191,7 @@ export function SiteFooter({
         </div>
 
         <p
-          className={`text-center text-xs mt-5 sm:mt-8 ${textColor ? 'opacity-70' : 'text-slate-400'}`}
+          className={`text-center text-xs mt-5 sm:mt-8 ${textColor ? 'opacity-70' : 'text-slate-500'}`}
           style={textColor ? { color: textColor } : undefined}
         >
           © 2026 フクエス. All rights reserved.

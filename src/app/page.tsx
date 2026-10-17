@@ -481,7 +481,7 @@ export default async function Home() {
                     <div className="flex justify-center mt-4">
                       <Link
                         href="/column"
-                        className="text-xs font-bold px-5 py-2 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50"
+                        className="text-xs font-bold px-5 py-2 rounded-full border border-pink-200 text-pink-700 transition-colors hover:bg-pink-50"
                       >
                         コラムをもっと見る →
                       </Link>
@@ -548,7 +548,7 @@ export default async function Home() {
               <div className="flex justify-center">
                 <Link
                   href="/salons"
-                  className="text-xs font-bold px-5 py-2 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50"
+                  className="text-xs font-bold px-5 py-2 rounded-full border border-pink-200 text-pink-700 transition-colors hover:bg-pink-50"
                 >
                   福岡のメンズエステ店一覧を見る→
                 </Link>

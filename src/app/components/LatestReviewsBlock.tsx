@@ -106,7 +106,7 @@ function MoreLink({ full, href, label, pair = false }: { full: boolean; href: st
   return (
     <Link
       href={href}
-      className={`${full ? 'flex w-full' : 'inline-flex'} items-center justify-center gap-1 text-xs font-bold ${pair ? 'px-2' : 'px-5'} py-2 rounded-full border border-pink-200 text-pink-600 transition-colors hover:bg-pink-50 whitespace-nowrap`}
+      className={`${full ? 'flex w-full' : 'inline-flex'} items-center justify-center gap-1 text-xs font-bold ${pair ? 'px-2' : 'px-5'} py-2 rounded-full border border-pink-200 text-pink-700 transition-colors hover:bg-pink-50 whitespace-nowrap`}
     >
       {label}
       <svg
