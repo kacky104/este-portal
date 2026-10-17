@@ -247,7 +247,9 @@ export default async function SalonPage({
     supabase
       .from('therapists')
       .select('id')
-      .eq('salon_id', Number(id)),
+      .eq('salon_id', Number(id))
+      // ★ 第1546便: 非公開は数えない・出勤や日記の有無の判定にも入れない（ほかの公開ページと同じ）
+      .eq('is_active', true),
     supabase
       .from('coupons')
       .select('id', { count: 'exact', head: true })

@@ -48,7 +48,9 @@ export function ImasuguList({
         const { data: rows } = await supabase
           .from('therapists')
           .select(`id, name, age, work_hours, body_type, profile_image_url, ${IMASUGU_COLUMNS}`)
-          .eq('salon_id', salonId);
+          .eq('salon_id', salonId)
+          // ★ 第1546便: 非公開は出さない（取り込みの今すぐが非公開の子に残っていても出ない）
+          .eq('is_active', true);
 
         const now = new Date();
         // 今すぐ抽出後、残り時間が少ない順（有効期限の昇順。ライブ枠の期限を見る）。
