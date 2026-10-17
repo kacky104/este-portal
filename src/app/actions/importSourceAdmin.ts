@@ -136,7 +136,7 @@ export async function adminUpsertImportSource(input: {
   // ★ 既に行があるか（店舗様が先にホームで押していると external_id が空の行がある）
   const { data: existing, error: exErr } = await svc
     .from('salon_import_sources')
-    .select('id')
+    .select('id, link_mode')
     .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot)
     .maybeSingle();
   if (exErr) return { ok: false, error: exErr.message };
@@ -156,7 +156,8 @@ export async function adminUpsertImportSource(input: {
     // ★★ 第1547便（2026-10-17・カッキーさん）: 取り込むのは枠1だけ。枠2以降は【止めた状態】で登録する
     //   （店舗様は枠1しか更新しない・枠2の取り込みが同名の取り違えのきっかけになった（オイルクエスト様）・駅ちかへ見に行く回数も倍になる）。
     //   ★ 動かしたいときは一覧の「再開」。★ 既にある行を登録し直したときも、枠2以降は止める。
-    is_enabled: slot === 1,
+    //   ★ 止めるのは取り込む向き（read）の枠だけ。コネックエフの店の枠（write・送る側）は今までどおり動かす。
+    is_enabled: slot === 1 || (existing != null && (existing as { link_mode?: string | null }).link_mode !== 'read' && (existing as { link_mode?: string | null }).link_mode != null),
     updated_at: now,
   };
   let error: { message: string } | null = null;
