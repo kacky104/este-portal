@@ -14,6 +14,7 @@ import { getConecfFirstImport, requestConecfFirstImport, getConecfPhotoImport, r
 import { parseBodyType } from '@/lib/bodyType';
 import { startConecfEkichikaBulkEdit, previewConecfEkichikaPhotoRemovals, startConecfEsutamaBulkEdit, previewConecfEsutamaPhotoRemovals } from '@/app/actions/conecfGirlEdit';
 import { PhotoRemoveConfirm, type PhotoRemoval } from './PhotoRemoveConfirm';
+import { PlaceholderCard } from './PlaceholderCard';
 // ★ 第877便: 「セラピストページ連携」列（〇／✕）
 import { CastLinkMark, useCastLinked } from '@/app/mypage/media/CastLinkMark';
 
@@ -680,6 +681,9 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           })}
         </ul>
       </div>
+
+      {/* ★ 第1550便: 写真が無いセラピストに使う画像（いちばん下・たたんだ状態） */}
+      <PlaceholderCard onToast={onToast} />
     </div>
   );
 }

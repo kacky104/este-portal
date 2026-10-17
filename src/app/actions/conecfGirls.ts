@@ -727,3 +727,62 @@ export async function deleteConecfGirl(input: { id: number; alsoSites: boolean }
   if (!res.ok) return { ok: false, error: res.error };
   return { ok: true, data: { salonId, name, queued, manual, pending: false, waiting } };
 }
+
+// ─────────────────────────────────────────────────────────────
+// ★★ 第1550便（2026-10-17・カッキーさん）: 写真が無いセラピストに使う画像（お店の既定画像）をコネックエフでも変えられるように。
+//   ★ 保存先はマイページと同じ salons.therapist_placeholder_url（★ 1か所＝どちらで変えても同じ画像）。
+//   ★ 使い道: フクエスのカード（写真なしの子）と、駅ちかの1枚目（第1549便・写真が無いとプロフィールを保存しないため）。
+//   ★ 置き場もマイページと同じ salon-images/<店>/therapist_placeholder_<時刻>.jpg（★ /api/relay/file はこの形だけ読める）。
+//   ★ 駅ちかは JPEG・PNG だけ・最低 300×400 なので、サーバーで JPEG に作り直す（WebP でも送れるように）。
+//   ★ サーバーで受けるので、運営が店を選んで操作しているときも使える。
+// ─────────────────────────────────────────────────────────────
+const PLACEHOLDER_MAX_UPLOAD = 950 * 1024;   // ★ ブラウザで縮めてから送る（サーバーアクションの上限 1MB の内側）
+
+export async function getConecfPlaceholder(): Promise<Result<{ salonId: number; url: string | null }>> {
+  const r = await resolveSalon();
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const { data } = await svc.from('salons').select('therapist_placeholder_url').eq('id', salonId).maybeSingle();
+  const url = String((data as { therapist_placeholder_url?: string | null } | null)?.therapist_placeholder_url ?? '').trim();
+  return { ok: true, data: { salonId, url: url || null } };
+}
+
+export async function saveConecfPlaceholder(fd: FormData): Promise<Result<{ salonId: number; url: string }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const file = fd.get('file');
+  if (!(file instanceof Blob) || file.size === 0) return { ok: false, error: '画像を選んでください' };
+  if (file.size > PLACEHOLDER_MAX_UPLOAD) return { ok: false, error: '画像が大きすぎます（もう少し小さい画像にしてください）' };
+  let out: Buffer;
+  try {
+    const sharp = (await import('sharp')).default;
+    const img = sharp(Buffer.from(await file.arrayBuffer())).rotate();
+    const meta = await img.metadata();
+    const w = Number(meta.width ?? 0), h = Number(meta.height ?? 0);
+    // ★ 駅ちかの最低推奨（横300×縦400）
+    if (w < 300 || h < 400) return { ok: false, error: '画像が小さすぎます（横300×縦400以上にしてください）' };
+    out = await img.resize({ width: 1440, height: 1440, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 86 }).toBuffer();
+  } catch {
+    return { ok: false, error: '画像として読めませんでした（JPEG・PNG・WebP にしてください）' };
+  }
+  const path = `${salonId}/therapist_placeholder_${Date.now()}.jpg`;
+  const { error: upErr } = await svc.storage.from('salon-images').upload(path, out, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+  if (upErr) return { ok: false, error: 'アップロードに失敗しました: ' + upErr.message };
+  const url = svc.storage.from('salon-images').getPublicUrl(path).data.publicUrl;
+  const { error } = await svc.from('salons').update({ therapist_placeholder_url: url }).eq('id', salonId);
+  if (error) {
+    await svc.storage.from('salon-images').remove([path]);
+    return { ok: false, error: '保存に失敗しました: ' + error.message };
+  }
+  return { ok: true, data: { salonId, url } };
+}
+
+export async function deleteConecfPlaceholder(): Promise<Result<{ salonId: number }>> {
+  const r = await resolveSalon({ write: true });
+  if (!r.ok) return r;
+  const { svc, salonId } = r.data;
+  const { error } = await svc.from('salons').update({ therapist_placeholder_url: null }).eq('id', salonId);
+  if (error) return { ok: false, error: '削除に失敗しました: ' + error.message };
+  return { ok: true, data: { salonId } };
+}

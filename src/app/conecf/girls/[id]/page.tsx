@@ -346,7 +346,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
                     <p className="text-[12.5px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 mt-2 leading-relaxed">
                       写真がまだありません。駅ちかは写真が1枚も無いとプロフィール（年齢・サイズ・紹介文）を保存しません。
                       「画像」タブで写真を入れてから「保存してフクエス・駅ちか・エステ魂へ更新」を押してください。
-                      （フクエスのマイページで「セラピストの既定画像」を入れておくと、写真の無い子にはその画像を自動で使います）
+                      写真の無い子には、お店の「<Link href={href('/girls') + '#placeholder'} className="underline">写真が無いセラピストに使う画像</Link>」を自動で使えます（セラピスト一覧のいちばん下で設定）。
                     </p>
                   )}
                 </div>
