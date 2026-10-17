@@ -65,7 +65,11 @@ export default async function SalonSchedulePage({
     supabase
       .from('therapists')
       .select(`id, name, age, profile_image_url, ${IMASUGU_COLUMNS}, is_new_face, new_face_since, body_type, feature_badges, user_id`)
-      .eq('salon_id', Number(id)),
+      .eq('salon_id', Number(id))
+      // ★ 第1546便（2026-10-17）: 非公開（is_active=false）は出さない（ほかの公開ページと同じ・第216便の方針）。
+      //   ★ ここだけ絞っておらず、非公開の子に出勤が残っていると週間出勤に出て、押すと個別ページが無く一覧に戻っていた
+      //     （オイルクエスト様の前のゆあさん #424 で実測）。
+      .eq('is_active', true),
   ]);
 
   if (error || !salonRow) notFound();
