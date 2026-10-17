@@ -49,6 +49,8 @@ import { areaLabel } from '@/app/lib/areaLabel';
 import { AREA_ORDER } from '@/app/lib/areas';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
+import { AdminNavList } from './AdminSidebar';
+import { ADMIN_DEFAULT_SECTION, adminTabOf, adminSectionFromSearch } from './adminNav';
 
 const supabase = createClient();
 
@@ -80,14 +82,17 @@ type Salon = {
 
 type AuthState = 'loading' | 'forbidden' | 'authorized';
 
-// 本体タブ内のアコーディオン1セクション。見出し（クリックで開閉・chevron付き）＋本文。
-// 開閉は CSS の hidden 切替のみ（本文は常にマウントしたまま）＝内部フォームの入力中state が破棄されない。
+// ★ 第1539便: 赤いバッジにする項目（メール配信トラブル＝予約の取りこぼし。ほかの要対応はピンク）。
+const NAV_RED_BADGES: ReadonlySet<string> = new Set(['email-events']);
+
+// ★ 第1539便（2026-10-17）: アコーディオンをやめて「サイドバーで選んだ1つだけを出す」パネルに。
+//   ★ 呼び出し側（38か所）の形はそのまま: expanded に入っている id（＝選んでいる項目）だけを見せる。onToggle は使わない。
+//   ★ 中身は今までどおり常にマウントしたまま（選んでいない項目は display:none）＝入力中の state が消えない・件数バッジの通知も届く。
 function AccordionSection({
   id,
   title,
   meta,
   expanded,
-  onToggle,
   children,
 }: {
   id: string;
@@ -99,27 +104,13 @@ function AccordionSection({
 }) {
   const isOpen = expanded.has(id);
   return (
-    <div>
-      <button
-        type="button"
-        onClick={() => onToggle(id)}
-        aria-expanded={isOpen}
-        className="w-full flex items-center justify-between gap-3 px-5 py-3.5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:bg-slate-50/60 transition-colors"
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-black text-slate-700">{title}</span>
-          {meta}
-        </span>
-        <svg
-          className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {/* 本文は常にレンダリングし、閉時は display:none（unmount しない＝入力中stateを保持）。 */}
-      <div className={isOpen ? 'mt-3' : 'hidden'}>{children}</div>
-    </div>
+    <section id={`admin-${id}`} className={isOpen ? '' : 'hidden'} aria-hidden={!isOpen}>
+      <div className="flex items-center gap-2 flex-wrap mb-4">
+        <h2 className="text-lg font-black text-slate-800">{title}</h2>
+        {meta}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -153,9 +144,15 @@ export default function AdminDashboard() {
   const [hidingId, setHidingId] = useState<number | null>(null);
   const [impersonatingId, setImpersonatingId] = useState<number | null>(null); // オーナーログインリンク発行中のサロンID
   // タブ（本体/求人）とアコーディオン開閉。タブはURLクエリ ?tab= と同期（リロード・ブックマークで維持）。
-  const [activeTab, setActiveTab] = useState<'main' | 'jobs' | 'salon' | 'data' | 'hp' | 'docs'>('main');
-  // 初期は使用頻度の高い「掲載サロン一覧」のみ開。開閉状態はクライアントstateのみ（永続化しない）。
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['salon-list']));
+  // ★ 第1539便: タブ＋アコーディオン → サイドバーで1項目を選ぶ形に。URL は /admin?s=<id>（前の ?tab= も読む）。
+  //   ★ 既定は使用頻度の高い「掲載店舗一覧」。activeTab（中身の入れ物の出し分け）は選んだ項目から決まる。
+  // ★ 初期値は URL から（?s=・前の ?tab=）。★ サーバー側では既定値。最初の描画は「確認中」の画面で項目を使わないので、ずれは出ない。
+  const [selectedSection, setSelectedSection] = useState<string>(() =>
+    typeof window === 'undefined' ? ADMIN_DEFAULT_SECTION : adminSectionFromSearch(window.location.search));
+  const activeTab = adminTabOf(selectedSection) ?? 'salon';
+  const expandedSections = new Set([selectedSection]);
+  // スマホのドロワー（三本線）。
+  const [drawerOpen, setDrawerOpen] = useState(false);
   // 求人タブのバッジ用（AdminJobsManager が読み込み時に求人件数・新規応募合計を通知）。
   const [jobStats, setJobStats] = useState<{ total: number; newCount: number }>({ total: 0, newCount: 0 });
   // 求職マッチングの未対応エントリー件数（WorkMatchManager が読み込み/更新時に通知）。
@@ -177,25 +174,15 @@ export default function AdminDashboard() {
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
 
-  const toggleSection = (key: string) => {
-    setExpandedSections(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
+  // サイドバーで項目を選ぶ。★ 履歴を汚さない replace（同じルートなので再マウントされない）。
+  const selectSection = (id: string) => {
+    setSelectedSection(id);
+    setDrawerOpen(false);
+    router.replace(`/admin?s=${id}`, { scroll: false });
+    window.scrollTo({ top: 0 });
   };
-
-  // タブ切替時にURLも更新（履歴を汚さない replace。ページ自体は同一ルートなので再マウントされない）。
-  const selectTab = (key: 'main' | 'jobs' | 'salon' | 'data' | 'hp' | 'docs') => {
-    setActiveTab(key);
-    router.replace(`/admin?tab=${key}`, { scroll: false });
-  };
-
-  // マウント時に ?tab= を反映（リロード・ブックマークでタブを維持）。
-  useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'jobs' || t === 'salon' || t === 'data' || t === 'hp' || t === 'docs') setActiveTab(t);
-  }, []);
+  // 呼び出し側（AccordionSection の onToggle）の形を残すため。★ 使われない。
+  const toggleSection = selectSection;
 
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
@@ -219,6 +206,16 @@ export default function AdminDashboard() {
       await fetchSalons();
     })();
   }, [router, fetchSalons]);
+
+  // ★ 第1539便: サイドバーの件数バッジ（項目 id → 数）。★ 数は各 Manager が通知する（中身は非表示でもマウントしたまま）。
+  const navBadges: Record<string, number> = {
+    'listing-inquiries': listingInquiryOpenCount,
+    'email-events': emailTroubleOpenCount,
+    'hp-inquiries': hpInquiryOpenCount,
+    'work-match-entries': matchOpenCount,
+    'jobs-manage': jobStats.newCount,
+  };
+  const navBadgeTotal = Object.values(navBadges).reduce((a, n) => a + n, 0);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -386,56 +383,32 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* ★ 第1539便: ヘッダーは タイトル・サイトを見る・ログアウト だけ。お知らせ・請求書などの別画面はサイドバーの下へ移した。 */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="px-4 lg:px-6 h-[56px] flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* スマホだけ: サイドバー（ドロワー）を開く三本線。★ 閉じていても要対応に気づけるよう、件数の合計を重ねる */}
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              className="lg:hidden relative -ml-1 p-1.5 text-slate-600"
+              aria-label="メニューを開く"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+              {navBadgeTotal > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-pink-500 text-white text-[9px] font-black leading-none">
+                  {navBadgeTotal}
+                </span>
+              )}
+            </button>
             <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
               <span className="text-pink-500 font-bold text-sm leading-none">⚙</span>
             </div>
             <h1 className="text-base font-black text-slate-800 tracking-wide">管理者ダッシュボード</h1>
           </div>
           <div className="flex items-center gap-4">
-            {/* ★ 第862便: 運営からのお知らせ（店舗マイページの上の帯・一覧） */}
-            <Link
-              href="/admin/notices"
-              className="text-xs text-pink-600 hover:text-pink-700 font-bold transition-colors"
-            >
-              お知らせ
-            </Link>
-            {/* ★ 第816便: 請求書の管理 */}
-            <Link
-              href="/admin/billing"
-              className="text-xs text-pink-600 hover:text-pink-700 font-bold transition-colors"
-            >
-              請求書
-            </Link>
-            {/* ★ 第1444便: フクエスポイント（加盟店・集計） */}
-            <Link
-              href="/admin/points"
-              className="text-xs text-pink-600 hover:text-pink-700 font-bold transition-colors"
-            >
-              ポイント
-            </Link>
-            {/* ★ 第1174便: 広告掲載 申込書 兼 誓約書（店舗に送るリンク・提出の様子） */}
-            <Link
-              href="/admin/agreements"
-              className="text-xs text-pink-600 hover:text-pink-700 font-bold transition-colors"
-            >
-              誓約書
-            </Link>
-            {/* ★ 第1009便: fukuX の運営パネル（認証・凍結・通報・バナー）へ */}
-            <Link
-              href="/x/admin"
-              className="text-xs text-indigo-600 hover:text-indigo-700 font-bold transition-colors"
-            >
-              fukuX管理
-            </Link>
-            <Link
-              href="/moderation"
-              className="text-xs text-slate-400 hover:text-pink-600 font-medium transition-colors"
-            >
-              モデレーション
-            </Link>
             <Link
               href="/"
               target="_blank"
@@ -455,72 +428,34 @@ export default function AdminDashboard() {
       </header>
       <SiteNoticeBanner />
 
-      {/* ── タブナビゲーション（mypage と同系統のチップ・本体/求人の2タブ。URLクエリ ?tab= と同期） ── */}
-      <div className="max-w-5xl mx-auto px-3 pt-4 flex flex-wrap justify-center gap-1.5">
-        {([
-          ['salon', '店舗管理'],
-          ['data', '店舗データ'],
-          ['hp', '公式HP'],
-          ['main', 'オプション'],
-          ['jobs', '求人'],
-          ['docs', '書類'],
-        ] as const).map(([key, label]) => {
-          const selected = activeTab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => selectTab(key)}
-              aria-pressed={selected}
-              className={`inline-flex items-center gap-1.5 px-6 py-2.5 rounded-full border text-sm font-bold transition-colors ${
-                selected
-                  ? 'bg-pink-50 text-pink-600 border-pink-300'
-                  : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              {label}
-              {/* 求人タブ：新規応募＋マッチング未対応の合算バッジ（/adminを開いた瞬間に要対応が分かるように） */}
-              {key === 'jobs' && jobStats.newCount + matchOpenCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
-                  {jobStats.newCount + matchOpenCount}
-                </span>
-              )}
-              {/* 公式HPタブ：HP制作のお申し込みの未対応バッジ（2026-08-16 追加）。
-                  ★ 件数は HpInquiryManager が通知する。あちらは公式HPタブが非表示でも
-                    マウントされているので、他のタブを開いていてもこのバッジは出る。 */}
-              {key === 'hp' && hpInquiryOpenCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
-                  {hpInquiryOpenCount}
-                </span>
-              )}
-              {/* 店舗管理タブ：届かなかったメールの未対応バッジ（2026-08-16 追加）。
-                  ★ 他のバッジがピンクなのに対して、ここだけ赤にしてある。
-                    「予約を取りこぼしている」という意味なので、他の要対応と区別が付くようにする。
-                  ★ 件数は EmailEventManager が通知する。あちらはタブが非表示でもマウント
-                    されているので、他のタブを開いていてもこのバッジは出る。 */}
-              {key === 'data' && emailTroubleOpenCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black leading-none">
-                  {emailTroubleOpenCount}
-                </span>
-              )}
-              {/* 店舗管理タブ：掲載お問い合わせの未対応バッジ（2026-08-19 第24便）。
-                  ★ メール配信トラブル（赤）とは別バッジ。赤＝予約の取りこぼし・ピンク＝要対応の問い合わせ、
-                    という色の使い分けを崩さないため合算しない。
-                  ★ 件数は ListingInquiryManager が通知する。あちらはタブが非表示でもマウント
-                    されているので、他のタブを開いていてもこのバッジは出る。 */}
-              {key === 'salon' && listingInquiryOpenCount > 0 && (
-                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-pink-500 text-white text-[10px] font-black leading-none">
-                  {listingInquiryOpenCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* ── スマホ: ドロワー（/mypage と同じく左から） ── */}
+      {drawerOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <button type="button" aria-label="メニューを閉じる" className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-[82%] max-w-[300px] bg-white shadow-xl overflow-y-auto">
+            <div className="flex items-center justify-between px-4 h-[56px] border-b border-slate-100">
+              <span className="text-[15px] font-black text-slate-700">管理メニュー</span>
+              <button type="button" onClick={() => setDrawerOpen(false)} className="p-1.5 text-slate-500" aria-label="閉じる">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <AdminNavList selected={selectedSection} onSelect={selectSection} badges={navBadges} redBadges={NAV_RED_BADGES} />
+          </div>
+        </div>
+      )}
 
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="lg:flex">
+        {/* ── PC: 左のサイドバー（ヘッダーの下に固定・中だけスクロール） ── */}
+        <aside className="hidden lg:block w-[260px] flex-shrink-0 bg-white border-r border-slate-200 sticky top-[56px] h-[calc(100vh-56px)] overflow-y-auto">
+          <AdminNavList selected={selectedSection} onSelect={selectSection} badges={navBadges} redBadges={NAV_RED_BADGES} />
+        </aside>
+
+      <main className="flex-1 min-w-0 max-w-5xl mx-auto px-4 py-6">
 
         {/* ══════════ 本体タブ ══════════ */}
-        <div className={`space-y-4 ${activeTab === 'main' ? '' : 'hidden'}`}>
+        <div className={`${activeTab === 'main' ? '' : 'hidden'}`}>
 
           <AccordionSection id="option-banners" title="オプションバナー設定" expanded={expandedSections} onToggle={toggleSection}>
             <OptionBannerManager onToast={showToast} />
@@ -579,7 +514,7 @@ export default function AdminDashboard() {
         {/* ══════════ 本体タブ ここまで ══════════ */}
 
         {/* 店舗管理タブ（本体から移動：店舗登録・サロン一覧・オーナー連絡・優先順位・コラム記事） */}
-        <div className={`space-y-4 ${activeTab === 'salon' ? '' : 'hidden'}`}>
+        <div className={`${activeTab === 'salon' ? '' : 'hidden'}`}>
 
           {/* ── 新規店舗の初回情報入力フォーム（ワンタイムURL発行・入力内容の確認） ── */}
           <AccordionSection
@@ -919,7 +854,7 @@ export default function AdminDashboard() {
         {/* ══════════ 店舗データタブ（第708便・2026-09-23・カッキーさん）══════════
             ★ 店舗管理タブが長くなったので、【見る・送る・整える】系をこちらへ分けた。
             ★ 店舗管理に残したのは【店舗そのものの登録・一覧・問い合わせ・フクエスリンク登録】。 */}
-        <div className={`space-y-4 ${activeTab === 'data' ? '' : 'hidden'}`}>
+        <div className={`${activeTab === 'data' ? '' : 'hidden'}`}>
           {/* ── 届かなかったメール（email_events・2026-08-16 新設／第19便） ──
               Resend の Webhook（/api/webhooks/resend）が記録したバウンス等の一覧。
               ★ タブ最上部に置いてあるのは、ここに行があると【ネット予約を取りこぼしている】ため。
@@ -982,7 +917,7 @@ export default function AdminDashboard() {
 
         </div>
 
-        <div className={`space-y-4 ${activeTab === 'hp' ? '' : 'hidden'}`}>
+        <div className={`${activeTab === 'hp' ? '' : 'hidden'}`}>
 
           {/* ── 公式ホームページ制作のお申し込み（/hp/templates/contact のフォーム・2026-08-16 新設） ──
               要対応が最初に目に入るようタブ最上部に配置し、未対応件数を見出しバッジで表示
@@ -1039,7 +974,7 @@ export default function AdminDashboard() {
         {/* 公式HPタブ ここまで */}
 
         {/* ══════════ 求人タブ（本体タブと同じアコーディオン方式） ══════════ */}
-        <div className={`space-y-4 ${activeTab === 'jobs' ? '' : 'hidden'}`}>
+        <div className={`${activeTab === 'jobs' ? '' : 'hidden'}`}>
 
           {/* ── 求職マッチング エントリー（/jobs/matching の公開フォーム受け皿・斡旋支援）。
               要対応が最初に目に入るようタブ最上部に配置し、未対応件数を見出しバッジで表示。 ── */}
@@ -1126,7 +1061,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ══════════ 書類タブ（PDF・Word の書類置き場・管理者専用） ══════════ */}
-        <div className={`space-y-4 ${activeTab === 'docs' ? '' : 'hidden'}`}>
+        <div className={`${activeTab === 'docs' ? '' : 'hidden'}`}>
           <AccordionSection id="admin-documents" title="書類置き場（PDF・Word）" expanded={expandedSections} onToggle={toggleSection}>
             <AdminDocumentsManager onToast={showToast} />
           </AccordionSection>
@@ -1136,6 +1071,7 @@ export default function AdminDashboard() {
         </div>
 
       </main>
+      </div>
 
       {/* ── サロン編集モーダル ── */}
       {editingSalon && (
