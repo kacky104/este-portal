@@ -206,6 +206,33 @@ function TherapistMiniCardsRow({ therapists, salonId, showAge = false, compact =
   );
 }
 
+// ★ 第1534便: 画面の上下 600px 以内に入ってから中身を描く（一度描いたらそのまま）。それまでは同じ高さの空枠。
+//   サムネ列はクライアント取得なので、初期 HTML・SEO には元から載っていない（描くタイミングが変わるだけ）。
+function NearViewport({ className, placeholderClassName, children }: { className: string; placeholderClassName: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  // サムネ列はデータ取得後（クライアント）にだけ出るので、ここは SSR／hydration を通らない＝初期値をブラウザで決めてよい。
+  // IntersectionObserver が無い古いブラウザは最初から描く。
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    if (near) return;
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        setNear(true);
+        io.disconnect();
+      }
+    }, { rootMargin: '600px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  return (
+    <div ref={ref} className={className}>
+      {near ? children : <div aria-hidden className={placeholderClassName} />}
+    </div>
+  );
+}
+
 // ── 店名の1行自動縮小（デスクトップ wideLayout 用） ──
 // 店名行が2行になりそうなとき、利用可能幅に収まるまでフォントを段階的に下げて1行を保つ。
 // flex 行の中で min-w-0 により自分の幅が縮むので、その幅に対して文字幅を測って縮小する。
@@ -409,10 +436,16 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
   // bleedTherapists: セラピスト帯のみカード内側の左右パディング(px-5=20px)を負マージンで相殺し、
   // カード端寄りに広げる。-mx-3(12px相殺)＝両端に約8pxの余白を残す。スマホ(stackedLayout)だけ効かせ、
   // PC(wideLayout)は lg:mx-0 で従来の余白を維持。
+  // ★ 第1534便: サムネ列は「画面に近づいてから」描く（NearViewport）。トップでは店舗カードが全部ファーストビューの下にあり、
+  //   取得が終わった瞬間に全カードぶん（約1,600要素・画像176枚）を1回で描いていた＝PageSpeed の TBT が 0.1〜2.7秒と大きく揺れる元。
+  //   描くまでは同じ高さの空枠を置くので、描いたときに下が動かない。データ（therapists）・件数・タブは今までどおり。
   const therapistThumbs = therapists.length > 0 ? (
-    <div className={`${compactTherapists ? 'mb-2' : 'mb-4'}${bleedTherapists ? ' -mx-3 lg:mx-0' : ''}`}>
+    <NearViewport
+      className={`${compactTherapists ? 'mb-2' : 'mb-4'}${bleedTherapists ? ' -mx-3 lg:mx-0' : ''}`}
+      placeholderClassName={largeThumbs ? 'h-[173px] lg:h-[138px]' : compactTherapists ? 'h-[138px]' : 'h-[157px]'}
+    >
       <TherapistMiniCardsRow therapists={therapists} salonId={salon.id} showAge={showAge} compact={compactTherapists} large={largeThumbs} moreImageUrl={moreImageUrl} />
-    </div>
+    </NearViewport>
   ) : null;
 
   // ★ 第1126便: タブ（写メ日記・口コミ・新人・クーポン）。tabCounts を渡した画面（TOP）だけ出す。
