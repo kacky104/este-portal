@@ -49,6 +49,7 @@ import { AREA_ORDER } from '@/app/lib/areas';
 import { revalidateTopAndAreas, revalidateSalon } from '@/app/lib/revalidateTop';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { AdminNavList } from './AdminSidebar';
+import { adminPendingReviewCount } from '@/app/actions/adminBadges';
 import { ADMIN_DEFAULT_SECTION, adminTabOf, adminSectionFromSearch } from './adminNav';
 
 const supabase = createClient();
@@ -167,6 +168,10 @@ export default function AdminDashboard() {
   // 掲載お問い合わせ（listing_inquiries）の未対応件数。
   // 「店舗管理」タブのチップと、アコーディオン見出しのバッジの両方に使う（ListingInquiryManager が通知・2026-08-19 第24便）。
   const [listingInquiryOpenCount, setListingInquiryOpenCount] = useState(0);
+  // ★ 第1543便: オーナーからのお問い合わせ（owner_inquiries）の未対応件数（OwnerContactManager が通知）。
+  const [ownerInquiryOpenCount, setOwnerInquiryOpenCount] = useState(0);
+  // ★ 第1543便: 口コミの承認待ち（/moderation で審査）。サーバーで数える（RLS で見えないため）。開いた時と、画面に戻った時に数え直す。
+  const [pendingReviewCount, setPendingReviewCount] = useState(0);
   // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
   const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
 
@@ -182,6 +187,19 @@ export default function AdminDashboard() {
   };
   // 呼び出し側（AccordionSection の onToggle）の形を残すため。★ 使われない。
   const toggleSection = selectSection;
+
+  // ★ 第1543便: 口コミの承認待ちの件数（開いた時・タブに戻った時）。★ 運営としてログインしているときだけ（サーバー側でも確かめる）。
+  useEffect(() => {
+    if (authState !== 'authorized') return;
+    let alive = true;
+    const load = () => {
+      void adminPendingReviewCount().then((r) => { if (alive && r.ok) setPendingReviewCount(r.count); });
+    };
+    load();
+    const onVis = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { alive = false; document.removeEventListener('visibilitychange', onVis); };
+  }, [authState]);
 
   const fetchSalons = useCallback(async () => {
     const { data, error } = await supabase
@@ -213,6 +231,9 @@ export default function AdminDashboard() {
     'hp-inquiries': hpInquiryOpenCount,
     'work-match-entries': matchOpenCount,
     'jobs-manage': jobStats.newCount,
+    'owner-contact': ownerInquiryOpenCount,
+    // ★ 別画面のリンクは href をキーにする（サイドバー下の「ほかの画面」）
+    '/moderation': pendingReviewCount,
   };
   const navBadgeTotal = Object.values(navBadges).reduce((a, n) => a + n, 0);
 
@@ -893,6 +914,7 @@ export default function AdminDashboard() {
             <OwnerContactManager
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
+              onOpenCount={setOwnerInquiryOpenCount}
             />
           </AccordionSection>
 

@@ -81,15 +81,20 @@ export function AdminNavList({ selected, onSelect, badges, redBadges }: {
       })}
 
       <div className="px-4 pt-4 pb-1 text-[13px] tracking-wider text-slate-400">ほかの画面</div>
-      {ADMIN_LINKS.map((l) => (
-        <Link
-          key={l.href}
-          href={l.href}
-          className="block border-l-4 border-l-transparent px-4 py-3 text-[16px] text-[#212121] hover:bg-pink-50/40 hover:text-pink-600 transition-colors"
-        >
-          {l.label}
-        </Link>
-      ))}
+      {ADMIN_LINKS.map((l) => {
+        // ★ 第1543便: 別画面にも件数（キーは href。いまはモデレーション＝口コミの承認待ち）
+        const n = badges[l.href] ?? 0;
+        return (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="flex items-center gap-2 border-l-4 border-l-transparent px-4 py-3 text-[16px] text-[#212121] hover:bg-pink-50/40 hover:text-pink-600 transition-colors"
+          >
+            <span>{l.label}</span>
+            {n > 0 && <Badge n={n} />}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

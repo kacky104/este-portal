@@ -49,9 +49,12 @@ function formatDateTimeJST(iso: string): string {
 export default function OwnerContactManager({
   allSalons,
   onToast,
+  onOpenCount,
 }: {
   allSalons: SalonOption[];
   onToast: (msg: string) => void;
+  /** ★ 第1543便: 未対応のお問い合わせの件数を /admin のサイドバーのバッジへ知らせる。 */
+  onOpenCount?: (n: number) => void;
 }) {
   const [notices, setNotices] = useState<OwnerNotice[]>([]);
   // notice_id → 既読店舗数（一斉配信の到達確認用）。
@@ -267,6 +270,8 @@ export default function OwnerContactManager({
   };
 
   const openCount = inquiries.filter(q => q.status === 'open').length;
+  // ★ 第1543便: サイドバーのバッジへ（読み込み・対応済みの切り替えのたびに）。
+  useEffect(() => { onOpenCount?.(openCount); }, [openCount, onOpenCount]);
   // 未対応を先頭に（同状態内は新着順のまま＝取得順を保持する安定ソート）。
   const sortedInquiries = [...inquiries].sort((a, b) => (a.status === b.status ? 0 : a.status === 'open' ? -1 : 1));
 
