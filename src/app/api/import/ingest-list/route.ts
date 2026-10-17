@@ -276,6 +276,24 @@ export async function POST(req: Request) {
       }
       if (!isCreatableName(c.name)) { unmatched.push(`${c.name}（伏字・記号のみ・作成せず）`); continue; }
       if (!apply) { createdNames.push(c.name.trim()); continue; }   // 試し打ちでは作らない
+      // ★★ 第1545便（2026-10-17・カッキーさん）: 同じ名前の別人を作る前に、前の方の名前を空ける。
+      //   ★ DB に「同じ店に同じ名前（かな違い含む）は1人だけ」の一意の索引がある（20260922_therapist_name_key_unique.sql）ので、
+      //     そのまま作ると弾かれていた（第1544便で作られなかった理由）。
+      //   ★ 前の方は駅ちかから消えている＝辞めた子なので【非公開】にし、名前の後ろに「（前の方）」を付ける。
+      //     写真・紹介文・口コミはそのまま（同じ方の再登録だったら、名前を戻せばまとめ直せる）。
+      if (replacedFrom) {
+        const base = (nameOf.get(replacedFrom.id) ?? c.name).trim();
+        let renamed: string | null = null;
+        for (let n = 1; n <= 5 && !renamed; n++) {
+          const nm = base + (n === 1 ? '（前の方）' : `（前の方${n}）`);
+          const { error: rnErr } = await supabase.from('therapists')
+            .update({ name: nm, is_active: false, is_available_now_import: false })
+            .eq('id', replacedFrom.id);
+          if (!rnErr) renamed = nm;
+        }
+        if (!renamed) { unmatched.push(`${c.name}（前の同名の方 #${replacedFrom.id} の名前を空けられず・作成せず）`); continue; }
+        nameOf.set(replacedFrom.id, renamed);
+      }
       // ★★★ 第227便（2026-09-09・カッキーさんの決定）: **公開（is_active=true）＋新人（NEW）で作る**。
       //   ★ 以前は非公開で作っていたが、誰も公開にしないまま溜まり、駅ちかの新人がフクエスに
       //     出ないという実害のほうが大きかった。★ 写真は第217便の既定画像で出る。
@@ -306,7 +324,7 @@ export async function POST(req: Request) {
       isNew = true;
       if (replacedFrom) {
         replacedSameName.push(
-          `・${c.name.trim()}：新しく #${id} を作りました（駅ちかの番号 ${c.castId}）。前の同名の方 #${replacedFrom.id}（駅ちかの番号 ${replacedFrom.castId}）は駅ちかの一覧から消えているので、別人とみなしました。`,
+          `・${c.name.trim()}：新しく #${id} を作りました（駅ちかの番号 ${c.castId}）。前の同名の方 #${replacedFrom.id}（駅ちかの番号 ${replacedFrom.castId}）は駅ちかの一覧から消えているので別人とみなし、「${nameOf.get(replacedFrom.id) ?? ''}」に名前を変えて非公開にしました。`,
         );
       }
     }
@@ -479,8 +497,8 @@ export async function POST(req: Request) {
         [
           ...replacedSameName,
           '',
-          '前の方の登録（写真・紹介文・口コミ）はそのまま残しています。',
-          '同じ方の再登録だった場合は、管理画面で前の方の登録とまとめてください。',
+          '前の方の登録（写真・紹介文・口コミ）はそのまま残しています（非公開）。',
+          '同じ方の再登録だった場合は、前の方の名前を戻して、新しい方とまとめてください。',
         ],
       );
     }
