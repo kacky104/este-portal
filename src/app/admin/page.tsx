@@ -432,7 +432,7 @@ export default function AdminDashboard() {
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <button type="button" aria-label="メニューを閉じる" className="absolute inset-0 bg-black/40" onClick={() => setDrawerOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-[82%] max-w-[300px] bg-white shadow-xl overflow-y-auto">
+          <div className="absolute inset-y-0 left-0 w-[85%] max-w-[320px] bg-white shadow-xl overflow-y-auto overscroll-contain scrollbar-none">
             <div className="flex items-center justify-between px-4 h-[56px] border-b border-slate-100">
               <span className="text-[15px] font-black text-slate-700">管理メニュー</span>
               <button type="button" onClick={() => setDrawerOpen(false)} className="p-1.5 text-slate-500" aria-label="閉じる">
@@ -448,7 +448,7 @@ export default function AdminDashboard() {
 
       <div className="lg:flex">
         {/* ── PC: 左のサイドバー（ヘッダーの下に固定・中だけスクロール） ── */}
-        <aside className="hidden lg:block w-[260px] flex-shrink-0 bg-white border-r border-slate-200 sticky top-[56px] h-[calc(100vh-56px)] overflow-y-auto">
+        <aside className="hidden lg:block w-[320px] flex-shrink-0 bg-white border-r border-slate-200 sticky top-[56px] h-[calc(100vh-56px)] overflow-y-auto overscroll-contain scrollbar-none">
           <AdminNavList selected={selectedSection} onSelect={selectSection} badges={navBadges} redBadges={NAV_RED_BADGES} />
         </aside>
 

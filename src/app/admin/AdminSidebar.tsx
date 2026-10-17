@@ -46,7 +46,7 @@ export function AdminNavList({ selected, onSelect, badges, redBadges }: {
               type="button"
               onClick={() => toggle(g.tab)}
               aria-expanded={open}
-              className="w-full flex items-center gap-2 px-4 py-2 mt-2 first:mt-0 font-bold tracking-wider text-[15px] text-white bg-pink-500 hover:bg-pink-600 transition-colors"
+              className="w-full flex items-center gap-2 px-4 py-2 mt-2 first:mt-0 font-bold tracking-wider text-[16px] text-white bg-pink-500 hover:bg-pink-600 transition-colors"
             >
               <span>{g.label}</span>
               {!open && sum > 0 && <Badge n={sum} red={groupRed} />}
@@ -63,7 +63,7 @@ export function AdminNavList({ selected, onSelect, badges, redBadges }: {
                   type="button"
                   onClick={() => onSelect(it.id)}
                   aria-current={isSel ? 'page' : undefined}
-                  className={`w-full flex items-center gap-2 border-l-4 px-4 py-2.5 text-left text-[14px] leading-snug transition-colors ${
+                  className={`w-full flex items-center gap-2 border-l-4 px-4 py-3 text-left text-[16px] leading-snug transition-colors ${
                     isSel ? 'border-l-pink-500 bg-pink-50/60 text-pink-600' : 'border-l-transparent text-[#212121] hover:bg-pink-50/40'
                   }`}
                 >
@@ -85,7 +85,7 @@ export function AdminNavList({ selected, onSelect, badges, redBadges }: {
         <Link
           key={l.href}
           href={l.href}
-          className="block border-l-4 border-l-transparent px-4 py-2.5 text-[14px] text-[#212121] hover:bg-pink-50/40 hover:text-pink-600 transition-colors"
+          className="block border-l-4 border-l-transparent px-4 py-3 text-[16px] text-[#212121] hover:bg-pink-50/40 hover:text-pink-600 transition-colors"
         >
           {l.label}
         </Link>
