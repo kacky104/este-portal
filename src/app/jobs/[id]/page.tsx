@@ -108,8 +108,21 @@ function isValidPostalCode(v: string | null): boolean {
 }
 
 // JobPosting 構造化データ（このページの本丸）。データ取得・出力内容はブランド分離では変更しない。
-// validThrough は常時掲載方針のため出力しない（期限切れ放置はGoogleの品質違反）。
 // postalCode は salons.postal_code（構造化データ専用カラム）を出力。未設定の店では省略される。
+//
+// ★ 第1531便（サーチコンソール「求人情報」の警告3件・2026-10-17）:
+//   ・employmentType … 全件 CONTRACTOR（業務委託）固定。salon_jobs.employment_type は表示から撤去済みで値も使わない。
+//   ・validThrough  … 以前は「常時掲載方針のため出さない」だったが、Google が強く推奨するので
+//                     【描画した日（JST）＋VALID_THROUGH_DAYS 日】を出す。このページは ISR 10 分で再生成されるので、
+//                     期限は常に先に転がり続け、切れたまま残ることはない（公開を止めれば 404 になる）。
+const VALID_THROUGH_DAYS = 60;
+function validThroughFromToday(): string {
+  // JST の今日 0:00 ＋ 60 日 → 'YYYY-MM-DD'（Date 型。時刻は付けない）
+  const nowJst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const d = new Date(Date.UTC(nowJst.getUTCFullYear(), nowJst.getUTCMonth(), nowJst.getUTCDate() + VALID_THROUGH_DAYS));
+  return d.toISOString().slice(0, 10);
+}
+
 function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
   const ld: Record<string, unknown> = {
     '@context': 'https://schema.org/',
@@ -145,6 +158,10 @@ function buildJobPostingJsonLd(job: JobDetail): Record<string, unknown> {
     },
     // サイト内でWEB応募が完結するため true（フェーズ3で応募フォーム実装済み）。
     directApply: true,
+    // ★ 第1531便: 雇用形態（Google 推奨）。メンズエステのセラピストは業務委託＝CONTRACTOR。
+    employmentType: 'CONTRACTOR',
+    // ★ 第1531便: 掲載期限（Google 推奨）。描画日＋60日の転がし。
+    validThrough: validThroughFromToday(),
   };
 
   // datePosted：published_at の日付部分（ISO 8601）。
