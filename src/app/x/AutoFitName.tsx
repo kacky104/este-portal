@@ -43,10 +43,24 @@ export function AutoFitName({
   useIsomorphicLayoutEffect(() => {
     const c = containerRef.current;
     if (!c) return;
-    const ro = new ResizeObserver(() => setTick(t => t + 1));
+    // ★ 第1562便: 幅が変わったときだけ測り直す。文字サイズを変えると高さが変わり、それで毎回 RO が鳴って
+    //   測り直し→縮む→高さが変わる…を繰り返していた（お知らせの店名が震える原因）。
+    //   幅が変わったときは max から測り直す（広くなったら元の大きさに戻れるように）。
+    let lastW = -1;
+    const ro = new ResizeObserver((entries) => {
+      const w = Math.round(entries[0]?.contentRect.width ?? 0);
+      if (w === lastW) return;
+      const first = lastW < 0;
+      lastW = w;
+      if (first) return; // 初回の通知は初回計測（下の effect）と重複するので飛ばす
+      const t = textRef.current;
+      if (t) t.style.fontSize = `${max}px`;
+      setSize(max);
+      setTick(n => n + 1);
+    });
     ro.observe(c);
     return () => ro.disconnect();
-  }, []);
+  }, [max]);
   useIsomorphicLayoutEffect(() => {
     const t = textRef.current;
     if (!t) return;

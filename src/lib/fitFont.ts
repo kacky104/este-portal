@@ -86,6 +86,10 @@ export function fitFontBatched(args: FitFontArgs): () => void {
         if (cw <= 0 || sw <= 0) { onDone(size, false); return; }
         const fits = sw <= cw;
         if (first) {
+          // ★ 第1562便: container と text が同じ要素（AutoFitName）だと、収まっているとき clientWidth＝scrollWidth（文字の幅そのもの）。
+          //   そこから比例で見積もると「余裕 2%」の分だけ毎回小さくなり、計測のたびに文字が縮む→高さが変わる→再計測…で
+          //   トップのお知らせの店名が震えていた。この場合は「収まっている＝そのまま確定」にする（広げる余地は測れない）。
+          if (fits && container === text) { onDone(size, false); return; }
           // 比例で見積もる（収まっているなら max まで戻す候補にもなる）
           const est = fits && size >= max ? max : snapDown((size * cw * margin) / sw, step, min, max);
           if (est === size && fits) { onDone(size, false); return; }
