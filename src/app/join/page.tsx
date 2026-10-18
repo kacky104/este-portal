@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { MEMBER_EMAIL_NOTE } from '@/lib/castInviteNote';
 import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE } from '@/lib/points';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
@@ -46,14 +47,17 @@ export const revalidate = 300;
 
 // 会員特典。実装済みの機能だけを載せる（未実装の予告は書かない）。
 // リンク先は未ログインでも見られるページ、もしくはログインへリダイレクトされる会員ページ。
-const BENEFITS: { title: string; body: string; icon: 'point' | 'bookmark' | 'letter' | 'bell' | 'history' | 'review' | 'user' }[] = [
+// ★ 第1558便（2026-10-18・カッキーさん）: image があるものは、線画のアイコンの代わりに画像のバッジを出す（public/join/）。
+const BENEFITS: { title: string; body: string; icon: 'point' | 'bookmark' | 'letter' | 'bell' | 'history' | 'review' | 'user'; image?: string }[] = [
   {
     icon: 'point',
+    image: '/join/benefit-point.webp',
     title: 'フクエスポイントが貯まる',
     body: '会員登録・はじめての口コミ・加盟店のご来店でポイントが貯まり、1,000ptで1,000円引き。お店のクーポンとも併用できます。',
   },
   {
     icon: 'bookmark',
+    image: '/join/benefit-bookmark.webp',
     title: 'お気に入りの保存',
     body: '気になる店舗とセラピストをまとめて保存。ログインしておけば、スマホでもパソコンでも同じ一覧を開けます。',
   },
@@ -274,9 +278,13 @@ export default async function JoinPage() {
                 className="rounded-2xl border border-pink-100 bg-white/90 backdrop-blur-sm p-4 sm:p-5 shadow-sm"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="flex-shrink-0 w-9 h-9 rounded-xl bg-pink-50 border border-pink-100 text-pink-500 flex items-center justify-center">
-                    <BenefitIcon name={b.icon} />
-                  </span>
+                  {b.image ? (
+                    <Image src={b.image} alt="" width={40} height={40} className="flex-shrink-0 w-10 h-10 object-contain" />
+                  ) : (
+                    <span className="flex-shrink-0 w-9 h-9 rounded-xl bg-pink-50 border border-pink-100 text-pink-500 flex items-center justify-center">
+                      <BenefitIcon name={b.icon} />
+                    </span>
+                  )}
                   <p className="text-sm font-bold text-slate-800">{b.title}</p>
                 </div>
                 <p className="mt-2.5 text-xs leading-relaxed text-slate-500">{b.body}</p>
