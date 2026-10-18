@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { claimVisitPoints } from '@/app/actions/points';
 import { notifyPointsChanged } from '@/lib/pointsEvents';
 import { POINT_CLAIM_HOURS, POINT_PENDING_KEY, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT_NOTE } from '@/lib/points';
@@ -24,11 +24,11 @@ export function PointsClaimCard({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
-  const [inLine, setInLine] = useState(false);
+  // ★ 第1553便: LINE のアプリ内ブラウザか（effect 内の setState をやめ、useSyncExternalStore で読む）
+  const inLine = useSyncExternalStore(noopSubscribe, isLineBrowser, () => false);
 
   // ★ 受け取れる券は、このブラウザに覚えておく（ログインの行き来・あとから会員ページで受け取るため）
   useEffect(() => {
-    setInLine(/\bLine\//i.test(navigator.userAgent));
     try {
       if (view.kind === 'open') {
         localStorage.setItem(POINT_PENDING_KEY, JSON.stringify({ token, exp: new Date(view.expiresAt).getTime() }));
@@ -125,3 +125,6 @@ export function PointsClaimCard({
     </section>
   );
 }
+
+function noopSubscribe(): () => void { return () => {}; }
+function isLineBrowser(): boolean { return /\bLine\//i.test(navigator.userAgent); }
