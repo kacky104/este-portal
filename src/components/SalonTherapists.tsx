@@ -900,8 +900,9 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
 // （未指定なら従来どおりクライアントで取得。既存の呼び出し箇所は変更不要）
 export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false, hideSaveOnMobile = false, initialList }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean; hideSaveOnMobile?: boolean; initialList?: Therapist[] }) {
   const hasInitial = Array.isArray(initialList);
-  // サーバー側で既に並べ替え済みだが、props の並びに依存しないようここでも通す（冪等）。
-  const [list, setList] = useState<Therapist[]>(initialList ? sortSalonTherapists(initialList) : []);
+  // ★ 第1556便: サーバー側（fetchSalonTherapists）の並びをそのまま使う。
+  //   ここで sortSalonTherapists を通し直すと、コネックエフの並び（第1555便）が出勤状況の順に崩れていたため。
+  const [list, setList] = useState<Therapist[]>(initialList ?? []);
 
   useEffect(() => {
     if (hasInitial) return;  // サーバー取得済み。二重フェッチしない。
