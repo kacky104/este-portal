@@ -29,6 +29,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   'article_list', 'article_read', 'article_verify',
   'read_bump',   // ★ 第1305便: 管理画面トップを読むだけ
   'esutama_appeal_read', 'esutama_appeal_verify',   // ★ 第1314便: エステ魂のアピールの画面を読むだけ
+  'esutama_sort_read',   // ★ 第1557便: エステ魂の表示順の画面を読むだけ
   // ── エステラブ: 読むだけ ──
   'esulove_therapists',
   // ── エステ魂: 読むだけ ──
@@ -57,6 +58,8 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'bump_set',
   // ★ 第1314便: エステ魂の集客ワンクリックアピール。★ 届いていれば回数が1つ減っている。押し直さない
   'esutama_appeal_set',
+  // ★ 第1557便: セラピストの並び順。★ 届いていれば並びが変わっている。送り直さない
+  'girls_sort', 'esutama_sort_save',
   // ── エステ魂 ──
   'esutama_work_save',
   'esutama_cast_hide', 'esutama_cast_create',

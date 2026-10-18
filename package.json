@@ -52,6 +52,7 @@
     "check:workflowcookie": "tsc src/lib/relayFlow.ts src/lib/mediaAudit.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workflowcookie-selftest.js",
     "check:loginautopause": "tsc src/lib/loginAutoPause.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/loginautopause-selftest.js",
     "check:workproblem": "tsc src/lib/workProblem.ts src/lib/loginBackoff.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/workproblem-selftest.js",
+    "check:mediasort": "tsc src/lib/mediaSort.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediasort-selftest.js",
     "check:relayretry": "tsc src/lib/relayRetry.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/relayretry-selftest.js",
     "check:diaryattach": "tsc src/lib/diaryAttach.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/diaryattach-selftest.js",
     "check:esutamaappeal": "tsc src/lib/esutamaAppeal.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutamaappeal-selftest.js",

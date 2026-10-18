@@ -402,6 +402,8 @@ export async function startRelayFlow(params: {
    * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
    */
   bump?: { setting?: BumpSetting; force?: boolean };
+  /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
+  sort?: { want: string[] };
 }): Promise<StartFlowResult> {
   if (!SUPPORTED_PROVIDERS.includes(params.provider as (typeof SUPPORTED_PROVIDERS)[number])) {
     return { ok: false, reason: 'unsupported', note: 'この媒体の自動連携はまだありません' };
@@ -690,6 +692,8 @@ export async function startRelayFlow(params: {
     // ★ 第1305便: 駅ちかの上位表示。★ 渡されたときだけ入れる
     ...(params.bump?.setting ? { bumpSetting: params.bump.setting } : {}),
     ...(params.bump?.force === true ? { bumpForce: true } : {}),
+    // ★ 第1557便: セラピストの並び順。★ 渡されたときだけ入れる
+    ...(params.sort ? { sortWant: params.sort.want.map(String) } : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
     ...(params.diary
       ? {
@@ -701,6 +705,9 @@ export async function startRelayFlow(params: {
   // ★★★ 実弾なのに相手が指定されていないのは、呼び出し側の間違い。★ 黙って始めない
   if (params.intent === 'diary_push' && !params.diary) {
     throw new Error('diary_push には diary（therapistId）が要る');
+  }
+  if (params.intent === 'sort_push' && !(params.sort && params.sort.want.length > 0)) {
+    throw new Error('sort_push には sort.want（並び）が要る');
   }
   if (params.intent === 'bump_auto' && !params.bump?.setting) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');

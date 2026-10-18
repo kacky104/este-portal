@@ -12,6 +12,7 @@ import { setTherapistActive } from '@/app/actions/therapistAdmin';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import { getConecfFirstImport, requestConecfFirstImport, getConecfPhotoImport, requestConecfPhotoImport, type FirstImportStatus, type PhotoImportStatus } from '@/app/actions/conecfFirstImport';
 import { parseBodyType } from '@/lib/bodyType';
+import { sendConecfGirlOrderToSites } from '@/app/actions/conecfSort';
 import { startConecfEkichikaBulkEdit, previewConecfEkichikaPhotoRemovals, startConecfEsutamaBulkEdit, previewConecfEsutamaPhotoRemovals } from '@/app/actions/conecfGirlEdit';
 import { PhotoRemoveConfirm, type PhotoRemoval } from './PhotoRemoveConfirm';
 import { PlaceholderCard } from './PlaceholderCard';
@@ -68,7 +69,12 @@ function useFirstImport(onDone: () => void) {
     const res = await getConecfFirstImport();
     if (res.ok) setSt(res.data);
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  // ★ 第1557便: effect の中で setState を呼ぶ関数を直接呼ばない（eslint react-hooks/set-state-in-effect）。結果は then の中で入れる
+  useEffect(() => {
+    let alive = true;
+    void getConecfFirstImport().then((res) => { if (alive && res.ok) setSt(res.data); });
+    return () => { alive = false; };
+  }, []);
   const phase = st?.phase;
   useEffect(() => {
     if (phase !== 'waiting' && phase !== 'running') return;
@@ -90,7 +96,11 @@ function usePhotoImport(onDone: () => void) {
     const res = await getConecfPhotoImport();
     if (res.ok) setSt(res.data);
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let alive = true;
+    void getConecfPhotoImport().then((res) => { if (alive && res.ok) setSt(res.data); });
+    return () => { alive = false; };
+  }, []);
   const phase = st?.phase;
   useEffect(() => {
     if (phase !== 'waiting' && phase !== 'running') return;
@@ -106,6 +116,8 @@ function usePhotoImport(onDone: () => void) {
 }
 
 function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => void }) {
+  // ★ 第1557便: 画面を開いた時刻（描画のたびに Date.now() を呼ばない・eslint react-hooks/purity）
+  const [mountedAt] = useState(() => Date.now());
   const href = useConecfHref();
   const [rows, setRows] = useState<ConecfGirlRow[] | null>(null);
   const [salonId, setSalonId] = useState<number | null>(null);
@@ -135,7 +147,15 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
     else setError(res.error);
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let alive = true;
+    void listConecfGirls().then((res) => {
+      if (!alive) return;
+      if (res.ok) { setRows(res.data.girls); setSalonId(res.data.salonId); setError(''); }
+      else setError(res.error);
+    });
+    return () => { alive = false; };
+  }, []);
 
   const onImportDone = useCallback(() => {
     void load();
@@ -175,6 +195,23 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   };
 
   const applyRows = (next: ConecfGirlRow[]) => { rowsRef.current = next; setRows(next); };
+
+  // ★ 第1557便: いまの並び順を駅ちか・エステ魂へ送る（ラビリンス様の依頼）
+  const [sortSending, setSortSending] = useState(false);
+  const onSendOrder = async () => {
+    if (orderBusy) { onToast('並び順を保存しています。少し待ってからお試しください'); return; }
+    setSortSending(true);
+    try {
+      const r = await sendConecfGirlOrderToSites();
+      if (!r.ok) { onToast(r.error); return; }
+      const parts: string[] = [];
+      if (r.data.queued.length > 0) parts.push(r.data.queued.join('・') + 'へ並び順を送る準備ができました。結果は「更新結果」に出ます');
+      if (r.data.skipped.length > 0) parts.push('送れなかったサイト: ' + r.data.skipped.join('、'));
+      onToast(parts.join('。'));
+    } finally {
+      setSortSending(false);
+    }
+  };
 
   const onGripDown = (e: React.PointerEvent<HTMLButtonElement>, g: ConecfGirlRow) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -427,6 +464,15 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         <Link href={href('/girls/sync')} className="inline-flex items-center h-8 px-3 rounded border border-slate-300 bg-[#fefdfd] text-[12px]">
           サイトへ登録
         </Link>
+        {/* ★ 第1557便: いまの並び順を駅ちか・エステ魂へ */}
+        <button
+          type="button"
+          disabled={sortSending || !enabled}
+          onClick={() => void onSendOrder()}
+          className="inline-flex items-center h-8 px-3 rounded border border-[#2563eb] bg-[#fefdfd] text-[#1d4ed8] text-[12px] disabled:opacity-40"
+        >
+          {sortSending ? '受け付けています…' : '並び順を駅ちか・エステ魂へ送る'}
+        </button>
       </div>
 
       {esuRemovals && (
@@ -531,7 +577,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       {pst && (pst.phase === 'waiting' || pst.phase === 'running') && (
         <p className="bg-white border border-slate-200 px-4 py-2.5 text-[13px] text-[#1558d6]">駅ちかから写真を取り込んでいます…（20分ほどで反映されます）</p>
       )}
-      {pst && pst.phase === 'done' && pst.summary && pst.doneAt && Date.now() - Date.parse(pst.doneAt) < 24 * 60 * 60 * 1000 && (
+      {pst && pst.phase === 'done' && pst.summary && pst.doneAt && mountedAt - Date.parse(pst.doneAt) < 24 * 60 * 60 * 1000 && (
         <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-slate-500">駅ちかから写真を取り込みました（{pst.summary.people}名）</p>
       )}
       {st && (st.phase === 'waiting' || st.phase === 'running') && (

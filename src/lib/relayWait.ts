@@ -49,6 +49,7 @@ export const WAIT_INTENTS: readonly string[] = [
   'girl_delete', 'cast_hide',
   'girl_edit', 'cast_edit',
   'girl_create', 'cast_create',
+  'sort_push',   // ★ 第1557便: セラピストの並び順（店舗様が押したとき）
 ];
 
 export function canWaitIntent(intent: string): boolean {
@@ -60,6 +61,7 @@ export function waitIntentLabel(intent: string): string {
   if (intent === 'girl_delete' || intent === 'cast_hide') return 'セラピストの削除';
   if (intent === 'girl_edit' || intent === 'cast_edit') return 'プロフィールの更新';
   if (intent === 'girl_create' || intent === 'cast_create') return 'セラピストの登録';
+  if (intent === 'sort_push') return 'セラピストの並び順';
   return '更新';
 }
 

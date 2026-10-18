@@ -117,6 +117,10 @@ export type RelayPurpose =
   | 'esutama_appeal_read'
   | 'esutama_appeal_set'
   | 'esutama_appeal_verify'
+  // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える（送り直さない）
+  | 'girls_sort'
+  | 'esutama_sort_read'
+  | 'esutama_sort_save'
   | 'selftest';
 
 export type LeasedJob = {

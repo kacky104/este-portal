@@ -54,6 +54,7 @@ import {
 import { mergeCookies } from './relayJob';
 // ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）
 import { afterEsutamaAppealRead, afterEsutamaAppealSet, afterEsutamaAppealVerify } from './esutamaAppealFlow';
+import { sortAfterEkichikaGirls, afterEkichikaGirlsSort, afterEsutamaSortRead, afterEsutamaSortSave } from './mediaSortFlow';
 // ★ 第1305便: 駅ちかの上位表示（判断と読み取りは ekichikaBump.ts）
 import { EKICHIKA_ADMIN_TOP_URL, EKICHIKA_BUMP_URL, parseEkichikaBumpTop, bumpTopUsable, buildEkichikaBumpBody, parseEkichikaBumpResult, shouldBumpNow, type BumpSetting } from './ekichikaBump';
 // ★ 送る内容の形。★ 型だけ借りる（実体は esutamaRequests。★ 実行時の依存は増やさない）
@@ -242,6 +243,12 @@ export type RelayFlowIntent =
    */
   | 'bump_auto'
   | 'bump_push'
+  /**
+   * ★★★ 第1557便（2026-10-18）: コネックエフのセラピストの並びを送る（lib/mediaSortFlow.ts）。
+   *   駅ちか: login → read_girls → girls_sort → read_girls（照合）／エステ魂: login → esutama_sort_read → esutama_sort_save → esutama_sort_read（照合）
+   *   ★ girls_sort / esutama_sort_save だけが相手の並びを書き換える（送り直さない）。
+   */
+  | 'sort_push'
   /**
    * ★★ 投稿用メールアドレスの取り込み（第53便・設計メモ 追記26 §123）。
    *   login → read_maillist → 終わり。★ **駅ちかへは何も書かない。**
@@ -925,6 +932,13 @@ export type RelayFlowContext = {
   bumpForce?: boolean;
   /** 押す前に読んだ値（トップから）。★ 押したあとの記録に使う */
   bumpBefore?: { remaining: number | null; quota: number | null; lastAt: string | null };
+  // ── ここから下は intent='sort_push' のときだけ入る（第1557便）──
+  /** コネックエフの並び（上から順の、そのサイトの番号） */
+  sortWant?: string[];
+  /** 'verify' … 送ったあとの読み直し */
+  sortStage?: 'verify';
+  /** 並びに入れた（サイトにいた）人数 */
+  sortMatched?: number;
   sokuhimePrecedingFlg?: string;
   sokuhimeRemaining?: number | null;
   /** 相手が返した終了時刻の文字（"HH:MM"）。★ 照合の段で記録に残す */
@@ -1058,7 +1072,9 @@ export type FlowNextRequest = {
     // ★ 第1305便: 駅ちかの上位表示。★ bump_set だけが相手の回数を減らす
     | 'read_bump' | 'bump_set'
     // ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）。★ esutama_appeal_set だけが相手の回数を減らす
-    | 'esutama_appeal_read' | 'esutama_appeal_set' | 'esutama_appeal_verify';
+    | 'esutama_appeal_read' | 'esutama_appeal_set' | 'esutama_appeal_verify'
+    // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える
+    | 'girls_sort' | 'esutama_sort_read' | 'esutama_sort_save';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1601,6 +1617,13 @@ function advanceFlowStep(
       return afterReadBump(input, ctx);
     case 'bump_set':
       return afterBumpSet(input, ctx);
+    // ── セラピストの並び順（第1557便）──
+    case 'girls_sort':
+      return afterEkichikaGirlsSort(input, ctx);
+    case 'esutama_sort_read':
+      return afterEsutamaSortRead(input, ctx);
+    case 'esutama_sort_save':
+      return afterEsutamaSortSave(input, ctx);
     // ── 駅ちかから1人削除（第228便）★ 段名で分けている。既存の case には触れていない ──
     case 'girl_delete':
       return afterGirlDelete(input, ctx);
@@ -1872,7 +1895,8 @@ function afterLogin(
     };
   }
 
-  if (ctx.intent === 'girl_delete' || ctx.intent === 'girl_create') {
+  if (ctx.intent === 'girl_delete' || ctx.intent === 'girl_create' || ctx.intent === 'sort_push') {
+    // ★ 第1557便: 並び順（sort_push）も先に一覧を読む（今の並びとトークン）
     // ★ 消す前・作る前に必ず一覧を読む。★ 相手が居るか（居ないか）の確認と、使い捨てトークンの取得を兼ねる
     return {
       kind: 'next',
@@ -2905,6 +2929,8 @@ function afterReadGirls(
     if (ctx.intent === 'girl_delete') return girlDeleteAfterGirls(page, withResponseCookie(ctx, input));
     // ★★★ 登録の流れ（第234便）も、ここで終わらずに次の段へ進む
     if (ctx.intent === 'girl_create') return girlCreateAfterGirls(page, input, ctx);
+    // ★ 第1557便: 並び順（1回目は送る・2回目は照合）
+    if (ctx.intent === 'sort_push') return sortAfterEkichikaGirls(page, withResponseCookie(ctx, input));
 
     // ★★ ここまで来て初めて「ログインできた」と言える
     return {
@@ -3246,6 +3272,9 @@ function finishRead(audits: FlowAudit[], ctx: RelayFlowContext, page: WorkPage):
     case 'bump_push':
       // ★ 第1305便: 上位表示は管理画面トップを読む（出勤ページは使わない）
       return stop(audits, '上位表示は出勤ページを使わない（ここへは来ないはず）');
+    case 'sort_push':
+      // ★ 第1557便: 並び順は女の子一覧（エステ魂は表示順の画面）を使う。★ 網羅は外さない
+      return stop(audits, '並び順は出勤ページを使わない（ここへは来ないはず）');
     case 'diary_read':
       // ★ ここへは来ない（写メ日記は出勤ページを読みに行かない）。★ 網羅は外さない
       //   ★★ この見張りが、いま実際に働いた: diary_read を足した時点でコンパイルが止まった（第94便）
