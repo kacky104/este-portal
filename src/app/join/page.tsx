@@ -63,16 +63,19 @@ const BENEFITS: { title: string; body: string; icon: 'point' | 'bookmark' | 'let
   },
   {
     icon: 'letter',
+    image: '/join/benefit-letter.webp',
     title: 'VIPレターが届く',
     body: '保存しているお店から、会員だけに届く特別メッセージを受け取れます。受信ボックスはヘッダーのアイコンから。',
   },
   {
     icon: 'bell',
+    image: '/join/benefit-bell.webp',
     title: '新着・クーポンの通知',
     body: '保存したお店の新着情報やクーポンをまとめてチェック。気づかないうちに終わっていた、を防げます。',
   },
   {
     icon: 'history',
+    image: '/join/benefit-history.webp',
     title: '閲覧履歴が残る',
     body: '最近見た店舗・セラピストを自動で記録。「あのお店なんて名前だったか」を探し直す手間がなくなります。',
   },
