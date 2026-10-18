@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { claimVisitPoints } from '@/app/actions/points';
+import { notifyPointsChanged } from '@/lib/pointsEvents';
 import { POINT_CLAIM_HOURS, POINT_PENDING_KEY, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT_NOTE } from '@/lib/points';
 import type { ClaimView } from '@/app/lib/points/server';
 
@@ -48,6 +49,7 @@ export function PointsClaimCard({
       if (!r.ok) { setErr(r.error); return; }
       setMsg(r.message);
       setBal(r.balance);
+      if (r.status === 'ok') notifyPointsChanged(r.balance, r.points || points); // ★ 第1552便: ヘッダーの数字も変える
       if (r.status === 'ok' || r.status === 'mine') setState({ kind: 'claimed', points: r.points || points, mine: true });
       else if (r.status === 'expired') setState({ kind: 'expired', points });
       else if (r.status === 'taken') setState({ kind: 'claimed', points, mine: false });

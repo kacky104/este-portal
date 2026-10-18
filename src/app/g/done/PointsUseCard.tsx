@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { spendVisitPoints } from '@/app/actions/points';
+import { notifyPointsChanged } from '@/lib/pointsEvents';
 import { POINT_USE_UNIT, POINT_USE_YEN } from '@/lib/points';
 import type { UseView } from '@/app/lib/points/server';
 
@@ -62,6 +63,7 @@ export function PointsUseCard({ token, view, loggedIn, returnPath }: { token: st
       if (!r.ok) { setErr(r.error); return; }
       if (r.status === 'ok' || r.status === 'used') {
         setBalanceAfter(r.balance);
+        notifyPointsChanged(r.balance); // ★ 第1552便: ヘッダーの数字も変える
         setState({ kind: 'used', mine: true, yen: POINT_USE_YEN });
       } else if (r.status === 'short') {
         setErr(r.message);

@@ -18,11 +18,23 @@ function safeNext(raw: string | null): string {
 
 // ★ 第1450便: 会員登録のポイント（キャンペーン・これからの会員だけ・1人1回）。確認メールのリンクで登録が終わったとき。
 //   ★ 何があってもログインの流れは止めない（失敗は無視。会員ページを開いたときにも付け直す）。
-async function grantSignup(supabase: Awaited<ReturnType<typeof createClient>>): Promise<void> {
+// ★ 第1552便: 返り値＝「いまメール確認が済んだばかりの新しい会員か」（確認から10分以内）。
+//   true なら着地先に fukues_welcome クッキーを付け、ヘッダーで「マイページはここから」を1回だけ案内する。
+async function grantSignup(supabase: Awaited<ReturnType<typeof createClient>>): Promise<boolean> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) await ensureSignupPoints(createServiceClient(), user);
-  } catch { /* 何もしない */ }
+    if (!user) return false;
+    await ensureSignupPoints(createServiceClient(), user);
+    const confirmed = user.email_confirmed_at ? new Date(user.email_confirmed_at).getTime() : NaN;
+    return Number.isFinite(confirmed) && Date.now() - confirmed < 10 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+function withWelcome(res: NextResponse, on: boolean, secure: boolean): NextResponse {
+  if (on) res.cookies.set('fukues_welcome', '1', { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax', secure, httpOnly: false });
+  return res;
 }
 
 export async function GET(request: Request) {
@@ -58,16 +70,16 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) return fail('verification_failed');
-    if (!isCast && !isRecovery) await grantSignup(supabase);
-    return NextResponse.redirect(`${base}${next}`);
+    const welcome = !isCast && !isRecovery ? await grantSignup(supabase) : false;
+    return withWelcome(NextResponse.redirect(`${base}${next}`), welcome, !isLocal);
   }
 
   // token_hash テンプレート: verifyOtp でセッション確立
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
     if (error) return fail('verification_failed');
-    if (!isCast && !isRecovery) await grantSignup(supabase);
-    return NextResponse.redirect(`${base}${next}`);
+    const welcome = !isCast && !isRecovery ? await grantSignup(supabase) : false;
+    return withWelcome(NextResponse.redirect(`${base}${next}`), welcome, !isLocal);
   }
 
   // code も token_hash も無い不正なアクセス

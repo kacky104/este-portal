@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getSession, onAuthChange, signOut } from '@/lib/auth';
 import { createClient } from '@/app/lib/supabase/client';
 import { useHydrated } from '@/lib/useHydrated';
+import { HeaderPoints, SignupPointsPill } from '@/app/components/HeaderPoints';
 
 // 共通ヘッダーの会員ログイン状態UI。
 // 未ログイン: 「ログイン」リンク（→ /login）。
@@ -23,6 +24,10 @@ export function AccountMenu() {
   // ハイドレーション対策：初期は未ログイン表示。マウント後に反映。
   const mounted = useHydrated();
   const [email, setEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false); // ★ 第1552便: セッションを確かめ終えたか（ログイン中の人に「登録で50pt」を一瞬出さない）
+  // ★ 第1552便: 会員登録の直後だけ「マイページはここから」の案内を1回出す（auth/callback が付ける fukues_welcome クッキー）
+  const [welcome, setWelcome] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   // ★ その人の立場（店舗オーナー／セラピスト）。★ 読めなければ false のまま＝出さないだけ。
@@ -66,16 +71,37 @@ export function AccountMenu() {
     };
     getSession().then(s => {
       if (!active) return;
+      setChecked(true);
       setEmail(s?.user.email ?? null);
+      setUserId(s?.user.id ?? null);
       void loadRoles(s?.user.id ?? null);
     });
     const off = onAuthChange(s => {
       if (!active) return;
       setEmail(s?.user.email ?? null);
+      setUserId(s?.user.id ?? null);
       void loadRoles(s?.user.id ?? null);
     });
     return () => { active = false; off(); };
   }, []);
+
+  // ★ 第1552便: 会員登録の直後の案内。クッキーがあり、まだ「OK」を押していない人にだけ出す。
+  useEffect(() => {
+    if (!email) return;
+    try {
+      const has = document.cookie.split('; ').some((c) => c === 'fukues_welcome=1');
+      if (!has) return;
+      if (localStorage.getItem(WELCOME_SEEN_KEY)) { clearWelcomeCookie(); return; }
+      const t = setTimeout(() => setWelcome(true), 0);
+      return () => clearTimeout(t);
+    } catch { /* 何もしない */ }
+  }, [email]);
+
+  const closeWelcome = () => {
+    setWelcome(false);
+    try { localStorage.setItem(WELCOME_SEEN_KEY, '1'); } catch { /* 何もしない */ }
+    clearWelcomeCookie();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -96,6 +122,8 @@ export function AccountMenu() {
   // 未ログイン（初期表示を含む）
   if (!loggedIn) {
     return (
+      <>
+      {mounted && checked && <SignupPointsPill />}
       <Link
         href="/login"
         className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 h-8 rounded-full border border-pink-200 text-pink-600 text-sm font-medium hover:bg-pink-50 hover:border-pink-300 transition-colors"
@@ -108,6 +136,7 @@ export function AccountMenu() {
         </svg>
         <span className="hidden sm:inline">ログイン</span>
       </Link>
+      </>
     );
   }
 
@@ -120,20 +149,24 @@ export function AccountMenu() {
   };
 
   return (
+    <>
+    {userId && <HeaderPoints userId={userId} />}
     <div ref={ref} className="relative flex-shrink-0">
+      {/* ★ 第1552便: スマホはアバターの下に「マイページ」（右隣の menu と同じ形）。PC は今まで通り「アカウント ▾」 */}
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => { setOpen(o => !o); if (welcome) closeWelcome(); }}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="アカウント"
-        className="inline-flex items-center gap-1.5 h-8 pl-1 pr-2 rounded-full border border-slate-200 bg-white hover:border-pink-300 transition-colors"
+        aria-label="アカウント・マイページ"
+        className={`inline-flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 px-0.5 sm:h-8 sm:pl-1 sm:pr-2 rounded-[10px] sm:rounded-full sm:border sm:border-slate-200 bg-white sm:hover:border-pink-300 transition-colors ${welcome ? 'relative z-50 ring-[3px] ring-pink-300' : ''}`}
       >
-        <span className="w-6 h-6 rounded-full bg-pink-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+        <span className="w-[22px] h-[22px] sm:w-6 sm:h-6 rounded-full bg-pink-600 text-white text-[11px] sm:text-xs font-bold flex items-center justify-center flex-shrink-0">
           {initial}
         </span>
+        <span className="sm:hidden text-[8px] font-bold leading-none text-pink-600 whitespace-nowrap">マイページ</span>
         <span className="hidden sm:inline text-sm text-slate-600 font-medium">アカウント</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 flex-shrink-0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hidden sm:block text-slate-400 flex-shrink-0">
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
@@ -204,6 +237,29 @@ export function AccountMenu() {
           </button>
         </div>
       )}
+
+      {welcome && !open && (
+        <>
+          <div className="fixed inset-x-0 top-14 bottom-0 bg-slate-900/35 z-40" aria-hidden="true" onClick={closeWelcome} />
+          <div role="dialog" aria-label="マイページのご案内" className="absolute right-[-6px] top-full mt-3 w-[250px] z-50">
+            <div className="absolute -top-1.5 right-4 w-3.5 h-3.5 rotate-45 rounded-sm bg-pink-700" aria-hidden="true" />
+            <div className="relative rounded-[14px] bg-pink-700 text-white px-4 py-3.5 shadow-xl">
+              <p className="text-[15px] font-extrabold">ご登録ありがとうございます！</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed">マイページ（保存したお店・予約・ポイント）は、いつでもここから開けます。</p>
+              <div className="mt-3 flex justify-end gap-2">
+                <Link href="/member" onClick={closeWelcome} className="inline-flex items-center min-h-10 px-3.5 rounded-full bg-white text-pink-700 text-sm font-extrabold">マイページを見る</Link>
+                <button type="button" onClick={closeWelcome} className="min-h-10 px-3.5 rounded-full border border-white/60 text-white text-sm font-bold">OK</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
+    </>
   );
+}
+
+const WELCOME_SEEN_KEY = 'fukues.welcomeSeen';
+function clearWelcomeCookie() {
+  try { document.cookie = 'fukues_welcome=; path=/; max-age=0; samesite=lax'; } catch { /* 何もしない */ }
 }
