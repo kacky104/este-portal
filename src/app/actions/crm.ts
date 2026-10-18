@@ -18,6 +18,7 @@ import { normalizePhone } from '@/app/lib/validation/phone';
 import { loadBookingBoard, normalizeIntervalMin } from '@/app/lib/booking/boardData';
 import { scheduleWindowUtc } from '@/app/lib/booking/slots';
 import { readConecfGirlOrder, isMissingOrderTable } from '@/app/lib/conecf/girlOrder';
+import { revalidateSalonTherapistOrder } from '@/app/lib/conecf/girlOrderRevalidate';
 import { sortTherapistsByManual, placeSubsetOrder } from '@/lib/therapistOrder';
 import { CRM_TERMS_VERSION } from '@/app/lib/crm/terms';
 import { assertCrmOwner, isCrmActive } from '@/app/lib/crm/auth';
@@ -901,6 +902,7 @@ export async function saveCrmTherapistOrder(salonId: number, ids: number[]): Pro
     console.error('[crm] 並び順を保存できなかった', salonId, error.code, error.message);
     return { ok: false, error: '並び順を保存できませんでした。時間をおいて、もう一度お試しください' };
   }
+  revalidateSalonTherapistOrder(salonId); // ★ 第1555便: フクエスの在籍一覧も同じ順
   return { ok: true };
 }
 

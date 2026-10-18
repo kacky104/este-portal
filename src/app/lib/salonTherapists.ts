@@ -6,6 +6,9 @@ import type { Therapist } from '@/components/SalonTherapists';
 //   import すると、このサーバー専用モジュール経由でクライアント一式がビルドに巻き込まれ
 //   `supabaseUrl is required` でビルドが落ちる（2026-08-22 実測）。
 import { sortSalonTherapists } from '@/lib/therapistSort';
+import { sortTherapistsByManual } from '@/lib/therapistOrder';
+import { createServiceClient } from '@/app/lib/supabase/service';
+import { readConecfGirlOrder } from '@/app/lib/conecf/girlOrder';
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SALON_THERAPIST_COLUMNS } from '@/lib/therapistColumns';
 
@@ -127,9 +130,19 @@ export async function fetchSalonTherapists(
   // ★ 既定画像（第217便）は【並べ替えの前】に当てる（2026-09-08・カッキーさんの判断）。
   //   ★ 既定画像がある子は「写真あり」扱い＝出勤順だけで並ぶ。
   //   ★ 既定画像が無い環境（運営も店舗も未設定）では、写真なしが後ろに揃う 2026-08-22 の並びのまま。
-  return sortSalonTherapists(await fillTherapistImages(supabase, mapped, {
+  const sorted = sortSalonTherapists(await fillTherapistImages(supabase, mapped, {
     salonId: () => salonId,
     image: (t) => t.profileImageUrl,
     set: (t, url) => ({ ...t, profileImageUrl: url }),
   }));
+
+  // ★★ 第1555便（2026-10-18・カッキーさん・案A）: コネックエフ（CRM と共通）で並べ替えを保存したお店は、
+  //   フクエスの在籍一覧も【コネックエフと完全に同じ順】にする（出勤状況・写真の有無は見ない）。
+  //   ★ 並びに入っていない方（新しく登録した方）は、コネックエフと同じく いちばん上（あいうえお順）。
+  //   ★ 並びを保存していないお店・読めなかったときは、今までどおり（写真あり → 出勤状況）。
+  //   ★ 読むのは conecf_girl_order の id の並びだけ（service_role 専用の表のため、ここだけ service で読む）。
+  let order: number[] = [];
+  try { order = await readConecfGirlOrder(createServiceClient(), salonId); } catch { order = []; }
+  if (order.length === 0) return sorted;
+  return sortTherapistsByManual(sorted, (t) => Number(t.id), (t) => t.name, () => false, order);
 }

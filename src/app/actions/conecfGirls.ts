@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidateSalonTherapistOrder } from '@/app/lib/conecf/girlOrderRevalidate';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
@@ -139,7 +140,7 @@ export async function listConecfGirls(): Promise<Result<{ salonId: number; girls
 //   ・コネックエフのセラピスト一覧で、つまんで並べ替えた順を覚える（「先頭へ」も同じ受け口）。
 //   ・保存するのは【公開中の方の id を上から順に】。表は conecf_girl_order（店ごとに1行）。★ therapists の行には触らない。
 //   ・★ 書けるのは「コネックエフに切り替え済み」で止めていない自店だけ（resolveSalon の守り）。他店の id は断る。
-//   ・変わるのはコネックエフの中の並びだけ（フクエスの店舗ページ・各サイトへは送らない＝ revalidate もしない）。
+//   ・★ 第1555便: フクエスの店舗ページ（トップ・在籍一覧）も同じ順で出す → 保存したらその2ページを作り直す。各サイトへは送らない。
 /** いまの並び（上から順の id）。★ セラピスト登録状況一覧が同じ順に並べるために読む */
 export async function getConecfGirlOrder(): Promise<Result<{ order: number[] }>> {
   const r = await resolveSalon();
@@ -175,6 +176,7 @@ export async function saveConecfGirlOrder(input: { ids: number[] }): Promise<Res
     console.error('[conecf] 並び順を保存できなかった', salonId, error.code, error.message);
     return { ok: false, error: '並び順を保存できませんでした。時間をおいて、もう一度お試しください' };
   }
+  revalidateSalonTherapistOrder(salonId);
   return { ok: true, data: { count: ids.length } };
 }
 
