@@ -81,11 +81,13 @@ const BENEFITS: { title: string; body: string; icon: 'point' | 'bookmark' | 'let
   },
   {
     icon: 'review',
+    image: '/join/benefit-review.webp',
     title: '口コミの投稿',
     body: '担当セラピストを指名して口コミを投稿できます。投稿は運営の確認後に公開され、次の人の店選びの参考になります。',
   },
   {
     icon: 'user',
+    image: '/join/benefit-user.webp',
     title: 'ニックネームで参加',
     body: '口コミに表示されるのは自分で決めたニックネームだけ。本名や電話番号の登録は必要ありません。',
   },
