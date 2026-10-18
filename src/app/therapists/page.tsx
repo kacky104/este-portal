@@ -76,7 +76,7 @@ export default async function TherapistsPage() {
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
             <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
           </div>

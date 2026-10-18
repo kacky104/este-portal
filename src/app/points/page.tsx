@@ -71,7 +71,7 @@ export default async function PointsPage() {
       <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${THEME.card}E6`, borderColor: THEME.cardBorder }}>
         <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
             <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
           </div>

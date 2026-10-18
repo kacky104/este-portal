@@ -50,7 +50,7 @@ export default function AboutPage() {
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
             <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
           </div>

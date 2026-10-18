@@ -7,6 +7,7 @@ import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_
 import { POINTS_EVENT, type PointsEventDetail } from '@/lib/pointsEvents';
 
 // ★ 第1552便（2026-10-18・カッキーさん）: 共通ヘッダーの「いまのポイント」のピル（AccountMenu の左に出る）。
+// ★ 第1554便: スマホは「使える」の白いチップを出さない（幅が足りない。濃いオレンジの色で使えることを示す）
 // ・P の周りのリング＝ 1,000pt（1,000円引き）までの進み具合。1,000pt 以上は濃いオレンジ＋「使える」。
 // ・タップで残高・あと何pt・貯め方・有効期限・履歴への入口が開く（スマホは画面幅のカード）。
 // ・受け取り／利用の直後は notifyPointsChanged() の合図で数字が変わり、+50 などを一瞬出す。
@@ -104,7 +105,7 @@ export function HeaderPoints({ userId }: { userId: string }) {
         aria-label={label}
         className={
           usable
-            ? 'relative inline-flex items-center gap-1 sm:gap-1.5 h-[30px] sm:h-8 pl-[3px] sm:pl-1 pr-[5px] rounded-full bg-orange-700 text-white ring-[3px] ring-orange-200'
+            ? 'relative inline-flex items-center gap-1 sm:gap-1.5 h-[30px] sm:h-8 pl-[3px] sm:pl-1 pr-2 sm:pr-[5px] rounded-full bg-orange-700 text-white ring-[3px] ring-orange-200'
             : 'relative inline-flex items-center gap-1 sm:gap-1.5 h-[30px] sm:h-8 pl-[3px] sm:pl-1 pr-2 sm:pr-3 rounded-full border border-orange-300 bg-orange-50 text-orange-800 ring-[3px] ring-orange-100 hover:bg-orange-100 transition-colors'
         }
       >
@@ -126,7 +127,7 @@ export function HeaderPoints({ userId }: { userId: string }) {
           {bal.toLocaleString()}<span className="text-[10px] sm:text-[11px] font-bold ml-px">pt</span>
         </span>
         {usable && (
-          <span className="text-[10px] sm:text-[11px] font-extrabold text-orange-700 bg-white rounded-full px-1.5 sm:px-2 py-0.5 leading-tight">使える</span>
+          <span className="hidden sm:inline text-[11px] font-extrabold text-orange-700 bg-white rounded-full px-2 py-0.5 leading-tight">使える</span>
         )}
         {gain !== null && (
           <span className="absolute -top-3 -right-2.5 text-[11px] font-extrabold text-white bg-green-700 rounded-full px-1.5 leading-normal shadow-md animate-bounce" aria-live="polite">
