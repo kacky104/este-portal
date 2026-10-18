@@ -80,6 +80,15 @@ export default async function PointsPage() {
       <SiteNoticeBanner />
 
       <main className="max-w-3xl mx-auto px-4 py-8 sm:py-10">
+        {/* ★ 第1561便（カッキーさん）: ページ上部のヘッダー画像 */}
+        <Image
+          src="/points/banner.webp"
+          alt="フクエスならポイントが貯まる 貯めたポイントはお支払いにも使える"
+          width={960}
+          height={503}
+          priority
+          className="w-full h-auto rounded-2xl mb-6"
+        />
         {/* ★ 第1460便: タイトルは店舗詳細ページの加盟店バッジと同じ形（両端が切り込んだ青いリボン・白い文字・左にコイン） */}
         <h1 className="text-center">
           <span

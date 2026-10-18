@@ -907,6 +907,20 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
                 className="w-full h-auto"
               />
             </Link>
+            {/* ★ 第1561便（カッキーさん）: fukuX の下にフクエスポイントのバナー（同じ幅・同じ枠） */}
+            <Link
+              href="/points"
+              aria-label="フクエスポイント"
+              className="block border border-pink-100 overflow-hidden shadow-sm"
+            >
+              <Image
+                src="/points/banner.webp"
+                alt="フクエスならポイントが貯まる 貯めたポイントはお支払いにも使える"
+                width={960}
+                height={503}
+                className="w-full h-auto"
+              />
+            </Link>
             {/* 右カラムの中身。sideNode が渡されていればそれを、無ければ従来の
                 「PRこの枠は準備中です」を出す＝渡さないページ（エリアページ等）は何も変わらない。
                 ★ 呼び出し側は「出すものが無いとき」に undefined を渡すこと。
