@@ -10,7 +10,7 @@ import { formatDiaryDate } from '@/lib/diaryDate';
 import { SALON_CARD_DIARY_WINDOW_MS } from '@/lib/diaryNew';
 import {
   CARD_TABS, CARD_TAB_ROWS, CARD_DIARY_ROWS, CARD_NEWFACE_ROWS, CARD_REVIEW_ROWS, badgeText, diaryLine, isCouponValid, oneLine, overallRating,
-  therapistRefOf, todayJstOf,
+  therapistRefOf, todayJstOf, introText,
   type CardTabKey, type SalonCardTabCount,
 } from '@/lib/salonCardTabs';
 import type { TherapistThumb } from './useSalonTherapists';
@@ -67,7 +67,7 @@ const diaryLead = (name: string, age: string, image: string | null) => (
  * 押したタブの中身（2件）を読む。★ 部品の外に置く（今の時刻を読むので、描画の中の関数にしない）。
  * @returns 行。null は「まだ読めない」（持っておかず、次に押したときにもう一度読む）
  */
-async function fetchTabRows(key: Exclude<CardTabKey, 'newface'>, salonId: number, therapists: TherapistThumb[]): Promise<Row[] | null> {
+async function fetchTabRows(key: Exclude<CardTabKey, 'newface' | 'intro'>, salonId: number, therapists: TherapistThumb[]): Promise<Row[] | null> {
   const supabase = createClient();
   let rows: Row[] = [];
 
@@ -169,6 +169,7 @@ const BADGE_COLOR: Record<CardTabKey, string> = {
   review: 'border-orange-600 text-orange-700',
   newface: 'border-green-700 text-green-700',
   coupon: 'border-blue-600 text-blue-600',
+  intro: 'border-violet-600 text-violet-600', // ★ バッジは出さない（色だけ揃えておく）
 };
 
 // ★ 第1157便: 押したとき（開いているタブ）の下線・薄い背景・文字も、バッジと同じ色に揃える
@@ -177,16 +178,20 @@ const TAB_ACTIVE_COLOR: Record<CardTabKey, string> = {
   review: 'border-orange-500 bg-orange-50 text-orange-700',
   newface: 'border-green-600 bg-green-50 text-green-700',
   coupon: 'border-blue-600 bg-blue-50 text-blue-700',
+  intro: 'border-violet-600 bg-violet-50 text-violet-700',
 };
 const TAB_HOVER_COLOR: Record<CardTabKey, string> = {
   diary: 'hover:text-pink-700',
   review: 'hover:text-orange-700',
   newface: 'hover:text-green-700',
   coupon: 'hover:text-blue-700',
+  intro: 'hover:text-violet-700',
 };
 
-export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therapists }: {
+export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therapists, description }: {
   salonId: number;
+  /** ★ 2026-10-19: お店紹介のタブの元の文（salons.description）。頭 INTRO_MAX 字だけ出す。空ならタブは薄く（押せない） */
+  description?: string;
   reviewCount: number;
   /** ★ 第1133便: お店の総合評価（ピンクの ★・点数・件数）。口コミのタブの3行目の左に出す（親が今までの部品をそのまま渡す） */
   ratingNode?: ReactNode;
@@ -219,9 +224,13 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
     review: reviewCount,
     newface: newFaces.length,
     coupon: counts.coupon,
+    intro: 0, // ★ 下で上書き（文があれば 1）
   };
+  // ★ 2026-10-19: お店紹介（HTML に入れておく・押しても読まない）
+  const intro = introText(description);
+  countOf.intro = intro ? 1 : 0;
 
-  const load = async (key: Exclude<CardTabKey, 'newface'>) => {
+  const load = async (key: Exclude<CardTabKey, 'newface' | 'intro'>) => {
     setData((d) => ({ ...d, [key]: { status: 'loading' } }));
     try {
       const rows = await fetchTabRows(key, salonId, therapists);
@@ -239,6 +248,7 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
     setOpen(key);
     // ★ 写メ日記は、親から行をもらっているときは読まない（もらっていないときだけ、今までどおり読む）
     if (key === 'diary' && hasDiaryRows) return;
+    if (key === 'intro') return;
     if (key !== 'newface' && data[key]?.status !== 'ready' && data[key]?.status !== 'loading') void load(key);
   };
 
@@ -267,6 +277,8 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
         };
       }),
     };
+  } else if (open === 'intro') {
+    loaded = null; // ★ お店紹介は下の renderIntro で出す（行の形ではない）
   } else if (open === 'diary' && hasDiaryRows) {
     loaded = { status: 'ready', rows: diaryRows };
   } else if (open) {
@@ -275,6 +287,27 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
   const tab = open ? CARD_TABS.find((t) => t.key === open) ?? null : null;
   const panelId = `salon-card-tab-${salonId}`;
   const diaryTab = CARD_TABS[0];
+  const introTab = CARD_TABS.find((t) => t.key === 'intro')!;
+
+  /**
+   * ★ 2026-10-19: お店紹介の中身。閉じていても HTML に入れておく（hidden）＝検索エンジンが読む。
+   *   文（最大 INTRO_MAX 字）＋ 右下に「続きを見る ›」（店舗詳細へ）。
+   */
+  const renderIntro = (isHidden: boolean) => (
+    <div id={isHidden ? undefined : panelId} hidden={isHidden} className="px-2 pb-1">
+      <p className="pt-2 text-[13.5px] leading-relaxed text-slate-700 break-words">{intro}</p>
+      <div className="flex h-8 items-center justify-end">
+        <Link
+          href={`/salon/${salonId}`}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={introTab.moreFull}
+          className="flex-shrink-0 text-[13px] font-bold text-pink-700 hover:text-pink-600"
+        >
+          {introTab.more} ›
+        </Link>
+      </div>
+    </div>
+  );
 
   /** 1行ぶんの中身（写真やバッジ＋文＋右端の小さい文字） */
   const rowInner = (r: Row) => (
@@ -341,7 +374,8 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
         {CARD_TABS.map((t) => {
           const n = countOf[t.key];
           const active = open === t.key;
-          const badge = badgeText(n);
+          // ★ お店紹介は数のバッジを出さない
+          const badge = t.key === 'intro' ? '' : badgeText(n);
           return (
             <button
               key={t.key}
@@ -349,7 +383,7 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
               disabled={n <= 0}
               aria-expanded={active}
               aria-controls={panelId}
-              aria-label={`${t.label} ${n}${t.unit}`}
+              aria-label={t.key === 'intro' ? t.label : `${t.label} ${n}${t.unit}`}
               onClick={() => pick(t.key)}
               className={`flex-1 min-w-0 box-border h-[43px] pt-0.5 flex items-center justify-center gap-1 border-b-2 text-xs font-bold transition-colors ${
                 n <= 0
@@ -373,6 +407,8 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
       {/* ★ 第1128便: 写メ日記は閉じていても HTML に入れておく（hidden）。開いたらそのまま見せる */}
       {hasDiaryRows && renderPanel(diaryTab, { status: 'ready', rows: diaryRows }, open !== 'diary')}
       {tab && loaded && !(open === 'diary' && hasDiaryRows) && renderPanel(tab, loaded, false)}
+      {/* ★ 2026-10-19: お店紹介も閉じていても HTML に入れておく（hidden） */}
+      {intro && renderIntro(open !== 'intro')}
     </div>
   );
 }

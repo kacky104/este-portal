@@ -458,6 +458,8 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       ratingNode={<RatingDisplay rating={salon.rating} reviewCount={salon.reviewCount} />}
       counts={tabCounts}
       therapists={therapists}
+      // ★ 2026-10-19: 最後のタブ「お店紹介」（店舗詳細の「店舗について」の頭120字・HTML に入れておく）
+      description={salon.description}
     />
   ) : null;
 

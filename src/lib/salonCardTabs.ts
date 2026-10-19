@@ -2,7 +2,7 @@
 //
 // ★★★ 形（カッキーさんの決定「C案」）
 //   カードの下に、数のバッジが付いたタブの見出しを1行だけ出す（閉じておく）。押すと開き、もう一度押すと閉じる。
-//   並びは 写メ日記 → 口コミ → 新人 → クーポン。0件のタブは薄く出す（押せない）。
+//   並びは 写メ日記 → 口コミ → 新人 → クーポン → お店紹介（2026-10-19）。0件のタブは薄く出す（押せない）。
 //   開いたときは 2件を1行ずつ ＋「すべて見る」。
 // ★★★ 数の決め方
 //   写メ日記 … 60時間以内の投稿（SALON_CARD_DIARY_WINDOW_MS。★ 第1239便で 48→60。NEW バッジは48時間のまま）
@@ -14,7 +14,10 @@
 //   中身（2件）は【押した店のぶんだけ】そのとき読む。
 //   ★ 第1128便: 写メ日記の2件だけは、数を数える行と一緒に読んで TOP の HTML に入れておく（本数は増えない・押しても読まない）。
 
-export type CardTabKey = 'diary' | 'review' | 'newface' | 'coupon';
+// ★ 2026-10-19（カッキーさん）: 最後に「お店紹介」（intro）。店舗詳細の「店舗について」（salons.description）の頭 INTRO_MAX 字。
+//   ★ 閉じていても HTML に入れておく（写メ日記と同じ・hidden）＝ TOP の文字（地域・業種の言葉）を増やすための施策。
+//   ★ 数のバッジは出さない。文が空の店はタブを薄く出す（押せない）。続きは店舗詳細へ。
+export type CardTabKey = 'diary' | 'review' | 'newface' | 'coupon' | 'intro';
 
 /**
  * タブの並びと文言（★ 順番はカッキーさんの指定）。
@@ -29,7 +32,18 @@ export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: st
   { key: 'newface', label: '新人', unit: '名', more: '新人一覧', moreFull: '新人一覧', path: 'newface' },
   // ★ 第1153便（カッキーさん）: 「クーポンを見る」→「クーポンをすべて見る」（ほかのタブと同じ言い方）
   { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポン一覧', moreFull: 'クーポン一覧', path: 'coupon' },
+  // ★ 2026-10-19: path '' ＝店舗詳細のトップ（/salon/{id}）
+  { key: 'intro', label: 'お店紹介', unit: '', more: '続きを見る', moreFull: 'お店紹介の続きを見る', path: '' },
 ];
+
+/** ★ 2026-10-19: お店紹介のタブに出す字数（TOP の HTML を重くしないため全文は入れない） */
+export const INTRO_MAX = 120;
+
+/** お店紹介のタブの文。改行・空白をまとめ、INTRO_MAX 字を超えたら切って「…」。空なら '' */
+export function introText(description: unknown, max = INTRO_MAX): string {
+  const s = (typeof description === 'string' ? description : '').replace(/\s+/g, ' ').trim();
+  return s.length > max ? s.slice(0, max).trimEnd() + '…' : s;
+}
 
 /** 開いたときに出す件数（口コミ・新人・クーポン） */
 export const CARD_TAB_ROWS = 2;

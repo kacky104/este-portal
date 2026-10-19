@@ -14,13 +14,14 @@ const eq = (name, got, want) => {
 };
 
 console.log('── 1. タブの並びと窓 ──');
-eq('★★★ 並びは 写メ日記 → 口コミ → 新人 → クーポン', T.CARD_TABS.map((t) => t.label), ['写メ日記', '口コミ', '新人', 'クーポン']);
-eq('★ 「すべて見る」の行き先', T.CARD_TABS.map((t) => t.path), ['diary', 'reviews', 'newface', 'coupon']);
+eq('★★★ 並びは 写メ日記 → 口コミ → 新人 → クーポン → お店紹介（2026-10-19）', T.CARD_TABS.map((t) => t.label), ['写メ日記', '口コミ', '新人', 'クーポン', 'お店紹介']);
+eq('★ 「すべて見る」の行き先（お店紹介は店舗詳細のトップ）', T.CARD_TABS.map((t) => t.path), ['diary', 'reviews', 'newface', 'coupon', '']);
+eq('★ お店紹介: 120字で切って「…」・改行はまとめる・空は空', [T.introText('あ'.repeat(130)).length, T.introText('a\n\nb  c'), T.introText(''), T.introText(null), T.introText('あ'.repeat(120)).length], [121, 'a b c', '', '', 120]);
 eq('★★★ NEW バッジの窓は48時間', D.DIARY_NEW_WINDOW_MS, 48 * 60 * 60 * 1000);
 eq('★★★ 店舗カードの写メ日記の窓は60時間（第1239便）', D.SALON_CARD_DIARY_WINDOW_MS, 60 * 60 * 60 * 1000);
 eq('★ 開いたときの件数（写メ日記3・口コミ2＋総合評価・新人3・クーポン2）', [T.CARD_DIARY_ROWS, T.CARD_REVIEW_ROWS, T.CARD_NEWFACE_ROWS, T.CARD_TAB_ROWS], [3, 2, 3, 2]);
-eq('★ 第1158便: リンクの文字は「◯◯一覧」（何の一覧かを省かない）', T.CARD_TABS.map((t) => t.more), ['写メ日記一覧', '口コミ一覧', '新人一覧', 'クーポン一覧']);
-eq('★★ 読み上げ用の文は、画面の文字を含む・何の一覧かが分かる', T.CARD_TABS.map((t) => t.moreFull.includes(t.more) && t.moreFull.includes(t.label)), [true, true, true, true]);
+eq('★ 第1158便: リンクの文字は「◯◯一覧」（何の一覧かを省かない）', T.CARD_TABS.map((t) => t.more), ['写メ日記一覧', '口コミ一覧', '新人一覧', 'クーポン一覧', '続きを見る']);
+eq('★★ 読み上げ用の文は、画面の文字を含む・何の一覧かが分かる', T.CARD_TABS.map((t) => t.moreFull.includes(t.more) && t.moreFull.includes(t.label)), [true, true, true, true, true]);
 
 console.log('── 2. バッジの数 ──');
 eq('★★ 0件はバッジを出さない', [T.badgeText(0), T.badgeText(-1), T.badgeText(NaN)], ['', '', '']);
