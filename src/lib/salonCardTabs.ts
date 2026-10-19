@@ -2,7 +2,7 @@
 //
 // ★★★ 形（カッキーさんの決定「C案」）
 //   カードの下に、数のバッジが付いたタブの見出しを1行だけ出す（閉じておく）。押すと開き、もう一度押すと閉じる。
-//   並びは 写メ日記 → 口コミ → 新人 → クーポン → お店紹介（2026-10-19）。0件のタブは薄く出す（押せない）。
+//   並びは 写メ日記 → 新人 → クーポン → 口コミ → お店紹介（2026-10-19 に変更）。0件のタブは薄く出す（押せない）。
 //   開いたときは 2件を1行ずつ ＋「すべて見る」。
 // ★★★ 数の決め方
 //   写メ日記 … 60時間以内の投稿（SALON_CARD_DIARY_WINDOW_MS。★ 第1239便で 48→60。NEW バッジは48時間のまま）
@@ -28,10 +28,11 @@ export type CardTabKey = 'diary' | 'review' | 'newface' | 'coupon' | 'intro';
  */
 export const CARD_TABS: ReadonlyArray<{ key: CardTabKey; label: string; unit: string; more: string; moreFull: string; path: string }> = [
   { key: 'diary', label: '写メ日記', unit: '件', more: '写メ日記一覧', moreFull: '写メ日記一覧', path: 'diary' },
-  { key: 'review', label: '口コミ', unit: '件', more: '口コミ一覧', moreFull: '口コミ一覧', path: 'reviews' },
+  // ★ 2026-10-19（カッキーさん）: 並びを 写メ日記 → 新人 → クーポン → 口コミ → お店紹介 に変更
   { key: 'newface', label: '新人', unit: '名', more: '新人一覧', moreFull: '新人一覧', path: 'newface' },
   // ★ 第1153便（カッキーさん）: 「クーポンを見る」→「クーポンをすべて見る」（ほかのタブと同じ言い方）
   { key: 'coupon', label: 'クーポン', unit: '枚', more: 'クーポン一覧', moreFull: 'クーポン一覧', path: 'coupon' },
+  { key: 'review', label: '口コミ', unit: '件', more: '口コミ一覧', moreFull: '口コミ一覧', path: 'reviews' },
   // ★ 2026-10-19: path '' ＝店舗詳細のトップ（/salon/{id}）
   { key: 'intro', label: 'お店紹介', unit: '', more: '続きを見る', moreFull: 'お店紹介の続きを見る', path: '' },
 ];

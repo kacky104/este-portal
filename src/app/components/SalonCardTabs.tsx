@@ -385,7 +385,9 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
               aria-controls={panelId}
               aria-label={t.key === 'intro' ? t.label : `${t.label} ${n}${t.unit}`}
               onClick={() => pick(t.key)}
-              className={`flex-1 min-w-0 box-border h-[43px] pt-0.5 flex items-center justify-center gap-1 border-b-2 text-xs font-bold transition-colors ${
+              // ★ 2026-10-19: タブが5つになりスマホ幅で「写メ…」と切れたため、等幅（flex-1）→ 中身の幅＋余りを分ける（flex-auto）。
+              //   すき間も gap-1 → gap-0.5。長い名前（写メ日記・クーポン）が先に削られないようにする。
+              className={`flex-auto min-w-0 box-border h-[43px] pt-0.5 px-0.5 flex items-center justify-center gap-0.5 whitespace-nowrap border-b-2 text-xs font-bold transition-colors ${
                 n <= 0
                   ? 'border-transparent text-slate-300 cursor-default'
                   : active
