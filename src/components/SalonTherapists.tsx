@@ -898,11 +898,16 @@ export function SalonOnDutyExcludingNow({ salonId, theme }: { salonId: number; t
 // 渡された場合は自己フェッチせず、そのまま初期stateとして描画する＝初期HTMLに
 // <a href="/therapist/[id]"> が載り、クローラがセラピスト詳細へ辿れるようになる。
 // （未指定なら従来どおりクライアントで取得。既存の呼び出し箇所は変更不要）
-export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false, hideSaveOnMobile = false, initialList }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean; hideSaveOnMobile?: boolean; initialList?: Therapist[] }) {
+export function SalonAllTherapists({ salonId, limit, from, showSaveButton = false, singleColumn = false, hideSaveOnMobile = false, initialList, initialCards }: { salonId: number; limit?: number; from?: string; showSaveButton?: boolean; singleColumn?: boolean; hideSaveOnMobile?: boolean; initialList?: Therapist[]; initialCards?: number }) {
   const hasInitial = Array.isArray(initialList);
   // ★ 第1556便: サーバー側（fetchSalonTherapists）の並びをそのまま使う。
   //   ここで sortSalonTherapists を通し直すと、コネックエフの並び（第1555便）が出勤状況の順に崩れていたため。
   const [list, setList] = useState<Therapist[]>(initialList ?? []);
+  // ★ 第1579便: 在籍が多いお店（最大157人）は、カードを全員分描くと HTML が 500〜670KB になり
+  //   「検出 - インデックス未登録」の原因になっていた。最初の initialCards 人だけカードで描き、
+  //   残りは「名前だけのリンク」にしておく（/therapist/[id] へのリンクは初期HTMLに全員分残す＝SEO は維持）。
+  //   「残り○人をカードで見る」を押すと全員カードに切り替わる（/ranking 第1576便と同じ考え方）。
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (hasInitial) return;  // サーバー取得済み。二重フェッチしない。
@@ -966,14 +971,45 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
     </div>
   );
   const shown = limit ? list.slice(0, limit) : list;
-  return (
+  const folded = !expanded && initialCards != null && shown.length > initialCards;
+  const cards = folded ? shown.slice(0, initialCards) : shown;
+  const rest = folded ? shown.slice(initialCards) : [];
+  const grid = (
     // singleColumn: サロンページの「在籍セラピスト一覧」用。新人紹介と同じく常に1列で
     // カードを親幅いっぱいに広げ、情報エリアを確保する。在籍一覧ページは従来の2列。
     <div className={`grid grid-cols-1 gap-3${singleColumn ? '' : ' sm:grid-cols-2'}`}>
-      {shown.map((t, i) => (
+      {cards.map((t, i) => (
         <GridCard key={t.id} therapist={t} index={i} from={from} showSaveButton={showSaveButton} saveButtonPos="card-right" largeImage hideSaveOnMobile={hideSaveOnMobile} />
       ))}
     </div>
+  );
+  if (!folded) return grid;
+  return (
+    <>
+      {grid}
+      <div className="mt-5 text-center">
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="inline-flex items-center justify-center rounded-full bg-pink-500 hover:bg-pink-600 text-white font-bold shadow-sm transition-colors"
+          style={{ padding: '10px 24px', fontSize: '14px' }}
+        >
+          残り{rest.length}人をカードで見る
+        </button>
+      </div>
+      <ul className="mt-4 flex flex-wrap gap-2">
+        {rest.map((t) => (
+          <li key={t.id}>
+            <Link
+              href={from ? `/therapist/${t.id}?from=${from}` : `/therapist/${t.id}`}
+              className="inline-block rounded-full border border-pink-200 bg-white px-3 py-1 text-[13px] text-slate-700 hover:border-pink-400 hover:text-pink-600 transition-colors"
+            >
+              {t.name}{t.age ? `(${t.age})` : ''}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

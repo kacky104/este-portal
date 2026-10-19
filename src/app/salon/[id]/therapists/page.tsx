@@ -133,7 +133,7 @@ export default async function SalonTherapistsPage({
         />
 
         {/* 全在籍セラピスト（写真・名前・今すぐ・NEW・出勤ステータス付きカード） */}
-        <SalonAllTherapists salonId={Number(id)} from="therapists" showSaveButton initialList={therapists} />
+        <SalonAllTherapists salonId={Number(id)} from="therapists" showSaveButton initialList={therapists} initialCards={30} />
       </main>
     </div>
   );

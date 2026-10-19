@@ -891,7 +891,9 @@ export default async function SalonPage({
                      画像が左へ寄り、その差ぶん右の白地（名前・特徴バッジ）が横に伸びる。右の余白 8px は据え置き。
                   ★ 枠の p-6（24px）はそのまま（見出しの位置を変えない）で、中身だけ負マージンで外へ広げる。PC は今までどおり。 */}
               <div className="-ml-[23px] -mr-4 md:mx-0">
-                <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn hideSaveOnMobile initialList={allTherapists} />
+                {/* ★ 第1579便: 見せるのは4人だけなので、クライアントへ渡すのも先頭4人だけ（今までは在籍全員＝最大157人・約106KB を送っていた）。
+                    並びはサーバー側（fetchSalonTherapists）で確定済み。全員へのリンクは /salon/[id]/therapists に載っている。 */}
+                <SalonAllTherapists salonId={Number(id)} limit={4} showSaveButton singleColumn hideSaveOnMobile initialList={allTherapists.slice(0, 4)} />
               </div>
 
               <div className="mt-4 text-center">
