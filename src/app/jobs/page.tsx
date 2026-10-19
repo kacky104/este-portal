@@ -8,6 +8,8 @@ import { shuffleJobs } from '@/app/lib/shuffleJobs';
 import { JobCard } from './JobCard';
 import { FeatureBrowse } from './FeatureBrowse';
 import { AreaBrowse } from './AreaBrowse';
+import { AREA_ORDER, ALL_AREA, DISPATCH_AREA, normalizeAreaKey, jobsAreaHref } from '@/app/lib/areas';
+import { areaLabel } from '@/app/lib/areaLabel';
 import { PickupSlider } from './PickupSlider';
 import { JobHeroBanners } from './JobHeroBanners';
 import { JobListHeading } from './JobListHeading';
@@ -32,6 +34,32 @@ export const revalidate = 600;
 // ★ 第1572便（2026-10-20・カッキーさん）: GSC で「福岡 メンズエステ 求人」「福岡 メンズエステ セラピスト求人」の表示が増えたのにクリックがほぼ 0。
 //   検索語の並び（福岡／メンズエステ／求人／セラピスト）を先頭 30 字に収め、条件語は後ろへ。
 const JOBS_TOP_TITLE = '福岡のメンズエステ求人・セラピスト募集｜未経験歓迎・日払い【フクエスワーク】';
+
+// ★ 第1573便（2026-10-20・カッキーさん・SEO）: エリア別の求人数と短い案内文。
+//   「福岡 メンズエステ 求人」「博多／中洲 メンズエステ 求人」で表示は出るのに 20〜45 位のため、本文に地名入りの説明を足す。
+//   ★ 件数は一覧用に取った jobs（salons.area / area2）から数える＝追加のクエリは無い。
+//   ★ 言い回しは TOP（areaSeoContent）やエリアページの文と変える（求人＝「働く人」の目線で書く）。
+//   ★ 出張専門は salons.dispatch_type でしか判定できないため、この表には入れない（「エリアから探す」のタイルに任せる）。
+const AREA_JOB_GUIDE: Record<string, string> = {
+  '博多・天神・中洲':
+    '福岡でいちばん求人が多いエリア。博多駅や天神駅から歩ける店が多く、仕事終わりの終電や、昼だけ・夜だけの短時間でも組みやすいのが特徴です。中洲は深夜帯の需要があり、ダブルワークや掛け持ちで入る人も見られます。',
+  '北九州・小倉':
+    '小倉駅周辺に店が集まり、北九州市内から通う人が中心です。福岡市内より競合が少ないぶん、新人のうちから指名を取りやすいという声もあります。',
+  '久留米':
+    '西鉄久留米駅・JR久留米駅の周辺に店があり、筑後エリアや佐賀方面から通う人もいます。地元で落ち着いて長く働きたい人に向いたエリアです。',
+  '福岡県その他':
+    '糸島・春日・大野城・宗像など、福岡市と北九州市の外側のエリア。店の数は少なめですが、車通勤できる店や、寮・住み込みに対応する店が含まれます。',
+};
+
+/** 一覧用の jobs から、エリアごとの求人数を数える（第1エリア・第2エリアのどちらかに含まれれば 1 件）。 */
+function countJobsByArea(jobs: { salon: { area: string; area2: string } }[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const j of jobs) {
+    const keys = new Set([j.salon.area, j.salon.area2].filter(Boolean).map((a) => normalizeAreaKey(a)));
+    for (const k of keys) counts[k] = (counts[k] ?? 0) + 1;
+  }
+  return counts;
+}
 
 // ★ 第1494便: ページ下の「よくある質問」（画面と構造化データ FAQPage で同じ文を使う）。
 //   ★ 答えはお店ごとに違うことを言い切らない（「お店によって違います」・各求人の特徴で確かめる）。
@@ -63,6 +91,38 @@ const JOBS_FAQ: { q: string; a: string; links: { href: string; label: string }[]
     q: 'どのエリアの求人がありますか？',
     a: '博多・天神・中洲、北九州・小倉、久留米など、福岡県内のメンズエステの求人を掲載しています。ページ上の「エリアから探す」から選べます。',
     links: [],
+  },
+  {
+    q: 'お給料（バック率）はどれくらいですか？',
+    a: 'メンズエステのお給料は、コース料金のうち決まった割合（バック率）を受け取る形が一般的です。割合や指名料の扱いはお店ごとに違うので、求人の給与欄と、面接でのすり合わせで確かめてください。',
+    links: [
+      { href: '/jobs/glossary/back-ritsu', label: '用語集「バック率」' },
+      { href: '/jobs/column/salary-back-rate', label: 'コラム「バック率の見方」' },
+    ],
+  },
+  {
+    q: '週1日・短時間でも働けますか？',
+    a: '「自由出勤」のお店では、週1日や数時間だけの出勤も相談できます。学校や本業と両立している人も多いので、希望のシフトを面接で伝えてみてください。',
+    links: [
+      { href: '/jobs/glossary/jiyu-shukkin', label: '用語集「自由出勤」' },
+      { href: '/jobs/glossary/kakemochi', label: '用語集「掛け持ち」' },
+    ],
+  },
+  {
+    q: '面接では何を聞かれますか？持ち物は？',
+    a: '希望の出勤日数・時間帯・経験の有無・通える範囲などを聞かれることが多いです。身分証（年齢確認）は必ず要ります。服装や持ち物はお店から案内があるので、事前に確認しておくと安心です。',
+    links: [
+      { href: '/jobs/column/interview-preparation', label: 'コラム「面接の準備」' },
+      { href: '/jobs/glossary/nenrei-kakunin', label: '用語集「年齢確認」' },
+    ],
+  },
+  {
+    q: '身バレが心配です。対策はありますか？',
+    a: '源氏名で働く・写真の顔出しをしない・出勤エリアを選ぶなど、できる対策はいくつかあります。写メ日記や写真の出し方はお店ごとに相談できるので、応募のときに伝えておくとスムーズです。',
+    links: [
+      { href: '/jobs/glossary/mibare-taisaku', label: '用語集「身バレ対策」' },
+      { href: '/jobs/column/privacy-guide', label: 'コラム「プライバシーの守り方」' },
+    ],
   },
   {
     q: 'お店選びに迷ったら？',
@@ -99,6 +159,9 @@ export default async function JobsPage() {
   // メイン求人一覧のみ30分バケットでシード付きシャッフル（おすすめ pickupJobs・バナー heroBanners は別扱い）。
   // バナー設置特典：job_boost=true の求人は重み JOB_BOOST_WEIGHT で一覧の上側に来やすくする（false は従来どおり一様）。
   const shuffledJobs = shuffleJobs(jobs, (j) => (j.jobBoost ? JOB_BOOST_WEIGHT : 1));
+  // ★ 第1573便: エリア別の求人数（追加クエリなし）
+  const areaCounts = countJobsByArea(jobs);
+  const guideAreas = AREA_ORDER.filter((a) => a !== ALL_AREA && a !== DISPATCH_AREA && AREA_JOB_GUIDE[a]);
 
   return (
     <>
@@ -184,6 +247,34 @@ export default async function JobsPage() {
         <AreaBrowse />
         <FeatureBrowse />
       </div>
+
+      {/* ★ 第1573便（2026-10-20・カッキーさん・SEO）: エリア別の求人数と案内文（地名入りの本文）。
+          ★ 「エリアから探す」のタイルの直下。各行はエリアの求人ページへの内部リンク。
+          ★ 件数は 0 でも行は出す（「現在は募集準備中」）。リンク先は noindex のままなので検索には出ない。 */}
+      <section className="mb-6 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+        <h2 className="font-bold text-slate-900 text-sm mb-1">福岡のエリア別メンズエステ求人</h2>
+        <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
+          現在、福岡県内で{jobs.length}件のセラピスト求人を掲載しています。エリアごとの件数と特徴です。
+        </p>
+        <ul className="divide-y divide-emerald-50">
+          {guideAreas.map((area) => {
+            const n = areaCounts[area] ?? 0;
+            return (
+              <li key={area} className="py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <Link href={jobsAreaHref(area)} className="text-[14px] font-bold hover:underline" style={{ color: '#059669' }}>
+                    {areaLabel(area)}のメンズエステ求人
+                  </Link>
+                  <span className="flex-none text-[12px] font-bold text-slate-700">
+                    {n > 0 ? `${n}件` : '募集準備中'}
+                  </span>
+                </div>
+                <p className="mt-1 text-[12.5px] leading-relaxed text-slate-600">{AREA_JOB_GUIDE[area]}</p>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。
           見出し(h1)はバナー0件でも常に描画し、バナー画像のみ0件なら省略（コンポーネント側で分岐）。
