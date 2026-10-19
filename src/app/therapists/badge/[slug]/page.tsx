@@ -60,6 +60,14 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
   // 全アクティブセラピストをサーバーで取得し、初期HTMLにカード（リンク）を焼き込む（2026-08-05）。
   // バッジ絞り込みは lockedBadges として TherapistSearch 側で行う（従来と同じ）。
   const pool = await fetchTherapistPool({ activeOnly: true });
+  // ★ 第1578便（2026-10-20・カッキーさん・SEO/軽量化）: このバッジを持つセラピストだけをクライアントへ渡す。
+  //   今までは全員（約450人）を 46 本のバッジページ全部に送っていて、1ページ 430〜520KB になっていた。
+  //   Search Console の「検出 - インデックス未登録」186件のうち 46 件がこのバッジページ（重すぎて後回しにされている）。
+  //   lockedBadges はもともと AND の固定条件なので、先に絞っても画面の結果・件数は同じ。
+  //   ★ salonAreaMap も、残った人の店だけに絞る。
+  const list = pool.list.filter((t) => t.featureBadges.includes(label));
+  const salonIds = new Set(list.map((t) => t.salonId));
+  const salonAreaMap = Object.fromEntries(Object.entries(pool.salonAreaMap).filter(([id]) => salonIds.has(Number(id))));
   const listSeed = thirtyMinSeed();
 
   return (
@@ -117,8 +125,8 @@ export default async function BadgeLandingPage({ params }: { params: Promise<{ s
         <TherapistSearch
           key={slug}
           lockedBadges={[label]}
-          initialList={pool.list}
-          initialSalonAreaMap={pool.salonAreaMap}
+          initialList={list}
+          initialSalonAreaMap={salonAreaMap}
           initialSeed={listSeed}
         />
       </main>
