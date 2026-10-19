@@ -36,12 +36,15 @@ export async function generateMetadata({
   const label = areaLabel(area);
   // 文書<title>は layout の template「%s｜フクエスワーク」が末尾を付与するため、ここでは
   // ブランド名を含めない。og:title / twitter:title には template が効かないため別途明示する。
-  const baseTitle = `${label}のメンズエステセラピスト求人【福岡】`;
+  // ★ 第1572便（2026-10-20・カッキーさん）: 「中洲 メンズエステ 求人」「博多 メンズエステ 求人」で表示が出始めた（20〜57位・クリック0）。
+  //   title は「エリア名＋メンズエステ求人＋セラピスト募集」の順に。description に掲載件数（jobs は下で取る）と条件語を入れる。
+  const baseTitle = `${label}のメンズエステ求人・セラピスト募集【福岡】`;
   const brandedTitle = `${baseTitle}｜フクエスワーク`;
-  const description = `福岡・${label}のメンズエステ セラピスト求人を掲載。${label}エリアで働けるお店の求人情報をフクエスワークでチェックできます。`;
 
   // 0件のエリアページは薄いページのため noindex（1件以上は通常index）。
   const jobs = await fetchActiveJobsByArea(area);
+  const countText = jobs.length > 0 ? `掲載${jobs.length}件。` : '';
+  const description = `福岡・${label}エリアのメンズエステ セラピスト求人を掲載。${countText}未経験歓迎・日払い・高収入・寮あり・出稼ぎなどの条件から、${label}で働けるお店を探せます。フクエスワーク。`;
   const robots = jobs.length === 0 ? { index: false, follow: true } : undefined;
 
   // noindex（0件）ページには canonical を付けず、indexさせる正常系のみ自己参照 canonical を付与。
