@@ -27,7 +27,6 @@ import { AutoFitName } from './AutoFitName';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { SaveButton } from '@/app/components/SaveButton';
 import { ViewHistoryLogger } from '@/app/components/ViewHistoryLogger';
@@ -456,7 +455,7 @@ export default async function TherapistPublicPage({
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+            <VipLetterIcon /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

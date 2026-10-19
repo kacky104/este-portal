@@ -5,12 +5,15 @@ import Link from 'next/link';
 import { createClient } from '@/app/lib/supabase/client';
 import { getBrowserUser } from '@/lib/browserUser';
 import { getVipUnreadCount } from '@/app/lib/vipLetters';
+import { getNotificationFeed } from '@/app/lib/notifications';
 import { useHydrated } from '@/lib/useHydrated';
 
 // ヘッダーのVIPレター専用アイコン（封筒）。ログイン会員のときのみ表示し、未読数をバッジで出す。
 // 未読の計算は必ずクライアント側（マウント後）で行う。これにより ISR キャッシュ済みページ
 // （トップ・サロン詳細）のサーバーレンダリングに会員個別計算を持ち込まず、キャッシュを壊さない。
-// （NotificationBell と同じ設計。こちらは VIPレターの未読＝vip_letter_recipients.read_at=null のみ）
+// ★ 第1581便（2026-10-20・カッキーさん）: お知らせのベル（NotificationBell）をヘッダーから外し、このアイコン1つにまとめた。
+//   バッジ＝VIPレターの未読＋お知らせ・新着の未読（保存店のクーポン・お知らせ）の合計。リンク先も1ページ（/member/vip-letters）。
+//   ★ お知らせ側が読めなかったときは、今までのベルと同じく黙って0扱い（VIPレター側が読めなかったときだけ「?」）。
 export function VipLetterIcon() {
   const mounted = useHydrated();
   const [loggedIn, setLoggedIn] = useState(false);
@@ -28,10 +31,13 @@ export function VipLetterIcon() {
         if (!active) return;
         if (!user) { setLoggedIn(false); return; }
         setLoggedIn(true);
-        const res = await getVipUnreadCount(supabase, user);
+        const [res, feedUnread] = await Promise.all([
+          getVipUnreadCount(supabase, user),
+          getNotificationFeed(supabase, user).then((f) => f.unreadCount).catch(() => 0),
+        ]);
         if (!active) return;
-        if ('count' in res) { setUnread(res.count); setUnknown(false); }
-        else setUnknown(true);
+        if ('count' in res) { setUnread(res.count + feedUnread); setUnknown(false); }
+        else { setUnread(feedUnread); setUnknown(true); }
       } catch {
         // ★ 黙って「0件」にしない。★ 「?」を出して、開けば確かめられることを示す
         if (active) setUnknown(true);
@@ -49,7 +55,7 @@ export function VipLetterIcon() {
   return (
     <Link
       href="/member/vip-letters"
-      aria-label={unknown ? 'VIPレター（未読数を読み取れませんでした）' : hasUnread ? `VIPレター ${unread}件の未読` : 'VIPレター'}
+      aria-label={unknown ? 'VIPレター・お知らせ（未読数を読み取れませんでした）' : hasUnread ? `VIPレター・お知らせ ${unread}件の未読` : 'VIPレター・お知らせ'}
       title={unknown ? '未読数を読み取れませんでした。開いて確かめてください' : undefined}
       className={`relative flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full border bg-white transition-colors ${
         hasUnread ? 'border-fuchsia-300 ring-2 ring-fuchsia-200/60 animate-pulse' : 'border-slate-200 hover:border-fuchsia-300'

@@ -7,7 +7,6 @@ import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import RankingTopShowcase from './RankingTopShowcase';
@@ -153,7 +152,7 @@ export default function RankingTabs({
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
             <VipLetterIcon />
-            <NotificationBell />
+            
             <AccountMenu /><HamburgerMenu />
           </div>
         </div>

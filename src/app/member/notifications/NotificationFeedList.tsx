@@ -1,0 +1,90 @@
+import Link from 'next/link';
+import type { NotificationFeed } from '@/app/lib/notifications';
+
+// ★ 第1581便: お知らせ・新着の一覧（もとは /member/notifications/page.tsx の本体）。
+//   VIPレターと同じページ（/member/vip-letters）に出すため部品にした。中身・文言は今までどおり。
+
+// 日時表示（JST・"6月20日 19:12"）。
+function formatAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(d);
+}
+
+export function NotificationFeedList({ items, cappedSalons }: { items: NotificationFeed['items']; cappedSalons: number }) {
+  return (
+    <>
+        {items.length === 0 ? (
+          <p className="text-sm text-slate-400 py-16 text-center border border-dashed border-slate-200 rounded-2xl bg-white/40">
+            新着はありません
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {items.map(item => {
+              const isCoupon = item.type === 'coupon';
+              const accent = isCoupon ? '#DB2777' : '#A855F7';
+              const typeLabel = isCoupon ? 'クーポン' : 'お知らせ';
+              return (
+                <li key={item.key}>
+                  <Link
+                    href={item.href}
+                    className={`block rounded-2xl border bg-white p-4 shadow-sm hover:shadow-md transition-all ${
+                      item.isUnread ? 'border-pink-200 bg-pink-50/40' : 'border-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span
+                        className="flex-shrink-0 text-[10px] font-bold text-white rounded-full px-2 py-0.5"
+                        style={{ background: accent }}
+                      >
+                        {typeLabel}
+                      </span>
+                      {item.isUnread && (
+                        <span className="flex-shrink-0 text-[10px] font-bold text-pink-600 border border-pink-300 rounded-full px-1.5 py-px">
+                          NEW
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400 line-clamp-1">{item.salonName}</span>
+                      <span className="ml-auto flex-shrink-0 text-[11px] text-slate-400">{formatAt(item.at)}</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-700 line-clamp-2">{item.title}</p>
+                  </Link>
+                  {/* ★★ この店には出していない新着がまだある（第103便）。
+                      ★ 件数は出さない——「ほか300件」になりうるため。
+                        会員は件数で何かを決めるわけではなく、「ほかにもある」と分かればよい。 */}
+                  {item.hasMore && (
+                    <div className="pl-4 pt-1.5">
+                      <Link
+                        href={`/salon/${item.salonId}`}
+                        className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-pink-600 transition-colors"
+                      >
+                        この店のお知らせ・クーポンをすべて見る
+                        <span aria-hidden="true">›</span>
+                      </Link>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {/* ★ 何を出しているかを、見た人が言えるようにしておく（★ 静かに切らない） */}
+        {items.length > 0 && (
+          <div className="mt-6 space-y-1 text-[11px] text-slate-400 leading-relaxed">
+            <p>直近14日ぶんを、お店ごとに新しいもの1件ずつ表示しています。</p>
+            {cappedSalons > 0 && (
+              <p>
+                新着のあるお店が多いため、ここには表示しきれていないお店が{cappedSalons}店あります。
+                保存したお店は
+                <Link href="/saved#salons" className="text-pink-600 hover:underline mx-0.5">保存したお店</Link>
+                からご覧いただけます。
+              </p>
+            )}
+          </div>
+        )}
+    </>
+  );
+}

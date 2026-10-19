@@ -3,7 +3,6 @@ import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
@@ -111,7 +110,7 @@ export async function SalonDiaryBody({ id, page }: { id: string; page: number })
       <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
         <div className="max-w-4xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-1 sm:gap-2"><SavedSalonsMenu /><VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu /></div>
+          <div className="flex items-center gap-1 sm:gap-2"><SavedSalonsMenu /><VipLetterIcon /><AccountMenu /><HamburgerMenu /></div>
         </div>
       </header>
       <SiteNoticeBanner />

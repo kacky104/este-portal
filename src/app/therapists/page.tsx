@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { TherapistSearch } from '@/app/components/TherapistSearch';
@@ -78,7 +77,7 @@ export default async function TherapistsPage() {
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+            <VipLetterIcon /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

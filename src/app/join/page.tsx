@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
@@ -240,7 +239,7 @@ export default async function JoinPage() {
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+            <VipLetterIcon /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

@@ -14,7 +14,6 @@ import { getFeaturedSalons } from '@/app/lib/featured';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { areaFromSlug, AREA_ORDER, AREA_SLUGS_LIST, DISPATCH_AREA, salonInArea, areaHref, countSalonsInArea, isAreaPageIndexable, areasWithSalons } from '@/app/lib/areas';
@@ -181,7 +180,7 @@ export default async function AreaPage({ params }: { params: Promise<{ slug: str
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+            <VipLetterIcon /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

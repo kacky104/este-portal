@@ -3,7 +3,6 @@ import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { fetchLatestSalonNews } from '@/app/lib/salonNews';
@@ -84,7 +83,7 @@ export default async function SalonNewsIndexPage() {
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
             <VipLetterIcon />
-            <NotificationBell />
+            
             <AccountMenu /><HamburgerMenu />
           </div>
         </div>

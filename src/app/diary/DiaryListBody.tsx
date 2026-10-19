@@ -6,7 +6,6 @@ import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { Breadcrumb } from '@/app/components/Breadcrumb';
 import { PageHero } from '@/app/components/PageHero';
@@ -110,7 +109,7 @@ export async function DiaryListBody({ page }: { page: number }) {
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+            <VipLetterIcon /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>

@@ -11,7 +11,6 @@ import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
 import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from '@/app/components/NotificationBell';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { AdBanner } from '@/app/components/AdBanner';
 import { fetchActiveAdBanners } from '@/app/lib/adBanners';
@@ -135,7 +134,7 @@ export default async function MemberPage() {
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
             <SavedSalonsMenu />
-            <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+            <VipLetterIcon /><AccountMenu /><HamburgerMenu />
           </div>
         </div>
       </header>
@@ -344,32 +343,18 @@ export default async function MemberPage() {
               <p className="text-xs text-slate-400 mt-1.5">最近見た店舗・セラピスト</p>
             </Link>
 
-            {/* 通知・新着フォロー（保存サロンの新着クーポン・お知らせ） */}
-            <Link
-              href="/member/notifications"
-              className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-bold text-slate-700">通知・新着フォロー</p>
-                <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
-                  見る <span aria-hidden>→</span>
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1.5">保存店舗の新着（クーポン・お知らせ）</p>
-            </Link>
-
             {/* VIPレター受信ボックス（保存店から届く特別メッセージ） */}
             <Link
               href="/member/vip-letters"
               className="group rounded-2xl border border-pink-100 bg-white p-4 shadow-sm hover:border-pink-300 hover:shadow-md transition-all"
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-bold text-slate-700">VIPレター</p>
+                <p className="text-sm font-bold text-slate-700">VIPレター・お知らせ</p>
                 <span className="flex-shrink-0 inline-flex items-center gap-1 text-[11px] font-medium text-pink-600 group-hover:gap-1.5 transition-all">
                   見る <span aria-hidden>→</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-1.5">保存しているお店から届く特別メッセージ</p>
+              <p className="text-xs text-slate-400 mt-1.5">保存しているお店から届く特別メッセージと新着</p>
             </Link>
           </div>
         </section>

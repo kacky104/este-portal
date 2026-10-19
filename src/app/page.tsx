@@ -10,7 +10,6 @@ import { FeaturedSalonSlider } from "./components/FeaturedSalonSlider";
 import { SavedSalonsMenu } from "./components/SavedSalonsMenu";
 import { AccountMenu } from "./components/AccountMenu";
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
-import { NotificationBell } from "./components/NotificationBell";
 import { VipLetterIcon } from "./components/VipLetterIcon";
 import { fetchSalons, CARD_BOOST_WEIGHT, withBumpedFirst, fetchFreeListings } from "./lib/salons";
 import { fetchSalonCardTabCounts } from "./lib/salonCardTabCounts";
@@ -167,7 +166,7 @@ export default async function Home() {
           <div className="flex items-center gap-5">
             <div className="flex items-center gap-1 sm:gap-2">
               <SavedSalonsMenu />
-              <VipLetterIcon /><NotificationBell /><AccountMenu /><HamburgerMenu />
+              <VipLetterIcon /><AccountMenu /><HamburgerMenu />
             </div>
           </div>
         </div>
