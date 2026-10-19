@@ -51,6 +51,20 @@ export function generateMetadata(): Metadata {
   };
 }
 
+// ★ 第1577便: 1 店あたりクライアントへ送る所属セラピストの上限（画面で使う最大 12 枚の 2 倍。ランダムの幅を残す）
+const SHOWCASE_POOL = 24;
+function pickShowcasePool<T extends { img: string | null }>(list: T[]): T[] {
+  if (list.length <= SHOWCASE_POOL) return list;
+  const shuffle = (arr: T[]) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  const withImg = shuffle(list.filter((t) => t.img));
+  const noImg = shuffle(list.filter((t) => !t.img));
+  return [...withImg, ...noImg].slice(0, SHOWCASE_POOL);
+}
+
 // 本体（ヘッダー・パンくず・ヒーロー・タブ・一覧・フッター）はタブごとにテーマ・ヒーロー画像を
 // 切り替えるためクライアント部品 RankingTabs 側に集約。ここではデータ取得とメタのみ担う。
 export default async function RankingPage() {
@@ -65,7 +79,14 @@ export default async function RankingPage() {
   ]);
   // 総合ショーケースのセラピスト/店舗情報を1回でまとめて取得（個別fetch回避）。
   const showcaseIds = Array.from(new Set([...overallRanking.map((s) => s.id), ...salonRanking.map((s) => s.id)]));
-  const showcaseData = await fetchOverallShowcaseData(showcaseIds);
+  const showcaseDataFull = await fetchOverallShowcaseData(showcaseIds);
+  // ★ 第1577便（2026-10-20・カッキーさん・軽量化）: ショーケースに送る所属セラピストを 1 店あたり最大 SHOWCASE_POOL 人に絞る。
+  //   今までは 6 店で 448 人ぶん（約84KB・ほぼ写真URL）を丸ごとクライアントへ送り、画面で使うのは 1 店あたり最大 12 枚だった。
+  //   ★ ここで写真ありを優先してランダムに SHOWCASE_POOL 人を選ぶ（このページは 5 分ごとに作り直すので 5 分ごとに入れ替わる）。
+  //     画面側（RankingTopShowcase）は今までどおり、受け取った中から開くたびにランダムに並べ替えるので、見た目の「ランダム」は残る。
+  const showcaseData = Object.fromEntries(
+    Object.entries(showcaseDataFull).map(([id, d]) => [id, { ...d, therapists: pickShowcasePool(d.therapists) }]),
+  ) as typeof showcaseDataFull;
 
   return (
     <>
