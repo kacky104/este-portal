@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from '@/app/components/Logo';
 import { ShuffledSalons, AreaLinkTabsBlock } from "./components/ShuffledSalons";
@@ -63,6 +64,11 @@ const QUICK_LINKS = [
 // ISR：トップは10分キャッシュ（並び順のランダム化はクライアント側で行うため固定HTMLでよい）。
 // オーナー編集時は /api/revalidate から revalidatePath('/') で即時更新する。
 export const revalidate = 600;
+
+// ★ 2026-10-19: TOP の canonical はこのページだけで宣言する（以前は layout.tsx にあり全ページへ受け継がれていた）。
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 export default async function Home() {
   // cookie を読まない匿名クライアント（ISR を効かせるため。公開データ専用）。

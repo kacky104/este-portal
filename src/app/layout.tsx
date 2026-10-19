@@ -23,8 +23,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
-  // TOP用のcanonical。子ページは各自の alternates.canonical で上書きされる（templateではなく固定）。
-  alternates: { canonical: '/' },
+  // ★ 2026-10-19: TOP用の canonical '/' は src/app/page.tsx へ移した。
+  //   ここ（ルートの layout）に置くと、自前の canonical を持たないページ（noindex の写メ日記の個別記事など）が
+  //   すべて「canonical = トップ」を受け継ぎ、noindex と矛盾する合図になっていたため。ここへ戻さないこと。
   // ファビコン（public/ の新ロゴ画像。app/favicon.ico 規約は廃止しここで一元管理）。
   icons: {
     icon: [

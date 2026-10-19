@@ -21,7 +21,13 @@ export function buildDiaryListMetadata(page: number): Metadata {
   return {
     title,
     description,
-    alternates: { canonical: path },
+    // ★ 2026-10-19: 2ページ目以降は noindex（リンクはたどらせる）。1ページ目（/diary）だけ index。
+    //   個別記事が 9/28 から noindex になり、古い日記の一覧を検索に出す理由がなくなったため。
+    //   GSC で /diary/page/17 などが「クロール済み - インデックス未登録」に入っていた。
+    //   サイト内の方針どおり noindex ページには canonical を付けない。
+    ...(page <= 1
+      ? { alternates: { canonical: path } }
+      : { robots: { index: false, follow: true } }),
     // Next の metadata は浅いマージ＝openGraph を部分指定すると root layout の og が丸ごと消える
     // （og:image も消える）。そのため images まで全て明示する。
     openGraph: {

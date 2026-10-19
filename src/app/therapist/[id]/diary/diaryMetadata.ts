@@ -22,7 +22,11 @@ export async function buildTherapistDiaryMetadata(id: string, page = 1): Promise
   return {
     title,
     description,
-    alternates: { canonical: path },
+    // ★ 2026-10-19: 2ページ目以降は noindex（リンクはたどらせる）。/diary/page/[n] と同じ方針。
+    //   noindex ページには canonical を付けない。
+    ...(page > 1
+      ? { robots: { index: false, follow: true } }
+      : { alternates: { canonical: path } }),
     openGraph: {
       title,
       description,
