@@ -15,12 +15,16 @@ import { periods, diffRows, buildReport } from '@/lib/gscWeekly';
 //   ★ 第1533便: dry=1 のときだけ、運営（ADMIN_UUID）でログインしたブラウザからも開ける（CRON_SECRET を手元に出さずに確認するため）。
 //     メールを実際に送る本番実行は今までどおり CRON_SECRET だけ。
 // ★ 鍵（GSC_SERVICE_ACCOUNT_JSON）が無いときは何もしない（エラーにせず note を返す）。
+// ★ 第1571便: ?dump=1 で、集計前の生データ（ページ別・クエリ別・ページ×クエリ・日別、今週と前週）を JSON で返す。
+//   順位の変化をページごとに調べるため。dry=1 と同じく運営ログインでも開ける。メールは送らない。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(req: Request) {
-  const dry = new URL(req.url).searchParams.get('dry') === '1';
+  const sp = new URL(req.url).searchParams;
+  const dump = sp.get('dump') === '1';
+  const dry = sp.get('dry') === '1' || dump;
   const secret = process.env.CRON_SECRET;
   if (!secret) return NextResponse.json({ ok: false, error: 'CRON_SECRET is not set' }, { status: 500 });
   const byCron = req.headers.get('authorization') === `Bearer ${secret}`;
@@ -40,6 +44,17 @@ export async function GET(req: Request) {
   const { cur, prev } = periods(jstDateMinus(3));
 
   try {
+    if (dump) {
+      const q = (p: { start: string; end: string }, dimensions: Parameters<typeof gscQuery>[0]['dimensions'], rowLimit: number) =>
+        gscQuery({ startDate: p.start, endDate: p.end, dimensions, rowLimit });
+      const [pagesCur, pagesPrev, queriesCur, queriesPrev, pqCur, pqPrev, dates] = await Promise.all([
+        q(cur, ['page'], 5000), q(prev, ['page'], 5000),
+        q(cur, ['query'], 5000), q(prev, ['query'], 5000),
+        q(cur, ['page', 'query'], 5000), q(prev, ['page', 'query'], 5000),
+        gscQuery({ startDate: prev.start, endDate: cur.end, dimensions: ['date'], rowLimit: 100 }),
+      ]);
+      return NextResponse.json({ ok: true, dump: true, cur, prev, pagesCur, pagesPrev, queriesCur, queriesPrev, pqCur, pqPrev, dates });
+    }
     const [qCur, qPrev, pCur, pPrev] = await Promise.all([
       gscQuery({ startDate: cur.start, endDate: cur.end, dimensions: ['query'], rowLimit: 2000 }),
       gscQuery({ startDate: prev.start, endDate: prev.end, dimensions: ['query'], rowLimit: 2000 }),
