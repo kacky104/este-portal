@@ -294,18 +294,19 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
    *   文（最大 INTRO_MAX 字）＋ 右下に「続きを見る ›」（店舗詳細へ）。
    */
   const renderIntro = (isHidden: boolean) => (
-    <div id={isHidden ? undefined : panelId} hidden={isHidden} className="px-2 pb-1">
-      <p className="pt-2 text-[13.5px] leading-relaxed text-slate-700 break-words">{intro}</p>
-      <div className="flex h-8 items-center justify-end">
+    // ★ 2026-10-19（カッキーさん）: 「続きを見る ›」は文の最後の行に続けて出す（専用の行をやめて縦幅を1行ぶん詰める）
+    <div id={isHidden ? undefined : panelId} hidden={isHidden} className="px-2 pt-2 pb-3">
+      <p className="text-[13.5px] leading-relaxed text-slate-700 break-words">
+        {intro}
         <Link
           href={`/salon/${salonId}`}
           onClick={(e) => e.stopPropagation()}
           aria-label={introTab.moreFull}
-          className="flex-shrink-0 text-[13px] font-bold text-pink-700 hover:text-pink-600"
+          className="ml-2 whitespace-nowrap text-[13px] font-bold text-pink-700 hover:text-pink-600"
         >
           {introTab.more} ›
         </Link>
-      </div>
+      </p>
     </div>
   );
 
