@@ -101,13 +101,20 @@ export default function RankingTabs({
   adBanners: AdBannerData[];
 }) {
   const [tab, setTab] = useState<TabKey>('overall');
+  // ★ 第1576便（2026-10-20・カッキーさん・軽量化）: 一度でも開いたタブ。
+  //   セラピストタブの豪華なカード（80人ぶん・約330KB）は、開くまで描かない。
+  //   ★ ただし初期 HTML から 80 人のリンクが消えないように、開く前は【名前と店名だけの軽い一覧】（約10KB）を同じ場所に出す
+  //     （2026-08-05 の「3タブとも常に DOM に描いてクローラに見せる」方針はそのまま）。
+  const [visited, setVisited] = useState<ReadonlySet<TabKey>>(() => new Set<TabKey>(['overall']));
+  const markVisited = (key: TabKey) => setVisited((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
   // リロード時に直前のタブを復元（URL ハッシュに保存。ISR を壊さないようクライアント側のみ）。
   useIsoLayoutEffect(() => {
     const h = window.location.hash.replace('#', '');
-    if ((TAB_KEYS as readonly string[]).includes(h)) setTab(h as TabKey);
+    if ((TAB_KEYS as readonly string[]).includes(h)) { setTab(h as TabKey); markVisited(h as TabKey); }
   }, []);
   const changeTab = (key: TabKey) => {
     setTab(key);
+    markVisited(key);
     try {
       const url = key === 'overall' ? window.location.pathname + window.location.search : `#${key}`;
       window.history.replaceState(null, '', url);
@@ -296,6 +303,21 @@ export default function RankingTabs({
               {therapistRanking.length === 0 ? (
                 <div className="rounded-3xl border shadow-sm overflow-hidden transition-colors duration-300" style={cardStyle}>
                   <EmptyState theme={theme} />
+                </div>
+              ) : !visited.has('therapist') ? (
+                // ★ 第1576便: まだ開いていないあいだの軽い一覧（タブを押すと下の豪華なカードに置き換わる）
+                <div className="rounded-3xl border shadow-sm overflow-hidden" style={cardStyle}>
+                  <ol className="divide-y" style={{ borderColor: theme.cardBorder }}>
+                    {therapistRanking.map((t) => (
+                      <li key={t.id}>
+                        <Link href={`/therapist/${t.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                          <span className="w-8 flex-shrink-0 font-black" style={{ color: theme.heading }}>{t.rank}</span>
+                          <span className="min-w-0 flex-1 truncate font-bold" style={{ color: theme.heading }}>{t.name || '—'}</span>
+                          {t.salonName && <span className="min-w-0 truncate text-[11px]" style={{ color: theme.body }}>{t.salonName}</span>}
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               ) : (
                 <>
