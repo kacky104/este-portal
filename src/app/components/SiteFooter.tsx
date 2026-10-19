@@ -56,6 +56,7 @@ const CONTENT_LINKS: FooterLinkDef[] = [
   { href: '/glossary', label: '用語集' }, // メンズエステ用語集（第349便・2026-09-13）
   { href: '/x-shops', label: 'SNS' },
   { href: '/join', label: '会員登録について' },
+  { href: '/points', label: 'フクエスポイントについて' }, // ★ 2026-10-19: メニュー（HamburgerMenu）と揃える
 ];
 
 // サイト情報系（従来トップのフッターにあった並び）。
