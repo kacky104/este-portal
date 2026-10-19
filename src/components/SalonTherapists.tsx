@@ -905,8 +905,9 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
   const [list, setList] = useState<Therapist[]>(initialList ?? []);
   // ★ 第1579便: 在籍が多いお店（最大157人）は、カードを全員分描くと HTML が 500〜670KB になり
   //   「検出 - インデックス未登録」の原因になっていた。最初の initialCards 人だけカードで描き、
-  //   残りは「名前だけのリンク」にしておく（/therapist/[id] へのリンクは初期HTMLに全員分残す＝SEO は維持）。
-  //   「残り○人をカードで見る」を押すと全員カードに切り替わる（/ranking 第1576便と同じ考え方）。
+  //   「続きを見る」を押すと残りもカードで出す。
+  //   ★ 第1580便（カッキーさん）: 残りの名前リンクの並びはレイアウト的にダメ→ボタンだけにした。
+  //     31人目以降の /therapist/[id] へのリンクは初期HTMLに載らない（sitemap・店舗の他ページからは辿れる）。
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -973,7 +974,6 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
   const shown = limit ? list.slice(0, limit) : list;
   const folded = !expanded && initialCards != null && shown.length > initialCards;
   const cards = folded ? shown.slice(0, initialCards) : shown;
-  const rest = folded ? shown.slice(initialCards) : [];
   const grid = (
     // singleColumn: サロンページの「在籍セラピスト一覧」用。新人紹介と同じく常に1列で
     // カードを親幅いっぱいに広げ、情報エリアを確保する。在籍一覧ページは従来の2列。
@@ -994,21 +994,9 @@ export function SalonAllTherapists({ salonId, limit, from, showSaveButton = fals
           className="inline-flex items-center justify-center rounded-full bg-pink-500 hover:bg-pink-600 text-white font-bold shadow-sm transition-colors"
           style={{ padding: '10px 24px', fontSize: '14px' }}
         >
-          残り{rest.length}人をカードで見る
+          続きを見る
         </button>
       </div>
-      <ul className="mt-4 flex flex-wrap gap-2">
-        {rest.map((t) => (
-          <li key={t.id}>
-            <Link
-              href={from ? `/therapist/${t.id}?from=${from}` : `/therapist/${t.id}`}
-              className="inline-block rounded-full border border-pink-200 bg-white px-3 py-1 text-[13px] text-slate-700 hover:border-pink-400 hover:text-pink-600 transition-colors"
-            >
-              {t.name}{t.age ? `(${t.age})` : ''}
-            </Link>
-          </li>
-        ))}
-      </ul>
     </>
   );
 }
