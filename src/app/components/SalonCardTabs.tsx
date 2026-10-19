@@ -387,7 +387,9 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
               onClick={() => pick(t.key)}
               // ★ 2026-10-19: タブが5つになりスマホ幅で「写メ…」と切れたため、等幅（flex-1）→ 中身の幅＋余りを分ける（flex-auto）。
               //   すき間も gap-1 → gap-0.5。長い名前（写メ日記・クーポン）が先に削られないようにする。
-              className={`flex-auto min-w-0 box-border h-[43px] pt-0.5 px-0.5 flex items-center justify-center gap-0.5 whitespace-nowrap border-b-2 text-xs font-bold transition-colors ${
+              //   ★ 画面幅 380px 未満（360px の Android・旧 iPhone SE）は文字 11px・バッジの余白を詰める。
+              //     実測: 写メ日記 99+・口コミ 99+ でも、タブの行 295px まで切れない（12px のままだと 320px で切れた）。
+              className={`flex-auto min-w-0 box-border h-[43px] pt-0.5 px-0.5 flex items-center justify-center gap-0.5 whitespace-nowrap border-b-2 text-xs max-[380px]:text-[11px] font-bold transition-colors ${
                 n <= 0
                   ? 'border-transparent text-slate-300 cursor-default'
                   : active
@@ -397,7 +399,7 @@ export function SalonCardTabs({ salonId, reviewCount, ratingNode, counts, therap
             >
               <span className="truncate">{t.label}</span>
               {badge && (
-                <span className={`flex-shrink-0 box-border min-w-[18px] h-4 rounded-[4px] border bg-white px-1 text-center text-[10px] font-bold leading-[14px] ${BADGE_COLOR[t.key]}`}>
+                <span className={`flex-shrink-0 box-border min-w-[18px] h-4 rounded-[4px] border bg-white px-1 max-[380px]:px-0.5 text-center text-[10px] font-bold leading-[14px] ${BADGE_COLOR[t.key]}`}>
                   {badge}
                 </span>
               )}
