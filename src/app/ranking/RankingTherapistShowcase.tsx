@@ -131,13 +131,17 @@ export function RankingTherapistShowcase({
             href={`/therapist/${id}`}
             className={`relative block flex-shrink-0 overflow-hidden bg-slate-100 group ${nano ? 'w-[16%] h-full' : micro ? 'w-[18.75%] aspect-[3/4]' : mini ? 'w-1/4 aspect-[3/4]' : compact ? 'w-[37.5%] h-full sm:h-auto sm:aspect-[3/4]' : 'w-1/2 lg:w-1/4 aspect-[3/4]'}`}
           >
+            {/* ★ 第1575便（2026-10-20・カッキーさん・軽量化）: fill＋sizes → width/height 固定。
+                fill だと srcset に deviceSizes＋imageSizes の全部（15本の長い Supabase URL）が入り、
+                1枚あたり 1.8KB×80枚＝約140KB が HTML に乗っていた。固定幅なら 1x/2x の 2本だけ。
+                見た目は同じ（親が aspect-[3/4] を決め、画像は absolute で全面に敷く）。 */}
             {profileImageUrl ? (
               <Image
                 src={profileImageUrl}
                 alt={name}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                sizes="(max-width:640px) 46vw, 288px"
+                width={288}
+                height={384}
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
             ) : (
               <span className="absolute inset-0 flex items-center justify-center text-slate-300 font-bold text-3xl">{name.charAt(0) || '—'}</span>

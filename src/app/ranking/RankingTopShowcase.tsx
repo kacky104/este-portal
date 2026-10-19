@@ -166,13 +166,14 @@ export default function RankingTopShowcase({
                 href={`/therapist/${c.id}`}
                 className={`relative block aspect-[3/4] overflow-hidden group ${cardPlaceholder}`}
               >
+                {/* ★ 第1575便: fill → width/height 固定（srcset を 15本→2本に。理由は RankingTherapistShowcase と同じ） */}
                 {c.img ? (
                   <Image
                     src={c.img}
                     alt={c.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    sizes="(max-width:640px) 24vw, 130px"
+                    width={160}
+                    height={213}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
                   <span className="absolute inset-0 flex items-center justify-center text-slate-400 font-bold text-lg">
