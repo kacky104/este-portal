@@ -47,8 +47,9 @@ const AREA_JOB_GUIDE: Record<string, string> = {
     '小倉駅周辺に店が集まり、北九州市内から通う人が中心です。福岡市内より競合が少ないぶん、新人のうちから指名を取りやすいという声もあります。',
   '久留米':
     '西鉄久留米駅・JR久留米駅の周辺に店があり、筑後エリアや佐賀方面から通う人もいます。地元で落ち着いて長く働きたい人に向いたエリアです。',
+  // ★ 第1574便（カッキーさん）: 具体的な市町名は書かない（その地域にメンズエステは無いため）
   '福岡県その他':
-    '糸島・春日・大野城・宗像など、福岡市と北九州市の外側のエリア。店の数は少なめですが、車通勤できる店や、寮・住み込みに対応する店が含まれます。',
+    '福岡市・北九州市・久留米市の外側のエリア。店の数は少なめですが、車で通える店や、寮・住み込みに対応する店が含まれます。',
 };
 
 /** 一覧用の jobs から、エリアごとの求人数を数える（第1エリア・第2エリアのどちらかに含まれれば 1 件）。 */
@@ -187,12 +188,7 @@ export default async function JobsPage() {
           見た目は変えない（ヒーロー画像がその役を担うので sr-only）。下の JobHeroBanners は h2 に落とした。 */}
       <h1 className="sr-only">福岡メンズエステのセラピスト求人｜フクエスワーク</h1>
 
-      {/* ★ 第1494便（カッキーさん・SEO）: 見える紹介文（2〜3行）。本文に説明の文章がほとんど無かったため */}
-      <p className="mb-6 text-[13px] leading-relaxed text-slate-600">
-        フクエスワークは、福岡のメンズエステで働きたい方のための求人サイトです。
-        博多・天神・中洲、北九州・小倉、久留米など福岡県内のお店のセラピスト求人を、
-        日払いOK・未経験歓迎・体験入店OKなどの条件から探せます。
-      </p>
+      {/* ★ 第1574便: 紹介文（第1494便）はページ最下部へ移した（エリア別の案内とまとめて表示） */}
 
 
       {/* お仕事マッチングへの導線（/jobs/matching）。希望を入力→運営が合うお店を無料で紹介・斡旋する入口。
@@ -247,34 +243,6 @@ export default async function JobsPage() {
         <AreaBrowse />
         <FeatureBrowse />
       </div>
-
-      {/* ★ 第1573便（2026-10-20・カッキーさん・SEO）: エリア別の求人数と案内文（地名入りの本文）。
-          ★ 「エリアから探す」のタイルの直下。各行はエリアの求人ページへの内部リンク。
-          ★ 件数は 0 でも行は出す（「現在は募集準備中」）。リンク先は noindex のままなので検索には出ない。 */}
-      <section className="mb-6 rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-        <h2 className="font-bold text-slate-900 text-sm mb-1">福岡のエリア別メンズエステ求人</h2>
-        <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
-          現在、福岡県内で{jobs.length}件のセラピスト求人を掲載しています。エリアごとの件数と特徴です。
-        </p>
-        <ul className="divide-y divide-emerald-50">
-          {guideAreas.map((area) => {
-            const n = areaCounts[area] ?? 0;
-            return (
-              <li key={area} className="py-2.5">
-                <div className="flex items-baseline justify-between gap-3">
-                  <Link href={jobsAreaHref(area)} className="text-[14px] font-bold hover:underline" style={{ color: '#059669' }}>
-                    {areaLabel(area)}のメンズエステ求人
-                  </Link>
-                  <span className="flex-none text-[12px] font-bold text-slate-700">
-                    {n > 0 ? `${n}件` : '募集準備中'}
-                  </span>
-                </div>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-slate-600">{AREA_JOB_GUIDE[area]}</p>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
 
       {/* 注目の求人（オーナー設定のバナー画像）。おすすめスライダーと既存求人一覧の間に配置。
           見出し(h1)はバナー0件でも常に描画し、バナー画像のみ0件なら省略（コンポーネント側で分岐）。
@@ -396,6 +364,43 @@ export default async function JobsPage() {
             }).replace(/</g, '\\u003c'),
           }}
         />
+      </section>
+
+      {/* ★ 第1574便（2026-10-20・カッキーさん）: ページ最下部のまとめ＝紹介文（第1494便・上から移動）＋エリア別の求人数と案内文（第1573便） */}
+      <section className="mt-12">
+        <h2 className="mb-3 font-bold text-slate-900">フクエスワークについて</h2>
+      <p className="mb-4 text-[13px] leading-relaxed text-slate-600">
+        フクエスワークは、福岡のメンズエステで働きたい方のための求人サイトです。
+        博多・天神・中洲、北九州・小倉、久留米など福岡県内のお店のセラピスト求人を、
+        日払いOK・未経験歓迎・体験入店OKなどの条件から探せます。
+      </p>
+      {/* ★ 第1573便（2026-10-20・カッキーさん・SEO）: エリア別の求人数と案内文（地名入りの本文）。
+          ★ 第1574便（カッキーさん）: 置き場所はページの一番下（よくある質問の下）。紹介文とまとめて出す。各行はエリアの求人ページへの内部リンク。
+          ★ 件数は 0 でも行は出す（「現在は募集準備中」）。リンク先は noindex のままなので検索には出ない。 */}
+      <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
+        <h3 className="font-bold text-slate-900 text-sm mb-1">福岡のエリア別メンズエステ求人</h3>
+        <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
+          現在、福岡県内で{jobs.length}件のセラピスト求人を掲載しています。エリアごとの件数と特徴です。
+        </p>
+        <ul className="divide-y divide-emerald-50">
+          {guideAreas.map((area) => {
+            const n = areaCounts[area] ?? 0;
+            return (
+              <li key={area} className="py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <Link href={jobsAreaHref(area)} className="text-[14px] font-bold hover:underline" style={{ color: '#059669' }}>
+                    {areaLabel(area)}のメンズエステ求人
+                  </Link>
+                  <span className="flex-none text-[12px] font-bold text-slate-700">
+                    {n > 0 ? `${n}件` : '募集準備中'}
+                  </span>
+                </div>
+                <p className="mt-1 text-[12.5px] leading-relaxed text-slate-600">{AREA_JOB_GUIDE[area]}</p>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
       </section>
     </main>
     </>
