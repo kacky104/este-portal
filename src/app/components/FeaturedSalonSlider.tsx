@@ -206,8 +206,10 @@ export function FeaturedSalonSlider({ salons }: { salons: FeaturedSalon[] }) {
       )}
 
       {/* ── Dot indicators ─────────────────────────────────── */}
+      {/* ★ 第1582便（カッキーさん）: 店名とドットの間を半分に（店名の下端→ドット 27px → 13px。mt-3 → -mt-0.5。
+           ボタンは当たり判定 24px で見える点は 8px のため、上下に 8px ずつ余白がある分を差し引いた値） */}
       {displaySalons.length > 1 && (
-        <div className="flex justify-center items-center gap-0 mt-3">
+        <div className="flex justify-center items-center gap-0 -mt-0.5">
           {displaySalons.map((_, i) => (
             <button
               key={i}
