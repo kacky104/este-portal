@@ -7,7 +7,6 @@ import { AccountMenu } from '@/app/components/AccountMenu';
 import { HamburgerMenu } from '@/app/components/HamburgerMenu';
 import { VipLetterIcon } from '@/app/components/VipLetterIcon';
 import { ListingInquiryForm } from './ListingInquiryForm';
-import { ListingFeatures } from './ListingFeatures';
 import { ListingPricePlans } from './ListingPricePlans';
 import { ListingHpPromo } from './ListingHpPromo';
 import { ListingContactHeading } from './ListingContactHeading';
@@ -129,9 +128,7 @@ export default async function ListingPage() {
 
         {/* ★ 第1585・1586便（カッキーさん）: 「フクエスとは」「掲載店舗様でできること」の帯（ListingAbout）は消した。 */}
 
-        {/* 「お店の成長を支える、10の機能」。★ 09 は予約ボード → フクエスCRM（有料オプション）。
-            ★ 第1380便: このページには「コネックエフ」の名前を出さない（無料オプションの「他サイトへの連携サービス」と書く）。 */}
-        <ListingFeatures />
+        {/* ★ 第1587便（カッキーさん）: 「お店の成長を支える、10の機能」（ListingFeatures）も消した。 */}
 
         {/* 料金プラン。
             ★ 順番が重要。10機能 → 料金 → 公式ホームページ → 問い合わせ。
@@ -204,7 +201,7 @@ export default async function ListingPage() {
         <p className="text-sm text-slate-600 leading-relaxed mb-2">
           無料掲載では、<a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>
           に店名・地域・電話番号・公式ホームページへのリンクをテキストで掲載します
-          （店舗ページの開設や、上記の各機能は含まれません）。
+          （店舗ページの開設や、有料掲載の各機能は含まれません）。
         </p>
         <p className="text-xs text-slate-500 leading-relaxed mb-2">
           ※ 掲載期間中はバナーの設置継続をお願いします。バナーが確認できなくなった場合、掲載を終了することがあります。
