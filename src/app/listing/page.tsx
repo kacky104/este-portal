@@ -18,6 +18,7 @@ import { getTheme } from '@/app/lib/themes';
 import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { fetchPageHero } from '@/app/lib/pageHero';
 import { PageHero } from '@/app/components/PageHero';
+import { Jp } from '@/app/lib/jpPhrase';
 
 export const metadata: Metadata = {
   title: '掲載について｜フクエス',
@@ -48,6 +49,7 @@ export default async function ListingPage() {
   };
 
   return (
+    <Jp>
     <div className="min-h-screen text-slate-900" style={bgStyle}>
 
       {/* ─── Header ─────────────────────────────────────────── */}
@@ -236,5 +238,6 @@ export default async function ListingPage() {
       {/* ─── Footer ──────────────────────────────────────── */}
       <SiteFooter inner="max-w-3xl" />
     </div>
+    </Jp>
   );
 }

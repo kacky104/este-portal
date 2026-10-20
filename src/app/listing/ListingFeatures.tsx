@@ -1,5 +1,6 @@
 import { LISTING_MINCHO } from './listingStyle';
 import { LISTING_FEATURES, LISTING_SET_OPTION_YEN, LISTING_TAX_LABEL, LISTING_CRM_FREE_NAME, listingYen } from '@/lib/listingPlan';
+import { Jp } from '@/app/lib/jpPhrase';
 
 // /listing の「お店の成長を支える、10の機能」（第1301便・2026-10-08 に画像から文字へ組み直した）。
 //
@@ -13,6 +14,7 @@ import { LISTING_FEATURES, LISTING_SET_OPTION_YEN, LISTING_TAX_LABEL, LISTING_CR
 
 export function ListingFeatures() {
   return (
+    <Jp>
     <section className="w-full border-t border-[#c9a55c]/40 bg-[#faf5ec]">
       <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
         <h2
@@ -21,7 +23,7 @@ export function ListingFeatures() {
         >
           掲載するだけじゃない。
           <br />
-          お店の成長を支える、{LISTING_FEATURES.length}の機能。
+          お店の成長を支える、<span className="whitespace-nowrap">{LISTING_FEATURES.length}の機能。</span>
         </h2>
         <p className="mt-5 text-[14px] leading-[2] text-[#4a3f38] sm:text-[15px]">
           集客・採用・予約・運営まで。フクエスひとつで、もっとスマートに。
@@ -67,5 +69,6 @@ export function ListingFeatures() {
         </p>
       </div>
     </section>
+    </Jp>
   );
 }

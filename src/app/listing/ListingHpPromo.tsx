@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { LISTING_MINCHO } from './listingStyle';
 import { LISTING_HP_YEARLY_YEN, LISTING_TAX_LABEL, listingYen } from '@/lib/listingPlan';
+import { Jp } from '@/app/lib/jpPhrase';
 
 // /listing の「公式ホームページ」の帯（第1301便・2026-10-08 に画像から文字へ組み直した）。
 //
@@ -28,6 +29,7 @@ const FIGURES: ReadonlyArray<{ label: string; value: string; unit: string; note?
 
 export function ListingHpPromo() {
   return (
+    <Jp>
     <section className="w-full bg-[#1f1f1e]">
       <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
         <h2 style={{ fontFamily: LISTING_MINCHO }}>
@@ -89,5 +91,6 @@ export function ListingHpPromo() {
         </Link>
       </div>
     </section>
+    </Jp>
   );
 }

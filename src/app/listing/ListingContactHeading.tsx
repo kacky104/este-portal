@@ -1,4 +1,5 @@
 import { LISTING_MINCHO } from './listingStyle';
+import { Jp } from '@/app/lib/jpPhrase';
 
 // /listing の「掲載をご希望の店舗様へ」（第1301便・2026-10-08 に画像から文字へ組み直した）。
 //
@@ -12,6 +13,7 @@ const POINTS = ['ご相談無料', '資料請求OK'] as const;
 
 export function ListingContactHeading() {
   return (
+    <Jp>
     <section className="w-full border-t border-[#c9a55c]/40 bg-[#faf5ec]">
       <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
         <h2
@@ -42,5 +44,6 @@ export function ListingContactHeading() {
         </ul>
       </div>
     </section>
+    </Jp>
   );
 }

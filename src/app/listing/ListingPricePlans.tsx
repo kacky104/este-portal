@@ -1,4 +1,5 @@
 import { LISTING_MINCHO } from './listingStyle';
+import { Jp } from '@/app/lib/jpPhrase';
 import {
   LISTING_FEE_YEN,
   LISTING_CAMPAIGN_OFF_YEN,
@@ -32,6 +33,7 @@ import {
 
 export function ListingPricePlans() {
   return (
+    <Jp>
     <section className="w-full bg-[#f1e7d6]">
       <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
         <h2
@@ -41,7 +43,7 @@ export function ListingPricePlans() {
           料金プラン
         </h2>
         <p className="mt-4 text-[14px] leading-[2] text-[#4a3f38] sm:text-[15px]">
-          フクエス・フクエスワーク・fukuX を、ひとつの掲載料で。
+          フクエス・フクエスワーク・fukuX を、<span className="whitespace-nowrap">ひとつの掲載料で。</span>
         </p>
 
         {/* 二重の枠（これまでの画像の札と同じつくり）: 外側の金の線＋内側に少し離した細い線 */}
@@ -127,5 +129,6 @@ export function ListingPricePlans() {
         </p>
       </div>
     </section>
+    </Jp>
   );
 }

@@ -1,4 +1,5 @@
 import { LISTING_MINCHO } from './listingStyle';
+import { Jp } from '@/app/lib/jpPhrase';
 
 // /listing の「フクエスとは」＋「掲載店舗様でできること」（第1301便・2026-10-08 に画像から文字へ組み直した）。
 //
@@ -20,6 +21,7 @@ const CAN_DO: ReadonlyArray<{ name: string; color: string }> = [
 
 export function ListingAbout() {
   return (
+    <Jp>
     <section className="w-full">
       {/* ── フクエスとは（明るい帯）── */}
       <div className="bg-[#faf5ec]">
@@ -83,5 +85,6 @@ export function ListingAbout() {
         </div>
       </div>
     </section>
+    </Jp>
   );
 }
