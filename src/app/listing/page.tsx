@@ -180,7 +180,7 @@ export default async function ListingPage() {
             /salons のテキスト一覧へ掲載する運用（free_salon_listings）。 */}
         <h2 className="text-lg font-bold text-slate-800 text-center mt-8 mb-3">無料掲載について</h2>
         <p className="text-sm text-slate-600 leading-relaxed mb-3">
-          店舗様の公式ホームページに、フクエス・フクエスワーク・fukuX（フクエックス）の3つの
+          店舗様の公式ホームページに、3つの
           <a href="/banner" className="text-pink-600 hover:underline">リンクバナー</a>
           を設置いただいた店舗様は、<strong className="text-slate-800">無料で店舗一覧に掲載</strong>できます。
         </p>
@@ -198,11 +198,19 @@ export default async function ListingPage() {
             <li>当事務局で設置を確認できましたら、店舗一覧に掲載いたします</li>
           </ol>
         </div>
-        <p className="text-sm text-slate-600 leading-relaxed mb-2">
-          無料掲載では、<a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>
-          に店名・地域・電話番号・公式ホームページへのリンクをテキストで掲載します
-          （店舗ページの開設や、有料掲載の各機能は含まれません）。
-        </p>
+        {/* ★ 第1589便（カッキーさん）: 掲載する項目を1行ずつに。括弧の注記（店舗ページの開設や…は含まれません）は外した */}
+        <div className="text-sm text-slate-600 leading-relaxed mb-2">
+          <p>
+            無料掲載では<a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>に
+          </p>
+          <ul className="my-1 pl-1">
+            <li>・店名</li>
+            <li>・地域</li>
+            <li>・電話番号</li>
+            <li>・公式ホームページへのリンク</li>
+          </ul>
+          <p>をテキストで掲載させて頂きます。</p>
+        </div>
         <p className="text-xs text-slate-500 leading-relaxed mb-2">
           ※ 掲載期間中はバナーの設置継続をお願いします。バナーが確認できなくなった場合、掲載を終了することがあります。
         </p>
