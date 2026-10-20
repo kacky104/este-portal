@@ -9,8 +9,6 @@ import { Jp } from '@/app/lib/jpPhrase';
 // ★ 見出し「掲載店舗様でできること」は、ページ下の「無料掲載について」が名前で指している。文言を変えるならそちらも直す。
 // ★ 帯は全幅。本文ラッパー（max-w-3xl px-4）の【外】に置く（page.tsx）。100vw ではみ出させない。
 
-const AREAS = ['博多', '天神', '北九州', '久留米'] as const;
-
 // 4つの札の色は、これまでの画像（タブレットの4枚の札）と同じ並び。暗い面の上で読める明るさにしてある
 const CAN_DO: ReadonlyArray<{ name: string; color: string }> = [
   { name: '店舗情報', color: '#f08a7c' },
@@ -23,36 +21,7 @@ export function ListingAbout() {
   return (
     <Jp>
     <section className="w-full">
-      {/* ── フクエスとは（明るい帯）── */}
-      <div className="bg-[#faf5ec]">
-        <div className="mx-auto max-w-5xl px-5 py-14 sm:py-20">
-          <h2
-            className="text-[26px] font-semibold leading-[1.5] text-[#2b211c] sm:text-[42px] sm:leading-[1.45]"
-            style={{ fontFamily: LISTING_MINCHO }}
-          >
-            福岡のメンズエステを、
-            <br />
-            もっと見つけてもらえる場所へ。
-          </h2>
-          <p className="mt-6 max-w-2xl text-[14px] leading-[2] text-[#4a3f38] sm:text-[15px]">
-            フクエスは、福岡県のメンズエステ専門ポータルサイトです。博多・天神・北九州・久留米など、福岡全域の店舗様の情報を掲載しています。
-          </p>
-          <p className="sr-only">対応エリア</p>
-          <ul
-            className="mt-8 flex flex-wrap items-center gap-y-3 text-[20px] font-semibold text-[#c8402f] sm:text-[26px]"
-            style={{ fontFamily: LISTING_MINCHO }}
-          >
-            {AREAS.map((a, i) => (
-              <li
-                key={a}
-                className={i === 0 ? '' : 'ml-5 border-l border-[#c9a55c] pl-5 sm:ml-8 sm:pl-8'}
-              >
-                {a}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      {/* ★ 第1585便（カッキーさん）: 「フクエスとは」の明るい帯（福岡のメンズエステを、…／対応エリア 博多・天神・北九州・久留米）はブロックごと消した。 */}
 
       {/* ── 掲載店舗様でできること（暗い帯）── */}
       <div className="bg-[#1f1f1e]">
