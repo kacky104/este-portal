@@ -49,7 +49,7 @@ export function listingYen(n: number): string {
 
 /** 掲載料に含まれるもの（料金プランに出す） */
 export const LISTING_INCLUDED: ReadonlyArray<{ name: string; desc: string }> = [
-  { name: 'フクエス 店舗掲載', desc: '店舗ページ・セラピスト紹介・出勤・写メ日記・口コミ' },
+  { name: 'フクエス 店舗掲載', desc: '店舗ページ・セラピスト紹介・出勤・写メ日記' }, // ★ 第1588便（カッキーさん）: 「口コミ」を外した
   { name: 'フクエスワーク 求人掲載', desc: '求人ページ・Googleしごと検索対応・店舗ページとの連携' },
   { name: 'fukuX（フクエックス）', desc: '福岡メンズエステ専用SNS' },
 ];

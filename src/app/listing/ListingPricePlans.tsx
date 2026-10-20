@@ -42,9 +42,7 @@ export function ListingPricePlans() {
         >
           料金プラン
         </h2>
-        <p className="mt-4 text-[14px] leading-[2] text-[#4a3f38] sm:text-[15px]">
-          フクエス・フクエスワーク・fukuX を、<span className="whitespace-nowrap">ひとつの掲載料で。</span>
-        </p>
+        {/* ★ 第1588便（カッキーさん）: 見出し下の「フクエス・フクエスワーク・fukuX を、ひとつの掲載料で。」は消した */}
 
         {/* 二重の枠（これまでの画像の札と同じつくり）: 外側の金の線＋内側に少し離した細い線 */}
         <div className="mt-8 border border-[#c9a55c] bg-[#fffdf8] p-[5px] sm:mt-10">
@@ -100,6 +98,8 @@ export function ListingPricePlans() {
                   {LISTING_CRM_NAME}
                 </p>
                 <p className="mt-1 text-[13px] leading-[1.8] text-[#5c5048]">{LISTING_CRM_DESC}</p>
+                {/* ★ 第1588便（カッキーさん）: CRM の説明の下に「フクエスポイント加盟権利」を加えた */}
+                <p className="text-[13px] leading-[1.8] text-[#5c5048]">フクエスポイント加盟権利</p>
                 <p className="mt-2 text-[#17767e]" style={{ fontFamily: LISTING_MINCHO }}>
                   <span className="text-[14px]">月額</span>
                   <span className="ml-1 text-[28px] font-semibold leading-none sm:text-[32px]">
