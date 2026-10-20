@@ -244,7 +244,7 @@ export default function ReviewsTabs({
       <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             <SavedSalonsMenu />
             <VipLetterIcon /><AccountMenu /><HamburgerMenu />
           </div>

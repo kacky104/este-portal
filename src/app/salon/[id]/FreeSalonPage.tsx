@@ -71,7 +71,7 @@ export async function FreeSalonPage({ id, row }: { id: number; row: Record<strin
       <header className="sticky top-0 z-50 backdrop-blur-md border-b shadow-sm" style={{ backgroundColor: `${theme.card}E6`, borderColor: theme.cardBorder }}>
         <div className="max-w-4xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
-          <div className="flex items-center gap-1 sm:gap-2"><SavedSalonsMenu /><VipLetterIcon /><AccountMenu /><HamburgerMenu /></div>
+          <div className="flex items-center gap-2 sm:gap-2.5"><SavedSalonsMenu /><VipLetterIcon /><AccountMenu /><HamburgerMenu /></div>
         </div>
       </header>
       <SiteNoticeBanner />
