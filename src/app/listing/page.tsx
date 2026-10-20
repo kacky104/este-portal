@@ -110,16 +110,9 @@ export default async function ListingPage() {
               ★ パンくずは左寄せのまま（/column・/news と同じ）。ここだけ中央にしない。
               ★ text-balance は説明文の行末が「す。」だけになるのを防ぐため。
                 外すと PC で最終行が1〜2文字だけの見た目になる。 */}
-          <header className="mb-2 text-center">
-            <p className="text-[11px] font-semibold tracking-[0.35em] text-pink-700">LISTING</p>
-            <h1 className="mt-2 bg-gradient-to-r from-pink-700 via-rose-500 to-pink-700 bg-clip-text text-2xl sm:text-4xl font-black tracking-[0.04em] text-transparent drop-shadow-[0_1px_10px_rgba(236,72,153,0.18)]">
-              掲載について
-            </h1>
-            <div aria-hidden className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-pink-400 to-transparent" />
-            <p className="mx-auto mt-4 max-w-xl text-xs sm:text-sm leading-relaxed text-balance text-slate-600">
-              福岡のメンズエステポータル「フクエス」への店舗掲載をご検討の店舗様へのご案内です。
-            </p>
-          </header>
+          {/* ★ 第1584便（カッキーさん）: 上部の「LISTING／掲載について／ご案内文」は見た目から消した。
+               ★ h1 は検索エンジン・読み上げ用に sr-only で残す（ページに h1 が無くならないように）。 */}
+          <h1 className="sr-only">掲載について</h1>
         </div>
 
         {/* ページ別ヒーロー画像（/admin「ページ別ヒーロー画像設定」の listing 枠・2026-08-08 追加）。
