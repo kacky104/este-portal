@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { quickOpenMyTherapistX } from '@/app/actions/xProfile';
 
 // ★ 第1061便（2026-10-01・カッキーさん）: fukuX の加点の案内を、本文のカードからヘッダーの「？」アイコンに移した。
 //   ・未開設の子: 「サイトを見る」の左に「？」→ 押すと「開設すると毎週+10点」のカード（紫）
@@ -11,6 +13,8 @@ import { useEffect, useRef, useState } from 'react';
 //   見た目は CastXIcon と同じ 36px 角丸の枠。外側タップ・Esc で閉じる。
 // ★ 第1481便（2026-10-14・カッキーさん）: 未開設の子のボタンは「？」ではなく fukuX のロゴに。カードは開設のハードルを下げる文言
 //   （写メ日記と一緒に投稿できる・DM とコメントは最初からオフ・開設したら何もしなくてよい）。加点の話はカードから外した。
+// ★ 第1595便（2026-10-21・カッキーさん）: 「開設する」はその場でワンタップ開設（/x の登録画面へは行かない）。
+//   名前と写真はセラピストページのまま・ID は自動。開設できたらページを読み直す（ヘッダーが fukuX のアイコンに変わる）。
 
 const BADGE_PATH =
   'M12 1.5l2.5 2.1 3.3-.3.9 3.2 2.8 1.8-1.3 3 1.3 3-2.8 1.8-.9 3.2-3.3-.3L12 22.5l-2.5-2.1-3.3.3-.9-3.2L2.5 15.7l1.3-3-1.3-3 2.8-1.8.9-3.2 3.3.3z';
@@ -18,6 +22,28 @@ const BADGE_PATH =
 export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [opening, setOpening] = useState(false);
+  const [openErr, setOpenErr] = useState('');
+  const [opened, setOpened] = useState(false);
+
+  const quickOpen = async () => {
+    if (opening || opened) return;
+    setOpening(true);
+    setOpenErr('');
+    let res: Awaited<ReturnType<typeof quickOpenMyTherapistX>>;
+    try {
+      res = await quickOpenMyTherapistX();
+    } catch {
+      setOpening(false);
+      setOpenErr('通信できませんでした。電波のよい場所で、もう一度押してください。');
+      return;
+    }
+    setOpening(false);
+    if (!res.ok) { setOpenErr(res.error); return; }
+    setOpened(true);
+    window.setTimeout(() => { setOpen(false); router.refresh(); }, 1400);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -64,19 +90,31 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
           className="absolute right-4 top-[calc(100%+8px)] w-[min(calc(100vw-32px),360px)] z-40 drop-shadow-xl"
         >
           {kind === 'open' ? (
-            <Link
-              href="/x"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-3.5 py-3 hover:-translate-y-0.5 transition-transform"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/fukux-mark.png" alt="fukuX" className="w-9 h-9 flex-shrink-0" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-bold text-violet-800 leading-snug">fukuXを開設すると、写メ日記を書いたときに一緒に投稿できるようになります</span>
-                <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">メッセージとコメントは最初からオフになっています。開設したあとは、特に何もしなくて大丈夫です。ぜひ開設してください。</span>
-              </span>
-              <span className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-bold whitespace-nowrap">開設する</span>
-            </Link>
+            <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 px-3.5 py-3">
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/fukux-mark.png" alt="fukuX" className="w-9 h-9 flex-shrink-0" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-bold text-violet-800 leading-snug">
+                    {opened ? 'fukuXを開設しました' : 'fukuXを開設すると、写メ日記を書いたときに一緒に投稿できるようになります'}
+                  </span>
+                  {!opened && (
+                    <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">ボタンを押すだけで開設できます。名前と写真はセラピストページと同じものを使います。メッセージとコメントは最初からオフ。開設したあとは、特に何もしなくて大丈夫です。</span>
+                  )}
+                </span>
+                {!opened && (
+                  <button
+                    type="button"
+                    onClick={quickOpen}
+                    disabled={opening}
+                    className="flex-shrink-0 px-3 py-1.5 rounded-xl bg-violet-600 text-white text-[11px] font-bold whitespace-nowrap disabled:opacity-60"
+                  >
+                    {opening ? '開設中...' : '開設する'}
+                  </button>
+                )}
+              </div>
+              {openErr && <p className="mt-2 text-[11px] font-bold text-rose-600">{openErr}</p>}
+            </div>
           ) : (
             <Link
               href="/x/guide/therapist#step4"

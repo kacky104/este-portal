@@ -17,6 +17,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { compressImage } from '@/app/lib/compressImage'; // ★ 第999便: 送る前にスマホ側で縮める
 // ★ 取り込んだ日記の印（第98便）。★ セラピスト様が「書いていない日記が載っている」と驚かないように
 import { listImportedDiaries } from '@/app/actions/diaryImports';
+import { quickOpenMyTherapistX } from '@/app/actions/xProfile';
 import { importedDiaryLabel, importedDiaryDeleteConfirm } from '@/lib/mediaOverview';
 import { providerLabel } from '@/lib/mediaAudit';
 
@@ -106,6 +107,17 @@ export function CastDiary({
   const [crosspostX, setCrosspostX] = useState(true); // fukuX 同時投稿（デフォルトON・連携時のみ表示。外したいときだけチェックを外す）
   // fukuX投稿のリプライ禁止（fukuX ON時のみ表示）。★ 第1477便（カッキーさん）: デフォルトON（受け付けたいときだけ外す）
   const [crosspostXNoReplies, setCrosspostXNoReplies] = useState(true);
+  // ★ 第1595便（2026-10-21・カッキーさん）: fukuX 未開設の子にも「fukuX にも投稿する」を出す（既定オフ）。
+  //   オンにして投稿すると、その場で fukuX をワンタップ開設（名前・写真はセラピストページ・ID は自動）→ この日記をそのまま fukuX にも載せる。
+  //   本人がオンにしたときだけ開設する（勝手には作らない）。開設できたら以降は通常の同時投稿（既定オン）。
+  const [myXProfileId, setMyXProfileId] = useState<string | null>(xProfileId);
+  const [openXWithPost, setOpenXWithPost] = useState(false);
+  // ヘッダーのカードから開設してページが読み直されたときは、新しい xProfileId に追従する（描画中の調整＝effect を使わない）
+  const [prevXProp, setPrevXProp] = useState(xProfileId);
+  if (prevXProp !== xProfileId) {
+    setPrevXProp(xProfileId);
+    if (xProfileId) setMyXProfileId(xProfileId);
+  }
 
   // ── 一覧 ──
   const [posts, setPosts] = useState<CastDiaryPost[]>([]);
@@ -185,6 +197,19 @@ export function CastDiary({
       return;
     }
     setDiaryPosting(true);
+    // ★ 第1595便: 未開設で「fukuX にも投稿する」をオンにしていたら、先に fukuX を開設する。
+    //   開設に失敗しても日記の投稿は止めない（fukuX には載らないだけ・トーストで知らせる）。
+    let xIdForPost = myXProfileId;
+    let openedNow = false;
+    if (!xIdForPost && openXWithPost) {
+      try {
+        const o = await quickOpenMyTherapistX();
+        if (o.ok) { xIdForPost = o.profileId; openedNow = true; setMyXProfileId(o.profileId); }
+        else showToast(o.error);
+      } catch {
+        showToast('fukuX を開設できませんでした。日記だけ投稿します。');
+      }
+    }
     // ★ 第981便: 日記の保存と fukuX 同時投稿はサーバーで（本人のログインのまま＝RLS・x_posts のポリシーはそのまま効く）
     let res: Awaited<ReturnType<typeof postMyDiary>>;
     try {
@@ -194,8 +219,8 @@ export function CastDiary({
         image: diaryImage,
         title: diaryTitle,
         content: diaryBody,
-        crosspostX,
-        xProfileId,
+        crosspostX: myXProfileId ? crosspostX : openedNow,
+        xProfileId: xIdForPost,
         xNoReplies: crosspostXNoReplies,
       });
     } catch {
@@ -237,7 +262,8 @@ export function CastDiary({
     setCrosspostX(true); // 毎回デフォルトONに戻す（外すのは都度オプトアウト）
     setCrosspostXNoReplies(true); // リプライ禁止チェックも毎回デフォルトON（第1477便）へ戻す
     revalidateSalon(salonId, { top: false }); // 公開側（サロン詳細・セラピスト日記）を更新（best-effort）
-    showToast('写メ日記を投稿しました');
+    showToast(openedNow ? 'fukuX を開設して、写メ日記を投稿しました' : '写メ日記を投稿しました');
+    if (openedNow) { setOpenXWithPost(false); router.refresh(); } // ヘッダーを fukuX のアイコンに
     loadPosts();
   };
 
@@ -394,7 +420,29 @@ export function CastDiary({
 
         {/* fukuX 同時投稿（連携 approved セラピストのみ表示・デフォルトOFF）。
             ON のときだけ「リプライできないようにする」を出す（OFFに戻したら隠れた true が残らないようリセット）。 */}
-        {xProfileId && (
+        {/* ★ 第1595便: 未開設の子＝「fukuX にも投稿する」（既定オフ）。オンにすると投稿と一緒に fukuX を開設 */}
+        {!myXProfileId && (
+          <div className="space-y-1.5 pt-0.5">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={openXWithPost}
+                onChange={(e) => setOpenXWithPost(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-pink-500 focus:ring-pink-200"
+              />
+              <span className="text-[12px] font-bold text-slate-600">fukuX にも投稿する</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/fukux-mark.png" alt="" className="w-4 h-4" />
+            </label>
+            {openXWithPost && (
+              <p className="pl-6 text-[11px] leading-relaxed text-violet-700">
+                投稿と一緒に fukuX のアカウントを開設します。名前と写真はセラピストページと同じもの、メッセージとコメントは最初からオフです。開設したあとは、特に何もしなくて大丈夫です。
+              </p>
+            )}
+          </div>
+        )}
+
+        {myXProfileId && (
           <div className="space-y-2 pt-0.5">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input

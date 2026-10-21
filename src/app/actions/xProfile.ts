@@ -152,3 +152,53 @@ export async function leaveMyXShop(profileId: string): Promise<{ ok: true } | Fa
   }
   return { ok: true };
 }
+
+// ── ★ 第1595便（2026-10-21・カッキーさん）: セラピストの fukuX をワンタップで開設 ──
+//   ・/cast（ヘッダーの fukuX ロゴのカード・写メ日記の「fukuX にも投稿する」）から、本人が押したときだけ開設する。
+//   ・名前とアイコンはセラピストページのもの（therapists.user_id = 本人UID）。自己紹介は空。
+//   ・ID はランダム（fx_ + 英小文字・数字6文字）。重なったら付け直す（最大6回）。
+//   ・中身は createMyXProfile と同じ（DM 受け付けない・お店に自動所属もそのまま効く）。
+function randomAutoHandle() {
+  const chars = 'abcdefghijkmnpqrstuvwxyz23456789'; // 見間違えやすい l・o・0・1 は使わない
+  let s = '';
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return `fx_${s}`;
+}
+
+export async function quickOpenMyTherapistX(): Promise<{ ok: true; profileId: string; handle: string } | Fail> {
+  const { supabase, user } = await me();
+  if (!user) return NO_LOGIN;
+
+  // すでに開設済みなら、それを返す（2回押し・別タブ対策）
+  const { data: existing } = await supabase
+    .from('x_profiles').select('id, handle, kind').eq('auth_user_id', user.id).limit(1);
+  if (existing && existing.length > 0) {
+    const p = existing[0];
+    if (p.kind !== 'therapist') return { ok: false, error: 'このログインでは、すでに別の種類の fukuX アカウントがあります。' };
+    return { ok: true, profileId: p.id as string, handle: p.handle as string };
+  }
+
+  const { data: t } = await supabase
+    .from('therapists').select('name, profile_image_url').eq('user_id', user.id).limit(1);
+  const therapist = t?.[0];
+  if (!therapist) return { ok: false, error: 'セラピストページが見つかりませんでした。ページを開き直してください。' };
+  const displayName = String(therapist.name ?? '').trim().slice(0, 30) || 'セラピスト';
+
+  for (let i = 0; i < 6; i++) {
+    const handle = randomAutoHandle();
+    const res = await createMyXProfile({
+      kind: 'therapist', handle, displayName, bio: '',
+      avatarUrl: (therapist.profile_image_url as string | null) ?? null,
+    });
+    if (res.ok) {
+      const { data: row } = await supabase
+        .from('x_profiles').select('id').eq('auth_user_id', user.id).eq('handle', handle).maybeSingle();
+      if (!row) return { ok: false, error: '開設はできましたが、読み込めませんでした。ページを開き直してください。' };
+      return { ok: true, profileId: row.id as string, handle };
+    }
+    if (res.reason === 'handle_taken') continue;
+    if (res.reason === 'already') return quickOpenMyTherapistX();
+    return { ok: false, error: res.error };
+  }
+  return { ok: false, error: 'IDを決められませんでした。もう一度押してください。' };
+}
