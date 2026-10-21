@@ -210,7 +210,7 @@ export function XTimeline({
         newView.length === 0 ? (
           <Empty text="まだ投稿がありません" />
         ) : (
-          <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+          <div className="x-feed -mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
             {renderList(newVisible)}
             {newHasMore && <div ref={newSentinelRef} className="py-6 text-center text-xs text-[color:var(--x-text-muted)]">読み込み中…</div>}
           </div>
@@ -221,7 +221,7 @@ export function XTimeline({
         ) : (
           // X風の全幅行＋区切り線（2026-07-10 実機評価で本採用）。タイムラインのみこの方式で、
           // プロフィール・投稿詳細・検索などは従来の浮遊カードのまま。
-          <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+          <div className="x-feed -mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
             {renderList(recVisible)}
             {recHasMore && <div ref={recSentinelRef} className="py-6 text-center text-xs text-[color:var(--x-text-muted)]">読み込み中…</div>}
           </div>
@@ -235,7 +235,7 @@ export function XTimeline({
         shopShowcasesView.length === 0 ? (
           <Empty text="表示できるお店がまだありません" />
         ) : (
-          <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+          <div className="x-feed -mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
             {shopShowcasesView.map((s) => (
               <Link
                 key={s.id}
@@ -317,7 +317,7 @@ export function XTimeline({
         <Empty text="気になるセラピスト・お店をフォローすると、ここに新着が表示されます" />
       ) : (
         // おすすめタブと同じ全幅行方式（本採用）。
-        <div className="-mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
+        <div className="x-feed -mx-4 divide-y divide-[color:var(--x-border)] border-b border-[color:var(--x-border)]">
           {renderFeed(folVisible)}
           {folHasMore && <div ref={folSentinelRef} className="py-6 text-center text-xs text-[color:var(--x-text-muted)]">読み込み中…</div>}
         </div>

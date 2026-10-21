@@ -443,7 +443,7 @@ export function XProfileView({
       {/* ユーザーは投稿不可だがリポストは可能。投稿ゼロでもリポストがあればフィードを描画する。
           セラピスト・お店は従来どおり（空のときの空表示も維持）。ユーザーでフィード空なら丸ごと非描画。 */}
       {(target.kind !== 'user' || feed.length > 0) && (
-        <div className="mt-3 -mx-4 divide-y divide-[color:var(--x-border)] border-t border-b border-[color:var(--x-border)]">
+        <div className="x-feed mt-3 -mx-4 divide-y divide-[color:var(--x-border)] border-t border-b border-[color:var(--x-border)]">
           {feed.length === 0 ? (
             <div className="py-16 text-center">
               <p className="x-rescue-muted text-sm text-white/90 drop-shadow-sm">まだ投稿がありません</p>

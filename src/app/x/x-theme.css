@@ -199,3 +199,13 @@
   background-color: rgba(255, 255, 255, 0.8);
   border-color: rgba(255, 255, 255, 0.55);
 }
+
+/* ★ 第1603便（2026-10-21・カッキーさん）: 壁紙テーマのときは、投稿と投稿の繋ぎ目（区切り線）を透明にして、
+   投稿の間に少しすき間（6px）をあけて壁紙を見せる。対象はタイムライン・プロフィールの投稿一覧（.x-feed）だけ。 */
+#x-root[data-x-wp='1'] .x-feed,
+#x-root[data-x-wp='1'] .x-feed > * {
+  border-color: transparent;
+}
+#x-root[data-x-wp='1'] .x-feed > * + * {
+  margin-top: 6px;
+}
