@@ -107,12 +107,12 @@ export function DiaryFeed({
                 </div>
               )}
 
-              {/* 題名＋グッド（★ 第1592便: グッドは題名の行の右端に大きく） */}
+              {/* 題名＋グッド（★ 第1592便: グッドは題名の行の右端に大きく／★ 第1593便: 題名は1行・はみ出た分は「…」） */}
               {(d.title || goods) && (
                 <div className="flex items-start justify-between gap-3">
                   {d.title ? (
                   <h2
-                    className="text-xl sm:text-2xl font-bold w-fit min-w-0"
+                    className="text-xl sm:text-2xl font-bold w-fit min-w-0 truncate"
                     style={{
                       background: 'linear-gradient(to right, #ec4899, #f97316)',
                       WebkitBackgroundClip: 'text',
