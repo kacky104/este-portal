@@ -47,7 +47,8 @@ export const metadata: Metadata = {
 
 // FOUC対策：ハイドレーション前に localStorage のテーマを #x-root へ即時反映する小スクリプト。
 // 値が 'white' のときだけ属性を書き換える（既定の 'gradient' は SSR 出力と一致）。/x 内に閉じる。
-const THEME_INIT = `try{var t=localStorage.getItem('fukux-theme');if(t==='white'){document.getElementById('x-root').setAttribute('data-x-theme','white');}}catch(e){}`;
+// ★ 第1600便: 壁紙（'fukux-wp'＝{k,u,c}）も最初の描画の前に当てる（XThemeToggle の applyXWallpaper と同じ作り）
+const THEME_INIT = `try{var r=document.getElementById('x-root');var t=localStorage.getItem('fukux-theme');if(t==='white'){r.setAttribute('data-x-theme','white');}var w=localStorage.getItem('fukux-wp');if(w){w=JSON.parse(w);if(w&&w.u&&w.c){r.setAttribute('data-x-theme','white');r.style.setProperty('--x-wp-bg','linear-gradient('+w.c+'B3, '+w.c+'B3), url("'+w.u+'")');r.style.setProperty('--x-wp-color',w.c);r.setAttribute('data-x-wp','1');}}}catch(e){}`;
 
 export default async function XLayout({ children }: { children: React.ReactNode }) {
   // me をサーバーで取得して Provider に seed（リロード時のクライアント二重取得・待ちを解消）。

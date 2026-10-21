@@ -49,6 +49,16 @@
   background: #ffffff;
 }
 
+/* ★ 第1600便: 壁紙テーマ（/cast の着せ替えと同じ壁紙）。色は白テーマのセットを使い回し、背景だけ壁紙に。
+   --x-wp-bg / --x-wp-color は #x-root に XThemeToggle・layout の THEME_INIT が入れる。 */
+#x-root[data-x-wp='1'] .x-bg {
+  background-color: var(--x-wp-color, #ffffff);
+  background-image: var(--x-wp-bg);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 /* カード面：白テーマでは浮遊（半透過白＋紫影）をやめ、白＋淡い枠線・影なしに戻す */
 [data-x-theme='white'] .x-card {
   background-color: #ffffff;
