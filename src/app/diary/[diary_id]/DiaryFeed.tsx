@@ -109,7 +109,7 @@ export function DiaryFeed({
 
               {/* 題名＋グッド（★ 第1592便: グッドは題名の行の右端に大きく／★ 第1593便: 題名は1行・はみ出た分は「…」） */}
               {(d.title || goods) && (
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center justify-between gap-3">
                   {d.title ? (
                   <h2
                     className="text-xl sm:text-2xl font-bold w-fit min-w-0 truncate"
@@ -123,9 +123,10 @@ export function DiaryFeed({
                   >
                     {d.title}
                   </h2>
-                  ) : <span />}
+                  ) : <span className="block h-8" />}
+                  {/* ★ 第1594便: 高さ0の箱の中で題名の真ん中にそろえる＝ボタンで題名の行の縦幅が広がらない */}
                   {goods && (
-                    <div className="flex-shrink-0 -mr-1">
+                    <div className="flex-shrink-0 -mr-1 h-0 flex items-center">
                       <DiaryGoodButton
                         supabase={supabase}
                         diaryId={d.id}
