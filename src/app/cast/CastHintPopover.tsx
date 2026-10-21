@@ -99,7 +99,7 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
                     {opened ? 'フクエックスを開設しました' : 'フクエックスはメンズエステ専用SNSです'}
                   </span>
                   {!opened && (
-                    <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">ボタン1つで開設。写メ日記を自動投稿。最初メッセージ・コメントはオフ設定。増える作業なし。お店の為にぜひ開設をお願いします。</span>
+                    <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">ボタン1つで開設。フクエスで書いた写メ日記を自動投稿。最初メッセージ・コメントはオフ設定。増える作業なし。お店の為にぜひ開設をお願いします。</span>
                   )}
                 </span>
                 {!opened && (
