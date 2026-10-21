@@ -262,7 +262,7 @@ export function CastDiary({
     setCrosspostX(true); // 毎回デフォルトONに戻す（外すのは都度オプトアウト）
     setCrosspostXNoReplies(true); // リプライ禁止チェックも毎回デフォルトON（第1477便）へ戻す
     revalidateSalon(salonId, { top: false }); // 公開側（サロン詳細・セラピスト日記）を更新（best-effort）
-    showToast(openedNow ? 'fukuX を開設して、写メ日記を投稿しました' : '写メ日記を投稿しました');
+    showToast(openedNow ? 'フクエックスを開設して、写メ日記を投稿しました' : '写メ日記を投稿しました');
     if (openedNow) { setOpenXWithPost(false); router.refresh(); } // ヘッダーを fukuX のアイコンに
     loadPosts();
   };
@@ -430,13 +430,13 @@ export function CastDiary({
                 onChange={(e) => setOpenXWithPost(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-pink-500 focus:ring-pink-200"
               />
-              <span className="text-[12px] font-bold text-slate-600">fukuX にも投稿する</span>
+              <span className="text-[12px] font-bold text-slate-600">フクエックスにも投稿する</span>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/fukux-mark.png" alt="" className="w-4 h-4" />
             </label>
             {openXWithPost && (
               <p className="pl-6 text-[11px] leading-relaxed text-violet-700">
-                投稿と一緒に fukuX のアカウントを開設します。名前と写真はセラピストページと同じもの、IDは自動で付きます（あとから1回だけ変更できます）。メッセージとコメントは最初からオフです。開設したあとは、特に何もしなくて大丈夫です。
+                投稿と一緒にフクエックス（メンズエステ専用SNS）のアカウントを開設します。名前と写真はセラピストページと同じもの、IDは自動で付きます（あとから1回だけ変更できます）。メッセージとコメントは最初からオフです。開設したあとは、特に何もしなくて大丈夫です。
               </p>
             )}
           </div>

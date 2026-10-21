@@ -96,10 +96,10 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
                 <img src="/fukux-mark.png" alt="fukuX" className="w-9 h-9 flex-shrink-0" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-bold text-violet-800 leading-snug">
-                    {opened ? 'fukuXを開設しました' : '写メ日記をfukuXにも載せられます'}
+                    {opened ? 'フクエックスを開設しました' : 'フクエックスはメンズエステ専用SNSです'}
                   </span>
                   {!opened && (
-                    <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">ボタン1つで開設。メッセージ・コメントはオフです。</span>
+                    <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">ボタン1つで開設。写メ日記を自動投稿。最初メッセージ・コメントはオフ設定。増える作業なし。お店の為にぜひ開設をお願いします。</span>
                   )}
                 </span>
                 {!opened && (
