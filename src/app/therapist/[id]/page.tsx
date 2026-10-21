@@ -36,6 +36,7 @@ import { getReviewStats, getApprovedReviews } from '@/app/lib/reviews';
 import { ReviewSummary } from '@/app/components/ReviewSummary';
 import { ReviewList } from '@/app/components/ReviewList';
 import { getLinkedXProfileForTherapist } from '@/app/lib/xLink';
+import { VerifiedBadge } from '@/app/x/VerifiedBadge';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
@@ -673,6 +674,13 @@ export default async function TherapistPublicPage({
                   fukuX
                 </span>
                 <span className="text-[11px] text-white/80 whitespace-nowrap flex-shrink-0">〜フクエックス〜</span>
+                {/* ★ 第1601便（2026-10-21・カッキーさん）: fukuX の赤い認証バッジが付いている子は、帯にも同じ赤バッジ＋「認証済み」 */}
+                {linkedX.isVerified && (
+                  <span className="inline-flex items-center gap-1 flex-shrink-0">
+                    <VerifiedBadge kind="therapist" size={16} />
+                    <span className="text-[11px] font-bold text-white whitespace-nowrap">認証済み</span>
+                  </span>
+                )}
               </Link>
             )}
 
