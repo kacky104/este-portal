@@ -339,7 +339,7 @@ export function XSettingsForm({
 
       {/* ── ヘッダー画像 ── */}
       <div>
-        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">ヘッダー画像（任意・横長）</p>
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">ヘッダー画像（任意・横長・推奨 1500×500px）</p>
         {/* 高さはプロフィール表示（XProfileView）と同じ: スマホ123px / PC202px */}
         <div className="relative h-[123px] sm:h-[202px] rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-100 to-sky-100 border border-[color:var(--x-border)]">
           {headerUrl && (
@@ -362,7 +362,7 @@ export function XSettingsForm({
 
       {/* ── アバター ── */}
       <div>
-        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">アイコン画像（任意）</p>
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-2 px-1">アイコン画像（任意・推奨 正方形 400×400px 以上）</p>
         <div className="flex items-center gap-3">
           <span className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
             {avatarUrl ? (
