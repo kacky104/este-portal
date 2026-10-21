@@ -99,7 +99,7 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
                     {opened ? 'fukuXを開設しました' : 'fukuXを開設すると、写メ日記を書いたときに一緒に投稿できるようになります'}
                   </span>
                   {!opened && (
-                    <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">ボタンを押すだけで開設できます。名前と写真はセラピストページと同じものを使います。メッセージとコメントは最初からオフ。開設したあとは、特に何もしなくて大丈夫です。</span>
+                    <span className="block text-[11px] text-violet-600/90 leading-snug mt-1">ボタンを押すだけで開設できます。名前と写真はセラピストページと同じもの、IDは自動で付きます（あとから1回だけ変更できます）。メッセージとコメントは最初からオフ。開設したあとは、特に何もしなくて大丈夫です。</span>
                   )}
                 </span>
                 {!opened && (

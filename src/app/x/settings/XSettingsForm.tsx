@@ -15,6 +15,7 @@ import { XImageCropModal } from '../XImageCropModal';
 import type { ShopMini } from '../xAffiliation';
 import { shopShowcaseLimit } from '../xShowcase';
 import { useXToast } from '../useXToast';
+import { AutoHandleChange } from './AutoHandleChange';
 
 
 // ★ 第983便: x-images/本人UID/ へ画像を送る（置き場所はサーバーが決める）
@@ -680,7 +681,12 @@ export function XSettingsForm({
       {/* ── 変更不可（読み取り専用）：ID・種別・ログインメール ── */}
       <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4 space-y-3">
         <p className="text-[11px] font-bold text-[color:var(--x-text-muted)]">変更できない項目</p>
-        <ReadonlyRow label="ID（@ユーザー名）" value={`@${profile.handle}`} note="IDは変更できません" />
+        {/* ★ 第1596便: 自動で付いた ID（fx_ + 6文字）のときだけ、1回だけ変えられる */}
+        {/^fx_[a-z0-9]{6}$/.test(profile.handle) ? (
+          <AutoHandleChange handle={profile.handle} />
+        ) : (
+          <ReadonlyRow label="ID（@ユーザー名）" value={`@${profile.handle}`} note="IDは変更できません" />
+        )}
         <ReadonlyRow label="アカウント種別" value={KIND_LABEL[profile.kind] ?? profile.kind} note="種別は変更できません" />
         <ReadonlyRow label="ログインID（メールアドレス）" value={email ?? '—'} note="メールの変更は今後対応予定です" />
       </div>

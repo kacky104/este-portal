@@ -202,3 +202,39 @@ export async function quickOpenMyTherapistX(): Promise<{ ok: true; profileId: st
   }
   return { ok: false, error: 'IDを決められませんでした。もう一度押してください。' };
 }
+
+// ── ★ 第1596便（2026-10-21・カッキーさん）: 自動で付けた ID（fx_ + 6文字）だけ、本人が1回だけ変えられる ──
+//   ・DB 側に handle の変更を止める仕組みは無い（トリガー・列の権限・ポリシーとも確認済み。止めていたのは画面と UPDATABLE だけ）。
+//   ・「1回だけ」はここで見る: 今の ID が自動の形のときだけ通す／新しい ID は fx_ で始められない＝変えた時点で二度目は通らない。
+//   ・重なったら（unique）「使われています」を返す。
+const AUTO_HANDLE_RE = /^fx_[a-z0-9]{6}$/;
+
+export async function changeMyAutoXHandle(newHandle: string): Promise<{ ok: true; handle: string } | { ok: false; error: string; reason?: 'handle_taken' }> {
+  const { supabase, user } = await me();
+  if (!user) return NO_LOGIN;
+  const handle = String(newHandle ?? '').trim().replace(/^@/, '');
+  if (!HANDLE_RE.test(handle)) return { ok: false, error: 'IDは英数字と _ の3〜20文字で入力してください' };
+  if (/^fx_/i.test(handle)) return { ok: false, error: '「fx_」で始まるIDは使えません。別のIDにしてください。' };
+
+  const { data: rows } = await supabase
+    .from('x_profiles').select('id, handle').eq('auth_user_id', user.id).limit(1);
+  const meRow = rows?.[0];
+  if (!meRow) return { ok: false, error: 'fukuX のアカウントが見つかりませんでした。' };
+  if (!AUTO_HANDLE_RE.test(String(meRow.handle ?? ''))) return { ok: false, error: 'IDの変更は1回までです。すでに変更済みのため、これ以上は変えられません。' };
+
+  const { data, error } = await supabase
+    .from('x_profiles')
+    .update({ handle })
+    .eq('id', meRow.id)
+    .eq('auth_user_id', user.id)
+    .eq('handle', meRow.handle) // 2回押し・別タブ対策（変わっていたら何もしない）
+    .select('handle');
+  if (error) {
+    const msg = error.message ?? '';
+    if (error.code === '23505' || /duplicate|unique/i.test(msg)) return { ok: false, reason: 'handle_taken', error: 'このIDは使われています。別のIDをお試しください。' };
+    console.error('[x] IDを変えられなかった', user.id, error.code, msg);
+    return { ok: false, error: 'IDを変更できませんでした。ページを開き直してから、もう一度お試しください。' };
+  }
+  if (!data || data.length === 0) return { ok: false, error: 'IDを変更できませんでした。ページを開き直してから、もう一度お試しください。' };
+  return { ok: true, handle };
+}
