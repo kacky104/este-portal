@@ -187,3 +187,15 @@
 #x-root :is(div, section, article, li, ul, ol, aside, nav, form, header, footer, a.block)[class*="rounded-["] {
   border-radius: 0 !important;
 }
+
+/* ★ 第1602便（2026-10-21・カッキーさん）: 壁紙テーマのときは、カード（.x-card）とヘッダーなどの半透明の面を
+   さらに透かして、スマホでもカードの後ろに壁紙が見えるようにする。
+   ・文字は白テーマの濃い色のまま。メニュー・確認画面など重なって出るもの（.x-card を使っていない）は今までどおり白。
+   ・壁紙の上の薄め方は 70% → 55%（XThemeToggle・layout の 8C）。 */
+#x-root[data-x-wp='1'] {
+  --x-surface-translucent: rgba(255, 255, 255, 0.78);
+}
+#x-root[data-x-wp='1'] .x-card {
+  background-color: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.55);
+}

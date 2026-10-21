@@ -29,7 +29,7 @@ const WP_CHOICES: { key: string; label: string }[] = [
 // 壁紙を #x-root に当てる（layout.tsx の THEME_INIT と同じ作り）。
 export function applyXWallpaper(root: HTMLElement, url: string | null, color: string | null) {
   if (url && color) {
-    root.style.setProperty('--x-wp-bg', `linear-gradient(${color}B3, ${color}B3), url("${url}")`);
+    root.style.setProperty('--x-wp-bg', `linear-gradient(${color}8C, ${color}8C), url("${url}")`);
     root.style.setProperty('--x-wp-color', color);
     root.setAttribute('data-x-wp', '1');
   } else {
