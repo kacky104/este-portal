@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
@@ -8,6 +8,7 @@ import { ExpandableText } from './ExpandableText';
 import { fetchDiaryFeed, type DiaryEntry } from './feedShared';
 import { DiaryDate } from '@/components/DiaryDate';
 import { DiaryNewBadge } from '@/components/DiaryNewBadge';
+import { DiaryGoodButton, getVoterKey, type GoodState } from './DiaryGood';
 
 // 写メ日記フィード（縦に連続表示）。
 // 既定（therapist フィード）はサーバーで取得済みの initialList を SSR 表示（ISR キャッシュ対象）。
@@ -37,6 +38,26 @@ export function DiaryFeed({
     })();
     return () => { cancelled = true; };
   }, [fromSalon, salonId, therapistId]);
+
+  // ★ 第1591便: グッドの数と「自分が押したか」をまとめて取る。
+  //   RPC が無い・失敗したときは goods=null のまま＝ボタン自体を出さない（SQL 適用前に push しても壊れない）。
+  const supabase = useMemo(() => createClient(), []);
+  const [goods, setGoods] = useState<Record<string, GoodState> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const voter = getVoterKey();
+    if (!voter || list.length === 0) return;
+    (async () => {
+      const { data, error } = await supabase.rpc('get_diary_goods', { p_diary_ids: list.map((d) => d.id), p_voter_key: voter });
+      if (cancelled || error) return;
+      const map: Record<string, GoodState> = {};
+      for (const r of (data ?? []) as { diary_id: string; good_count: number; mine: boolean }[]) {
+        map[String(r.diary_id)] = { count: Number(r.good_count) || 0, mine: !!r.mine };
+      }
+      setGoods(map);
+    })();
+    return () => { cancelled = true; };
+  }, [list, supabase]);
 
   // 現在の日記まで自動スクロール（リスト確定後）。
   useEffect(() => {
@@ -104,6 +125,18 @@ export function DiaryFeed({
 
               {/* 本文（5行超は「続きを見る」で展開） */}
               {d.content && <ExpandableText text={d.content} />}
+
+              {/* ★ 第1591便: グッド（親指・枠なし）。数が取れたときだけ出す。 */}
+              {goods && (
+                <div className="-mb-2">
+                  <DiaryGoodButton
+                    supabase={supabase}
+                    diaryId={d.id}
+                    state={goods[d.id] ?? { count: 0, mine: false }}
+                    onChange={(next) => setGoods((g) => ({ ...(g ?? {}), [d.id]: next }))}
+                  />
+                </div>
+              )}
             </div>
           </article>
         );
