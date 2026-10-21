@@ -107,36 +107,40 @@ export function DiaryFeed({
                 </div>
               )}
 
-              {/* 題名 */}
-              {d.title && (
-                <h2
-                  className="text-xl sm:text-2xl font-bold w-fit"
-                  style={{
-                    background: 'linear-gradient(to right, #ec4899, #f97316)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    color: 'transparent',
-                  }}
-                >
-                  {d.title}
-                </h2>
+              {/* 題名＋グッド（★ 第1592便: グッドは題名の行の右端に大きく） */}
+              {(d.title || goods) && (
+                <div className="flex items-start justify-between gap-3">
+                  {d.title ? (
+                  <h2
+                    className="text-xl sm:text-2xl font-bold w-fit min-w-0"
+                    style={{
+                      background: 'linear-gradient(to right, #ec4899, #f97316)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      color: 'transparent',
+                    }}
+                  >
+                    {d.title}
+                  </h2>
+                  ) : <span />}
+                  {goods && (
+                    <div className="flex-shrink-0 -mr-1">
+                      <DiaryGoodButton
+                        supabase={supabase}
+                        diaryId={d.id}
+                        size={30}
+                        state={goods[d.id] ?? { count: 0, mine: false }}
+                        onChange={(next) => setGoods((g) => ({ ...(g ?? {}), [d.id]: next }))}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* 本文（5行超は「続きを見る」で展開） */}
               {d.content && <ExpandableText text={d.content} />}
 
-              {/* ★ 第1591便: グッド（親指・枠なし）。数が取れたときだけ出す。 */}
-              {goods && (
-                <div className="-mb-2">
-                  <DiaryGoodButton
-                    supabase={supabase}
-                    diaryId={d.id}
-                    state={goods[d.id] ?? { count: 0, mine: false }}
-                    onChange={(next) => setGoods((g) => ({ ...(g ?? {}), [d.id]: next }))}
-                  />
-                </div>
-              )}
             </div>
           </article>
         );

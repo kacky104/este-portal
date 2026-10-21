@@ -48,7 +48,7 @@ function ensureFxStyles() {
 const JITTER = [0.12, -0.16, 0.09, -0.06, 0.14, -0.11, 0.07, -0.1];
 const PARTICLES = Array.from({ length: 8 }, (_, i) => {
   const a = (Math.PI * 2 / 8) * i + JITTER[i];
-  const d = 26 + (i % 4) * 3;
+  const d = 34 + (i % 4) * 3;
   return { x: Math.round(Math.cos(a) * d), y: Math.round(Math.sin(a) * d), rot: (i % 2 ? -1 : 1) * (20 + i * 6) };
 });
 const FX_MS = 700;
@@ -68,11 +68,13 @@ export function DiaryGoodButton({
   diaryId,
   state,
   onChange,
+  size = 22,
 }: {
   supabase: SupabaseClient;
   diaryId: string;
   state: GoodState;
   onChange: (next: GoodState) => void;
+  size?: number;
 }) {
   const iconRef = useRef<HTMLSpanElement>(null);
   const [fxKey, setFxKey] = useState(0);
@@ -113,24 +115,24 @@ export function DiaryGoodButton({
       onClick={handleClick}
       aria-pressed={state.mine}
       aria-label={state.mine ? `グッドを取り消す（${state.count}）` : `グッド（${state.count}）`}
-      className="inline-flex items-center gap-1.5 py-1 pr-2 -ml-0.5 select-none"
+      className="inline-flex items-center gap-1.5 py-1 pl-1 select-none"
       style={{ color, WebkitTapHighlightColor: 'transparent' }}
     >
       <span className="relative inline-flex" style={{ overflow: 'visible' }}>
         {fxOn && (
           <span key={fxKey} aria-hidden="true" className="absolute inset-0" style={{ overflow: 'visible', pointerEvents: 'none', color: '#EC4899' }}>
             {PARTICLES.map((p, i) => (
-              <svg key={i} className="dg-particle" width={10} height={10} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round"
+              <svg key={i} className="dg-particle" width={Math.round(size * 0.45)} height={Math.round(size * 0.45)} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round"
                 style={{ ['--p-x']: `${p.x}px`, ['--p-y']: `${p.y}px`, ['--p-rot']: `${p.rot}deg` } as React.CSSProperties}>
                 <path d={THUMB} />
               </svg>
             ))}
           </span>
         )}
-        <span ref={iconRef} className="inline-flex"><ThumbIcon size={22} filled={state.mine} /></span>
+        <span ref={iconRef} className="inline-flex"><ThumbIcon size={size} filled={state.mine} /></span>
       </span>
       {state.count > 0 && (
-        <span className="tabular-nums" style={{ fontSize: '14px', fontWeight: state.mine ? 700 : 500 }}>{state.count}</span>
+        <span className="tabular-nums" style={{ fontSize: size >= 28 ? '17px' : '14px', fontWeight: state.mine ? 700 : 500 }}>{state.count}</span>
       )}
     </button>
   );
