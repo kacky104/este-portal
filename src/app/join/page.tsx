@@ -21,7 +21,8 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 
 const TITLE = '無料会員登録のご案内｜福岡メンズエステ【フクエス】';
 const DESCRIPTION =
-  'フクエスの会員登録は無料。今なら登録で50pt・はじめての口コミで50pt・加盟店のご来店1回で50pt。1,000ptで1,000円引き（お店のクーポンと併用OK）。お気に入りの保存・VIPレター・新着通知・口コミ投稿も。メールアドレスとパスワードだけで登録できます。';
+  // ★ 第1607便: 数字は points.ts の値から（口コミを 100pt にしたとき、ここだけ 50pt のまま残っていた）
+  `フクエスの会員登録は無料。今なら登録で${POINT_SIGNUP}pt・はじめての口コミで${POINT_FIRST_REVIEW}pt・加盟店のご来店1回で${POINT_VISIT}pt。1,000ptで1,000円引き（お店のクーポンと併用OK）。お気に入りの保存・VIPレター・新着通知・口コミ投稿も。メールアドレスとパスワードだけで登録できます。`;
 
 export const metadata: Metadata = {
   title: TITLE,

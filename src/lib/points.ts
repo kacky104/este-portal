@@ -13,7 +13,8 @@ export const POINT_VISIT = 50;
 export const POINT_VISIT_NOTE = 'キャンペーン中';
 /** ★ 第1450便: 会員登録で付くポイント・はじめての口コミ（承認後）で付くポイント（キャンペーン中） */
 export const POINT_SIGNUP = 50;
-export const POINT_FIRST_REVIEW = 50;
+/** ★ 第1607便（2026-10-23・カッキーさん）: はじめての口コミは 50pt → 100pt */
+export const POINT_FIRST_REVIEW = 100;
 /** ★ キャンペーンの始まり（日本時間）。この時刻より前に登録した会員には登録ポイントを付けない／この時刻より前に承認された口コミがある人は口コミポイントの対象外 */
 export const POINT_CAMPAIGN_START = '2026-10-14T00:00:00+09:00';
 /** ★ 第1450便: 口コミ本文の最低文字数（1文字だけでポイントを取るのを防ぐ） */

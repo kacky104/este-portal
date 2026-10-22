@@ -131,7 +131,7 @@ export async function ensureSignupPoints(
 }
 
 /**
- * ★ 第1450便: はじめての口コミのポイント（50pt・キャンペーン）。運営が口コミを承認したときに呼ぶ。
+ * ★ 第1450便: はじめての口コミのポイント（POINT_FIRST_REVIEW＝100pt・第1607便で50ptから・キャンペーン）。運営が口コミを承認したときに呼ぶ。
  * ★ キャンペーン開始より前に承認された口コミがある人は対象外。1人1回（DB の一意の決まり）。失敗しても承認は止めない。
  */
 export async function grantFirstReviewPoints(svc: Svc, userId: string | null, reviewId: string): Promise<boolean> {
