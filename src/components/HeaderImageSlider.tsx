@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { ResponsivePicture } from '@/app/components/ResponsivePicture';
 import type { HeaderSlide } from '@/app/lib/headerSlider';
 
 const AUTOPLAY_INTERVAL = 3000;
+/** ★ 第1608便（2026-10-23・カッキーさん）: hero 画像を押すとフクエスポイントのページへ（全スライド共通） */
+const HERO_HREF = '/points';
 
 // ★ 第1076便（2026-10-01）: 画像の一覧はサーバー（page.tsx → fetchHeaderSlides）から props で受ける。
 //   ★ ブラウザで Supabase を読まない＝初期 HTML に hero が入り、画像要求が約1秒早くなる（LCP）。
@@ -33,9 +36,11 @@ export default function HeaderImageSlider({ slides }: { slides: HeaderSlide[] })
         <div
           key={slide.url}
           className={`absolute inset-0 transition-opacity duration-700 ${
-            index === current ? 'opacity-100' : 'opacity-0'
+            index === current ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         >
+          {/* ★ 第1608便: 見えている1枚だけ押せる（透明なスライドは pointer-events-none）。前後・ドットのボタンはこの上にある */}
+          <Link href={HERO_HREF} aria-label="フクエスポイントのご案内へ" tabIndex={index === current ? 0 : -1} className="absolute inset-0 block">
           {/* ★ 第1076便: PC用（sm 以上・約2.6:1）／SP用（4:3）を <picture> で出し分け。1枚目だけ priority（fetchpriority=high）。
               hero は object-cover で枠いっぱいに敷くので fill。sizes は 100vw（表示される側しか取らないので 1px の小細工は不要）。 */}
           <ResponsivePicture
@@ -48,6 +53,7 @@ export default function HeaderImageSlider({ slides }: { slides: HeaderSlide[] })
             priority={index === 0}
             className="object-cover"
           />
+          </Link>
         </div>
       ))}
 
