@@ -1318,7 +1318,8 @@ export default function MyPage() {
       setAnnouncements(announcementList);
       const announcementFormMap: Record<string, Partial<Announcement>> = {};
       announcementList.forEach(a => {
-        announcementFormMap[a.id] = { title: a.title, content: a.content, is_published: a.is_published, image_url: a.image_url };
+        // ★ 第1605便: auto_rotate も控えに入れる（入れていなかったため、保存で自動投稿の印が外れていた・オイルクエスト様）
+        announcementFormMap[a.id] = { title: a.title, content: a.content, is_published: a.is_published, image_url: a.image_url, auto_rotate: a.auto_rotate };
       });
       setAnnouncementForms(announcementFormMap);
 
@@ -2651,13 +2652,15 @@ export default function MyPage() {
     const content = ((form.content ?? '') as string).trim();
     const is_published = form.is_published ?? true;
     const image_url = (form.image_url as string | null) ?? null;
-    const auto_rotate = form.auto_rotate ?? false;
+    // ★★ 第1605便（カッキーさん・2026-10-23）: 「保存」では自動投稿の印（auto_rotate）に触らない。
+    //   ★ 印は「自動投稿にする／自動投稿中」ボタンが押した時点で保存する（handleAnnouncementToggleAutoRotate）。
+    //   ★ 前は控えに印が無いとき false で上書きしていて、画像や文章を直して保存すると印が外れていた（オイルクエスト様の週1 fukuX 投稿が止まった）。
+    const auto_rotate = announcements.find(a => a.id === id)?.auto_rotate ?? false;
     const { error } = await supabase.from('announcements').update({
       title: form.title.trim(),
       content,
       is_published,
       image_url,
-      auto_rotate,
       updated_at: new Date().toISOString(),
     }).eq('id', id);
     setSavingAnnouncement(null);
