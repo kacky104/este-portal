@@ -3,9 +3,12 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getAllMainColumnFiles } from '@/app/lib/workColumnFiles';
 import { mainArticleCategoryLabel } from '@/app/lib/mainArticleCategories';
 import { COLUMN_URL_PREFIX, columnSlugFromUrl, orderColumnsForPost } from '@/lib/xColumnRotation';
+import { xWeekStartMs } from '@/lib/xAnnounceWeekly';
 
 // ★★ 第1185便（2026-10-05・カッキーさん）: fukuX に「フクエスのメンズエステコラム」を運営（@fukues_info）名義で
 //   毎日1本ずつ、順番に自動投稿する周。
+// ★★ 第1606便（2026-10-23・カッキーさん）: 【週に1本】に変更。cron は毎日のまま、周の側で「今週（月曜0時 JST〜）もう出していたら何もしない」。
+//   ★ ＝毎週月曜 08:05 に1本（月曜に出られなかったら火曜以降の朝に1本）。手で出したコラムもその週の1本に数える。
 //   POST /api/admin/x-column-post  (Authorization: Bearer <CRON_SECRET>)
 //   body: { apply?: boolean }
 //
@@ -17,7 +20,7 @@ import { COLUMN_URL_PREFIX, columnSlugFromUrl, orderColumnsForPost } from '@/lib
 // ★ 順番: まだ出していないコラムが先（公開日の古い順）→ ひと回りしたら、最後に出したのがいちばん古いもの。
 //   ★ どこまで出したかは、運営アカウントの過去の投稿のリンク（/column/◯◯）から数える＝新しい表は要らない。
 //   ★ 手で投稿したコラムも「出した」に数える。判断は src/lib/xColumnRotation.ts。
-// ★ 重複防止: その日（JST 0時〜24時）にコラムの投稿がすでにあれば何もしない（周が2回動いても1本）。
+// ★ 重複防止: その週（月曜0時 JST〜）にコラムの投稿がすでにあれば何もしない（第1606便で「その日」から変更）。
 // ★ apply 既定 false（試し打ち）: 何を投稿するつもりかだけ返す。x-onduty-post と同じ作法。
 // ★★ md を実行時に読むので、next.config.ts の outputFileTracingIncludes でこのルートに src/content/column を同梱している。
 //   ★ 外すと本番で 0 本になり、skipped: 'no_columns' が返る（投稿はされない）。
@@ -83,10 +86,12 @@ export async function POST(req: Request) {
     if (!lastPostedAt.has(slug)) lastPostedAt.set(slug, p.created_at);
   }
 
-  // 重複防止: 今日（JST）すでにコラムを出していれば何もしない
-  const dayStart = new Date(`${today}T00:00:00+09:00`).getTime();
-  if (latestAt && new Date(latestAt).getTime() >= dayStart) {
-    return NextResponse.json({ ok: true, skipped: 'already_posted', today });
+  // 重複防止（★ 第1606便: 週に1本）: 今週（月曜0時 JST〜）すでにコラムを出していれば何もしない
+  //   ★ 週の始まりが計算できないときは出さない（推測で毎日出さない）
+  const weekStart = xWeekStartMs(new Date());
+  if (weekStart === null) return NextResponse.json({ ok: false, error: 'week start unknown' }, { status: 500 });
+  if (latestAt && new Date(latestAt).getTime() >= weekStart) {
+    return NextResponse.json({ ok: true, skipped: 'already_posted_this_week', today });
   }
 
   const ordered = orderColumnsForPost(columns, lastPostedAt);
