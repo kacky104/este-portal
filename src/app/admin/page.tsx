@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/app/lib/supabase/client';
 import { TimeRangePicker } from '@/components/TimeRangePicker';
@@ -411,7 +412,7 @@ export default function AdminDashboard() {
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              className="lg:hidden relative -ml-1 p-1.5 text-slate-600"
+              className="lg:hidden relative -ml-1 p-1.5 text-pink-500"
               aria-label="メニューを開く"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
@@ -423,10 +424,9 @@ export default function AdminDashboard() {
                 </span>
               )}
             </button>
-            <div className="w-7 h-7 rounded-lg bg-pink-50 border border-pink-200 flex items-center justify-center flex-shrink-0">
-              <span className="text-pink-500 font-bold text-sm leading-none">⚙</span>
-            </div>
-            <h1 className="text-base font-black text-slate-800 tracking-wide">管理者ダッシュボード</h1>
+            {/* ★ 第1615便: 歯車 → フクエスの F ロゴ（ヘッダー共通ロゴと同じ /logo.png）・見出しは「管理者ページ」 */}
+            <Image src="/logo.png" alt="フクエス" width={28} height={28} priority className="w-7 h-7 flex-shrink-0" />
+            <h1 className="text-base font-black text-slate-800 tracking-wide">管理者ページ</h1>
           </div>
           <div className="flex items-center gap-4">
             <Link
