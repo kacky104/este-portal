@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { SaveButton } from '@/app/components/SaveButton';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
 import { logSalonAction } from '@/app/lib/logSalonAction';
@@ -73,9 +74,47 @@ export function SalonActionButtons({
   // salonId 無し時のみ外部 reserveUrl をフォールバックに使う。
   const bookHref = salonId != null ? `/salon/${salonId}/book` : null;
 
+  // ── 追従バナー（画面下）：上の3ボタン行が画面の上へ消えたら出す ──
+  // 登録済みのものだけ並べる（電話＝番号あり／LINE＝URLあり・'#' 以外／ネット予約＝遷移先あり）。
+  const rowRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barShown, setBarShown] = useState(false);
+  const barBook = Boolean(bookHref || reserveUrl);
+  const barTel = Boolean(phone);
+  const barLine = Boolean(lineRaw) && !lineDisabled;
+  const barCount = (barBook ? 1 : 0) + (barTel ? 1 : 0) + (barLine ? 1 : 0);
+
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el || barCount === 0) return;
+    const io = new IntersectionObserver(
+      ([e]) => setBarShown(!e.isIntersecting && e.boundingClientRect.top < 0),
+      { threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [barCount]);
+
+  // バナーの高さを CSS 変数に出す（左下ポップアップ画像をその分だけ上げる）。
+  // ページ最下部のフッターが隠れないよう、body の下に同じ高さの余白も足す。
+  useEffect(() => {
+    if (barCount === 0) return;
+    const root = document.documentElement;
+    const h = barRef.current?.offsetHeight ?? 0;
+    const prevPad = document.body.style.paddingBottom;
+    document.body.style.paddingBottom = `${h}px`;
+    root.style.setProperty('--salon-cta-bar-h', barShown ? `${h}px` : '0px');
+    return () => {
+      document.body.style.paddingBottom = prevPad;
+      root.style.removeProperty('--salon-cta-bar-h');
+    };
+  }, [barShown, barCount]);
+
+  const barBtn = 'flex-1 min-w-0 inline-flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 text-[11px] font-bold whitespace-nowrap transition-all';
+
   return (
     <div className="mb-4">
-      <div className="flex items-stretch gap-1.5 sm:gap-3">
+      <div ref={rowRef} className="flex items-stretch gap-1.5 sm:gap-3">
         {/* ── ネット予約（主CTA） ── */}
         {bookHref ? (
           <Link href={bookHref} onClick={() => logSalonAction(salonId, 'book')} className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
@@ -125,6 +164,39 @@ export function SalonActionButtons({
           </span>
         )}
       </div>
+
+      {/* ── 追従バナー（画面下・上のボタン行がスクロールで消えたら出現） ── */}
+      {barCount > 0 && (
+        <div
+          ref={barRef}
+          aria-hidden={!barShown}
+          className={`fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-pink-100 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] transition-[opacity,transform] duration-200 ${
+            barShown ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-full pointer-events-none'
+          }`}
+        >
+          <div className="mx-auto max-w-md flex items-stretch gap-2">
+            {barBook && (bookHref ? (
+              <Link href={bookHref} tabIndex={barShown ? 0 : -1} onClick={() => logSalonAction(salonId, 'book')} className={`${barBtn} text-white hover:brightness-105`} style={reserveStyle}>
+                {calendarIcon}ネット予約
+              </Link>
+            ) : (
+              <a href={reserveUrl!} tabIndex={barShown ? 0 : -1} onClick={() => logSalonAction(salonId, 'book')} target="_blank" rel="noopener noreferrer" className={`${barBtn} text-white hover:brightness-105`} style={reserveStyle}>
+                {calendarIcon}ネット予約
+              </a>
+            ))}
+            {barTel && (
+              <TelNoticeLink phone={phone!} onCall={() => logSalonAction(salonId, 'tel')} className={`${barBtn} bg-white hover:bg-pink-50`} style={phoneStyle}>
+                {phoneIcon}電話
+              </TelNoticeLink>
+            )}
+            {barLine && (
+              <a href={lineRaw} tabIndex={barShown ? 0 : -1} onClick={() => logSalonAction(salonId, 'line')} target="_blank" rel="noopener noreferrer" className={`${barBtn} text-white hover:brightness-105`} style={lineStyle}>
+                {lineIcon}LINE
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

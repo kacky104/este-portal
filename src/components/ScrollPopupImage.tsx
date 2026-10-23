@@ -158,7 +158,8 @@ export default function ScrollPopupImage({
         .sp-pop {
           position: fixed;
           left: 16px;
-          bottom: 16px;
+          bottom: calc(16px + var(--salon-cta-bar-h, 0px));
+          transition: bottom 0.2s;
           width: ${widthVw}vw;
           height: ${heightVh}vh;
           min-width: 120px;
