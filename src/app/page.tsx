@@ -34,6 +34,7 @@ import { ArticleCard } from "./column/ArticleCard";
 import { HomeSearchBar } from "./components/HomeSearchBar";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
+import { MemberJoinPopup } from '@/app/components/MemberJoinPopup';
 import { getAllApprovedReviews } from "./lib/reviews";
 import { LatestReviewsBlock } from "./components/LatestReviewsBlock";
 
@@ -565,6 +566,9 @@ export default async function Home() {
 
       {/* ─── Footer ─────────────────────────────────────────── */}
       <SiteFooter inner="max-w-5xl" className="border-t border-slate-200 bg-white py-8 mt-2" showBrand />
+
+      {/* ★ 第1618便: スクロールで左下から「フクエス会員募集中!!」がポンっと出る（スマホのみ・未ログインの人だけ）→ /join/easy */}
+      <MemberJoinPopup />
     </div>
   );
 }
