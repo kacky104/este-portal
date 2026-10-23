@@ -3686,7 +3686,7 @@ export default function MyPage() {
                   {/* コース名 */}
                   <div className="flex items-center gap-2">
                     <input
-                      className="flex-1 px-3 py-2 rounded-none border border-pink-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 font-bold placeholder:font-normal placeholder:text-slate-300"
+                      className="flex-1 min-w-0 px-3 py-2 rounded-none border border-pink-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-200 font-bold placeholder:font-normal placeholder:text-slate-300"
                       placeholder="コース名（例: アロマリラクゼーション）"
                       value={group.name}
                       onChange={(e) => setCourseGroups(prev => prev.map((g, i) => i === gi ? { ...g, name: e.target.value } : g))}
@@ -3694,9 +3694,15 @@ export default function MyPage() {
                     <button
                       type="button"
                       onClick={() => setCourseGroups(prev => prev.filter((_, i) => i !== gi))}
-                      className="px-2.5 py-1.5 rounded-none border border-rose-200 text-rose-400 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors flex-shrink-0"
+                      aria-label="このコースを削除"
+                      title="このコースを削除"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-none border border-rose-200 text-rose-400 text-xs font-bold bg-rose-50 hover:bg-rose-100 transition-colors flex-shrink-0 whitespace-nowrap"
                     >
-                      このコースを削除
+                      {/* ★ 第1613便: スマホで枠からはみ出したため、ゴミ箱アイコン＋「削除」に短縮（入力欄にも min-w-0） */}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
+                      </svg>
+                      削除
                     </button>
                   </div>
                   {/* 時間・金額の行 */}
