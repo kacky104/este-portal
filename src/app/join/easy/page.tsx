@@ -62,8 +62,8 @@ export default function JoinEasyPage() {
             スマホは左右いっぱい（-mx-4）。h1 は画像の文字と同じ内容を読み上げ・検索用に持つ。 */}
         <h1 className="sr-only">フクエス会員を募集しています！</h1>
         <Image
-          src="/join/easy-hero.webp"
-          alt={`フクエス会員を募集しています！福岡のメンズエステを、もっとおトクに。1 登録にかかる時間は約1分（登録も利用も無料）2 必要なのはメールアドレスだけ（本名や電話番号はいりません）3 フクエスポイントが貯まる（登録で${POINT_SIGNUP}pt・${POINT_USE_UNIT.toLocaleString()}ptで${POINT_USE_YEN.toLocaleString()}円引き）4 加盟店で共通で使える`}
+          src="/join/easy-hero-v2.webp"
+          alt={`フクエス会員を募集しています！福岡のメンズエステを、もっとおトクに。1 登録にかかる時間は約1分（登録も利用も無料）2 必要なのはメールアドレスだけ（本名や電話番号はいりません。アカウントに使用するのみで誰にも知られません。宣伝メール等は届きません）3 フクエスポイントが貯まる（定期的なキャンペーンも実施。登録で${POINT_SIGNUP}pt・${POINT_USE_UNIT.toLocaleString()}ptで${POINT_USE_YEN.toLocaleString()}円引き）4 加盟店で共通で使える`}
           width={941}
           height={1672}
           priority
