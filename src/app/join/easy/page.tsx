@@ -36,11 +36,14 @@ export const metadata: Metadata = {
 
 // ★ 第1621便: 要点4つは画像（public/join/easy-hero.webp・カッキーさん作成）で見せる。
 //   画像に入っていない「安心して登録できる理由」と細かい条件は、画像の下に文字で補う。
-const NOTES: React.ReactNode[] = [
-  <>メールアドレスは<b className="text-slate-800">アカウント（ログイン）に使うだけ</b>。お店にもほかの会員にも知られることはありません。</>,
-  <><b className="text-slate-800">宣伝のメールは届きません。</b>安心して登録してください。</>,
-  <>はじめての口コミで<b className="text-pink-600">{POINT_FIRST_REVIEW}pt</b>・加盟店のご来店1回で<b className="text-pink-600">{POINT_VISIT}pt</b>（{POINT_VISIT_NOTE}）。お店のクーポンとも併用できます。</>,
-  <>貯めたポイントは、どのフクエスポイント加盟店でも使えます。<b className="text-slate-800">加盟店はこれから続々と増えていきます。</b><Link href="/points" className="ml-1 font-bold text-pink-600 underline">加盟店を見る</Link></>,
+// ★ 第1623便: 「ん。」「い。」だけが次の行に落ちて読みにくかったため、意味のかたまりごとに
+//   inline-block で包み、折り返しはかたまりの切れ目でだけ起きるようにした（1かたまり＝スマホ1行に収まる長さ）。
+//   メールアドレスの話は画像②と重なるが、いちばん気にされるところなので文字でももう一度書く（カッキーさん）。
+const NOTES: React.ReactNode[][] = [
+  [<>メールアドレスは</>, <><b className="text-slate-800">アカウント（ログイン）に使うだけ。</b></>, <>お店にもほかの会員にも</>, <>知られることはありません。</>],
+  [<><b className="text-slate-800">宣伝メールやメールマガジンは</b></>, <><b className="text-slate-800">一切届きません。</b></>],
+  [<>はじめての口コミで<b className="text-pink-600">{POINT_FIRST_REVIEW}pt</b>、</>, <>加盟店のご来店1回で<b className="text-pink-600">{POINT_VISIT}pt</b></>, <>（{POINT_VISIT_NOTE}）。</>, <>お店のクーポンとも併用できます。</>],
+  [<>貯めたポイントは</>, <>どの加盟店でも使えます。</>, <><b className="text-slate-800">加盟店はこれから</b></>, <><b className="text-slate-800">続々と増えていきます。</b></>, <Link key="points" href="/points" className="font-bold text-pink-600 underline">加盟店を見る</Link>],
 ];
 
 export default function JoinEasyPage() {
@@ -83,7 +86,11 @@ export default function JoinEasyPage() {
             {NOTES.map((n, i) => (
               <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-slate-600">
                 <span aria-hidden className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-pink-400" />
-                <span>{n}</span>
+                <span>
+                  {n.map((part, j) => (
+                    <span key={j} className="inline-block">{part}</span>
+                  ))}
+                </span>
               </li>
             ))}
           </ul>
