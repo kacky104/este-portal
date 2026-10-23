@@ -56,7 +56,7 @@ export function AgreementsAdmin() {
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/admin" className="text-[13px] font-bold text-pink-600 hover:text-pink-700">← 管理者ダッシュボード</Link>
+          <Link href="/admin" className="text-[13px] font-bold text-pink-600 hover:text-pink-700">← 管理者ページ</Link>
           <h1 className="text-[16px] font-black">申込書・誓約書</h1>
           <span className="ml-auto text-[12px] text-slate-400">{AGREEMENT_VERSION_LABEL}</span>
         </div>

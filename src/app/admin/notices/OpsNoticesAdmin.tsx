@@ -46,7 +46,7 @@ export function OpsNoticesAdmin() {
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold text-slate-800">運営からのお知らせ</h1>
-          <Link href="/admin" className="text-sm text-pink-600 underline">管理者ダッシュボードへ</Link>
+          <Link href="/admin" className="text-sm text-pink-600 underline">管理者ページへ</Link>
         </div>
         <p className="text-sm text-slate-500 leading-relaxed">
           公開すると、店舗マイページの上の帯（いちばん新しく公開した1件・公開から{OPS_NOTICE_BAND_DAYS}日）と、お知らせの一覧に出ます。
