@@ -32,12 +32,15 @@ export function SalonActionButtons({
   lineUrl,
   salonId,
   salonName,
+  bookable,
 }: {
   reserveUrl?: string | null;
   phone?: string | null;
   lineUrl?: string | null;
   salonId?: number;
   salonName?: string;
+  /** 追従バナーにネット予約を出すか（予約受付ON＋予約コースあり）。未指定は従来どおり出す。 */
+  bookable?: boolean;
 }) {
   const base =
     'flex-1 min-w-0 inline-flex items-center justify-center gap-1 sm:gap-1.5 rounded-xl px-1.5 sm:px-4 py-3.5 text-xs sm:text-sm font-bold shadow-sm whitespace-nowrap transition-all';
@@ -75,11 +78,11 @@ export function SalonActionButtons({
   const bookHref = salonId != null ? `/salon/${salonId}/book` : null;
 
   // ── 追従バナー（画面下）：上の3ボタン行が画面の上へ消えたら出す ──
-  // 登録済みのものだけ並べる（電話＝番号あり／LINE＝URLあり・'#' 以外／ネット予約＝遷移先あり）。
+  // 登録済みのものだけ並べる（電話＝番号あり／LINE＝URLあり・'#' 以外／ネット予約＝予約受付ON＋予約コースあり）。
   const rowRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const [barShown, setBarShown] = useState(false);
-  const barBook = Boolean(bookHref || reserveUrl);
+  const barBook = bookable !== false && Boolean(bookHref || reserveUrl);
   const barTel = Boolean(phone);
   const barLine = Boolean(lineRaw) && !lineDisabled;
   const barCount = (barBook ? 1 : 0) + (barTel ? 1 : 0) + (barLine ? 1 : 0);
