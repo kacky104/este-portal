@@ -406,7 +406,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
                   tabIndex={0}
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); }}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/therapist/${therapist.id}/diary`); } }}
-                  className="inline-flex items-center gap-1 rounded-md border border-pink-500 text-pink-600 font-bold hover:bg-pink-50 transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1 rounded-md border border-pink-500 text-pink-600 font-bold hover:bg-pink-50 transition-colors cursor-pointer flex-shrink-0 whitespace-nowrap"
                   style={{ fontSize: '11px', padding: '3px 9px' }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
@@ -422,7 +422,7 @@ export function GridCard({ therapist, index, showJoinDate = false, from, enableW
                   tabIndex={0}
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/x/u/${encodeURIComponent(therapist.xHandle!)}`); }}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); router.push(`/x/u/${encodeURIComponent(therapist.xHandle!)}`); } }}
-                  className="inline-flex items-center gap-1 rounded-md border border-blue-500 text-blue-600 font-bold hover:bg-blue-50 transition-colors cursor-pointer flex-shrink-0"
+                  className="inline-flex items-center gap-1 rounded-md border border-blue-500 text-blue-600 font-bold hover:bg-blue-50 transition-colors cursor-pointer flex-shrink-0 whitespace-nowrap"
                   style={{ fontSize: '11px', padding: '3px 9px' }}
                 >
                   {/* サロン詳細ページと同じ fukuX アイコン（lucide MessagesSquare／二重吹き出し） */}
@@ -1141,9 +1141,11 @@ export function SalonNewFaceTherapists({
   }
 
   // テーマ背景ブロック版（個別サロンページ用）
+  // ★ 2026-10-23: スマホでは左右の余白を p-5(20px)→px-2.5(10px) に詰めてカードを広げる
+  //   （実機で写メ日記＋fukuX のバッジが2行に折れていたため）。sm 以上は従来どおり p-5。
   return (
-    <div className="mt-8 rounded-3xl p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
-      <div className="flex items-center gap-2 mb-4">
+    <div className="mt-8 rounded-3xl px-2.5 py-5 sm:p-5 border shadow-sm" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+      <div className="flex items-center gap-2 mb-4 px-2.5 sm:px-0">
         <span className="text-lg">🌸</span>
         <h2 className="text-base font-bold" style={{ color: theme.heading }}>新人紹介</h2>
       </div>
