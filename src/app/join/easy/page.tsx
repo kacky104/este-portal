@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { POINT_FIRST_REVIEW, POINT_SIGNUP, POINT_USE_UNIT, POINT_USE_YEN, POINT_VISIT, POINT_VISIT_NOTE } from '@/lib/points';
 import { Logo } from '@/app/components/Logo';
 import { SavedSalonsMenu } from '@/app/components/SavedSalonsMenu';
@@ -33,54 +34,18 @@ export const metadata: Metadata = {
   },
 };
 
-const GRAD = 'linear-gradient(95deg,#FB923C,#DB2777)';
-
-const POINTS: { no: string; title: React.ReactNode; body: React.ReactNode }[] = [
-  {
-    no: '1',
-    title: <>登録にかかる時間は<span className="text-pink-600">約1分</span></>,
-    body: <>メールアドレスとパスワードを入れて、届いた確認メールのリンクを開くだけ。登録も利用も無料です。</>,
-  },
-  {
-    no: '2',
-    title: <>必要なのは<span className="text-pink-600">メールアドレスだけ</span></>,
-    body: (
-      <>
-        本名や電話番号はいりません。メールアドレスはアカウント（ログイン）に使うだけで、
-        <b className="text-slate-800">お店にもほかの会員にも知られることはありません。</b>
-        <br />
-        <b className="text-slate-800">宣伝のメールも届かない</b>ので、安心してください。
-      </>
-    ),
-  },
-  {
-    no: '3',
-    title: <>フクエスポイントが<span className="text-pink-600">貯まる</span></>,
-    body: (
-      <>
-        登録で<b className="text-pink-600">{POINT_SIGNUP}pt</b>・はじめての口コミで<b className="text-pink-600">{POINT_FIRST_REVIEW}pt</b>・加盟店のご来店1回で<b className="text-pink-600">{POINT_VISIT}pt</b>（{POINT_VISIT_NOTE}）。
-        <br />
-        <b className="text-slate-800">{POINT_USE_UNIT.toLocaleString()}ptで{POINT_USE_YEN.toLocaleString()}円引き</b>。お店のクーポンとも併用できます。
-      </>
-    ),
-  },
-  {
-    no: '4',
-    title: <>加盟店で<span className="text-pink-600">共通で使える</span></>,
-    body: (
-      <>
-        貯めたポイントは、どのフクエスポイント加盟店でも使えます。
-        <br />
-        <b className="text-slate-800">加盟店はこれから続々と増えていきます。</b>
-        <Link href="/points" className="ml-1 font-bold text-pink-600 underline">加盟店を見る</Link>
-      </>
-    ),
-  },
+// ★ 第1621便: 要点4つは画像（public/join/easy-hero.webp・カッキーさん作成）で見せる。
+//   画像に入っていない「安心して登録できる理由」と細かい条件は、画像の下に文字で補う。
+const NOTES: React.ReactNode[] = [
+  <>メールアドレスは<b className="text-slate-800">アカウント（ログイン）に使うだけ</b>。お店にもほかの会員にも知られることはありません。</>,
+  <><b className="text-slate-800">宣伝のメールは届きません。</b>安心して登録してください。</>,
+  <>はじめての口コミで<b className="text-pink-600">{POINT_FIRST_REVIEW}pt</b>・加盟店のご来店1回で<b className="text-pink-600">{POINT_VISIT}pt</b>（{POINT_VISIT_NOTE}）。お店のクーポンとも併用できます。</>,
+  <>貯めたポイントは、どのフクエスポイント加盟店でも使えます。<b className="text-slate-800">加盟店はこれから続々と増えていきます。</b><Link href="/points" className="ml-1 font-bold text-pink-600 underline">加盟店を見る</Link></>,
 ];
 
 export default function JoinEasyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-50 via-white to-white text-slate-900">
+    <div className="min-h-screen text-slate-900" style={{ background: 'linear-gradient(#FDF3F6, #FFF8FA)' }}>
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-2 h-14 flex items-center justify-between">
           <Logo />
@@ -92,43 +57,37 @@ export default function JoinEasyPage() {
       </header>
       <SiteNoticeBanner />
 
-      <main className="max-w-xl mx-auto px-4 pt-8 pb-12">
-        {/* 見出し */}
-        <div className="text-center">
-          <p className="text-[11px] font-bold tracking-[0.35em] text-pink-500">FUKUES MEMBER</p>
-          <h1 className="mt-2 text-[28px] sm:text-4xl font-black leading-tight">
-            <span style={{ background: GRAD, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>フクエス会員</span>
-            <br className="sm:hidden" />
-            <span className="text-slate-800">を募集しています！</span>
-          </h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            福岡のメンズエステを、もっとおトクに。
-          </p>
-        </div>
-
-        {/* 要点4つ */}
-        <ol className="mt-7 space-y-3">
-          {POINTS.map((p) => (
-            <li key={p.no} className="flex gap-3 rounded-2xl border border-pink-100 bg-white p-4 shadow-sm">
-              <span
-                className="flex-shrink-0 w-8 h-8 rounded-full text-white font-black text-sm flex items-center justify-center"
-                style={{ background: GRAD }}
-                aria-hidden
-              >
-                {p.no}
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-[16px] sm:text-[17px] font-black text-slate-800 leading-snug">{p.title}</h2>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-slate-600">{p.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+      <main className="max-w-xl mx-auto px-4 pb-12">
+        {/* 見出し＋要点4つ＝画像。背景色を画像のふちの色（#FDF3F6→#FFF8FA）に合わせて、ページとつながって見えるようにする。
+            スマホは左右いっぱい（-mx-4）。h1 は画像の文字と同じ内容を読み上げ・検索用に持つ。 */}
+        <h1 className="sr-only">フクエス会員を募集しています！</h1>
+        <Image
+          src="/join/easy-hero.webp"
+          alt={`フクエス会員を募集しています！福岡のメンズエステを、もっとおトクに。1 登録にかかる時間は約1分（登録も利用も無料）2 必要なのはメールアドレスだけ（本名や電話番号はいりません）3 フクエスポイントが貯まる（登録で${POINT_SIGNUP}pt・${POINT_USE_UNIT.toLocaleString()}ptで${POINT_USE_YEN.toLocaleString()}円引き）4 加盟店で共通で使える`}
+          width={941}
+          height={1672}
+          priority
+          sizes="(max-width: 640px) 100vw, 576px"
+          className="block -mx-4 w-[calc(100%+2rem)] max-w-none sm:mx-0 sm:w-full h-auto"
+        />
 
         {/* 登録ボタン（ログイン中はマイページへ） */}
-        <div className="mt-8">
+        <div className="mt-2">
           <JoinCta variant="footer" />
         </div>
+
+        {/* 画像に入っていない補足 */}
+        <section className="mt-5 rounded-2xl border border-pink-100 bg-white p-4 shadow-sm">
+          <h2 className="text-[15px] font-black text-slate-800">安心してご登録ください</h2>
+          <ul className="mt-2 space-y-2">
+            {NOTES.map((n, i) => (
+              <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-slate-600">
+                <span aria-hidden className="mt-[7px] h-1.5 w-1.5 flex-shrink-0 rounded-full bg-pink-400" />
+                <span>{n}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <p className="mt-6 text-center text-xs text-slate-500">
           会員になるとできること・よくある質問は
