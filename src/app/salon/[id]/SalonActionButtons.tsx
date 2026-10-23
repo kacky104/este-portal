@@ -189,12 +189,12 @@ export function SalonActionButtons({
             ))}
             {barTel && (
               <TelNoticeLink phone={phone!} onCall={() => logSalonAction(salonId, 'tel')} className={`${barBtn} bg-white hover:bg-pink-50`} style={phoneStyle}>
-                {phoneIcon}電話
+                {phoneIcon}電話をする
               </TelNoticeLink>
             )}
             {barLine && (
               <a href={lineRaw} tabIndex={barShown ? 0 : -1} onClick={() => logSalonAction(salonId, 'line')} target="_blank" rel="noopener noreferrer" className={`${barBtn} text-white hover:brightness-105`} style={lineStyle}>
-                {lineIcon}LINE
+                {lineIcon}LINE予約
               </a>
             )}
           </div>
