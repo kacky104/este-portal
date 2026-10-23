@@ -20,5 +20,5 @@ export function MemberJoinPopup() {
   }, []);
 
   if (!guest) return null;
-  return <ScrollPopupImage src="/join/member-popup.webp" href="/join/easy" alt="フクエス会員募集中！登録は約1分・メールアドレスだけ・ポイントが貯まる" />;
+  return <ScrollPopupImage src="/join/member-popup.webp" href="/join/easy" mobileWidthVw={34} mobileHeightVh={25} alt="フクエス会員募集中！登録は約1分・メールアドレスだけ・ポイントが貯まる" />;
 }
