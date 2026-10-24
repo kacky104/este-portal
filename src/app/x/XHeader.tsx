@@ -342,54 +342,19 @@ export function XHeader() {
 
             {/* ポリシー類・ガイド（fukuX特則）。ログイン状態を問わず常時表示・控えめな小リンク。 */}
             <div className="my-2 border-t border-[color:var(--x-border)]" />
+            {/* ★ 第1640便: セラピストアカウントは「セラピストガイド・利用規約・プライバシーポリシー」だけ */}
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap text-[11px]">
-              <Link
-                href="/x/guide/user"
-                onClick={() => setOpen(false)}
-                className="text-[color:var(--x-text-muted)] hover:underline"
-              >
-                ユーザーガイド
-              </Link>
-              <span className="text-[color:var(--x-text-muted)]">･</span>
-              <Link
-                href="/x/guide/therapist"
-                onClick={() => setOpen(false)}
-                className="text-[color:var(--x-text-muted)] hover:underline"
-              >
-                セラピストガイド
-              </Link>
-              <span className="text-[color:var(--x-text-muted)]">･</span>
-              <Link
-                href="/x/guide/shop"
-                onClick={() => setOpen(false)}
-                className="text-[color:var(--x-text-muted)] hover:underline"
-              >
-                お店ガイド
-              </Link>
-              <span className="text-[color:var(--x-text-muted)]">･</span>
-              <Link
-                href="/x/terms"
-                onClick={() => setOpen(false)}
-                className="text-[color:var(--x-text-muted)] hover:underline"
-              >
-                利用規約
-              </Link>
-              <span className="text-[color:var(--x-text-muted)]">･</span>
-              <Link
-                href="/x/privacy"
-                onClick={() => setOpen(false)}
-                className="text-[color:var(--x-text-muted)] hover:underline"
-              >
-                プライバシーポリシー
-              </Link>
-              <span className="text-[color:var(--x-text-muted)]">･</span>
-              <Link
-                href="/x/banner"
-                onClick={() => setOpen(false)}
-                className="text-[color:var(--x-text-muted)] hover:underline"
-              >
-                リンクバナー
-              </Link>
+              {(profile?.kind === 'therapist'
+                ? [['/x/guide/therapist', 'セラピストガイド'], ['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
+                : [['/x/guide/user', 'ユーザーガイド'], ['/x/guide/therapist', 'セラピストガイド'], ['/x/guide/shop', 'お店ガイド'], ['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー'], ['/x/banner', 'リンクバナー']]
+              ).map(([href, label], i) => (
+                <span key={href} className="inline-flex items-center gap-2">
+                  {i > 0 && <span className="text-[color:var(--x-text-muted)]">･</span>}
+                  <Link href={href} onClick={() => setOpen(false)} className="text-[color:var(--x-text-muted)] hover:underline">
+                    {label}
+                  </Link>
+                </span>
+              ))}
             </div>
           </nav>
         </aside>
