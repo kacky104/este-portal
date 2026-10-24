@@ -287,8 +287,13 @@ export function XTimeline({
       ) : isTherapist ? (
         // セラピスト：2つ目タブ＝自分のフォロワー一覧（人リスト）。フォローされた新しい順。
         <div className="pt-3">
-          <p className="x-rescue-muted text-sm font-bold text-white/90 drop-shadow-sm mb-2 px-1">
+          <p className="x-rescue-muted text-sm font-bold text-white/90 drop-shadow-sm px-1">
             {followers.length}人のフォロワー
+            <span className="ml-1.5 text-xs font-bold text-white/70">（あなただけに表示）</span>
+          </p>
+          {/* ★ 第1633便: フォロワーは本人にしか見えないことを伝える（セラピストのフォロワー数・一覧は他の人には出していない） */}
+          <p className="x-rescue-muted text-[11px] text-white/70 drop-shadow-sm mt-0.5 mb-2 px-1 leading-relaxed">
+            あなたをフォローしている人は、ほかの人には表示されません。
           </p>
           <XFollowRows users={followers} emptyText="まだフォロワーがいません" />
         </div>
