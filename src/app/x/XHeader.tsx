@@ -297,10 +297,12 @@ export function XHeader() {
                 <DrawerLink href={`/x/u/${profile.handle}`} onClick={() => setOpen(false)} label="ホーム" />
                 <DrawerLink href="/x/settings" onClick={() => setOpen(false)} label="プロフィール編集" />
                 <DrawerLink href="/x/saved" onClick={() => setOpen(false)} label="保存した投稿" />
-                {/* ★ 第1635便: セラピストは自分のフォロワー一覧へ（本人にしか見えない） */}
-                {profile.kind === 'therapist' && (
-                  <DrawerLink href={`/x/u/${profile.handle}/followers`} onClick={() => setOpen(false)} label="フォロワー" />
+                {/* ★ 第1635便: セラピストは自分のフォロワー一覧へ（本人にしか見えない）
+                    ★ 第1651便: セラピスト以外は「フォロー」「フォロワー」の2つ（プロフィールの数字の代わり） */}
+                {profile.kind !== 'therapist' && (
+                  <DrawerLink href={`/x/u/${profile.handle}/following`} onClick={() => setOpen(false)} label="フォロー" />
                 )}
+                <DrawerLink href={`/x/u/${profile.handle}/followers`} onClick={() => setOpen(false)} label="フォロワー" />
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {/* ★ 第1649便: fukuX の求人オファー機能をなくした（「求人オファーリスト」は出さない） */}
                 {isAdmin && <DrawerLink href="/x/admin" onClick={() => setOpen(false)} label="運営パネル" accent="indigo" />}

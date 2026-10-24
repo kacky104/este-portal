@@ -19,7 +19,6 @@ import { XPostNotifyBell } from './XPostNotifyBell';
 import { useXToast } from './useXToast';
 import { XProfileSchedule } from './XProfileSchedule';
 import { safeHref, linkDomain } from './xLink';
-import { formatFukuxStartDate } from './xDate';
 import { useXEngagement } from './useXEngagement';
 import { reportPost } from './xModerationActions';
 import { useIncrementalList } from './useIncrementalList'; // ★ 第1002便: 30件ずつ描く
@@ -127,7 +126,6 @@ export function XProfileView({
   if (target.hip != null) measurements.push(`H${target.hip}`);
 
   // fukuX開始日（プロフィール作成日・変更不可）。リンク行の右隣に表示。
-  const startDate = formatFukuxStartDate(target.created_at);
 
   return (
     <div>
@@ -307,7 +305,8 @@ export function XProfileView({
 
             {/* リンク（任意・http/https のみ）と fukuX開始日（作成日・変更不可）を同じ行に。
                 リンクが無くても開始日は単独で表示する（狭幅は折り返し）。 */}
-            {(safeHref(target.kind === 'user' ? null : (fixedLinkUrl ?? target.link_url)) || (startDate && target.kind !== 'therapist')) && (
+            {/* ★ 第1651便: 登録年月日はどのアカウントでも出さない */}
+            {safeHref(target.kind === 'user' ? null : (fixedLinkUrl ?? target.link_url)) && (
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                 {safeHref(target.kind === 'user' ? null : (fixedLinkUrl ?? target.link_url)) && (
                   <a
@@ -323,8 +322,6 @@ export function XProfileView({
                     <span className="truncate">{fixedLinkUrl ? 'セラピストページ' : linkDomain(target.link_url!)}</span>
                   </a>
                 )}
-                {/* ★ 第1632便: セラピストは登録年月日を出さない */}
-                {startDate && target.kind !== 'therapist' && <span className="text-xs text-[color:var(--x-text-secondary)]">{startDate}</span>}
               </div>
             )}
 
@@ -332,13 +329,14 @@ export function XProfileView({
                 運営(official)のみ、フォロワーの右に「承認店舗」「赤バッジセラピスト」をこの順で追加（タップで一覧へ）。
                 4項目になると狭幅で溢れるため flex-wrap で折り返す。 */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm empty:hidden">
-              {followingCount !== null && (
+              {/* ★ 第1651便: フォロー中・フォロワーの数はプロフィールに出さない（自分のはサイドバーの「フォロー」「フォロワー」から） */}
+              {false && followingCount !== null && (
                 <Link href={`/x/u/${target.handle}/following`} className="text-[color:var(--x-text-secondary)] hover:underline">
                   <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followingCount}</strong> フォロー中
                 </Link>
               )}
               {/* ★ 第1630便: セラピストアカウントはフォロワー数を出さない */}
-              {followerCount !== null && target.kind !== 'therapist' && (
+              {false && followerCount !== null && target.kind !== 'therapist' && (
                 <Link href={`/x/u/${target.handle}/followers`} className="text-[color:var(--x-text-secondary)] hover:underline">
                   <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followerCount}</strong> フォロワー
                 </Link>
