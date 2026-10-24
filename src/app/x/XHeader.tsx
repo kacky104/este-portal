@@ -299,7 +299,7 @@ export function XHeader() {
                 <DrawerLink href="/x/saved" onClick={() => setOpen(false)} label="保存した投稿" />
                 {/* ★ 第1635便: セラピストは自分のフォロワー一覧へ（本人にしか見えない） */}
                 {profile.kind === 'therapist' && (
-                  <DrawerLink href={`/x/u/${profile.handle}/followers`} onClick={() => setOpen(false)} label="フォロワー一覧" />
+                  <DrawerLink href={`/x/u/${profile.handle}/followers`} onClick={() => setOpen(false)} label="フォロワー" />
                 )}
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
                 {(isVerifiedShop || profile.kind === 'official') && (

@@ -183,8 +183,21 @@ export function XTimeline({
       {/* タブ */}
       <div className="sticky top-14 z-30 -mx-4 px-4 bg-[color:var(--x-surface-translucent)] backdrop-blur-md border-b border-[color:var(--x-border-strong)]">
         <div className="flex">
-          {/* ★ 第1196便: いちばん左に「新着」（投稿順） */}
-          {([['new', '新着'], ['recommended', 'おすすめ'], ['following', isTherapist ? 'フォロワー' : 'フォロー中'], ['shops', 'お店']] as const).map(([key, label]) => (
+          {/* ★ 第1196便: いちばん左に「新着」（投稿順）
+              ★ 第1637便: セラピストは「ホーム・新着・おすすめ・お店」。ホームは自分のアカウントページへ移動するリンク。
+                フォロワーはサイドバーの「フォロワー」から見る（タブからは外す） */}
+          {isTherapist && me && (
+            <Link
+              href={`/x/u/${encodeURIComponent(me.handle)}`}
+              className="flex-1 py-3 text-sm font-bold text-center transition-colors relative text-[color:var(--x-text-muted)] hover:text-[color:var(--x-text-secondary)]"
+            >
+              ホーム
+            </Link>
+          )}
+          {(isTherapist
+            ? ([['new', '新着'], ['recommended', 'おすすめ'], ['shops', 'お店']] as const)
+            : ([['new', '新着'], ['recommended', 'おすすめ'], ['following', 'フォロー中'], ['shops', 'お店']] as const)
+          ).map(([key, label]) => (
             <button
               key={key}
               type="button"
