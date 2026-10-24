@@ -350,10 +350,16 @@ export function XHeader() {
             {profile?.kind === 'user' && (
               <GuideBanner href="/x/guide/user" image="/x/guide/user/user-guide-hero.webp" label="ユーザーガイド" onNavigate={() => setOpen(false)} />
             )}
+            {/* ★ 第1652便: お店アカウントは「お店ガイド」をバナーに */}
+            {profile?.kind === 'shop' && (
+              <GuideBanner href="/x/guide/shop" image="/x/guide/shop/shop-guide-hero.webp" label="お店ガイド" onNavigate={() => setOpen(false)} />
+            )}
             {/* ★ 第1640便: セラピストアカウントは「セラピストガイド・利用規約・プライバシーポリシー」だけ（★ 第1644便: ガイドは上のバナーにしたので文字リンクからは外す） */}
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap text-[11px]">
               {(profile?.kind === 'therapist'
                 ? [['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
+                : profile?.kind === 'shop'
+                ? /* ★ 第1652便: お店アカウントはユーザーガイド・セラピストガイドを出さない（お店ガイドは上のバナー） */ [['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー'], ['/x/banner', 'リンクバナー']]
                 : profile?.kind === 'user'
                 ? /* ★ 第1645便: ユーザーアカウントはセラピストガイド・お店ガイド・リンクバナーを出さない（★ 第1648便: ユーザーガイドは上のバナーに） */ [['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
                 : [['/x/guide/user', 'ユーザーガイド'], ['/x/guide/therapist', 'セラピストガイド'], ['/x/guide/shop', 'お店ガイド'], ['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー'], ['/x/banner', 'リンクバナー']]
