@@ -342,44 +342,20 @@ export function XHeader() {
 
             {/* ポリシー類・ガイド（fukuX特則）。ログイン状態を問わず常時表示・控えめな小リンク。 */}
             <div className="my-2 border-t border-[color:var(--x-border)]" />
-            {/* ★ 第1644便: セラピストアカウントは「セラピストガイド」を目立つバナー画像リンクに（画像はガイドのヒーロー写真を流用・文字は HTML で重ねる） */}
+            {/* ★ 第1644便: セラピストアカウントは「セラピストガイド」を目立つバナー画像リンクに（画像はガイドのヒーロー写真を流用・文字は HTML で重ねる）
+                ★ 第1648便: ユーザーアカウントも「ユーザーガイド」を同じ形のバナーに */}
             {profile?.kind === 'therapist' && (
-              <Link
-                href="/x/guide/therapist"
-                onClick={() => setOpen(false)}
-                className="relative mx-3 mt-2 mb-1 block overflow-hidden rounded-2xl border border-indigo-400/45 shadow-sm hover:brightness-110 transition"
-                aria-label="セラピストガイド（使い方はこちら）"
-              >
-                <Image
-                  src="/x/guide/therapist/therapist-guide-hero.webp"
-                  alt=""
-                  width={1983}
-                  height={793}
-                  sizes="320px"
-                  className="block w-full h-auto"
-                />
-                <span
-                  aria-hidden
-                  className="absolute inset-0"
-                  style={{ background: 'linear-gradient(90deg, rgba(23,10,54,0.92) 0%, rgba(23,10,54,0.8) 40%, rgba(23,10,54,0.2) 70%, rgba(23,10,54,0) 85%)' }}
-                />
-                <span className="absolute inset-y-0 left-0 flex w-[62%] flex-col justify-center pl-3.5 pr-2">
-                  <span className="text-[15px] font-black leading-tight text-white drop-shadow">セラピストガイド</span>
-                  <span className="mt-1 inline-flex w-fit items-center gap-0.5 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
-                    使い方はこちら
-                    <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3" aria-hidden="true">
-                      <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.06 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.39 4.25a.75.75 0 0 1 0 1.08l-4.39 4.25a.75.75 0 0 1-1.06-.02Z" clipRule="evenodd" />
-                    </svg>
-                  </span>
-                </span>
-              </Link>
+              <GuideBanner href="/x/guide/therapist" image="/x/guide/therapist/therapist-guide-hero.webp" label="セラピストガイド" onNavigate={() => setOpen(false)} />
+            )}
+            {profile?.kind === 'user' && (
+              <GuideBanner href="/x/guide/user" image="/x/guide/user/user-guide-hero.webp" label="ユーザーガイド" onNavigate={() => setOpen(false)} />
             )}
             {/* ★ 第1640便: セラピストアカウントは「セラピストガイド・利用規約・プライバシーポリシー」だけ（★ 第1644便: ガイドは上のバナーにしたので文字リンクからは外す） */}
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap text-[11px]">
               {(profile?.kind === 'therapist'
                 ? [['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
                 : profile?.kind === 'user'
-                ? /* ★ 第1645便: ユーザーアカウントはセラピストガイド・お店ガイド・リンクバナーを出さない */ [['/x/guide/user', 'ユーザーガイド'], ['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
+                ? /* ★ 第1645便: ユーザーアカウントはセラピストガイド・お店ガイド・リンクバナーを出さない（★ 第1648便: ユーザーガイドは上のバナーに） */ [['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
                 : [['/x/guide/user', 'ユーザーガイド'], ['/x/guide/therapist', 'セラピストガイド'], ['/x/guide/shop', 'お店ガイド'], ['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー'], ['/x/banner', 'リンクバナー']]
               ).map(([href, label], i) => (
                 <span key={href} className="inline-flex items-center gap-2">
@@ -425,6 +401,34 @@ function DrawerLink({
       className={`block px-3 py-3 rounded-xl text-sm font-bold hover:bg-[color:var(--x-surface-hover)] transition-colors ${color}`}
     >
       {label}
+    </Link>
+  );
+}
+
+// ★ 第1644・1648便: サイドバーのガイドのバナー画像リンク（ガイドのヒーロー写真＋左に文字を重ねる）。
+function GuideBanner({ href, image, label, onNavigate }: { href: string; image: string; label: string; onNavigate: () => void }) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="relative mx-3 mt-2 mb-1 block overflow-hidden rounded-2xl border border-indigo-400/45 shadow-sm hover:brightness-110 transition"
+      aria-label={`${label}（使い方はこちら）`}
+    >
+      <Image src={image} alt="" width={1983} height={793} sizes="320px" className="block w-full h-auto" />
+      <span
+        aria-hidden
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(90deg, rgba(23,10,54,0.92) 0%, rgba(23,10,54,0.8) 40%, rgba(23,10,54,0.2) 70%, rgba(23,10,54,0) 85%)' }}
+      />
+      <span className="absolute inset-y-0 left-0 flex w-[62%] flex-col justify-center pl-3.5 pr-2">
+        <span className="text-[15px] font-black leading-tight text-white drop-shadow">{label}</span>
+        <span className="mt-1 inline-flex w-fit items-center gap-0.5 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+          使い方はこちら
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3" aria-hidden="true">
+            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.06 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.39 4.25a.75.75 0 0 1 0 1.08l-4.39 4.25a.75.75 0 0 1-1.06-.02Z" clipRule="evenodd" />
+          </svg>
+        </span>
+      </span>
     </Link>
   );
 }
