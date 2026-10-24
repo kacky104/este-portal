@@ -263,9 +263,7 @@ export function XPostCard({
               {a.displayName}
             </Link>
             {(a.kind === 'official' || ((a.kind === 'shop' || a.kind === 'therapist') && a.isVerified)) && <VerifiedBadge kind={a.kind} />}
-            <Link href={`/x/u/${a.handle}`} className="min-w-0 text-xs text-[color:var(--x-text-muted)] truncate hover:underline">
-              @{a.handle}
-            </Link>
+            {/* ★ 第1638便: 投稿の @ID（ユーザー名）は出さない（名前・アイコンからプロフィールへ行ける） */}
             {/* 種別バッジ：セラピスト・お店は非表示（2026-07-16 仕様変更・ヘッダーの情報量を削減）。
                 ユーザー・運営のみ表示。認証バッジ（VerifiedBadge）は従来どおり全種別で表示。 */}
             {a.kind !== 'therapist' && a.kind !== 'shop' && (
