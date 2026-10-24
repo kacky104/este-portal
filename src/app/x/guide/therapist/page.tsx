@@ -116,6 +116,19 @@ export default function XTherapistGuidePage() {
         </ol>
       </section>
 
+      {/* ── ★ 第1643便: フクエスに掲載のないセラピスト向けの補足（上の3つはフクエスのセラピストページが前提のため） ── */}
+      <section className="mt-4 rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-surface)] p-4 sm:p-5">
+        <p className="text-base font-bold text-[color:var(--x-text-primary)]">フクエスに掲載のないセラピストさんへ</p>
+        <ul className={`mt-2 list-disc pl-5 space-y-1.5 ${P}`}>
+          <li>
+            <Link href="/x/signup" className={A}>新規登録</Link>
+            （メールアドレスとパスワード）から、「セラピスト」を選んで開設してください。
+          </li>
+          <li>投稿は、画面右下の「＋」からできます。</li>
+          <li>名前・写真・年齢・スリーサイズは「プロフィール編集」から入れられます（入れたものだけ表示されます）。</li>
+        </ul>
+      </section>
+
       {/* ── 安心ポイント ── */}
       <section className={CARD}>
         <h2 className={H2}>安心して使えます</h2>

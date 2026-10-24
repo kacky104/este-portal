@@ -117,7 +117,7 @@ export function CastHintPopover({ kind }: { kind: 'open' | 'badge' }) {
             </div>
           ) : (
             <Link
-              href="/x/guide/therapist#step4"
+              href="/x/guide/therapist"
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 px-3.5 py-3 hover:-translate-y-0.5 transition-transform"
             >
