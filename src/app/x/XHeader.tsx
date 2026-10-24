@@ -302,9 +302,7 @@ export function XHeader() {
                   <DrawerLink href={`/x/u/${profile.handle}/followers`} onClick={() => setOpen(false)} label="フォロワー" />
                 )}
                 {isVerifiedShop && <DrawerLink href="/x/shop" onClick={() => setOpen(false)} label="店舗管理" accent="emerald" />}
-                {(isVerifiedShop || profile.kind === 'official') && (
-                  <DrawerLink href="/x/offers" onClick={() => setOpen(false)} label="求人オファーリスト" accent="indigo" />
-                )}
+                {/* ★ 第1649便: fukuX の求人オファー機能をなくした（「求人オファーリスト」は出さない） */}
                 {isAdmin && <DrawerLink href="/x/admin" onClick={() => setOpen(false)} label="運営パネル" accent="indigo" />}
                 <div className="my-2 border-t border-[color:var(--x-border)]" />
                 <button

@@ -100,7 +100,8 @@ export function XSettingsForm({
   // DM受付オフ（全kind共通）。オンにすると自分・相手とも新規/追加送信が不可になる（過去の閲覧は可）。
   const [dmDisabled, setDmDisabled] = useState(profile.dm_disabled);
   // オファー受付（求人スカウト）。未所属セラピストのみ設定可（所属中はセクション自体を出さない）。
-  const canOffer = isTherapist && !profile.affiliated_shop_id;
+  // ★ 第1649便: fukuX の求人オファー機能をなくした（「オファー受付」の欄を出さず、保存でも送らない）
+  const canOffer = false && isTherapist && !profile.affiliated_shop_id;
   const [offerEnabled, setOfferEnabled] = useState(profile.offer_enabled);
   const [offerComment, setOfferComment] = useState(profile.offer_comment ?? '');
   const [offerAreas, setOfferAreas] = useState<string[]>(profile.offer_areas ?? []);

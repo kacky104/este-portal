@@ -24,7 +24,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'お店向け使い方ガイド｜fukuX(フクエックス)',
   description:
-    '福岡メンズエステ専用SNS「fukuX(フクエックス)」のお店向け使い方ガイド。アカウント開設から認証バッジ、セラピストの所属管理、お店カード画像、求人オファーの送り方、フクエス掲載店だけの連携機能まで、わかりやすく説明します。',
+    '福岡メンズエステ専用SNS「fukuX(フクエックス)」のお店向け使い方ガイド。アカウント開設から認証バッジ、セラピストの所属管理、お店カード画像、フクエス掲載店だけの連携機能まで、わかりやすく説明します。',
   alternates: { canonical: '/x/guide/shop' },
 };
 
@@ -100,7 +100,7 @@ function Step({ n, title, accent = false }: { n: number; title: string; accent?:
   );
 }
 
-// 認証バッジを連想させるチェック丸。STEP4 の見出し横と、STEP10 のメリット一覧で使う。
+// 認証バッジを連想させるチェック丸。STEP4 の見出し横と、STEP9 のメリット一覧で使う。
 function CheckMark({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={`w-5 h-5 shrink-0 ${className}`} fill="currentColor">
@@ -119,7 +119,7 @@ function OnlyVerified() {
   );
 }
 
-// STEP10 のメリット小カード（PC 2列 / スマホ 1列）。
+// STEP9 のメリット小カード（PC 2列 / スマホ 1列）。
 function Merit({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-3 rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
@@ -254,7 +254,6 @@ export default function XShopGuidePage() {
           <ul className={`${UL} mt-3`}>
             <li>セラピストの所属管理（@ID検索で所属申請 → STEP5）</li>
             <li>お店カードにセラピストの写真を自動で表示（お店タブ → STEP6）</li>
-            <li>求人オファーの送信（→ STEP8）</li>
           </ul>
           {/* 掲載店誘導の核心部分。非掲載店を否定せず「掲載店はスムーズ」の対比で伝える。
               ★ 通常本文と混ざらないよう、独立した情報ボックスに分けてある。 */}
@@ -318,11 +317,11 @@ export default function XShopGuidePage() {
         </div>
       </GroupCard>
 
-      {/* ───────────────── STEP7〜9：発信・求人・DM ───────────────── */}
+      {/* ───────────────── STEP7〜8：発信・DM（★ 第1649便: 求人オファーの STEP を削除して番号を詰めた） ───────────────── */}
       <GroupCard>
         <GuideImage
           src="/x/guide/shop/shop-guide-communication.webp"
-          alt="投稿、求人オファー、DMでユーザーとつながる流れ"
+          alt="投稿やDMでユーザーとつながる流れ"
           width={1683}
           height={935}
         />
@@ -337,17 +336,8 @@ export default function XShopGuidePage() {
         {/* 3機能が地続きに見えないよう、STEP の間に薄い区切り線と広い余白を入れる。 */}
         <hr className="my-9 h-px border-0 bg-[color:var(--x-border-strong)]" />
 
-        <div className="flex flex-wrap items-start">
-          <Step n={8} title="求人オファーを送る（認証店のみ）" />
-          <OnlyVerified />
-        </div>
-        <p className={`${P} mt-3`}>
-          ドロワーメニューの「求人オファーリスト」から、オファー受付中の未所属セラピストの一覧を見られます。気になるセラピストには、フォロー関係がなくても直接メッセージを送れます。PR文や希望エリアを参考に、貴店に合う人材へアプローチしてください。
-        </p>
 
-        <hr className="my-9 h-px border-0 bg-[color:var(--x-border-strong)]" />
-
-        <Step n={9} title="DM・通知" />
+        <Step n={8} title="DM・通知" />
         <ul className={`${UL} mt-3`}>
           <li>どちらか一方がフォローしている相手と、プロフィールのメッセージボタンからDMできます。</li>
           <li>画面右上のベルに通知が、封筒アイコンにDMの未読件数が表示されます。</li>
@@ -355,7 +345,7 @@ export default function XShopGuidePage() {
         </ul>
       </GroupCard>
 
-      {/* ───────────────── STEP10：フクエス連携（独立カード） ───────────────── */}
+      {/* ───────────────── STEP9：フクエス連携（独立カード） ───────────────── */}
       <GroupCard>
         <GuideImage
           src="/x/guide/shop/shop-guide-integration.webp"
@@ -364,7 +354,7 @@ export default function XShopGuidePage() {
           height={971}
         />
 
-        <Step n={10} title="フクエス掲載店なら、さらに広がります" />
+        <Step n={9} title="フクエス掲載店なら、さらに広がります" />
         <p className={`${P} mt-3`}>
           fukuXはどのお店も無料でご利用いただけますが、ポータルサイト「フクエス」に掲載中のお店は、fukuXとの連携でさらに多くの機能をご利用いただけます。
         </p>
