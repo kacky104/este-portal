@@ -259,11 +259,12 @@ export function XPostCard({
           {/* 1行目：収まらないときは @handle（ID）が先に省略され、名前は極力残す（2026-07-17 仕様変更）。
               名前は flex-shrink-0＋max-w-[70%]（超長い名前のみ省略）、@handle は min-w-0 で先に縮む。 */}
           <div className="flex items-center gap-1.5 min-w-0">
-            <Link href={`/x/u/${a.handle}`} className="flex-shrink-0 font-bold text-sm text-[color:var(--x-text-primary)] truncate max-w-[70%] hover:underline">
+            <Link href={`/x/u/${a.handle}`} className="min-w-0 font-bold text-sm text-[color:var(--x-text-primary)] truncate hover:underline">
               {a.displayName}
             </Link>
             {(a.kind === 'official' || ((a.kind === 'shop' || a.kind === 'therapist') && a.isVerified)) && <VerifiedBadge kind={a.kind} />}
-            {/* ★ 第1638便: 投稿の @ID（ユーザー名）は出さない（名前・アイコンからプロフィールへ行ける） */}
+            {/* ★ 第1638便: 投稿の @ID（ユーザー名）は出さない（名前・アイコンからプロフィールへ行ける）
+                ★ 第1639便: そのぶん名前は 70% の上限をやめ、行いっぱいまで使う（入らないときだけ「…」） */}
             {/* 種別バッジ：セラピスト・お店は非表示（2026-07-16 仕様変更・ヘッダーの情報量を削減）。
                 ユーザー・運営のみ表示。認証バッジ（VerifiedBadge）は従来どおり全種別で表示。 */}
             {a.kind !== 'therapist' && a.kind !== 'shop' && (
