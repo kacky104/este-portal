@@ -7,6 +7,7 @@
 // 公開読み取りなので必ず createPublicClient（Cookieなし）を使う＝ISR/匿名SELECTを壊さない。
 // import 元は既存の公開読み取りモジュール（xFollows.ts / xPosts.ts 等）と同じ。
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { parseBodyType } from '@/lib/bodyType';
 
 // ポータルに露出してよい x_profiles.status（allowlist方式：approved のみ公開。
 // pending/rejected/frozen 等は一切ポータルに露出しない）。
@@ -87,7 +88,38 @@ export type LinkedTherapist = {
   id: number;
   name: string;
   imageUrl: string | null; // ★ 第1010便: フクエスに登録された写真（fukuX のアイコンが空のときの代わり）
+  // ★ 第1631便: フクエスのセラピストページの年齢・スリーサイズ（fukuX では自分で入れた値より優先して表示する）
+  sizes: LinkedTherapistSizes;
 };
+
+export type LinkedTherapistSizes = {
+  age: number | null;
+  height: number | null;
+  bust: number | null;
+  cup: string | null;
+  waist: number | null;
+  hip: number | null;
+};
+
+function toIntOrNull(v: unknown): number | null {
+  const m = String(v ?? '').match(/\d+/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** フクエスの therapists.age / body_type（例: "T158 B88(D) W58 H86"）→ fukuX の年齢・スリーサイズの形 */
+export function sizesFromFukuesTherapist(age: unknown, bodyType: string | null): LinkedTherapistSizes {
+  const b = parseBodyType(bodyType);
+  return {
+    age: toIntOrNull(age),
+    height: toIntOrNull(b?.height),
+    bust: toIntOrNull(b?.bust),
+    cup: b?.cup ? b.cup.toUpperCase() : null,
+    waist: toIntOrNull(b?.waist),
+    hip: toIntOrNull(b?.hip),
+  };
+}
 
 // fukuX プロフィール(x_profiles.auth_user_id) → 連携している本体セラピスト。
 // 該当なし・非公開(is_active=false)なら null。
@@ -99,7 +131,7 @@ export async function getLinkedTherapistForXProfile(
   const supabase = createPublicClient();
   const { data, error } = await supabase
     .from('therapists')
-    .select('id, name, is_active, user_id, profile_image_url')
+    .select('id, name, is_active, user_id, profile_image_url, age, body_type')
     .eq('user_id', authUserId)
     .limit(1);
 
@@ -108,7 +140,12 @@ export async function getLinkedTherapistForXProfile(
   const t = data[0];
   if (t.is_active === false) return null; // 非公開セラピストはリンクしない
 
-  return { id: t.id as number, name: (t.name as string) ?? '', imageUrl: (t.profile_image_url as string | null) ?? null };
+  return {
+    id: t.id as number,
+    name: (t.name as string) ?? '',
+    imageUrl: (t.profile_image_url as string | null) ?? null,
+    sizes: sizesFromFukuesTherapist(t.age, (t.body_type as string | null) ?? null),
+  };
 }
 
 // ★★ 第996便（2026-09-30・カッキーさん）: フクエスに在籍（セラピストページ連携・公開中）のセラピストは、

@@ -221,6 +221,8 @@ export default async function XProfilePage({ params }: { params: Promise<{ handl
   const fixedLinkUrl = linkedTherapist ? fukuesTherapistPageUrl(linkedTherapist.id) : null;
   // ★ 第1010便: fukuX のアイコンが空なら、フクエスに登録された写真を出す（自分で設定した画像があればそちら）
   if (!target.avatar_url && linkedTherapist?.imageUrl) target.avatar_url = linkedTherapist.imageUrl;
+  // ★ 第1631便: フクエスと結びついているセラピストは、年齢・スリーサイズをフクエスの値で表示（表示だけ・DB は変えない）
+  if (linkedTherapist) Object.assign(target, linkedTherapist.sizes);
   // ★ 第1014便: 所属セラピストのヘッダー画像が空なら、所属先のお店のヘッダー画像を出す（表示だけ・DB は変えない＝お店が変えれば追従）
   if (target.kind === 'therapist' && !target.header_url && t.affiliated_shop_id) {
     const { data: shopRow } = await supabase

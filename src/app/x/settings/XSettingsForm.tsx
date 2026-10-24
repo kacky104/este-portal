@@ -54,12 +54,15 @@ export function XSettingsForm({
   email,
   affiliatedShop,
   fixedLinkUrl = null,
+  fukuesSizes = null,
   autoShowcase = false,
 }: {
   profile: XProfile;
   email: string | null;
   affiliatedShop: ShopMini | null;
   fixedLinkUrl?: string | null; // ★ 第996便: フクエス在籍のセラピストはリンク先固定（入力欄を出さない）
+  // ★ 第1631便: フクエスと結びついているセラピストは、年齢・スリーサイズをフクエスの値で表示（欄は変更不可・保存でも送らない）
+  fukuesSizes?: { age: number | null; height: number | null; bust: number | null; cup: string | null; waist: number | null; hip: number | null } | null;
   // ★ 第1238便: 認証店（フクエスに掲載中）のお店カードは、セラピスト写真から自動。手で入れる欄は出さず、保存でも送らない
   autoShowcase?: boolean;
 }) {
@@ -69,12 +72,14 @@ export function XSettingsForm({
   const [bio, setBio] = useState(profile.bio ?? '');
   const [link, setLink] = useState(profile.link_url ?? '');
   // 年齢・スリーサイズ（すべて任意）。数値欄は文字列で保持し、保存時に null/整数へ変換。
-  const [age, setAge] = useState(profile.age?.toString() ?? '');
-  const [height, setHeight] = useState(profile.height?.toString() ?? '');
-  const [bust, setBust] = useState(profile.bust?.toString() ?? '');
-  const [cup, setCup] = useState(profile.cup ?? '');
-  const [waist, setWaist] = useState(profile.waist?.toString() ?? '');
-  const [hip, setHip] = useState(profile.hip?.toString() ?? '');
+  const sizeSrc = fukuesSizes ?? profile;
+  const sizesLocked = fukuesSizes != null;
+  const [age, setAge] = useState(sizeSrc.age?.toString() ?? '');
+  const [height, setHeight] = useState(sizeSrc.height?.toString() ?? '');
+  const [bust, setBust] = useState(sizeSrc.bust?.toString() ?? '');
+  const [cup, setCup] = useState(sizeSrc.cup ?? '');
+  const [waist, setWaist] = useState(sizeSrc.waist?.toString() ?? '');
+  const [hip, setHip] = useState(sizeSrc.hip?.toString() ?? '');
   // 年齢・スリーサイズはセラピストのみ、住所はお店のみ。
   const isTherapist = profile.kind === 'therapist';
   const isShop = profile.kind === 'shop';
@@ -251,7 +256,8 @@ export function XSettingsForm({
         link_url: linkUrl,
         dm_disabled: dmDisabled,
         // 年齢・スリーサイズはセラピストのみ保存対象（他種別では欄を出さず、キーも送らない＝null上書き防止）。
-        ...(isTherapist
+        // ★ 第1631便: フクエスと結びついている子はフクエスの値を出しているだけなので送らない（fukuX 側の値はそのまま）
+        ...(isTherapist && !sizesLocked
           ? {
               age: toIntOrNull(age),
               height: toIntOrNull(height),
@@ -654,27 +660,32 @@ export function XSettingsForm({
       {/* ── 年齢・スリーサイズ（セラピストアカウントのみ・すべて任意）── text-base(16px) で iOS 自動ズーム抑止 */}
       {isTherapist && (
       <div className="rounded-2xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] p-4">
-        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-3 px-1">年齢・スリーサイズ（任意）</p>
+        <p className="text-[11px] font-bold text-[color:var(--x-text-muted)] mb-3 px-1">年齢・スリーサイズ{sizesLocked ? '（フクエスの値）' : '（任意）'}</p>
         <div className="grid grid-cols-2 gap-3">
-          <NumberField label="年齢" unit="歳" value={age} onChange={setAge} />
-          <NumberField label="身長 T" unit="cm" value={height} onChange={setHeight} />
-          <NumberField label="バスト B" unit="cm" value={bust} onChange={setBust} />
+          <NumberField label="年齢" unit="歳" value={age} onChange={setAge} readOnly={sizesLocked} />
+          <NumberField label="身長 T" unit="cm" value={height} onChange={setHeight} readOnly={sizesLocked} />
+          <NumberField label="バスト B" unit="cm" value={bust} onChange={setBust} readOnly={sizesLocked} />
           <div>
             <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">カップ</label>
             <input
               type="text"
               value={cup}
               onChange={(e) => setCup(e.target.value)}
-              placeholder="例: F"
+              placeholder={sizesLocked ? '' : '例: F'}
               maxLength={4}
               autoCapitalize="characters"
-              className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+              readOnly={sizesLocked}
+              className="read-only:opacity-70 w-full px-4 py-3 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
             />
           </div>
-          <NumberField label="ウエスト W" unit="cm" value={waist} onChange={setWaist} />
-          <NumberField label="ヒップ H" unit="cm" value={hip} onChange={setHip} />
+          <NumberField label="ウエスト W" unit="cm" value={waist} onChange={setWaist} readOnly={sizesLocked} />
+          <NumberField label="ヒップ H" unit="cm" value={hip} onChange={setHip} readOnly={sizesLocked} />
         </div>
-        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-2 px-1">入力した項目だけ「@ID」の横に表示されます。空欄の項目は表示されません。</p>
+        <p className="text-[10px] text-[color:var(--x-text-muted)] mt-2 px-1">
+          {sizesLocked
+            ? 'フクエスに在籍しているセラピストは、フクエスのセラピストページの年齢・スリーサイズが自動で表示されます。変更はフクエス側（お店）で行ってください。'
+            : '入力した項目だけ「@ID」の横に表示されます。空欄の項目は表示されません。'}
+        </p>
       </div>
       )}
 
@@ -815,11 +826,13 @@ function NumberField({
   unit,
   value,
   onChange,
+  readOnly = false,
 }: {
   label: string;
   unit: string;
   value: string;
   onChange: (v: string) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div>
@@ -831,7 +844,8 @@ function NumberField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           min={0}
-          className="w-full px-4 py-3 pr-10 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+          readOnly={readOnly}
+          className="read-only:opacity-70 w-full px-4 py-3 pr-10 rounded-xl border border-[color:var(--x-border-strong)] text-base text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] bg-[color:var(--x-inset)] focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[color:var(--x-text-muted)] pointer-events-none">{unit}</span>
       </div>
