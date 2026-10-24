@@ -57,6 +57,7 @@ import { AutoFitText } from "@/app/components/AutoFitText";
 import { SalonMobileNav, SalonNavBurgerButton } from "./SalonMobileNav";
 import { InfoTelLink } from "@/app/components/InfoTelLink";
 import { buildSalonNavItems } from "./salonNavItems";
+import { isSalonBookable } from "./salonBookable";
 import { SalonActionButtons } from "./SalonActionButtons";
 import { CollapsibleCourses } from "./CollapsibleCourses";
 import { CollapsibleSection } from "./CollapsibleSection";
@@ -302,11 +303,7 @@ export default async function SalonPage({
     // ★ 第1612便: ネット予約を受け付けているか（受付ON＋有効な予約コースが1つ以上）。
     //   追従バナーのネット予約ボタンを出すかどうかだけに使う（上のボタン行は従来どおり常時表示）。
     //   コースの判定は /salon/[id]/book の parseBookingCourses と同じ条件。
-    bookable: Boolean(row.booking_enabled) && Array.isArray(row.booking_courses) &&
-      (row.booking_courses as Record<string, unknown>[]).some((c) => {
-        const d = Number(c?.duration_min);
-        return String(c?.name ?? '').trim() !== '' && Number.isInteger(d) && d > 0;
-      }),
+    bookable: isSalonBookable(row.booking_enabled, row.booking_courses),
     // 掲載・出張区分（'none'=出張なし / 'available'=出張あり / 'only'=出張専門）
     dispatchType: (row.dispatch_type as 'none' | 'available' | 'only' | null) ?? 'none',
     // 構造化データ専用（求人 JobPosting と共用のカラム）。画面には表示しない。
