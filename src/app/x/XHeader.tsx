@@ -378,6 +378,8 @@ export function XHeader() {
             <div className="px-3 py-2 flex items-center gap-2 flex-wrap text-[11px]">
               {(profile?.kind === 'therapist'
                 ? [['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
+                : profile?.kind === 'user'
+                ? /* ★ 第1645便: ユーザーアカウントはセラピストガイド・お店ガイド・リンクバナーを出さない */ [['/x/guide/user', 'ユーザーガイド'], ['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー']]
                 : [['/x/guide/user', 'ユーザーガイド'], ['/x/guide/therapist', 'セラピストガイド'], ['/x/guide/shop', 'お店ガイド'], ['/x/terms', '利用規約'], ['/x/privacy', 'プライバシーポリシー'], ['/x/banner', 'リンクバナー']]
               ).map(([href, label], i) => (
                 <span key={href} className="inline-flex items-center gap-2">
