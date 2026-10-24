@@ -247,10 +247,18 @@ export function XProfileView({
                     <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 rounded-full px-1.5 py-0.5 flex-shrink-0">
                       {KIND_LABEL[target.kind] ?? target.kind}
                     </span>
+                    {/* ★ 第1630便: セラピストは @ハンドルを種別バッジの右横に（所属バッジは2行目へ） */}
+                    {target.kind === 'therapist' && (
+                      <span className="text-sm text-[color:var(--x-text-muted)] flex-shrink-0">@{target.handle}</span>
+                    )}
                   </>
                 }
               />
-              {/* 所属バッジ（therapist の確定所属先。種別バッジの右隣・店舗プロフィールへリンク） */}
+            </div>
+            {/* @handle と 住所（お店のみ）・年齢・スリーサイズ を同じ行に（狭幅は折り返してもレイアウトが崩れない）。 */}
+            <div className={`flex flex-wrap items-center gap-x-2${target.kind === 'therapist' ? ' gap-y-1 mt-1' : ''}`}>
+              {target.kind !== 'therapist' && <p className="text-sm text-[color:var(--x-text-muted)]">@{target.handle}</p>}
+              {/* 所属バッジ（therapist の確定所属先。★ 第1630便: 2行目の先頭へ・店舗プロフィールへリンク） */}
               {target.kind === 'therapist' && affiliatedShop && (
                 <Link
                   href={`/x/u/${affiliatedShop.handle}`}
@@ -267,10 +275,6 @@ export function XProfileView({
                   <span className="truncate">{affiliatedShop.displayName}所属</span>
                 </Link>
               )}
-            </div>
-            {/* @handle と 住所（お店のみ）・年齢・スリーサイズ を同じ行に（狭幅は折り返してもレイアウトが崩れない）。 */}
-            <div className="flex flex-wrap items-center gap-x-2">
-              <p className="text-sm text-[color:var(--x-text-muted)]">@{target.handle}</p>
               {/* 住所：お店アカウントのみ・address があるときだけ。Lucide MapPin 相当のインラインSVG＋住所。 */}
               {target.kind === 'shop' && target.address && (
                 <span className="inline-flex items-center gap-x-1 text-xs text-[color:var(--x-text-secondary)]">
@@ -322,13 +326,14 @@ export function XProfileView({
             {/* 数値（kind が持ち得る数だけ表示）。タップでフォロー中／フォロワー一覧へ。
                 運営(official)のみ、フォロワーの右に「承認店舗」「赤バッジセラピスト」をこの順で追加（タップで一覧へ）。
                 4項目になると狭幅で溢れるため flex-wrap で折り返す。 */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm empty:hidden">
               {followingCount !== null && (
                 <Link href={`/x/u/${target.handle}/following`} className="text-[color:var(--x-text-secondary)] hover:underline">
                   <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followingCount}</strong> フォロー中
                 </Link>
               )}
-              {followerCount !== null && (
+              {/* ★ 第1630便: セラピストアカウントはフォロワー数を出さない */}
+              {followerCount !== null && target.kind !== 'therapist' && (
                 <Link href={`/x/u/${target.handle}/followers`} className="text-[color:var(--x-text-secondary)] hover:underline">
                   <strong className="text-[color:var(--x-text-primary)] tabular-nums">{followerCount}</strong> フォロワー
                 </Link>
