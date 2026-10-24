@@ -138,7 +138,7 @@ export default function XTherapistGuidePage() {
           <h2 className="x-guide-red text-lg sm:text-xl font-bold">赤いバッジを目指そう</h2>
         </div>
         <p className={`${P} mt-3`}>
-          お店に所属して投稿をがんばると、<span className={STRONG}>赤い認証バッジ</span>が付きます。バッジが付くと、おすすめに表示されやすくなります。
+          お店に所属して投稿をしていると、<span className={STRONG}>赤い認証バッジ</span>が付きます。バッジが付くと、おすすめに表示されやすくなります。
         </p>
       </section>
 
