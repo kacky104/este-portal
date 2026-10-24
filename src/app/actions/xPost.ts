@@ -46,6 +46,14 @@ export async function createMyXPostImageUploadUrl(
 }
 
 // ── 新規投稿・リプライ ──
+// ★ 第1645便: ユーザーアカウントは投稿に URL リンクを付けられない（画面を通らずに送られても外す）。
+//   リンクが付いているときだけ投稿者の種別を見る（付いていなければ問い合わせない）。
+async function isUserKindProfile(supabase: Awaited<ReturnType<typeof me>>['supabase'], profileId: string | null | undefined): Promise<boolean> {
+  if (!profileId) return false;
+  const { data } = await supabase.from('x_profiles').select('kind').eq('id', profileId).maybeSingle();
+  return data?.kind === 'user';
+}
+
 export async function createMyXPost(input: {
   expectUid: string;
   authorProfileId: string;
@@ -64,6 +72,7 @@ export async function createMyXPost(input: {
     images: Array.isArray(input.images) ? input.images.slice(0, 4) : [],
     link_url: input.linkUrl || null,
   };
+  if (payload.link_url && (await isUserKindProfile(supabase, input.authorProfileId))) payload.link_url = null;
   if (input.parentPostId) payload.parent_post_id = input.parentPostId;
   else if (input.repliesDisabled !== null) payload.replies_disabled = !!input.repliesDisabled;
   const { data, error } = await supabase
@@ -107,6 +116,10 @@ export async function editMyXPost(input: {
     link_url: input.linkUrl || null,
     edited_at: input.editedAt,
   };
+  if (upd.link_url) {
+    const { data: postRow } = await supabase.from('x_posts').select('author_profile_id').eq('id', input.postId).maybeSingle();
+    if (await isUserKindProfile(supabase, postRow?.author_profile_id as string | undefined)) upd.link_url = null;
+  }
   if (input.repliesDisabled !== null) upd.replies_disabled = !!input.repliesDisabled;
   const { data, error } = await supabase.from('x_posts').update(upd).eq('id', input.postId).select('id');
   if (error || !data || data.length === 0) {

@@ -238,7 +238,8 @@ export function XSettingsForm({
     }
     // リンク検証（http/https のみ・スキーム無しは https:// 補完・危険スキームは弾く）。空は null。
     // ★ 第996便: 固定リンクの人は入力値を使わず固定先を保存（サーバー側でも同じに揃える）
-    const { url: linkUrl, error: linkErr } = fixedLinkUrl ? { url: fixedLinkUrl, error: null } : normalizeLinkUrl(link);
+    // ★ 第1645便: ユーザーアカウントはリンクを持てない（欄を出さず、保存では空にする）
+    const { url: linkUrl, error: linkErr } = fixedLinkUrl ? { url: fixedLinkUrl, error: null } : normalizeLinkUrl(profile.kind === 'user' ? '' : link);
     if (linkErr) {
       setError(linkErr);
       return;
@@ -427,7 +428,7 @@ export function XSettingsForm({
 
       {/* ── リンク（任意・http/https のみ）── text-base(16px) で iOS 自動ズーム抑止
           ★ 第996便: フクエスに在籍しているセラピストは、フクエスの個別ページに固定（入力欄なし） */}
-      {fixedLinkUrl ? (
+      {profile.kind === 'user' ? null : fixedLinkUrl ? (
         <div>
           <label className="text-[11px] font-bold text-[color:var(--x-text-muted)] block mb-1.5 px-1">リンク</label>
           <div className="w-full px-4 py-3 rounded-xl border border-[color:var(--x-border)] text-sm bg-[color:var(--x-inset)] text-[color:var(--x-text-secondary)] break-all">

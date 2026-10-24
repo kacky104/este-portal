@@ -307,11 +307,11 @@ export function XProfileView({
 
             {/* リンク（任意・http/https のみ）と fukuX開始日（作成日・変更不可）を同じ行に。
                 リンクが無くても開始日は単独で表示する（狭幅は折り返し）。 */}
-            {(safeHref(fixedLinkUrl ?? target.link_url) || (startDate && target.kind !== 'therapist')) && (
+            {(safeHref(target.kind === 'user' ? null : (fixedLinkUrl ?? target.link_url)) || (startDate && target.kind !== 'therapist')) && (
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                {safeHref(fixedLinkUrl ?? target.link_url) && (
+                {safeHref(target.kind === 'user' ? null : (fixedLinkUrl ?? target.link_url)) && (
                   <a
-                    href={safeHref(fixedLinkUrl ?? target.link_url)!}
+                    href={safeHref(target.kind === 'user' ? null : (fixedLinkUrl ?? target.link_url))!}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 max-w-full text-sm font-medium text-[color:var(--x-accent)] hover:underline"

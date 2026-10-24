@@ -66,6 +66,8 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
   // ★ 第1482便（2026-10-14・カッキーさん）: セラピストの新しい投稿は「リプライを受け付けない」で始める（写メ日記の同時投稿・第1477便とそろえる）。
   //   お店・運営はいままでどおり（受け付ける）。編集は今の投稿の設定のまま。
   const repliesOffByDefault = me.kind === 'therapist';
+  // ★ 第1645便: ユーザーアカウントは URL リンクを付けられない（入力欄を出さない・送るときも空）
+  const canLink = me.kind !== 'user';
   const [repliesDisabled, setRepliesDisabled] = useState(editPost?.repliesDisabled ?? repliesOffByDefault);
 
   // ── 下書き関連 ──
@@ -137,7 +139,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
   const doSaveDraft = async (): Promise<boolean> => {
     if (isEdit) return false; // 既存投稿の編集は下書き対象外
     if (!hasDraftableContent || savingDraft || posting || uploading) return false;
-    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
+    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(canLink ? link : '');
     if (linkErr) {
       setError(linkErr);
       return false;
@@ -202,7 +204,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
   const submit = async () => {
     if (!canPost) return;
     // リンク検証（http/https のみ・スキーム無しは https:// 補完・危険スキームは弾く）。空はリンク無し。
-    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(link);
+    const { url: linkUrl, error: linkErr } = normalizeLinkUrl(canLink ? link : '');
     if (linkErr) {
       setError(linkErr);
       return;
@@ -353,7 +355,8 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
         </div>
       )}
 
-      {/* リンク（任意・http/https のみ）。text-base(16px) で iOS 自動ズーム抑止。 */}
+      {/* リンク（任意・http/https のみ）。text-base(16px) で iOS 自動ズーム抑止。★ 第1645便: ユーザーアカウントは出さない */}
+      {canLink && (
       <div className="mt-2 flex items-center gap-2 rounded-xl border border-[color:var(--x-border-strong)] bg-[color:var(--x-inset)] px-3 focus-within:ring-2 focus-within:ring-indigo-300 focus-within:border-transparent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[color:var(--x-text-muted)] flex-shrink-0">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -371,6 +374,7 @@ export const XComposer = forwardRef<XComposerHandle, XComposerProps>(function XC
           className="flex-1 py-2.5 text-base bg-transparent text-[color:var(--x-text-primary)] placeholder:text-[color:var(--x-text-muted)] focus:outline-none"
         />
       </div>
+      )}
 
       {/* リプライ不可トグル（通常投稿・therapist/shop のみ） */}
       {canToggleReplies && (
