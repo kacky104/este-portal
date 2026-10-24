@@ -405,15 +405,15 @@ export function XProfileView({
               </span>
             </button>
           ) : (
-            // 開いた状態：3列のカード型グリッド（上に大きめアイコン・下に名前。@ハンドルは省略してすっきり見せる）。
+            // 開いた状態：4列のカード型グリッド（★ 第1629便: 3列→4列・すき間を詰める）（上に大きめアイコン・下に名前。@ハンドルは省略してすっきり見せる）。
             // 各カードのタップで各プロフィールへ＋下の「閉じる」でアイコン横並びに戻る。
             <div className="space-y-1">
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-4 gap-1">
                 {affiliatedTherapists.map((th) => (
                   <Link
                     key={th.id}
                     href={`/x/u/${th.handle}`}
-                    className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[color:var(--x-surface-hover)] transition-colors"
+                    className="flex flex-col items-center gap-1.5 px-0.5 py-2 rounded-xl hover:bg-[color:var(--x-surface-hover)] transition-colors"
                   >
                     <span className="relative w-14 h-14 rounded-full overflow-hidden border border-[color:var(--x-border)] bg-gradient-to-br from-indigo-300 to-sky-300 flex items-center justify-center flex-shrink-0">
                       {th.avatarUrl ? (
