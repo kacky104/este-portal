@@ -2,6 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { mapDraftRow, type XDraft, type XDraftRow } from '@/app/x/xDrafts';
+import { containsUrl, USER_URL_BLOCKED_MESSAGE } from '@/app/x/xUrlGuard';
 
 // ★★ 第984便（2026-09-29・カッキーさん）: fukuX の投稿まわり（投稿・リプライ・編集・削除・固定・下書き・ストーリー）を
 //   【サーバー側】で行う（第980〜983便と同じ、アプリ内ブラウザで送る前に止まる事故の対策）。
@@ -73,6 +74,8 @@ export async function createMyXPost(input: {
     link_url: input.linkUrl || null,
   };
   if (payload.link_url && (await isUserKindProfile(supabase, input.authorProfileId))) payload.link_url = null;
+  // ★ 第1647便: ユーザーアカウントはコメント（本文）にも URL を書けない
+  if (containsUrl(input.body) && (await isUserKindProfile(supabase, input.authorProfileId))) return { ok: false, error: USER_URL_BLOCKED_MESSAGE };
   if (input.parentPostId) payload.parent_post_id = input.parentPostId;
   else if (input.repliesDisabled !== null) payload.replies_disabled = !!input.repliesDisabled;
   const { data, error } = await supabase
@@ -116,9 +119,13 @@ export async function editMyXPost(input: {
     link_url: input.linkUrl || null,
     edited_at: input.editedAt,
   };
-  if (upd.link_url) {
+  if (upd.link_url || containsUrl(input.body)) {
     const { data: postRow } = await supabase.from('x_posts').select('author_profile_id').eq('id', input.postId).maybeSingle();
-    if (await isUserKindProfile(supabase, postRow?.author_profile_id as string | undefined)) upd.link_url = null;
+    if (await isUserKindProfile(supabase, postRow?.author_profile_id as string | undefined)) {
+      // ★ 第1647便: ユーザーアカウントは編集でも本文に URL を書けない
+      if (containsUrl(input.body)) return { ok: false, error: USER_URL_BLOCKED_MESSAGE };
+      upd.link_url = null;
+    }
   }
   if (input.repliesDisabled !== null) upd.replies_disabled = !!input.repliesDisabled;
   const { data, error } = await supabase.from('x_posts').update(upd).eq('id', input.postId).select('id');

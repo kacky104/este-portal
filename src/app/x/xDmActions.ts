@@ -2,6 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import type { DmOtherProfile } from './xDmShared';
+import { containsUrl, USER_URL_BLOCKED_MESSAGE } from './xUrlGuard';
 
 // ★★ 第985便（2026-09-29・カッキーさん）: fukuX の DM・通知の既読・店舗所属の操作を【サーバー側】で行う。
 // ★ 第980〜984便と同じ、アプリ内ブラウザで送る前に止まる事故の対策。
@@ -85,6 +86,11 @@ export async function sendXMessage(conversationId: number, body: string): Promis
   if (!text) return { ok: false, error: 'メッセージを入力してください' };
   const { supabase, myId } = await ctx();
   if (!myId) return NO_LOGIN;
+  // ★ 第1647便: ユーザーアカウントはメッセージに URL を書けない
+  if (containsUrl(text)) {
+    const { data: meRow } = await supabase.from('x_profiles').select('kind').eq('id', myId).maybeSingle();
+    if (meRow?.kind === 'user') return { ok: false, error: USER_URL_BLOCKED_MESSAGE };
+  }
   const { data, error } = await supabase
     .from('x_messages')
     .insert({ conversation_id: conversationId, sender_profile_id: myId, body: text })
