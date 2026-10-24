@@ -34,6 +34,7 @@ import {
   assertWithinInputVars,
   decodeGirlWork,
   verifyAfterWrite,
+  onlyHeaderCountMismatch,
   type GirlWork,
   type WorkPage,
 } from './ekichikaWorkParse';
@@ -3471,6 +3472,30 @@ function afterVerifyWork(
   if (sent.length === 0) return unknown('sent_missing', '送った内容が文脈に残っていない');
 
   const v = verifyAfterWrite(sent, after, { expectedDateLabels: ctx.expectedDateLabels });
+
+  // ★★★ 第1654便: 合わなかったのが「画面上の日別出勤人数」だけなら、反映できたとして記録する。
+  //   ★ セル（全員・全日の時刻）・人数・日付はすべて一致している＝書き込みは届いている。
+  //   ★ 食い違いは消さずに注記（headerOnly）として残す。★ セルが1件でも違えば、これまでどおり失敗。
+  if (!v.ok && onlyHeaderCountMismatch(v.problems)) {
+    const first = v.problems[0];
+    return {
+      kind: 'done',
+      audits: [
+        { event: 'write_work', outcome: 'ok', detail: { changed, people: sent.length, flowId } },
+        {
+          event: 'verify_work',
+          outcome: 'ok',
+          detail: {
+            people: after.girls.length,
+            headerOnly: v.problems.length,
+            sample: first ? (first.kind + ' ' + first.detail).slice(0, 110) : '',
+            flowId,
+          },
+        },
+      ],
+      note: '書き込みと照合が終わった（変更' + changed + '件・' + sent.length + '名）。画面の日別人数だけ' + v.problems.length + '日ぶん食い違い（駅ちか側の数え方）',
+    };
+  }
 
   if (v.ok) {
     // ★★ ここで初めて「更新した」と言える。write_work の 'ok' もこの瞬間に書く。

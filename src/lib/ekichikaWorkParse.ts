@@ -558,6 +558,23 @@ export function verifyAfterWrite(
   return { ok: problems.length === 0, problems };
 }
 
+/**
+ * ★★★ 第1654便（2026-10-25）: 合わなかったのが【画面上の日別出勤人数だけ】か。
+ *
+ * ★ 何が起きていたか（ラビリンス様・駅ちか枠1・10/24〜25 の明け方）:
+ *   出勤のセルは全員・全日で一致（cells 0）・人数も日付も合っているのに、
+ *   日0（明け方なのでまだ前日）の「出勤人数」だけ、駅ちかの画面がこちらより1人少なかった（5→4・4→3）。
+ *   ★ 駅ちかは、終わった出勤（日をまたぐ出勤）を上の人数に数えないと見られる。★ 書き込みは届いている。
+ *   それを write_work 'failed' と記録していたので、5分後に読むと「既に一致」なのに失敗が積み上がっていた。
+ *
+ * ★ 上の人数は「切り捨て（max_input_vars）に気づく第2の目」。切り捨てなら人数（girl_count / girl_missing）か
+ *   セル（cell_mismatch）で必ず引っかかる。★ セルを全部照合できていれば、人数表示だけで失敗にしない。
+ * ★ problems が空のとき（そもそも一致）は false（★ 呼ぶ側は v.ok を先に見る）。
+ */
+export function onlyHeaderCountMismatch(problems: readonly VerifyProblem[]): boolean {
+  return problems.length > 0 && problems.every((p) => p.kind === 'header_count_mismatch');
+}
+
 function describeCell(c: WorkCell): string {
   return c.work ? c.start + '〜' + c.end : '休み';
 }
