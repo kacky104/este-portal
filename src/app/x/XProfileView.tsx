@@ -368,13 +368,13 @@ export function XProfileView({
       {target.kind === 'shop' && (
         <div className="x-card mt-3 -mx-4 rounded-none bg-[color:var(--x-surface)] shadow-[0_4px_16px_rgba(109,40,217,0.3)] p-4">
           <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">
-            所属セラピスト
+            所属fukuXセラピスト
             {affiliatedTherapists.length > 0 && (
               <span className="ml-1.5 text-xs font-bold text-[color:var(--x-text-muted)] tabular-nums">{affiliatedTherapists.length}</span>
             )}
           </h2>
           {affiliatedTherapists.length === 0 ? (
-            <p className="text-xs text-[color:var(--x-text-muted)] py-2">所属セラピストはまだいません</p>
+            <p className="text-xs text-[color:var(--x-text-muted)] py-2">所属セラピストでフクエックス利用者はまだいません</p>
           ) : !therapistListOpen ? (
             // 閉じた状態：アイコンだけの横並び（折り返しあり）。タップで名前つき一覧を展開。
             <button

@@ -262,11 +262,11 @@ export function XShop({
       {/* ── 所属セラピスト一覧 ── */}
       <section>
         <h2 className="text-sm font-black text-[color:var(--x-text-primary)] mb-2">
-          所属セラピスト
+          所属fukuXセラピスト
           {affiliated.length > 0 && <span className="ml-1.5 text-xs font-bold text-[color:var(--x-text-muted)] tabular-nums">{affiliated.length}</span>}
         </h2>
         {affiliated.length === 0 ? (
-          <p className="text-xs text-[color:var(--x-text-muted)] py-1">所属セラピストはまだいません</p>
+          <p className="text-xs text-[color:var(--x-text-muted)] py-1">所属セラピストでフクエックス利用者はまだいません</p>
         ) : (
           <div className="space-y-2">
             {affiliated.map((th) => (
