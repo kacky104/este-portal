@@ -538,8 +538,9 @@ export function XPostCard({
           <span className="tabular-nums font-medium">{likeCount}</span>
         </button>
 
-        {/* リプライ数。一覧ではタップで投稿詳細へ。詳細ページ内では静的表示（深い返信導線を作らない）。 */}
-        {showReplyLink ? (
+        {/* リプライ数。一覧ではタップで投稿詳細へ。詳細ページ内では静的表示（深い返信導線を作らない）。
+            ★ 第1634便: コメント（リプライ）をオフにした投稿はコメントマークを出さない */}
+        {view.repliesDisabled ? null : showReplyLink ? (
           <Link
             href={`/x/post/${post.id}`}
             className="inline-flex items-center gap-1.5 text-sm text-[color:var(--x-text-muted)] hover:text-indigo-500 transition-colors"
