@@ -18,10 +18,14 @@ export default async function XFollowersPage({ params }: { params: Promise<{ han
   const target = await resolveProfileMini(decoded);
   if (!target) notFound();
 
+  // ★ 第1635便: セラピストのフォロワーは本人にしか見せない（画面にも「ほかの人には表示されません」と出している）。
+  //   本人以外（未ログイン含む）が URL を直接開いたときは 404。
+  const { profile } = await getXContext();
+  if (target.kind === 'therapist' && (!profile || profile.id !== target.id)) notFound();
+
   const users = await fetchFollowUsers(target.id, 'followers');
 
   // スキボタンを出すのは「本人（このプロフィールの owner）かつ therapist」のときだけ。
-  const { profile } = await getXContext();
   const sukiEnabled = !!profile && profile.id === target.id && profile.kind === 'therapist';
 
   // owner かつ therapist のときだけ、表示中フォロワーに対する既存スキ（from=自分）をまとめ取得して初期状態に。
