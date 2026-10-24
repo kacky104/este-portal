@@ -211,12 +211,44 @@ export function shouldGiveUpAuto(recentOutcomes: readonly PushOutcome[]): boolea
  *
  * @param rows 新しい順。plan_work が混ざっていてよい（落とす）
  */
+/**
+ * ★★★ 第1653便（2026-10-25）: 「駅ちかを読んで、フクエスと既に一致していると確かめた回」か。
+ *
+ * ★ 何が起きていたか（ラビリンス様・駅ちか枠1・10/24〜25）:
+ *   明け方の自動の周で「変更1件」を送る → 直後の読み直しで照合が合わず write_work 'failed'
+ *   → 5分後に読むと「駅ちかの出勤は、フクエスの内容と既に一致しています」（plan_work 'ok'・変更0件）。
+ *   駅ちかは差が無ければ送らない（write_work を書かない）ので、【write_work 'ok' が一度も付かない】。
+ *   そのせいで:
+ *     ・見張り（judgeWriteStall）が「変えたのに24時間送っていない」と運営にメールを出した（誤報）
+ *     ・自動停止（shouldGiveUpAuto）の「続けて失敗」が、一致を確かめた回で切れず、3回目で自動が切れるところだった
+ * → 一致を確かめた回を「同期できた」と数える。
+ *
+ * ★ 数えるのは【変更0件・止めた理由なし・突き合わせた相手が1人以上】の plan_work 'ok' だけ。
+ *   （readWriteHistory の matchedAt と同じ考え。★ 0人と比べて「一致」は嘘になる・workPlan.summarizePlan）
+ * ★ detail の値は jsonb のままでも ->> で取り出した文字列でも読めるようにしてある。
+ */
+export function isInSyncConfirmation(row: { event: string; outcome: string; detail?: unknown }): boolean {
+  if (row.event !== 'plan_work' || row.outcome !== 'ok') return false;
+  const d = (row.detail && typeof row.detail === 'object' ? row.detail : {}) as Record<string, unknown>;
+  const num = (v: unknown): number | null => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    if (typeof v === 'string' && v.trim() !== '') { const n = Number(v); return Number.isFinite(n) ? n : null; }
+    return null;
+  };
+  const changes = num(d['changes']);
+  const targets = num(d['targets']);
+  const sendable = d['sendable'] === true || d['sendable'] === 'true';
+  return changes === 0 && targets !== null && targets > 0 && sendable;
+}
+
 export function pushOutcomesForGiveUp(
   rows: ReadonlyArray<{ event: string; outcome: string; detail?: unknown }>,
 ): PushOutcome[] {
   const out: PushOutcome[] = [];
   const seenFlows = new Set<string>();
   for (const r of rows) {
+    // ★ 第1653便: 駅ちかで「既に一致」と確かめた回は 'ok'（そこまでの「続けて」は切れる）
+    if (isInSyncConfirmation(r)) { out.push('ok'); continue; }
     if (r.event !== 'write_work') continue;
     const d = (r.detail && typeof r.detail === 'object' ? r.detail : {}) as Record<string, unknown>;
     const flowId = typeof d['flowId'] === 'string' ? (d['flowId'] as string) : '';

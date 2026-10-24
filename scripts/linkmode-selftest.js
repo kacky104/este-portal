@@ -153,6 +153,26 @@ eq('記録が無ければ切らない', m.shouldGiveUpAuto([]), false);
     g([W('failed', { reason: 'verify_mismatch', flowId: 'a' }), W('failed', { flowId: 'b' }), W('failed', { flowId: 'c' })]), true);
   eq('★★ plan_work は数えない（落とす）', m.pushOutcomesForGiveUp([P('stopped'), W('failed', { flowId: 'a' }), P('ok')]), ['failed']);
 
+  // ★★★ 第1653便: 駅ちかで「既に一致」と確かめた回（plan_work ok・変更0件・止めた理由なし・相手1人以上）
+  const inSync = { event: 'plan_work', outcome: 'ok', detail: { changes: 0, targets: 38, sendable: true, people: 38 } };
+  const plan1 = { event: 'plan_work', outcome: 'ok', detail: { changes: 1, targets: 38, sendable: true, people: 38 } };
+  const vfail = (f) => W('failed', { changed: 1, people: 38, reason: 'verify_mismatch', flowId: f });
+  // ラビリンス様の駅ちか枠1（10/24〜25 の並び。新しい順）: 一致 → 照合NG → 組み立て → 一致 → 照合NG
+  const ekichika = [inSync, vfail('b'), plan1, inSync, vfail('a'), plan1];
+  eq('★★★ 一致を確かめた回は ok', m.pushOutcomesForGiveUp(ekichika), ['ok', 'failed', 'ok', 'failed']);
+  eq('★★★ 照合NGのあと一致を確かめていれば、3回目で自動を切らない',
+    g([vfail('c'), inSync, vfail('b'), inSync, vfail('a')]), false);
+  eq('★★ 一致の確認が挟まらなければ、今までどおり3回で切る', g([vfail('c'), vfail('b'), vfail('a')]), true);
+  eq('★ 変更ありの組み立ては数えない', m.isInSyncConfirmation(plan1), false);
+  eq('★★ 0人と比べた「一致」は数えない',
+    m.isInSyncConfirmation({ event: 'plan_work', outcome: 'ok', detail: { changes: 0, targets: 0, sendable: true } }), false);
+  eq('★★ 止めた計画は数えない',
+    m.isInSyncConfirmation({ event: 'plan_work', outcome: 'stopped', detail: { changes: 0, targets: 38, sendable: false } }), false);
+  eq('★ ->> で取り出した文字列でも読める',
+    m.isInSyncConfirmation({ event: 'plan_work', outcome: 'ok', detail: { changes: '0', targets: '38', sendable: 'true' } }), true);
+  eq('★ エステ魂の plan_work（changes が無い）は数えない',
+    m.isInSyncConfirmation({ event: 'plan_work', outcome: 'ok', detail: { people: 5, changed: 0 } }), false);
+
   // 送るものがあったのに1人も保存できなかった回（changed > 0）は、今までどおり stopped
   const blockedSummary = (f) => W('stopped', { people: 29, saved: 0, changed: 1, flowId: f });
   const blockedPerson = (f) => W('stopped', { castId: '123', reason: 'auto_would_clear', workingBefore: 1, flowId: f });

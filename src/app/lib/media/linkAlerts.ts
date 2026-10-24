@@ -1,7 +1,7 @@
 import type { createServiceClient } from '@/app/lib/supabase/service';
 import { judgeWriteStall, stallMessage, mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { judgeImportStall } from '@/lib/importStall';
-import { isWriteDirection } from '@/lib/mediaLinkMode';
+import { isWriteDirection, isInSyncConfirmation } from '@/lib/mediaLinkMode';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { findMediaSite } from '@/lib/mediaSites';
 
@@ -19,7 +19,7 @@ import { findMediaSite } from '@/lib/mediaSites';
 type Svc = ReturnType<typeof createServiceClient>;
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 
-type AuditRow = { provider: unknown; slot: unknown; event: unknown; outcome: unknown; created_at: unknown; mode: unknown };
+type AuditRow = { provider: unknown; slot: unknown; event: unknown; outcome: unknown; created_at: unknown; mode: unknown; changes?: unknown; targets?: unknown; sendable?: unknown };
 
 export async function computeMediaLinkAlerts(svc: Svc, salonId: number): Promise<Result<MediaLinkAlert[]>> {
   // ★★ 第51便から【全部の枠】を読む。向きで担当が分かれる:
@@ -36,11 +36,12 @@ export async function computeMediaLinkAlerts(svc: Svc, salonId: number): Promise
     //   ★ 第1117便: detail は mode だけ取り出す（write_work の detail は大きいことがある）。
     svc
       .from('salon_media_audit')
-      .select('provider, slot, event, outcome, created_at, mode:detail->>mode')
+      // ★ 第1653便: plan_work も読む（「既に一致」を確かめた回を、反映できたものとして数える）。detail は要る3つだけ
+      .select('provider, slot, event, outcome, created_at, mode:detail->>mode, changes:detail->>changes, targets:detail->>targets, sendable:detail->>sendable')
       .eq('salon_id', salonId)
-      .in('event', ['link_mode_changed', 'write_work'])
+      .in('event', ['link_mode_changed', 'write_work', 'plan_work'])
       .order('created_at', { ascending: false })
-      .limit(200),
+      .limit(400),   // ★ 第1653便: plan_work も読むので 200 → 400
     // ★★★ 鍵が使えない枠で「反映していない」を止まりと呼ばない（第87便で見つけた食い違い）。
     //   ★ ログイン情報の「このログイン情報を使わない」は salon_media_credentials の旗を倒すだけで、
     //     salon_import_sources.link_mode は 'write' のまま残る。
@@ -68,7 +69,13 @@ export async function computeMediaLinkAlerts(svc: Svc, salonId: number): Promise
   for (const r of audit) {
     const k = key(String(r.provider), Number(r.slot));
     const at = String(r.created_at);
-    if (r.event === 'write_work' && r.outcome === 'ok') {
+    // ★ 第1653便: 駅ちかを読んで「既に一致」と確かめた回も、反映できた時刻として数える
+    //   （差が無ければ送らないので write_work 'ok' が付かず、誤って「止まっています」を出していた）
+    const inSync = isInSyncConfirmation({
+      event: String(r.event), outcome: String(r.outcome),
+      detail: { changes: r.changes, targets: r.targets, sendable: r.sendable },
+    });
+    if ((r.event === 'write_work' && r.outcome === 'ok') || inSync) {
       if (!lastOkAt.has(k)) lastOkAt.set(k, at);          // 新しい順なので最初の1件が最新
     } else if (r.event === 'link_mode_changed') {
       const mode = r.mode;
