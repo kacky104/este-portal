@@ -256,25 +256,8 @@ export function XProfileView({
               />
             </div>
             {/* @handle と 住所（お店のみ）・年齢・スリーサイズ を同じ行に（狭幅は折り返してもレイアウトが崩れない）。 */}
-            <div className={`flex flex-wrap items-center gap-x-2${target.kind === 'therapist' ? ' gap-y-1 mt-1' : ''}`}>
+            <div className={`flex flex-wrap items-center gap-x-2${target.kind === 'therapist' ? ' gap-y-1 mt-1 empty:hidden' : ''}`}>
               {target.kind !== 'therapist' && <p className="text-sm text-[color:var(--x-text-muted)]">@{target.handle}</p>}
-              {/* 所属バッジ（therapist の確定所属先。★ 第1630便: 2行目の先頭へ・店舗プロフィールへリンク） */}
-              {target.kind === 'therapist' && affiliatedShop && (
-                <Link
-                  href={`/x/u/${affiliatedShop.handle}`}
-                  className="inline-flex items-center gap-1 max-w-full text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full pl-1 pr-2.5 py-1 hover:bg-emerald-100 transition-colors"
-                >
-                  <span className="relative w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-emerald-300 to-teal-300 flex items-center justify-center flex-shrink-0">
-                    {affiliatedShop.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={affiliatedShop.avatarUrl} alt={affiliatedShop.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-white text-[10px] font-bold">{affiliatedShop.displayName.charAt(0) || '?'}</span>
-                    )}
-                  </span>
-                  <span className="truncate">{affiliatedShop.displayName}所属</span>
-                </Link>
-              )}
               {/* 住所：お店アカウントのみ・address があるときだけ。Lucide MapPin 相当のインラインSVG＋住所。 */}
               {target.kind === 'shop' && target.address && (
                 <span className="inline-flex items-center gap-x-1 text-xs text-[color:var(--x-text-secondary)]">
@@ -298,12 +281,33 @@ export function XProfileView({
                 <p className="text-xs text-[color:var(--x-text-secondary)] tabular-nums">{measurements.join(' ')}</p>
               )}
             </div>
+            {target.kind === 'therapist' && affiliatedShop && (
+              <div className="mt-1.5">
+                {/* 所属バッジ（therapist の確定所属先。★ 第1632便: 年齢・スリーサイズの下＝3行目・店舗プロフィールへリンク） */}
+                {target.kind === 'therapist' && affiliatedShop && (
+                  <Link
+                    href={`/x/u/${affiliatedShop.handle}`}
+                    className="inline-flex items-center gap-1 max-w-full text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full pl-1 pr-2.5 py-1 hover:bg-emerald-100 transition-colors"
+                  >
+                    <span className="relative w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-emerald-300 to-teal-300 flex items-center justify-center flex-shrink-0">
+                      {affiliatedShop.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={affiliatedShop.avatarUrl} alt={affiliatedShop.displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-[10px] font-bold">{affiliatedShop.displayName.charAt(0) || '?'}</span>
+                      )}
+                    </span>
+                    <span className="truncate">{affiliatedShop.displayName}所属</span>
+                  </Link>
+                )}
+              </div>
+            )}
 
             {target.bio && <p className="text-sm text-[color:var(--x-text-primary)] leading-relaxed whitespace-pre-wrap break-words mt-2">{target.bio}</p>}
 
             {/* リンク（任意・http/https のみ）と fukuX開始日（作成日・変更不可）を同じ行に。
                 リンクが無くても開始日は単独で表示する（狭幅は折り返し）。 */}
-            {(safeHref(fixedLinkUrl ?? target.link_url) || startDate) && (
+            {(safeHref(fixedLinkUrl ?? target.link_url) || (startDate && target.kind !== 'therapist')) && (
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
                 {safeHref(fixedLinkUrl ?? target.link_url) && (
                   <a
@@ -319,7 +323,8 @@ export function XProfileView({
                     <span className="truncate">{fixedLinkUrl ? 'セラピストページ' : linkDomain(target.link_url!)}</span>
                   </a>
                 )}
-                {startDate && <span className="text-xs text-[color:var(--x-text-secondary)]">{startDate}</span>}
+                {/* ★ 第1632便: セラピストは登録年月日を出さない */}
+                {startDate && target.kind !== 'therapist' && <span className="text-xs text-[color:var(--x-text-secondary)]">{startDate}</span>}
               </div>
             )}
 
