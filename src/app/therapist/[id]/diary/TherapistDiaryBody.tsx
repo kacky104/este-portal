@@ -11,6 +11,8 @@ import { DiaryPagination } from '@/components/DiaryPagination';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { buildBreadcrumbJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
 import { DiaryThumb } from '@/components/DiaryThumb';
+import { SalonCtaBarAlways } from '@/app/salon/[id]/SalonCtaBar';
+import { isSalonBookable } from '@/app/salon/[id]/salonBookable';
 
 const PAGE_SIZE = 32;
 
@@ -51,7 +53,7 @@ export async function TherapistDiaryBody({ id, page }: { id: string; page: numbe
 
   const { data: salonRow } = await supabase
     .from('salons')
-    .select('id, name, theme, is_hidden')
+    .select('id, name, theme, is_hidden, phone, line_url, booking_enabled, booking_courses, listing_plan')
     .eq('id', tRow.salon_id as number)
     .single();
 
@@ -194,6 +196,16 @@ export async function TherapistDiaryBody({ id, page }: { id: string; page: numbe
 
         <DiaryPagination basePath={`/therapist/${id}/diary`} page={page} totalPages={totalPages} pathMode />
       </main>
+
+      {/* ★ 第1627便: 店舗詳細と同じ画面下の追従バナー（ネット予約・電話をする・LINE予約）。無料掲載の店舗は出さない */}
+      {salonRow.listing_plan !== 'free' && (
+        <SalonCtaBarAlways
+          salonId={tRow.salon_id as number}
+          phone={(salonRow.phone as string | null) || null}
+          lineUrl={(salonRow.line_url as string | null) || null}
+          bookable={isSalonBookable(salonRow.booking_enabled, salonRow.booking_courses)}
+        />
+      )}
     </div>
   );
 }
