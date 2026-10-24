@@ -43,6 +43,8 @@ import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import { SalonMobileNav } from '@/app/salon/[id]/SalonMobileNav';
 import { fetchSalonNavItems } from '@/app/salon/[id]/salonNavItems';
 import SameSalonTherapists from './SameSalonTherapists';
+import { SalonCtaBarAlways } from '@/app/salon/[id]/SalonCtaBar';
+import { isSalonBookable } from '@/app/salon/[id]/salonBookable';
 
 // ── helpers ───────────────────────────────────────────────────
 
@@ -177,7 +179,7 @@ export default async function TherapistPublicPage({
 
   const { data: salonRow } = await supabase
     .from('salons')
-    .select('id, name, area, hours, address, theme, is_hidden')
+    .select('id, name, area, hours, address, theme, is_hidden, phone, line_url, booking_enabled, booking_courses, listing_plan')
     .eq('id', tRow.salon_id as number)
     .single();
 
@@ -900,6 +902,16 @@ export default async function TherapistPublicPage({
 
       {/* ─── Footer ──────────────────────────────────────── */}
       <SiteFooter inner="max-w-4xl" />
+
+      {/* ★ 第1626便: 店舗詳細と同じ画面下の追従バナー（ネット予約・電話をする・LINE予約）。無料掲載の店舗は出さない */}
+      {salonRow.listing_plan !== 'free' && (
+        <SalonCtaBarAlways
+          salonId={tRow.salon_id as number}
+          phone={(salonRow.phone as string | null) || null}
+          lineUrl={(salonRow.line_url as string | null) || null}
+          bookable={isSalonBookable(salonRow.booking_enabled, salonRow.booking_courses)}
+        />
+      )}
     </div>
   );
 }

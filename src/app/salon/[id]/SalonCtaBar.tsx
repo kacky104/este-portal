@@ -135,3 +135,19 @@ export function SalonSubpageCtaBar({ salonId, phone, lineUrl, bookable }: { salo
     />
   );
 }
+
+// ★ 第1626便: 店舗の外にあるページ（セラピスト個別 /therapist/[id]）用。最初から出しておく。
+export function SalonCtaBarAlways({ salonId, phone, lineUrl, bookable }: { salonId: number; phone: string | null; lineUrl: string | null; bookable: boolean }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return (
+    <SalonCtaBar
+      salonId={salonId}
+      phone={phone}
+      lineUrl={lineUrl}
+      bookHref={`/salon/${salonId}/book`}
+      bookable={bookable}
+      shown={mounted}
+    />
+  );
+}
