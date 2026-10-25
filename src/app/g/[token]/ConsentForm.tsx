@@ -142,6 +142,8 @@ export function ConsentForm({
     // ★ 第1444便: フクエスポイントの受け取り券（c）も渡す（加盟店だけ）
     const q = new URLSearchParams();
     if (r.salonId) q.set('s', String(r.salonId));
+    // ★ 第1655便: t = 担当セラピストの番号（完了画面の「本日のセラピスト」用。お店が公開のときだけ付く）
+    if (r.salonId && r.therapistId) q.set('t', String(r.therapistId));
     if (r.pointToken) q.set('c', r.pointToken);
     window.location.replace(`/g/done${q.toString() ? `?${q.toString()}` : ''}`);
   };

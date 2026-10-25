@@ -67,8 +67,11 @@ eq('★ ID が空なら動かさない', v.shouldRunGa('', 'fukues.com', '/'), f
 eq('★ いまの GA_MEASUREMENT_ID は 空 か 正しい形', v.GA_MEASUREMENT_ID === '' || v.isValidGaId(v.GA_MEASUREMENT_ID), true);
 
 console.log('── 7. アクリルスタンドの印とリンク（第1404便） ──');
-eq('リンクの形', v.acrylicStandSalonHref(5), '/salon/5?utm_source=acrylic_stand&utm_medium=qr&utm_campaign=crm_consent');
-eq('文字の番号でも同じ', v.acrylicStandSalonHref('12'), '/salon/12?' + v.ACRYLIC_STAND_UTM);
+eq('リンクの形', v.acrylicStandSalonHref(5), '/salon/5?utm_source=acrylic_stand&utm_medium=qr&utm_campaign=crm_consent&utm_content=salon');
+eq('文字の番号でも同じ', v.acrylicStandSalonHref('12'), '/salon/12?' + v.ACRYLIC_STAND_UTM + '&utm_content=salon');
+// ★ 第1655便: 本日のセラピスト
+eq('★ セラピストのリンクの形', v.acrylicStandTherapistHref(77), '/therapist/77?' + v.ACRYLIC_STAND_UTM + '&utm_content=therapist');
+eq('★ セラピスト: 空・0・記号は出さない', [v.acrylicStandTherapistHref(''), v.acrylicStandTherapistHref('0'), v.acrylicStandTherapistHref('7/../x'), v.acrylicStandTherapistHref(null)], [null, null, null, null]);
 eq('★ 空は出さない', v.acrylicStandSalonHref(''), null);
 eq('★ null は出さない', v.acrylicStandSalonHref(null), null);
 eq('★ 0 は出さない', v.acrylicStandSalonHref('0'), null);

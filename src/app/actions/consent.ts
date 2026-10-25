@@ -59,7 +59,7 @@ export async function submitConsent(
   bookingId: string,
   agreed: boolean,
   signaturePng: string,
-): Promise<{ ok: true; timeLabel: string; salonId: number | null; pointToken: string | null } | { ok: false; error: string }> {
+): Promise<{ ok: true; timeLabel: string; salonId: number | null; therapistId: number | null; pointToken: string | null } | { ok: false; error: string }> {
   if (agreed !== true) return { ok: false, error: '「すべて了承します」に☑を入れてください' };
   const sig = String(signaturePng ?? '');
   // サインは PNG か WebP（第567便：縮めて WebP に。WebP を書き出せない端末は PNG）
@@ -105,5 +105,7 @@ export async function submitConsent(
   // ★ 第1404便: 完了画面に「このお店のフクエスのページ」への案内を出すため、お店の番号だけ返す（★ フクエスで非表示のお店は返さない＝案内を出さない）。お客様の情報は返さない
   // ★ 第1444便: フクエスポイント加盟店なら、この予約の来店ポイントの受け取り券（予約1件に1枚・24時間）。★ 失敗しても同意は済んでいる（null＝欄を出さない）
   const pointToken = await createVisitClaim(svc, room.salonId, target.bookingId, businessDateNowJST());
-  return { ok: true, timeLabel: target.timeLabel, salonId: text.salonPublic ? room.salonId : null, pointToken };
+  // ★ 第1655便: 完了画面の「本日のセラピスト」用に、担当セラピストの番号も返す（★ お店が公開のときだけ。在籍・所属は完了画面で確かめ直す）
+  const therapistId = text.salonPublic && target.therapistId != null && target.therapistId > 0 ? target.therapistId : null;
+  return { ok: true, timeLabel: target.timeLabel, salonId: text.salonPublic ? room.salonId : null, therapistId, pointToken };
 }

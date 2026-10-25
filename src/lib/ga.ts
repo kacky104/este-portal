@@ -69,7 +69,15 @@ export const ACRYLIC_STAND_UTM = 'utm_source=acrylic_stand&utm_medium=qr&utm_cam
 export function acrylicStandSalonHref(salonId: string | number | null | undefined): string | null {
   const s = String(salonId ?? '').trim();
   if (!/^[1-9]\d{0,8}$/.test(s)) return null;
-  return `/salon/${s}?${ACRYLIC_STAND_UTM}`;
+  // ★ 第1655便: どの入口を押したか分かるよう utm_content を付ける（salon / therapist）
+  return `/salon/${s}?${ACRYLIC_STAND_UTM}&utm_content=salon`;
+}
+
+/** ★ 第1655便: 完了画面の「本日のセラピスト」から出すリンク先（番号が正しい形のときだけ。違えば null） */
+export function acrylicStandTherapistHref(therapistId: string | number | null | undefined): string | null {
+  const t = String(therapistId ?? '').trim();
+  if (!/^[1-9]\d{0,8}$/.test(t)) return null;
+  return `/therapist/${t}?${ACRYLIC_STAND_UTM}&utm_content=therapist`;
 }
 
 /** ★ GA4 へ送る「どこから来たか」を安全にする（第1404便）。
