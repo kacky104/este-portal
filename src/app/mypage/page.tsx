@@ -995,6 +995,12 @@ export default function MyPage() {
   // ネット予約の受付一覧（service_role でサーバー取得・表示のみ）。
   const [bookings, setBookings] = useState<OwnerBooking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
+  // ★ 第1661便: 一覧を「これから／過去」に分けるための現在時刻（描画中に Date.now() を呼ばないため、一覧を読み直すたびに更新）
+  const [bookingsNowMs, setBookingsNowMs] = useState(0);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 一覧が変わったときに現在時刻を取り直すだけ
+    setBookingsNowMs(Date.now());
+  }, [bookings]);
   const [bookingsError, setBookingsError] = useState('');
   const [bookingBusyId, setBookingBusyId] = useState<string | null>(null);
   const [salonImages,    setSalonImages]    = useState<SalonImage[]>([]);
@@ -4218,19 +4224,30 @@ export default function MyPage() {
             <p className="text-xs text-slate-400">読み込み中...</p>
           ) : bookings.length === 0 ? (
             <p className="text-xs text-slate-400">まだネット予約はありません。</p>
-          ) : (
-            <div className="space-y-2">
-              {bookings.map((b) => {
+          ) : (() => {
+            // ★ 第1661便（カッキーさん）: 「今日・これから」と「過去」に分け、未確定（new）を上に目立たせる。
+            //   これから＝終了時刻がまだ来ていない予約を、近い順に（未確定が先）。過去＝終わった予約を新しい順に、畳んで出す。
+            const nowMs = bookingsNowMs;
+            const upcoming = bookings
+              .filter((b) => new Date(b.slotEnd).getTime() >= nowMs)
+              .sort((a, b) => (a.status === 'new' ? 0 : 1) - (b.status === 'new' ? 0 : 1) || new Date(a.slotStart).getTime() - new Date(b.slotStart).getTime());
+            const past = bookings.filter((b) => new Date(b.slotEnd).getTime() < nowMs);
+            const pendingCount = upcoming.filter((b) => b.status === 'new').length;
+            const renderBooking = (b: (typeof bookings)[number]) => {
                 const st = bookingStatusLabel(b.status);
                 const busy = bookingBusyId === b.id;
                 const isCancelled = b.status === 'cancelled';
+                const isPending = b.status === 'new';
                 // 操作ボタンの共通スタイル。
                 const btnBase = 'text-[11px] font-bold px-2.5 py-1 rounded-none border transition-colors disabled:opacity-50';
                 return (
-                  <div key={b.id} className={`rounded-none border border-slate-200 p-3 space-y-1.5 ${isCancelled ? 'opacity-60' : ''}`}>
+                  <div key={b.id} className={`rounded-none border p-3 space-y-1.5 ${isCancelled ? 'opacity-60 border-slate-200' : isPending ? 'border-pink-300 bg-pink-50/40' : 'border-slate-200'}`}>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-bold text-slate-700">{formatBookingSlot(b.slotStart, b.slotEnd)}</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none flex-shrink-0 ${st.cls}`}>{st.label}</span>
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        {isPending && <span className="text-[10px] font-black px-2 py-0.5 rounded-none bg-pink-600 text-white">要確認</span>}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-none ${st.cls}`}>{st.label}</span>
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
                       <span><span className="text-slate-400">指名：</span>{b.therapistName}</span>
@@ -4263,13 +4280,46 @@ export default function MyPage() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
+            };
+            return (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[12px] font-black text-slate-600">今日・これから</h3>
+                    <span className="text-[11px] text-slate-400">{upcoming.length}件</span>
+                    {pendingCount > 0 && (
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-none bg-pink-600 text-white">未確定 {pendingCount}件</span>
+                    )}
+                  </div>
+                  {upcoming.length === 0 ? (
+                    <p className="text-xs text-slate-400">これからのネット予約はありません。</p>
+                  ) : upcoming.map(renderBooking)}
+                </div>
+                {past.length > 0 && (
+                  <details className="group">
+                    <summary className="cursor-pointer list-none flex items-center gap-2 text-[12px] font-black text-slate-500 select-none">
+                      <span className="inline-block transition-transform group-open:rotate-90">▶</span>
+                      過去の予約
+                      <span className="text-[11px] font-normal text-slate-400">{past.length}件</span>
+                    </summary>
+                    <div className="mt-2 space-y-2">{past.map(renderBooking)}</div>
+                  </details>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
           <h2 className="text-sm font-black text-slate-700">ネット予約の設定</h2>
+
+          {/* ★ 第1661便（カッキーさん）: CRM 未契約の店舗様に、ネット予約を CRM で管理できることを一言だけ案内（契約店には出さない）。 */}
+          {!crmOn && (
+            <p className="rounded-none border border-indigo-100 bg-indigo-50/60 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+              フクエスCRM をお使いの店舗様は、ネット予約がそのまま CRM のスケジュールに入り、電話予約と並べて確定・管理できます。
+              <a href={crmBannerHref} target="_blank" rel="noopener noreferrer" className="ml-1 font-bold text-indigo-700 underline">フクエスCRMのご案内 ›</a>
+            </p>
+          )}
 
           <div className="border border-pink-100 rounded-none p-3 bg-pink-50/20 space-y-2.5">
             {/* ★ 2026-09-09（第225便・カッキーさんの指示）: この見出しは見落とされやすいので、
