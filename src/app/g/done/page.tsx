@@ -129,17 +129,6 @@ export default async function GuideDonePage({ searchParams }: { searchParams: Pr
       <div className="relative text-slate-800">
         <a href={salonHref} rel="noreferrer" className="block">
           {picture}
-          {/* 下の白い余白: 案内とボタン */}
-          <div className="absolute inset-x-0 bottom-[4%] top-[56%] flex flex-col justify-center px-5 text-center">
-            <p className="text-[14px] tracking-[0.04em] text-slate-600" style={SERIF}>このお店の出勤・写メ日記・口コミは</p>
-            <p className="mt-0.5 text-[17px] leading-[1.2] text-slate-700" style={SERIF}>
-              <span className="mr-1 bg-clip-text text-[40px] font-bold text-transparent" style={{ backgroundImage: BRAND }}>フクエス</span>
-              で
-            </p>
-            <span className="mt-3.5 block w-full px-4 py-[13px] text-[15px] font-bold text-white" style={{ backgroundImage: BRAND }}>
-              このお店のページを見る　›
-            </span>
-          </div>
         </a>
         {claimablePoints != null && (
           <a
@@ -150,21 +139,36 @@ export default async function GuideDonePage({ searchParams }: { searchParams: Pr
           </a>
         )}
       </div>
-      {therapist && (
-        <a href={therapist.href} rel="noreferrer" className="mx-4 mb-4 mt-1 flex items-center gap-3 border border-slate-200 bg-white px-3 py-3 text-slate-800">
-          {therapist.image ? (
-            // eslint-disable-next-line @next/next/no-img-element -- セラピストの写真は外部の保存先（next/image の許可先に依らない）
-            <img src={therapist.image} alt="" width={64} height={64} className="h-16 w-16 shrink-0 object-cover" loading="eager" />
-          ) : (
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center bg-pink-50 text-[22px] text-pink-400">♡</span>
-          )}
-          <span className="min-w-0 flex-1 text-left">
-            <span className="block text-[11.5px] tracking-[0.04em] text-slate-500" style={SERIF}>本日のセラピスト</span>
-            <span className="block truncate text-[18px] font-bold" style={SERIF}>{therapist.name}さん</span>
-            <span className="mt-0.5 block text-[13px] font-bold text-pink-600">写メ日記・プロフィールを見る　›</span>
+      {/* ★ 第1656便（カッキーさん）: 本日のセラピストを「このお店の出勤・写メ日記・口コミは」の上に出す。
+            画像の下の白い余白（画像の高さの下4割）に重ねるため、上へ詰めて置く（-mt は幅に対する割合: 画像は 1080×1350＝高さが幅の1.25倍、
+            帯（高さの50%）の下から始まるよう 幅の40% ぶん上げる）。★ セラピストの欄とお店の案内は別々のリンク（入れ子にしない） */}
+      <div className="relative -mt-[40%] px-5 pb-5 text-center text-slate-800">
+        {therapist && (
+          <a href={therapist.href} rel="noreferrer" className="mb-4 flex items-center gap-3 border border-slate-200 bg-white px-3 py-3 text-slate-800">
+            {therapist.image ? (
+              // eslint-disable-next-line @next/next/no-img-element -- セラピストの写真は外部の保存先（next/image の許可先に依らない）
+              <img src={therapist.image} alt="" width={64} height={64} className="h-16 w-16 shrink-0 object-cover" loading="eager" />
+            ) : (
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center bg-pink-50 text-[22px] text-pink-400">♡</span>
+            )}
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block text-[11.5px] tracking-[0.04em] text-slate-500" style={SERIF}>本日のセラピスト</span>
+              <span className="block truncate text-[18px] font-bold" style={SERIF}>{therapist.name}さん</span>
+              <span className="mt-0.5 block text-[13px] font-bold text-pink-600">写メ日記・プロフィールを見る　›</span>
+            </span>
+          </a>
+        )}
+        <a href={salonHref} rel="noreferrer" className="block">
+          <p className="text-[14px] tracking-[0.04em] text-slate-600" style={SERIF}>このお店の出勤・写メ日記・口コミは</p>
+          <p className="mt-0.5 text-[17px] leading-[1.2] text-slate-700" style={SERIF}>
+            <span className="mr-1 bg-clip-text text-[40px] font-bold text-transparent" style={{ backgroundImage: BRAND }}>フクエス</span>
+            で
+          </p>
+          <span className="mt-3.5 block w-full px-4 py-[13px] text-[15px] font-bold text-white" style={{ backgroundImage: BRAND }}>
+            このお店のページを見る　›
           </span>
         </a>
-      )}
+      </div>
       {points}
     </main>
   );
