@@ -73,6 +73,8 @@ import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 
 /** ★ 第1439便: サイドバーにフクエスリンクのバナーを出すお店（12＝アロマメイ様・5＝オイルクエスト様） */
 const MEDIA_BANNER_SALON_IDS: readonly number[] = [12, 5];
+/** ★ 第1659便: サイドバー「フリーページ」の下に「駅ちかの写メ日記をフクエスに反映（ID・PW 入力）」のバナーを出すお店（アバンティ様） */
+const DIARY_LINK_SALON_IDS: readonly number[] = [11];
 
 const supabase = createClient();
 
@@ -3139,6 +3141,12 @@ export default function MyPage() {
   // ★★ 第1537便（2026-10-17・カッキーさん）: コネックエフに切り替えたら（salons.conecf_enabled_at あり）バナーを出さない。
   //   ★ 運営が手順の SQL で切り替えを外せば（フクエスリンクに戻す）また出る。★ 読み終えるまでは出さない（切り替え済みの店で一瞬見えないように）。
   const mediaBannerOn = MEDIA_BANNER_SALON_IDS.includes(Number(salon?.id)) && conecfLoaded && !conecfOn;
+  // ★★ 第1659便（2026-10-25・カッキーさん）: 駅ちかの ID・PW だけを入れるページ（/mypage/diary-link）への画像バナー。
+  //   ★ 置き場所は「店舗情報」の最後（フリーページの下）。★ 出す店は DIARY_LINK_SALON_IDS（いまはアバンティ様だけ）。
+  const diaryLinkOn = DIARY_LINK_SALON_IDS.includes(Number(salon?.id));
+  const renderDiaryLink = (pc: boolean) => (
+    <SidebarBanner pc={pc} href="/mypage/diary-link" src="/mypage/sidebar/diary-link.webp" alt="駅ちかの写メ日記をフクエスにも自動で掲載　ID・パスワードを入れるだけ" />
+  );
   const renderMediaLink = (pc: boolean) => (
     <SidebarBanner
       pc={pc}
@@ -3461,6 +3469,7 @@ export default function MyPage() {
                       })}
                       {/* ★ 第816便: ご請求書（運営事務局のすぐ下）。 */}
                       {!sec.group && renderInvoicesLink(false)}
+                      {sec.group === '店舗情報' && diaryLinkOn && renderDiaryLink(false)}
                       {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
                       {isSites && salon && renderJobsLink(false)}
                       {withMedia && renderMediaLink(false)}
@@ -3551,6 +3560,7 @@ export default function MyPage() {
                   })}
                   {/* ★ 第816便: ご請求書（運営事務局のすぐ下）。 */}
                   {!sec.group && renderInvoicesLink(true)}
+                  {open && sec.group === '店舗情報' && diaryLinkOn && renderDiaryLink(true)}
                   {/* ★★★ フクエスリンク（媒体連携）（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
                       ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
                   {/* ★ フクエスワーク（求人）→ フクエスリンク の順（★ 第184便までの並びのまま）。 */}
