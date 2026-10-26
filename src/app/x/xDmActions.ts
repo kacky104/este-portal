@@ -87,9 +87,15 @@ export async function sendXMessage(conversationId: number, body: string): Promis
   const { supabase, myId } = await ctx();
   if (!myId) return NO_LOGIN;
   // ★ 第1647便: ユーザーアカウントはメッセージに URL を書けない
+  // ★ 第1663便（カッキーさん）: ただし相手が運営（official）の会話＝お問い合わせは URL を許す（DB のトリガーも同じ免除）
   if (containsUrl(text)) {
     const { data: meRow } = await supabase.from('x_profiles').select('kind').eq('id', myId).maybeSingle();
-    if (meRow?.kind === 'user') return { ok: false, error: USER_URL_BLOCKED_MESSAGE };
+    if (meRow?.kind === 'user') {
+      const { data: conv } = await supabase.from('x_conversations').select('participant_a, participant_b').eq('id', conversationId).maybeSingle();
+      const otherId = conv ? ((conv.participant_a as string) === myId ? (conv.participant_b as string) : (conv.participant_a as string)) : null;
+      const { data: otherRow } = otherId ? await supabase.from('x_profiles').select('kind').eq('id', otherId).maybeSingle() : { data: null };
+      if (otherRow?.kind !== 'official') return { ok: false, error: USER_URL_BLOCKED_MESSAGE };
+    }
   }
   const { data, error } = await supabase
     .from('x_messages')
