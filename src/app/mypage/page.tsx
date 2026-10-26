@@ -4775,7 +4775,7 @@ export default function MyPage() {
             ★ コネックエフに切り替えた店はコネックエフのホームに出るので、ここでは出さない */}
         {salon && !conecfOn && (
           <div className={activeTab === 'available' ? '' : 'hidden'}>
-            <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" onToast={showToast} guideHref="/mypage/cast-guide" />
+            <CastLinkProgress salonId={Number(salon.id)} editHref={(id) => `/mypage/therapist/${id}`} tone="pink" onToast={showToast} guideHref="/mypage/cast-guide" aboutHref="/mypage/cast-about" />
           </div>
         )}
         {/* ★ 第1388便（カッキーさん）: コネックエフに切り替えた店には、ここにあった「セラピストページ連携」（連携率と QR・リンクの招待）が

@@ -34,13 +34,15 @@ const TONES = {
   },
 } as const;
 
-export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, guideHref }: {
+export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, guideHref, aboutHref }: {
   salonId: number | null;
   /** 「招待する／確認する」の行き先（そのセラピストの編集ページ） */
   editHref: (therapistId: string) => string;
   tone?: keyof typeof TONES;
   /** ★ 第1169便（カッキーさん）: 見出しの横に出す「作り方」の行き先（マイページ＝/mypage/cast-guide・第1170便からコネックエフのホーム＝/cast-guide）。無ければ出さない */
   guideHref?: string;
+  /** ★ 第1666便（カッキーさん）: 「作り方」の左に出す「セラピストページとは」の行き先（マイページ＝/mypage/cast-about）。無ければ出さない */
+  aboutHref?: string;
   onToast?: (m: string) => void;
 }) {
   const T = TONES[tone];
@@ -78,6 +80,11 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div className="flex items-baseline gap-3">
           <h3 className="text-[16px] font-bold text-slate-700">セラピストページ連携</h3>
+          {aboutHref && (
+            <Link href={aboutHref} target="_blank" rel="noopener noreferrer" className={`text-[13px] font-bold underline underline-offset-2 hover:opacity-80 ${T.num}`}>
+              セラピストページとは
+            </Link>
+          )}
           {guideHref && (
             <Link href={guideHref} target="_blank" rel="noopener noreferrer" className={`text-[13px] font-bold underline underline-offset-2 hover:opacity-80 ${T.num}`}>
               作り方
