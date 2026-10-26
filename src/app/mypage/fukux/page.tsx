@@ -1,6 +1,9 @@
 // fukuX（フクエックス）開設のご案内（第1162便・2026-10-04・カッキーさんの指示）。
 // ★ マイページのサイドバーの「fukuX」バナーから、まだフクエックスを開設していないお店が開く説明ページ。
-//   読んだあと、いちばん下の「フクエックスを始める」でフクエックス（/x）へ。
+//   読んだあと、いちばん下の「開設を依頼する」でマイページのお問い合わせ（/mypage?tab=support）へ。
+// ★ 第1665便（2026-10-26・カッキーさん）: 店舗アカウントは運営が作って ID・PW を渡す運用（画像にもそう書いてある）。
+//   以前のボタン「フクエックスを始める」（/x）だと店舗様が自分で作れてしまい、説明と食い違う・二重アカウントの元になるので、
+//   依頼のボタンに変えた。★ /x へ直接行くボタンは戻さない。
 // ★ 開設済みのお店（店舗アカウントが連携済み・または店舗基本設定に fukuX URL がある）は、バナーから今までどおり
 //   自分のフクエックスのページへ直接行く（page.tsx の fukuxHref・判断はあちらの1か所）。
 // ★ ここはログインだけで開ける（中身は全店同じ・コネックエフのご案内 /mypage/conecf と同じ作り）。読み取りは無い。
@@ -32,14 +35,18 @@ export default function FukuxIntroPage() {
           className="block w-full h-auto border border-slate-200 mb-6"
         />
 
-        {/* ★ いちばん下に、大きく1つ。行き先はフクエックス（/x）。PC は横並び・スマホは縦並び */}
+        {/* ★ いちばん下に、大きく1つ。行き先はマイページのお問い合わせ（第1665便）。PC は横並び・スマホは縦並び */}
+        <p className="mb-3 text-center text-[13px] leading-relaxed text-slate-600">
+          お店の fukuX アカウントの ID・パスワードは運営からお渡しします。<br className="hidden sm:inline" />
+          すでに届いている場合は、その ID でログインしてください。
+        </p>
         <div className="flex flex-col sm:flex-row gap-3 pb-6">
-          <a
-            href="/x"
+          <Link
+            href="/mypage?tab=support"
             className="flex-1 text-center py-5 bg-gradient-to-r from-[#5b34ad] to-[#7c4ddb] text-white text-[19px] font-black tracking-wide shadow-lg hover:opacity-95"
           >
-            フクエックスを始める →
-          </a>
+            開設を依頼する →
+          </Link>
           <Link href="/mypage" className="sm:w-56 flex items-center justify-center py-4 border-2 border-[#6d45c4] bg-white text-[15px] font-bold text-[#5b34ad] hover:bg-violet-50">
             マイページへ戻る
           </Link>
