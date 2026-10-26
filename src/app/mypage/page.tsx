@@ -3139,6 +3139,20 @@ export default function MyPage() {
     </Link>
   );
 
+  // ★★ 第1668便（2026-10-26・カッキーさん）: フクエスポイントの店舗様向けご案内（/points/shop）への文字リンク。
+  //   ★ 全店舗に出す（CRM 契約のきっかけ・制度を読み返したいオーナー様のため）。★ 置き場所はご請求書のすぐ下。新しいタブ。
+  const renderPointsGuideLink = (pc: boolean) => (
+    <Link
+      href="/points/shop"
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`inline-flex w-full items-center justify-start gap-2 border-0 border-l-4 border-l-transparent px-4 font-normal text-[#212121] hover:text-pink-600 ${pc ? 'py-3 text-[16px]' : 'py-2.5 text-[13px]'}`}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M9.5 16V8h3.2a2.4 2.4 0 0 1 0 4.8H9.5" /></svg>
+      フクエスポイントのご案内
+    </Link>
+  );
+
   // ★★ 第674便（2026-09-22・カッキーさんの指示）: フクエスリンクも画像バナーに（./SidebarBanner.tsx）。
   //   ★ 行き先は今までどおり /mypage/media（別タブ）。★ 出す相手も今までどおり（withMedia の店だけ）。
   //   ★ 第852便: 使っていないお店（mediaInUse === false）はご案内ページ /mypage/media/intro へ。
@@ -3475,6 +3489,7 @@ export default function MyPage() {
                       })}
                       {/* ★ 第816便: ご請求書（運営事務局のすぐ下）。 */}
                       {!sec.group && renderInvoicesLink(false)}
+                      {!sec.group && renderPointsGuideLink(false)}
                       {sec.group === '店舗情報' && diaryLinkOn && renderDiaryLink(false)}
                       {/* ★ 外部リンクは「関連サイト」の中。★ 並びはPCと同じ（★ 変えるときは両方）。 */}
                       {isSites && salon && renderJobsLink(false)}
@@ -3566,6 +3581,7 @@ export default function MyPage() {
                   })}
                   {/* ★ 第816便: ご請求書（運営事務局のすぐ下）。 */}
                   {!sec.group && renderInvoicesLink(true)}
+                      {!sec.group && renderPointsGuideLink(true)}
                   {open && sec.group === '店舗情報' && diaryLinkOn && renderDiaryLink(true)}
                   {/* ★★★ フクエスリンク（媒体連携）（第55便・㉜）。★ タブではなく専用ページ /mypage/media への入口。
                       ★ 新しいタブで開く（2026-08-30・カッキーさんの決定）。 */}
