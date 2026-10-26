@@ -78,15 +78,16 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
   return (
     <div className={T.card}>
       <div className="flex items-end justify-between gap-3 flex-wrap">
-        <div className="flex items-baseline gap-3">
-          <h3 className="text-[16px] font-bold text-slate-700">セラピストページ連携</h3>
+        {/* ★ 第1667便: スマホで見出しとリンクが折れて崩れたので、折り返すときは行ごと下へ（文字の途中では折らない） */}
+        <div className="flex items-baseline gap-x-3 gap-y-1 flex-wrap">
+          <h3 className="text-[16px] font-bold text-slate-700 whitespace-nowrap">セラピストページ連携</h3>
           {aboutHref && (
-            <Link href={aboutHref} target="_blank" rel="noopener noreferrer" className={`text-[13px] font-bold underline underline-offset-2 hover:opacity-80 ${T.num}`}>
+            <Link href={aboutHref} target="_blank" rel="noopener noreferrer" className={`text-[13px] font-bold underline underline-offset-2 hover:opacity-80 whitespace-nowrap ${T.num}`}>
               セラピストページとは
             </Link>
           )}
           {guideHref && (
-            <Link href={guideHref} target="_blank" rel="noopener noreferrer" className={`text-[13px] font-bold underline underline-offset-2 hover:opacity-80 ${T.num}`}>
+            <Link href={guideHref} target="_blank" rel="noopener noreferrer" className={`text-[13px] font-bold underline underline-offset-2 hover:opacity-80 whitespace-nowrap ${T.num}`}>
               作り方
             </Link>
           )}
