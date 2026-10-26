@@ -4407,6 +4407,25 @@ export default function MyPage() {
                 </p>
               )}
             </div>
+            {/* ── 電話通知（準備中・2026-10-26 カッキーさんの指示）──
+                ★ これから電話通知も使えるようになることを、店舗オーナー様にさりげなく伝えるための枠。
+                ★ まだ何も保存しない・送らない（入力欄は disabled。salonForm にもつながない）。
+                ★ Twilio の 050 番号が開通して実装したら、この枠を本物に置き換える（★ 慎重モード）。 */}
+            <div>
+              <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 mb-1">
+                予約の電話通知
+                <span className="flex-none text-[10px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full">準備中</span>
+              </label>
+              <input
+                type="tel"
+                disabled
+                placeholder="090-0000-0000"
+                className={`${inputClass} cursor-not-allowed opacity-60`}
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                新しい予約が入ったとき、メールに加えてお電話（自動音声）でもお知らせできるようになります。現在準備中です。
+              </p>
+            </div>
             {/* 施術後のインターバル（2026-08-15追加）。ネット予約の予約枠に自動で加算する */}
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">施術後のインターバル</label>
