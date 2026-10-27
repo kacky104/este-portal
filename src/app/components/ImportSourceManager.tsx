@@ -260,9 +260,9 @@ export default function ImportSourceManager({ allSalons, onToast }: {
                       </button>
                     )}
                   </td>
-                  {/* ★ 第1283便: 即ヒメを送るか。★ 駅ちかから反映（read）の枠はそもそも送らないので「—」 */}
+                  {/* ★ 第1283便: 即ヒメを送るか。★ 駅ちかから反映（read）の枠はそもそも送らないので「—」。★ 第1677便: 反映しない（none）も同じく「—」 */}
                   <td className="py-2 pr-3 whitespace-nowrap">
-                    {r.linkMode === 'read' ? <span className="text-gray-300">—</span> : (
+                    {r.linkMode === 'read' || r.linkMode === 'none' ? <span className="text-gray-300">—</span> : (
                       <button
                         type="button"
                         onClick={() => void onToggleSokuhimePush(r)}
