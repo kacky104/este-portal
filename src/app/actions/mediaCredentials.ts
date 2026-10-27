@@ -2027,7 +2027,7 @@ export async function getMediaOverview(input: { salonId: string | number; servic
 
   const { data: sources, error: srcErr } = await svc
     .from('salon_import_sources')
-    .select('id, provider, slot, link_mode, is_enabled, last_run_at, import_interval_min')
+    .select('id, provider, slot, link_mode, is_enabled, last_run_at, import_interval_min, shop_url')
     .eq('salon_id', salonId);
   if (srcErr) return { ok: false, error: '連携の状態を確認できませんでした' };
 
@@ -2206,10 +2206,14 @@ export async function getMediaOverview(input: { salonId: string | number; servic
       }
     }
 
+    // ★ 第1678便（カッキーさん）: 枠が2つある駅ちかは「駅ちか（福岡市・博多）」「駅ちか（中洲・天神）」とエリアを付ける（URL から・ID・パスワード登録と同じ）
+    const srcRow = sourceOf.get(key(provider, slot)) as { shop_url?: unknown } | undefined;
+    const area = provider === 'ekichika' ? ekichikaAreaFromUrl(typeof srcRow?.shop_url === 'string' ? srcRow.shop_url : null) : null;
+    const sameProviderCount = [...keys].filter((k) => k.startsWith(provider + '#')).length;
     sites.push({
       provider,
       slot,
-      label: providerLabel(provider),
+      label: area && sameProviderCount > 1 ? `${providerLabel(provider)}（${area}）` : providerLabel(provider),
       direction,
       // ★ read の文言には媒体の名前が入る（第86便）。★ 決め打ちにしない
       statusLabel: directionLabel(direction, providerLabel(provider)),
