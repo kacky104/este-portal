@@ -33,12 +33,12 @@ function signatureDataUrl(src: HTMLCanvasElement): string {
 }
 
 export function ConsentForm({
-  token, title, body, candidates,
+  token, texts, candidates,
 }: {
   token: string;
-  title: string;
-  body: string;
-  candidates: { bookingId: string; timeLabel: string; agreed: boolean }[];
+  /** ★ 第1669便: 文面は候補ごと（提携店の予約はその店の文面）。選ぶ前は1件目 */
+  texts: { title: string; body: string }[];
+  candidates: { bookingId: string; timeLabel: string; agreed: boolean; textIdx: number }[];
 }) {
   const [bookingId, setBookingId] = useState(candidates.length === 1 ? candidates[0].bookingId : '');
   const [checked, setChecked] = useState(false);
@@ -52,6 +52,7 @@ export function ConsentForm({
 
   const cur = candidates.find((c) => c.bookingId === bookingId) ?? null;
   const already = !!cur?.agreed && !redo;
+  const { title, body } = texts[cur?.textIdx ?? 0] ?? texts[0] ?? { title: '', body: '' };
 
   // キャンバスを画面の幅に合わせる（高精細）
   useEffect(() => {

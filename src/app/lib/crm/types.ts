@@ -185,6 +185,10 @@ export type CrmScheduleData = {
   workEnds: Record<number, CrmEndType>;
   /** その日の出勤情報（セラピストID → 情報・第550便） */
   workDays: Record<number, CrmWorkDay>;
+  /** ★ 第1669便: 同じ部屋を使う提携店の予約の時間帯（セラピストID → 帯）。部屋共有のグループに入っていない店は {} */
+  roomBands: Record<number, CrmRoomBand[]>;
+  /** ★ 第1669便: 出勤情報で選べる提携店の部屋（部屋共有のグループに入っていない店は []） */
+  partnerRooms: CrmPartnerRoom[];
 };
 
 // ── 料金と報酬（第2段階・2026-09-19）────────────────────
@@ -569,12 +573,19 @@ export type CrmWorkDay = {
   breakEndMin: number | null;
   breakMemo: string;
   room: string;
+  /** ★ 第1669便: 借りた部屋の店（null＝自店の部屋）。提携店の部屋共有 */
+  roomSalonId: number | null;
   attendance: CrmAttendance;
   transport: number;
   /** 自由項目の選択（項目の id → 選んだ選択肢・第597便） */
   toggles: Record<string, string>;
 };
-export const CRM_EMPTY_WORK_DAY: CrmWorkDay = { breakStartMin: null, breakEndMin: null, breakMemo: '', room: '', attendance: '', transport: 0, toggles: {} };
+export const CRM_EMPTY_WORK_DAY: CrmWorkDay = { breakStartMin: null, breakEndMin: null, breakMemo: '', room: '', roomSalonId: null, attendance: '', transport: 0, toggles: {} };
+
+/** ★ 第1669便: 本日画面の帯「◯◯（提携店）使用中」。時間帯と店名・部屋名だけ（お客様の情報は無い） */
+export type CrmRoomBand = { startISO: string; endISO: string; salonName: string; room: string };
+/** ★ 第1669便: 出勤情報の「待機場所」に並べる提携店の部屋 */
+export type CrmPartnerRoom = { salonId: number; salonName: string; room: string };
 
 // ── 金銭授受（第558便・2026-09-20）────────────────────
 // 女子の残高 ＝ 女子が受領した料金 − 女子の報酬 − 女子→お店に渡した額 ＋ お店→女子に払った額

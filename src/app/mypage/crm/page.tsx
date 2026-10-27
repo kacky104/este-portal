@@ -52,6 +52,8 @@ import {
   CRM_ATTENDANCE,
   CRM_ATTENDANCE_LABEL,
   CRM_EMPTY_WORK_DAY,
+  type CrmRoomBand,
+  type CrmPartnerRoom,
   roomColor,
   pickCrmToggleValues,
   crmToggleBookingColor,
@@ -555,6 +557,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           confirms={data?.confirms ?? []}
           onConfirm={(t) => { setConfirmTransport(null); setConfirmFor(t); }}
           workDayOf={(tid) => data?.workDays[tid] ?? null}
+          roomBandsOf={(tid) => data?.roomBands?.[tid] ?? null}
+          partnerRooms={data?.partnerRooms ?? []}
           roomColorOf={(room) => data?.settings.roomColors[room]}
           toggleDefs={data?.settings.customToggles ?? []}
           date={date}
@@ -570,6 +574,15 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
             if (wd && wd.breakStartMin != null && wd.breakEndMin != null && min >= wd.breakStartMin && min < wd.breakEndMin) {
               setErr('休憩の時間には予約を入れられません');
               return;
+            }
+            // ★ 第1669便: 提携店の予約の帯の中なら、一度だけ確認（止めはしない＝両店で受付できる前提）
+            if (therapistId != null) {
+              const hit = (data?.roomBands?.[therapistId] ?? []).find((bd) => {
+                const s = Math.round((new Date(bd.startISO).getTime() - baseMs) / 60000);
+                const e = Math.round((new Date(bd.endISO).getTime() - baseMs) / 60000);
+                return min >= s && min < e;
+              });
+              if (hit && !window.confirm(`${hit.room} は ${hit.salonName} の予約と重なる時間です。このまま受付しますか？`)) return;
             }
             setErr('');
             setPicked(null);
@@ -643,6 +656,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           salonId={salonId}
           date={date}
           rooms={data.settings.rooms}
+          partnerRooms={data.partnerRooms ?? []}
           toggleDefs={data.settings.customToggles}
           endType={data.workEnds[workFor.id] ?? data.settings.defaultEndType}
           initial={data.workDays[workFor.id] ?? CRM_EMPTY_WORK_DAY}
@@ -707,7 +721,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 }
 
 function Grid({
-  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomColorOf, toggleDefs, onWork, onMoveRow, endTypeOf, onToggleEnd, onEmpty, date, castNotifyOn, nowJump,
+  rows, startMin, endMin, baseMs, nowMs, pickedId, onPick, onMemo, confirms, onConfirm, workDayOf, roomBandsOf, partnerRooms, roomColorOf, toggleDefs, onWork, onMoveRow, endTypeOf, onToggleEnd, onEmpty, date, castNotifyOn, nowJump,
 }: {
   /** ★ 第1410便: 行を上下に動かす（ids … 同じ組の方の id を上から順に） */
   onMoveRow: (ids: number[], therapistId: number, dir: -1 | 1) => void;
@@ -717,6 +731,9 @@ function Grid({
   castNotifyOn: boolean;
   /** その日の出勤情報（休憩・待機場所・遅刻当欠・交通費） */
   workDayOf: (therapistId: number) => CrmWorkDay | null;
+  /** ★ 第1669便: 提携店の予約の帯（同じ部屋） */
+  roomBandsOf: (therapistId: number) => CrmRoomBand[] | null;
+  partnerRooms: CrmPartnerRoom[];
   /** 部屋の色の名前 */
   roomColorOf: (room: string) => string | undefined;
   /** 出勤情報の自由項目（第597便）。選んだものを名前の下に小さく出す */
@@ -869,8 +886,14 @@ function Grid({
                     )}
                     {/* ★ 第1365便（カッキーさん）: 待機部屋のバッジは名前の行（LINE の右）に。出勤の行は 時刻・出欠・自由項目だけ */}
                     {(() => {
-                      const room = workDayOf(r.therapist!.id)?.room;
+                      const wdr = workDayOf(r.therapist!.id);
+                      const room = wdr?.room;
                       if (!room) return null;
+                      // ★ 第1669便: 借りた部屋は「店名／部屋」を灰色で（自店の部屋の色は使わない）
+                      if (wdr?.roomSalonId != null) {
+                        const pn = partnerRooms.find((p) => p.salonId === wdr.roomSalonId)?.salonName ?? '提携店';
+                        return <span className="flex-none truncate border border-slate-400 bg-slate-100 px-1 text-[10px] font-bold leading-[16px] text-slate-700" title="提携店の部屋を借りています">{pn}／{room}</span>;
+                      }
                       const c = roomColor(roomColorOf(room));
                       return <span className="flex-none truncate px-1 text-[10px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
                     })()}
@@ -1042,6 +1065,23 @@ function Grid({
                   </div>
                 );
               })()}
+              {/* ★ 第1669便: 提携店の予約の帯（同じ部屋を使う相手の店の予約の時間帯・見た目だけで受付は止めない） */}
+              {r.therapist && (roomBandsOf(r.therapist.id) ?? []).map((bd, i) => {
+                const s = Math.round((new Date(bd.startISO).getTime() - baseMs) / 60000);
+                const e = Math.round((new Date(bd.endISO).getTime() - baseMs) / 60000);
+                if (e <= s) return null;
+                return (
+                  <div
+                    key={`rb-${i}`}
+                    className="pointer-events-none absolute top-1 bottom-1 z-[5] overflow-hidden border border-dashed border-amber-500 bg-amber-50/90 px-1 text-[11px] leading-tight text-amber-800"
+                    style={{ left: x(s), width: Math.max(0, x(e) - x(s)) }}
+                    title={`${bd.room}：${bd.salonName} の予約と同じ部屋`}
+                  >
+                    <p className="truncate font-bold">{bd.room} 使用中</p>
+                    <p className="truncate">{bd.salonName}</p>
+                  </div>
+                );
+              })}
               {/* 予約 */}
               {r.bookings.map((b) => {
                 const s = Math.round((new Date(b.slotStartISO).getTime() - baseMs) / 60000);
@@ -2680,12 +2720,14 @@ function CloseDialog({
 
 // ── 出勤情報（名前を押す・第550便）────────────────────
 function WorkDayDialog({
-  therapist, salonId, date, rooms, toggleDefs, endType, initial, onClose, onSaved, onConfirm, onToggleEnd,
+  therapist, salonId, date, rooms, partnerRooms, toggleDefs, endType, initial, onClose, onSaved, onConfirm, onToggleEnd,
 }: {
   therapist: CrmScheduleTherapist;
   salonId: number;
   date: string;
   rooms: string[];
+  /** ★ 第1669便: 提携店の部屋（部屋共有のグループに入っているときだけ） */
+  partnerRooms: CrmPartnerRoom[];
   toggleDefs: CrmToggle[];
   endType: CrmEndType;
   initial: CrmWorkDay;
@@ -2718,7 +2760,19 @@ function WorkDayDialog({
   // ★ 第1218便: 「報酬確定を行う」は、いま入れた交通費などを【先に保存してから】確定画面へ（保存せずに開くと、交通費が手当に入らなかった）
   const confirmAfterSave = async () => { if (await saveOnly()) onConfirm(wd.transport); };
 
-  const roomOptions = wd.room && !rooms.includes(wd.room) ? [...rooms, wd.room] : rooms;
+  const roomOptions = wd.room && wd.roomSalonId == null && !rooms.includes(wd.room) ? [...rooms, wd.room] : rooms;
+  // ★ 第1669便: 選択肢の値は 自店「部屋A」／提携店「<店ID>::部屋A」。保存は room と roomSalonId に分けて持つ
+  const roomValue = wd.room ? (wd.roomSalonId == null ? wd.room : `${wd.roomSalonId}::${wd.room}`) : '';
+  const partnerOptions = (() => {
+    const list = [...partnerRooms];
+    if (wd.room && wd.roomSalonId != null && !list.some((p) => p.salonId === wd.roomSalonId && p.room === wd.room)) list.push({ salonId: wd.roomSalonId, salonName: '提携店', room: wd.room });
+    return list;
+  })();
+  const onRoomChange = (v: string) => {
+    const m = /^(\d+)::(.+)$/.exec(v);
+    if (m) setWd((p) => ({ ...p, room: m[2], roomSalonId: Number(m[1]) }));
+    else setWd((p) => ({ ...p, room: v, roomSalonId: null }));
+  };
 
   return (
     <>
@@ -2769,11 +2823,17 @@ function WorkDayDialog({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={labCls}>待機場所</label>
-                <select className={fieldCls} value={wd.room} onChange={(e) => set('room', e.target.value)}>
+                <select className={fieldCls} value={roomValue} onChange={(e) => onRoomChange(e.target.value)}>
                   <option value="">--</option>
                   {roomOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                  {partnerOptions.length > 0 && (
+                    <optgroup label="提携店の部屋（借りる）">
+                      {partnerOptions.map((p) => <option key={`${p.salonId}::${p.room}`} value={`${p.salonId}::${p.room}`}>{p.salonName}／{p.room}</option>)}
+                    </optgroup>
+                  )}
                 </select>
-                {rooms.length === 0 && <p className="mt-1 text-[11px] text-slate-400">部屋の一覧は「設定」タブで作れます</p>}
+                {rooms.length === 0 && partnerOptions.length === 0 && <p className="mt-1 text-[11px] text-slate-400">部屋の一覧は「設定」タブで作れます</p>}
+                {wd.roomSalonId != null && <p className="mt-1 text-[11px] text-slate-500">提携店の部屋を借りています。その部屋の QR で同意書が出て、相手の店の予約の時間は本日画面に帯が出ます</p>}
               </div>
               <div>
                 <label className={labCls}>遅刻・当欠・休ませた</label>

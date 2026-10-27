@@ -29,5 +29,5 @@ export default async function GuidePage({ params }: { params: Promise<{ token: s
       </main>
     );
   }
-  return <ConsentForm token={token} title={data.title} body={data.body} candidates={data.candidates} />;
+  return <ConsentForm token={token} texts={data.texts} candidates={data.candidates} />;
 }

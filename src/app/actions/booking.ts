@@ -19,6 +19,7 @@ import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
 import { linkBookingCustomer } from '@/app/lib/crm/linkCustomer';
 import { breakBlocks, breakConflict } from '@/app/lib/crm/breakGuard';
+import { sharedRoomBlocks } from '@/app/lib/crm/roomShare';
 import { dbMessage } from '@/app/lib/crm/dbError';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
@@ -156,9 +157,12 @@ export async function getSlots(
   const { startUtc, endUtc } = scheduleWindowUtc(dateISO, start, end);
 
   // ★ フクエスCRMの休憩の時間は埋まり扱い（第557便）。休憩の時刻そのものは公開側に出さない。
+  // ★ 第1669便: 提携店と同じ部屋を使う日は、相手の店の予約の時間も埋まり扱い（きほ＝かるあ を両店で同じ時間に取れないように）
+  const svcForBlocks = createServiceClient();
   const existingBookings = [
     ...(await fetchOverlappingBookings(therapistId, startUtc, endUtc)),
-    ...(await breakBlocks(createServiceClient(), therapistId, startUtc, endUtc)),
+    ...(await breakBlocks(svcForBlocks, therapistId, startUtc, endUtc)),
+    ...(await sharedRoomBlocks(svcForBlocks, therapistId, startUtc, endUtc)).map((b) => ({ slot_start: b.slot_start, slot_end: b.slot_end })),
   ];
 
   // 店舗設定のインターバル（2026-08-15）。ネスト結合の salons から読む。
@@ -335,9 +339,11 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
 
   // 4-6) 直前ガード・出勤終了内に収まるか・既存予約との重なりを buildSlots で再判定（getSlots と同一ロジック）。
   // ★ フクエスCRMの休憩も埋まり扱い（第557便・getSlots と同じ）
+  // ★ 第1669便: 提携店の同じ部屋の予約も埋まり扱い（getSlots と同じ）
   const existingBookings = [
     ...(await fetchOverlappingBookings(therapistId, candidate.startUtc, candidate.endUtc)),
     ...(await breakBlocks(svc, therapistId, candidate.startUtc, candidate.endUtc)),
+    ...(await sharedRoomBlocks(svc, therapistId, candidate.startUtc, candidate.endUtc)).map((b) => ({ slot_start: b.slot_start, slot_end: b.slot_end })),
   ];
   const slots = buildSlots({
     scheduleDate: candidate.date,

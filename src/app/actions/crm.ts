@@ -29,6 +29,7 @@ import { pointsYenByBooking, pointsYenBySalon } from '@/app/lib/points/server';
 import { crmBookingOrdinals } from '@/lib/crmBookingOrdinal';
 // ★ 第1325便: グループ・提携店で共有するNG・要注意リスト（受付・スケジュールに出す）
 import { crmGroupHitsForSalon, crmGroupTableMissing } from '@/app/lib/crm/groupAlerts';
+import { sharedRoomBands, partnerRoomOptions } from '@/app/lib/crm/roomShare';
 // ★ 第1328便: 画面での申込み・承認（「グループ共有」のタブを出すか・赤い印を付けるか）
 import { readCrmGroupAccess } from '@/app/lib/crm/groupJoin';
 import type { CrmGroupHit } from '@/lib/crmGroup';
@@ -796,9 +797,13 @@ export async function getCrmSchedule(
     pointsYenByBooking(svc, bookingIds.map(String)),
     // ★ 第1514便: 予約カードの「新規／◯回目」。★ 読めなければ null＝カードに出さない（ここで投げない）
     bookingOrdinalsFor(svc, salonId, customerIds),
+    // ★ 第1669便: 提携店の部屋共有＝同じ部屋を使う相手の店の予約の帯（両方向）。★ 読めなければ {}（ここで投げない）
+    sharedRoomBands(svc, salonId, dateISO),
+    // ★ 第1669便: 出勤情報で選べる提携店の部屋。★ 読めなければ []
+    partnerRoomOptions(svc, salonId),
   ]).catch((e: unknown) => readFail(e));
   if (!Array.isArray(reads)) return reads;
-  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits, therapistOrder, pointsYen, ordinals] = reads;
+  const [consentRows, memoRows, customerRows, stats, priceItems, confirms, report, settings, workEnds, workDays, groupHits, therapistOrder, pointsYen, ordinals, roomBands, partnerRooms] = reads;
 
   const consentAt = new Map<string, string>();
   for (const c of consentRows) consentAt.set(String(c.booking_id), String(c.created_at));
@@ -825,6 +830,8 @@ export async function getCrmSchedule(
       report,
       workEnds,
       workDays,
+      roomBands,
+      partnerRooms,
       defaultIntervalMin: board.data.defaultIntervalMin,
       therapists: therapists.map((t) => ({
         id: t.id,
@@ -2049,7 +2056,7 @@ async function readWorkDays(svc: Svc, salonId: number, dateISO: string): Promise
   if (!validDate(dateISO)) return {};
   const { data, error } = await svc
     .from('crm_work_days')
-    .select('therapist_id, break_start_min, break_end_min, break_memo, room, attendance, transport, toggle_values')
+    .select('therapist_id, break_start_min, break_end_min, break_memo, room, room_salon_id, attendance, transport, toggle_values')
     .eq('salon_id', salonId).eq('business_date', dateISO);
   if (error) throw new Error(error.message);
   const out: Record<number, CrmWorkDay> = {};
@@ -2059,6 +2066,7 @@ async function readWorkDays(svc: Svc, salonId: number, dateISO: string): Promise
       breakEndMin: r.break_end_min == null ? null : Number(r.break_end_min),
       breakMemo: String(r.break_memo ?? ''),
       room: String(r.room ?? ''),
+      roomSalonId: r.room_salon_id == null ? null : Number(r.room_salon_id),
       attendance: (['late', 'absent', 'sent_home'].includes(String(r.attendance)) ? r.attendance : '') as CrmAttendance,
       transport: Number(r.transport) || 0,
       toggles: readToggleValues(r.toggle_values),
@@ -2111,14 +2119,23 @@ export async function saveCrmWorkDay(
     const v = wd.toggles?.[t.id];
     if (v && t.options.includes(v)) toggleValues[t.id] = v;
   }
+  // ★ 第1669便: 提携店の部屋（借りた部屋）。部屋共有のグループの相手の店の部屋だけ受け付ける
+  let roomSalonId: number | null = wd.roomSalonId == null ? null : Math.round(Number(wd.roomSalonId));
+  if (roomSalonId != null && (!Number.isFinite(roomSalonId) || roomSalonId === salonId)) roomSalonId = null;
+  if (room && roomSalonId != null) {
+    const options = await partnerRoomOptions(auth.svc, salonId);
+    if (!options.some((o) => o.salonId === roomSalonId && o.room === room)) return { ok: false, error: '提携店のその部屋はいま選べません（部屋の名前が変わったか、部屋共有が止まっています）' };
+  }
   // ★ 同じ部屋で、出勤の時間がほかの人と重なるなら保存しない（第553便）
+  //   ★ 第1669便: 比べるのは【自店の中】だけ（借りた部屋も、自店で同じ借り部屋を選んだ人とだけ比べる）。
+  //     提携店の人（きほ＝かるあのような同一人物）とは比べない＝重なるのが前提なので止めない
   if (room) {
-    const clash = await roomClash(auth.svc, salonId, therapistId, dateISO, room);
+    const clash = await roomClash(auth.svc, salonId, therapistId, dateISO, room, roomSalonId);
     if (clash) return { ok: false, error: clash };
   }
   const { error } = await auth.svc.from('crm_work_days').upsert({
     salon_id: salonId, therapist_id: therapistId, business_date: dateISO,
-    break_start_min: bs, break_end_min: be, break_memo: memo, room, attendance, transport,
+    break_start_min: bs, break_end_min: be, break_memo: memo, room, room_salon_id: roomSalonId, attendance, transport,
     toggle_values: toggleValues,
     updated_at: new Date().toISOString(),
   });
@@ -2131,11 +2148,13 @@ export async function saveCrmWorkDay(
  * ★ その営業日にその部屋を選んでいるほかのセラピストの出勤（therapist_schedules）と、この人の出勤が重なれば文を返す。
  * ★ 出勤が無い人どうしは比べられないので止めない。
  */
-async function roomClash(svc: Svc, salonId: number, therapistId: number, dateISO: string, room: string): Promise<string | null> {
-  const { data: others } = await svc
+async function roomClash(svc: Svc, salonId: number, therapistId: number, dateISO: string, room: string, roomSalonId: number | null): Promise<string | null> {
+  let q = svc
     .from('crm_work_days').select('therapist_id')
     .eq('salon_id', salonId).eq('business_date', dateISO).eq('room', room)
     .neq('therapist_id', therapistId);
+  q = roomSalonId == null ? q.is('room_salon_id', null) : q.eq('room_salon_id', roomSalonId);
+  const { data: others } = await q;
   const otherIds = (others ?? []).map((o) => Number(o.therapist_id));
   if (otherIds.length === 0) return null;
   const ids = [therapistId, ...otherIds];

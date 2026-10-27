@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  adminListCrmGroups, adminCreateCrmGroup, adminUpdateCrmGroup, adminEndCrmGroup,
+  adminListCrmGroups, adminCreateCrmGroup, adminUpdateCrmGroup, adminEndCrmGroup, adminSetCrmGroupRoomShare,
   adminAddCrmGroupMember, adminRemoveCrmGroupMember, type CrmGroupRow,
   adminInviteCrmGroupMember, adminCancelCrmGroupInvite, adminListCrmGroupSignatures,
   type CrmGroupInviteAdminRow, type CrmGroupSignatureRow,
@@ -172,6 +172,15 @@ export default function CrmGroupManager({ allSalons, onToast }: {
     await load();
   };
 
+  const onRoomShare = async (g: CrmGroupRow, on: boolean) => {
+    setBusy('rs-' + g.id);
+    const res = await adminSetCrmGroupRoomShare({ id: g.id, on });
+    setBusy('');
+    if (!res.ok) { onToast(res.error); return; }
+    onToast(on ? '部屋共有を ON にしました' : '部屋共有を OFF にしました');
+    await load();
+  };
+
   const onEnd = async (g: CrmGroupRow) => {
     if (!window.confirm(`「${g.name}」を終わらせます。\n\n入っている店を全部外し、出ていた共有を全部取り下げます。元には戻せません（もう一度作り直すことはできます）。`)) return;
     setBusy('end-' + g.id);
@@ -244,6 +253,11 @@ export default function CrmGroupManager({ allSalons, onToast }: {
                   {g.note && <span className="text-[11px] text-gray-400">／{g.note}</span>}
                   <span className="flex-1" />
                   <button type="button" onClick={() => setEdit((p) => ({ ...p, [g.id]: { name: g.name, note: g.note } }))} className="text-xs text-gray-500 underline">名前を直す</button>
+                  {/* ★ 第1669便: 提携店の部屋共有 */}
+                  <label className="flex items-center gap-1 text-xs text-gray-700" title="ON にすると、このグループの店どうしで部屋を貸し借りできます（出勤情報で相手の店の部屋を選ぶ／その部屋の QR で同意書／本日画面に帯／ネット予約の空き枠を相手の予約で閉じる）">
+                    <input type="checkbox" checked={g.roomShare} disabled={busy !== ''} onChange={(ev) => void onRoomShare(g, ev.target.checked)} />
+                    部屋共有
+                  </label>
                   <button type="button" onClick={() => void onEnd(g)} disabled={busy !== ''} className="text-xs text-rose-600 underline disabled:opacity-50">終わらせる</button>
                 </>
               )}
