@@ -712,6 +712,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           courses={data.courses}
           priceItems={data.priceItems}
           dayBookings={data.bookings}
+          roomBandsOf={(tid) => data.roomBands?.[tid] ?? []}
           onClose={() => setForm(null)}
           onSaved={() => { setForm(null); reload(); }}
         />
@@ -1533,7 +1534,7 @@ const fieldCls = 'w-full border border-slate-300 bg-white px-2.5 py-2 text-[14px
 const labCls = 'mb-1 block text-[12px] font-bold text-slate-500';
 
 function BookingForm({
-  initial, salonId, baseMs, therapists, courses, priceItems, dayBookings, onClose, onSaved,
+  initial, salonId, baseMs, therapists, courses, priceItems, dayBookings, roomBandsOf, onClose, onSaved,
 }: {
   initial: BookingFormState;
   salonId: number;
@@ -1543,6 +1544,8 @@ function BookingForm({
   priceItems: CrmPriceItem[];
   /** この日の予約（同じお客様の二重受付に気づけるように） */
   dayBookings: CrmScheduleBooking[];
+  /** ★ 第1672便: 提携店の予約の帯（同じ部屋）。保存前に、開始〜終わり（インターバル込み）が重なれば一度だけ確認 */
+  roomBandsOf: (therapistId: number) => CrmRoomBand[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -1697,6 +1700,22 @@ function BookingForm({
     });
 
   const submit = async () => {
+    // ★ 第1672便（カッキーさん）: 開始を押した所が空いていても、コースの終わりが提携店の予約にかかることがある
+    //   （例: ラビで20:00から予約があるのに、enju で19:00から90分）。保存の前に、開始〜終わり（インターバル込み）で見て一度だけ確認する。止めはしない
+    if (tid != null) {
+      const s0 = f.startMin, e0 = f.startMin + f.courseMin + (f.intervalMin || 0);
+      const hit = roomBandsOf(tid).find((bd) => {
+        const bs = Math.round((new Date(bd.startISO).getTime() - baseMs) / 60000);
+        const be = Math.round((new Date(bd.endISO).getTime() - baseMs) / 60000);
+        return s0 < be && e0 > bs;
+      });
+      if (hit) {
+        const hm = (m: number) => `${m >= 1440 ? '翌' : ''}${Math.floor(m / 60) % 24}:${String(m % 60).padStart(2, '0')}`;
+        const bs = Math.round((new Date(hit.startISO).getTime() - baseMs) / 60000);
+        const be = Math.round((new Date(hit.endISO).getTime() - baseMs) / 60000);
+        if (!window.confirm(`この予約（${hm(s0)}〜${hm(e0)}）は、${hit.room} の ${hit.salonName} の予約（${hm(bs)}〜${hm(be)}）と重なります。このまま保存しますか？`)) return;
+      }
+    }
     setBusy(true);
     setErr('');
     const slotStartISO = new Date(baseMs + f.startMin * 60000).toISOString();
