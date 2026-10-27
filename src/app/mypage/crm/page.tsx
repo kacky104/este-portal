@@ -2833,7 +2833,7 @@ function WorkDayDialog({
                   )}
                 </select>
                 {rooms.length === 0 && partnerOptions.length === 0 && <p className="mt-1 text-[11px] text-slate-400">部屋の一覧は「設定」タブで作れます</p>}
-                {wd.roomSalonId != null && <p className="mt-1 text-[11px] text-slate-500">提携店の部屋を借りています。その部屋の QR で同意書が出て、相手の店の予約の時間は本日画面に帯が出ます</p>}
+                {wd.roomSalonId != null && <p className="mt-1 text-[11px] text-slate-500">提携店の部屋を借りています。その部屋の QR で同意書が出て、相手の店の予約の時間は本日画面に帯が出ます（ネット予約の空き枠もその時間は閉じます）</p>}
               </div>
               <div>
                 <label className={labCls}>遅刻・当欠・休ませた</label>

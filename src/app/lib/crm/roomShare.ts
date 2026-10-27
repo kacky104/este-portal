@@ -6,8 +6,8 @@
 // ★ 部屋の鍵 ＝ (部屋の店, 部屋名)。
 //   ・自店の部屋 … crm_work_days.room_salon_id が null → 鍵は (自店, room)
 //   ・借りた部屋 … crm_work_days.room_salon_id が相手の店 → 鍵は (相手の店, room)
-// ★ 使えるのは、同じグループ（crm_groups.room_share = true・ended_at null）に入っている店どうしだけ。
-//   グループから外れた店の出勤は見ない（left_at が null の店だけ）。
+// ★ 使えるのは、部屋共有のペア（crm_room_share_pairs・ended_at null・第1670便）を組んでいる店どうしだけ。
+//   ★ NG・要注意の共有グループとは別。ペアを終わらせた店の出勤は見ない。
 // ★ 読めなかったときは空（＝今までどおり）。部屋共有の見張りで、本日画面・ネット予約そのものを止めない。
 // ★ 返すのは時間帯と店名・部屋名だけ。お客様の名前・電話は返さない。
 
@@ -22,26 +22,22 @@ export type RoomShareBand = { startISO: string; endISO: string; salonName: strin
 /** 出勤情報の「待機場所」に並べる、提携店の部屋 */
 export type PartnerRoom = { salonId: number; salonName: string; room: string };
 
-/** 部屋共有のグループ（自店が入っていて room_share が ON のもの）と、相手の店 */
+/**
+ * 部屋共有の相手の店。
+ * ★ 第1670便: NG 共有のグループとは【別】の表 crm_room_share_pairs（店と店のペア・運営だけが作る）で持つ。
+ *   groupId は互換のために残す（常に 0）。
+ */
 export async function roomSharePartners(svc: Svc, salonId: number): Promise<{ groupId: number; partners: Array<{ salonId: number; name: string }> } | null> {
   try {
-    const { data: mem, error, status } = await svc.from('crm_group_members')
-      .select('group_id').eq('salon_id', salonId).is('left_at', null).limit(1).maybeSingle();
-    if (error) { if (!crmGroupTableMissing(error, status)) console.error('[roomShare] グループを読めなかった', salonId, error.message); return null; }
-    if (!mem) return null;
-    const groupId = Number(mem.group_id);
-    const { data: g, error: gErr } = await svc.from('crm_groups').select('room_share, ended_at').eq('id', groupId).maybeSingle();
-    if (gErr) { if (!crmGroupTableMissing(gErr)) console.error('[roomShare] グループを読めなかった', groupId, gErr.message); return null; }
-    if (!g || g.ended_at != null || g.room_share !== true) return null;
-    const { data: others, error: oErr } = await svc.from('crm_group_members')
-      .select('salon_id').eq('group_id', groupId).is('left_at', null).neq('salon_id', salonId);
-    if (oErr) { console.error('[roomShare] 相手の店を読めなかった', groupId, oErr.message); return null; }
-    const ids = [...new Set((others ?? []).map((r) => Number(r.salon_id)))];
-    if (ids.length === 0) return { groupId, partners: [] };
+    const { data, error, status } = await svc.from('crm_room_share_pairs')
+      .select('salon_a, salon_b').is('ended_at', null).or(`salon_a.eq.${salonId},salon_b.eq.${salonId}`);
+    if (error) { if (!crmGroupTableMissing(error, status)) console.error('[roomShare] ペアを読めなかった', salonId, error.message); return null; }
+    const ids = [...new Set((data ?? []).map((r) => (Number(r.salon_a) === salonId ? Number(r.salon_b) : Number(r.salon_a))).filter((x) => x !== salonId))];
+    if (ids.length === 0) return null;
     const { data: salons } = await svc.from('salons').select('id, name').in('id', ids);
     const names = new Map<number, string>();
     for (const s of salons ?? []) names.set(Number(s.id), String(s.name ?? ''));
-    return { groupId, partners: ids.map((id) => ({ salonId: id, name: names.get(id) ?? `店${id}` })) };
+    return { groupId: 0, partners: ids.map((id) => ({ salonId: id, name: names.get(id) ?? `店${id}` })) };
   } catch (e) {
     console.error('[roomShare] partners', salonId, e instanceof Error ? e.message : String(e));
     return null;

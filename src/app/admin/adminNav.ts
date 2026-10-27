@@ -28,6 +28,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { id: 'add-salon', label: '新規店舗追加' },
       { id: 'import-sources', label: 'フクエスリンク：駅ちか店舗ページ' },
       { id: 'crm-groups', label: 'CRM：グループ・提携店' },
+      { id: 'crm-room-share', label: 'CRM：提携店の部屋共有' },
       { id: 'salon-list', label: '掲載店舗一覧' },
     ],
   },

@@ -22,6 +22,7 @@ import { HpSitesManager } from '@/app/components/HpSitesManager';
 import OwnerContactManager from '@/app/components/OwnerContactManager';
 import ImportSourceManager from '@/app/components/ImportSourceManager';
 import CrmGroupManager from '@/app/components/CrmGroupManager';
+import CrmRoomShareManager from '@/app/components/CrmRoomShareManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import JobBoostManager from '@/app/components/JobBoostManager';
@@ -702,6 +703,14 @@ export default function AdminDashboard() {
           {/* ── フクエスCRM：グループ・提携店（第1324便）。★ NG・要注意の共有は、ここで入れた店どうしだけ。★ 運営だけが作る ── */}
           <AccordionSection id="crm-groups" title="フクエスCRM：グループ・提携店（NG・要注意の共有）" expanded={expandedSections} onToggle={toggleSection}>
             <CrmGroupManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          {/* ── フクエスCRM：提携店の部屋共有（第1670便）。★ NG 共有とは別の入れ物（店と店のペア）。★ 運営だけが作る ── */}
+          <AccordionSection id="crm-room-share" title="フクエスCRM：提携店の部屋共有（同じセラピストを2店で受付）" expanded={expandedSections} onToggle={toggleSection}>
+            <CrmRoomShareManager
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
             />

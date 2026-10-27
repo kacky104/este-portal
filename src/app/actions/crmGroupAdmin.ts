@@ -75,8 +75,6 @@ export type CrmGroupRow = {
   note: string;
   createdAt: string;
   endedAt: string | null;
-  /** ★ 第1669便: 提携店の部屋共有（出勤情報で相手の店の部屋を借りられる・QR同意書・本日画面の帯・ネット予約の空き枠） */
-  roomShare: boolean;
   members: CrmGroupMemberRow[];
   /** いま有効な共有の件数（中身は運営にも出さない） */
   alertCount: number;
@@ -107,7 +105,7 @@ export async function adminListCrmGroups(): Promise<{ ok: true; ready: boolean; 
   if (!a.ok) return a;
   const svc = createServiceClient();
   const { data: gs, error: gErr } = await svc.from('crm_groups')
-    .select('id, name, note, created_at, ended_at, room_share').order('id', { ascending: false });
+    .select('id, name, note, created_at, ended_at').order('id', { ascending: false });
   if (tableMissing(gErr)) return { ok: true, ready: false, invitesReady: false, applyVersion: CRM_GROUP_APPLY_VERSION, groups: [] };
   if (gErr) return { ok: false, error: 'グループを読めませんでした: ' + gErr.message };
   const ids = (gs ?? []).map((g) => Number(g.id));
@@ -184,7 +182,6 @@ export async function adminListCrmGroups(): Promise<{ ok: true; ready: boolean; 
     groups: (gs ?? []).map((g) => ({
       id: Number(g.id), name: String(g.name ?? ''), note: String(g.note ?? ''),
       createdAt: String(g.created_at ?? ''), endedAt: (g.ended_at as string | null) ?? null,
-      roomShare: (g as { room_share?: unknown }).room_share === true,
       members: membersOf.get(Number(g.id)) ?? [], alertCount: countOf.get(Number(g.id)) ?? 0,
       invites: invitesOf.get(Number(g.id)) ?? [],
     })),
@@ -322,20 +319,6 @@ export async function adminUpdateCrmGroup(input: { id: number; name: string; not
   if (error) return { ok: false, error: '直せませんでした: ' + error.message };
   if (!data || data.length === 0) return { ok: false, error: 'グループが見つかりません' };
   await writeLog(svc, { groupId: id, action: 'group_edit', actor: 'admin' });
-  return { ok: true };
-}
-
-/** ★ 第1669便: 部屋共有の ON/OFF（運営）。OFF にすると、借りている部屋の出勤は残るが、帯・同意書・空き枠では見なくなる */
-export async function adminSetCrmGroupRoomShare(input: { id: number; on: boolean }): Promise<{ ok: true } | Err> {
-  const a = await requireAdmin();
-  if (!a.ok) return a;
-  const id = Number(input.id);
-  if (!Number.isInteger(id) || id <= 0) return { ok: false, error: 'グループが不正です' };
-  const svc = createServiceClient();
-  const { data, error } = await svc.from('crm_groups').update({ room_share: input.on === true }).eq('id', id).select('id');
-  if (error) return { ok: false, error: (/room_share/.test(error.message) ? '追加SQL_第1669便 がまだ流れていません: ' : '変えられませんでした: ') + error.message };
-  if (!data || data.length === 0) return { ok: false, error: 'グループが見つかりません' };
-  await writeLog(svc, { groupId: id, action: 'group_edit', actor: 'admin', detail: { roomShare: input.on === true } });
   return { ok: true };
 }
 
