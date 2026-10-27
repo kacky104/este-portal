@@ -157,7 +157,11 @@ export async function adminUpsertImportSource(input: {
     //   （店舗様は枠1しか更新しない・枠2の取り込みが同名の取り違えのきっかけになった（オイルクエスト様）・駅ちかへ見に行く回数も倍になる）。
     //   ★ 動かしたいときは一覧の「再開」。★ 既にある行を登録し直したときも、枠2以降は止める。
     //   ★ 止めるのは取り込む向き（read）の枠だけ。コネックエフの店の枠（write・送る側）は今までどおり動かす。
-    is_enabled: slot === 1 || (existing != null && (existing as { link_mode?: string | null }).link_mode !== 'read' && (existing as { link_mode?: string | null }).link_mode != null),
+    // ★★ 第1676便（2026-10-28・カッキーさん）: 枠2以降は【枠を止める】のではなく【向きを「反映しない」で生かす】。
+    //   ★ 枠ごと止めると、店舗様がコネックエフで枠2の ID・PW を入れても「この枠はいま止まっています。運営にお問い合わせください」で
+    //     弾かれ、始めるたびに運営へ連絡が要った。向きが none なら読み込みは動かず、店舗様はいつでも「フクエスから反映」にできる。
+    //   ★ 既にある行の向きは上書きしない（下のとおり）。新しく作る枠2以降だけ none で作る。
+    is_enabled: true,
     updated_at: now,
   };
   let error: { message: string } | null = null;
@@ -167,7 +171,7 @@ export async function adminUpsertImportSource(input: {
     error = res.error;
   } else {
     const res = await svc.from('salon_import_sources').insert({
-      salon_id: salonId, provider: 'ekichika', slot, link_mode: 'read', ...flags,
+      salon_id: salonId, provider: 'ekichika', slot, link_mode: slot === 1 ? 'read' : 'none', ...flags,
     });
     error = res.error;
   }
@@ -183,17 +187,26 @@ export async function adminUpsertImportSource(input: {
   return { ok: true, created: existing?.id == null };
 }
 
-/** 止める／再開（is_enabled だけ）。★ 消す口は作らない */
-export async function adminSetImportSourceEnabled(input: { id: number; enabled: boolean }): Promise<{ ok: true } | Err> {
+/**
+ * 止める／再開（is_enabled）。★ 消す口は作らない
+ * ★ 第1676便: 枠2以降を「再開」するとき、向きが read（駅ちかから反映）なら none（反映しない）に替える。
+ *   読み込みを再開させず、コネックエフから触れる枠として生かすため（枠1だけ読む・10/17 の決定）。
+ *   戻り値 toNone で画面に「反映しないで生かした」と知らせる。
+ */
+export async function adminSetImportSourceEnabled(input: { id: number; enabled: boolean }): Promise<{ ok: true; toNone: boolean } | Err> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
   const svc = createServiceClient();
+  const { data: cur, error: cErr } = await svc.from('salon_import_sources').select('slot, link_mode').eq('id', Number(input.id)).eq('provider', 'ekichika').maybeSingle();
+  if (cErr) return { ok: false, error: cErr.message };
+  if (!cur) return { ok: false, error: '枠が見つかりません' };
+  const toNone = input.enabled === true && Number(cur.slot) >= 2 && String(cur.link_mode) === 'read';
   const { error } = await svc
     .from('salon_import_sources')
-    .update({ is_enabled: input.enabled === true, updated_at: new Date().toISOString() })
+    .update({ is_enabled: input.enabled === true, ...(toNone ? { link_mode: 'none' } : {}), updated_at: new Date().toISOString() })
     .eq('id', Number(input.id)).eq('provider', 'ekichika');
   if (error) return { ok: false, error: error.message };
-  return { ok: true };
+  return { ok: true, toNone };
 }
 
 /**

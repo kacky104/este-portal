@@ -97,7 +97,9 @@ export default function ImportSourceManager({ allSalons, onToast }: {
     const res = await adminSetImportSourceEnabled({ id: r.id, enabled: !r.isEnabled });
     setBusyId(null);
     if (!res.ok) { onToast(res.error); return; }
-    onToast(r.isEnabled ? `${r.salonName} の取り込みを止めました` : `${r.salonName} の取り込みを再開しました`);
+    onToast(r.isEnabled ? `${r.salonName} の枠を止めました`
+      : res.toNone ? `${r.salonName} の枠を「反映しない」で生かしました（読み込みは動きません。店舗様がコネックエフで ID・PW を入れて「フクエスから反映」にできます）`
+      : `${r.salonName} の枠を再開しました`);
     await load();
   };
 
@@ -109,7 +111,9 @@ export default function ImportSourceManager({ allSalons, onToast }: {
         フクエスリンク（駅ちかからの反映）は、ここで駅ちかのお店のページを登録した店舗だけ動きます。
         登録すると取り込みの設定（出勤・プロフィール・新しく入った子の作成・30分ごと）は自動で立ちます。
         即ヒメ（フクエスの「今すぐ」）は枠1だけ読むのが既定です（2枠の店で食い違わないように）。下の一覧でも枠ごとに切り替えられます。
-        <b>枠2・枠3は、取り込みを止めた状態で登録されます</b>（店舗様は枠1だけ更新するため。動かすときは一覧の「再開」）。
+        <b>枠2・枠3は「反映しない」（読み込まない・枠は生きている）で登録されます</b>（店舗様は枠1だけ更新するため）。
+        店舗様はいつでもコネックエフで枠2の ID・PW を入れて「フクエスから反映」にできます（運営への連絡は不要）。
+        「停止中」の枠2を「再開」すると、同じく「反映しない」で生かします。
         コネックエフの店（向きが write）は、店舗様が「更新する」を押した枠すべてに、今すぐを即ヒメとして送ります。
         送りたくない枠だけ、一覧の「即ヒメ（送る）」を「送らない」にしてください（枠2にも送ると、駅ちかへのログインが倍になり、回数制のプランでは枠2の回数も使います）。
         店舗様はそのあと、フクエスリンクのホームで「駅ちかから反映する」を押すだけです。
