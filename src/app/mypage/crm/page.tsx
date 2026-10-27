@@ -892,7 +892,8 @@ function Grid({
                       // ★ 第1669便: 借りた部屋は「店名／部屋」を灰色で（自店の部屋の色は使わない）
                       if (wdr?.roomSalonId != null) {
                         const pn = partnerRooms.find((p) => p.salonId === wdr.roomSalonId)?.salonName ?? '提携店';
-                        return <span className="flex-none truncate border border-slate-400 bg-slate-100 px-1 text-[10px] font-bold leading-[16px] text-slate-700" title="提携店の部屋を借りています">{pn}／{room}</span>;
+                        // ★ 第1671便（カッキーさん）: 店名を入れると長すぎて名前が消えた → バッジは「借 部屋名」だけ。店名は title（マウスを乗せる）で
+                        return <span className="max-w-[96px] flex-none truncate border border-slate-400 bg-slate-100 px-1 text-[10px] font-bold leading-[16px] text-slate-700" title={`${pn} の部屋を借りています`}>借 {room}</span>;
                       }
                       const c = roomColor(roomColorOf(room));
                       return <span className="flex-none truncate px-1 text-[10px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
