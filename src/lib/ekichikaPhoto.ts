@@ -21,6 +21,12 @@ export const EKICHIKA_GIRL_EDIT_BASE = 'https://ranking-deli.jp/admin/girls/edit
 /** 枠は 1〜8（★ 第105便で確認。編集ページの form は image_set_id 1〜8 の8組）。 */
 export const PHOTO_SLOT_MIN = 1;
 export const PHOTO_SLOT_MAX = 8;
+/**
+ * ★★ 第1693便（2026-10-28）: 駅ちかの写真の枠数は【お店ページ（プラン）によって 8 ではない】。
+ *   ラビリンス様の枠2（中洲・天神）で、新しく作った子の編集ページが「枠の数が 8 ではない」で止まり、3人が写真なし（NOW PRINTING）のままだった。
+ *   → 読むときは 1〜PHOTO_SLOT_PARSE_MAX まで拾い、枠の数が 8 でなくても止めない（1枠目があれば進む）。PHOTO_SLOT_MAX は「ふつうの店の枠数」として残す。
+ */
+export const PHOTO_SLOT_PARSE_MAX = 20;
 
 /** ③サムネイルの座標空間（★ crop_image は width=300 height=400 で固定表示・実測）。 */
 export const THUMB_SPACE = { w: 300, h: 400 } as const;
@@ -43,7 +49,7 @@ export function ekichikaGirlEditUrl(girlId: string): string {
 }
 
 export function isPhotoSlot(n: unknown): n is number {
-  return Number.isInteger(n) && (n as number) >= PHOTO_SLOT_MIN && (n as number) <= PHOTO_SLOT_MAX;
+  return Number.isInteger(n) && (n as number) >= PHOTO_SLOT_MIN && (n as number) <= PHOTO_SLOT_PARSE_MAX;
 }
 
 // ────────────────────────── ⓪ 編集ページの読み取り ──────────────────────────
@@ -134,7 +140,8 @@ export function parsePhotoPage(html: string, expectGirlId: string): PhotoPage {
   if (!girlId) problems.push('girl_id が取れていない');
   else if (girlId !== expectGirlId) problems.push('別の子の編集ページが返った（' + girlId + ' ≠ ' + expectGirlId + '）');
   if (slots.length === 0) problems.push('画像登録の form が1つも無い');
-  else if (slots.length !== PHOTO_SLOT_MAX) problems.push('枠の数が ' + PHOTO_SLOT_MAX + ' ではない: ' + slots.length);
+  // ★ 第1693便: 枠の数が 8 でなくても止めない（お店ページごとに違う）。1枠目（トップ画像）が無いときだけ止める
+  else if (!slots.some((x) => x.slot === PHOTO_SLOT_MIN)) problems.push('1枠目の画像登録の form が無い（枠: ' + slots.map((x) => x.slot).join(',') + '）');
 
   return { csrfToken, shopId, girlId, slots, problems };
 }
@@ -293,7 +300,7 @@ export type PhotoIds = { girlId: string; shopId: string; slot: number; csrfToken
 function assertIds(ids: PhotoIds): void {
   if (!/^\d{1,12}$/.test(ids.girlId)) throw new Error('girl_id の形が不正');
   if (!/^\d{1,12}$/.test(ids.shopId)) throw new Error('shopid の形が不正');
-  if (!isPhotoSlot(ids.slot)) throw new Error('枠は 1〜8: ' + String(ids.slot));
+  if (!isPhotoSlot(ids.slot)) throw new Error('枠は 1〜' + PHOTO_SLOT_PARSE_MAX + ': ' + String(ids.slot));
   if (!ids.csrfToken) throw new Error('fuel_csrf_token が空');
 }
 
