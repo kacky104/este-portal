@@ -16,7 +16,7 @@ import {
 import { bulkDoneText, WORK_FIRST_APPROVAL_NOTE } from '@/lib/mediaOverview';
 import { siteMark } from '@/lib/mediaSites';
 import { AUTO_PUSH_INTERVAL_MIN } from '@/lib/mediaLinkMode';
-import { splitWorkNotes, workNoteLine } from '@/lib/workSendNotes';
+import { foldLegacyNoRows, splitWorkNotes, workNoteLine } from '@/lib/workSendNotes';
 import { workProblemText, type WorkProblem } from '@/lib/workProblem';
 
 // 出勤を送る（第57便・㉞ その2）。
@@ -545,7 +545,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
             （★ 中の書き方を変えずにタブへ移すため）。 */}
       {(!loading && !error && view && view.direction === 'write' ? [view] : []).map((s) => {
         const k = keyOf(s.provider, s.slot);
-        const plan = plans[k];
+        // ★ 第1694便: 第1691便より前の計画の「出勤が未入力」の赤い枠を、表示の上だけ1行のお知らせにまとめる
+        const plan = plans[k] ? foldLegacyNoRows(plans[k]) : plans[k];
         const isWaiting = k in waiting;
         const isBusy = busy === k;
 

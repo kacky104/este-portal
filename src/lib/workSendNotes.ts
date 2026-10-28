@@ -85,3 +85,30 @@ export function workNoteLine(n: WorkNote): { text: string; names: string | null 
   }
   return { text: n.detail, names: workNoteNames(n) };
 }
+
+/**
+ * ★★ 第1694便（2026-10-28・カッキーさん「赤い枠が消えていない」）: 第1691便より前に保存されたエステ魂の計画を、表示の上だけ新しい形にそろえる。
+ *   第1691便で「出勤が未入力の方」は止めた理由（赤い枠）に並べず、まとめて1行のお知らせにした。
+ *   ★ ところが計画はフクエス側の出勤が変わらない限り作り直されない（指紋が同じなら最長24時間そのまま・第1245便）。
+ *     そのあいだ古い計画の赤い枠（30人分）が出続けた。
+ *   → 古い行（文で見分ける）を blockers から抜き、まとめて1行のお知らせ（'time_snapped'＝畳む側）にする。
+ *   ★ 消すのは【表示】だけ。送るかどうかの判断（sendable・自動の周）には使わない。
+ */
+const LEGACY_NO_ROWS_RE = /^(.+?)さんは、この期間のフクエスの出勤が未入力のため更新していません/;
+
+export function foldLegacyNoRows<
+  T extends { blockers: ReadonlyArray<{ kind: string; detail: string; count?: number }>; notes: ReadonlyArray<WorkNote> },
+>(plan: T): T {
+  const names: string[] = [];
+  const blockers = plan.blockers.filter((b) => {
+    const m = typeof b?.detail === 'string' ? LEGACY_NO_ROWS_RE.exec(b.detail) : null;
+    if (!m) return true;
+    names.push(m[1]);
+    return false;
+  });
+  if (names.length === 0) return plan;
+  const shown = names.slice(0, WORK_NOTE_NAMES_MAX);
+  const detail = 'この期間の出勤が未入力の方 ' + names.length + ' 名（' + shown.join('・') +
+    (names.length > shown.length ? ' ほか' : '') + '）は更新していません（エステ魂側の表はそのままです）';
+  return { ...plan, blockers, notes: [...plan.notes, { kind: 'time_snapped', detail }] };
+}
