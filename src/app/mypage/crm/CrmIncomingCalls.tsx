@@ -18,6 +18,9 @@ import { crmGroupBadge } from '@/lib/crmGroup';
 import { safeAction, useCrmLinks } from './CrmBase';
 
 const POLL_MS = 3_000;
+const IDLE_MS = 60_000; // 端末もテスト着信も無い店：1 分ごとに「まだ無いか」だけ軽く聞く（★ 第1686便の直し：前は止めっぱなしで、テスト着信を入れても画面更新まで出なかった）
+/** 設定タブの「テスト着信」が押されたとき（CtiSettingsSection → ここ）。すぐ聞きに行く */
+export const CTI_TEST_EVENT = 'crm:cti-test';
 const MAX_CARDS = 3;
 const SAME_PHONE_MS = 5 * 60_000;
 const FADE_MS = 3 * 60_000;
@@ -120,13 +123,14 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
     let timer: ReturnType<typeof setTimeout> | null = null;
     let busy = false;
     const poll = async () => {
-      if (!alive || busy || !enabledRef.current) return;
+      if (!alive || busy) return;
       busy = true;
       try {
         const r = await safeAction(getCrmIncomingCalls(salonId, lastIdRef.current));
         if (!alive) return;
         if (r.ok) {
           if (!r.enabled) { enabledRef.current = false; return; }
+          enabledRef.current = true;
           // 開いた直後: このブラウザで最後に見た id より後だけを「新しい」とみなす
           let calls = r.calls;
           if (lastIdRef.current == null) {
@@ -139,11 +143,14 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
         // 読めなかったときは次の周でもう一度（画面には出さない）
       } finally {
         busy = false;
-        if (alive && enabledRef.current) timer = setTimeout(() => { void poll(); }, POLL_MS);
+        if (alive) timer = setTimeout(() => { void poll(); }, enabledRef.current ? POLL_MS : IDLE_MS);
       }
     };
+    // ★ テスト着信のボタン（設定タブ）→ 待たずにすぐ聞く
+    const onTest = () => { if (timer) clearTimeout(timer); timer = setTimeout(() => { void poll(); }, 300); };
+    window.addEventListener(CTI_TEST_EVENT, onTest);
     void poll();
-    return () => { alive = false; if (timer) clearTimeout(timer); };
+    return () => { alive = false; if (timer) clearTimeout(timer); window.removeEventListener(CTI_TEST_EVENT, onTest); };
   }, [salonId, arrive]);
 
   useEffect(() => {

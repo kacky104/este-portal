@@ -10,6 +10,7 @@ import { crmCtiTestCall, listCrmCtiDevices, type CrmCtiDeviceInfo } from '@/app/
 import { ctiPrefs, setCtiPrefs, type CtiPrefs } from '@/app/lib/crm/ctiPrefs';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
 import { safeAction } from './CrmBase';
+import { CTI_TEST_EVENT } from './CrmIncomingCalls';
 
 function ago(iso: string | null): { text: string; stale: boolean } {
   if (!iso) return { text: 'まだ無し', stale: true };
@@ -45,6 +46,7 @@ export function CtiSettingsSection({ salonId }: { salonId: number }) {
     const r = await safeAction(crmCtiTestCall(salonId, { phone, hidden }));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
+    try { window.dispatchEvent(new Event(CTI_TEST_EVENT)); } catch { /* 何もしない */ }
     setMsg(r.duplicate ? '10秒以内の同じ番号なので1件にまとめました' : 'テスト着信を入れました。3秒ほどで右上にポップが出ます（この画面でも出ます）');
   };
 
