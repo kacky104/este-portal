@@ -211,10 +211,11 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
       ) : loading ? (
         <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>
       ) : (
-        <div className={`${CARD} overflow-x-auto`}>
+        <div className={`${CARD} overflow-x-auto [--sync-name-v:110px] [--sync-col-v:100px] sm:[--sync-name-v:260px] sm:[--sync-col-v:120px]`}>
           {/* ★ 第770便（カッキーさん）: スマホは横スクロールでよいので、列を縮めず1行に（サイト 160×3）。
               ★ 第771・772便: スマホは名前 110px・サイト 122px に詰める（PC は 260px・160px のまま） */}
-          <table className="text-[14px] table-fixed w-[410px] min-w-[410px] sm:w-[620px] sm:min-w-[620px] whitespace-nowrap">
+          {/* ★ 第1680便（カッキーさん）: 駅ちかが2枠（＋エステ魂）だと列が4本になり、幅 620px 固定では見出しが重なった → 列の数から幅を出す（名前 + 列×幅） */}
+          <table className="text-[14px] table-fixed whitespace-nowrap" style={{ width: `calc(var(--sync-name-v, 110px) + var(--sync-col-v, 100px) * ${1 + sites.length})`, minWidth: `calc(var(--sync-name-v, 110px) + var(--sync-col-v, 100px) * ${1 + sites.length})` }}>
             <thead>
               <tr className="border-b border-slate-200 align-bottom">
                 {/* ★ 第738便: サイトの列は同じ幅（140px）。★ 第739便: 表を左に寄せる（名前 260px・右は空ける） */}
@@ -231,7 +232,13 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                   const bad = therapists.filter((t) => s.hasCredential && cellOf(t, s) !== 'ok').length;
                   return (
                     <th key={key(s)} className={`px-1 sm:px-2 py-3 text-center w-[100px] sm:w-[120px] ${s.hasCredential ? '' : 'bg-slate-50'}`}>
-                      <div className="font-bold text-slate-800 text-[15.5px]">{s.label}</div>
+                      {/* ★ 第1680便: 「駅ちか（中洲・天神）」はサイト名とエリアを2行に（1行だと隣の列と重なる） */}
+                      {(() => {
+                        const m = /^(.+?)（(.+)）$/.exec(s.label);
+                        return m
+                          ? <div className="font-bold text-slate-800 text-[15.5px] leading-tight">{m[1]}<span className="block text-[12px] font-bold text-slate-600">（{m[2]}）</span></div>
+                          : <div className="font-bold text-slate-800 text-[15.5px]">{s.label}</div>;
+                      })()}
                       {s.hasCredential ? (
                         <>
                           {/* ★ 第740便（カッキーさん）: 1行目 サイト名／2行目 最終確認／3行目 △×の人数。★ 文字も大きく */}
