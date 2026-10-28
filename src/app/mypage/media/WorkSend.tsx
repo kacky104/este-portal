@@ -645,10 +645,19 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 )}
 
                 {/* ★ 突き合わせ0人は「一致」ではない。ここを最初に出す（第43便-b §26） */}
+                {/* ★ 第1683便（カッキーさん）: 駅ちかの枠2以降は、枠1と同じになるよう10分に1人ずつ自動で登録される（第1681便）。店舗様に分かる言葉で */}
                 {plan && plan.targets === 0 && (
-                  <p className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
-                    {s.label}の出勤表と結びつく方が1人も見つかりませんでした。内容を比べられていません。
-                  </p>
+                  s.provider === 'ekichika' && s.slot >= 2 ? (
+                    <div className="text-[14px] text-amber-900 bg-amber-50 border border-amber-200 px-3 py-2 leading-relaxed space-y-1">
+                      <p className="font-bold">{s.label}には、まだセラピストが登録されていません。</p>
+                      <p>これから、{s.label}のページにセラピストを <b>10分に1人ずつ自動で登録</b>していきます（枠1と同じ顔ぶれになります）。登録が済んだ方から順に、出勤・写真・即ヒメも{s.label}に反映されます。何もしなくて大丈夫です。</p>
+                      <p className="text-[13px] text-amber-800/80">進み具合は「更新結果」と「セラピスト登録状況一覧」でご覧になれます。急ぐ方は「セラピスト登録状況一覧」で「登録する」を押すと、その場で登録できます。</p>
+                    </div>
+                  ) : (
+                    <p className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
+                      {s.label}の出勤表と結びつく方が1人も見つかりませんでした。内容を比べられていません。
+                    </p>
+                  )
                 )}
 
                 {/* ★★★★ 第393便: 「更新できる人／更新する範囲／変わるところ」の3つの数字カードを消した。
@@ -702,7 +711,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   };
                   return (
                     <>
-                      {unsent.length > 0 && (
+                      {unsent.length > 0 && !(s.provider === 'ekichika' && s.slot >= 2 && plan.targets === 0) && (
                         <div className="border border-amber-200 bg-amber-50 px-3 py-2 space-y-1.5">
                           <p className="text-[13px] font-bold text-amber-900">
                             出勤を送れていない方がいます（ほかの方の出勤は更新しています）
