@@ -8,7 +8,7 @@ import {
 } from '@/app/actions/mediaCredentials';
 import { listConecfTargetOffs, getConecfGirlOrder } from '@/app/actions/conecfGirls';
 import { sortTherapistsByManual } from '@/lib/therapistOrder';
-import { canLink, strengthLabel, type LinkPairs } from '@/lib/mediaLinkPairs';
+import { canLink, strengthLabel, missingLinkKind, type LinkPairs } from '@/lib/mediaLinkPairs';
 import { waitToastNote } from '@/lib/relayWait';
 import { useMediaBrand } from '@/app/mypage/media/mediaBrand';
 import { summarizeCreatePlan } from '@/app/mypage/media/createPlanSummary';
@@ -24,12 +24,13 @@ import { summarizeCreatePlan } from '@/app/mypage/media/createPlanSummary';
 //   ○ 連携済み（番号が結びつき、名簿にもいる）
 //   △ 確かめられません（番号が無い）→ 押すと候補と連携／一覧から選ぶ／登録
 //   × 名簿にいません（番号はあるが向こうに無い）→ 押すと連携を外す／登録
+//   ◌ 反映待ち（第1699便: 結びついたのが名簿を読んだあと＝作ったばかり。名簿を読み直せば ○）→ 押すと再読込の案内
 //   — まだ読んでいません（名簿の写しが無い）
 //   NO DATA ID・PASS が無いサイト
 
 type Therapist = { id: string; name: string; imageUrl: string | null; isNewFace: boolean; isActive: boolean };
 type Site = { provider: string; slot: number; label: string; direction: string; hasCredential: boolean };
-type Cell = 'ok' | 'unlinked' | 'missing' | 'unknown';
+type Cell = 'ok' | 'unlinked' | 'missing' | 'pending' | 'unknown';
 
 const ROSTER_STALE_MS = 30 * 60 * 1000;
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
@@ -48,7 +49,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
   const brand = useMediaBrand();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [pairsOf, setPairsOf] = useState<Record<string, { pairs: LinkPairs; readAt: string | null }>>({});
+  const [pairsOf, setPairsOf] = useState<Record<string, { pairs: LinkPairs; readAt: string | null; linkedAtOf: Record<number, string> }>>({});
   const [targetOffs, setTargetOffs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -93,9 +94,9 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
         autoRead.current.add(key(s));
         void startMediaRosterRead({ salonId, provider: s.provider, slot: s.slot });
       }
-      return [key(s), { pairs: r.data.pairs, readAt: r.data.readAtISO }] as const;
+      return [key(s), { pairs: r.data.pairs, readAt: r.data.readAtISO, linkedAtOf: r.data.linkedAtOf ?? {} }] as const;
     }));
-    const m: Record<string, { pairs: LinkPairs; readAt: string | null }> = {};
+    const m: Record<string, { pairs: LinkPairs; readAt: string | null; linkedAtOf: Record<number, string> }> = {};
     for (const [k, v] of results) if (v) m[k] = v;
     setPairsOf(m);
     setLoading(false);
@@ -111,7 +112,9 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
     if (p.pairs.unlinked.some((u) => String(u.therapistId) === t.id)) return 'unlinked';
     const l = p.pairs.linked.find((x) => String(x.therapistId) === t.id);
     if (!l) return 'unlinked';
-    return l.onMedia ? 'ok' : 'missing';
+    if (l.onMedia) return 'ok';
+    // ★★ 第1699便（A-5・A-7）: 名簿を読んだあとに結びついた方は「反映待ち」（写しが古いだけ）。外させない
+    return missingLinkKind(p.linkedAtOf[Number(t.id)], p.readAt) === 'pending' ? 'pending' : 'missing';
   };
 
   const onRead = async (s: Site) => {
@@ -178,7 +181,9 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
   const MARK: Record<Cell, { text: string; cls: string; title: string; label?: string; btn?: string }> = {
     ok: { text: '○', cls: 'text-sky-500', title: '連携済み' },
     unlinked: { text: '△', cls: 'text-amber-600', title: '確かめられません（番号が無い）。押すと連携・登録できます', label: '登録する', btn: 'border-amber-400 bg-amber-50 hover:bg-amber-100' },
-    missing: { text: '×', cls: 'text-rose-600', title: `名簿にいません。押すと登録できます`, label: '確認する', btn: 'border-rose-300 bg-rose-50 hover:bg-rose-100' },
+    missing: { text: '×', cls: 'text-rose-600', title: `名簿にいません（サイトで削除された可能性があります）。押すと連携を外せます`, label: '確認する', btn: 'border-rose-300 bg-rose-50 hover:bg-rose-100' },
+    // ★ 第1699便: 作ったばかり（名簿の写しが古いだけ）
+    pending: { text: '◌', cls: 'text-slate-500', title: '登録・連携したばかりで、名簿の読み直し待ちです', label: '反映待ち', btn: 'border-slate-300 bg-slate-50 hover:bg-slate-100' },
     unknown: { text: '—', cls: 'text-slate-300', title: 'まだ読んでいません' },
   };
 
@@ -192,6 +197,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
           <li className="whitespace-nowrap"><b className="text-sky-500 font-black text-[15px] mr-1">○</b>連携済み</li>
           <li className="whitespace-nowrap"><b className="text-amber-500 font-black text-[15px] mr-1">△</b>確かめられません（名前が違うなど）</li>
           <li className="whitespace-nowrap"><b className="text-rose-500 font-black text-[15px] mr-1">×</b>サイトにいません</li>
+          <li className="whitespace-nowrap"><b className="text-slate-500 font-black text-[15px] mr-1">◌</b>反映待ち（登録したばかり）</li>
         </ul>
         <p className="text-slate-500"><b className="text-amber-600 font-black">△ 登録する</b>・<b className="text-rose-600 font-black">× 確認する</b> のボタンを押すと、その場で連携・登録できます（○ は押す必要がありません）。</p>
       </div>
@@ -395,11 +401,39 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                   )}
                 </>
               )}
+              {/* ★★ 第1699便（A-8・B-5）: 結びついたあとに読んだ名簿にいない＝サイトで削除された可能性が高い。連携を外す道をはっきり */}
               {!preview && c === 'missing' && (
                 <>
-                  <p className="text-[13px] text-slate-500 leading-relaxed">番号はありますが、{s.label}の名簿にいません（{s.label}で削除された・読み取りが不完全 など）。連携を外すと、新しく登録し直せます。</p>
+                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                    {p.readAt ? `${fmtAt(p.readAt)} に読んだ` : ''}{s.label}の名簿に、この方が見当たりません。<b className="font-bold text-slate-800">{s.label}側で削除された可能性が高いです。</b>
+                  </p>
+                  <p className="text-[13px] text-slate-500 leading-relaxed">
+                    {s.label}に出さない方なら「連携を外す」を押してください。外したあと「△ 登録する」から登録し直すこともできます。
+                    {s.label}の管理画面でこの方が表示されているなら、上の「再読込」を押して数分後に開き直してください。
+                  </p>
                   <button type="button" disabled={busy !== ''} onClick={() => void onUnlink(t, s)}
-                    className="block w-full px-3 py-2 border border-slate-300 bg-white text-[13.5px] text-slate-600 disabled:opacity-40">連携を外す</button>
+                    className="block w-full px-3 py-2 border border-rose-300 bg-white text-[13.5px] font-bold text-rose-700 disabled:opacity-40">連携を外す</button>
+                </>
+              )}
+              {/* ★★ 第1699便（A-7）: 作ったばかり。名簿の写しが古いだけなので、外させない（えいみ様の結びつきが消えた件）。
+                  作れたが写真の段で止まった方もここに来る → 画像タブで「保存して更新」の案内 */}
+              {!preview && c === 'pending' && (
+                <>
+                  <p className="text-[13px] text-slate-600 leading-relaxed">
+                    {s.label}への<b className="font-bold text-slate-800">登録・連携は済んでいます</b>。この表の元になる名簿をまだ読み直していないため、反映待ちになっています。
+                  </p>
+                  <p className="text-[13px] text-slate-500 leading-relaxed">
+                    「名簿を読み直す」を押して、数分後にこの画面を開き直すと ○ になります。<b className="font-bold text-slate-700">連携は外さないでください。</b>
+                  </p>
+                  <p className="text-[13px] text-slate-500 leading-relaxed">
+                    {s.label}で写真が付いていない（NOW PRINTING）ときは、
+                    <Link href={brand.link('girls') + '/' + t.id + '?tab=images'} className="font-bold text-indigo-600 underline underline-offset-4">セラピスト編集の「画像」タブ</Link>
+                    で「保存して…更新」を押すと付きます。
+                  </p>
+                  <button type="button" disabled={reading === key(s)} onClick={() => { void onRead(s); setOpen(null); }}
+                    className="block w-full px-3 py-2.5 bg-indigo-600 text-white text-[14px] font-bold disabled:opacity-40">
+                    {reading === key(s) ? '読込中…' : '名簿を読み直す'}
+                  </button>
                 </>
               )}
               <div className="flex justify-end">

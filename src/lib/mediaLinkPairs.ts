@@ -218,3 +218,45 @@ export function pairsSummary(pairs: LinkPairs): string {
     ? 'まだ結びついていない方が' + n + '名（うち' + withCandidate + '名は候補があります）'
     : 'まだ結びついていない方が' + n + '名';
 }
+
+/**
+ * ★★ 第1699便（A-5・A-7・A-8・B-5・2026-10-28）: 「番号はあるが名簿にいない（×）」を2つに分ける。
+ *   ・'pending' … 結びついたのが【名簿の写しを読んだあと】（作ったばかり・結び直したばかり）。写しが古いだけで、居るはず。
+ *                 ★ ここで「連携を外す」を押させない（えいみ様の結びつきが消えた件・A-7）。名簿を読み直せば ○ になる。
+ *   ・'gone'    … 結びついたあとに読んだ名簿にいない＝相手サイトで削除された可能性が高い（もえ様・A-8）。連携を外してよい。
+ *   ★ 結びついた時刻が分からない（旧列だけの結び等）は 'gone'（今までどおり）。写しが無ければ 'pending'。
+ *   ★ 結びついてから MISSING_LINK_GRACE_MS 以内に読んだ写しも当てにしない（駅ちかは新しい子を一覧にすぐ出さないことがある・A-7）。
+ */
+export const MISSING_LINK_GRACE_MS = 60 * 60 * 1000;
+
+export function missingLinkKind(linkedAtISO: string | null | undefined, readAtISO: string | null | undefined): 'pending' | 'gone' {
+  const linked = Date.parse(String(linkedAtISO ?? ''));
+  if (!Number.isFinite(linked)) return 'gone';
+  const read = Date.parse(String(readAtISO ?? ''));
+  if (!Number.isFinite(read)) return 'pending';
+  return read < linked + MISSING_LINK_GRACE_MS ? 'pending' : 'gone';
+}
+
+/**
+ * ★★ 第1699便（A-5）: 「すでに◯◯に居ます。登録しませんでした」（create_girl / create_cast・stopped・already_listed）を、
+ *   その場で結びつけられたときは【成功の1行】に書き換える。
+ *   ★ 実態は「同名が居たので結びつけた」＝成功なのに、オレンジの「途中で止めました」で20件並んで紛らわしかった（ラビリンス様の枠2）。
+ *   ★ 自動の登録（system:slot-mirror）の ok は、更新結果の一覧ではたたまれる（第1684便）。
+ * @returns 書き換えた記録の並び（当てはまる行が無ければそのまま）
+ */
+export function markAlreadyListedLinked<T extends { event: string; outcome: string; summary?: string; detail?: Record<string, unknown> }>(
+  audits: ReadonlyArray<T>,
+  input: { castId: string; name: string; siteLabel: string; therapistId: number },
+): T[] {
+  return audits.map((a) => {
+    const d = (a.detail ?? {}) as Record<string, unknown>;
+    if ((a.event !== 'create_girl' && a.event !== 'create_cast') || a.outcome !== 'stopped') return a;
+    if (d.reason !== 'already_listed' || String(d.castId ?? '') !== input.castId) return a;
+    return {
+      ...a,
+      outcome: 'ok',
+      summary: input.name + 'さんは' + input.siteLabel + 'にすでに居たので、結びつけました（castId ' + input.castId + '）。新しく登録はしていません',
+      detail: { ...d, reason: 'already_listed_linked', therapistId: input.therapistId },
+    };
+  });
+}

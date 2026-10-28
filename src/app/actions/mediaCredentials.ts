@@ -2452,7 +2452,7 @@ async function loadLinkPairs(
   salonId: number,
   provider: string,
   slot: number,
-): Promise<{ ok: true; pairs: LinkPairs; readAtISO: string | null } | { ok: false; error: string }> {
+): Promise<{ ok: true; pairs: LinkPairs; readAtISO: string | null; linkedAtOf: Record<number, string> } | { ok: false; error: string }> {
   const { data: therapists, error: thErr } = await svc
     .from('therapists')
     .select('id, name, is_active, import_cast_id')
@@ -2499,7 +2499,19 @@ async function loadLinkPairs(
     links,
     entries,
   });
-  return { ok: true, pairs, readAtISO: snapRow ? String(snapRow.read_at) : null };
+  // ★ 第1699便（A-5）: 結びついた時刻（therapist_media_ids.updated_at）。「作ったばかりで名簿の写しが古いだけ」を見分ける（missingLinkKind）。
+  //   ★ 読めなければ空（今までどおり「名簿にいません」）。旧列（import_cast_id）だけの結びには時刻が無い
+  const linkedAtOf: Record<number, string> = {};
+  const ids = rows.map((t) => Number(t.id));
+  if (ids.length > 0) {
+    const { data: lk, error: lkErr } = await svc.from('therapist_media_ids')
+      .select('therapist_id, updated_at').in('therapist_id', ids).eq('provider', provider).eq('slot', slot);
+    if (lkErr) console.warn('[media] 結びついた時刻を読めなかった', salonId, provider, slot, lkErr.message);
+    for (const r of ((lkErr ? [] : lk ?? []) as Array<{ therapist_id: number; updated_at: string | null }>)) {
+      if (r.updated_at) linkedAtOf[Number(r.therapist_id)] = String(r.updated_at);
+    }
+  }
+  return { ok: true, pairs, readAtISO: snapRow ? String(snapRow.read_at) : null, linkedAtOf };
 }
 
 /**
@@ -2510,7 +2522,7 @@ export async function getMediaLinkPairs(input: {
   salonId: string | number;
   provider: string;
   slot: number;
-}): Promise<Result<{ pairs: LinkPairs; readAtISO: string | null }>> {
+}): Promise<Result<{ pairs: LinkPairs; readAtISO: string | null; linkedAtOf: Record<number, string> }>> {
   const salonId = Number(input.salonId);
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   const guard = await assertSalonOwner(salonId);
@@ -2524,7 +2536,7 @@ export async function getMediaLinkPairs(input: {
   const svc = createServiceClient();
   const loaded = await loadLinkPairs(svc, salonId, provider, slot);
   if (!loaded.ok) return { ok: false, error: loaded.error };
-  return { ok: true, data: { pairs: loaded.pairs, readAtISO: loaded.readAtISO } };
+  return { ok: true, data: { pairs: loaded.pairs, readAtISO: loaded.readAtISO, linkedAtOf: loaded.linkedAtOf } };
 }
 
 /**

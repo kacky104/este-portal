@@ -142,5 +142,28 @@ eq('★ 誰も居ない店は0名と言い切ってよい（名簿は読めて�
    v.pairsSummary(v.buildLinkPairs({ therapists: [], links: [], entries: [] })),
    '全員が結びついています（0名）');
 
+// ★★ 第1699便（A-5・A-7・A-8）: 「名簿にいない」の見分けと、「すでに居ます→結びつけ」の書き換え
+{
+  const L = '2026-10-28T05:59:00.000Z';
+  const later = (min) => new Date(Date.parse(L) + min * 60000).toISOString();
+  eq('A-7: 名簿を読んだあとに結びついた → 反映待ち', v.missingLinkKind(L, later(-10)), 'pending');
+  eq('A-7: 結びついて30分後に読んだ名簿（駅ちかがまだ出していない）→ 反映待ち', v.missingLinkKind(L, later(30)), 'pending');
+  eq('A-8: 結びついて2時間後に読んだ名簿にいない → 削除の可能性', v.missingLinkKind(L, later(120)), 'gone');
+  eq('結びついた時刻が分からない → 今までどおり', v.missingLinkKind(null, later(0)), 'gone');
+  eq('名簿の写しが無い → 反映待ち', v.missingLinkKind(L, null), 'pending');
+
+  const audits = [
+    { event: 'create_girl', outcome: 'stopped', summary: 'えいみさんは、すでに駅ちかに居ます（castId 5907096）。登録しませんでした', detail: { name: 'えいみ', castId: '5907096', reason: 'already_listed', sameCount: 1 } },
+    { event: 'login', outcome: 'ok', detail: {} },
+  ];
+  const out = v.markAlreadyListedLinked(audits, { castId: '5907096', name: 'えいみ', siteLabel: '駅ちか（枠2）', therapistId: 7 });
+  eq('A-5: 結びつけた回は成功', out[0].outcome, 'ok');
+  eq('A-5: 文', out[0].summary, 'えいみさんは駅ちか（枠2）にすでに居たので、結びつけました（castId 5907096）。新しく登録はしていません');
+  eq('A-5: 理由が変わる', out[0].detail.reason, 'already_listed_linked');
+  eq('A-5: ほかの行は触らない', out[1], audits[1]);
+  eq('A-5: 番号が違えば触らない', v.markAlreadyListedLinked(audits, { castId: '1', name: 'えいみ', siteLabel: 'x', therapistId: 7 })[0].outcome, 'stopped');
+  eq('A-5: 元の並びは書き換えない', audits[0].outcome, 'stopped');
+}
+
 console.log(fail === 0 ? '\n★ すべて通りました' : '\n' + fail + ' 件 通りませんでした');
 process.exit(fail === 0 ? 0 : 1);

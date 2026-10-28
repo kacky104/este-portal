@@ -72,6 +72,7 @@ import type { EsutamaCastCreateValues } from '@/lib/esutamaRequests';
 import type { EkichikaGirlCreateValues } from '@/lib/ekichikaGirlCreate';
 import type { EkichikaGirlEditValues } from '@/lib/ekichikaGirlEdit';
 import { planEsutamaWork, pickEsutamaTargets, shouldHoldEsutamaClears } from '@/lib/esutamaPlan';
+import { markAlreadyListedLinked } from '@/lib/mediaLinkPairs';
 import { isAutomaticActor, loginBackoff, LOGIN_BACKOFF_MIN } from '@/lib/loginBackoff';
 import { loginRejectStreak, decideLoginAutoPause, loginRejectPauseSummary, loginRejectPauseNote, LOGIN_REJECT_PAUSE_STREAK, LOGIN_REJECT_REASON, LOGIN_GUARD_ACTOR } from '@/lib/loginAutoPause';
 import { loadLoginPauseFacts } from '@/app/lib/media/loginAutoPause';
@@ -854,7 +855,8 @@ export async function advanceRelayFlow(params: {
     context,
   });
 
-  const audits: FlowAudit[] = [...outcome.audits];
+  // ★ 第1699便: let（同名に結びつけたとき、止めた行を成功の行に書き換える・markAlreadyListedLinked）
+  let audits: FlowAudit[] = [...outcome.audits];
   let note = outcome.note;
   let next: FlowNextRequest | null = outcome.kind === 'next' ? outcome.next : null;
 
@@ -1049,6 +1051,8 @@ export async function advanceRelayFlow(params: {
       });
       note = note + ' → ★ 番号は別の方のもの（結ばない）';
     } else if (takenBy === f.therapistId) {
+      // ★ 第1699便（A-5）: もう結びついている＝成功の1行に
+      audits = markAlreadyListedLinked(audits, { castId: f.castId, name: f.name, siteLabel, therapistId: f.therapistId });
       note = note + ' → 番号はもう結びついている（何もしない）';
     } else if (mine) {
       audits.push({
@@ -1059,14 +1063,28 @@ export async function advanceRelayFlow(params: {
       note = note + ' → ★ この方は別の番号を持っている（結ばない）';
     } else {
       const r = await rememberCastId(svc, { therapistId: f.therapistId, provider: params.provider, slot: params.slot, castId: f.castId });
-      audits.push({
+      // ★★ 第1699便（A-5）: 結びつけられたら「すでに居ます（止めました）」の行を成功の1行に書き換える。結びつけの行は足さない（同じことを二度言わない）
+      if (r.ok) {
+        const before = JSON.stringify(audits);
+        audits = markAlreadyListedLinked(audits, { castId: f.castId, name: f.name, siteLabel, therapistId: f.therapistId });
+        if (JSON.stringify(audits) !== before) {
+          note = note + ' → 同名の登録に結びつけた（cast_id ' + f.castId + '）';
+        } else {
+          audits.push({
+            event: 'cast_id_linked', outcome: 'ok',
+            summary: `${siteLabel}の「${f.mediaName}」と、${f.name}さんを結びつけました（同じ名前の登録がすでにあったため、新しく登録はしていません）`,
+            detail: { therapistId: f.therapistId, castId: f.castId, reason: 'already_listed_linked', note: null, flowId: context.flowId },
+          });
+          note = note + ' → 同名の登録に結びつけた（cast_id ' + f.castId + '）';
+        }
+      } else audits.push({
         event: 'cast_id_linked', outcome: r.ok ? 'ok' : 'failed',
         summary: r.ok
           ? `${siteLabel}の「${f.mediaName}」と、${f.name}さんを結びつけました（同じ名前の登録がすでにあったため、新しく登録はしていません）`
           : `${siteLabel}の「${f.mediaName}」と、${f.name}さんを結びつけられませんでした`,
         detail: { therapistId: f.therapistId, castId: f.castId, reason: r.ok ? 'already_listed_linked' : 'link_failed', note: r.error ?? null, flowId: context.flowId },
       });
-      note = note + (r.ok ? ' → 同名の登録に結びつけた（cast_id ' + f.castId + '）' : ' → ★ 結びつけに失敗: ' + (r.error ?? '理由不明'));
+      if (!r.ok) note = note + ' → ★ 結びつけに失敗: ' + (r.error ?? '理由不明');
     }
   }
 
