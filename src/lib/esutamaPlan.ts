@@ -180,13 +180,15 @@ export function planEsutamaWork(input: {
     m.set(sh.dateISO, sh);        // ★ 同じ日が2行あれば後勝ち（フクエス側の重複は別問題）
   }
 
+  // ★ 第1691便（2026-10-28・カッキーさん）: 出勤が未入力の方は【止めた理由（赤い枠）に並べない】。
+  //   出勤を入れていない＝お休み（または未定）で、店舗様が直すものではない（第1268便と同じ考え）。
+  //   30 人分の赤い枠が並んで「すごい表示」になっていた → まとめて1行のお知らせ（畳む側）にする。
+  //   ★ 'no_fukues_rows' の reason は残す（古い計画の表示のため）。新しくは作らない
+  const noRows: string[] = [];
   for (const u of toUse) {
     const rows = byPerson.get(u.therapistId);
     if (!rows || rows.size === 0) {
-      blocked.push({
-        therapistId: u.therapistId, name: u.name, reason: 'no_fukues_rows',
-        message: u.name + 'さんは、この期間のフクエスの出勤が未入力のため更新していません（エステ魂側の表はそのままです）',
-      });
+      noRows.push(u.name);
       continue;
     }
     const days: EsutamaPerson['days'] = [];
@@ -203,6 +205,10 @@ export function planEsutamaWork(input: {
       days.push({ dateISO, range: conv.range });
     }
     people.push({ therapistId: u.therapistId, castId: u.castId, name: u.name, days });
+  }
+
+  if (noRows.length > 0) {
+    notes.push('この期間の出勤が未入力の方 ' + noRows.length + ' 名（' + noRows.slice(0, 8).join('・') + (noRows.length > 8 ? ' ほか' : '') + '）は更新していません（エステ魂側の表はそのままです）');
   }
 
   return { people, blocked, notes, ok: people.length > 0, summary: buildSummary(people, blocked, notes) };
