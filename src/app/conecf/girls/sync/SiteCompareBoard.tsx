@@ -162,7 +162,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
       // ★ 第1296便: 前の更新が動いているときは順番待ち（断らない）。「送りました」と言い切らない
       onToast(res.data.waiting
         ? `${s.label}への登録を受け付けました。${waitToastNote([s.label])}。結果は「更新結果」に出ます`
-        : `${s.label}へ登録を送りました。結果は「更新結果」に出ます。数分後に「再読み込み」を押すと、この表にも反映されます`);
+        : `${s.label}へ登録を送りました。結果は「更新結果」に出ます。数分後に「再読込」を押すと、この表にも反映されます`);
       setOpen(null); setPreview(null);
     } finally { setBusy(''); }
   };
@@ -255,9 +255,10 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                           ) : (
                             <div className="text-[13px] font-bold text-slate-400">△× 0人</div>
                           )}
+                          {/* ★ 第1682便（カッキーさん）: スマホで「△× 39人」と「再読み込み」が重なった → 文字を「再読込」に短くし、人数とは別の行に */}
                           <button type="button" disabled={reading === key(s)} onClick={() => void onRead(s)}
-                            className="mt-1 text-[12.5px] text-indigo-600 underline disabled:opacity-40">
-                            {reading === key(s) ? '読み直しています…' : '再読み込み'}
+                            className="mt-1 block mx-auto text-[12.5px] text-indigo-600 underline disabled:opacity-40">
+                            {reading === key(s) ? '読込中…' : '再読込'}
                           </button>
                         </>
                       ) : (
