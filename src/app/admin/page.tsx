@@ -23,6 +23,7 @@ import OwnerContactManager from '@/app/components/OwnerContactManager';
 import ImportSourceManager from '@/app/components/ImportSourceManager';
 import CrmGroupManager from '@/app/components/CrmGroupManager';
 import CrmRoomShareManager from '@/app/components/CrmRoomShareManager';
+import CrmCtiManager from '@/app/components/CrmCtiManager';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import JobBoostManager from '@/app/components/JobBoostManager';
@@ -711,6 +712,14 @@ export default function AdminDashboard() {
           {/* ── フクエスCRM：提携店の部屋共有（第1670便）。★ NG 共有とは別の入れ物（店と店のペア）。★ 運営だけが作る ── */}
           <AccordionSection id="crm-room-share" title="フクエスCRM：提携店の部屋共有（同じセラピストを2店で受付）" expanded={expandedSections} onToggle={toggleSection}>
             <CrmRoomShareManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          {/* ── フクエスCRM：着信ポップ（CTI・第1685便）。★ 受付の Android のアプリ用の端末トークンを出す（QR は1回だけ表示）。★ 運営だけ ── */}
+          <AccordionSection id="crm-cti" title="フクエスCRM：着信ポップ（受付の Android アプリ・CTI）" expanded={expandedSections} onToggle={toggleSection}>
+            <CrmCtiManager
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
             />
