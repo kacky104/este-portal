@@ -11,6 +11,8 @@
 //   2. フクエスの出勤（窓の中）を 日付 → 範囲 / なし に直す（esutamaWork）
 //   3. ★ 窓の中にフクエスの出勤行が **1件も無い人は送らない**（'no_fukues_rows'）。
 //      ★ 店舗がエステ魂だけで管理している人の表を、こちらが空で上書きしないため。
+//      ★★ 第1696便（A-1）: ただし前回の流れで「エステ魂に出勤が残っていた」と控えた方（prevActiveCastIds）は、全日休みを送る。
+//        コネックエフから出勤を送ったあと、その方の出勤を全部消すと、エステ魂に古い出勤が残っていた（幽霊出勤）。
 //   4. 実際の書き換えは、その人のページを読んだあと applyEsutamaPerson が行う。
 
 import { planRosterWrite, blockedMessage, type MediaRosterEntry } from './mediaMatch';
@@ -76,17 +78,20 @@ export function pickEsutamaTargets(input: {
   rosterCastIds: ReadonlyArray<string>;
   /** この期間に出勤の行がある方の therapistId（お休みの行も数える） */
   shiftTherapistIds: ReadonlyArray<number>;
+  /** ★ 第1696便: 前回の流れでエステ魂に出勤が残っていた方の castId（③ の代わりになる。出勤の行を消した非公開の方を拾う） */
+  prevActiveCastIds?: ReadonlyArray<string>;
 }): Array<{ therapistId: number; name: string }> {
   const linkOf = new Map<number, string>();
   for (const l of input.links) if (l.castId) linkOf.set(l.therapistId, l.castId);
   const onRoster = new Set(input.rosterCastIds);
   const hasRows = new Set(input.shiftTherapistIds);
+  const prevActive = new Set(input.prevActiveCastIds ?? []);
   const out: Array<{ therapistId: number; name: string }> = [];
   for (const t of input.therapists) {
     if (!t.name) continue;
     if (!t.active) {
       const cid = linkOf.get(t.therapistId);
-      if (!cid || !onRoster.has(cid) || !hasRows.has(t.therapistId)) continue;
+      if (!cid || !onRoster.has(cid) || (!hasRows.has(t.therapistId) && !prevActive.has(cid))) continue;
     }
     out.push({ therapistId: t.therapistId, name: t.name });
   }
@@ -128,6 +133,12 @@ export function planEsutamaWork(input: {
    *   ★ 結んだ番号が名簿に無ければ送らない（古い番号のまま書き込まない）。
    */
   links?: ReadonlyArray<{ therapistId: number; castId: string }>;
+  /**
+   * ★★ 第1696便（A-1）: 前回の流れで「エステ魂に出勤（○）が残っていた」方の castId（前回の計画に保存した控え）。
+   *   この期間のフクエスの出勤が1件も無い方でも、ここに居れば【全日休み】を送る（エステ魂の古い出勤を消す）。
+   *   ★ 一度もこちらが読んでいない方（エステ魂だけで管理している方）は控えに居ないので、今までどおり触らない。
+   */
+  prevActiveCastIds?: ReadonlyArray<string>;
 }): EsutamaPlan {
   const blocked: EsutamaBlocked[] = [];
   const notes: string[] = [];
@@ -185,9 +196,15 @@ export function planEsutamaWork(input: {
   //   30 人分の赤い枠が並んで「すごい表示」になっていた → まとめて1行のお知らせ（畳む側）にする。
   //   ★ 'no_fukues_rows' の reason は残す（古い計画の表示のため）。新しくは作らない
   const noRows: string[] = [];
+  const prevActive = new Set(input.prevActiveCastIds ?? []);
   for (const u of toUse) {
     const rows = byPerson.get(u.therapistId);
     if (!rows || rows.size === 0) {
+      // ★★ 第1696便（A-1）: 前回エステ魂に出勤が残っていた方は、全日休みを送る（幽霊出勤を消す）
+      if (prevActive.has(u.castId)) {
+        people.push({ therapistId: u.therapistId, castId: u.castId, name: u.name, days: input.windowDates.map((dateISO) => ({ dateISO, range: null })) });
+        continue;
+      }
       noRows.push(u.name);
       continue;
     }

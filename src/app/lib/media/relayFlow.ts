@@ -1753,11 +1753,16 @@ async function planEsutama(
   }));
 
   // ★ 第1274便: 公開中の方は全員。非公開の方は「番号が結んである・名簿に居る・出勤の行がある」方だけ（出勤を消しに行く相手）
+  // ★★ 第1696便（A-1・エステ魂の幽霊出勤）: 前回の流れで「エステ魂に出勤が残っていた」方の控え（前回の計画の notes に保存）。
+  //   ★ 読めなくても止めない（控えが無い＝今までどおり、出勤の無い方は触らない）
+  const prevActiveCastIds = await loadEsutamaActive(supabase, params);
+
   const people = pickEsutamaTargets({
     therapists: candidates,
     links,
     rosterCastIds: rosterRows.map((r) => r.castId),
     shiftTherapistIds: shifts.map((s) => s.therapistId),
+    prevActiveCastIds,
   });
 
   const plan = planEsutamaWork({
@@ -1766,6 +1771,7 @@ async function planEsutama(
     shifts,
     windowDates,
     links,
+    prevActiveCastIds,
   });
 
   const planAudit: FlowAudit = {
@@ -1830,6 +1836,27 @@ function esutamaDateLabel(iso: string): string {
   return Number(m[2]) + '/' + Number(m[3]) + '(' + w + ')';
 }
 
+/** ★ 第1696便: エステ魂の計画の notes に入れる、運営用の控えの種類（画面には出さない・lib/workSendNotes.ts の HIDDEN_KINDS） */
+const ESUTAMA_ACTIVE_NOTE_KIND = 'esutama_active';
+
+/**
+ * ★★ 第1696便（A-1）: 前回の計画に保存した「エステ魂に出勤が残っていた方」の castId を読む。★ 読めなければ空（今までどおり）
+ */
+async function loadEsutamaActive(
+  supabase: ReturnType<typeof createServiceClient>,
+  params: { salonId: number; provider: string; slot: number },
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('media_work_plans')
+    .select('notes')
+    .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot)
+    .maybeSingle();
+  if (error) { console.warn('[relay] エステ魂: 前回の控えを読めなかった（今までどおり進める）', error.message); return []; }
+  const notes = Array.isArray(data?.notes) ? (data!.notes as Array<{ kind?: unknown; names?: unknown }>) : [];
+  const n = notes.find((x) => x && x.kind === ESUTAMA_ACTIVE_NOTE_KIND);
+  return Array.isArray(n?.names) ? (n!.names as unknown[]).filter((c): c is string => typeof c === 'string' && c.length > 0) : [];
+}
+
 /**
  * ★ エステ魂の計画を media_work_plans に残す（第110便）。★ 店舗×媒体×枠で1件（上書き）。
  *   ★ 駅ちかの planWork と同じ表・同じ形（diff の girlId に castId を入れる）。画面（WorkSend）はそのまま読める。
@@ -1858,7 +1885,11 @@ async function saveEsutamaPlan(
       counts_after: [],
       diff: plan.diffs.map((d) => ({ girlId: d.castId, name: d.name, dayIndex: d.dayIndex, before: d.before, after: d.after })),
       blockers: plan.blocked.map((m) => ({ kind: 'unmapped_therapist', detail: m })),
-      notes: plan.notes.map((n) => ({ kind: 'time_snapped', detail: n })),
+      notes: [
+        ...plan.notes.map((n) => ({ kind: 'time_snapped', detail: n })),
+        // ★ 第1696便（A-1）: 次の計画が「全日休み」を送る相手を決めるための控え（運営用・画面には出さない）
+        { kind: ESUTAMA_ACTIVE_NOTE_KIND, detail: 'エステ魂に出勤が残っている方（運営用の控え）', names: plan.activeCastIds ?? [] },
+      ],
     },
     { onConflict: 'salon_id,provider,slot' },
   );

@@ -989,6 +989,11 @@ export type RelayFlowContext = {
   /** 時刻を寄せた等の注記 */
   esutamaNotes?: string[];
   /**
+   * ★★ 第1696便（A-1・エステ魂の幽霊出勤）: この流れで読んだ方のうち、終わった時点でエステ魂に出勤（○）が1つでも残っている方の castId。
+   *   読んだときに控え（workingBefore > 0）、送って照合できたら照合後の表で付け直す。計画と一緒に保存され、次の計画が使う
+   */
+  esutamaActive?: string[];
+  /**
    * ★★ 人が画面で見て承認した内容（castId → その人の変更の鍵）。work_push で店舗が押したときだけ入る。
    *   ★ 読み直した結果がこれと違えば、その人は送らない（駅ちかの指紋と同じ守り・人ごと）。
    *   ★ undefined は「運営の口」（照合しない）。★ 空 {} とは別物
@@ -1012,6 +1017,8 @@ export type EsutamaPlanSummary = {
   /** 人が押して送ってよいか（送らない理由が無く、変更がある） */
   sendable: boolean;
   fingerprint: string;
+  /** ★ 第1696便: 終わった時点でエステ魂に出勤（○）が残っている方の castId（RelayFlowContext.esutamaActive） */
+  activeCastIds?: string[];
 };
 
 export type FlowAudit = {

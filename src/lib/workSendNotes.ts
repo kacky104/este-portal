@@ -28,7 +28,8 @@ const UNSENT_KINDS: readonly string[] = ['unmapped_therapist', 'time_not_selecta
  */
 //   ★ 第1271便: 'not_listed_idle'（連携していない／相手の出勤表に出ていないが、送る出勤が1件も無い方）も出さない。
 //     非公開にして相手サイトからも外した方が、更新のたびに「送れていない方」に出続けていた（ラビリンス様・2026-10-07）。
-const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest', 'target_off', 'not_listed_idle'];
+//   ★ 第1696便: 'esutama_active'（エステ魂に出勤が残っている方の控え・運営用）も出さない。
+const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest', 'target_off', 'not_listed_idle', 'esutama_active'];
 
 /**
  * ★ 第1695便（2026-10-28・カッキーさん「この表示自体を見せなくて良い」）: エステ魂の「この期間の出勤が未入力の方 ◯名」も出さない。

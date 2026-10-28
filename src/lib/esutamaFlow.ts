@@ -25,7 +25,7 @@ import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCast
 // ★ 写メ日記の道（第133便）。★ ログインの直後に分かれる
 import { buildEsutamaTherapistAdminRequest } from './esutamaRequests';
 import {
-  parseEsutamaWorkPage, checkEsutamaWorkPage, buildEsutamaPayload, esutamaDayLabel, addDays,
+  parseEsutamaWorkPage, checkEsutamaWorkPage, buildEsutamaPayload, esutamaDayLabel, addDays, countEsutamaWorking,
   type EsutamaWorkPage,
 } from './esutamaWorkParse';
 import { applyEsutamaPerson, type EsutamaPerson } from './esutamaPlan';
@@ -720,6 +720,8 @@ export function nextEsutamaPerson(ctx: RelayFlowContext, audits: FlowAudit[], no
        */
       sendable: people.length > 0,
       fingerprint: esutamaFingerprint(diffs),
+      // ★ 第1696便: 終わった時点でエステ魂に出勤が残っている方（次の計画が「全日休み」を送る相手を決める）
+      activeCastIds: ctx.esutamaActive ?? [],
     };
     return {
       kind: 'done',
@@ -829,7 +831,11 @@ export function afterEsutamaWorkRead(input: Input, ctx: RelayFlowContext, now?: 
   const rows: EsutamaDiffRow[] = d.changes.map((c) => ({
     castId: d.castId, name: d.name, dayIndex: window.indexOf(c.dateISO), before: c.before, after: c.after,
   }));
-  const base: RelayFlowContext = { ...ctx, cookie, esutamaChanged: changedCount, esutamaDiffs: [...(ctx.esutamaDiffs ?? []), ...rows] };
+  // ★★ 第1696便（A-1）: いまエステ魂に出勤（○）が残っているかを控える（送って照合できたら afterEsutamaWorkVerify が付け直す）
+  const base: RelayFlowContext = {
+    ...ctx, cookie, esutamaChanged: changedCount, esutamaDiffs: [...(ctx.esutamaDiffs ?? []), ...rows],
+    esutamaActive: markEsutamaActive(ctx.esutamaActive, d.castId, d.workingBefore > 0),
+  };
 
   if (!isPushing(ctx)) {
     const planAudit: FlowAudit = {
@@ -944,7 +950,19 @@ export function afterEsutamaWorkVerify(input: Input, ctx: RelayFlowContext, now?
   };
   // ★ 送れた人の行は「残り」から外す（第110便: 画面には送らずに残ったものだけを出す）
   const rest = (ctx.esutamaDiffs ?? []).filter((r) => r.castId !== person.castId);
-  return nextEsutamaPerson({ ...ctx, esutamaSaved: saved, esutamaDiffs: rest }, [audit], '照合 OK');
+  // ★ 第1696便: 送ったあとの表で付け直す（全日休みを送った方は、ここで控えから外れる）
+  const active = markEsutamaActive(ctx.esutamaActive, person.castId, countEsutamaWorking(r.page) > 0);
+  return nextEsutamaPerson({ ...ctx, esutamaSaved: saved, esutamaDiffs: rest, esutamaActive: active }, [audit], '照合 OK');
+}
+
+/**
+ * ★★ 第1696便（A-1）: 「エステ魂に出勤（○）が残っている方」の控えを付け直す（純粋関数）。
+ *   ★ 送らずに終わった方（変更なし・承認と違う・無人の全消し止め）は、読んだときの値のまま＝残っていれば控えに残り、次の周でまた消しに行く。
+ */
+export function markEsutamaActive(list: ReadonlyArray<string> | undefined, castId: string, working: boolean): string[] {
+  const out = (list ?? []).filter((c) => c !== castId);
+  if (working && castId) out.push(castId);
+  return out;
 }
 
 /** 計画に入れる窓（今日〜13日後）。★ 表の日数と揃える。DB 側が出勤を読むときに使う */
