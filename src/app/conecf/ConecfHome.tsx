@@ -45,6 +45,14 @@ type Overview = { therapistCount: number; sites: Site[] };
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 
+/** ★ 第1700便（B-3）: 「10/28 14:36」。読めなければ空 */
+function fmtWhen(iso: string | null | undefined): string {
+  const t = Date.parse(String(iso ?? ''));
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t);
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 // ★ 第756便（カッキーさん）: enabled=false（コネックエフに切り替える前）は【見るだけ】。
 //   ★ 更新しているサイトは 0、各サイトは「更新していません」（駅ちかだけ「フクエスリンクで反映中」を出す）、ボタンは出さない。
 //   ★ 切り替える前に「コネックエフから更新する」を押せて向きが変わる穴を塞ぐ。
@@ -326,7 +334,8 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
                 ? { text: 'フクエスCRMのご契約が確認できないため、更新を止めています', tone: 'text-amber-700', link: null }
                 : s.problem
                 ? {
-                    text: workProblemShort(s.problem), tone: 'text-rose-700',
+                    // ★ 第1700便（B-3）: 自動が止まったときは、いつ止まったかも添える
+                    text: workProblemShort(s.problem) + (s.problem.kind === 'auto_off' && fmtWhen(s.problem.at) ? `（${fmtWhen(s.problem.at)}）` : ''), tone: 'text-rose-700',
                     link: s.problem.kind === 'login'
                       ? { href: href('/sites'), label: 'ID・パスワードを確認する' }
                       : { href: href('/schedule/sync'), label: s.problem.kind === 'auto_off' ? '再開する' : '確認する' },

@@ -180,7 +180,8 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-[14.5px] font-black text-slate-800">{m.label} にセラピストを登録しています</span>
               <span className="text-[16px] font-black text-indigo-700 tabular-nums">{m.done} ／ {m.total} 名</span>
-              <span className="text-[13px] text-slate-500">（20分に1人・残り約{left * 20}分）</span>
+              {/* ★ 第1700便（B-4）: 出勤の送信と交互なので、残り時間は「目安」。長いときは時間で */}
+              <span className="text-[13px] text-slate-500">（20分に1人・残りの目安 約{left * 20 >= 60 ? `${Math.floor((left * 20) / 60)}時間${(left * 20) % 60 ? `${(left * 20) % 60}分` : ''}` : `${left * 20}分`}）</span>
             </div>
             <div className="mt-2 h-2 w-full bg-slate-100 overflow-hidden">
               <div className="h-full bg-indigo-500" style={{ width: `${pct}%` }} />

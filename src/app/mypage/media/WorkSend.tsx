@@ -561,7 +561,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {s.autoOn ? '出勤 自動更新中' : `${s.label}の出勤を自動更新にする`}
               </h3>
               {plan && !isWaiting && !gaveUp.has(k) && (
-                <span className="text-[13px] text-slate-400">{fmt(plan.createdAt)} に確認</span>
+                // ★ 第1700便（B-1）: 自動更新中は、変更がない間は相手サイトへ行かない（第1245便）→「最後に確認」と言う（何時間も確認していないように見えないように）
+                <span className="text-[13px] text-slate-400">{s.autoOn ? `最後に確認 ${fmt(plan.createdAt)}` : `${fmt(plan.createdAt)} に確認`}</span>
               )}
             </div>
 
@@ -632,7 +633,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {/* ★ 自動更新中の枠。★ 第210便の文言のまま（周期は AUTO_PUSH_INTERVAL_MIN から出す） */}
                 {s.autoOn && (
                   <p className="text-[13px] text-slate-400 leading-relaxed">
-                    {AUTO_PUSH_INTERVAL_MIN}分以内に{s.label}を更新します。更新できないときは止めて、赤い枠でここに出します。
+                    {/* ★ 第1700便（B-1）: 変更がない間は待機していることを言う */}
+                    出勤に変更があれば、{AUTO_PUSH_INTERVAL_MIN}分以内に{s.label}を更新します（変更がない間は待機しています）。更新できないときは止めて、赤い枠でここに出します。
                   </p>
                 )}
 

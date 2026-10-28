@@ -33,6 +33,8 @@ type Site = { provider: string; slot: number; label: string; direction: string; 
 type Cell = 'ok' | 'unlinked' | 'missing' | 'pending' | 'unknown';
 
 const ROSTER_STALE_MS = 30 * 60 * 1000;
+/** ★ 第1700便（B-2）: 名簿を読んでから・押してから、この間は「再読込」を押せない（押すたびに相手サイトへログインするため） */
+const REREAD_COOLDOWN_MS = 2 * 60 * 1000;
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 
 function fmtAt(iso: string | null): string {
@@ -117,7 +119,19 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
     return missingLinkKind(p.linkedAtOf[Number(t.id)], p.readAt) === 'pending' ? 'pending' : 'missing';
   };
 
+  // ★ 第1700便（B-2）: 押した時刻（この画面を開いているあいだだけ覚える）
+  const [pressedAt, setPressedAt] = useState<Record<string, number>>({});
+  const [, setTick] = useState(0);
+  useEffect(() => { const id = window.setInterval(() => setTick((n) => n + 1), 30_000); return () => window.clearInterval(id); }, []);
+  /** 再読込を押せるまでの残り（ms）。0 なら押せる */
+  const coolLeft = (s: Site): number => {
+    const read = Date.parse(String(pairsOf[key(s)]?.readAt ?? ''));
+    const last = Math.max(Number.isFinite(read) ? read : 0, pressedAt[key(s)] ?? 0);
+    return Math.max(0, last + REREAD_COOLDOWN_MS - Date.now());
+  };
   const onRead = async (s: Site) => {
+    if (coolLeft(s) > 0) { onToast('少し前に読み直したばかりです。数分後に画面を開き直すと反映されます'); return; }
+    setPressedAt((m) => ({ ...m, [key(s)]: Date.now() }));
     setReading(key(s));
     try {
       const res = await startMediaRosterRead({ salonId, provider: s.provider, slot: s.slot });
@@ -262,10 +276,19 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                             <div className="text-[13px] font-bold text-slate-400">△× 0人</div>
                           )}
                           {/* ★ 第1682便（カッキーさん）: スマホで「△× 39人」と「再読み込み」が重なった → 文字を「再読込」に短くし、人数とは別の行に */}
-                          <button type="button" disabled={reading === key(s)} onClick={() => void onRead(s)}
-                            className="mt-1 block mx-auto text-[12.5px] text-indigo-600 underline disabled:opacity-40">
-                            {reading === key(s) ? '読込中…' : '再読込'}
-                          </button>
+                          {/* ★ 第1700便（B-2）: 読んでから2分は押せない（続けて押すと相手サイトへ何度もログインする） */}
+                          {coolLeft(s) > 0 && reading !== key(s) ? (
+                            <div className="mt-1 text-[12px] text-slate-400">
+                              {(pressedAt[key(s)] ?? 0) > Date.parse(String(p?.readAt ?? '0'))
+                                ? '読み直しています（数分後に開き直し）'
+                                : `${Math.max(1, Math.round((Date.now() - Date.parse(String(p?.readAt ?? ''))) / 60000))}分前に読込済み`}
+                            </div>
+                          ) : (
+                            <button type="button" disabled={reading === key(s)} onClick={() => void onRead(s)}
+                              className="mt-1 block mx-auto text-[12.5px] text-indigo-600 underline disabled:opacity-40">
+                              {reading === key(s) ? '読込中…' : '再読込'}
+                            </button>
+                          )}
                         </>
                       ) : (
                         <div className="text-[11px] text-slate-400 font-normal">ID・パスワード未登録</div>
