@@ -35,7 +35,7 @@ const SETTING_TABS = [
   { key: 'rooms', label: '待機場所（部屋）' },
   { key: 'toggles', label: '出勤情報の項目（追加）' },
   { key: 'alarms', label: '予約アラーム' },
-  { key: 'cti', label: '着信ポップ' },
+  { key: 'cti', label: '着信ポップ（準備中）' }, // ★ 第1688便: 端末の導入が始まるまで「準備中」。外すときは CtiSettingsSection の見出しも
   { key: 'consent', label: '来店時の同意書（QR）' },
   { key: 'cast', label: 'セラピストへの公開' },
   { key: 'money', label: '金銭授受' },

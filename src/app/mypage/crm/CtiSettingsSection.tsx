@@ -54,7 +54,9 @@ export function CtiSettingsSection({ salonId }: { salonId: number }) {
 
   return (
     <section className="mt-4 border border-slate-200 bg-white p-5">
-      <h2 className="text-[17px] font-black text-slate-800">着信ポップ</h2>
+      <h2 className="text-[17px] font-black text-slate-800">着信ポップ <span className="ml-1 border border-amber-300 bg-amber-50 px-1.5 py-0.5 align-middle text-[12px] font-bold text-amber-800">準備中</span></h2>
+      {/* ★ 第1688便: 受付の Android アプリの配布が始まるまで「準備中」。始まったら、この札と設定タブの「（準備中）」を外す */}
+      <p className="mt-1 text-[13px] font-bold text-amber-800">受付の Android 用アプリを準備しています。使えるようになりましたら、運営からご案内します。</p>
       <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
         受付の Android に入れた「フクエス着信」アプリが、かかってきた電話の番号をフクエスCRMに知らせます。
         CRM を開いている画面（PC・タブレット・スマホ、どれでも）の右上に、お客様の名前・分類・次が何回目か・要注意メモ・グループ共有のNGが出ます。
