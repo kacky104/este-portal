@@ -31,6 +31,14 @@ const UNSENT_KINDS: readonly string[] = ['unmapped_therapist', 'time_not_selecta
 const HIDDEN_KINDS: readonly string[] = ['missing_row_as_rest', 'target_off', 'not_listed_idle'];
 
 /**
+ * ★ 第1695便（2026-10-28・カッキーさん「この表示自体を見せなくて良い」）: エステ魂の「この期間の出勤が未入力の方 ◯名」も出さない。
+ *   第1691便〜第1694便のあいだに保存された計画には 'time_snapped' で入っている → 文で見分けて隠す。新しい計画にはもう入らない。
+ */
+function isNoRowsNote(n: WorkNote): boolean {
+  return n.detail.startsWith('この期間の出勤が未入力の方');
+}
+
+/**
  * ★ 第1267便より前に保存された計画では、「送らない」にしている方のお知らせも 'unmapped_therapist' だった。
  *   計画は更新のたびに作り直されるので、古い行はすぐ無くなる。そのあいだだけ、文で見分ける
  *   （★ 「送れていない方」の黄色い枠に出さないため。第1269便からは、新しい種類 'target_off' と同じく出さない）。
@@ -45,7 +53,7 @@ export function splitWorkNotes(notes: ReadonlyArray<WorkNote> | null | undefined
   for (const n of notes ?? []) {
     if (!n || typeof n.detail !== 'string') continue;
     // ★ 第1269便: 古い計画の「送らない」の行（種類が unmapped_therapist のまま）も、同じく出さない
-    if (HIDDEN_KINDS.includes(n.kind) || isLegacyTargetOff(n)) continue;
+    if (HIDDEN_KINDS.includes(n.kind) || isLegacyTargetOff(n) || isNoRowsNote(n)) continue;
     if (UNSENT_KINDS.includes(n.kind)) unsent.push(n);
     else info.push(n);
   }
@@ -91,24 +99,15 @@ export function workNoteLine(n: WorkNote): { text: string; names: string | null 
  *   第1691便で「出勤が未入力の方」は止めた理由（赤い枠）に並べず、まとめて1行のお知らせにした。
  *   ★ ところが計画はフクエス側の出勤が変わらない限り作り直されない（指紋が同じなら最長24時間そのまま・第1245便）。
  *     そのあいだ古い計画の赤い枠（30人分）が出続けた。
- *   → 古い行（文で見分ける）を blockers から抜き、まとめて1行のお知らせ（'time_snapped'＝畳む側）にする。
+ *   → 古い行（文で見分ける）を blockers から抜く（★ 第1695便: まとめた1行も出さない）。
  *   ★ 消すのは【表示】だけ。送るかどうかの判断（sendable・自動の周）には使わない。
  */
 const LEGACY_NO_ROWS_RE = /^(.+?)さんは、この期間のフクエスの出勤が未入力のため更新していません/;
 
 export function foldLegacyNoRows<
-  T extends { blockers: ReadonlyArray<{ kind: string; detail: string; count?: number }>; notes: ReadonlyArray<WorkNote> },
+  T extends { blockers: ReadonlyArray<{ kind: string; detail: string; count?: number }> },
 >(plan: T): T {
-  const names: string[] = [];
-  const blockers = plan.blockers.filter((b) => {
-    const m = typeof b?.detail === 'string' ? LEGACY_NO_ROWS_RE.exec(b.detail) : null;
-    if (!m) return true;
-    names.push(m[1]);
-    return false;
-  });
-  if (names.length === 0) return plan;
-  const shown = names.slice(0, WORK_NOTE_NAMES_MAX);
-  const detail = 'この期間の出勤が未入力の方 ' + names.length + ' 名（' + shown.join('・') +
-    (names.length > shown.length ? ' ほか' : '') + '）は更新していません（エステ魂側の表はそのままです）';
-  return { ...plan, blockers, notes: [...plan.notes, { kind: 'time_snapped', detail }] };
+  // ★ 第1695便: まとめた1行も出さない（カッキーさん）＝古い行は抜くだけ
+  const blockers = plan.blockers.filter((b) => !(typeof b?.detail === 'string' && LEGACY_NO_ROWS_RE.test(b.detail)));
+  return blockers.length === plan.blockers.length ? plan : { ...plan, blockers };
 }

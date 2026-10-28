@@ -207,8 +207,11 @@ export function planEsutamaWork(input: {
     people.push({ therapistId: u.therapistId, castId: u.castId, name: u.name, days });
   }
 
+  // ★ 第1695便（2026-10-28・カッキーさん「この表示自体を見せなくて良い」）: お知らせにも出さない。
+  //   出勤を入れていない＝お休みで、店舗様が何かすることは無い（第1268便の 'missing_row_as_rest' と同じ考え）。
+  //   ★ 運営が調べるときのため、console にだけ残す
   if (noRows.length > 0) {
-    notes.push('この期間の出勤が未入力の方 ' + noRows.length + ' 名（' + noRows.slice(0, 8).join('・') + (noRows.length > 8 ? ' ほか' : '') + '）は更新していません（エステ魂側の表はそのままです）');
+    console.info('[esutamaPlan] 期間内の出勤が未入力のため更新しない方', noRows.length, '名:', noRows.slice(0, 8).join('・'));
   }
 
   return { people, blocked, notes, ok: people.length > 0, summary: buildSummary(people, blocked, notes) };
