@@ -387,6 +387,44 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
 
   const baseMs = useMemo(() => new Date(`${date}T00:00:00+09:00`).getTime(), [date]);
 
+  // ★ 第1686便: 着信ポップの「受付へ」（?tel=090…）。読み込みが終わったら、その番号が入った受付フォームを開く（担当はフリー・開始は今の時刻を 5 分に丸め）。
+  //   ★ 1回だけ（開いたら URL から tel を消す）。今日以外を見ていたら今日に戻してから開く。番号から台帳を引くのはフォームの今の仕組み（lookupCrmCustomerByPhone）
+  const telOpened = useRef(false);
+  useEffect(() => {
+    if (!data || telOpened.current) return;
+    const tel = new URLSearchParams(window.location.search).get('tel') ?? '';
+    if (!/^\d{10,13}$/.test(tel)) return;
+    const today = businessTodayJST();
+    if (date !== today) { setDate(today); return; }
+    telOpened.current = true;
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.delete('tel');
+      window.history.replaceState(window.history.state, '', u.toString());
+    } catch { /* 何もしない */ }
+    const nowMin = Math.max(DAY_START_MIN, Math.round((Date.now() - baseMs) / 60000 / 5) * 5);
+    const first = data.courses[0];
+    setErr('');
+    setPicked(null);
+    setForm({
+      mode: 'new',
+      therapistKey: 'free',
+      startMin: nowMin,
+      courseName: first?.name ?? '',
+      courseMin: first?.durationMin ?? 60,
+      intervalMin: data.defaultIntervalMin ?? 0,
+      customerName: '',
+      customerTel: tel,
+      note: '',
+      selIds: [],
+      keepItems: [],
+      priceAdjust: '',
+      payAdjust: '',
+      paymentMethod: '',
+      payAmounts: {},
+    });
+  }, [data, date, baseMs]);
+
   // 行と表示範囲
   const view = useMemo(() => {
     // ★ 第1218便: 日付を変えた直後（data がまだ前の日）は表を出さない＝「空いている」と誤って受付しないように（下に「読み込み中」）

@@ -10,6 +10,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { crmLeaveOk, safeAction, useCrmLinks } from './CrmBase';
 import { CrmIntro } from './CrmIntro';
 import { CrmOperatorBar } from './CrmOperatorBar';
+import { CrmIncomingCalls } from './CrmIncomingCalls';
 
 // フクエスCRM の外枠（2026-09-19）。★ 画面が増えても、入口の判定と上の帯はここ1か所。
 //   ・未ログイン → オーナーログインへ
@@ -174,6 +175,8 @@ export function CrmShell({
       {!access.active ? <CrmIntro salonName={access.salonName} />
         : !access.termsOk ? <TermsGate salonId={access.salonId} />
         : children(access)}
+      {/* ★ 第1686便: 着信ポップ（CTI）。契約中・規約同意済みのときだけ。★ どのタブでも出るように外枠に1つ */}
+      {access.active && access.termsOk && <CrmIncomingCalls salonId={access.salonId} adminSalonQuery={adminSalonQuery} />}
     </>
   );
 }

@@ -98,15 +98,17 @@ const inputCls = 'w-full border border-slate-300 bg-white px-2.5 py-2 text-[14px
 const labelCls = 'mb-1 block text-[12px] font-bold text-slate-500';
 
 function CustomerForm({
-  salonId, customer, therapists, onSaved, onCancel,
+  salonId, customer, therapists, onSaved, onCancel, initialPhone = '',
 }: {
   salonId: number;
   customer: CrmCustomerDetail | null; // null＝新規
   therapists: CrmTherapist[];
   onSaved: (id: number) => void;
   onCancel: () => void;
+  /** ★ 第1686便: 着信ポップの「台帳」（台帳にない番号）から来たとき、電話番号を入れた状態で始める */
+  initialPhone?: string;
 }) {
-  const [f, setF] = useState<FormState>(() => toForm(customer));
+  const [f, setF] = useState<FormState>(() => ({ ...toForm(customer), ...(customer == null && initialPhone ? { phones: initialPhone } : {}) }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
@@ -397,7 +399,17 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
     const v = Number(new URLSearchParams(window.location.search).get('customer') ?? '');
     return Number.isInteger(v) && v > 0 ? v : null;
   });
-  const [creating, setCreating] = useState(false);
+  // ★ 第1686便: 着信ポップの「台帳」で、台帳にない番号のとき（?tel=090…）は、その番号を入れた新規登録を開いた状態で始める
+  const [initialTel] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const v = new URLSearchParams(window.location.search).get('tel') ?? '';
+    return /^\d{10,13}$/.test(v) ? v : '';
+  });
+  const [creating, setCreating] = useState(() => initialTel !== '');
+  useEffect(() => {
+    if (!initialTel) return;
+    try { const u = new URL(window.location.href); u.searchParams.delete('tel'); window.history.replaceState(window.history.state, '', u.toString()); } catch { /* 何もしない */ }
+  }, [initialTel]);
   // ★ 点検（低 C-2）: スマホは一覧と詳細が切り替わるので、詳細を開くときに履歴を1つ積み、端末の「戻る」で一覧へ戻す
   //   （前は CRM ごと前のページへ戻っていた）。PC は一覧と詳細が並ぶので積まない
   const isNarrow = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
@@ -523,6 +535,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
               <CustomerForm
                 salonId={salonId}
                 customer={null}
+                initialPhone={initialTel}
                 therapists={therapists}
                 onCancel={() => setCreating(false)}
                 onSaved={(id) => { setCreating(false); setSelected(id); void runSearch(query); }}
