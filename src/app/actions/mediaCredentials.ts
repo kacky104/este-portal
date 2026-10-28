@@ -1269,7 +1269,7 @@ export async function startMediaTherapistCreatePush(input: {
  */
 export async function getMediaAuditRows(input: { salonId: string | number; limit?: number }): Promise<
   Result<{
-    rows: Array<{ id: number; provider: string; slot: number; event: string; outcome: string; summary: string; createdAt: string; visible: boolean; noChange: boolean }>;
+    rows: Array<{ id: number; provider: string; slot: number; event: string; outcome: string; summary: string; createdAt: string; visible: boolean; noChange: boolean; /** ★ 第1684便: 枠2以降を枠1と同じにする自動登録の記録（うまくいった分は上の進み具合にまとめ、一覧ではたたむ） */ mirror?: boolean }>;
     /**
      * ★★★ この先にまだ記録があるか（第149便）。
      *   ★ 行数からは判断できない。★ たたむ行が窓を食うと、
@@ -1303,7 +1303,9 @@ export async function getMediaAuditRows(input: { salonId: string | number; limit
       // ★ 第393便: 言い方を分けるために段の名前も渡す（★ 出す・出さないの判定は今までどおり visible が持つ）
       event: r.event,
       outcome: r.outcome, summary: r.summary, createdAt: r.createdAt,
-      visible: isShopVisibleAudit({ event: r.event, outcome: r.outcome, detail: r.detail }),
+      // ★ 第1684便: 枠1と同じにする自動登録（system:slot-mirror）のうまくいった行は、一覧ではたたむ（上の「進み具合」で 12／39 と見せる）。失敗した行は出す
+      visible: isShopVisibleAudit({ event: r.event, outcome: r.outcome, detail: r.detail }) && !(r.actor === 'system:slot-mirror' && r.outcome === 'ok'),
+      mirror: r.actor === 'system:slot-mirror',
       // ★ 第1390便: 変更が無かったので送らずに終わった回か（うまくいかなかったものに数えない・「変更なし」と言う）
       noChange: isNoChangeStop({ event: r.event, outcome: r.outcome, detail: r.detail }),
     }));

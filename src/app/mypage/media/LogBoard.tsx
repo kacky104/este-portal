@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MEDIA_SITES } from '@/lib/mediaSites';
 import { useMediaBrand } from './mediaBrand';
 import { providerLabel } from '@/lib/mediaAudit';
+import { getSlotMirrorProgress, type SlotMirrorProgress } from '@/app/actions/slotMirrorProgress';
 import {
   sortLogRows,
   filterLogRows,
@@ -112,9 +113,14 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
    *   ★★ 消したのではない。★ 出す・出さないの物差しは src/lib/mediaAudit.ts の1本だけ。
    */
   const [showDetail, setShowDetail] = useState(false);
+  /** ★ 第1684便: 駅ちかの枠2以降を「枠1と同じ」にする自動登録の進み具合（コネックエフだけ・そろっていない枠だけ） */
+  const [mirror, setMirror] = useState<SlotMirrorProgress[]>([]);
 
   const load = useCallback(async () => {
     if (salonId == null) return;
+    if (brand.isConecf) {
+      getSlotMirrorProgress({ salonId }).then((m) => { if (m.ok) setMirror(m.items); }).catch(() => { /* 出さないだけ */ });
+    }
     const res = await getMediaAuditRows({ salonId, limit });
     if (res.ok) {
       setRows(res.data.rows as MediaLogRow[]);
@@ -127,7 +133,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       setMore(false);
       setLoadError(res.error);
     }
-  }, [salonId, limit]);
+  }, [salonId, limit, brand.isConecf]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -164,6 +170,25 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
           {brand.isConecf ? `${brand.name}が各サイトへ行ったことの記録です` : 'フクエスが駅ちかで行ったことの記録です'}（<b className="text-slate-700">書き換えできません</b>）。
         </p>
       </div>
+
+      {/* ── ★ 第1684便: 枠1と同じにする登録の進み具合（10分に1人・第1681便） ── */}
+      {mirror.map((m) => {
+        const left = m.total - m.done;
+        const pct = m.total > 0 ? Math.round((m.done / m.total) * 100) : 0;
+        return (
+          <div key={`${m.provider}#${m.slot}`} className={`${CARD} p-4`}>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-[14.5px] font-black text-slate-800">{m.label} にセラピストを登録しています</span>
+              <span className="text-[16px] font-black text-indigo-700 tabular-nums">{m.done} ／ {m.total} 名</span>
+              <span className="text-[13px] text-slate-500">（10分に1人・残り約{left * 10}分）</span>
+            </div>
+            <div className="mt-2 h-2 w-full bg-slate-100 overflow-hidden">
+              <div className="h-full bg-indigo-500" style={{ width: `${pct}%` }} />
+            </div>
+            <p className="mt-1.5 text-[13px] text-slate-500 leading-relaxed">枠1と同じ顔ぶれになるよう、自動で順に登録しています。登録が済んだ方から出勤・写真・即ヒメも反映されます。うまくいった登録は、この下の一覧にはまとめて出しません（「くわしい記録」で見られます）。</p>
+          </div>
+        );
+      })}
 
       {/* ── 数 ── */}
       <div className={`${CARD} grid grid-cols-2`}>
