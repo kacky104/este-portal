@@ -10,6 +10,8 @@ import { loginRejectNoticeText } from '@/lib/loginAutoPause';
 import { useConecfHref } from './ConecfBase';
 import { getConecfDiaryMixedBanner } from '@/app/actions/conecfDiaryMixed';
 import { diaryMixedBannerText, diaryMixedBannerDismissKey } from '@/lib/diaryMixedPeriod';
+import { getConecfSlotMirrorStuck } from '@/app/actions/conecfSlotMirror';
+import { slotMirrorStuckDismissKey, slotMirrorStuckIds, slotMirrorStuckShouldShow } from '@/lib/slotMirrorGiveUp';
 
 // コネックエフのホーム（第396便・1b・2026-09-17）。
 //
@@ -73,6 +75,33 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
     }).catch(() => { /* ★ 読めなければ帯を出さないだけ */ });
     return () => { alive = false; };
   }, [salonId, enabled, stopped]);
+  // ★★ 第1698便（A-3・カッキーさん）: 駅ちかの枠2以降に自動で登録できていない方（24時間で3回うまくいかず、試すのをやめた方）。
+  //   ★ 出すのは店舗様が直せる理由の方だけ（直せないものは運営だけ）。閉じたらこの端末では出さない／新しい方が増えたらまた出る
+  type Stuck = { slot: number; therapistId: number; name: string; reason: string };
+  const [stuck, setStuck] = useState<{ key: string; ids: string[]; people: Stuck[] } | null>(null);
+  useEffect(() => {
+    if (salonId == null || !enabled || stopped) return;
+    let alive = true;
+    getConecfSlotMirrorStuck().then((r) => {
+      if (!alive || !r.ok || r.data.people.length === 0) return;
+      const key = slotMirrorStuckDismissKey(r.data.salonId);
+      const ids = slotMirrorStuckIds(r.data.people);
+      let dismissed: string[] | null = null;
+      try {
+        const raw = window.localStorage.getItem(key);
+        const v = raw ? JSON.parse(raw) : null;
+        dismissed = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : null;
+      } catch { /* 使えない端末では毎回出す */ }
+      if (!slotMirrorStuckShouldShow(ids, dismissed)) return;
+      setStuck({ key, ids, people: r.data.people });
+    }).catch(() => { /* ★ 読めなければ帯を出さないだけ */ });
+    return () => { alive = false; };
+  }, [salonId, enabled, stopped]);
+  const closeStuck = () => {
+    if (stuck) { try { window.localStorage.setItem(stuck.key, JSON.stringify(stuck.ids)); } catch { /* 覚えられなくても閉じる */ } }
+    setStuck(null);
+  };
+
   const closeMixedBanner = () => {
     if (mixedBanner) { try { window.localStorage.setItem(mixedBanner.key, '1'); } catch { /* 覚えられなくても閉じる */ } }
     setMixedBanner(null);
@@ -161,6 +190,31 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
           <Link href={href('/sites')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">ID・パスワード登録を開く ›</Link>
         </div>
       )}
+
+      {/* ── 第1698便（A-3）: 駅ちかの枠2以降に自動で登録できていない方（琥珀・閉じられる）── */}
+      {stuck && (() => {
+        const labelOf = (slot: number) => {
+          const site = (data?.sites ?? []).find((x) => x.provider === 'ekichika' && x.slot === slot);
+          return site ? slotName(site) : '駅ちか（枠' + slot + '）';
+        };
+        const slots = [...new Set(stuck.people.map((p) => p.slot))];
+        return (
+          <div className="relative border border-amber-300 bg-amber-50 px-4 py-3 pr-10">
+            <p className="text-[15px] font-bold text-amber-800">{slots.map(labelOf).join('・')}に自動で登録できていない方がいます</p>
+            <ul className="mt-1 space-y-0.5 text-[14px] text-amber-900/80 leading-relaxed">
+              {stuck.people.map((p) => (
+                <li key={p.slot + '-' + p.therapistId}>
+                  ・<b className="font-bold">{p.name}</b> さん{slots.length > 1 ? `（${labelOf(p.slot)}）` : ''} — {p.reason}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[13.5px] text-amber-900/70 leading-relaxed">直していただくと、次の周で自動の登録を再開します。</p>
+            <Link href={href('/girls/sync')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">セラピスト登録状況一覧を開く ›</Link>
+            <button type="button" onClick={closeStuck} aria-label="閉じる"
+              className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-[18px] leading-none text-amber-700 hover:bg-amber-100">×</button>
+          </div>
+        );
+      })()}
 
       {/* ── 第1697便（A-4）: 写メ日記の移行期間の期限（琥珀・閉じられる）── */}
       {mixedBanner && (
