@@ -8,6 +8,8 @@ import { workProblemShort, type WorkProblem } from '@/lib/workProblem';
 import { consentRecheckNotice, conecfConsentNeededNotice } from '@/lib/mediaConsent';
 import { loginRejectNoticeText } from '@/lib/loginAutoPause';
 import { useConecfHref } from './ConecfBase';
+import { getConecfDiaryMixedBanner } from '@/app/actions/conecfDiaryMixed';
+import { diaryMixedBannerText, diaryMixedBannerDismissKey } from '@/lib/diaryMixedPeriod';
 
 // コネックエフのホーム（第396便・1b・2026-09-17）。
 //
@@ -54,6 +56,27 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
   type Person = { id: number; name: string };
   //   ★ 出すのは駅ちかだけ。エステ魂の「了承が未確認」は、魂セラピストを始めていない方まで並んでしまう（始めているかは DB に無い）ので出さない（カッキーさん）
   const [diaryReady, setDiaryReady] = useState<{ ekichikaUnlinked: Person[] } | null>(null);
+
+  // ★★ 第1697便（A-4・カッキーさん）: 写メ日記の移行期間の帯（期限の3日前〜当日／期限後7日間・未投稿が居るときだけ）。
+  //   閉じたらこの端末では出さない（鍵に期限の日が入っている＝延長したらまた出る）。決めごとは lib/diaryMixedPeriod.ts
+  type MixedBanner = { key: string; title: string; body: string };
+  const [mixedBanner, setMixedBanner] = useState<MixedBanner | null>(null);
+  useEffect(() => {
+    if (salonId == null || !enabled || stopped) return;
+    let alive = true;
+    getConecfDiaryMixedBanner().then((r) => {
+      if (!alive || !r.ok || !r.data.banner) return;
+      const b = r.data.banner;
+      const key = diaryMixedBannerDismissKey(r.data.salonId, b.lastDay);
+      try { if (window.localStorage.getItem(key) === '1') return; } catch { /* 使えない端末では毎回出す */ }
+      setMixedBanner({ key, ...diaryMixedBannerText(b) });
+    }).catch(() => { /* ★ 読めなければ帯を出さないだけ */ });
+    return () => { alive = false; };
+  }, [salonId, enabled, stopped]);
+  const closeMixedBanner = () => {
+    if (mixedBanner) { try { window.localStorage.setItem(mixedBanner.key, '1'); } catch { /* 覚えられなくても閉じる */ } }
+    setMixedBanner(null);
+  };
 
   useEffect(() => {
     if (salonId == null || !enabled) return;
@@ -136,6 +159,17 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
           <p className="text-[15px] font-bold text-amber-800">{conecfConsentNeededNotice(needAgree.map((x) => x.label)).title}</p>
           <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">{conecfConsentNeededNotice(needAgree.map((x) => x.label)).body}</p>
           <Link href={href('/sites')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">ID・パスワード登録を開く ›</Link>
+        </div>
+      )}
+
+      {/* ── 第1697便（A-4）: 写メ日記の移行期間の期限（琥珀・閉じられる）── */}
+      {mixedBanner && (
+        <div className="relative border border-amber-300 bg-amber-50 px-4 py-3 pr-10">
+          <p className="text-[15px] font-bold text-amber-800">{mixedBanner.title}</p>
+          <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">{mixedBanner.body}</p>
+          <Link href={href('/diary')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">写メ日記転送を開く ›</Link>
+          <button type="button" onClick={closeMixedBanner} aria-label="閉じる"
+            className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-[18px] leading-none text-amber-700 hover:bg-amber-100">×</button>
         </div>
       )}
 

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import {
   mixedUntilFromStart, extendMixedUntil, isMixedPeriodOpen, mixedLastDayLabel, mixedDaysLeft, diaryMixedRuns, mixedSinceWhenMissing,
+  diaryMixedBannerPhase, type DiaryMixedBannerPhase,
 } from '@/lib/diaryMixedPeriod';
 
 // コネックエフの店の、写メ日記の「移行期間」（第1265便・2026-10-07・カッキーさんの決定）。★ サーバー専用（service_role で DB を触る）。
@@ -159,4 +160,60 @@ export async function extendDiaryMixedPeriod(svc: Svc, salonId: number, actor: s
     actor,
   });
   return { ok: true, state: await readDiaryMixedState(svc, salonId) };
+}
+
+export type DiaryMixedBanner = { phase: DiaryMixedBannerPhase; lastDay: string; daysLeft: number; notPosted: number };
+
+/**
+ * ★★ 第1697便（A-4）: ホームの帯に出すもの。出さないときは null（★ 読めなかったときも null＝帯を出さないだけ）。
+ *   段階の決めごとは lib/diaryMixedPeriod.ts の diaryMixedBannerPhase。人数は countDiaryNotPosted。
+ */
+export async function readDiaryMixedBanner(svc: Svc, salonId: number, nowISO: string = new Date().toISOString()): Promise<DiaryMixedBanner | null> {
+  const st = await readDiaryMixedState(svc, salonId, nowISO);
+  if (!st.switched || !st.lastDay || st.daysLeft === null) return null;
+  const phase = diaryMixedBannerPhase({ open: st.open, expired: st.why === 'expired', daysLeft: st.daysLeft });
+  if (!phase) return null;
+  const p = await readPeriod(svc, salonId);
+  if (!p.ok || !p.since) return null;
+  const notPosted = await countDiaryNotPosted(svc, salonId, p.since);
+  if (notPosted === null || notPosted === 0) return null;
+  return { phase, lastDay: st.lastDay, daysLeft: st.daysLeft, notPosted };
+}
+
+/**
+ * ★★ 第1697便（A-4）: 公開中の方のうち、移行期間の始まり以降に【フクエスで1度も写メ日記を投稿していない】方の人数。
+ *   ★ 物差しは取り込みの周（app/lib/media/relayFlow.ts ③b・第1140便／第1286便）と同じ:
+ *     ・始まり以降の diary_posts のうち、駅ちかから取り込んだもの（salon_diary_imports）を除いたもの ＝ フクエスで書いた日記
+ *     ・始まり以降に、フクエスから駅ちかへ送れた記録（diary_forward_log・sent）＝ 日記を消しても残る
+ *     どちらも無い方を「未投稿」と数える。
+ *   ★ 読めなければ null（★ 当てずっぽうの人数を出さない）
+ */
+export async function countDiaryNotPosted(svc: Svc, salonId: number, sinceISO: string): Promise<number | null> {
+  const { data: ths, error: thErr } = await svc.from('therapists').select('id').eq('salon_id', salonId).eq('is_active', true);
+  if (thErr) { console.error('[conecf] 未投稿の数: セラピストを読めなかった', salonId, thErr.message); return null; }
+  const ids = ((ths ?? []) as Array<{ id: number }>).map((t) => Number(t.id));
+  if (ids.length === 0) return 0;
+
+  const { data: posts, error: pErr } = await svc
+    .from('diary_posts').select('id, therapist_id')
+    .in('therapist_id', ids).gte('created_at', sinceISO).limit(5000);
+  if (pErr) { console.error('[conecf] 未投稿の数: 日記を読めなかった', salonId, pErr.message); return null; }
+  const postRows = ((posts ?? []) as Array<{ id: string; therapist_id: number }>);
+  let imported = new Set<string>();
+  if (postRows.length > 0) {
+    const { data: imp, error: iErr } = await svc
+      .from('salon_diary_imports').select('diary_post_id').in('diary_post_id', postRows.map((r) => String(r.id)));
+    if (iErr) { console.error('[conecf] 未投稿の数: 取り込みの記録を読めなかった', salonId, iErr.message); return null; }
+    imported = new Set(((imp ?? []) as Array<{ diary_post_id: string | null }>).map((r) => String(r.diary_post_id ?? '')).filter((x) => x.length > 0));
+  }
+  const posted = new Set<number>();
+  for (const r of postRows) if (!imported.has(String(r.id))) posted.add(Number(r.therapist_id));
+
+  const { data: fwd, error: fErr } = await svc
+    .from('diary_forward_log').select('therapist_id')
+    .in('therapist_id', ids).eq('provider', 'ekichika').eq('status', 'sent').gte('created_at', sinceISO).limit(5000);
+  if (fErr) { console.error('[conecf] 未投稿の数: 送った記録を読めなかった', salonId, fErr.message); return null; }
+  for (const r of ((fwd ?? []) as Array<{ therapist_id: number }>)) posted.add(Number(r.therapist_id));
+
+  return ids.filter((id) => !posted.has(id)).length;
 }

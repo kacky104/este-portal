@@ -628,5 +628,13 @@ eq('★★★ 深夜の窓は前の営業日から', F.esutamaWindowDates(at('20
   }
 }
 
+// ★★ 第1696便（A-1）: 「エステ魂に出勤が残っている方」の控えの付け直し
+{
+  eq('A-1: 出勤が残っていれば控えに入る', F.markEsutamaActive([], '10', true), ['10']);
+  eq('A-1: 全日休みを送って照合できたら控えから外れる', F.markEsutamaActive(['10', '11'], '10', false), ['11']);
+  eq('A-1: 同じ方を二重に入れない', F.markEsutamaActive(['10'], '10', true), ['10']);
+  eq('A-1: 控えが無くても動く', F.markEsutamaActive(undefined, '12', false), []);
+}
+
 console.log(fail === 0 ? '\nすべて通りました' : '\n' + fail + ' 件 NG');
 process.exit(fail === 0 ? 0 : 1);

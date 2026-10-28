@@ -110,5 +110,24 @@ console.log('\n── 第1292便: ★★★ 始まりが空の店が「延長す
   eq('★ 切り替えた時刻が未来（時計のずれ）なら、いま', m.mixedSinceWhenMissing('2026-10-11T00:00:00.000Z', NOW), NOW);
 }
 
+console.log('\n── 第1697便（A-4）: ホームの帯 ──');
+{
+  const ph = (o) => m.diaryMixedBannerPhase({ open: false, expired: false, daysLeft: null, ...o });
+  eq('★★ 期間中・あと4日 → 出さない', ph({ open: true, daysLeft: 4 }), null);
+  eq('★★★ 期間中・あと3日 → soon', ph({ open: true, daysLeft: 3 }), 'soon');
+  eq('★★★ 期間中・当日 → soon', ph({ open: true, daysLeft: 0 }), 'soon');
+  eq('★★★ 期限切れ・1日後 → ended', ph({ expired: true, daysLeft: -1 }), 'ended');
+  eq('★★★ 期限切れ・7日後 → ended', ph({ expired: true, daysLeft: -7 }), 'ended');
+  eq('★★ 期限切れ・8日後 → 出さない', ph({ expired: true, daysLeft: -8 }), null);
+  eq('★ 期限切れでない（設定なし等）の負の日数 → 出さない', ph({ expired: false, daysLeft: -2 }), null);
+  eq('★ 日数が無い → 出さない', ph({ open: true, daysLeft: null }), null);
+  eq('★★ 鍵に期限の日が入る（延長したらまた出る）', m.diaryMixedBannerDismissKey(5, '11/6') !== m.diaryMixedBannerDismissKey(5, '11/20'), true);
+  const t1 = m.diaryMixedBannerText({ phase: 'soon', lastDay: '11/6', daysLeft: 2, notPosted: 5 });
+  eq('★ soon の見出し', t1.title, '写メ日記の移行期間は 11/6 まで（あと2日）');
+  eq('★ 当日は「今日まで」', m.diaryMixedBannerText({ phase: 'soon', lastDay: '11/6', daysLeft: 0, notPosted: 1 }).title, '写メ日記の移行期間は 11/6 まで（今日まで）');
+  eq('★ ended の見出し', m.diaryMixedBannerText({ phase: 'ended', lastDay: '11/6', daysLeft: -1, notPosted: 3 }).title, '写メ日記の移行期間は 11/6 で終わりました');
+  eq('★ 人数が本文に入る', t1.body.includes('5名'), true);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

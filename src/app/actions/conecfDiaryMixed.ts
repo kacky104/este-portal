@@ -4,7 +4,7 @@ import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
-import { readDiaryMixedState, extendDiaryMixedPeriod, type DiaryMixedState } from '@/app/lib/conecf/diaryMixed';
+import { readDiaryMixedState, extendDiaryMixedPeriod, readDiaryMixedBanner, type DiaryMixedState, type DiaryMixedBanner } from '@/app/lib/conecf/diaryMixed';
 import { maybeStartDiaryBackfill } from '@/app/lib/media/diarySourceSync';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
@@ -39,6 +39,13 @@ export async function getConecfDiaryMixed(): Promise<Result<DiaryMixedState>> {
   const r = await resolve(false);
   if (!r.ok) return r;
   return { ok: true, data: await readDiaryMixedState(r.svc, r.salonId) };
+}
+
+/** ★ 第1697便（A-4）: ホームの帯（期限の3日前〜当日／期限後7日間・未投稿が居るときだけ）。出さないときは data: null。salonId も返す（閉じた鍵に使う） */
+export async function getConecfDiaryMixedBanner(): Promise<Result<{ salonId: number; banner: DiaryMixedBanner | null }>> {
+  const r = await resolve(false);
+  if (!r.ok) return r;
+  return { ok: true, data: { salonId: r.salonId, banner: await readDiaryMixedBanner(r.svc, r.salonId) } };
 }
 
 export async function extendConecfDiaryMixed(): Promise<Result<DiaryMixedState>> {

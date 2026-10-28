@@ -215,7 +215,9 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
   eq('計画: 送るのは れみ だけ', plan.people.map((p) => p.name), ['れみ']);
   eq('計画: れみ の3日（なし／出勤／なし）', plan.people[0].days.map((d) => d.range ? d.range.startMin + '-' + d.range.endMin : null), [null, '1200-1500', null]);
   eq('計画: 窓の外は入れない', plan.people[0].days.length, 3);
-  eq('計画: 止めた理由', plan.blocked.map((b) => b.name + ':' + b.reason).sort(), ['さら:no_fukues_rows', 'ねね:not_registered', 'みお:ambiguous']);
+  // ★ 第1691便: 出勤が未入力の方（さら）は送らないが、止めた理由（赤い枠）にも並べない
+  eq('計画: 止めた理由', plan.blocked.map((b) => b.name + ':' + b.reason).sort(), ['ねね:not_registered', 'みお:ambiguous']);
+  eq('計画: 出勤が未入力の方は送らない', plan.people.some((p) => p.name === 'さら'), false);
   eq('計画: ok', plan.ok, true);
   eq('計画: summary に人数', /1人/.test(plan.summary), true);
   const none = L.planEsutamaWork({ roster: null, therapists, shifts, windowDates: D });
@@ -226,7 +228,17 @@ eq('知らない札は unknown', P.parseEsutamaJson('["NG"]').kind, 'unknown');
   const linked = L.planEsutamaWork({ roster, therapists, shifts, windowDates: D, links: [{ therapistId: 12, castId: '2' }, { therapistId: 13, castId: '777' }] });
   eq('結び: 同名2人でも結んだ番号を使う', linked.people.map((p) => p.name + ':' + p.castId).sort(), ['みお:2', 'れみ:757480']);
   eq('結び: 名簿に無い番号は送らない', linked.blocked.find((b) => b.therapistId === 13).reason, 'not_registered');
-  eq('結び: 結んでいない人は名前で探す（さら は出勤なし）', linked.blocked.find((b) => b.therapistId === 11).reason, 'no_fukues_rows');
+  eq('結び: 結んでいない人は名前で探す（さら は出勤なし＝送らない・赤い枠にも出さない）', [linked.people.some((p) => p.therapistId === 11), linked.blocked.some((b) => b.therapistId === 11)], [false, false]);
+
+  // ★★ 第1696便（A-1）: 前回エステ魂に出勤が残っていた方（控え）は、フクエスの出勤が無くても全日休みを送る
+  const ghost = L.planEsutamaWork({ roster, therapists, shifts, windowDates: D, prevActiveCastIds: ['757481'] });
+  const sara = ghost.people.find((p) => p.name === 'さら');
+  eq('A-1: 控えに居る さら は送る相手に入る', !!sara, true);
+  eq('A-1: さら は全日休み（窓の日数ぶん）', sara ? sara.days.map((d) => d.range) : null, [null, null, null]);
+  eq('A-1: 控えに居ない方（出勤なし）は今までどおり触らない', L.planEsutamaWork({ roster, therapists, shifts, windowDates: D, prevActiveCastIds: ['999'] }).people.some((p) => p.name === 'さら'), false);
+  const pick = (o) => L.pickEsutamaTargets({ therapists: [{ therapistId: 11, name: 'さら', active: false }], links: [{ therapistId: 11, castId: '757481' }], rosterCastIds: ['757481'], shiftTherapistIds: [], ...o }).length;
+  eq('A-1: 非公開・出勤の行なし・控えなし → 対象にしない', pick({}), 0);
+  eq('A-1: 非公開・出勤の行なし・控えあり → 対象にする（消しに行く）', pick({ prevActiveCastIds: ['757481'] }), 1);
 
   // 適用（れみ のページ = 上の page）
   const ap = L.applyEsutamaPerson(page, plan.people[0]);

@@ -126,3 +126,52 @@ export function diaryMixedRuns(input: {
   if (input.linkMode !== 'write' && input.linkMode !== 'write_auto') return false;
   return isMixedPeriodOpen(input.until, input.nowISO);
 }
+
+// ────────────────────────── ホームの帯（第1697便・A-4・2026-10-28・カッキーさんの決定） ──────────────────────────
+//   期限を過ぎると、フクエスでまだ投稿していない方が駅ちかに書いた写メ日記はフクエスに載らなくなる。
+//   それが「写メ日記転送」を開かないと分からず、11/7 から突然「写メ日記が反映されない」になりやすかった。→ ホームに帯を出す。
+//   ・期限の 3日前〜当日     … 'soon'  「◯/◯ まで（あと◯日）・未投稿 ◯名」
+//   ・期限後 7日間だけ       … 'ended' 「◯/◯ で終わりました・延長できます」
+//   ・フクエスで未投稿が 0名 … 出さない（呼ぶ側が人数で見る）
+//   ・閉じるボタン           … 閉じたらその端末では出さない。期限の日が変わったら（延長したら）また出る（diaryMixedBannerDismissKey）
+
+/** 期限の何日前から出すか（当日を 0 と数える） */
+export const DIARY_MIXED_BANNER_BEFORE_DAYS = 3;
+/** 期限後、何日間出すか */
+export const DIARY_MIXED_BANNER_AFTER_DAYS = 7;
+
+export type DiaryMixedBannerPhase = 'soon' | 'ended';
+
+/**
+ * ★ 帯を出す段階。出さないときは null。
+ * @param open     期間中か（isMixedPeriodOpen）
+ * @param expired  期限切れか（切り替え済み・始まりと期限が入っていて、期間中でない＝readDiaryMixedState の why === 'expired'）
+ * @param daysLeft 期限の日まであと何日（mixedDaysLeft）
+ */
+export function diaryMixedBannerPhase(input: { open: boolean; expired: boolean; daysLeft: number | null }): DiaryMixedBannerPhase | null {
+  const d = input.daysLeft;
+  if (d === null || !Number.isFinite(d)) return null;
+  if (input.open && d >= 0 && d <= DIARY_MIXED_BANNER_BEFORE_DAYS) return 'soon';
+  if (input.expired && d < 0 && d >= -DIARY_MIXED_BANNER_AFTER_DAYS) return 'ended';
+  return null;
+}
+
+/** ★ 「閉じる」を覚えておく鍵（端末の localStorage）。★ 期限の日を入れる＝延長すると鍵が変わり、また出る */
+export function diaryMixedBannerDismissKey(salonId: number, lastDay: string): string {
+  return 'conecf:diaryMixedBanner:' + salonId + ':' + lastDay;
+}
+
+/** ★ 帯の文（店舗様向け）。 */
+export function diaryMixedBannerText(input: { phase: DiaryMixedBannerPhase; lastDay: string; daysLeft: number; notPosted: number }): { title: string; body: string } {
+  if (input.phase === 'soon') {
+    const left = input.daysLeft <= 0 ? '今日まで' : 'あと' + input.daysLeft + '日';
+    return {
+      title: '写メ日記の移行期間は ' + input.lastDay + ' まで（' + left + '）',
+      body: 'フクエスでまだ写メ日記を投稿していない方が ' + input.notPosted + '名 います。期間を過ぎると、その方が駅ちかに書いた写メ日記はフクエスに載らなくなります。フクエスからの投稿への切り替えをお願いします。',
+    };
+  }
+  return {
+    title: '写メ日記の移行期間は ' + input.lastDay + ' で終わりました',
+    body: 'フクエスでまだ写メ日記を投稿していない方が ' + input.notPosted + '名 います。その方が駅ちかに書いた写メ日記は、いまフクエスに載っていません。「写メ日記転送」で14日間延長できます。',
+  };
+}
