@@ -5,6 +5,7 @@ import { loadWorkInputHash } from '@/app/lib/media/workInputHash';
 import { canSkipAutoPush } from '@/lib/workInputHash';
 import { staggerNotBefore } from '@/lib/relayStagger';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
+import { mirrorOneTherapistToSlot } from '@/app/lib/media/slotMirror';
 import {
   isDueForAutoPush,
   lastAutoAttemptAt,
@@ -84,6 +85,8 @@ export async function POST(req: Request) {
   const started: string[] = [];
   const skipped: Array<{ target: string; why: string }> = [];
   const gaveUp: string[] = [];
+  /** ★ 第1681便: 枠2以降を「枠1と同じ」にそろえるために、この周で登録を始めた方 */
+  const mirrored: Array<{ target: string; name: string; remaining: number }> = [];
 
   for (const r of rows) {
     const target = `${r.salon_id}/${r.provider}#${r.slot}`;
@@ -134,6 +137,24 @@ export async function POST(req: Request) {
       continue;
     }
 
+    // ★★ 第1681便（2026-10-28・カッキーさん）: 駅ちかの枠2以降は「枠1と同じ」に自動でそろえる。
+    //   ★ 枠1に結びついている公開中の方で、この枠に番号が無い方を、1周に1人ずつ「サイトへ登録」する（店舗様がボタンを押さなくてよい）。
+    //   ★ 登録を始めた周は、この枠の出勤の送信は次の周に回す（同じ枠で2本は動かせない）。★ 出勤の20分間隔より前に置く＝10分ごとに1人ずつ進む。
+    //   ★ 前の周の登録がまだ動いていれば busy で始まらない（failed）→ 出勤の判断へ進む（そちらも busy なら見送られるだけ）。
+    //   ★ 全員そろっていれば何もしない（今までどおり出勤へ）。
+    if (r.slot >= 2 && r.provider === 'ekichika') {
+      const m = await mirrorOneTherapistToSlot(svc, { salonId: r.salon_id, provider: r.provider, slot: r.slot, notBefore: staggerNotBefore(started.length + mirrored.length, now), dryRun: !apply });
+      if (m.kind === 'started') {
+        mirrored.push({ target, name: m.name, remaining: m.remaining });
+        skipped.push({ target, why: `枠1と同じにするため ${m.name} さんを登録中（残り ${m.remaining} 名）。出勤は次の周で` });
+        continue;
+      }
+      if (m.kind === 'failed') {
+        console.warn('[auto-push] 枠をそろえる登録を始められなかった', target, m.name, m.error);
+        // ★ 失敗しても出勤の送信は今までどおり行く（結びついている方のぶんは送れる）
+      }
+    }
+
     if (!isDueForAutoPush({ lastAttemptAt, now })) {
       skipped.push({ target, why: 'まだ周期が来ていない' });
       continue;
@@ -178,6 +199,7 @@ export async function POST(req: Request) {
     autoSlots: rows.length,
     started: started.length,
     gaveUp: gaveUp.length,
-    detail: { started, gaveUp, skipped },
+    mirrored: mirrored.length,
+    detail: { started, gaveUp, skipped, mirrored },
   });
 }
