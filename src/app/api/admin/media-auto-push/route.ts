@@ -137,12 +137,29 @@ export async function POST(req: Request) {
       continue;
     }
 
+    // ★ 周期（20分）と、フクエス側の材料の指紋（第1245便）を先に見る。
+    //   ★★ 第1689便（2026-10-28）: 枠をそろえる登録（第1681便）より【出勤の送信を優先】する。
+    //     第1681便は「登録を始めた周は出勤を次の周へ」だったが、39人を1周1人で登録している間（6時間以上）、毎周が登録になって
+    //     出勤が一度も送られなかった（ラビリンス様の枠2: るい・さくらが結びついたのに本日出勤に出ない）。
+    //     → 出勤を送る番（20分の周期が来ていて、材料が変わっている）はまず出勤。登録はそれ以外の周で1人ずつ進める。
+    const due = isDueForAutoPush({ lastAttemptAt, now });
+    let inputHash: string | null = null;
+    try {
+      inputHash = await loadWorkInputHash(svc, { salonId: r.salon_id, provider: r.provider, slot: r.slot, nowMs: now.getTime() });
+    } catch (e) {
+      console.warn('[auto-push] 指紋を作れなかった（今までどおり行く）', target, e instanceof Error ? e.message : 'unknown');
+    }
+    const sync = syncOf.get(target);
+    const unchanged = !!(inputHash && sync && canSkipAutoPush({ hash: inputHash, syncedHash: sync.auto_synced_hash, syncedAt: sync.auto_synced_at, now }));
+    const needWork = due && !unchanged;
+
     // ★★ 第1681便（2026-10-28・カッキーさん）: 駅ちかの枠2以降は「枠1と同じ」に自動でそろえる。
     //   ★ 枠1に結びついている公開中の方で、この枠に番号が無い方を、1周に1人ずつ「サイトへ登録」する（店舗様がボタンを押さなくてよい）。
-    //   ★ 登録を始めた周は、この枠の出勤の送信は次の周に回す（同じ枠で2本は動かせない）。★ 出勤の20分間隔より前に置く＝10分ごとに1人ずつ進む。
+    //   ★ 登録を始めた周は、この枠の出勤の送信は次の周に回す（同じ枠で2本は動かせない）。
     //   ★ 前の周の登録がまだ動いていれば busy で始まらない（failed）→ 出勤の判断へ進む（そちらも busy なら見送られるだけ）。
     //   ★ 全員そろっていれば何もしない（今までどおり出勤へ）。
-    if (r.slot >= 2 && r.provider === 'ekichika') {
+    //   ★★ 第1689便: 出勤を送る番（needWork）の周は登録をしない＝出勤が先。登録は 20 分に1人のペースになる
+    if (r.slot >= 2 && r.provider === 'ekichika' && !needWork) {
       const m = await mirrorOneTherapistToSlot(svc, { salonId: r.salon_id, provider: r.provider, slot: r.slot, notBefore: staggerNotBefore(started.length + mirrored.length, now), dryRun: !apply });
       if (m.kind === 'started') {
         mirrored.push({ target, name: m.name, remaining: m.remaining });
@@ -155,20 +172,11 @@ export async function POST(req: Request) {
       }
     }
 
-    if (!isDueForAutoPush({ lastAttemptAt, now })) {
+    if (!due) {
       skipped.push({ target, why: 'まだ周期が来ていない' });
       continue;
     }
-
-    // ★ 第1245便: フクエス側の材料の指紋。★ 同じで新しければ行かない
-    let inputHash: string | null = null;
-    try {
-      inputHash = await loadWorkInputHash(svc, { salonId: r.salon_id, provider: r.provider, slot: r.slot, nowMs: now.getTime() });
-    } catch (e) {
-      console.warn('[auto-push] 指紋を作れなかった（今までどおり行く）', target, e instanceof Error ? e.message : 'unknown');
-    }
-    const sync = syncOf.get(target);
-    if (inputHash && sync && canSkipAutoPush({ hash: inputHash, syncedHash: sync.auto_synced_hash, syncedAt: sync.auto_synced_at, now })) {
+    if (unchanged) {
       skipped.push({ target, why: 'フクエス側の出勤に変更なし（前回の同期から24時間以内）' });
       continue;
     }
