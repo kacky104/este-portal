@@ -17,6 +17,7 @@ import { buildGirlCreatePlan } from '@/app/lib/media/girlCreatePlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { conecfConsentMissingNote } from '@/lib/mediaConsent';
 import { findMediaSite } from '@/lib/mediaSites';
+import { isNewFaceActive } from '@/lib/newFace';
 
 type Svc = ReturnType<typeof createServiceClient>;
 
@@ -43,9 +44,9 @@ export async function mirrorOneTherapistToSlot(
 
   // ★ 在籍（公開中だけ）。枠1の番号と、この枠の番号
   const { data: ths, error: tErr } = await svc.from('therapists')
-    .select('id, name, import_cast_id, is_active').eq('salon_id', salonId);
+    .select('id, name, import_cast_id, is_active, is_new_face, new_face_since').eq('salon_id', salonId);
   if (tErr) return { kind: 'none', why: '在籍を読めなかった: ' + tErr.message };
-  const rows = ((ths ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null; is_active?: boolean | null }>);
+  const rows = ((ths ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null; is_active?: boolean | null; is_new_face?: boolean | null; new_face_since?: string | null }>);
   const active = rows.filter((t) => t.is_active === true);
   if (active.length === 0) return { kind: 'none', why: '公開中の方がいない' };
 
@@ -88,7 +89,9 @@ export async function mirrorOneTherapistToSlot(
     salonId, therapistId: target.id, slot,
     // ★ 店舗様が「サイトへ登録」を押したときと同じ既定（枠1に1枚・用意できなければ登録だけ・2枚目以降は送らない）
     withPhoto: true, withPhotoAsked: false, allPhotos: false,
-    postTo: 'action', rookie: true,
+    // ★★ 第1692便（2026-10-28・カッキーさん）: 新人マークは【フクエス（＝枠1）で新人の印が付いている方だけ】。
+    //   第1681便は rookie: true 固定で、枠2 に全員が新人マーク付き（30日）で並んでいた
+    postTo: 'action', rookie: isNewFaceActive(target.is_new_face ?? null, target.new_face_since ?? null),
   });
   if (!built.ok) return { kind: 'failed', therapistId: target.id, name, remaining, error: built.error };
   if (input.dryRun) return { kind: 'started', therapistId: target.id, name, remaining, note: '（試し打ち）' };
