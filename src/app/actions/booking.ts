@@ -12,7 +12,7 @@ import {
   type BookingCourse, type OwnerBooking, type BookingBoardData,
 } from '@/app/lib/booking/boardData';
 import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
-import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
+import { SALON_BOOKINGS_LIMIT, BOOKING_NAME_MAX, BOOKING_NOTE_MAX, BOOKING_SALON_PER_HOUR } from '@/app/lib/booking/limits';
 import { BOOKING_SOURCE_WEB, BOOKING_SOURCE_MANUAL } from '@/app/lib/booking/source';
 import { sendBookingMail, sendBookingTestMail } from '@/app/lib/booking/sendBookingMail';
 import { after } from 'next/server';
@@ -198,7 +198,9 @@ export type CreateBookingInput = {
 
 export type CreateBookingResult =
   | { ok: true }
-  | { ok: false; error: 'disabled' | 'slot_taken' | 'invalid' | 'duplicate_booking' | 'rate_limited' | string };
+  | { ok: false; error: 'disabled' | 'slot_taken' | 'invalid' | 'duplicate_booking' | 'rate_limited' | 'salon_busy' | string };
+
+// ★ 第1705便: 文字数の上限と1店1時間の件数は lib/booking/limits.ts（'use server' のファイルは定数を export できない）
 
 // slotStart（UTC）が属する JST 日付を返す（"YYYY-MM-DD"）。
 function jstDateOf(d: Date): string {
@@ -249,6 +251,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   if (!Number.isFinite(salonId) || !Number.isFinite(therapistId)) return { ok: false, error: 'invalid' };
   if (!Number.isInteger(courseMin) || courseMin <= 0) return { ok: false, error: 'invalid' };
   if (!customerName) return { ok: false, error: 'invalid' };
+  if (customerName.length > BOOKING_NAME_MAX || note.length > BOOKING_NOTE_MAX) return { ok: false, error: 'invalid' };
   if (!/^\d{6,20}$/.test(customerTel)) return { ok: false, error: 'invalid' };
 
   const slotStart = new Date(input.slotStartISO);
@@ -310,6 +313,16 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     .limit(2);
   if (recentErr) console.error('createBooking: rate limit check failed:', recentErr.message);
   if (recentRows && recentRows.length >= 2) return { ok: false, error: 'rate_limited' };
+
+  //  (c) ★ 第1705便: 同じ店へのネット予約が直近1時間で BOOKING_SALON_PER_HOUR 件以上なら受け付けない（キャンセル済みも数える）。
+  const { count: salonRecent, error: salonRecentErr } = await svc
+    .from('salon_bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('salon_id', salonId)
+    .eq('source', BOOKING_SOURCE_WEB)
+    .gte('created_at', rateCutoff);
+  if (salonRecentErr) console.error('createBooking: salon rate check failed:', salonRecentErr.message);
+  if ((salonRecent ?? 0) >= BOOKING_SALON_PER_HOUR) return { ok: false, error: 'salon_busy' };
 
   // 3) slotStart を含む出勤枠を特定（夜跨ぎシフトは前日 schedule_date に属するため2日分を候補にする）。
   const jstDate = jstDateOf(slotStart);

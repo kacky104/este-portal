@@ -14,6 +14,7 @@ import type { Slot } from '@/app/lib/booking/slots';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
 import { CALLBACK_PREF_OPTIONS, callbackPrefLabel } from '@/app/lib/booking/callbackPref';
 import { normalizePhone } from '@/app/lib/validation/phone';
+import { BOOKING_NAME_MAX, BOOKING_NOTE_MAX } from '@/app/lib/booking/limits';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -172,6 +173,11 @@ export function BookingFlow({
     // 悪用ガード（同一電話番号の重複・短時間連投）に該当した場合の案内。
     if (res.error === 'duplicate_booking') {
       setSubmitError('同じ電話番号でのご予約をすでに受け付けています。変更はお店へ直接ご連絡ください。');
+      return;
+    }
+    // ★ 第1705便: 同じ店へのネット予約が短時間に集中したとき（いたずらの守り）→ お店へ電話を案内
+    if (res.error === 'salon_busy') {
+      setSubmitError(`ただいまネット予約が混み合っています。お手数ですが、お店へ直接お電話ください${phone ? `（${phone}）` : ''}。`);
       return;
     }
     if (res.error === 'rate_limited') {
@@ -403,6 +409,7 @@ export function BookingFlow({
                 autoComplete="name"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
+                maxLength={BOOKING_NAME_MAX}
                 placeholder="例）福岡 太郎"
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
               />
@@ -477,6 +484,7 @@ export function BookingFlow({
                 id="book-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
+                maxLength={BOOKING_NOTE_MAX}
                 rows={3}
                 placeholder="ご要望などありましたらご記入ください"
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50/50 focus:outline-none focus:ring-2 focus:ring-pink-200"
@@ -513,6 +521,12 @@ export function BookingFlow({
           <p className="text-[11px] text-slate-400 leading-relaxed mt-3">
             送信後、店舗が内容を確認し、お電話またはSMSにてご予約を確定いたします（この時点ではまだ確定ではありません）。
           </p>
+          {/* ★ 第1705便: お名前と電話番号を預かるので、個人情報の扱いの案内を送信ボタンの近くに */}
+          <p className="text-[11px] text-slate-400 leading-relaxed mt-2">
+            ご入力いただいたお名前・電話番号は、ご予約の確認のために店舗へお伝えします。送信により
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-pink-500 underline">プライバシーポリシー</a>
+            に同意したものとします。
+          </p>
           <button
             type="button"
             onClick={submit}
@@ -539,9 +553,28 @@ export function BookingFlow({
             店舗が内容を確認し、お電話またはSMSにてご予約を確定いたします。
           </p>
           <div className="rounded-xl bg-slate-50 p-3 text-left text-xs text-slate-600 space-y-1">
+            <p><span className="text-slate-400">店舗：</span>{salonName}</p>
             <p><span className="text-slate-400">セラピスト：</span>{therapist?.name}</p>
             <p><span className="text-slate-400">コース：</span>{course?.name}（{course?.durationMin}分）</p>
             <p><span className="text-slate-400">日時：</span>{selectedSlotLabel}</p>
+          </div>
+          {/* ★ 第1705便: お客様にはメールの控えが届かないので、連絡が来ないときの行き先をここに残す */}
+          <div className="rounded-xl border border-pink-100 bg-pink-50/50 p-3 text-left text-xs text-slate-600 leading-relaxed space-y-1.5">
+            <p>
+              お店からご連絡がない場合や、変更・キャンセルをご希望の場合は、お店へ直接お電話ください。
+            </p>
+            {phone && (
+              <a
+                href={`tel:${phone}`}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-white border border-pink-200 py-2.5 text-sm font-black text-pink-600"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 4h3.2l1.6 4.2-2 1.3a11 11 0 0 0 5.7 5.7l1.3-2L19 14.8V18a2 2 0 0 1-2.2 2A15.5 15.5 0 0 1 3 6.2 2 2 0 0 1 5 4z" />
+                </svg>
+                {phone}
+              </a>
+            )}
+            <p className="text-[11px] text-slate-400">ご予約内容の控えはお送りしていません。この画面のスクリーンショットを保存しておくと安心です。</p>
           </div>
         </div>
       )}
