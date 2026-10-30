@@ -1,6 +1,9 @@
 import crypto from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { notifyAdmin } from '@/app/lib/notifyAdmin';
+import { normalizeCallTel } from '@/app/lib/booking/callTel';
+
+export { normalizeCallTel };
 
 // ── 予約の電話通知（Twilio・050番号）第1702便・2026-10-30 ─────────────────────────
 //   設計メモ_2026-10-30_予約の電話通知_Twilio.md／DB は 追加SQL_第1701便（salons.booking_call_*・booking_calls）
@@ -45,15 +48,7 @@ export function callbackUrl(): string {
   return process.env.TWILIO_VOICE_CALLBACK_URL || DEFAULT_CALLBACK_URL;
 }
 
-// ── 番号 ──────────────────────────────────────────────
-// 数字だけにして、0 始まり 10〜11 桁だけ受け付ける。フリーダイヤル・ナビダイヤルなど、こちらからかけられない番号は不可。
-const NG_PREFIXES = ['0120', '0800', '0570', '0180', '0990'];
-export function normalizeCallTel(raw: string | null | undefined): string | null {
-  const d = String(raw ?? '').replace(/[^0-9]/g, '');
-  if (!/^0[0-9]{9,10}$/.test(d)) return null;
-  if (NG_PREFIXES.some((p) => d.startsWith(p))) return null;
-  return d;
-}
+// ── 番号（normalizeCallTel は画面でも使うので callTel.ts に）────────────────
 export function toE164(tel: string): string {
   return '+81' + tel.slice(1);
 }
