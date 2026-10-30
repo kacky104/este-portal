@@ -15,6 +15,8 @@ import { normalizeCallbackPref, callbackPrefLabel } from '@/app/lib/booking/call
 import { SALON_BOOKINGS_LIMIT } from '@/app/lib/booking/limits';
 import { BOOKING_SOURCE_WEB, BOOKING_SOURCE_MANUAL } from '@/app/lib/booking/source';
 import { sendBookingMail, sendBookingTestMail } from '@/app/lib/booking/sendBookingMail';
+import { after } from 'next/server';
+import { placeBookingCall } from '@/app/lib/booking/bookingCall';
 import { isValidEmail, normalizeEmail } from '@/app/lib/validation/email';
 import { normalizePhone } from '@/app/lib/validation/phone';
 import { linkBookingCustomer } from '@/app/lib/crm/linkCustomer';
@@ -372,7 +374,8 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
   const slotEnd = new Date(slotStart.getTime() + (courseMin + intervalMin) * 60 * 1000);
   // ★ フクエスCRM：電話番号で顧客台帳へ名寄せ（失敗しても予約は止めない・null のまま入れる）。
   const customerId = await linkBookingCustomer(svc, salonId, customerTel, customerName);
-  const { error: insErr } = await svc.from('salon_bookings').insert({
+  // ★ 第1702便: 電話通知の記録に予約の id を結ぶため、INSERT した行の id だけ返してもらう。
+  const { data: insertedWeb, error: insErr } = await svc.from('salon_bookings').insert({
     salon_id: salonId,
     customer_id: customerId,
     therapist_id: therapistId,
@@ -389,7 +392,7 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     //   省略すると DB の default('web') に頼ることになるが、手入力側と対にして
     //   両方に明示しておくほうが、どちらの経路か読んで分かる。
     source: BOOKING_SOURCE_WEB,
-  });
+  }).select('id').maybeSingle();
   if (insErr) {
     if (isSlotConflictError(insErr.code)) return { ok: false, error: 'slot_taken' };
     return { ok: false, error: dbMessage(insErr) };
@@ -416,6 +419,15 @@ export async function createBooking(input: CreateBookingInput): Promise<CreateBo
     callbackLabel: callbackPrefLabel(callbackPref),
     note: note || null,
   });
+
+  // ★ 第1702便（2026-10-30）: 予約の電話通知（Twilio）。after() で応答を返したあとにかける（お客様を待たせない）。
+  //   placeBookingCall は例外を投げない・TWILIO_VOICE_ENABLED が無い／店がオフなら何もしない。電話の結果で予約は変えない。
+  if (insertedWeb?.id != null) {
+    const bookingId = insertedWeb.id as string | number;
+    after(async () => {
+      await placeBookingCall({ svc: createServiceClient(), salonId, kind: 'booking', bookingId });
+    });
+  }
 
   return { ok: true };
 }
