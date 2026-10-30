@@ -6,7 +6,7 @@ import { normalizeCallTel } from '@/app/lib/booking/callTel';
 export { normalizeCallTel };
 
 // ── 予約の電話通知（Twilio・050番号）第1702便・2026-10-30 ─────────────────────────
-//   設計メモ_2026-10-30_予約の電話通知_Twilio.md／DB は 追加SQL_第1701便（salons.booking_call_*・booking_calls）
+//   設計メモ_2026-10-30_予約の電話通知_Twilio.md／DB は 追加SQL_第1701便（booking_calls）・第1704便（設定は salon_call_settings・番号を公開 API から読めないよう salons から分けた）
 //
 // ★ ネット予約が入ったら、店舗様の電話に自動音声で「予約が入りました」と知らせる。メールはそのまま（電話は追加の知らせ）。
 // ★ この関数たちは【例外を投げない】。予約はすでに INSERT 済みで、電話の失敗で予約を止めない・巻き戻さない（sendBookingMail と同じ）。
@@ -175,7 +175,6 @@ async function twilioCreateCall(toTel: string, twiml: string): Promise<{ ok: tru
 }
 
 type SalonCallRow = {
-  name: string | null;
   booking_call_enabled: boolean | null;
   booking_call_tel: string | null;
   booking_call_start: string | null;
@@ -217,13 +216,23 @@ export async function placeBookingCall(args: {
   if (!voiceEnabled()) return { ok: false, reason: 'disabled' };
 
   try {
-    const { data: salon, error: salonErr } = await svc
-      .from('salons')
-      .select('name, booking_call_enabled, booking_call_tel, booking_call_start, booking_call_end, booking_call_retry')
-      .eq('id', salonId)
+    // ★ 第1704便: 設定は salon_call_settings（行が無い＝使っていない）。店名だけ salons から。
+    const { data: setting, error: setErr } = await svc
+      .from('salon_call_settings')
+      .select('booking_call_enabled, booking_call_tel, booking_call_start, booking_call_end, booking_call_retry')
+      .eq('salon_id', salonId)
       .maybeSingle<SalonCallRow>();
-    if (salonErr || !salon) return { ok: false, reason: 'no_salon' };
-    if (kind === 'booking' && !salon.booking_call_enabled) return { ok: false, reason: 'off' };
+    if (setErr) return { ok: false, reason: 'error' };
+    if (kind === 'booking' && !setting?.booking_call_enabled) return { ok: false, reason: 'off' };
+    const { data: salonRow, error: salonErr } = await svc.from('salons').select('name').eq('id', salonId).maybeSingle();
+    if (salonErr || !salonRow) return { ok: false, reason: 'no_salon' };
+    const salon = {
+      name: (salonRow.name as string | null) ?? '',
+      booking_call_tel: setting?.booking_call_tel ?? null,
+      booking_call_start: setting?.booking_call_start ?? null,
+      booking_call_end: setting?.booking_call_end ?? null,
+      booking_call_retry: !!setting?.booking_call_retry,
+    };
 
     const tel = normalizeCallTel(salon.booking_call_tel);
     const base = { salon_id: salonId, kind, attempt, booking_id: args.bookingId ?? null, to_tel: tel };

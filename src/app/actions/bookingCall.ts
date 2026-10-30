@@ -8,8 +8,8 @@ import { normalizeCallTel, formatE164Jp, CALL_HOUR_OPTIONS } from '@/app/lib/boo
 
 // ── 予約の電話通知：マイページの設定・テスト発信・最近の発信（第1703便・2026-10-30）──────────
 // ★ 読み書きはサーバー側（service_role）で、オーナー本人か運営のときだけ。
-//   設定の列（salons.booking_call_*）を画面の店舗の読み込み（select）に混ぜない
-//   ＝ 番号を画面の大きな保存にも載せない（★ あとで別の表へ移すことになっても、ここだけ直せば済む）。
+// ★ 第1704便: 設定は salon_call_settings（service_role 専用）。salons は表ごと公開 API から読めるため、番号を置かない。
+//   行が無い店は「使っていない」（既定値）として扱い、保存のときに upsert で作る。
 // ★ TWILIO_VOICE_ENABLED が無いあいだは available:false を返し、画面は「準備中」の枠のまま。
 
 export type BookingCallSettings = {
@@ -56,12 +56,13 @@ export async function getBookingCallInfo(salonId: number): Promise<BookingCallIn
   if (!voiceEnabled()) return { ok: true, available: false };
 
   const svc = createServiceClient();
-  const { data: s, error } = await svc
-    .from('salons')
+  const { data: row, error } = await svc
+    .from('salon_call_settings')
     .select('booking_call_enabled, booking_call_tel, booking_call_start, booking_call_end, booking_call_retry')
-    .eq('id', salonId)
+    .eq('salon_id', salonId)
     .maybeSingle();
-  if (error || !s) return { ok: false, error: '設定を読めませんでした' };
+  if (error) return { ok: false, error: '設定を読めませんでした' };
+  const s = row ?? { booking_call_enabled: false, booking_call_tel: null, booking_call_start: null, booking_call_end: null, booking_call_retry: false };
 
   const { data: rows } = await svc
     .from('booking_calls')
@@ -114,15 +115,18 @@ export async function saveBookingCallSettings(
 
   const svc = createServiceClient();
   const { error } = await svc
-    .from('salons')
-    .update({
-      booking_call_enabled: enabled,
-      booking_call_tel: tel,
-      booking_call_start: start || null,
-      booking_call_end: end || null,
-      booking_call_retry: !!input.retry,
-    })
-    .eq('id', salonId);
+    .from('salon_call_settings')
+    .upsert(
+      {
+        salon_id: salonId,
+        booking_call_enabled: enabled,
+        booking_call_tel: tel,
+        booking_call_start: start || null,
+        booking_call_end: end || null,
+        booking_call_retry: !!input.retry,
+      },
+      { onConflict: 'salon_id' },
+    );
   if (error) return { ok: false, error: '保存に失敗しました' };
   return { ok: true, settings: { enabled, tel: tel ?? '', start, end, retry: !!input.retry } };
 }

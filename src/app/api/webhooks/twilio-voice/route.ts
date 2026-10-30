@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
   let retryEnabled = false;
   if (status === 'busy' || status === 'no-answer' || status === 'failed') {
-    const { data: s } = await svc.from('salons').select('booking_call_retry').eq('id', row.salon_id).maybeSingle();
+    const { data: s } = await svc.from('salon_call_settings').select('booking_call_retry').eq('salon_id', row.salon_id).maybeSingle();
     retryEnabled = !!s?.booking_call_retry;
   }
   const duration = Number(params.CallDuration);
