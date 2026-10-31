@@ -12,7 +12,7 @@
 
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { getBusinessDateJST, calendarDateJSTFrom } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
 import { loadTherapistPlaceholders } from '@/app/lib/therapistPlaceholder';
 import { pickWithTable } from '@/lib/therapistPlaceholder';
@@ -56,6 +56,8 @@ export type HpWeekDay = {
 };
 
 export type HpCouponItem = { id: string; title: string; discount: string; conditions: string };
+// ★ createdAt は名前のまま【最後に投稿された日（published_at）の JST の日付 'YYYY-MM-DD'】（2026-10-31）。
+//   自動投稿・再投稿は published_at だけを動かすため、created_at では公式HPに出なかった。
 export type HpNewsItem   = { id: string; title: string; content: string; createdAt: string };
 export type HpFreePage   = { id: number; title: string; body: string; images: string[] };
 
@@ -226,9 +228,14 @@ export async function fetchHpPageData(
       .limit(3),
     supabase
       .from('announcements')
-      .select('id, title, content, created_at')
+      .select('id, title, content, created_at, published_at')
       .eq('salon_id', salonId)
       .eq('is_published', true)
+      // ★ published_at で並べる（2026-10-31）。お知らせの自動投稿（/api/admin/announce-auto）と
+      //   再投稿は published_at だけを今の時刻にする。created_at で並べていたため、
+      //   公式HPのNEWSは「最後に新しく書いた日」で止まって見えていた（ラビリンス様 9/27 のまま）。
+      //   ★ フクエスのお店ページ（/salon/[id]/news）と同じ並び。
+      .order('published_at', { ascending: false })
       .order('created_at', { ascending: false })
       // トップに出すのは先頭3件（HP_DIGEST_NEWS）。残りはお知らせページ（/news）用。
       .limit(20),
@@ -340,7 +347,8 @@ export async function fetchHpPageData(
       id: String(c.id), title: (c.title as string) ?? '', discount: (c.discount as string) ?? '', conditions: (c.conditions as string) ?? '',
     })),
     news: (newsRes.data ?? []).map((n) => ({
-      id: String(n.id), title: (n.title as string) ?? '', content: (n.content as string) ?? '', createdAt: (n.created_at as string) ?? '',
+      id: String(n.id), title: (n.title as string) ?? '', content: (n.content as string) ?? '',
+      createdAt: hpNewsDate((n.published_at as string | null) ?? (n.created_at as string | null)),
     })),
     freePages: (freeRes.data ?? []).map((f) => ({
       id: Number(f.id), title: (f.title as string) ?? '', body: (f.body as string) ?? '',
@@ -384,4 +392,11 @@ function formatTodayLabel(ymd: string): string {
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
   const wd = ['日', '月', '火', '水', '木', '金', '土'][d.getUTCDay()];
   return `${Number(m[2])}/${Number(m[3])} (${wd})`;
+}
+
+/** お知らせの日付を JST の暦日 'YYYY-MM-DD' に。★ UTC の先頭10文字だと JST 0:00〜9:00 の投稿が前日になる。 */
+function hpNewsDate(iso: string | null): string {
+  if (!iso) return '';
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? calendarDateJSTFrom(t) : '';
 }
