@@ -30,6 +30,7 @@ import { dayKeyJST } from '@/lib/announceAuto';
 import { isWaitAuditReason } from '@/lib/relayWait';
 import { normalizeArticlePhotoIds, ARTICLE_PHOTO_MAX } from '@/lib/articlePhotoPick';
 import { ekichikaAreaFromUrl } from '@/lib/ekichikaArea';
+import { listArticleMirrorTargets } from '@/app/lib/media/articleMirror';
 
 // 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05 → ★ 第373便で写真を【店舗に1つの箱】へ・2026-09-15）。
 //
@@ -148,6 +149,8 @@ export type ArticleMediaSlot = {
   area: string;
   /** 連携の向き。'none'（反映しない）の枠には投稿されない。null＝向きの行が無い */
   linkMode: string | null;
+  /** ★ 第1709便: 枠1の文章を自動で写している枠（枠2以降・フクエスから反映（自動）・ID・PW あり） */
+  mirrored: boolean;
 };
 
 export type ArticleBoard = {
@@ -247,6 +250,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       svc.from('salon_media_credentials').select('slot').eq('salon_id', salonId).eq('provider', PROVIDER),
       svc.from('salon_import_sources').select('slot, link_mode, shop_url').eq('salon_id', salonId).eq('provider', PROVIDER),
     ]);
+    const mirrorSlots = new Set((await listArticleMirrorTargets(svc, salonId).catch(() => [])).map((x) => x.slot));
     const nums = new Set<number>([1, mediaSlot]);
     for (const c of credRes.data ?? []) nums.add(Number(c.slot ?? 1));
     const srcOf = new Map<number, { link_mode: unknown; shop_url: unknown }>();
@@ -257,6 +261,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
         slot: n,
         area: ekichikaAreaFromUrl((src?.shop_url as string | null) ?? null) ?? '',
         linkMode: src ? String(src.link_mode ?? 'read') : null,
+        mirrored: mirrorSlots.has(n),
       });
     }
   }

@@ -338,8 +338,10 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
             })}
           </div>
           <p className="text-[13px] text-slate-500 leading-relaxed mt-1.5">
-            駅ちかのお店ページごとに、お知らせの文章・写真・自動投稿を別々に設定できます。
             {curMedia?.area ? <>いまは<b>枠{mediaSlot}（{curMedia.area}）</b>のお店ページです。</> : <>いまは<b>枠{mediaSlot}</b>のお店ページです。</>}
+            {mediaSlot === 1 && board.mediaSlots.some((m) => m.mirrored)
+              ? <>ここで設定したお知らせは、{board.mediaSlots.filter((m) => m.mirrored).map((m) => '枠' + m.slot + (m.area ? '（' + m.area + '）' : '')).join('・')}にも自動で同じように投稿されます。</>
+              : null}
           </p>
           {curMedia?.linkMode === 'none' && (
             <p className="text-[14px] text-rose-700 bg-rose-50 border border-rose-200 px-3.5 py-2.5 leading-relaxed mt-2">
@@ -350,6 +352,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </div>
       )}
 
+      {/* ★ 第1709便: 枠1の文章を自動で写している枠は見るだけ（直すのは枠1・写し直しとぶつからないように） */}
+      {curMedia?.mirrored && (
+        <MirroredSlotView board={board} area={curMedia.area} />
+      )}
+      {!curMedia?.mirrored && (<>
       {/* ★★ 押したあと、届くまでのあいだ。★ 「押したのに何も起きない」を作らない */}
       {waitFrom !== null && (
         <p className="text-[14px] text-indigo-800 bg-indigo-50 border border-indigo-200 px-3.5 py-2.5 leading-relaxed">
@@ -569,8 +576,52 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
         </section>
       )}
 
+      </>)}
+
       {error && <p className="text-[14px] text-rose-600 leading-relaxed px-1">{error}</p>}
     </div>
+  );
+}
+
+/**
+ * ★ 第1709便: 枠1の文章を自動で写している枠（枠2以降）の見え方。見るだけ。
+ *   写すのは自動投稿の周（5分ごと・lib/media/articleMirror.ts）。直すのは枠1（直せば次の周で枠2も同じになる）。
+ */
+function MirroredSlotView({ board, area }: { board: ArticleBoard; area: string }) {
+  const name = '枠' + board.mediaSlot + (area ? '（' + area + '）' : '');
+  const active = board.templates.filter((t) => t.isActive);
+  return (
+    <section className="bg-white border border-sky-200">
+      <div className="px-4 py-4">
+        <h2 className="text-[15.5px] font-black text-slate-800">{name}は、枠1と同じお知らせを自動で投稿しています</h2>
+        <p className="text-[14px] text-slate-600 leading-relaxed mt-1.5">
+          枠1のお知らせ（文章・写真・自動投稿中の印）が、そのまま{name}のお店ページにも写ります。
+          <b>お知らせを直すときは枠1で直してください。</b>5分ほどで{name}にも同じように反映されます。
+        </p>
+        {board.readAt === null ? (
+          <p className="text-[14px] text-sky-800 bg-sky-50 border border-sky-200 px-3.5 py-2.5 leading-relaxed mt-3">
+            いま{name}の駅ちかを自動で読み取っています（2時間以内に始まります）。読み取りが終わると、枠1のお知らせがここに写ります。
+          </p>
+        ) : board.templates.length === 0 ? (
+          <p className="text-[14px] text-slate-500 leading-relaxed mt-3">
+            まだ写したお知らせはありません。枠1にお知らせがあれば、5分ほどでここに写ります。
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-slate-100 border-t border-slate-100">
+            {board.templates.map((t) => (
+              <li key={t.id} className="py-2.5 flex items-start gap-2.5">
+                <span className="shrink-0 text-[12px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600">{t.slotLabel}</span>
+                <span className="min-w-0 flex-1 text-[14px] text-slate-800 leading-snug break-words">{t.title}</span>
+                {t.isActive && <span className="shrink-0 text-[12px] font-bold px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200">自動投稿中</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {board.readAt !== null && board.templates.length > 0 && (
+          <p className="text-[13px] text-slate-500 leading-relaxed mt-2">自動投稿中 {active.length}本（枠1と同じ時刻に、カテゴリーごとに1日1回投稿します）</p>
+        )}
+      </div>
+    </section>
   );
 }
 

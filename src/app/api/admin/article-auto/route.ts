@@ -3,6 +3,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { postOneArticle } from '@/app/lib/media/articlePost';
 import { shouldPostArticleSlot } from '@/lib/articleRotation';
 import { EKICHIKA_ARTICLE_SLOTS } from '@/lib/ekichikaArticle';
+import { mirrorArticlesToSlots, type ArticleMirrorSummary } from '@/app/lib/media/articleMirror';
 
 // ── 新着情報を自動で出す周（第166便・2026-09-05 → ★ 第376便で【枠ごとに1日1回】へ・2026-09-15）──
 //   POST /api/admin/article-auto        (Authorization: Bearer <CRON_SECRET>)
@@ -48,6 +49,10 @@ export async function POST(req: Request) {
   const apply = url.searchParams.get('apply') === '1';
   const now = new Date();
   const svc = createServiceClient();
+
+  // ★ 第1709便: 枠2以降（別エリアのお店ページ）へ、枠1の文章を写してから数える（写した文章もこの周から自動投稿の対象）。
+  //   ★ 試し（apply なし）では写さない。★ 失敗しても周は止めない（lib/media/articleMirror.ts）
+  const mirror: ArticleMirrorSummary | null = apply ? await mirrorArticlesToSlots(svc) : null;
 
   // ★★★ 第380便: 【「自動投稿中」の印が付いた文章】を起点に引く。
   //   ★ 前は設定の行（auto_enabled=true）が起点だったので、行が無い店舗は永久に回らなかった。
@@ -160,6 +165,7 @@ export async function POST(req: Request) {
     targets: groups.size,
     // ★ 第1262便: 「自動投稿中」だが、店がコネックエフに切り替えていないので見送った文章の数
     notSwitched,
+    mirror,
     posted,
     skipped,
     failed,
