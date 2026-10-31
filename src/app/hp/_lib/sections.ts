@@ -254,7 +254,7 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
 export function hpTopbarNavItems(
   data: HpPageData,
   page: HpPageKey,
-  opts?: { withSchedule?: boolean },
+  opts?: { withSchedule?: boolean; withTop?: boolean },
 ): HpMenuItem[] {
   const { basePath } = data;
   const hash = (id: string) => hpHashHref(basePath, page, id);
@@ -262,6 +262,12 @@ export function hpTopbarNavItems(
   // 下層ページがあるときだけ本物のリンクにする（中身ゼロで404になるページへは飛ばさない）。
   // 無ければトップ内アンカーに落とす（お知らせ0件の店の NEWS など）。
   return [
+    // TOP（2026-10-31・第1707便・カッキーさん）。NEWS の左隣。★ PCヘッダー（HpShell）だけ withTop: true。
+    //   SPクイックナビは4分割グリッドのため足さない（withSchedule と同じ理由）。
+    //   トップにいるときはヒーロー（#top）へ、下層ページからはトップページへ（ドロワーの TOP と同じ）。
+    ...(opts?.withTop
+      ? [{ href: page === 'home' ? '#top' : basePath || '/', label: 'TOP', current: page === 'home' }]
+      : []),
     subs.news
       ? { href: `${basePath}/news`, label: 'NEWS', current: page === 'news' }
       : { href: hash('news'), label: 'NEWS' },
