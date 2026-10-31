@@ -29,6 +29,7 @@ import {
 import { dayKeyJST } from '@/lib/announceAuto';
 import { isWaitAuditReason } from '@/lib/relayWait';
 import { normalizeArticlePhotoIds, ARTICLE_PHOTO_MAX } from '@/lib/articlePhotoPick';
+import { ekichikaAreaFromUrl } from '@/lib/ekichikaArea';
 
 // 駅ちかの新着情報：枠の状態とテンプレート（第158便・2026-09-05 → ★ 第373便で写真を【店舗に1つの箱】へ・2026-09-15）。
 //
@@ -136,7 +137,24 @@ export type ArticleSlotAuto = {
   canAdd: boolean;
 };
 
+/**
+ * ★ 第1708便（2026-10-31・カッキーさん）: 駅ちかの枠（お店ページ）ごとの切り替え。
+ *   枠1＝いつものお店ページ／枠2以降＝別エリアのお店ページ（ラビリンス様の枠2＝中洲・天神 など）。
+ *   ★ 文章・写真の箱・自動投稿は【枠ごとに別】（salon_article_* の slot 列。元から枠ごとに分かれていた）。
+ */
+export type ArticleMediaSlot = {
+  slot: number;
+  /** お店ページの URL から読んだエリア（例「中洲・天神」）。読めなければ '' */
+  area: string;
+  /** 連携の向き。'none'（反映しない）の枠には投稿されない。null＝向きの行が無い */
+  linkMode: string | null;
+};
+
 export type ArticleBoard = {
+  /** ★ 第1708便: この店の駅ちかの枠（ID・PW を登録した枠＋枠1）。1つだけなら画面に切り替えを出さない */
+  mediaSlots: ArticleMediaSlot[];
+  /** ★ 第1708便: いま見ている枠 */
+  mediaSlot: number;
   /** ★ 必ず5枠ぶん。★ 読めていない枠は「分からない」 */
   slots: ArticleSlotAdvice[];
   /** ★ 画面の上に出す1行 */
@@ -221,6 +239,27 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
 
   // ★★ フクエスの写真を送れる方。★ 写真が入っている方だけを出す（★ 写真の箱の選択肢）
   const therapists = await listPhotoTherapists(svc, salonId);
+
+  // ★ 第1708便: 駅ちかの枠の一覧（切り替えのタブ）。★ 読めなくても画面は止めない（枠1だけに倒す）
+  const mediaSlots: ArticleMediaSlot[] = [];
+  {
+    const [credRes, srcRes] = await Promise.all([
+      svc.from('salon_media_credentials').select('slot').eq('salon_id', salonId).eq('provider', PROVIDER),
+      svc.from('salon_import_sources').select('slot, link_mode, shop_url').eq('salon_id', salonId).eq('provider', PROVIDER),
+    ]);
+    const nums = new Set<number>([1, mediaSlot]);
+    for (const c of credRes.data ?? []) nums.add(Number(c.slot ?? 1));
+    const srcOf = new Map<number, { link_mode: unknown; shop_url: unknown }>();
+    for (const r of srcRes.data ?? []) srcOf.set(Number(r.slot ?? 1), r);
+    for (const n of Array.from(nums).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b)) {
+      const src = srcOf.get(n);
+      mediaSlots.push({
+        slot: n,
+        area: ekichikaAreaFromUrl((src?.shop_url as string | null) ?? null) ?? '',
+        linkMode: src ? String(src.link_mode ?? 'read') : null,
+      });
+    }
+  }
 
   // ★★★ 写真の箱。★ 並びと重複はここで整え、★ 写真が無くなった方は落とす
   //   （★ 画面に「いない人」を数えさせない。★ articlePost 側でも同じ理由で弾く）
@@ -308,6 +347,8 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
   return {
     ok: true,
     data: {
+      mediaSlots,
+      mediaSlot,
       slots: articleSlotAdviceAll(rows),
       summary: articleSlotSummary(rows),
       readAt: snap?.read_at ? String(snap.read_at) : null,

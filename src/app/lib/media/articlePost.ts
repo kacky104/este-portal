@@ -63,11 +63,16 @@ export async function postOneArticle(input: {
   // ★★★ 内容は【DBから読み直す】。★ 呼び出し側から受け取った文字をそのまま駅ちかへ流さない
   const { data: t, error: tErr } = await svc
     .from('salon_article_templates')
-    .select('id, article_slot, title, body, photo_therapist_id')
+    .select('id, slot, article_slot, title, body, photo_therapist_id')
     .eq('id', input.templateId).eq('salon_id', input.salonId).eq('provider', PROVIDER)
     .maybeSingle();
   if (tErr) return { ok: false, error: '文章を読み出せませんでした' };
   if (!t) return { ok: false, error: 'その文章が見つかりません' };
+  // ★ 第1708便: 枠2（別エリアのお店ページ）の文章を枠1へ出す（またはその逆）ことはしない。
+  //   文章・写真の箱・自動投稿は枠ごとに別。画面の取り違えで別のお店ページへ書かない。
+  if (Number(t.slot ?? 1) !== input.slot) {
+    return { ok: false, error: 'この文章は枠' + Number(t.slot ?? 1) + 'の文章です。画面を開き直してからお試しください' };
+  }
 
   const articleSlot = Number(t.article_slot);
   if (!isArticleSlot(articleSlot)) return { ok: false, error: 'この文章には出す枠が入っていません' };

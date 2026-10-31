@@ -103,6 +103,11 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
    *   ★ タブを替えても、開いているカードや書きかけは消えない（★ キーが枠ごとに違う）
    */
   const [pickedSlot, setPickedSlot] = useState<number>(1);
+  /**
+   * ★ 第1708便（2026-10-31・カッキーさん）: いま見ている駅ちかの枠（お店ページ）。1＝いつものお店ページ・2以降＝別エリアのお店ページ。
+   *   ★ 文章・写真の箱・自動投稿は枠ごとに別（サーバー側は元から枠ごと）。ここで選んだ枠を全部の操作に渡す。
+   */
+  const [mediaSlot, setMediaSlot] = useState<number>(1);
 
   /**
    * ★ 結果が届くのを待っている印。値は【押した時点でいちばん新しかった記録のid】。
@@ -116,7 +121,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
   const load = useCallback(async () => {
     if (salonId == null) return;
-    const r = await getArticleBoard({ salonId });
+    const r = await getArticleBoard({ salonId, slot: mediaSlot });
     if (!r.ok) { setError(r.error); setLoading(false); return; }
     setBoard(r.data);
     // ★★ 箱の控えは【DBの箱が変わったとき】だけ揃える。
@@ -129,7 +134,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     serverPool.current = r.data.photoIds;
     setError('');
     setLoading(false);
-  }, [salonId]);
+  }, [salonId, mediaSlot]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -192,7 +197,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
   const onRead = async () => {
     setBusy('read');
-    const r = await readArticleSlots({ salonId });
+    const r = await readArticleSlots({ salonId, slot: mediaSlot });
     setBusy('');
     // ★ 断られた理由（別の手順が走っている等）も、そのまま出す。★ 握りつぶさない
     onToast(r.ok ? r.data.note : r.error);
@@ -204,7 +209,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     const d = drafts[key] ?? { title: '', body: '', photoId: null };
     setBusy('save');
     const r = await saveArticleTemplate({
-      salonId, articleSlot, title: d.title, body: d.body, isActive: false,
+      salonId, slot: mediaSlot, articleSlot, title: d.title, body: d.body, isActive: false,
       photoTherapistId: d.photoId,
     });
     setBusy('');
@@ -220,7 +225,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     const d = drafts[key] ?? { title: row.title, body: row.body, photoId: row.photoTherapistId };
     setBusy('save');
     const r = await saveArticleTemplate({
-      salonId, id: row.id, articleSlot: row.articleSlot, title: d.title, body: d.body,
+      salonId, slot: mediaSlot, id: row.id, articleSlot: row.articleSlot, title: d.title, body: d.body,
       photoTherapistId: d.photoId,
     });
     setBusy('');
@@ -237,7 +242,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
   const onToggleActive = async (row: ArticleTemplateRow) => {
     setBusy('active');
     const r = await saveArticleTemplate({
-      salonId, id: row.id, articleSlot: row.articleSlot,
+      salonId, slot: mediaSlot, id: row.id, articleSlot: row.articleSlot,
       title: row.title, body: row.body, isActive: !row.isActive,
     });
     setBusy('');
@@ -261,7 +266,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
     setBusy('post');
     // ★ 押した時点でいちばん新しい行を覚えておく。★ ここより新しい行が来たら終わり
     const from = board.runs.length > 0 ? board.runs[0].id : 0;
-    const r = await startArticlePost({ salonId, templateId: id });
+    const r = await startArticlePost({ salonId, slot: mediaSlot, templateId: id });
     setBusy('');
     setConfirmPost(null);
     if (!r.ok) { onToast(r.error); return; }
@@ -281,7 +286,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
   const onSavePool = async () => {
     setBusy('pool');
-    const r = await saveArticlePhotoPool({ salonId, therapistIds: pool });
+    const r = await saveArticlePhotoPool({ salonId, slot: mediaSlot, therapistIds: pool });
     setBusy('');
     if (!r.ok) { onToast(r.error); return; }
     onToast(pool.length === 0 ? '写真を外しました' : '写真を保存しました（' + pool.length + '枚）');
@@ -290,8 +295,61 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
 
   const poolDirty = !sameIds(pool, board.photoIds);
 
+  /** ★ 第1708便: 枠を切り替える。★ 書きかけ・開いているカード・送信の待ちは枠ごとに別なので持ち越さない */
+  const switchMediaSlot = (n: number) => {
+    if (n === mediaSlot || busy !== '') return;
+    setOpen(new Set());
+    setDrafts({});
+    setConfirmDelete(null);
+    setConfirmPost(null);
+    setWaitFrom(null);
+    serverPool.current = null;
+    setPickedSlot(1);
+    setLoading(true);
+    setMediaSlot(n);
+  };
+  const curMedia = board.mediaSlots.find((m) => m.slot === mediaSlot);
+
   return (
     <div className="space-y-5">
+      {/* ★ 第1708便: 駅ちかの枠（お店ページ）の切り替え。枠が2つ以上ある店だけ */}
+      {board.mediaSlots.length > 1 && (
+        <div>
+          <div className="flex flex-wrap gap-2">
+            {board.mediaSlots.map((m) => {
+              const on = m.slot === mediaSlot;
+              return (
+                <button
+                  key={m.slot}
+                  type="button"
+                  onClick={() => switchMediaSlot(m.slot)}
+                  disabled={busy !== ''}
+                  aria-pressed={on}
+                  className={
+                    'px-4 py-2 border text-[14.5px] font-bold transition-colors disabled:opacity-60 ' +
+                    (on
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50')
+                  }
+                >
+                  枠{m.slot}{m.area ? '　' + m.area : ''}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[13px] text-slate-500 leading-relaxed mt-1.5">
+            駅ちかのお店ページごとに、お知らせの文章・写真・自動投稿を別々に設定できます。
+            {curMedia?.area ? <>いまは<b>枠{mediaSlot}（{curMedia.area}）</b>のお店ページです。</> : <>いまは<b>枠{mediaSlot}</b>のお店ページです。</>}
+          </p>
+          {curMedia?.linkMode === 'none' && (
+            <p className="text-[14px] text-rose-700 bg-rose-50 border border-rose-200 px-3.5 py-2.5 leading-relaxed mt-2">
+              枠{mediaSlot}は「反映しない」になっているため、お知らせは投稿されません。
+              {brand.isConecf ? 'ホームで' : 'ログイン情報の画面で'}枠{mediaSlot}を「フクエスから反映」にすると投稿できます（文章の準備はこのままできます）。
+            </p>
+          )}
+        </div>
+      )}
+
       {/* ★★ 押したあと、届くまでのあいだ。★ 「押したのに何も起きない」を作らない */}
       {waitFrom !== null && (
         <p className="text-[14px] text-indigo-800 bg-indigo-50 border border-indigo-200 px-3.5 py-2.5 leading-relaxed">
