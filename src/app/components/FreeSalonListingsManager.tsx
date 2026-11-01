@@ -156,7 +156,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
         /salons（掲載店舗一覧）にテキストのみ（店名・地域・電話番号）で載せる無料掲載枠です。
-        掲載中サロンは自動で /salons に表示されるため、ここへの登録は不要です。
+        掲載中サロンは自動で /salons に表示されるため、ここへの登録は不要です（直すときは「店舗」タブへ）。
       </p>
 
       {errorMsg && (

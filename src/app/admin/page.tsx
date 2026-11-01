@@ -42,6 +42,7 @@ import EmailEventManager from '@/app/components/EmailEventManager';
 import WorkMatchManager from '@/app/components/WorkMatchManager';
 import WorkAppStats from '@/app/components/WorkAppStats';
 import FreeSalonListingsManager from '@/app/components/FreeSalonListingsManager';
+import SalonsListEditor from '@/app/components/SalonsListEditor';
 import SalonStatsManager from '@/app/components/SalonStatsManager';
 import SalonMonthlyReport from '@/app/components/SalonMonthlyReport';
 import { adminGenerateOwnerLoginLink } from '@/app/actions/adminOwner';
@@ -177,6 +178,8 @@ export default function AdminDashboard() {
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
   // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
   const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
+  // ★ 第1706便: 「無料掲載」セクションのタブ（無料テキスト掲載／店舗＝salons テーブルを /salons の項目だけ編集）。
+  const [salonsListingTab, setSalonsListingTab] = useState<'free' | 'salons'>('free');
 
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
   const { toast, showToast } = useToast();
@@ -553,8 +556,30 @@ export default function AdminDashboard() {
           </AccordionSection>
 
           {/* ── 無料掲載枠（/salons のテキスト行）管理 ── */}
-          <AccordionSection id="free-salon-listings" title="無料掲載（/salons の店名・電話のみ）" expanded={expandedSections} onToggle={toggleSection}>
-            <FreeSalonListingsManager onToast={showToast} />
+          <AccordionSection id="free-salon-listings" title="無料掲載・店舗一覧（/salons）" expanded={expandedSections} onToggle={toggleSection}>
+            {/* ★ 第1706便: 無料テキスト掲載（free_salon_listings）と、店舗（salons・有料プラン／店舗カード無料枠）の2タブ */}
+            <div className="flex items-center gap-2 mb-4">
+              {([
+                ['free', '無料掲載（テキスト）'],
+                ['salons', '店舗（有料プラン・無料枠）'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setSalonsListingTab(key)}
+                  className={`px-4 py-2 rounded-full text-sm font-bold border transition-colors ${
+                    salonsListingTab === key ? 'bg-pink-500 text-white border-pink-500' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {salonsListingTab === 'free' ? (
+              <FreeSalonListingsManager onToast={showToast} />
+            ) : (
+              <SalonsListEditor onToast={showToast} />
+            )}
           </AccordionSection>
 
           {/* ── 新規サロン追加フォーム ── */}
