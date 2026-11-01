@@ -17,7 +17,7 @@ import { bannerStackSnippet } from '@/app/lib/bannerTags';
 // 設置報告は本体テーマの /banner/report（2026-08-08 新設。保存先は fukuX と共通の banner_reports）。
 export const metadata: Metadata = {
   title: 'リンクバナーについて｜フクエス',
-  description: '福岡メンズエステ情報・口コミポータル「フクエス」のリンクバナーと貼り付け用HTMLタグのご案内です。リンクはご自由にどうぞ。',
+  description: '福岡メンズエステ情報・口コミポータル「フクエス」のリンクバナーと貼り付け用タグのご案内。3つのバナー設置で店舗一覧・店舗詳細ページに無料掲載できます。',
   alternates: { canonical: '/banner' },
 };
 
@@ -72,8 +72,29 @@ export default function BannerPage() {
           <h1 className="text-xl font-bold text-slate-900 mb-4">リンクバナーについて</h1>
 
           <p className={P}>
-            フクエスはリンクフリーです。事前のご連絡は不要です。店舗様の公式サイトやブログ等からのリンクの際は、下記のバナーをご利用ください。求人サイト「フクエスワーク」・専用SNS「fukuX」のバナーも併せてご利用いただけます。リンク先はそれぞれのタグに記載のURLでお願いします。
+            フクエスはリンクフリーです。事前のご連絡なしでリンクしていただけます。
+            店舗様の公式ホームページやブログからは、下のバナーをお使いください。
           </p>
+
+          {/* ── 無料掲載の案内（2026-11-01 第1706便）──
+              3つ設置＝無料掲載。掲載内容は 店舗一覧の店舗カード（無料枠）＋店舗詳細ページ（無料）。
+              以前の「テキストのみ」から広がったので、ここで先に見せる。 */}
+          <div className="mt-4 rounded-2xl border border-pink-100 bg-pink-50/50 px-4 py-3">
+            <p className="text-sm font-bold text-slate-800 mb-1.5">バナーを3つ設置すると、無料で掲載できます</p>
+            <p className={P}>
+              フクエス・フクエスワーク・fukuX の3つのバナーを公式ホームページに設置し、
+              <a href="/banner/report" className="text-pink-600 hover:underline">設置報告</a>
+              をいただいた店舗様は、次の内容を無料で掲載します。
+            </p>
+            <ul className={`${UL} mt-1.5`}>
+              <li>
+                <a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>
+                の店舗カード（無料枠）
+              </li>
+              <li>店舗詳細ページ（無料）</li>
+              <li>fukuX のお店アカウントには、お店カード画像＋4枚の特典</li>
+            </ul>
+          </div>
 
           {BANNERS.map((b) => (
             <section key={b.file}>
@@ -97,20 +118,20 @@ export default function BannerPage() {
               包み方（縦積み・8px）は lib/bannerTags.ts に集約。 */}
           <h2 className={H2}>3つまとめて貼る場合</h2>
           <p className={P}>
-            下のコードをコピーして1か所に貼り付けると、3つのバナーが縦に並びます。
-            <strong className="text-slate-800">無料掲載をご希望の店舗様はこちらが便利です</strong>
-            （3サイトすべての設置が条件のため）。
+            下のコードを1か所に貼ると、3つのバナーが縦に並びます。
+            <strong className="text-slate-800">無料掲載をご希望の店舗様はこちらが便利です。</strong>
           </p>
           <BannerTagCode tag={bannerStackSnippet(BANNERS.map(bannerTag))} accent="pink" label="3つまとめてコピー" />
 
           {/* ── 設置後のご報告（2026-08-08 復活）──
-              3サイト設置＝無料掲載（/salons テキスト掲載）の条件なので、報告導線をここにも置く。
+              3サイト設置＝無料掲載（店舗カード（無料枠）＋店舗詳細ページ）の条件なので、報告導線をここにも置く。
               リンク先は本体テーマの /banner/report（fukuX版 /x/banner/report とはUIのみ別・保存先は共通）。 */}
           <h2 className={H2}>設置後のご報告</h2>
           <p className={P}>
-            バナーを設置いただいたら、下記フォームからご報告ください。フクエス・フクエスワーク・fukuX の3つすべてを設置いただいた店舗様は、
-            <a href="/salons" className="text-pink-600 hover:underline">無料で店舗一覧に掲載</a>
-            できます（fukuXのお店アカウントには、お店カード画像+4枚の特典もございます）。
+            バナーを設置したら、下のフォームから設置したページのURLをお知らせください。
+            当事務局で確認でき次第、
+            <a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>
+            と店舗詳細ページに無料で掲載します。
           </p>
           <a
             href="/banner/report"
@@ -121,10 +142,11 @@ export default function BannerPage() {
 
           <h2 className={H2}>ご利用にあたって</h2>
           <ul className={UL}>
-            <li>バナー画像は上記タグでの直接参照のほか、ダウンロードして貴サイトに設置していただいても構いません。</li>
-            <li>バナー画像の改変（文字の変更、切り抜き、色調変更等）はご遠慮ください。</li>
-            <li>18歳未満を対象とするサイト、法令または公序良俗に反するサイトからのリンクはお断りします。</li>
-            <li>予告なくバナー画像を差し替える場合があります。</li>
+            <li>画像はタグでの直接参照のほか、ダウンロードして設置していただいても構いません。</li>
+            <li>画像の改変（文字の変更・切り抜き・色調変更など）はご遠慮ください。</li>
+            <li>18歳未満向けのサイト、法令や公序良俗に反するサイトからのリンクはお断りします。</li>
+            <li>バナー画像は予告なく差し替えることがあります。</li>
+            <li>掲載期間中はバナーの設置継続をお願いします。確認できなくなった場合、掲載を終了することがあります。</li>
           </ul>
 
           <p className={`${P} mt-6`}>
