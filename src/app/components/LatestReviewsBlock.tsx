@@ -178,8 +178,10 @@ export function LatestReviewsBlock({
   }
 
   if (variant === 'sidebar') {
+    // ★ 第1713便（カッキーさん）: flex-1 を外す。右カラムは店舗一覧と同じ高さまで伸びるので、
+    //   ピンクの枠が口コミの最後（「口コミをもっとみる」）より下まで続いていた → 中身の高さで止める。
     return (
-      <aside className="flex-1 flex flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
+      <aside className="flex flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
         <div className="p-4 flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-slate-900">{heading}</h2>
