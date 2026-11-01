@@ -109,7 +109,7 @@ export default function BannerPage() {
           <h2 className={H2}>設置後のご報告</h2>
           <p className={P}>
             バナーを設置いただいたら、下記フォームからご報告ください。フクエス・フクエスワーク・fukuX の3つすべてを設置いただいた店舗様は、
-            <a href="/listing" className="text-pink-600 hover:underline">無料で店舗一覧に掲載</a>
+            <a href="/salons" className="text-pink-600 hover:underline">無料で店舗一覧に掲載</a>
             できます（fukuXのお店アカウントには、お店カード画像+4枚の特典もございます）。
           </p>
           <a
