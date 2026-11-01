@@ -3,7 +3,7 @@
 // /salons（掲載店舗一覧）の「無料掲載枠」テキスト行の管理（店名・地域・電話番号のみ）。
 // free_salon_listings テーブルへ直接 CRUD する（RLS: admin_all_free_salon_listings＝ADMIN_UUID のみ書込可）。
 // ★ 第915便: /salons は ISR（10分）になっていた＝保存しても最大10分出なかった。保存・追加・削除・並び替えのあと revalidateSalonsList() を呼ぶ。
-// ★ 第1706便: TOP の「掲載店舗」の数にもこの表（表示中）を足すようにした → 追加・削除・表示切替のあとは revalidateTop() も呼ぶ。
+// ★ 第1710便: TOP の「掲載店舗」の数にもこの表（表示中）を足すようにした → 追加・削除・表示切替のあとは revalidateTop() も呼ぶ。
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/app/lib/supabase/client';

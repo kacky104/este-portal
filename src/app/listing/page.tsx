@@ -199,7 +199,7 @@ export default async function ListingPage() {
           </ol>
         </div>
         {/* ★ 第1589便（カッキーさん）: 掲載する項目を1行ずつに。括弧の注記（店舗ページの開設や…は含まれません）は外した
-            ★ 第1706便（2026-11-01）: テキスト掲載に加えて 店舗カード（無料枠）＋店舗詳細ページ（無料）も掲載する旨を追記 */}
+            ★ 第1710便（2026-11-01）: テキスト掲載に加えて 店舗カード（無料枠）＋店舗詳細ページ（無料）も掲載する旨を追記 */}
         <div className="text-sm text-slate-600 leading-relaxed mb-2">
           <p>
             無料掲載では<a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>に

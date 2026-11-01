@@ -178,7 +178,7 @@ export default function AdminDashboard() {
   const [pendingReviewCount, setPendingReviewCount] = useState(0);
   // 掲載店舗一覧の表示/非表示サブタブ（is_hidden で分割）。永続化しないクライアントstateのみ。
   const [salonListTab, setSalonListTab] = useState<'visible' | 'hidden'>('visible');
-  // ★ 第1706便: 「無料掲載」セクションのタブ（無料テキスト掲載／店舗＝salons テーブルを /salons の項目だけ編集）。
+  // ★ 第1710便: 「無料掲載」セクションのタブ（無料テキスト掲載／店舗＝salons テーブルを /salons の項目だけ編集）。
   const [salonsListingTab, setSalonsListingTab] = useState<'free' | 'salons'>('free');
 
   // トーストは共通フックで一元管理（タイマー直書きは連続表示・unmount後setStateのバグ源）。
@@ -557,7 +557,7 @@ export default function AdminDashboard() {
 
           {/* ── 無料掲載枠（/salons のテキスト行）管理 ── */}
           <AccordionSection id="free-salon-listings" title="無料掲載・店舗一覧（/salons）" expanded={expandedSections} onToggle={toggleSection}>
-            {/* ★ 第1706便: 無料テキスト掲載（free_salon_listings）と、店舗（salons・有料プラン／店舗カード無料枠）の2タブ */}
+            {/* ★ 第1710便: 無料テキスト掲載（free_salon_listings）と、店舗（salons・有料プラン／店舗カード無料枠）の2タブ */}
             <div className="flex items-center gap-2 mb-4">
               {([
                 ['free', '無料掲載（テキスト）'],

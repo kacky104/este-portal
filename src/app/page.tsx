@@ -137,7 +137,7 @@ export default async function Home() {
     fetchHeaderSlides(supabase).catch(() => []),
     // ★ 第1126便: 店舗カードのタブの数（写メ日記60時間以内＝第1239便で 48→60・公開中のクーポン）。全店ぶんを2本で読む。読めなければ空＝0件扱い。
     fetchSalonCardTabCounts(supabase),
-    // ★ 第1706便: テキストのみの無料掲載（free_salon_listings・/admin 手入力・/salons に出る行）も掲載店舗に数える。
+    // ★ 第1710便: テキストのみの無料掲載（free_salon_listings・/admin 手入力・/salons に出る行）も掲載店舗に数える。
     //   salons の数と足す。表が無い・失敗なら 0（salons の数だけ出す）。
     supabase
       .from('free_salon_listings')
@@ -204,7 +204,7 @@ export default async function Home() {
             {(() => {
               const memberCount = memberCountRes.error ? null : Number(memberCountRes.data);
               const stats: { label: string; count: number | null; unit: string; href: string | null }[] = [
-                // ★ 第1706便: 掲載店舗＝salons（非表示でない）＋テキストのみの無料掲載（表示中）。/salons の行数と同じ。
+                // ★ 第1710便: 掲載店舗＝salons（非表示でない）＋テキストのみの無料掲載（表示中）。/salons の行数と同じ。
                 {
                   label: '掲載店舗',
                   count: salonCountRes.count == null ? null : salonCountRes.count + (freeTextCountRes.error ? 0 : (freeTextCountRes.count ?? 0)),
