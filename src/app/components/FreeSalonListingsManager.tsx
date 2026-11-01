@@ -3,12 +3,13 @@
 // /salons（掲載店舗一覧）の「無料掲載枠」テキスト行の管理（店名・地域・電話番号のみ）。
 // free_salon_listings テーブルへ直接 CRUD する（RLS: admin_all_free_salon_listings＝ADMIN_UUID のみ書込可）。
 // ★ 第915便: /salons は ISR（10分）になっていた＝保存しても最大10分出なかった。保存・追加・削除・並び替えのあと revalidateSalonsList() を呼ぶ。
+// ★ 第1706便: TOP の「掲載店舗」の数にもこの表（表示中）を足すようにした → 追加・削除・表示切替のあとは revalidateTop() も呼ぶ。
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { AREA_ORDER, ALL_AREA } from '@/app/lib/areas';
 import { areaLabel } from '@/app/lib/areaLabel';
-import { revalidateSalonsList } from '@/app/lib/revalidateTop';
+import { revalidateSalonsList, revalidateTop } from '@/app/lib/revalidateTop';
 
 type Row = {
   id: string;
@@ -84,6 +85,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     if (error) { onToast(`追加に失敗しました: ${error.message}`); return; }
     setName(''); setPhone(''); setWebsite('');
     void revalidateSalonsList();
+    void revalidateTop();
     onToast('無料掲載枠に追加しました');
     fetchRows();
   };
@@ -109,6 +111,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     if (error) { onToast(`保存に失敗しました: ${error.message}`); return; }
     setEditId(null);
     void revalidateSalonsList();
+    void revalidateTop();
     onToast('保存しました');
     fetchRows();
   };
@@ -123,6 +126,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     if (error) { onToast(`更新に失敗しました: ${error.message}`); return; }
     setRows((prev) => prev.map((x) => (x.id === r.id ? { ...x, isActive: !r.isActive } : x)));
     void revalidateSalonsList();
+    void revalidateTop();
   };
 
   const remove = async (r: Row) => {
@@ -132,6 +136,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     setBusy(false);
     if (error) { onToast(`削除に失敗しました: ${error.message}`); return; }
     void revalidateSalonsList();
+    void revalidateTop();
     onToast('削除しました');
     fetchRows();
   };
@@ -149,6 +154,7 @@ export default function FreeSalonListingsManager({ onToast }: { onToast: (msg: s
     setBusy(false);
     if (ra.error || rb.error) { onToast('並び替えに失敗しました'); return; }
     void revalidateSalonsList();
+    void revalidateTop();
     fetchRows();
   };
 

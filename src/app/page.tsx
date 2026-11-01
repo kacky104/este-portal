@@ -77,7 +77,7 @@ export default async function Home() {
 
   // ── 互いに依存しない3処理を並列実行（往復の積み上がりを解消） ──
   // ピックアップは area=null の共通セット（＝トップ用）。地域ページは各エリアの設定を使う。
-  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes, salonCountRes, memberCountRes, headerSlides, cardTabCounts] = await Promise.all([
+  const [salons, featuredSalons, todaySchedRes, recommendedBanners, newFaceTherapists, pickupBanners, salonNews, latestColumns, allReviews, moreCardImage, freeListings, therapistCountRes, reviewCountRes, diaryCountRes, salonCountRes, memberCountRes, headerSlides, cardTabCounts, freeTextCountRes] = await Promise.all([
     fetchSalons(supabase, { showOnTopOnly: true }), // トップは show_on_top=true のみ表示
     getFeaturedSalons(supabase, null),
     supabase
@@ -137,6 +137,12 @@ export default async function Home() {
     fetchHeaderSlides(supabase).catch(() => []),
     // ★ 第1126便: 店舗カードのタブの数（写メ日記60時間以内＝第1239便で 48→60・公開中のクーポン）。全店ぶんを2本で読む。読めなければ空＝0件扱い。
     fetchSalonCardTabCounts(supabase),
+    // ★ 第1706便: テキストのみの無料掲載（free_salon_listings・/admin 手入力・/salons に出る行）も掲載店舗に数える。
+    //   salons の数と足す。表が無い・失敗なら 0（salons の数だけ出す）。
+    supabase
+      .from('free_salon_listings')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true),
   ]);
 
   // TOPに出すのは先頭3件だけ。続きは /reviews。
@@ -198,7 +204,13 @@ export default async function Home() {
             {(() => {
               const memberCount = memberCountRes.error ? null : Number(memberCountRes.data);
               const stats: { label: string; count: number | null; unit: string; href: string | null }[] = [
-                { label: '掲載店舗', count: salonCountRes.count, unit: '店', href: null },
+                // ★ 第1706便: 掲載店舗＝salons（非表示でない）＋テキストのみの無料掲載（表示中）。/salons の行数と同じ。
+                {
+                  label: '掲載店舗',
+                  count: salonCountRes.count == null ? null : salonCountRes.count + (freeTextCountRes.error ? 0 : (freeTextCountRes.count ?? 0)),
+                  unit: '店',
+                  href: null,
+                },
                 { label: '福岡セラピスト', count: therapistCountRes.count, unit: '人', href: '/therapists' },
                 { label: '口コミ', count: reviewCountRes.count, unit: '件', href: '/reviews' },
                 { label: '写メ日記', count: diaryCountRes.count, unit: '件', href: '/diary' },
