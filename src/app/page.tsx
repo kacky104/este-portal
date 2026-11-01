@@ -391,7 +391,8 @@ export default async function Home() {
         {/* 上余白はタイトルバナー圧縮に合わせて半分（pt-4→pt-2）。 */}
         <section id="salons" className="pt-2 pb-12">
           {/* スマホは左右余白を px-4(16px)→px-1(4px) に詰めてカードを幅広に。PC(lg)は従来の16pxのまま。 */}
-          <div className="max-w-5xl mx-auto px-1 lg:px-4">
+          {/* ★ 第1715便: xl 以上は3カラム（左：口コミ／中：カード／右：バナー）のため幅を広げる */}
+          <div className="max-w-5xl xl:max-w-[1360px] mx-auto px-1 lg:px-4">
             {/* 地域バッジ列を最上部に出し、その下に見出し＋説明文→カード（heading で順序制御） */}
             {/* ★ sideNode: PCの右カラム（旧「PRこの枠は準備中です」）を新着口コミに差し替える。
                 ★ 0件のときは undefined を渡す＝ShuffledSalons 側が元の「準備中」に戻る。
@@ -415,6 +416,8 @@ export default async function Home() {
               wideDesktop
               mobileSingleColumn
               sideNode={topReviews.length > 0 ? <LatestReviewsBlock reviews={topReviews} variant="sidebar" /> : undefined}
+              // ★ 第1715便（カッキーさん）: xl 以上では新着口コミを左の縦長カラムへ（右はバナー2枚だけ）。lg は従来どおり右。
+              leftNode={topReviews.length > 0 ? <LatestReviewsBlock reviews={topReviews} variant="sidebar" /> : undefined}
               bleedTherapists
               largeThumbs
               insertBlocks={[

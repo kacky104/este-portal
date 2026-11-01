@@ -698,7 +698,7 @@ export function AreaLinkTabsBlock({ areas, currentArea }: { areas: string[]; cur
   );
 }
 
-export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, moreImageUrl = null, cardTabCounts, emptyNote, hideEmptyMessage = false, sharedTherapistFeed = false }: { salons: Salon[]; /** ★ 第1524便: トップで true。セラピストのサムネ列を TherapistScroller と同じ1回の取得から切り出す（二重取得をやめる） */ sharedTherapistFeed?: boolean; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; /** ★ 第1396便: 0件のときに「まだありません」の下に出すもの（エリアページが、お店のあるエリアへの案内を渡す） */ emptyNote?: React.ReactNode; /** ★ 第1398便: 有料店が 0件でも「まだありません」を出さない（エリアページが、無料掲載の店を insertBlocks で下に並べるとき） */ hideEmptyMessage?: boolean; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; moreImageUrl?: string | null; cardTabCounts?: SalonCardTabCounts }) {
+export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty = false, ratingAtBottom = false, compactTherapists = false, showSaveButton = false, wideDesktop = false, mobileSingleColumn = false, bleedTherapists = false, largeThumbs = false, nameBanner = false, tabsAsLinks = false, currentArea, includeDispatch = false, heading, showAreaTitle = false, hideAreaTabs = false, insertBlocks, sideNode, leftNode, moreImageUrl = null, cardTabCounts, emptyNote, hideEmptyMessage = false, sharedTherapistFeed = false }: { salons: Salon[]; /** ★ 第1524便: トップで true。セラピストのサムネ列を TherapistScroller と同じ1回の取得から切り出す（二重取得をやめる） */ sharedTherapistFeed?: boolean; areas: string[]; showAge?: boolean; areaNextToDuty?: boolean; ratingAtBottom?: boolean; compactTherapists?: boolean; showSaveButton?: boolean; wideDesktop?: boolean; mobileSingleColumn?: boolean; bleedTherapists?: boolean; largeThumbs?: boolean; nameBanner?: boolean; tabsAsLinks?: boolean; currentArea?: string; /** ★ 第1396便: 0件のときに「まだありません」の下に出すもの（エリアページが、お店のあるエリアへの案内を渡す） */ emptyNote?: React.ReactNode; /** ★ 第1398便: 有料店が 0件でも「まだありません」を出さない（エリアページが、無料掲載の店を insertBlocks で下に並べるとき） */ hideEmptyMessage?: boolean; includeDispatch?: boolean; heading?: React.ReactNode; showAreaTitle?: boolean; hideAreaTabs?: boolean; insertBlocks?: { afterIndex: number; node: React.ReactNode; zoom?: boolean }[]; sideNode?: React.ReactNode; /** ★ 第1715便: xl 以上でカード列の左に出す縦長カラム（TOP の新着口コミ）。渡すと xl では sideNode を右に出さない（lg では従来どおり右） */ leftNode?: React.ReactNode; moreImageUrl?: string | null; cardTabCounts?: SalonCardTabCounts }) {
   // 並び順は呼び出し元（RSC）で確定済みのものをそのまま使う（2026-07-26変更）。
   // 従来は「初期 list=[] ＋ mount時の useEffect シャッフル」だったが、初期HTMLがスケルトンになり
   // SEO（Googlebot のJSレンダリング第2波待ち）に不利だった。シャッフルは決定的（6時間シード）なので
@@ -868,6 +868,12 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
       <>
         {tabsAndHeading}
         <div className="lg:flex lg:gap-5 lg:items-stretch">
+          {/* ★ 第1715便（カッキーさん）: 左の縦長カラム（xl 以上のみ・右カラムと同じ幅）。新着口コミをこちらへ。追跡型（sticky）。 */}
+          {leftNode && (
+            <div className="hidden xl:flex xl:flex-1 min-w-0 flex-col gap-5 xl:self-start xl:sticky xl:top-[72px]">
+              {leftNode}
+            </div>
+          )}
           {hasInsert ? (
             // 左カラムを1つの flex 子にまとめ、その内部でカード列をセグメント分割して各ブロックを挟む（右カラムの2分割を避ける）。
             // Fragment で余分なDOMを増やさず、grid/ブロックを lg:flex-shrink-0 の直接の子に保つ（従来の描画・余白を維持）。
@@ -930,7 +936,8 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
                 ★ 呼び出し側は「出すものが無いとき」に undefined を渡すこと。
                   中で null を返すコンポーネントを常に渡すと、要素そのものは truthy なので
                   ここのフォールバックが効かず【枠ごと消える】。 */}
-            {sideNode ?? (
+            {/* ★ 第1715便: leftNode があるときは xl で sideNode を右に出さない（lg では右のまま）。contents で flex の直接の子のまま。 */}
+            {sideNode && leftNode ? <div className="contents xl:hidden">{sideNode}</div> : sideNode ?? (
             <aside className="flex-1 flex flex-col rounded-2xl border border-pink-100 bg-gradient-to-b from-pink-50 via-white to-fuchsia-50/40 overflow-hidden shadow-sm">
               <div className="p-6 text-center">
                 <div className="w-12 h-12 mx-auto rounded-full bg-white border border-pink-200 flex items-center justify-center shadow-sm mb-3">
