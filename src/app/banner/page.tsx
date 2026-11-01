@@ -89,8 +89,9 @@ export default function BannerPage() {
             <ul className={`${UL} mt-1.5`}>
               <li>
                 <a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>
-                の店舗カード（無料枠）
+                にテキスト掲載（店名・地域・電話番号・公式ホームページへのリンク）
               </li>
+              <li>店舗一覧の店舗カード（無料枠）</li>
               <li>店舗詳細ページ（無料）</li>
               <li>fukuX のお店アカウントには、お店カード画像＋4枚の特典</li>
             </ul>

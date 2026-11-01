@@ -198,7 +198,8 @@ export default async function ListingPage() {
             <li>当事務局で設置を確認できましたら、店舗一覧に掲載いたします</li>
           </ol>
         </div>
-        {/* ★ 第1589便（カッキーさん）: 掲載する項目を1行ずつに。括弧の注記（店舗ページの開設や…は含まれません）は外した */}
+        {/* ★ 第1589便（カッキーさん）: 掲載する項目を1行ずつに。括弧の注記（店舗ページの開設や…は含まれません）は外した
+            ★ 第1706便（2026-11-01）: テキスト掲載に加えて 店舗カード（無料枠）＋店舗詳細ページ（無料）も掲載する旨を追記 */}
         <div className="text-sm text-slate-600 leading-relaxed mb-2">
           <p>
             無料掲載では<a href="/salons" className="text-pink-600 hover:underline">店舗一覧</a>に
@@ -210,6 +211,10 @@ export default async function ListingPage() {
             <li>・公式ホームページへのリンク</li>
           </ul>
           <p>をテキストで掲載させて頂きます。</p>
+          <p className="mt-2">
+            あわせて、店舗一覧の<strong className="text-slate-800">店舗カード（無料枠）</strong>と
+            <strong className="text-slate-800">店舗詳細ページ（無料）</strong>も掲載いたします。
+          </p>
         </div>
         <p className="text-xs text-slate-500 leading-relaxed mb-2">
           ※ 掲載期間中はバナーの設置継続をお願いします。バナーが確認できなくなった場合、掲載を終了することがあります。
