@@ -892,8 +892,10 @@ export function ShuffledSalons({ salons, areas, showAge = false, areaNextToDuty 
               {cards}
             </div>
           )}
-          {/* 右の縦長カラム（lg のみ表示・幅は余白いっぱい）。fukuXバナー＋「準備中」ブロックを縦に積む。 */}
-          <div className="hidden lg:flex lg:flex-1 flex-col gap-5">
+          {/* 右の縦長カラム（lg のみ表示・幅は余白いっぱい）。fukuXバナー＋「準備中」ブロックを縦に積む。
+              ★ 第1714便（カッキーさん）: 追跡型（sticky）。self-start で中身の高さに縮め、ヘッダー（h-14=56px）の下 top-[72px] に貼り付く。
+                親の flex 行は店舗一覧の高さなので、一覧をスクロールしている間ついてくる。 */}
+          <div className="hidden lg:flex lg:flex-1 flex-col gap-5 lg:self-start lg:sticky lg:top-[72px]">
             {/* fukuX バナー（独立ブロック・「準備中」の直前）。クリックで /x へ。アスペクト比1200:630維持で歪ませない。 */}
             <Link
               href="/x"
