@@ -54,7 +54,7 @@ const BANNERS = [
 
 // 外部サイト貼り付け用タグ。画像は直リンク参照可（ダウンロードして設置してもOK）。
 function bannerTag(b: (typeof BANNERS)[number]): string {
-  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
+  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;width:300px;max-width:100%;height:auto;display:block;"></a>`;
 }
 
 const H2 = 'text-base font-bold text-slate-800 mt-6 mb-2';

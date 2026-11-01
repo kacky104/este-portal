@@ -61,7 +61,7 @@ const BANNERS: Banner[] = [
 
 // 外部サイト貼り付け用タグ（配布ページと同一形式）。画像は直リンク参照可。
 function bannerTag(b: Banner): string {
-  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
+  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;width:300px;max-width:100%;height:auto;display:block;"></a>`;
 }
 
 // 特典適用状況の1行（実行中✓／未適用＋導線／対象外）。

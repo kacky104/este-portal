@@ -14,6 +14,9 @@ import { bannerStackSnippet } from '@/app/lib/bannerTags';
 //   ・旧 *-banner-200x40.png は public/ に残置＝すでに旧タグを貼っている店舗のバナーが404にならないようにする。
 //   ・タグを変えても設置済み店舗には反映されないため、大きくしたい店舗には貼り替えを依頼すること。
 //   ・画像の実体は 600×120（2倍解像度）を 300×60 で表示する。差し替えは同じファイル名で上書きするだけ。
+// ★ 第1716便（2026-11-02・カッキーさん）: タグの img にインラインで width:300px;max-width:100%;height:auto を付ける。
+//   先方サイト（WordPress テーマ等）の img{width:100%} に引き伸ばされて 750px などで出ていたため。
+//   /jobs/banner・/x/banner・mypage/BannerPerkPanel も同じ style（4か所同時に変えること）。設置済み店舗は貼り替えが必要。
 // 設置報告は本体テーマの /banner/report（2026-08-08 新設。保存先は fukuX と共通の banner_reports）。
 export const metadata: Metadata = {
   title: 'リンクバナーについて｜フクエス',
@@ -49,7 +52,7 @@ const BANNERS = [
 
 // 外部サイト貼り付け用タグ。画像は直リンク参照可（ダウンロードして設置してもOK）。
 function bannerTag(b: (typeof BANNERS)[number]): string {
-  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;"></a>`;
+  return `<a href="${b.href}" target="_blank" rel="noopener"><img src="${SITE_URL}/${b.file}" width="300" height="60" alt="${b.alt}" loading="lazy" style="border:0;width:300px;max-width:100%;height:auto;display:block;"></a>`;
 }
 
 const H2 = 'text-base font-bold text-slate-800 mt-6 mb-2';

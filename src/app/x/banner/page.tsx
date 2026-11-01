@@ -22,7 +22,7 @@ const BANNERS = [
 
 // 外部サイト貼り付け用タグ。画像は直リンク参照可（ダウンロードして設置してもOK）。
 function bannerTag(file: string): string {
-  return `<a href="${SITE_URL}/x" target="_blank" rel="noopener"><img src="${SITE_URL}/${file}" width="300" height="60" alt="fukuX(フクエックス)｜福岡メンズエステ専用SNS" loading="lazy" style="border:0;"></a>`;
+  return `<a href="${SITE_URL}/x" target="_blank" rel="noopener"><img src="${SITE_URL}/${file}" width="300" height="60" alt="fukuX(フクエックス)｜福岡メンズエステ専用SNS" loading="lazy" style="border:0;width:300px;max-width:100%;height:auto;display:block;"></a>`;
 }
 
 const H2 = 'text-base font-bold text-[color:var(--x-text-primary)] mt-6 mb-2';
