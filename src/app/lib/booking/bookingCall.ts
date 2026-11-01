@@ -44,6 +44,18 @@ export function voiceEnabled(): boolean {
   );
 }
 
+// ★ 第1711便（2026-11-01・カッキーさん「まだ使えないようにしてほしい」）: 店舗ごとの許可。
+//   TWILIO_VOICE_SALON_IDS に「使える店舗の id」をカンマ区切りで入れる（例 `12,34`）。`all` で全店。
+//   ★ 無い・空なら【どの店舗も使えない】（マイページは「準備中」の枠・予約が入っても発信しない・DB にも書かない）。
+//   1店舗で本番を試すときはその店の id だけ入れ、全店に開くときに `all` にする。環境変数の変更は Redeploy が要る。
+export function voiceAllowedForSalon(salonId: number): boolean {
+  if (!voiceEnabled()) return false;
+  const raw = (process.env.TWILIO_VOICE_SALON_IDS ?? '').trim();
+  if (!raw) return false;
+  if (raw.toLowerCase() === 'all') return true;
+  return raw.split(',').map((x) => Number(x.trim())).filter((n) => Number.isInteger(n) && n > 0).includes(salonId);
+}
+
 export function callbackUrl(): string {
   return process.env.TWILIO_VOICE_CALLBACK_URL || DEFAULT_CALLBACK_URL;
 }
@@ -213,7 +225,7 @@ export async function placeBookingCall(args: {
 }): Promise<PlaceCallResult> {
   const { svc, salonId, kind } = args;
   const attempt = Math.max(1, Math.min(MAX_ATTEMPTS, args.attempt ?? 1));
-  if (!voiceEnabled()) return { ok: false, reason: 'disabled' };
+  if (!voiceAllowedForSalon(salonId)) return { ok: false, reason: 'disabled' };
 
   try {
     // ★ 第1704便: 設定は salon_call_settings（行が無い＝使っていない）。店名だけ salons から。
