@@ -56,6 +56,8 @@ export type HpAdminContext = {
   site:       HpSite;
   salonName:  string;
   role:       HpAdminRole;
+  /** お問い合わせフォームの通知先メール（第1717便）。salon_sites.contact_email。空=未設定 */
+  contactEmail: string;
 };
 
 // ── 認証・権限 ─────────────────────────────────────────
@@ -144,12 +146,21 @@ export async function getHpAdminContext(
 ): Promise<{ ok: true; ctx: HpAdminContext } | Err> {
   const r = await resolveAccess(siteKey);
   if ('ok' in r) return r;
+  // ★ 第1717便: contact_email は HP_SITE_COLUMNS に入れない列（anon に grant していない）。
+  //   service_role でここだけ別に読む。列が無い（SQL 未適用）ときも画面を落とさず空にする。
+  const { data: ce } = await r.svc
+    .from('salon_sites')
+    .select('contact_email')
+    .eq('salon_id', r.site.salon_id)
+    .maybeSingle();
+  const contactEmail = ((ce as { contact_email?: string | null } | null)?.contact_email ?? '').trim();
   return {
     ok: true,
     ctx: {
       site:      r.site,
       salonName: r.salonName,
       role:      r.role,
+      contactEmail,
     },
   };
 }
@@ -281,6 +292,17 @@ export async function saveHpSiteContent(
     return { ok: false, error: 'ロゴ画像のURLが正しくありません' };
   }
 
+  // ── お問い合わせフォーム（第1717便）──
+  // 通知先メールが空なら ON にはできない（フォームを出しても届け先が無い）。黙って OFF に落とさず、エラーで返す。
+  const contactEmail = (input.contact_email ?? '').trim();
+  if (contactEmail !== '' && (contactEmail.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))) {
+    return { ok: false, error: 'お問い合わせの通知先メールアドレスの形式が正しくありません' };
+  }
+  const blocks = sanitizeHpBlocks(input.blocks);
+  if (blocks.contact.on && contactEmail === '') {
+    return { ok: false, error: 'お問い合わせフォームを使うには、通知先メールアドレスを入力してください' };
+  }
+
   const payload = {
     logo_url:          input.logo_url,
     hero_slides:       heroSlides,
@@ -296,11 +318,13 @@ export async function saveHpSiteContent(
     //   店舗から送られてきた値は捨てて DB の現在値で上書きする。
     //   デザイン（template_key / theme_key）をこの経路に載せないのと同じ考え方。
     //   （古いタブから multipage の無い blocks が送られても構成が勝手に戻らない）
-    blocks:            { ...sanitizeHpBlocks(input.blocks), multipage: r.site.blocks.multipage },
+    blocks:            { ...blocks, multipage: r.site.blocks.multipage },
     banners:           input.banners,
     // リンク欄は件数・URLの妥当性をここで丸める（画像/文字のどちらも無い行は捨てられる）
     link_banners:      sanitizeHpLinkBanners(input.link_banners),
     favicon_url:       input.favicon_url,
+    // ★ 第1717便: 通知先メール（anon に grant していない列。service_role なので書ける）
+    contact_email:     contactEmail === '' ? null : contactEmail,
     updated_at:        new Date().toISOString(),
   };
 

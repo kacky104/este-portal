@@ -32,6 +32,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   if (publish) {
     paths.push('/');
     const blocks = sanitizeHpBlocks(data?.blocks);
+    // お問い合わせ（第1717便）。multipage に関係なく、ON の店だけ（isHpContactOpen と同じ条件）。
+    if (blocks.contact.on) paths.push('/contact');
     if (blocks.multipage) {
       // 下層ページは「中身があるか」だけで 200/404 が決まる（各 page.tsx の条件と同じ）。
       // ブロックの ON/OFF は見ない（ON/OFF はトップに抜粋を出すかの意味。OFFでも下層は生きる）。

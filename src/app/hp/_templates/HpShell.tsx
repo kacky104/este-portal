@@ -117,7 +117,7 @@ export function HpShell({
                 SPクイックナビ（HpTemplate 側）は withSchedule を渡さない4項目のまま
                 ＝4分割グリッドを崩さない。理由は hpTopbarNavItems のコメント参照。 */}
             <nav className="hp-topbar-nav">
-              {hpTopbarNavItems(data, page, { withSchedule: true, withTop: true }).map((m) => (
+              {hpTopbarNavItems(data, page, { withSchedule: true, withTop: true, withContact: true }).map((m) => (
                 <a key={m.label} href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})}>
                   {m.label}
                 </a>

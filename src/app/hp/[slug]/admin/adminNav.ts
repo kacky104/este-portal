@@ -11,6 +11,7 @@ export type HpAdminSection =
   | 'blocks'    // 表示するブロックと並び順
   | 'banner'    // バナー
   | 'links'     // リンク（相互リンク）
+  | 'contact'   // お問い合わせフォーム（第1717便・2026-11-02）
   | 'brand';    // ヘッダーのロゴ・ファビコン
 // ★ 'account'（ホームページ担当者のアカウント）は第279便（2026-09-12・カッキーさんの指示）で
 //   画面ごと撤去した。★ 戻すときは、この型・NAV・TITLE・HpAdminApp の4か所を揃えて足すこと。
@@ -26,7 +27,7 @@ export type HpAdminSection =
 //   ★ 'home' が入っているのは、第282便でコンセプトをホームへ移したため（★ ホームでも保存する）。
 //   ★ ここに無い画面では HpEditor は何も描かない（★ ただし外さない＝入力中の内容を持ったまま控える）。
 export const HP_EDITOR_SECTIONS: HpAdminSection[] = [
-  'home', 'hero', 'blocks', 'banner', 'links', 'brand',
+  'home', 'hero', 'blocks', 'banner', 'links', 'contact', 'brand',
 ];
 
 export function isHpEditorSection(k: HpAdminSection): boolean {
@@ -40,6 +41,7 @@ export const HP_ADMIN_NAV: Array<{ key: HpAdminSection; label: string }> = [
   { key: 'blocks',  label: '表示ブロック' },
   { key: 'banner',  label: 'バナー' },
   { key: 'links',   label: 'リンク' },
+  { key: 'contact', label: 'お問い合わせ' },
   { key: 'brand',   label: 'ロゴ・アイコン' },
 ];
 
@@ -50,5 +52,6 @@ export const HP_ADMIN_TITLE: Record<HpAdminSection, string> = {
   blocks:  '表示するブロックと並び順',
   banner:  'バナー',
   links:   'リンク',
+  contact: 'お問い合わせフォーム',
   brand:   'ロゴ・ファビコン',
 };

@@ -26,6 +26,8 @@ import {
 } from '@/app/hp/_lib/subpageData';
 import { buildHpTerms } from '@/app/hp/_lib/terms';
 import { HpShell } from '@/app/hp/_templates/HpShell';
+import { HpContactForm } from '@/app/hp/_templates/HpContactForm';
+import { HP_CONTACT_DEFAULT_NOTE } from '@/app/lib/hp/contact';
 import { CourseGroups, Crumb, ScheduleRows, SecHead, TherapistCards } from '@/app/hp/_templates/parts';
 import { HP_DEMO_SLUG, normalizeHpSiteKey } from '@/app/lib/hpSite';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, toJsonLdString } from '@/app/lib/jsonLd';
@@ -650,6 +652,36 @@ export function HpInfoView({ data, preview }: ViewProps) {
           }}
         />
       )}
+    </HpShell>
+  );
+}
+
+// ── お問い合わせ（第1717便・2026-11-02・カッキーさん）─────────────
+export function isHpContactOpen(data: HpPageData): boolean {
+  // ★ multipage は見ない（1ページ構成でも独立ページとして出す）。公開中で店舗が ON にしていれば出す。
+  //   通知先メールの有無は saveHpSiteContent が「空なら ON にできない」で揃えている。
+  return data.site.status === 'live' && data.site.blocks.contact.on;
+}
+
+export function HpContactView({ data, preview }: ViewProps) {
+  const { basePath, site } = data;
+  const homeHref = basePath || '/';
+  const note = site.blocks.contact.note.trim() || HP_CONTACT_DEFAULT_NOTE;
+
+  return (
+    <HpShell data={data} page="contact">
+      <section id="contact" className="hp-sec hp-sec-contact" style={{ order: 1 }}>
+        <Crumb homeHref={homeHref} label="お問い合わせ" />
+        <SecHead no="13" en="Contact" jp="お問い合わせ" />
+        <div className="hp-form-note">
+          {note.split('\n').map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}
+        </div>
+        <HpContactForm siteKey={site.slug} preview={preview} />
+        <a className="hp-more" href={homeHref}>← ホームへ戻る</a>
+      </section>
+      <CrumbJsonLd data={data} label="お問い合わせ" path="/contact" preview={preview} />
     </HpShell>
   );
 }

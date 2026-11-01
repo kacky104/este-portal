@@ -31,6 +31,7 @@ import {
   normalizeHpSiteKey,
   hpDemoImageSlots,
 } from '@/app/lib/hpSite';
+import { HP_CONTACT_DEFAULT_NOTE, HP_CONTACT_SUBJECTS, MAX_HP_CONTACT_NOTE_LEN } from '@/app/lib/hp/contact';
 
 // 公式HPの編集パネル（旧 mypage/HpTab.tsx を店舗ドメイン/admin へ移植・2026-08-09 段階3）。
 //
@@ -54,9 +55,10 @@ type FormState = {
   banners:           (HpBanner | null)[]; // スロット固定3（null=未設定）
   link_banners:      HpLinkBanner[];      // リンク欄（相互リンク・並びはこの配列の順）
   favicon_url:       string | null;
+  contact_email:     string;              // お問い合わせの通知先（第1717便・HpSite には無い＝ctx から別に受ける）
 };
 
-function siteToForm(site: HpSite): FormState {
+function siteToForm(site: HpSite, contactEmail: string): FormState {
   const slots: (HpBanner | null)[] = [null, null, null];
   site.banners.slice(0, MAX_HP_BANNERS).forEach((b, i) => { slots[i] = b; });
   return {
@@ -70,6 +72,7 @@ function siteToForm(site: HpSite): FormState {
     banners:           slots,
     link_banners:      site.link_banners,
     favicon_url:       site.favicon_url,
+    contact_email:     contactEmail,
   };
 }
 
@@ -90,12 +93,15 @@ function validateImageFile(file: File): string | null {
 export function HpEditor({
   siteKey,
   site,
+  contactEmail,
   section,
   onSaved,
   onToast,
 }: {
   siteKey: string;
   site: HpSite;
+  /** お問い合わせの通知先メール（第1717便）。salon_sites.contact_email（HpSite には入れていない列） */
+  contactEmail: string;
   // ★★★ いま出す画面（第278便・2026-09-12・カッキーさんの指示）。
   //   ★ サイドバーで選ばれたものだけを描く。★ 'home' や 'account' のときは【何も描かない】。
   //   ★★ ただしこの部品は外されない（呼ぶ側がいつも置いている）＝入力中の文字を持ったまま控える。
@@ -104,7 +110,7 @@ export function HpEditor({
   onSaved: (site: HpSite) => void;
   onToast: (msg: string) => void;
 }) {
-  const [form, setForm] = useState<FormState>(() => siteToForm(site));
+  const [form, setForm] = useState<FormState>(() => siteToForm(site, contactEmail));
   const [saving, setSaving] = useState(false);
   // デモ店だけの欄（2026-08-11 → 08-12 ひな形ぶんも）。デモは1行で全デザインを見せるため、
   // 「いま確定している見た目」以外にも写真を持てるようにしている（実店舗はデザインが1つなので出さない）。
@@ -301,10 +307,12 @@ export function HpEditor({
       banners:           form.banners.filter((b): b is HpBanner => b !== null && b.image_url !== ''),
       link_banners:      form.link_banners,
       favicon_url:       form.favicon_url,
+      contact_email:     form.contact_email,
     });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
-    setForm(siteToForm(res.site));
+    // ★ 通知先メールは保存結果の site に含まれない（HP_SITE_COLUMNS 外）ので、送った値をそのまま持つ
+    setForm(siteToForm(res.site, form.contact_email.trim()));
     onSaved(res.site);
     onToast('保存しました');
   };
@@ -972,6 +980,62 @@ export function HpEditor({
             ))}
           </ul>
         )}
+      </div>
+      )}
+
+      {/* ── お問い合わせフォーム（第1717便・2026-11-02・カッキーさん） ── */}
+      {show('contact') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
+        <h3 className="text-sm font-black text-slate-800">お問い合わせフォーム</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ ONにすると、公式ホームページに「お問い合わせ」ページ（/contact）とメニューが出ます。
+          お客様が送った内容は下の通知先メールアドレスに届きます（お客様への自動返信はありません。送信後に画面で「お問い合わせありがとうございました」と表示します）。
+        </p>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          用件の選択肢は {HP_CONTACT_SUBJECTS.map((s) => s.label).join('／')} の4つです（全店共通）。
+          項目は「お名前・メールアドレス・電話番号（任意）・用件・内容」です。
+        </p>
+
+        <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
+          <input
+            type="checkbox"
+            checked={form.blocks.contact.on}
+            onChange={(e) => patch({ blocks: { ...form.blocks, contact: { ...form.blocks.contact, on: e.target.checked } } })}
+            className="accent-pink-500 w-4 h-4"
+          />
+          お問い合わせフォームを使う
+        </label>
+
+        <div className="space-y-1">
+          <label htmlFor="hp-contact-email" className="block text-xs font-bold text-slate-600">
+            通知先メールアドレス <span className="text-pink-500">※ ONにするとき必須</span>
+          </label>
+          <input
+            id="hp-contact-email"
+            type="email"
+            value={form.contact_email}
+            onChange={(e) => patch({ contact_email: e.target.value })}
+            placeholder="例）info@example.com"
+            autoComplete="email"
+            className={inputCls}
+          />
+          <p className="text-[11px] text-slate-400">お問い合わせはこのアドレスに届きます。届いたメールに「返信」するとお客様への返事になります。</p>
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="hp-contact-note" className="block text-xs font-bold text-slate-600">
+            フォームの上に出す案内文 <span className="text-slate-400 font-normal">（空なら下の既定文）</span>
+          </label>
+          <textarea
+            id="hp-contact-note"
+            value={form.blocks.contact.note}
+            onChange={(e) => patch({ blocks: { ...form.blocks, contact: { ...form.blocks.contact, note: e.target.value.slice(0, MAX_HP_CONTACT_NOTE_LEN) } } })}
+            rows={4}
+            placeholder={HP_CONTACT_DEFAULT_NOTE}
+            className={inputCls}
+          />
+          <p className="text-[11px] text-slate-400">{form.blocks.contact.note.length}／{MAX_HP_CONTACT_NOTE_LEN}文字</p>
+        </div>
       </div>
       )}
 

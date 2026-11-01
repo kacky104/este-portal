@@ -176,6 +176,32 @@ const COMMON = `
 .hp-voice-summary { margin-bottom: 18px; }
 /* パンくず。色は本文色をそのまま薄めて使うので、ひな形ごとの追加指定は要らない。 */
 .hp-crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; font-size: 10.5px; letter-spacing: .08em; opacity: .75; }
+/* お問い合わせフォーム（第1717便・2026-11-02）。
+   色は currentColor と --hp-accent から作る＝ひな形ごとの追加指定は最小（送信ボタンの文字色だけ A で上書き）。
+   枠線は color-mix で本文色を薄めるので、A/S の濃い地色でも B/C の明るい地色でも破綻しない。 */
+.hp-sec-contact { max-width: 640px; margin-left: auto; margin-right: auto; }
+.hp-form-note { font-size: 13px; line-height: 1.9; opacity: .85; margin-bottom: 22px; }
+.hp-form-note p { margin: 0; }
+.hp-form { display: flex; flex-direction: column; gap: 16px; }
+.hp-form-hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.hp-form-row { display: flex; flex-direction: column; gap: 6px; }
+.hp-form-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+.hp-form-req { color: var(--hp-accent, #c4a469); margin-right: 2px; }
+.hp-form-input { width: 100%; box-sizing: border-box; padding: 11px 12px; font: inherit; font-size: 14px; line-height: 1.5; color: inherit;
+  background: color-mix(in srgb, currentColor 4%, transparent); border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 0; }
+.hp-form-input::placeholder { color: currentColor; opacity: .4; }
+.hp-form-input:focus { outline: none; border-color: var(--hp-accent, #c4a469); box-shadow: 0 0 0 2px color-mix(in srgb, var(--hp-accent, #c4a469) 25%, transparent); }
+.hp-form-textarea { resize: vertical; min-height: 140px; }
+.hp-form-radios { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 4px 0; }
+.hp-form-radio { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.hp-form-radio input { accent-color: var(--hp-accent, #c4a469); width: 16px; height: 16px; margin: 0; }
+.hp-form-error { font-size: 12px; color: #d33; margin: 0; }
+.hp-form-actions { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 8px; }
+.hp-form-submit { min-width: 220px; padding: 14px 28px; font: inherit; font-size: 13px; font-weight: 700; letter-spacing: .15em; cursor: pointer;
+  border: 0; border-radius: 0; background: var(--hp-accent, #c4a469); color: #fff; }
+.hp-form-submit:disabled { opacity: .45; cursor: not-allowed; }
+.hp-form-done { padding: 28px 16px; text-align: center; font-size: 14px; line-height: 2; border: 1px solid color-mix(in srgb, var(--hp-accent, #c4a469) 55%, transparent); }
+.hp-form-done p { margin: 0; }
 .hp-crumb a { color: inherit; text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; }
 .hp-crumb-sep { opacity: .55; }
 /* フッターのページ一覧（全ページから全ページへ内部リンクを通すため）。
@@ -475,6 +501,7 @@ ${COMMON}
 @media (min-width: 768px) { .hp-a { --hp-col-half: 50vw; } }
 .hp-a .hp-cta-tel { background: #232128; color: #e8e4dc; border-top: 1px solid var(--hp-accent-soft, #a8905e); }
 .hp-a .hp-cta-line { background: var(--hp-accent, #c4a469); color: #17161a; }
+.hp-a .hp-form-submit { color: #17161a; }
 .hp-a .hp-sched-date { display: block; width: fit-content; background: #2a2730; border: 1px solid #3a3742; padding: 6px 18px; margin: 0 auto 18px; font-size: 12px; color: var(--hp-accent, #c4a469); letter-spacing: .2em; opacity: 1; }
 `;
 
@@ -629,6 +656,7 @@ ${COMMON}
 .hp-b .hp-cta a { border-radius: 999px; font-weight: 900; box-shadow: 0 6px 18px rgba(80,70,55,.16); }
 .hp-b .hp-cta-tel { background: #fff; color: #3d3a35; border: 1px solid #eee7db; }
 .hp-b .hp-cta-line { background: var(--hp-accent-deep, #6b8f67); color: #fff; }
+.hp-b .hp-form-submit { background: var(--hp-accent-deep, #6b8f67); border-radius: 999px; }
 /* 日付のバッジは見出しに合わせて中央へ（2026-08-13・写真グリッド化に合わせて） */
 .hp-b .hp-sched-date { display: block; width: fit-content; background: color-mix(in srgb, var(--hp-accent, #8fae8b) 16%, #ffffff); color: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 5px 16px; margin: 0 auto 16px; font-size: 12px; font-weight: 800; opacity: 1; }
 /* ★ ヘッダーとヒーローは画面幅いっぱいに（2026-08-13 要望・タイプA/Sと同じ迫力を出す）。
@@ -1535,6 +1563,7 @@ const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: デ
 .hp-a.hp-a-magenta .hp-footer-sub a { color: #f4a9c6; }
 .hp-a.hp-a-magenta .hp-cta-tel { background: #5a0d2a; color: #fff; border-top-color: #b3305f; }
 .hp-a.hp-a-magenta .hp-cta-line { color: #ffffff; }
+.hp-a.hp-a-magenta .hp-form-submit { color: #ffffff; }
 `;
 
 const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ローシェンナ（2026-08-12 全面改訂）══════════

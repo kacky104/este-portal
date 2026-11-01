@@ -184,7 +184,7 @@ export function HpAdminApp({
             確定済み（design_locked=true）: 編集パネル
             未確定:                          「デザインを準備中です」の案内（★ 誰が見ても同じ・第285便） ── */}
         {site.design_locked ? (
-          <HpEditor siteKey={siteKey} site={site} section={current} onSaved={patchSite} onToast={showToast} />
+          <HpEditor siteKey={siteKey} site={site} contactEmail={ctx.contactEmail} section={current} onSaved={patchSite} onToast={showToast} />
         ) : (
           <DesignPendingCard />
         )}

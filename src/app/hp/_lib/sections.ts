@@ -19,7 +19,7 @@ import type { HpPageData, HpCourse } from '@/app/hp/_lib/data';
  *   schedule  … 出勤スケジュール（/schedule・7日タブ。2026-08-18 第23便）
  *   terms     … 利用規約（/terms）
  */
-export type HpPageKey = 'home' | 'therapist' | 'system' | 'news' | 'schedule' | 'diary' | 'voice' | 'info' | 'terms';
+export type HpPageKey = 'home' | 'therapist' | 'system' | 'news' | 'schedule' | 'diary' | 'voice' | 'info' | 'terms' | 'contact';
 
 // ── トップに出す抜粋の件数（マルチページ時）──────────────
 // トップと下層で同じ内容をそのまま二度出すと自社ドメイン内で重複コンテンツになるため、
@@ -96,6 +96,7 @@ export function hpSubpages(data: HpPageData): {
   diary:     boolean;
   voice:     boolean;
   info:      boolean;
+  contact:   boolean;
 } {
   const multi = data.site.blocks.multipage;
   return {
@@ -114,6 +115,9 @@ export function hpSubpages(data: HpPageData): {
     voice:     multi && data.reviewCount > 0,
     // 店舗情報は常に中身がある（店名・エリアは必須データ）ので multipage だけで決まる
     info:      multi,
+    // お問い合わせフォーム（第1717便・2026-11-02）。★ multipage に関係なく、店舗が ON にしたら出す
+    //   （1ページ構成の店でも /contact は独立ページとして成り立つ。中身＝フォームは常にある）。
+    contact:   data.site.blocks.contact.on,
   };
 }
 
@@ -213,6 +217,8 @@ export function hpMenuItems(data: HpPageData, page: HpPageKey): HpMenuItem[] {
     subs.info
       ? { href: `${basePath}/info`, label: '店舗情報', current: page === 'info' }
       : { href: hash('info'), label: '店舗情報' },
+    // お問い合わせ（第1717便）。ON のときだけ。店舗情報の下＝一番下。
+    ...(subs.contact ? [{ href: `${basePath}/contact`, label: 'お問い合わせ', current: page === 'contact' }] : []),
   ];
 }
 
@@ -233,6 +239,7 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
     ...(subs.diary     ? [{ href: `${basePath}/diary`,     label: '写メ日記' }] : []),
     ...(subs.voice     ? [{ href: `${basePath}/voice`,     label: '口コミ' }] : []),
     ...(subs.info      ? [{ href: `${basePath}/info`,      label: '店舗情報' }] : []),
+    ...(subs.contact   ? [{ href: `${basePath}/contact`,   label: 'お問い合わせ' }] : []),
     { href: `${basePath}/terms`, label: '利用規約' },
   ];
 }
@@ -254,7 +261,7 @@ export function hpFooterPageLinks(data: HpPageData): HpMenuItem[] {
 export function hpTopbarNavItems(
   data: HpPageData,
   page: HpPageKey,
-  opts?: { withSchedule?: boolean; withTop?: boolean },
+  opts?: { withSchedule?: boolean; withTop?: boolean; withContact?: boolean },
 ): HpMenuItem[] {
   const { basePath } = data;
   const hash = (id: string) => hpHashHref(basePath, page, id);
@@ -290,5 +297,8 @@ export function hpTopbarNavItems(
     subs.info
       ? { href: `${basePath}/info`, label: 'ACCESS', current: page === 'info' }
       : { href: hash('info'), label: 'ACCESS' },
+    // CONTACT（第1717便・2026-11-02）。フォームを ON にした店だけ・ACCESS の右隣（一番右）。
+    //   ★ opts.withContact は【PCヘッダー（HpShell）だけ true】。SPクイックナビ（QuickNav）は4分割グリッドのため足さない（withSchedule と同じ理由）。
+    ...(opts?.withContact && subs.contact ? [{ href: `${basePath}/contact`, label: 'CONTACT', current: page === 'contact' }] : []),
   ];
 }

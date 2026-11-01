@@ -55,6 +55,13 @@ export type HpBlocksConfig = {
   jobs:       { on: boolean };                 // 求人リンク（フクエスワーク）
   freePages:  { on: boolean };                 // フリーページ（最大3・salon_free_pages）
   links:      { on: boolean };                 // リンク（相互リンクのバナー群・link_banners）
+  /**
+   * お問い合わせフォーム（第1717便・2026-11-02）。on=true で /contact ページとメニューが出る。
+   * note はフォームの上の案内文（空なら lib/hp/contact.ts の既定文）。
+   * ★ 通知先メールは blocks に【入れない】（anon から読める列のため）。salon_sites.contact_email に別で持つ。
+   *   on=true にできるのは contact_email が入っているときだけ（saveHpSiteContent が揃える）。
+   */
+  contact:    { on: boolean; note: string };
   /** セクションの表示順。null=ひな形の既定順（DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE） */
   order:      HpSectionKey[] | null;
   /**
@@ -204,6 +211,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   jobs:       { on: true },
   freePages:  { on: true },
   links:      { on: true },
+  contact:    { on: false, note: '' }, // 既定 OFF（通知先メールを入れて ON にする）
   order:      null,  // 未設定＝ひな形の既定順
   multipage:  false, // 既定は従来どおりの1ページ構成
   heroByColor: {},   // 既定は空＝全カラーで hero_images を使う（デモ店だけが使う欄）
@@ -246,6 +254,10 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     jobs:      { on: boolOr(r.jobs?.on, d.jobs.on) },
     freePages: { on: boolOr(r.freePages?.on, d.freePages.on) },
     links:     { on: boolOr(r.links?.on, d.links.on) },
+    contact:   {
+      on:   boolOr(r.contact?.on, d.contact.on),
+      note: typeof r.contact?.note === 'string' ? r.contact.note.slice(0, 400) : d.contact.note,
+    },
     // 配列が入っていれば「オーナーが並び替え済み」。それ以外（未設定・型違い）は null＝既定順。
     order:     Array.isArray(rawObj.order) ? normalizeHpSectionOrder(rawObj.order) : null,
     // ★ order と同じく最上位のキー。ネストしている他のキーと違い r ではなく rawObj から取る。
@@ -565,7 +577,7 @@ export function hpSiteKeyColumn(key: string): 'domain' | 'slug' {
  * ★ schedule は 2026-08-18（第23便）に追加。7日ぶんの出勤表を持つ独立ページ
  *   （/hp/{slug}/schedule）。本文はサーバーが全日ぶん描くので indexable。
  */
-export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'schedule', 'diary', 'voice', 'info'] as const;
+export const HP_SUBPAGE_SEGMENTS = ['therapist', 'system', 'news', 'schedule', 'diary', 'voice', 'info', 'contact'] as const;
 export type HpSubpageSegment = (typeof HP_SUBPAGE_SEGMENTS)[number];
 
 /**
@@ -695,6 +707,12 @@ export type HpContentInput = {
   banners:           HpBanner[];
   link_banners:      HpLinkBanner[];
   favicon_url:       string | null;
+  /**
+   * お問い合わせフォームの通知先メール（第1717便）。salon_sites.contact_email に保存。
+   * 空文字=未設定（null で保存・blocks.contact.on も false に落とす）。
+   * ★ HP_SITE_COLUMNS には含めない（anon に grant していない列）。読むのは getHpAdminContext が別 select で行う。
+   */
+  contact_email:     string;
 };
 
 // ── ひな形別カラーバリエーション（2026-08-08 デザイン確定にともない追加） ──
