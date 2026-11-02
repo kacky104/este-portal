@@ -11,6 +11,7 @@ import { useConecfHref } from './ConecfBase';
 import { getConecfDiaryMixedBanner } from '@/app/actions/conecfDiaryMixed';
 import { diaryMixedBannerText, diaryMixedBannerDismissKey } from '@/lib/diaryMixedPeriod';
 import { getConecfSlotMirrorStuck } from '@/app/actions/conecfSlotMirror';
+import { getConecfPlaceholder } from '@/app/actions/conecfGirls';
 import { slotMirrorStuckDismissKey, slotMirrorStuckIds, slotMirrorStuckShouldShow } from '@/lib/slotMirrorGiveUp';
 
 // コネックエフのホーム（第396便・1b・2026-09-17）。
@@ -87,6 +88,15 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
   //   ★ 出すのは店舗様が直せる理由の方だけ（直せないものは運営だけ）。閉じたらこの端末では出さない／新しい方が増えたらまた出る
   type Stuck = { slot: number; therapistId: number; name: string; reason: string };
   const [stuck, setStuck] = useState<{ key: string; ids: string[]; people: Stuck[] } | null>(null);
+  // ★ 第1723便（カッキーさん）: セラピスト既定画像（写真が無い子に使う画像）が未設定の店に、ホームで気づいてもらう。
+  //   無いと、写真の無い新人のプロフィール・ジャンルが駅ちかに入らない（駅ちかは1枚目の写真が無いと保存しない・第1549便）。
+  //   null＝まだ読んでいない／true＝未設定。閉じるボタンは付けない（設定すれば消える）。
+  const [placeholderMissing, setPlaceholderMissing] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getConecfPlaceholder().then((r) => { if (alive && r.ok) setPlaceholderMissing(!r.data.url); });
+    return () => { alive = false; };
+  }, []);
   useEffect(() => {
     if (salonId == null || !enabled || stopped) return;
     let alive = true;
@@ -246,6 +256,18 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
               <Link href={href('/girls/sync')} className="ml-1 font-bold underline underline-offset-4">セラピスト登録状況一覧で連携する ›</Link>
             </p>
           )}
+        </div>
+      )}
+
+      {/* ── 第1723便: セラピスト既定画像が未設定（琥珀・設定すれば消える）── */}
+      {placeholderMissing === true && (
+        <div className="border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-[15px] font-bold text-amber-800">セラピスト既定画像が未設定です</p>
+          <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">
+            写真がまだ無いセラピストに使う画像です。未設定だと、写真の無い新人のプロフィール・ジャンルが駅ちかに入りません（駅ちかは1枚目の写真が無いとプロフィールを保存しないため）。
+            「NO PHOTO」などの画像を1枚入れておいてください。
+          </p>
+          <Link href={href('/girls/placeholder')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">セラピスト既定画像を設定する ›</Link>
         </div>
       )}
 
