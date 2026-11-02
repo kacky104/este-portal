@@ -120,9 +120,13 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
 
   // ★ 第1505便（カッキーさん・案2）: 「保存」だけでも、相手サイトに【写真をまだ1枚も送っていない】子（登録直後）は、そのサイトへ自動で送る。
   //   店舗様が「保存」だけ押して「サイトに写真が出ない」になるのを防ぐ。★ 写真が1枚でも送られたら、今までどおり「保存して更新」。
-  //   ★ 送るのは、コネックエフに写真が1枚以上あるときだけ（写真が無いのに送っても、名前だけの状態は変わらない）。
+  //   ★ 送るのは、コネックエフに写真が1枚以上あるとき【か、お店の既定画像があるとき】。
+  //   ★★ 第1721便（2026-11-02・ラビリンス様のあこさんで気づいた）: 第1549便で「写真が無い子はお店の既定画像を1枚目として送る」ようになったのに、
+  //     ここが「写真0枚なら送らない」のままだった → 写真の無い新人は「保存」を何度押しても駅ちかへ行かず、プロフィール・ジャンルが反映されなかった。
+  //     既定画像も無いときだけ送らない（送っても駅ちかが1枚目の写真が無いと断るため）。
   const autoPushFresh = async (currentImages: string[]): Promise<string> => {
-    if (!enabled || currentImages.length === 0) return '';
+    if (!enabled) return '';
+    if (currentImages.length === 0 && !d?.hasSalonPlaceholder) return '';
     const fresh = await listConecfFreshPhotoSites({ id }).catch(() => null);
     if (!fresh || !fresh.ok || fresh.data.providers.length === 0) return '';
     const outs: SitePushOutcome[] = [];
