@@ -86,17 +86,16 @@ export function PlaceholderCard({ onToast, alwaysOpen = false }: { onToast: (m: 
 
   return (
     <details id="placeholder" open={alwaysOpen || open} onToggle={(e) => { if (!alwaysOpen) setOpen((e.target as HTMLDetailsElement).open); }} className="bg-white border border-slate-200">
-      <summary className={`${alwaysOpen ? 'pointer-events-none [&::-webkit-details-marker]:hidden list-none' : 'cursor-pointer'} select-none px-4 py-3 text-[14px] font-bold text-slate-700 flex items-center gap-2`}>
+      <summary className={`${alwaysOpen ? 'pointer-events-none [&::-webkit-details-marker]:hidden list-none' : 'cursor-pointer'} select-none px-4 py-3 ${alwaysOpen ? 'text-[17px]' : 'text-[14px]'} font-bold text-slate-700 flex items-center gap-2`}>
         写真が無いセラピストに使う画像
         {loaded && <span className={`text-[11px] font-normal px-2 py-0.5 ${url ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{url ? '設定済み' : '未設定'}</span>}
       </summary>
       <div className="px-4 pb-4 space-y-3">
         <p className="text-[12.5px] text-slate-500 leading-relaxed">
-          写真がまだ1枚も無いセラピストに使います。フクエスのカードに出るほか、駅ちかの1枚目にも送ります（駅ちかは写真が1枚も無いとプロフィールを保存しないため）。
+          写真がまだ1枚も無いセラピストに使います（駅ちかは写真が1枚も無いとプロフィールを保存しないため）。
           本物の写真を入れると、駅ちかの1枚目も本物に入れ替わります。
           <br />
-          ※ 女の子本人以外の人物の写真は使わないでください（駅ちかの規約で禁止されています）。「NO PHOTO」などの画像がおすすめです。縦長（3:4）・横300×縦400以上。
-          フクエスのマイページの「セラピストの既定画像」と同じ画像です（どちらで変えても同じです）。
+          ※ 女の子本人以外の人物の写真は使わないでください。「NO PHOTO」などの画像がおすすめです。縦長（3:4）・横300×縦400以上。
         </p>
         <div className="flex items-end gap-4">
           <div className="w-[96px] h-[128px] bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden">
