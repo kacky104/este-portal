@@ -1,7 +1,8 @@
 'use client';
 
 // ★★ 第1550便（2026-10-17・カッキーさん）: 写真が無いセラピストに使う画像（お店の既定画像）。
-//   ★ セラピスト一覧のいちばん下に、たたんだ状態で置く（ふだんは邪魔にならないように）。#placeholder で開いて飛べる。
+//   ★ 第1550便ではセラピスト一覧のいちばん下にたたんで置いていた。★ 第1722便: 独立した画面「セラピスト既定画像」（/girls/placeholder）に移した
+//     （人数が多い店は気づかず設定し忘れるため）。alwaysOpen=true で最初から開いた状態・たためない。
 //   ★ 保存先はフクエスのマイページと同じ（どちらで変えても同じ画像）。
 //   ★ ブラウザで縦横1440以内の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側）。サーバーでも JPEG に作り直す。
 
@@ -32,11 +33,11 @@ async function shrinkToJpeg(file: File): Promise<Blob> {
   }
 }
 
-export function PlaceholderCard({ onToast }: { onToast: (m: string) => void }) {
+export function PlaceholderCard({ onToast, alwaysOpen = false }: { onToast: (m: string) => void; alwaysOpen?: boolean }) {
   const [url, setUrl] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(alwaysOpen);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -84,8 +85,8 @@ export function PlaceholderCard({ onToast }: { onToast: (m: string) => void }) {
   };
 
   return (
-    <details id="placeholder" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)} className="bg-white border border-slate-200">
-      <summary className="cursor-pointer select-none px-4 py-3 text-[14px] font-bold text-slate-700 flex items-center gap-2">
+    <details id="placeholder" open={alwaysOpen || open} onToggle={(e) => { if (!alwaysOpen) setOpen((e.target as HTMLDetailsElement).open); }} className="bg-white border border-slate-200">
+      <summary className={`${alwaysOpen ? 'pointer-events-none [&::-webkit-details-marker]:hidden list-none' : 'cursor-pointer'} select-none px-4 py-3 text-[14px] font-bold text-slate-700 flex items-center gap-2`}>
         写真が無いセラピストに使う画像
         {loaded && <span className={`text-[11px] font-normal px-2 py-0.5 ${url ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{url ? '設定済み' : '未設定'}</span>}
       </summary>

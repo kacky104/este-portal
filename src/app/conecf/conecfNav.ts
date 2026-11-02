@@ -4,7 +4,7 @@
 
 export type ConecfNavKey =
   | 'home' | 'sites'
-  | 'girls' | 'girlsSync'
+  | 'girls' | 'girlsSync' | 'placeholder'
   | 'schedule' | 'scheduleSync'
   | 'now'
   | 'diary' | 'news' | 'bump' | 'announce' | 'cocoa'
@@ -19,6 +19,9 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'sites',        label: 'ID・パスワード登録',          href: '/sites' },
   { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
   { key: 'girlsSync',    label: 'セラピスト登録状況一覧', href: '/girls/sync' },
+  // ★ 第1722便（カッキーさん）: 写真が無いセラピストに使う画像（お店の既定画像）を独立した画面に。
+  //   セラピスト一覧のいちばん下（第1550便）だと、人数が多い店は気づかず設定し忘れる。
+  { key: 'placeholder',  label: 'セラピスト既定画像',     href: '/girls/placeholder' },
   { key: 'schedule',     label: '週間スケジュール',       href: '/schedule',      group: '出勤' },
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
   // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）

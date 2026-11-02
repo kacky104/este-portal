@@ -45,6 +45,7 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
     case 'sites':        return (<svg {...p}><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>);
     case 'girls':        return (<svg {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></svg>);
     case 'girlsSync':    return (<svg {...p}><circle cx="9" cy="8" r="4" /><path d="M2 21v-1a6 6 0 0 1 6-6h2" /><path d="M16 15h6M19 12v6" /></svg>);
+    case 'placeholder':  return (<svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="M21 15l-5-5L5 21" /></svg>);
     case 'schedule':     return (<svg {...p}><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 10h18M8 2v4M16 2v4" /></svg>);
     case 'scheduleSync': return (<svg {...p}><path d="M12 19V5" /><path d="M5 12l7-7 7 7" /></svg>);
     case 'now':          return (<svg {...p}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>);
