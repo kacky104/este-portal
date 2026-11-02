@@ -50,6 +50,9 @@ export function BookingFlow({
   therapists: BookableTherapist[];
 }) {
   const [step, setStep] = useState<Step>('therapist');
+  // ★ 第1725便（カッキーさん）: セラピストは最初 6 人だけ。「一覧を見る」で全員に広げる
+  const THERAPIST_PREVIEW = 6;
+  const [showAllTherapists, setShowAllTherapists] = useState(false);
   // 「今日」ラベルは営業日基準の当日と一致する日付にのみ付ける（出勤の無い当日でも誤表示しない）。
   const businessToday = getBusinessDateJST(0);
 
@@ -235,7 +238,7 @@ export function BookingFlow({
         <div className={cardCls}>
           <SectionTitle>1. セラピストを選ぶ（指名）</SectionTitle>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
-            {therapists.map((t) => (
+            {(showAllTherapists ? therapists : therapists.slice(0, THERAPIST_PREVIEW)).map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -258,6 +261,15 @@ export function BookingFlow({
               </button>
             ))}
           </div>
+          {!showAllTherapists && therapists.length > THERAPIST_PREVIEW && (
+            <button
+              type="button"
+              onClick={() => setShowAllTherapists(true)}
+              className="mt-3 w-full rounded-xl border border-pink-200 bg-white py-2.5 text-sm font-bold text-pink-600 hover:bg-pink-50 transition-colors"
+            >
+              一覧を見る（全{therapists.length}名）
+            </button>
+          )}
         </div>
       )}
 

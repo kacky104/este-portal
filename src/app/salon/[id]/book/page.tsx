@@ -16,6 +16,7 @@ import { buildSalonSubpageMetadata } from "../subpageMetadata";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SalonMobileNav } from '../SalonMobileNav';
 import { fetchSalonNavItems } from '../salonNavItems';
+import SalonHeaderSlider from '@/components/SalonHeaderSlider';
 
 // 予約フォームはインデックス対象外（noindex）。root の canonical '/' 継承による重複扱いも防ぐ。
 export async function generateMetadata({
@@ -67,6 +68,18 @@ export default async function SalonBookPage({
   const phone = (salonRow.phone as string | null) ?? null;
   const bookingEnabled = Boolean(salonRow.booking_enabled);
   const courses = parseBookingCourses(salonRow.booking_courses);
+
+  // ★ 第1725便（カッキーさん）: 店舗詳細と同じトップ画像（salon_images・3枚まで）をネット予約ページにも出す
+  const { data: imageRows } = await supabase
+    .from('salon_images')
+    .select('image_url, mobile_image_url')
+    .eq('salon_id', salonId)
+    .order('display_order', { ascending: true })
+    .limit(3);
+  const salonImages = (imageRows ?? []).map((r) => ({
+    pc: r.image_url as string,
+    mobile: (r.mobile_image_url as string | null) ?? null,
+  }));
 
   const { data: wallpaperRow } = await supabase
     .from('theme_wallpapers')
@@ -134,6 +147,13 @@ export default async function SalonBookPage({
           items={salonNavItems}
           colors={{ heading: theme.heading, body: theme.body, card: theme.card, cardBorder: theme.cardBorder, accent: '#ec4899' }}
         />
+
+        {/* ★ 第1725便: 店舗詳細と同じトップ画像（画像が無い店は出さない） */}
+        {salonImages.length > 0 && (
+          <div className="border shadow-sm overflow-hidden mb-4" style={{ backgroundColor: theme.card, borderColor: theme.cardBorder }}>
+            <SalonHeaderSlider images={salonImages} alt={salonName} />
+          </div>
+        )}
 
         {canBook ? (
           <BookingFlow
