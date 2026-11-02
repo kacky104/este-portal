@@ -18,8 +18,8 @@ import { SalonCtaBar, salonCtaBarCount, reserveStyle, phoneStyle, lineStyle, cal
 //   ・予約 … ネット予約ボタンのクリック（予約完了ではなく予約ページへの遷移）
 //   同一セッション内の同じ店舗×同じアクションは1回だけ（logSalonAction 側で制御）。
 //
-//  - ネット予約ボタンは常時表示。salonId があれば /salon/[id]/book への内部リンクにする
-//    （受付可否＝booking_enabled＋コース有無は book ページ側で判定・案内する）。
+//  - ネット予約ボタンは bookable=false（予約受付OFF or 予約コース無し）の店では出さない（★ 第1718便・カッキーさん決定）。
+//    それ以外は salonId があれば /salon/[id]/book への内部リンクにする。
 //  - reserveUrl : 外部ネット予約URL（将来用）。salonId 未指定時のフォールバック。
 //                 指定時は <a href> で外部予約ページへ（target=_blank）。
 //  - phone      : 電話番号。指定時は tel: リンク（スマホは発信／PCも tel: で対応）。
@@ -40,7 +40,7 @@ export function SalonActionButtons({
   lineUrl?: string | null;
   salonId?: number;
   salonName?: string;
-  /** 追従バナーにネット予約を出すか（予約受付ON＋予約コースあり）。未指定は従来どおり出す。 */
+  /** ネット予約ボタン（上の行・追従バナー）を出すか（予約受付ON＋予約コースあり）。未指定は従来どおり出す。 */
   bookable?: boolean;
 }) {
   const base =
@@ -75,8 +75,8 @@ export function SalonActionButtons({
   return (
     <div className="mb-4">
       <div ref={rowRef} className="flex items-stretch gap-1.5 sm:gap-3">
-        {/* ── ネット予約（主CTA） ── */}
-        {bookHref ? (
+        {/* ── ネット予約（主CTA）。★ 第1718便: 予約受付OFF・予約コース無し（bookable=false）の店は出さない＝電話・LINE が横に伸びる ── */}
+        {bookable === false ? null : bookHref ? (
           <Link href={bookHref} onClick={() => logSalonAction(salonId, 'book')} className={`${base} text-white hover:brightness-105`} style={reserveStyle}>
             {calendarIcon}ネット予約
           </Link>

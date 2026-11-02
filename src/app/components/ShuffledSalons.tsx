@@ -18,6 +18,7 @@ import { areaHref, DISPATCH_AREA, normalizeAreaKey } from '../lib/areas';
 import { type Salon } from '@/app/lib/salons';
 import { PointShopRibbon } from '@/app/components/PointShopRibbon';
 import { SalonCardTabs } from './SalonCardTabs';
+import { SalonCardCta } from './SalonCardCta';
 import { type SalonCardTabCount, type SalonCardTabCounts } from '@/lib/salonCardTabs';
 
 export type { Salon };
@@ -616,6 +617,9 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
       <div className={`${compactTherapists ? `px-5 ${nameBanner ? 'pt-2.5' : 'pt-5'} pb-[7px]` : nameBanner ? 'px-5 pt-2.5 pb-5' : 'p-5'} flex flex-col flex-1`}>
         {stackedLayout}
         {wideLayout}
+        {/* ★ 第1718便: 予約ボタン行（ネット予約／電話をする／LINE予約）。タブのある画面（TOP・地域）だけ、タブの上に出す。
+            ネット予約を使っていない店はそのボタンを出さない（残りが横に伸びる）。 */}
+        {cardTabs && <SalonCardCta salonId={salon.id} phone={salon.phone} lineUrl={salon.lineUrl} bookable={salon.bookable} />}
         {/* ★ 第1536便: 以前は stackedLayout と wideLayout の両方に入れて片方を CSS で隠していた（HTML・hydration が二重）。
             どちらのレイアウトでもカードの最下段なので、ここで1回だけ描く＝見た目は同じ。 */}
         {cardTabs}

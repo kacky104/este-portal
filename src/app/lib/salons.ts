@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { cheapestCoursePrice } from '@/lib/coursePrice';
+import { isSalonBookable } from '@/app/salon/[id]/salonBookable';
 
 // リンクバナー設置特典で「カード優先表示」に使う重み。
 // トップ／地域ページの6時間ごとカードシャッフルで、card_boost=true のサロンに与える重み。
@@ -27,6 +28,10 @@ export type Salon = {
   bumpedAt:     string | null; // 上位表示（bump）ボタンを最後に押した時刻。今朝6時以降なら先頭に出す。
   listingPlan:  'standard' | 'free'; // 掲載プラン。standard=本契約（既存の全店）／free=無料掲載枠（第368便）。
   pointsMember: boolean; // ★ 第1456便: フクエスポイント加盟店（points_member が ON で CRM 契約中）。店舗カードのリボンに使う
+  // ★ 第1718便: 店舗カードの予約ボタン行（ネット予約／電話をする／LINE予約）。店舗詳細の SalonActionButtons と同じ判定。
+  phone:    string | null; // 電話番号（空は null＝電話ボタンを出さない）
+  lineUrl:  string | null; // LINE予約URL（空・'#' は null＝LINEボタンを出さない）
+  bookable: boolean;       // ネット予約を受け付けているか（予約受付ON＋有効な予約コースあり）＝ false ならネット予約ボタンを出さない
 };
 
 export type DispatchType = Salon['dispatchType'];
@@ -39,6 +44,9 @@ const SALON_COLUMNS_BASE =
 const SALON_COLUMNS = `${SALON_COLUMNS_BASE}, card_boost, catchphrase, bumped_at, listing_plan`;
 // ★ 第1456便: フクエスポイント加盟店（列が読めないときは SALON_COLUMNS に戻る＝加盟店のリボンを出さないだけ）
 const SALON_COLUMNS_WITH_POINTS = `${SALON_COLUMNS}, points_member, crm_until`;
+// ★ 第1718便: 店舗カードの予約ボタン行（電話・LINE・ネット予約）。店舗詳細（salon/[id]/page.tsx）が anon で読んでいる列と同じ。
+//   読めないときは WITH_POINTS に戻る＝ボタン行を出さないだけで一覧は落ちない。
+const SALON_COLUMNS_WITH_CTA = `${SALON_COLUMNS_WITH_POINTS}, phone, line_url, booking_enabled, booking_courses`;
 
 function mapSalonRow(row: Record<string, unknown>): Salon {
   return {
@@ -61,6 +69,9 @@ function mapSalonRow(row: Record<string, unknown>): Salon {
     bumpedAt:     (row.bumped_at as string | null) ?? null,
     listingPlan:  (row.listing_plan as 'standard' | 'free') ?? 'standard',
     pointsMember: row.points_member === true && typeof row.crm_until === 'string' && row.crm_until.slice(0, 10) >= getCalendarDateJST(),
+    phone:    typeof row.phone === 'string' && row.phone.trim() !== '' ? row.phone.trim() : null,
+    lineUrl:  typeof row.line_url === 'string' && row.line_url.trim() !== '' && row.line_url.trim() !== '#' ? row.line_url.trim() : null,
+    bookable: isSalonBookable(row.booking_enabled, row.booking_courses),
   };
 }
 
@@ -92,7 +103,8 @@ export async function fetchSalons(
   };
   // card_boost 列を含めて取得。マイグレーション未適用の環境では列が無くクエリが失敗するため、
   // その場合は BASE 列（card_boost なし）で再取得してフォールバックする（サイトを落とさない）。
-  let res = await build(SALON_COLUMNS_WITH_POINTS);
+  let res = await build(SALON_COLUMNS_WITH_CTA);
+  if (res.error) res = await build(SALON_COLUMNS_WITH_POINTS);
   if (res.error) res = await build(SALON_COLUMNS);
   if (res.error) res = await build(SALON_COLUMNS_BASE);
   return (res.data ?? []).map(row => mapSalonRow(row as unknown as Record<string, unknown>));
