@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
+import { LineNoticeLink } from '@/app/components/LineNoticeLink';
 import { logSalonAction } from '@/app/lib/logSalonAction';
 import { reserveStyle, phoneStyle, lineStyle, calendarIcon, phoneIcon, lineIcon } from '@/app/salon/[id]/SalonCtaBar';
 
@@ -10,7 +11,7 @@ import { reserveStyle, phoneStyle, lineStyle, calendarIcon, phoneIcon, lineIcon 
 //   ・ネット予約 … 予約受付ON＋有効な予約コースあり（salon.bookable）。使っていない店は出さない＝残りのボタンが横に伸びる
 //   ・電話をする … 電話番号あり（ポップアップ「フクエスを見た」→発信は店舗詳細と同じ TelNoticeLink）。
 //                 ★ PC（lg 以上）では出さない（カッキーさん 11/2）。電話しか無い店は PC では行ごと出さない
-//   ・LINE予約   … URL あり（空・'#' は出さない）
+//   ・LINE予約   … URL あり（空・'#' は出さない）。★ 第1720便: 電話と同じく「フクエスを見た」のポップアップを挟む（LineNoticeLink）
 //   1つも無ければ行ごと出さない。配色・アイコンは店舗詳細の SalonCtaBar と共通。
 //   計測（logSalonAction）は店舗詳細と同じ RPC（同一セッション内の同じ店舗×同じアクションは1回）。
 //   カード全体の onClick（router.push）とは、行の div で stopPropagation して二重遷移を防ぐ
@@ -39,9 +40,9 @@ export function SalonCardCta({ salonId, phone, lineUrl, bookable }: { salonId: n
         </TelNoticeLink>
       )}
       {showLine && (
-        <a href={lineUrl!} onClick={() => logSalonAction(salonId, 'line')} target="_blank" rel="noopener noreferrer" className={`${btn} text-white hover:brightness-105`} style={lineStyle}>
+        <LineNoticeLink href={lineUrl!} onOpen={() => logSalonAction(salonId, 'line')} className={`${btn} text-white hover:brightness-105`} style={lineStyle}>
           {lineIcon}LINE予約
-        </a>
+        </LineNoticeLink>
       )}
     </div>
   );

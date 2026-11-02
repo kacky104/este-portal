@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
+import { LineNoticeLink } from '@/app/components/LineNoticeLink';
 import { logSalonAction } from '@/app/lib/logSalonAction';
 
 // ★ 第1625便: 店舗詳細の追従バナー（画面下）を部品に切り出し。
@@ -104,9 +105,9 @@ export function SalonCtaBar({ salonId, phone, lineUrl, bookHref, reserveUrl, boo
           </TelNoticeLink>
         )}
         {barLine && (
-          <a href={lineRaw} tabIndex={shown ? 0 : -1} onClick={() => logSalonAction(salonId, 'line')} target="_blank" rel="noopener noreferrer" className={`${barBtn} text-white hover:brightness-105`} style={lineStyle}>
+          <LineNoticeLink href={lineRaw} tabIndex={shown ? 0 : -1} onOpen={() => logSalonAction(salonId, 'line')} className={`${barBtn} text-white hover:brightness-105`} style={lineStyle}>
             {lineIcon}LINE予約
-          </a>
+          </LineNoticeLink>
         )}
       </div>
     </div>

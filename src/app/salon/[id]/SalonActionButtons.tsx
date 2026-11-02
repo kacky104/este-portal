@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { SaveButton } from '@/app/components/SaveButton';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
+import { LineNoticeLink } from '@/app/components/LineNoticeLink';
 import { logSalonAction } from '@/app/lib/logSalonAction';
 import { SalonCtaBar, salonCtaBarCount, reserveStyle, phoneStyle, lineStyle, calendarIcon, phoneIcon, lineIcon } from './SalonCtaBar';
 
@@ -14,7 +15,7 @@ import { SalonCtaBar, salonCtaBarCount, reserveStyle, phoneStyle, lineStyle, cal
 //   計測のためにクライアントコンポーネント化したが、props は全て serializable なので
 //   サーバー側（salon/[id]/page.tsx）からの呼び出し方は従来のまま。
 //   ・電話 … ポップアップの「電話をかける」を押した瞬間（開いただけでは数えない）
-//   ・LINE … LINE予約ボタンのクリック（'#' の無効プレビューは数えない）
+//   ・LINE … ポップアップの「LINEを開く」を押した瞬間（★ 第1720便・'#' の無効プレビューは数えない）
 //   ・予約 … ネット予約ボタンのクリック（予約完了ではなく予約ページへの遷移）
 //   同一セッション内の同じ店舗×同じアクションは1回だけ（logSalonAction 側で制御）。
 //
@@ -111,9 +112,10 @@ export function SalonActionButtons({
               {lineIcon}LINE予約
             </button>
           ) : (
-            <a href={lineRaw} onClick={() => logSalonAction(salonId, 'line')} target="_blank" rel="noopener noreferrer" className={`${base} text-white hover:brightness-105`} style={lineStyle}>
+            // ★ 第1720便: 電話と同じく「フクエスを見た」のポップアップ→「LINEを開く」で新規タブ
+            <LineNoticeLink href={lineRaw} onOpen={() => logSalonAction(salonId, 'line')} className={`${base} text-white hover:brightness-105`} style={lineStyle}>
               {lineIcon}LINE予約
-            </a>
+            </LineNoticeLink>
           )
         )}
 
