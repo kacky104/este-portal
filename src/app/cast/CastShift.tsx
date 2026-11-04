@@ -107,7 +107,7 @@ export function CastShift() {
         <div className="flex items-center justify-between gap-2">
           <CastCardTitle icon="list">シフト提出（{md(data.next.from)}〜{md(data.next.to)}）</CastCardTitle>
         </div>
-        <p className="mt-2 text-[12px] text-slate-500 leading-relaxed">出勤したい日に「出勤する」を付けて時間を選び、下の「提出する」を押してください。お店が確定するまでは何度でも書き直せます。</p>
+        <p className="mt-2 text-[12px] text-slate-500 leading-relaxed">出勤したい日に「出勤する」を付けて時間を選び、下の「提出する」を押してください。お店が確定するまでは何度でも書き直せます。確定した後の変更は直接お店にお伝えください。</p>
         <ul className="mt-3 divide-y divide-pink-50">
           {data.next.days.map((d) => {
             const st = shiftDayState(d.req, d.sched);
