@@ -107,6 +107,7 @@ export function CastTabs({
     ...(castShiftEnabled ? [['shift', 'シフト提出'] as const] : []),
     ['theme', '着せ替え'] as const,
   ];
+  const mobileTabs = tabs.filter(([k]) => k !== 'now');
   const [activeTab, setActiveTab] = useState<CastTab>(initialTab === 'schedule' && castScheduleEnabled ? 'schedule' : 'diary');
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -209,8 +210,9 @@ export function CastTabs({
         aria-label="メニュー"
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-pink-100 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]"
       >
-        <div className={`max-w-2xl mx-auto grid ${tabs.length >= 6 ? 'grid-cols-6' : tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
-          {tabs.map(([key, label]) => {
+        {/* ★ 第1735便（カッキーさん）: 下のタブから「今すぐ」を外した（上の「今日のまとめ」の今すぐから開ける） */}
+        <div className={`max-w-2xl mx-auto grid ${mobileTabs.length >= 6 ? 'grid-cols-6' : mobileTabs.length === 5 ? 'grid-cols-5' : mobileTabs.length === 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          {mobileTabs.map(([key, label]) => {
             const selected = activeTab === key;
             return (
               <button
@@ -225,7 +227,7 @@ export function CastTabs({
                 {selected && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-pink-500" />}
                 <TabIcon tab={key} className="w-6 h-6" />
                 {/* ★ 2026-11-04: 6つ並ぶときは短く（シフト提出→シフト・スケジュール→予定）*/}
-                {tabs.length >= 6 ? (key === 'shift' ? 'シフト' : key === 'schedule' ? '予定' : label) : label}
+                {mobileTabs.length >= 5 ? (key === 'shift' ? 'シフト' : key === 'schedule' ? '予定' : label) : label}
                 {/* ★ 第1211便: まだ見ていない新しい予約の数（アイコンの右上） */}
                 {key === 'schedule' && scheduleBadge > 0 && (
                   <span className="absolute top-1 left-1/2 ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`予約のお知らせ ${scheduleBadge}件`}>
