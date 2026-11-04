@@ -9,7 +9,7 @@ import { ShiftBoard } from '@/app/components/shift/ShiftBoard';
 export default function ConecfShiftPage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="shift" title="シフト管理表" toast={toast} wide>
+    <ConecfShell current="shift" title="シフト希望管理表" toast={toast} wide>
       {() => <ShiftBoard onToast={showToast} />}
     </ConecfShell>
   );

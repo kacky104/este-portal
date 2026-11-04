@@ -7,7 +7,7 @@
 // ★ 却下は無い。確定しなかった希望は希望のまま残す（欠勤が出たときの声かけ用）。
 // ★ 確定のあと週間スケジュールで直した日は「変更」と出す（セラピストページにも出る）。
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { confirmShift, getShiftBoard, saveShiftSettings, type ShiftBoardData } from '@/app/actions/shift';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import {
@@ -44,6 +44,27 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
   const [rooms, setRooms] = useState('0');
   const [changeover, setChangeover] = useState(0);
   const [savingSettings, setSavingSettings] = useState(false);
+  // ★ 第1727便（カッキーさん）: 横のスクロールバーを表の上にも（週間スケジュール 第1473便と同じ）。上下のバーは同じ位置に動く
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const tableBoxRef = useRef<HTMLDivElement>(null);
+  const [scrollW, setScrollW] = useState(0);
+  const [clientW, setClientW] = useState(0);
+  useEffect(() => {
+    const box = tableBoxRef.current;
+    if (!box) return;
+    const measure = () => { setScrollW(box.scrollWidth); setClientW(box.clientWidth); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(box);
+    if (box.firstElementChild) ro.observe(box.firstElementChild);
+    return () => ro.disconnect();
+  }, [data]);
+  const syncScroll = (from: 'top' | 'box') => {
+    const top = topBarRef.current, box = tableBoxRef.current;
+    if (!top || !box) return;
+    const [src, dst] = from === 'top' ? [top, box] : [box, top];
+    if (Math.abs(dst.scrollLeft - src.scrollLeft) > 0.5) dst.scrollLeft = src.scrollLeft;
+  };
 
   const load = useCallback(async (w: 'next' | 'current') => {
     const r = await getShiftBoard({ which: w }).catch(() => null);
@@ -143,8 +164,13 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
         <span className="text-[13px] text-slate-500">希望 {counts.req}件・確定 {counts.conf}件</span>
       </div>
 
-      {/* ── 表 ── */}
-      <div className={`${CARD} overflow-x-auto`}>
+      {/* ── 表 ── ★ 第1727便: 上の横スクロールバー（表が横にはみ出すときだけ） */}
+      {scrollW > clientW + 1 && (
+        <div ref={topBarRef} onScroll={() => syncScroll('top')} className="sticky top-0 z-20 overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
+          <div style={{ width: scrollW, height: 1 }} />
+        </div>
+      )}
+      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto`}>
         <table className="border-collapse text-[13px] min-w-full">
           <thead>
             <tr>
