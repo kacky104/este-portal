@@ -179,15 +179,16 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
         </div>
       )}
       <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto`}>
-        <table className="border-collapse text-[13px] min-w-full">
+        {/* ★ 第1730便（カッキーさん）: マスの大きさを中身で変えない。table-fixed＋列の幅を固定・マスの高さも固定（1行目 時間／2行目 状態／3行目 ひとこと等・はみ出しは…） */}
+        <table className="table-fixed border-collapse text-[13px]" style={{ width: 120 + data.dates.length * 124, minWidth: '100%' }}>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 bg-slate-50 border-b border-r border-slate-200 px-3 py-2 text-left font-bold text-slate-600 min-w-[120px]">セラピスト</th>
+              <th className="sticky left-0 z-10 bg-slate-50 border-b border-r border-slate-200 px-3 py-2 text-left font-bold text-slate-600 w-[120px]">セラピスト</th>
               {data.dates.map((d) => (
-                <th key={d} className={`bg-slate-50 border-b border-r border-slate-200 px-2 py-2 font-bold whitespace-nowrap min-w-[112px] ${shiftDateTone(d)}`}>
+                <th key={d} className={`bg-slate-50 border-b border-r border-slate-200 px-1 py-2 font-bold whitespace-nowrap w-[124px] ${shiftDateTone(d)}`}>
                   {shiftDateLabel(d)}
                   {/* ★ 第1729便: 希望を出した人数のバッジ（0人は薄く） */}
-                  <span className={`ml-1.5 inline-flex min-w-[20px] items-center justify-center px-1.5 text-[11px] font-black leading-[18px] tabular-nums align-middle ${
+                  <span className={`mt-0.5 mx-auto flex w-fit min-w-[20px] items-center justify-center px-1.5 text-[11px] font-black leading-[18px] tabular-nums align-middle ${
                     (reqPerDate[d] ?? 0) > 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-400'}`} title="希望を出した人数">
                     {reqPerDate[d] ?? 0}名
                   </span>
@@ -198,7 +199,7 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
           <tbody>
             {data.rows.map((t) => (
               <tr key={t.id} className={t.isActive ? '' : 'opacity-50'}>
-                <td className="sticky left-0 z-10 bg-white border-b border-r border-slate-200 px-3 py-2 font-bold text-slate-700 whitespace-nowrap">
+                <td className="sticky left-0 z-10 bg-white border-b border-r border-slate-200 px-3 py-2 font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis">
                   {t.name}{!t.isActive && <span className="ml-1 text-[11px] font-normal text-slate-400">非公開</span>}
                 </td>
                 {data.dates.map((d) => {
@@ -212,31 +213,37 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
                     <td key={d} className="border-b border-r border-slate-200 p-1 align-top">
                       <button type="button" disabled={!canOpen}
                         onClick={() => { if (!req) return; setModalError(''); setOpen({ therapistId: t.id, name: t.name, date: d, req, s: req.status === 'confirmed' && req.confS != null ? req.confS : req.reqS, e: req.status === 'confirmed' && req.confE != null ? req.confE : req.reqE }); }}
-                        className={`w-full min-h-[44px] px-1.5 py-1 text-left leading-tight ${
+                        className={`w-full h-[60px] overflow-hidden px-1.5 py-1 text-left leading-[17px] ${
                           st.kind === 'requested' ? 'bg-amber-50 border border-amber-300 hover:bg-amber-100'
                           : st.kind === 'confirmed' ? 'bg-emerald-50 border border-emerald-300 hover:bg-emerald-100'
                           : st.kind === 'changed' || st.kind === 'off' ? 'bg-orange-50 border border-orange-300 hover:bg-orange-100'
                           : st.kind === 'direct' ? 'bg-slate-50 border border-slate-200 cursor-default'
                           : 'cursor-default'}`}>
                         {st.kind === 'requested' && req && (<>
-                          <span className="block font-bold text-amber-800 tabular-nums">{rangeShort(req.reqS, req.reqE)} 希望</span>
-                          {req.note && <span className="block text-[11px] text-amber-700 truncate" title={req.note}>{req.note}</span>}
-                          {warn && <span className="block text-[11px] font-bold text-rose-600">部屋オーバー</span>}
+                          <span className="block truncate font-bold text-amber-800 tabular-nums">{rangeShort(req.reqS, req.reqE)}</span>
+                          <span className={`block truncate text-[11px] font-bold ${warn ? 'text-rose-600' : 'text-amber-700'}`}>{warn ? '希望・部屋オーバー' : '希望'}</span>
+                          <span className="block truncate text-[11px] text-amber-700" title={req.note}>{req.note}</span>
                         </>)}
                         {st.kind === 'confirmed' && req && req.confS != null && req.confE != null && (<>
-                          <span className="block font-bold text-emerald-800 tabular-nums">{rangeShort(req.confS, req.confE)} 確定</span>
-                          {st.changedFromReq && <span className="block text-[11px] text-slate-500 tabular-nums">希望 {rangeShort(req.reqS, req.reqE)}</span>}
+                          <span className="block truncate font-bold text-emerald-800 tabular-nums">{rangeShort(req.confS, req.confE)}</span>
+                          <span className="block truncate text-[11px] font-bold text-emerald-700">確定</span>
+                          <span className="block truncate text-[11px] text-slate-500 tabular-nums">{st.changedFromReq ? `希望 ${rangeShort(req.reqS, req.reqE)}` : ''}</span>
                         </>)}
                         {st.kind === 'changed' && sched && (<>
-                          <span className="block font-bold text-orange-700 tabular-nums">{rangeShort(sched.s, sched.e)} 変更</span>
-                          <span className="block text-[11px] text-slate-500">週間スケジュールで変更</span>
+                          <span className="block truncate font-bold text-orange-700 tabular-nums">{rangeShort(sched.s, sched.e)}</span>
+                          <span className="block truncate text-[11px] font-bold text-orange-700">変更</span>
+                          <span className="block truncate text-[11px] text-slate-500">週間スケジュールで</span>
                         </>)}
                         {st.kind === 'off' && (<>
-                          <span className="block font-bold text-orange-700">お休みに変更</span>
-                          <span className="block text-[11px] text-slate-500">週間スケジュールで変更</span>
+                          <span className="block truncate font-bold text-orange-700">お休み</span>
+                          <span className="block truncate text-[11px] font-bold text-orange-700">変更</span>
+                          <span className="block truncate text-[11px] text-slate-500">週間スケジュールで</span>
                         </>)}
-                        {st.kind === 'direct' && sched && <span className="block text-slate-500 tabular-nums">{rangeShort(sched.s, sched.e)} 出勤</span>}
-                        {st.kind === 'none' && <span className="block text-slate-300 text-center">—</span>}
+                        {st.kind === 'direct' && sched && (<>
+                          <span className="block truncate text-slate-500 tabular-nums">{rangeShort(sched.s, sched.e)}</span>
+                          <span className="block truncate text-[11px] text-slate-400">出勤</span>
+                        </>)}
+                        {st.kind === 'none' && <span className="block text-slate-300 text-center leading-[50px]">—</span>}
                       </button>
                     </td>
                   );
