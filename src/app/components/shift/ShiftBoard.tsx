@@ -15,6 +15,8 @@ import {
   SHIFT_CHANGEOVER_OPTIONS, SHIFT_PERIODS, SHIFT_ROOM_MAX, type OccupyShift, type ShiftPeriod, type ShiftRequestView,
 } from '@/lib/shift';
 
+// ★ 第1731便（カッキーさん）: 名前の列を細く（120→88px）。長い名前は1行で…
+const NAME_W = 88;
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const BTN = 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white font-bold disabled:opacity-50';
 function md(ymd: string) { const [, m, d] = ymd.split('-').map(Number); return `${m}/${d}`; }
@@ -32,11 +34,39 @@ function othersFor(data: ShiftBoardData, therapistId: number, date: string): Occ
   return out;
 }
 
+/** その日の出勤の正本で、同時にいちばん多い人数と時間帯（入れ替え時間は入れない・前日の深夜までも数える） */
+function peakOnDate(data: ShiftBoardData, date: string): { count: number; from: number; to: number } {
+  const prev = (() => { const [y, m, d] = date.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10); })();
+  const iv: Array<[number, number]> = [];
+  for (const [k, m] of Object.entries(data.schedules)) {
+    const d = k.split('#')[1];
+    if (d === date) iv.push([m.s, m.e]);
+    else if (d === prev && m.e > 1440 + 360) iv.push([m.s - 1440, m.e - 1440]);
+  }
+  const pts = [...new Set(iv.flat())].sort((a, b) => a - b);
+  let best = { count: 0, from: 0, to: 0 };
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const n = iv.filter(([x, y]) => x < b && y > a).length;
+    if (n > best.count) best = { count: n, from: a, to: b };
+    else if (n === best.count && n > 0 && best.to === a) best.to = b;
+  }
+  return best;
+}
+
 export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
   const [which, setWhich] = useState<'next' | 'current'>('next');
   const [data, setData] = useState<ShiftBoardData | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<Open | null>(null);
+  // ★ 第1731便: 日付のバッジを押したときの一覧（その日に希望を出したセラピスト）
+  const [dayList, setDayList] = useState<string | null>(null);
+  const openConfirm = (therapistId: number, name: string, date: string, req: ShiftRequestView) => {
+    setModalError('');
+    setOpen({ therapistId, name, date, req,
+      s: req.status === 'confirmed' && req.confS != null ? req.confS : req.reqS,
+      e: req.status === 'confirmed' && req.confE != null ? req.confE : req.reqE });
+  };
   const [busy, setBusy] = useState(false);
   const [modalError, setModalError] = useState('');
   // 設定（画面で直している途中の値）
@@ -180,18 +210,20 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
       )}
       <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto`}>
         {/* ★ 第1730便（カッキーさん）: マスの大きさを中身で変えない。table-fixed＋列の幅を固定・マスの高さも固定（1行目 時間／2行目 状態／3行目 ひとこと等・はみ出しは…） */}
-        <table className="table-fixed border-collapse text-[13px]" style={{ width: 120 + data.dates.length * 124, minWidth: '100%' }}>
+        <table className="table-fixed border-collapse text-[13px]" style={{ width: NAME_W + data.dates.length * 124, minWidth: '100%' }}>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 bg-slate-50 border-b border-r border-slate-200 px-3 py-2 text-left font-bold text-slate-600 w-[120px]">セラピスト</th>
+              <th className="sticky left-0 z-10 bg-slate-50 border-b border-r border-slate-200 px-2 py-2 text-left font-bold text-slate-600" style={{ width: NAME_W }}>セラピスト</th>
               {data.dates.map((d) => (
                 <th key={d} className={`bg-slate-50 border-b border-r border-slate-200 px-1 py-2 font-bold whitespace-nowrap w-[124px] ${shiftDateTone(d)}`}>
                   {shiftDateLabel(d)}
                   {/* ★ 第1729便: 希望を出した人数のバッジ（0人は薄く） */}
-                  <span className={`mt-0.5 mx-auto flex w-fit min-w-[20px] items-center justify-center px-1.5 text-[11px] font-black leading-[18px] tabular-nums align-middle ${
-                    (reqPerDate[d] ?? 0) > 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-400'}`} title="希望を出した人数">
-                    {reqPerDate[d] ?? 0}名
-                  </span>
+                  {/* ★ 第1731便: 押すと、その日に希望を出したセラピストの一覧 */}
+                  <button type="button" onClick={() => setDayList(d)} disabled={(reqPerDate[d] ?? 0) === 0}
+                    className={`mt-0.5 mx-auto flex w-fit min-w-[20px] items-center justify-center px-1.5 text-[11px] font-black leading-[18px] tabular-nums ${
+                    (reqPerDate[d] ?? 0) > 0 ? 'bg-amber-500 text-white hover:bg-amber-600 cursor-pointer' : 'bg-slate-200 text-slate-400 cursor-default'}`} title="希望を出した人数（押すと一覧）">
+                    {reqPerDate[d] ?? 0}名{(reqPerDate[d] ?? 0) > 0 && ' ›'}
+                  </button>
                 </th>
               ))}
             </tr>
@@ -199,8 +231,9 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
           <tbody>
             {data.rows.map((t) => (
               <tr key={t.id} className={t.isActive ? '' : 'opacity-50'}>
-                <td className="sticky left-0 z-10 bg-white border-b border-r border-slate-200 px-3 py-2 font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis">
-                  {t.name}{!t.isActive && <span className="ml-1 text-[11px] font-normal text-slate-400">非公開</span>}
+                <td className="sticky left-0 z-10 bg-white border-b border-r border-slate-200 px-2 py-2 font-bold text-slate-700 whitespace-nowrap overflow-hidden text-ellipsis" title={t.name}>
+                  {t.name}
+                  {!t.isActive && <span className="block text-[10px] font-normal text-slate-400">非公開</span>}
                 </td>
                 {data.dates.map((d) => {
                   const key = `${t.id}#${d}`;
@@ -212,7 +245,7 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
                   return (
                     <td key={d} className="border-b border-r border-slate-200 p-1 align-top">
                       <button type="button" disabled={!canOpen}
-                        onClick={() => { if (!req) return; setModalError(''); setOpen({ therapistId: t.id, name: t.name, date: d, req, s: req.status === 'confirmed' && req.confS != null ? req.confS : req.reqS, e: req.status === 'confirmed' && req.confE != null ? req.confE : req.reqE }); }}
+                        onClick={() => { if (req) openConfirm(t.id, t.name, d, req); }}
                         className={`w-full h-[60px] overflow-hidden px-1.5 py-1 text-left leading-[17px] ${
                           st.kind === 'requested' ? 'bg-amber-50 border border-amber-300 hover:bg-amber-100'
                           : st.kind === 'confirmed' ? 'bg-emerald-50 border border-emerald-300 hover:bg-emerald-100'
@@ -257,6 +290,70 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
         黄色＝希望（未確定）／緑＝確定／橙＝確定のあと週間スケジュールで変更／灰色＝週間スケジュールで直接入れた出勤。
         希望のマスを押すと確定できます（時間を直して確定もできます）。確定しなかった希望はそのまま残ります。
       </p>
+
+      {/* ── 日付の一覧（第1731便）── */}
+      {dayList && (() => {
+        const d = dayList;
+        const items = data.rows
+          .map((t) => ({ t, req: data.requests[`${t.id}#${d}`] ?? null, sched: data.schedules[`${t.id}#${d}`] ?? null }))
+          .filter((x) => x.req)
+          .map((x) => ({ ...x, st: shiftDayState(x.req, x.sched), warn: x.req!.status === 'requested' ? precheck(x.t.id, d, x.req!.reqS, x.req!.reqE) : null }))
+          .sort((a, b) => (a.req!.status === b.req!.status ? 0 : a.req!.status === 'requested' ? -1 : 1) || a.req!.reqS - b.req!.reqS);
+        const direct = data.rows.filter((t) => !data.requests[`${t.id}#${d}`] && data.schedules[`${t.id}#${d}`]);
+        const nReq = items.filter((x) => x.req!.status === 'requested').length;
+        const peak = peakOnDate(data, d);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setDayList(null)}>
+            <div className="w-full sm:max-w-lg max-h-[85vh] overflow-y-auto bg-white p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className={`text-[17px] font-black ${shiftDateTone(d)}`}>{shiftDateLabel(d)} の希望</p>
+                  <p className="text-[13px] text-slate-500">希望 {nReq}名・確定 {items.length - nReq}名{direct.length > 0 && `・週間スケジュールで直接 ${direct.length}名`}</p>
+                  {data.settings.roomCount > 0 && (
+                    <p className={`text-[13px] font-bold ${peak.count > data.settings.roomCount ? 'text-rose-600' : 'text-slate-600'}`}>
+                      いまの出勤で同時に最大 {peak.count}人{peak.count > 0 && `（${rangeLabel(peak.from, peak.to)}）`}／部屋数 {data.settings.roomCount}
+                    </p>
+                  )}
+                </div>
+                <button type="button" onClick={() => setDayList(null)} className="shrink-0 px-3 py-1.5 border border-slate-300 text-[13px] font-bold text-slate-600">閉じる</button>
+              </div>
+              <ul className="divide-y divide-slate-100 border-y border-slate-100">
+                {items.map(({ t, req, st, warn }) => (
+                  <li key={t.id}>
+                    <button type="button" disabled={!t.isActive} onClick={() => { setDayList(null); openConfirm(t.id, t.name, d, req!); }}
+                      className="w-full text-left py-2.5 px-1 flex items-start gap-3 hover:bg-slate-50 disabled:opacity-50">
+                      <span className={`shrink-0 mt-0.5 px-1.5 text-[11px] font-black leading-[18px] ${
+                        st.kind === 'requested' ? 'bg-amber-100 text-amber-800' : st.kind === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-700'}`}>
+                        {st.kind === 'requested' ? '希望' : st.kind === 'confirmed' ? '確定' : st.kind === 'off' ? 'お休みに変更' : '変更'}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] font-bold text-slate-800 truncate">{t.name}</span>
+                        <span className="block text-[14px] tabular-nums text-slate-700">
+                          {st.kind === 'confirmed' ? st.conf : st.kind === 'changed' ? st.now : st.kind === 'off' ? 'お休み' : rangeLabel(req!.reqS, req!.reqE)}
+                          {st.kind === 'confirmed' && st.changedFromReq && <span className="ml-2 text-[12px] text-slate-500">希望 {st.changedFromReq}</span>}
+                          {(st.kind === 'changed' || st.kind === 'off') && <span className="ml-2 text-[12px] text-slate-500">確定 {st.conf}</span>}
+                        </span>
+                        {req!.note && <span className="block text-[13px] text-amber-700 break-words">「{req!.note}」</span>}
+                        {warn && <span className="block text-[12px] font-bold text-rose-600">{warn}</span>}
+                      </span>
+                      {t.isActive && <span className="shrink-0 self-center text-slate-400">›</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {direct.length > 0 && (
+                <div>
+                  <p className="text-[12px] font-bold text-slate-500 mb-1">週間スケジュールで直接入っている出勤</p>
+                  <ul className="text-[14px] text-slate-600 space-y-0.5">
+                    {direct.map((t) => { const m = data.schedules[`${t.id}#${d}`]; return <li key={t.id} className="flex gap-3"><span className="font-bold truncate">{t.name}</span><span className="tabular-nums">{rangeLabel(m.s, m.e)}</span></li>; })}
+                  </ul>
+                </div>
+              )}
+              <p className="text-[12px] text-slate-400">名前を押すと確定の画面が開きます。</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── 確定の小窓 ── */}
       {open && (
