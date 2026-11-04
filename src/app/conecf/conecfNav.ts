@@ -5,7 +5,7 @@
 export type ConecfNavKey =
   | 'home' | 'sites'
   | 'girls' | 'girlsSync' | 'placeholder'
-  | 'schedule' | 'scheduleSync'
+  | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
   | 'diary' | 'news' | 'bump' | 'announce' | 'cocoa'
   | 'log' | 'matrix'
@@ -24,6 +24,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'placeholder',  label: 'セラピスト既定画像',     href: '/girls/placeholder' },
   { key: 'schedule',     label: '週間スケジュール',       href: '/schedule',      group: '出勤' },
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
+  // ★ 2026-11-04: シフト管理表（セラピストの希望を確定）。SHIFT_SALON_IDS の店だけ出す（ConecfShell の shiftNav）
+  { key: 'shift',        label: 'シフト管理表',           href: '/shift' },
   // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
   { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
   // ★ 第1306便（カッキーさん）: フクエスと駅ちかの上位表示（手で押す・時間帯と間隔で自動で押す）をまとめた画面。今すぐの下

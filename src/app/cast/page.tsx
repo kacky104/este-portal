@@ -13,6 +13,7 @@ import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import { getRecordMonth } from '@/app/actions/castCustomers';
 import { isCastScheduleEnabled } from '@/app/actions/castSchedule';
 import { CastXIcon } from './CastXIcon';
+import { shiftAllowedForSalon } from '@/app/lib/shift/access';
 
 // キャスト管理トップ（フェーズ1：最小実装）。
 // ガードはページ内 redirect 方式（proxy.ts は触らない）。
@@ -186,6 +187,7 @@ export default async function CastHomePage({ searchParams }: { searchParams: Pro
               todayRewardCount={todayRewardCount}
               diaryToday={diaryToday}
               castScheduleEnabled={await isCastScheduleEnabled()}
+              castShiftEnabled={shiftAllowedForSalon(therapist.salon_id as number | null)}
               initialTab={openSchedule ? 'schedule' : undefined}
               initialScheduleDate={openDate}
             />

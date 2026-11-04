@@ -47,6 +47,7 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
     case 'girlsSync':    return (<svg {...p}><circle cx="9" cy="8" r="4" /><path d="M2 21v-1a6 6 0 0 1 6-6h2" /><path d="M16 15h6M19 12v6" /></svg>);
     case 'placeholder':  return (<svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="M21 15l-5-5L5 21" /></svg>);
     case 'schedule':     return (<svg {...p}><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 10h18M8 2v4M16 2v4" /></svg>);
+    case 'shift':        return (<svg {...p}><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4h6v3H9zM8.5 13l2 2 4-4" /></svg>);
     case 'scheduleSync': return (<svg {...p}><path d="M12 19V5" /><path d="M5 12l7-7 7 7" /></svg>);
     case 'now':          return (<svg {...p}><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" /></svg>);
     case 'bump':         return (<svg {...p}><path d="M5 4h14" /><path d="M12 20V9" /><path d="M7 13l5-5 5 5" /></svg>);
@@ -81,6 +82,8 @@ export function ConecfShell({
   const alerts = session.state?.alerts ?? [];
   // ★ 第474便: 「ココア店長ブログ」を出すか（駅ちかのID・PASSがある店＋自動投稿がオンの店）。★ 分かるまでは出さない
   const cocoaNav = session.state?.cocoaNav ?? false;
+  // ★ 2026-11-04: 「シフト管理表」を出すか（SHIFT_SALON_IDS の店だけ）。分かるまでは出さない
+  const shiftNav = session.state?.shiftNav ?? false;
   // ★ 一度も読めていないときだけ、読めなかった案内を出す
   const error = session.error && !session.state ? '読み込めませんでした。しばらくしてから開き直してください。' : '';
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -162,7 +165,7 @@ export function ConecfShell({
   }
 
   const navList = (onPick?: () => void) =>
-    CONECF_NAV.filter((n) => n.key !== 'cocoa' || cocoaNav || current === 'cocoa').map((n) => {
+    CONECF_NAV.filter((n) => (n.key !== 'cocoa' || cocoaNav || current === 'cocoa') && (n.key !== 'shift' || shiftNav || current === 'shift')).map((n) => {
       const on = n.key === current;
       return (
         <div key={n.key} className="contents">

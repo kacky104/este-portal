@@ -71,6 +71,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import BookingCallSettings from './BookingCallSettings';
+import { shiftBoardEnabled } from '@/app/actions/shift';
 
 /** ★ 第1439便: サイドバーにフクエスリンクのバナーを出すお店（12＝アロマメイ様・5＝オイルクエスト様） */
 const MEDIA_BANNER_SALON_IDS: readonly number[] = [12, 5];
@@ -970,6 +971,9 @@ export default function MyPage() {
   const [conecfOn, setConecfOn] = useState(false);
   // ★ 第1537便: conecfOn を読み終えたか（フクエスリンクのバナーを、切り替え済みの店で一瞬出さないため）
   const [conecfLoaded, setConecfLoaded] = useState(false);
+  // ★ 2026-11-04: シフト管理表を使える店か（SHIFT_SALON_IDS）。出勤タブの上に入口を出す（コネックエフの店はコネックエフ側）
+  const [shiftOn, setShiftOn] = useState(false);
+  useEffect(() => { shiftBoardEnabled().then(setShiftOn).catch(() => {}); }, []);
   // ★ 第1145便: フクエスCRM を契約している店か（crm_until が今日以降）。★ 未契約の店はバナーの行き先を「ご案内」（ログイン不要）にする
   const [crmOn, setCrmOn] = useState(false);
   // ★ 第889便: 追加した直後のセラピスト（招待の小窓を開く）
@@ -4537,6 +4541,14 @@ export default function MyPage() {
 
         {/* ── タブ2: 出勤設定 ── */}
         <div className={`space-y-3 ${activeTab === 'schedule' ? '' : 'hidden'}`}>
+          {/* ★ 2026-11-04: シフト管理表（セラピストの希望を確定）。使える店だけ・コネックエフの店はコネックエフの左メニューから */}
+          {shiftOn && (
+            <div className="bg-amber-50 rounded-none border border-amber-200 p-4 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-black text-amber-800">セラピストから出たシフトの希望を確定できます</p>
+              <a href={conecfOn ? 'https://conecf.com/shift' : '/mypage/shift'} target={conecfOn ? '_blank' : undefined} rel={conecfOn ? 'noopener noreferrer' : undefined}
+                className="inline-block text-xs font-bold text-amber-700 underline">シフト管理表を開く ›</a>
+            </div>
+          )}
           {/* ★ 第399便（コネックエフ 1d・案B）: 切り替えた店は、出勤をコネックエフで編集する */}
           {conecfOn && (
             <div className="bg-indigo-50 rounded-none border border-indigo-200 p-4 space-y-1.5">

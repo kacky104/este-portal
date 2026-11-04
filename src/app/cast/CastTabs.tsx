@@ -14,10 +14,11 @@ import { CastThemePicker } from './CastTheme';
 import { CastImasugu } from './CastImasugu';
 import { CastCustomers } from './CastCustomers';
 import { CastSchedule } from './CastSchedule';
+import { CastShift } from './CastShift';
 import { getCastUpcomingBookings, type CastUpcomingBooking } from '@/app/actions/castSchedule';
 import { readSeenBookings, writeSeenBookings } from '@/lib/castSeenBookings';
 
-type CastTab = 'diary' | 'theme' | 'now' | 'records' | 'schedule';
+type CastTab = 'diary' | 'theme' | 'now' | 'records' | 'schedule' | 'shift';
 
 // ★ 第516便: スマホは画面下に固定のタブバー（アイコン＋文字）。PC（md 以上）は上のピル型のまま。
 //   アイコンはライブラリを入れずに SVG で持つ（線の太さ・大きさをそろえるため全部 24×24・stroke 1.8）。
@@ -31,6 +32,8 @@ const ICON_PATHS: Record<CastTab, string> = {
   // ノート（記録帳）
   records: 'M6 3.5h11A1.5 1.5 0 0 1 18.5 5v14a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19V5A1.5 1.5 0 0 1 6 3.5Z M8.5 8h6 M8.5 11.5h6 M8.5 15h3.5',
   // カレンダー（スケジュール・第599便。第572便の「報酬明細」を置き換え）
+  // クリップボード（シフト提出・2026-11-04）
+  shift: 'M9 4.5h6A1.5 1.5 0 0 1 16.5 6v.5h1A1.5 1.5 0 0 1 19 8v11.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5V8a1.5 1.5 0 0 1 1.5-1.5h1V6A1.5 1.5 0 0 1 9 4.5Z M7.5 6.5h9 M8.5 11.5l2 2 4-4 M8.5 17h7',
   schedule: 'M5.5 5h13A1.5 1.5 0 0 1 20 6.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-12A1.5 1.5 0 0 1 5.5 5Z M4 9.5h16 M8.5 3v4 M15.5 3v4 M7.5 13h4 M7.5 16h7',
 };
 
@@ -68,6 +71,7 @@ export function CastTabs({
   todayRewardCount,
   diaryToday,
   castScheduleEnabled = false,
+  castShiftEnabled = false,
   initialTab,
   initialScheduleDate = null,
 }: {
@@ -90,6 +94,8 @@ export function CastTabs({
   diaryToday: number;
   /** お店が「セラピストへの公開」を ON にしているとき「スケジュール」タブを出す（第599便） */
   castScheduleEnabled?: boolean;
+  /** ★ 2026-11-04: シフト提出（SHIFT_SALON_IDS の店だけ）。スケジュールの右に出す */
+  castShiftEnabled?: boolean;
   /** ★ 第1209便: 最初に開くタブ（/cast?tab=schedule）。スケジュールを出せない店では無視して「写メ日記」から。 */
   initialTab?: 'schedule';
   /** ★ 第1209便: スケジュールで最初に開く日（/cast?tab=schedule&date=YYYY-MM-DD）。無ければ今日。 */
@@ -98,6 +104,7 @@ export function CastTabs({
   const tabs: ReadonlyArray<readonly [CastTab, string]> = [
     ...TABS,
     ...(castScheduleEnabled ? [['schedule', 'スケジュール'] as const] : []),
+    ...(castShiftEnabled ? [['shift', 'シフト提出'] as const] : []),
     ['theme', '着せ替え'] as const,
   ];
   const [activeTab, setActiveTab] = useState<CastTab>(initialTab === 'schedule' && castScheduleEnabled ? 'schedule' : 'diary');
@@ -202,7 +209,7 @@ export function CastTabs({
         aria-label="メニュー"
         className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-pink-100 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]"
       >
-        <div className={`max-w-2xl mx-auto grid ${tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        <div className={`max-w-2xl mx-auto grid ${tabs.length >= 6 ? 'grid-cols-6' : tabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
           {tabs.map(([key, label]) => {
             const selected = activeTab === key;
             return (
@@ -217,7 +224,8 @@ export function CastTabs({
               >
                 {selected && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-full bg-pink-500" />}
                 <TabIcon tab={key} className="w-6 h-6" />
-                {label}
+                {/* ★ 2026-11-04: 6つ並ぶときは短く（シフト提出→シフト・スケジュール→予定）*/}
+                {tabs.length >= 6 ? (key === 'shift' ? 'シフト' : key === 'schedule' ? '予定' : label) : label}
                 {/* ★ 第1211便: まだ見ていない新しい予約の数（アイコンの右上） */}
                 {key === 'schedule' && scheduleBadge > 0 && (
                   <span className="absolute top-1 left-1/2 ml-1.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-black leading-[18px] text-white" aria-label={`予約のお知らせ ${scheduleBadge}件`}>
@@ -236,6 +244,8 @@ export function CastTabs({
       )}
 
       {activeTab === 'theme' && <CastThemePicker />}
+
+      {activeTab === 'shift' && castShiftEnabled && <CastShift />}
 
       {activeTab === 'records' && <CastCustomers today={businessDate} onTodayChange={onTodayChange} />}
 
