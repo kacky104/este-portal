@@ -373,7 +373,12 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
                   <p className="text-[13px] text-slate-500">希望 {nReq}名・確定 {items.length - nReq}名{direct.length > 0 && `・週間スケジュールで直接 ${direct.length}名`}</p>
                   {data.settings.roomCount > 0 && (
                     <p className={`text-[13px] font-bold ${peak.count > data.settings.roomCount ? 'text-rose-600' : 'text-slate-600'}`}>
-                      いまの出勤で同時に最大 {peak.count}人{peak.count > 0 && `（${rangeLabel(peak.from, peak.to)}）`}／部屋数 {data.settings.roomCount}
+                      {/* ★ 第1733便（カッキーさん「意味がわかりません」）: 言い方を「部屋の空き」に。数えるのは出勤が入っている人（確定＋週間スケジュール） */}
+                      {peak.count === 0
+                        ? `部屋の空き：まだ出勤が入っていません（${data.settings.roomCount}部屋すべて空き）`
+                        : peak.count > data.settings.roomCount
+                          ? `部屋の空き：いちばん混む ${rangeLabel(peak.from, peak.to)} に ${peak.count}人／${data.settings.roomCount}部屋（${peak.count - data.settings.roomCount}人オーバー）`
+                          : `部屋の空き：いちばん混む ${rangeLabel(peak.from, peak.to)} でも ${peak.count}人／${data.settings.roomCount}部屋（あと${data.settings.roomCount - peak.count}部屋空き）`}
                     </p>
                   )}
                 </div>
