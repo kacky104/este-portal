@@ -177,8 +177,9 @@ export function CastTabs({
       />
 
       {/* PC（md 以上）: 上のピル型タブ */}
+      {/* ★ 第1739便（カッキーさん）: PC の上のタブからも「今すぐ」を外した（今日のまとめの「今すぐ」から開ける） */}
       <div className="hidden md:flex flex-wrap justify-center gap-2">
-        {tabs.map(([key, label]) => {
+        {mobileTabs.map(([key, label]) => {
           const selected = activeTab === key;
           return (
             <button
