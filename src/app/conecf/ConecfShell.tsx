@@ -84,6 +84,8 @@ export function ConecfShell({
   const cocoaNav = session.state?.cocoaNav ?? false;
   // ★ 2026-11-04: 「シフト管理表」を出すか（SHIFT_SALON_IDS の店だけ）。分かるまでは出さない
   const shiftNav = session.state?.shiftNav ?? false;
+  // ★ 第1740便: 新しい希望の数（お店ごと・表を開くと 0 に戻る）
+  const shiftNew = session.state?.shiftNew ?? 0;
   // ★ 一度も読めていないときだけ、読めなかった案内を出す
   const error = session.error && !session.state ? '読み込めませんでした。しばらくしてから開き直してください。' : '';
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -185,6 +187,11 @@ export function ConecfShell({
           >
             <span className={on ? 'text-white' : 'text-indigo-500'}><NavIcon k={n.key} /></span>
             {n.label}
+            {n.key === 'shift' && shiftNew > 0 && !on && (
+              <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-black leading-[20px] text-white" aria-label={`新しい希望 ${shiftNew}件`}>
+                {shiftNew > 99 ? '99+' : shiftNew}
+              </span>
+            )}
             {on && (
               <span className="hidden md:block absolute -right-px top-1/2 -translate-y-1/2 w-0 h-0 border-y-[8px] border-y-transparent border-r-[8px] border-r-slate-100" />
             )}

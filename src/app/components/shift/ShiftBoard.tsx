@@ -34,7 +34,7 @@ function othersFor(data: ShiftBoardData, therapistId: number, date: string): Occ
   return out;
 }
 
-export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
+export function ShiftBoard({ onToast, onSeen }: { onToast: (m: string) => void; /** ★ 第1740便: 開いて「見た」を進めたあと（コネックエフの左メニューのバッジを読み直す） */ onSeen?: () => void }) {
   const [which, setWhich] = useState<'next' | 'current'>('next');
   const [data, setData] = useState<ShiftBoardData | null>(null);
   const [error, setError] = useState('');
@@ -80,9 +80,9 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
   };
 
   // ★★ 第1732便（カッキーさん）: セラピストが希望を出した・書き直したマスに「NEW」。
-  //   ・「見た」の印はこのブラウザごと（localStorage・店ごと）。画面を開いた時点より前に見たとき以降に出た希望が NEW。
-  //   ・開いたら「見た」を今に進める。★ NEW の札は、この画面を開いているあいだは残す（確定して読み直しても消さない）。
-  //   ・初めて開くブラウザ（印が無い）では NEW を付けない（全部 NEW になるだけなので）。
+  //   ・★ 第1740便: 「見た」の印は【お店ごと】（shift_settings.board_seen_at・どの端末で開いても同じ）。getShiftBoard が開く前の時刻を返し、今に進める。
+  //   ・NEW＝開く前の「見た」より後に出た・書き直した希望。★ NEW の札は、この画面を開いているあいだは残す（最初に開いたときの時刻で見る）。
+  //   ・一度も開いていない店（null）では NEW を付けない（全部 NEW になるだけなので）。
   const seenAtRef = useRef<string | null | undefined>(undefined);
   const [newKeys, setNewKeys] = useState<Set<string>>(() => new Set());
   const load = useCallback(async (w: 'next' | 'current') => {
@@ -90,21 +90,20 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
     if (!r) { setError('読み込めませんでした。しばらくしてから開き直してください。'); return; }
     if (!r.ok) { setError(r.error); return; }
     setError('');
-    const storeKey = `fukues:shift-board-seen:${r.data.salonId}`;
-    if (seenAtRef.current === undefined) {
-      try { seenAtRef.current = window.localStorage.getItem(storeKey); } catch { seenAtRef.current = null; }
-    }
+    const firstLoad = seenAtRef.current === undefined;
+    if (firstLoad) seenAtRef.current = r.data.seenAt;
     const seenAt = seenAtRef.current;
     if (seenAt) {
       const fresh = Object.entries(r.data.requests)
         .filter(([, v]) => v.status === 'requested' && v.submittedAt && v.submittedAt > seenAt).map(([k]) => k);
       if (fresh.length) setNewKeys((p) => new Set([...p, ...fresh]));
     }
-    try { window.localStorage.setItem(storeKey, new Date().toISOString()); } catch { /* 印が書けなくても画面は止めない */ }
+    if (firstLoad) onSeen?.();
     setData(r.data);
     setPeriod(r.data.settings.period);
     setRooms(String(r.data.settings.roomCount));
     setChangeover(r.data.settings.changeoverMin);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { void load(which); }, [load, which]);
 

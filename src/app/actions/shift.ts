@@ -18,6 +18,7 @@ import { readConecfGirlOrder } from '@/app/lib/conecf/girlOrder';
 import { sortTherapistsByManual } from '@/lib/therapistOrder';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { shiftAllowedForSalon } from '@/app/lib/shift/access';
+import { countShiftNew, markShiftBoardSeen, readShiftBoardSeen } from '@/app/lib/shift/newCount';
 import {
   addDays, checkRooms, dateRange, isShiftPeriod, minToHM, roomErrorText, scheduleToMin, shiftPeriods, validRange,
   SHIFT_CHANGEOVER_OPTIONS, SHIFT_ROOM_MAX, type OccupyShift, type ShiftPeriod, type ShiftRequestView,
@@ -181,6 +182,13 @@ async function resolveShop(write: boolean) {
   return { ok: true as const, svc, salonId };
 }
 
+/** ★ 第1740便: マイページの帯に出す「新しい希望」の数（使えない店・読めないときは 0） */
+export async function shiftNewCountForShop(): Promise<number> {
+  const r = await resolveShop(false);
+  if (!r.ok) return 0;
+  return countShiftNew(r.svc, r.salonId);
+}
+
 /** コネックエフ・マイページのメニューに「シフト管理表」を出すか（★ ログイン中の店で判断） */
 export async function shiftBoardEnabled(): Promise<boolean> {
   const r = await resolveShop(false);
@@ -199,6 +207,8 @@ export type ShiftBoardData = {
   requests: Record<string, ShiftRequestView>;
   /** "therapistId#date" → 出勤の正本（前後1日も入れてある＝部屋数の見張り用） */
   schedules: Record<string, { s: number; e: number }>;
+  /** ★ 第1740便: 開く前にお店が最後に見た時刻（これより後の希望が NEW）。一度も開いていない・列が無いときは null */
+  seenAt: string | null;
 };
 
 export async function getShiftBoard(input?: { which?: 'next' | 'current' }): Promise<Result<ShiftBoardData>> {
@@ -210,6 +220,9 @@ export async function getShiftBoard(input?: { which?: 'next' | 'current' }): Pro
   const { data: ts, error } = await r.svc.from('therapists').select('id, name, profile_image_url, is_active').eq('salon_id', r.salonId);
   if (error) return { ok: false, error: error.message };
   const ids = (ts ?? []).map((t) => Number(t.id));
+  // ★ 第1740便: 開く前の「最後に見た時刻」を読んでから、今に進める（お店ごと）
+  const seen = await readShiftBoardSeen(r.svc, r.salonId);
+  if (seen.ok) await markShiftBoardSeen(r.svc, r.salonId);
   const [{ data: reqs }, scheds, order] = await Promise.all([
     ids.length
       ? r.svc.from('shift_requests').select('therapist_id, work_date, req_start_min, req_end_min, note, status, conf_start_min, conf_end_min, submitted_at')
@@ -228,7 +241,7 @@ export async function getShiftBoard(input?: { which?: 'next' | 'current' }): Pro
     data: {
       salonId: r.salonId, settings, which, from: p.from, to: p.to, dates: dateRange(p.from, p.to),
       rows: sortTherapistsByManual(rows, (x) => x.id, (x) => x.name, (x) => !x.isActive, order),
-      requests, schedules: Object.fromEntries(scheds),
+      requests, schedules: Object.fromEntries(scheds), seenAt: seen.seenAt,
     },
   };
 }

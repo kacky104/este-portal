@@ -1,6 +1,7 @@
 'use server';
 
 import { shiftAllowedForSalon } from '@/app/lib/shift/access';
+import { countShiftNew } from '@/app/lib/shift/newCount';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { createServiceClient } from '@/app/lib/supabase/service';
@@ -173,11 +174,11 @@ export async function setConecfActingSalon(input: { salonId: number | null }): P
  * ★ ココアの出し分け: 駅ちかの ID・PASS がある店、または自動投稿がオンの店（第474便）。
  *   ★ 読めなければ出す（★ 止める道を隠さない）。★ 赤帯は読めなければ空（★ 画面は止めない）。
  */
-export type ConecfShellState = { access: ConecfAccess; alerts: MediaLinkAlert[]; cocoaNav: boolean; /** ★ 2026-11-04: シフト管理表を出すか（SHIFT_SALON_IDS） */ shiftNav: boolean };
+export type ConecfShellState = { access: ConecfAccess; alerts: MediaLinkAlert[]; cocoaNav: boolean; /** ★ 2026-11-04: シフト管理表を出すか（SHIFT_SALON_IDS） */ shiftNav: boolean; /** ★ 第1740便: 新しい希望の数（左メニューのバッジ） */ shiftNew: number };
 
 export async function getConecfShellState(): Promise<ConecfShellState> {
   const access = await getConecfAccess();
-  if (!access.ok || access.salonId == null) return { access, alerts: [], cocoaNav: false, shiftNav: false };
+  if (!access.ok || access.salonId == null) return { access, alerts: [], cocoaNav: false, shiftNav: false, shiftNew: 0 };
   const svc = createServiceClient();
   const salonId = access.salonId;
   const [alerts, cocoaNav] = await Promise.all([
@@ -192,7 +193,9 @@ export async function getConecfShellState(): Promise<ConecfShellState> {
       }
     })(),
   ]);
-  return { access, alerts, cocoaNav, shiftNav: shiftAllowedForSalon(salonId) };
+  const shiftNav = shiftAllowedForSalon(salonId);
+  const shiftNew = shiftNav ? await countShiftNew(svc, salonId) : 0;
+  return { access, alerts, cocoaNav, shiftNav, shiftNew };
 }
 
 /**
