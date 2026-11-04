@@ -194,6 +194,8 @@ export type ShiftRequestView = {
   reqS: number; reqE: number; note: string;
   status: 'requested' | 'confirmed';
   confS: number | null; confE: number | null;
+  /** ★ 第1732便: 最後に提出・書き直した時刻（ISO）。管理表の「NEW」に使う */
+  submittedAt?: string;
 };
 export type ShiftDayState =
   | { kind: 'none' }

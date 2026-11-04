@@ -40,13 +40,14 @@ async function readSettings(svc: Svc, salonId: number): Promise<ShiftSettings> {
   };
 }
 
-type ReqRow = { therapist_id: number; work_date: string; req_start_min: number; req_end_min: number; note: string; status: string; conf_start_min: number | null; conf_end_min: number | null };
+type ReqRow = { therapist_id: number; work_date: string; req_start_min: number; req_end_min: number; note: string; status: string; conf_start_min: number | null; conf_end_min: number | null; submitted_at?: string | null };
 function toView(r: ReqRow): ShiftRequestView {
   return {
     reqS: Number(r.req_start_min), reqE: Number(r.req_end_min), note: String(r.note ?? ''),
     status: r.status === 'confirmed' ? 'confirmed' : 'requested',
     confS: r.conf_start_min == null ? null : Number(r.conf_start_min),
     confE: r.conf_end_min == null ? null : Number(r.conf_end_min),
+    submittedAt: r.submitted_at ? String(r.submitted_at) : undefined,
   };
 }
 
@@ -211,7 +212,7 @@ export async function getShiftBoard(input?: { which?: 'next' | 'current' }): Pro
   const ids = (ts ?? []).map((t) => Number(t.id));
   const [{ data: reqs }, scheds, order] = await Promise.all([
     ids.length
-      ? r.svc.from('shift_requests').select('therapist_id, work_date, req_start_min, req_end_min, note, status, conf_start_min, conf_end_min')
+      ? r.svc.from('shift_requests').select('therapist_id, work_date, req_start_min, req_end_min, note, status, conf_start_min, conf_end_min, submitted_at')
           .eq('salon_id', r.salonId).gte('work_date', p.from).lte('work_date', p.to)
       : Promise.resolve({ data: [] as ReqRow[] }),
     readSchedules(r.svc, ids, addDays(p.from, -1), addDays(p.to, 1)),
@@ -292,4 +293,38 @@ export async function saveShiftSettings(input: { period: string; roomCount: numb
   }], { onConflict: 'salon_id' });
   if (error) return { ok: false, error: `保存できませんでした: ${error.message}` };
   return { ok: true, data: { period: input.period, roomCount, changeoverMin } };
+}
+
+// ══════════════ 週間スケジュールの「希望していた人」（第1732便・見るだけ）══════════════
+// ★ 欠勤が出たときの声かけ用（カッキーさん）。その日に希望を出したまま確定していない人（＝出勤が入っていない人）だけ。
+// ★ 見るだけ。ここから出勤には変えない。あとは店舗様がセラピストと直接やり取りする。
+// ★ 使えない店・読めないときは空（週間スケジュールそのものは止めない）。
+export type ShiftWish = { therapistId: number; name: string; s: number; e: number; note: string };
+export async function getShiftWishes(input: { from: string; to: string }): Promise<Record<string, ShiftWish[]>> {
+  try {
+    const r = await resolveShop(false);
+    if (!r.ok) return {};
+    const from = String(input.from ?? ''), to = String(input.to ?? '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from || to > addDays(from, 40)) return {};
+    const { data: reqs } = await r.svc.from('shift_requests').select('therapist_id, work_date, req_start_min, req_end_min, note')
+      .eq('salon_id', r.salonId).eq('status', 'requested').gte('work_date', from).lte('work_date', to);
+    if (!reqs || reqs.length === 0) return {};
+    const ids = [...new Set(reqs.map((x) => Number(x.therapist_id)))];
+    const [{ data: ts }, scheds] = await Promise.all([
+      r.svc.from('therapists').select('id, name').eq('salon_id', r.salonId).in('id', ids),
+      readSchedules(r.svc, ids, from, to),
+    ]);
+    const names = new Map((ts ?? []).map((t) => [Number(t.id), String(t.name ?? '')]));
+    const out: Record<string, ShiftWish[]> = {};
+    for (const x of reqs) {
+      const tid = Number(x.therapist_id), d = String(x.work_date);
+      if (!names.has(tid)) continue;
+      if (scheds.has(`${tid}#${d}`)) continue; // ★ 週間スケジュールで出勤が入っている人は出さない
+      (out[d] ??= []).push({ therapistId: tid, name: names.get(tid)!, s: Number(x.req_start_min), e: Number(x.req_end_min), note: String(x.note ?? '') });
+    }
+    for (const d of Object.keys(out)) out[d].sort((a, b) => a.s - b.s);
+    return out;
+  } catch {
+    return {};
+  }
 }

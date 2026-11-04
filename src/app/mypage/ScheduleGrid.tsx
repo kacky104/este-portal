@@ -9,6 +9,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { startTimeOptions, endTimeOptions, shiftLabel } from '@/lib/conecfSchedule';
+// ★ 第1732便: 日付の「希望していた人」バッジ（これだけは自分で読む・見るだけ）
+import { ShiftWishBadge, useShiftWishes } from '@/app/components/shift/ShiftWishBadge';
 
 export type GridDay = { is_active: boolean; start_time: string | null; end_time: string | null };
 export type GridTherapist = { id: string; name: string | null; imageUrl: string | null; isActive: boolean; isNew: boolean };
@@ -36,6 +38,7 @@ export function ScheduleGrid(props: {
   const [open, setOpen] = useState<{ id: string; date: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const wishes = useShiftWishes(days, saved);
   const key = (id: string, date: string) => `${id}#${date}`;
   const savedOf = (id: string, date: string): GridDay => saved[id]?.[date] ?? EMPTY;
   const cellOf = (id: string, date: string): GridDay => edits[key(id, date)] ?? savedOf(id, date);
@@ -98,6 +101,7 @@ export function ScheduleGrid(props: {
                     <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
                     <div className="mt-0.5">
                       <span className={`inline-block min-w-[34px] px-1.5 py-px text-[11px] font-black tabular-nums ${n > 0 ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'}`}>{n}名</span>
+                      <ShiftWishBadge date={d} wishes={wishes[d]} />
                     </div>
                   </th>
                 );

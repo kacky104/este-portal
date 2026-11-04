@@ -8,6 +8,7 @@ import { useToast } from '@/app/components/useToast';
 import { matchesSearch } from '@/lib/searchNormalize';
 import { getConecfSchedule, saveConecfSchedule, setConecfScheduleDays, type ConecfScheduleRow } from '@/app/actions/conecfSchedule';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
+import { ShiftWishBadge, useShiftWishes } from '@/app/components/shift/ShiftWishBadge';
 import { startTimeOptions, endTimeOptions, shiftLabel, CONECF_SCHEDULE_DAYS, CONECF_SCHEDULE_DAYS_MAX, CONECF_SCHEDULE_DAYS_MIN, type ConecfShift } from '@/lib/conecfSchedule';
 
 // コネックエフ「週間スケジュール」（第399便・1d・2026-09-17）。
@@ -116,6 +117,9 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     await load();
   };
 
+  // ★ 第1732便: シフト提出で希望を出したまま出勤が入っていない人（日付の出勤数の右横・見るだけ）。保存して読み直したら数え直す
+  const wishes = useShiftWishes(dates, rows);
+
   if (error) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>;
   if (!rows) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
 
@@ -183,6 +187,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                       }`}>
                         {countOf(d)}名
                       </span>
+                      <ShiftWishBadge date={d} wishes={wishes[d]} />
                     </div>
                   </th>
                 );
