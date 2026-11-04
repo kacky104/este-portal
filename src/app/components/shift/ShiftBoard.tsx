@@ -96,6 +96,14 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
     return { req, conf };
   }, [data]);
 
+  // ★ 第1729便（カッキーさん）: 日付ごとの「希望を出した人数」（確定済みも入れる＝その日に提出した人の数）
+  const reqPerDate = useMemo(() => {
+    const m: Record<string, number> = {};
+    if (!data) return m;
+    for (const k of Object.keys(data.requests)) { const d = k.split('#')[1]; m[d] = (m[d] ?? 0) + 1; }
+    return m;
+  }, [data]);
+
   const precheck = (therapistId: number, date: string, s: number, e: number) => {
     if (!data || data.settings.roomCount <= 0) return null;
     const r = checkRooms({ date, s, e }, othersFor(data, therapistId, date), data.settings.roomCount, data.settings.changeoverMin);
@@ -176,7 +184,14 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
             <tr>
               <th className="sticky left-0 z-10 bg-slate-50 border-b border-r border-slate-200 px-3 py-2 text-left font-bold text-slate-600 min-w-[120px]">セラピスト</th>
               {data.dates.map((d) => (
-                <th key={d} className={`bg-slate-50 border-b border-r border-slate-200 px-2 py-2 font-bold whitespace-nowrap min-w-[112px] ${shiftDateTone(d)}`}>{shiftDateLabel(d)}</th>
+                <th key={d} className={`bg-slate-50 border-b border-r border-slate-200 px-2 py-2 font-bold whitespace-nowrap min-w-[112px] ${shiftDateTone(d)}`}>
+                  {shiftDateLabel(d)}
+                  {/* ★ 第1729便: 希望を出した人数のバッジ（0人は薄く） */}
+                  <span className={`ml-1.5 inline-flex min-w-[20px] items-center justify-center px-1.5 text-[11px] font-black leading-[18px] tabular-nums align-middle ${
+                    (reqPerDate[d] ?? 0) > 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-400'}`} title="希望を出した人数">
+                    {reqPerDate[d] ?? 0}名
+                  </span>
+                </th>
               ))}
             </tr>
           </thead>
