@@ -2894,10 +2894,10 @@ async function exportCrmCsvInner(
     const phones = new Map<number, string[]>();
     ph.forEach((p) => { const k = Number(p.customer_id); phones.set(k, [...(phones.get(k) ?? []), String(p.phone)]); });
     const label: Record<string, string> = { general: '一般', ng: '出禁' }; // ★ 第1742便: 会員・常連・VIP はやめた → 一般
-    const rows: unknown[][] = [['顧客ID', '名前', 'フリガナ', '電話番号', '分類', '会員番号', '女子NG', '要注意メモ', 'メモ', '登録日時', '更新日時']];
+    const rows: unknown[][] = [['顧客ID', '名前', 'フリガナ', '電話番号', '分類', '女子NG', '要注意メモ', 'メモ', '登録日時', '更新日時']];
     cs.forEach((c) => rows.push([
       c.id, c.name, c.name_kana, (phones.get(Number(c.id)) ?? []).join(' / '), label[String(c.category)] ?? '一般',
-      c.member_no, ((c.ng_therapist_ids as number[] | null) ?? []).map((id) => names.get(Number(id)) ?? id).join(' / '),
+      ((c.ng_therapist_ids as number[] | null) ?? []).map((id) => names.get(Number(id)) ?? id).join(' / '),
       c.caution_memo, c.memo, jst(c.created_at), jst(c.updated_at),
     ]));
     return { ok: true, csv: toCsv(rows), count: cs.length };

@@ -152,10 +152,7 @@ function CustomerForm({
             {CRM_CATEGORIES.map((c) => <option key={c} value={c}>{CRM_CATEGORY_LABEL[c]}</option>)}
           </select>
         </div>
-        <div>
-          <label className={labelCls}>会員番号</label>
-          <input className={inputCls} value={f.memberNo} maxLength={20} onChange={(e) => set('memberNo', e.target.value)} />
-        </div>
+        {/* ★ 第1743便: 会員番号の欄はやめた（カッキーさん 11/5）。今の値は f.memberNo に持ったまま保存する＝消えない */}
       </div>
       <div>
         <label className={labelCls}>電話番号（複数あるときは改行で区切る・5件まで）</label>
@@ -307,8 +304,6 @@ function CustomerDetail({
           <dl className="mt-3 grid grid-cols-[6.5em_1fr] gap-y-1.5 text-[14px]">
             <dt className="font-bold text-slate-400">電話番号</dt>
             <dd className="text-slate-800">{c.phones.length ? c.phones.map(fmtPhone).join('／') : '—'}</dd>
-            <dt className="font-bold text-slate-400">会員番号</dt>
-            <dd className="text-slate-800">{c.memberNo || '—'}</dd>
             <dt className="font-bold text-slate-400">女子NG</dt>
             <dd className={ngNames.length ? 'font-bold text-rose-600' : 'text-slate-800'}>{ngNames.length ? ngNames.join('・') : '—'}</dd>
             <dt className="font-bold text-slate-400">メモ</dt>
@@ -467,7 +462,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="名前・電話（下4桁でも）・会員番号"
+                placeholder="名前・電話（下4桁でも）"
                 className={inputCls}
                 inputMode="search"
               />
@@ -478,7 +473,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
             </div>
             <p className="mt-1.5 text-[11px] text-slate-400">
               {/* ★ 記入例が欄の幅で切れるので、探せるものはここに書く（第642便） */}
-              {query ? (loadingList ? '探しています…' : (list.length >= 50 ? '50人まで表示しています（言葉を足して絞ってください）' : `${list.length}人見つかりました`)) : '名前・フリガナ・電話（下4桁でも）・会員番号・メモの言葉で探せます。「要注意」「出禁」で、その印のお客様をまとめて出せます。いまは最近更新したお客様（50人まで）'}
+              {query ? (loadingList ? '探しています…' : (list.length >= 50 ? '50人まで表示しています（言葉を足して絞ってください）' : `${list.length}人見つかりました`)) : '名前・フリガナ・電話（下4桁でも）・メモの言葉で探せます。「要注意」「出禁」で、その印のお客様をまとめて出せます。いまは最近更新したお客様（50人まで）'}
             </p>
           </div>
           {listErr && <p className="p-3 text-[13px] font-bold text-rose-600">{listErr}</p>}

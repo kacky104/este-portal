@@ -142,7 +142,6 @@ function DormantSection({ salonId, adminSalonQuery }: { salonId: number; adminSa
             <div key={c.id} className="px-3 py-2">
               <div className="flex items-center gap-2 text-[13px]">
                 <Link href={`${crm.href('/customers')}${sep}customer=${c.id}`} className="font-bold text-[#3f51b5] underline decoration-dotted underline-offset-2">{c.name || '(名前なし)'}</Link>
-                {c.memberNo && <span className="text-[11px] text-slate-400">{c.memberNo}</span>}
                 <span className="ml-auto whitespace-nowrap font-bold text-slate-800">{c.daysAgo}日</span>
               </div>
               <p className="text-[11px] text-slate-500">{CRM_CATEGORY_LABEL[c.category]}・利用 {c.visits}回・最終 {ymd(c.lastVisitISO)}</p>
@@ -159,7 +158,6 @@ function DormantSection({ salonId, adminSalonQuery }: { salonId: number; adminSa
                 <tr key={c.id}>
                   <td className="px-3 py-1.5">
                     <Link href={`${crm.href('/customers')}${sep}customer=${c.id}`} className="font-bold text-[#3f51b5] underline decoration-dotted underline-offset-2">{c.name || '(名前なし)'}</Link>
-                    {c.memberNo && <span className="ml-1 text-[11px] text-slate-400">{c.memberNo}</span>}
                   </td>
                   <td className="px-2 text-[12px] text-slate-600">{CRM_CATEGORY_LABEL[c.category]}</td>
                   <td className="px-2 text-right">{c.visits}回</td>
