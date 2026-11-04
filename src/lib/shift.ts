@@ -199,7 +199,8 @@ export type ShiftRequestView = {
 };
 export type ShiftDayState =
   | { kind: 'none' }
-  | { kind: 'requested'; req: string }
+  /** cancelledConf … ★ 第1738便: お店が確定を取り消した日（取り消す前の確定の時間）。書き直すと消える */
+  | { kind: 'requested'; req: string; cancelledConf: string | null }
   | { kind: 'confirmed'; conf: string; changedFromReq: string | null }
   | { kind: 'changed'; now: string; conf: string }
   | { kind: 'off'; conf: string }
@@ -214,7 +215,7 @@ export function shiftDayState(req: ShiftRequestView | null, sched: { s: number; 
     const changed = req.reqS !== req.confS || req.reqE !== req.confE;
     return { kind: 'confirmed', conf, changedFromReq: changed ? rangeLabel(req.reqS, req.reqE) : null };
   }
-  if (req) return { kind: 'requested', req: rangeLabel(req.reqS, req.reqE) };
+  if (req) return { kind: 'requested', req: rangeLabel(req.reqS, req.reqE), cancelledConf: req.confS != null && req.confE != null ? rangeLabel(req.confS, req.confE) : null };
   if (sched) return { kind: 'direct', now: rangeLabel(sched.s, sched.e) };
   return { kind: 'none' };
 }

@@ -295,7 +295,7 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
                             {newKeys.has(key) && <span className="mr-1 px-0.5 text-[9px] font-black leading-[13px] align-[1px] bg-rose-500 text-white">NEW</span>}
                             {rangeShort(req.reqS, req.reqE)}
                           </span>
-                          <span className={`block truncate text-[11px] font-bold ${warn ? 'text-rose-600' : 'text-amber-700'}`}>{warn ? '希望・部屋オーバー' : '希望'}</span>
+                          <span className={`block truncate text-[11px] font-bold ${warn ? 'text-rose-600' : 'text-amber-700'}`}>{warn ? '希望・部屋オーバー' : st.cancelledConf ? '希望（確定取消）' : '希望'}</span>
                           <span className="block truncate text-[11px] text-amber-700" title={req.note}>{req.note}</span>
                         </>)}
                         {st.kind === 'confirmed' && req && req.confS != null && req.confE != null && (<>
@@ -377,7 +377,7 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
                       className="w-full text-left py-2.5 px-1 flex items-start gap-3 hover:bg-slate-50 disabled:opacity-50">
                       <span className={`shrink-0 mt-0.5 px-1.5 text-[11px] font-black leading-[18px] ${
                         st.kind === 'requested' ? 'bg-amber-100 text-amber-800' : st.kind === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-700'}`}>
-                        {st.kind === 'requested' ? '希望' : st.kind === 'confirmed' ? '確定' : st.kind === 'off' ? 'お休みに変更' : '変更'}
+                        {st.kind === 'requested' ? (st.cancelledConf ? '希望（確定取消）' : '希望') : st.kind === 'confirmed' ? '確定' : st.kind === 'off' ? 'お休みに変更' : '変更'}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-[15px] font-bold text-slate-800 truncate">

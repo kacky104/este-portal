@@ -359,7 +359,9 @@ export async function unconfirmShift(input: { therapistId: number; date: string 
     removed = true;
   }
   const { error: e2 } = await r.svc.from('shift_requests')
-    .update({ status: 'requested', conf_start_min: null, conf_end_min: null, confirmed_at: null, updated_at: new Date().toISOString() })
+    // ★ 第1738便: conf_* は残す（status=requested＋conf あり＝「お店が確定を取り消した」印。セラピストページに出す）。
+    //   セラピストが書き直す（saveCastShift が conf を null にする）か、もう一度確定すると消える。表の制約（status='requested' なら conf は何でもよい）に合う
+    .update({ status: 'requested', confirmed_at: null, updated_at: new Date().toISOString() })
     .eq('therapist_id', therapistId).eq('work_date', date);
   if (e2) return { ok: false, error: `希望に戻せませんでした: ${e2.message}` };
   return { ok: true, data: { removed } };

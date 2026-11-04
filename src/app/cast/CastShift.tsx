@@ -19,7 +19,12 @@ function md(ymd: string) { const [, m, d] = ymd.split('-').map(Number); return `
 function StateLine({ st }: { st: ShiftDayState }) {
   switch (st.kind) {
     case 'none': return <span className="text-slate-400">—</span>;
-    case 'requested': return <span className="text-amber-700 font-bold">{st.req} 希望<span className="ml-1 text-[11px] font-normal text-amber-600">（未確定）</span></span>;
+    case 'requested': return (
+      <span className="text-amber-700 font-bold">
+        {st.req} 希望<span className="ml-1 text-[11px] font-normal text-amber-600">（未確定）</span>
+        {st.cancelledConf && <span className="block text-[11px] font-bold text-rose-600">お店が確定を取り消しました（確定 {st.cancelledConf}）</span>}
+      </span>
+    );
     case 'confirmed': return (
       <span className="font-bold text-emerald-700">
         {st.conf} で確定しました
@@ -143,9 +148,12 @@ export function CastShift() {
                       placeholder="ひとこと（例：終わりは延長できます）" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" />
                   </div>
                 )}
-                {!locked && d.req?.status === 'requested' && (
-                  <p className="mt-1 text-[11px] text-amber-600">提出済み・お店の確定待ち</p>
-                )}
+                {!locked && d.req?.status === 'requested' && (() => {
+                  const st2 = shiftDayState(d.req, d.sched);
+                  return st2.kind === 'requested' && st2.cancelledConf
+                    ? <p className="mt-1 text-[12px] font-bold text-rose-600">お店が確定を取り消しました（確定 {st2.cancelledConf}）。もう一度確定されるまでは希望のままです</p>
+                    : <p className="mt-1 text-[11px] text-amber-600">提出済み・お店の確定待ち</p>;
+                })()}
               </li>
             );
           })}
