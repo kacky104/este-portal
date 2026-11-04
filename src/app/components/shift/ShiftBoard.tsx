@@ -34,26 +34,6 @@ function othersFor(data: ShiftBoardData, therapistId: number, date: string): Occ
   return out;
 }
 
-/** その日の出勤の正本で、同時にいちばん多い人数と時間帯（入れ替え時間は入れない・前日の深夜までも数える） */
-function peakOnDate(data: ShiftBoardData, date: string): { count: number; from: number; to: number } {
-  const prev = (() => { const [y, m, d] = date.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10); })();
-  const iv: Array<[number, number]> = [];
-  for (const [k, m] of Object.entries(data.schedules)) {
-    const d = k.split('#')[1];
-    if (d === date) iv.push([m.s, m.e]);
-    else if (d === prev && m.e > 1440 + 360) iv.push([m.s - 1440, m.e - 1440]);
-  }
-  const pts = [...new Set(iv.flat())].sort((a, b) => a - b);
-  let best = { count: 0, from: 0, to: 0 };
-  for (let i = 0; i < pts.length - 1; i++) {
-    const a = pts[i], b = pts[i + 1];
-    const n = iv.filter(([x, y]) => x < b && y > a).length;
-    if (n > best.count) best = { count: n, from: a, to: b };
-    else if (n === best.count && n > 0 && best.to === a) best.to = b;
-  }
-  return best;
-}
-
 export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
   const [which, setWhich] = useState<'next' | 'current'>('next');
   const [data, setData] = useState<ShiftBoardData | null>(null);
@@ -363,7 +343,6 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
           .sort((a, b) => (a.req!.status === b.req!.status ? 0 : a.req!.status === 'requested' ? -1 : 1) || a.req!.reqS - b.req!.reqS);
         const direct = data.rows.filter((t) => !data.requests[`${t.id}#${d}`] && data.schedules[`${t.id}#${d}`]);
         const nReq = items.filter((x) => x.req!.status === 'requested').length;
-        const peak = peakOnDate(data, d);
         return (
           <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setDayList(null)}>
             <div className="w-full sm:max-w-lg max-h-[85vh] overflow-y-auto bg-white p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
@@ -371,16 +350,6 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
                 <div>
                   <p className={`text-[17px] font-black ${shiftDateTone(d)}`}>{shiftDateLabel(d)} の希望</p>
                   <p className="text-[13px] text-slate-500">希望 {nReq}名・確定 {items.length - nReq}名{direct.length > 0 && `・週間スケジュールで直接 ${direct.length}名`}</p>
-                  {data.settings.roomCount > 0 && (
-                    <p className={`text-[13px] font-bold ${peak.count > data.settings.roomCount ? 'text-rose-600' : 'text-slate-600'}`}>
-                      {/* ★ 第1733便（カッキーさん「意味がわかりません」）: 言い方を「部屋の空き」に。数えるのは出勤が入っている人（確定＋週間スケジュール） */}
-                      {peak.count === 0
-                        ? `部屋の空き：まだ出勤が入っていません（${data.settings.roomCount}部屋すべて空き）`
-                        : peak.count > data.settings.roomCount
-                          ? `部屋の空き：いちばん混む ${rangeLabel(peak.from, peak.to)} に ${peak.count}人／${data.settings.roomCount}部屋（${peak.count - data.settings.roomCount}人オーバー）`
-                          : `部屋の空き：いちばん混む ${rangeLabel(peak.from, peak.to)} でも ${peak.count}人／${data.settings.roomCount}部屋（あと${data.settings.roomCount - peak.count}部屋空き）`}
-                    </p>
-                  )}
                 </div>
                 <button type="button" onClick={() => setDayList(null)} className="shrink-0 px-3 py-1.5 border border-slate-300 text-[13px] font-bold text-slate-600">閉じる</button>
               </div>
