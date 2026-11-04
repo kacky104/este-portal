@@ -328,3 +328,39 @@ export async function getShiftWishes(input: { from: string; to: string }): Promi
     return {};
   }
 }
+
+/**
+ * ★ 第1737便（カッキーさん）: 確定を取り消して希望に戻す。
+ * ★ 週間スケジュールの出勤も消す（お休みに戻す）。ただし【確定したのと同じ時間のときだけ】。
+ *   週間スケジュールで時間を直していた日は、店舗様が手で入れた出勤なので消さない（removed=false で返す）。
+ * ★ 過ぎた日は取り消さない。
+ */
+export async function unconfirmShift(input: { therapistId: number; date: string }): Promise<Result<{ removed: boolean }>> {
+  const r = await resolveShop(true);
+  if (!r.ok) return r;
+  const therapistId = Math.trunc(Number(input.therapistId));
+  const date = String(input.date ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: '日付が正しくありません' };
+  if (date < getBusinessDateJST()) return { ok: false, error: '過ぎた日は取り消せません' };
+  const { data: req } = await r.svc.from('shift_requests').select('status, conf_start_min, conf_end_min')
+    .eq('salon_id', r.salonId).eq('therapist_id', therapistId).eq('work_date', date).maybeSingle();
+  if (!req) return { ok: false, error: 'この日の希望が見つかりません。読み直してください' };
+  if (req.status !== 'confirmed') return { ok: false, error: 'この日はまだ確定していません' };
+
+  // ── 週間スケジュールの出勤（確定と同じ時間のときだけ外す）──
+  let removed = false;
+  const scheds = await readSchedules(r.svc, [therapistId], date, date);
+  const now = scheds.get(`${therapistId}#${date}`);
+  if (now && now.s === Number(req.conf_start_min) && now.e === Number(req.conf_end_min)) {
+    const { error } = await r.svc.from('therapist_schedules').upsert([{
+      therapist_id: therapistId, schedule_date: date, is_active: false, start_time: null, end_time: null, imported_at: null,
+    }], { onConflict: 'therapist_id,schedule_date' });
+    if (error) return { ok: false, error: `週間スケジュールの出勤を外せませんでした: ${error.message}` };
+    removed = true;
+  }
+  const { error: e2 } = await r.svc.from('shift_requests')
+    .update({ status: 'requested', conf_start_min: null, conf_end_min: null, confirmed_at: null, updated_at: new Date().toISOString() })
+    .eq('therapist_id', therapistId).eq('work_date', date);
+  if (e2) return { ok: false, error: `希望に戻せませんでした: ${e2.message}` };
+  return { ok: true, data: { removed } };
+}

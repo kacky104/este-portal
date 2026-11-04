@@ -8,7 +8,7 @@
 // ★ 確定のあと週間スケジュールで直した日は「変更」と出す（セラピストページにも出る）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { confirmShift, getShiftBoard, saveShiftSettings, type ShiftBoardData } from '@/app/actions/shift';
+import { confirmShift, unconfirmShift, getShiftBoard, saveShiftSettings, type ShiftBoardData } from '@/app/actions/shift';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import {
   checkRooms, endOptions, minLabel, rangeLabel, rangeShort, roomErrorText, shiftDateLabel, shiftDateTone, shiftDayState, startOptions,
@@ -43,12 +43,15 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
   const [dayList, setDayList] = useState<string | null>(null);
   const openConfirm = (therapistId: number, name: string, date: string, req: ShiftRequestView) => {
     setModalError('');
+    setUndoAsk(false);
     setOpen({ therapistId, name, date, req,
       s: req.status === 'confirmed' && req.confS != null ? req.confS : req.reqS,
       e: req.status === 'confirmed' && req.confE != null ? req.confE : req.reqE });
   };
   const [busy, setBusy] = useState(false);
   const [modalError, setModalError] = useState('');
+  // ★ 第1737便: 確定の取り消し（押すともう一度聞く）
+  const [undoAsk, setUndoAsk] = useState(false);
   // 設定（画面で直している途中の値）
   const [period, setPeriod] = useState<ShiftPeriod>('1w');
   const [rooms, setRooms] = useState('0');
@@ -161,6 +164,20 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
     void revalidateSalon(data.salonId);
     void revalidateTherapist(open.therapistId);
     onToast(`${open.name} さん ${shiftDateLabel(open.date)} ${rangeLabel(open.s, open.e)} を確定しました`);
+    setOpen(null);
+    await load(which);
+  };
+
+  const onUnconfirm = async () => {
+    if (!open || !data) return;
+    setBusy(true); setModalError('');
+    const r = await unconfirmShift({ therapistId: open.therapistId, date: open.date }).catch(() => null);
+    setBusy(false);
+    if (!r || !r.ok) { setModalError(r && !r.ok ? r.error : '取り消せませんでした。もう一度お試しください。'); return; }
+    if (r.data.removed) { void revalidateSalon(data.salonId); void revalidateTherapist(open.therapistId); }
+    onToast(r.data.removed
+      ? `${open.name} さん ${shiftDateLabel(open.date)} の確定を取り消し、週間スケジュールの出勤も外しました`
+      : `${open.name} さん ${shiftDateLabel(open.date)} の確定を取り消しました（週間スケジュールで時間を直していたため、出勤はそのまま残しています）`);
     setOpen(null);
     await load(which);
   };
@@ -419,11 +436,25 @@ export function ShiftBoard({ onToast }: { onToast: (m: string) => void }) {
             {modalCheck && <p className="text-[13px] font-bold text-rose-600">{modalCheck}</p>}
             {modalError && <p className="text-[13px] font-bold text-rose-600">{modalError}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setOpen(null)} disabled={busy} className="flex-1 py-2.5 border border-slate-300 text-[15px] font-bold text-slate-600">やめる</button>
+              <button type="button" onClick={() => setOpen(null)} disabled={busy} className="flex-1 py-2.5 border border-slate-300 text-[15px] font-bold text-slate-600">閉じる</button>
               <button type="button" onClick={() => void onConfirm()} disabled={busy || !!modalCheck} className={`flex-1 py-2.5 text-[15px] ${BTN}`}>
                 {busy ? '確定しています…' : '確定する'}
               </button>
             </div>
+            {/* ★ 第1737便: 確定済みのときだけ「確定を取り消す（希望に戻す）」 */}
+            {open.req.status === 'confirmed' && (
+              undoAsk ? (
+                <div className="border border-rose-200 bg-rose-50 p-3 space-y-2">
+                  <p className="text-[13px] font-bold text-rose-700">確定を取り消して希望に戻します。週間スケジュールの出勤も外れます（週間スケジュールで時間を直していた日は残します）。</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setUndoAsk(false)} disabled={busy} className="flex-1 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600">やめておく</button>
+                    <button type="button" onClick={() => void onUnconfirm()} disabled={busy} className="flex-1 py-2 bg-rose-600 text-white text-[14px] font-bold disabled:opacity-50">{busy ? '取り消しています…' : '取り消す'}</button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setUndoAsk(true)} disabled={busy} className="w-full py-2 border border-rose-300 text-[14px] font-bold text-rose-600 hover:bg-rose-50">確定を取り消す（希望に戻す）</button>
+              )
+            )}
             <p className="text-[12px] text-slate-400">確定すると週間スケジュールに入り、サイトに出ます（駅ちか・エステ魂へは自動更新で30分以内）。</p>
           </div>
         </div>
