@@ -4544,7 +4544,7 @@ export default function MyPage() {
           {/* ★ 2026-11-04: シフト管理表（セラピストの希望を確定）。使える店だけ・コネックエフの店はコネックエフの左メニューから */}
           {shiftOn && (
             <div className="bg-amber-50 rounded-none border border-amber-200 p-4 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-black text-amber-800">セラピストから出たシフトの希望を確定できます</p>
+              <p className="text-xs font-black text-amber-800">セラピストページから出たシフトの希望を確定できます</p>
               <a href={conecfOn ? 'https://conecf.com/shift' : '/mypage/shift'} target={conecfOn ? '_blank' : undefined} rel={conecfOn ? 'noopener noreferrer' : undefined}
                 className="inline-block text-xs font-bold text-amber-700 underline">シフト希望管理表を開く ›</a>
             </div>
