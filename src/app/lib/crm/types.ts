@@ -2,23 +2,20 @@
 
 import type { CrmGroupHit } from '@/lib/crmGroup';
 
-export const CRM_CATEGORIES = ['general', 'member', 'regular', 'vip', 'ng'] as const;
+// ★ 第1742便（2026-11-05 カッキーさん）: 分類は「一般」と「出禁（お店に出入り禁止）」の2つだけ。
+//   会員・常連・VIP はやめた。DB の check（general/member/regular/vip/ng）と古い値はそのまま残し、
+//   読むときに toCrmCategory で一般に寄せる（SQL なし）。'ng' の表示は「NG」→「出禁」（女子NG＝セラピストごとの受付禁止と取り違えないため）。
+export const CRM_CATEGORIES = ['general', 'ng'] as const;
 export type CrmCategory = (typeof CRM_CATEGORIES)[number];
 
 export const CRM_CATEGORY_LABEL: Record<CrmCategory, string> = {
   general: '一般',
-  member: '会員',
-  regular: '常連',
-  vip: 'VIP',
-  ng: 'NG',
+  ng: '出禁',
 };
 
 /** 分類バッジの色（Tailwind のクラス） */
 export const CRM_CATEGORY_CLASS: Record<CrmCategory, string> = {
   general: 'bg-slate-100 text-slate-600 border-slate-200',
-  member: 'bg-sky-50 text-sky-700 border-sky-200',
-  regular: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  vip: 'bg-amber-50 text-amber-700 border-amber-300',
   ng: 'bg-rose-600 text-white border-rose-600',
 };
 

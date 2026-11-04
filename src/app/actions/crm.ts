@@ -338,7 +338,7 @@ export async function searchCrmCustomers(
     if (error) return { ok: false, error: dbMessage(error) };
     rows = (data ?? []) as CustomerDbRow[];
 
-    // ★ 第1492便（カッキーさん）: 印の名前で探す。「要注意」＝要注意メモがあるお客様全員、「NG」「VIP」「常連」「会員」＝その分類のお客様全員。
+    // ★ 第1492便（カッキーさん）: 印の名前で探す。「要注意」＝要注意メモがあるお客様全員、「出禁」（「NG」でも）＝出禁のお客様全員（第1742便で分類は一般・出禁の2つに）。
     //   言葉そのものがメモに書いてある人（上の結果）とまとめて、更新の新しい順に50人まで。
     const special = specialSearchOf(q);
     if (special) {
@@ -422,6 +422,7 @@ export async function listCrmDormantCustomers(
 function specialSearchOf(q: string): { kind: 'caution' } | { kind: 'category'; category: CrmCategory } | null {
   const w = q.normalize('NFKC').trim().toUpperCase();
   if (w === '要注意') return { kind: 'caution' };
+  if (w === 'NG') return { kind: 'category', category: 'ng' }; // ★ 第1742便: 前の呼び方「NG」でも出禁を出す
   for (const c of CRM_CATEGORIES) {
     if (c === 'general') continue;
     if (CRM_CATEGORY_LABEL[c].toUpperCase() === w) return { kind: 'category', category: c };
@@ -2892,10 +2893,10 @@ async function exportCrmCsvInner(
       svc.from('salon_customer_phones').select('customer_id, phone').eq('salon_id', salonId).order('id').range(from, to));
     const phones = new Map<number, string[]>();
     ph.forEach((p) => { const k = Number(p.customer_id); phones.set(k, [...(phones.get(k) ?? []), String(p.phone)]); });
-    const label: Record<string, string> = { general: '一般', member: '会員', regular: '常連', vip: 'VIP', ng: 'NG' };
+    const label: Record<string, string> = { general: '一般', ng: '出禁' }; // ★ 第1742便: 会員・常連・VIP はやめた → 一般
     const rows: unknown[][] = [['顧客ID', '名前', 'フリガナ', '電話番号', '分類', '会員番号', '女子NG', '要注意メモ', 'メモ', '登録日時', '更新日時']];
     cs.forEach((c) => rows.push([
-      c.id, c.name, c.name_kana, (phones.get(Number(c.id)) ?? []).join(' / '), label[String(c.category)] ?? String(c.category),
+      c.id, c.name, c.name_kana, (phones.get(Number(c.id)) ?? []).join(' / '), label[String(c.category)] ?? '一般',
       c.member_no, ((c.ng_therapist_ids as number[] | null) ?? []).map((id) => names.get(Number(id)) ?? id).join(' / '),
       c.caution_memo, c.memo, jst(c.created_at), jst(c.updated_at),
     ]));

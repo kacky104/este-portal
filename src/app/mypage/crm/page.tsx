@@ -1223,7 +1223,7 @@ function BookingCard({
           if (!nb) return null;
           return <span className={`px-1 text-[10px] font-bold ${CRM_NOMINATION_CLASS[nb]}`}>{nb}</span>;
         })()}
-        {/* ★ 「一般」は出さない（枠の場所をとるため・2026-09-19 カッキーさんの指示）。会員・常連・VIP・NG だけ */}
+        {/* ★ 「一般」は出さない（枠の場所をとるため・2026-09-19 カッキーさんの指示）。★ 第1742便: 分類は一般・出禁の2つ → 出禁だけ */}
         {c && c.category !== 'general' && <span className={`border px-1 text-[10px] font-bold leading-none ${CRM_CATEGORY_CLASS[c.category]}`}>{CRM_CATEGORY_LABEL[c.category]}</span>}
         {/* ★ 第1514便: 1件目の予約（キャンセル込み・入れた順）は「新規」。紫＝ほかのバッジと色を重ねない */}
         {b.ordinal === 1 && <span className="flex-none bg-violet-600 px-1 text-[10px] font-bold text-white">新規</span>}
@@ -1878,7 +1878,7 @@ function BookingForm({
                   </span>
                 </div>
                 {customer.cautionMemo && <p className="mt-1.5 whitespace-pre-line text-[13px] font-bold text-rose-700">要注意：{customer.cautionMemo}</p>}
-                {customer.category === 'ng' && <p className="mt-1.5 bg-rose-600 px-2 py-1 text-[13px] font-bold text-white">このお客様は分類が「NG」です</p>}
+                {customer.category === 'ng' && <p className="mt-1.5 bg-rose-600 px-2 py-1 text-[13px] font-bold text-white">このお客様は「出禁」です</p>}
               </div>
             )}
             {/* ★ 第1325便: グループ・提携店の共有リストに当たったとき（★ 出すだけ。受付は止めない） */}
