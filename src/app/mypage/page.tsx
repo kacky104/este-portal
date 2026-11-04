@@ -2909,6 +2909,8 @@ export default function MyPage() {
   //   ★ 色は要対応のピンク。赤（rose）は /admin のメール不達＝取りこぼし専用なので使わない。
   const navBadge = (key: TabKey): number | null => {
     if (key === 'booking' && bookingNewCount > 0) return bookingNewCount;
+    // ★ 第1741便（カッキーさん）: 出勤の横に「新しい希望」の数（シフト提出・お店ごと・シフト希望管理表を開くと 0）
+    if (key === 'schedule' && shiftNew > 0) return shiftNew;
     // ★ 第1176便: 運営事務局のバッジ＝今までの未読（owner_notices）＋ 運営からのお知らせ（ops_notices）の新着
     if (key === 'support' && supportUnread + opsUnseen > 0) return supportUnread + opsUnseen;
     return null;
