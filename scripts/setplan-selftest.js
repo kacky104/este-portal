@@ -49,8 +49,8 @@ console.log('\n── 4. ★★★ 書き方（第1381便・2026-10-10・カッ�
   const shown = [S.SET_PLAN_NAME, S.SET_PLAN_LINE, S.CONECF_OPTION_LINE, S.CONECF_ONLY_LINE, S.SET_PLAN_NEED_MESSAGE, S.CONECF_STOPPED_MESSAGE];
   eq('★★★ 店舗様に見える文に「セット」と書いていない', shown.filter((t) => /セット/.test(t)), []);
   eq('呼び名はフクエスCRM', S.SET_PLAN_NAME, 'フクエスCRM');
-  eq('★★ フクエスCRM の側の文: 金額・無料オプション・外部の連携サービス・コネックエフ', ['月額20,000円（税別）', '無料オプション', '外部の連携サービス', 'コネックエフ'].filter((w) => S.SET_PLAN_LINE.indexOf(w) < 0), []);
-  eq('★★ コネックエフの側の文: フクエスCRM の金額・無料オプション', ['フクエスCRM（月額20,000円（税別））', '無料オプション'].filter((w) => S.CONECF_OPTION_LINE.indexOf(w) < 0), []);
+  eq('★★ フクエスCRM の側の文: 金額・無料オプション・外部の連携サービス・コネックエフ', ['月額30,000円（税別）', '無料オプション', '外部の連携サービス', 'コネックエフ'].filter((w) => S.SET_PLAN_LINE.indexOf(w) < 0), []);
+  eq('★★ コネックエフの側の文: フクエスCRM の金額・無料オプション', ['フクエスCRM（月額30,000円（税別））', '無料オプション'].filter((w) => S.CONECF_OPTION_LINE.indexOf(w) < 0), []);
   eq('★ 切り替えを断る文は、コネックエフの側の文＋お申し込み先', S.SET_PLAN_NEED_MESSAGE, S.CONECF_OPTION_LINE + S.SET_PLAN_APPLY_LINE);
   eq('★ 止めている店の文は「フクエスCRMのご契約が確認できない」', S.CONECF_STOPPED_MESSAGE.indexOf('フクエスCRMのご契約が確認できないため') === 0, true);
   const fs = require('fs'), path = require('path');

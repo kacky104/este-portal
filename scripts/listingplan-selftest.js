@@ -29,9 +29,9 @@ console.log('── 1. ★★★ 金額（カッキーさんの決定・10/8・�
   eq('創業掲載協力キャンペーン 月額30,000円の割引', m.LISTING_CAMPAIGN_OFF_YEN, 30000);
   eq('★★★ キャンペーン後 ＝ 掲載料 − 割引 ＝ 90,000円', [m.LISTING_CAMPAIGN_FEE_YEN, m.LISTING_FEE_YEN - m.LISTING_CAMPAIGN_OFF_YEN], [90000, 90000]);
   eq('公式ホームページ 年間10,000円', m.LISTING_HP_YEARLY_YEN, 10000);
-  eq('フクエスCRM（有料オプション）月額20,000円', m.LISTING_SET_OPTION_YEN, 20000);
-  eq('★★★ セットのオプションは lib/setPlan.ts と同じ値（第1304便でどちらも税別）', [m.LISTING_SET_OPTION_YEN, sp.SET_PLAN_PRICE_YEN], [20000, 20000]);
-  eq('★★ セットの書き方も税別（コネックエフ・CRM のご案内・申し込みの文）', [sp.SET_PLAN_PRICE_LABEL, /税込/.test(sp.SET_PLAN_LINE + sp.SET_PLAN_NEED_MESSAGE)], ['月額20,000円（税別）', false]);
+  eq('フクエスCRM（有料オプション）月額30,000円（第1745便で値上げ）', m.LISTING_SET_OPTION_YEN, 30000);
+  eq('★★★ セットのオプションは lib/setPlan.ts と同じ値（第1304便でどちらも税別）', [m.LISTING_SET_OPTION_YEN, sp.SET_PLAN_PRICE_YEN], [30000, 30000]);
+  eq('★★ セットの書き方も税別（コネックエフ・CRM のご案内・申し込みの文）', [sp.SET_PLAN_PRICE_LABEL, /税込/.test(sp.SET_PLAN_LINE + sp.SET_PLAN_NEED_MESSAGE)], ['月額30,000円（税別）', false]);
   eq('書き方は税別', m.LISTING_TAX_LABEL, '税別');
   eq('桁区切り', [m.listingYen(120000), m.listingYen(90000), m.listingYen(0)], ['120,000', '90,000', '0']);
 }
@@ -49,7 +49,7 @@ console.log('\n── 2. 機能一覧・含まれるもの ──');
     [m.LISTING_CRM_NAME, m.LISTING_CRM_FREE_NAME, /外部の連携サービス/.test(m.LISTING_CRM_FREE_DESC), /無料/.test(m.LISTING_CRM_FREE_DESC)], ['フクエスCRM', '他サイトへの連携サービス', true, true]);
   const all = JSON.stringify([m.LISTING_FEATURES, m.LISTING_INCLUDED]);
   eq('★★★ 予約ボードを載せていない', /予約ボード/.test(all), false);
-  eq('掲載料に含まれるもの: フクエス・フクエスワーク・fukuX', m.LISTING_INCLUDED.map((x) => x.name), ['フクエス 店舗掲載', 'フクエスワーク 求人掲載', 'fukuX（フクエックス）']);
+  eq('掲載料に含まれるもの: フクエス・フクエスワーク・fukuX・ネット予約（第1710便で電話通知を足した）', m.LISTING_INCLUDED.map((x) => x.name), ['フクエス 店舗掲載', 'フクエスワーク 求人掲載', 'fukuX（フクエックス）', 'ネット予約・予約の電話通知']);
   eq('★★ 掲載料に含まれるものに、有料オプション（コネックエフ・CRM）を入れていない', /コネックエフ|CRM/.test(JSON.stringify(m.LISTING_INCLUDED)), false);
 }
 

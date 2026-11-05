@@ -15,8 +15,10 @@
 //   ★ 画像の中の札（public/mypage/conecf/conecf-intro-v3.webp「フクエスCRMご契約で無料」）は別に直すこと。
 // ★ 純粋なデータと判定だけ（通信も DB も触らない）。
 
+// ★★★ 第1745便（2026-11-05・カッキーさん）: 月額 20,000円 → 30,000円（税別）に値上げ。CTI（着信ポップ）の実装で通話料がかかると分かったため。
+//   ★ 利用規約（termsText.ts 第2条）の「月額22,000円（税込）」は同意済みの文面なのでここでは触っていない（カッキーさんの判断待ち）。
 /** 月額（税別） */
-export const SET_PLAN_PRICE_YEN = 20000;
+export const SET_PLAN_PRICE_YEN = 30000;
 /** 例: 月額20,000円（税別） */
 export const SET_PLAN_PRICE_LABEL = `月額${SET_PLAN_PRICE_YEN.toLocaleString('ja-JP')}円（税別）`;
 export const SET_PLAN_NAME = 'フクエスCRM';
