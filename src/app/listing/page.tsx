@@ -10,6 +10,7 @@ import { ListingInquiryForm } from './ListingInquiryForm';
 import { ListingPricePlans } from './ListingPricePlans';
 import { ListingHpPromo } from './ListingHpPromo';
 import { ListingContactHeading } from './ListingContactHeading';
+import { ListingGuidePdfLink } from './ListingGuidePdfLink';
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 import { getTheme } from '@/app/lib/themes';
@@ -138,10 +139,12 @@ export default async function ListingPage() {
         {/* 公式ホームページ（掲載店は初期費用0円・月額0円・年間のドメイン・サーバー維持費のみ）。行き先は /hp/templates。 */}
         <ListingHpPromo />
 
-        {/* ★★ 掲載案内PDF（public/docs/fukues-listing-guide.pdf）への入口は、いったん外した（第1301便）。
-            PDF の中身が古い料金（66,000円・33,000円）と予約ボードのままで、このページと食い違うため。
-            ★ 部品（ListingGuidePdfLink.tsx）と PDF のファイルは残してある。新しい PDF ができたら、
-              ここに <ListingGuidePdfLink /> を戻す（置き場所は「公式ホームページ」の後ろ・「掲載をご希望の店舗様へ」の前）。 */}
+        {/* ★★ 掲載案内PDF（public/docs/fukues-listing-guide.pdf）。第1301便で古い料金のため外していたが、
+            第1746便（2026-11-05）で 2026年11月版（営業資料・12ページ・月額120,000円＋CRM 30,000円・創業掲載特典）に差し替えて戻した。
+            ★ 置き場所は「公式ホームページ」の後ろ・「掲載をご希望の店舗様へ」の前（CONTACT の矢印の真下をフォームにするため）。
+            ★ 料金が変わったら PDF も作り直すこと（営業スタッフが LINE・SMS で同じ URL を送っている）。 */}
+        <ListingGuidePdfLink />
+
 
         {/* 「掲載をご希望の店舗様へ」。★ 直下がフォームの帯。この2つの間に別の要素を挟まないこと。 */}
         <ListingContactHeading />
