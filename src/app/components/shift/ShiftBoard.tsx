@@ -6,9 +6,11 @@
 // ★ 部屋数・入れ替え時間を超える確定はできない（希望のマスに「部屋オーバー」の札を先に出す）。
 // ★ 却下は無い。確定しなかった希望は希望のまま残す（欠勤が出たときの声かけ用）。
 // ★ 確定のあと週間スケジュールで直した日は「変更」と出す（セラピストページにも出る）。
+// ★ 2026-11-05（カッキーさん）: 上の設定の枠に「シフト提出を使う」のオン／オフ。オフの店はセラピストページにタブが出ない。
+//   オフのあいだは設定の枠と案内だけ出す（表は出さない。希望・確定のデータは消さない）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { confirmShift, unconfirmShift, getShiftBoard, saveShiftSettings, type ShiftBoardData } from '@/app/actions/shift';
+import { confirmShift, unconfirmShift, getShiftBoard, saveShiftSettings, setShiftEnabled, type ShiftBoardData } from '@/app/actions/shift';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 import {
   checkRooms, endOptions, minLabel, rangeLabel, rangeShort, roomErrorText, shiftDateLabel, shiftDateTone, shiftDayState, startOptions,
@@ -57,6 +59,7 @@ export function ShiftBoard({ onToast, onSeen }: { onToast: (m: string) => void; 
   const [rooms, setRooms] = useState('0');
   const [changeover, setChangeover] = useState(0);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [switching, setSwitching] = useState(false);
   // ★ 第1727便（カッキーさん）: 横のスクロールバーを表の上にも（週間スケジュール 第1473便と同じ）。上下のバーは同じ位置に動く
   const topBarRef = useRef<HTMLDivElement>(null);
   const tableBoxRef = useRef<HTMLDivElement>(null);
@@ -114,6 +117,18 @@ export function ShiftBoard({ onToast, onSeen }: { onToast: (m: string) => void; 
     setSavingSettings(false);
     if (!r || !r.ok) { onToast(r && !r.ok ? r.error : '保存できませんでした'); return; }
     onToast('設定を保存しました');
+    await load(which);
+  };
+
+  // ★ 2026-11-05: シフト提出を使う／使わない（押したらすぐ切り替わる）
+  const onToggleEnabled = async () => {
+    if (!data) return;
+    const next = !data.enabled;
+    setSwitching(true);
+    const r = await setShiftEnabled({ enabled: next }).catch(() => null);
+    setSwitching(false);
+    if (!r || !r.ok) { onToast(r && !r.ok ? r.error : '切り替えられませんでした'); return; }
+    onToast(next ? 'シフト提出を使う設定にしました。セラピストページに「シフト提出」タブが出ます' : 'シフト提出を使わない設定にしました');
     await load(which);
   };
 
@@ -184,12 +199,19 @@ export function ShiftBoard({ onToast, onSeen }: { onToast: (m: string) => void; 
   if (error) return <div className={`${CARD} p-6`}><p className="text-[15px] text-slate-500 text-center">{error}</p></div>;
   if (!data) return <div className={`${CARD} p-6`}><p className="text-[15px] text-slate-400 text-center">読み込み中...</p></div>;
 
-  const modalCheck = open ? precheck(open.therapistId, open.date, open.s, open.e) : null;
-
-  return (
-    <div className="space-y-4">
-      {/* ── 設定 ── */}
+  // ★ 2026-11-05: 設定の枠（オフのときもこれだけは出す）
+  const settingsCard = (
       <div className={`${CARD} p-4 space-y-3`}>
+        {/* ★ 2026-11-05: シフト提出を使う／使わない */}
+        <div className="flex flex-wrap items-center gap-3 pb-3 border-b border-slate-100">
+          <span className="text-[14px] font-bold text-slate-700">シフト提出を使う</span>
+          <button type="button" role="switch" aria-checked={data.enabled} onClick={() => void onToggleEnabled()} disabled={switching}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${data.enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${data.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+          <span className={`text-[14px] font-bold ${data.enabled ? 'text-indigo-700' : 'text-slate-400'}`}>{switching ? '切り替えています…' : data.enabled ? 'オン' : 'オフ'}</span>
+          <span className="text-[12px] text-slate-500">オンにすると、セラピストページに「シフト提出」のタブが出て、セラピストが希望を出せるようになります。</span>
+        </div>
         <div className="flex flex-wrap items-end gap-4">
           <label className="block">
             <span className="block text-[12px] font-bold text-slate-500 mb-1">提出してもらう期間</span>
@@ -217,6 +239,30 @@ export function ShiftBoard({ onToast, onSeen }: { onToast: (m: string) => void; 
           入れ替え時間は、前の方が終わってから次の方が入れるまでの時間です。週間スケジュールで直接入れた出勤も数えます。
         </p>
       </div>
+  );
+
+  const modalCheck = open ? precheck(open.therapistId, open.date, open.s, open.e) : null;
+
+  // ★ 2026-11-05: オフのあいだは設定の枠と案内だけ
+  if (!data.enabled) {
+    return (
+      <div className="space-y-4">
+        {settingsCard}
+        <div className={`${CARD} p-6 space-y-2 text-center`}>
+          <p className="text-[15px] font-bold text-slate-700">シフト提出は今オフです</p>
+          <p className="text-[13px] text-slate-500 leading-relaxed">
+            上の「シフト提出を使う」をオンにすると、セラピストページに「シフト提出」のタブが出ます。<br />
+            セラピストが出した希望はこの表に並び、確定すると週間スケジュールに入ります。
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── 設定 ── */}
+      {settingsCard}
 
       {/* ── 期間の切り替え ── */}
       <div className="flex flex-wrap items-center gap-2">

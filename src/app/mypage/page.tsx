@@ -71,7 +71,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { canSeeMedia, readUnlockIntent, MEDIA_UNLOCK_KEY } from '@/lib/mediaVisibility';
 import { IMASUGU_COLUMNS } from '@/lib/therapistColumns';
 import BookingCallSettings from './BookingCallSettings';
-import { shiftBoardEnabled, shiftNewCountForShop } from '@/app/actions/shift';
+import { shiftBoardState, shiftNewCountForShop } from '@/app/actions/shift';
 
 /** ★ 第1439便: サイドバーにフクエスリンクのバナーを出すお店（12＝アロマメイ様・5＝オイルクエスト様） */
 const MEDIA_BANNER_SALON_IDS: readonly number[] = [12, 5];
@@ -975,7 +975,9 @@ export default function MyPage() {
   const [shiftOn, setShiftOn] = useState(false);
   // ★ 第1740便: 新しい希望の数（お店ごと・表を開くと 0 に戻る）
   const [shiftNew, setShiftNew] = useState(0);
-  useEffect(() => { shiftBoardEnabled().then((on) => { setShiftOn(on); if (on) shiftNewCountForShop().then(setShiftNew).catch(() => {}); }).catch(() => {}); }, []);
+  // ★ 2026-11-05: お店が「シフト提出を使う」にしているか（オフでも帯は出す＝管理表でオンにできる）
+  const [shiftUsing, setShiftUsing] = useState(false);
+  useEffect(() => { shiftBoardState().then((st) => { setShiftOn(st.allowed); setShiftUsing(st.on); if (st.on) shiftNewCountForShop().then(setShiftNew).catch(() => {}); }).catch(() => {}); }, []);
   // ★ 第1145便: フクエスCRM を契約している店か（crm_until が今日以降）。★ 未契約の店はバナーの行き先を「ご案内」（ログイン不要）にする
   const [crmOn, setCrmOn] = useState(false);
   // ★ 第889便: 追加した直後のセラピスト（招待の小窓を開く）
@@ -4549,7 +4551,7 @@ export default function MyPage() {
           {shiftOn && (
             <div className="bg-amber-50 rounded-none border border-amber-200 p-4 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-black text-amber-800">
-                セラピストページから出たシフトの希望を確定できます
+                {shiftUsing ? 'セラピストページから出たシフトの希望を確定できます' : 'シフト提出（今はオフ）：オンにすると、セラピストページからシフトの希望を出してもらえます'}
                 {shiftNew > 0 && <span className="ml-2 inline-block bg-rose-500 px-1.5 text-[11px] leading-[18px] text-white">新しい希望 {shiftNew}件</span>}
               </p>
               <a href={conecfOn ? 'https://conecf.com/shift' : '/mypage/shift'} target={conecfOn ? '_blank' : undefined} rel={conecfOn ? 'noopener noreferrer' : undefined}

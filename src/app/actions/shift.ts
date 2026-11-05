@@ -8,7 +8,9 @@
 //   ・確定すると therapist_schedules（出勤の正本）に書く → サイト・駅ちか・エステ魂へは今までどおり（媒体へは自動更新が拾う）。
 //   ・部屋数を超える確定はさせない（入れ替え時間込み）。数えるのは【出勤の正本】（週間スケジュールで直接入れた出勤も数える）。
 //   ・却下は無い。確定しなかった希望は希望のまま残す（欠勤が出たときの声かけ用）。
-// ★ 使える店は SHIFT_SALON_IDS（lib/shift/access.ts）。テスト運用はラビリンス様（6）だけ。
+// ★ 使える店は SHIFT_SALON_IDS（lib/shift/access.ts・11/5 から all）。
+// ★ 2026-11-05: お店ごとの「使う／使わない」（shift_settings.enabled・既定オフ）。オンの店だけセラピストが提出できる・タブ・バッジが出る。
+//   管理表そのものはオフでも開ける（お店がそこでオンにするため）。
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
@@ -17,7 +19,7 @@ import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/acting
 import { readConecfGirlOrder } from '@/app/lib/conecf/girlOrder';
 import { sortTherapistsByManual } from '@/lib/therapistOrder';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
-import { shiftAllowedForSalon } from '@/app/lib/shift/access';
+import { readShiftEnabled, shiftAllowedForSalon, shiftOnForSalon } from '@/app/lib/shift/access';
 import { countShiftNew, markShiftBoardSeen, readShiftBoardSeen } from '@/app/lib/shift/newCount';
 import {
   addDays, checkRooms, dateRange, isShiftPeriod, minToHM, roomErrorText, scheduleToMin, shiftPeriods, validRange,
@@ -76,13 +78,15 @@ async function resolveCast() {
   const { data: t } = await svc.from('therapists').select('id, salon_id').eq('user_id', user.id).maybeSingle();
   if (!t || t.salon_id == null) return { ok: false as const, error: 'セラピストが見つかりません' };
   const salonId = Number(t.salon_id);
-  if (!shiftAllowedForSalon(salonId)) return { ok: false as const, error: NOT_OPEN };
+  // ★ 2026-11-05: お店がオンにしていないと提出できない
+  if (!(await shiftOnForSalon(svc, salonId))) return { ok: false as const, error: NOT_OPEN };
   return { ok: true as const, svc, therapistId: Number(t.id), salonId };
 }
 
-/** /cast のページで「シフト提出」タブを出すか */
+/** /cast のページで「シフト提出」タブを出すか（★ 2026-11-05: お店がオンにした店だけ） */
 export async function isCastShiftEnabled(salonId: number | null | undefined): Promise<boolean> {
-  return shiftAllowedForSalon(salonId ?? null);
+  if (salonId == null || !shiftAllowedForSalon(salonId)) return false;
+  return shiftOnForSalon(createServiceClient(), salonId);
 }
 
 export type CastShiftDay = { date: string; req: ShiftRequestView | null; sched: { s: number; e: number } | null };
@@ -186,7 +190,33 @@ async function resolveShop(write: boolean) {
 export async function shiftNewCountForShop(): Promise<number> {
   const r = await resolveShop(false);
   if (!r.ok) return 0;
+  if (!(await readShiftEnabled(r.svc, r.salonId))) return 0; // ★ 2026-11-05: 使っていない店は出さない
   return countShiftNew(r.svc, r.salonId);
+}
+
+/** ★ 2026-11-05: マイページの帯用。開ける店か（allowed）とお店がオンにしているか（on） */
+export async function shiftBoardState(): Promise<{ allowed: boolean; on: boolean }> {
+  const r = await resolveShop(false);
+  if (!r.ok) return { allowed: false, on: false };
+  return { allowed: true, on: await readShiftEnabled(r.svc, r.salonId) };
+}
+
+/**
+ * ★ 2026-11-05（カッキーさん）: シフト提出を「使う／使わない」。お店（と運営の代行）が管理表の上の設定の枠で切り替える。
+ * ★ オフにしても希望・確定は消さない（セラピストページのタブと提出が止まるだけ）。
+ */
+export async function setShiftEnabled(input: { enabled: boolean }): Promise<Result<{ enabled: boolean }>> {
+  const r = await resolveShop(false);
+  if (!r.ok) return r;
+  const enabled = input?.enabled === true;
+  const now = new Date().toISOString();
+  const { data: row, error: e0 } = await r.svc.from('shift_settings').select('salon_id').eq('salon_id', r.salonId).maybeSingle();
+  if (e0) return { ok: false, error: `切り替えられませんでした: ${e0.message}` };
+  const { error } = row
+    ? await r.svc.from('shift_settings').update({ enabled, updated_at: now }).eq('salon_id', r.salonId)
+    : await r.svc.from('shift_settings').insert({ salon_id: r.salonId, enabled, updated_at: now });
+  if (error) return { ok: false, error: `切り替えられませんでした: ${error.message}` };
+  return { ok: true, data: { enabled } };
 }
 
 /** コネックエフ・マイページのメニューに「シフト管理表」を出すか（★ ログイン中の店で判断） */
@@ -209,13 +239,15 @@ export type ShiftBoardData = {
   schedules: Record<string, { s: number; e: number }>;
   /** ★ 第1740便: 開く前にお店が最後に見た時刻（これより後の希望が NEW）。一度も開いていない・列が無いときは null */
   seenAt: string | null;
+  /** ★ 2026-11-05: お店がシフト提出を「使う」にしているか */
+  enabled: boolean;
 };
 
 export async function getShiftBoard(input?: { which?: 'next' | 'current' }): Promise<Result<ShiftBoardData>> {
   const r = await resolveShop(false);
   if (!r.ok) return r;
   const which = input?.which === 'current' ? 'current' : 'next';
-  const settings = await readSettings(r.svc, r.salonId);
+  const [settings, enabled] = await Promise.all([readSettings(r.svc, r.salonId), readShiftEnabled(r.svc, r.salonId)]);
   const p = shiftPeriods(settings.period, getBusinessDateJST())[which];
   const { data: ts, error } = await r.svc.from('therapists').select('id, name, profile_image_url, is_active').eq('salon_id', r.salonId);
   if (error) return { ok: false, error: error.message };
@@ -241,7 +273,7 @@ export async function getShiftBoard(input?: { which?: 'next' | 'current' }): Pro
     data: {
       salonId: r.salonId, settings, which, from: p.from, to: p.to, dates: dateRange(p.from, p.to),
       rows: sortTherapistsByManual(rows, (x) => x.id, (x) => x.name, (x) => !x.isActive, order),
-      requests, schedules: Object.fromEntries(scheds), seenAt: seen.seenAt,
+      requests, schedules: Object.fromEntries(scheds), seenAt: seen.seenAt, enabled,
     },
   };
 }
@@ -317,6 +349,7 @@ export async function getShiftWishes(input: { from: string; to: string }): Promi
   try {
     const r = await resolveShop(false);
     if (!r.ok) return {};
+    if (!(await readShiftEnabled(r.svc, r.salonId))) return {}; // ★ 2026-11-05: 使っていない店は出さない
     const from = String(input.from ?? ''), to = String(input.to ?? '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || to < from || to > addDays(from, 40)) return {};
     const { data: reqs } = await r.svc.from('shift_requests').select('therapist_id, work_date, req_start_min, req_end_min, note')

@@ -1,6 +1,6 @@
 'use server';
 
-import { shiftAllowedForSalon } from '@/app/lib/shift/access';
+import { readShiftEnabled, shiftAllowedForSalon } from '@/app/lib/shift/access';
 import { countShiftNew } from '@/app/lib/shift/newCount';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -194,7 +194,8 @@ export async function getConecfShellState(): Promise<ConecfShellState> {
     })(),
   ]);
   const shiftNav = shiftAllowedForSalon(salonId);
-  const shiftNew = shiftNav ? await countShiftNew(svc, salonId) : 0;
+  // ★ 2026-11-05: メニューは開ける店ならオフでも出す（そこでオンにする）。バッジはオンの店だけ
+  const shiftNew = shiftNav && (await readShiftEnabled(svc, salonId)) ? await countShiftNew(svc, salonId) : 0;
   return { access, alerts, cocoaNav, shiftNav, shiftNew };
 }
 
