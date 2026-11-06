@@ -122,6 +122,14 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
 
   const rowsOf = (provider: string) => rows.filter((r) => r.provider === provider);
   const rowAt = (provider: string, n: number) => rows.find((r) => r.provider === provider && r.slot === n) ?? null;
+  // ★ 第1757便（2026-11-06・カッキーさん）: 駅ちかの枠は【枠1と、/admin で登録した枠（お店ページの URL がある）と、ID・PW が入っている枠】だけ出す。
+  //   第1756便で駅ちかを5枠にしたため、1エリアだけのお店にも枠が5つ並んでいた。登録していない空の枠に ID・PW を入れる取り違えも防ぐ。
+  //   ★ 駅ちか以外のサイトは今までどおり（枠の URL を持たないため）。
+  const slotsFor = (site: MediaSite): number[] => {
+    const all = mediaSiteSlots(site);
+    if (site.provider !== 'ekichika') return all;
+    return all.filter((n) => n === 1 || !!areaOf(site.provider, n) || !!rowAt(site.provider, n));
+  };
 
   const focusSlot = (site: MediaSite, n: number) => {
     setSlot(n);
@@ -135,7 +143,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
 
   const openEdit = (site: MediaSite) => {
     setEdit(site);
-    const first = rowsOf(site.provider)[0]?.slot ?? mediaSiteSlots(site)[0];
+    const first = rowsOf(site.provider)[0]?.slot ?? slotsFor(site)[0];
     focusSlot(site, first);
   };
   const close = () => { setEdit(null); setAsk(''); setPassword(''); setAgreed(false); };
@@ -152,7 +160,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
     if (!res.ok) { onToast(res.error); return; }
     await load();
     void refreshShell();
-    onToast(`${edit.name}${mediaSiteSlots(edit).length > 1 ? `（枠${slot}）` : ''}を保存しました`);
+    onToast(`${edit.name}${slotsFor(edit).length > 1 ? `（枠${slot}）` : ''}を保存しました`);
     close();
   };
 
@@ -209,10 +217,10 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
     if (siteRows.some((r) => r.needsConsent && r.consentReadOnly)) return { text: 'ご同意が必要です（いまは「写メ日記の読み取りのみ」のご同意です）', tone: 'text-amber-700' };
     if (siteRows.some((r) => r.needsConsent)) return { text: '同意の取り直しが必要です（いまは送っていません）', tone: 'text-amber-700' };
     if (siteRows.length === 0) return { text: '', tone: '' };
-    const slots = mediaSiteSlots(site).length > 1 ? siteRows.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : '';
+    const slots = slotsFor(site).length > 1 ? siteRows.map((r) => `枠${r.slot}`).join('・') + ' ／ ' : '';
     // ★ 第1378便: 「ID・パスワードが違う」ために自動で止めた枠は、理由を言う
     const rej = siteRows.filter((r) => !r.isEnabled && r.rejected);
-    if (rej.length > 0) return { text: `${mediaSiteSlots(site).length > 1 ? rej.map((r) => `枠${r.slot}${areaOf(site.provider, r.slot) ? `（${areaOf(site.provider, r.slot)}）` : ''}`).join('・') + ' ／ ' : ''}ID・パスワードが違うため止めています`, tone: 'text-rose-600' };
+    if (rej.length > 0) return { text: `${slotsFor(site).length > 1 ? rej.map((r) => `枠${r.slot}${areaOf(site.provider, r.slot) ? `（${areaOf(site.provider, r.slot)}）` : ''}`).join('・') + ' ／ ' : ''}ID・パスワードが違うため止めています`, tone: 'text-rose-600' };
     if (st === 'disabled') return { text: `${slots}一時停止中`, tone: 'text-slate-500' };
     return { text: `${slots}連携中`, tone: GREEN }; // ★ 第761便（カッキーさん）: 連携中は緑
   };
@@ -343,11 +351,11 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
                   <span>ログイン情報を設定</span>
                 </p>
 
-                {mediaSiteSlots(edit).length > 1 && (
+                {slotsFor(edit).length > 1 && (
                   <div className="flex items-center gap-3">
                     <span className="w-[120px] flex-none">掲載枠</span>
                     <div className="flex gap-1 flex-wrap">
-                      {mediaSiteSlots(edit).map((n) => (
+                      {slotsFor(edit).map((n) => (
                         <button
                           key={n}
                           type="button"
@@ -362,7 +370,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
                   </div>
                 )}
                 {/* ★ 第1416便（カッキーさん）: この枠がどのエリアのお店ページか。違うエリアの管理画面の ID・パスワードを入れるのを防ぐ */}
-                {mediaSiteSlots(edit).length > 1 && areaOf(edit.provider, slot) && (
+                {areaOf(edit.provider, slot) && (
                   <p className="ml-[132px] -mt-1 text-[12px] leading-relaxed text-slate-600">
                     枠{slot}は、{edit.name}の<b className="text-[#1e88e5]">「{areaOf(edit.provider, slot)}」</b>のお店ページです。
                     このエリアのお店ページの管理画面に入る ID・パスワードを入れてください（ほかのエリアのものを入れると、ログインできずに止まります）。

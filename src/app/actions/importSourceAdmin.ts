@@ -142,6 +142,22 @@ export async function adminUpsertImportSource(input: {
     .maybeSingle();
   if (exErr) return { ok: false, error: exErr.message };
 
+  // ★ 第1757便（2026-11-06・カッキーさん）: 枠2〜5は、その店の枠1（おもなお店ページ）が登録済みのときだけ。
+  //   北九州など1エリアだけのお店を、オイルクエスト様の並び（枠3＝北九州）につられて枠3に入れてしまうのを防ぐ。
+  //   仕組みは「枠1がおもなページ」の前提で動く（フクエスリンクの取り込みは枠1だけ・枠2以降の自動登録は枠1が元）。
+  //   ★ 枠の見出しは URL のエリアから付くので、北九州のお店は「枠1 北九州・小倉」になる。
+  if (slot > 1) {
+    const { data: first, error: fErr } = await svc
+      .from('salon_import_sources')
+      .select('id, shop_url')
+      .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', 1)
+      .maybeSingle();
+    if (fErr) return { ok: false, error: fErr.message };
+    if (!first || !String(first.shop_url ?? '').trim()) {
+      return { ok: false, error: `先に枠1（そのお店のおもなページ）を登録してください。1つ目のお店ページは、どのエリアでも枠1に入れます（枠の見出しは URL のエリアから自動で付きます）` };
+    }
+  }
+
   const now = new Date().toISOString();
   // ★ 第1261便: 即ヒメは枠1だけが既定（2枠の店で、枠2が枠1の今すぐを外さないように）
   const importImasugu = typeof input.importImasugu === 'boolean' ? input.importImasugu : slot === 1;

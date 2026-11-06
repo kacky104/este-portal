@@ -135,6 +135,8 @@ export function LoginBoard({
 
   // ★ 第1120便: ID・PW を変えたら、外枠（赤帯）も読み直す
   const { refresh: refreshShell } = useMediaSession();
+  // ★ 第1757便: 駅ちかの枠ごとのお店ページのエリア（/admin で登録した URL から）。登録した枠だけボタンを出すのに使う
+  const [slotAreas, setSlotAreas] = useState<Record<string, string>>({});
   const load = useCallback(async () => {
     if (salonId == null) return;
     // ★ ここで setLoading(true) をしない。初回は loading=true で始まり、
@@ -142,6 +144,7 @@ export function LoginBoard({
     const res = await getMediaCredentials({ salonId, service: 'link' });   // ★ 第716便: フクエスリンクの版で見る
     if (res.ok) {
       setRows(res.data.rows as CredRow[]);
+      setSlotAreas(((res.data as { slotAreas?: Record<string, string> }).slotAreas) ?? {});
       setConsentVersion(res.data.consentVersion);
       setKnown(true);
       setLoadError('');
@@ -416,7 +419,8 @@ export function LoginBoard({
                   )}
                   </div>
                   <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                    {mediaSiteSlots(site).map((n) => {
+                    {/* ★ 第1757便: 駅ちかは枠1と、/admin で登録した枠と、ID・PW が入っている枠だけ（ConecfLoginBoard の slotsFor と同じ） */}
+                    {mediaSiteSlots(site).filter((n) => site.provider !== 'ekichika' || n === 1 || !!slotAreas[`${site.provider}:${n}`] || !!rowAt(site.provider, n)).map((n) => {
                       const has = !!rowAt(site.provider, n);
                       return (
                         <button
