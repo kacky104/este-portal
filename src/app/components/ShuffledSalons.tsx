@@ -416,8 +416,10 @@ export function SalonCard({ salon, therapists, showAge = false, areaNextToDuty =
     </div>
   );
   // キャッチフレーズ（TOP/地域の店舗カード：出勤数・地域バッジの上）。セラピストPUキャプションと同配色・サイズ。
+  // ★ 第1752便（2026-11-06・カッキーさん）: スマホで最後の文字が「…」で消えるので、左の余白を外して始まりを左に寄せる（px-1 → pr-1）。
+  //   右の余白は残す（「…」がカードの縁に当たらないように）。PC は今までどおり。
   const catchEl = salon.catchphrase ? (
-    <p className="px-1 -mt-[3px] sm:mt-[2px] mb-1.5 text-left whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12.5px]">
+    <p className="pr-1 sm:px-1 -mt-[3px] sm:mt-[2px] mb-1.5 text-left whitespace-nowrap overflow-hidden text-ellipsis font-bold text-slate-600 leading-tight text-[12.5px]">
       {salon.catchphrase}
     </p>
   ) : null;
