@@ -25,7 +25,7 @@ import {
 } from '@/app/actions/mediaCredentials';
 import { useConecfHref } from '../ConecfBase';
 import { useConecfSession, useConecfActing } from '../ConecfSession';
-import { OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
+import { consentCarryNote, OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
 import { CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 
 // コネックエフ「ID・PASS登録」（第412便・2026-09-17・カッキーさん）。
@@ -227,6 +227,11 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
 
   const row = edit ? rowAt(edit.provider, slot) : null;
   const needConsent = !row || row.needsConsent;
+  // ★★★ 第1758便: 運営が操作中でも、同じサイトのほかの枠に店舗様の同意があれば引き継げる（最終判断はサーバー）
+  const carryFromSlot = edit && acting && needConsent
+    ? (rowsOf(edit.provider).filter((r) => r.slot !== slot && !r.needsConsent).sort((a, b) => a.slot - b.slot)[0]?.slot ?? null)
+    : null;
+  const blockedByActing = acting && carryFromSlot == null;
 
   const TABS: Array<[Tab, string]> = [['all', '対応サイト一覧'], ['registered', '登録済'], ['unregistered', '未登録']];
 
@@ -451,8 +456,11 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
                 {!contract && (
                   <p className="border border-amber-400 bg-amber-50 px-3 py-2.5 text-[13px] leading-relaxed text-amber-900">{stopped ? CONECF_STOPPED_MESSAGE : CONECF_CREDENTIAL_NEED_CONTRACT_MESSAGE}</p>
                 )}
-                {contract && needConsent && acting && (
+                {contract && needConsent && blockedByActing && (
                   <p className="border border-amber-400 bg-amber-50 px-3 py-2.5 text-[13px] leading-relaxed text-amber-900">{OPERATOR_FIRST_CONSENT_MESSAGE}</p>
+                )}
+                {contract && needConsent && acting && carryFromSlot != null && (
+                  <p className="border border-sky-300 bg-sky-50 px-3 py-2.5 text-[13px] leading-relaxed text-sky-900">{consentCarryNote(carryFromSlot)}</p>
                 )}
                 {contract && needConsent && !acting && (
                   <label className="flex items-start gap-2 cursor-pointer">
@@ -469,7 +477,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
               <button
                 type="button"
                 onClick={() => void onSave()}
-                disabled={saving || !contract || (needConsent && (!agreed || acting))}
+                disabled={saving || !contract || (needConsent && (acting ? blockedByActing : !agreed))}
                 className="h-8 min-w-[80px] px-4 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40"
               >
                 {saving ? '保存中…' : '保存'}

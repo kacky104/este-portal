@@ -42,6 +42,11 @@ console.log('\n── 3. ★★★ 同意は代わりに入れられない ─�
 eq('★★★ 運営がほかの人の店で、新しく同意を記録する保存 → 止める', A.operatorConsentBlocked({ isOwner: false, newlyAgreed: true }), true);
 eq('★★ 運営がほかの人の店で、同意済みの枠の変更 → 通す', A.operatorConsentBlocked({ isOwner: false, newlyAgreed: false }), false);
 eq('★★ 持ち主本人は今までどおり（はじめての登録も通す）', [A.operatorConsentBlocked({ isOwner: true, newlyAgreed: true }), A.operatorConsentBlocked({ isOwner: true, newlyAgreed: false })], [false, false]);
+eq('★★★ 第1758便: ほかの枠の同意を引き継げるときは止めない', A.operatorConsentBlocked({ isOwner: false, newlyAgreed: true, carriedOver: true }), false);
+eq('★★★ 引き継ぎ元: いまの版の、ほかの枠（若い順）', A.consentCarrySourceSlot({ slot: 4, incoming: 'v5', siblings: [{ slot: 2, consentVersion: 'v5' }, { slot: 1, consentVersion: 'v5' }] }), 1);
+eq('★★★ 版が違う枠からは引き継がない', A.consentCarrySourceSlot({ slot: 4, incoming: 'v5', siblings: [{ slot: 1, consentVersion: 'link-v1' }, { slot: 2, consentVersion: 'v4' }] }), null);
+eq('★★ 同じ枠の行は数えない（その枠の取り直しは店舗様ご本人）', A.consentCarrySourceSlot({ slot: 1, incoming: 'v5', siblings: [{ slot: 1, consentVersion: 'v5' }] }), null);
+eq('★ 空の版では引き継がない', A.consentCarrySourceSlot({ slot: 3, incoming: '', siblings: [{ slot: 1, consentVersion: '' }] }), null);
 eq('断る文に、誰がやるか・運営ができることが入っている', [/店舗様ご本人のログイン/.test(A.OPERATOR_FIRST_CONSENT_MESSAGE), /ID・パスワードの変更だけ/.test(A.OPERATOR_FIRST_CONSENT_MESSAGE)], [true, true]);
 
 console.log('\n── 4. 画面とサーバーの店の食い違い ──');
@@ -58,8 +63,8 @@ const conecfActions = fs.readdirSync(actionsDir).filter((f) => /^conecf.*\.ts$/.
 const raw = conecfActions.filter((f) => /\.eq\('owner_id', user\.id\)/.test(read('src', 'app', 'actions', f)));
 eq('★★★ コネックエフの actions に、じかに owner_id = 自分 で店を読む所が残っていない（conecf.ts の1か所を除く）', raw, ['conecf.ts']);
 const scoped = conecfActions.filter((f) => /scopeConecfSalon\(svc\.from\('salons'\)\.select\(/.test(read('src', 'app', 'actions', f)));
-eq('★★★ 8つのファイルが scopeConecfSalon を通っている',
-  scoped.sort(), ['conecfBump.ts', 'conecfCocoa.ts', 'conecfDiaryMixed.ts', 'conecfFirstImport.ts', 'conecfGirlEdit.ts', 'conecfGirls.ts', 'conecfImasugu.ts', 'conecfSchedule.ts']);
+eq('★★★ 10のファイルが scopeConecfSalon を通っている',
+  scoped.sort(), ['conecfBump.ts', 'conecfCocoa.ts', 'conecfDiaryMixed.ts', 'conecfFirstImport.ts', 'conecfGirlEdit.ts', 'conecfGirls.ts', 'conecfImasugu.ts', 'conecfSchedule.ts', 'conecfSlotMirror.ts', 'conecfSort.ts']);
 eq('★★★ どれも、その直前で operatorActingSalonId(user.id) を読んでいる',
   scoped.map((f) => { const s = read('src', 'app', 'actions', f); return (s.match(/const actingId = await operatorActingSalonId\(user\.id\);/g) || []).length === (s.match(/scopeConecfSalon\(/g) || []).length; }), scoped.map(() => true));
 const lib = read('src', 'app', 'lib', 'conecf', 'actingSalon.ts');
@@ -72,7 +77,7 @@ eq('★★ cookie は httpOnly・期限なし（画面とサーバーの食い�
 eq('★★ 入口（getConecfAccess）も同じ cookie を見て、acting を返す', [/const actingId = await operatorActingSalonId\(user\.id\);/.test(conecf), /acting: \(\(picked\.owner_id as string \| null\) \?\? null\) !== user\.id/.test(conecf)], [true, true]);
 const cred = read('src', 'app', 'actions', 'mediaCredentials.ts');
 eq('★★★ ID・パスワードの保存が、同意の代行を止めている（チェックの有無に関係なく）',
-  [/if \(!guard\.data\.isOwner\) \{[\s\S]{0,300}agreed: true,[\s\S]{0,200}operatorConsentBlocked\(/.test(cred), /return \{ ok: false, error: OPERATOR_FIRST_CONSENT_MESSAGE \};/.test(cred)], [true, true]);
+  [/if \(!guard\.data\.isOwner\) \{[\s\S]{0,300}agreed: true,[\s\S]{0,200}operatorConsentBlocked\(\{ isOwner: guard\.data\.isOwner, newlyAgreed: ifAgreed\.newlyAgreed, carriedOver: carryFrom !== null \}\)/.test(cred), /return \{ ok: false, error: OPERATOR_FIRST_CONSENT_MESSAGE \};/.test(cred)], [true, true]);
 eq('★★ 止めるのは、同意の検査（!consent.ok）より前', cred.indexOf('OPERATOR_FIRST_CONSENT_MESSAGE };') < cred.indexOf('if (!consent.ok) {') && cred.indexOf('OPERATOR_FIRST_CONSENT_MESSAGE };') > 0, true);
 const shell = read('src', 'app', 'conecf', 'ConecfShell.tsx');
 eq('★★ 帯は運営にだけ出す', /access\.role === 'operator' && <OperatorBar access=\{access\} \/>/.test(shell), true);

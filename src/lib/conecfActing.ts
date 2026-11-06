@@ -62,8 +62,32 @@ export function actingSalonIdFor(input: { userId: string | null | undefined; adm
  *   isOwner … ログインしている人が、その店の持ち主か（運営が自分の店を触るときは true）
  *   newlyAgreed … この保存で、新しく同意を記録することになるか（はじめての登録・版が変わったあとの取り直し）
  */
-export function operatorConsentBlocked(input: { isOwner: boolean; newlyAgreed: boolean }): boolean {
-  return input.isOwner !== true && input.newlyAgreed === true;
+export function operatorConsentBlocked(input: { isOwner: boolean; newlyAgreed: boolean; carriedOver?: boolean }): boolean {
+  return input.isOwner !== true && input.newlyAgreed === true && input.carriedOver !== true;
+}
+
+/**
+ * ★★★ 第1758便（2026-11-06・カッキーさんの決定「Bでお願いします」）: 同意の引き継ぎ。
+ *   同じ店・同じサイトの【ほかの枠】で、店舗様ご本人が【いまの版】に同意済みなら、
+ *   運営が新しい枠（枠3・枠4…）の ID・パスワードを入れるときも、その同意を引き継いで保存してよい。
+ *   ★ 版がひとつでも違えば引き継がない（説明が変わったあとは、店舗様ご本人に読み直してもらう）。
+ *   ★ 同じ枠の行は数えない（その枠そのものの同意の取り直しは、今までどおり店舗様ご本人）。
+ *   戻り値: 引き継ぐ元の枠の番号（無ければ null）
+ */
+export function consentCarrySourceSlot(input: {
+  slot: number;
+  incoming: string;
+  siblings: { slot: number; consentVersion: string | null }[];
+}): number | null {
+  const hit = input.siblings
+    .filter((r) => r.slot !== input.slot && r.consentVersion === input.incoming && input.incoming !== '')
+    .sort((a, b) => a.slot - b.slot)[0];
+  return hit ? hit.slot : null;
+}
+
+/** 引き継ぐときに画面へ出す文 */
+export function consentCarryNote(fromSlot: number): string {
+  return `枠${fromSlot}で店舗様ご本人が説明に同意済みのため、この枠にも同じ同意を引き継いで保存します。`;
 }
 
 /** 断るときに画面へ出す文 */

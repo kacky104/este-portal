@@ -3,7 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { operatorConsentBlocked, OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
+import { consentCarrySourceSlot, operatorConsentBlocked, OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isReadOnlyConsent, conecfConsentMissingNote, consentSaveDecision } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
@@ -342,9 +342,25 @@ export async function saveMediaCredential(input: {
   // ★★★ 第1287便: 「同意済みか」は【来た画面の版】で見る（lib/mediaConsent.ts の consentSaveDecision）。
   //   ★ 読むだけの同意（link-v1）の行にコネックエフの画面から同意したとき、共通の判定だと「同意済み」と読まれて、
   //     版だけ v5 に変わり、同意日時・同意した人・consent_agreed の記録が残らなかった。
+  // ★★★ 第1758便: 運営が操作中で、同じサイトのほかの枠に店舗様ご本人の同意（いまの版）があれば、それを引き継ぐ。
+  let carryFrom: { slot: number; agreedAt: string | null; agreedBy: string | null } | null = null;
+  if (!guard.data.isOwner) {
+    const { data: sib } = await svc
+      .from('salon_media_credentials')
+      .select('slot, consent_version, consent_agreed_at, consent_agreed_by')
+      .eq('salon_id', salonId).eq('provider', input.provider);
+    const sibRows = (sib ?? []) as { slot: number; consent_version: string | null; consent_agreed_at: string | null; consent_agreed_by: string | null }[];
+    const from = consentCarrySourceSlot({
+      slot,
+      incoming: input.consentVersion,
+      siblings: sibRows.map((r) => ({ slot: Number(r.slot), consentVersion: r.consent_version ?? null })),
+    });
+    const src = from == null ? null : sibRows.find((r) => Number(r.slot) === from) ?? null;
+    if (src) carryFrom = { slot: Number(src.slot), agreedAt: src.consent_agreed_at ?? null, agreedBy: src.consent_agreed_by ?? null };
+  }
   const consent = consentSaveDecision({
     existing: (existing?.consent_version as string | null) ?? null,
-    agreed: input.agreed === true,
+    agreed: input.agreed === true || carryFrom !== null,
     incoming: input.consentVersion,
   });
   // ★★★ 第1399便（2026-10-11・カッキーさんの決定）: 説明への同意は、店舗様ご本人のもの。運営が代わりに入れない。
@@ -358,7 +374,7 @@ export async function saveMediaCredential(input: {
       agreed: true,
       incoming: input.consentVersion,
     });
-    if (ifAgreed.ok && operatorConsentBlocked({ isOwner: guard.data.isOwner, newlyAgreed: ifAgreed.newlyAgreed })) {
+    if (ifAgreed.ok && operatorConsentBlocked({ isOwner: guard.data.isOwner, newlyAgreed: ifAgreed.newlyAgreed, carriedOver: carryFrom !== null })) {
       return { ok: false, error: OPERATOR_FIRST_CONSENT_MESSAGE };
     }
   }
@@ -411,7 +427,12 @@ export async function saveMediaCredential(input: {
       // ★ 第1287便: 同意済みなら版は変えない（コネックエフに同意済みの行を、フクエスリンクの版へ下げない）
       consent_version: consent.version,
       // ★ すでに同意済みなら日時は上書きしない（「いつ同意したか」を新しくしない）
-      ...(consent.newlyAgreed ? { consent_agreed_at: nowISO, consent_agreed_by: guard.data.userId } : {}),
+      // ★ 第1758便: 引き継ぎのときは、元の枠の「いつ・誰が同意したか」をそのまま写す（運営が同意した記録にしない）
+      ...(consent.newlyAgreed
+        ? carryFrom
+          ? { consent_agreed_at: carryFrom.agreedAt ?? nowISO, consent_agreed_by: carryFrom.agreedBy ?? guard.data.userId }
+          : { consent_agreed_at: nowISO, consent_agreed_by: guard.data.userId }
+        : {}),
       last_error: null,
       updated_at: nowISO,
     },
@@ -425,7 +446,12 @@ export async function saveMediaCredential(input: {
       salonId, provider: input.provider, slot,
       event: 'consent_agreed', outcome: 'ok',
       // ★ 第1287便: 前の版も残す（読むだけの同意 → 書き込みの同意、が記録で辿れるように）。画面の1行は consentVersion だけを読む
-      detail: { consentVersion: consent.version, ...(consent.previous ? { previousVersion: consent.previous } : {}) },
+      detail: {
+        consentVersion: consent.version,
+        ...(consent.previous ? { previousVersion: consent.previous } : {}),
+        // ★ 第1758便: 引き継いだときは、元の枠と「運営が入れた」ことを残す
+        ...(carryFrom ? { carriedFromSlot: carryFrom.slot, byOperator: true } : {}),
+      },
       actor,
     });
   }
