@@ -31,13 +31,13 @@ export default function ImportSourceManager({ allSalons, onToast }: {
   const [rows, setRows] = useState<ImportSourceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [salonId, setSalonId] = useState<number | ''>('');
-  const [slot, setSlot] = useState<1 | 2 | 3 | 4>(1);
+  const [slot, setSlot] = useState<1 | 2 | 3 | 4 | 5>(1);
   // ★ 第1261便: 即ヒメを読むか。★ 枠1だけが既定で ON
   const [imasugu, setImasugu] = useState(true);
   const [busyImId, setBusyImId] = useState<number | null>(null);
   // ★ 第1283便: 即ヒメを送る／送らない（コネックエフの店の枠）
   const [busySpId, setBusySpId] = useState<number | null>(null);
-  const pickSlot = (n: 1 | 2 | 3 | 4) => { setSlot(n); setImasugu(n === 1); };
+  const pickSlot = (n: 1 | 2 | 3 | 4 | 5) => { setSlot(n); setImasugu(n === 1); };
   const [externalId, setExternalId] = useState('');
   const [shopUrl, setShopUrl] = useState('');
   const [idTouched, setIdTouched] = useState(false);
@@ -111,7 +111,7 @@ export default function ImportSourceManager({ allSalons, onToast }: {
         フクエスリンク（駅ちかからの反映）は、ここで駅ちかのお店のページを登録した店舗だけ動きます。
         登録すると取り込みの設定（出勤・プロフィール・新しく入った子の作成・30分ごと）は自動で立ちます。
         即ヒメ（フクエスの「今すぐ」）は枠1だけ読むのが既定です（2枠の店で食い違わないように）。下の一覧でも枠ごとに切り替えられます。
-        <b>枠2以降（枠2〜枠4）は「反映しない」（読み込まない・枠は生きている）で登録されます</b>（店舗様は枠1だけ更新するため）。
+        <b>枠2以降（枠2〜枠5）は「反映しない」（読み込まない・枠は生きている）で登録されます</b>（店舗様は枠1だけ更新するため）。
         店舗様はいつでもコネックエフで枠2の ID・PW を入れて「フクエスから反映」にできます（運営への連絡は不要）。
         「停止中」の枠2を「再開」すると、同じく「反映しない」で生かします。
         コネックエフの店（向きが write）は、店舗様が「更新する」を押した枠すべてに、今すぐを即ヒメとして送ります。
@@ -140,13 +140,14 @@ export default function ImportSourceManager({ allSalons, onToast }: {
           <span className="text-[11px] font-bold text-gray-500">枠</span>
           <select
             value={slot}
-            onChange={(e) => pickSlot(Number(e.target.value) as 1 | 2 | 3 | 4)}
+            onChange={(e) => pickSlot(Number(e.target.value) as 1 | 2 | 3 | 4 | 5)}
             className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
           >
             <option value={1}>枠1</option>
             <option value={2}>枠2</option>
             <option value={3}>枠3</option>
             <option value={4}>枠4</option>
+            <option value={5}>枠5</option>
           </select>
         </label>
         <label className="block">
