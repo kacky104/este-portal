@@ -1,6 +1,6 @@
 // fukuX（フクエックス）開設のご案内（第1162便・2026-10-04・カッキーさんの指示）。
 // ★ マイページのサイドバーの「fukuX」バナーから、まだフクエックスを開設していないお店が開く説明ページ。
-//   読んだあと、いちばん下の「開設を依頼する」でマイページのお問い合わせ（/mypage?tab=support）へ。
+//   読んだあと、いちばん下の「開設を依頼する」で運営へ送る（第1751便: 押した瞬間にお問い合わせとして送信・「運営に連絡しました」）。
 // ★ 第1665便（2026-10-26・カッキーさん）: 店舗アカウントは運営が作って ID・PW を渡す運用（画像にもそう書いてある）。
 //   以前のボタン「フクエックスを始める」（/x）だと店舗様が自分で作れてしまい、説明と食い違う・二重アカウントの元になるので、
 //   依頼のボタンに変えた。★ /x へ直接行くボタンは戻さない。
@@ -13,6 +13,7 @@
 
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { FukuxRequestButton } from './FukuxRequestButton';
 
 export const metadata: Metadata = { title: 'fukuX 開設のご案内｜フクエス マイページ' };
 
@@ -41,12 +42,8 @@ export default function FukuxIntroPage() {
           すでに届いている場合は、その ID でログインしてください。
         </p>
         <div className="flex flex-col sm:flex-row gap-3 pb-6">
-          <Link
-            href="/mypage?tab=support"
-            className="flex-1 text-center py-5 bg-gradient-to-r from-[#5b34ad] to-[#7c4ddb] text-white text-[19px] font-black tracking-wide shadow-lg hover:opacity-95"
-          >
-            開設を依頼する →
-          </Link>
+          {/* ★ 第1751便（カッキーさん）: 押した瞬間に運営へ送る（お問い合わせとして記録・運営にメール）。飛ばさない */}
+          <FukuxRequestButton />
           <Link href="/mypage" className="sm:w-56 flex items-center justify-center py-4 border-2 border-[#6d45c4] bg-white text-[15px] font-bold text-[#5b34ad] hover:bg-violet-50">
             マイページへ戻る
           </Link>
