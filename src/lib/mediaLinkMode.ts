@@ -228,7 +228,13 @@ export function shouldGiveUpAuto(recentOutcomes: readonly PushOutcome[]): boolea
  * ★ detail の値は jsonb のままでも ->> で取り出した文字列でも読めるようにしてある。
  */
 export function isInSyncConfirmation(row: { event: string; outcome: string; detail?: unknown }): boolean {
-  if (row.event !== 'plan_work' || row.outcome !== 'ok') return false;
+  // ★ 第1748便（2026-11-06）: 送りに行って「変更なし」で終わった回（エステ魂の write_work 'stopped'・変更0）も一致の確認。
+  //   エステ魂は送る段でも全員を読み比べ、差が無ければ write_work 'stopped' を書く（esutamaFlow.nextEsutamaPerson）。
+  //   これを数えないと、自動反映（送る段）だけで回っている店は一致していても「止まっています」と出る。
+  const confirmed =
+    (row.event === 'plan_work' && row.outcome === 'ok') ||
+    (row.event === 'write_work' && row.outcome === 'stopped');
+  if (!confirmed) return false;
   const d = (row.detail && typeof row.detail === 'object' ? row.detail : {}) as Record<string, unknown>;
   const num = (v: unknown): number | null => {
     if (typeof v === 'number') return Number.isFinite(v) ? v : null;

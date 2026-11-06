@@ -729,7 +729,11 @@ export function nextEsutamaPerson(ctx: RelayFlowContext, audits: FlowAudit[], no
       audits: [
         ...audits,
         pushing
-          ? { event: 'write_work', outcome: saved > 0 ? 'ok' : 'stopped', summary: saved > 0 ? 'エステ魂の出勤を ' + saved + '人ぶん 反映しました（' + people.length + '人を確認）' : 'エステ魂の出勤に変更はありませんでした（' + people.length + '人を確認）', detail: { people: people.length, saved, changed, flowId: ctx.flowId } }
+          // ★ 第1748便（2026-11-06）: 駅ちかの planWork と同じ鍵（changes・targets・sendable）も書く。
+          //   見張り（judgeWriteStall）と自動停止は isInSyncConfirmation でこの3つを見て「既に一致」と数える。
+          //   エステ魂だけ people・changed しか書いていなかったので、変更なしで一致を確かめた回が数えられず、
+          //   ラビリンス様に「エステ魂の反映が27時間止まっています」と誤って出ていた。
+          ? { event: 'write_work', outcome: saved > 0 ? 'ok' : 'stopped', summary: saved > 0 ? 'エステ魂の出勤を ' + saved + '人ぶん 反映しました（' + people.length + '人を確認）' : 'エステ魂の出勤に変更はありませんでした（' + people.length + '人を確認）', detail: { people: people.length, saved, changed, changes: changed, targets: people.length, sendable: people.length > 0, flowId: ctx.flowId } }
           /**
            * ★★★★ 【第393便】（2026-09-16・カッキーさん）確認が終わった記録を 'stopped' から直した。
            *   ★★ ここは【送らずに終わるのが正常】な段（確認）。★ それを 'stopped' にしていたので、
@@ -739,7 +743,7 @@ export function nextEsutamaPerson(ctx: RelayFlowContext, audits: FlowAudit[], no
            *     画面で【確かめました】と出る（mediaLogView.outcomeLabel）。★ 送った段とは言い分ける。
            *   ★ 比べる相手が1人も居なければ、確かめられていないので 'stopped' のまま。
            */
-          : { event: 'plan_work', outcome: people.length > 0 ? 'ok' : 'stopped', summary: 'エステ魂へ送る内容を確かめました（' + people.length + '人を確認、' + changed + '人に変更があります）。まだ送っていません', detail: { people: people.length, changed, flowId: ctx.flowId } },
+          : { event: 'plan_work', outcome: people.length > 0 ? 'ok' : 'stopped', summary: 'エステ魂へ送る内容を確かめました（' + people.length + '人を確認、' + changed + '人に変更があります）。まだ送っていません', detail: { people: people.length, changed, changes: changed, targets: people.length, sendable: people.length > 0, flowId: ctx.flowId } },
       ],
       note: note + ' → 全員ぶん終わり（' + people.length + '人 / 変更' + changed + ' / 保存' + saved + '）',
     };

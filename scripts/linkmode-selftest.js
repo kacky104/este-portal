@@ -172,6 +172,12 @@ eq('記録が無ければ切らない', m.shouldGiveUpAuto([]), false);
     m.isInSyncConfirmation({ event: 'plan_work', outcome: 'ok', detail: { changes: '0', targets: '38', sendable: 'true' } }), true);
   eq('★ エステ魂の plan_work（changes が無い）は数えない',
     m.isInSyncConfirmation({ event: 'plan_work', outcome: 'ok', detail: { people: 5, changed: 0 } }), false);
+  eq('★ 第1748便: エステ魂の「送りに行ったが変更なし」（write_work stopped・変更0・相手あり）は一致の確認',
+    m.isInSyncConfirmation({ event: 'write_work', outcome: 'stopped', detail: { people: 5, changed: 0, changes: 0, targets: 5, sendable: true } }), true);
+  eq('★ 第1748便: write_work stopped でも相手0人なら数えない',
+    m.isInSyncConfirmation({ event: 'write_work', outcome: 'stopped', detail: { changes: 0, targets: 0, sendable: false } }), false);
+  eq('★ 第1748便: write_work ok は（送れた側で数えるので）ここでは数えない',
+    m.isInSyncConfirmation({ event: 'write_work', outcome: 'ok', detail: { changes: 2, targets: 5, sendable: true } }), false);
 
   // 送るものがあったのに1人も保存できなかった回（changed > 0）は、今までどおり stopped
   const blockedSummary = (f) => W('stopped', { people: 29, saved: 0, changed: 1, flowId: f });
