@@ -317,7 +317,7 @@ export function CastDiary({
     const site = importedOf[post.id];
     const okToDelete = site
       ? window.confirm(importedDiaryDeleteConfirm(providerLabel(site)))
-      : window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。');
+      : window.confirm('この投稿を削除しますか？\nfukuX にも同時投稿していた場合は、そちらも消えます。\nこの操作は取り消せません。');
     if (!okToDelete) return;
     setDeletingId(post.id);
 

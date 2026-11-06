@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/app/lib/supabase/server';
+import { deleteDiaryCrossposts } from '@/app/actions/diaryCrosspost';
 
 // ★★ 第981便（2026-09-29・カッキーさん）: セラピスト本人の写メ日記（/cast の CastDiary）を【サーバー側】で読み書きする。
 // ★ 起きたこと（第962便パスワード・第980便ニックネームと同じ形）: LINE やメールアプリの中のブラウザでは、
@@ -171,6 +172,13 @@ function storagePathFromUrl(url: string): string | null {
 export async function deleteMyDiary(id: string, images: string[]): Promise<{ ok: true } | Fail> {
   const { supabase, user } = await me();
   if (!user) return NO_LOGIN;
+  // ★ 第1760便: 同時投稿した fukuX の投稿も先に消す（日記の行が要るので日記より先・失敗しても日記は消す）
+  try {
+    const x = await deleteDiaryCrossposts(id);
+    if (!x.ok) console.error('[cast] fukuX の同時投稿を消せなかった', user.id, x.error);
+  } catch (e) {
+    console.error('[cast] fukuX の同時投稿の削除でエラー', user.id, e instanceof Error ? e.message : e);
+  }
   const { error } = await supabase.from('diary_posts').delete().eq('id', id);
   if (error) {
     console.error('[cast] 日記を削除できなかった', user.id, error.message);

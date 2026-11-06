@@ -9,6 +9,7 @@ import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { listImportedDiaries } from '@/app/actions/diaryImports';
 import { importedDiaryLabel, importedDiaryDeleteConfirm, importedDiaryEditNote } from '@/lib/mediaOverview';
 import { providerLabel } from '@/lib/mediaAudit';
+import { deleteDiaryCrossposts } from '@/app/actions/diaryCrosspost';
 
 const supabase = createClient();
 // ★ 第1152便（カッキーさん）: 10 → 11 文字（セラピスト側 CastDiary と同じ値）
@@ -210,9 +211,17 @@ export function MyDiaryList({
     const site = importedOf[post.id];
     const ok = site
       ? window.confirm(importedDiaryDeleteConfirm(providerLabel(site)))
-      : window.confirm('この投稿を削除しますか？\nこの操作は取り消せません。');
+      : window.confirm('この投稿を削除しますか？\nfukuX にも同時投稿していた場合は、そちらも消えます。\nこの操作は取り消せません。');
     if (!ok) return;
     setDeletingId(post.id);
+
+    // ★ 第1760便: 同時投稿した fukuX の投稿も先に消す（日記の行が要るので日記より先・失敗しても日記は消す）
+    try {
+      const x = await deleteDiaryCrossposts(post.id);
+      if (!x.ok) console.error('fukuX の同時投稿を消せなかった:', x.error);
+    } catch (e) {
+      console.error('fukuX の同時投稿の削除でエラー:', e);
+    }
 
     // 先にDB削除
     const { error } = await supabase.from('diary_posts').delete().eq('id', post.id);
