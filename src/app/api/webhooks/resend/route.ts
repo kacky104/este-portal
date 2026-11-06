@@ -173,6 +173,27 @@ export async function POST(req: Request) {
       salonName = (salons[0].name as string | null) ?? null;
     }
   }
+  // ★ 第1753便（2026-11-06・カッキーさん）: 予約通知の店と一致しなければ、セラピストの招待（therapists.invited_email）も見る。
+  //   招待メール（Supabase Auth → Resend）の不達は、宛先の打ち間違い（例: icloud.com を cloud.com）が原因で、
+  //   店舗名が出ないと「どの店の誰か」を運営が探すのに時間がかかっていた。店とセラピスト名を残して、画面で一言で言えるようにする。
+  //   ★ 2人以上が同じ宛先なら最初の1人（まれ）。読めなくても記録は落とさない。
+  let therapistName: string | null = null;
+  if (salonId == null && toEmails.length > 0) {
+    const { data: ths, error: thErr } = await svc
+      .from('therapists')
+      .select('id, name, salon_id, salons!inner(id, name)')
+      .in('invited_email', toEmails)
+      .limit(1);
+    if (thErr) {
+      console.error('[resend-webhook] セラピストの突き合わせに失敗:', thErr.message);
+    } else if (ths && ths.length > 0) {
+      const t = ths[0] as unknown as { id: number; name: string | null; salon_id: number | null; salons: { id: number; name: string | null } | { id: number; name: string | null }[] | null };
+      const sal = Array.isArray(t.salons) ? t.salons[0] : t.salons;
+      salonId = (sal?.id as number | undefined) ?? (t.salon_id as number | null) ?? null;
+      salonName = (sal?.name as string | null | undefined) ?? null;
+      therapistName = (t.name as string | null) ?? null;
+    }
+  }
 
   const { error: insertError } = await svc.from('email_events').insert({
     svix_id: svixId,
@@ -188,7 +209,8 @@ export async function POST(req: Request) {
     salon_id: salonId,
     salon_name: salonName,
     occurred_at: occurredAt,
-    payload: body,
+    // ★ 第1753便: セラピストの招待なら、名前を payload に添える（列は足さない。画面は payload.fukues.therapist_name を読む）
+    payload: therapistName ? { ...(body as Record<string, unknown>), fukues: { kind: 'cast_invite', therapist_name: therapistName } } : body,
   });
 
   if (insertError) {

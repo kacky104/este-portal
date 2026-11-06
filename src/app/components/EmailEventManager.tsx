@@ -7,6 +7,8 @@ import {
   emailEventSeverity,
   bounceTypeLabel,
   bounceSubTypeLabel,
+  classifyEmailTrouble,
+  emailTroubleGuide,
 } from '@/app/lib/email/eventTypes';
 
 // /admin「メール配信トラブル」一覧（email_events）。
@@ -35,6 +37,8 @@ type EmailEvent = {
   salon_name: string | null;
   occurred_at: string;
   resolved: boolean;
+  /** ★ 第1753便: 受け口が付ける印（payload.fukues）。セラピストの招待なら kind と名前 */
+  payload?: { fukues?: { kind?: string; therapist_name?: string } } | null;
 };
 
 function formatDateTimeJST(iso: string): string {
@@ -66,7 +70,7 @@ export default function EmailEventManager({
     setLoading(true);
     const { data, error } = await supabase
       .from('email_events')
-      .select('id, event_type, email_id, from_email, to_emails, subject, bounce_type, bounce_sub_type, bounce_message, salon_id, salon_name, occurred_at, resolved')
+      .select('id, event_type, email_id, from_email, to_emails, subject, bounce_type, bounce_sub_type, bounce_message, salon_id, salon_name, occurred_at, resolved, payload')
       .order('occurred_at', { ascending: false })
       .limit(LIMIT);
     if (error) {
@@ -110,8 +114,19 @@ export default function EmailEventManager({
     onToast('記録を削除しました');
   };
 
-  // 未対応を先頭に（同状態内は取得順＝新しい順のまま）。
-  const sorted = [...events].sort((a, b) => (a.resolved === b.resolved ? 0 : a.resolved ? 1 : -1));
+  // ★ 第1753便: 種類を付け、同じ宛先×同じ種類の未対応はまとめて1件に（件数を添える）。予約通知を先頭に、次に未対応、あとは新しい順。
+  const kindOf = (e: EmailEvent) => classifyEmailTrouble({ subject: e.subject, salonId: e.salon_id, payloadKind: e.payload?.fukues?.kind ?? null });
+  const grouped: Array<EmailEvent & { kind: ReturnType<typeof kindOf>; dup: number; dupIds: string[] }> = [];
+  const seen = new Map<string, number>();
+  for (const e of events) {
+    const kind = kindOf(e);
+    const key = e.resolved ? '' : kind + '|' + (e.to_emails ?? []).join(',').toLowerCase();
+    if (key && seen.has(key)) { const g = grouped[seen.get(key)!]; g.dup += 1; g.dupIds.push(e.id); continue; }
+    if (key) seen.set(key, grouped.length);
+    grouped.push({ ...e, kind, dup: 1, dupIds: [e.id] });
+  }
+  const rank = (g: (typeof grouped)[number]) => (g.resolved ? 2 : g.kind === 'booking' ? 0 : 1);
+  const sorted = grouped.sort((a, b) => rank(a) - rank(b));
 
   return (
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
@@ -124,19 +139,9 @@ export default function EmailEventManager({
             「何が届かなかったのか」が分からない行は、放置されるだけで終わる。 */}
       <p className="text-[11px] text-slate-400 leading-relaxed mb-4">
         フクエスから送ったメールのうち、<strong className="text-slate-500">相手に届かなかったもの</strong>の一覧です（Resend からの通知を自動記録）。
-        対処は<strong className="text-slate-500">店舗名が出ているかどうか</strong>で変わります。
+        行ごとに「何のメールか」と「やること」を出しています。<strong className="text-rose-500">赤い行（予約通知）</strong>だけ急ぎです。
+        セラピスト招待・お問い合わせの自動返信は、相手のアドレスの打ち間違いがほとんどです。同じ宛先の未対応はまとめて1件にしています。
       </p>
-      <ul className="text-[11px] text-slate-400 leading-relaxed mb-4 space-y-1.5 pl-4 list-disc marker:text-slate-300">
-        <li>
-          <strong className="text-slate-500">店舗名が出ている</strong>…その店の<strong className="text-slate-500">予約通知が届いていません</strong>。
-          店舗編集の「予約通知メール」を直し、ネット予約設定の「テスト送信」で疎通を確認してから「対応済み」にしてください。
-        </li>
-        <li>
-          <strong className="text-slate-500">店舗名が空欄</strong>…掲載や求人のお問い合わせをくださった方への<strong className="text-slate-500">自動返信が届いていません</strong>
-          （件名で見分けられます）。相手が入力したメールアドレスの打ち間違いが原因なので、こちらから直す方法はありません。
-          <strong className="text-slate-500">電話番号が分かればそちらへ連絡</strong>し、分からなければそのまま「対応済み」にしてください。
-        </li>
-      </ul>
       {events.length >= LIMIT && (
         <p className="text-[11px] text-slate-400 leading-relaxed mb-4">（表示は直近{LIMIT}件までです）</p>
       )}
@@ -153,15 +158,21 @@ export default function EmailEventManager({
         <div className="space-y-2">
           {sorted.map(e => {
             const severity = emailEventSeverity(e.event_type);
+            const guide = emailTroubleGuide(e.kind);
+            // ★ 第1753便: 赤は「予約通知の不達」だけ。ほかは薄い（運営が赤い行だけ見れば済むように）
+            const strong = !e.resolved && guide.strong && severity === 'bad';
             return (
               <div
                 key={e.id}
                 className={`rounded-xl border p-3 ${
-                  e.resolved ? 'border-slate-100' : severity === 'bad' ? 'border-rose-200 bg-rose-50/40' : 'border-amber-200 bg-amber-50/40'
+                  e.resolved ? 'border-slate-100 opacity-70' : strong ? 'border-rose-200 bg-rose-50/40' : 'border-slate-200 bg-slate-50/60'
                 }`}
               >
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <span className="text-[11px] text-slate-400">{formatDateTimeJST(e.occurred_at)}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${strong ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                    {guide.label}
+                  </span>
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                       severity === 'bad'
@@ -171,6 +182,7 @@ export default function EmailEventManager({
                   >
                     {emailEventLabel(e.event_type)}
                   </span>
+                  {e.dup > 1 && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">同じ宛先 {e.dup}件</span>}
                   {e.resolved ? (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">対応済み</span>
                   ) : (
@@ -192,14 +204,16 @@ export default function EmailEventManager({
                   </button>
                 </div>
 
-                {/* 店が特定できたものは最初に出す。運営が最初に知りたいのは「どの店か」なので。 */}
-                {e.salon_name && (
-                  <p className="text-xs font-bold text-rose-600">
+                {/* ★ 第1753便: 店とセラピストの名前 → 一言 → やること。運営が最初に知りたい順 */}
+                {(e.salon_name || e.payload?.fukues?.therapist_name) && (
+                  <p className={`text-xs font-bold ${strong ? 'text-rose-600' : 'text-slate-700'}`}>
                     {e.salon_name}
                     {e.salon_id != null && <span className="ml-1 font-mono text-[10px] text-slate-400">ID {e.salon_id}</span>}
-                    <span className="ml-2 font-bold text-[11px]">← この店の予約通知が届いていません</span>
+                    {e.payload?.fukues?.therapist_name && <span className="ml-2">セラピスト: {e.payload.fukues.therapist_name}</span>}
                   </p>
                 )}
+                <p className={`text-[11px] font-bold mt-0.5 ${strong ? 'text-rose-600' : 'text-slate-600'}`}>{guide.line}</p>
+                {!e.resolved && <p className="text-[11px] text-slate-500 mt-0.5">やること: {guide.todo}</p>}
 
                 <p className="text-[11px] text-slate-500 mt-1 break-all">
                   宛先: {(e.to_emails ?? []).join(', ') || '(不明)'}

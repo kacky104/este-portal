@@ -77,3 +77,60 @@ export function bounceSubTypeLabel(v: string | null): string {
     default:                 return v ?? '';
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// ★ 第1753便（2026-11-06・カッキーさん）: 「何のメールが届かなかったか」を種類に分けて、一言と対処を出す。
+//   それまでは「店舗名が出ている＝予約通知／空欄＝お問い合わせの自動返信」の2つしか言い分けていなかったが、
+//   セラピストの招待（打ち間違いが多い）が混ざって、本当に見るべき予約通知の不達が埋もれていた。
+//   ★ 見分けは件名と payload.fukues.kind（受け口が付ける）。純粋関数（通信も DB も触らない）。
+// ─────────────────────────────────────────────────────────────
+export type EmailTroubleKind = 'booking' | 'cast_invite' | 'inquiry_reply' | 'other';
+
+export function classifyEmailTrouble(input: {
+  subject: string | null | undefined;
+  salonId: number | null | undefined;
+  payloadKind?: string | null;
+}): EmailTroubleKind {
+  if (input.payloadKind === 'cast_invite') return 'cast_invite';
+  const sub = String(input.subject ?? '');
+  if (/セラピストページ連携|招待/.test(sub)) return 'cast_invite';
+  if (/お問い合わせを承りました|お問い合わせ/.test(sub)) return 'inquiry_reply';
+  if (/予約/.test(sub)) return 'booking';
+  // 件名で分からなくても、店が予約通知の宛先と一致していれば予約通知
+  if (input.salonId != null) return 'booking';
+  return 'other';
+}
+
+/** 種類 → 札・一言・対処・重さ。★ 予約通知だけが「赤（お客様の取りこぼし）」。ほかは薄く */
+export function emailTroubleGuide(kind: EmailTroubleKind): { label: string; line: string; todo: string; strong: boolean } {
+  switch (kind) {
+    case 'booking':
+      return {
+        label: '予約通知',
+        line: 'この店の予約通知が届いていません',
+        todo: '店舗編集の「予約通知メール」を直し、ネット予約設定の「テスト送信」で疎通を確かめてから対応済みに。',
+        strong: true,
+      };
+    case 'cast_invite':
+      return {
+        label: 'セラピスト招待',
+        line: 'セラピストページの招待メールが届いていません（宛先の打ち間違いの可能性）',
+        todo: '店舗様に、そのセラピストのメールアドレスを確かめて（例: icloud.com を cloud.com）、直してもう一度招待してもらう。',
+        strong: false,
+      };
+    case 'inquiry_reply':
+      return {
+        label: 'お問い合わせの自動返信',
+        line: 'お問い合わせをくださった方への自動返信が届いていません（相手の打ち間違い）',
+        todo: 'こちらからは直せません。電話番号が分かればそちらへ連絡し、分からなければそのまま対応済みに。',
+        strong: false,
+      };
+    default:
+      return {
+        label: 'その他',
+        line: 'フクエスから送ったメールが届いていません',
+        todo: '件名と宛先から送り先を確かめてください。',
+        strong: false,
+      };
+  }
+}
