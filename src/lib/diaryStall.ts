@@ -139,9 +139,25 @@ function buildMessage(
  * ★★★ 戻り値は【多くても1件】。★ importStall と違い、2本は直列につながっている:
  *   積んでいないなら、読めていないのは当たり前。★ そこで relay.sh を見に行かせない。
  */
+/**
+ * ★★★ 第1749便（2026-11-06・カッキーさん）: フクエスリンクの店（入口 'ekichika'）の写メ日記の取り込みは【枠1だけ】。
+ *   駅ちかの枠1と枠2は同じお店の同じ日記なので、枠2からも取り込むと同じ写メ日記が2件並ぶ。
+ *   10/17 の「取り込みは枠1だけ」（出勤）を写メ日記にもそろえた。取り込みの周（/api/admin/diary-import）と見張りの両方がこれを見る。
+ *   ★ コネックエフに切り替えた店の移行期間の取り込み（isMixed）は、枠ごとの向きで決める今までどおり（ここは通らない）。
+ *   きっかけ: アイリス様（11/6）が枠2にも鍵を入れ、見張りが「枠2の巡回がまだ一度も積まれていません」と出した。
+ */
+export const DIARY_IMPORT_SLOT = 1;
+export function diaryImportSlotAllowed(slot: number): boolean {
+  return Number(slot) === DIARY_IMPORT_SLOT;
+}
+/** 枠2以降を見張らない理由（運営の確認画面に出す） */
+export const DIARY_SLOT_QUIET_REASON = '枠2以降は取り込みません（枠1と同じ内容のため）';
+
 export function judgeDiaryStall(input: DiaryStallInput): DiaryStallFinding[] {
   // ★★ 入口の判定は diarySource.ts の一本線を通す。★ ここに条件を書き足さないこと（第99便）
   if (!importsDiaryFromEkichika(input.diarySource)) return [];
+  // ★ 第1749便: 枠1だけ（取り込みの周と同じ）
+  if (!diaryImportSlotAllowed(input.slot)) return [];
   if (input.isEnabled !== true) return [];
   if (input.hasConsent !== true) return [];
 

@@ -58,6 +58,13 @@ eq('入口が benry なら黙る', s.judgeDiaryStall(base({ diarySource: 'benry'
 eq('入口が fukues なら黙る', s.judgeDiaryStall(base({ diarySource: 'fukues', queuedAt: hoursAgo(72), listedAt: hoursAgo(72) })), []);
 eq('★ 知らない値でも黙る（既定へ読み替えない）', s.judgeDiaryStall(base({ diarySource: 'EKICHIKA', queuedAt: hoursAgo(72) })), []);
 eq('★ 空でも黙る', s.judgeDiaryStall(base({ diarySource: null, queuedAt: hoursAgo(72) })), []);
+
+console.log('\n── 2b. ★ 第1749便: フクエスリンクの店の写メ日記は枠1だけ（枠2以降は見張らない）──');
+eq('★ 枠1は見張る', kinds(s.judgeDiaryStall(base({ slot: 1, queuedAt: null, listedAt: null }))), ['queued:never']);
+eq('★ 枠2は一度も積まれていなくても黙る', s.judgeDiaryStall(base({ slot: 2, queuedAt: null, listedAt: null })), []);
+eq('★ 枠3も黙る', s.judgeDiaryStall(base({ slot: 3, queuedAt: hoursAgo(72), listedAt: hoursAgo(72) })), []);
+eq('★ 決まりは1か所（diaryImportSlotAllowed）', [s.diaryImportSlotAllowed(1), s.diaryImportSlotAllowed(2), s.DIARY_IMPORT_SLOT], [true, false, 1]);
+eq('★ 黙る理由の文', s.DIARY_SLOT_QUIET_REASON.indexOf('枠2以降は取り込みません') === 0, true);
 eq('★ 前後の空白は別の値', s.judgeDiaryStall(base({ diarySource: ' ekichika ', queuedAt: hoursAgo(72) })), []);
 eq('★ 入口が ekichika のときだけ鳴る（数で）',
   ['benry', 'ekichika', 'fukues', 'unknown', null]

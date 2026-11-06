@@ -1,6 +1,6 @@
 import type { createServiceClient } from '@/app/lib/supabase/service';
 import { readDiarySource, importsDiaryFromEkichika } from '@/lib/diarySource';
-import { judgeDiaryStall, type DiaryStallFinding } from '@/lib/diaryStall';
+import { diaryImportSlotAllowed, DIARY_SLOT_QUIET_REASON, judgeDiaryStall, type DiaryStallFinding } from '@/lib/diaryStall';
 
 // 写メ日記の巡回が止まっていないかの【材料集め】（第1340便・2026-10-09）。
 //
@@ -84,6 +84,8 @@ export async function collectDiaryStall(svc: Svc, now: Date): Promise<DiaryStall
       quiet.push({ salonId, salonName, slot, reason: '入口が ekichika ではない（いまは ' + (source ?? '引けなかった') + '）ため見張らない' });
       continue;
     }
+    // ★ 第1749便: 枠2以降は取り込まない（枠1と同じ日記）ので見張らない
+    if (!diaryImportSlotAllowed(slot)) { quiet.push({ salonId, salonName, slot, reason: DIARY_SLOT_QUIET_REASON }); continue; }
     if (!isEnabled) { quiet.push({ salonId, salonName, slot, reason: 'ログイン情報が止めてあるため見張らない' }); continue; }
     if (!hasConsent) { quiet.push({ salonId, salonName, slot, reason: 'ご同意が未登録のため見張らない' }); continue; }
 

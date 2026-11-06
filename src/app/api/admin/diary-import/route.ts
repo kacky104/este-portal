@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow, diaryBackfillContext } from '@/app/lib/media/relayFlow';
 import { importsDiaryFromEkichika, readDiarySource } from '@/lib/diarySource';
+import { diaryImportSlotAllowed } from '@/lib/diaryStall';
 import { stampDiaryQueued } from '@/app/lib/media/diaryWatch';
 import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
 import { diaryMixedRuns } from '@/lib/diaryMixedPeriod';
@@ -182,7 +183,8 @@ export async function POST(req: Request) {
   const isMixed = (salonId: number, slot: number): boolean =>
     sourceOf.get(salonId) === 'fukues' && mixedSinceOf.has(salonId) && mixedRunSlots.has(salonId + '#' + slot);
   const canRun = (salonId: number, slot: number): boolean => {
-    if (importsDiaryFromEkichika(sourceOf.get(salonId))) return true;
+    // ★ 第1749便: フクエスリンクの店は枠1だけ（枠2は同じ日記＝二重に並ぶ）。lib/diaryStall.ts の決まり
+    if (importsDiaryFromEkichika(sourceOf.get(salonId))) return diaryImportSlotAllowed(slot);
     if (isMixed(salonId, slot)) return true;
     const b = backfillOf.get(salonId);
     return !!(b && b.until);
