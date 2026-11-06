@@ -236,6 +236,8 @@ export const RELAY_WRITE_INTENTS: readonly string[] = [
   'girl_delete', 'cast_hide', 'cast_create', 'girl_create', 'cast_photo', 'girl_edit', 'cast_edit',
   // ★ 第1305便: 駅ちかの上位表示（相手の回数を減らす）
   'bump_auto', 'bump_push',
+  // ★ 第1759便: セラピストの並び順を相手サイトへ送る（第1557便）。書き換える流れ
+  'sort_push',
 ];
 
 /** ★ その流れは書き込みの同意が要るか。★ 知らない流れは【要る側】に倒す */
