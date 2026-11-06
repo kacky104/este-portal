@@ -55,7 +55,9 @@ type Data = {
 // ★ 第371便: 日時を整える fmt() は消した（「◯名ぶん 登録済み」のブロックでしか使っていなかった）。
 //   ★ 読み取った日時は【連携の記録】が出す。★ Data.lastRead は受け口の戻り値の形なので型には残してある
 
-export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '', therapistEditHref, showCastLink = false, onlyEkichika = false }: {
+export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 0, therapistEditOrigin = '', therapistEditHref, showCastLink = false, onlyEkichika = false, notSwitched = false }: {
+  /** ★ 第1750便（2026-11-06・カッキーさん）: コネックエフに切り替えていない店（赤い「転送不可」ではなく、駅ちかから取り込んでいる案内を出す） */
+  notSwitched?: boolean;
   salonId: number | null;
   /** ★ 第905便: 駅ちかだけ（「どのサイトを見ますか？」のブロックを出さない・フクエスリンク用） */
   onlyEkichika?: boolean;
@@ -254,7 +256,17 @@ export function DiaryTargets({ salonId, onToast, esutamaPanel, consentVersion = 
       {/* ── 正本の注意（二重投稿を防ぐ唯一の仕掛け）───────── */}
       {/* ★ 青→赤（第85便・カッキー様）。★ ここは「登録しても送っていない」という
           いちばん誤解される点。★ 目に留まる色にする。 */}
-      {!loading && !error && data?.diarySource !== 'fukues' && (
+      {/* ★ 第1750便（2026-11-06・カッキーさん「こっちの表現の方が良い」）: コネックエフに切り替えていない店は、
+          「転送不可」ではなく「駅ちかから取り込んでいる」と言う。この画面は切り替えた店向けで、
+          フクエスリンクのまま（駅ちかから読む）の店が開くと「転送不可・更新するを押すと」と出て紛らわしかった（アイリス様）。 */}
+      {!loading && !error && data?.diarySource !== 'fukues' && notSwitched && (
+        <div className="border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-[14px] leading-relaxed text-slate-600">
+            コネックエフに切り替えていないため、写メ日記は駅ちかから取り込んでいます。フクエスからの転送は行いません。
+          </p>
+        </div>
+      )}
+      {!loading && !error && data?.diarySource !== 'fukues' && !notSwitched && (
         <div className="border border-rose-200 bg-rose-50 px-4 py-3">
           {/* ★ 第200便（2026-09-07・カッキーさん）: 「正本」「他社経由の転送」はこちらの言葉。
               ★ 店舗様が押すもの（下の「フクエスで書く」）で言い、理由は括弧で1つだけ。 */}

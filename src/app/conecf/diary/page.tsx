@@ -33,6 +33,7 @@ export default function ConecfDiaryPage() {
             therapistEditOrigin="https://fukues.com"
             therapistEditHref={(tid) => href(`/girls/${tid}?tab=diary`)}
             showCastLink
+            notSwitched={!a.enabledAt}
             esutamaPanel={<DiaryConsent salonId={a.salonId} onToast={showToast} showCastLink onChanged={() => setConsentVersion((v) => v + 1)} />}
           />
         </div>
