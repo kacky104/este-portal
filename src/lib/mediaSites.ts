@@ -171,7 +171,9 @@ export const MEDIA_SITES: readonly MediaSite[] = [
      */
     can: ['work', 'therapist', 'diary', 'sokuhime', 'news'],
     // ★ 第937便（2026-09-28・カッキーさん）: 駅ちかの掲載枠は枠2まで（3→2）。★ 画面の選択肢だけ。保存済みの行は消さない
-    slots: 2,
+    // ★ 第1756便（2026-11-06・カッキーさん）: 枠5まで（オイルクエスト様: 枠3 北九州・小倉／枠4 久留米／枠5 福岡県その他）。
+    //   枠の見出しは URL のエリア番号から自動（lib/ekichikaArea.ts）。枠2以降の自動登録（第1681便）はそのまま枠3〜5にも効く
+    slots: 5,
     readable: true,
     accepting: true,
     notYet: '',
