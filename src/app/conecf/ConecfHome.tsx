@@ -373,6 +373,9 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
                   {busy === k ? '変えています…' : 'コネックエフから更新する'}
                 </button>
               );
+            } else if (s.provider === 'zenkoku' && !s.canSwitch) {
+              // ★ 第1770便（カッキーさん）: 全国エステランキングは、出勤の反映ができあがるまで「更新する」を出さない（押せない）
+              status = { text: '出勤の反映は準備中です', tone: 'text-slate-400' };
             } else {
               status = { text: '更新していません', tone: 'text-slate-400' };
               action = (

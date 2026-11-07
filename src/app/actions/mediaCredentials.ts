@@ -29,6 +29,8 @@ import { isNoChangeStop } from '@/lib/mediaLogView';
 import { nextDiaryMixedSince } from '@/lib/diarySource';
 import { findMediaSite, sendableCapabilities, capabilityLabel } from '@/lib/mediaSites';
 import { workProblemOf, type WorkProblem } from '@/lib/workProblem';
+// ★ 第1770便: 全国エステランキングは、書き込みを開けるまで【フクエスから反映】にできない
+import { ZENKOKU_WRITE_ENABLED } from '@/lib/zenkokuFlow';
 import { loadLoginRejectPaused } from '@/app/lib/media/loginAutoPause';
 import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
@@ -776,6 +778,12 @@ async function applyLinkMode(input: {
         error: 'この店舗はコネックエフに切り替え済みのため、駅ちかから反映にはできません。出勤はコネックエフの週間スケジュールで入力してください',
       };
     }
+  }
+
+  // ★★★ 第1770便（2026-11-07・カッキーさん）: 全国エステランキングは、書き込みを開けるまで（zenkokuFlow.ZENKOKU_WRITE_ENABLED）
+  //   【フクエスから反映】にできない。★ 押せてしまうと、送れないまま「止まっています」が店舗様に出る。★ 画面でも出さない（canSwitch）
+  if ((input.mode === 'write' || input.mode === 'write_auto') && input.provider === 'zenkoku' && !ZENKOKU_WRITE_ENABLED) {
+    return { ok: false, error: '全国エステランキングへの出勤の反映は準備中です。できあがるまでお待ちください' };
   }
 
   // ★★★ 第1260便（2026-10-07・カッキーさんの決定）: 【フクエスから反映（write / write_auto）】は、
@@ -2252,7 +2260,8 @@ export async function getMediaOverview(input: { salonId: string | number; servic
       direction,
       // ★ read の文言には媒体の名前が入る（第86便）。★ 決め打ちにしない
       statusLabel: directionLabel(direction, providerLabel(provider)),
-      canSwitch: canSwitchDirection(facts),
+      // ★ 第1770便: 全国エステランキングは、書き込みを開けるまでボタンを出さない
+      canSwitch: provider === 'zenkoku' && !ZENKOKU_WRITE_ENABLED ? false : canSwitchDirection(facts),
       // ★ 生の link_mode を画面へ流さず、要る1点だけを boolean にして渡す
       autoOn: facts.linkMode === 'write_auto',
       hasCredential: facts.hasCredential,
