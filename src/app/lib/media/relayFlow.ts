@@ -114,6 +114,11 @@ import {
   esutamaDiaryPhotoFit, esutamaDiaryCropLoss, esutamaDiaryPhotoDataUrl, pickEsutamaDiaryPhotoUrls,
 } from '@/lib/esutamaDiaryPhoto';
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
+// ★ 第1769便: 全国エステランキング
+import { buildZenkokuLoginPageRequest, buildZenkokuLoginRequest } from '@/lib/zenkokuRequests';
+import { zenkokuFirstDayRequest, ZENKOKU_WINDOW_DAYS, ZENKOKU_WRITE_ENABLED } from '@/lib/zenkokuFlow';
+import { toZenkokuRange, type ZenkokuLoginForm, type ZenkokuGirl } from '@/lib/zenkokuParse';
+import { normalizeName as normalizeMediaName } from '@/lib/mediaMatch';
 
 /**
  * いまフローを組み立てられる媒体。
@@ -122,7 +127,8 @@ import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
  *   【ログイン → 名簿を読む → 送るとこうなるを組み立てる】まで。**まだ送らない。**
  */
 // ★ 2026-09-02（第109便）でエステ魂を追加。★ ログイン → 名簿 → 出勤表（人ごと）→ 保存 → 照合。
-const SUPPORTED_PROVIDERS = ['ekichika', 'esulove', 'esutama'] as const;
+// ★ 2026-11-07（第1769便）で全国エステランキングを追加。★ ログイン → セラピスト一覧 → 日ごとの出勤（7日）。書き込みは zenkokuFlow.ZENKOKU_WRITE_ENABLED が開けるまで読むだけ
+const SUPPORTED_PROVIDERS = ['ekichika', 'esulove', 'esutama', 'zenkoku'] as const;
 
 /**
  * 媒体ごとの「最初の段」。
@@ -132,7 +138,12 @@ const SUPPORTED_PROVIDERS = ['ekichika', 'esulove', 'esutama'] as const;
 function firstStep(
   provider: string,
   cred: { shopId: string; loginId: string; password: string },
-): { purpose: 'login' | 'esulove_login' | 'esutama_login_page'; method: 'GET' | 'POST'; url: string; headers: Record<string, string>; body: string } {
+): { purpose: 'login' | 'esulove_login' | 'esutama_login_page' | 'zenkoku_login_page'; method: 'GET' | 'POST'; url: string; headers: Record<string, string>; body: string } {
+  if (provider === 'zenkoku') {
+    // ★ 第1769便: 先にログイン画面を GET して隠し値3つと Cookie を拾う。★ 認証情報はまだ使わない
+    const r = buildZenkokuLoginPageRequest();
+    return { purpose: 'zenkoku_login_page', method: 'GET', url: r.url, headers: r.headers, body: '' };
+  }
   if (provider === 'esutama') {
     // ★ エステ魂は先にログイン画面を GET して csrf と Cookie を拾う（第109便）。★ 認証情報はまだ使わない
     const r = buildEsutamaLoginPageRequest();
@@ -981,6 +992,30 @@ export async function advanceRelayFlow(params: {
     }
   }
 
+  // ★★★ 全国エステランキング（第1769便）: ログイン画面を読めた → ここで初めて認証情報を復号してログイン POST を組む
+  if (outcome.kind === 'zenkoku_login_needed') {
+    const r = await buildZenkokuLoginStep(params, outcome.form, outcome.context);
+    if ('stop' in r) {
+      audits.push(...r.stop.audits);
+      note = outcome.note + ' → ' + r.stop.note;
+    } else {
+      next = r.next;
+    }
+  }
+
+  // ★★★ 全国エステランキングのセラピスト一覧を読めた（第1769便）。写しを残し、出勤の用事なら7日分の計画を入れて1日目へ
+  if (outcome.kind === 'zenkoku_roster') {
+    if (outcome.warnings.length > 0) console.warn('[relay] 全国エステランキングの一覧の気になること:', outcome.warnings.join(' / '));
+    const snap = await saveEsutamaRoster(params, outcome.rows.map((r) => ({ castId: r.gid, name: r.name })) as EsutamaRosterRow[], outcome.context);
+    note = outcome.note + ' → ' + snap.note;
+    if (context.intent === 'work_dryrun' || context.intent === 'work_push' || context.intent === 'work_auto') {
+      const r = await planZenkoku(params, outcome.rows, outcome.context);
+      audits.push(...r.audits);
+      note = note + ' → ' + r.note;
+      next = r.next ?? null;
+    }
+  }
+
   // ★★★ 魂セラピスト一覧を読めた（第133便）。★ ここで初めて【誰のどの日記を送るか】が決まる。
   //   ★ 判断は純粋関数（esutamaDiaryPlan）。ここは DB から材料を集めて渡すだけ。
   //   ★★ diary_dryrun はここで終わり＝**代理ログインもしない・1文字も書かない。**
@@ -1262,7 +1297,7 @@ export async function advanceRelayFlow(params: {
     outcome.audits.length > 0 &&
     outcome.audits.every((a) => a.event !== 'login');
   // ★ エステ魂のログイン POST を組めなかった（認証情報が読めない等）は stop（認証の話なので店舗に見せる）
-  const esutamaLoginFailed = outcome.kind === 'esutama_login_needed' && !next;
+  const esutamaLoginFailed = (outcome.kind === 'esutama_login_needed' || outcome.kind === 'zenkoku_login_needed') && !next;
   const settle: 'next' | 'done' | 'stop' = next
     ? 'next'
     : esutamaLoginFailed
@@ -1273,6 +1308,8 @@ export async function advanceRelayFlow(params: {
         || outcome.kind === 'esulove_roster'
         // ★ エステ魂（第109便）: 名簿が読めた＝ログインは成功している。計画で止まっても認証の話ではない
         || outcome.kind === 'esutama_roster'
+        // ★ 第1769便: 全国エステランキングの一覧が読めた＝ログインは成功している
+        || outcome.kind === 'zenkoku_roster'
         // ★ エステ魂の魂セラピスト一覧が読めた（第130便）。★ 同じ理由で認証の話ではない
         || outcome.kind === 'esutama_therapists'
         || outcome.kind === 'diary_list' || outcome.kind === 'diary_detail'
@@ -1281,7 +1318,7 @@ export async function advanceRelayFlow(params: {
         || photoStoppedButLoggedIn
         || articleStoppedButLoggedIn
       ? 'done'
-      : outcome.kind === 'esutama_login_needed'
+      : outcome.kind === 'esutama_login_needed' || outcome.kind === 'zenkoku_login_needed'
         ? 'stop'   // ★ 上の esutamaLoginFailed で拾っている。型を閉じるためだけ
         : outcome.kind;
   await stampCredential(params, settle, audits);
@@ -1678,6 +1715,154 @@ async function buildEsutamaLoginStep(
       context: { ...ctx, esutamaCsrf: undefined },
     },
   };
+}
+
+/** ★ 第1769便: 全国エステランキングのログイン POST を組む（★ パスワードを復号するのはここだけ） */
+async function buildZenkokuLoginStep(
+  params: { salonId: number; provider: string; slot: number },
+  form: ZenkokuLoginForm,
+  ctx: RelayFlowContext,
+): Promise<{ next: FlowNextRequest } | { stop: { audits: FlowAudit[]; note: string } }> {
+  const supabase = createServiceClient();
+  const { data: cred, error } = await supabase
+    .from('salon_media_credentials')
+    .select('login_id, password_enc, is_enabled')
+    .eq('salon_id', params.salonId)
+    .eq('provider', params.provider)
+    .eq('slot', params.slot)
+    .maybeSingle();
+  if (error || !cred) {
+    return { stop: { audits: [{ event: 'login', outcome: 'failed', summary: '全国エステランキングのログイン情報を読めませんでした', detail: { reason: 'credential_read_failed', flowId: ctx.flowId } }], note: 'ログイン情報を読めなかった: ' + (error?.message ?? '行が無い') } };
+  }
+  if (cred.is_enabled !== true) {
+    return { stop: { audits: [{ event: 'login', outcome: 'stopped', summary: 'この連携は停止中のため、ログインしませんでした', detail: { reason: 'disabled', flowId: ctx.flowId } }], note: '停止中' } };
+  }
+  const password = decryptSecret(cred.password_enc as string, { salonId: params.salonId, provider: params.provider, slot: params.slot });
+  const r = buildZenkokuLoginRequest({ loginId: String(cred.login_id ?? ''), password }, form, ctx.cookie);
+  return { next: { purpose: 'zenkoku_login', method: r.method, url: r.url, headers: r.headers, body: r.body, context: ctx } };
+}
+
+/**
+ * ★★★ 第1769便: 全国エステランキングの一覧とフクエスの出勤を突き合わせ、7日分の「あるべき姿」を文脈に入れて1日目の GET を積む。
+ *   ・結びつき（therapist_media_ids）があればそれを使う。★ 無ければ名前がぴったり1人だけ同じ方を結ぶ（書き残す）
+ *   ・計画に入るのは、結びついている方だけ。★ 向こうにだけ居る方の出勤は触らない
+ *   ・非公開の方・その日に出勤の無い方は「出勤なし」にする（フクエスが正本）
+ *   ・送り先サイトで「送らない」の方は外す（触らない）
+ */
+async function planZenkoku(
+  params: { salonId: number; provider: string; slot: number },
+  rosterRows: ZenkokuGirl[],
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+  const flowId = ctx.flowId;
+  const supabase = createServiceClient();
+  const todayISO = esutamaTodayISO(ctx, Date.now());
+  const windowDates = esutamaWindowDates(todayISO, ZENKOKU_WINDOW_DAYS);
+  const fail = (reason: string, msg: string): { audits: FlowAudit[]; note: string } => ({
+    audits: [{ event: 'plan_work', outcome: 'failed', summary: '全国エステランキングへ送る内容を組み立てられませんでした（' + msg + '）', detail: { reason, flowId } }],
+    note: msg,
+  });
+
+  const { data: therapists, error: thErr } = await supabase
+    .from('therapists')
+    .select('id, name, import_cast_id, is_active')
+    .eq('salon_id', params.salonId);
+  if (thErr) return fail('therapists_read_failed', 'フクエスのセラピストを読めませんでした');
+  const conecfOff = await loadConecfOff(supabase, params.salonId, params.provider, params.slot);
+  if (conecfOff.error) return fail('conecf_targets_read_failed', '送り先サイトの設定を読めませんでした');
+  const rows = ((therapists ?? []) as Array<{ id: number; name: string | null; import_cast_id?: string | null; is_active?: boolean | null }>)
+    .filter((t) => !conecfOff.off.has(Number(t.id)) && String(t.name ?? '').trim() !== '');
+  const { maps, error: castErr } = await loadCastIds(supabase, { therapists: rows, provider: params.provider, slot: params.slot });
+  if (castErr) return fail('cast_ids_read_failed', '媒体の番号を読めませんでした');
+
+  const rosterGids = new Set(rosterRows.map((r) => r.gid));
+  const linkedGids = new Set<string>();
+  const gidOf = new Map<number, string>();
+  for (const [tid, cid] of maps.castIdOf) {
+    if (cid && rosterGids.has(cid)) { gidOf.set(tid, cid); linkedGids.add(cid); }
+  }
+  // ★ 名前で結ぶ（向こうに同じ名前がぴったり1人・まだ誰とも結んでいない番号だけ）
+  const byName = new Map<string, ZenkokuGirl[]>();
+  for (const r of rosterRows) {
+    const k = normalizeMediaName(r.name);
+    byName.set(k, [...(byName.get(k) ?? []), r]);
+  }
+  const fukuesByName = new Map<string, number>();
+  for (const t of rows) {
+    const k = normalizeMediaName(String(t.name));
+    fukuesByName.set(k, (fukuesByName.get(k) ?? 0) + 1);
+  }
+  const blocked: string[] = [];
+  let newlyLinked = 0;
+  for (const t of rows) {
+    if (gidOf.has(t.id)) continue;
+    const k = normalizeMediaName(String(t.name));
+    const hits = (byName.get(k) ?? []).filter((r) => !linkedGids.has(r.gid));
+    if (hits.length === 1 && fukuesByName.get(k) === 1) {
+      const r = await rememberCastId(supabase, { therapistId: t.id, provider: params.provider, slot: params.slot, castId: hits[0].gid });
+      if (r.ok) { gidOf.set(t.id, hits[0].gid); linkedGids.add(hits[0].gid); newlyLinked += 1; continue; }
+    }
+    // ★ 公開中の方だけ「結べなかった」と記録する（非公開の方は送るものが無い）
+    if (t.is_active === true) blocked.push(String(t.name) + 'さん（全国エステランキングに同じ名前の方が' + (hits.length === 0 ? '居ません' : '複数います') + '）');
+  }
+
+  const ids = [...gidOf.keys()];
+  const { data: sched, error: schErr } = ids.length
+    ? await supabase
+        .from('therapist_schedules')
+        .select('therapist_id, schedule_date, is_active, start_time, end_time')
+        .in('therapist_id', ids)
+        .gte('schedule_date', windowDates[0])
+        .lte('schedule_date', windowDates[windowDates.length - 1])
+    : { data: [] as unknown[], error: null };
+  if (schErr) return fail('schedules_read_failed', 'フクエスの出勤を読めませんでした');
+  const shiftOf = new Map<string, { active: boolean; start: string | null; end: string | null }>();
+  for (const r of (sched ?? []) as Array<Record<string, unknown>>) {
+    shiftOf.set(Number(r['therapist_id']) + '|' + String(r['schedule_date']), {
+      active: r['is_active'] === true,
+      start: typeof r['start_time'] === 'string' ? r['start_time'].slice(0, 5) : null,
+      end: typeof r['end_time'] === 'string' ? r['end_time'].slice(0, 5) : null,
+    });
+  }
+  const activeOf = new Map(rows.map((t) => [t.id, t.is_active === true] as const));
+  const want: Record<string, Record<string, string>> = {};
+  const notes: string[] = [];
+  let anyShift = false;
+  for (const d of windowDates) want[d] = {};
+  for (const [tid, gid] of gidOf) {
+    const name = rows.find((t) => t.id === tid)?.name ?? String(tid);
+    for (const d of windowDates) {
+      const sh = shiftOf.get(tid + '|' + d);
+      if (!activeOf.get(tid) || !sh || !sh.active || !sh.start || !sh.end) { want[d][gid] = '─'; continue; }
+      const conv = toZenkokuRange(sh.start, sh.end);
+      if (!conv.ok) {
+        // ★ 送れない時刻の日は触らない（消しもしない）。理由を残す
+        notes.push(name + ' ' + d + '（' + conv.reason + '）');
+        continue;
+      }
+      if (conv.note) notes.push(name + ' ' + d + '（' + conv.note + '）');
+      want[d][gid] = conv.label;
+      anyShift = true;
+    }
+  }
+
+  const planAudit: FlowAudit = {
+    event: 'plan_work', outcome: 'ok',
+    summary: '全国エステランキングの出勤を読みに行きます（' + gidOf.size + '名・' + windowDates.length + '日分' + (newlyLinked > 0 ? '・名前で結んだ方 ' + newlyLinked + '名' : '') + '）' + (ZENKOKU_WRITE_ENABLED ? '' : '。いまは読むだけです'),
+    detail: { ...AUDIT_SHOP_HIDDEN, people: gidOf.size, linkedNow: newlyLinked, blocked: blocked.length, roster: rosterRows.length, flowId },
+  };
+  if (gidOf.size === 0) {
+    return { audits: [{ ...planAudit, outcome: 'stopped', summary: '全国エステランキングに、フクエスと同じ名前のセラピストが見つかりませんでした' }], note: '結びつく方が0名' };
+  }
+  const nextCtx: RelayFlowContext = {
+    ...ctx,
+    zenkokuWindow: windowDates, zenkokuDayIndex: 0, zenkokuWant: want, zenkokuPeople: gidOf.size,
+    zenkokuDiffs: [], zenkokuChanged: 0, zenkokuSaved: 0, zenkokuBlocked: blocked, zenkokuNotes: notes,
+    zenkokuHoldClears: !anyShift, zenkokuHeld: 0,
+  };
+  const first = zenkokuFirstDayRequest(nextCtx);
+  if (!first) return { audits: [planAudit], note: '読む日が無い' };
+  return { audits: [planAudit], note: gidOf.size + '名・' + windowDates.length + '日分', next: { ...first, context: nextCtx } };
 }
 
 /** エステ魂の名簿の写しを残す（駅ちかの saveRoster と同じ表・同じ形）。★ 名簿画面（mediaRoster）がこれを読む */

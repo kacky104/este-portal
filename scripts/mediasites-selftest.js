@@ -61,8 +61,9 @@ eq('★ 読めるのは1つだけ（駅ちか）', v.MEDIA_SITES.filter((s) => s
 eq('★ 読めるのは駅ちか', v.MEDIA_SITES.find((s) => s.readable).provider, 'ekichika');
 // ★ 第80便でエステラブを開けたが、★ 第82便で閉じ直した（403・追記61 §333）。
 //   ★ 増やす／減らすときは、ここも一緒に直す
-eq('★ いま受け付けているのは駅ちかとエステ魂（第109便）',
-   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika', 'esutama']);
+// ★ 第1769便: 全国エステランキングを受け付け始めた（出勤を読むところまで）
+eq('★ いま受け付けているのは駅ちか・エステ魂・全国（第1769便）',
+   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika', 'esutama', 'zenkoku']);
 // ★★ 受け付けていないサイトには、必ず理由の文がある（黙って押せない口を作らない）
 eq('★★ 受け付けないサイトには理由が書いてある',
    v.MEDIA_SITES.filter((s) => !s.accepting).every((s) => s.notYet.length > 0), true);
@@ -230,7 +231,8 @@ eq('★★ エステ魂はメールアドレスだと欄の名前で分かる',
 // ★★ 第117便: 名簿の結びの断りも落とした（カッキーさん）。
 //   ★ 結びは【セラピスト一覧】の画面にその場で書いてある。★ ここで先に言う話ではない
 eq('★ エステ魂の段の断りは空', v.findMediaSite('esutama').stageNote, '');
-eq('★ 全国もまだ受け付けない', v.canRegisterSite(v.findMediaSite('zenkoku')), false);
+eq('★ 第1769便: 全国は受け付ける（ログイン名で）', [v.canRegisterSite(v.findMediaSite('zenkoku')), v.loginIdLabelOf(v.findMediaSite('zenkoku'))], [true, 'ログイン名']);
+eq('★ 全国は段の断りを出す（書き込みはまだ）', v.findMediaSite('zenkoku').stageNote.length > 0, true);
 eq('★ accepting が 1 では受け付けない側に倒す', v.canRegisterSite(site({ accepting: 1 })), false);
 
 
@@ -315,11 +317,11 @@ eq('★★ 欄の名前になったので stageNote から「ログインID欄�
 console.log('\n── ★★ 使えないサイトの分け方と並び（第117便）──');
 // ★★★ 「準備中（待てば使える）」と「接続できない（待っても使えない）」は別のこと
 eq('★★★ エステラブは接続できない側', v.findMediaSite('esulove').notYetKind, 'blocked');
-eq('★ 全国はこれから作る側', v.findMediaSite('zenkoku').notYetKind, 'preparing');
+eq('★ 第1769便: 全国は受け付けたので種類を持たない', v.findMediaSite('zenkoku').notYetKind, '');
 eq('★ 受け付けているサイトは種類を持たない',
    v.MEDIA_SITES.filter((s) => s.accepting && s.notYetKind !== '').map((s) => s.provider), []);
 eq('★★ 札の言葉が分かれる',
-   [v.notYetLabel(v.findMediaSite('esulove')), v.notYetLabel(v.findMediaSite('zenkoku'))],
+   [v.notYetLabel(v.findMediaSite('esulove')), v.notYetLabel({ accepting: false, notYetKind: 'preparing' })],
    ['接続できません', '準備中']);
 eq('★ 受け付けているサイトには札を出さない', v.notYetLabel(v.findMediaSite('ekichika')), '');
 // ★ 種類を書き忘れても「準備中」に落ちる（言葉が消えない）
@@ -352,7 +354,8 @@ eq('★ 駅ちかは can のまま', v.sendableCapabilities(v.findMediaSite('eki
 eq('★ エステ魂は出勤とセラピストと写メ日記と即セラ',
    v.sendableCapabilities(v.findMediaSite('esutama')), ['work', 'therapist', 'diary', 'sokusera']);
 // ★★ 準備中はまだ何も送れない（★ 空を返す。★ can をそのまま出さない）
-eq('★★ 全国（準備中）は空', v.sendableCapabilities(v.findMediaSite('zenkoku')), []);
+eq('★★ 準備中は空', v.sendableCapabilities({ accepting: false, notYetKind: 'preparing', can: ['work'] }), []);
+eq('★ 第1769便: 全国は出勤', v.sendableCapabilities(v.findMediaSite('zenkoku')), ['work']);
 // ★★ 写メ日記の口が無い媒体では、接続できなくても何も残らない
 eq('★★ メールの口が無ければ空',
    v.sendableCapabilities({ accepting: false, notYetKind: 'blocked', can: ['work', 'diary'], diaryAddressSource: 'none' }), []);

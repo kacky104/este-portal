@@ -121,6 +121,8 @@ export type RelayPurpose =
   | 'girls_sort'
   | 'esutama_sort_read'
   | 'esutama_sort_save'
+  // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
+  | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify'
   | 'selftest';
 
 export type LeasedJob = {

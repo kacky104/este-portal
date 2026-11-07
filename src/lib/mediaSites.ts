@@ -282,20 +282,20 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     can: ['work'],
     slots: 2,
     readable: false,
-    accepting: false,
-    notYet: '全国エステランキングへ送る仕組みを準備しています。できあがるまで、ログイン情報はお預かりしません。',
-    // ★ これから作る側。★ 待てば使えるようになる
-    notYetKind: 'preparing',
-    stageNote: '',
-    // ★ 実物を見ていないので決めない（受け付けていないので画面にも出ない）
-    loginIdLabel: '',
+    // ★★ 2026-11-07（第1769便）: ログイン → セラピスト一覧 → 日ごとの出勤（7日分）を読む仕組みができた。ID・PW を預かり始める。
+    //   ★ 書き込みは zenkokuFlow.ZENKOKU_WRITE_ENABLED（false）が止めている。★ 開けるまでは下の stageNote で断る
+    accepting: true,
+    notYet: '',
+    notYetKind: '',
+    stageNote: '出勤の反映は準備中です（いまはログインの確認と、出勤の読み取りまで）。',
+    // ★ 実測（2026-11-07）: ログインは「ログイン名」と「パスワード」の2つだけ。店舗IDは無い
+    loginIdLabel: 'ログイン名',
     // ★ 写メ日記そのものが無い
     diaryAddressSource: 'none',
     diaryPostMethod: 'none',
-    // ★ 実物を見ていないので決めない。★ 受け付けていないので画面には出ない
-    needsShopId: true,
-    idLabel: '店舗ID',
-    idHint: '全国エステランキングの管理画面にログインするときの店舗IDです。',
+    needsShopId: false,
+    idLabel: '',
+    idHint: '',
   },
 ];
 

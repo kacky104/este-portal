@@ -128,6 +128,9 @@ import {
 } from './esutamaSokuseraFlow';
 import type { EsutamaPerson } from './esutamaPlan';
 import type { EsutamaRosterRow } from './esutamaParse';
+// ★ 第1769便: 全国エステランキングの段（段名 'zenkoku_…' で分けている）
+import type { ZenkokuLoginForm, ZenkokuGirl } from './zenkokuParse';
+import { afterZenkokuLoginPage, afterZenkokuLogin, afterZenkokuRoster, afterZenkokuDayRead, afterZenkokuDaySave, afterZenkokuDayVerify } from './zenkokuFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
 import {
@@ -999,6 +1002,28 @@ export type RelayFlowContext = {
    *   ★ undefined は「運営の口」（照合しない）。★ 空 {} とは別物
    */
   esutamaApproved?: Record<string, string>;
+
+  // ── ここから下は 全国エステランキング（provider='zenkoku'）のときだけ入る（第1769便）──
+  /** 送る日（営業日の 'YYYY-MM-DD'・7日分） */
+  zenkokuWindow?: string[];
+  /** いま何日目か（zenkokuWindow の添字） */
+  zenkokuDayIndex?: number;
+  /** 日付 → girl id → あるべき姿（'HH:MM-HH:MM' ／ '─'）。★ DB 側が名簿を読んだあと入れる。★ ここに無い人は触らない */
+  zenkokuWant?: Record<string, Record<string, string>>;
+  /** 計画に入った人数（結びついている方） */
+  zenkokuPeople?: number;
+  /** 残っている違い（読むだけなら「送ると変わる所」、送ったあとなら「送れずに残った所」） */
+  zenkokuDiffs?: EsutamaDiffRow[];
+  zenkokuChanged?: number;
+  zenkokuSaved?: number;
+  zenkokuBlocked?: string[];
+  zenkokuNotes?: string[];
+  /** 保存した日の「こうなっているはず」（照合に使う） */
+  zenkokuExpect?: Record<string, string>;
+  /** 自動のとき「出勤を消すだけ」の変更を止めるか（フクエス側が全員空のとき） */
+  zenkokuHoldClears?: boolean;
+  /** 止めた数（記録のため） */
+  zenkokuHeld?: number;
 };
 
 /** 店舗の画面に出す「変わるところ」1行（第110便）。★ media_work_plans.diff と同じ形（girlId=castId） */
@@ -1082,7 +1107,9 @@ export type FlowNextRequest = {
     // ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）。★ esutama_appeal_set だけが相手の回数を減らす
     | 'esutama_appeal_read' | 'esutama_appeal_set' | 'esutama_appeal_verify'
     // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える
-    | 'girls_sort' | 'esutama_sort_read' | 'esutama_sort_save';
+    | 'girls_sort' | 'esutama_sort_read' | 'esutama_sort_save'
+    // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
+    | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1248,6 +1275,9 @@ export type FlowOutcome =
    *   DB 側（startRelayFlow と同じ場所）が復号して積む。★ パスワードを文脈に入れない。
    */
   | { kind: 'esutama_login_needed'; csrf: string; context: RelayFlowContext; audits: FlowAudit[]; note: string }
+  // ★ 第1769便: 全国エステランキング。★ ログイン POST は DB 側が組む／名簿のあとの計画も DB 側
+  | { kind: 'zenkoku_login_needed'; form: ZenkokuLoginForm; context: RelayFlowContext; audits: FlowAudit[]; note: string }
+  | { kind: 'zenkoku_roster'; rows: ZenkokuGirl[]; warnings: string[]; context: RelayFlowContext; audits: FlowAudit[]; note: string }
   /**
    * ★ エステ魂の名簿を読めた（第109便）。誰に何を送るかは DB（フクエスの出勤）を読まないと決められない。
    *   DB 側が planEsutamaWork で people を作って文脈に入れ、1人目の出勤表 GET を積む。
@@ -1698,6 +1728,19 @@ function advanceFlowStep(
     case 'delete_photo':
       return afterDeletePhoto(input, ctx);
     // ── エステ魂（第109便）★ 段名で分けている。既存の case には触れていない ──
+    // ── 全国エステランキング（第1769便）★ 段名で分けている。既存の case には触れていない ──
+    case 'zenkoku_login_page':
+      return afterZenkokuLoginPage(input, ctx);
+    case 'zenkoku_login':
+      return afterZenkokuLogin(input, ctx);
+    case 'zenkoku_roster':
+      return afterZenkokuRoster(input, ctx);
+    case 'zenkoku_day_read':
+      return afterZenkokuDayRead(input, ctx);
+    case 'zenkoku_day_save':
+      return afterZenkokuDaySave(input, ctx);
+    case 'zenkoku_day_verify':
+      return afterZenkokuDayVerify(input, ctx);
     case 'esutama_login_page':
       return afterEsutamaLoginPage(input, ctx);
     case 'esutama_login':

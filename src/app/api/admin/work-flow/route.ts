@@ -13,7 +13,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-const PROVIDERS = ['esutama'] as const;
+const PROVIDERS = ['esutama', 'zenkoku'] as const;   // ★ 第1769便: 全国エステランキング
 const INTENTS = ['connect_test', 'roster_read', 'work_dryrun', 'work_push'] as const;
 
 async function readBody(req: Request): Promise<Record<string, string>> {
