@@ -65,7 +65,8 @@ export function CoursesContent({ courses, theme, large = false, note }: { course
               <span className={`${dotCls} rounded-full bg-pink-400 flex-shrink-0`} />
               <h3 className={`${nameCls} font-bold min-w-0 break-words`} style={{ color: theme.heading }}>備考</h3>
             </div>
-            <p className={`pl-4 ${rowCls} whitespace-pre-line break-words`} style={{ color: theme.body }}>{noteText}</p>
+            {/* ★ 第1762便（カッキーさん 11/7）: 備考の本文はコースの行より少し小さく（大 21→17px・通常 14→13px） */}
+            <p className={`pl-4 ${large ? 'text-[17px] leading-relaxed' : 'text-[13px] leading-relaxed'} whitespace-pre-line break-words`} style={{ color: theme.body }}>{noteText}</p>
           </div>
         )}
       </div>
