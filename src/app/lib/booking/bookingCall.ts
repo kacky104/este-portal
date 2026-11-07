@@ -56,6 +56,18 @@ export function voiceAllowedForSalon(salonId: number): boolean {
   return raw.split(',').map((x) => Number(x.trim())).filter((n) => Number.isInteger(n) && n > 0).includes(salonId);
 }
 
+// ★ 第1765便（カッキーさん 11/7）: 電話通知は【有料プラン（listing_plan='standard'）の店だけ】。
+//   TWILIO_VOICE_SALON_IDS=all で全店に開けても、無料掲載（'free'）の店では使えない（設定画面にも出さない・テスト発信もしない）。
+export async function voicePlanAllowed(svc: SupabaseClient, salonId: number): Promise<boolean> {
+  try {
+    const { data, error } = await svc.from('salons').select('listing_plan').eq('id', salonId).maybeSingle();
+    if (error || !data) return false;
+    return (data.listing_plan as string | null) === 'standard';
+  } catch {
+    return false;
+  }
+}
+
 export function callbackUrl(): string {
   return process.env.TWILIO_VOICE_CALLBACK_URL || DEFAULT_CALLBACK_URL;
 }
@@ -226,6 +238,7 @@ export async function placeBookingCall(args: {
   const { svc, salonId, kind } = args;
   const attempt = Math.max(1, Math.min(MAX_ATTEMPTS, args.attempt ?? 1));
   if (!voiceAllowedForSalon(salonId)) return { ok: false, reason: 'disabled' };
+  if (!(await voicePlanAllowed(svc, salonId))) return { ok: false, reason: 'disabled' }; // ★ 第1765便: 有料プランの店だけ
 
   try {
     // ★ 第1704便: 設定は salon_call_settings（行が無い＝使っていない）。店名だけ salons から。

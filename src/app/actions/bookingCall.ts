@@ -3,7 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { placeBookingCall, voiceAllowedForSalon } from '@/app/lib/booking/bookingCall';
+import { placeBookingCall, voiceAllowedForSalon, voicePlanAllowed } from '@/app/lib/booking/bookingCall';
 import { normalizeCallTel, formatE164Jp, CALL_HOUR_OPTIONS } from '@/app/lib/booking/callTel';
 
 // ── 予約の電話通知：マイページの設定・テスト発信・最近の発信（第1703便・2026-10-30）──────────
@@ -56,6 +56,7 @@ export async function getBookingCallInfo(salonId: number): Promise<BookingCallIn
   if (!voiceAllowedForSalon(salonId)) return { ok: true, available: false }; // ★ 第1711便: 店舗ごとの許可（TWILIO_VOICE_SALON_IDS）
 
   const svc = createServiceClient();
+  if (!(await voicePlanAllowed(svc, salonId))) return { ok: true, available: false }; // ★ 第1765便: 有料プランの店だけ
   const { data: row, error } = await svc
     .from('salon_call_settings')
     .select('booking_call_enabled, booking_call_tel, booking_call_start, booking_call_end, booking_call_retry')
@@ -101,6 +102,7 @@ export async function saveBookingCallSettings(
   const auth = await assertOwner(salonId);
   if (!auth.ok) return auth;
   if (!voiceAllowedForSalon(salonId)) return { ok: false, error: '電話通知はまだ準備中です' };
+  if (!(await voicePlanAllowed(createServiceClient(), salonId))) return { ok: false, error: '電話通知は有料プランの店舗様向けの機能です' }; // ★ 第1765便
 
   const rawTel = String(input.tel ?? '').trim();
   const tel = rawTel ? normalizeCallTel(rawTel) : null;
