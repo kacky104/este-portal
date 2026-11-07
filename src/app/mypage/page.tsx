@@ -3846,7 +3846,7 @@ export default function MyPage() {
             <div className="mt-4 rounded-none border border-pink-100 bg-pink-50/20 p-3 space-y-2">
               <p className="text-xs font-bold text-slate-600">備考</p>
               <textarea
-                rows={3}
+                rows={6}
                 placeholder="例：初回指名料は無料。&#10;延長はできない場合もあります。"
                 value={salonForm.course_note ?? ''}
                 onChange={(e) => setSalonForm((p) => ({ ...p, course_note: e.target.value }))}
