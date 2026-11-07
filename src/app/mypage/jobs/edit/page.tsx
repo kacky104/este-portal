@@ -31,27 +31,35 @@ export default function WorkEditPage() {
 
   const patch = (p: Partial<JobFormState>) => setForm((prev) => ({ ...prev, ...p }));
 
+  // ★ 第1766便（カッキーさん 11/7）: 保存できなかった理由はフォームの一番上に出るため、下の「求人を作成する」を
+  //   押した位置からは見えず「保存しても求人が無い」になっていた。★ 理由をトーストでも出し、上へ戻して見せる。
+  const fail = (text: string) => {
+    setMsg({ kind: 'err', text });
+    showToast(text);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSave = async () => {
     if (salonId == null) return;
     // 応募通知メール：必須。未入力を拒否し、入力時は形式もチェック。
     if (form.notify_email.trim() === '') {
-      setMsg({ kind: 'err', text: '応募通知メールを入力してください' });
+      fail('応募通知メールを入力してください');
       return;
     }
     if (!isValidEmailFormat(form.notify_email)) {
-      setMsg({ kind: 'err', text: '応募通知メールの形式が正しくありません' });
+      fail('応募通知メールの形式が正しくありません');
       return;
     }
     // 在籍セラピストの声：年代未選択があれば保存不可（不完全な声のサイレント破棄を避け、明示的に気付かせる）。
     const voiceErr = firstVoiceError(form.therapist_voices);
     if (voiceErr) {
-      setMsg({ kind: 'err', text: voiceErr });
+      fail(voiceErr);
       return;
     }
     // お祝い金：空欄はOK（null＝非表示）、入力時は正の整数・上限100万円をクライアント側でも検証。
     const cel = validateCelebrationMoney(form.celebration_money);
     if (!cel.ok) {
-      setMsg({ kind: 'err', text: cel.error });
+      fail(cel.error);
       return;
     }
     setSaving(true);
@@ -59,7 +67,7 @@ export default function WorkEditPage() {
     const res = await upsertMyJob(salonId, form);
     setSaving(false);
     if (!res.ok) {
-      setMsg({ kind: 'err', text: res.error });
+      fail(res.error);
       return;
     }
     setJob(res.job);
