@@ -85,9 +85,31 @@ export function consentCarrySourceSlot(input: {
   return hit ? hit.slot : null;
 }
 
-/** 引き継ぐときに画面へ出す文 */
-export function consentCarryNote(fromSlot: number): string {
-  return `枠${fromSlot}で店舗様ご本人が説明に同意済みのため、この枠にも同じ同意を引き継いで保存します。`;
+/**
+ * ★★★ 第1771便（2026-11-07・カッキーさんの決定「引き継ぎを広げる」）: 同意の引き継ぎを【ほかのサイト】にも広げる。
+ *   同じ店のどれかのサイト・枠で、店舗様ご本人が【いまの版】に同意済みなら、運営がはじめての枠（別のサイトでも）を保存してよい。
+ *   ★ 説明文（v5）はもともと「連携するサイト（駅ちか・エステ魂など）」をまとめて対象にした1つの文（lib/mediaConsent.ts）。
+ *   ★ 版がひとつでも違えば引き継がない（説明が変わったあとは、店舗様ご本人に読み直してもらう）。
+ *   ★ 同じサイト・同じ枠の行は数えない（その枠そのものの同意の取り直しは、今までどおり店舗様ご本人）。
+ *   ★ 選ぶ順: 同じサイトのほかの枠（若い順）→ ほかのサイト（名前順・若い枠順）
+ */
+export function consentCarrySource(input: {
+  provider: string;
+  slot: number;
+  incoming: string;
+  rows: { provider: string; slot: number; consentVersion: string | null }[];
+}): { provider: string; slot: number } | null {
+  if (input.incoming === '') return null;
+  const ok = input.rows.filter((r) => r.consentVersion === input.incoming && !(r.provider === input.provider && r.slot === input.slot));
+  const same = ok.filter((r) => r.provider === input.provider).sort((a, b) => a.slot - b.slot)[0];
+  if (same) return { provider: same.provider, slot: same.slot };
+  const other = ok.sort((a, b) => a.provider.localeCompare(b.provider) || a.slot - b.slot)[0];
+  return other ? { provider: other.provider, slot: other.slot } : null;
+}
+
+/** 引き継ぐときに画面へ出す文。★ siteLabel を渡すと「駅ちかの枠1で…」（ほかのサイトから引き継ぐとき） */
+export function consentCarryNote(fromSlot: number, siteLabel?: string): string {
+  return `${siteLabel ? siteLabel + 'の' : ''}枠${fromSlot}で店舗様ご本人が説明に同意済みのため、この枠にも同じ同意を引き継いで保存します。`;
 }
 
 /** 断るときに画面へ出す文 */

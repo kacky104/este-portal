@@ -47,6 +47,13 @@ eq('★★★ 引き継ぎ元: いまの版の、ほかの枠（若い順）', A
 eq('★★★ 版が違う枠からは引き継がない', A.consentCarrySourceSlot({ slot: 4, incoming: 'v5', siblings: [{ slot: 1, consentVersion: 'link-v1' }, { slot: 2, consentVersion: 'v4' }] }), null);
 eq('★★ 同じ枠の行は数えない（その枠の取り直しは店舗様ご本人）', A.consentCarrySourceSlot({ slot: 1, incoming: 'v5', siblings: [{ slot: 1, consentVersion: 'v5' }] }), null);
 eq('★ 空の版では引き継がない', A.consentCarrySourceSlot({ slot: 3, incoming: '', siblings: [{ slot: 1, consentVersion: '' }] }), null);
+// ★★★ 第1771便: ほかのサイトからも引き継ぐ
+const R = (provider, slot, v) => ({ provider, slot, consentVersion: v });
+eq('★★★ 第1771便: 同じサイトのほかの枠を先に', A.consentCarrySource({ provider: 'esutama', slot: 2, incoming: 'v5', rows: [R('ekichika', 1, 'v5'), R('esutama', 1, 'v5')] }), { provider: 'esutama', slot: 1 });
+eq('★★★ 第1771便: 無ければほかのサイト（駅ちかの枠1 → 全国の枠1）', A.consentCarrySource({ provider: 'zenkoku', slot: 1, incoming: 'v5', rows: [R('ekichika', 2, 'v5'), R('ekichika', 1, 'v5')] }), { provider: 'ekichika', slot: 1 });
+eq('★★★ 第1771便: 版が違えばほかのサイトからも引き継がない', A.consentCarrySource({ provider: 'zenkoku', slot: 1, incoming: 'v5', rows: [R('ekichika', 1, 'link-v1')] }), null);
+eq('★★ 第1771便: 同じサイト・同じ枠は数えない', A.consentCarrySource({ provider: 'zenkoku', slot: 1, incoming: 'v5', rows: [R('zenkoku', 1, 'v5')] }), null);
+eq('★ 第1771便: ほかのサイトの文', A.consentCarryNote(1, '駅ちか'), '駅ちかの枠1で店舗様ご本人が説明に同意済みのため、この枠にも同じ同意を引き継いで保存します。');
 eq('断る文に、誰がやるか・運営ができることが入っている', [/店舗様ご本人のログイン/.test(A.OPERATOR_FIRST_CONSENT_MESSAGE), /ID・パスワードの変更だけ/.test(A.OPERATOR_FIRST_CONSENT_MESSAGE)], [true, true]);
 
 console.log('\n── 4. 画面とサーバーの店の食い違い ──');

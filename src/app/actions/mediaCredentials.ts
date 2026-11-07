@@ -3,7 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { consentCarrySourceSlot, operatorConsentBlocked, OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
+import { consentCarrySource, operatorConsentBlocked, OPERATOR_FIRST_CONSENT_MESSAGE } from '@/lib/conecfActing';
 import { encryptSecret, maskSecret } from '@/lib/mediaCredentials';
 import { MEDIA_CONSENT_VERSION, FUKUES_LINK_CONSENT_VERSION, needsConsent, needsConecfConsent, needsFukuesLinkConsent, isReadOnlyConsent, conecfConsentMissingNote, consentSaveDecision } from '@/lib/mediaConsent';
 import { recordMediaAudit, listMediaAudit } from '@/app/lib/media/mediaAudit';
@@ -346,20 +346,22 @@ export async function saveMediaCredential(input: {
   //   ★ 読むだけの同意（link-v1）の行にコネックエフの画面から同意したとき、共通の判定だと「同意済み」と読まれて、
   //     版だけ v5 に変わり、同意日時・同意した人・consent_agreed の記録が残らなかった。
   // ★★★ 第1758便: 運営が操作中で、同じサイトのほかの枠に店舗様ご本人の同意（いまの版）があれば、それを引き継ぐ。
-  let carryFrom: { slot: number; agreedAt: string | null; agreedBy: string | null } | null = null;
+  // ★★★ 第1771便: ほかのサイトの同意（いまの版・店舗様ご本人）も引き継ぐ（lib/conecfActing.ts の consentCarrySource）
+  let carryFrom: { provider: string; slot: number; agreedAt: string | null; agreedBy: string | null } | null = null;
   if (!guard.data.isOwner) {
     const { data: sib } = await svc
       .from('salon_media_credentials')
-      .select('slot, consent_version, consent_agreed_at, consent_agreed_by')
-      .eq('salon_id', salonId).eq('provider', input.provider);
-    const sibRows = (sib ?? []) as { slot: number; consent_version: string | null; consent_agreed_at: string | null; consent_agreed_by: string | null }[];
-    const from = consentCarrySourceSlot({
+      .select('provider, slot, consent_version, consent_agreed_at, consent_agreed_by')
+      .eq('salon_id', salonId);
+    const sibRows = (sib ?? []) as { provider: string; slot: number; consent_version: string | null; consent_agreed_at: string | null; consent_agreed_by: string | null }[];
+    const from = consentCarrySource({
+      provider: input.provider,
       slot,
       incoming: input.consentVersion,
-      siblings: sibRows.map((r) => ({ slot: Number(r.slot), consentVersion: r.consent_version ?? null })),
+      rows: sibRows.map((r) => ({ provider: String(r.provider), slot: Number(r.slot), consentVersion: r.consent_version ?? null })),
     });
-    const src = from == null ? null : sibRows.find((r) => Number(r.slot) === from) ?? null;
-    if (src) carryFrom = { slot: Number(src.slot), agreedAt: src.consent_agreed_at ?? null, agreedBy: src.consent_agreed_by ?? null };
+    const src = from == null ? null : sibRows.find((r) => String(r.provider) === from.provider && Number(r.slot) === from.slot) ?? null;
+    if (src) carryFrom = { provider: String(src.provider), slot: Number(src.slot), agreedAt: src.consent_agreed_at ?? null, agreedBy: src.consent_agreed_by ?? null };
   }
   const consent = consentSaveDecision({
     existing: (existing?.consent_version as string | null) ?? null,
@@ -453,7 +455,7 @@ export async function saveMediaCredential(input: {
         consentVersion: consent.version,
         ...(consent.previous ? { previousVersion: consent.previous } : {}),
         // ★ 第1758便: 引き継いだときは、元の枠と「運営が入れた」ことを残す
-        ...(carryFrom ? { carriedFromSlot: carryFrom.slot, byOperator: true } : {}),
+        ...(carryFrom ? { carriedFromSlot: carryFrom.slot, carriedFromProvider: carryFrom.provider, byOperator: true } : {}),
       },
       actor,
     });

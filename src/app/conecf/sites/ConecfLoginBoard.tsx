@@ -228,9 +228,16 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
   const row = edit ? rowAt(edit.provider, slot) : null;
   const needConsent = !row || row.needsConsent;
   // ★★★ 第1758便: 運営が操作中でも、同じサイトのほかの枠に店舗様の同意があれば引き継げる（最終判断はサーバー）
-  const carryFromSlot = edit && acting && needConsent
-    ? (rowsOf(edit.provider).filter((r) => r.slot !== slot && !r.needsConsent).sort((a, b) => a.slot - b.slot)[0]?.slot ?? null)
+  // ★★★ 第1771便: ほかのサイトの同意も引き継げる（同じサイトのほかの枠を先に・最終判断はサーバー）
+  const carryRow = edit && acting && needConsent
+    ? (rowsOf(edit.provider).filter((r) => r.slot !== slot && !r.needsConsent).sort((a, b) => a.slot - b.slot)[0]
+      ?? rows.filter((r) => r.provider !== edit.provider && !r.needsConsent).sort((a, b) => a.provider.localeCompare(b.provider) || a.slot - b.slot)[0]
+      ?? null)
     : null;
+  const carryFromSlot = carryRow ? carryRow.slot : null;
+  const carryFromLabel = carryRow && edit && carryRow.provider !== edit.provider
+    ? (MEDIA_SITES.find((x) => x.provider === carryRow.provider)?.name ?? carryRow.provider)
+    : undefined;
   const blockedByActing = acting && carryFromSlot == null;
 
   const TABS: Array<[Tab, string]> = [['all', '対応サイト一覧'], ['registered', '登録済'], ['unregistered', '未登録']];
@@ -460,7 +467,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
                   <p className="border border-amber-400 bg-amber-50 px-3 py-2.5 text-[13px] leading-relaxed text-amber-900">{OPERATOR_FIRST_CONSENT_MESSAGE}</p>
                 )}
                 {contract && needConsent && acting && carryFromSlot != null && (
-                  <p className="border border-sky-300 bg-sky-50 px-3 py-2.5 text-[13px] leading-relaxed text-sky-900">{consentCarryNote(carryFromSlot)}</p>
+                  <p className="border border-sky-300 bg-sky-50 px-3 py-2.5 text-[13px] leading-relaxed text-sky-900">{consentCarryNote(carryFromSlot, carryFromLabel)}</p>
                 )}
                 {contract && needConsent && !acting && (
                   <label className="flex items-start gap-2 cursor-pointer">
