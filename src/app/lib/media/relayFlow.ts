@@ -468,7 +468,11 @@ export async function startRelayFlow(params: {
     .eq('provider', params.provider)
     .eq('slot', params.slot)
     .maybeSingle();
-  if (src && String((src as { link_mode?: string }).link_mode) === 'none') {
+  // ★ 第1774便: 全国エステランキングは、書き込みを開けるまで「フクエスから反映」にできない（第1770便）。
+  //   その間だけ、接続テスト（＝7日分を読むだけ・第1773便）は「反映しない」の枠でも通す。★ 送る用事（work_push / work_auto）は今までどおり止める
+  const zenkokuReadOnlyTest = params.provider === 'zenkoku' && !ZENKOKU_WRITE_ENABLED
+    && (params.intent === 'connect_test' || params.intent === 'work_dryrun');
+  if (src && String((src as { link_mode?: string }).link_mode) === 'none' && !zenkokuReadOnlyTest) {
     // ★ 第198便（2026-09-07）: 文言を今の画面の言葉（「反映しない」・第90便）に揃え、直し方まで書く。
     //   ★ 旧「この枠は「連携しない」に設定されています」は、画面のどこにも無い呼び名だった（カッキーさんが実機で踏んだ）。
     //   ★ 決めごと（none の枠では鍵を使わない・第45便）はそのまま。名簿を読むだけでも入らない。
