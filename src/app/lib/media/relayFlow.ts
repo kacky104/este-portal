@@ -1008,7 +1008,8 @@ export async function advanceRelayFlow(params: {
     if (outcome.warnings.length > 0) console.warn('[relay] 全国エステランキングの一覧の気になること:', outcome.warnings.join(' / '));
     const snap = await saveEsutamaRoster(params, outcome.rows.map((r) => ({ castId: r.gid, name: r.name })) as EsutamaRosterRow[], outcome.context);
     note = outcome.note + ' → ' + snap.note;
-    if (context.intent === 'work_dryrun' || context.intent === 'work_push' || context.intent === 'work_auto') {
+    // ★ 第1773便: 全国は書き込みを開けるまで、接続テストでも7日分を読む（読むだけ。店舗様・運営が画面のボタンで確かめられるように）
+    if (context.intent === 'work_dryrun' || context.intent === 'work_push' || context.intent === 'work_auto' || context.intent === 'connect_test') {
       const r = await planZenkoku(params, outcome.rows, outcome.context);
       audits.push(...r.audits);
       note = note + ' → ' + r.note;
