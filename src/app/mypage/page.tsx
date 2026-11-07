@@ -4061,6 +4061,10 @@ export default function MyPage() {
               <label className={labelClass}>店舗画像（最大3枚・JPEG・PNG・WebP／各5MBまで）</label>
               <span className="text-[10px] text-slate-400">{salonImages.length} / 3</span>
             </div>
+            {/* ★ 第1761便: 推奨サイズを最初から見えるように（表示枠 PC 896×288・スマホ 画面幅×224 の2〜3倍） */}
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              店舗ページの一番上に横長で出ます（枠からはみ出したぶんは切れます）。推奨：PC用 1792×576px（約3:1）、スマホ用 1170×670px（約16:9）。店名・人物・文字は真ん中に寄せてください。スマホ用が無いとPC用の左右が切れて出ます。
+            </p>
 
             {salonImages.length > 0 && (
               <div className="space-y-3">
@@ -4071,7 +4075,7 @@ export default function MyPage() {
 
                       {/* PC用 */}
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-500">PC用（推奨 1600×530px）</p>
+                        <p className="text-[10px] font-bold text-slate-500">PC用（推奨 1792×576px）</p>
                         <div className="relative rounded-none overflow-hidden border border-slate-200 bg-slate-50" style={{ aspectRatio: '3/1' }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={img.image_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -4100,7 +4104,7 @@ export default function MyPage() {
 
                       {/* スマホ用 */}
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-500">スマホ用（推奨 750×470px）</p>
+                        <p className="text-[10px] font-bold text-slate-500">スマホ用（推奨 1170×670px）</p>
                         <div className="relative rounded-none overflow-hidden border border-slate-200 bg-slate-50" style={{ aspectRatio: '3/1' }}>
                           {img.mobile_image_url ? (
                             // eslint-disable-next-line @next/next/no-img-element
