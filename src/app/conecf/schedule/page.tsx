@@ -53,11 +53,16 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     if (box.firstElementChild) ro.observe(box.firstElementChild);
     return () => ro.disconnect();
   }, [rows, dates.length]);
+  // ★ 第1775便（カッキーさん）: 日付の行は表の外（上に貼り付く箱）に出したので、横の位置も合わせる
+  const headBoxRef = useRef<HTMLDivElement>(null);
   const syncScroll = (from: 'top' | 'box') => {
-    const top = topBarRef.current, box = tableBoxRef.current;
-    if (!top || !box) return;
-    const [src, dst] = from === 'top' ? [top, box] : [box, top];
-    if (Math.abs(dst.scrollLeft - src.scrollLeft) > 0.5) dst.scrollLeft = src.scrollLeft; // ★ 同じ位置なら動かさない（行ったり来たりしない）
+    const top = topBarRef.current, box = tableBoxRef.current, head = headBoxRef.current;
+    const src = from === 'top' ? top : box;
+    if (!src) return;
+    for (const dst of [top, box, head]) {
+      if (!dst || dst === src) continue;
+      if (Math.abs(dst.scrollLeft - src.scrollLeft) > 0.5) dst.scrollLeft = src.scrollLeft; // ★ 同じ位置なら動かさない（行ったり来たりしない）
+    }
   };
 
   const load = useCallback(async () => {
@@ -162,38 +167,54 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
         <Link href={href('/schedule/sync')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">出勤をサイトへ ›</Link>
       </div>
 
-      {/* ★ 第1473便: 上の横スクロールバー（表が横にはみ出すときだけ） */}
-      {scrollW > clientW + 1 && (
-        <div ref={topBarRef} onScroll={() => syncScroll('top')} className="sticky top-0 z-20 overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
-          <div style={{ width: scrollW, height: 1 }} />
+      {/* ★ 第1473便: 上の横スクロールバー（表が横にはみ出すときだけ）。第1775便で日付の行と一緒に貼り付く箱へ */}
+      {/* ★★ 第1775便（カッキーさん）: 日付の行（と上の横スクロールバー）は、下へスクロールしても画面の上に残る。
+          ★ 見出し（運営の帯など）の高さは --conecf-header-h（ConecfShell が測る）。★ 横の位置は表と同じに動く */}
+      <div className="sticky z-20 -mb-3" style={{ top: 'var(--conecf-header-h, 0px)' }}>
+        {scrollW > clientW + 1 && (
+          <div ref={topBarRef} onScroll={() => syncScroll('top')} className="overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
+            <div style={{ width: scrollW, height: 1 }} />
+          </div>
+        )}
+        <div ref={headBoxRef} className="overflow-hidden border-x border-t border-slate-200 bg-slate-50 shadow-[0_2px_4px_rgba(31,35,51,0.06)]">
+          <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]" style={dates.length > 7 ? { minWidth: 150 + dates.length * 96 } : undefined}>
+            <colgroup>
+              <col className="w-[64px] sm:w-[150px]" />
+              {dates.map((d) => <col key={d} style={dates.length > 7 ? { width: 96 } : undefined} />)}
+            </colgroup>
+            <thead>
+              <tr className="bg-slate-50">
+                <th className="sticky left-0 z-10 bg-slate-50 text-left px-1.5 sm:px-3 py-2 border-b border-slate-200 w-[64px] sm:w-[150px] text-[12px] text-slate-400">セラピスト</th>
+                {dates.map((d, i) => {
+                  const h = dateHead(d, i);
+                  return (
+                    <th key={d} style={dates.length > 7 ? { width: 96 } : undefined} className={`${dates.length > 7 ? '' : 'w-[calc((100%-64px)/7)] sm:w-[calc((100%-150px)/7)] '}px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
+                      <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
+                      <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
+                      <div className="mt-0.5">
+                        <span className={`inline-block min-w-[34px] px-1.5 py-px text-[11px] font-black tabular-nums ${
+                          countOf(d) > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                        }`}>
+                          {countOf(d)}名
+                        </span>
+                        <ShiftWishBadge date={d} wishes={wishes[d]} />
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+          </table>
         </div>
-      )}
-      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto`}>
+      </div>
+      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto !border-t-0`}>
         {/* ★★ 第438便（カッキーさん）: 日付のマスは【いつも同じ幅】。★ table-fixed で中身の文字数に引っぱられない */}
         {/* ★ 第1472便: 8日以上は1日を 96px にして横にスクロール（セラピストの列は左に貼り付く） */}
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]" style={dates.length > 7 ? { minWidth: 150 + dates.length * 96 } : undefined}>
-          <thead>
-            <tr className="bg-slate-50">
-              <th className="sticky left-0 z-10 bg-slate-50 text-left px-1.5 sm:px-3 py-2 border-b border-slate-200 w-[64px] sm:w-[150px] text-[12px] text-slate-400">セラピスト</th>
-              {dates.map((d, i) => {
-                const h = dateHead(d, i);
-                return (
-                  <th key={d} style={dates.length > 7 ? { width: 96 } : undefined} className={`${dates.length > 7 ? '' : 'w-[calc((100%-64px)/7)] sm:w-[calc((100%-150px)/7)] '}px-1 py-2 border-b border-l border-slate-200 text-center ${i === 0 ? 'bg-indigo-50' : ''}`}>
-                    <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
-                    <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
-                    <div className="mt-0.5">
-                      <span className={`inline-block min-w-[34px] px-1.5 py-px text-[11px] font-black tabular-nums ${
-                        countOf(d) > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
-                      }`}>
-                        {countOf(d)}名
-                      </span>
-                      <ShiftWishBadge date={d} wishes={wishes[d]} />
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
+          <colgroup>
+            <col className="w-[64px] sm:w-[150px]" />
+            {dates.map((d) => <col key={d} style={dates.length > 7 ? { width: 96 } : undefined} />)}
+          </colgroup>
           <tbody>
             {shown.map((r) => (
               <tr key={r.id} className={`border-t border-slate-100 ${r.isActive ? '' : 'opacity-50'}`}>

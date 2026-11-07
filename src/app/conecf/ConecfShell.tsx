@@ -13,6 +13,18 @@ import { CONECF_NAV, type ConecfNavKey } from './conecfNav';
 import { CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { OperatorBar } from './OperatorBar';
 
+/** ★ 第1775便（カッキーさん）: 上に貼り付く見出し（運営の帯・警告で高さが変わる）の高さを --conecf-header-h に入れる。
+ *  週間スケジュールの日付の行は、この高さのすぐ下に貼り付く。 */
+function trackHeaderHeight(el: HTMLElement | null) {
+  if (!el) return;
+  const root = document.documentElement;
+  const set = () => root.style.setProperty('--conecf-header-h', `${el.offsetHeight}px`);
+  set();
+  const ro = new ResizeObserver(set);
+  ro.observe(el);
+  return () => { ro.disconnect(); root.style.removeProperty('--conecf-header-h'); };
+}
+
 // コネックエフの外枠（第395便・1a・2026-09-17）。
 // ★ 骨格はフクエスリンク（MediaShell）と同じ：左サイドバー・1画面1機能・スマホは三本線→ドロワー。
 // ★ 色は紺（indigo）を引き継ぐ（カッキーさんの決定）。
@@ -236,7 +248,7 @@ export function ConecfShell({
 
       {/* ── 右側 ── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <header ref={trackHeaderHeight} className="bg-white border-b border-slate-200 sticky top-0 z-30">
           {/* ★★★ 第1399便（カッキーさん）: 運営だけに出る帯。店を選んで開く／ほかの人の店を操作中は、どの画面でもいちばん上に出す */}
           {access.role === 'operator' && <OperatorBar access={access} />}
           <Link
