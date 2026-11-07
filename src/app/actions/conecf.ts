@@ -7,7 +7,7 @@ import { ADMIN_UUID } from '@/app/lib/admin';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import { providerLabel } from '@/lib/mediaAudit';
-import { computeMediaLinkAlerts } from '@/app/lib/media/linkAlerts';
+import { computeStoreLinkAlerts } from '@/app/lib/media/storeStallHold';
 import { hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
@@ -182,7 +182,8 @@ export async function getConecfShellState(): Promise<ConecfShellState> {
   const svc = createServiceClient();
   const salonId = access.salonId;
   const [alerts, cocoaNav] = await Promise.all([
-    computeMediaLinkAlerts(svc, salonId).then((r) => (r.ok ? r.data : [])).catch(() => [] as MediaLinkAlert[]),
+    // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから3時間後（その間に直す）
+    computeStoreLinkAlerts(svc, salonId).then((r) => (r.ok ? r.data : [])).catch(() => [] as MediaLinkAlert[]),
     (async () => {
       try {
         if (await hasEkichikaLogin(svc, salonId)) return true;

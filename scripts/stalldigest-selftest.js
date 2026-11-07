@@ -176,5 +176,21 @@ console.log('\n── 7. メールの口のつなぎ（作り） ──');
   eq('★ メールを出してから、表に書く', r.indexOf('notifyAdmin(m.subject') < r.indexOf('.upsert('), true);
 }
 
+
+console.log('── 第1767便. 店舗様の画面に出すのは、メールから3時間後 ──');
+{
+  const now = Date.parse('2026-11-07T12:00:00Z');
+  const k = 'import:3:ekichika:1:list_stale';
+  const at = (h) => new Date(now - h * 3600000).toISOString();
+  eq('3時間', m.STALL_STORE_HOLD_HOURS, 3);
+  eq('★ 表が読めない（null）は、今までどおりすぐ出す', m.storeShowsStall(k, null, now), true);
+  eq('行が無い（見張りがまだ拾っていない）は出さない', m.storeShowsStall(k, new Map(), now), false);
+  eq('まだメールを出していない（problem の1回目）は出さない', m.storeShowsStall(k, new Map([[k, null]]), now), false);
+  eq('メールから2時間59分は出さない', m.storeShowsStall(k, new Map([[k, at(2.99)]]), now), false);
+  eq('メールから3時間で出す', m.storeShowsStall(k, new Map([[k, at(3)]]), now), true);
+  eq('別の止まりの印では出さない', m.storeShowsStall(k, new Map([['write:3:ekichika:1:never_sent', at(5)]]), now), false);
+  eq('時刻が読めない印では出さない', m.storeShowsStall(k, new Map([[k, 'x']]), now), false);
+}
+
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

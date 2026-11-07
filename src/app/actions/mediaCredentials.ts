@@ -16,7 +16,8 @@ import { buildGirlCreatePlan } from '@/app/lib/media/girlCreatePlan';
 // ★★★ 【第264便】エステ魂の材料づくり（★ 第263便で media-cast-create から切り出した物）。
 import { buildCastCreatePlan } from '@/app/lib/media/castCreatePlan';
 import { mediaSlotLabel, type MediaLinkAlert } from '@/lib/mediaLinkStall';
-import { computeMediaLinkAlerts } from '@/app/lib/media/linkAlerts';
+import { computeStoreLinkAlerts, loadStoreStallHold } from '@/app/lib/media/storeStallHold';
+import { stallKey, storeShowsStall } from '@/lib/stallDigest';
 import { isWriteDirection, isLinkMode, hasApprovedOnce, writeSpanStart, type LinkModeChange } from '@/lib/mediaLinkMode';
 import { loadCastIds } from '@/lib/mediaCastIds';
 // ★ 第316便: 新人の判定は公開ページと同じ関数を通す（★ 期間の正は newFace.ts の1か所）
@@ -1437,7 +1438,8 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   const guard = await assertSalonOwner(salonId);
   if (!guard.ok) return guard;
-  return computeMediaLinkAlerts(createServiceClient(), salonId);
+  // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから3時間後
+  return computeStoreLinkAlerts(createServiceClient(), salonId);
 }
 
 /**
@@ -2144,6 +2146,8 @@ export async function getMediaOverview(input: { salonId: string | number; servic
   }
 
   // ★ 第1378便: 一時停止の枠のうち、「ID・パスワードが違う」ために自動で止めたもの（一時停止の枠が無い店では DB を読まない）
+  // ★ 第1767便: 「うまくいっていないこと」も、運営にメールが届いてから3時間後に出す（stall-watch と同じ名前で引く）
+  const stallHold = await loadStoreStallHold(svc, salonId);
   const rejectedPaused = await loadLoginRejectPaused(
     svc, salonId,
     (creds ?? [])
@@ -2231,6 +2235,9 @@ export async function getMediaOverview(input: { salonId: string | number; servic
           .map((r) => ({ event: String(r.event), outcome: String(r.outcome), createdAt: String(r.created_at), detail: r.detail as unknown }))
           .sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
         problem = workProblemOf(merged);
+        if (problem && !storeShowsStall(stallKey({ watch: 'problem', salonId, provider, slot, reason: problem.kind }), stallHold, now.getTime())) {
+          problem = null;
+        }
       }
     }
 

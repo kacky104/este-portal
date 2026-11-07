@@ -2,7 +2,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { computeMediaLinkAlerts } from '@/app/lib/media/linkAlerts';
+import { computeStoreLinkAlerts } from '@/app/lib/media/storeStallHold';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 
 // フクエスリンク（/mypage/media）の外枠が最初に要るものを【1回】で返す（第1120便・2026-10-03）。
@@ -42,7 +42,8 @@ export async function getMediaShellState(): Promise<MediaShellState> {
   if (!salon) return { ok: true, userId: user.id, email, salon: null, alerts: [] };
 
   const salonId = Number(salon.id);
-  const alerts = await computeMediaLinkAlerts(createServiceClient(), salonId)
+  // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから3時間後
+  const alerts = await computeStoreLinkAlerts(createServiceClient(), salonId)
     .then((r) => (r.ok ? r.data : []))
     .catch(() => [] as MediaLinkAlert[]);
   return {

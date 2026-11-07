@@ -251,3 +251,28 @@ export function planStallAlerts(input: {
       (blind ? '・★ 読めなかったものがあるので、消えたとは決めつけていない' : ''),
   };
 }
+
+// ────────────────────────────────────────────────────────────
+// 店舗様の画面に出すのは、運営にメールが届いてから3時間後（第1767便・2026-11-07・カッキーさん決定）
+// ────────────────────────────────────────────────────────────
+//
+// ★ なぜ要るか: 止まり・うまくいっていないことは、運営にメールで届く（上の planStallAlerts）。
+//   その間に運営が直せば、店舗様に「止まっています」を見せずに済む（店舗様に不安を与えない）。
+// ★ 決め手は ops_stall_alerts の alerted_at（メールを出した時刻）。名前は stallKey と同じ。
+//   ・行が無い／まだメールを出していない … 出さない（30分ごとの見張りがまだ拾っていない）
+//   ・メールから3時間たった            … 出す
+//   ・直って行が消えた                 … 出さない（店の画面の判定でも消えている）
+// ★★ 表が読めないとき（hold が null）は、今までどおりすぐ出す（★ 読めないせいで、ずっと隠したままにしない）。
+
+/** 運営にメールが届いてから、店舗様の画面に出すまでの時間 */
+export const STALL_STORE_HOLD_HOURS = 3;
+
+/** その止まりを、店舗様の画面にもう出してよいか。hold は key → alerted_at（読めなかったら null） */
+export function storeShowsStall(key: string, hold: ReadonlyMap<string, string | null> | null, nowMs: number): boolean {
+  if (hold === null) return true;
+  const at = hold.get(key);
+  if (!at) return false;
+  const t = Date.parse(at);
+  if (!Number.isFinite(t)) return false;
+  return nowMs - t >= STALL_STORE_HOLD_HOURS * 3600 * 1000;
+}
