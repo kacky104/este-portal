@@ -78,7 +78,8 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 //   ★ 片方だけ変えると、画面には登録フォームが出るのに server action が弾く形になる。
 //   ★ DB 側の CHECK 制約（20260831_import_sources_esulove.sql）も同じ組でそろえる。
 //   ★ 2026-09-02（第109便）でエステ魂（esutama）を追加。★ 画面の accepting は実弾で確かめてから開ける。
-const PROVIDERS = ['ekichika', 'esulove', 'esutama'];
+//   ★ 2026-11-07（第1772便）で全国エステランキング（zenkoku）を追加（DB の CHECK は 20261107_import_sources_zenkoku.sql）。
+const PROVIDERS = ['ekichika', 'esulove', 'esutama', 'zenkoku'];
 
 /** その店舗を操作してよいか（オーナー本人・運営）。 */
 async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string; /** ★ 第1399便: 持ち主本人か（運営がほかの人の店を触っているときは false） */ isOwner: boolean }>> {
