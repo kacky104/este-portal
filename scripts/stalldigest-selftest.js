@@ -189,6 +189,8 @@ console.log('── 第1767便. 店舗様の画面に出すのは、メールか
   eq('メールから2時間59分は出さない', m.storeShowsStall(k, new Map([[k, at(2.99)]]), now), false);
   eq('メールから3時間で出す', m.storeShowsStall(k, new Map([[k, at(3)]]), now), true);
   eq('別の止まりの印では出さない', m.storeShowsStall(k, new Map([['write:3:ekichika:1:never_sent', at(5)]]), now), false);
+  eq('★ 第1768便: ログインできていない（problem・login）は、行が無くてもすぐ出す', m.storeShowsStall('problem:3:ekichika:1:login', new Map(), now), true);
+  eq('★ ログイン以外の problem は待つ', m.storeShowsStall('problem:3:ekichika:1:not_reflected', new Map(), now), false);
   eq('時刻が読めない印では出さない', m.storeShowsStall(k, new Map([[k, 'x']]), now), false);
 }
 

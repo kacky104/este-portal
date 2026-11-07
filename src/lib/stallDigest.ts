@@ -262,13 +262,22 @@ export function planStallAlerts(input: {
 //   ・行が無い／まだメールを出していない … 出さない（30分ごとの見張りがまだ拾っていない）
 //   ・メールから3時間たった            … 出す
 //   ・直って行が消えた                 … 出さない（店の画面の判定でも消えている）
+//   ・★ ログインできていない（problem・login）… すぐ出す（第1768便・店舗様にしか直せない）
 // ★★ 表が読めないとき（hold が null）は、今までどおりすぐ出す（★ 読めないせいで、ずっと隠したままにしない）。
+
+/** 3時間待たずに、すぐ店舗様に出すもの（ログインできていない＝problem の login） */
+export function isStoreHoldExempt(key: string): boolean {
+  return key.startsWith('problem:') && key.endsWith(':login');
+}
 
 /** 運営にメールが届いてから、店舗様の画面に出すまでの時間 */
 export const STALL_STORE_HOLD_HOURS = 3;
 
 /** その止まりを、店舗様の画面にもう出してよいか。hold は key → alerted_at（読めなかったら null） */
 export function storeShowsStall(key: string, hold: ReadonlyMap<string, string | null> | null, nowMs: number): boolean {
+  // ★ 第1768便（カッキーさん 11/7）: 「ID・パスワードが違う（ログインできていない）」だけはすぐ出す。
+  //   ★ 直せるのは店舗様だけ（運営が3時間待っても直らない）
+  if (isStoreHoldExempt(key)) return true;
   if (hold === null) return true;
   const at = hold.get(key);
   if (!at) return false;
