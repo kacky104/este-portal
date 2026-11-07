@@ -103,8 +103,8 @@ export default function ConecfHomePage() {
             applyHref={`${FUKUES_ORIGIN}/mypage?tab=support&apply=crm`}
             onToast={showToast}
           />
-          {/* ★ 第884便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧 */}
-          <CastLinkProgress salonId={access.salonId} editHref={(id) => href(`/girls/${id}`)} onToast={showToast} guideHref={href('/cast-guide')} aboutHref={href('/cast-about')} />
+          {/* ★ 第884便（カッキーさん）: セラピストページ連携の連携率と未連携の一覧。第1776便: その下に連携済みの方も */}
+          <CastLinkProgress salonId={access.salonId} editHref={(id) => href(`/girls/${id}`)} onToast={showToast} guideHref={href('/cast-guide')} aboutHref={href('/cast-about')} showLinked />
           <ConecfHome salonId={access.salonId} enabled={!!access.enabledAt} stopped={!!access.enabledAt && !access.contract} onToast={showToast} />
         </div>
       )}

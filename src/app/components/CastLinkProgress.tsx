@@ -14,6 +14,7 @@ import { CastInviteLinkButton } from './CastInviteLinkButton';
 // ★ 第1183便（カッキーさん）: お店の「おすすめランキング」にも、連携率の半分のポイントが毎週つくことを説明文に足した。
 //   ★ ランキングの名前は画面のタブと同じ「おすすめランキング」。★ 点は連携率そのままではなく【÷2】（第948便の SQL が正本）。
 // ★ 招待そのものは各セラピストの編集ページで行う（★ ここは入口だけ。招待の処理を2つ持たない）。
+// ★ 第1776便（カッキーさん・11/8）: showLinked のとき、未連携の一覧の下に「連携済みの方」の一覧も出す（コネックエフのホーム）。
 
 const SHOW = 8;
 
@@ -34,7 +35,7 @@ const TONES = {
   },
 } as const;
 
-export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, guideHref, aboutHref }: {
+export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, guideHref, aboutHref, showLinked = false }: {
   salonId: number | null;
   /** 「招待する／確認する」の行き先（そのセラピストの編集ページ） */
   editHref: (therapistId: string) => string;
@@ -44,11 +45,14 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
   /** ★ 第1666便（カッキーさん）: 「作り方」の左に出す「セラピストページとは」の行き先（マイページ＝/mypage/cast-about）。無ければ出さない */
   aboutHref?: string;
   onToast?: (m: string) => void;
+  /** ★ 第1776便: 未連携の一覧の下に「連携済みの方」の一覧も出す */
+  showLinked?: boolean;
 }) {
   const T = TONES[tone];
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [showAllLinked, setShowAllLinked] = useState(false);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -74,6 +78,7 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
     .sort((a, b) => Number(a.status === 'invited') - Number(b.status === 'invited'));
   const pct = Math.round((done.length / active.length) * 100);
   const shown = showAll ? rest : rest.slice(0, SHOW);
+  const shownLinked = showAllLinked ? done : done.slice(0, SHOW);
 
   return (
     <div className={T.card}>
@@ -149,6 +154,38 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
           {rest.length > shown.length && (
             <button type="button" onClick={() => setShowAll(true)} className="mt-2 text-[14px] font-bold text-slate-500 underline">
               残り{rest.length - shown.length}名を見る
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ★ 第1776便（カッキーさん）: 連携済みの方。押すとそのセラピストの編集ページ（連携の状態を確かめられる） */}
+      {showLinked && done.length > 0 && (
+        <div className="pt-1">
+          <p className="text-[13.5px] font-bold text-slate-600 mb-2">連携済みの方（{done.length}名）</p>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {shownLinked.map((g) => (
+              <li key={g.id} className="flex items-center gap-2.5 border border-slate-200 px-2.5 py-2">
+                <span className="w-9 h-9 flex-none rounded-full overflow-hidden bg-slate-100">
+                  {g.imageUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={g.imageUrl} alt="" className="w-full h-full object-cover" />
+                    : null}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] text-slate-700">{g.name || '（名前なし）'}</span>
+                  <span className="block text-[12px] text-emerald-600">連携済み</span>
+                </span>
+                <Link href={editHref(g.id)}
+                  className={`flex-none h-8 px-3 inline-flex items-center border text-[12.5px] font-bold ${T.btn}`}>
+                  確認する
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {done.length > shownLinked.length && (
+            <button type="button" onClick={() => setShowAllLinked(true)} className="mt-2 text-[14px] font-bold text-slate-500 underline">
+              残り{done.length - shownLinked.length}名を見る
             </button>
           )}
         </div>
