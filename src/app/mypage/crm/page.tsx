@@ -115,6 +115,28 @@ const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
 const MEMO_W = 160;             // 女子メモの列（2026-09-19）
 const ROW_H = 66;
+/** ★ 第1786便: フリーの行の最大数 */
+const FREE_ROWS_MAX = 3;
+
+/**
+ * ★ 第1786便: 担当未定の予約をフリーの行に分ける。時間が重ならないように、上の行から順に入れる。
+ *   行は want 本（1〜3）。重なって入りきらないときは行を増やす（最大3行。それでも重なるときは、いちばん早く空く行に重ねる）。
+ */
+function splitFreeLanes(bookings: CrmScheduleBooking[], want: number): Row[] {
+  const sorted = [...bookings].sort((a, b) => a.slotStartISO.localeCompare(b.slotStartISO));
+  const lanes: { end: number; items: CrmScheduleBooking[] }[] = [];
+  for (const b of sorted) {
+    const s = new Date(b.slotStartISO).getTime();
+    const e = new Date(b.slotEndISO).getTime();
+    let lane = lanes.find((l) => l.end <= s);
+    if (!lane && lanes.length < FREE_ROWS_MAX) { lane = { end: 0, items: [] }; lanes.push(lane); }
+    if (!lane) lane = lanes.reduce((a, l) => (l.end < a.end ? l : a));
+    lane.items.push(b);
+    lane.end = Math.max(lane.end, e);
+  }
+  const n = Math.max(1, Math.min(FREE_ROWS_MAX, Math.max(want, lanes.length)));
+  return Array.from({ length: n }, (_, i) => ({ key: i === 0 ? 'free' : `free${i + 1}`, therapist: null, bookings: lanes[i]?.items ?? [] }));
+}
 const DAY_START_MIN = 6 * 60;  // 営業日の始まり（6:00）
 const WINDOW_END_MIN = 31 * 60; // 予約ボードの窓の終わり（翌7:00）
 const REFRESH_MS = 60_000;
@@ -832,6 +854,16 @@ function Grid({
       return !v;
     });
   };
+  // ★ 第1786便（カッキーさん）: フリーの行は3行まで増やせる（「＋ 行を足す」・この端末だけ覚える）。
+  //   担当未定の予約は、時間が重ならないように上の行から順に入れる（重なって入りきらないときは、足りるだけ行を増やす・最大3行）。
+  const [freeCount, setFreeCount] = useState<number>(() => {
+    try { const n = Number(typeof window === 'undefined' ? 1 : localStorage.getItem('crm_free_rows')); return n >= 1 && n <= FREE_ROWS_MAX ? n : 1; } catch { return 1; }
+  });
+  const changeFreeCount = (n: number) => {
+    const v = Math.max(1, Math.min(FREE_ROWS_MAX, n));
+    setFreeCount(v);
+    try { localStorage.setItem('crm_free_rows', String(v)); } catch { /* 何もしない */ }
+  };
   const toggleMemo = () => {
     setMemoOpen((v) => {
       try { localStorage.setItem('crm_memo_open', v ? '0' : '1'); } catch { /* 何もしない */ }
@@ -903,7 +935,13 @@ function Grid({
         </div>
 
         {/* ★ 行の hover:z-[25]：女子メモの全文（第643便）が下の行の名前の列に隠れないように（見出しの z-30 より下） */}
-        {rows.map((r) => r.key === 'free' && !freeOpen ? (
+        {(() => {
+          // ★ 第1786便: フリーの行を、開いているときは freeCount 行（予約が重なればそれ以上・最大3行）に分ける
+          const freeRow = rows.find((x) => x.key === 'free');
+          if (!freeRow || !freeOpen) return rows;
+          const lanes = splitFreeLanes(freeRow.bookings, freeCount);
+          return [...lanes, ...rows.filter((x) => x.key !== 'free')];
+        })().map((r, _i, shown) => r.key === 'free' && !freeOpen ? (
           // ★ 第1785便: たたんだフリーの行（細い1行。押すと開く）
           <div key={r.key} className="relative flex border-b border-slate-200 bg-amber-50/50" style={{ height: 28 }}>
             <div className="sticky left-0 z-20 flex flex-none items-center border-r border-slate-300 bg-amber-50" style={{ width: leftW }}>
@@ -1038,14 +1076,38 @@ function Grid({
                   })()}
                 </>
               ) : (
-                <>
-                  {/* ★ 第1785便: 押すとたたむ */}
-                  <button type="button" onClick={toggleFree} title="フリーの行をたたむ" className="flex items-center gap-1 text-left hover:opacity-80">
-                    <span className="text-[11px] text-amber-700">▼</span>
-                    <span className="text-[15px] font-black text-amber-600">フリー</span>
-                  </button>
-                  <p className="text-[11px] text-slate-400">担当未定の予約</p>
-                </>
+                (() => {
+                  // ★ 第1786便: フリーの行が何本目か・最後の行か（足す／消すボタン）
+                  const lanes = shown.filter((x) => x.therapist == null);
+                  const idx = lanes.findIndex((x) => x.key === r.key);
+                  const last = idx === lanes.length - 1;
+                  const btn = 'border border-amber-400 bg-white px-1 text-[10px] font-bold leading-[16px] text-amber-700 hover:bg-amber-50 disabled:opacity-40';
+                  return (
+                    <>
+                      {idx === 0 ? (
+                        // ★ 第1785便: 押すとたたむ
+                        <button type="button" onClick={toggleFree} title="フリーの行をたたむ" className="flex items-center gap-1 text-left hover:opacity-80">
+                          <span className="text-[11px] text-amber-700">▼</span>
+                          <span className="text-[15px] font-black text-amber-600">フリー</span>
+                        </button>
+                      ) : (
+                        <p className="text-[15px] font-black text-amber-600">フリー{idx + 1}</p>
+                      )}
+                      <p className="text-[11px] text-slate-400">担当未定の予約</p>
+                      {last && (
+                        <p className="mt-0.5 flex gap-1">
+                          {lanes.length < FREE_ROWS_MAX && (
+                            <button type="button" onClick={() => changeFreeCount(lanes.length + 1)} className={btn} title="フリーの行を1つ足す（3行まで）">＋ 行を足す</button>
+                          )}
+                          {idx > 0 && (
+                            <button type="button" disabled={r.bookings.length > 0} onClick={() => changeFreeCount(lanes.length - 1)} className={btn}
+                              title={r.bookings.length > 0 ? '予約が入っている行は消せません' : 'この行を消す'}>− 消す</button>
+                          )}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()
               )}
             </div>
             {/* 女子メモ（押すと書ける・お店の内部メモ）。★ 第1364便: 列をたたんでいるときは出さない */}
