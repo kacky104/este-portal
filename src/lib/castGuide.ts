@@ -1,6 +1,7 @@
 // 「セラピストページの作り方」の画像と alt（第1169便・第1170便・カッキーさん）。★ 純粋なデータ。
 // ★ マイページ（/mypage/cast-guide）とコネックエフ（conecf.com/cast-guide）の2つのページで同じものを出す（食い違わせない）。
 // ★ 画像はカッキーさん作成の1枚（public/mypage/cast-guide/cast-guide.webp・1600×2262）。差し替えるときはこのファイルを置き換えるだけ。
+// ★ 第1781便: 2枚とも「QRは24時間・1回だけ」→「QRは7日間・1回だけ」に書き換えた（招待リンクの期限を7日にしたため・第1780便）。
 // ★ 画像の中の文章は alt に要点を書く（画面読み上げのため）。★ 画像の中身を変えたら alt も直すこと。
 
 export const CAST_GUIDE_IMAGE = { src: '/mypage/cast-guide/cast-guide.webp', width: 1600, height: 2262 } as const;
