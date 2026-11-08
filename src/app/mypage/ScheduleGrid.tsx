@@ -7,7 +7,7 @@
 // ★ 色はマイページのピンク。★ 保存の中身（30分に寄せる・upsert・再検証）は page.tsx の saveSchedules に1つだけ。
 // ★ 表示だけの部品。★ 通信もDBも触らない（保存は onSave に任せる）。
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { startTimeOptions, endTimeOptions, shiftLabel } from '@/lib/conecfSchedule';
 // ★ 第1732便: 日付の「希望していた人」バッジ（これだけは自分で読む・見るだけ）
 import { ShiftWishBadge, useShiftWishes } from '@/app/components/shift/ShiftWishBadge';
@@ -43,6 +43,24 @@ export function ScheduleGrid(props: {
   const savedOf = (id: string, date: string): GridDay => saved[id]?.[date] ?? EMPTY;
   const cellOf = (id: string, date: string): GridDay => edits[key(id, date)] ?? savedOf(id, date);
   const dirtyCount = Object.keys(edits).length;
+
+  // ★★ 第1779便（カッキーさん）: 日付の行は、下へスクロールしても画面の上に残る（コネックエフの週間スケジュール 第1775便と同じ）。
+  //   ★ 貼り付く位置＝マイページの共通ヘッダー（sticky top-0 z-40）の高さ（予約ボードと同じ測り方）。★ 横の位置は表と同じに動く
+  const headBoxRef = useRef<HTMLDivElement>(null);
+  const [stickyTop, setStickyTop] = useState(0);
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>('div.sticky.top-0.z-40');
+    if (!header) return;
+    const update = () => setStickyTop(header.getBoundingClientRect().height);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(header);
+    return () => ro.disconnect();
+  }, []);
+  const syncHead = (box: HTMLDivElement) => {
+    const head = headBoxRef.current;
+    if (head && Math.abs(head.scrollLeft - box.scrollLeft) > 0.5) head.scrollLeft = box.scrollLeft;
+  };
 
   useEffect(() => {
     if (dirtyCount === 0) return;
@@ -86,28 +104,42 @@ export function ScheduleGrid(props: {
 
   return (
     <div className="space-y-3">
-      <div className={`${CARD} overflow-x-auto`}>
+      <div className="sticky z-20 -mb-3" style={{ top: stickyTop }}>
+        <div ref={headBoxRef} className="overflow-hidden border-x border-t border-slate-100 bg-pink-50 shadow-[0_2px_4px_rgba(31,35,51,0.06)]">
+          <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]">
+            <colgroup>
+              <col className="w-[64px] sm:w-[150px]" />
+              {days.map((d) => <col key={d} />)}
+            </colgroup>
+            <thead>
+              <tr className="bg-pink-50/60">
+                <th className="sticky left-0 z-10 bg-pink-50 text-left px-1.5 sm:px-3 py-2 border-b border-pink-100 w-[64px] sm:w-[150px] text-[12px] text-slate-400">セラピスト</th>
+                {days.map((d, i) => {
+                  const h = dateHead(d, i);
+                  const n = countOf(d);
+                  return (
+                    <th key={d} className={`px-1 py-2 border-b border-l border-pink-100 text-center ${i === 0 ? 'bg-pink-100/70' : ''}`}>
+                      <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
+                      <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
+                      <div className="mt-0.5">
+                        <span className={`inline-block min-w-[34px] px-1.5 py-px text-[11px] font-black tabular-nums ${n > 0 ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'}`}>{n}名</span>
+                        <ShiftWishBadge date={d} wishes={wishes[d]} />
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+          </table>
+        </div>
+      </div>
+      <div onScroll={(e) => syncHead(e.currentTarget)} className={`${CARD} overflow-x-auto !border-t-0`}>
         {/* ★ 日付のマスはいつも同じ幅（table-fixed）。★ スマホは横にすべらせる */}
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]">
-          <thead>
-            <tr className="bg-pink-50/60">
-              <th className="sticky left-0 z-10 bg-pink-50 text-left px-1.5 sm:px-3 py-2 border-b border-pink-100 w-[64px] sm:w-[150px] text-[12px] text-slate-400">セラピスト</th>
-              {days.map((d, i) => {
-                const h = dateHead(d, i);
-                const n = countOf(d);
-                return (
-                  <th key={d} className={`px-1 py-2 border-b border-l border-pink-100 text-center ${i === 0 ? 'bg-pink-100/70' : ''}`}>
-                    <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
-                    <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
-                    <div className="mt-0.5">
-                      <span className={`inline-block min-w-[34px] px-1.5 py-px text-[11px] font-black tabular-nums ${n > 0 ? 'bg-pink-500 text-white' : 'bg-slate-100 text-slate-400'}`}>{n}名</span>
-                      <ShiftWishBadge date={d} wishes={wishes[d]} />
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
+          <colgroup>
+            <col className="w-[64px] sm:w-[150px]" />
+            {days.map((d) => <col key={d} />)}
+          </colgroup>
           <tbody>
             {therapists.map((t) => (
               <tr key={t.id} className={`border-t border-slate-100 ${t.isActive ? '' : 'opacity-50'}`}>
