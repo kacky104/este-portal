@@ -447,10 +447,11 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     visibleBookings.forEach((b) => noteBooking(minOfDay(b.slotStartISO, baseMs), minOfDay(b.slotEndISO, baseMs)));
 
     const rows: Row[] = [];
-    // ★ フリー（担当未定）の行は出さない（第553便・カッキーさんの指示）。
-    //   ただし、前に入れた担当未定の予約が残っている日だけは、見落とさないように出す。
+    // ★ 第1785便（カッキーさん・2026-11-08）: フリー（担当未定）の行を【いつも】いちばん上に出す（予約が無い日も）。
+    //   ★ 行はたためる（たたむと細い1行・この端末だけ覚える・既定は出ている）。
+    //   （第553便では出さない決まりにして、担当未定の予約が残っている日だけ出していた）
     const free = visibleBookings.filter((b) => b.therapistId == null);
-    if (free.length > 0) rows.push({ key: 'free', therapist: null, bookings: free });
+    rows.push({ key: 'free', therapist: null, bookings: free });
 
     const therapistRows: Row[] = [];
     for (const t of data.therapists) {
@@ -821,6 +822,16 @@ function Grid({
   const [memoOpen, setMemoOpen] = useState<boolean>(() => {
     try { return typeof window === 'undefined' ? true : localStorage.getItem('crm_memo_open') !== '0'; } catch { return true; }
   });
+  // ★ 第1785便（カッキーさん）: いちばん上のフリーの行をたためる。既定は出ている。この端末だけ覚える
+  const [freeOpen, setFreeOpen] = useState<boolean>(() => {
+    try { return typeof window === 'undefined' ? true : localStorage.getItem('crm_free_open') !== '0'; } catch { return true; }
+  });
+  const toggleFree = () => {
+    setFreeOpen((v) => {
+      try { localStorage.setItem('crm_free_open', v ? '0' : '1'); } catch { /* 何もしない */ }
+      return !v;
+    });
+  };
   const toggleMemo = () => {
     setMemoOpen((v) => {
       try { localStorage.setItem('crm_memo_open', v ? '0' : '1'); } catch { /* 何もしない */ }
@@ -892,7 +903,21 @@ function Grid({
         </div>
 
         {/* ★ 行の hover:z-[25]：女子メモの全文（第643便）が下の行の名前の列に隠れないように（見出しの z-30 より下） */}
-        {rows.map((r) => (
+        {rows.map((r) => r.key === 'free' && !freeOpen ? (
+          // ★ 第1785便: たたんだフリーの行（細い1行。押すと開く）
+          <div key={r.key} className="relative flex border-b border-slate-200 bg-amber-50/50" style={{ height: 28 }}>
+            <div className="sticky left-0 z-20 flex flex-none items-center border-r border-slate-300 bg-amber-50" style={{ width: leftW }}>
+              <button type="button" onClick={toggleFree} title="フリーの行を開く" className="flex h-full w-full items-center gap-1.5 px-2 text-left hover:bg-amber-100">
+                <span className="text-[11px] text-amber-700">▶</span>
+                <span className="text-[13px] font-black text-amber-600">フリー</span>
+                {r.bookings.filter((b) => b.status !== 'cancelled').length > 0 && (
+                  <span className="bg-amber-500 px-1.5 text-[11px] font-black leading-[16px] text-white">{r.bookings.filter((b) => b.status !== 'cancelled').length}件</span>
+                )}
+              </button>
+            </div>
+            <div className="flex-none" style={{ width }} />
+          </div>
+        ) : (
           <div key={r.key} className={`relative flex border-b hover:z-[25] ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
             <div className={`sticky left-0 z-20 flex flex-none border-r border-slate-300 ${r.done ? 'bg-slate-300' : 'bg-white'}`} style={{ width: leftW }}>
@@ -1014,7 +1039,11 @@ function Grid({
                 </>
               ) : (
                 <>
-                  <p className="text-[15px] font-black text-amber-600">フリー</p>
+                  {/* ★ 第1785便: 押すとたたむ */}
+                  <button type="button" onClick={toggleFree} title="フリーの行をたたむ" className="flex items-center gap-1 text-left hover:opacity-80">
+                    <span className="text-[11px] text-amber-700">▼</span>
+                    <span className="text-[15px] font-black text-amber-600">フリー</span>
+                  </button>
                   <p className="text-[11px] text-slate-400">担当未定の予約</p>
                 </>
               )}
