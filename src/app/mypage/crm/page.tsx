@@ -1862,8 +1862,11 @@ function BookingForm({
     // ★ 第1787便: グループ（2名様以上）の確かめ（担当が選ばれているか・同じ担当が重なっていないか）
     if (f.mode === 'new' && party > 1) {
       if (comps.some((c) => !c.tKey)) { setErr('2人目からの担当を全部選んでください'); return; }
-      const keys = [f.therapistKey, ...comps.map((c) => c.tKey)];
+      const keys = [f.therapistKey, ...comps.map((c) => c.tKey)].filter((k) => k !== 'free');
       if (new Set(keys).size !== keys.length) { setErr('同じ担当が重なっています（1人に1人の担当を選んでください）'); return; }
+      // ★ 第1789便: フリーは同じ時間に3件まで（すでに入っているフリーの予約はサーバーが数える）
+      const frees = [f.therapistKey, ...comps.map((c) => c.tKey)].filter((k) => k === 'free').length;
+      if (frees > FREE_LANE_MAX) { setErr(`フリー（担当未定）は同じ時間に${FREE_LANE_MAX}件までです。${frees - FREE_LANE_MAX}人は担当を選んでください`); return; }
     }
     // ★ 第1672便（カッキーさん）: 開始を押した所が空いていても、コースの終わりが提携店の予約にかかることがある
     //   （例: ラビで20:00から予約があるのに、enju で19:00から90分）。保存の前に、開始〜終わり（インターバル込み）で見て一度だけ確認する。止めはしない
@@ -1918,8 +1921,8 @@ function BookingForm({
         const failed: string[] = [];
         for (let i = 0; i < comps.length; i++) {
           const c = comps[i];
-          const ctid = Number(c.tKey);
-          const who = `${i + 2}人目（${therapists.find((t) => t.id === ctid)?.name ?? ''}）`;
+          const ctid = c.tKey === 'free' ? null : Number(c.tKey);
+          const who = `${i + 2}人目（${ctid == null ? 'フリー' : therapists.find((t) => t.id === ctid)?.name ?? ''}）`;
           const r = await safeCall(() => createManualBooking({
             salonId,
             therapistId: ctid,
@@ -2086,13 +2089,16 @@ function BookingForm({
               <div className="col-span-2 space-y-1.5 border border-indigo-200 bg-indigo-50/40 p-2.5">
                 <p className="text-[12px] font-bold text-slate-600">{party}名様：2人目からの担当を選んでください（時間・コース・料金は1人目と同じ。名前は「{f.customerName.trim() || 'お客様'}（お連れ様）」で入ります）</p>
                 {comps.map((c, i) => {
-                  const dup = c.tKey !== '' && (c.tKey === f.therapistKey || comps.some((o, j) => j !== i && o.tKey === c.tKey));
+                  // ★ 第1789便: フリー（担当未定）は何人選んでも「重なり」にしない（同じ時間に3件まで・サーバーで数える）
+                  const dup = c.tKey !== '' && c.tKey !== 'free' && (c.tKey === f.therapistKey || comps.some((o, j) => j !== i && o.tKey === c.tKey));
                   return (
                     <div key={i} className="flex flex-wrap items-center gap-1.5">
                       <span className="w-[52px] flex-none text-[12px] font-bold text-slate-500">{i + 2}人目</span>
                       <select className={`${fieldCls} !w-auto min-w-[140px] flex-1`} value={c.tKey}
                         onChange={(e) => setComps((p) => p.map((x, j) => (j === i ? { ...x, tKey: e.target.value } : x)))}>
                         <option value="">担当を選ぶ</option>
+                        {/* ★ 第1789便（カッキーさん・A案）: お連れ様もフリー（担当未定）で受けられる。フリーは同じ時間に3件まで */}
+                        <option value="free">フリー（担当未定）</option>
                         {therapists.map((t) => (
                           <option key={t.id} value={String(t.id)}>{t.name}{customer?.ngTherapistIds.includes(t.id) ? '（女子NG）' : ''}</option>
                         ))}
