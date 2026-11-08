@@ -58,6 +58,7 @@ import { addSeenIds, freshNotices, loadSeenIds, unseenFreshCount } from '@/lib/o
 import { loadSeenInvoiceIds } from '@/lib/invoiceSeen';
 import { AgreementNoticeBar } from './AgreementNoticeBar';
 // ★ 第885便: セラピストページ連携の連携率（コネックエフのホームと同じ部品）
+import { suggestEmailFix } from '@/lib/emailTypo';
 import { CastLinkProgress } from '@/app/components/CastLinkProgress';
 import { RECOMMEND_SITE_BONUS, RECOMMEND_FUKUX_SHOP_BONUS } from '@/lib/rankingPoints';
 import { xWeeklyLabel } from '@/lib/xAnnounceWeekly';
@@ -2217,6 +2218,17 @@ export default function MyPage() {
     if (!salon) return;
     const email = (inviteEmails[therapistId] ?? '').trim();
     if (!email) { showToast('招待先のメールアドレスを入力してください'); return; }
+    // ★ 第1780便（カッキーさん）: @ のあとの打ち間違い（cloud.com など）の確かめ。「OK」で直したアドレスに、「キャンセル」でそのまま送る
+    const sug = suggestEmailFix(email);
+    if (sug && window.confirm(`${sug} ではありませんか？\n（@ のあとが違うと招待メールが届きません）\n\nOK：${sug} に直して送る\nキャンセル：${email} のまま送る`)) {
+      setInviteEmails(prev => ({ ...prev, [therapistId]: sug }));
+      return handleInviteCastTo(therapistId, sug);
+    }
+    return handleInviteCastTo(therapistId, email);
+  };
+
+  const handleInviteCastTo = async (therapistId: string, email: string) => {
+    if (!salon) return;
     setInviteBusyId(therapistId);
     const res = await inviteCast({ therapistId, salonId: Number(salon.id), email });
     setInviteBusyId(null);

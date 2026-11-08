@@ -1,6 +1,7 @@
 'use client';
 
 import { maskEmail } from '@/lib/maskEmail';
+import { suggestEmailFix } from '@/lib/emailTypo';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import {
@@ -50,9 +51,15 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
 
   useEffect(() => { void load(); }, [load]);
 
+  // ★ 第1780便（カッキーさん）: @ のあとの打ち間違い（cloud.com など）の確かめ。okFor＝「このまま送る」を押したアドレス
+  const [fix, setFix] = useState<string | null>(null);
+  const [okFor, setOkFor] = useState('');
   const onInvite = async () => {
     const v = email.trim();
     if (!v) { onToast('メールアドレスを入力してください'); return; }
+    const sug = suggestEmailFix(v);
+    if (sug && okFor !== v) { setFix(sug); return; }
+    setFix(null);
     setBusy(true);
     const res = await inviteCast({ therapistId: tid, salonId, email: v });
     setBusy(false);
@@ -106,13 +113,24 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
   );
 
   const inviteRow = (placeholder: string, label: string) => (
-    <div className="flex items-center gap-2">
-      <input type="email" inputMode="email" autoComplete="off" className={INPUT} placeholder={placeholder}
-        value={email} onChange={(e) => setEmail(e.target.value)} />
-      <button type="button" disabled={busy} onClick={() => void onInvite()}
-        className={`${BTN} ${T.primary}`}>
-        {busy ? '送っています…' : label}
-      </button>
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <input type="email" inputMode="email" autoComplete="off" className={INPUT} placeholder={placeholder}
+          value={email} onChange={(e) => { setEmail(e.target.value); setFix(null); }} />
+        <button type="button" disabled={busy} onClick={() => void onInvite()}
+          className={`${BTN} ${T.primary}`}>
+          {busy ? '送っています…' : label}
+        </button>
+      </div>
+      {fix && (
+        <div className="flex flex-wrap items-center gap-2 border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+          <span className="min-w-0"><b className="break-all">{fix}</b> ではありませんか？（@ のあとが違うと招待メールが届きません）</span>
+          <span className="ml-auto flex gap-2">
+            <button type="button" onClick={() => { setEmail(fix); setFix(null); }} className={`${BTN} ${T.primary}`}>これに直す</button>
+            <button type="button" onClick={() => { setOkFor(email.trim()); setFix(null); }} className={`${BTN} ${T.secondary}`}>このままでよい</button>
+          </span>
+        </div>
+      )}
     </div>
   );
 

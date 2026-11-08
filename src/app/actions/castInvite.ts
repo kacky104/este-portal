@@ -393,11 +393,14 @@ export async function getSalonCastLinkRoster(input: { salonId: number }): Promis
 // ★ 第887便（カッキーさん）: 「リンク・QRで招待」。
 //   オーナーがセラピスト1人ごとに招待リンクを作る → 本人がリンクを開いて自分のメールを入れる
 //   → 今までと同じ招待メール（sendInvite）→ パスワードを決めると連携（claimCastTherapist・変えていない）。
-// ★ リンクの文字列は保存しない（sha256 だけ）。★ 24時間・1回だけ。★ 作り直すと前のリンクは無効。
+// ★ リンクの文字列は保存しない（sha256 だけ）。★ 1回だけ。★ 「リンクを作り直す」を押したときだけ前のリンクを無効にする。
+// ★★ 第1780便（カッキーさん・2026-11-08）: オイルクエスト様で「招待URLを送っても入れない」子が続いた。
+//   ① 24時間で切れていた（夜中にまとめて作って送り、翌日に開いた子が多い）→ 有効期限を【7日】に。
+//   ② 送ったあとに同じ子の「QR」を押すと、送ったリンクが無効になっていた → QR を開いただけでは前のリンクを消さない（revokeOld のときだけ）。
 // ★ 表 cast_invite_links は service role だけが読み書き（supabase/migrations/20260926_cast_invite_links.sql）。
 // ─────────────────────────────────────────────────────────────
 
-const INVITE_LINK_HOURS = 24;
+const INVITE_LINK_HOURS = 24 * 7; // ★ 第1780便: 24時間 → 7日
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
@@ -408,7 +411,7 @@ function isTokenShape(token: string): boolean {
 }
 
 /** 招待リンクを作る（前のリンクは無効にする）。オーナー（または管理者）だけ。 */
-export async function createCastInviteLink(input: { therapistId: string; salonId: number }): Promise<
+export async function createCastInviteLink(input: { therapistId: string; salonId: number; /** ★ 第1780便: 「リンクを作り直す」のときだけ true（前のリンクを無効にする） */ revokeOld?: boolean }): Promise<
   { ok: true; url: string; expiresAt: string } | { ok: false; error: string }
 > {
   const auth = await assertOwner(input.salonId);
@@ -420,14 +423,16 @@ export async function createCastInviteLink(input: { therapistId: string; salonId
   if (t.user_id) return { ok: false, error: 'このセラピストは既に連携済みです' };
 
   const now = new Date();
-  // 前のリンク（まだ使っていない・取り消していない）を無効に
-  const { error: rvErr } = await svc
-    .from('cast_invite_links')
-    .update({ revoked_at: now.toISOString() })
-    .eq('therapist_id', t.id)
-    .is('used_at', null)
-    .is('revoked_at', null);
-  if (rvErr) return { ok: false, error: `招待リンクを作れませんでした: ${rvErr.message}` };
+  // 前のリンク（まだ使っていない・取り消していない）を無効に。★ 第1780便: 「作り直す」を押したときだけ
+  if (input.revokeOld) {
+    const { error: rvErr } = await svc
+      .from('cast_invite_links')
+      .update({ revoked_at: now.toISOString() })
+      .eq('therapist_id', t.id)
+      .is('used_at', null)
+      .is('revoked_at', null);
+    if (rvErr) return { ok: false, error: `招待リンクを作れませんでした: ${rvErr.message}` };
+  }
 
   const token = randomBytes(32).toString('base64url');
   const expiresAt = new Date(now.getTime() + INVITE_LINK_HOURS * 60 * 60 * 1000).toISOString();
@@ -461,7 +466,7 @@ async function checkLink(svc: Svc, token: string): Promise<LinkCheck> {
   if (!link || link.revoked_at) return bad;
   if (link.used_at) return { ok: false, code: 'used', error: 'この招待リンクはもう使われています。届いた招待メールを確認するか、お店に新しいリンクをもらってください。' };
   if (new Date(link.expires_at).getTime() <= Date.now()) {
-    return { ok: false, code: 'expired', error: 'この招待リンクは期限（24時間）が切れています。お店に新しいリンクをもらってください。' };
+    return { ok: false, code: 'expired', error: 'この招待リンクは期限（7日）が切れています。お店に新しいリンクをもらってください。' };
   }
   const { data: t } = await svc.from('therapists').select('id, name, salon_id, user_id').eq('id', link.therapist_id).maybeSingle();
   if (!t || Number(t.salon_id) !== Number(link.salon_id)) return bad;

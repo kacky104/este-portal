@@ -48,9 +48,10 @@ export function CastInviteLinkButton({ therapistId, salonId, therapistName, onTo
     return () => { alive = false; };
   }, [link]);
 
-  const make = async () => {
+  // ★ 第1780便: revokeOld は「リンクを作り直す」のときだけ（QR を開いただけでは、前に送ったリンクを消さない）
+  const make = async (revokeOld = false) => {
     setBusy(true);
-    const r = await createCastInviteLink({ therapistId: String(therapistId), salonId });
+    const r = await createCastInviteLink({ therapistId: String(therapistId), salonId, revokeOld });
     setBusy(false);
     if (!r.ok) { onToast(r.error); return; }
     setLink({ url: r.url, expiresAt: r.expiresAt });
@@ -75,7 +76,7 @@ export function CastInviteLinkButton({ therapistId, salonId, therapistName, onTo
   };
 
   // ★ 第1468便（カッキーさん）: 安心して登録してもらえるよう、メールアドレスの扱いの一文を添える（文は lib/castInviteNote.ts）
-  const lineText = link ? `セラピストページの連携はこちらから（24時間有効）\n${link.url}\n\n${CAST_EMAIL_NOTE}` : '';
+  const lineText = link ? `セラピストページの連携はこちらから（7日間有効）\n${link.url}\n\n${CAST_EMAIL_NOTE}` : '';
 
   const primary = tone === 'indigo' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-pink-500 hover:bg-pink-600 text-white';
   const outline = tone === 'indigo' ? 'border-indigo-300 text-indigo-700 hover:bg-indigo-50' : 'border-pink-300 text-pink-600 hover:bg-pink-50';
@@ -129,9 +130,9 @@ export function CastInviteLinkButton({ therapistId, salonId, therapistName, onTo
                   </a>
                 </div>
                 <p className="text-[12px] text-amber-700 leading-relaxed">
-                  有効期限：{fmt(link.expiresAt)} まで（24時間・1回だけ使えます）。
+                  有効期限：{fmt(link.expiresAt)} まで（7日間・1回だけ使えます）。前に送ったリンクも、期限内ならそのまま使えます。
                 </p>
-                <button type="button" disabled={busy} onClick={() => void make()} className="text-[12px] font-bold text-slate-500 underline disabled:opacity-50">
+                <button type="button" disabled={busy} onClick={() => void make(true)} className="text-[12px] font-bold text-slate-500 underline disabled:opacity-50">
                   {busy ? '作り直しています…' : 'リンクを作り直す（前のリンクは使えなくなります）'}
                 </button>
               </>

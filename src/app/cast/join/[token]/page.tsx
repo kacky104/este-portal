@@ -7,10 +7,11 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { acceptCastInviteLink, getCastInviteLinkInfo } from '@/app/actions/castInvite';
 import { CAST_LINK_BONUS } from '@/lib/rankingPoints';
+import { suggestEmailFix } from '@/lib/emailTypo';
 
 // ★ 第887便（カッキーさん）: 「リンク・QRで招待」の着地ページ。
 // ★ セラピスト本人が自分のメールを入れる → 今までと同じ招待メールが届く → メールのリンクからパスワードを決めて連携。
-// ★ ログイン不要（リンクを持っている人＝本人）。★ リンクは24時間・1回だけ（判断はサーバー: acceptCastInviteLink）。
+// ★ ログイン不要（リンクを持っている人＝本人）。★ リンクは7日間・1回だけ（判断はサーバー: acceptCastInviteLink）。
 
 type Info = { therapistName: string; salonName: string };
 
@@ -23,6 +24,9 @@ export default function CastJoinPage() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<{ email: string; warning?: string } | null>(null);
   const [formError, setFormError] = useState('');
+  // ★ 第1780便（カッキーさん）: @ のあとの打ち間違い（cloud.com など）の確かめ。okFor＝「このまま送る」を押したアドレス
+  const [fix, setFix] = useState<string | null>(null);
+  const [okFor, setOkFor] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -39,6 +43,9 @@ export default function CastJoinPage() {
     setFormError('');
     const v = email.trim();
     if (!v) { setFormError('メールアドレスを入れてください'); return; }
+    const sug = suggestEmailFix(v);
+    if (sug && okFor !== v) { setFix(sug); return; }
+    setFix(null);
     setBusy(true);
     const r = await acceptCastInviteLink({ token, email: v });
     setBusy(false);
@@ -101,7 +108,7 @@ export default function CastJoinPage() {
                 inputMode="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setFix(null); }}
                 placeholder="example@mail.com"
                 className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent transition"
               />
@@ -113,6 +120,20 @@ export default function CastJoinPage() {
                 <span>{CAST_EMAIL_NOTE}</span>
               </p>
             </div>
+            {fix && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 space-y-2">
+                <p className="text-sm text-amber-900 leading-relaxed">
+                  <b className="break-all">{fix}</b> ではありませんか？<br />
+                  <span className="text-[12px]">@ のあとが違うと、招待メールが届きません。</span>
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => { setEmail(fix); setFix(null); }}
+                    className="py-2 rounded-lg bg-pink-600 text-white text-[13px] font-bold">これに直す</button>
+                  <button type="button" onClick={() => { setOkFor(email.trim()); setFix(null); }}
+                    className="py-2 rounded-lg border border-slate-300 bg-white text-slate-600 text-[13px] font-bold">このままでよい</button>
+                </div>
+              </div>
+            )}
             {formError && <p className="text-sm text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{formError}</p>}
             <button
               type="submit"
