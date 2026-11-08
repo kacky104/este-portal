@@ -19,8 +19,18 @@ import { readEsutamaCsrf } from './esutamaParse';
 
 export const ESUTAMA_APPEAL_PAGE_URL = 'https://estama.jp/admin/guest/appeal/';
 export const ESUTAMA_APPEAL_POST_URL = 'https://estama.jp/admin_post/single_appeal_exec';
-/** ★ 店舗情報の行だけ。★ クーポン（shop_coupon）・体験談（shop_exp）は押さない */
+/** 店舗情報の行。★ 残り回数・最終アピールの記録（コネックエフの画面）はこの行で持つ */
 export const ESUTAMA_APPEAL_ROW = 'shop,guest_appeal';
+/**
+ * ★★ 第1798便（2026-11-09・カッキーさん「A」）: ベンリーと同じく3行とも押す（店舗情報 → クーポン情報 → お店体験談）。
+ *   ★ エステ魂の「まとめてアピールする」（all_appeal_exec）は応答の形を実測していないので使わず、
+ *     実測済みの1行ずつの single_appeal_exec を3回送る（使う回数は「まとめて」と同じ＝各行1回）。
+ *   ★ 押すかの判断は店舗情報の行で決める。クーポン・体験談は、その周で店舗情報を押すときに、残りがあれば続けて押す。
+ */
+export const ESUTAMA_APPEAL_ROWS = ['shop,guest_appeal', 'shop_coupon,guest_appeal', 'shop_exp,guest_appeal'] as const;
+export const ESUTAMA_APPEAL_ROW_LABEL: Record<string, string> = {
+  'shop,guest_appeal': '店舗情報', 'shop_coupon,guest_appeal': 'クーポン情報', 'shop_exp,guest_appeal': 'お店体験談',
+};
 /**
  * 1日に押せる回数。★ エステ魂の画面には上限が出ない（説明文は「1日1回・プラチナ3回」で実際と合わない）。
  * ★ 第1314便の2（カッキーさん・2026-10-08）: 実際は1日10回とのことなので 10 として扱う（画面は「残り N / 10回」）。
@@ -48,10 +58,11 @@ export function parseEsutamaAppealTime(text: string, now: Date): string | null {
   return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
-/** 店舗情報の行（data-row="shop,guest_appeal" のボタンを含む <tr>）を切り出す。無ければ null */
-export function esutamaAppealRowHtml(html: string): string | null {
+/** 行（data-row="<rowKey>" のボタンを含む <tr>）を切り出す。無ければ null。★ 既定は店舗情報の行 */
+export function esutamaAppealRowHtml(html: string, rowKey: string = ESUTAMA_APPEAL_ROW): string | null {
   const src = String(html ?? '');
-  const btn = /<a\b[^>]*\bdata-row=["']shop,guest_appeal["'][^>]*>/i.exec(src);
+  const esc = rowKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const btn = new RegExp(`<a\\b[^>]*\\bdata-row=["']${esc}["'][^>]*>`, 'i').exec(src);
   if (!btn) return null;
   const start = src.lastIndexOf('<tr', btn.index);
   const end = src.indexOf('</tr>', btn.index);
@@ -79,6 +90,16 @@ export function parseEsutamaAppealPage(html: string, now: Date): EsutamaAppealPa
   const ctk = readEsutamaCsrf(String(html ?? ''));
   if (!ctk) problems.push('ctk（#csrf_footer）が見つからない');
   return { remaining, lastAt, ctk, problems };
+}
+
+/** ★ 第1798便: 店舗情報以外の行（クーポン・体験談）の残り回数と最終アピール。★ 行もボタンも無ければ null（＝押さない） */
+export function parseEsutamaAppealRow(html: string, rowKey: string, now: Date): { remaining: number | null; lastAt: string | null } | null {
+  const row = esutamaAppealRowHtml(html, rowKey);
+  if (!row) return null;
+  const numText = /<strong\b[^>]*class=["'][^"']*\btg_num\b[^"']*["'][^>]*>([\s\S]*?)<\/strong>/i.exec(row)?.[1]?.replace(/<[^>]*>/g, '').trim() ?? '';
+  const remaining = /^\d{1,3}$/.test(numText) ? Number(numText) : null;
+  const lastText = /<p\b[^>]*class=["'][^"']*\bl-appeal_last_update\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i.exec(row)?.[1]?.replace(/<[^>]*>/g, '').trim() ?? '';
+  return { remaining, lastAt: parseEsutamaAppealTime(lastText, now) };
 }
 
 /** 押すのに足りる材料がそろっているか（残り回数と ctk） */
@@ -111,8 +132,9 @@ export function buildEsutamaAppealPageRequest(cookie: string): Req {
   };
 }
 
-/** ★★ 店舗情報をアピールする POST（相手の回数が1つ減る）。★ 画面の $.ajax と同じ形 */
-export function buildEsutamaAppealPostRequest(cookie: string, ctk: string): Req {
+/** ★★ 1行をアピールする POST（相手のその行の回数が1つ減る）。★ 画面の $.ajax と同じ形。★ 既定は店舗情報 */
+export function buildEsutamaAppealPostRequest(cookie: string, ctk: string, rowKey: string = ESUTAMA_APPEAL_ROW): Req {
+  if (!(ESUTAMA_APPEAL_ROWS as readonly string[]).includes(rowKey)) throw new Error('知らない行はアピールしない');
   if (!cookie) throw new Error('Cookie が無いままアピールしない');
   if (!/^[A-Za-z0-9]{16,64}$/.test(ctk)) throw new Error('ctk の形が違うままアピールしない');
   return {
@@ -128,6 +150,6 @@ export function buildEsutamaAppealPostRequest(cookie: string, ctk: string): Req 
       origin: 'https://estama.jp',
       cookie,
     },
-    body: encodePayload([['post_data', ESUTAMA_APPEAL_ROW], ['ctk', ctk]]),
+    body: encodePayload([['post_data', rowKey], ['ctk', ctk]]),
   };
 }

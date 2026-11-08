@@ -936,6 +936,14 @@ export type RelayFlowContext = {
   bumpForce?: boolean;
   /** 押す前に読んだ値（トップから）。★ 押したあとの記録に使う */
   bumpBefore?: { remaining: number | null; quota: number | null; lastAt: string | null };
+  /** ★ 第1798便: エステ魂の集客ワンクリックアピールで、いま押している行（既定は店舗情報）と、このあと続けて押す行 */
+  esutamaAppealRow?: string;
+  esutamaAppealQueue?: string[];
+  /** その行を押す前に読んだ値（クーポン・体験談の成否に使う） */
+  esutamaAppealRowBefore?: { remaining: number | null; lastAt: string | null };
+  /** 店舗情報の結果（押せた／押せなかった）と、続けて押せた行の名前 */
+  esutamaAppealShop?: { ok: boolean; remaining: number | null; lastAt: string | null };
+  esutamaAppealExtra?: string[];
   // ── ここから下は intent='sort_push' のときだけ入る（第1557便）──
   /** コネックエフの並び（上から順の、そのサイトの番号） */
   sortWant?: string[];

@@ -55,9 +55,9 @@ const SITES: Record<'ekichika' | 'esutama', SiteTheme> = {
   },
   esutama: {
     provider: 'esutama', name: 'エステ魂', what: 'アピール',
-    heading: 'の集客アピール（店舗情報）', btnLabel: '⬆ アピールする',
+    heading: 'の集客アピール', btnLabel: '⬆ アピールする',
     lead: <>エステ魂のトップページ・お店一覧でお店が<span className="font-bold text-violet-600">上位に表示</span>されます。</>,
-    details: ['エステ魂の管理画面「集客ワンクリックアピール」の、店舗情報の「アピールする」をコネックエフから押します（クーポン・体験談は押しません）。', '残り回数は、コネックエフが最後にエステ魂の画面を読んだときの値です。エステ魂で手で押した分は、次にコネックエフから押したとき（自動を含む）に反映されます。1日10回で、毎朝6時に戻ります。'],
+    details: ['エステ魂の管理画面「集客ワンクリックアピール」の、店舗情報・クーポン情報・お店体験談の3つをコネックエフから押します（エステ魂の「まとめてアピールする」と同じ。残りがある行だけ）。', '残り回数は、コネックエフが最後にエステ魂の画面を読んだときの値です。エステ魂で手で押した分は、次にコネックエフから押したとき（自動を含む）に反映されます。回数はエステ魂のプランによって違い、毎朝6時に戻ります。'],
     defaultQuota: 10,   // ★ 第1314便の2: エステ魂は1日10回（画面に上限が出ないため、ここで持つ）
     border: 'border-violet-100', accent: 'text-violet-600', big: 'text-violet-500',
     btn: 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700',

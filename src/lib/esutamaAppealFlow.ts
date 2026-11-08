@@ -1,4 +1,4 @@
-// エステ魂の「集客ワンクリックアピール」（店舗情報）を押す流れ（第1314便・2026-10-08）。
+// エステ魂の「集客ワンクリックアピール」を押す流れ（第1314便・2026-10-08。第1798便で店舗情報のあとクーポン・体験談も続けて押す）。
 //
 // ★★ 段: esutama_login_page → esutama_login → esutama_appeal_read（画面: 残り回数・最終アピール・ctk）
 //          →（押すなら）esutama_appeal_set（POST /admin_post/single_appeal_exec）→ esutama_appeal_verify（読み直す）→ 終わり
@@ -12,8 +12,9 @@ import { mergeCookies } from './relayJob';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';
 import { shouldBumpNow } from './ekichikaBump';
 import {
-  parseEsutamaAppealPage, esutamaAppealUsable, esutamaAppealPressed,
+  parseEsutamaAppealPage, esutamaAppealUsable, esutamaAppealPressed, parseEsutamaAppealRow,
   buildEsutamaAppealPageRequest, buildEsutamaAppealPostRequest, ESUTAMA_APPEAL_DAILY,
+  ESUTAMA_APPEAL_ROW, ESUTAMA_APPEAL_ROWS, ESUTAMA_APPEAL_ROW_LABEL,
 } from './esutamaAppeal';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
@@ -84,12 +85,18 @@ export function afterEsutamaAppealRead(input: Input, ctx: RelayFlowContext, nowA
       : [];
     return { kind: 'done', audits: [...audits, ...extra], note: 'アピールは押さなかった（' + decision.reason + '）', ekichikaBump: state };
   }
-  const p = buildEsutamaAppealPostRequest(cookie, String(page.ctk));
+  const p = buildEsutamaAppealPostRequest(cookie, String(page.ctk), ESUTAMA_APPEAL_ROW);
+  // ★ 第1798便: 店舗情報のあとに続けて押す行（クーポン・体験談）。★ 残りが1回以上ある行だけ
+  const queue = ESUTAMA_APPEAL_ROWS.filter((k) => k !== ESUTAMA_APPEAL_ROW)
+    .filter((k) => (parseEsutamaAppealRow(input.body, k, now)?.remaining ?? 0) > 0);
   return {
     kind: 'next',
     next: {
       purpose: 'esutama_appeal_set', method: p.method, url: p.url, headers: p.headers, body: p.body ?? '',
-      context: { ...ctx, cookie, bumpBefore: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt } },
+      context: {
+        ...ctx, cookie, bumpBefore: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt },
+        esutamaAppealRow: ESUTAMA_APPEAL_ROW, esutamaAppealQueue: queue, esutamaAppealExtra: [], esutamaAppealShop: undefined, esutamaAppealRowBefore: undefined,
+      },
     },
     audits,
     note: 'アピールの画面を読めた（残り ' + page.remaining + '）→ 店舗情報をアピールする',
@@ -121,36 +128,74 @@ export function afterEsutamaAppealSet(input: Input, ctx: RelayFlowContext): Flow
   };
 }
 
-/** ③ 読み直した → 押せたか */
+/** ③ 読み直した → 押せたか。★ 第1798便: 店舗情報が押せたら、残りのある行（クーポン・体験談）を続けて押す */
 export function afterEsutamaAppealVerify(input: Input, ctx: RelayFlowContext, nowArg?: Date): FlowOutcome {
   const flowId = ctx.flowId;
   const manual = ctx.bumpForce === true;
   const before = ctx.bumpBefore ?? { remaining: null, quota: ESUTAMA_APPEAL_DAILY, lastAt: null };
   const now = nowArg ?? new Date();
   const readAt = now.toISOString();
+  const row = ctx.esutamaAppealRow ?? ESUTAMA_APPEAL_ROW;
+  const extra = [...(ctx.esutamaAppealExtra ?? [])];
   const page = input.status === 200 ? parseEsutamaAppealPage(input.body, now) : null;
-  if (!page || page.remaining === null) {
-    // ★ 読み直せなかった。★ 押せたかどうか分からない（＝押し直さない。次の周が読み直す）
-    return {
-      kind: 'done',
-      audits: [{ event: 'push_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'verify_unreadable', manual, flowId } }],
-      note: 'アピールのあと画面を読み直せなかった（押せたか分からない）',
-      ekichikaBump: { remaining: before.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: before.lastAt, readAt, pressed: false },
-    };
+
+  // ── 店舗情報の結果 ──
+  let shop = ctx.esutamaAppealShop;
+  if (row === ESUTAMA_APPEAL_ROW) {
+    if (!page || page.remaining === null) {
+      // ★ 読み直せなかった。★ 押せたかどうか分からない（＝押し直さない。次の周が読み直す）
+      return {
+        kind: 'done',
+        audits: [{ event: 'push_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'verify_unreadable', manual, flowId } }],
+        note: 'アピールのあと画面を読み直せなかった（押せたか分からない）',
+        ekichikaBump: { remaining: before.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: before.lastAt, readAt, pressed: false },
+      };
+    }
+    shop = { ok: esutamaAppealPressed(before, page), remaining: page.remaining, lastAt: page.lastAt };
+  } else if (page) {
+    // ── クーポン・体験談の結果（★ 読み直しで決める） ──
+    const b = ctx.esutamaAppealRowBefore ?? { remaining: null, lastAt: null };
+    const a = parseEsutamaAppealRow(input.body, row, now);
+    const ok = !!a && ((b.remaining !== null && a.remaining !== null && a.remaining < b.remaining)
+      || (!!a.lastAt && (!b.lastAt || Date.parse(a.lastAt) > Date.parse(b.lastAt))));
+    if (ok) extra.push(ESUTAMA_APPEAL_ROW_LABEL[row] ?? row);
+    if (page.remaining !== null && shop) shop = { ...shop, remaining: page.remaining, lastAt: page.lastAt ?? shop.lastAt };
   }
-  const pressed = esutamaAppealPressed(before, page);
-  if (pressed) {
+  const shopRes = shop ?? { ok: false, remaining: before.remaining, lastAt: before.lastAt };
+
+  // ── 続けて押す行（★ 店舗情報が押せたときだけ・ctk が読めたときだけ） ──
+  if (shopRes.ok && page && page.ctk) {
+    const queue = [...(ctx.esutamaAppealQueue ?? [])];
+    while (queue.length > 0) {
+      const nextRow = queue.shift() as string;
+      const nb = parseEsutamaAppealRow(input.body, nextRow, now);
+      if (!nb || (nb.remaining ?? 0) <= 0) continue;
+      const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+      const p = buildEsutamaAppealPostRequest(cookie, page.ctk, nextRow);
+      return {
+        kind: 'next',
+        next: {
+          purpose: 'esutama_appeal_set', method: p.method, url: p.url, headers: p.headers, body: p.body ?? '',
+          context: { ...ctx, cookie, esutamaAppealRow: nextRow, esutamaAppealQueue: queue, esutamaAppealRowBefore: nb, esutamaAppealShop: shopRes, esutamaAppealExtra: extra },
+        },
+        audits: [],
+        note: (ESUTAMA_APPEAL_ROW_LABEL[nextRow] ?? nextRow) + 'も続けてアピールする（残り ' + nb.remaining + '）',
+      };
+    }
+  }
+
+  if (shopRes.ok) {
     return {
       kind: 'done',
-      audits: [{ event: 'push_bump', outcome: 'ok', detail: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, manual, flowId } }],
-      note: '店舗情報をアピールできた（残り ' + page.remaining + '）',
-      ekichikaBump: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt ?? readAt, readAt, pressed: true },
+      audits: [{ event: 'push_bump', outcome: 'ok', detail: { remaining: shopRes.remaining, quota: ESUTAMA_APPEAL_DAILY, manual, flowId, ...(extra.length ? { also: extra.join('・') } : {}) } }],
+      note: '店舗情報' + (extra.length ? '・' + extra.join('・') : '') + 'をアピールできた（残り ' + shopRes.remaining + '）',
+      ekichikaBump: { remaining: shopRes.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: shopRes.lastAt ?? readAt, readAt, pressed: true },
     };
   }
   return {
     kind: 'done',
-    audits: [{ event: 'push_bump', outcome: 'failed', detail: { reason: 'not_accepted', remaining: page.remaining, manual, flowId } }],
+    audits: [{ event: 'push_bump', outcome: 'failed', detail: { reason: 'not_accepted', remaining: shopRes.remaining, manual, flowId } }],
     note: 'アピールを送ったが、残り回数も最終アピールも変わらなかった',
-    ekichikaBump: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: page.lastAt, readAt, pressed: false },
+    ekichikaBump: { remaining: shopRes.remaining, quota: ESUTAMA_APPEAL_DAILY, lastAt: shopRes.lastAt, readAt, pressed: false },
   };
 }

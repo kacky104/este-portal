@@ -77,7 +77,20 @@ console.log('\n── 5. ★★ ソースの見張り ──');
   const noRetry = retry.slice(retry.indexOf('NO_RETRY_PURPOSES'));
   eq('★ esutama_appeal_set は送り直さない側', /'esutama_appeal_set'/.test(noRetry), true);
   const lib = fs.readFileSync(path.join(__dirname, '..', 'src/lib/esutamaAppeal.ts'), 'utf8');
-  eq('★ クーポン・体験談の行を押す本文を作っていない', /shop_coupon|shop_exp/.test(lib.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')), false);
+  void lib;
+}
+
+console.log('── 6. ★ 第1798便: クーポン・体験談の行も読む／押す（カッキーさん「A」） ──');
+{
+  const now = jst(2026, 10, 8, 16, 5);
+  const html = page(7, '10/08 16:01');
+  eq('クーポンの行: 残り10・最終 10/08 01:13', m.parseEsutamaAppealRow(html, 'shop_coupon,guest_appeal', now), { remaining: 10, lastAt: jst(2026, 10, 8, 1, 13).toISOString() });
+  eq('無い行は null', m.parseEsutamaAppealRow(html, 'nope,x', now), null);
+  const r = m.buildEsutamaAppealPostRequest('c=1', CTK, 'shop_exp,guest_appeal');
+  eq('体験談を押す本文', r.body, 'post_data=shop_exp%2Cguest_appeal&ctk=' + CTK);
+  let threw = false; try { m.buildEsutamaAppealPostRequest('c=1', CTK, 'cast,cast_appeal,1'); } catch { threw = true; }
+  eq('★ 知らない行は押さない', threw, true);
+  eq('既定は店舗情報', m.buildEsutamaAppealPostRequest('c=1', CTK).body, 'post_data=shop%2Cguest_appeal&ctk=' + CTK);
 }
 
 console.log(fail === 0 ? '\n全部 ok' : `\n${fail} 件 NG`);
