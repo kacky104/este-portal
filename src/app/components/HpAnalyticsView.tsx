@@ -83,7 +83,7 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
       <div className="flex flex-wrap justify-center gap-x-2 border-b border-slate-200 bg-white">
         {TABS.map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
-            className={`-mb-px border-b-[3px] px-4 py-3 text-[16px] ${tab === k ? 'border-blue-600 font-bold text-blue-600' : 'border-transparent text-slate-600 hover:text-slate-800'}`}>{l}</button>
+            className={`-mb-px border-b-[3px] px-5 py-3 text-[17px] font-black ${tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-700 hover:text-blue-600'}`}>{l}</button>
         ))}
       </div>
 
