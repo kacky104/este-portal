@@ -19,7 +19,7 @@ const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { m
 const DESC: Record<string, string> = {
   shop_boost: 'エステ魂の「ご案内状況」を「◎今すぐご案内可」で表示します（1回で1時間）。間隔ごとに押し直して、ずっと表示を続けます。1日24回まで（集客BOOSTER のご契約で無制限）。',
   cast_appeal: 'その日の出勤者のうち、最終アピールがいちばん古いセラピスト（一度もない方が先）を、その方の出勤時間内にアピールします。残り回数がある限り、1時間に1回まで見に行きます。',
-  job_appeal: '求人情報・お仕事体験談を上位に表示します（準備中）。',
+  job_appeal: '求人情報・お仕事体験談（残りがある行を両方）を、決めた時刻にアピールします。1日10回・毎朝6時に戻ります。',
 };
 const OUTCOME: Record<string, string> = { ok: '押せました', no_remaining: '残り0回でした', no_cast: '出勤時間内のセラピストがいませんでした', not_ready: '準備中' };
 const outcomeText = (o: string | null) => (!o ? '—' : o.startsWith('ok: ') ? `${o.slice(4)}さんを押せました` : OUTCOME[o] ?? (o.startsWith('error') ? 'うまくいきませんでした' : o));
@@ -29,10 +29,19 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
   const [startMin, setStart] = useState(o.startMin);
   const [endMin, setEnd] = useState(o.endMin);
   const [intervalMin, setInterval] = useState(o.intervalMin);
+  const [timesText, setTimesText] = useState(o.timesMin.map(label).join(', '));
   const [busy, setBusy] = useState(false);
   const save = async () => {
     setBusy(true);
-    const r = await saveConecfEsutamaOption({ key: o.key, auto, startMin, endMin, intervalMin });
+    // 「10:04, 20:06, 翌1:00」→ 朝6時はじまりの分
+    const timesMin = timesText.split(/[,、\s]+/).map((t) => t.trim()).filter(Boolean).map((t) => {
+      const m = /^(翌)?(\d{1,2}):(\d{2})$/.exec(t);
+      if (!m) return NaN;
+      const v = Number(m[2]) * 60 + Number(m[3]);
+      return m[1] || v < 360 ? v + 1440 : v;
+    });
+    if (o.key === 'job_appeal' && timesMin.some((v) => !Number.isFinite(v))) { onToast('時刻は「10:04, 20:06」のように入れてください'); return; }
+    const r = await saveConecfEsutamaOption({ key: o.key, auto, startMin, endMin, intervalMin, timesMin });
     setBusy(false);
     onToast(r.ok ? '保存しました' : r.error);
     if (r.ok) reload();
@@ -63,6 +72,11 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
           <label className="flex items-center gap-2 font-bold">
             <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 自動で押す
           </label>
+          {o.key === 'job_appeal' ? (
+            <label className="flex items-center gap-2">押す時刻
+              <input value={timesText} onChange={(e) => setTimesText(e.target.value)} className="w-56 border border-slate-300 px-2 py-1" placeholder="10:04, 20:06, 22:00" />
+            </label>
+          ) : (
           <span className="flex items-center gap-1">
             <select value={startMin} onChange={(e) => setStart(Number(e.target.value))} className="border border-slate-300 px-2 py-1">
               {HOURS.slice(0, -1).map((m) => <option key={m} value={m}>{label(m)}</option>)}
@@ -72,6 +86,7 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
               {HOURS.slice(1).map((m) => <option key={m} value={m}>{label(m)}</option>)}
             </select>
           </span>
+          )}
           {o.key === 'shop_boost' && (
             <select value={intervalMin} onChange={(e) => setInterval(Number(e.target.value))} className="border border-slate-300 px-2 py-1">
               {[60, 90, 120].map((m) => <option key={m} value={m}>{m}分おき</option>)}

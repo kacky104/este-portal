@@ -950,6 +950,10 @@ export type RelayFlowContext = {
   esutamaOpt?: { key: string; force?: boolean };
   /** 押す前に読んだ値（残り回数・押すセラピスト） */
   esutamaOptBefore?: { remaining: number | null; castId: string | null; castName: string | null; lastAt: string | null };
+  /** ★ 求人ワンクリックアピール: いま押している行・このあと押す行・押せた行の名前 */
+  esutamaOptRow?: string;
+  esutamaOptQueue?: string[];
+  esutamaOptDone?: string[];
   // ── ここから下は intent='sort_push' のときだけ入る（第1557便）──
   /** コネックエフの並び（上から順の、そのサイトの番号） */
   sortWant?: string[];

@@ -9,8 +9,10 @@
 import type { FlowAudit, FlowOutcome, RelayFlowContext } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';
+import { parseEsutamaAppealRow } from './esutamaAppeal';
+import { readEsutamaCsrf } from './esutamaParse';
 import {
-  ESUTAMA_OPT_LABEL, parseGoNowPage, goNowBoostAccepted, parseCastAppealPage, pickCastToAppeal,
+  ESUTAMA_OPT_LABEL, ESUTAMA_JOB_APPEAL_ROWS, ESUTAMA_JOB_APPEAL_LABEL, buildJobAppealRequest, parseGoNowPage, goNowBoostAccepted, parseCastAppealPage, pickCastToAppeal,
   buildEsutamaOptPageRequest, buildGoNowBoostRequest, buildCastAppealRequest, type EsutamaOptKey,
 } from './esutamaOption';
 
@@ -99,7 +101,79 @@ export function afterEsutamaOptRead(input: Input, ctx: RelayFlowContext, nowArg?
     };
   }
 
-  return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'not_ready' }, [readAudit], label + 'はまだ押す仕組みができていない');
+  // ── 求人ワンクリックアピール（求人情報 → お仕事体験談。残りがある行だけ） ──
+  const rows = ESUTAMA_JOB_APPEAL_ROWS.map((k) => ({ k, r: parseEsutamaAppealRow(input.body, k, now) }));
+  const ctkV = readEsutamaCsrf(input.body);
+  if (rows.every((x) => x.r === null) || !ctkV) {
+    return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'error: unparseable' },
+      [{ event: 'read_bump', outcome: 'failed', detail: { opt: key, reason: 'unparseable', flowId } }], '求人ワンクリックアピールの画面を読めなかった');
+  }
+  const minRemaining = (xs: typeof rows) => {
+    const v = xs.map((x) => x.r?.remaining).filter((n): n is number => typeof n === 'number');
+    return v.length ? Math.max(...v) : null;
+  };
+  const todo = rows.filter((x) => (x.r?.remaining ?? 0) > 0);
+  if (todo.length === 0) {
+    return finish(ctx, { remaining: 0, readAt, pressed: false, outcome: 'no_remaining' },
+      [readAudit, ...(manual ? [{ event: 'push_bump', outcome: 'stopped', detail: { opt: key, reason: 'no_quota', manual, flowId } } as FlowAudit] : [])], '求人ワンクリックアピールの残りが0回なので押さなかった');
+  }
+  const first = todo[0];
+  const r = buildJobAppealRequest(cookie, ctkV, first.k);
+  return {
+    kind: 'next', audits: [readAudit],
+    next: {
+      purpose: 'esutama_opt_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '',
+      context: {
+        ...ctx, cookie, esutamaOptRow: first.k, esutamaOptQueue: todo.slice(1).map((x) => x.k), esutamaOptDone: [],
+        esutamaOptBefore: { remaining: first.r?.remaining ?? null, castId: null, castName: null, lastAt: first.r?.lastAt ?? null },
+      },
+    },
+    note: '求人ワンクリックアピールの画面を読めた（残り ' + minRemaining(rows) + '）→ ' + (ESUTAMA_JOB_APPEAL_LABEL[first.k] ?? first.k) + 'をアピールする',
+  };
+}
+
+/** ③' 読み直した（求人ワンクリックアピール）→ 押せたか・次の行 */
+function afterJobVerify(input: Input, ctx: RelayFlowContext, now: Date): FlowOutcome {
+  const flowId = ctx.flowId;
+  const key = keyOf(ctx);
+  const manual = ctx.esutamaOpt?.force === true;
+  const readAt = now.toISOString();
+  const row = ctx.esutamaOptRow ?? '';
+  const before = ctx.esutamaOptBefore ?? { remaining: null, castId: null, castName: null, lastAt: null };
+  const done = [...(ctx.esutamaOptDone ?? [])];
+  if (input.status !== 200) {
+    return finish(ctx, { remaining: before.remaining, readAt, pressed: done.length > 0, outcome: done.length ? 'ok: ' + done.join('・') : 'error: verify_unreadable', lastAt: done.length ? readAt : null },
+      [{ event: 'push_bump', outcome: done.length ? 'ok' : 'failed', detail: { opt: key, reason: 'verify_unreadable', done: done.join('・'), manual, flowId } }], 'アピールのあと画面を読み直せなかった');
+  }
+  const a = parseEsutamaAppealRow(input.body, row, now);
+  const ok = !!a && ((before.remaining !== null && a.remaining !== null && a.remaining < before.remaining)
+    || (!!a.lastAt && (!before.lastAt || Date.parse(a.lastAt) > Date.parse(before.lastAt))));
+  if (ok) done.push(ESUTAMA_JOB_APPEAL_LABEL[row] ?? row);
+  const queue = [...(ctx.esutamaOptQueue ?? [])];
+  const ctk = readEsutamaCsrf(input.body);
+  while (queue.length > 0 && ctk) {
+    const nextRow = queue.shift() as string;
+    const nb = parseEsutamaAppealRow(input.body, nextRow, now);
+    if (!nb || (nb.remaining ?? 0) <= 0) continue;
+    const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+    const r = buildJobAppealRequest(cookie, ctk, nextRow);
+    return {
+      kind: 'next', audits: [],
+      next: {
+        purpose: 'esutama_opt_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '',
+        context: { ...ctx, cookie, esutamaOptRow: nextRow, esutamaOptQueue: queue, esutamaOptDone: done, esutamaOptBefore: { remaining: nb.remaining, castId: null, castName: null, lastAt: nb.lastAt } },
+      },
+      note: (ESUTAMA_JOB_APPEAL_LABEL[nextRow] ?? nextRow) + 'も続けてアピールする（残り ' + nb.remaining + '）',
+    };
+  }
+  const rems = ESUTAMA_JOB_APPEAL_ROWS.map((k) => parseEsutamaAppealRow(input.body, k, now)?.remaining).filter((n): n is number => typeof n === 'number');
+  const remaining = rems.length ? Math.max(...rems) : (a?.remaining ?? null);
+  if (done.length > 0) {
+    return finish(ctx, { remaining, readAt, pressed: true, outcome: 'ok: ' + done.join('・'), lastAt: readAt },
+      [{ event: 'push_bump', outcome: 'ok', detail: { opt: key, done: done.join('・'), remaining, manual, flowId } }], done.join('・') + 'をアピールできた');
+  }
+  return finish(ctx, { remaining, readAt, pressed: false, outcome: 'error: not_accepted' },
+    [{ event: 'push_bump', outcome: 'failed', detail: { opt: key, reason: 'not_accepted', remaining, manual, flowId } }], 'アピールを送ったが、残り回数も最終アピールも変わらなかった');
 }
 
 /** ② 押した */
@@ -140,6 +214,7 @@ export function afterEsutamaOptVerify(input: Input, ctx: RelayFlowContext, nowAr
   const manual = ctx.esutamaOpt?.force === true;
   const now = nowArg ?? new Date();
   const readAt = now.toISOString();
+  if (key === 'job_appeal') return afterJobVerify(input, ctx, now);
   const before = ctx.esutamaOptBefore ?? { remaining: null, castId: null, castName: null, lastAt: null };
   const p = input.status === 200 ? parseCastAppealPage(input.body, now) : null;
   if (!p || p.remaining === null) {

@@ -9,7 +9,9 @@
 //     POST /admin_post/single_appeal_exec ← post_data=cast,cast_appeal,<エステ魂のセラピストID> ＋ ctk（集客アピールと同じ）
 //     成功すると画面が読み直される（応答の形は見ていない）→ 読み直して、その子の最終アピールが新しくなったか／残りが減ったかで決める
 //     ★ 誰を押すか（カッキーさん）: その日の出勤者のうち、最終アピールがいちばん古い子（一度も無い子が先）を、出勤時間内に
-//   求人ワンクリックアピール = /admin/job/appeal/（求人情報・お仕事体験談）。★ ボタンの中身は未実測（朝6時以降に読む）→ まだ押さない
+//   求人ワンクリックアピール = /admin/job/appeal/（求人情報・お仕事体験談）。★ 2026-11-09 07:42 に実測（求人情報を1回押した: 残り 10→9・求人一覧 130位→1位）
+//     POST /admin_post/single_appeal_exec ← post_data=shop_job,job_appeal ／ shop_job_exp,job_appeal ＋ ctk（集客アピールと同じ形）。1日10回・朝6時に戻る
+//     ★ 時刻で押す（ベンリーと同じ 10:04・20:06・22:00）。1回の周で2行とも（残りがある行だけ）押す
 
 import { encodePayload } from './ekichikaWorkParse';
 import { RELAY_USER_AGENT } from './relayUserAgent';
@@ -22,7 +24,12 @@ export const ESUTAMA_OPT_LABEL: Record<EsutamaOptKey, string> = {
   shop_boost: '集客ブースト', cast_appeal: 'セラピストアピール', job_appeal: '求人ワンクリックアピール',
 };
 /** ★ 押す仕組みができているもの。★ job_appeal は実測してから */
-export const ESUTAMA_OPT_READY: Record<EsutamaOptKey, boolean> = { shop_boost: true, cast_appeal: true, job_appeal: false };
+export const ESUTAMA_OPT_READY: Record<EsutamaOptKey, boolean> = { shop_boost: true, cast_appeal: true, job_appeal: true };
+/** ★ 求人ワンクリックアピールで押す行（求人情報 → お仕事体験談） */
+export const ESUTAMA_JOB_APPEAL_ROWS = ['shop_job,job_appeal', 'shop_job_exp,job_appeal'] as const;
+export const ESUTAMA_JOB_APPEAL_LABEL: Record<string, string> = { 'shop_job,job_appeal': '求人情報', 'shop_job_exp,job_appeal': 'お仕事体験談' };
+/** ★ ベンリーと同じ時刻（10:04・20:06・22:00）。朝6時はじまりの分 */
+export const ESUTAMA_JOB_APPEAL_TIMES = [604, 1206, 1320];
 
 export const ESUTAMA_GO_NOW_URL = 'https://estama.jp/admin/go_now/';
 export const ESUTAMA_GO_NOW_POST_URL = 'https://estama.jp/admin/go_now/post_shop_wait/';
@@ -50,7 +57,7 @@ export function lastResetAt(now: Date): Date {
 }
 
 // ── 押すかの判断 ──
-export type EsutamaOptSetting = { startMin: number; endMin: number; intervalMin: number };
+export type EsutamaOptSetting = { startMin: number; endMin: number; intervalMin: number; timesMin?: number[] };
 export type EsutamaOptState = { lastAt: string | null; remaining: number | null; readAt: string | null };
 export const ESUTAMA_OPT_DEFAULT: Record<EsutamaOptKey, EsutamaOptSetting> = {
   // ★ ベンリー: 59分おき・一日中
@@ -58,7 +65,7 @@ export const ESUTAMA_OPT_DEFAULT: Record<EsutamaOptKey, EsutamaOptSetting> = {
   // ★ ベンリー: 7時間おき・ランダム（出勤中）。コネックエフは残りがあれば出勤中の子を押す（読みに行くのは1時間に1回まで）
   cast_appeal: { startMin: 600, endMin: 1740, intervalMin: 60 },
   // ★ ベンリー: 10:04・20:06・22:00（実測してから）
-  job_appeal: { startMin: 600, endMin: 1380, intervalMin: 360 },
+  job_appeal: { startMin: 600, endMin: 1380, intervalMin: 360, timesMin: [604, 1206, 1320] },
 };
 export function isValidEsutamaOptSetting(s: EsutamaOptSetting): boolean {
   return [s.startMin, s.endMin, s.intervalMin].every((v) => Number.isInteger(v))
@@ -73,6 +80,17 @@ export function shouldPressEsutamaOpt(args: {
   if (!ESUTAMA_OPT_READY[key]) return { press: false, reason: 'not_ready' };
   if (args.force === true) return { press: true, reason: 'force' };
   const b = businessMinOf(now);
+  if (key === 'job_appeal') {
+    // ★ 時刻で押す: いちばん近い過去の予定時刻（今日の）より前にしか押せていなければ押す
+    const times = (setting.timesMin && setting.timesMin.length > 0 ? setting.timesMin : ESUTAMA_JOB_APPEAL_TIMES).filter((t) => t >= 360 && t < 1800).sort((x, y) => x - y);
+    const due = times.filter((t) => t <= b).pop();
+    if (due === undefined) return { press: false, reason: 'before_first_time' };
+    const dueAt = lastResetAt(now).getTime() + (due - 360) * 60000;
+    if (state.lastAt && Date.parse(state.lastAt) >= dueAt - 60000) return { press: false, reason: 'done_for_time' };
+    if (state.readAt && Date.parse(state.readAt) >= dueAt && now.getTime() - Date.parse(state.readAt) < 30 * 60000) return { press: false, reason: 'recent_read' };
+    if (state.remaining === 0 && state.readAt && Date.parse(state.readAt) >= lastResetAt(now).getTime()) return { press: false, reason: 'no_quota' };
+    return { press: true, reason: 'ok' };
+  }
   if (b < setting.startMin || b >= setting.endMin) return { press: false, reason: 'outside_hours' };
   const reset = lastResetAt(now).getTime();
   if (state.remaining === 0 && state.readAt && Date.parse(state.readAt) >= reset) return { press: false, reason: 'no_quota' };
@@ -233,6 +251,17 @@ export function buildGoNowBoostRequest(cookie: string, ctk: string, fields: Arra
   if (!fields.some(([k]) => k === 'check_go_now_edit')) throw new Error('ご案内状況のフォームが無いまま押さない');
   const body = fields.filter(([k]) => k !== 'type' && k !== 'ctk' && k !== 'save_only');
   return { method: 'POST', url: ESUTAMA_GO_NOW_POST_URL, headers: postHeaders(cookie, ESUTAMA_GO_NOW_URL), body: encodePayload([...body, ['type', '1'], ['ctk', ctk]]) };
+}
+
+/** ★★ 求人ワンクリックアピール（1行）。★ 相手のその行の回数が1つ減る */
+export function buildJobAppealRequest(cookie: string, ctk: string, rowKey: string): Req {
+  if (!cookie) throw new Error('Cookie が無いまま押さない');
+  if (!/^[A-Za-z0-9]{16,64}$/.test(ctk)) throw new Error('ctk の形が違うまま押さない');
+  if (!(ESUTAMA_JOB_APPEAL_ROWS as readonly string[]).includes(rowKey)) throw new Error('知らない行は押さない');
+  return {
+    method: 'POST', url: ESUTAMA_SINGLE_APPEAL_URL, headers: postHeaders(cookie, 'https://estama.jp/admin/job/appeal/'),
+    body: encodePayload([['post_data', rowKey], ['ctk', ctk]]),
+  };
 }
 
 /** ★★ セラピストアピール（1人）。★ 相手の回数が1つ減る */

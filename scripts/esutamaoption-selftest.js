@@ -51,7 +51,12 @@ console.log('── 3. 押すかの判断');
   eq('今日0回を読んだ → 押さない', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: s, state: st(120, 0, 120), now }).reason, 'no_quota');
   eq('0回を読んだのが朝6時前 → また見に行く', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: s, state: st(400, 0, 400), now }).press, true);
   eq('時間帯の外 → 押さない', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: { ...s, startMin: 780 }, state: st(null, null, null), now }).reason, 'outside_hours');
-  eq('求人はまだ押さない', m.shouldPressEsutamaOpt({ key: 'job_appeal', setting: s, state: st(null, null, null), now, force: true }).reason, 'not_ready');
+  const js = { ...s, timesMin: [604, 1206, 1320] };
+  eq('求人: 12:00 で 10:04 分がまだ → 押す', m.shouldPressEsutamaOpt({ key: 'job_appeal', setting: js, state: st(null, 9, null), now }).press, true);
+  eq('求人: 10:05 に押した → 次は 20:06 まで待つ', m.shouldPressEsutamaOpt({ key: 'job_appeal', setting: js, state: st(115, 8, 115), now }).reason, 'done_for_time');
+  const early = jst(2026, 11, 9, 9, 0);
+  eq('求人: 9:00 はまだ最初の時刻の前', m.shouldPressEsutamaOpt({ key: 'job_appeal', setting: js, state: { lastAt: null, remaining: null, readAt: null }, now: early }).reason, 'before_first_time');
+  eq('求人の本文', m.buildJobAppealRequest('c=1', CTK, 'shop_job_exp,job_appeal').body, 'post_data=shop_job_exp%2Cjob_appeal&ctk=' + CTK);
   eq('セラピスト: 20分前に読んだ → 待つ', m.shouldPressEsutamaOpt({ key: 'cast_appeal', setting: s, state: st(null, 1, 20), now }).reason, 'recent_read');
 }
 console.log(fail === 0 ? '\n全部 ok' : `\n${fail} 件 NG`);

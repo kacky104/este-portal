@@ -37,7 +37,7 @@ async function resolve(write: boolean) {
 
 export type ConecfEsutamaOption = {
   key: EsutamaOptKey; label: string; ready: boolean;
-  auto: boolean; startMin: number; endMin: number; intervalMin: number;
+  auto: boolean; startMin: number; endMin: number; intervalMin: number; timesMin: number[];
   remaining: number | null; readAt: string | null; lastAt: string | null; lastOutcome: string | null;
 };
 
@@ -53,7 +53,7 @@ export async function getConecfEsutamaOptions(): Promise<Result<{ options: Conec
   const r = await resolve(false);
   if (!r.ok) return r;
   const { data, error } = await r.svc.from('conecf_esutama_options')
-    .select('option_key, auto, start_min, end_min, interval_min, remaining, read_at, last_at, last_outcome')
+    .select('option_key, auto, start_min, end_min, interval_min, times_min, remaining, read_at, last_at, last_outcome')
     .eq('salon_id', r.salonId).eq('admin_enabled', true);
   if (error) return { ok: false, error: '読み込めませんでした。時間をおいてお試しください' };
   const options = ESUTAMA_OPT_KEYS.flatMap((key) => {
@@ -66,6 +66,7 @@ export async function getConecfEsutamaOptions(): Promise<Result<{ options: Conec
       startMin: x.start_min == null ? def.startMin : Number(x.start_min),
       endMin: x.end_min == null ? def.endMin : Number(x.end_min),
       intervalMin: x.interval_min == null ? def.intervalMin : Number(x.interval_min),
+      timesMin: Array.isArray(x.times_min) && x.times_min.length > 0 ? (x.times_min as number[]).map(Number) : (def.timesMin ?? []),
       remaining: x.remaining == null ? null : Number(x.remaining),
       readAt: (x.read_at as string | null) ?? null, lastAt: (x.last_at as string | null) ?? null, lastOutcome: (x.last_outcome as string | null) ?? null,
     }];
@@ -73,7 +74,7 @@ export async function getConecfEsutamaOptions(): Promise<Result<{ options: Conec
   return { ok: true, data: { options } };
 }
 
-export async function saveConecfEsutamaOption(input: { key: string; auto: boolean; startMin: number; endMin: number; intervalMin: number }): Promise<Result<null>> {
+export async function saveConecfEsutamaOption(input: { key: string; auto: boolean; startMin: number; endMin: number; intervalMin: number; timesMin?: number[] }): Promise<Result<null>> {
   const key = okKey(input.key);
   if (!key) return { ok: false, error: 'オプションの指定が不正です' };
   if (!ESUTAMA_OPT_READY[key]) return { ok: false, error: 'このオプションはまだ準備中です' };
@@ -81,8 +82,11 @@ export async function saveConecfEsutamaOption(input: { key: string; auto: boolea
   if (!r.ok) return r;
   const s = { startMin: Number(input.startMin), endMin: Number(input.endMin), intervalMin: Number(input.intervalMin) };
   if (!isValidEsutamaOptSetting(s)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
+  // ★ 求人ワンクリックアピールの時刻（朝6時はじまりの分・1〜10個）
+  const times = key === 'job_appeal' ? [...new Set((input.timesMin ?? []).map(Number))].filter((t) => Number.isInteger(t) && t >= 360 && t < 1800).sort((x, y) => x - y) : null;
+  if (key === 'job_appeal' && (!times || times.length === 0 || times.length > 10)) return { ok: false, error: '押す時刻を1〜10個入れてください' };
   const { data, error } = await r.svc.from('conecf_esutama_options')
-    .update({ auto: input.auto === true, start_min: s.startMin, end_min: s.endMin, interval_min: s.intervalMin, updated_at: new Date().toISOString() })
+    .update({ auto: input.auto === true, start_min: s.startMin, end_min: s.endMin, interval_min: s.intervalMin, ...(times ? { times_min: times } : {}), updated_at: new Date().toISOString() })
     .eq('salon_id', r.salonId).eq('option_key', key).eq('admin_enabled', true).select('option_key');
   if (error) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
   if (!data || data.length === 0) return { ok: false, error: 'このオプションは使えるようになっていません。運営事務局までご連絡ください' };
@@ -137,7 +141,7 @@ export async function adminSetEsutamaOption(input: { salonId: number; key: strin
   const { data: cur } = await svc.from('conecf_esutama_options').select('option_key').eq('salon_id', salonId).eq('option_key', key).maybeSingle();
   const res = cur
     ? await svc.from('conecf_esutama_options').update({ admin_enabled: input.enabled === true, ...(input.enabled ? {} : { auto: false }), updated_at: new Date().toISOString() }).eq('salon_id', salonId).eq('option_key', key)
-    : await svc.from('conecf_esutama_options').insert({ salon_id: salonId, option_key: key, admin_enabled: input.enabled === true, start_min: def.startMin, end_min: def.endMin, interval_min: def.intervalMin });
+    : await svc.from('conecf_esutama_options').insert({ salon_id: salonId, option_key: key, admin_enabled: input.enabled === true, start_min: def.startMin, end_min: def.endMin, interval_min: def.intervalMin, ...(def.timesMin ? { times_min: def.timesMin } : {}) });
   if (res.error) return { ok: false, error: '保存できませんでした: ' + res.error.message };
   return { ok: true, data: null };
 }

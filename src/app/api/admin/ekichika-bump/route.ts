@@ -95,7 +95,7 @@ export async function POST(req: Request) {
   // ★★ 第1799便: エステ魂【オプション】（集客ブースト・セラピストアピール）も同じ周で押す。★ crontab はそのまま
   //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 表が無い（SQL 未適用）ときは黙って飛ばす
   const opt = await svc.from('conecf_esutama_options')
-    .select('salon_id, option_key, start_min, end_min, interval_min, last_at, remaining, read_at')
+    .select('salon_id, option_key, start_min, end_min, interval_min, times_min, last_at, remaining, read_at')
     .eq('admin_enabled', true).eq('auto', true);
   if (!opt.error) {
     for (const o of opt.data ?? []) {
@@ -106,6 +106,7 @@ export async function POST(req: Request) {
         startMin: o.start_min == null ? def.startMin : Number(o.start_min),
         endMin: o.end_min == null ? def.endMin : Number(o.end_min),
         intervalMin: o.interval_min == null ? def.intervalMin : Number(o.interval_min),
+        timesMin: Array.isArray(o.times_min) && o.times_min.length > 0 ? (o.times_min as number[]).map(Number) : def.timesMin,
       };
       const judge = shouldPressEsutamaOpt({
         key, setting, now,
