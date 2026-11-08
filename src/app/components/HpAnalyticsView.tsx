@@ -80,27 +80,27 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
   return (
     <div className="space-y-4">
       {/* ★ 第1793便（カッキーさん「すぐる君に寄せて」）: タブは上の中央・青い下線 */}
-      <div className="flex flex-wrap justify-center gap-x-2 border-b border-slate-200 bg-white">
+      <div className="flex gap-x-1 overflow-x-auto border-b border-slate-200 bg-white sm:flex-wrap sm:justify-center sm:gap-x-2">
         {TABS.map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
-            className={`-mb-px border-b-[3px] px-5 py-3 text-[17px] font-black ${tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-700 hover:text-blue-600'}`}>{l}</button>
+            className={`-mb-px flex-none whitespace-nowrap border-b-[3px] px-3 py-2.5 text-[15px] font-black sm:px-5 sm:py-3 sm:text-[17px] ${tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-700 hover:text-blue-600'}`}>{l}</button>
         ))}
       </div>
 
       {/* 見出し・説明・期間（右にオレンジの「期間を選択」） */}
-      <div className="flex flex-wrap items-end gap-3 border-b-2 border-blue-500 bg-white px-4 pb-2 pt-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[24px] font-black tracking-wide text-blue-600">{head}</h2>
+      <div className="flex flex-col gap-3 border-b-2 border-blue-500 bg-white px-3 pb-2 pt-3 sm:flex-row sm:items-end sm:px-4">
+        <div className="min-w-0 sm:flex-1">
+          <h2 className="text-[20px] font-black sm:text-[24px] tracking-wide text-blue-600">{head}</h2>
           <p className="mt-1 text-[13px] text-slate-600">{sub}</p>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-stretch gap-1 sm:items-end">
           <p className="text-[12px] font-bold text-slate-700">▼表示するデータの期間を変更できます</p>
           <select value={preset} onChange={(e) => pick(e.target.value)} aria-label="期間を選択"
-            className="min-w-[220px] cursor-pointer rounded-full border-0 bg-amber-400 px-4 py-1.5 text-[13px] font-bold text-slate-800 shadow-sm">
+            className="w-full cursor-pointer rounded-full sm:w-auto sm:min-w-[220px] border-0 bg-amber-400 px-4 py-1.5 text-[13px] font-bold text-slate-800 shadow-sm">
             {PRESETS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
           {preset === '' && (
-            <span className="flex items-center gap-1 text-[12px] text-slate-500">
+            <span className="flex flex-wrap items-center gap-1 text-[12px] text-slate-500">
               <input type="date" value={range[0]} max={range[1]} onChange={(e) => { if (e.target.value) setRange([e.target.value, range[1]]); }} className="border border-slate-300 px-1.5 py-0.5 text-[12px]" />
               〜
               <input type="date" value={range[1]} min={range[0]} max={today} onChange={(e) => { if (e.target.value) setRange([range[0], e.target.value]); }} className="border border-slate-300 px-1.5 py-0.5 text-[12px]" />
@@ -155,11 +155,11 @@ function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
     ['お問い合わせ', cur.contact, prev.contact, 'お問い合わせフォームが送られた数'],
   ];
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-3 bg-[#ececec] p-3">
+    <div className="grid grid-cols-2 gap-2 bg-[#ececec] p-2 sm:grid-cols-[repeat(auto-fit,minmax(118px,1fr))] sm:gap-3 sm:p-3">
       {items.map(([l, c, p, t]) => (
         <div key={l} title={t} className="rounded-lg bg-white px-3 py-3 text-center shadow-sm">
           <p className="whitespace-nowrap text-[13px] text-slate-600">{l}</p>
-          <p className="mt-0.5 text-[30px] leading-tight tabular-nums text-slate-800">{nf(c)}</p>
+          <p className="mt-0.5 text-[26px] leading-tight sm:text-[30px] tabular-nums text-slate-800">{nf(c)}</p>
           <Delta cur={c} prev={p} />
         </div>
       ))}
@@ -180,6 +180,8 @@ function Bars({ data, label }: { data: Array<{ x: string; v: number; sub?: strin
   // ★ 第1795便: 日付は重ならないよう間引く（7日まで毎日・14日まで1日おき・それ以上は約8か所）。0の数は31日まで
   const many = data.length > 31;
   const step = data.length <= 7 ? 1 : data.length <= 14 ? 2 : Math.ceil(data.length / 8);
+  // ★ 第1796便: スマホは幅が狭いので、8本以上あるときは棒の上の数を隠す（タップ・長押しで title に出る）
+  const numCls = data.length > 7 ? 'hidden sm:inline' : '';
   return (
     <div>
       <p className="mb-1.5 text-[15px] font-bold text-slate-700">▼{label}</p>
@@ -195,10 +197,10 @@ function Bars({ data, label }: { data: Array<{ x: string; v: number; sub?: strin
               <div key={p.x} className="group relative flex h-full flex-1 items-end justify-center" title={`${p.x.replace(/-/g, '/')}　${nf(p.v)}${p.sub ? `　${p.sub}` : ''}`}>
                 <div className="relative w-full max-w-[28px] group-hover:opacity-80" style={{ height: `${(p.v / max) * 100}%`, background: BLUE }}>
                   {!many && p.v > 0 && (
-                    <span className={`absolute left-1/2 -translate-x-1/2 text-[12px] font-bold tabular-nums ${(p.v / max) > 0.12 ? 'top-0.5 text-white' : '-top-4 text-blue-700'}`}>{p.v}</span>
+                    <span className={`absolute left-1/2 -translate-x-1/2 text-[11px] font-bold tabular-nums sm:text-[12px] ${numCls} ${(p.v / max) > 0.12 ? 'top-0.5 text-white' : '-top-4 text-blue-700'}`}>{p.v}</span>
                   )}
                 </div>
-                {!many && p.v === 0 && <span className="absolute bottom-0.5 text-[11px] text-blue-600">0</span>}
+                {!many && p.v === 0 && <span className={`absolute bottom-0.5 text-[11px] text-blue-600 ${numCls}`}>0</span>}
               </div>
             ))}
           </div>
@@ -206,7 +208,9 @@ function Bars({ data, label }: { data: Array<{ x: string; v: number; sub?: strin
         <div className="ml-8 mt-1 flex gap-[3px] px-1">
           {data.map((p, i) => (
             <div key={p.x} className="flex-1 overflow-visible whitespace-nowrap text-center text-[10px] text-slate-600">
-              {(i % step === 0 || i === data.length - 1) && (data.length - 1 - i >= step || i === data.length - 1) ? (data.length <= 7 ? p.x.replace(/-/g, '/') : p.x.slice(5).replace('-', '/')) : ''}
+              {(i % step === 0 || i === data.length - 1) && (data.length - 1 - i >= step || i === data.length - 1) ? (data.length <= 7
+                ? <><span className="sm:hidden">{p.x.slice(5).replace('-', '/')}</span><span className="hidden sm:inline">{p.x.replace(/-/g, '/')}</span></>
+                : p.x.slice(5).replace('-', '/')) : ''}
             </div>
           ))}
         </div>
@@ -219,7 +223,7 @@ function Summary({ d }: { d: HpAnalytics }) {
   const total = d.devices.sp + d.devices.pc;
   const spPct = total > 0 ? Math.round((d.devices.sp / total) * 100) : 0;
   return (
-    <div className="space-y-5 border border-slate-200 bg-white p-4">
+    <div className="space-y-5 border border-slate-200 bg-white p-3 sm:p-4">
       <Bars label="人数の推移" data={d.daily.map((x) => ({ x: x.day, v: x.users, sub: `閲覧 ${nf(x.pv)}・電話 ${x.tel}・LINE ${x.line}` }))} />
       <Bars label="電話・LINE・お問い合わせの推移" data={d.daily.map((x) => ({ x: x.day, v: x.tel + x.line + x.contact, sub: `電話 ${x.tel}・LINE ${x.line}・お問い合わせ ${x.contact}` }))} />
       {total > 0 && (
@@ -242,7 +246,7 @@ const td = 'px-2 py-2 text-[13px] tabular-nums text-slate-700 whitespace-nowrap'
 function Sources({ d }: { d: HpAnalytics }) {
   const kindLabel = { search: '検索', direct: '直接', site: '外部サイト' } as const;
   return (
-    <div className="space-y-2 border border-slate-200 bg-white p-4">
+    <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
       <p className="text-[13px] leading-relaxed text-slate-600">どこから見に来て、そこから電話・LINE・お問い合わせにどれだけつながったかが分かります。「つながった率」は、訪問のうち電話・LINE・お問い合わせがあった割合です。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse">
@@ -278,7 +282,7 @@ function Sources({ d }: { d: HpAnalytics }) {
 
 function Pages({ d }: { d: HpAnalytics }) {
   return (
-    <div className="space-y-2 border border-slate-200 bg-white p-4">
+    <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
       <p className="text-[13px] text-slate-600">どのページがどれだけ見られたか（セラピストのページは「セラピスト」のタブ）。電話・LINE は、そのページを見ているときに押された数です。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse">
@@ -305,7 +309,7 @@ function Pages({ d }: { d: HpAnalytics }) {
 
 function Therapists({ d }: { d: HpAnalytics }) {
   return (
-    <div className="space-y-2 border border-slate-200 bg-white p-4">
+    <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
       <p className="text-[13px] leading-relaxed text-slate-600">セラピストのプロフィールページがどれだけ見られたか。出勤した日数・写メ日記の数と並べると、「日記を出すと見られる」「出勤が多い子ほど見られる」が分かります。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse">
@@ -346,7 +350,7 @@ function Hours({ d }: { d: HpAnalytics }) {
   const max = Math.max(1, ...grid.flat());
   const order = [1, 2, 3, 4, 5, 6, 0]; // 月〜日
   return (
-    <div className="space-y-3 border border-slate-200 bg-white p-4">
+    <div className="space-y-3 border border-slate-200 bg-white p-3 sm:p-4">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-[13px] text-slate-600">何曜日の何時に多いか（日本時間）。濃いほど多い。</p>
         <span className="ml-auto flex gap-1">
@@ -383,7 +387,7 @@ function Hours({ d }: { d: HpAnalytics }) {
 
 function Help() {
   return (
-    <div className="space-y-3 border border-slate-200 bg-white p-4 text-[14px] leading-relaxed text-slate-700">
+    <div className="space-y-3 border border-slate-200 bg-white p-3 sm:p-4 text-[14px] leading-relaxed text-slate-700">
       <p className="font-black text-slate-800">見方と使い方</p>
       <p>・<b>上の数字の ▲▼</b> は、選んだ期間の「すぐ前の同じ長さの期間」とくらべた増減です（28日なら、その前の28日）。</p>
       <p>・<b>流入元</b>：どこから見に来たか。「つながった率」が高いところは、お客様が来てくれやすい入口です。「最初に知ったきっかけの成果」は、その人がはじめて公式ホームページを知った入口で数えた電話・LINE です（いつもは検索から来る人でも、最初は媒体で知った、が分かります）。</p>
