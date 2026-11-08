@@ -155,10 +155,10 @@ function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
     ['お問い合わせ', cur.contact, prev.contact, 'お問い合わせフォームが送られた数'],
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 bg-[#ececec] p-3 sm:grid-cols-4 lg:grid-cols-7">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-3 bg-[#ececec] p-3">
       {items.map(([l, c, p, t]) => (
         <div key={l} title={t} className="rounded-lg bg-white px-3 py-3 text-center shadow-sm">
-          <p className="text-[13px] text-slate-600">{l}</p>
+          <p className="whitespace-nowrap text-[13px] text-slate-600">{l}</p>
           <p className="mt-0.5 text-[30px] leading-tight tabular-nums text-slate-800">{nf(c)}</p>
           <Delta cur={c} prev={p} />
         </div>
@@ -177,8 +177,9 @@ function niceMax(v: number): number {
 }
 function Bars({ data, label }: { data: Array<{ x: string; v: number; sub?: string }>; label: string }) {
   const max = niceMax(Math.max(1, ...data.map((p) => p.v)));
-  const many = data.length > 45;
-  const step = data.length > 31 ? Math.ceil(data.length / 16) : 1;
+  // ★ 第1795便: 日付は重ならないよう間引く（7日まで毎日・14日まで1日おき・それ以上は約8か所）。0の数は31日まで
+  const many = data.length > 31;
+  const step = data.length <= 7 ? 1 : data.length <= 14 ? 2 : Math.ceil(data.length / 8);
   return (
     <div>
       <p className="mb-1.5 text-[15px] font-bold text-slate-700">▼{label}</p>
@@ -205,7 +206,7 @@ function Bars({ data, label }: { data: Array<{ x: string; v: number; sub?: strin
         <div className="ml-8 mt-1 flex gap-[3px] px-1">
           {data.map((p, i) => (
             <div key={p.x} className="flex-1 overflow-visible whitespace-nowrap text-center text-[10px] text-slate-600">
-              {i % step === 0 ? (data.length <= 16 ? p.x.replace(/-/g, '/') : p.x.slice(5).replace('-', '/')) : ''}
+              {(i % step === 0 || i === data.length - 1) && (data.length - 1 - i >= step || i === data.length - 1) ? (data.length <= 7 ? p.x.replace(/-/g, '/') : p.x.slice(5).replace('-', '/')) : ''}
             </div>
           ))}
         </div>
