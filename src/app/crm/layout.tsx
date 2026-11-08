@@ -18,5 +18,6 @@ export const metadata: Metadata = {
 };
 
 export default function CrmLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  // ★ 第1797便: 文字の形はマイページ・コネックエフと同じ（display:contents で並びは変えない）
+  return <div className="mypage-font contents">{children}</div>;
 }

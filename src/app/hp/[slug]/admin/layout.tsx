@@ -34,5 +34,6 @@ export default async function HpAdminLayout({ children }: { children: React.Reac
       : {}),
   };
 
-  return <div className="min-h-screen" style={bgStyle}>{children}</div>;
+  // ★ 第1797便: 文字の形はマイページ・コネックエフと同じ（globals.css の .mypage-font）
+  return <div className="mypage-font min-h-screen" style={bgStyle}>{children}</div>;
 }

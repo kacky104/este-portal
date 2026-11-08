@@ -25,5 +25,6 @@ export default async function MypageJobsLayout({ children }: { children: React.R
       : {}),
   };
 
-  return <div className="min-h-screen" style={bgStyle}>{children}</div>;
+  // ★ 第1797便: 文字の形はマイページ・コネックエフと同じ（親の .mypage-font を明示）
+  return <div className="mypage-font min-h-screen" style={bgStyle}>{children}</div>;
 }

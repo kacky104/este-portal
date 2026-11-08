@@ -92,7 +92,7 @@ export function HpShell({
           type="button"
           onClick={() => { onSelect(n.key); onNavigate?.(); }}
           aria-current={on ? 'true' : undefined}
-          className={`relative flex w-full items-center gap-2.5 px-4 py-3 text-left text-[15.5px] md:text-[16px] font-bold transition-colors ${
+          className={`relative flex w-full items-center gap-2.5 px-4 py-3 text-left text-[15.5px] md:text-[16px] font-normal transition-colors ${
             on ? 'text-white' : 'text-slate-600 hover:bg-rose-50'
           }`}
           style={on ? { background: ON_BG } : undefined}

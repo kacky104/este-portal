@@ -139,7 +139,7 @@ export function WorkShell({
             href={n.href}
             onClick={onNavigate}
             aria-current={on ? 'true' : undefined}
-            className={`relative flex items-center gap-2.5 px-4 py-3 text-[15.5px] md:text-[16px] font-bold transition-colors ${
+            className={`relative flex items-center gap-2.5 px-4 py-3 text-[15.5px] md:text-[16px] font-normal transition-colors ${
               on ? 'text-white' : 'text-slate-600 hover:bg-emerald-50'
             }`}
             style={on ? { background: 'linear-gradient(90deg,#059669,#84CC16)' } : undefined}
