@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import Image from 'next/image';
-import { acrylicStandSalonHref, acrylicStandTherapistHref } from '@/lib/ga';
+import { acrylicStandSalonHref } from '@/lib/ga';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { isPointToken } from '@/lib/points';
@@ -42,24 +42,11 @@ const SERIF = { fontFamily: '"Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP
 const BRAND = 'linear-gradient(90deg, #FB923C, #DB2777)';
 
 export default async function GuideDonePage({ searchParams }: { searchParams: Promise<{ s?: string; c?: string; t?: string }> }) {
-  const { s, c, t } = await searchParams;
+  const { s, c } = await searchParams;
   const salonHref = acrylicStandSalonHref(typeof s === 'string' ? s : '');
 
-  // ★ 第1655便: 本日のセラピスト（お店のリンクが出るときだけ・そのお店の在籍中の子だけ）
-  let therapist: { name: string; image: string | null; href: string } | null = null;
-  const therapistHref = salonHref ? acrylicStandTherapistHref(typeof t === 'string' ? t : '') : null;
-  if (therapistHref) {
-    try {
-      const svc = createServiceClient();
-      const { data } = await svc.from('therapists').select('id, name, profile_image_url, salon_id, is_active').eq('id', Number(t)).maybeSingle();
-      if (data && String(data.salon_id) === String(s) && data.is_active !== false && String(data.name ?? '').trim() !== '') {
-        const img = typeof data.profile_image_url === 'string' && /^https:\/\//.test(data.profile_image_url) ? data.profile_image_url : null;
-        therapist = { name: String(data.name).trim(), image: img, href: therapistHref };
-      }
-    } catch {
-      therapist = null; // ★ 読めないときは欄を出さない（同意は済んでいる）
-    }
-  }
+  // ★ 第1784便（カッキーさん・2026-11-08）: 「本日のセラピスト」（担当セラピストへのリンク）は出さないことにした（第1655便の案1をやめた）。
+  //   ★ t（担当の番号）は URL に付いてきても使わない。
 
   // ★ 第1444便: フクエスポイント（加盟店で同意したときだけ c＝受け取り券がある）。★ 読めないときは欄を出さない
   let points: ReactNode = null;
@@ -139,25 +126,11 @@ export default async function GuideDonePage({ searchParams }: { searchParams: Pr
           </a>
         )}
       </div>
-      {/* ★ 第1656便（カッキーさん）: 本日のセラピストを「このお店の出勤・写メ日記・口コミは」の上に出す。
+      {/* ★ 第1784便: 本日のセラピストの欄は外した（下の説明は第1656便のときのもの・位置の決め方はそのまま）。
+          ★ 第1656便（カッキーさん）: 本日のセラピストを「このお店の出勤・写メ日記・口コミは」の上に出す。
             画像の下の白い余白（画像の高さの下4割）に重ねるため、上へ詰めて置く（-mt は幅に対する割合: 画像は 1080×1350＝高さが幅の1.25倍、
             帯（高さの50%）の下から始まるよう 幅の40% ぶん上げる）。★ セラピストの欄とお店の案内は別々のリンク（入れ子にしない） */}
       <div className="relative -mt-[40%] px-5 pb-5 text-center text-slate-800">
-        {therapist && (
-          <a href={therapist.href} rel="noreferrer" className="mb-4 flex items-center gap-3 border border-slate-200 bg-white px-3 py-3 text-slate-800">
-            {therapist.image ? (
-              // eslint-disable-next-line @next/next/no-img-element -- セラピストの写真は外部の保存先（next/image の許可先に依らない）
-              <img src={therapist.image} alt="" width={64} height={64} className="h-16 w-16 shrink-0 object-cover" loading="eager" />
-            ) : (
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center bg-pink-50 text-[22px] text-pink-400">♡</span>
-            )}
-            <span className="min-w-0 flex-1 text-left">
-              <span className="block text-[11.5px] tracking-[0.04em] text-slate-500" style={SERIF}>本日のセラピスト</span>
-              <span className="block truncate text-[18px] font-bold" style={SERIF}>{therapist.name}さん</span>
-              <span className="mt-0.5 block text-[13px] font-bold text-pink-600">写メ日記・プロフィールを見る　›</span>
-            </span>
-          </a>
-        )}
         <a href={salonHref} rel="noreferrer" className="block">
           <p className="text-[14px] tracking-[0.04em] text-slate-600" style={SERIF}>このお店の出勤・写メ日記・口コミは</p>
           <p className="mt-0.5 text-[17px] leading-[1.2] text-slate-700" style={SERIF}>
