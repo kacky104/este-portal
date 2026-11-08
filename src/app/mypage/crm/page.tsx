@@ -200,6 +200,35 @@ function useDialogFocus<T extends HTMLElement>() {
   return ref;
 }
 
+// ★ 第1790便（カッキーさん）: 小窓（受付・お客様と予約）を、見出しの帯をつかんで動かせる。
+//   ★ 帯の中のボタン（×・かんたん／くわしく）は今までどおり押せる（そこからはつかまない）。★ 画面の外へは出しきらない（見出しが少し残る）。
+//   ★ 閉じて開き直すと真ん中に戻る。
+function useDragMove() {
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const start = useRef<{ px: number; py: number; x: number; y: number } | null>(null);
+  const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
+    start.current = { px: e.clientX, py: e.clientY, x: pos.x, y: pos.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    const st = start.current;
+    if (!st) return;
+    const lim = (v: number, m: number) => Math.max(-m, Math.min(m, v));
+    setPos({ x: lim(st.x + e.clientX - st.px, window.innerWidth / 2), y: lim(st.y + e.clientY - st.py, window.innerHeight / 2 - 30) });
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLElement>) => {
+    start.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+  return {
+    style: { transform: `translate(${pos.x}px, ${pos.y}px)` } as React.CSSProperties,
+    handle: { onPointerDown, onPointerMove, onPointerUp, onPointerCancel: onPointerUp, title: 'つかんで動かせます' },
+    handleCls: 'cursor-move select-none touch-none',
+  };
+}
+
 function useNarrow(): boolean {
   return useSyncExternalStore(
     subscribeNarrow,
@@ -1353,6 +1382,7 @@ function DetailPanel({
   onEdit: () => void;
 }) {
   const dlgRef = useDialogFocus<HTMLElement>();
+  const drag = useDragMove(); // ★ 第1790便: 見出しの帯をつかんで動かす
   const crm = useCrmLinks();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -1394,8 +1424,8 @@ function DetailPanel({
       {/* ★ 詳細も中央に出す（2026-09-19・カッキーさんの指示・受付フォームとそろえる） */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-      <aside ref={dlgRef} role="dialog" aria-modal="true" aria-label="お客様と予約" tabIndex={-1} className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl outline-none">
-        <div className="flex items-center bg-[#b3b8e6] px-4 py-2.5">
+      <aside ref={dlgRef} role="dialog" aria-modal="true" aria-label="お客様と予約" tabIndex={-1} style={drag.style} className="pointer-events-auto max-h-[92dvh] w-full max-w-[520px] overflow-y-auto bg-white shadow-2xl outline-none">
+        <div {...drag.handle} className={`flex items-center bg-[#b3b8e6] px-4 py-2.5 ${drag.handleCls}`}>
           <span className="text-[15px] font-black text-slate-800">お客様と予約</span>
           <button type="button" onClick={onClose} className="ml-auto px-2 text-[20px] font-bold text-slate-700" aria-label="閉じる">×</button>
         </div>
@@ -1694,6 +1724,7 @@ function BookingForm({
   onSavedKeepOpen?: () => void;
 }) {
   const dlgRef = useDialogFocus<HTMLElement>();
+  const drag = useDragMove(); // ★ 第1790便: 見出しの帯をつかんで動かす
   const [f, setF] = useState<BookingFormState>(initial);
   // ★★ 第1787便（アロマメイ様のご要望・カッキーさん 11/8）: 2名様・3名様などのグループ予約を1回で受け付ける（新しい受付のときだけ）。
   //   ・人数を選ぶと「◯人目の担当」が増える。名前・電話・開始・時間・コース・料金は1人目と同じものが入る。
@@ -2009,8 +2040,8 @@ function BookingForm({
       {/* ★ 受付フォームは画面の中央に出す（2026-09-19・カッキーさんの指示）。詳細も同日に中央へ。 */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={busy ? undefined : onClose} />
       <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-3">
-      <aside ref={dlgRef} role="dialog" aria-modal="true" aria-label={f.mode === 'new' ? '予約を受け付ける' : '予約を変更する'} tabIndex={-1} className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[560px] flex-col bg-white shadow-2xl outline-none">
-        <div className="flex items-center bg-[#3f51b5] px-4 py-2.5 text-white">
+      <aside ref={dlgRef} role="dialog" aria-modal="true" aria-label={f.mode === 'new' ? '予約を受け付ける' : '予約を変更する'} tabIndex={-1} style={drag.style} className="pointer-events-auto flex max-h-[92dvh] w-full max-w-[560px] flex-col bg-white shadow-2xl outline-none">
+        <div {...drag.handle} className={`flex items-center bg-[#3f51b5] px-4 py-2.5 text-white ${drag.handleCls}`}>
           <span className="text-[15px] font-black">{f.mode === 'new' ? (quick ? 'かんたん受付' : '予約を受け付ける') : '予約を変更する'}</span>
           {f.mode === 'new' && (
             <button type="button" onClick={() => switchQuick(!quick)} className="ml-3 border border-white/60 px-2 py-0.5 text-[12px] font-bold">
