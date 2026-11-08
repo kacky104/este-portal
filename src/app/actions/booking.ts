@@ -23,6 +23,7 @@ import { linkBookingCustomer } from '@/app/lib/crm/linkCustomer';
 import { breakBlocks, breakConflict } from '@/app/lib/crm/breakGuard';
 import { sharedRoomBlocks } from '@/app/lib/crm/roomShare';
 import { dbMessage } from '@/app/lib/crm/dbError';
+import { FREE_LANE_MAX, overlapLimit } from '@/app/lib/booking/freeLane';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -634,13 +635,13 @@ export async function updateBookingStatus(
         .neq('id', bookingId)
         .lt('slot_start', slotEnd.toISOString())
         .gt('slot_end', slotStart.toISOString())
-        .limit(1);
+        .limit(overlapLimit(therapistId));
       overlapQuery = therapistId !== null
         ? overlapQuery.eq('therapist_id', therapistId)
         : overlapQuery.eq('salon_id', salonId).is('therapist_id', null);
       const { data: others, error: oErr } = await overlapQuery;
       if (oErr) return { ok: false, error: dbMessage(oErr) };
-      if (others && others.length > 0) return { ok: false, error: 'その時間帯には別の予約が入っています（キャンセルを取り消せません）' };
+      if (others && others.length >= overlapLimit(therapistId)) return { ok: false, error: 'その時間帯には別の予約が入っています（キャンセルを取り消せません）' };
       // フクエスCRMの休憩との重なり（第551便と同じ）
       if (therapistId !== null) {
         const brk = await breakConflict(svc, salonId, therapistId, slotStart, slotEnd);
@@ -872,9 +873,10 @@ export async function createManualBooking(input: ManualBookingInput): Promise<{ 
       .neq('status', 'cancelled')
       .lt('slot_start', slotEnd.toISOString())
       .gt('slot_end', slotStart.toISOString())
-      .limit(1);
+      .limit(FREE_LANE_MAX);
     if (freeErr) return { ok: false, error: dbMessage(freeErr) };
-    if (freeRows && freeRows.length > 0) return { ok: false, error: 'その時間帯は既にフリー客の予約が入っています' };
+    // ★ 第1788便: フリーは同じ時間帯に3件まで（CRM のフリーの行が3行まで）
+    if (freeRows && freeRows.length >= FREE_LANE_MAX) return { ok: false, error: `その時間帯はフリー客の予約が${FREE_LANE_MAX}件入っています（フリーは同じ時間に${FREE_LANE_MAX}件まで）` };
   }
 
   // ★ 第1227便: ここにあった「同一枠の cancelled 行の掃除（削除）」はやめた（createBooking と同じ理由・追加SQL_第1227便で UNIQUE が cancelled を見なくなった）。
@@ -973,13 +975,13 @@ export async function moveBooking(
     .neq('id', bookingId)
     .lt('slot_start', slotEnd.toISOString())
     .gt('slot_end', slotStart.toISOString())
-    .limit(1);
+    .limit(overlapLimit(therapistId));
   overlapQuery = therapistId !== null
     ? overlapQuery.eq('therapist_id', therapistId)
     : overlapQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
   const { data: others, error: oErr } = await overlapQuery;
   if (oErr) return { ok: false, error: dbMessage(oErr) };
-  if (others && others.length > 0) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
+  if (others && others.length >= overlapLimit(therapistId)) return { ok: false, error: '移動先の時間帯は既に予約が入っています' };
   // ★ フクエスCRMの休憩の時間には移せない（第551便）
   if (therapistId !== null) {
     const brk = await breakConflict(svc, Number(booking.salon_id), therapistId, slotStart, slotEnd);
@@ -1113,13 +1115,13 @@ export async function updateBookingDetails(
       .neq('id', bookingId)
       .lt('slot_start', newSlotEnd.toISOString())
       .gt('slot_end', slotStart.toISOString())
-      .limit(1);
+      .limit(overlapLimit(booking.therapist_id == null ? null : Number(booking.therapist_id)));
     overlapQuery = booking.therapist_id != null
       ? overlapQuery.eq('therapist_id', Number(booking.therapist_id))
       : overlapQuery.eq('salon_id', Number(booking.salon_id)).is('therapist_id', null);
     const { data: others, error: oErr } = await overlapQuery;
     if (oErr) return { ok: false, error: dbMessage(oErr) };
-    if (others && others.length > 0) {
+    if (others && others.length >= overlapLimit(booking.therapist_id == null ? null : Number(booking.therapist_id))) {
       return { ok: false, error: '枠を伸ばすと他の予約と重なります（先に移動やインターバル調整をしてください）' };
     }
   }

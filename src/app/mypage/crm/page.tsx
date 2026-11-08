@@ -77,6 +77,7 @@ import {
   type CrmScheduleTherapist,
   type CrmAlarm,
 } from '@/app/lib/crm/types';
+import { FREE_LANE_MAX } from '@/app/lib/booking/freeLane';
 import { CrmShell, useCrmAccess } from './CrmShell';
 
 // ★ 2026-10-09 点検#4: Server Action は、圏外・デプロイ直後の古いチャンクなどで ok:false ではなく【例外】になることがある。
@@ -117,8 +118,8 @@ const MEMO_W = 160;             // 女子メモの列（2026-09-19）
 const ROW_H = 66;
 /** ★ 第1787便: グループ予約の最大人数 */
 const PARTY_MAX = 10;
-/** ★ 第1786便: フリーの行の最大数 */
-const FREE_ROWS_MAX = 3;
+/** ★ 第1786便: フリーの行の最大数（★ 第1788便: サーバーの「フリーは同じ時間に3件まで」と同じ数） */
+const FREE_ROWS_MAX = FREE_LANE_MAX;
 
 /**
  * ★ 第1786便: 担当未定の予約をフリーの行に分ける。時間が重ならないように、上の行から順に入れる。
