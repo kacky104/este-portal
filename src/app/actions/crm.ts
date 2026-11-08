@@ -47,7 +47,9 @@ import {
   type CrmScheduleCustomer,
   type CrmBookingItem,
   type CrmPriceItem,
+  type CrmPriceOverride,
   type CrmPriceKind,
+  priceForTherapist,
   type CrmPayConfirm,
   type CrmDailyReport,
   type CrmDaySummary,
@@ -1048,6 +1050,21 @@ async function readPriceItemsRaw(svc: Svc, salonId: number): Promise<CrmPriceIte
       sort: Number(r.sort) || 0, isActive: Boolean(r.is_active),
     });
   }
+  // ★ 第1782便: 女の子別の料金を項目に付ける（表がまだ無い＝SQL を流す前・読めないときは付けない＝基本のまま）
+  if (out.length > 0) {
+    const { data: ov, error: ovErr } = await svc
+      .from('crm_price_overrides').select('therapist_id, price_item_id, price, pay').eq('salon_id', salonId);
+    if (!ovErr) {
+      const byItem = new Map(out.map((p) => [p.id, p]));
+      for (const r of ov ?? []) {
+        const p = byItem.get(Number(r.price_item_id));
+        if (!p) continue;
+        const o: CrmPriceOverride = { price: r.price == null ? null : Number(r.price), pay: r.pay == null ? null : Number(r.pay) };
+        if (o.price == null && o.pay == null) continue;
+        (p.byTherapist ??= {})[String(Number(r.therapist_id))] = o;
+      }
+    }
+  }
   // 種類の並び（コース→指名→延長→オプション→割引）
   const order = new Map(CRM_PRICE_KINDS.map((k, i) => [k, i]));
   return out.sort((a, b) => (order.get(a.kind)! - order.get(b.kind)!) || a.sort - b.sort || a.id - b.id);
@@ -1182,6 +1199,55 @@ export async function deleteCrmPriceItem(
   return { ok: true };
 }
 
+// ── 女の子別の料金（第1782便・2026-11-08・カッキーさん／店舗様のご要望）──────────
+// ★ 基本の料金表の項目ごとに、女の子ごとの「料金」「女子報酬」を上書きする（null は基本と同じ）。全部の種類が対象。
+// ★ 予約の料金を保存するとき、担当がその女の子なら、こちらの金額で写す（setCrmBookingPricing）。
+
+export type CrmPriceOverrideInput = { priceItemId: number; price: number | null; pay: number | null };
+
+/** その女の子の個別の料金を、まとめて保存する（rows に無い項目は変えない。料金・報酬とも null の項目は消す＝基本に戻す） */
+export async function saveCrmPriceOverrides(input: {
+  salonId: number;
+  therapistId: number;
+  rows: CrmPriceOverrideInput[];
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const salonId = Number(input.salonId);
+  const auth = await assertCrm(salonId);
+  if (!auth.ok) return auth;
+  const svc = auth.svc;
+  const tid = Number(input.therapistId);
+  const { data: t } = await svc.from('therapists').select('id').eq('salon_id', salonId).eq('id', tid).maybeSingle();
+  if (!t) return { ok: false, error: 'セラピストが見つかりません' };
+  const { data: own } = await svc.from('crm_price_items').select('id').eq('salon_id', salonId);
+  const ownIds = new Set((own ?? []).map((r) => Number(r.id)));
+  const norm = (v: unknown): number | null | 'bad' => {
+    if (v == null || v === '') return null;
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= 0 && n <= 1000000 ? n : 'bad';
+  };
+  const ups: Array<{ salon_id: number; therapist_id: number; price_item_id: number; price: number | null; pay: number | null; updated_at: string }> = [];
+  const dels: number[] = [];
+  const now = new Date().toISOString();
+  for (const r of input.rows ?? []) {
+    const pid = Number(r.priceItemId);
+    if (!ownIds.has(pid)) return { ok: false, error: '料金表の項目が見つかりません（画面を読み直してください）' };
+    const price = norm(r.price);
+    const pay = norm(r.pay);
+    if (price === 'bad' || pay === 'bad') return { ok: false, error: '金額は0〜1,000,000円の数字で入れてください' };
+    if (price == null && pay == null) dels.push(pid);
+    else ups.push({ salon_id: salonId, therapist_id: tid, price_item_id: pid, price, pay, updated_at: now });
+  }
+  if (dels.length > 0) {
+    const { error } = await svc.from('crm_price_overrides').delete().eq('salon_id', salonId).eq('therapist_id', tid).in('price_item_id', dels);
+    if (error) return { ok: false, error: dbMessage(error) };
+  }
+  if (ups.length > 0) {
+    const { error } = await svc.from('crm_price_overrides').upsert(ups, { onConflict: 'therapist_id,price_item_id' });
+    if (error) return { ok: false, error: dbMessage(error) };
+  }
+  return { ok: true };
+}
+
 export type CrmBookingPricingInput = {
   salonId: number;
   bookingId: string;
@@ -1208,16 +1274,19 @@ export async function setCrmBookingPricing(
   const svc = auth.svc;
 
   const { data: b } = await svc
-    .from('salon_bookings').select('id, crm_items').eq('salon_id', salonId).eq('id', input.bookingId).maybeSingle();
+    .from('salon_bookings').select('id, crm_items, therapist_id').eq('salon_id', salonId).eq('id', input.bookingId).maybeSingle();
   if (!b) return { ok: false, error: '予約が見つかりません' };
 
   const priceItems = await readPriceItems(svc, salonId);
   const byId = new Map(priceItems.map((p) => [p.id, p]));
+  // ★ 第1782便: 担当の女の子に個別の料金があれば、その金額で写す（フリーは基本のまま）
+  const tid = b.therapist_id == null ? null : Number(b.therapist_id);
   const items: CrmBookingItem[] = [];
   for (const id of input.priceItemIds ?? []) {
     const p = byId.get(Number(id));
     if (!p) return { ok: false, error: '料金表の項目が見つかりません（画面を読み直してください）' };
-    items.push({ kind: p.kind, name: p.name, minutes: p.minutes, price: p.price, pay: p.pay, priceItemId: p.id });
+    const eff = priceForTherapist(p, tid);
+    items.push({ kind: p.kind, name: p.name, minutes: p.minutes, price: eff.price, pay: eff.pay, priceItemId: p.id });
   }
   // 残す項目は、今の予約に入っているものと同じときだけ（勝手な金額は入れさせない）
   const current = parseItems(b.crm_items);

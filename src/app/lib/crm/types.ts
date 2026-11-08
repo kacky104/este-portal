@@ -212,7 +212,20 @@ export type CrmPriceItem = {
   pay: number;    // 割引は「報酬から引く額」
   sort: number;
   isActive: boolean;
+  /** ★ 第1782便: 女の子別の料金（セラピストID → 上書き）。null は基本と同じ。個別の料金が無ければ無い */
+  byTherapist?: Record<string, CrmPriceOverride>;
 };
+
+/** ★ 第1782便（カッキーさん・店舗様のご要望）: 女の子別の料金・女子報酬（null は基本と同じ） */
+export type CrmPriceOverride = { price: number | null; pay: number | null };
+
+/** ★ 第1782便: その女の子のときの料金・報酬（個別の料金が無ければ基本のまま・フリーは基本） */
+export function priceForTherapist(p: CrmPriceItem, therapistId: number | null | undefined): { price: number; pay: number; custom: boolean } {
+  const o = therapistId != null ? p.byTherapist?.[String(therapistId)] : undefined;
+  const price = o?.price ?? p.price;
+  const pay = o?.pay ?? p.pay;
+  return { price, pay, custom: price !== p.price || pay !== p.pay };
+}
 
 /** 予約に写して持つ項目（料金表を直しても過去の予約は変わらない） */
 export type CrmBookingItem = {

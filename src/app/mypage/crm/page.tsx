@@ -65,6 +65,7 @@ import {
   CRM_NOMINATION_CLASS,
   type CrmPlayStatus,
   sumCrmItems,
+  priceForTherapist,
   yen,
   type CrmDaySummary,
   type CrmPayConfirm,
@@ -676,7 +677,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               customerName: b.customerName,
               customerTel: b.customerTel,
               note: b.note,
-              ...splitItems(b.items, data?.priceItems ?? []),
+              ...splitItems(b.items, data?.priceItems ?? [], b.therapistId == null ? null : Number(b.therapistId)),
               priceAdjust: b.priceAdjust ? String(b.priceAdjust) : '',
               payAdjust: b.payAdjust ? String(b.payAdjust) : '',
               paymentMethod: b.paymentMethod,
@@ -1559,11 +1560,17 @@ function payAmountsOf(b: { paymentMethod: string; paymentSplit: { method: string
 }
 
 /** 予約の項目 → 今の料金表と同じもの（選択）と、表に無いもの（残す）に分ける */
-function splitItems(items: CrmBookingItem[], priceItems: CrmPriceItem[]): { selIds: number[]; keepItems: CrmBookingItem[] } {
+// ★ 第1782便: 女の子別の料金で写した項目も「今の料金表と同じ」とみなす（その予約の担当の金額と同じなら）
+function splitItems(items: CrmBookingItem[], priceItems: CrmPriceItem[], therapistId: number | null): { selIds: number[]; keepItems: CrmBookingItem[] } {
   const selIds: number[] = [];
   const keepItems: CrmBookingItem[] = [];
   for (const it of items) {
-    const p = priceItems.find((x) => x.id === it.priceItemId && x.kind === it.kind && x.name === it.name && x.minutes === it.minutes && x.price === it.price && x.pay === it.pay);
+    const p = priceItems.find((x) => {
+      if (!(x.id === it.priceItemId && x.kind === it.kind && x.name === it.name && x.minutes === it.minutes)) return false;
+      if (x.price === it.price && x.pay === it.pay) return true;
+      const eff = priceForTherapist(x, therapistId);
+      return eff.price === it.price && eff.pay === it.pay;
+    });
     if (p && !selIds.includes(p.id)) selIds.push(p.id);
     else keepItems.push(it);
   }
@@ -1655,7 +1662,11 @@ function BookingForm({
   const selItems: CrmBookingItem[] = f.selIds
     .map((id) => priceItems.find((p) => p.id === id))
     .filter((p): p is CrmPriceItem => !!p)
-    .map((p) => ({ kind: p.kind, name: p.name, minutes: p.minutes, price: p.price, pay: p.pay, priceItemId: p.id }));
+    // ★ 第1782便: 担当の女の子に個別の料金があれば、その金額（保存のときはサーバーが同じ計算をする）
+    .map((p) => { const e = priceForTherapist(p, tid); return { kind: p.kind, name: p.name, minutes: p.minutes, price: e.price, pay: e.pay, priceItemId: p.id }; });
+  // ★ 第1782便: この女の子の個別の料金が料金表にあるか（「◯◯さんの料金で計算しています」を出す）
+  const customPricing = tid != null && priceItems.some((p) => priceForTherapist(p, tid).custom);
+  const tName = tid != null ? therapists.find((t) => t.id === tid)?.name ?? '' : '';
   const allItems = [...selItems, ...f.keepItems];
   const sums = sumCrmItems(allItems);
   const priceAdj = Math.round(Number(f.priceAdjust) || 0);
@@ -1953,7 +1964,7 @@ function BookingForm({
                           onClick={() => togglePrice(p)}
                           className={`border px-3 py-1.5 text-[13px] font-bold ${on ? 'border-[#3f51b5] bg-[#3f51b5] text-white' : 'border-slate-300 bg-white text-slate-700'}`}
                         >
-                          {p.name}{p.price ? <span className={on ? 'text-indigo-100' : 'text-slate-400'}> {p.price.toLocaleString()}</span> : null}
+                          {p.name}{priceForTherapist(p, tid).price ? <span className={on ? 'text-indigo-100' : 'text-slate-400'}> {priceForTherapist(p, tid).price.toLocaleString()}</span> : null}
                         </button>
                       );
                     })}
@@ -1988,7 +1999,7 @@ function BookingForm({
                           onClick={() => pickQuickDiscount(p)}
                           className={`border px-3 py-1.5 text-[13px] font-bold ${on ? 'border-rose-600 bg-rose-600 text-white' : 'border-slate-300 bg-white text-slate-700'}`}
                         >
-                          {p.name}<span className={on ? 'text-rose-100' : 'text-slate-400'}> -{p.price.toLocaleString()}</span>
+                          {p.name}<span className={on ? 'text-rose-100' : 'text-slate-400'}> -{priceForTherapist(p, tid).price.toLocaleString()}</span>
                         </button>
                       );
                     })}
@@ -2018,6 +2029,8 @@ function BookingForm({
           {quick ? null : priceItems.length > 0 ? (
             <div className="border border-indigo-200 bg-indigo-50/40 p-3">
               <p className="mb-2 text-[13px] font-black text-slate-700">料金（押して選ぶ）</p>
+              {/* ★ 第1782便: 女の子別の料金を使っているとき */}
+              {customPricing && <p className="-mt-1 mb-2 text-[12px] font-bold text-emerald-700">{tName || 'この女の子'}さんの料金で計算しています</p>}
               {CRM_PRICE_KINDS.map((kind) => {
                 const list = priceItems.filter((p) => p.kind === kind);
                 const kept = f.keepItems.filter((k) => k.kind === kind);
@@ -2036,7 +2049,7 @@ function BookingForm({
                             className={`border px-2 py-1 text-[12px] font-bold ${on ? 'border-[#3f51b5] bg-[#3f51b5] text-white' : 'border-slate-300 bg-white text-slate-700'}`}
                           >
                             {p.name}{p.minutes && kind !== 'discount' ? ` ${p.minutes}分` : ''}
-                            <span className={on ? 'text-indigo-100' : 'text-slate-400'}> {kind === 'discount' ? '-' : ''}{p.price.toLocaleString()}</span>
+                            <span className={on ? 'text-indigo-100' : 'text-slate-400'}> {kind === 'discount' ? '-' : ''}{priceForTherapist(p, tid).price.toLocaleString()}</span>
                           </button>
                         );
                       })}

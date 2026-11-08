@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   deleteCrmPriceItem,
+  getCrmTherapists,
   listCrmPriceItems,
   saveCrmPriceItem,
+  saveCrmPriceOverrides,
 } from '@/app/actions/crm';
 import {
   CRM_PRICE_KINDS,
@@ -123,7 +125,154 @@ function PricesBody({ salonId }: { salonId: number }) {
           );
         })
       )}
+
+      {/* ★ 第1782便（カッキーさん・店舗様のご要望）: 女の子別の料金 */}
+      {items && items.some((i) => i.isActive) && <TherapistPrices salonId={salonId} items={items.filter((i) => i.isActive)} onSaved={reload} />}
     </div>
+  );
+}
+
+// ── 女の子別の料金（第1782便・2026-11-08）──────────────────────
+// ★ 基本の料金表の項目ごとに、女の子ごとの「料金」「女子報酬」を入れられる。空欄は基本と同じ。全部の種類が対象。
+// ★ 予約の担当をその女の子にすると、料金のボタンと合計がこの金額になる（保存のときはサーバーが同じ計算をする）。
+type OvDraft = Record<number, { price: string; pay: string }>;
+
+function ovDraftOf(items: CrmPriceItem[], tid: number | null): OvDraft {
+  const out: OvDraft = {};
+  for (const p of items) {
+    const o = tid != null ? p.byTherapist?.[String(tid)] : undefined;
+    out[p.id] = { price: o?.price != null ? String(o.price) : '', pay: o?.pay != null ? String(o.pay) : '' };
+  }
+  return out;
+}
+
+function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: CrmPriceItem[]; onSaved: () => void }) {
+  const [therapists, setTherapists] = useState<Array<{ id: number; name: string; isActive: boolean }> | null>(null);
+  const [tid, setTid] = useState<number | null>(null);
+  const [draft, setDraft] = useState<OvDraft>({});
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    safeAction(getCrmTherapists(salonId)).then((r) => {
+      if (!alive) return;
+      if (r.ok) setTherapists(r.therapists); else setErr(r.error);
+    });
+    return () => { alive = false; };
+  }, [salonId]);
+
+  // ★ 女の子を選び直したとき・読み直したとき（保存のあと）は、今の内容で入れ直す
+  const itemsKey = JSON.stringify(items.map((p) => [p.id, p.byTherapist ?? null]));
+  useEffect(() => { setDraft(ovDraftOf(items, tid)); setMsg(''); setErr('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tid, itemsKey]);
+
+  // 個別の料金がある女の子
+  const withCustom = new Set<number>();
+  for (const p of items) for (const k of Object.keys(p.byTherapist ?? {})) withCustom.add(Number(k));
+  const nameOf = (id: number) => therapists?.find((t) => t.id === id)?.name ?? `#${id}`;
+  const sorted = (therapists ?? []).slice().sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.name.localeCompare(b.name, 'ja'));
+
+  const numOnly = (v: string) => v.replace(/[^0-9]/g, '');
+  const setCell = (id: number, k: 'price' | 'pay', v: string) => setDraft((d) => ({ ...d, [id]: { ...(d[id] ?? { price: '', pay: '' }), [k]: numOnly(v) } }));
+  const dirty = tid != null && JSON.stringify(draft) !== JSON.stringify(ovDraftOf(items, tid));
+
+  const save = async () => {
+    if (tid == null) return;
+    setBusy(true); setErr(''); setMsg('');
+    const rows = items.map((p) => ({
+      priceItemId: p.id,
+      price: draft[p.id]?.price === '' || draft[p.id] == null ? null : Number(draft[p.id].price),
+      pay: draft[p.id]?.pay === '' || draft[p.id] == null ? null : Number(draft[p.id].pay),
+    }));
+    const r = await safeAction(saveCrmPriceOverrides({ salonId, therapistId: tid, rows }));
+    setBusy(false);
+    if (!r.ok) { setErr(r.error); return; }
+    setMsg(`${nameOf(tid)}さんの料金を保存しました`);
+    onSaved();
+  };
+  const clearAll = () => setDraft(ovDraftOf(items, null)); // ★ 保存を押すまでは変わらない
+
+  return (
+    <section className="mb-4 border border-emerald-200 bg-white">
+      <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-2">
+        <h3 className="text-[15px] font-black text-slate-800">女の子別の料金</h3>
+        <p className="text-[12px] leading-relaxed text-slate-600">
+          女の子によって料金・女子報酬が違うときに使います。変えたい項目だけ入れてください（空欄は上の基本の料金と同じ）。
+          予約の担当をその女の子にすると、その子の料金で計算されます。すでに入っている予約の金額は変わりません。
+        </p>
+      </div>
+      <div className="space-y-3 px-4 py-3">
+        {withCustom.size > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
+            <span className="font-bold text-slate-500">個別の料金あり：</span>
+            {[...withCustom].map((id) => (
+              <button key={id} type="button" onClick={() => setTid(id)}
+                className={`border px-2 py-0.5 font-bold ${tid === id ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white text-emerald-700'}`}>
+                {nameOf(id)}
+              </button>
+            ))}
+          </div>
+        )}
+        <label className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-slate-600">
+          女の子を選ぶ
+          <select value={tid ?? ''} onChange={(e) => setTid(e.target.value ? Number(e.target.value) : null)}
+            className="min-w-[200px] border border-slate-300 bg-white px-2 py-1.5 text-[14px] font-bold text-slate-700">
+            <option value="">（選んでください）</option>
+            {sorted.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}{withCustom.has(t.id) ? '（個別の料金あり）' : ''}{t.isActive ? '' : '（非公開）'}</option>
+            ))}
+          </select>
+        </label>
+        {err && <p className="text-[13px] font-bold text-rose-600">{err}</p>}
+
+        {tid != null && (
+          <>
+            <div className="divide-y divide-slate-100 border border-slate-200">
+              {CRM_PRICE_KINDS.map((kind) => {
+                const list = items.filter((p) => p.kind === kind);
+                if (list.length === 0) return null;
+                return (
+                  <div key={kind}>
+                    <p className="bg-slate-50 px-3 py-1 text-[12px] font-black text-slate-600">{CRM_PRICE_KIND_LABEL[kind]}</p>
+                    {list.map((p) => {
+                      const v = draft[p.id] ?? { price: '', pay: '' };
+                      return (
+                        <div key={p.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-t border-slate-100 px-3 py-1.5 sm:grid-cols-[1fr_170px_170px]">
+                          <span className="min-w-0 truncate text-[13px] font-bold text-slate-700">{p.name}{p.minutes && kind !== 'discount' ? ` ${p.minutes}分` : ''}</span>
+                          <label className="text-[10px] font-bold text-slate-400">
+                            {kind === 'discount' ? '料金から引く' : '料金'}（基本 {p.price.toLocaleString()}）
+                            <input className={`${cell} w-[110px] sm:w-full ${v.price !== '' ? 'border-emerald-500 bg-emerald-50' : ''}`} inputMode="numeric"
+                              value={v.price} placeholder={String(p.price)} onChange={(e) => setCell(p.id, 'price', e.target.value)} />
+                          </label>
+                          <label className="text-[10px] font-bold text-slate-400">
+                            {kind === 'discount' ? '報酬から引く' : '女子報酬'}（基本 {p.pay.toLocaleString()}）
+                            <input className={`${cell} w-[110px] sm:w-full ${v.pay !== '' ? 'border-emerald-500 bg-emerald-50' : ''}`} inputMode="numeric"
+                              value={v.pay} placeholder={String(p.pay)} onChange={(e) => setCell(p.id, 'pay', e.target.value)} />
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" disabled={busy || !dirty} onClick={() => void save()}
+                className="bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40">
+                {busy ? '保存しています…' : `${nameOf(tid)}さんの料金を保存`}
+              </button>
+              <button type="button" disabled={busy} onClick={clearAll} className="px-2 text-[12px] font-bold text-slate-500 underline">
+                全部空欄にする（基本の料金に戻す）
+              </button>
+              {msg && <span className="text-[13px] font-bold text-emerald-700">{msg}</span>}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
   );
 }
 
