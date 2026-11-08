@@ -115,6 +115,8 @@ const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
 const MEMO_W = 160;             // 女子メモの列（2026-09-19）
 const ROW_H = 66;
+/** ★ 第1787便: グループ予約の最大人数 */
+const PARTY_MAX = 10;
 /** ★ 第1786便: フリーの行の最大数 */
 const FREE_ROWS_MAX = 3;
 
@@ -777,6 +779,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           roomBandsOf={(tid) => data.roomBands?.[tid] ?? []}
           onClose={() => setForm(null)}
           onSaved={() => { setForm(null); reload(); }}
+          onSavedKeepOpen={() => reload()}
         />
       )}
     </div>
@@ -1672,7 +1675,7 @@ const fieldCls = 'w-full border border-slate-300 bg-white px-2.5 py-2 text-[14px
 const labCls = 'mb-1 block text-[12px] font-bold text-slate-500';
 
 function BookingForm({
-  initial, salonId, baseMs, therapists, courses, priceItems, dayBookings, roomBandsOf, onClose, onSaved,
+  initial, salonId, baseMs, therapists, courses, priceItems, dayBookings, roomBandsOf, onClose, onSaved, onSavedKeepOpen,
 }: {
   initial: BookingFormState;
   salonId: number;
@@ -1686,9 +1689,22 @@ function BookingForm({
   roomBandsOf: (therapistId: number) => CrmRoomBand[];
   onClose: () => void;
   onSaved: () => void;
+  /** ★ 第1787便: グループの一部だけ入ったとき、フォームを開いたまま表を読み直す */
+  onSavedKeepOpen?: () => void;
 }) {
   const dlgRef = useDialogFocus<HTMLElement>();
   const [f, setF] = useState<BookingFormState>(initial);
+  // ★★ 第1787便（アロマメイ様のご要望・カッキーさん 11/8）: 2名様・3名様などのグループ予約を1回で受け付ける（新しい受付のときだけ）。
+  //   ・人数を選ぶと「◯人目の担当」が増える。名前・電話・開始・時間・コース・料金は1人目と同じものが入る。
+  //   ・指名だけ人ごとに変えられる（空＝1人目と同じ）。女の子別の料金はサーバーがその子の金額で計算する。
+  //   ・2人目からは「◯◯（お連れ様）」・電話番号なし（顧客台帳には代表の方だけ結ぶ＝利用回数が人数分ふえない）。
+  //   ・予約は1件ずつ別々（あとからの変更・キャンセルも1件ずつ）。DB は変えていない。
+  const [party, setParty] = useState(1);
+  const [comps, setComps] = useState<Array<{ tKey: string; nomId: string }>>([]);
+  const setPartySize = (n: number) => {
+    setParty(n);
+    setComps((prev) => Array.from({ length: Math.max(0, n - 1) }, (_, i) => prev[i] ?? { tKey: '', nomId: '' }));
+  };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [found, setFound] = useState<CrmScheduleCustomer | null | 'none'>(null); // null＝まだ引いていない
@@ -1842,6 +1858,12 @@ function BookingForm({
     });
 
   const submit = async () => {
+    // ★ 第1787便: グループ（2名様以上）の確かめ（担当が選ばれているか・同じ担当が重なっていないか）
+    if (f.mode === 'new' && party > 1) {
+      if (comps.some((c) => !c.tKey)) { setErr('2人目からの担当を全部選んでください'); return; }
+      const keys = [f.therapistKey, ...comps.map((c) => c.tKey)];
+      if (new Set(keys).size !== keys.length) { setErr('同じ担当が重なっています（1人に1人の担当を選んでください）'); return; }
+    }
     // ★ 第1672便（カッキーさん）: 開始を押した所が空いていても、コースの終わりが提携店の予約にかかることがある
     //   （例: ラビで20:00から予約があるのに、enju で19:00から90分）。保存の前に、開始〜終わり（インターバル込み）で見て一度だけ確認する。止めはしない
     if (tid != null) {
@@ -1883,6 +1905,50 @@ function BookingForm({
           setF((p) => ({ ...p, mode: 'edit', bookingId: newId, origTherapistKey: p.therapistKey, origStartMin: p.startMin, origSpan: p.courseMin + p.intervalMin }));
           setBusy(false);
           setErr(`予約は入りました。料金だけ保存できませんでした：${pr.error}（もう一度「保存」を押すと料金だけ保存します）`);
+          return;
+        }
+      }
+      // ★ 第1787便: 2人目から（お連れ様）。1件ずつ入れて、入らなかった人は名前を並べて知らせる（入った分は残す）
+      if (party > 1) {
+        const nomIds = new Set(priceItems.filter((p) => p.kind === 'nomination').map((p) => p.id));
+        const mainNom = f.selIds.find((id) => nomIds.has(id));
+        const baseIds = f.selIds.filter((id) => !nomIds.has(id));
+        const compMethod = paySplit.length === 1 ? paySplit[0].method : paySplit.length === 0 ? f.paymentMethod : '';
+        const failed: string[] = [];
+        for (let i = 0; i < comps.length; i++) {
+          const c = comps[i];
+          const ctid = Number(c.tKey);
+          const who = `${i + 2}人目（${therapists.find((t) => t.id === ctid)?.name ?? ''}）`;
+          const r = await safeCall(() => createManualBooking({
+            salonId,
+            therapistId: ctid,
+            slotStartISO,
+            durationMin: f.courseMin,
+            intervalMin: f.intervalMin,
+            courseName: f.courseName,
+            customerName: `${f.customerName.trim()}（お連れ様）`.slice(0, 40),
+            customerTel: '',
+            note: f.note,
+          }));
+          if (!r.ok || !r.bookingId) { failed.push(`${who}：${r.error ?? '入れられませんでした'}`); continue; }
+          const nom = c.nomId ? Number(c.nomId) : mainNom;
+          const ids = nom != null ? [...baseIds, nom] : baseIds;
+          if (ids.length > 0 || priceAdj !== 0 || payAdj !== 0 || compMethod) {
+            const newId = r.bookingId;
+            const pr = await safeCall(() => setCrmBookingPricing({
+              salonId, bookingId: newId, priceItemIds: ids, keepItems: [],
+              priceAdjust: priceAdj, payAdjust: payAdj, paymentMethod: compMethod, paymentSplit: [],
+            }));
+            if (!pr.ok) failed.push(`${who}：予約は入りました。料金だけ保存できませんでした（${pr.error}）`);
+          }
+        }
+        if (failed.length > 0) {
+          setBusy(false);
+          setErr(`1人目の予約は入りました。次の方は入れられませんでした：\n${failed.join('\n')}`);
+          // ★ 1人目はもう入っているので、もう一度押して二重にならないように閉じる準備（画面は読み直す）
+          setParty(1); setComps([]);
+          setF((p) => ({ ...p, mode: 'edit', bookingId: res.bookingId, origTherapistKey: p.therapistKey, origStartMin: p.startMin, origSpan: p.courseMin + p.intervalMin }));
+          onSavedKeepOpen?.();
           return;
         }
       }
@@ -1987,8 +2053,16 @@ function BookingForm({
             {telDigits.length >= 10 && <GroupHitBand hits={group.hits} failed={group.failed} className="mt-2" />}
           </div>
           <div>
-            <label className={labCls}>お客様の名前 <span className="text-rose-500">必須</span></label>
-            <input className={fieldCls} value={f.customerName} maxLength={40} onChange={(e) => set('customerName', e.target.value)} />
+            <label className={labCls}>お客様の名前 <span className="text-rose-500">必須</span>{f.mode === 'new' && <span className="ml-2 font-normal text-slate-400">2名様以上は右の人数で</span>}</label>
+            <div className="flex gap-2">
+              <input className={fieldCls} value={f.customerName} maxLength={40} onChange={(e) => set('customerName', e.target.value)} />
+              {/* ★ 第1787便: 人数（新しい受付のときだけ） */}
+              {f.mode === 'new' && (
+                <select className={`${fieldCls} !w-[96px] flex-none`} value={party} onChange={(e) => setPartySize(Number(e.target.value))} aria-label="人数">
+                  {Array.from({ length: PARTY_MAX }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}名</option>)}
+                </select>
+              )}
+            </div>
           </div>
 
           {/* 担当と時間 */}
@@ -2006,6 +2080,35 @@ function BookingForm({
               </select>
               {ng && <p className="mt-1 bg-rose-600 px-2 py-1 text-[13px] font-bold text-white">この担当は、このお客様の女子NGです</p>}
             </div>
+            {/* ★ 第1787便: 2人目からの担当と指名（指名の空欄は1人目と同じ） */}
+            {f.mode === 'new' && party > 1 && (
+              <div className="col-span-2 space-y-1.5 border border-indigo-200 bg-indigo-50/40 p-2.5">
+                <p className="text-[12px] font-bold text-slate-600">{party}名様：2人目からの担当を選んでください（時間・コース・料金は1人目と同じ。名前は「{f.customerName.trim() || 'お客様'}（お連れ様）」で入ります）</p>
+                {comps.map((c, i) => {
+                  const dup = c.tKey !== '' && (c.tKey === f.therapistKey || comps.some((o, j) => j !== i && o.tKey === c.tKey));
+                  return (
+                    <div key={i} className="flex flex-wrap items-center gap-1.5">
+                      <span className="w-[52px] flex-none text-[12px] font-bold text-slate-500">{i + 2}人目</span>
+                      <select className={`${fieldCls} !w-auto min-w-[140px] flex-1`} value={c.tKey}
+                        onChange={(e) => setComps((p) => p.map((x, j) => (j === i ? { ...x, tKey: e.target.value } : x)))}>
+                        <option value="">担当を選ぶ</option>
+                        {therapists.map((t) => (
+                          <option key={t.id} value={String(t.id)}>{t.name}{customer?.ngTherapistIds.includes(t.id) ? '（女子NG）' : ''}</option>
+                        ))}
+                      </select>
+                      {priceItems.some((p) => p.kind === 'nomination') && (
+                        <select className={`${fieldCls} !w-auto min-w-[130px]`} value={c.nomId} aria-label={`${i + 2}人目の指名`}
+                          onChange={(e) => setComps((p) => p.map((x, j) => (j === i ? { ...x, nomId: e.target.value } : x)))}>
+                          <option value="">指名：1人目と同じ</option>
+                          {priceItems.filter((p) => p.kind === 'nomination').map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                        </select>
+                      )}
+                      {dup && <span className="text-[12px] font-bold text-rose-600">同じ担当が重なっています</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div>
               <label className={labCls}>開始</label>
               <div className="flex gap-1">
@@ -2255,7 +2358,7 @@ function BookingForm({
         </div>
 
         <div className="border-t border-slate-200 p-3">
-          {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
+          {err && <p className="mb-2 whitespace-pre-line text-[13px] font-bold text-rose-600">{err}</p>}
           <div className="flex gap-2">
             <button type="button" disabled={busy || !f.customerName.trim() || payMismatch} onClick={submit} className="flex-1 bg-[#3f51b5] py-2.5 text-[15px] font-bold text-white disabled:opacity-50">
               {busy ? '保存中…' : f.mode === 'new' ? 'この内容で受け付ける' : '変更を保存する'}
