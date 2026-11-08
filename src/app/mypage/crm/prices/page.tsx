@@ -87,11 +87,16 @@ function PricesBody({ salonId }: { salonId: number }) {
         CRM_PRICE_KINDS.map((kind) => {
           const list = items.filter((i) => i.kind === kind);
           return (
-            <section key={kind} className="mb-4 border border-slate-200 bg-white">
-              <div className="border-b border-slate-200 bg-slate-50 px-4 py-2">
-                <h3 className="text-[15px] font-black text-slate-800">{CRM_PRICE_KIND_LABEL[kind]}</h3>
-                <p className="text-[12px] text-slate-500">{HINT[kind]}</p>
-              </div>
+            // ★ 第1783便（カッキーさん）: ページが縦に長くなったので、種類ごとにアコーディオン（見出しを押すと開閉・既定は閉じる）
+            <details key={kind} className="group mb-3 border border-slate-200 bg-white">
+              <summary className="flex cursor-pointer list-none items-center gap-3 bg-slate-50 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 flex-1">
+                  <span className="text-[15px] font-black text-slate-800">{CRM_PRICE_KIND_LABEL[kind]}</span>
+                  <span className="ml-2 text-[12px] font-bold text-slate-500">{list.length}件{list.some((p) => !p.isActive) ? `（使う ${list.filter((p) => p.isActive).length}件）` : ''}</span>
+                </span>
+                <svg className="h-4 w-4 flex-none text-slate-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </summary>
+              <p className="border-y border-slate-200 bg-slate-50 px-4 pb-2 text-[12px] text-slate-500">{HINT[kind]}</p>
               {/* ★ 第1231便（カッキーさん）: スマホはカード型（1件ずつ縦に・「保存」が右端に隠れない）。PC は今までの表。 */}
               <div className="divide-y divide-slate-100 md:hidden">
                 {list.map((p) => (
@@ -121,7 +126,7 @@ function PricesBody({ salonId }: { salonId: number }) {
                   </tbody>
                 </table>
               </div>
-            </section>
+            </details>
           );
         })
       )}
@@ -196,9 +201,15 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
   const clearAll = () => setDraft(ovDraftOf(items, null)); // ★ 保存を押すまでは変わらない
 
   return (
-    <section className="mb-4 border border-emerald-200 bg-white">
-      <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-2">
-        <h3 className="text-[15px] font-black text-slate-800">女の子別の料金</h3>
+    <details className="group mb-3 border border-emerald-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center gap-3 bg-emerald-50 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          <span className="text-[15px] font-black text-slate-800">女の子別の料金</span>
+          {withCustom.size > 0 && <span className="ml-2 text-[12px] font-bold text-emerald-700">個別の料金あり {withCustom.size}人</span>}
+        </span>
+        <svg className="h-4 w-4 flex-none text-slate-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+      </summary>
+      <div className="border-y border-emerald-200 bg-emerald-50 px-4 pb-2">
         <p className="text-[12px] leading-relaxed text-slate-600">
           女の子によって料金・女子報酬が違うときに使います。変えたい項目だけ入れてください（空欄は上の基本の料金と同じ）。
           予約の担当をその女の子にすると、その子の料金で計算されます。すでに入っている予約の金額は変わりません。
@@ -272,7 +283,7 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
           </>
         )}
       </div>
-    </section>
+    </details>
   );
 }
 
