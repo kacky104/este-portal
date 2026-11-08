@@ -237,6 +237,156 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
   );
 }
 
+// ★ 第1801便（カッキーさん・2026-11-09）: 駅ちかが2枠以上ある店は、まとめて1つのブロックで押す・自動を設定する。
+//   ★ 押すのも保存するのも、ID・パスワードがあって止めていない枠すべてに同じことをする（中身は枠ごとの受け口を順に呼ぶ）。
+//   ★ 枠ごとの残り回数は小さく並べる。枠ごとに変えたいときは「枠ごとに見る」でいままでのカードを出す。
+function AllSlotsCard({ site, slots, enabled, onToast, onSaved }: {
+  site: SiteTheme; slots: ConecfBumpSlot[]; enabled: boolean; onToast: (m: string) => void; onSaved: () => Promise<void>;
+}) {
+  const href = useConecfHref();
+  const usable = slots.filter((s) => s.hasCredential && !s.linkOff);
+  const base = usable[0] ?? slots[0];
+  const allOn = usable.length > 0 && usable.every((s) => s.enabled);
+  const same = usable.every((s) => s.startMin === base.startMin && s.endMin === base.endMin && s.intervalMin === base.intervalMin && s.enabled === base.enabled);
+  const [start, setStart] = useState(minuteLabel(base.startMin));
+  const [end, setEnd] = useState(minuteLabel(base.endMin));
+  const [interval, setIntervalMin] = useState(base.intervalMin);
+  const [busy, setBusy] = useState('');
+  const [autoOpen, setAutoOpen] = useState(false);
+  const [each, setEach] = useState(false);
+  const startMin = minuteFromLabel(start);
+  const endMin = minuteFromLabel(end);
+  const perDay = startMin !== null && endMin !== null ? bumpSlotsPerDay({ startMin, endMin, intervalMin: interval }) : 0;
+  const remainOf = (s: ConecfBumpSlot) => {
+    const quota = s.quota ?? site.defaultQuota;
+    return s.countStale && quota != null ? quota : s.remaining;
+  };
+
+  const guard = () => {
+    if (!enabled) { onToast('保存するには、ホームで「コネックエフに切り替える」を押してください'); return false; }
+    if (usable.length === 0) { onToast(`${site.name}のID・パスワードが登録されていません。「ID・パスワード登録」をご確認ください`); return false; }
+    return true;
+  };
+
+  const runAll = async () => {
+    if (!guard()) return;
+    const targets = usable.filter((s) => remainOf(s) !== 0);
+    if (targets.length === 0) { onToast('どの枠も本日の回数を使い切りました'); return; }
+    if (!window.confirm(`${site.name}の${targets.map((s) => '枠' + s.slot).join('・')}をまとめて${site.what}しますか？`)) return;
+    setBusy('run');
+    const ng: string[] = [];
+    for (const s of targets) {
+      const res = await runConecfBumpNow({ provider: site.provider, slot: s.slot });
+      if (!res.ok) ng.push(`枠${s.slot}（${res.error}）`);
+    }
+    setBusy('');
+    onToast(ng.length === 0
+      ? `${targets.length}枠の${site.what}を受け付けました。1〜2分で${site.name}に反映されます。結果は「更新結果」に出ます`
+      : `受け付けられなかった枠があります: ${ng.join('／')}`);
+  };
+
+  const saveAll = async (nextOn: boolean) => {
+    if (!guard()) return;
+    if (startMin === null || endMin === null) { onToast('時間帯を「10:00」のような形で入れてください'); return; }
+    setBusy('save');
+    const ng: string[] = [];
+    for (const s of usable) {
+      const res = await saveConecfBump({ provider: site.provider, slot: s.slot, enabled: nextOn, startMin, endMin, intervalMin: interval });
+      if (!res.ok) ng.push(`枠${s.slot}（${res.error}）`);
+    }
+    setBusy('');
+    onToast(ng.length === 0
+      ? (nextOn ? `${usable.length}枠の自動上位表示を保存しました（各枠 1日最大${perDay}回）` : `${usable.length}枠の自動上位表示を止めました`)
+      : `保存できなかった枠があります: ${ng.join('／')}`);
+    await onSaved();
+  };
+
+  return (
+    <>
+      <div className={`bg-white border ${site.border} shadow-sm p-5 space-y-3`}>
+        <h3 className="text-center text-sm font-black text-slate-700">{site.name}（{slots.length}枠まとめて）{site.heading}</h3>
+        <div className="flex flex-wrap justify-center gap-2 text-[12px] tabular-nums">
+          {slots.map((s) => {
+            const r = remainOf(s);
+            const ok = s.hasCredential && !s.linkOff;
+            return (
+              <span key={s.slot} className={`border px-2 py-1 ${ok ? 'border-slate-200 text-slate-600' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>
+                枠{s.slot}：{ok ? (r === null ? 'まだ読んでいません' : `残り ${r}回`) : 'ID・パスワード未登録'}{s.lastAt ? `（${hm(s.lastAt)}）` : ''}
+              </span>
+            );
+          })}
+        </div>
+        <button type="button" disabled={busy !== ''} onClick={() => void runAll()}
+          className={`w-full py-3 text-sm font-black text-white shadow-md transition-all disabled:opacity-40 ${site.btn} active:scale-[0.99]`}>
+          {busy === 'run' ? '受け付けています…' : `⬆ ${usable.length}枠まとめて上位表示する`}
+        </button>
+        {usable.length < slots.length && (
+          <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-900">
+            ID・パスワードが無い枠は押しません。<Link href={href('/sites')} className="font-bold underline">ID・パスワード登録</Link>をご確認ください。
+          </p>
+        )}
+        <p className="text-xs text-slate-500 leading-relaxed text-center">{site.lead}</p>
+      </div>
+
+      <div className={`bg-white border ${site.border} shadow-sm p-5 mt-6`}>
+        <button type="button" onClick={() => setAutoOpen((v) => !v)} aria-expanded={autoOpen} className="w-full flex items-center justify-between gap-2 text-left">
+          <span className="flex items-center gap-2 min-w-0">
+            <h3 className="text-sm font-black text-slate-700">自動上位設定（{usable.length}枠まとめて）</h3>
+            <span className={'text-[11px] font-bold px-1.5 py-0.5 border ' + (allOn ? site.badge : 'text-slate-400 border-slate-200 bg-slate-50')}>
+              {allOn ? '自動実行中' : usable.some((s) => s.enabled) ? '一部の枠だけ' : '未使用'}
+            </span>
+            {!same && <span className="text-[11px] font-bold text-rose-500">枠ごとに設定が違います</span>}
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            className={`flex-shrink-0 text-slate-400 transition-transform duration-200 ${autoOpen ? 'rotate-180' : ''}`} aria-hidden>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+        {autoOpen && (
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-slate-600">
+              <input type="time" step={600} value={start} onChange={(e) => setStart(e.target.value)}
+                className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`} />
+              <span className="font-bold">〜</span>
+              <input type="time" step={600} value={end} onChange={(e) => setEnd(e.target.value)}
+                className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`} />
+              <span className="font-bold">の間</span>
+              <select value={interval} onChange={(e) => setIntervalMin(Number(e.target.value))}
+                className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`}>
+                {EKICHIKA_BUMP_INTERVALS.map((m) => <option key={m} value={m}>{m}分</option>)}
+              </select>
+              <span className="font-bold">ごと</span>
+            </div>
+            <p className="text-[12px] text-slate-500">
+              この設定だと、各枠で1日に最大 <b className="tabular-nums text-slate-700">{perDay}</b> 回押します（枠ごとに回数があります）。
+              {startMin !== null && endMin !== null && startMin > endMin && <span>日をまたぐ時間帯として扱います。</span>}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button type="button" onClick={() => void saveAll(true)} disabled={busy !== ''}
+                className="px-4 py-2 text-[13px] font-black text-white bg-slate-700 hover:bg-slate-800 disabled:opacity-40 transition-colors">
+                {busy === 'save' ? '保存中…' : `${usable.length}枠に保存する`}
+              </button>
+              <button type="button" onClick={() => void saveAll(false)} disabled={busy !== '' || !usable.some((s) => s.enabled)}
+                className="px-4 py-2 text-[13px] font-black text-slate-500 border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors">
+                全部の枠で設定解除
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="text-center">
+        <button type="button" onClick={() => setEach((v) => !v)} className="text-[12px] font-bold text-slate-500 underline">
+          {each ? '枠ごとの表示を閉じる' : '枠ごとに見る・枠ごとに設定する'}
+        </button>
+      </div>
+      {each && slots.map((s) => (
+        <SlotCard key={s.slot + ':' + s.enabled + ':' + s.startMin + ':' + s.endMin + ':' + s.intervalMin} site={site} s={s} many enabled={enabled} onToast={onToast} onSaved={onSaved} />
+      ))}
+    </>
+  );
+}
+
 function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; heading: string; enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [data, setData] = useState<{ ready: boolean; slots: ConecfBumpSlot[] } | null>(null);
@@ -265,7 +415,9 @@ function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; hea
           {data.slots.length === 0 && (
             <div className={`${CARD} p-5 text-[14px] text-slate-500`}>{site.name}の店舗ページが登録されていません。「ID・パスワード登録」から{site.name}を登録してください。</div>
           )}
-          {data.slots.map((s) => (
+          {data.slots.length > 1 && site.provider === 'ekichika'
+            ? <AllSlotsCard key={data.slots.map((s) => [s.slot, s.enabled, s.startMin, s.endMin, s.intervalMin, s.remaining].join(':')).join('|')} site={site} slots={data.slots} enabled={enabled} onToast={onToast} onSaved={load} />
+            : data.slots.map((s) => (
             <SlotCard key={s.slot + ':' + s.enabled + ':' + s.startMin + ':' + s.endMin + ':' + s.intervalMin} site={site} s={s} many={data.slots.length > 1} enabled={enabled} onToast={onToast} onSaved={load} />
           ))}
         </>
