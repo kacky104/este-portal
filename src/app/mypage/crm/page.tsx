@@ -92,7 +92,8 @@ async function safeCall<T extends { ok: boolean }>(fn: () => Promise<T>): Promis
     return { ok: false, error: NET_ERR };
   }
 }
-import { castNotifyText, lineShareHref } from '@/lib/crmCastNotify';
+import { castNotifyText } from '@/lib/crmCastNotify';
+import { LineShareLink } from '@/app/components/LineShareLink';
 import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vibrateAlarm } from '@/app/lib/crm/alarmSound';
 import { ConsentView } from './ConsentView';
 import { GroupHitBand } from './GroupShare';
@@ -1005,15 +1006,14 @@ function Grid({
                         ★ 文面とリンクは src/lib/crmCastNotify.ts。★ 予約の中身・お客様の名前は文面に入れない。
                         ★ 「セラピストへの公開」が OFF の店は、開いてもスケジュールが出ないので押せない形にする（理由は title に）。 */}
                     {castNotifyOn ? (
-                      <a
-                        href={lineShareHref(castNotifyText(r.therapist.name, date))}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      // ★ 第1791便: PC は LINE の送る画面が開けないので、文面をコピーして貼り付けてもらう（LineShareLink）
+                      <LineShareLink
+                        text={castNotifyText(r.therapist.name, date)}
                         title="予定を更新したことを LINE で知らせる（送り先は LINE の画面で選びます）"
                         className="flex-none bg-[#06c755] px-1 text-[10px] font-black leading-[16px] text-white hover:opacity-85"
                       >
                         LINE
-                      </a>
+                      </LineShareLink>
                     ) : (
                       <span
                         title="設定の「セラピストへの公開」を ON にすると、LINE で知らせるボタンが使えます"

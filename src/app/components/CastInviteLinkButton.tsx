@@ -4,6 +4,7 @@ import { CAST_EMAIL_NOTE } from '@/lib/castInviteNote';
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { createCastInviteLink } from '@/app/actions/castInvite';
+import { LineShareLink } from './LineShareLink';
 
 // ★ 第887便（カッキーさん）: 「リンク・QRで招待」ボタンと小窓（QR・リンクのコピー・LINEで送る）。
 // ★ コネックエフのセラピスト編集（CastLinkField）・マイページのセラピスト編集・マイページのセラピストカードで使う。
@@ -124,10 +125,11 @@ export function CastInviteLinkButton({ therapistId, salonId, therapistName, onTo
                 <p className="text-[11.5px] text-slate-500 break-all border border-slate-200 bg-slate-50 px-2 py-1.5 select-all">{link.url}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => void copy()} className={`h-9 text-[13px] font-bold ${primary}`}>{copied ? 'コピーしました' : 'リンクをコピー'}</button>
-                  <a href={`https://line.me/R/share?text=${encodeURIComponent(lineText)}`} target="_blank" rel="noopener noreferrer"
-                    className="h-9 inline-flex items-center justify-center text-[13px] font-bold text-white bg-[#06c755] hover:opacity-90">
+                  {/* ★ 第1791便: PC は文面をコピー（LineShareLink） */}
+                  <LineShareLink wrapClassName="w-full" text={lineText}
+                    className="h-9 w-full inline-flex items-center justify-center text-[13px] font-bold text-white bg-[#06c755] hover:opacity-90">
                     LINEで送る
-                  </a>
+                  </LineShareLink>
                 </div>
                 <p className="text-[12px] text-amber-700 leading-relaxed">
                   有効期限：{fmt(link.expiresAt)} まで（7日間・1回だけ使えます）。前に送ったリンクも、期限内ならそのまま使えます。

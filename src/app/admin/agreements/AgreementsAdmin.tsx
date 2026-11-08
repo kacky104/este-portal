@@ -5,6 +5,7 @@ import Link from 'next/link';
 import QRCode from 'qrcode';
 import { getListingAgreementAdminList, type AgreementAdminRow } from '@/app/actions/listingAgreement';
 import { AGREEMENT_TITLE, AGREEMENT_VERSION_LABEL } from '@/lib/listingAgreement';
+import { LineShareLink } from '@/app/components/LineShareLink';
 
 // 管理画面「申込書・誓約書」（第1174便・2026-10-04・カッキーさん）。
 // ★ 上: 店舗に送るリンク（全店で同じ・https://fukues.com/mypage/agreement）。QR・コピー・LINEで送る。
@@ -77,7 +78,7 @@ export function AgreementsAdmin() {
               <p className="select-all break-all border border-slate-200 bg-slate-50 px-2.5 py-2 text-[13px] text-slate-600">{SIGN_URL}</p>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => void copy()} className="h-10 bg-pink-600 text-[13.5px] font-bold text-white hover:opacity-95">{copied ? 'コピーしました' : 'リンクをコピー'}</button>
-                <a href={`https://line.me/R/share?text=${encodeURIComponent(LINE_TEXT)}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center justify-center bg-[#06c755] text-[13.5px] font-bold text-white hover:opacity-90">LINEで送る</a>
+                <LineShareLink wrapClassName="w-full" text={LINE_TEXT} className="inline-flex h-10 w-full items-center justify-center bg-[#06c755] text-[13.5px] font-bold text-white hover:opacity-90">LINEで送る</LineShareLink>
               </div>
               <a href={SIGN_URL} target="_blank" rel="noopener noreferrer" className="inline-block text-[13px] font-bold text-pink-600 underline">サインのページを開いて見る</a>
             </div>
