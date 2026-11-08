@@ -34,6 +34,19 @@ export const EKICHIKA_BUMP_DEFAULT_START_MIN = 600;
 export const EKICHIKA_BUMP_DEFAULT_END_MIN = 1380;
 export const EKICHIKA_BUMP_DEFAULT_INTERVAL_MIN = 20;
 export { BUMP_AUTO_INTERVALS as EKICHIKA_BUMP_INTERVALS };
+/**
+ * ★ 第1802便（カッキーさん「B」・2026-11-09）: エステ魂の集客アピールは1日の回数が少ないので、長い間隔も選べる。
+ *   ベンリーは時刻指定で2時間前後おきに1日中押していた → 10:00〜翌4:00 を120分ごと、のように合わせる。
+ *   ★ 駅ちかは今までどおり BUMP_AUTO_INTERVALS（10〜60分）だけ（受け口で分ける）。DB の決まりは追加SQL_第1802便で広げる。
+ */
+export const ESUTAMA_BUMP_INTERVALS = [10, 15, 20, 30, 60, 90, 120, 180] as const;
+/** 自動の判断・回数の計算で使ってよい間隔（どのサイトでも）。★ 保存できる間隔はサイトごとに intervalsFor で絞る */
+function isKnownInterval(v: unknown): boolean {
+  return typeof v === 'number' && ((ESUTAMA_BUMP_INTERVALS as readonly number[]).includes(v) || isValidBumpInterval(v));
+}
+export function bumpIntervalsFor(provider: string): readonly number[] {
+  return provider === 'esutama' ? ESUTAMA_BUMP_INTERVALS : BUMP_AUTO_INTERVALS;
+}
 
 /**
  * ★★★ 第1407便（2026-10-12・カッキーさんが確かめた）: サイトの「1日の回数が戻る時刻」（日本時間・0時からの分）。
@@ -168,12 +181,12 @@ export type BumpState = { lastAt: string | null; remaining: number | null; readA
 export type BumpReason = 'ok' | 'off' | 'bad_setting' | 'out_of_window' | 'already_this_slot' | 'too_soon' | 'no_quota' | 'running' | 'unknown';
 
 export function isValidBumpSetting(s: BumpSetting): boolean {
-  return isValidMinuteOfDay(s.startMin) && isValidMinuteOfDay(s.endMin) && isValidBumpInterval(s.intervalMin);
+  return isValidMinuteOfDay(s.startMin) && isValidMinuteOfDay(s.endMin) && isKnownInterval(s.intervalMin);
 }
 
 /** その時間帯・間隔で、1日に自動で押す最大の回数（開始ちょうどに1回、あとは間隔ごと） */
 export function bumpSlotsPerDay(s: Pick<BumpSetting, 'startMin' | 'endMin' | 'intervalMin'>): number {
-  if (!isValidMinuteOfDay(s.startMin) || !isValidMinuteOfDay(s.endMin) || !isValidBumpInterval(s.intervalMin)) return 0;
+  if (!isValidMinuteOfDay(s.startMin) || !isValidMinuteOfDay(s.endMin) || !isKnownInterval(s.intervalMin)) return 0;
   return Math.floor(bumpWindowLength(s.startMin, s.endMin) / s.intervalMin) + 1;
 }
 
@@ -185,7 +198,7 @@ export const EKICHIKA_BUMP_END_GRACE_MIN = 9;
 
 /** いまの区切りの始まり（ISO）。時間帯の外なら null */
 export function currentBumpSlotAt(now: Date, s: Pick<BumpSetting, 'startMin' | 'endMin' | 'intervalMin'>): string | null {
-  if (!isValidMinuteOfDay(s.startMin) || !isValidMinuteOfDay(s.endMin) || !isValidBumpInterval(s.intervalMin)) return null;
+  if (!isValidMinuteOfDay(s.startMin) || !isValidMinuteOfDay(s.endMin) || !isKnownInterval(s.intervalMin)) return null;
   const nowMin = minuteOfDayJST(now);
   const len = bumpWindowLength(s.startMin, s.endMin);
   const since = (nowMin - s.startMin + 1440) % 1440;           // 時間帯の始まりからの分

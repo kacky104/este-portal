@@ -8,7 +8,7 @@ import { OperatorNotYet } from '../OperatorBar';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { getConecfBump, saveConecfBump, runConecfBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
-import { bumpSlotsPerDay, EKICHIKA_BUMP_INTERVALS } from '@/lib/ekichikaBump';
+import { bumpSlotsPerDay, EKICHIKA_BUMP_INTERVALS, bumpIntervalsFor } from '@/lib/ekichikaBump';
 import { minuteLabel, minuteFromLabel } from '@/lib/bumpAuto';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 
@@ -201,7 +201,7 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
             <span className="font-bold">の間</span>
             <select value={interval} onChange={(e) => setIntervalMin(Number(e.target.value))}
               className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`}>
-              {EKICHIKA_BUMP_INTERVALS.map((m) => <option key={m} value={m}>{m}分</option>)}
+              {bumpIntervalsFor(site.provider).map((m) => <option key={m} value={m}>{m >= 60 && m % 30 === 0 && m !== 60 ? `${m / 60}時間` : `${m}分`}</option>)}
             </select>
             <span className="font-bold">ごと</span>
           </div>

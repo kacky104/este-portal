@@ -5,7 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf } from '@/lib/ekichikaBump';
+import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor } from '@/lib/ekichikaBump';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「駅ちか上位表示」の受け口（第1305便・2026-10-08）。
@@ -115,7 +115,7 @@ export async function saveConecfBump(input: { provider?: BumpProvider; slot: num
   const slot = Number(input.slot);
   if (!Number.isInteger(slot) || slot < 1) return { ok: false, error: '枠の指定が不正です' };
   const setting = { enabled: input.enabled === true, startMin: Number(input.startMin), endMin: Number(input.endMin), intervalMin: Number(input.intervalMin) };
-  if (!isValidBumpSetting(setting)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
+  if (!isValidBumpSetting(setting) || !bumpIntervalsFor(provider).includes(setting.intervalMin)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
   const { data, error } = await r.svc.from('salon_import_sources')
     .update({ bump_auto: setting.enabled, bump_start_min: setting.startMin, bump_end_min: setting.endMin, bump_interval_min: setting.intervalMin })
     .eq('salon_id', r.salonId).eq('provider', provider).eq('slot', slot)
