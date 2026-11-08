@@ -15,6 +15,7 @@
 import { nominationBadge, type CrmBookingItem, type CrmNominationBadge } from '@/app/lib/crm/types';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { resolveCastTarget } from '@/app/lib/castTarget';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 
 type Svc = ReturnType<typeof createServiceClient>;
@@ -78,6 +79,12 @@ function itemsOf(raw: unknown): { nomination: CrmNominationBadge | null; nominat
   return out;
 }
 
+/** ★ 第1777便: 読み取りだけ。viewAs があれば、その店のオーナー様・運営が見るだけで読む（lib/castTarget.ts） */
+async function meRead(viewAs: number | null): Promise<{ svc: Svc; therapistId: number; salonId: number } | null> {
+  const t = await resolveCastTarget(viewAs);
+  return t ? { svc: createServiceClient(), therapistId: t.therapistId, salonId: t.salonId } : null;
+}
+
 async function me(): Promise<{ svc: Svc; therapistId: number; salonId: number } | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -104,8 +111,8 @@ async function readEnabled(svc: Svc, salonId: number): Promise<{ on: boolean; da
 }
 
 /** /cast で「スケジュール」タブを出すかどうか */
-export async function isCastScheduleEnabled(): Promise<boolean> {
-  const m = await me();
+export async function isCastScheduleEnabled(viewAs: number | null = null): Promise<boolean> {
+  const m = await meRead(viewAs);
   if (!m) return false;
   return (await readEnabled(m.svc, m.salonId)).on;
 }
@@ -118,9 +125,10 @@ function hmToMin(t: unknown): number | null {
 /** その営業日（朝6時区切り）の本人の出勤と予約 */
 export async function getCastScheduleDay(
   date: string,
+  viewAs: number | null = null,
 ): Promise<{ ok: true; day: CastScheduleDay } | { ok: false; error: string }> {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: '日付が正しくありません' };
-  const m = await me();
+  const m = await meRead(viewAs);
   if (!m) return { ok: false, error: 'ログインしてください' };
   const en = await readEnabled(m.svc, m.salonId);
   if (!en.on) return { ok: false, error: 'お店がスケジュールを公開していません' };
@@ -246,8 +254,8 @@ export type CastUpcomingBooking = {
 
 const UPCOMING_LIMIT = 50;
 
-export async function getCastUpcomingBookings(): Promise<{ ok: true; items: CastUpcomingBooking[] } | { ok: false; error: string }> {
-  const m = await me();
+export async function getCastUpcomingBookings(viewAs: number | null = null): Promise<{ ok: true; items: CastUpcomingBooking[] } | { ok: false; error: string }> {
+  const m = await meRead(viewAs);
   if (!m) return { ok: false, error: 'ログインしてください' };
   const en = await readEnabled(m.svc, m.salonId);
   // ★ お店がスケジュールを公開していないときは「0件」（タブ自体が出ないので、バッジも一覧も出ない）

@@ -23,11 +23,14 @@ const CastThemeContext = createContext<CastThemeCtx | null>(null);
 export function CastThemeProvider({
   initialTheme,
   wallpapers = {},
+  readOnly = false,
   children,
 }: {
   initialTheme: string | null;
   /** ★ 第493便: 管理画面で登録したテーマ壁紙（theme_wallpapers）。page.tsx が読んで渡す */
   wallpapers?: Record<string, string>;
+  /** ★ 第1777便: オーナー様が見るだけのとき。色はその場で見比べられるが、保存はしない */
+  readOnly?: boolean;
   children: React.ReactNode;
 }) {
   const [themeKey, setKey] = useState<CastThemeKey>(getCastTheme(initialTheme).key);
@@ -35,6 +38,7 @@ export function CastThemeProvider({
 
   const setThemeKey = (k: CastThemeKey) => {
     setKey(k); // 即時に背景反映
+    if (readOnly) return;
     startTransition(async () => {
       const res = await setCastTheme(k);
       // 保存失敗時は静かにログのみ（着せ替えはお遊び機能のため操作は止めない）。

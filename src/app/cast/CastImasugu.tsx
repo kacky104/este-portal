@@ -9,6 +9,7 @@
 
 import { CastCardTitle } from './CastCardTitle';
 import { useEffect, useState } from 'react';
+import { useCastView } from './CastView';
 import { setCastImasugu } from '@/app/actions/castImasugu';
 import { isFrameLive, IMASUGU_WINDOW_MIN } from '@/lib/imasugu';
 import { getScheduleStatus } from '@/app/components/TherapistScroller';
@@ -46,6 +47,8 @@ export function CastImasugu({
   importUntil: string | null;
   today: TodaySchedule;
 }) {
+  // ★ 第1777便: オーナー様が見るだけで開いているときは、状態だけ見せてボタンを出さない
+  const { readOnly } = useCastView();
   // until を真実の状態として持つ（ON/OFFは until の有無＋未来かで判定）。
   const [until, setUntil] = useState<string | null>(
     isCastImasuguLive(initialOn, initialUntil) ? initialUntil : null
@@ -109,6 +112,7 @@ export function CastImasugu({
             <span className="mx-1 text-slate-300">/</span>
             あと <span className="font-bold text-slate-700">{remainingMin}</span> 分
           </p>
+          {!readOnly && (
           <button
             type="button"
             onClick={() => handle(false)}
@@ -117,6 +121,7 @@ export function CastImasugu({
           >
             {loading ? '処理中...' : '受付を終了する'}
           </button>
+          )}
         </div>
       ) : ownerLive ? (
         // オーナーが今すぐ設定中：本人は操作不可（相手の枠は本人が解除しない）。
@@ -141,6 +146,7 @@ export function CastImasugu({
             出勤時間内のみ「今すぐ」を受付できます。<br />
             出勤予定の時間になってから設定してください。
           </p>
+          {!readOnly && (
           <button
             type="button"
             disabled
@@ -149,10 +155,12 @@ export function CastImasugu({
           >
             今すぐ受付中にする
           </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4 text-center">
           <p className="text-sm font-bold text-slate-600">今すぐ受付中ではありません</p>
+          {!readOnly && (
           <button
             type="button"
             onClick={() => handle(true)}
@@ -162,6 +170,7 @@ export function CastImasugu({
           >
             {loading ? '処理中...' : '今すぐ受付中にする'}
           </button>
+          )}
         </div>
       )}
 

@@ -35,7 +35,7 @@ const TONES = {
   },
 } as const;
 
-export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, guideHref, aboutHref, showLinked = false }: {
+export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, guideHref, aboutHref, showLinked = false, viewHref }: {
   salonId: number | null;
   /** 「招待する／確認する」の行き先（そのセラピストの編集ページ） */
   editHref: (therapistId: string) => string;
@@ -47,6 +47,8 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
   onToast?: (m: string) => void;
   /** ★ 第1776便: 未連携の一覧の下に「連携済みの方」の一覧も出す */
   showLinked?: boolean;
+  /** ★ 第1777便: 連携済みの方の「ページを見る」（オーナー様が見るだけで開く）の行き先。無ければ出さない */
+  viewHref?: (therapistId: string) => string;
 }) {
   const T = TONES[tone];
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -176,6 +178,12 @@ export function CastLinkProgress({ salonId, editHref, tone = 'indigo', onToast, 
                   <span className="block truncate text-[14px] text-slate-700">{g.name || '（名前なし）'}</span>
                   <span className="block text-[12px] text-emerald-600">連携済み</span>
                 </span>
+                {viewHref && (
+                  <a href={viewHref(g.id)} target="_blank" rel="noopener noreferrer"
+                    className={`flex-none h-8 px-3 inline-flex items-center border bg-white text-[12.5px] font-bold ${T.btn}`}>
+                    ページを見る
+                  </a>
+                )}
                 <Link href={editHref(g.id)}
                   className={`flex-none h-8 px-3 inline-flex items-center border text-[12.5px] font-bold ${T.btn}`}>
                   確認する

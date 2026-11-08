@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CastCardTitle } from './CastCardTitle';
+import { useCastView } from './CastView';
 import { getCastShift, saveCastShift, type CastShiftData, type CastShiftDay } from '@/app/actions/shift';
 import { endOptions, minLabel, shiftDateLabel, shiftDateTone, shiftDayState, startOptions, type ShiftDayState } from '@/lib/shift';
 
@@ -53,6 +54,8 @@ function initDraft(d: CastShiftDay): Draft {
 }
 
 export function CastShift() {
+  // ★ 第1777便: オーナー様が見るだけで開いているとき（希望は書き換えられない・提出ボタンを出さない）
+  const { viewAs, readOnly } = useCastView();
   const [data, setData] = useState<CastShiftData | null>(null);
   const [error, setError] = useState('');
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
@@ -60,13 +63,13 @@ export function CastShift() {
   const [msg, setMsg] = useState('');
 
   const load = useCallback(async () => {
-    const r = await getCastShift().catch(() => null);
+    const r = await getCastShift(viewAs).catch(() => null);
     if (!r) { setError('読み込めませんでした。しばらくしてから開き直してください。'); return; }
     if (!r.ok) { setError(r.error); return; }
     setError('');
     setData(r.data);
     setDrafts(Object.fromEntries(r.data.next.days.map((d) => [d.date, initDraft(d)])));
-  }, []);
+  }, [viewAs]);
   useEffect(() => { void load(); }, [load]);
 
   // 変えた日（元の希望と違う日）
@@ -112,11 +115,11 @@ export function CastShift() {
         <div className="flex items-center justify-between gap-2">
           <CastCardTitle icon="list">シフト提出（{md(data.next.from)}〜{md(data.next.to)}）</CastCardTitle>
         </div>
-        <p className="mt-2 text-[12px] text-slate-500 leading-relaxed">出勤したい日に「出勤する」を付けて時間を選び、下の「提出する」を押してください。お店が確定するまでは何度でも書き直せます。確定した後の変更は直接お店にお伝えください。</p>
+        {!readOnly && <p className="mt-2 text-[12px] text-slate-500 leading-relaxed">出勤したい日に「出勤する」を付けて時間を選び、下の「提出する」を押してください。お店が確定するまでは何度でも書き直せます。確定した後の変更は直接お店にお伝えください。</p>}
         <ul className="mt-3 divide-y divide-pink-50">
           {data.next.days.map((d) => {
             const st = shiftDayState(d.req, d.sched);
-            const locked = d.req?.status === 'confirmed';
+            const locked = readOnly || d.req?.status === 'confirmed';
             const dr = drafts[d.date];
             return (
               <li key={d.date} className="py-3">
@@ -159,10 +162,12 @@ export function CastShift() {
           })}
         </ul>
         {msg && <p className="mt-2 text-[13px] font-bold text-pink-600">{msg}</p>}
+        {!readOnly && (
         <button type="button" onClick={() => void onSave()} disabled={saving || dirty.length === 0}
           className="mt-3 w-full min-h-[48px] rounded-2xl bg-gradient-to-r from-pink-500 to-orange-400 text-white text-[15px] font-black disabled:opacity-40">
           {saving ? '提出しています…' : dirty.length > 0 ? `提出する（${dirty.length}日）` : '提出する'}
         </button>
+        )}
       </div>
 
       {/* ── 今の期間（見るだけ）── */}

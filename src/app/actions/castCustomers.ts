@@ -3,11 +3,13 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { businessDateJSTFrom, DAY_START_HOUR } from '@/lib/dutyStatus';
+import { resolveCastTarget } from '@/app/lib/castTarget';
 
 // ★ 第496便: /cast お客様記録帳（セラピスト本人だけの手帳）。
 // 表 cast_customer_logs は anon/authenticated を閉じてあるので、ここで
 // ログイン中の user_id → therapists.id を確かめてから service_role で読み書きする（castImasugu と同じ流儀）。
-// ★ お店（オーナー）・運営画面からは読まない。この表を他の画面で使わないこと。
+// ★ 第1777便（カッキーさん）: 店舗オーナー様・運営も【見るだけ】で読める（listCustomerLogs・getRecordMonth の viewAs）。
+//   書き込み（add/update/delete）は今までどおり本人だけ。
 // ★ 第518便: お客様記録帳と報酬帳を「記録帳」にまとめた。1行にコース金額（amount・空欄可）を持たせ、
 //   今日の報酬・カレンダーの日ごとの合計は、この金額を営業日（朝6時区切り）で足して出す。
 //   旧報酬帳（cast_earnings）の分も合計には足す（新しい入力は記録帳だけ）。
@@ -80,8 +82,8 @@ function clean(input: LogInput):
 }
 
 // query: 名前の部分一致（空は全部）／day: 営業日 YYYY-MM-DD で絞る（空は全部）
-export async function listCustomerLogs(query: string, day = ''): Promise<Result<{ logs: CustomerLog[]; total: number }>> {
-  const tid = await myTherapistId();
+export async function listCustomerLogs(query: string, day = '', viewAs: number | null = null): Promise<Result<{ logs: CustomerLog[]; total: number }>> {
+  const tid = (await resolveCastTarget(viewAs))?.therapistId ?? null;
   if (tid == null) return { ok: false, error: 'ログインし直してください' };
   const svc = createServiceClient();
   const { data, error } = await svc
@@ -160,9 +162,9 @@ export async function deleteCustomerLog(id: number): Promise<Result<object>> {
 // ★ 第518便: 月の日ごとの報酬（営業日ごと）。ym は "YYYY-MM"。
 //   total ＝ 記録帳のコース金額＋旧報酬帳（cast_earnings）の金額。count ＝ 記録帳の件数＋旧報酬帳の人数。oldTotal ＝ 旧報酬帳の分だけ。
 //   ★ 営業日は朝6時区切りなので、served_at は「月初の朝6時 〜 翌月初の朝6時（JST）」で引く。
-export async function getRecordMonth(ym: string): Promise<Result<{ days: Record<string, DaySum> }>> {
+export async function getRecordMonth(ym: string, viewAs: number | null = null): Promise<Result<{ days: Record<string, DaySum> }>> {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(ym)) return { ok: false, error: '月が正しくありません' };
-  const tid = await myTherapistId();
+  const tid = (await resolveCastTarget(viewAs))?.therapistId ?? null;
   if (tid == null) return { ok: false, error: 'ログインし直してください' };
   const [y, m] = ym.split('-').map(Number);
   const nextYm = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;

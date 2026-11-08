@@ -15,6 +15,7 @@ import { CastImasugu } from './CastImasugu';
 import { CastCustomers } from './CastCustomers';
 import { CastSchedule } from './CastSchedule';
 import { CastShift } from './CastShift';
+import { useCastView } from './CastView';
 import { getCastUpcomingBookings, type CastUpcomingBooking } from '@/app/actions/castSchedule';
 import { readSeenBookings, writeSeenBookings } from '@/lib/castSeenBookings';
 
@@ -101,6 +102,8 @@ export function CastTabs({
   /** ★ 第1209便: スケジュールで最初に開く日（/cast?tab=schedule&date=YYYY-MM-DD）。無ければ今日。 */
   initialScheduleDate?: string | null;
 }) {
+  // ★ 第1777便: オーナー様が見るだけで開いているときは viewAs（読み取りに渡す）
+  const { viewAs } = useCastView();
   const tabs: ReadonlyArray<readonly [CastTab, string]> = [
     ...TABS,
     ...(castScheduleEnabled ? [['schedule', 'スケジュール'] as const] : []),
@@ -138,9 +141,9 @@ export function CastTabs({
     if (!castScheduleEnabled) return;
     let alive = true;
     // ★ 読めなかったときはバッジを出さない（0件と書かない・画面は止めない）
-    getCastUpcomingBookings().then((r) => { if (alive && r.ok) applyUpcoming(r.items); }).catch(() => {});
+    getCastUpcomingBookings(viewAs).then((r) => { if (alive && r.ok) applyUpcoming(r.items); }).catch(() => {});
     return () => { alive = false; };
-  }, [castScheduleEnabled, applyUpcoming]);
+  }, [castScheduleEnabled, applyUpcoming, viewAs]);
 
   const [reward, setReward] = useState({ total: todayReward, count: todayRewardCount });
   const onTodayChange = useCallback((total: number, count: number) => setReward({ total, count }), []);
@@ -159,7 +162,7 @@ export function CastTabs({
     viewingScheduleRef.current = key === 'schedule';
     if (key === 'schedule' && castScheduleEnabled) {
       if (upcoming) { writeSeenBookings(therapistId, upcoming.map((b) => b.sig)); setScheduleBadge(0); }
-      getCastUpcomingBookings().then((r) => { if (r.ok) applyUpcoming(r.items); }).catch(() => {});
+      getCastUpcomingBookings(viewAs).then((r) => { if (r.ok) applyUpcoming(r.items); }).catch(() => {});
     }
     const el = topRef.current;
     if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ behavior: 'smooth', block: 'start' });

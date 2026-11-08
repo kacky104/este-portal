@@ -936,6 +936,7 @@ export default function TherapistEditPage() {
             <CastLinkField
               therapistId={Number(therapistId)}
               salonId={Number(therapist.salon_id)}
+              viewHref={`/mypage/cast-view/${encodeURIComponent(String(therapistId))}`}
               onToast={showToast}
               tone="pink"
               note={(

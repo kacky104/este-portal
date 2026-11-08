@@ -14,6 +14,7 @@
 
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { resolveCastTarget } from '@/app/lib/castTarget';
 import { getBusinessDateJST, getCalendarDateJST } from '@/lib/dutyStatus';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 import { readConecfGirlOrder } from '@/app/lib/conecf/girlOrder';
@@ -70,6 +71,15 @@ async function readSchedules(svc: Svc, therapistIds: number[], from: string, to:
 
 // ══════════════ セラピスト（/cast「シフト提出」）══════════════
 
+/** ★ 第1777便: 読み取りだけ。viewAs があれば、その店のオーナー様・運営が見るだけで読む（lib/castTarget.ts） */
+async function resolveCastRead(viewAs: number | null) {
+  const t = await resolveCastTarget(viewAs);
+  if (!t) return { ok: false as const, error: 'セラピストが見つかりません' };
+  const svc = createServiceClient();
+  if (!(await shiftOnForSalon(svc, t.salonId))) return { ok: false as const, error: NOT_OPEN };
+  return { ok: true as const, svc, therapistId: t.therapistId, salonId: t.salonId };
+}
+
 async function resolveCast() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -96,8 +106,8 @@ export type CastShiftData = {
   next: { from: string; to: string; days: CastShiftDay[] };
 };
 
-export async function getCastShift(): Promise<Result<CastShiftData>> {
-  const r = await resolveCast();
+export async function getCastShift(viewAs: number | null = null): Promise<Result<CastShiftData>> {
+  const r = await resolveCastRead(viewAs);
   if (!r.ok) return r;
   const st = await readSettings(r.svc, r.salonId);
   const p = shiftPeriods(st.period, getBusinessDateJST());

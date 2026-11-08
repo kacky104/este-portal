@@ -404,7 +404,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
             />
             {/* ★ 第868便（カッキーさん）: /cast（セラピスト本人のページ）へ連携するメールアドレス。★ 保存とは別に、その場で招待メールを送る */}
             <Field label="セラピストページ連携">
-              <CastLinkField therapistId={id} salonId={d.salonId} onToast={onToast} autoOpenLink={autoInv} onAutoClosed={() => setAutoInv(false)} therapistName={form.name} />
+              <CastLinkField therapistId={id} salonId={d.salonId} onToast={onToast} autoOpenLink={autoInv} onAutoClosed={() => setAutoInv(false)} therapistName={form.name} viewHref={href(`/cast-view/${id}`)} />
             </Field>
             {/* ★★ 第446便（カッキーさん）: スタイル・タイプの欄はやめた（★ どこにも送っておらず、
                 ★ 同じ役目のものが「各サイト項目」にサイトごとに在る）。★ 入っている値は消していない */}

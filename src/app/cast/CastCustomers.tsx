@@ -8,6 +8,7 @@
 // 読み書きは actions/castCustomers（本人確認つき service_role）。★ お店・運営には出さない。
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCastView } from './CastView';
 import {
   listCustomerLogs, addCustomerLog, updateCustomerLog, deleteCustomerLog, getRecordMonth,
   type CustomerLog, type DaySum,
@@ -124,6 +125,8 @@ function LogFields({ form, setForm, names, withHelp = false }: { form: Form; set
 }
 
 export function CastCustomers({ today, onTodayChange }: { today: string; onTodayChange?: (total: number, count: number) => void }) {
+  // ★ 第1777便: オーナー様が見るだけで開いているとき（読み取りに viewAs を渡す・記録する／直す／削除は出さない）
+  const { viewAs, readOnly } = useCastView();
   const [logs, setLogs] = useState<CustomerLog[]>([]);
   const [total, setTotal] = useState(0);
   const [allNames, setAllNames] = useState<string[]>([]);
@@ -153,7 +156,7 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
 
   const load = useCallback(async (q: string, d: string) => {
     setLoading(true);
-    const res = await listCustomerLogs(q, d);
+    const res = await listCustomerLogs(q, d, viewAs);
     if (res.ok) {
       setLogs(res.logs);
       setTotal(res.total);
@@ -169,7 +172,7 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
       setLoadError(res.error);
     }
     setLoading(false);
-  }, []);
+  }, [viewAs]);
 
   // 検索は打ち終わって少し待ってから
   // 検索・日付を変えたら一覧は最初の10件に戻す
@@ -185,7 +188,7 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
   useEffect(() => {
     let alive = true;
     const want = Array.from(new Set([todayYm, ym]));
-    Promise.all(want.map((m) => getRecordMonth(m))).then((rs) => {
+    Promise.all(want.map((m) => getRecordMonth(m, viewAs))).then((rs) => {
       if (!alive) return;
       const next: Record<string, Record<string, DaySum>> = {};
       let err = '';
@@ -194,7 +197,7 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
       setSumError(err);
     });
     return () => { alive = false; };
-  }, [todayYm, ym, sumTick]);
+  }, [todayYm, ym, sumTick, viewAs]);
 
   const refresh = async () => {
     setSumTick((t) => t + 1);
@@ -303,7 +306,6 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
           <span className="text-xs font-bold text-slate-600">{tm}月の合計</span>
           <span className="text-base font-black tabular-nums text-slate-800">{yen(todayMonthTotal)}</span>
         </div>
-        <p className="mt-2 text-[11px] text-slate-500">あなただけが見られます。お店には表示されません。</p>
       </div>
       {sumError && <p className="text-xs font-bold text-red-500">{sumError}</p>}
 
@@ -352,7 +354,8 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
         </div>
       )}
 
-      {/* ── 記録を足す ── */}
+      {/* ── 記録を足す ──（★ 第1777便: オーナー様が見るだけのときは出さない） */}
+      {!readOnly && (
       <div className="bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
         <LogFields form={form} setForm={setForm} names={names} withHelp />
         {error && <p className="text-xs font-bold text-red-500">{error}</p>}
@@ -366,6 +369,7 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
           {saving ? '保存中…' : '記録する'}
         </button>
       </div>
+      )}
 
       {/* ── 検索と一覧 ── */}
       <div className="bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm p-5 space-y-3">
@@ -418,7 +422,7 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[11px] text-slate-400 tabular-nums">{formatJst(l.servedAt)}</span>
-                    <span className="ml-auto flex items-center gap-1">
+                    {!readOnly && <span className="ml-auto flex items-center gap-1">
                       <button type="button" onClick={() => startEdit(l)} className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-slate-400 hover:text-pink-600">直す</button>
                       {confirmDeleteId === l.id ? (
                         <>
@@ -428,7 +432,7 @@ export function CastCustomers({ today, onTodayChange }: { today: string; onToday
                       ) : (
                         <button type="button" onClick={() => setConfirmDeleteId(l.id)} className="px-2 py-0.5 rounded-lg text-[11px] font-bold text-slate-400 hover:text-red-500">削除</button>
                       )}
-                    </span>
+                    </span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => { setDay(''); setQuery(l.name); }} className="min-w-0 truncate text-sm font-black text-slate-800 hover:text-pink-600 text-left">{l.name}</button>

@@ -31,7 +31,7 @@ const TONES = {
 type Status = { status: 'linked' | 'invited' | 'none'; email: string | null };
 
 // ★ 第871便: note を渡すと下の説明文を差し替える（写メ日記タブでは写メ日記向けの説明）
-export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'indigo', autoOpenLink = false, therapistName, onAutoClosed }: { therapistId: number; salonId: number; onToast: (m: string) => void; note?: ReactNode; tone?: keyof typeof TONES; autoOpenLink?: boolean; therapistName?: string; onAutoClosed?: () => void }) {
+export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'indigo', autoOpenLink = false, therapistName, onAutoClosed, viewHref }: { therapistId: number; salonId: number; onToast: (m: string) => void; note?: ReactNode; tone?: keyof typeof TONES; autoOpenLink?: boolean; therapistName?: string; onAutoClosed?: () => void; /** ★ 第1777便: 連携済みのとき「ページを見る」（オーナー様が見るだけで開く）の行き先 */ viewHref?: string }) {
   const T = TONES[tone];
   const INPUT = T.input;
   const BTN = T.btn;
@@ -122,8 +122,15 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
         <div className="flex flex-wrap items-center gap-3 pt-1.5">
           <span className="text-[14px] font-bold text-emerald-600">✓ 連携済み</span>
           {st.email && <span className="text-[14px] text-slate-700 break-all">{maskEmail(st.email)}</span>}
+          {/* ★ 第1777便（カッキーさん）: セラピストページを見るだけで開く（別のタブ） */}
+          {viewHref && (
+            <a href={viewHref} target="_blank" rel="noopener noreferrer"
+              className={`${BTN} ml-auto inline-flex items-center border bg-white`}>
+              ページを見る
+            </a>
+          )}
           <button type="button" disabled={busy} onClick={() => void onUnlink()}
-            className={`${BTN} ml-auto border-slate-300 bg-white text-slate-500 hover:border-rose-300 hover:text-rose-600`}>
+            className={`${BTN} ${viewHref ? '' : 'ml-auto '}border-slate-300 bg-white text-slate-500 hover:border-rose-300 hover:text-rose-600`}>
             {busy ? '処理中…' : '連携を解除'}
           </button>
         </div>

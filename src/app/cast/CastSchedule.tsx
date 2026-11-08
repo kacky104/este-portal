@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCastView } from './CastView';
 import { getCastScheduleDay, setCastCustomerNickname, type CastScheduleBooking, type CastScheduleDay, type CastUpcomingBooking } from '@/app/actions/castSchedule';
 import { CRM_NOMINATION_CLASS } from '@/app/lib/crm/types';
 import { addBusinessDays, getBusinessDateJST } from '@/lib/dutyStatus';
@@ -45,6 +46,8 @@ export function CastSchedule({
   upcoming = null,
   newSigs,
 }: { initialDate?: string | null; upcoming?: CastUpcomingBooking[] | null; newSigs?: Set<string> } = {}) {
+  // ★ 第1777便: オーナー様が見るだけで開いているとき
+  const { viewAs } = useCastView();
   const today = useMemo(() => getBusinessDateJST(), []);
   const [date, setDate] = useState(initialDate && /^\d{4}-\d{2}-\d{2}$/.test(initialDate) ? initialDate : today);
   const [res, setRes] = useState<{ date: string; day: CastScheduleDay | null; err: string } | null>(null);
@@ -74,12 +77,12 @@ export function CastSchedule({
 
   useEffect(() => {
     let alive = true;
-    getCastScheduleDay(date).then((r) => {
+    getCastScheduleDay(date, viewAs).then((r) => {
       if (!alive) return;
       setRes(r.ok ? { date, day: r.day, err: '' } : { date, day: null, err: r.error });
     });
     return () => { alive = false; };
-  }, [date]);
+  }, [date, viewAs]);
 
   useEffect(() => {
     const tick = () => setNowMin(nowMinOf(date));
@@ -286,7 +289,7 @@ export function CastSchedule({
           onSaved={(nickname) => {
             // ★ 同じお客様の別の予約（同じ日のほかの枠）にもそのまま効くように、その日を読み直す
             setPicked((p) => (p ? { ...p, nickname } : p));
-            getCastScheduleDay(date).then((r) => {
+            getCastScheduleDay(date, viewAs).then((r) => {
               if (r.ok) setRes({ date, day: r.day, err: '' });
             });
           }}
@@ -355,14 +358,19 @@ function BookingPopup({ b, date, onClose, onSaved }: { b: CastScheduleBooking; d
   );
 }
 
-// ニックネーム（第630便）。★ セラピスト本人だけのお客様の呼び名。お店・ほかのセラピストには見えない。
+// ニックネーム（第630便）。★ セラピスト本人だけのお客様の呼び名。ほかのセラピストには見えない（★ 第1777便からお店のオーナー様は見るだけで見られる）。
 // ★ お客様は電話番号で同じ人とまとめているので、次に同じお客様が予約すると同じニックネームが出る。
 function NicknameLine({ b, onSaved }: { b: CastScheduleBooking; onSaved: (nickname: string) => void }) {
+  // ★ 第1777便: オーナー様が見るだけのときは、付いているニックネームを見せるだけ
+  const { readOnly } = useCastView();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(b.nickname);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
+  if (readOnly) {
+    return b.nickname ? <p className="mt-1"><span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[13px] font-bold text-violet-700">{b.nickname}</span></p> : null;
+  }
   if (!b.canNickname) {
     return <p className="mt-1 text-[12px] text-slate-400">電話番号が無い予約には、ニックネームを付けられません</p>;
   }
@@ -411,7 +419,6 @@ function NicknameLine({ b, onSaved }: { b: CastScheduleBooking; onSaved: (nickna
       <div className="mt-1 flex items-center gap-3 text-[12px]">
         <button type="button" disabled={busy} onClick={() => { setEditing(false); setErr(''); }} className="font-bold text-slate-400">やめる</button>
         {b.nickname && <button type="button" disabled={busy} onClick={() => save('')} className="font-bold text-rose-400">消す</button>}
-        <span className="ml-auto text-slate-400">あなただけに見えます</span>
       </div>
       {err && <p className="mt-1 text-[12px] font-bold text-rose-600">{err}</p>}
     </div>

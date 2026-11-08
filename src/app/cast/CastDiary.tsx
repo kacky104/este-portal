@@ -11,6 +11,7 @@
 import { CastCardTitle } from './CastCardTitle';
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useCastView } from './CastView';
 import { listMyDiaries, createMyDiaryUploadUrl, postMyDiary, updateMyDiary, deleteMyDiary } from '@/app/actions/castDiary';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -91,6 +92,8 @@ export function CastDiary({
   salonId: number;
   xProfileId: string | null; // 連携 fukuX プロフィール id（非連携は null＝同時投稿UIを出さない）
 }) {
+  // ★ 第1777便: オーナー様が見るだけで開いているとき
+  const { readOnly } = useCastView();
   // ── 簡易トースト（/cast はサーバーコンポーネントで showToast が無いためローカルで持つ） ──
   const [toast, setToast] = useState('');
   const showToast = useCallback((msg: string) => {
@@ -348,6 +351,8 @@ export function CastDiary({
 
   return (
     <div className="space-y-5">
+      {/* ★ 第1777便: オーナー様が見るだけのときは投稿フォームを出さない */}
+      {!readOnly && (<>
       {/* ── 投稿フォーム ──
           ★ 第492便（カッキーさん）: アコーディオン（<details>）。★ 見出しを押すと開閉。既定は閉じる */}
       <details className="group bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
@@ -489,6 +494,7 @@ export function CastDiary({
         </div>
         </div>
       </details>
+      </>)}
 
       {/* ── 投稿済み日記一覧（自分の分のみ）。★ 第492便: アコーディオン（既定は閉じる） ── */}
       <details className="group bg-white/85 backdrop-blur-sm rounded-3xl border border-pink-100 shadow-sm overflow-hidden">
@@ -600,6 +606,7 @@ export function CastDiary({
                       {post.title && <p className="text-sm font-bold text-slate-800 truncate">{post.title}</p>}
                       <p className="text-[10px] text-slate-400 mt-0.5">📅 {formatDateTime(post.createdAt)}</p>
                     </div>
+                    {!readOnly && (
                     <div className="flex flex-col gap-1.5 flex-shrink-0">
                       <button
                         type="button"
@@ -617,6 +624,7 @@ export function CastDiary({
                         {deletingId === post.id ? '削除中...' : '削除'}
                       </button>
                     </div>
+                    )}
                   </div>
                 )}
               </div>
