@@ -1,0 +1,347 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { getHpAnalytics, type HpAnalytics, type HpTotals } from '@/app/actions/hpAnalytics';
+import { jstDayHour } from '@/lib/hpStats';
+
+// ★ 第1792便（カッキーさん・2026-11-08・オイルクエスト様のご要望）: 公式HP（フクエスサイト）のアクセス解析の画面。
+//   ★ すぐる君（GA4＋Looker Studio）と同じく見やすいタブ。★ そのうえで「電話・LINE につながった流入元」「時間帯」「ひとこと」を足した。
+//   ★ コネックエフ（/analytics）と公式HP管理（/hp/{slug}/admin の「アクセス解析」）で同じ部品を使う。
+//   ★ 色: 1系列の棒は1色（青）。時間帯の表は青の濃淡（多いほど濃い）。増減の矢印は文字＋記号（色だけにしない）。
+
+type Tab = 'summary' | 'sources' | 'pages' | 'therapists' | 'hours' | 'help';
+const TABS: Array<[Tab, string]> = [
+  ['summary', 'サマリー'], ['sources', '流入元'], ['pages', 'ページ'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方'],
+];
+const BLUE = '#2563eb';
+const nf = (n: number) => n.toLocaleString('ja-JP');
+
+function addDays(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function monthRange(today: string, back: number): [string, string] {
+  const [y, m] = today.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1 - back, 1));
+  const last = back === 0 ? new Date(`${today}T00:00:00Z`) : new Date(Date.UTC(y, m - back, 0));
+  return [first.toISOString().slice(0, 10), last.toISOString().slice(0, 10)];
+}
+
+function Delta({ cur, prev }: { cur: number; prev: number }) {
+  if (prev <= 0) return <span className="text-[12px] text-slate-400">前の期間 0</span>;
+  const p = Math.round(((cur - prev) / prev) * 100);
+  if (p === 0) return <span className="text-[12px] text-slate-500">± 0%</span>;
+  return <span className={`text-[12px] font-bold ${p > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>{p > 0 ? '▲' : '▼'} {Math.abs(p)}%</span>;
+}
+
+export function HpAnalyticsView({ salonId }: { salonId: number }) {
+  const today = useMemo(() => jstDayHour(Date.now()).day, []);
+  const [range, setRange] = useState<[string, string]>([addDays(today, -27), today]);
+  const [preset, setPreset] = useState('28');
+  const [tab, setTab] = useState<Tab>('summary');
+  const [res, setRes] = useState<{ key: string; data: HpAnalytics | null; err: string } | null>(null);
+  const key = `${salonId}|${range[0]}|${range[1]}`;
+
+  useEffect(() => {
+    let alive = true;
+    getHpAnalytics({ salonId, from: range[0], to: range[1] })
+      .then((r) => { if (alive) setRes(r.ok ? { key, data: r.data, err: '' } : { key, data: null, err: r.error }); })
+      .catch(() => { if (alive) setRes({ key, data: null, err: '読み込めませんでした。しばらくしてから開き直してください。' }); });
+    return () => { alive = false; };
+  }, [salonId, range, key]);
+
+  const pick = (p: string) => {
+    setPreset(p);
+    if (p === '7') setRange([addDays(today, -6), today]);
+    else if (p === '28') setRange([addDays(today, -27), today]);
+    else if (p === '90') setRange([addDays(today, -89), today]);
+    else if (p === 'month') setRange(monthRange(today, 0));
+    else if (p === 'lastmonth') setRange(monthRange(today, 1));
+  };
+
+  const loading = !res || res.key !== key;
+  const d = !loading ? res.data : null;
+
+  return (
+    <div className="space-y-4">
+      {/* 期間 */}
+      <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-white p-3">
+        <span className="text-[13px] font-bold text-slate-600">期間</span>
+        {([['7', '7日'], ['28', '28日'], ['90', '90日'], ['month', '今月'], ['lastmonth', '先月']] as const).map(([k, l]) => (
+          <button key={k} type="button" onClick={() => pick(k)}
+            className={`border px-3 py-1.5 text-[13px] font-bold ${preset === k ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}>{l}</button>
+        ))}
+        <span className="ml-1 flex items-center gap-1 text-[13px] text-slate-500">
+          <input type="date" value={range[0]} max={range[1]} onChange={(e) => { if (e.target.value) { setPreset(''); setRange([e.target.value, range[1]]); } }} className="border border-slate-300 px-1.5 py-1 text-[13px]" />
+          〜
+          <input type="date" value={range[1]} min={range[0]} max={today} onChange={(e) => { if (e.target.value) { setPreset(''); setRange([range[0], e.target.value]); } }} className="border border-slate-300 px-1.5 py-1 text-[13px]" />
+        </span>
+        {d && <span className="ml-auto text-[12px] text-slate-400">くらべる期間：{d.prevFrom.slice(5).replace('-', '/')}〜{d.prevTo.slice(5).replace('-', '/')}</span>}
+      </div>
+
+      {loading ? (
+        <p className="border border-slate-200 bg-white p-8 text-center text-[14px] text-slate-400">読み込み中…</p>
+      ) : !d ? (
+        <p className="border border-rose-200 bg-rose-50 p-4 text-[14px] font-bold text-rose-700">{res?.err}</p>
+      ) : !d.site ? (
+        <p className="border border-slate-200 bg-white p-6 text-[14px] leading-relaxed text-slate-600">
+          公式ホームページ（フクエスサイト）を公開しているお店で使えます。公式ホームページを公開すると、その日から自動で数え始めます。
+        </p>
+      ) : (
+        <>
+          {/* ひとこと */}
+          {d.insights.length > 0 && (
+            <div className="border-l-4 border-blue-500 bg-blue-50 px-4 py-3">
+              <p className="mb-1 text-[12px] font-black text-blue-800">この期間のひとこと</p>
+              <ul className="space-y-0.5 text-[14px] leading-relaxed text-slate-800">
+                {d.insights.map((s, i) => <li key={i}>・{s}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <Tiles cur={d.totals} prev={d.prev} />
+
+          {/* タブ */}
+          <div className="flex flex-wrap gap-1 border-b border-slate-200">
+            {TABS.map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setTab(k)}
+                className={`-mb-px border-b-2 px-4 py-2 text-[14px] font-bold ${tab === k ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{l}</button>
+            ))}
+          </div>
+
+          {tab === 'summary' && <Summary d={d} />}
+          {tab === 'sources' && <Sources d={d} />}
+          {tab === 'pages' && <Pages d={d} />}
+          {tab === 'therapists' && <Therapists d={d} />}
+          {tab === 'hours' && <Hours d={d} />}
+          {tab === 'help' && <Help />}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
+  const items: Array<[string, number, number, string]> = [
+    ['人数', cur.users, prev.users, '1日ごとに数えた、見に来た人（端末）の数の合計'],
+    ['はじめての人', cur.newUsers, prev.newUsers, 'この端末ではじめて公式ホームページを見た人'],
+    ['訪問', cur.sessions, prev.sessions, '見に来た回数（同じ人でも、間をあけてまた来たら1回）'],
+    ['閲覧ページ', cur.pv, prev.pv, '見られたページの数'],
+    ['電話タップ', cur.tel, prev.tel, '電話番号のボタンが押された数'],
+    ['LINEタップ', cur.line, prev.line, 'LINE 予約のボタンが押された数'],
+    ['お問い合わせ', cur.contact, prev.contact, 'お問い合わせフォームが送られた数'],
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+      {items.map(([l, c, p, t]) => (
+        <div key={l} title={t} className="border border-slate-200 bg-white px-3 py-2.5 text-center">
+          <p className="text-[12px] font-bold text-slate-500">{l}</p>
+          <p className="text-[24px] font-black tabular-nums text-slate-800">{nf(c)}</p>
+          <Delta cur={c} prev={p} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Bars({ data, label }: { data: Array<{ x: string; v: number; sub?: string }>; label: string }) {
+  const max = Math.max(1, ...data.map((p) => p.v));
+  const step = data.length > 31 ? Math.ceil(data.length / 15) : data.length > 14 ? 2 : 1;
+  return (
+    <div>
+      <p className="mb-1 text-[13px] font-bold text-slate-600">{label}</p>
+      <div className="flex h-[160px] items-end gap-[2px] border-b border-slate-300">
+        {data.map((p) => (
+          <div key={p.x} className="group relative flex h-full flex-1 items-end" title={`${p.x}　${nf(p.v)}${p.sub ? `　${p.sub}` : ''}`}>
+            <div className="w-full rounded-t-[4px] group-hover:opacity-80" style={{ height: `${(p.v / max) * 100}%`, minHeight: p.v > 0 ? 2 : 0, background: BLUE }} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex gap-[2px] text-[10px] text-slate-400">
+        {data.map((p, i) => <div key={p.x} className="flex-1 truncate text-center">{i % step === 0 ? p.x.slice(5).replace('-', '/') : ''}</div>)}
+      </div>
+    </div>
+  );
+}
+
+function Summary({ d }: { d: HpAnalytics }) {
+  const total = d.devices.sp + d.devices.pc;
+  const spPct = total > 0 ? Math.round((d.devices.sp / total) * 100) : 0;
+  return (
+    <div className="space-y-5 border border-slate-200 bg-white p-4">
+      <Bars label="人数の推移（日ごと）" data={d.daily.map((x) => ({ x: x.day, v: x.users, sub: `閲覧 ${nf(x.pv)}・電話 ${x.tel}・LINE ${x.line}` }))} />
+      <Bars label="電話・LINE・お問い合わせの推移（日ごと）" data={d.daily.map((x) => ({ x: x.day, v: x.tel + x.line + x.contact, sub: `電話 ${x.tel}・LINE ${x.line}・お問い合わせ ${x.contact}` }))} />
+      {total > 0 && (
+        <div>
+          <p className="mb-1 text-[13px] font-bold text-slate-600">見ている端末</p>
+          <div className="flex h-5 overflow-hidden border border-slate-200 text-[11px] font-bold text-white">
+            <div className="flex items-center justify-center" style={{ width: `${spPct}%`, background: BLUE }}>{spPct >= 12 ? `スマホ ${spPct}%` : ''}</div>
+            <div className="flex items-center justify-center bg-slate-400" style={{ width: `${100 - spPct}%` }}>{100 - spPct >= 12 ? `パソコン ${100 - spPct}%` : ''}</div>
+          </div>
+          <p className="mt-1 text-[12px] text-slate-500">スマホ {nf(d.devices.sp)}人・パソコン {nf(d.devices.pc)}人</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const th = 'px-2 py-2 text-left text-[12px] font-bold text-slate-500 whitespace-nowrap';
+const td = 'px-2 py-2 text-[13px] tabular-nums text-slate-700 whitespace-nowrap';
+
+function Sources({ d }: { d: HpAnalytics }) {
+  const kindLabel = { search: '検索', direct: '直接', site: '外部サイト' } as const;
+  return (
+    <div className="space-y-2 border border-slate-200 bg-white p-4">
+      <p className="text-[13px] leading-relaxed text-slate-600">どこから見に来て、そこから電話・LINE・お問い合わせにどれだけつながったかが分かります。「つながった率」は、訪問のうち電話・LINE・お問い合わせがあった割合です。</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] border-collapse">
+          <thead><tr className="border-b border-slate-200 bg-slate-50">
+            <th className={th}>流入元</th><th className={th}>種類</th><th className={`${th} text-right`}>人数</th><th className={`${th} text-right`}>訪問</th>
+            <th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>お問い合わせ</th><th className={`${th} text-right`}>つながった率</th>
+            <th className={`${th} text-right`} title="その人が最初に公式ホームページを知った流入元で数えた電話・LINE・お問い合わせ">最初に知った<br />きっかけの成果</th>
+          </tr></thead>
+          <tbody>
+            {d.sources.map((s) => {
+              const out = s.tel + s.line + s.contact;
+              return (
+                <tr key={s.key} className="border-b border-slate-100">
+                  <td className={`${td} font-bold`}>{s.label}{s.label !== s.key && <span className="ml-1 text-[11px] font-normal text-slate-400">{s.key}</span>}</td>
+                  <td className={td}>{kindLabel[s.kind]}</td>
+                  <td className={`${td} text-right`}>{nf(s.users)} <Delta cur={s.users} prev={s.prevUsers} /></td>
+                  <td className={`${td} text-right`}>{nf(s.sessions)}</td>
+                  <td className={`${td} text-right`}>{s.tel || '—'}</td>
+                  <td className={`${td} text-right`}>{s.line || '—'}</td>
+                  <td className={`${td} text-right`}>{s.contact || '—'}</td>
+                  <td className={`${td} text-right font-bold`}>{s.sessions > 0 && out > 0 ? `${Math.round((out / s.sessions) * 1000) / 10}%` : '—'}</td>
+                  <td className={`${td} text-right`}>{s.firstTel + s.firstLine + s.firstContact || '—'}</td>
+                </tr>
+              );
+            })}
+            {d.sources.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Pages({ d }: { d: HpAnalytics }) {
+  return (
+    <div className="space-y-2 border border-slate-200 bg-white p-4">
+      <p className="text-[13px] text-slate-600">どのページがどれだけ見られたか（セラピストのページは「セラピスト」のタブ）。電話・LINE は、そのページを見ているときに押された数です。</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[560px] border-collapse">
+          <thead><tr className="border-b border-slate-200 bg-slate-50">
+            <th className={th}>ページ</th><th className={`${th} text-right`}>閲覧</th><th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>お問い合わせ</th>
+          </tr></thead>
+          <tbody>
+            {d.pages.map((p) => (
+              <tr key={p.key} className="border-b border-slate-100">
+                <td className={`${td} font-bold`}>{p.label}<span className="ml-1 text-[11px] font-normal text-slate-400">{p.key}</span></td>
+                <td className={`${td} text-right`}>{nf(p.pv)} <Delta cur={p.pv} prev={p.prevPv} /></td>
+                <td className={`${td} text-right`}>{p.tel || '—'}</td>
+                <td className={`${td} text-right`}>{p.line || '—'}</td>
+                <td className={`${td} text-right`}>{p.contact || '—'}</td>
+              </tr>
+            ))}
+            {d.pages.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Therapists({ d }: { d: HpAnalytics }) {
+  return (
+    <div className="space-y-2 border border-slate-200 bg-white p-4">
+      <p className="text-[13px] leading-relaxed text-slate-600">セラピストのプロフィールページがどれだけ見られたか。出勤した日数・写メ日記の数と並べると、「日記を出すと見られる」「出勤が多い子ほど見られる」が分かります。</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] border-collapse">
+          <thead><tr className="border-b border-slate-200 bg-slate-50">
+            <th className={th}>セラピスト</th><th className={`${th} text-right`}>閲覧</th><th className={`${th} text-right`}>電話・LINE</th>
+            <th className={`${th} text-right`}>出勤日数</th><th className={`${th} text-right`}>写メ日記</th><th className={`${th} text-right`}>1出勤あたりの閲覧</th>
+          </tr></thead>
+          <tbody>
+            {d.therapists.map((t) => (
+              <tr key={t.id} className="border-b border-slate-100">
+                <td className={`${td} font-bold`}>
+                  <span className="flex items-center gap-2">
+                    {t.imageUrl
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={t.imageUrl} alt="" className="h-8 w-8 flex-none rounded-full object-cover" loading="lazy" />
+                      : <span className="h-8 w-8 flex-none rounded-full bg-slate-100" />}
+                    {t.name}
+                  </span>
+                </td>
+                <td className={`${td} text-right`}>{nf(t.pv)} <Delta cur={t.pv} prev={t.prevPv} /></td>
+                <td className={`${td} text-right`}>{t.tel + t.line || '—'}</td>
+                <td className={`${td} text-right`}>{t.workDays}日</td>
+                <td className={`${td} text-right`}>{t.diaries}件</td>
+                <td className={`${td} text-right`}>{t.workDays > 0 ? Math.round((t.pv / t.workDays) * 10) / 10 : '—'}</td>
+              </tr>
+            ))}
+            {d.therapists.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Hours({ d }: { d: HpAnalytics }) {
+  const [mode, setMode] = useState<'pv' | 'out'>('pv');
+  const grid = mode === 'pv' ? d.heat : d.heatOut;
+  const max = Math.max(1, ...grid.flat());
+  const order = [1, 2, 3, 4, 5, 6, 0]; // 月〜日
+  return (
+    <div className="space-y-3 border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[13px] text-slate-600">何曜日の何時に多いか（日本時間）。濃いほど多い。</p>
+        <span className="ml-auto flex gap-1">
+          {([['pv', '閲覧'], ['out', '電話・LINE・お問い合わせ']] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => setMode(k)}
+              className={`border px-2.5 py-1 text-[12px] font-bold ${mode === k ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-600'}`}>{l}</button>
+          ))}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="border-collapse">
+          <thead><tr><th />{Array.from({ length: 24 }, (_, h) => <th key={h} className="w-7 text-center text-[10px] font-normal text-slate-400">{h}</th>)}</tr></thead>
+          <tbody>
+            {order.map((dow) => (
+              <tr key={dow}>
+                <th className="pr-2 text-right text-[12px] font-bold text-slate-500">{'日月火水木金土'[dow]}</th>
+                {grid[dow].map((v, h) => {
+                  const a = v / max;
+                  return (
+                    <td key={h} title={`${'日月火水木金土'[dow]}曜 ${h}時台：${nf(v)}`} className="h-7 w-7 border border-white text-center text-[10px] tabular-nums"
+                      style={{ background: v > 0 ? `rgba(37,99,235,${0.12 + a * 0.88})` : '#f1f5f9', color: a > 0.55 ? '#fff' : '#334155' }}>
+                      {v > 0 ? v : ''}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Help() {
+  return (
+    <div className="space-y-3 border border-slate-200 bg-white p-4 text-[14px] leading-relaxed text-slate-700">
+      <p className="font-black text-slate-800">見方と使い方</p>
+      <p>・<b>上の数字の ▲▼</b> は、選んだ期間の「すぐ前の同じ長さの期間」とくらべた増減です（28日なら、その前の28日）。</p>
+      <p>・<b>流入元</b>：どこから見に来たか。「つながった率」が高いところは、お客様が来てくれやすい入口です。「最初に知ったきっかけの成果」は、その人がはじめて公式ホームページを知った入口で数えた電話・LINE です（いつもは検索から来る人でも、最初は媒体で知った、が分かります）。</p>
+      <p>・<b>セラピスト</b>：写メ日記を出した期間や出勤が多い期間に、見られる数が増えているかを見てください。</p>
+      <p>・<b>時間帯</b>：電話・LINE が多い時間に出勤を厚くする、媒体の上位表示をその少し前に入れる、などに使えます。</p>
+      <p className="font-black text-slate-800">大事なのは「変化」を追うこと</p>
+      <p>媒体のバナーを変えた・コンセプトのページを作った・ピックアップする女の子を変えた、などのあとで、数字がどう変わったかを見ると、その変更が効いたかどうかが分かります。</p>
+      <p className="text-[12px] text-slate-500">※ 数は公式ホームページに計測を入れた日（2026年11月）からです。人数は1日ごとに数えた合計です（同じ人が2日来たら2人）。年齢・性別は数えていません。</p>
+    </div>
+  );
+}

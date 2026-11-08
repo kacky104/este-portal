@@ -12,7 +12,8 @@ export type HpAdminSection =
   | 'banner'    // バナー
   | 'links'     // リンク（相互リンク）
   | 'contact'   // お問い合わせフォーム（第1717便・2026-11-02）
-  | 'brand';    // ヘッダーのロゴ・ファビコン
+  | 'brand'     // ヘッダーのロゴ・ファビコン
+  | 'analytics'; // ★ 第1792便: アクセス解析（HpAnalyticsView・HpEditor は受け持たない）
 // ★ 'account'（ホームページ担当者のアカウント）は第279便（2026-09-12・カッキーさんの指示）で
 //   画面ごと撤去した。★ 戻すときは、この型・NAV・TITLE・HpAdminApp の4か所を揃えて足すこと。
 // ★★ 'concept'（コンセプト）は第282便（2026-09-12・カッキーさんの指示）で画面をやめ、
@@ -43,6 +44,7 @@ export const HP_ADMIN_NAV: Array<{ key: HpAdminSection; label: string }> = [
   { key: 'links',   label: 'リンク' },
   { key: 'contact', label: 'お問い合わせ' },
   { key: 'brand',   label: 'ロゴ・アイコン' },
+  { key: 'analytics', label: 'アクセス解析' },
 ];
 
 // ★ 画面の頭に出す名前（★ サイドバーの字より少し詳しくてよい）。
@@ -54,4 +56,5 @@ export const HP_ADMIN_TITLE: Record<HpAdminSection, string> = {
   links:   'リンク',
   contact: 'お問い合わせフォーム',
   brand:   'ロゴ・ファビコン',
+  analytics: 'アクセス解析',
 };

@@ -13,6 +13,7 @@ import {
   type HpSite,
 } from '@/app/lib/hpSite';
 import { HpEditor } from './HpEditor';
+import { HpAnalyticsView } from '@/app/components/HpAnalyticsView';
 import { HpShell } from './HpShell';
 import { HP_ADMIN_NAV, type HpAdminSection } from './adminNav';
 
@@ -183,6 +184,9 @@ export function HpAdminApp({
               ★ 画面を移るたびに外していると、保存前に書いた文字が消える。
             確定済み（design_locked=true）: 編集パネル
             未確定:                          「デザインを準備中です」の案内（★ 誰が見ても同じ・第285便） ── */}
+        {/* ★ 第1792便（カッキーさん）: アクセス解析（コネックエフの /analytics と同じ部品） */}
+        {current === 'analytics' && <HpAnalyticsView salonId={site.salon_id} />}
+
         {site.design_locked ? (
           <HpEditor siteKey={siteKey} site={site} contactEmail={ctx.contactEmail} section={current} onSaved={patchSite} onToast={showToast} />
         ) : (

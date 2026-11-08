@@ -8,7 +8,7 @@ export type ConecfNavKey =
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
   | 'diary' | 'news' | 'bump' | 'announce' | 'cocoa'
-  | 'log' | 'matrix'
+  | 'log' | 'matrix' | 'analytics'
   | 'guide' | 'qa';
 
 // ★★ 第462便（カッキーさん）: dense＝名前が長い項目（★ サイドバーで1行に収める。★ 折り返すと読みにくい）
@@ -37,6 +37,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
   { key: 'log',          label: '更新結果',               href: '/log',           group: '記録' },
   { key: 'matrix',       label: '反映の早見表',           href: '/matrix' },
+  // ★ 第1792便（カッキーさん）: 公式ホームページ（フクエスサイト）のアクセス解析
+  { key: 'analytics',    label: 'アクセス解析（公式HP）', href: '/analytics', dense: true },
   { key: 'guide',        label: 'はじめての方へ',         href: '/guide',         group: 'ご案内' },
   { key: 'qa',           label: 'よくあるご質問（Q&A）',   href: '/qa' },
 ];

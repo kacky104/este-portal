@@ -23,6 +23,7 @@ import { hpColorCssVars, hpColorRootClass } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpFooterPageLinks, hpJobsUrl, hpMenuItems, hpTopbarNavItems, type HpPageKey } from '@/app/hp/_lib/sections';
 import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS } from './styles';
+import { hpTrackScript } from '@/app/hp/_lib/trackScript';
 
 /**
  * 外枠の作り。
@@ -292,9 +293,12 @@ export function HpShell({
         <div className="hp-cta">
           {salon.phone && <a className="hp-cta-tel" href={`tel:${salon.phone}`}>電話予約</a>}
           {/* LINE予約だけは他社サービスで計測の必要が無いので noreferrer のまま */}
-          {salon.lineUrl && <a className="hp-cta-line" href={salon.lineUrl} target="_blank" rel="noopener noreferrer">LINE予約</a>}
+          {salon.lineUrl && <a className="hp-cta-line" data-hp-ev="line" href={salon.lineUrl} target="_blank" rel="noopener noreferrer">LINE予約</a>}
         </div>
       )}
+
+      {/* ★ 第1792便: アクセス解析の計測（閲覧・電話/LINE のタップ。中身は src/app/hp/_lib/trackScript.ts） */}
+      <script dangerouslySetInnerHTML={{ __html: hpTrackScript(site.slug) }} />
     </div>
   );
 }

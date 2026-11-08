@@ -37,7 +37,11 @@ export function HpContactForm({ siteKey, preview }: { siteKey: string; preview?:
     setError('');
     try {
       const res = await submitHpContact({ siteKey, name, email, emailConfirm, tel, subject, body, company });
-      if (res.ok) setDone(true);
+      if (res.ok) {
+        setDone(true);
+        // ★ 第1792便: アクセス解析の「お問い合わせ」を1つ数える（計測は trackScript.ts）
+        try { (window as unknown as { __fkHpTrack?: (t: string) => void }).__fkHpTrack?.('contact'); } catch { /* 数えられなくても送信は済んでいる */ }
+      }
       else setError(res.error ?? '送信に失敗しました');
     } catch {
       setError('送信に失敗しました。時間をおいてお試しください');
