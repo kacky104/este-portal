@@ -28,12 +28,23 @@ function monthRange(today: string, back: number): [string, string] {
   return [first.toISOString().slice(0, 10), last.toISOString().slice(0, 10)];
 }
 
+// ★ 第1793便: すぐる君と同じく小数1けたの％（↑ 緑・↓ 赤。記号でも分かる）
 function Delta({ cur, prev }: { cur: number; prev: number }) {
   if (prev <= 0) return <span className="text-[12px] text-slate-400">前の期間 0</span>;
-  const p = Math.round(((cur - prev) / prev) * 100);
-  if (p === 0) return <span className="text-[12px] text-slate-500">± 0%</span>;
-  return <span className={`text-[12px] font-bold ${p > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>{p > 0 ? '▲' : '▼'} {Math.abs(p)}%</span>;
+  const p = Math.round(((cur - prev) / prev) * 1000) / 10;
+  if (p === 0) return <span className="text-[12px] text-slate-500">± 0.0%</span>;
+  return <span className={`text-[12px] font-bold ${p > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{p > 0 ? '↑' : '↓'} {p > 0 ? '+' : ''}{p.toFixed(1)}%</span>;
 }
+
+// ★ 第1793便: タブごとの見出しと説明（すぐる君の「サマリーレポート」の形）
+const TAB_HEAD: Record<Tab, [string, string]> = {
+  summary: ['サマリーレポート', '公式ホームページに来た人数や、電話・LINE が押された数などのおおまかなレポートです'],
+  sources: ['集客レポート', 'お客様がどのサイトから来たのか、そこから電話・LINE にどれだけつながったのかが分かるデータです'],
+  pages: ['ページレポート', 'サイトの中のどのページがどれだけ見られたのかが分かるデータです'],
+  therapists: ['セラピスト別レポート', '登録されているセラピストのページがどれだけ見られたのかが分かるデータです'],
+  hours: ['時間帯レポート', '何曜日の何時に見られて、何時に電話・LINE が来るのかが分かるデータです'],
+  help: ['レポートの活用方法', 'このレポートをお店の集客に役立てるための見方をご紹介します'],
+};
 
 export function HpAnalyticsView({ salonId }: { salonId: number }) {
   const today = useMemo(() => jstDayHour(Date.now()).day, []);
@@ -63,21 +74,40 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
   const loading = !res || res.key !== key;
   const d = !loading ? res.data : null;
 
+  const PRESETS: Array<[string, string]> = [['7', '過去7日'], ['28', '過去28日'], ['90', '過去90日'], ['month', '今月'], ['lastmonth', '先月'], ['', '期間を指定']];
+  const [head, sub] = TAB_HEAD[tab];
+
   return (
     <div className="space-y-4">
-      {/* 期間 */}
-      <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-white p-3">
-        <span className="text-[13px] font-bold text-slate-600">期間</span>
-        {([['7', '7日'], ['28', '28日'], ['90', '90日'], ['month', '今月'], ['lastmonth', '先月']] as const).map(([k, l]) => (
-          <button key={k} type="button" onClick={() => pick(k)}
-            className={`border px-3 py-1.5 text-[13px] font-bold ${preset === k ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}>{l}</button>
+      {/* ★ 第1793便（カッキーさん「すぐる君に寄せて」）: タブは上の中央・青い下線 */}
+      <div className="flex flex-wrap justify-center gap-x-2 border-b border-slate-200 bg-white">
+        {TABS.map(([k, l]) => (
+          <button key={k} type="button" onClick={() => setTab(k)}
+            className={`-mb-px border-b-[3px] px-4 py-3 text-[16px] ${tab === k ? 'border-blue-600 font-bold text-blue-600' : 'border-transparent text-slate-600 hover:text-slate-800'}`}>{l}</button>
         ))}
-        <span className="ml-1 flex items-center gap-1 text-[13px] text-slate-500">
-          <input type="date" value={range[0]} max={range[1]} onChange={(e) => { if (e.target.value) { setPreset(''); setRange([e.target.value, range[1]]); } }} className="border border-slate-300 px-1.5 py-1 text-[13px]" />
-          〜
-          <input type="date" value={range[1]} min={range[0]} max={today} onChange={(e) => { if (e.target.value) { setPreset(''); setRange([range[0], e.target.value]); } }} className="border border-slate-300 px-1.5 py-1 text-[13px]" />
-        </span>
-        {d && <span className="ml-auto text-[12px] text-slate-400">くらべる期間：{d.prevFrom.slice(5).replace('-', '/')}〜{d.prevTo.slice(5).replace('-', '/')}</span>}
+      </div>
+
+      {/* 見出し・説明・期間（右にオレンジの「期間を選択」） */}
+      <div className="flex flex-wrap items-end gap-3 border-b-2 border-blue-500 bg-white px-4 pb-2 pt-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[24px] font-black tracking-wide text-blue-600">{head}</h2>
+          <p className="mt-1 text-[13px] text-slate-600">{sub}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <p className="text-[12px] font-bold text-slate-700">▼表示するデータの期間を変更できます</p>
+          <select value={preset} onChange={(e) => pick(e.target.value)} aria-label="期間を選択"
+            className="min-w-[220px] cursor-pointer rounded-full border-0 bg-amber-400 px-4 py-1.5 text-[13px] font-bold text-slate-800 shadow-sm">
+            {PRESETS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
+          {preset === '' && (
+            <span className="flex items-center gap-1 text-[12px] text-slate-500">
+              <input type="date" value={range[0]} max={range[1]} onChange={(e) => { if (e.target.value) setRange([e.target.value, range[1]]); }} className="border border-slate-300 px-1.5 py-0.5 text-[12px]" />
+              〜
+              <input type="date" value={range[1]} min={range[0]} max={today} onChange={(e) => { if (e.target.value) setRange([range[0], e.target.value]); }} className="border border-slate-300 px-1.5 py-0.5 text-[12px]" />
+            </span>
+          )}
+          <p className="text-[11px] text-slate-400">{range[0].replace(/-/g, '/')} 〜 {range[1].replace(/-/g, '/')}{d ? `（くらべる期間 ${d.prevFrom.slice(5).replace('-', '/')}〜${d.prevTo.slice(5).replace('-', '/')}）` : ''}</p>
+        </div>
       </div>
 
       {loading ? (
@@ -90,8 +120,10 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
         </p>
       ) : (
         <>
-          {/* ひとこと */}
-          {d.insights.length > 0 && (
+          {tab !== 'help' && <Tiles cur={d.totals} prev={d.prev} />}
+
+          {/* ひとこと（サマリーだけ） */}
+          {tab === 'summary' && d.insights.length > 0 && (
             <div className="border-l-4 border-blue-500 bg-blue-50 px-4 py-3">
               <p className="mb-1 text-[12px] font-black text-blue-800">この期間のひとこと</p>
               <ul className="space-y-0.5 text-[14px] leading-relaxed text-slate-800">
@@ -99,16 +131,6 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
               </ul>
             </div>
           )}
-
-          <Tiles cur={d.totals} prev={d.prev} />
-
-          {/* タブ */}
-          <div className="flex flex-wrap gap-1 border-b border-slate-200">
-            {TABS.map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setTab(k)}
-                className={`-mb-px border-b-2 px-4 py-2 text-[14px] font-bold ${tab === k ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>{l}</button>
-            ))}
-          </div>
 
           {tab === 'summary' && <Summary d={d} />}
           {tab === 'sources' && <Sources d={d} />}
@@ -133,11 +155,11 @@ function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
     ['お問い合わせ', cur.contact, prev.contact, 'お問い合わせフォームが送られた数'],
   ];
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+    <div className="grid grid-cols-2 gap-3 bg-[#ececec] p-3 sm:grid-cols-4 lg:grid-cols-7">
       {items.map(([l, c, p, t]) => (
-        <div key={l} title={t} className="border border-slate-200 bg-white px-3 py-2.5 text-center">
-          <p className="text-[12px] font-bold text-slate-500">{l}</p>
-          <p className="text-[24px] font-black tabular-nums text-slate-800">{nf(c)}</p>
+        <div key={l} title={t} className="rounded-lg bg-white px-3 py-3 text-center shadow-sm">
+          <p className="text-[13px] text-slate-600">{l}</p>
+          <p className="mt-0.5 text-[30px] leading-tight tabular-nums text-slate-800">{nf(c)}</p>
           <Delta cur={c} prev={p} />
         </div>
       ))}
@@ -145,21 +167,48 @@ function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
   );
 }
 
+// ★ 第1793便: すぐる君と同じ形の棒グラフ（灰色の台・目盛り線・棒の上に数・下に日付）
+function niceMax(v: number): number {
+  if (v <= 5) return 5;
+  if (v <= 10) return 10;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / p;
+  return (n <= 2 ? 2 : n <= 5 ? 5 : 10) * p;
+}
 function Bars({ data, label }: { data: Array<{ x: string; v: number; sub?: string }>; label: string }) {
-  const max = Math.max(1, ...data.map((p) => p.v));
-  const step = data.length > 31 ? Math.ceil(data.length / 15) : data.length > 14 ? 2 : 1;
+  const max = niceMax(Math.max(1, ...data.map((p) => p.v)));
+  const many = data.length > 45;
+  const step = data.length > 31 ? Math.ceil(data.length / 16) : 1;
   return (
     <div>
-      <p className="mb-1 text-[13px] font-bold text-slate-600">{label}</p>
-      <div className="flex h-[160px] items-end gap-[2px] border-b border-slate-300">
-        {data.map((p) => (
-          <div key={p.x} className="group relative flex h-full flex-1 items-end" title={`${p.x}　${nf(p.v)}${p.sub ? `　${p.sub}` : ''}`}>
-            <div className="w-full rounded-t-[4px] group-hover:opacity-80" style={{ height: `${(p.v / max) * 100}%`, minHeight: p.v > 0 ? 2 : 0, background: BLUE }} />
+      <p className="mb-1.5 text-[15px] font-bold text-slate-700">▼{label}</p>
+      <div className="bg-[#ececec] px-3 pb-2 pt-4">
+        <div className="relative ml-8 h-[190px]">
+          {[0, 0.5, 1].map((r) => (
+            <div key={r} className="pointer-events-none absolute left-0 right-0 border-t border-slate-300" style={{ bottom: `${r * 100}%` }}>
+              <span className="absolute -left-8 -translate-y-1/2 text-[11px] text-slate-600">{nf(Math.round(max * r))}</span>
+            </div>
+          ))}
+          <div className="absolute inset-0 flex items-end gap-[3px] px-1">
+            {data.map((p) => (
+              <div key={p.x} className="group relative flex h-full flex-1 items-end justify-center" title={`${p.x.replace(/-/g, '/')}　${nf(p.v)}${p.sub ? `　${p.sub}` : ''}`}>
+                <div className="relative w-full max-w-[28px] group-hover:opacity-80" style={{ height: `${(p.v / max) * 100}%`, background: BLUE }}>
+                  {!many && p.v > 0 && (
+                    <span className={`absolute left-1/2 -translate-x-1/2 text-[12px] font-bold tabular-nums ${(p.v / max) > 0.12 ? 'top-0.5 text-white' : '-top-4 text-blue-700'}`}>{p.v}</span>
+                  )}
+                </div>
+                {!many && p.v === 0 && <span className="absolute bottom-0.5 text-[11px] text-blue-600">0</span>}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="mt-1 flex gap-[2px] text-[10px] text-slate-400">
-        {data.map((p, i) => <div key={p.x} className="flex-1 truncate text-center">{i % step === 0 ? p.x.slice(5).replace('-', '/') : ''}</div>)}
+        </div>
+        <div className="ml-8 mt-1 flex gap-[3px] px-1">
+          {data.map((p, i) => (
+            <div key={p.x} className="flex-1 overflow-visible whitespace-nowrap text-center text-[10px] text-slate-600">
+              {i % step === 0 ? (data.length <= 16 ? p.x.replace(/-/g, '/') : p.x.slice(5).replace('-', '/')) : ''}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -170,11 +219,11 @@ function Summary({ d }: { d: HpAnalytics }) {
   const spPct = total > 0 ? Math.round((d.devices.sp / total) * 100) : 0;
   return (
     <div className="space-y-5 border border-slate-200 bg-white p-4">
-      <Bars label="人数の推移（日ごと）" data={d.daily.map((x) => ({ x: x.day, v: x.users, sub: `閲覧 ${nf(x.pv)}・電話 ${x.tel}・LINE ${x.line}` }))} />
-      <Bars label="電話・LINE・お問い合わせの推移（日ごと）" data={d.daily.map((x) => ({ x: x.day, v: x.tel + x.line + x.contact, sub: `電話 ${x.tel}・LINE ${x.line}・お問い合わせ ${x.contact}` }))} />
+      <Bars label="人数の推移" data={d.daily.map((x) => ({ x: x.day, v: x.users, sub: `閲覧 ${nf(x.pv)}・電話 ${x.tel}・LINE ${x.line}` }))} />
+      <Bars label="電話・LINE・お問い合わせの推移" data={d.daily.map((x) => ({ x: x.day, v: x.tel + x.line + x.contact, sub: `電話 ${x.tel}・LINE ${x.line}・お問い合わせ ${x.contact}` }))} />
       {total > 0 && (
         <div>
-          <p className="mb-1 text-[13px] font-bold text-slate-600">見ている端末</p>
+          <p className="mb-1.5 text-[15px] font-bold text-slate-700">▼見ている端末</p>
           <div className="flex h-5 overflow-hidden border border-slate-200 text-[11px] font-bold text-white">
             <div className="flex items-center justify-center" style={{ width: `${spPct}%`, background: BLUE }}>{spPct >= 12 ? `スマホ ${spPct}%` : ''}</div>
             <div className="flex items-center justify-center bg-slate-400" style={{ width: `${100 - spPct}%` }}>{100 - spPct >= 12 ? `パソコン ${100 - spPct}%` : ''}</div>
