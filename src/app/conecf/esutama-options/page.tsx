@@ -22,7 +22,8 @@ const DESC: Record<string, string> = {
   job_appeal: '求人情報・お仕事体験談（残りがある行を両方）を、決めた時刻にアピールします。1日10回・毎朝6時に戻ります。',
 };
 const OUTCOME: Record<string, string> = { ok: '押せました', no_remaining: '残り0回でした', no_cast: '出勤時間内のセラピストがいませんでした', not_ready: '準備中' };
-const outcomeText = (o: string | null) => (!o ? '—' : o.startsWith('ok: ') ? `${o.slice(4)}さんを押せました` : OUTCOME[o] ?? (o.startsWith('error') ? 'うまくいきませんでした' : o));
+// ★ 'ok: ◯◯' の◯◯は、セラピストアピールは名前・求人ワンクリックアピールは行の名前（求人情報・お仕事体験談）
+const outcomeText = (o: string | null, key?: string) => (!o ? '—' : o.startsWith('ok: ') ? (key === 'cast_appeal' ? `${o.slice(4)}さんを押せました` : `${o.slice(4)}を押せました`) : OUTCOME[o] ?? (o.startsWith('error') ? 'うまくいきませんでした' : o));
 
 function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (m: string) => void; reload: () => void }) {
   const [auto, setAuto] = useState(o.auto);
@@ -65,7 +66,7 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-3">
         <div>残り回数：<b className="text-slate-800">{o.remaining ?? '—'}</b>回（{when(o.readAt)} 時点）</div>
         <div>最後に押せた：<b className="text-slate-800">{when(o.lastAt)}</b></div>
-        <div>最後の結果：{outcomeText(o.lastOutcome)}</div>
+        <div>最後の結果：{outcomeText(o.lastOutcome, o.key)}</div>
       </div>
       {o.ready && (
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-[14px]">
