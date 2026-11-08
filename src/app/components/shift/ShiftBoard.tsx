@@ -75,11 +75,16 @@ export function ShiftBoard({ onToast, onSeen }: { onToast: (m: string) => void; 
     if (box.firstElementChild) ro.observe(box.firstElementChild);
     return () => ro.disconnect();
   }, [data]);
+  // ★ 第1778便（カッキーさん）: 日付の行は表の外（上に貼り付く箱）に出したので、横の位置も合わせる
+  const headBoxRef = useRef<HTMLDivElement>(null);
   const syncScroll = (from: 'top' | 'box') => {
-    const top = topBarRef.current, box = tableBoxRef.current;
-    if (!top || !box) return;
-    const [src, dst] = from === 'top' ? [top, box] : [box, top];
-    if (Math.abs(dst.scrollLeft - src.scrollLeft) > 0.5) dst.scrollLeft = src.scrollLeft;
+    const top = topBarRef.current, box = tableBoxRef.current, head = headBoxRef.current;
+    const src = from === 'top' ? top : box;
+    if (!src) return;
+    for (const dst of [top, box, head]) {
+      if (!dst || dst === src) continue;
+      if (Math.abs(dst.scrollLeft - src.scrollLeft) > 0.5) dst.scrollLeft = src.scrollLeft;
+    }
   };
 
   // ★★ 第1732便（カッキーさん）: セラピストが希望を出した・書き直したマスに「NEW」。
@@ -284,32 +289,48 @@ export function ShiftBoard({ onToast, onSeen }: { onToast: (m: string) => void; 
       </div>
 
       {/* ── 表 ── ★ 第1727便: 上の横スクロールバー（表が横にはみ出すときだけ） */}
-      {scrollW > clientW + 1 && (
-        <div ref={topBarRef} onScroll={() => syncScroll('top')} className="sticky top-0 z-20 overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
-          <div style={{ width: scrollW, height: 1 }} />
+      {/* ★★ 第1778便（カッキーさん）: 日付の行（と上の横スクロールバー）は、下へスクロールしても画面の上に残る（週間スケジュール 第1775便と同じ）。
+          ★ コネックエフでは見出し（運営の帯など）の下＝--conecf-header-h、マイページでは画面のいちばん上。★ 横の位置は表と同じに動く */}
+      <div className="sticky z-20 -mb-4" style={{ top: 'var(--conecf-header-h, 0px)' }}>
+        {scrollW > clientW + 1 && (
+          <div ref={topBarRef} onScroll={() => syncScroll('top')} className="overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
+            <div style={{ width: scrollW, height: 1 }} />
+          </div>
+        )}
+        <div ref={headBoxRef} className="overflow-hidden border-x border-t border-slate-200 bg-slate-50 shadow-[0_2px_4px_rgba(31,35,51,0.06)]">
+          <table className="table-fixed border-collapse text-[13px]" style={{ width: NAME_W + data.dates.length * 124, minWidth: '100%' }}>
+            <colgroup>
+              <col style={{ width: NAME_W }} />
+              {data.dates.map((d) => <col key={d} style={{ width: 124 }} />)}
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-10 bg-slate-50 border-b border-r border-slate-200 px-2 py-2 text-left font-bold text-slate-600" style={{ width: NAME_W }}>セラピスト</th>
+                {data.dates.map((d) => (
+                  <th key={d} className={`bg-slate-50 border-b border-r border-slate-200 px-1 py-2 font-bold whitespace-nowrap w-[124px] ${shiftDateTone(d)}`}>
+                    {shiftDateLabel(d)}
+                    {/* ★ 第1729便: 希望を出した人数のバッジ（0人は薄く） */}
+                    {/* ★ 第1731便: 押すと、その日に希望を出したセラピストの一覧 */}
+                    <button type="button" onClick={() => setDayList(d)} disabled={(reqPerDate[d] ?? 0) === 0}
+                      className={`mt-0.5 mx-auto flex w-fit min-w-[20px] items-center justify-center px-1.5 text-[11px] font-black leading-[18px] tabular-nums ${
+                      (reqPerDate[d] ?? 0) > 0 ? 'bg-amber-500 text-white hover:bg-amber-600 cursor-pointer' : 'bg-slate-200 text-slate-400 cursor-default'}`} title="希望を出した人数（押すと一覧）">
+                      {reqPerDate[d] ?? 0}名{(reqPerDate[d] ?? 0) > 0 && ' ›'}
+                    </button>
+                    {newPerDate[d] && <span className="mt-0.5 mx-auto flex w-fit px-1 text-[10px] font-black leading-[15px] bg-rose-500 text-white">NEW</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          </table>
         </div>
-      )}
-      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto`}>
+      </div>
+      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto !border-t-0`}>
         {/* ★ 第1730便（カッキーさん）: マスの大きさを中身で変えない。table-fixed＋列の幅を固定・マスの高さも固定（1行目 時間／2行目 状態／3行目 ひとこと等・はみ出しは…） */}
         <table className="table-fixed border-collapse text-[13px]" style={{ width: NAME_W + data.dates.length * 124, minWidth: '100%' }}>
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-10 bg-slate-50 border-b border-r border-slate-200 px-2 py-2 text-left font-bold text-slate-600" style={{ width: NAME_W }}>セラピスト</th>
-              {data.dates.map((d) => (
-                <th key={d} className={`bg-slate-50 border-b border-r border-slate-200 px-1 py-2 font-bold whitespace-nowrap w-[124px] ${shiftDateTone(d)}`}>
-                  {shiftDateLabel(d)}
-                  {/* ★ 第1729便: 希望を出した人数のバッジ（0人は薄く） */}
-                  {/* ★ 第1731便: 押すと、その日に希望を出したセラピストの一覧 */}
-                  <button type="button" onClick={() => setDayList(d)} disabled={(reqPerDate[d] ?? 0) === 0}
-                    className={`mt-0.5 mx-auto flex w-fit min-w-[20px] items-center justify-center px-1.5 text-[11px] font-black leading-[18px] tabular-nums ${
-                    (reqPerDate[d] ?? 0) > 0 ? 'bg-amber-500 text-white hover:bg-amber-600 cursor-pointer' : 'bg-slate-200 text-slate-400 cursor-default'}`} title="希望を出した人数（押すと一覧）">
-                    {reqPerDate[d] ?? 0}名{(reqPerDate[d] ?? 0) > 0 && ' ›'}
-                  </button>
-                  {newPerDate[d] && <span className="mt-0.5 mx-auto flex w-fit px-1 text-[10px] font-black leading-[15px] bg-rose-500 text-white">NEW</span>}
-                </th>
-              ))}
-            </tr>
-          </thead>
+          <colgroup>
+            <col style={{ width: NAME_W }} />
+            {data.dates.map((d) => <col key={d} style={{ width: 124 }} />)}
+          </colgroup>
           <tbody>
             {data.rows.map((t) => (
               <tr key={t.id} className={t.isActive ? '' : 'opacity-50'}>
