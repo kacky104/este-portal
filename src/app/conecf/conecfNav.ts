@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync' | 'placeholder'
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
-  | 'diary' | 'news' | 'bump' | 'announce' | 'cocoa'
+  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'announce' | 'cocoa'
   | 'log' | 'matrix' | 'analytics'
   | 'guide' | 'qa';
 
@@ -30,6 +30,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
   // ★ 第1306便（カッキーさん）: フクエスと駅ちかの上位表示（手で押す・時間帯と間隔で自動で押す）をまとめた画面。今すぐの下
   { key: 'bump',         label: '上位表示設定',           href: '/bump' },
+  // ★ 第1799便: エステ魂の有料オプション（集客ブースト・セラピストアピールなど）。運営が ON にした店だけ（ConecfShell の esutamaOptNav）
+  { key: 'esutamaOpt',   label: 'エステ魂オプション',     href: '/esutama-options' },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
   // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）

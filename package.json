@@ -56,6 +56,7 @@
     "check:mediasort": "tsc src/lib/mediaSort.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediasort-selftest.js",
     "check:relayretry": "tsc src/lib/relayRetry.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/relayretry-selftest.js",
     "check:diaryattach": "tsc src/lib/diaryAttach.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/diaryattach-selftest.js",
+    "check:esutamaoption": "tsc src/lib/esutamaOption.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutamaoption-selftest.js",
     "check:esutamaappeal": "tsc src/lib/esutamaAppeal.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/esutamaappeal-selftest.js",
     "check:dailyshiftnews": "tsc src/lib/dailyShiftNews.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/dailyshiftnews-selftest.js",
     "check:schedulewindow": "tsc src/app/lib/booking/slots.ts src/lib/scheduleFormat.ts --rootDir src --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/schedulewindow-selftest.js",

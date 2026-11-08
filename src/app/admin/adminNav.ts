@@ -30,6 +30,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { id: 'crm-groups', label: 'CRM：グループ・提携店' },
       { id: 'crm-room-share', label: 'CRM：提携店の部屋共有' },
       { id: 'crm-cti', label: 'CRM：着信ポップ（CTI）' },
+      { id: 'esutama-options', label: 'コネックエフ：エステ魂オプション' },
       { id: 'salon-list', label: '掲載店舗一覧' },
     ],
   },

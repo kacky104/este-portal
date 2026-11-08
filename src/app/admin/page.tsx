@@ -24,6 +24,7 @@ import ImportSourceManager from '@/app/components/ImportSourceManager';
 import CrmGroupManager from '@/app/components/CrmGroupManager';
 import CrmRoomShareManager from '@/app/components/CrmRoomShareManager';
 import CrmCtiManager from '@/app/components/CrmCtiManager';
+import EsutamaOptionsAdmin from '@/app/components/EsutamaOptionsAdmin';
 import AdminJobsManager from '@/app/components/AdminJobsManager';
 import FeaturedJobsManager from '@/app/components/FeaturedJobsManager';
 import JobBoostManager from '@/app/components/JobBoostManager';
@@ -745,6 +746,14 @@ export default function AdminDashboard() {
           {/* ── フクエスCRM：着信ポップ（CTI・第1685便）。★ 受付の Android のアプリ用の端末トークンを出す（QR は1回だけ表示）。★ 運営だけ ── */}
           <AccordionSection id="crm-cti" title="フクエスCRM：着信ポップ（受付の Android アプリ・CTI）" expanded={expandedSections} onToggle={toggleSection}>
             <CrmCtiManager
+              allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
+              onToast={showToast}
+            />
+          </AccordionSection>
+
+          {/* ── コネックエフ：エステ魂【オプション】（第1799便）。★ ON にした店だけコネックエフに出る ── */}
+          <AccordionSection id="esutama-options" title="コネックエフ：エステ魂オプション（集客ブースト・セラピストアピールなど）を使える店" expanded={expandedSections} onToggle={toggleSection}>
+            <EsutamaOptionsAdmin
               allSalons={salons.map(s => ({ id: s.id, name: s.name ?? '' }))}
               onToast={showToast}
             />

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaBump';
+import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -88,6 +89,45 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error('[ekichika-bump] 流れを始められなかった', r.salon_id, slot, e instanceof Error ? e.message : 'unknown');
       results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'start_failed' });
+    }
+  }
+
+  // ★★ 第1799便: エステ魂【オプション】（集客ブースト・セラピストアピール）も同じ周で押す。★ crontab はそのまま
+  //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 表が無い（SQL 未適用）ときは黙って飛ばす
+  const opt = await svc.from('conecf_esutama_options')
+    .select('salon_id, option_key, start_min, end_min, interval_min, last_at, remaining, read_at')
+    .eq('admin_enabled', true).eq('auto', true);
+  if (!opt.error) {
+    for (const o of opt.data ?? []) {
+      const key = String(o.option_key) as EsutamaOptKey;
+      const def = ESUTAMA_OPT_DEFAULT[key];
+      if (!def) continue;
+      const setting = {
+        startMin: o.start_min == null ? def.startMin : Number(o.start_min),
+        endMin: o.end_min == null ? def.endMin : Number(o.end_min),
+        intervalMin: o.interval_min == null ? def.intervalMin : Number(o.interval_min),
+      };
+      const judge = shouldPressEsutamaOpt({
+        key, setting, now,
+        state: { lastAt: (o.last_at as string | null) ?? null, remaining: o.remaining == null ? null : Number(o.remaining), readAt: (o.read_at as string | null) ?? null },
+      });
+      const base = { salonId: Number(o.salon_id), provider: 'esutama:' + key, slot: 1 };
+      if (!judge.press || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+      // ★ 始める前に「読みに行った時刻」を書く（同じ行を立て続けに始めない）。★ 書けなければ始めない
+      const { error: mErr } = await svc.from('conecf_esutama_options')
+        .update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('option_key', key);
+      if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
+      try {
+        const f = await startRelayFlow({
+          salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
+          intent: 'bump_auto', actor: 'cron:esutama-option',
+          esutamaOpt: { key },
+        });
+        results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+      } catch (e) {
+        console.error('[esutama-option] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
+        results.push({ ...base, reason: 'start_failed' });
+      }
     }
   }
 

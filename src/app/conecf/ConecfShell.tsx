@@ -96,6 +96,7 @@ export function ConecfShell({
   const cocoaNav = session.state?.cocoaNav ?? false;
   // ★ 2026-11-04: 「シフト管理表」を出すか（SHIFT_SALON_IDS の店だけ）。分かるまでは出さない
   const shiftNav = session.state?.shiftNav ?? false;
+  const esutamaOptNav = session.state?.esutamaOptNav ?? false;
   // ★ 第1740便: 新しい希望の数（お店ごと・表を開くと 0 に戻る）
   const shiftNew = session.state?.shiftNew ?? 0;
   // ★ 一度も読めていないときだけ、読めなかった案内を出す
@@ -179,7 +180,7 @@ export function ConecfShell({
   }
 
   const navList = (onPick?: () => void) =>
-    CONECF_NAV.filter((n) => (n.key !== 'cocoa' || cocoaNav || current === 'cocoa') && (n.key !== 'shift' || shiftNav || current === 'shift')).map((n) => {
+    CONECF_NAV.filter((n) => (n.key !== 'cocoa' || cocoaNav || current === 'cocoa') && (n.key !== 'shift' || shiftNav || current === 'shift') && (n.key !== 'esutamaOpt' || esutamaOptNav || current === 'esutamaOpt')).map((n) => {
       const on = n.key === current;
       return (
         <div key={n.key} className="contents">

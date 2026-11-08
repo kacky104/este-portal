@@ -19,6 +19,7 @@ import { mergeCookies } from './relayJob';
 // ★ 写真の段（第243便）。★ ログイン後の道分けで1回だけ使う
 import { buildEsutamaPhotoReadStep } from './esutamaPhotoFlow';
 import { buildEsutamaAppealReadStep } from './esutamaAppealFlow';
+import { buildEsutamaOptReadStep } from './esutamaOptionFlow';
 import { buildEsutamaSortReadStep } from './mediaSortFlow';
 import { buildEsutamaRosterRefreshStep } from './esutamaRosterRefresh';
 import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCastList, parseEsutamaCastForm } from './esutamaParse';
@@ -187,6 +188,16 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
       audits: [],
       note: 'エステ魂にログインできた。セラピストの表示順の画面を読みます（★ まだ保存していない）',
       next: buildEsutamaSortReadStep(cookie, ctx),
+    };
+  }
+
+  // ★★ 第1799便: エステ魂【オプション】（文脈に esutamaOpt がある bump_*）は【そのオプションの画面だけ】を読む
+  if ((ctx.intent === 'bump_auto' || ctx.intent === 'bump_push') && ctx.esutamaOpt) {
+    return {
+      kind: 'next',
+      audits: [],
+      note: 'エステ魂にログインできた。オプション（' + ctx.esutamaOpt.key + '）の画面を読みます（★ まだ押していない）',
+      next: buildEsutamaOptReadStep(cookie, ctx),
     };
   }
 

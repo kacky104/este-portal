@@ -414,6 +414,12 @@ export async function startRelayFlow(params: {
    * ★★ ここで受け取っていないと、呼び出し側が渡しても静かに落ちる（diarySince と同じ作法）。
    */
   bump?: { setting?: BumpSetting; force?: boolean };
+  /**
+   * ★ 第1799便: エステ魂【オプション】（intent は bump_push / bump_auto・provider='esutama'）。
+   *   key … shop_boost / cast_appeal / job_appeal。force … 店舗様がコネックエフで押した（残り0回なら押さない）
+   *   ★ 結果は conecf_esutama_options に書く（salon_import_sources の bump_* には書かない）
+   */
+  esutamaOpt?: { key: string; force?: boolean };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
   sort?: { want: string[] };
 }): Promise<StartFlowResult> {
@@ -708,6 +714,8 @@ export async function startRelayFlow(params: {
     // ★ 第1305便: 駅ちかの上位表示。★ 渡されたときだけ入れる
     ...(params.bump?.setting ? { bumpSetting: params.bump.setting } : {}),
     ...(params.bump?.force === true ? { bumpForce: true } : {}),
+    // ★ 第1799便: エステ魂【オプション】。★ 渡されたときだけ入れる
+    ...(params.esutamaOpt ? { esutamaOpt: { key: params.esutamaOpt.key, ...(params.esutamaOpt.force === true ? { force: true } : {}) } } : {}),
     // ★ 第1557便: セラピストの並び順。★ 渡されたときだけ入れる
     ...(params.sort ? { sortWant: params.sort.want.map(String) } : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
@@ -725,7 +733,10 @@ export async function startRelayFlow(params: {
   if (params.intent === 'sort_push' && !(params.sort && params.sort.want.length > 0)) {
     throw new Error('sort_push には sort.want（並び）が要る');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting) {
+  if (params.esutamaOpt && params.provider !== 'esutama') {
+    throw new Error('esutamaOpt はエステ魂だけ');
+  }
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
@@ -1145,6 +1156,23 @@ export async function advanceRelayFlow(params: {
       .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot);
     if (bErr) console.error('[relay] 上位表示の状態を書けなかった', params.salonId, params.slot, bErr.message);
     else note = note + ' → 上位表示の状態（残り ' + (b.remaining ?? '?') + '）を記録した';
+  }
+
+  // ★★ 第1799便: エステ魂【オプション】の状態（残り回数・最後に押せた時刻・結果）を表に書く。★ 書けなくても流れは止めない（黙らない）
+  if (outcome.kind === 'done' && outcome.esutamaOpt && params.provider === 'esutama') {
+    const o = outcome.esutamaOpt;
+    const { error: oErr } = await createServiceClient()
+      .from('conecf_esutama_options')
+      .update({
+        remaining: o.remaining,
+        read_at: o.readAt,
+        last_outcome: o.outcome.slice(0, 200),
+        ...(o.pressed && o.lastAt ? { last_at: o.lastAt } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('salon_id', params.salonId).eq('option_key', o.key);
+    if (oErr) console.error('[relay] エステ魂オプションの状態を書けなかった', params.salonId, o.key, oErr.message);
+    else note = note + ' → オプションの状態（残り ' + (o.remaining ?? '?') + '）を記録した';
   }
 
   // ★★★ 第421便: 写真を枠へ合わせ終えた記録（★ 変わった枠だけ送る・減った枠を消すのに使う）。

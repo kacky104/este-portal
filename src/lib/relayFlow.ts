@@ -55,6 +55,7 @@ import {
 import { mergeCookies } from './relayJob';
 // ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）
 import { afterEsutamaAppealRead, afterEsutamaAppealSet, afterEsutamaAppealVerify } from './esutamaAppealFlow';
+import { afterEsutamaOptRead, afterEsutamaOptSet, afterEsutamaOptVerify } from './esutamaOptionFlow';
 import { sortAfterEkichikaGirls, afterEkichikaGirlsSort, afterEsutamaSortRead, afterEsutamaSortSave } from './mediaSortFlow';
 // ★ 第1305便: 駅ちかの上位表示（判断と読み取りは ekichikaBump.ts）
 import { EKICHIKA_ADMIN_TOP_URL, EKICHIKA_BUMP_URL, parseEkichikaBumpTop, bumpTopUsable, buildEkichikaBumpBody, parseEkichikaBumpResult, shouldBumpNow, type BumpSetting } from './ekichikaBump';
@@ -944,6 +945,11 @@ export type RelayFlowContext = {
   /** 店舗情報の結果（押せた／押せなかった）と、続けて押せた行の名前 */
   esutamaAppealShop?: { ok: boolean; remaining: number | null; lastAt: string | null };
   esutamaAppealExtra?: string[];
+  // ── ここから下は エステ魂【オプション】（第1799便）のときだけ入る（intent は bump_push / bump_auto）──
+  /** 押すオプション（shop_boost / cast_appeal / job_appeal）。force … 店舗様がコネックエフで押した */
+  esutamaOpt?: { key: string; force?: boolean };
+  /** 押す前に読んだ値（残り回数・押すセラピスト） */
+  esutamaOptBefore?: { remaining: number | null; castId: string | null; castName: string | null; lastAt: string | null };
   // ── ここから下は intent='sort_push' のときだけ入る（第1557便）──
   /** コネックエフの並び（上から順の、そのサイトの番号） */
   sortWant?: string[];
@@ -1114,6 +1120,8 @@ export type FlowNextRequest = {
     | 'read_bump' | 'bump_set'
     // ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）。★ esutama_appeal_set だけが相手の回数を減らす
     | 'esutama_appeal_read' | 'esutama_appeal_set' | 'esutama_appeal_verify'
+    // ★ 第1799便: エステ魂【オプション】（集客ブースト・セラピストアピール）。★ esutama_opt_set だけが相手の回数を減らす
+    | 'esutama_opt_read' | 'esutama_opt_set' | 'esutama_opt_verify'
     // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える
     | 'girls_sort' | 'esutama_sort_read' | 'esutama_sort_save'
     // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
@@ -1151,6 +1159,8 @@ export type FlowOutcome =
        *   pressed … この流れで押せたか
        */
       ekichikaBump?: { remaining: number | null; quota: number | null; lastAt: string | null; readAt: string; pressed: boolean };
+      /** ★ 第1799便: エステ魂【オプション】の結果。★ 表（conecf_esutama_options）に書くのは呼び出し側 */
+      esutamaOpt?: { key: string; remaining: number | null; readAt: string; pressed: boolean; outcome: string; lastAt: string | null };
       /**
        * ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **番号を表に書くのは呼び出し側**。
        *   ★ このファイルは DB を知らない。★ 「誰の番号がいくつか」を返すところまでが仕事。
@@ -1763,6 +1773,13 @@ function advanceFlowStep(
       return afterEsutamaAppealRead(input, ctx);
     case 'esutama_appeal_set':
       return afterEsutamaAppealSet(input, ctx);
+    // ── エステ魂【オプション】（第1799便）──
+    case 'esutama_opt_read':
+      return afterEsutamaOptRead(input, ctx);
+    case 'esutama_opt_set':
+      return afterEsutamaOptSet(input, ctx);
+    case 'esutama_opt_verify':
+      return afterEsutamaOptVerify(input, ctx);
     case 'esutama_appeal_verify':
       return afterEsutamaAppealVerify(input, ctx);
     case 'esutama_cast_hide':
