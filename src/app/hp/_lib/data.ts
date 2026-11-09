@@ -11,6 +11,8 @@
 //   （重複コンテンツ回避。設計メモ4章）。
 
 import { createPublicClient } from '@/app/lib/supabase/public';
+import { isSalonBookable } from '@/app/salon/[id]/salonBookable';
+import { FUKUES_ORIGIN } from '@/lib/crmHost';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { getBusinessDateJST, calendarDateJSTFrom } from '@/lib/dutyStatus';
 import { sanitizeBadges } from '@/lib/therapistBadges';
@@ -74,6 +76,8 @@ export type HpPageData = {
     closedDays:  string;
     phone:       string;
     lineUrl:     string;
+    /** ★ 第1877便: フクエスのネット予約（予約受付ON＋予約コースあり）のときだけ、フクエスの予約ページの URL。使っていなければ空 */
+    bookUrl:     string;
     jobsEnabled: boolean;
     /** 支払い方法のスラッグ（salons.payment_methods）。表示は paymentMethodLabel() で変換 */
     paymentMethods: string[];
@@ -175,7 +179,7 @@ export async function fetchHpPageData(
 
   const { data: salonRow, error: salonErr } = await supabase
     .from('salons')
-    .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, jobs_enabled, payment_methods, courses, course_note, is_hidden')
+    .select('id, name, catchphrase, area, address, access, hours, closed_days, phone, line_url, booking_enabled, booking_courses, jobs_enabled, payment_methods, courses, course_note, is_hidden')
     .eq('id', salonId)
     .maybeSingle();
   if (salonErr) throw new Error(`salons の取得に失敗: ${salonErr.message}`);
@@ -334,7 +338,9 @@ export async function fetchHpPageData(
       hours:       (salonRow.hours as string) ?? '',
       closedDays:  (salonRow.closed_days as string) ?? '',
       phone:       (salonRow.phone as string) ?? '',
-      lineUrl:     (salonRow.line_url as string) ?? '',
+      // ★ 第1877便: フクエスと同じく、空・'#' は LINE予約を出さない
+      lineUrl:     (() => { const v = String(salonRow.line_url ?? '').trim(); return v === '#' ? '' : v; })(),
+      bookUrl:     isSalonBookable(salonRow.booking_enabled, salonRow.booking_courses) ? `${FUKUES_ORIGIN}/salon/${Number(salonRow.id)}/book` : '',
       jobsEnabled: Boolean(salonRow.jobs_enabled),
       paymentMethods: Array.isArray(salonRow.payment_methods)
         ? (salonRow.payment_methods as string[]).filter((v) => typeof v === 'string')

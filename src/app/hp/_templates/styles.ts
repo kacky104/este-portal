@@ -146,6 +146,11 @@ const COMMON = `
 .hp-drawer-label { display: block; font-size: 9px; letter-spacing: .28em; opacity: .7; margin-bottom: 4px; }
 .hp-drawer-hours { font-size: 12px; line-height: 1.8; }
 .hp-drawer-tel { display: block; margin-top: 16px; font-size: 21px; letter-spacing: .04em; text-decoration: none; }
+/* ★ 第1877便: ドロワーの電話番号の下に、ネット予約・LINE予約（店が使っているものだけ） */
+.hp-drawer-reserve { display: flex; gap: 8px; margin-top: 14px; }
+.hp-drawer-reserve a { flex: 1; text-align: center; padding: 11px 0; font-size: 12.5px; font-weight: 700; letter-spacing: .12em; text-decoration: none; border-radius: 999px; }
+.hp-drawer-book { background: var(--hp-accent, #b98d4f); color: #fff; }
+.hp-drawer-line { background: #06C755; color: #fff; }
 .hp-drawer-terms { display: inline-block; margin-top: 18px; font-size: 11px; letter-spacing: .08em; text-decoration: underline; text-underline-offset: 3px; }
 /* ── SPクイックナビ（ヒーロー直下の4分割アイコンメニュー・2026-08-11）──
    スマホ幅のみ表示（PCはヘッダーのナビが同じ項目を持つ）。骨格はここ・色は各ひな形が上書き。
@@ -223,6 +228,9 @@ const COMMON = `
 }
 .hp-cta { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 640px; display: flex; z-index: 20; }
 .hp-cta a { flex: 1; text-align: center; padding: 16px 0; font-size: 13px; text-decoration: none; font-weight: 700; letter-spacing: .15em; }
+/* ★ 第1877便: ネット予約（どのひな形もアクセント色）・LINE予約（LINE の緑）。3つ並ぶときは字間を詰める */
+.hp-cta a.hp-cta-line { background: #06C755 !important; color: #fff !important; }
+.hp-cta:has(> a:nth-child(3)) a { letter-spacing: .06em; }
 .hp-footer { padding: 44px 22px 60px; text-align: center; }
 .hp-th-catch { display: none; }
 .hp-th-badges { display: none; }
@@ -500,7 +508,7 @@ ${COMMON}
    【必ず上の .hp-a { --hp-col-half: 512px } より後ろ】に書くこと（前に置くと効かない）。 */
 @media (min-width: 768px) { .hp-a { --hp-col-half: 50vw; } }
 .hp-a .hp-cta-tel { background: #232128; color: #e8e4dc; border-top: 1px solid var(--hp-accent-soft, #a8905e); }
-.hp-a .hp-cta-line { background: var(--hp-accent, #c4a469); color: #17161a; }
+.hp-a .hp-cta-line, .hp-a .hp-cta-book { background: var(--hp-accent, #c4a469); color: #17161a; }
 .hp-a .hp-form-submit { color: #17161a; }
 .hp-a .hp-sched-date { display: block; width: fit-content; background: #2a2730; border: 1px solid #3a3742; padding: 6px 18px; margin: 0 auto 18px; font-size: 12px; color: var(--hp-accent, #c4a469); letter-spacing: .2em; opacity: 1; }
 `;
@@ -655,7 +663,7 @@ ${COMMON}
 .hp-b .hp-cta { padding: 0 14px 14px; gap: 8px; }
 .hp-b .hp-cta a { border-radius: 999px; font-weight: 900; box-shadow: 0 6px 18px rgba(80,70,55,.16); }
 .hp-b .hp-cta-tel { background: #fff; color: #3d3a35; border: 1px solid #eee7db; }
-.hp-b .hp-cta-line { background: var(--hp-accent-deep, #6b8f67); color: #fff; }
+.hp-b .hp-cta-line, .hp-b .hp-cta-book { background: var(--hp-accent-deep, #6b8f67); color: #fff; }
 .hp-b .hp-form-submit { background: var(--hp-accent-deep, #6b8f67); border-radius: 999px; }
 /* 日付のバッジは見出しに合わせて中央へ（2026-08-13・写真グリッド化に合わせて） */
 .hp-b .hp-sched-date { display: block; width: fit-content; background: color-mix(in srgb, var(--hp-accent, #8fae8b) 16%, #ffffff); color: var(--hp-accent-deep, #6b8f67); border-radius: 999px; padding: 5px 16px; margin: 0 auto 16px; font-size: 12px; font-weight: 800; opacity: 1; }
@@ -797,7 +805,7 @@ ${COMMON}
 .hp-c .hp-cta { border-top: 2px solid var(--hp-ink, #111114); }
 .hp-c .hp-cta a { font-weight: 900; letter-spacing: .2em; }
 .hp-c .hp-cta-tel { background: #fff; color: var(--hp-ink, #111114); border-right: 2px solid var(--hp-ink, #111114); }
-.hp-c .hp-cta-line { background: var(--hp-accent, #ff4658); color: #fff; }
+.hp-c .hp-cta-line, .hp-c .hp-cta-book { background: var(--hp-accent, #ff4658); color: #fff; }
 .hp-c .hp-sched-date { display: inline-block; background: var(--hp-ink, #111114); color: #fff; padding: 6px 16px; margin: 0 0 16px; font-size: 12px; font-weight: 900; letter-spacing: .15em; opacity: 1; }
 /* ★ ヘッダーとヒーローは画面幅いっぱいに（2026-08-13 要望・タイプS/A/Bと同じ迫力を出す）。
    .hp-c は max-width:1024px の中央寄せなので、100vw ＋ 負のマージンで額縁を食い破る。
@@ -1091,7 +1099,7 @@ ${COMMON}
 
 .hp-s .hp-cta { max-width: 1024px; }
 .hp-s .hp-cta-tel { background: #fff; color: #4a4238; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
-.hp-s .hp-cta-line { background: var(--hp-accent, #b98d4f); color: #fff; }
+.hp-s .hp-cta-line, .hp-s .hp-cta-book { background: var(--hp-accent, #b98d4f); color: #fff; }
 
 /* ══════════ 神秘的な仕上げ（2026-08-09 要望）══════════
    狙いは「静けさ・左右対称・淡い光」。装飾はCSSだけで完結させ、DOMには手を入れない。 */
@@ -1562,7 +1570,7 @@ const TYPE_A_MAGENTA = `/* ══════════ タイプA 配色: デ
 .hp-a.hp-a-magenta .hp-footer-sub { color: #c093a6; }
 .hp-a.hp-a-magenta .hp-footer-sub a { color: #f4a9c6; }
 .hp-a.hp-a-magenta .hp-cta-tel { background: #5a0d2a; color: #fff; border-top-color: #b3305f; }
-.hp-a.hp-a-magenta .hp-cta-line { color: #ffffff; }
+.hp-a.hp-a-magenta .hp-cta-line, .hp-a.hp-a-magenta .hp-cta-book { color: #ffffff; }
 .hp-a.hp-a-magenta .hp-form-submit { color: #ffffff; }
 `;
 
@@ -1660,7 +1668,7 @@ const TYPE_A_SIENNA = `/* ══════════ タイプA 配色: ロ�
 .hp-a.hp-a-sienna .hp-footer-sub { color: #c6a878; }
 .hp-a.hp-a-sienna .hp-footer-sub a { color: #f7d5a3; }
 .hp-a.hp-a-sienna .hp-cta-tel { background: #6a4a1c; color: #fff; border-top-color: #bf8f3f; }
-.hp-a.hp-a-sienna .hp-cta-line { color: #402f14; }
+.hp-a.hp-a-sienna .hp-cta-line, .hp-a.hp-a-sienna .hp-cta-book { color: #402f14; }
 `;
 
 const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バーントアンバー（2026-08-12 全面改訂）══════════
@@ -1757,7 +1765,7 @@ const TYPE_A_UMBER = `/* ══════════ タイプA 配色: バ�
 .hp-a.hp-a-umber .hp-footer-sub { color: #bf9682; }
 .hp-a.hp-a-umber .hp-footer-sub a { color: #f0bc9a; }
 .hp-a.hp-a-umber .hp-cta-tel { background: #5e2f1d; color: #fff; border-top-color: #a85433; }
-.hp-a.hp-a-umber .hp-cta-line { color: #2e1b13; }
+.hp-a.hp-a-umber .hp-cta-line, .hp-a.hp-a-umber .hp-cta-book { color: #2e1b13; }
 `;
 
 /* ══════════ タイプB（CLEAN）の配色 ══════════
@@ -2058,7 +2066,7 @@ const TYPE_C_YELLOW = `/* ── 配色: ネープルイエロー（クリーム
 /* ★ 黄だけの例外: 面が明るいので白抜きが読めない（実測 1.58）。
    面に載る文字だけ焦げ茶へ落とす（実測 8.35）。他の3色は白抜きのままでよい。 */
 .hp-c.hp-c-yellow .hp-course-name { color: var(--hp-ink, #241c04); }
-.hp-c.hp-c-yellow .hp-cta-line { color: var(--hp-ink, #241c04); }
+.hp-c.hp-c-yellow .hp-cta-line, .hp-c.hp-c-yellow .hp-cta-book { color: var(--hp-ink, #241c04); }
 `;
 
 const TYPE_C_RED = `/* ── 配色: スカーレット（血色のよい生成り地に濃い緋色の太罫） ── */

@@ -169,6 +169,13 @@ export function HpShell({
                   {salon.phone}
                 </a>
               )}
+              {/* ★ 第1877便（カッキーさん）: フクエスでネット予約・LINE予約を受け付けている店は、電話番号の下にも出す */}
+              {(salon.bookUrl || salon.lineUrl) && (
+                <div className="hp-drawer-reserve">
+                  {salon.bookUrl && <a className="hp-drawer-book" href={salon.bookUrl} target="_blank" rel="noopener">ネット予約</a>}
+                  {salon.lineUrl && <a className="hp-drawer-line" data-hp-ev="line" href={salon.lineUrl} target="_blank" rel="noopener noreferrer">LINE予約</a>}
+                </div>
+              )}
               {/* 利用規約（全店共通の文面）。独自ドメインなら /terms、暫定URLなら /hp/{slug}/terms */}
               <a className="hp-drawer-terms" href={`${basePath}/terms`}>利用規約</a>
             </div>
@@ -289,9 +296,11 @@ export function HpShell({
       )}
 
       {/* ── 予約CTA（画面下固定） ── */}
-      {(salon.phone || salon.lineUrl) && (
+      {/* ★ 第1877便（カッキーさん）: フクエスと同じく、ネット予約（予約受付ON＋予約コースあり）も並べる。並びは 電話 → ネット → LINE */}
+      {(salon.phone || salon.lineUrl || salon.bookUrl) && (
         <div className="hp-cta">
           {salon.phone && <a className="hp-cta-tel" href={`tel:${salon.phone}`}>電話予約</a>}
+          {salon.bookUrl && <a className="hp-cta-book" href={salon.bookUrl} target="_blank" rel="noopener">ネット予約</a>}
           {/* LINE予約だけは他社サービスで計測の必要が無いので noreferrer のまま */}
           {salon.lineUrl && <a className="hp-cta-line" data-hp-ev="line" href={salon.lineUrl} target="_blank" rel="noopener noreferrer">LINE予約</a>}
         </div>
