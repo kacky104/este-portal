@@ -137,6 +137,7 @@ function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
   const [rows, setRows] = useState<Array<{ time: string; templateId: string }>>(() =>
     a.effective.map((r) => ({ time: cocoaMinLabel(r.min), templateId: r.templateId === null ? '' : String(r.templateId) })));
   const [busy, setBusy] = useState(false);
+  const [nowTpl, setNowTpl] = useState('');
   const save = async () => {
     if (!guard()) return;
     const used = rows.filter((r) => r.time.trim() !== '');
@@ -152,7 +153,7 @@ function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
   const now = async () => {
     if (!guard()) return;
     setBusy(true);
-    const res = await postConecfCocoaAccountNow({ slot: a.slot });
+    const res = await postConecfCocoaAccountNow({ slot: a.slot, templateId: nowTpl === '' ? null : Number(nowTpl) });
     setBusy(false);
     onToast(res.ok ? `「${res.data.title}」を投稿しました。ココアの店長ブログをご確認ください` : res.error);
     if (res.ok) await reload();
@@ -168,6 +169,11 @@ function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
           <span className={`border px-2 py-0.5 text-[12px] font-bold ${a.enabled ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{a.enabled ? '自動 ON' : '自動 OFF'}</span>
           {!open && <span className="truncate text-[12px] text-slate-500">{a.effective.map((r) => cocoaMinLabel(r.min)).join('・') || '—'} ／ 最後：{last}</span>}
         </button>
+        {/* ★ 第1835便: 「いま1回」で送るテンプレートを選べる（選ばなければ順番に） */}
+        <select value={nowTpl} onChange={(e) => setNowTpl(e.target.value)} className="max-w-[200px] border border-slate-200 px-2 py-1.5 text-[13px]">
+          <option value="">順番に</option>
+          {active.map((t) => <option key={t.id} value={t.id}>{t.title || '（タイトルなし）'}</option>)}
+        </select>
         <button type="button" disabled={busy || active.length === 0} onClick={() => void now()} className="px-3 py-1.5 border border-indigo-300 text-[13px] text-indigo-700 font-bold disabled:opacity-40">{busy ? '…' : 'いま1回投稿する'}</button>
       </div>
       {open && (<>

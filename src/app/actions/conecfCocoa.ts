@@ -195,12 +195,14 @@ export async function saveConecfCocoaAccount(input: { slot: number; enabled: boo
 }
 
 /** 「いま1回投稿する」（アカウントごと。テンプレートは順番に） */
-export async function postConecfCocoaAccountNow(input: { slot: number }): Promise<Result<{ title: string }>> {
+export async function postConecfCocoaAccountNow(input: { slot: number; templateId?: number | null }): Promise<Result<{ title: string }>> {
   const r = await resolve(true);
   if (!r.ok) return r;
   const slot = Number(input.slot);
   if (!(COCOA_ACCOUNT_SLOTS as readonly number[]).includes(slot)) return { ok: false, error: 'アカウントの指定が不正です' };
-  const res = await postCocoaForAccount(r.svc, r.salonId, slot, null, true, null);
+  // ★ 第1835便: テンプレートを選んで送れる（選ばなければ順番に）
+  const tid = Number(input.templateId);
+  const res = await postCocoaForAccount(r.svc, r.salonId, slot, Number.isInteger(tid) && tid > 0 ? tid : null, true, null);
   if (res.posted) return { ok: true, data: { title: res.title ?? '' } };
   if (res.skipped === 'no-ekichika-login') return { ok: false, error: '駅ちかのID・パスワードが登録されていない（または一時停止中の）ため投稿できません' };
   if (res.skipped === 'no-address') return { ok: false, error: '投稿用メールアドレスを入れて「保存」を押してください' };
