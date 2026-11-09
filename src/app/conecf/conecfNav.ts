@@ -3,7 +3,7 @@
 // ★ href は画面内のパス（'/' '/sites' …）。★ 実際のリンクは conecfHref(base, href) で作る。
 
 export type ConecfNavKey =
-  | 'home' | 'sites'
+  | 'home' | 'sites' | 'autoHub'
   | 'girls' | 'girlsSync' | 'placeholder'
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
@@ -17,6 +17,9 @@ export type ConecfNavItem = { key: ConecfNavKey; label: string; href: string; gr
 export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'home',         label: 'ホーム',               href: '/' },
   { key: 'sites',        label: 'ID・パスワード登録',          href: '/sites' },
+  // ★ 第1847便（カッキーさん）: ベンリーから移した各サイトの自動更新（駅ちか・エステ魂・全国エステランキング）を1つにまとめた入口。
+  //   中の画面（AUTO_HUB_CHILDREN）はサイドバーには出さない。運営が ON にした項目が1つでもある店だけ（ConecfShell）
+  { key: 'autoHub',      label: 'サイト自動更新',         href: '/auto' },
   { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
   { key: 'girlsSync',    label: 'セラピスト登録状況一覧', href: '/girls/sync' },
   // ★ 第1722便（カッキーさん）: 写真が無いセラピストに使う画像（お店の既定画像）を独立した画面に。
@@ -52,6 +55,9 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'guide',        label: 'はじめての方へ',         href: '/guide',         group: 'ご案内' },
   { key: 'qa',           label: 'よくあるご質問（Q&A）',   href: '/qa' },
 ];
+
+/** ★ 第1847便: 「サイト自動更新」の中にまとめた画面（サイドバーには出さず、開いているときは「サイト自動更新」を光らせる） */
+export const AUTO_HUB_CHILDREN: readonly ConecfNavKey[] = ['ekiRankImg', 'ekiMovie', 'ekiMagazine', 'esutamaOpt', 'zenkokuOpt'];
 
 export function conecfNavItem(key: ConecfNavKey): ConecfNavItem {
   return CONECF_NAV.find((n) => n.key === key) ?? CONECF_NAV[0];

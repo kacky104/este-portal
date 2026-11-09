@@ -9,7 +9,7 @@ import { MediaBrandProvider, brandText, type MediaBrandValue } from '@/app/mypag
 import { signOut } from '@/lib/auth';
 import { useConecfHref } from './ConecfBase';
 import { useConecfSession } from './ConecfSession';
-import { CONECF_NAV, type ConecfNavKey } from './conecfNav';
+import { CONECF_NAV, AUTO_HUB_CHILDREN, type ConecfNavKey } from './conecfNav';
 import { CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { OperatorBar } from './OperatorBar';
 
@@ -55,6 +55,7 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
   switch (k) {
     case 'home':         return (<svg {...p}><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>);
     case 'sites':        return (<svg {...p}><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>);
+    case 'autoHub':      return (<svg {...p}><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 21v-5h5" /><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5" /></svg>);
     case 'girls':        return (<svg {...p}><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></svg>);
     case 'girlsSync':    return (<svg {...p}><circle cx="9" cy="8" r="4" /><path d="M2 21v-1a6 6 0 0 1 6-6h2" /><path d="M16 15h6M19 12v6" /></svg>);
     case 'placeholder':  return (<svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="9" cy="9" r="2" /><path d="M21 15l-5-5L5 21" /></svg>);
@@ -101,6 +102,9 @@ export function ConecfShell({
   const ekiMovieNav = session.state?.ekiMovieNav ?? false;
   const ekiMagazineNav = session.state?.ekiMagazineNav ?? false;
   const ekiRankImgNav = session.state?.ekiRankImgNav ?? false;
+  // ★ 第1847便: 「サイト自動更新」は中の項目が1つでも使える店だけ。中の画面を開いているときは、それを光らせる
+  const autoHubNav = esutamaOptNav || zenkokuOptNav || ekiMovieNav || ekiMagazineNav || ekiRankImgNav;
+  const inAutoHub = AUTO_HUB_CHILDREN.includes(current);
   // ★ 第1740便: 新しい希望の数（お店ごと・表を開くと 0 に戻る）
   const shiftNew = session.state?.shiftNew ?? 0;
   // ★ 一度も読めていないときだけ、読めなかった案内を出す
@@ -184,8 +188,8 @@ export function ConecfShell({
   }
 
   const navList = (onPick?: () => void) =>
-    CONECF_NAV.filter((n) => (n.key !== 'cocoa' || cocoaNav || current === 'cocoa') && (n.key !== 'shift' || shiftNav || current === 'shift') && (n.key !== 'esutamaOpt' || esutamaOptNav || current === 'esutamaOpt') && (n.key !== 'zenkokuOpt' || zenkokuOptNav || current === 'zenkokuOpt') && (n.key !== 'ekiMovie' || ekiMovieNav || current === 'ekiMovie') && (n.key !== 'ekiMagazine' || ekiMagazineNav || current === 'ekiMagazine') && (n.key !== 'ekiRankImg' || ekiRankImgNav || current === 'ekiRankImg')).map((n) => {
-      const on = n.key === current;
+    CONECF_NAV.filter((n) => !AUTO_HUB_CHILDREN.includes(n.key) && (n.key !== 'autoHub' || autoHubNav || current === 'autoHub' || inAutoHub) && (n.key !== 'cocoa' || cocoaNav || current === 'cocoa') && (n.key !== 'shift' || shiftNav || current === 'shift') && (n.key !== 'esutamaOpt' || esutamaOptNav || current === 'esutamaOpt') && (n.key !== 'zenkokuOpt' || zenkokuOptNav || current === 'zenkokuOpt') && (n.key !== 'ekiMovie' || ekiMovieNav || current === 'ekiMovie') && (n.key !== 'ekiMagazine' || ekiMagazineNav || current === 'ekiMagazine') && (n.key !== 'ekiRankImg' || ekiRankImgNav || current === 'ekiRankImg')).map((n) => {
+      const on = n.key === current || (n.key === 'autoHub' && inAutoHub);
       return (
         <div key={n.key} className="contents">
           {n.group && (
@@ -281,6 +285,9 @@ export function ConecfShell({
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
+            {inAutoHub && (
+              <Link href={href('/auto')} className="flex-none text-[13px] text-indigo-600 hover:underline whitespace-nowrap">サイト自動更新 ›</Link>
+            )}
             <h1 className="text-[16px] font-normal text-[#212121] truncate">{title}</h1>
           </div>
           {/* ★ 第1243便（カッキーさん）: セット（コネックエフ＋フクエスCRM）を OFF にした店＝切り替え済みで契約が無い店。
