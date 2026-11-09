@@ -1305,7 +1305,7 @@ export async function startMediaTherapistCreatePush(input: {
  * この店舗の連携の記録を返す（画面の「履歴」）。
  * ★★ listMediaAudit は service_role で読む。salonId は必ずオーナー検証を通したものを渡す。
  */
-export async function getMediaAuditRows(input: { salonId: string | number; limit?: number }): Promise<
+export async function getMediaAuditRows(input: { salonId: string | number; limit?: number; provider?: string }): Promise<
   Result<{
     rows: Array<{ id: number; provider: string; slot: number; event: string; outcome: string; summary: string; createdAt: string; visible: boolean; noChange: boolean; /** ★ 第1684便: 枠2以降を枠1と同じにする自動登録の記録（うまくいった分は上の進み具合にまとめ、一覧ではたたむ） */ mirror?: boolean }>;
     /**
@@ -1332,7 +1332,9 @@ export async function getMediaAuditRows(input: { salonId: string | number; limit
   const scan = Math.min(want * 5, 1000);
 
   try {
-    const rows = await listMediaAudit({ salonId, limit: scan });
+    // ★ 第1830便: サイトで絞るときは DB で先に絞る（駅ちかの自動登録の行が多いと、全国の行が窓の外に押し出されて「まだありません」になっていた）
+    const prov = typeof input.provider === 'string' && /^[a-z]{2,20}$/.test(input.provider) ? input.provider : undefined;
+    const rows = await listMediaAudit({ salonId, limit: scan, ...(prov ? { provider: prov } : {}) });
 
     // ★★★ 出す・出さないの物差しはここで1回だけ通す（src/lib/mediaAudit.ts）。
     //   ★ 画面側でも判定し直さない。★ 2か所で決めると、いつか食い違う（第141便）。

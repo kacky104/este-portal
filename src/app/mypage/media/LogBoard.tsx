@@ -121,7 +121,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
     if (brand.isConecf) {
       getSlotMirrorProgress({ salonId }).then((m) => { if (m.ok) setMirror(m.items); }).catch(() => { /* 出さないだけ */ });
     }
-    const res = await getMediaAuditRows({ salonId, limit });
+    const res = await getMediaAuditRows({ salonId, limit, ...(filter.provider ? { provider: filter.provider } : {}) });
     if (res.ok) {
       setRows(res.data.rows as MediaLogRow[]);
       // ★ 「この先にまだあるか」はサーバーが見分けている（getMediaAuditRows）。★ 行数から推さない
@@ -133,7 +133,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
       setMore(false);
       setLoadError(res.error);
     }
-  }, [salonId, limit, brand.isConecf]);
+  }, [salonId, limit, brand.isConecf, filter.provider]);
 
   useEffect(() => { void load(); }, [load]);
 
