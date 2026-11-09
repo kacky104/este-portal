@@ -4,7 +4,7 @@
 
 export type ConecfNavKey =
   | 'home' | 'sites' | 'autoHub'
-  | 'girls' | 'girlsSync' | 'placeholder'
+  | 'girls' | 'girlsSync' | 'girlsSort' | 'placeholder'
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
   | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'ekiMagazine' | 'ekiRankImg' | 'announce' | 'cocoa'
@@ -22,6 +22,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'autoHub',      label: 'サイト自動更新一覧',     href: '/auto' },
   { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
   { key: 'girlsSync',    label: 'セラピスト登録状況一覧', href: '/girls/sync' },
+  // ★ 第1859便（カッキーさん・オイルクエスト様）: 写真を長押しで動かす並び替え（ベンリーの「並び替え」と同じ）
+  { key: 'girlsSort',    label: '並び替え',               href: '/girls/sort' },
   // ★ 第1722便（カッキーさん）: 写真が無いセラピストに使う画像（お店の既定画像）を独立した画面に。
   //   セラピスト一覧のいちばん下（第1550便）だと、人数が多い店は気づかず設定し忘れる。
   { key: 'placeholder',  label: 'セラピスト既定画像',     href: '/girls/placeholder' },
