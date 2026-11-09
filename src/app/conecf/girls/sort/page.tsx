@@ -253,7 +253,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   return (
     <div className="space-y-3 pb-24">
       <div className={`${CARD} space-y-3 p-4`}>
-        <p className="text-[13.5px] leading-relaxed text-slate-600">写真を<b>長押し</b>してから動かすと、その場所へ入ります（マウスでも指でも）。画面の上下の端まで持っていくと自動でスクロールします。並べ終わったら下の「保存する」を押してください。保存した順は、セラピスト一覧・出勤スケジュール・フクエスのお店ページにも出ます。</p>
+        <p className="text-[13.5px] leading-relaxed text-slate-600">写真を<b>長押し</b>して動かします。並べ終わったら下の「保存する」を押してください。フクエスのお店ページなども同じ順になります。</p>
         <div className="flex flex-wrap items-center gap-2 text-[14px]">
           <span className="font-bold text-slate-600">並び順：</span>
           <select value={preset} onChange={(e) => setPreset(e.target.value as Preset)} className="min-w-[13rem] border border-slate-300 bg-white px-2 py-1.5">
@@ -310,7 +310,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                 : (
                   <div data-sort-zone="fixed" className="min-h-[150px] border-2 border-dashed border-amber-300 bg-amber-50/60 p-2">
                     {head.length === 0
-                      ? <p className="p-3 text-[13px] leading-relaxed text-amber-800">ここに女性を（長押しして）運ぶか、写真の右下の📌を押すと、並び順を固定できます。固定した方は、いつも先頭にこの順で並び、「並び順を適用」をしても動きません。</p>
+                      ? <p className="p-3 text-[13px] leading-relaxed text-amber-800">ここへ運ぶか、写真の📌を押すと固定できます。固定した方はいつも先頭に並び、並び順を変えても動きません。</p>
                       : <ul className={GRID}>{head.map((g, i) => card(g, i + 1))}</ul>}
                   </div>
                 )}

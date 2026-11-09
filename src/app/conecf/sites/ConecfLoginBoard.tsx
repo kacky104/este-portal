@@ -385,7 +385,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
                 {areaOf(edit.provider, slot) && (
                   <p className="ml-[132px] -mt-1 text-[12px] leading-relaxed text-slate-600">
                     枠{slot}は、{edit.name}の<b className="text-[#1e88e5]">「{areaOf(edit.provider, slot)}」</b>のお店ページです。
-                    このエリアのお店ページの管理画面に入る ID・パスワードを入れてください（ほかのエリアのものを入れると、ログインできずに止まります）。
+                    このエリアのお店ページの ID・パスワードを入れてください（ほかのエリアのものだとログインできません）。
                   </p>
                 )}
 

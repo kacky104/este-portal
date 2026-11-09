@@ -336,7 +336,7 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
       )}
 
       <div className={`${CARD} p-4 text-[13.5px] text-slate-500 leading-relaxed`}>
-        フクエスの店舗ページとトップの新着に出る「お知らせ」です。自動投稿にしたお知らせは、1日1回・順番にフクエスの新着の先頭へ出します。
+        フクエスの店舗ページと新着に出る「お知らせ」です。自動投稿にすると、1日1回・順番に新着の先頭へ出します。
       </div>
 
       {/* ★ 第775便: 写真の箱（画像なしのお知らせにランダムで1枚） */}

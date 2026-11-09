@@ -419,7 +419,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                     </ul>
                   )}
                   <p className="text-[12.5px] text-slate-500 leading-relaxed">
-                    登録は{s.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。消すときは、セラピスト一覧の「削除」から各サイトもまとめて消せます。同じ名前の方が{s.label}にすでにいる場合は、登録されずに終わります。
+                    登録は{s.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。同じ名前の方がすでにいるときは登録されません。
                   </p>
                   <div className="flex gap-2">
                     <button type="button" disabled={busy !== ''} onClick={() => setPreview(null)}

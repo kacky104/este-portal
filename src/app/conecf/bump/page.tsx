@@ -47,7 +47,7 @@ const SITES: Record<'ekichika' | 'esutama', SiteTheme> = {
     provider: 'ekichika', name: '駅ちか', what: '上位表示',
     heading: 'の上位表示（エリア・市区町村・駅の一覧）', btnLabel: '⬆ 上位表示する',
     lead: <>駅ちかの一覧でお店が<span className="font-bold text-orange-600">上位に表示</span>されます。</>,
-    details: ['駅ちかの管理画面トップにある「上位表示する」を、コネックエフから押します。', '回数は、コネックエフが最後に駅ちかの画面を読んだときの値です。駅ちかで手で押した分は、次にコネックエフから押したとき（自動を含む）に反映されます。'],
+    details: ['駅ちかの管理画面トップの「上位表示する」を押します。', '残り回数は、最後に駅ちかの画面を読んだときの値です。'],
     defaultQuota: 40,
     border: 'border-orange-100', accent: 'text-orange-600', big: 'text-orange-500',
     btn: 'bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600',
@@ -57,7 +57,7 @@ const SITES: Record<'ekichika' | 'esutama', SiteTheme> = {
     provider: 'esutama', name: 'エステ魂', what: 'アピール',
     heading: 'の集客アピール', btnLabel: '⬆ アピールする',
     lead: <>エステ魂のトップページ・お店一覧でお店が<span className="font-bold text-violet-600">上位に表示</span>されます。</>,
-    details: ['エステ魂の管理画面「集客ワンクリックアピール」の、店舗情報・クーポン情報・お店体験談の3つをコネックエフから押します（エステ魂の「まとめてアピールする」と同じ。残りがある行だけ）。', '残り回数は、コネックエフが最後にエステ魂の画面を読んだときの値です。エステ魂で手で押した分は、次にコネックエフから押したとき（自動を含む）に反映されます。回数はエステ魂のプランによって違い、毎朝6時に戻ります。'],
+    details: ['エステ魂の「集客ワンクリックアピール」（店舗情報・クーポン・お店体験談）を押します。残りがある行だけです。', '残り回数は最後にエステ魂の画面を読んだときの値です。回数はプランで違い、毎朝6時に戻ります。'],
     defaultQuota: 10,   // ★ 第1314便の2: エステ魂は1日10回（画面に上限が出ないため、ここで持つ）
     border: 'border-violet-100', accent: 'text-violet-600', big: 'text-violet-500',
     btn: 'bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700',
@@ -436,7 +436,7 @@ function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: 
   return (
     <div className="space-y-5 pb-40">
       <p className="text-[13.5px] text-slate-600 leading-relaxed">
-        フクエス・駅ちか・エステ魂の上位表示を、ここでまとめて設定できます。どれも、手で押すボタンと、時間帯・間隔で自動で押す設定があります。
+        フクエス・駅ちか・エステ魂の上位表示を、今すぐ押す・時間帯と間隔で自動で押す、のどちらでも設定できます。
       </p>
 
       {/* ── フクエス（TOP・地域ページ）── */}

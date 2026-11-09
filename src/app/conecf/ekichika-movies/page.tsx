@@ -110,7 +110,7 @@ function SettingCard({ s, videos, girls, onToast, reload, open, onToggle }: { s:
         {!open && <span className="truncate text-[12px] text-slate-500">{s.schedule.map((r) => movieMinLabel(r.min)).join('・') || '—'} ／ 最後：{when(s.lastAt)}・{outcomeText(s.lastOutcome)}</span>}
       </button>
       {open && (<>
-        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行の女の子の動画を投稿します。駅ちかは1日{EKICHIKA_MOVIE_DAILY_MAX}件まで。「前の同じ記事を消す」にすると、同じ女の子・同じタイトルの前の記事を消してから投稿します。</p>
+        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行の動画を投稿します（1日{EKICHIKA_MOVIE_DAILY_MAX}件まで）。「前の同じ記事を消す」で、同じ女の子・タイトルの前の記事を消してから投稿します。</p>
         <div className="text-[13px] text-slate-600">最後に送れた：<b>{when(s.lastAt)}</b> ／ 最後の結果：{outcomeText(s.lastOutcome)}</div>
         {rows.map((r, i) => (
           <div key={i} className="grid gap-2 border border-slate-200 p-3 text-[14px]">

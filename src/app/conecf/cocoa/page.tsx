@@ -240,7 +240,7 @@ function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
             </div>
           ))}
           {rows.length < COCOA_SCHEDULE_MAX && <button type="button" onClick={() => setRows((rs) => [...rs, { time: '', templateId: '' }])} className="border border-dashed border-indigo-300 px-3 py-1 text-[13px] text-indigo-700">＋ 時刻を足す</button>}
-          <p className="text-[12px] text-slate-400">時刻は朝6時はじまりの1日です（翌朝は「翌1:00」）。休み中のテンプレートを選んだ行は、順番に選んで送ります。ココアの残り回数（店長ブログ・動画投稿で共通）に気をつけてください。</p>
+          <p className="text-[12px] text-slate-400">1日は朝6時はじまりです（翌朝は「翌1:00」）。残り回数は店長ブログ・動画投稿で共通です。</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-[14px]">
           <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 自動で投稿する</label>
@@ -322,8 +322,8 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 
       {/* 説明 */}
       <div className={`${CARD} p-4 text-[13.5px] text-slate-500 leading-relaxed`}>
-        ココアの「店長ブログ」へ、登録したテンプレを決めた時刻に自動投稿します（メールで投稿）。ココア（A）・ココア（B）・ココア（C）のアカウントごとに、時刻と出すテンプレートを決められます。
-        投稿は3ヶ月で自動的に消えるため、定期的に投稿して新しく保てます。★ 投稿・編集あわせて残り回数の上限がココア側にあります。
+        ココアの「店長ブログ」へ、テンプレートを決めた時刻に自動投稿します。アカウント（A・B・C）ごとに時刻とテンプレートを決められます。
+        投稿は3ヶ月で消えるので、定期的に投稿して新しく保てます。投稿・編集の回数にはココア側の上限があります。
       </div>
 
       {/* ★ 第1833便: A・B・C の3アカウント（表が無いときは下の今までの1つの画面） */}

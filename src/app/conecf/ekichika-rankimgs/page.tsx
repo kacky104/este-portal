@@ -66,7 +66,7 @@ function SettingCard({ s, girls, onToast, reload, open, onToggle }: { s: ConecfE
         {!open && <span className="truncate text-[12px] text-slate-500">{s.intervalMin}分おき・{s.pairs.length}組 ／ 最後：{when(s.lastAt)}・{outcomeText(s.lastOutcome)}</span>}
       </button>
       {open && (<>
-        <p className="text-[13px] leading-relaxed text-slate-600">決めた間隔で、下の組を上から順に「店舗メイン」「ランキング」へ置きます（最後の組の次は最初に戻ります）。名前は駅ちかの女の子一覧と同じ書き方で。写真の無い方は受け付けられません。</p>
+        <p className="text-[13px] leading-relaxed text-slate-600">決めた間隔で、下の組を上から順に置きます（最後の次は最初へ）。名前は駅ちかと同じ書き方で。写真の無い方は置けません。</p>
         <div className="text-[13px] text-slate-600">
           最後に入れ替えた：<b>{when(s.lastAt)}</b> ／ 最後の結果：{outcomeText(s.lastOutcome)}
           {s.auto && s.pairs.length > 0 && <> ／ 次：<b>{s.nextIndex + 1}組目</b>{next ? `（${when(next)} ごろ）` : '（次の見回りで）'}</>}
@@ -89,7 +89,7 @@ function SettingCard({ s, girls, onToast, reload, open, onToggle }: { s: ConecfE
         {pairs.length < EKICHIKA_RANKIMG_PAIRS_MAX && (
           <button type="button" onClick={() => setPairs((ps) => [...ps, { main: '', ranking: '' }])} className="border border-dashed border-violet-400 px-3 py-1.5 text-[13px] text-violet-700">＋ 組を足す</button>
         )}
-        <p className="text-[12px] text-slate-400">「この組をいま1回」は保存してある組で入れ替えます（次の自動はその次の組から・間隔はそこから数え直し）。変えたら先に「保存」を押してください。</p>
+        <p className="text-[12px] text-slate-400">「この組をいま1回」は保存済みの組で入れ替えます。変えたら先に「保存」を。</p>
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-[14px]">
           <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 自動で入れ替える</label>
           <button type="button" disabled={busy} onClick={save} className="border border-violet-600 px-4 py-1.5 font-bold text-violet-700 disabled:opacity-40">保存</button>
@@ -114,7 +114,7 @@ export default function ConecfEkichikaRankImagesPage() {
     <ConecfShell current="ekiRankImg" title="駅ちかランキング画像（店舗メイン／ランキング）" toast={toast}>
       {() => (
         <div className="space-y-4">
-          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの女の子一覧の上にある「店舗メイン」「ランキング」の女の子を、決めた間隔で入れ替えます。ランキングの女の子の写真が、ランキングページのお店の写真になります。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「店舗メイン」「ランキング」の女の子を、決めた間隔で入れ替えます。</p>
           {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
           {!error && !data && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {data && data.settings.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるようになっていません。運営事務局までご連絡ください。</div>}

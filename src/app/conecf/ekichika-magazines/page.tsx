@@ -110,7 +110,7 @@ export default function ConecfEkichikaMagazinesPage() {
     <ConecfShell current="ekiMagazine" title="駅ちかプラチナムマガジン" toast={toast}>
       {() => (
         <div className="space-y-4">
-          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「プラチナムマガジン」を、決めた時刻に投稿します。届くのはお店をマイショップ登録している会員です。1日は朝6時はじまりです。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「プラチナムマガジン」を決めた時刻に配信します。届くのはマイショップ登録の会員です。</p>
           {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
           {!error && !data && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {data && data.settings.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるようになっていません。運営事務局までご連絡ください。</div>}

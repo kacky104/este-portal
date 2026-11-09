@@ -625,6 +625,26 @@ body.paw-bg {
   box-shadow: none;
 }
 .conecf-venrey td[class~="bg-white"], .conecf-venrey th[class~="bg-white"], .conecf-venrey tr[class~="bg-white"] { border-radius: 0; }
+/* ★ 第1876便（カッキーさん「残りの画面もまとめて整える」）: 画面ごとにばらばらだった色を、コネックエフの中だけそろえる。
+   ・紺のグラデーション（ボタン・帯）→ 紺の単色（#4f46e5）
+   ・ベンリー由来の緑 #218925 → emerald-600（#059669）／青 #1e88e5・#1558d6 → 紺／赤 #c62828 → rose-600（#e11d48） */
+.conecf-venrey [class*="bg-gradient"][class*="from-indigo-"] { background-image: none !important; background-color: #4f46e5 !important; }
+.conecf-venrey button[class*="bg-gradient"][class*="from-indigo-"]:not(:disabled):hover,
+.conecf-venrey a[class*="bg-gradient"][class*="from-indigo-"]:hover { background-color: #4338ca !important; filter: none; }
+.conecf-venrey [class*="bg-[#218925]"] { background-color: #059669 !important; }
+.conecf-venrey button[class*="bg-[#218925]"]:not(:disabled):hover { background-color: #047857 !important; }
+.conecf-venrey [class*="border-[#218925]"] { border-color: #059669 !important; }
+.conecf-venrey [class*="text-[#218925]"] { color: #047857 !important; }
+.conecf-venrey [class*="bg-[#1e88e5]"], .conecf-venrey [class*="bg-[#1558d6]"] { background-color: #4f46e5 !important; }
+.conecf-venrey [class*="border-[#1e88e5]"] { border-color: #6366f1 !important; }
+.conecf-venrey [class*="text-[#1e88e5]"], .conecf-venrey [class*="text-[#1558d6]"] { color: #4f46e5 !important; }
+.conecf-venrey [class*="bg-[#c62828]"] { background-color: #e11d48 !important; }
+.conecf-venrey [class*="text-[#c62828]"] { color: #e11d48 !important; }
+.conecf-venrey [class*="border-[#c62828]"] { border-color: #fb7185 !important; }
+.conecf-venrey [class*="bg-[#e5f1fc]"] { background-color: #eef2ff !important; }
+.conecf-venrey [class*="bg-[#fefdfd]"] { background-color: #ffffff !important; }
+/* ★ 丸い大きなボタン（ベンリー由来の rounded-[28px]）は丸いまま、文字を少し太く */
+.conecf-venrey [class*="rounded-[28px]"] { border-radius: 9999px !important; font-weight: 700; font-size: 13px; }
 /* ★ 第1873便: 表を上下に分けて貼り付けている所（出勤スケジュール）は、角丸を付けない／下だけ丸める */
 .conecf-venrey .cf-flat { border-radius: 0 !important; box-shadow: none !important; }
 .conecf-venrey .cf-flat.rounded-t-xl { border-radius: 12px 12px 0 0 !important; }
