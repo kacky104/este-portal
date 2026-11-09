@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
@@ -43,9 +43,24 @@ async function shrinkToJpeg(file: File): Promise<Blob> {
   } finally { URL.revokeObjectURL(url); }
 }
 
+/** ★ カードの見出し（閉じていても名前・自動・最後の結果と「今すぐ」は見える）。エステ魂オプションの画面と同じ形 */
+function AccHead({ title, open, onToggle, auto, last, children }: { title: string; open: boolean; onToggle: () => void; auto: boolean; last: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left">
+        <span className={`inline-block w-4 text-violet-600 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+        <h2 className="text-[17px] font-bold text-violet-700">{title}</h2>
+        <span className={`border px-2 py-0.5 text-[12px] font-bold ${auto ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{auto ? '自動 ON' : '自動 OFF'}</span>
+        {!open && <span className="truncate text-[12px] text-slate-500">最後：{last}</span>}
+      </button>
+      {children}
+    </div>
+  );
+}
+
 type NewsRow = { time: string; title: string; body: string; image: string | null; imageUrl: string | null };
 
-function NewsCard({ o, onToast, reload }: { o: ConecfZenkokuOption; onToast: (m: string) => void; reload: () => void }) {
+function NewsCard({ o, onToast, reload, open, onToggle }: { o: ConecfZenkokuOption; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(o.auto);
   const [rows, setRows] = useState<NewsRow[]>(() => {
     const n = Math.max(o.timesMin.length, o.news.length, 1);
@@ -88,11 +103,10 @@ function NewsCard({ o, onToast, reload }: { o: ConecfZenkokuOption; onToast: (m:
   };
   return (
     <section className={`${CARD} p-5 space-y-3`}>
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-[17px] font-bold text-violet-700">ニュース投稿</h2>
-        <span className={`border px-2 py-0.5 text-[12px] font-bold ${o.auto ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{o.auto ? '自動 ON' : '自動 OFF'}</span>
+      <AccHead title="ニュース投稿" open={open} onToggle={onToggle} auto={o.auto} last={`${when(o.lastAt)}・${outcomeText(o.lastOutcome)}`}>
         <button type="button" disabled={busy} onClick={now} className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ1件投稿</button>
-      </div>
+      </AccHead>
+      {open && (<>
       <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行のニュースを全国エステランキングへ投稿します。1日5回まで（毎朝6時に戻ります）。「今すぐ1件投稿」も1回に数えます。</p>
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-2">
         <div>最後に送れた：<b className="text-slate-800">{when(o.lastAt)}</b></div>
@@ -129,11 +143,12 @@ function NewsCard({ o, onToast, reload }: { o: ConecfZenkokuOption; onToast: (m:
         <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 自動で投稿する</label>
         <button type="button" disabled={busy} onClick={save} className="border border-violet-600 px-4 py-1.5 font-bold text-violet-700 disabled:opacity-40">保存</button>
       </div>
+      </>)}
     </section>
   );
 }
 
-function RecommendCard({ o, therapists, onToast, reload }: { o: ConecfZenkokuOption; therapists: string[]; onToast: (m: string) => void; reload: () => void }) {
+function RecommendCard({ o, therapists, onToast, reload, open, onToggle }: { o: ConecfZenkokuOption; therapists: string[]; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(o.auto);
   const [time, setTime] = useState(zenkokuMinLabel(o.timesMin[0] ?? 369));
   const [names, setNames] = useState<string[]>(o.recommend.map((r) => r.name));
@@ -159,11 +174,10 @@ function RecommendCard({ o, therapists, onToast, reload }: { o: ConecfZenkokuOpt
   const next = names.length > 0 ? names[o.nextItem % names.length] : null;
   return (
     <section className={`${CARD} p-5 space-y-3`}>
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-[17px] font-bold text-violet-700">おすすめセラピスト</h2>
-        <span className={`border px-2 py-0.5 text-[12px] font-bold ${o.auto ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{o.auto ? '自動 ON' : '自動 OFF'}</span>
+      <AccHead title="おすすめセラピスト" open={open} onToggle={onToggle} auto={o.auto} last={`${when(o.lastAt)}・${outcomeText(o.lastOutcome)}`}>
         <button type="button" disabled={busy} onClick={now} className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ次の方にする</button>
-      </div>
+      </AccHead>
+      {open && (<>
       <p className="text-[13px] leading-relaxed text-slate-600">毎日決めた時刻に、リストの上から順に1人ずつ、全国エステランキングの「おすすめセラピスト」（1名）を入れ替えます。全国エステランキングでは<b>おすすめの変更回数に月ごとの上限</b>があり、使い切った月はそれ以上入れ替えません。全国エステランキングに居ない方・非公開の方は飛ばします。</p>
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-3">
         <div>今月の残り：<b className="text-slate-800">{o.remaining ?? '—'}</b>回（{when(o.readAt)} 時点）</div>
@@ -196,6 +210,7 @@ function RecommendCard({ o, therapists, onToast, reload }: { o: ConecfZenkokuOpt
         <label className="flex items-center gap-2">毎日 <input value={time} onChange={(e) => setTime(e.target.value)} className="w-20 border border-slate-300 px-2 py-1" placeholder="6:09" /></label>
         <button type="button" disabled={busy} onClick={save} className="border border-violet-600 px-4 py-1.5 font-bold text-violet-700 disabled:opacity-40">保存</button>
       </div>
+      </>)}
     </section>
   );
 }
@@ -205,6 +220,9 @@ export default function ConecfZenkokuOptionsPage() {
   const [opts, setOpts] = useState<ConecfZenkokuOption[] | null>(null);
   const [therapists, setTherapists] = useState<string[]>([]);
   const [error, setError] = useState('');
+  // ★ 開いているカード（読み直しでカードが作り直されても閉じないよう、ここで持つ）。はじめは全部閉じる
+  const [openKeys, setOpenKeys] = useState<Record<string, boolean>>({});
+  const toggle = (k: string) => setOpenKeys((m) => ({ ...m, [k]: !m[k] }));
   const load = useCallback(async () => {
     const r = await getConecfZenkokuOptions();
     if (!r.ok) { setError(r.error); return; }
@@ -220,8 +238,8 @@ export default function ConecfZenkokuOptionsPage() {
           {!error && !opts && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {opts && opts.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使える設定はまだありません。運営事務局までご連絡ください。</div>}
           {opts?.map((o) => o.key === 'news'
-            ? <NewsCard key={'news' + String(o.lastAt) + String(o.readAt)} o={o} onToast={showToast} reload={load} />
-            : <RecommendCard key={'rec' + String(o.lastAt) + String(o.readAt)} o={o} therapists={therapists} onToast={showToast} reload={load} />)}
+            ? <NewsCard key={'news' + String(o.lastAt) + String(o.readAt)} o={o} onToast={showToast} reload={load} open={openKeys.news === true} onToggle={() => toggle('news')} />
+            : <RecommendCard key={'rec' + String(o.lastAt) + String(o.readAt)} o={o} therapists={therapists} onToast={showToast} reload={load} open={openKeys.recommend === true} onToggle={() => toggle('recommend')} />)}
         </div>
       )}
     </ConecfShell>
