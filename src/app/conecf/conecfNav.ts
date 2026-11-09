@@ -9,7 +9,7 @@ export type ConecfNavKey =
   | 'now'
   | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'ekiMagazine' | 'ekiRankImg' | 'announce' | 'cocoa'
   | 'log' | 'matrix' | 'analytics'
-  | 'guide' | 'qa';
+  | 'guide' | 'qa' | 'contact';
 
 // ★★ 第462便（カッキーさん）: dense＝名前が長い項目（★ サイドバーで1行に収める。★ 折り返すと読みにくい）
 export type ConecfNavItem = { key: ConecfNavKey; label: string; href: string; group?: string; dense?: boolean };
@@ -56,6 +56,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'analytics',    label: 'アクセス解析（公式HP）', href: '/analytics', dense: true },
   { key: 'guide',        label: 'はじめての方へ',         href: '/guide',         group: 'ご案内' },
   { key: 'qa',           label: 'よくあるご質問（Q&A）',   href: '/qa' },
+  // ★ 第1868便（カッキーさん）: 運営へのお問い合わせ（ベンリーの「お問合せ」と同じ考え方）
+  { key: 'contact',      label: '運営お問い合わせ',       href: '/contact' },
 ];
 
 /** ★ 第1847便: 「サイト自動更新」の中にまとめた画面（サイドバーには出さず、開いているときは「サイト自動更新」を光らせる） */
