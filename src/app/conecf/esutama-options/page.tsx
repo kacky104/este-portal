@@ -5,7 +5,9 @@ import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
   getConecfEsutamaOptions, saveConecfEsutamaOption, runConecfEsutamaOptionNow, type ConecfEsutamaOption,
+  getConecfEsutamaPosts, saveConecfEsutamaPost, runConecfEsutamaPostNow, type ConecfEsutamaPost,
 } from '@/app/actions/conecfEsutamaOptions';
+import { ESUTAMA_POST_TITLE_MAX, ESUTAMA_POST_BODY_MAX, ESUTAMA_POST_INTERVALS } from '@/lib/esutamaPost';
 
 // コネックエフ「エステ魂オプション」（第1799便・2026-11-09・カッキーさんの決定）。
 // ★ 運営が /admin で ON にした店だけメニューに出る。★ 押すのはエステ魂で契約している有料オプションのボタン。
@@ -100,14 +102,94 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
   );
 }
 
+// ★ 第1811便: 投稿（リアルタイム集客）。保存した文章を、決めた間隔で投稿する
+const POST_DESC: Record<string, string> = {
+  guest_realtime: 'エステ魂の「リアルタイム集客」に、下の文章を決めた間隔で投稿します。画像は、いまエステ魂に出ている画像をそのまま使います。',
+};
+const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '投稿できました' : o.startsWith('error') ? 'うまくいきませんでした' : o);
+
+function PostCard({ p, onToast, reload }: { p: ConecfEsutamaPost; onToast: (m: string) => void; reload: () => void }) {
+  const [auto, setAuto] = useState(p.auto);
+  const [title, setTitle] = useState(p.title);
+  const [body, setBody] = useState(p.body);
+  const [startMin, setStart] = useState(p.startMin);
+  const [endMin, setEnd] = useState(p.endMin);
+  const [intervalMin, setIntervalMin] = useState(p.intervalMin);
+  const [busy, setBusy] = useState(false);
+  const dirty = title !== p.title || body !== p.body;
+  const save = async () => {
+    setBusy(true);
+    const r = await saveConecfEsutamaPost({ key: p.key, auto, title, body, startMin, endMin, intervalMin });
+    setBusy(false);
+    onToast(r.ok ? '保存しました' : r.error);
+    if (r.ok) reload();
+  };
+  const now = async () => {
+    if (dirty) { onToast('文章を変えたときは、先に「保存」を押してください'); return; }
+    if (!window.confirm('いまの文章で、エステ魂に1件投稿します。よろしいですか？')) return;
+    setBusy(true);
+    const r = await runConecfEsutamaPostNow({ key: p.key });
+    setBusy(false);
+    onToast(r.ok ? 'エステ魂へ送りました（1〜2分で届きます）' : r.error);
+    if (r.ok) setTimeout(reload, 90_000);
+  };
+  return (
+    <section className={`${CARD} p-5 space-y-3`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-[17px] font-bold text-violet-700">{p.label}</h2>
+        <button type="button" disabled={busy} onClick={now}
+          className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ投稿</button>
+      </div>
+      <p className="text-[13px] leading-relaxed text-slate-600">{POST_DESC[p.key]}</p>
+      <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-2">
+        <div>最後に投稿できた：<b className="text-slate-800">{when(p.lastAt)}</b></div>
+        <div>最後の結果：{postOutcomeText(p.lastOutcome)}</div>
+      </div>
+      <div className="space-y-2 border-t border-slate-100 pt-3 text-[14px]">
+        <label className="block">
+          <span className="font-bold">タイトル</span>
+          <span className="ml-2 text-[12px] text-slate-500">{[...title].length}/{ESUTAMA_POST_TITLE_MAX}</span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 w-full border border-slate-300 px-2 py-1.5" placeholder="例：本日限定割引" />
+        </label>
+        <label className="block">
+          <span className="font-bold">本文</span>
+          <span className="ml-2 text-[12px] text-slate-500">{[...body].length}/{ESUTAMA_POST_BODY_MAX}</span>
+          <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} className="mt-1 w-full border border-slate-300 px-2 py-1.5" />
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-[14px]">
+        <label className="flex items-center gap-2 font-bold">
+          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 自動で投稿する
+        </label>
+        <span className="flex items-center gap-1">
+          <select value={startMin} onChange={(e) => setStart(Number(e.target.value))} className="border border-slate-300 px-2 py-1">
+            {HOURS.slice(0, -1).map((m) => <option key={m} value={m}>{label(m)}</option>)}
+          </select>
+          〜
+          <select value={endMin} onChange={(e) => setEnd(Number(e.target.value))} className="border border-slate-300 px-2 py-1">
+            {HOURS.slice(1).map((m) => <option key={m} value={m}>{label(m)}</option>)}
+          </select>
+        </span>
+        <select value={intervalMin} onChange={(e) => setIntervalMin(Number(e.target.value))} className="border border-slate-300 px-2 py-1">
+          {ESUTAMA_POST_INTERVALS.map((m) => <option key={m} value={m}>{m}分おき</option>)}
+        </select>
+        <button type="button" disabled={busy} onClick={save} className="border border-violet-600 px-4 py-1.5 font-bold text-violet-700 disabled:opacity-40">保存</button>
+      </div>
+    </section>
+  );
+}
+
 export default function ConecfEsutamaOptionsPage() {
   const { toast, showToast } = useToast();
   const [opts, setOpts] = useState<ConecfEsutamaOption[] | null>(null);
+  const [posts, setPosts] = useState<ConecfEsutamaPost[]>([]);
   const [error, setError] = useState('');
   const load = useCallback(async () => {
     const r = await getConecfEsutamaOptions();
     if (!r.ok) { setError(r.error); return; }
     setOpts(r.data.options); setError('');
+    const pr = await getConecfEsutamaPosts();
+    if (pr.ok) setPosts(pr.data.posts);
   }, []);
   useEffect(() => { void load(); }, [load]);
   return (
@@ -117,8 +199,9 @@ export default function ConecfEsutamaOptionsPage() {
         <p className="text-[14px] leading-relaxed text-slate-600">エステ魂でご契約の有料オプションのボタンを、コネックエフから押します。時間は朝6時はじまりの1日です（エステ魂の回数は毎朝6時に戻ります）。</p>
         {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
         {!error && !opts && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
-        {opts && opts.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるオプションはまだありません。運営事務局までご連絡ください。</div>}
+        {opts && opts.length === 0 && posts.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるオプションはまだありません。運営事務局までご連絡ください。</div>}
         {opts?.map((o) => <OptionCard key={o.key + String(o.lastAt) + String(o.readAt)} o={o} onToast={showToast} reload={load} />)}
+        {posts.map((p) => <PostCard key={p.key + String(p.lastAt) + String(p.readAt)} p={p} onToast={showToast} reload={load} />)}
       </div>
       )}
     </ConecfShell>

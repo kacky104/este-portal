@@ -20,6 +20,7 @@ import { mergeCookies } from './relayJob';
 import { buildEsutamaPhotoReadStep } from './esutamaPhotoFlow';
 import { buildEsutamaAppealReadStep } from './esutamaAppealFlow';
 import { buildEsutamaOptReadStep } from './esutamaOptionFlow';
+import { buildEsutamaPostReadStep } from './esutamaPostFlow';
 import { buildEsutamaSortReadStep } from './mediaSortFlow';
 import { buildEsutamaRosterRefreshStep } from './esutamaRosterRefresh';
 import { readEsutamaCsrf, parseEsutamaJson, parseEsutamaRoster, parseEsutamaCastList, parseEsutamaCastForm } from './esutamaParse';
@@ -188,6 +189,16 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
       audits: [],
       note: 'エステ魂にログインできた。セラピストの表示順の画面を読みます（★ まだ保存していない）',
       next: buildEsutamaSortReadStep(cookie, ctx),
+    };
+  }
+
+  // ★★ 第1811便: エステ魂【オプション】の投稿（リアルタイム集客）。★ 新規投稿の画面を読む（まだ送っていない）
+  if ((ctx.intent === 'bump_auto' || ctx.intent === 'bump_push') && ctx.esutamaPost) {
+    return {
+      kind: 'next',
+      audits: [],
+      note: 'エステ魂にログインできた。投稿（' + ctx.esutamaPost.key + '）の画面を読みます（★ まだ送っていない）',
+      next: buildEsutamaPostReadStep(cookie, ctx),
     };
   }
 

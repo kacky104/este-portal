@@ -4,6 +4,7 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaBump';
 import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
+import { shouldPostEsutama, esutamaPostTextProblem } from '@/lib/esutamaPost';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -128,6 +129,41 @@ export async function POST(req: Request) {
         results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
       } catch (e) {
         console.error('[esutama-option] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
+        results.push({ ...base, reason: 'start_failed' });
+      }
+    }
+  }
+
+  // ★★ 第1811便: エステ魂【オプション】の投稿（リアルタイム集客）も同じ周で送る。★ crontab はそのまま
+  //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 表が無い（SQL 未適用）ときは黙って飛ばす
+  const posts = await svc.from('conecf_esutama_posts')
+    .select('salon_id, post_key, title, body, start_min, end_min, interval_min, last_at, read_at')
+    .eq('admin_enabled', true).eq('auto', true);
+  if (!posts.error) {
+    for (const o of posts.data ?? []) {
+      const key = String(o.post_key);
+      const title = String(o.title ?? '');
+      const bodyText = String(o.body ?? '');
+      const base = { salonId: Number(o.salon_id), provider: 'esutama:' + key, slot: 1 };
+      const judge = shouldPostEsutama({
+        now, hasText: esutamaPostTextProblem(title, bodyText) === null,
+        setting: { startMin: Number(o.start_min), endMin: Number(o.end_min), intervalMin: Number(o.interval_min) },
+        state: { lastAt: (o.last_at as string | null) ?? null, readAt: (o.read_at as string | null) ?? null },
+      });
+      if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+      // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない＝二重に投稿しない）。★ 書けなければ始めない
+      const { error: mErr } = await svc.from('conecf_esutama_posts')
+        .update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('post_key', key);
+      if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
+      try {
+        const f = await startRelayFlow({
+          salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
+          intent: 'bump_auto', actor: 'cron:esutama-post',
+          esutamaPost: { key, title, body: bodyText },
+        });
+        results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+      } catch (e) {
+        console.error('[esutama-post] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
         results.push({ ...base, reason: 'start_failed' });
       }
     }

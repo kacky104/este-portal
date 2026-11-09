@@ -121,6 +121,10 @@ export type RelayPurpose =
   | 'esutama_opt_read'
   | 'esutama_opt_set'
   | 'esutama_opt_verify'
+  // ★ 第1811便: エステ魂【オプション】の投稿。★ esutama_post_set だけが相手に1件増やす（送り直さない）
+  | 'esutama_post_read'
+  | 'esutama_post_set'
+  | 'esutama_post_verify'
   // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える（送り直さない）
   | 'girls_sort'
   | 'esutama_sort_read'

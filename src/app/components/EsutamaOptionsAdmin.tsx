@@ -5,16 +5,19 @@
 // ★ OFF にすると、その店の自動も止める（auto=false）。
 
 import { useEffect, useState } from 'react';
-import { adminGetEsutamaOptions, adminSetEsutamaOption } from '@/app/actions/conecfEsutamaOptions';
+import { adminGetEsutamaOptions, adminSetEsutamaOption, adminGetEsutamaPosts, adminSetEsutamaPost } from '@/app/actions/conecfEsutamaOptions';
 
 type SalonOption = { id: number; name: string };
 const KEYS: Array<[string, string]> = [['shop_boost', '集客ブースト'], ['cast_appeal', 'セラピストアピール'], ['job_appeal', '求人ワンクリックアピール']];
+// ★ 第1811便: 投稿（conecf_esutama_posts）
+const POST_KEYS: Array<[string, string]> = [['guest_realtime', 'リアルタイム集客（投稿）']];
 
 export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons: SalonOption[]; onToast: (msg: string) => void }) {
   const [salonId, setSalonId] = useState<number>(0);
   const [enabled, setEnabled] = useState<Record<string, boolean>>({});
   const [ready, setReady] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
+  const [postEnabled, setPostEnabled] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!salonId) { setEnabled({}); return; }
@@ -22,6 +25,10 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
     adminGetEsutamaOptions(salonId).then((r) => {
       if (!alive) return;
       if (r.ok) { setEnabled(r.data.enabled); setReady(r.data.ready); } else onToast(r.error);
+    });
+    adminGetEsutamaPosts(salonId).then((r) => {
+      if (!alive) return;
+      if (r.ok) setPostEnabled(r.data.enabled); else onToast(r.error);
     });
     return () => { alive = false; };
   }, [salonId, onToast]);
@@ -32,6 +39,15 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
     setBusy(false);
     if (!r.ok) { onToast(r.error); return; }
     setEnabled((e) => ({ ...e, [key]: on }));
+    onToast(on ? 'ON にしました' : 'OFF にしました（その店の自動も止めました）');
+  };
+
+  const togglePost = async (key: string, on: boolean) => {
+    setBusy(true);
+    const r = await adminSetEsutamaPost({ salonId, key, enabled: on });
+    setBusy(false);
+    if (!r.ok) { onToast(r.error); return; }
+    setPostEnabled((e) => ({ ...e, [key]: on }));
     onToast(on ? 'ON にしました' : 'OFF にしました（その店の自動も止めました）');
   };
 
@@ -49,6 +65,12 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
               <input type="checkbox" disabled={busy} checked={enabled[k] === true} onChange={(e) => toggle(k, e.target.checked)} />
               <span className="font-bold">{l}</span>
               {ready[k] === false && <span className="text-[11px] text-amber-600">準備中（押す仕組みはまだ。ON にしても押しません）</span>}
+            </label>
+          ))}
+          {POST_KEYS.map(([k, l]) => (
+            <label key={k} className="flex items-center gap-3 px-3 py-2">
+              <input type="checkbox" disabled={busy} checked={postEnabled[k] === true} onChange={(e) => togglePost(k, e.target.checked)} />
+              <span className="font-bold">{l}</span>
             </label>
           ))}
         </div>
