@@ -61,7 +61,7 @@ console.log('── 3. 押すかの判断');
 }
 console.log('── 本日体験入店（第1823便）');
 {
-  const on = m.parseJobNowPage(`<h2>本日体験入店できるお店</h2><p>11月10日 00時00分（掲載中）</p><a class="btn send-easy_post2" data-post="job_now" data-row="stop">掲載停止</a>${csrf}`);
+  const on = m.parseJobNowPage(`<h2>本日体験入店できるお店</h2><span class="input-view"> 11月10日 00時00分（<strong>掲載中</strong>） </span><a class="btn send-easy_post2" data-post="job_now" data-row="stop">掲載停止</a>${csrf}`);
   eq('掲載中', [on.listed, on.startRow, on.problems], [true, null, []]);
   const off = m.parseJobNowPage(`<h2>本日体験入店できるお店</h2><p>掲載していません</p><a class="btn send-easy_post2" data-post="job_now" data-row="start">掲載開始</a>${csrf}`);
   eq('止まっている（掲載開始の値は画面から）', [off.listed, off.startRow, off.problems], [false, 'start', []]);

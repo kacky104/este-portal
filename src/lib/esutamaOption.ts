@@ -290,7 +290,8 @@ export function parseJobNowPage(html: string): { listed: boolean; startRow: stri
   const problems: string[] = [];
   if (!/本日体験入店/.test(src)) problems.push('本日体験入店の画面ではない');
   const t = stripTags(src);
-  const listed = /（掲載中）|\(掲載中\)/.test(t);
+  // ★ 第1824便: 実物は「（<strong>掲載中</strong>）」で、タグを抜くと「（ 掲載中 ）」になる（空白を許す）
+  const listed = /（\s*掲載中\s*）|\(\s*掲載中\s*\)/.test(t);
   let startRow: string | null = null;
   const re = /<(a|button)\b[^>]*\bdata-post=["']job_now["'][^>]*>([\s\S]*?)<\/\1>/gi;
   let m: RegExpExecArray | null;
