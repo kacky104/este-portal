@@ -13,6 +13,7 @@
 //       超えた分は【エラーも警告も出さずに捨てられる】＝その女性の出勤が消える
 //   つまり「送ったつもり」ではなく【確信を持って壊す】形の事故が起きる。
 //   → 送る前に止める（assert 系）＋ 送った後に読み直して突き合わせる（verifyAfterWrite）。
+//   ★ 第1881便: 前後とも7日間ずっと休みの方は POST に入れない（payloadGirls）。項目数が在籍数ではなく「その週に出勤がある人数」で決まる
 //
 // 取得元の構造（2026-08-27 実測・THE LABYRINTH shopid 37168 の /admin/girlswork/）:
 //   <form id="frmfix" action="https://ranking-deli.jp/admin/girlswork/1/" method="post">
@@ -377,14 +378,35 @@ export function applyChanges(page: WorkPage, changes: WorkChange[]): GirlWork[] 
 
 // ────────────────────────── 送信内容を組み立てる ──────────────────────────
 
+/** ★ 第1881便: 7日間ずっと休みか */
+function allOff(g: GirlWork | undefined): boolean {
+  return !!g && g.days.every((c) => !c.work);
+}
+
+/**
+ * ★★★ 第1881便（2026-11-10・カッキーさんの決定）: 送る人をしぼる。
+ *   【駅ちかの今の出勤表でも、送る内容でも、7日間ずっと休み】の方は POST に入れない。
+ *   ★ なぜ: 1人あたり約15項目（girl_id＋7日×開始・終了＋出勤の印）なので、在籍が59人を超えると 1000 項目を超えて
+ *     送れなくなっていた（オイルクエスト様の駅ちか枠3・61人で 1010 項目）。在籍200人のお店ならそもそも送れない。
+ *   ★ なぜ安全か: 駅ちかの保存が「送らなかった人は休みにする（全部上書き）」でも「送らなかった人はそのまま」でも、
+ *     外すのは【いまも休み・送ったあとも休み】の方だけなので、どちらでも結果は同じ（休みのまま）。
+ *     出勤がある方・出勤を消す（休みにする）方は、今までどおり必ず送る。
+ *   ★ 送ったあとの照合（verifyAfterWrite）は今までどおり全員ぶんの sent で見る＝外した方が休みのままかも確かめる。
+ */
+export function payloadGirls(page: WorkPage, girls: GirlWork[]): GirlWork[] {
+  const before = new Map(page.girls.map((g) => [g.girlId, g]));
+  return girls.filter((g) => !(allOff(g) && allOff(before.get(g.girlId))));
+}
+
 /**
  * POST するフィールドを画面と同じ順で組み立てる。
  * ★ work_flg は true のときだけ出す（チェックボックスなので、休みは「キーが無い」）。
  * ★ girl_id は日0にだけ付く（画面と同じ）。
+ * ★ 第1881便: 前後とも7日間ずっと休みの方は入れない（payloadGirls）。
  */
 export function buildPayload(page: WorkPage, girls: GirlWork[]): Array<[string, string]> {
   const fields: Array<[string, string]> = [['fuel_csrf_token', page.csrfToken]];
-  for (const g of girls) {
+  for (const g of payloadGirls(page, girls)) {
     for (let d = 0; d < WORK_DAYS; d++) {
       const prefix = 'girl_work[' + g.girlId + '][' + d + ']';
       if (d === 0) fields.push([prefix + '[girl_id]', g.girlId]);

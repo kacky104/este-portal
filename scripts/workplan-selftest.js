@@ -408,5 +408,25 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
   eq('⑭ ★ 残りが0名なら「駅ちかにだけ登録がある方」を出さない', onlyOff.notes.some(n=>n.kind==='unknown_girl'), false);
 }
 
+// ── ★★★ 第1881便: 前後とも7日間ずっと休みの方は POST に入れない（項目数を在籍数でなく出勤のある人数で決める）──
+//   ★ なぜ正しいか: 駅ちかの保存が「送らなかった人は休み」でも「そのまま」でも、外すのは前後とも休みの方だけなので結果は同じ。
+//   ★ 出勤がある方・休み→出勤の方・出勤→休み（消す）の方は必ず送る。外し忘れると 1000 項目を超えて止まり、送りすぎると出勤が消える。
+{
+  const off = () => Array.from({length: 7}, () => ({start: '12:00', end: '20:00', work: false}));
+  const mk = (id, workDays) => ({girlId: String(id), name: 'g' + id, days: off().map((c, i) => workDays.includes(i) ? {...c, work: true} : c)});
+  const girls = []; for (let i = 0; i < 61; i++) girls.push(mk(1000 + i, i < 30 ? [i % 7, (i + 2) % 7] : []));
+  const page = {csrfToken: 'x', action: 'https://ranking-deli.jp/admin/girlswork/1/', dateLabels: [], headerCounts: [], girls: girls.map((g, i) => i === 50 ? mk(g.girlId, [1]) : g), timeOptions: []};
+  const sent = girls.map((g) => ({...g, days: g.days.map((d) => ({...d}))}));
+  sent[40].days[3].work = true;
+  const f = parse.buildPayload(page, sent);
+  const ids = new Set(f.filter(([k]) => /\[girl_id\]$/.test(k)).map(([, v]) => v));
+  eq('第1881便 ★★★ 61人（出勤あり30人）でも 1000 項目以内', f.length <= 1000, true);
+  eq('第1881便 ★★★ 出勤のある30人は全員送る', [...Array(30)].every((_, i) => ids.has(String(1000 + i))), true);
+  eq('第1881便 ★★★ 休み→出勤の方は送る', ids.has('1040'), true);
+  eq('第1881便 ★★★ 駅ちかでは出勤・送る内容は休み（消す）の方は送る', ids.has('1050'), true);
+  eq('第1881便 ★ 前後ともずっと休みの方は送らない', ids.has('1045'), false);
+  eq('第1881便 ★ 先頭は csrf・最後は work_btn（画面と同じ）', [f[0][0], f[f.length - 1][0]], ['fuel_csrf_token', 'work_btn']);
+}
+
 console.log(fail === 0 ? '\n★ 全部通った' : '\n★ 失敗 ' + fail + '件');
 process.exit(fail === 0 ? 0 : 1);
