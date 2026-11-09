@@ -24,8 +24,11 @@ eq('★★★ 「どのサイトにも反映しない」は全部 ✕ か ―（
    m.MATRIX_ROWS.every((r) => m.MEDIA_MATRIX[2].cells[r].every(off)), true);
 eq('★★★ 「駅ちかから反映」で駅ちか以外は全部 ✕ か ―（ほかへ送らない方針）',
    m.MATRIX_ROWS.every((r) => m.MEDIA_MATRIX[1].cells[r].slice(1).every(off)), true);
-eq('★ エスランの写メ日記・即ヒメ・新着情報は ―（機能そのものが無い）',
-   m.MEDIA_MATRIX.every((s) => ['写メ日記', '即ヒメ／即セラ', '新着情報'].every((r) => s.cells[r][3] === m.NA)), true);
+// ★ 第1827便: エスランの即ヒメ相当（待機中）は「フクエスから反映」だけ 15分以内。写メ日記・新着情報は ―
+eq('★ エスランの写メ日記・新着情報は ―（機能そのものが無い）',
+   m.MEDIA_MATRIX.every((s) => ['写メ日記', '新着情報'].every((r) => s.cells[r][3] === m.NA)), true);
+eq('★ エスランの待機中は「フクエスから反映」で15分以内（第1810便）', m.MEDIA_MATRIX[0].cells['即ヒメ／即セラ'][3], '15分以内');
+eq('★ エスランの出勤は30分以内（第1804便で書き込みを開けた）', m.MEDIA_MATRIX[0].cells['出勤'][3], '30分以内');
 eq('★ エスランの出勤は ―ではない（準備中 か ✕）', m.MEDIA_MATRIX.every((s) => s.cells['出勤'][3] !== m.NA), true);
 // ★ 第215便: 「フクエスから反映」は「◯分以内」（周は◯分に1回。入れてから【最長】◯分）
 eq('★★ 出勤（自動）は30分以内（media-auto-push の crontab 5,35）', m.MEDIA_MATRIX[0].cells['出勤'].slice(0, 2), ['30分以内', '30分以内']);
@@ -37,7 +40,7 @@ eq('★★ エステ魂の即セラも「数分以内」（駅ちかと揃える
 // ★ 第215便: エステ魂の新着情報は ※（サイト自身に自動更新がある）。★ 表のすぐ下の注で言う
 eq('★★ エステ魂の新着情報は ※', m.MEDIA_MATRIX[0].cells['新着情報'][1], m.SEE);
 eq('★★ ※ があるなら表の下に注がある', m.MEDIA_MATRIX.every((s) => !m.MATRIX_ROWS.some((r) => s.cells[r].includes(m.SEE)) || (typeof s.remark === 'string' && s.remark.startsWith('※'))), true);
-eq('★ 注はエステ魂の自動更新を言う', m.MEDIA_MATRIX[0].remark.includes('エステ魂') && m.MEDIA_MATRIX[0].remark.includes('自動更新'), true);
+eq('★ 注はエステ魂の AI広報部（サイト側の自動投稿）を言う', m.MEDIA_MATRIX[0].remark.includes('エステ魂') && m.MEDIA_MATRIX[0].remark.includes('AI広報部'), true);
 eq('★ ※ は「フクエスから反映」にしか出ない', m.MEDIA_MATRIX.slice(1).every((s) => m.MATRIX_ROWS.every((r) => !s.cells[r].includes(m.SEE))), true);
 // ★ 第215便: 見出しの下の但し書き（note）は消した
 eq('★ 但し書き（note）は持たない', m.MEDIA_MATRIX.every((s) => !('note' in s)), true);
