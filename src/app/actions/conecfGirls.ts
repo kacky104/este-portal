@@ -240,7 +240,7 @@ type RegisterSite = { provider: string; slot: number; label: string };
 async function registerSitesOf(svc: Svc, salonId: number): Promise<RegisterSite[]> {
   const { data: creds } = await svc
     .from('salon_media_credentials').select('provider, slot, is_enabled, consent_version')
-    .eq('salon_id', salonId).in('provider', ['ekichika', 'esutama']);
+    .eq('salon_id', salonId).in('provider', ['ekichika', 'esutama', 'zenkoku']);   // ★ 第1865便: 全国エステランキングも
   const out: RegisterSite[] = [];
   for (const c of creds ?? []) {
     if (c.is_enabled !== true) continue;

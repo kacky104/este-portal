@@ -436,6 +436,8 @@ export async function startRelayFlow(params: {
   ekichikaMagazine?: { index: number; title: string; body: string };
   /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（この1組・終わったら next_index を nextIndex に） */
   ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string };
+  /** ★ 第1865便: 全国エステランキングへ1人登録（intent='girl_create'・provider='zenkoku'） */
+  zenkokuCreate?: { therapistId: number; values: { nickname: string; age: string; tall: string; bust: string; waist: string; hip: string; cup: string }; photos: Array<{ bucket: string; path: string }> };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
   sort?: { want: string[] };
@@ -749,6 +751,7 @@ export async function startRelayFlow(params: {
     // ★ 第1840便: 駅ちかの動画投稿
     ...(params.ekichikaMovie ? { ekichikaMovie: { index: params.ekichikaMovie.index, girlName: params.ekichikaMovie.girlName, title: params.ekichikaMovie.title, body: params.ekichikaMovie.body, deleteSame: params.ekichikaMovie.deleteSame, videoUrl: movieVideoUrl, videoType: params.ekichikaMovie.videoType } } : {}),
     ...(params.ekichikaMagazine ? { ekichikaMagazine: { index: params.ekichikaMagazine.index, title: params.ekichikaMagazine.title, body: params.ekichikaMagazine.body } } : {}),
+    ...(params.zenkokuCreate ? { zenkokuCreate: { therapistId: params.zenkokuCreate.therapistId, values: params.zenkokuCreate.values, photos: params.zenkokuCreate.photos } } : {}),
     ...(params.ekichikaRankImage ? { ekichikaRankImage: { index: params.ekichikaRankImage.index, nextIndex: params.ekichikaRankImage.nextIndex, main: params.ekichikaRankImage.main, ranking: params.ekichikaRankImage.ranking } } : {}),
     ...(params.zenkokuOpt ? { zenkokuOpt: { key: params.zenkokuOpt.key, ...(params.zenkokuOpt.force === true ? { force: true } : {}), ...(params.zenkokuOpt.item ? { item: { title: params.zenkokuOpt.item.title, body: params.zenkokuOpt.item.body, image: params.zenkokuOpt.item.image ?? null } } : {}), ...(params.zenkokuOpt.items ? { items: params.zenkokuOpt.items.map((x) => ({ name: x.name })) } : {}), nextIndex: Number(params.zenkokuOpt.nextIndex ?? 0) } } : {}),
     // ★ 第1811便: エステ魂の投稿。★ 渡されたときだけ入れる
@@ -781,6 +784,9 @@ export async function startRelayFlow(params: {
   }
   if (params.ekichikaMagazine && params.provider !== 'ekichika') {
     throw new Error('ekichikaMagazine は駅ちかだけ');
+  }
+  if (params.zenkokuCreate && params.provider !== 'zenkoku') {
+    throw new Error('zenkokuCreate は全国エステランキングだけ');
   }
   if (params.ekichikaRankImage && params.provider !== 'ekichika') {
     throw new Error('ekichikaRankImage は駅ちかだけ');

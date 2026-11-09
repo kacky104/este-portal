@@ -23,6 +23,7 @@ import { buildZenkokuGirlsRequest, buildZenkokuDayReadRequest, buildZenkokuDaySa
 import { buildZenkokuWaitReadRequest } from './zenkokuWait';
 import { zenkokuOptFirstStep } from './zenkokuOptionFlow';
 import { zenkokuGirlDeleteFirstStep } from './zenkokuGirlDeleteFlow';
+import { zenkokuGirlCreateFirstStep } from './zenkokuGirlCreateFlow';
 
 /**
  * ★★★ 全国エステランキングへ出勤を【書き込む】のを許すか。
@@ -105,6 +106,8 @@ export function afterZenkokuLogin(input: Input, ctx: RelayFlowContext): FlowOutc
   if (ctx.zenkokuOpt) return zenkokuOptFirstStep(ctx, cookie);
   // ★ 第1864便: セラピストの削除は、セラピスト一覧だけを読む
   if (ctx.intent === 'girl_delete') return zenkokuGirlDeleteFirstStep(ctx, cookie);
+  // ★ 第1865便: 新規登録
+  if (ctx.intent === 'girl_create' && ctx.zenkokuCreate) return zenkokuGirlCreateFirstStep(ctx, cookie);
   // ★ 第1810便: 待機中の周は、セラピスト一覧ではなく【その日の出勤画面だけ】を読む（読めた＝ログインできた）
   if (ctx.zenkokuWait) {
     const w = buildZenkokuWaitReadRequest(cookie, ctx.zenkokuWait.dateISO);

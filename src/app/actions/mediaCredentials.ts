@@ -1151,7 +1151,7 @@ export async function startMediaWorkPush(input: {
 //   ★ エステ魂の 'therapist' は**まだ**（★ 実弾が通ってから・同じ物差し）。
 
 /** ★ いま店舗様の画面から登録できる媒体（★ 第264便でエステ魂を足した）。★ TherapistBoard の CREATE_PROVIDERS と同じ組にすること */
-const THERAPIST_CREATE_PROVIDERS = ['ekichika', 'esutama'];
+const THERAPIST_CREATE_PROVIDERS = ['ekichika', 'esutama', 'zenkoku'];   // ★ 第1865便: 全国エステランキングも
 
 /**
  * ★★ 媒体ごとの材料づくりと、中継へ渡す形（★ 第264便・ここでだけ分岐する）。
@@ -1190,6 +1190,32 @@ async function buildTherapistCreate(input: {
     return {
       ok: true, plan: built.data.plan, warnings: built.data.warnings,
       flow: { salonId, provider, slot, intent: 'cast_create', actor, ...built.data.relay },
+    };
+  }
+  if (provider === 'zenkoku') {
+    // ★ 第1865便（カッキーさん・オイルクエスト様）: 全国エステランキングへ。名前・年齢・身長・スリーサイズ・カップ＋写真を最大3枚
+    const { data: th } = await svc.from('therapists').select('id, salon_id, name, age, body_type, profile_image_url, profile_images').eq('id', therapistId).maybeSingle();
+    if (!th || Number(th.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+    const nickname = String(th.name ?? '').trim();
+    if (!nickname) return { ok: false, error: '名前が空のセラピストは登録できません' };
+    if ([...nickname].length > 30) return { ok: false, error: '全国エステランキングの名前は30文字までです' };
+    const { parseBodyType } = await import('@/lib/bodyType');
+    const { resolveEsutamaPhotoFile } = await import('@/app/lib/media/therapistPhotoFile');
+    const b = parseBodyType((th.body_type as string | null) ?? null);
+    const age = th.age != null && /^\d{1,2}$/.test(String(th.age)) ? String(th.age) : '';
+    const values = { nickname, age, tall: b?.height ?? '', bust: b?.bust ?? '', waist: b?.waist ?? '', hip: b?.hip ?? '', cup: (b?.cup ?? '').toUpperCase() };
+    const urls = [String(th.profile_image_url ?? ''), ...((Array.isArray(th.profile_images) ? th.profile_images : []) as unknown[]).map(String)].filter(Boolean);
+    const photos: Array<{ bucket: string; path: string }> = [];
+    const warnings: string[] = [];
+    for (const u of [...new Set(urls)]) {
+      if (photos.length >= 3) break;
+      const got = await resolveEsutamaPhotoFile(svc, { profileImageUrl: u });
+      if (got.ok) photos.push({ bucket: got.file.bucket, path: got.file.path });
+    }
+    if (photos.length === 0) warnings.push('写真が見つからないため、登録だけします（写真は全国エステランキングの画面から入れられます）');
+    return {
+      ok: true, plan: { site: '全国エステランキング', values, photos: photos.length }, warnings,
+      flow: { salonId, provider, slot, intent: 'girl_create', actor, zenkokuCreate: { therapistId, values, photos } },
     };
   }
   return { ok: false, error: `${providerLabel(provider)}への登録は、この画面からはまだできません` };

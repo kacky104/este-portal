@@ -138,6 +138,7 @@ import { ekichikaMovieFirstStep, afterEkimovieForm, afterEkimovieList, afterEkim
 import { ekichikaMagazineFirstStep, afterEkimagForm, afterEkimagPost, afterEkimagVerify } from './ekichikaMagazineFlow';
 import { ekichikaRankImageFirstStep, afterEkirankRead, afterEkirankSet, afterEkirankVerify } from './ekichikaRankImageFlow';
 import { afterZenkokuDelList, afterZenkokuGirlDelete } from './zenkokuGirlDeleteFlow';
+import { afterZenkokuCreateList, afterZenkokuCreateForm, afterZenkokuCreateSave, afterZenkokuCreateFind, afterZenkokuCreateDetail, afterZenkokuCreatePhoto } from './zenkokuGirlCreateFlow';
 import { afterZenkokuNewsRead, afterZenkokuNewsSet, afterZenkokuNewsVerify, afterZenkokuRecRead, afterZenkokuRecSet, afterZenkokuRecVerify } from './zenkokuOptionFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
@@ -1059,6 +1060,8 @@ export type RelayFlowContext = {
   ekichikaMagazine?: { index: number; title: string; body: string; at?: string };
   /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（lib/ekichikaRankImageFlow.ts）。plan・step は段の途中で入る */
   ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string; plan?: Array<{ target: 'main' | 'ranking'; id: string; old: string; name: string }>; step?: number };
+  /** ★ 第1865便: 全国エステランキングへ1人登録（lib/zenkokuGirlCreateFlow.ts）。before・gid・slots・photoAt・verify は段の途中で入る */
+  zenkokuCreate?: { therapistId: number; values: { nickname: string; age: string; tall: string; bust: string; waist: string; hip: string; cup: string }; photos: Array<{ bucket: string; path: string }>; before?: string[]; gid?: string; slots?: number[]; photoAt?: number; verify?: boolean };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; readAt?: string; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number; target?: { gid: string; name: string; index: number } };
   /** いま何日目か（zenkokuWindow の添字） */
   zenkokuDayIndex?: number;
@@ -1146,6 +1149,7 @@ export type FlowNextRequest = {
     | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
     // ★★ エステ魂のセラピスト設定（第229便）。★ 名簿（出勤）とは別の画面。★ 名前を分けて既存の段に触れない
     | 'esutama_cast_list' | 'esutama_cast_hide' | 'esutama_cast_delete' | 'zenkoku_del_list' | 'zenkoku_girl_delete'
+    | 'zenkoku_create_list' | 'zenkoku_create_form' | 'zenkoku_create_save' | 'zenkoku_create_find' | 'zenkoku_create_detail' | 'zenkoku_create_photo'
     // ★★ セラピストの新規登録（第232便）。★ esutama_cast_create だけが相手に人を増やす
     | 'esutama_cast_form' | 'esutama_cast_create'
     // ★★ エステ魂へ写真を送る（第243便）。★ esutama_photo_save だけが相手の設定を書き換える
@@ -1903,6 +1907,19 @@ function advanceFlowStep(
       return afterZenkokuDelList(input, ctx);
     case 'zenkoku_girl_delete':
       return afterZenkokuGirlDelete(input, ctx);
+    // ★ 第1865便: 全国エステランキングへの新規登録
+    case 'zenkoku_create_list':
+      return afterZenkokuCreateList(input, ctx);
+    case 'zenkoku_create_form':
+      return afterZenkokuCreateForm(input, ctx);
+    case 'zenkoku_create_save':
+      return afterZenkokuCreateSave(input, ctx);
+    case 'zenkoku_create_find':
+      return afterZenkokuCreateFind(input, ctx);
+    case 'zenkoku_create_detail':
+      return afterZenkokuCreateDetail(input, ctx);
+    case 'zenkoku_create_photo':
+      return afterZenkokuCreatePhoto(input, ctx);
     // ── セラピストの新規登録（第232便）★ 段名で分けている。既存の case には触れていない ──
     case 'esutama_cast_form':
       return afterEsutamaCastForm(input, ctx);
