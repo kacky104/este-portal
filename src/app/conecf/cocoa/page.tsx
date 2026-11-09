@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
-import { useConecfSession, useConecfActing } from '../ConecfSession';
-import { OPERATOR_NOT_YET_MESSAGE } from '@/lib/conecfActing';
+import { useConecfSession } from '../ConecfSession';
 import { useToast } from '@/app/components/useToast';
-import { createClient } from '@/app/lib/supabase/client';
-import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
 import { widthCount, bodyTooLong, COCOA_TITLE_MAX, COCOA_BODY_MAX, COCOA_SCHEDULE_MAX, cocoaMinLabel } from '@/lib/conecfCocoa';
 import { TextMarkToolbar, TextMarkPreview } from '@/app/components/TextMarkTools';
 import {
   getConecfCocoa, saveConecfCocoaSettings, saveConecfCocoaTemplate, setConecfCocoaTemplateActive,
   deleteConecfCocoaTemplate, postConecfCocoaNow, type CocoaData, type CocoaTemplateRow,
-  saveConecfCocoaAccount, postConecfCocoaAccountNow, type CocoaAccountRow,
+  saveConecfCocoaAccount, postConecfCocoaAccountNow, uploadConecfCocoaImage, type CocoaAccountRow,
 } from '@/app/actions/conecfCocoa';
 
 // コネックエフ「ココア店長ブログ」（第404便・2026-09-17）。
@@ -20,13 +17,25 @@ import {
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const INPUT = 'w-full border border-slate-200 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200';
-const supabase = createClient();
-const BUCKET = 'salon-images';
 
 function hm(iso: string | null): string {
   if (!iso) return '';
   const d = new Date(iso);
   return Number.isFinite(d.getTime()) ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(d) : '';
+}
+
+/** ★ 第1834便: ブラウザで長い辺 1440px の JPEG に縮める（サーバーアクションの上限 1MB の内側） */
+async function shrinkToJpeg(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new Image(); el.onload = () => resolve(el); el.onerror = () => reject(new Error('read')); el.src = url; });
+    const scale = Math.min(1, 1440 / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const ctx = c.getContext('2d'); if (!ctx) throw new Error('canvas');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+    return await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85));
+  } finally { URL.revokeObjectURL(url); }
 }
 
 function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
@@ -38,21 +47,23 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
-  // ★ 第1399便: 写真のアップロードはブラウザから直接。運営がほかの人の店を操作中は、まだ使えない（次の便で対応）
-  const acting = useConecfActing();
-
+  // ★ 第1834便: 写真はサーバー経由で上げる（運営が店を操作中でも入る）。ブラウザで長い辺 1440px の JPEG に縮めてから送る（上限 1MB の内側）
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; e.target.value = '';
     if (!file) return;
-    if (acting) { onToast(OPERATOR_NOT_YET_MESSAGE); return; }
     setUploading(true);
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `cocoa-${salonId}-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
-    setUploading(false);
-    if (error) { onToast('アップロードに失敗しました: ' + error.message); return; }
-    setImageUrl(supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
-    onToast('写真をアップロードしました（保存を押すと反映されます）');
+    try {
+      const fd = new FormData();
+      fd.append('file', await shrinkToJpeg(file), 'photo.jpg');
+      const res = await uploadConecfCocoaImage(fd);
+      if (!res.ok) { onToast(res.error); return; }
+      setImageUrl(res.data.url);
+      onToast('写真をアップロードしました（保存を押すと反映されます）');
+    } catch {
+      onToast('写真を読めませんでした（JPEG・PNG にしてください）');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const save = async () => {

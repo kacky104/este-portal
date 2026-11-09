@@ -206,3 +206,25 @@ export async function postConecfCocoaAccountNow(input: { slot: number }): Promis
   if (res.skipped === 'no-address') return { ok: false, error: '投稿用メールアドレスを入れて「保存」を押してください' };
   return { ok: false, error: res.error ?? '投稿できませんでした（' + (res.skipped ?? '') + '）' };
 }
+
+// ── ★ 第1834便: テンプレートの写真をサーバー経由で上げる（運営が店を操作中でも入れられるように）──
+// ★ 置き場は今までと同じ salon-images/cocoa-<店>-<時刻>.jpg。長い辺 1440px の JPEG に作り直す
+export async function uploadConecfCocoaImage(fd: FormData): Promise<Result<{ url: string }>> {
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const file = fd.get('file');
+  if (!(file instanceof Blob) || file.size === 0) return { ok: false, error: '写真を選んでください' };
+  if (file.size > 950 * 1024) return { ok: false, error: '写真が大きすぎます（もう少し小さい写真にしてください）' };
+  let out: Buffer;
+  try {
+    const sharp = (await import('sharp')).default;
+    out = await sharp(Buffer.from(await file.arrayBuffer())).rotate()
+      .resize({ width: 1440, height: 1440, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
+  } catch {
+    return { ok: false, error: '写真として読めませんでした（JPEG・PNG・WebP にしてください）' };
+  }
+  const path = `cocoa-${r.salonId}-${Date.now()}.jpg`;
+  const { error } = await r.svc.storage.from('salon-images').upload(path, out, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+  if (error) return { ok: false, error: 'アップロードに失敗しました: ' + error.message };
+  return { ok: true, data: { url: r.svc.storage.from('salon-images').getPublicUrl(path).data.publicUrl } };
+}
