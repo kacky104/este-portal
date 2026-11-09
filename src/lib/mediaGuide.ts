@@ -7,7 +7,8 @@
 //   ★ 反映の分数・サイトの対応を変えたら、ここも直すこと（★ 早見表と食い違わせない）。
 // ★ 画面上の名前（左の並び・ボタン名）はそのまま引用している。★ 名前を変えたらここも直す。
 
-export type GuideLinkKey = 'qa' | 'schedule' | 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix' | 'girls' | 'announce';   // ★ 第469便: 'girls'（女性一覧）／第475便: 'announce'（フクエスお知らせ）
+export type GuideLinkKey = 'qa' | 'schedule' | 'login' | 'roster' | 'home' | 'work' | 'diary' | 'news' | 'log' | 'matrix' | 'girls' | 'announce'
+  | 'sort' | 'autoHub' | 'bump' | 'placeholder' | 'analytics' | 'contact';   // ★ 第469便: 'girls'（女性一覧）／第475便: 'announce'（フクエスお知らせ）／第1871便: コネックエフの新しい画面（並び替え・サイト自動更新一覧・上位表示設定・既定画像・アクセス解析・運営お問い合わせ）
 
 export const GUIDE_HREF: Record<GuideLinkKey, string> = {
   home: '/mypage/media',
@@ -25,6 +26,13 @@ export const GUIDE_HREF: Record<GuideLinkKey, string> = {
   girls: '/mypage?tab=profile',
   // ★ 第475便: フクエスリンクではマイページのお知らせタブ
   announce: '/mypage?tab=news',
+  // ★ 第1871便: コネックエフだけにある画面。★ フクエスリンクではいちばん近い所へ
+  sort: '/mypage?tab=profile',
+  autoHub: '/mypage/media',
+  bump: '/mypage',
+  placeholder: '/mypage?tab=profile',
+  analytics: '/mypage/media',
+  contact: '/mypage/media',
 };
 
 /** いちばん上の「フクエスリンクとは」 */

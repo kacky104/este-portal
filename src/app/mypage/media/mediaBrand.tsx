@@ -28,6 +28,13 @@ export const MEDIA_LINKS_DEFAULT: Record<MediaLinkKey, string> = {
   // ★ 第398便: セラピストを登録する場所（フクエスリンクではマイページのプロフィールタブ）
   girls: '/mypage?tab=profile',
   announce: '/mypage?tab=news',
+  // ★ 第1871便: コネックエフだけにある画面（フクエスリンクではいちばん近い所へ）
+  sort: '/mypage?tab=profile',
+  autoHub: '/mypage/media',
+  bump: '/mypage',
+  placeholder: '/mypage?tab=profile',
+  analytics: '/mypage/media',
+  contact: '/mypage/media',
 };
 
 export type MediaBrandValue = {

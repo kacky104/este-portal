@@ -133,6 +133,9 @@ export function ConecfShell({
       home: href('/'), login: href('/sites'), roster: href('/girls/sync'), work: href('/schedule/sync'),
       schedule: href('/schedule'), diary: href('/diary'), news: href('/news'), log: href('/log'),
       matrix: href('/matrix'), qa: href('/qa'), guide: href('/guide'), girls: href('/girls'), announce: href('/announce'),
+      // ★ 第1871便: Q&A から新しい画面へ
+      sort: href('/girls/sort'), autoHub: href('/auto'), bump: href('/bump'), placeholder: href('/girls/placeholder'),
+      analytics: href('/analytics'), contact: href('/contact'),
     },
   };
 
