@@ -96,6 +96,26 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     });
   };
 
+  // ★ 第1855便（カッキーさん・オイルクエスト様のご要望・ベンリーと同じ）: その日の出勤を、翌日以降の毎日へ同じ時間でコピーする。
+  //   ★ 既に入っている日も上書き。保存するまでは保存されない（黄色のマスで見直せる）。表示している日数の範囲まで
+  const copyAhead = (r: ConecfScheduleRow, date: string, total: number): number => {
+    const from = dates.indexOf(date);
+    const src = cellOf(r, date);
+    if (from < 0 || !src.isActive || !src.start || !src.end) return 0;
+    const targets = dates.slice(from + 1, from + total);
+    setEdits((p) => {
+      const n = { ...p };
+      for (const d of targets) {
+        const next: ConecfShift = { date: d, isActive: true, start: src.start, end: src.end };
+        const orig = r.days.find((x) => x.date === d);
+        const same = orig && orig.isActive && orig.start === next.start && orig.end === next.end;
+        if (same) delete n[key(r.id, d)]; else n[key(r.id, d)] = next;
+      }
+      return n;
+    });
+    return targets.length;
+  };
+
   const onSave = async () => {
     if (!rows) return;
     setSaving(true);
@@ -303,6 +323,25 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                   onChange={(e) => setCell(openRow, open.date, { ...openCell, end: e.target.value })}>
                   {endTimeOptions(openCell.start).map((o) => <option key={o.label} value={o.value}>{o.label}</option>)}
                 </select>
+              </div>
+            )}
+            {/* ★ 第1855便: この出勤を先の日へコピー（ベンリーの「ここから1週間／1ヶ月にコピー」と同じ） */}
+            {openCell.isActive && openCell.start && openCell.end && (
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  {([[7, 'ここから1週間にコピー'], [30, 'ここから1ヶ月にコピー']] as const).map(([n, label]) => (
+                    <button key={n} type="button"
+                      onClick={() => {
+                        const c = copyAhead(openRow, open.date, n);
+                        const short = dates.indexOf(open.date) + n > dates.length;
+                        onToast(c === 0 ? 'コピーできる先の日がありません（表示する日数を増やしてください）'
+                          : `${c}日分に同じ出勤を入れました${short ? `（表示している${dates.length}日までです）` : ''}。「保存する」を押すと保存されます`);
+                        setOpen(null);
+                      }}
+                      className="py-2 border border-sky-400 bg-sky-50 text-[13.5px] font-bold text-sky-700 hover:bg-sky-100">{label}</button>
+                  ))}
+                </div>
+                <p className="text-[11.5px] leading-relaxed text-slate-400">翌日から毎日、同じ時間の出勤を入れます（既に入っている日も上書きします）。1ヶ月は、表示している日数（最大30日）までです。</p>
               </div>
             )}
             <button type="button" onClick={() => setOpen(null)} className="w-full py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">決定</button>
