@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
@@ -52,7 +52,22 @@ const OUTCOME: Record<string, string> = { ok: '押せました', no_remaining: '
 // ★ 'ok: ◯◯' の◯◯は、セラピストアピールは名前・求人ワンクリックアピールは行の名前（求人情報・お仕事体験談）
 const outcomeText = (o: string | null, key?: string) => (!o ? '—' : o.startsWith('ok: ') ? (key === 'cast_appeal' ? `${o.slice(4)}さんを押せました` : `${o.slice(4)}を押せました`) : OUTCOME[o] ?? (o.startsWith('error') ? 'うまくいきませんでした' : o));
 
-function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (m: string) => void; reload: () => void }) {
+// ★ 第1815便: 縦に長くなったので、カードを開け閉めできるように（閉じていても名前・自動・最後の結果と「今すぐ」は見える）
+function AccHead({ title, open, onToggle, auto, last, children }: { title: string; open: boolean; onToggle: () => void; auto: boolean; last: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left">
+        <span className={`inline-block w-4 text-violet-600 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+        <h2 className="text-[17px] font-bold text-violet-700">{title}</h2>
+        <span className={`border px-2 py-0.5 text-[12px] font-bold ${auto ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{auto ? '自動 ON' : '自動 OFF'}</span>
+        {!open && <span className="truncate text-[12px] text-slate-500">最後：{last}</span>}
+      </button>
+      {children}
+    </div>
+  );
+}
+
+function OptionCard({ o, onToast, reload, open, onToggle }: { o: ConecfEsutamaOption; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(o.auto);
   const [startMin, setStart] = useState(o.startMin);
   const [endMin, setEnd] = useState(o.endMin);
@@ -83,12 +98,12 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
   };
   return (
     <section className={`${CARD} p-5 space-y-3`}>
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-[17px] font-bold text-violet-700">{o.label}</h2>
+      <AccHead title={o.label} open={open} onToggle={onToggle} auto={o.auto} last={`${when(o.lastAt)}・${outcomeText(o.lastOutcome, o.key)}`}>
         {!o.ready && <span className="border border-amber-300 bg-amber-50 px-2 py-0.5 text-[12px] text-amber-800">準備中</span>}
         <button type="button" disabled={busy || !o.ready} onClick={now}
           className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ押す</button>
-      </div>
+      </AccHead>
+      {open && (<>
       <p className="text-[13px] leading-relaxed text-slate-600">{DESC[o.key]}</p>
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-3">
         <div>残り回数：<b className="text-slate-800">{o.remaining ?? '—'}</b>回（{when(o.readAt)} 時点）</div>
@@ -123,6 +138,7 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
           <button type="button" disabled={busy} onClick={save} className="border border-violet-600 px-4 py-1.5 font-bold text-violet-700 disabled:opacity-40">保存</button>
         </div>
       )}
+      </>)}
     </section>
   );
 }
@@ -134,7 +150,7 @@ const POST_DESC: Record<string, string> = {
 };
 const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '投稿できました' : o.startsWith('ok: 画像は前のまま') ? '投稿できました（画像は前のまま）' + o.slice('ok: 画像は前のまま'.length) : o.startsWith('error') ? 'うまくいきませんでした' : o);
 
-function PostCard({ p, onToast, reload }: { p: ConecfEsutamaPost; onToast: (m: string) => void; reload: () => void }) {
+function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(p.auto);
   const [title, setTitle] = useState(p.title);
   const [body, setBody] = useState(p.body);
@@ -186,11 +202,11 @@ function PostCard({ p, onToast, reload }: { p: ConecfEsutamaPost; onToast: (m: s
   };
   return (
     <section className={`${CARD} p-5 space-y-3`}>
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-[17px] font-bold text-violet-700">{p.label}</h2>
+      <AccHead title={p.label} open={open} onToggle={onToggle} auto={p.auto} last={`${when(p.lastAt)}・${postOutcomeText(p.lastOutcome)}`}>
         <button type="button" disabled={busy} onClick={now}
           className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ投稿</button>
-      </div>
+      </AccHead>
+      {open && (<>
       <p className="text-[13px] leading-relaxed text-slate-600">{POST_DESC[p.key]}</p>
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-2">
         <div>最後に投稿できた：<b className="text-slate-800">{when(p.lastAt)}</b></div>
@@ -251,6 +267,7 @@ function PostCard({ p, onToast, reload }: { p: ConecfEsutamaPost; onToast: (m: s
         </select>
         <button type="button" disabled={busy} onClick={save} className="border border-violet-600 px-4 py-1.5 font-bold text-violet-700 disabled:opacity-40">保存</button>
       </div>
+      </>)}
     </section>
   );
 }
@@ -259,6 +276,9 @@ export default function ConecfEsutamaOptionsPage() {
   const { toast, showToast } = useToast();
   const [opts, setOpts] = useState<ConecfEsutamaOption[] | null>(null);
   const [posts, setPosts] = useState<ConecfEsutamaPost[]>([]);
+  // ★ 開いているカード（読み直しでカードが作り直されても閉じないよう、ここで持つ）。はじめは全部閉じる
+  const [openKeys, setOpenKeys] = useState<Record<string, boolean>>({});
+  const toggle = (k: string) => setOpenKeys((m) => ({ ...m, [k]: !m[k] }));
   const [error, setError] = useState('');
   const load = useCallback(async () => {
     const r = await getConecfEsutamaOptions();
@@ -276,8 +296,8 @@ export default function ConecfEsutamaOptionsPage() {
         {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
         {!error && !opts && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
         {opts && opts.length === 0 && posts.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるオプションはまだありません。運営事務局までご連絡ください。</div>}
-        {opts?.map((o) => <OptionCard key={o.key + String(o.lastAt) + String(o.readAt)} o={o} onToast={showToast} reload={load} />)}
-        {posts.map((p) => <PostCard key={p.key + String(p.lastAt) + String(p.readAt)} p={p} onToast={showToast} reload={load} />)}
+        {opts?.map((o) => <OptionCard key={o.key + String(o.lastAt) + String(o.readAt)} o={o} onToast={showToast} reload={load} open={openKeys[o.key] === true} onToggle={() => toggle(o.key)} />)}
+        {posts.map((p) => <PostCard key={p.key + String(p.lastAt) + String(p.readAt)} p={p} onToast={showToast} reload={load} open={openKeys[p.key] === true} onToggle={() => toggle(p.key)} />)}
       </div>
       )}
     </ConecfShell>
