@@ -13,8 +13,13 @@ import { loadConecfOff } from '@/app/lib/conecf/targets';
 import { isWriteDirection } from '@/lib/mediaLinkMode';
 import { ekichikaAreaFromUrl } from '@/lib/ekichikaArea';
 import { providerLabel } from '@/lib/mediaAudit';
+import { readSlotMirrorHeld } from '@/app/lib/media/slotMirror';
 
-export type SlotMirrorProgress = { provider: string; slot: number; label: string; done: number; total: number };
+export type SlotMirrorProgress = {
+  provider: string; slot: number; label: string; done: number; total: number;
+  /** ★ 第1870便: 24時間で3回うまくいかず、自動では試さなくなった方（名前・理由）。残りがこの方たちだけなら、帯は「ここで止まっています」になる */
+  held: Array<{ therapistId: number; name: string; reason: string }>;
+};
 
 export async function getSlotMirrorProgress(input: { salonId: string | number }): Promise<{ ok: true; items: SlotMirrorProgress[] } | { ok: false; error: string }> {
   const salonId = Number(input.salonId);
@@ -50,7 +55,8 @@ export async function getSlotMirrorProgress(input: { salonId: string | number })
     const done = targets.filter((t) => !!mN.maps.castIdOf.get(t.id)).length;
     if (targets.length === 0 || done >= targets.length) continue;
     const area = ekichikaAreaFromUrl(s.shop_url as string | null);
-    items.push({ provider: 'ekichika', slot, label: area ? `${providerLabel('ekichika')}（${area}）` : `${providerLabel('ekichika')}（枠${slot}）`, done, total: targets.length });
+    const held = await readSlotMirrorHeld(svc, salonId, slot).catch(() => []);
+    items.push({ provider: 'ekichika', slot, label: area ? `${providerLabel('ekichika')}（${area}）` : `${providerLabel('ekichika')}（枠${slot}）`, done, total: targets.length, held });
   }
   return { ok: true, items };
 }

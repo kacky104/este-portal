@@ -172,3 +172,25 @@ export async function readSlotMirrorStuck(svc: Svc, salonId: number): Promise<Sl
   }
   return out;
 }
+
+/**
+ * ★ 第1870便（カッキーさん）: 「更新結果」の進み具合の帯に出す「自動では登録できなくなった方」（その枠だけ・理由つき）。
+ *   ★ readSlotMirrorStuck は店舗様が直せる理由の方だけ。こちらは全員（直せない理由は大まかな文で）。
+ *   ★ これが無いと、残りがこの方たちだけになっても「残りの目安 約40分」が出続け、終わらない帯に見えていた。
+ */
+export async function readSlotMirrorHeld(svc: Svc, salonId: number, slot: number): Promise<Array<{ therapistId: number; name: string; reason: string }>> {
+  const t = await loadSlotMirrorTodo(svc, { salonId, provider: 'ekichika', slot });
+  if (t.kind === 'none') return [];
+  const nowMs = Date.now();
+  const out: Array<{ therapistId: number; name: string; reason: string }> = [];
+  for (const x of t.todo) {
+    const g = slotMirrorGiveUp({ name: String(x.name ?? ''), failures: t.failures, nowMs, updatedAt: x.updated_at ?? null });
+    if (!g.givenUp) continue;
+    const reason = slotMirrorStuckReason(g.last)
+      ?? (g.last?.reason === 'already_listed' ? '駅ちかに同じ名前の方がすでにいるため（セラピスト登録状況一覧で結びつけてください）'
+        : g.last?.note ? '駅ちかで登録できなかったため（' + g.last.note.slice(0, 60) + '）'
+        : '駅ちかで登録できなかったため');
+    out.push({ therapistId: x.id, name: String(x.name ?? ''), reason });
+  }
+  return out;
+}

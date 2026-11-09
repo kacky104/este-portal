@@ -173,20 +173,35 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
 
       {/* ── ★ 第1684便: 枠1と同じにする登録の進み具合（20分に1人・第1681便 → 第1689便で出勤が先） ── */}
       {mirror.map((m) => {
-        const left = m.total - m.done;
+        // ★ 第1870便: 自動では試さなくなった方（held）は「残り」に数えない。残りがその方たちだけなら「止まっています」
+        const held = m.held ?? [];
+        const left = Math.max(0, m.total - m.done - held.length);
+        const stopped = left === 0 && held.length > 0;
         const pct = m.total > 0 ? Math.round((m.done / m.total) * 100) : 0;
         return (
           <div key={`${m.provider}#${m.slot}`} className={`${CARD} p-4`}>
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-[14.5px] font-black text-slate-800">{m.label} にセラピストを登録しています</span>
+              <span className="text-[14.5px] font-black text-slate-800">{m.label} {stopped ? 'への自動登録は、ここで止まっています' : 'にセラピストを登録しています'}</span>
               <span className="text-[16px] font-black text-indigo-700 tabular-nums">{m.done} ／ {m.total} 名</span>
               {/* ★ 第1700便（B-4）: 出勤の送信と交互なので、残り時間は「目安」。長いときは時間で */}
-              <span className="text-[13px] text-slate-500">（20分に1人・残りの目安 約{left * 20 >= 60 ? `${Math.floor((left * 20) / 60)}時間${(left * 20) % 60 ? `${(left * 20) % 60}分` : ''}` : `${left * 20}分`}）</span>
+              {!stopped && <span className="text-[13px] text-slate-500">（20分に1人・残りの目安 約{left * 20 >= 60 ? `${Math.floor((left * 20) / 60)}時間${(left * 20) % 60 ? `${(left * 20) % 60}分` : ''}` : `${left * 20}分`}）</span>}
             </div>
             <div className="mt-2 h-2 w-full bg-slate-100 overflow-hidden">
               <div className="h-full bg-indigo-500" style={{ width: `${pct}%` }} />
             </div>
             <p className="mt-1.5 text-[13px] text-slate-500 leading-relaxed">枠1と同じ顔ぶれになるよう、自動で順に登録しています。登録が済んだ方から出勤・写真・即ヒメも反映されます。うまくいった登録は、この下の一覧にはまとめて出しません（「くわしい記録」で見られます）。</p>
+            {held.length > 0 && (
+              <div className="mt-2 border border-amber-300 bg-amber-50 px-3 py-2 space-y-1">
+                <p className="text-[13.5px] font-bold text-amber-800">自動では登録できなかった方（{held.length}名）: 3回試してうまくいかなかったため、自動では試していません。</p>
+                <ul className="text-[13px] text-slate-700 leading-relaxed list-disc pl-5">
+                  {held.map((h) => <li key={h.therapistId}><b className="font-bold">{h.name}</b> さん … {h.reason}</li>)}
+                </ul>
+                <p className="text-[12.5px] text-slate-500 leading-relaxed">
+                  <a href={brand.link('roster')} className="font-bold text-indigo-600 underline underline-offset-4">セラピスト登録状況一覧</a>
+                  で、この方の「△ 登録する」から連携・登録してください。セラピストの内容を直して保存すると、自動の登録もまた試します。
+                </p>
+              </div>
+            )}
           </div>
         );
       })}
