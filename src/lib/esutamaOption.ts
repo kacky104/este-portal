@@ -18,13 +18,13 @@ import { RELAY_USER_AGENT } from './relayUserAgent';
 import { readEsutamaCsrf } from './esutamaParse';
 import { parseEsutamaAppealTime } from './esutamaAppeal';
 
-export type EsutamaOptKey = 'shop_boost' | 'cast_appeal' | 'job_appeal';
-export const ESUTAMA_OPT_KEYS: EsutamaOptKey[] = ['shop_boost', 'cast_appeal', 'job_appeal'];
+export type EsutamaOptKey = 'shop_boost' | 'cast_appeal' | 'job_appeal' | 'job_now';
+export const ESUTAMA_OPT_KEYS: EsutamaOptKey[] = ['shop_boost', 'cast_appeal', 'job_appeal', 'job_now'];
 export const ESUTAMA_OPT_LABEL: Record<EsutamaOptKey, string> = {
-  shop_boost: '集客ブースト', cast_appeal: 'セラピストアピール', job_appeal: '求人ワンクリックアピール',
+  shop_boost: '集客ブースト', cast_appeal: 'セラピストアピール', job_appeal: '求人ワンクリックアピール', job_now: '本日体験入店',
 };
 /** ★ 押す仕組みができているもの。★ job_appeal は実測してから */
-export const ESUTAMA_OPT_READY: Record<EsutamaOptKey, boolean> = { shop_boost: true, cast_appeal: true, job_appeal: true };
+export const ESUTAMA_OPT_READY: Record<EsutamaOptKey, boolean> = { shop_boost: true, cast_appeal: true, job_appeal: true, job_now: true };
 /** ★ 求人ワンクリックアピールで押す行（求人情報 → お仕事体験談） */
 export const ESUTAMA_JOB_APPEAL_ROWS = ['shop_job,job_appeal', 'shop_job_exp,job_appeal'] as const;
 export const ESUTAMA_JOB_APPEAL_LABEL: Record<string, string> = { 'shop_job,job_appeal': '求人情報', 'shop_job_exp,job_appeal': 'お仕事体験談' };
@@ -37,7 +37,7 @@ export const ESUTAMA_CAST_APPEAL_URL = 'https://estama.jp/admin/cast/appeal/';
 export const ESUTAMA_SINGLE_APPEAL_URL = 'https://estama.jp/admin_post/single_appeal_exec';
 
 export function esutamaOptPageUrl(key: EsutamaOptKey): string {
-  return key === 'shop_boost' ? ESUTAMA_GO_NOW_URL : key === 'cast_appeal' ? ESUTAMA_CAST_APPEAL_URL : 'https://estama.jp/admin/job/appeal/';
+  return key === 'shop_boost' ? ESUTAMA_GO_NOW_URL : key === 'cast_appeal' ? ESUTAMA_CAST_APPEAL_URL : key === 'job_now' ? ESUTAMA_JOB_NOW_URL : 'https://estama.jp/admin/job/appeal/';
 }
 
 // ── 時刻（エステ魂の1日は朝6時に替わる） ──
@@ -66,6 +66,8 @@ export const ESUTAMA_OPT_DEFAULT: Record<EsutamaOptKey, EsutamaOptSetting> = {
   cast_appeal: { startMin: 600, endMin: 1740, intervalMin: 60 },
   // ★ ベンリー: 10:04・20:06・22:00（実測してから）
   job_appeal: { startMin: 600, endMin: 1380, intervalMin: 360, timesMin: [604, 1206, 1320] },
+  // ★ 第1823便: 本日体験入店は「掲載中」かを1時間に1回見に行き、止まっていたら（毎日0時に止まる）「掲載開始」を押す
+  job_now: { startMin: 360, endMin: 1800, intervalMin: 60 },
 };
 export function isValidEsutamaOptSetting(s: EsutamaOptSetting): boolean {
   return [s.startMin, s.endMin, s.intervalMin].every((v) => Number.isInteger(v))
@@ -98,7 +100,7 @@ export function shouldPressEsutamaOpt(args: {
   // ★ 周は5分ごと。間隔ちょうどに押せるよう3分の遊び
   if (gapMs(state.lastAt) < (setting.intervalMin - 3) * 60000) return { press: false, reason: 'interval' };
   // ★ 押せなかった回（出勤中の子がいない等）も読みすぎない
-  if (gapMs(state.readAt) < Math.min(setting.intervalMin, 60) * 60000 - 3 * 60000 && key === 'cast_appeal') return { press: false, reason: 'recent_read' };
+  if (gapMs(state.readAt) < Math.min(setting.intervalMin, 60) * 60000 - 3 * 60000 && (key === 'cast_appeal' || key === 'job_now')) return { press: false, reason: 'recent_read' };
   return { press: true, reason: 'ok' };
 }
 
@@ -273,4 +275,38 @@ export function buildCastAppealRequest(cookie: string, ctk: string, castId: stri
     method: 'POST', url: ESUTAMA_SINGLE_APPEAL_URL, headers: postHeaders(cookie, ESUTAMA_CAST_APPEAL_URL),
     body: encodePayload([['post_data', `cast,cast_appeal,${castId}`], ['ctk', ctk]]),
   };
+}
+
+// ── 本日体験入店（第1823便・2026-11-09 実測・読んだだけ）──────────────────────────
+//   GET /admin/job_now/ … 「自動掲載終了時間 11月10日 00時00分（掲載中）」。掲載中は【掲載停止】ボタン
+//     <a class="send-easy_post2" data-post="job_now" data-row="stop">掲載停止</a>
+//   ★ 翌日0時に自動で止まる。止まっていると【掲載開始】ボタンが出る（その data-row は画面から読む。決め打ちにしない）
+//   押す: .send-easy_post2 → POST /admin_post/job_now ← post_data=<data-row> ＋ ctk
+export const ESUTAMA_JOB_NOW_URL = 'https://estama.jp/admin/job_now/';
+export const ESUTAMA_JOB_NOW_POST_URL = 'https://estama.jp/admin_post/job_now';
+
+export function parseJobNowPage(html: string): { listed: boolean; startRow: string | null; ctk: string | null; problems: string[] } {
+  const src = String(html ?? '');
+  const problems: string[] = [];
+  if (!/本日体験入店/.test(src)) problems.push('本日体験入店の画面ではない');
+  const t = stripTags(src);
+  const listed = /（掲載中）|\(掲載中\)/.test(t);
+  let startRow: string | null = null;
+  const re = /<(a|button)\b[^>]*\bdata-post=["']job_now["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    if (/掲載開始/.test(stripTags(m[2]))) { startRow = attr(m[0], 'data-row'); break; }
+  }
+  const ctk = readEsutamaCsrf(src);
+  if (!ctk) problems.push('ctk（#csrf_footer）が見つからない');
+  if (!listed && !startRow) problems.push('掲載中でも【掲載開始】ボタンも無い');
+  return { listed, startRow, ctk, problems };
+}
+
+/** ★★ 【掲載開始】を押す */
+export function buildJobNowStartRequest(cookie: string, ctk: string, row: string): Req {
+  if (!cookie) throw new Error('Cookie が無いまま押さない');
+  if (!/^[A-Za-z0-9]{16,64}$/.test(ctk)) throw new Error('ctk の形が違うまま押さない');
+  if (!/^[A-Za-z0-9_,\-]{1,40}$/.test(row) || /stop/i.test(row)) throw new Error('【掲載開始】の値の形が違うまま押さない');
+  return { method: 'POST', url: ESUTAMA_JOB_NOW_POST_URL, headers: postHeaders(cookie, ESUTAMA_JOB_NOW_URL), body: encodePayload([['post_data', row], ['ctk', ctk]]) };
 }

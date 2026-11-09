@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { adminGetEsutamaOptions, adminSetEsutamaOption, adminGetEsutamaPosts, adminSetEsutamaPost } from '@/app/actions/conecfEsutamaOptions';
 
 type SalonOption = { id: number; name: string };
-const KEYS: Array<[string, string]> = [['shop_boost', '集客ブースト'], ['cast_appeal', 'セラピストアピール'], ['job_appeal', '求人ワンクリックアピール']];
+const KEYS: Array<[string, string]> = [['shop_boost', '集客ブースト'], ['cast_appeal', 'セラピストアピール'], ['job_appeal', '求人ワンクリックアピール'], ['job_now', '本日体験入店']];
 // ★ 第1811便: 投稿（conecf_esutama_posts）
 const POST_KEYS: Array<[string, string]> = [['guest_realtime', 'リアルタイム集客（投稿）'], ['job_realtime', 'リアルタイム求人（投稿）'], ['mailmag', 'メールマガジン（配信）'], ['job_blog', '店長の求人ブログ（投稿）']];
 

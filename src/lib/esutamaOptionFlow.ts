@@ -14,6 +14,7 @@ import { readEsutamaCsrf } from './esutamaParse';
 import {
   ESUTAMA_OPT_LABEL, ESUTAMA_JOB_APPEAL_ROWS, ESUTAMA_JOB_APPEAL_LABEL, buildJobAppealRequest, parseGoNowPage, goNowBoostAccepted, parseCastAppealPage, pickCastToAppeal,
   buildEsutamaOptPageRequest, buildGoNowBoostRequest, buildCastAppealRequest, type EsutamaOptKey,
+  parseJobNowPage, buildJobNowStartRequest,
 } from './esutamaOption';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
@@ -75,6 +76,24 @@ export function afterEsutamaOptRead(input: Input, ctx: RelayFlowContext, nowArg?
       kind: 'next', audits: [readAudit],
       next: { purpose: 'esutama_opt_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaOptBefore: { remaining: p.remaining, castId: null, castName: null, lastAt: null } } },
       note: 'ご案内状況の画面を読めた（残り ' + p.remaining + '）→ 「◎今すぐご案内可」で表示する',
+    };
+  }
+
+  // ── 本日体験入店（第1823便）: 掲載中なら何もしない。止まっていたら【掲載開始】
+  if (key === 'job_now') {
+    const p = parseJobNowPage(input.body);
+    if (p.problems.length > 0 || !p.ctk) {
+      return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'error: unparseable' },
+        [{ event: 'read_bump', outcome: 'failed', detail: { opt: key, reason: 'unparseable', problems: p.problems.slice(0, 4).join(' / '), flowId } }], '本日体験入店の画面を読めなかった: ' + p.problems.join(' / '));
+    }
+    if (p.listed) {
+      return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'already' }, [readAudit], '本日体験入店はもう掲載中だった（押していない）');
+    }
+    const r = buildJobNowStartRequest(cookie, p.ctk, p.startRow as string);
+    return {
+      kind: 'next', audits: [readAudit],
+      next: { purpose: 'esutama_opt_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaOptBefore: { remaining: null, castId: null, castName: null, lastAt: null } } },
+      note: '本日体験入店が止まっていた → 【掲載開始】を押す',
     };
   }
 
@@ -215,6 +234,15 @@ export function afterEsutamaOptVerify(input: Input, ctx: RelayFlowContext, nowAr
   const now = nowArg ?? new Date();
   const readAt = now.toISOString();
   if (key === 'job_appeal') return afterJobVerify(input, ctx, now);
+  if (key === 'job_now') {
+    const p = input.status === 200 ? parseJobNowPage(input.body) : null;
+    if (p?.listed) {
+      return finish(ctx, { remaining: null, readAt, pressed: true, outcome: 'ok', lastAt: readAt },
+        [{ event: 'push_bump', outcome: 'ok', summary: '本日体験入店の掲載を始めました', detail: { opt: key, manual, flowId } }], '本日体験入店を掲載中にできた');
+    }
+    return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'error: not_listed' },
+      [{ event: 'push_bump', outcome: 'failed', summary: '本日体験入店の【掲載開始】を押しましたが、掲載中になっていませんでした', detail: { opt: key, httpStatus: input.status, reason: 'not_listed', manual, flowId } }], '【掲載開始】のあと読み直したが、掲載中ではなかった');
+  }
   const before = ctx.esutamaOptBefore ?? { remaining: null, castId: null, castName: null, lastAt: null };
   const p = input.status === 200 ? parseCastAppealPage(input.body, now) : null;
   if (!p || p.remaining === null) {

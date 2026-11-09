@@ -59,5 +59,20 @@ console.log('── 3. 押すかの判断');
   eq('求人の本文', m.buildJobAppealRequest('c=1', CTK, 'shop_job_exp,job_appeal').body, 'post_data=shop_job_exp%2Cjob_appeal&ctk=' + CTK);
   eq('セラピスト: 20分前に読んだ → 待つ', m.shouldPressEsutamaOpt({ key: 'cast_appeal', setting: s, state: st(null, 1, 20), now }).reason, 'recent_read');
 }
+console.log('── 本日体験入店（第1823便）');
+{
+  const on = m.parseJobNowPage(`<h2>本日体験入店できるお店</h2><p>11月10日 00時00分（掲載中）</p><a class="btn send-easy_post2" data-post="job_now" data-row="stop">掲載停止</a>${csrf}`);
+  eq('掲載中', [on.listed, on.startRow, on.problems], [true, null, []]);
+  const off = m.parseJobNowPage(`<h2>本日体験入店できるお店</h2><p>掲載していません</p><a class="btn send-easy_post2" data-post="job_now" data-row="start">掲載開始</a>${csrf}`);
+  eq('止まっている（掲載開始の値は画面から）', [off.listed, off.startRow, off.problems], [false, 'start', []]);
+  const r = m.buildJobNowStartRequest('c=1', CTK, 'start');
+  eq('押す中身', [r.url, new URLSearchParams(r.body).get('post_data')], ['https://estama.jp/admin_post/job_now', 'start']);
+  let threw = false; try { m.buildJobNowStartRequest('c=1', CTK, 'stop'); } catch { threw = true; }
+  eq('停止は押さない', threw, true);
+  const st = m.ESUTAMA_OPT_DEFAULT.job_now;
+  eq('1時間に1回まで見る', m.shouldPressEsutamaOpt({ key: 'job_now', setting: st, state: { lastAt: null, remaining: null, readAt: jst(2026, 11, 10, 0, 30).toISOString() }, now: jst(2026, 11, 10, 0, 59) }).reason, 'recent_read');
+  eq('0時すぎに見る', m.shouldPressEsutamaOpt({ key: 'job_now', setting: st, state: { lastAt: null, remaining: null, readAt: jst(2026, 11, 9, 23, 30).toISOString() }, now: jst(2026, 11, 10, 0, 34) }).press, true);
+}
+
 console.log(fail === 0 ? '\n全部 ok' : `\n${fail} 件 NG`);
 process.exit(fail === 0 ? 0 : 1);

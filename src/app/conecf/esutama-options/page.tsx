@@ -44,11 +44,12 @@ const label = (m: number) => (m >= 1440 ? `翌${Math.floor((m - 1440) / 60)}:${S
 const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
 
 const DESC: Record<string, string> = {
+  job_now: 'エステ魂の「本日体験入店できるお店」を、いつも掲載中にしておきます。1時間に1回見に行き、止まっていたら（毎日0時に自動で止まります）【掲載開始】を押します。',
   shop_boost: 'エステ魂の「ご案内状況」を「◎今すぐご案内可」で表示します（1回で1時間）。間隔ごとに押し直して、ずっと表示を続けます。1日24回まで（集客BOOSTER のご契約で無制限）。',
   cast_appeal: 'その日の出勤者のうち、最終アピールがいちばん古いセラピスト（一度もない方が先）を、その方の出勤時間内にアピールします。残り回数がある限り、1時間に1回まで見に行きます。',
   job_appeal: '求人情報・お仕事体験談（残りがある行を両方）を、決めた時刻にアピールします。1日10回・毎朝6時に戻ります。',
 };
-const OUTCOME: Record<string, string> = { ok: '押せました', no_remaining: '残り0回でした', no_cast: '出勤時間内のセラピストがいませんでした', not_ready: '準備中' };
+const OUTCOME: Record<string, string> = { already: '掲載中でした（押していません）', ok: '押せました', no_remaining: '残り0回でした', no_cast: '出勤時間内のセラピストがいませんでした', not_ready: '準備中' };
 // ★ 'ok: ◯◯' の◯◯は、セラピストアピールは名前・求人ワンクリックアピールは行の名前（求人情報・お仕事体験談）
 const outcomeText = (o: string | null, key?: string) => (!o ? '—' : o.startsWith('ok: ') ? (key === 'cast_appeal' ? `${o.slice(4)}さんを押せました` : `${o.slice(4)}を押せました`) : OUTCOME[o] ?? (o.startsWith('error') ? 'うまくいきませんでした' : o));
 
