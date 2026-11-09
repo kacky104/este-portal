@@ -153,6 +153,38 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
       void load();
     } finally { setBusy(''); }
   };
+  // ★ 第1842便（2026-11-09・カッキーさん）: 名前がまったく同じ方を、まとめて連携する。
+  //   ★ きっかけ: オイルクエスト様のエステ魂は、ベンリーが扱っていたので1人も連携されておらず、65人全員が △ だった（名前は同じ）。
+  //   ★ 結ぶのは「候補が名前の同じ1人だけ」で、その登録がほかの方とまだ結ばれておらず、ほかの方の候補とも重ならないときだけ（取り違えない）
+  const exactPairs = (s: Site): Array<{ therapistId: number; castId: string }> => {
+    const p = pairsOf[key(s)];
+    if (!p || !p.pairs.known) return [];
+    const free = new Set(p.pairs.free.map((f) => String(f.castId)));
+    const picks = p.pairs.unlinked.flatMap((u) => {
+      const ex = u.candidates.filter((c) => c.strength === 'exact');
+      return ex.length === 1 && free.has(String(ex[0].castId)) ? [{ therapistId: Number(u.therapistId), castId: String(ex[0].castId) }] : [];
+    });
+    const count = new Map<string, number>();
+    for (const x of picks) count.set(x.castId, (count.get(x.castId) ?? 0) + 1);
+    return picks.filter((x) => count.get(x.castId) === 1);
+  };
+  const [bulkBusy, setBulkBusy] = useState('');
+  const onLinkExact = async (s: Site) => {
+    const list = exactPairs(s);
+    if (list.length === 0) return;
+    if (!window.confirm(`${s.label}で、名前がまったく同じ ${list.length}人 をまとめて連携します。よろしいですか？`)) return;
+    setBulkBusy(key(s));
+    let ok = 0, ng = 0;
+    try {
+      for (const x of list) {
+        const res = await linkTherapistMediaId({ salonId, provider: s.provider, slot: s.slot, therapistId: x.therapistId, castId: x.castId });
+        if (res.ok) ok++; else ng++;
+      }
+      onToast(`${s.label}: ${ok}人を連携しました` + (ng > 0 ? `（${ng}人はできませんでした）` : ''));
+      void load();
+    } finally { setBulkBusy(''); }
+  };
+
   const onUnlink = async (t: Therapist, s: Site) => {
     setBusy(t.id);
     try {
@@ -274,6 +306,13 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                             </button>
                           ) : (
                             <div className="text-[13px] font-bold text-slate-400">△× 0人</div>
+                          )}
+                          {exactPairs(s).length > 0 && (
+                            <button type="button" disabled={bulkBusy !== ''} onClick={() => void onLinkExact(s)}
+                              title="名前がまったく同じ方だけを、まとめて連携します"
+                              className="mt-1 block mx-auto border border-indigo-400 bg-indigo-50 px-1.5 py-0.5 text-[11.5px] font-bold text-indigo-700 disabled:opacity-40">
+                              {bulkBusy === key(s) ? '連携中…' : `同じ名前 ${exactPairs(s).length}人を連携`}
+                            </button>
                           )}
                           {/* ★ 第1682便（カッキーさん）: スマホで「△× 39人」と「再読み込み」が重なった → 文字を「再読込」に短くし、人数とは別の行に */}
                           {/* ★ 第1700便（B-2）: 読んでから2分は押せない（続けて押すと相手サイトへ何度もログインする） */}
