@@ -48,6 +48,15 @@ type Site = {
   sokuhimeOff?: boolean;
 };
 
+/** ★ 第1809便: タブのカードに出す、そのサイトの今の状態（1行） */
+function siteTabStatus(x: Site): { text: string; tone: string; dot: string } {
+  if (x.direction === 'read') return { text: '取り込み中', tone: 'text-amber-700', dot: 'bg-amber-500' };
+  if (x.direction !== 'write') return { text: x.direction === 'off' ? '反映しない' : '未設定', tone: 'text-slate-500', dot: 'bg-slate-400' };
+  if (x.problem) return { text: '止まっています', tone: 'text-rose-700', dot: 'bg-rose-500' };
+  if (x.autoOn) return { text: '自動更新中', tone: 'text-emerald-700', dot: 'bg-emerald-500' };
+  return { text: '自動更新が未設定', tone: 'text-rose-700', dot: 'bg-rose-500' };
+}
+
 const keyOf = (p: string, s: number) => p + '#' + s;
 
 /**
@@ -393,21 +402,28 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       type="button"
       onClick={() => setFukuesOn(true)}
       aria-pressed={fukuesSelected}
-      className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
+      className={`relative flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
         fukuesSelected
-          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-          : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+          ? 'border-2 border-indigo-600 bg-indigo-50 shadow-sm'
+          : 'border border-slate-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/40'
       }`}
     >
       <span
         aria-hidden
-        className={`w-6 h-6 flex-none grid place-items-center text-[13px] font-black ${
-          fukuesSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+        className={`mt-0.5 w-7 h-7 flex-none grid place-items-center text-[13px] font-black ${
+          fukuesSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
         }`}
       >
         フ
       </span>
-      フクエス
+      <span className="min-w-0">
+        <span className={`block text-[14px] font-bold leading-snug ${fukuesSelected ? 'text-indigo-800' : 'text-slate-800'}`}>フクエス</span>
+        <span className="mt-0.5 flex items-center gap-1 text-[12px] font-bold text-emerald-700">
+          <span aria-hidden className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+          自動更新中
+        </span>
+      </span>
+      {fukuesSelected && <span className="absolute right-1.5 top-1 text-[10.5px] font-bold text-indigo-600">表示中</span>}
     </button>
   ) : null;
 
@@ -435,7 +451,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
         /* ★ 枠が1つも無い＝ログイン情報がまだ無い。★ ホームと同じ言い方（第119便）
            ★ 第472便: コネックエフでは、フクエスのタブを出したうえで、ほかのサイトの始め方を言う */
         <div className="space-y-3">
-          {fukuesTab && <div className="flex flex-wrap gap-2">{fukuesTab}</div>}
+          {fukuesTab && <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{fukuesTab}</div>}
           <div className="border border-sky-200 bg-sky-50 px-4 py-3">
             <p className="text-[14px] leading-relaxed text-slate-600">
               {brand.isConecf ? (
@@ -450,37 +466,41 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        // ★★ 第1809便（カッキーさん「タブをもっと分かりやすく」）: 1サイト1枚のカードにして、名前の下に今の状態を出す。
+        //   選んでいるカードは太い枠＋色＋「表示中」。選んでいないカードも名前は濃い色（薄い灰色で読めない、をやめた）。
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
           {sites.map((x) => {
             const k = keyOf(x.provider, x.slot);
             const on = !fukuesSelected && site != null && keyOf(site.provider, site.slot) === k;
+            const st = siteTabStatus(x);
             return (
               <button
                 key={k}
                 type="button"
                 onClick={() => { setSite(x); setFukuesOn(false); }}
                 aria-pressed={on}
-                className={`flex items-center gap-2 px-3.5 py-2 border text-[14.5px] font-bold transition-colors ${
+                className={`relative flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
                   on
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                    : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+                    ? 'border-2 border-indigo-600 bg-indigo-50 shadow-sm'
+                    : 'border border-slate-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/40'
                 }`}
               >
                 <span
                   aria-hidden
-                  className={`w-6 h-6 flex-none grid place-items-center text-[13px] font-black ${
-                    on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
+                  className={`mt-0.5 w-7 h-7 flex-none grid place-items-center text-[13px] font-black ${
+                    on ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
                   }`}
                 >
                   {siteMark(x.provider, x.label)}
                 </span>
-                {x.label}
-                {/* ★ 送れない枠は、タブの時点でそう分かるようにする（★ 開いてから知る、にしない） */}
-                {x.direction !== 'write' && (
-                  <span className="font-medium text-[12.5px] text-slate-400">
-                    （{x.direction === 'read' ? '取り込み中' : x.direction === 'off' ? '反映なし' : '未設定'}）
+                <span className="min-w-0">
+                  <span className={`block text-[14px] font-bold leading-snug ${on ? 'text-indigo-800' : 'text-slate-800'}`}>{x.label}</span>
+                  <span className={`mt-0.5 flex items-center gap-1 text-[12px] font-bold ${st.tone}`}>
+                    <span aria-hidden className={`inline-block w-2 h-2 rounded-full ${st.dot}`} />
+                    {st.text}
                   </span>
-                )}
+                </span>
+                {on && <span className="absolute right-1.5 top-1 text-[10.5px] font-bold text-indigo-600">表示中</span>}
               </button>
             );
           })}
