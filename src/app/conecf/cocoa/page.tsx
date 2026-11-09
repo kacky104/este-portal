@@ -382,16 +382,17 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           {data.templates.length === 0 && <p className="px-4 pb-4 text-[14px] text-slate-500">まだテンプレがありません。「＋ 追加」で作ってください。</p>}
           <ul className="divide-y divide-slate-100 border-t border-slate-100">
             {data.templates.map((t) => (
-              <li key={t.id} className={`flex items-center gap-3 px-4 py-3 ${t.isActive ? '' : 'opacity-50'}`}>
-                <div className="w-12 h-12 flex-none bg-slate-100 overflow-hidden">
+              <li key={t.id} className="flex items-center gap-3 px-4 py-3">
+                {/* ★ 第1837便: 休み中は写真と題名だけ薄くする（「使う」ボタンは押せる色のまま） */}
+                <div className={`w-12 h-12 flex-none bg-slate-100 overflow-hidden ${t.isActive ? '' : 'opacity-50'}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {t.imageUrl && <img src={t.imageUrl} alt="" className="w-full h-full object-cover" />}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <b className="block text-[15px] font-bold text-slate-800 truncate">{t.title || '（タイトルなし）'}</b>
+                <div className={`min-w-0 flex-1 ${t.isActive ? '' : 'opacity-50'}`}>
+                  <b className="block text-[15px] font-bold text-slate-800 truncate">{t.title || '（タイトルなし）'}{!t.isActive && <span className="ml-2 text-[12px] font-bold text-slate-500">（休み中）</span>}</b>
                   <span className="block text-[12.5px] text-slate-400 truncate">{t.lastPostedAt ? `最後の投稿 ${hm(t.lastPostedAt)}` : 'まだ投稿していません'}</span>
                 </div>
-                <button type="button" disabled={busy !== ''} onClick={() => void toggleActive(t)} className="text-[12.5px] font-bold text-slate-500 border border-slate-200 px-2 py-1">{t.isActive ? '休む' : '使う'}</button>
+                <button type="button" disabled={busy !== ''} onClick={() => void toggleActive(t)} className={`text-[12.5px] font-bold px-2 py-1 border ${t.isActive ? 'text-slate-500 border-slate-200' : 'text-white bg-indigo-600 border-indigo-600'}`}>{t.isActive ? '休む' : '使う'}</button>
                 <button type="button" onClick={() => setEditing(t)} className="text-[12.5px] font-bold text-indigo-600">編集</button>
                 <button type="button" disabled={busy !== ''} onClick={() => void del(t)} className="text-[12.5px] font-bold text-rose-500">削除</button>
               </li>
