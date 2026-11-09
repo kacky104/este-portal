@@ -1,6 +1,7 @@
 'use server';
 
 import { hasConecfEsutamaOptions } from './conecfEsutamaOptions';
+import { hasConecfZenkokuOptions } from './conecfZenkokuOptions';
 import { readShiftEnabled, shiftAllowedForSalon } from '@/app/lib/shift/access';
 import { countShiftNew } from '@/app/lib/shift/newCount';
 import { createClient } from '@/app/lib/supabase/server';
@@ -175,11 +176,11 @@ export async function setConecfActingSalon(input: { salonId: number | null }): P
  * ★ ココアの出し分け: 駅ちかの ID・PASS がある店、または自動投稿がオンの店（第474便）。
  *   ★ 読めなければ出す（★ 止める道を隠さない）。★ 赤帯は読めなければ空（★ 画面は止めない）。
  */
-export type ConecfShellState = { access: ConecfAccess; alerts: MediaLinkAlert[]; cocoaNav: boolean; /** ★ 2026-11-04: シフト管理表を出すか（SHIFT_SALON_IDS） */ shiftNav: boolean; /** ★ 第1740便: 新しい希望の数（左メニューのバッジ） */ shiftNew: number; /** ★ 第1799便: エステ魂オプションを出すか（運営が ON にした店だけ） */ esutamaOptNav?: boolean };
+export type ConecfShellState = { access: ConecfAccess; alerts: MediaLinkAlert[]; cocoaNav: boolean; /** ★ 2026-11-04: シフト管理表を出すか（SHIFT_SALON_IDS） */ shiftNav: boolean; /** ★ 第1740便: 新しい希望の数（左メニューのバッジ） */ shiftNew: number; /** ★ 第1799便: エステ魂オプションを出すか（運営が ON にした店だけ） */ esutamaOptNav?: boolean; /** ★ 第1831便: 全国エステランキングのニュース・おすすめを出すか */ zenkokuOptNav?: boolean };
 
 export async function getConecfShellState(): Promise<ConecfShellState> {
   const access = await getConecfAccess();
-  if (!access.ok || access.salonId == null) return { access, alerts: [], cocoaNav: false, shiftNav: false, shiftNew: 0, esutamaOptNav: false };
+  if (!access.ok || access.salonId == null) return { access, alerts: [], cocoaNav: false, shiftNav: false, shiftNew: 0, esutamaOptNav: false, zenkokuOptNav: false };
   const svc = createServiceClient();
   const salonId = access.salonId;
   const [alerts, cocoaNav] = await Promise.all([
@@ -198,8 +199,8 @@ export async function getConecfShellState(): Promise<ConecfShellState> {
   const shiftNav = shiftAllowedForSalon(salonId);
   // ★ 2026-11-05: メニューは開ける店ならオフでも出す（そこでオンにする）。バッジはオンの店だけ
   const shiftNew = shiftNav && (await readShiftEnabled(svc, salonId)) ? await countShiftNew(svc, salonId) : 0;
-  const esutamaOptNav = await hasConecfEsutamaOptions(salonId);
-  return { access, alerts, cocoaNav, shiftNav, shiftNew, esutamaOptNav };
+  const [esutamaOptNav, zenkokuOptNav] = await Promise.all([hasConecfEsutamaOptions(salonId), hasConecfZenkokuOptions(salonId)]);
+  return { access, alerts, cocoaNav, shiftNav, shiftNew, esutamaOptNav, zenkokuOptNav };
 }
 
 /**

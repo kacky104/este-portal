@@ -427,6 +427,8 @@ export async function startRelayFlow(params: {
   esutamaPost?: { key: string; title: string; body: string; force?: boolean; image?: { path: string; index: number }; images?: Array<{ path: string; index: number }> };
   /** ★ 第1810便: 全国エステランキングの待機中の周（intent は bump_auto / bump_push）。その営業日の出勤時間に入った方を全員待機中にする */
   zenkokuWait?: { dateISO: string };
+  /** ★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト（intent は bump_auto / bump_push）。★ 結果は conecf_zenkoku_options に書く */
+  zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
   sort?: { want: string[] };
 }): Promise<StartFlowResult> {
@@ -725,6 +727,8 @@ export async function startRelayFlow(params: {
     // ★ 第1799便: エステ魂【オプション】。★ 渡されたときだけ入れる
     ...(params.esutamaOpt ? { esutamaOpt: { key: params.esutamaOpt.key, ...(params.esutamaOpt.force === true ? { force: true } : {}) } } : {}),
     ...(params.zenkokuWait ? { zenkokuWait: { dateISO: params.zenkokuWait.dateISO } } : {}),
+    // ★ 第1831便: 全国エステランキングのニュース・おすすめ。★ 渡されたときだけ入れる
+    ...(params.zenkokuOpt ? { zenkokuOpt: { key: params.zenkokuOpt.key, ...(params.zenkokuOpt.force === true ? { force: true } : {}), ...(params.zenkokuOpt.item ? { item: { title: params.zenkokuOpt.item.title, body: params.zenkokuOpt.item.body, image: params.zenkokuOpt.item.image ?? null } } : {}), ...(params.zenkokuOpt.items ? { items: params.zenkokuOpt.items.map((x) => ({ name: x.name })) } : {}), nextIndex: Number(params.zenkokuOpt.nextIndex ?? 0) } } : {}),
     // ★ 第1811便: エステ魂の投稿。★ 渡されたときだけ入れる
     ...(params.esutamaPost ? { esutamaPost: { key: params.esutamaPost.key, title: params.esutamaPost.title, body: params.esutamaPost.body, ...(params.esutamaPost.force === true ? { force: true } : {}), ...(params.esutamaPost.image ? { image: { path: params.esutamaPost.image.path, index: params.esutamaPost.image.index } } : {}), ...(params.esutamaPost.images && params.esutamaPost.images.length > 0 ? { images: params.esutamaPost.images.map((x) => ({ path: x.path, index: x.index })) } : {}) } } : {}),
     // ★ 第1557便: セラピストの並び順。★ 渡されたときだけ入れる
@@ -750,10 +754,13 @@ export async function startRelayFlow(params: {
   if (params.esutamaPost && params.provider !== 'esutama') {
     throw new Error('esutamaPost はエステ魂だけ');
   }
+  if (params.zenkokuOpt && params.provider !== 'zenkoku') {
+    throw new Error('zenkokuOpt は全国エステランキングだけ');
+  }
   if (params.zenkokuWait && params.provider !== 'zenkoku') {
     throw new Error('zenkokuWait は全国エステランキングだけ');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait) {
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
@@ -1208,6 +1215,24 @@ export async function advanceRelayFlow(params: {
       .eq('salon_id', params.salonId).eq('post_key', o.key);
     if (pErr) console.error('[relay] エステ魂の投稿の状態を書けなかった', params.salonId, o.key, pErr.message);
     else note = note + ' → 投稿の状態（' + o.outcome.slice(0, 40) + '）を記録した';
+  }
+
+  // ★★ 第1831便: 全国エステランキングのニュース・おすすめの結果を表に書く。★ 書けなくても流れは止めない（黙らない）
+  if (outcome.kind === 'done' && outcome.zenkokuOpt && params.provider === 'zenkoku') {
+    const o = outcome.zenkokuOpt;
+    const { error: zErr } = await createServiceClient()
+      .from('conecf_zenkoku_options')
+      .update({
+        read_at: o.readAt,
+        last_outcome: o.outcome.slice(0, 200),
+        ...(o.done && o.lastAt ? { last_at: o.lastAt } : {}),
+        ...(o.nextIndex !== null ? { next_item: o.nextIndex } : {}),
+        ...(o.remaining !== null ? { remaining: o.remaining } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('salon_id', params.salonId).eq('option_key', o.key);
+    if (zErr) console.error('[relay] 全国エステランキングのオプションの状態を書けなかった', params.salonId, o.key, zErr.message);
+    else note = note + ' → 全国の' + o.key + 'の状態（' + o.outcome.slice(0, 40) + '）を記録した';
   }
 
   // ★★★ 第421便: 写真を枠へ合わせ終えた記録（★ 変わった枠だけ送る・減った枠を消すのに使う）。

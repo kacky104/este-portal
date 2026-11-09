@@ -5,6 +5,7 @@ import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaB
 import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImages, isDailyPostKey } from '@/lib/esutamaPost';
+import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -180,6 +181,50 @@ export async function POST(req: Request) {
     }
   }
 
+  // ★★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト（ベンリーから移した）。★ crontab はそのまま
+  //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 表が無い（SQL 未適用）ときは黙って飛ばす
+  //   ★ 同じ店の全国は1回の周で1つだけ始める（待機中の周より先に。待機中は5分後の周でもよい）
+  const zenkokuStarted = new Set<number>();
+  {
+    const zo = await svc.from('conecf_zenkoku_options')
+      .select('salon_id, option_key, times_min, items, next_item, remaining, read_at, last_at, last_outcome, salons!inner(conecf_enabled_at)')
+      .eq('admin_enabled', true).eq('auto', true)
+      .not('salons.conecf_enabled_at', 'is', null);
+    if (!zo.error) {
+      for (const o of zo.data ?? []) {
+        const key = String(o.option_key) === 'recommend' ? 'recommend' as const : 'news' as const;
+        const sid = Number(o.salon_id);
+        const base = { salonId: sid, provider: 'zenkoku:' + key, slot: 1 };
+        const judge = shouldRunZenkokuOpt({
+          key, now, timesMin: Array.isArray(o.times_min) ? (o.times_min as number[]).map(Number) : [],
+          state: { lastAt: (o.last_at as string | null) ?? null, readAt: (o.read_at as string | null) ?? null, remaining: o.remaining == null ? null : Number(o.remaining), lastOutcome: (o.last_outcome as string | null) ?? null },
+        });
+        if (!judge.run || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+        const news = key === 'news' ? normalizeNewsItems(o.items) : [];
+        const recs = key === 'recommend' ? normalizeRecItems(o.items) : [];
+        const item = key === 'news' && news.length > 0 ? news[judge.slot % news.length] : undefined;
+        if (key === 'news' && (!item || newsItemProblem(item))) { results.push({ ...base, reason: 'no_items' }); continue; }
+        if (key === 'recommend' && recs.length === 0) { results.push({ ...base, reason: 'no_items' }); continue; }
+        if (zenkokuStarted.has(sid)) { results.push({ ...base, reason: 'next_round' }); continue; }
+        const { error: mErr } = await svc.from('conecf_zenkoku_options').update({ read_at: now.toISOString() }).eq('salon_id', sid).eq('option_key', key);
+        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
+        try {
+          const f = await startRelayFlow({
+            salonId: sid, provider: 'zenkoku', slot: 1, intent: 'bump_auto', actor: 'cron:zenkoku-option',
+            zenkokuOpt: key === 'news' ? { key, item } : { key, items: recs, nextIndex: Number(o.next_item ?? 0) },
+          });
+          zenkokuStarted.add(sid);
+          // ★ 始められなかった（別の流れが走っていた等）ときは「始めた時刻」を戻す（5分後の周でまた試す）
+          if (!f.ok) await svc.from('conecf_zenkoku_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid).eq('option_key', key);
+          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+        } catch (e) {
+          console.error('[zenkoku-option] 流れを始められなかった', sid, key, e instanceof Error ? e.message : 'unknown');
+          results.push({ ...base, reason: 'start_failed' });
+        }
+      }
+    }
+  }
+
   // ★★ 第1810便（カッキーさん「A」）: 全国エステランキングの待機中。その営業日の出勤時間に入った方を全員待機中にする
   //   ★ 対象は「フクエスから反映（自動）」の全国エステランキングの枠だけ。★ 15分に1回まで（bump_auto_at を使う）
   {
@@ -192,6 +237,7 @@ export async function POST(req: Request) {
       for (const z of zk.data ?? []) {
         const slot = Number(z.slot ?? 1);
         const base = { salonId: Number(z.salon_id), provider: 'zenkoku:wait', slot };
+        if (zenkokuStarted.has(Number(z.salon_id))) { results.push({ ...base, reason: 'next_round' }); continue; }
         const last = z.bump_auto_at ? Date.parse(String(z.bump_auto_at)) : 0;
         if (now.getTime() - last < 14 * 60000) { results.push({ ...base, reason: 'interval' }); continue; }
         if (!apply) { results.push({ ...base, reason: 'ok' }); continue; }

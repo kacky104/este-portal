@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync' | 'placeholder'
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
-  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'announce' | 'cocoa'
+  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'announce' | 'cocoa'
   | 'log' | 'matrix' | 'analytics'
   | 'guide' | 'qa';
 
@@ -32,6 +32,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'bump',         label: '上位表示設定',           href: '/bump' },
   // ★ 第1799便: エステ魂の有料オプション（集客ブースト・セラピストアピールなど）。運営が ON にした店だけ（ConecfShell の esutamaOptNav）
   { key: 'esutamaOpt',   label: 'エステ魂オプション',     href: '/esutama-options' },
+  // ★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト。運営が ON にした店だけ（ConecfShell の zenkokuOptNav）
+  { key: 'zenkokuOpt',   label: '全国エステランキング設定', href: '/zenkoku-options', dense: true },
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
   // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）

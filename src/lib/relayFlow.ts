@@ -134,6 +134,7 @@ import type { EsutamaRosterRow } from './esutamaParse';
 import type { ZenkokuLoginForm, ZenkokuGirl } from './zenkokuParse';
 import { afterZenkokuLoginPage, afterZenkokuLogin, afterZenkokuRoster, afterZenkokuDayRead, afterZenkokuDaySave, afterZenkokuDayVerify } from './zenkokuFlow';
 import { afterZenkokuWaitRead, afterZenkokuWaitSet } from './zenkokuWaitFlow';
+import { afterZenkokuNewsRead, afterZenkokuNewsSet, afterZenkokuNewsVerify, afterZenkokuRecRead, afterZenkokuRecSet, afterZenkokuRecVerify } from './zenkokuOptionFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
 import {
@@ -1041,6 +1042,11 @@ export type RelayFlowContext = {
   zenkokuWindow?: string[];
   /** ★ 第1810便: 待機中の周（その日の出勤時間に入った方を全員待機中にする）。営業日と、このあと押す方 */
   zenkokuWait?: { dateISO: string; queue?: Array<{ gid: string; rowId: string; name: string }>; done?: string[]; failed?: string[]; already?: number };
+  /**
+   * ★ 第1831便: ニュース・おすすめセラピスト（lib/zenkokuOptionFlow.ts）。
+   *   news … item（この時刻に送る1件）／ recommend … items（入れ替えるリスト）と nextIndex。target は段の途中で入る
+   */
+  zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; readAt?: string; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number; target?: { gid: string; name: string; index: number } };
   /** いま何日目か（zenkokuWindow の添字） */
   zenkokuDayIndex?: number;
   /** 日付 → girl id → あるべき姿（'HH:MM-HH:MM' ／ '─'）。★ DB 側が名簿を読んだあと入れる。★ ここに無い人は触らない */
@@ -1151,7 +1157,9 @@ export type FlowNextRequest = {
     // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
     | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify'
     // ★ 第1810便: 全国エステランキングの待機中。★ zenkoku_wait_set だけが相手を書き換える
-    | 'zenkoku_wait_read' | 'zenkoku_wait_set';
+    | 'zenkoku_wait_read' | 'zenkoku_wait_set'
+    // ★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト。★ *_set だけが相手を書き換える
+    | 'zenkoku_news_read' | 'zenkoku_news_set' | 'zenkoku_news_verify' | 'zenkoku_rec_read' | 'zenkoku_rec_set' | 'zenkoku_rec_verify';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1189,6 +1197,8 @@ export type FlowOutcome =
       esutamaOpt?: { key: string; remaining: number | null; readAt: string; pressed: boolean; outcome: string; lastAt: string | null };
       /** ★ 第1811便: エステ魂【オプション】の投稿の結果。★ 表（conecf_esutama_posts）に書くのは呼び出し側 */
       esutamaPost?: { key: string; readAt: string; posted: boolean; outcome: string; lastAt: string | null; imageIndex: number | null };
+      /** ★ 第1831便: 全国エステランキングのニュース・おすすめの結果。★ 表（conecf_zenkoku_options）に書くのは呼び出し側 */
+      zenkokuOpt?: { key: string; readAt: string; done: boolean; outcome: string; lastAt: string | null; nextIndex: number | null; remaining: number | null };
       /**
        * ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **番号を表に書くのは呼び出し側**。
        *   ★ このファイルは DB を知らない。★ 「誰の番号がいくつか」を返すところまでが仕事。
@@ -1791,6 +1801,18 @@ function advanceFlowStep(
       return afterZenkokuWaitRead(input, ctx);
     case 'zenkoku_wait_set':
       return afterZenkokuWaitSet(input, ctx);
+    case 'zenkoku_news_read':
+      return afterZenkokuNewsRead(input, ctx);
+    case 'zenkoku_news_set':
+      return afterZenkokuNewsSet(input, ctx);
+    case 'zenkoku_news_verify':
+      return afterZenkokuNewsVerify(input, ctx);
+    case 'zenkoku_rec_read':
+      return afterZenkokuRecRead(input, ctx);
+    case 'zenkoku_rec_set':
+      return afterZenkokuRecSet(input, ctx);
+    case 'zenkoku_rec_verify':
+      return afterZenkokuRecVerify(input, ctx);
     case 'esutama_login_page':
       return afterEsutamaLoginPage(input, ctx);
     case 'esutama_login':

@@ -134,6 +134,7 @@ export type RelayPurpose =
   // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
   | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify'
   | 'zenkoku_wait_read' | 'zenkoku_wait_set'
+  | 'zenkoku_news_read' | 'zenkoku_news_set' | 'zenkoku_news_verify' | 'zenkoku_rec_read' | 'zenkoku_rec_set' | 'zenkoku_rec_verify'
   | 'selftest';
 
 export type LeasedJob = {
