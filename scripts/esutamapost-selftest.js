@@ -47,5 +47,22 @@ eq('失敗した直後は始めない', m.shouldPostEsutama({ setting: st, state
 eq('時間外', m.shouldPostEsutama({ setting: { ...st, startMin: 600, endMin: 1440 }, state: { lastAt: null, readAt: null }, now: jst(2026, 11, 10, 2, 0), hasText: true }).reason, 'outside_hours');
 eq('間隔の値', [m.isValidEsutamaPostSetting(st), m.isValidEsutamaPostSetting({ ...st, intervalMin: 45 })], [true, false]);
 
+console.log('── 5. 画像（第1812便）');
+eq('置き場の形', [m.isEsutamaPostImagePath('5/esutama_post_1731.jpg'), m.isEsutamaPostImagePath('5/therapist_placeholder_1.jpg'), m.isEsutamaPostImagePath('../x/esutama_post_1.jpg')], [true, false, false]);
+eq('順番に回す', [m.pickEsutamaPostImage(['5/esutama_post_a.jpg', '5/esutama_post_b.jpg', '5/esutama_post_c.jpg'], 4), m.pickEsutamaPostImage([], 0)], [{ path: '5/esutama_post_b.jpg', index: 1 }, undefined]);
+const fu = 'https://fukues.com/api/relay/file?bucket=salon-images&path=5%2Fesutama_post_a.jpg';
+const up = m.buildRealtimeImageUploadRequest('c=1', CTK, fu, 'esutama_post_a.jpg');
+eq('仮置き（img ＋ ctk）', [up.url, up.multipart.fields, up.multipart.files[0].field, up.headers['content-type']], ['https://estama.jp/post/uptemp/', { ctk: CTK }, 'img', undefined]);
+eq('仮置きの応答', m.parseCroppicResponse('{"status":"success","url":"/temp/file_x.jpg","width":600,"height":600}'), { ok: true, url: '/temp/file_x.jpg', width: 600, height: 600, message: null });
+eq('仮置きの失敗', m.parseCroppicResponse('{"status":"error","message":"<p>大きすぎ</p>"}').ok, false);
+const cr = m.buildRealtimeImageCropRequest('c=1', CTK, { url: '/temp/file_x.jpg', width: 600, height: 600 });
+eq('切り抜き（600角→300角・全体）', cr.multipart.fields, { imgUrl: '/temp/file_x.jpg', imgInitW: '600', imgInitH: '600', imgW: '300', imgH: '300', imgY1: '0', imgX1: '0', cropH: '300', cropW: '300', rotation: '0', ctk: CTK });
+const cr2 = m.buildRealtimeImageCropRequest('c=1', CTK, { url: '/temp/y.jpg', width: 800, height: 1200 });
+eq('縦長は中央', [cr2.multipart.fields.imgW, cr2.multipart.fields.imgH, cr2.multipart.fields.imgY1, cr2.multipart.fields.imgX1], ['300', '450', '75', '0']);
+const ri = m.buildRealtimePostRequest('c=1', p, '本日限定割引', 'x', '/temp/crop_x.jpg');
+const qi = new URLSearchParams(ri.body);
+const names = []; for (let i = 0; qi.has(`str[${i}][name]`); i++) names.push(qi.get(`str[${i}][name]`) + '=' + qi.get(`str[${i}][value]`).slice(0, 18));
+eq('画像の hidden は image_delete_0 の前', names.slice(2, 5), ['default_img=https://static-v3.', 'photo_1-imgupload=/temp/crop_x.jpg', 'image_delete_0=0']);
+
 console.log(fail ? `\n✗ ${fail} 件 NG` : '\n✓ すべて ok');
 process.exit(fail ? 1 : 0);

@@ -424,7 +424,7 @@ export async function startRelayFlow(params: {
    * ★ 第1811便: エステ魂【オプション】の投稿（リアルタイム集客）。intent は bump_push / bump_auto・provider='esutama'。
    *   ★ 結果は conecf_esutama_posts に書く
    */
-  esutamaPost?: { key: string; title: string; body: string; force?: boolean };
+  esutamaPost?: { key: string; title: string; body: string; force?: boolean; image?: { path: string; index: number } };
   /** ★ 第1810便: 全国エステランキングの待機中の周（intent は bump_auto / bump_push）。その営業日の出勤時間に入った方を全員待機中にする */
   zenkokuWait?: { dateISO: string };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
@@ -726,7 +726,7 @@ export async function startRelayFlow(params: {
     ...(params.esutamaOpt ? { esutamaOpt: { key: params.esutamaOpt.key, ...(params.esutamaOpt.force === true ? { force: true } : {}) } } : {}),
     ...(params.zenkokuWait ? { zenkokuWait: { dateISO: params.zenkokuWait.dateISO } } : {}),
     // ★ 第1811便: エステ魂の投稿。★ 渡されたときだけ入れる
-    ...(params.esutamaPost ? { esutamaPost: { key: params.esutamaPost.key, title: params.esutamaPost.title, body: params.esutamaPost.body, ...(params.esutamaPost.force === true ? { force: true } : {}) } } : {}),
+    ...(params.esutamaPost ? { esutamaPost: { key: params.esutamaPost.key, title: params.esutamaPost.title, body: params.esutamaPost.body, ...(params.esutamaPost.force === true ? { force: true } : {}), ...(params.esutamaPost.image ? { image: { path: params.esutamaPost.image.path, index: params.esutamaPost.image.index } } : {}) } } : {}),
     // ★ 第1557便: セラピストの並び順。★ 渡されたときだけ入れる
     ...(params.sort ? { sortWant: params.sort.want.map(String) } : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
@@ -1201,6 +1201,8 @@ export async function advanceRelayFlow(params: {
         read_at: o.readAt,
         last_outcome: o.outcome.slice(0, 200),
         ...(o.posted && o.lastAt ? { last_at: o.lastAt } : {}),
+        // ★ 第1812便: 画像を付けて投稿できたら、次は次の画像
+        ...(o.imageIndex !== null && o.imageIndex !== undefined ? { next_image: o.imageIndex + 1 } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('salon_id', params.salonId).eq('post_key', o.key);

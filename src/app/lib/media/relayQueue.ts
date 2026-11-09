@@ -125,6 +125,8 @@ export type RelayPurpose =
   | 'esutama_post_read'
   | 'esutama_post_set'
   | 'esutama_post_verify'
+  | 'esutama_post_img_up'
+  | 'esutama_post_img_crop'
   // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える（送り直さない）
   | 'girls_sort'
   | 'esutama_sort_read'

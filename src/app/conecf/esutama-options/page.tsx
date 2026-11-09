@@ -6,8 +6,33 @@ import { useToast } from '@/app/components/useToast';
 import {
   getConecfEsutamaOptions, saveConecfEsutamaOption, runConecfEsutamaOptionNow, type ConecfEsutamaOption,
   getConecfEsutamaPosts, saveConecfEsutamaPost, runConecfEsutamaPostNow, type ConecfEsutamaPost,
+  addConecfEsutamaPostImage, removeConecfEsutamaPostImage,
 } from '@/app/actions/conecfEsutamaOptions';
-import { ESUTAMA_POST_TITLE_MAX, ESUTAMA_POST_BODY_MAX, ESUTAMA_POST_INTERVALS } from '@/lib/esutamaPost';
+import { ESUTAMA_POST_TITLE_MAX, ESUTAMA_POST_BODY_MAX, ESUTAMA_POST_INTERVALS, ESUTAMA_POST_IMAGE_MAX } from '@/lib/esutamaPost';
+
+/** ★ 第1812便: ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
+async function shrinkToJpeg(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('read'));
+      el.src = url;
+    });
+    const scale = Math.min(1, 1440 / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    if (!ctx) throw new Error('canvas');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    return await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 // コネックエフ「エステ魂オプション」（第1799便・2026-11-09・カッキーさんの決定）。
 // ★ 運営が /admin で ON にした店だけメニューに出る。★ 押すのはエステ魂で契約している有料オプションのボタン。
@@ -104,9 +129,9 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
 
 // ★ 第1811便: 投稿（リアルタイム集客）。保存した文章を、決めた間隔で投稿する
 const POST_DESC: Record<string, string> = {
-  guest_realtime: 'エステ魂の「リアルタイム集客」に、下の文章を決めた間隔で投稿します。画像は、いまエステ魂に出ている画像をそのまま使います。',
+  guest_realtime: 'エステ魂の「リアルタイム集客」に、下の文章を決めた間隔で投稿します。画像を入れておくと、投稿のたびに1枚ずつ順番に替えます（画像が無いときは、いまエステ魂に出ている画像のまま）。',
 };
-const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '投稿できました' : o.startsWith('error') ? 'うまくいきませんでした' : o);
+const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '投稿できました' : o === 'ok: 画像は前のまま' ? '投稿できました（画像は前のまま）' : o.startsWith('error') ? 'うまくいきませんでした' : o);
 
 function PostCard({ p, onToast, reload }: { p: ConecfEsutamaPost; onToast: (m: string) => void; reload: () => void }) {
   const [auto, setAuto] = useState(p.auto);
@@ -117,6 +142,31 @@ function PostCard({ p, onToast, reload }: { p: ConecfEsutamaPost; onToast: (m: s
   const [intervalMin, setIntervalMin] = useState(p.intervalMin);
   const [busy, setBusy] = useState(false);
   const dirty = title !== p.title || body !== p.body;
+  const addImage = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const blob = await shrinkToJpeg(file);
+      const fd = new FormData();
+      fd.set('key', p.key);
+      fd.set('file', blob, 'image.jpg');
+      const r = await addConecfEsutamaPostImage(fd);
+      onToast(r.ok ? '画像を追加しました' : r.error);
+      if (r.ok) reload();
+    } catch {
+      onToast('画像を読めませんでした');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const removeImage = async (path: string) => {
+    if (!window.confirm('この画像を消します。よろしいですか？')) return;
+    setBusy(true);
+    const r = await removeConecfEsutamaPostImage({ key: p.key, path });
+    setBusy(false);
+    onToast(r.ok ? '画像を消しました' : r.error);
+    if (r.ok) reload();
+  };
   const save = async () => {
     setBusy(true);
     const r = await saveConecfEsutamaPost({ key: p.key, auto, title, body, startMin, endMin, intervalMin });
@@ -156,6 +206,31 @@ function PostCard({ p, onToast, reload }: { p: ConecfEsutamaPost; onToast: (m: s
           <span className="ml-2 text-[12px] text-slate-500">{[...body].length}/{ESUTAMA_POST_BODY_MAX}</span>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} className="mt-1 w-full border border-slate-300 px-2 py-1.5" />
         </label>
+      </div>
+      <div className="space-y-2 border-t border-slate-100 pt-3 text-[14px]">
+        <div>
+          <span className="font-bold">画像</span>
+          <span className="ml-2 text-[12px] text-slate-500">{p.images.length}/{ESUTAMA_POST_IMAGE_MAX}枚・投稿のたびに順番に替わります（正方形に切り抜いて送ります）</span>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {p.images.map((im, i) => (
+            <div key={im.path} className={`relative w-[110px] border ${p.images.length > 0 && i === p.nextImage % p.images.length ? 'border-violet-500 border-2' : 'border-slate-200'}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={im.url} alt={`画像${i + 1}`} className="block h-[110px] w-full object-cover" />
+              <div className="flex items-center justify-between px-1 py-0.5 text-[11px]">
+                <span className="text-slate-600">{i + 1}枚目{p.images.length > 0 && i === p.nextImage % p.images.length ? '（次）' : ''}</span>
+                <button type="button" disabled={busy} onClick={() => removeImage(im.path)} className="text-rose-600 disabled:opacity-40">消す</button>
+              </div>
+            </div>
+          ))}
+          {p.images.length < ESUTAMA_POST_IMAGE_MAX && (
+            <label className={`flex h-[110px] w-[110px] cursor-pointer items-center justify-center border border-dashed border-slate-300 text-[13px] text-slate-500 ${busy ? 'opacity-40' : ''}`}>
+              ＋ 追加
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={busy}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; void addImage(f); }} />
+            </label>
+          )}
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-[14px]">
         <label className="flex items-center gap-2 font-bold">

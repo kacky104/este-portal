@@ -64,6 +64,7 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'esutama_appeal_set',
   'esutama_opt_set',   // ★ 第1799便: 相手の回数が減る（送り直さない）
   'esutama_post_set',  // ★ 第1811便: 投稿が1件増える（二度送ると2件載る。送り直さない）
+  'esutama_post_img_up', 'esutama_post_img_crop',  // ★ 第1812便: エステ魂の一時置き場へ画像を上げる・切り抜く（送り直さない）
   // ★ 第1557便: セラピストの並び順。★ 届いていれば並びが変わっている。送り直さない
   'girls_sort', 'esutama_sort_save',
   // ── エステ魂 ──

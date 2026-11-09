@@ -12,6 +12,7 @@ import {
 } from '@/lib/esutamaOption';
 import {
   ESUTAMA_POST_KEYS, ESUTAMA_POST_LABEL, ESUTAMA_POST_DEFAULT, esutamaPostTextProblem, isValidEsutamaPostSetting, type EsutamaPostKey,
+  ESUTAMA_POST_IMAGE_MAX, isEsutamaPostImagePath, pickEsutamaPostImage,
 } from '@/lib/esutamaPost';
 
 // エステ魂【オプション】の受け口（第1799便・2026-11-09・カッキーさんの決定）。
@@ -161,13 +162,15 @@ export type ConecfEsutamaPost = {
   key: EsutamaPostKey; label: string;
   auto: boolean; title: string; body: string; startMin: number; endMin: number; intervalMin: number;
   readAt: string | null; lastAt: string | null; lastOutcome: string | null;
+  /** ★ 第1812便: 順番に使う画像（置き場と表示用の URL）と、次に使う番号 */
+  images: Array<{ path: string; url: string }>; nextImage: number;
 };
 
 export async function getConecfEsutamaPosts(): Promise<Result<{ posts: ConecfEsutamaPost[] }>> {
   const r = await resolve(false);
   if (!r.ok) return r;
   const { data, error } = await r.svc.from('conecf_esutama_posts')
-    .select('post_key, auto, title, body, start_min, end_min, interval_min, read_at, last_at, last_outcome')
+    .select('post_key, auto, title, body, start_min, end_min, interval_min, read_at, last_at, last_outcome, images, next_image')
     .eq('salon_id', r.salonId).eq('admin_enabled', true);
   // ★ 表がまだ無い（SQL 未適用）ときは「無い」扱い（オプションの画面は出す）
   if (error) return { ok: true, data: { posts: [] } };
@@ -179,6 +182,9 @@ export async function getConecfEsutamaPosts(): Promise<Result<{ posts: ConecfEsu
       title: String(x.title ?? ''), body: String(x.body ?? ''),
       startMin: Number(x.start_min), endMin: Number(x.end_min), intervalMin: Number(x.interval_min),
       readAt: (x.read_at as string | null) ?? null, lastAt: (x.last_at as string | null) ?? null, lastOutcome: (x.last_outcome as string | null) ?? null,
+      images: (Array.isArray(x.images) ? (x.images as string[]) : []).filter(isEsutamaPostImagePath)
+        .map((path) => ({ path, url: r.svc.storage.from('salon-images').getPublicUrl(path).data.publicUrl })),
+      nextImage: Number(x.next_image ?? 0),
     }];
   });
   return { ok: true, data: { posts } };
@@ -209,7 +215,7 @@ export async function runConecfEsutamaPostNow(input: { key: string }): Promise<R
   if (!key) return { ok: false, error: '投稿の指定が不正です' };
   const r = await resolve(true);
   if (!r.ok) return r;
-  const { data: row } = await r.svc.from('conecf_esutama_posts').select('title, body, read_at').eq('salon_id', r.salonId).eq('post_key', key).eq('admin_enabled', true).maybeSingle();
+  const { data: row } = await r.svc.from('conecf_esutama_posts').select('title, body, read_at, images, next_image').eq('salon_id', r.salonId).eq('post_key', key).eq('admin_enabled', true).maybeSingle();
   if (!row) return { ok: false, error: 'この投稿は使えるようになっていません。運営事務局までご連絡ください' };
   const title = String(row.title ?? ''); const body = String(row.body ?? '');
   const p = esutamaPostTextProblem(title, body);
@@ -221,7 +227,7 @@ export async function runConecfEsutamaPostNow(input: { key: string }): Promise<R
     const f = await startRelayFlow({
       salonId: r.salonId, provider: 'esutama', slot: 1,
       intent: 'bump_push', actor: 'shop:' + r.userId,
-      esutamaPost: { key, title, body, force: true },
+      esutamaPost: { key, title, body, force: true, image: pickEsutamaPostImage(row.images, row.next_image) },
     });
     if (!f.ok) return { ok: false, error: f.note };
     return { ok: true, data: { note: f.note } };
@@ -251,5 +257,58 @@ export async function adminSetEsutamaPost(input: { salonId: number; key: string;
     ? await svc.from('conecf_esutama_posts').update({ admin_enabled: input.enabled === true, ...(input.enabled ? {} : { auto: false }), updated_at: new Date().toISOString() }).eq('salon_id', salonId).eq('post_key', key)
     : await svc.from('conecf_esutama_posts').insert({ salon_id: salonId, post_key: key, admin_enabled: input.enabled === true, start_min: ESUTAMA_POST_DEFAULT.startMin, end_min: ESUTAMA_POST_DEFAULT.endMin, interval_min: ESUTAMA_POST_DEFAULT.intervalMin });
   if (res.error) return { ok: false, error: '保存できませんでした: ' + res.error.message };
+  return { ok: true, data: null };
+}
+
+// ── 第1812便: 投稿の画像（順番に使う・最大5枚）──
+// ★ 置き場は salon-images/<店>/esutama_post_<時刻>.jpg（★ /api/relay/file はこの形だけ読める）。
+// ★ サーバーで 600×600 の正方形（中央で切る）の JPEG に作り直す（エステ魂の枠は 300×300 の正方形）
+const POST_IMAGE_MAX_UPLOAD = 950 * 1024;
+
+export async function addConecfEsutamaPostImage(fd: FormData): Promise<Result<null>> {
+  const key = okPostKey(fd.get('key'));
+  if (!key) return { ok: false, error: '投稿の指定が不正です' };
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const file = fd.get('file');
+  if (!(file instanceof Blob) || file.size === 0) return { ok: false, error: '画像を選んでください' };
+  if (file.size > POST_IMAGE_MAX_UPLOAD) return { ok: false, error: '画像が大きすぎます（もう少し小さい画像にしてください）' };
+  const { data: row } = await r.svc.from('conecf_esutama_posts').select('images').eq('salon_id', r.salonId).eq('post_key', key).eq('admin_enabled', true).maybeSingle();
+  if (!row) return { ok: false, error: 'この投稿は使えるようになっていません。運営事務局までご連絡ください' };
+  const images = (Array.isArray(row.images) ? (row.images as string[]) : []).filter(isEsutamaPostImagePath);
+  if (images.length >= ESUTAMA_POST_IMAGE_MAX) return { ok: false, error: `画像は${ESUTAMA_POST_IMAGE_MAX}枚までです。どれかを消してから追加してください` };
+  let out: Buffer;
+  try {
+    const sharp = (await import('sharp')).default;
+    out = await sharp(Buffer.from(await file.arrayBuffer())).rotate()
+      .resize({ width: 600, height: 600, fit: 'cover', position: 'centre' }).jpeg({ quality: 88 }).toBuffer();
+  } catch {
+    return { ok: false, error: '画像として読めませんでした（JPEG・PNG・WebP にしてください）' };
+  }
+  const path = `${r.salonId}/esutama_post_${Date.now()}.jpg`;
+  const { error: upErr } = await r.svc.storage.from('salon-images').upload(path, out, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
+  if (upErr) return { ok: false, error: 'アップロードに失敗しました: ' + upErr.message };
+  const { error } = await r.svc.from('conecf_esutama_posts').update({ images: [...images, path], updated_at: new Date().toISOString() }).eq('salon_id', r.salonId).eq('post_key', key);
+  if (error) {
+    await r.svc.storage.from('salon-images').remove([path]);
+    return { ok: false, error: '保存に失敗しました: ' + error.message };
+  }
+  return { ok: true, data: null };
+}
+
+export async function removeConecfEsutamaPostImage(input: { key: string; path: string }): Promise<Result<null>> {
+  const key = okPostKey(input.key);
+  if (!key) return { ok: false, error: '投稿の指定が不正です' };
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const path = String(input.path ?? '');
+  // ★ 自分の店の置き場だけ
+  if (!isEsutamaPostImagePath(path) || !path.startsWith(r.salonId + '/')) return { ok: false, error: '画像の指定が不正です' };
+  const { data: row } = await r.svc.from('conecf_esutama_posts').select('images').eq('salon_id', r.salonId).eq('post_key', key).maybeSingle();
+  if (!row) return { ok: false, error: '見つかりませんでした' };
+  const images = (Array.isArray(row.images) ? (row.images as string[]) : []).filter((p) => p !== path);
+  const { error } = await r.svc.from('conecf_esutama_posts').update({ images, next_image: 0, updated_at: new Date().toISOString() }).eq('salon_id', r.salonId).eq('post_key', key);
+  if (error) return { ok: false, error: '保存に失敗しました: ' + error.message };
+  await r.svc.storage.from('salon-images').remove([path]);
   return { ok: true, data: null };
 }

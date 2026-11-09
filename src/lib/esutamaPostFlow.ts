@@ -10,8 +10,12 @@ import type { FlowAudit, FlowOutcome, RelayFlowContext } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import {
   ESUTAMA_POST_LABEL, buildRealtimePageRequest, buildRealtimePostRequest, parseRealtimeEditPage, parseRealtimeHistoryTop,
-  realtimePostResponse, type EsutamaPostKey,
+  realtimePostResponse, isEsutamaPostImagePath, buildRealtimeImageUploadRequest, buildRealtimeImageCropRequest, parseCroppicResponse,
+  type EsutamaPostKey, type RealtimeEditPage,
 } from './esutamaPost';
+import { relayFileUrl } from './relayMultipart';
+// ★ 第1812便: 画像があれば ① esutama_post_img_up（仮置き）→ ② esutama_post_img_crop（切り抜き）→ esutama_post_set（hidden を足して投稿）
+//   ★ 画像の段でつまずいたら、画像なし（いまエステ魂に出ている画像のまま）で投稿する（投稿そのものは止めない）。次の画像へは進まない
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
 
@@ -26,7 +30,26 @@ function looksLikeLoginPage(body: string): boolean {
 }
 
 function finish(ctx: RelayFlowContext, r: { readAt: string; posted: boolean; outcome: string; lastAt?: string | null }, audits: FlowAudit[], note: string): FlowOutcome {
-  return { kind: 'done', audits, note, esutamaPost: { key: keyOf(ctx), readAt: r.readAt, posted: r.posted, outcome: r.outcome, lastAt: r.lastAt ?? null } };
+  // ★ 画像を付けて投稿できたときだけ、何枚目を使ったかを返す（呼び出し側が次の画像へ進める）
+  const imageIndex = r.posted && ctx.esutamaPostImageUrl && ctx.esutamaPost?.image ? ctx.esutamaPost.image.index : null;
+  return { kind: 'done', audits, note, esutamaPost: { key: keyOf(ctx), readAt: r.readAt, posted: r.posted, outcome: r.outcome, lastAt: r.lastAt ?? null, imageIndex } };
+}
+
+/** 投稿の段（画像があればその hidden も足す） */
+function postStep(ctx: RelayFlowContext, cookie: string, page: RealtimeEditPage, imageUrl: string | null, readAt: string, note: string): FlowOutcome {
+  const label = labelOf(ctx);
+  const title = ctx.esutamaPost?.title ?? '';
+  const body = ctx.esutamaPost?.body ?? '';
+  let r;
+  try { r = buildRealtimePostRequest(cookie, page, title, body, imageUrl); } catch (e) {
+    return finish(ctx, { readAt, posted: false, outcome: 'error: ' + (e as Error).message },
+      [{ event: 'push_bump', outcome: 'stopped', summary: label + 'を送りませんでした（' + (e as Error).message + '）', detail: { post: keyOf(ctx), reason: 'bad_text', flowId: ctx.flowId } }], label + 'を送らなかった: ' + (e as Error).message);
+  }
+  return {
+    kind: 'next', audits: [],
+    next: { purpose: 'esutama_post_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaPostSentAt: readAt, esutamaPostImageUrl: imageUrl ?? undefined } },
+    note: note + ' → 「' + title + '」を投稿する' + (imageUrl ? '（画像つき）' : ''),
+  };
 }
 
 /** ログインできたあとの最初の段 */
@@ -54,19 +77,54 @@ export function afterEsutamaPostRead(input: Input, ctx: RelayFlowContext, nowArg
     return finish(ctx, { readAt, posted: false, outcome: 'error: unparseable' },
       [{ event: 'push_bump', outcome: 'failed', summary: label + 'の画面を読めませんでした', detail: { post: key, reason: 'unparseable', problems: p.problems.slice(0, 4).join(' / '), manual, flowId } }], label + 'の画面を読めなかった: ' + p.problems.join(' / '));
   }
-  const title = ctx.esutamaPost?.title ?? '';
-  const body = ctx.esutamaPost?.body ?? '';
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
-  let r;
-  try { r = buildRealtimePostRequest(cookie, p, title, body); } catch (e) {
-    return finish(ctx, { readAt, posted: false, outcome: 'error: ' + (e as Error).message },
-      [{ event: 'push_bump', outcome: 'stopped', summary: label + 'を送りませんでした（' + (e as Error).message + '）', detail: { post: key, reason: 'bad_text', manual, flowId } }], label + 'を送らなかった: ' + (e as Error).message);
+  const page = { ctk: p.ctk, shopId: p.shopId, fields: p.fields, problems: [] as string[] };
+  const img = ctx.esutamaPost?.image;
+  if (img && isEsutamaPostImagePath(img.path)) {
+    try {
+      const fileName = (img.path.split('/').pop() ?? 'image.jpg');
+      const up = buildRealtimeImageUploadRequest(cookie, p.ctk, relayFileUrl('salon-images', img.path), fileName);
+      return {
+        kind: 'next', audits: [],
+        next: { purpose: 'esutama_post_img_up', method: up.method, url: up.url, headers: up.headers, body: '', multipart: up.multipart, context: { ...ctx, cookie, esutamaPostPage: page } },
+        note: label + 'の画面を読めた → 画像（' + (img.index + 1) + '枚目）をエステ魂の一時置き場へ上げる（★ まだ投稿していない）',
+      };
+    } catch (e) {
+      return postStep(ctx, cookie, page, null, readAt, label + 'の画面を読めた（画像は付けられない: ' + (e as Error).message + '）');
+    }
   }
-  return {
-    kind: 'next', audits: [],
-    next: { purpose: 'esutama_post_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaPostSentAt: readAt } },
-    note: label + 'の画面を読めた → 「' + title + '」を投稿する',
-  };
+  return postStep(ctx, cookie, page, null, readAt, label + 'の画面を読めた');
+}
+
+/** ①' 画像を仮置きした → 切り抜く */
+export function afterEsutamaPostImgUp(input: Input, ctx: RelayFlowContext, nowArg?: Date): FlowOutcome {
+  const readAt = (nowArg ?? new Date()).toISOString();
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const page = ctx.esutamaPostPage as RealtimeEditPage | undefined;
+  if (!page) return finish(ctx, { readAt, posted: false, outcome: 'error: no_page' }, [], '投稿の画面の中身が文脈に無い');
+  const r = input.status === 200 ? parseCroppicResponse(input.body) : { ok: false, url: null, width: null, height: null, message: 'http ' + input.status };
+  if (!r.ok || !r.url) return postStep(ctx, cookie, page, null, readAt, '画像を一時置き場へ上げられなかった（' + r.message + '）。画像なしで');
+  try {
+    const c = buildRealtimeImageCropRequest(cookie, page.ctk, { url: r.url, width: r.width, height: r.height });
+    return {
+      kind: 'next', audits: [],
+      next: { purpose: 'esutama_post_img_crop', method: c.method, url: c.url, headers: c.headers, body: '', multipart: c.multipart, context: { ...ctx, cookie } },
+      note: '画像を一時置き場へ上げた（' + r.width + '×' + r.height + '）→ 300×300 に切り抜く',
+    };
+  } catch (e) {
+    return postStep(ctx, cookie, page, null, readAt, '画像を切り抜けない（' + (e as Error).message + '）。画像なしで');
+  }
+}
+
+/** ②' 切り抜いた → 投稿 */
+export function afterEsutamaPostImgCrop(input: Input, ctx: RelayFlowContext, nowArg?: Date): FlowOutcome {
+  const readAt = (nowArg ?? new Date()).toISOString();
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const page = ctx.esutamaPostPage as RealtimeEditPage | undefined;
+  if (!page) return finish(ctx, { readAt, posted: false, outcome: 'error: no_page' }, [], '投稿の画面の中身が文脈に無い');
+  const r = input.status === 200 ? parseCroppicResponse(input.body) : { ok: false, url: null, width: null, height: null, message: 'http ' + input.status };
+  if (!r.ok || !r.url) return postStep(ctx, cookie, page, null, readAt, '画像を切り抜けなかった（' + r.message + '）。画像なしで');
+  return postStep(ctx, cookie, page, r.url, readAt, '画像を切り抜いた');
 }
 
 /** ② 送った → 一覧を読み直す */
@@ -110,7 +168,7 @@ export function afterEsutamaPostVerify(input: Input, ctx: RelayFlowContext, nowA
   const fresh = !!top?.at && Date.parse(top.at) >= Math.floor(sentAt / 60000) * 60000 - 60000;
   const same = !!top && (top.title === title || top.title.startsWith(title) || title.startsWith(top.title));
   if (fresh && same) {
-    return finish(ctx, { readAt, posted: true, outcome: 'ok', lastAt: readAt },
+    return finish(ctx, { readAt, posted: true, outcome: ctx.esutamaPost?.image && !ctx.esutamaPostImageUrl ? 'ok: 画像は前のまま' : 'ok', lastAt: readAt },
       [{ event: 'push_bump', outcome: 'ok', summary: label + 'を投稿しました（' + title + '）', detail: { post: key, manual, flowId } }], label + 'を投稿できた（' + title + '）');
   }
   return finish(ctx, { readAt, posted: false, outcome: top ? 'error: not_in_history' : 'error: verify_unreadable' },

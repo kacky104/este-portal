@@ -20,6 +20,7 @@ import { encodePayload } from './ekichikaWorkParse';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 import { readEsutamaCsrf } from './esutamaParse';
 import { businessMinOf } from './esutamaOption';
+import { assertRelayFileUrl, type RelayMultipart } from './relayMultipart';
 
 export type EsutamaPostKey = 'guest_realtime';
 export const ESUTAMA_POST_KEYS: EsutamaPostKey[] = ['guest_realtime'];
@@ -34,6 +35,81 @@ export const ESUTAMA_POST_DEFAULT = { startMin: 360, endMin: 1800, intervalMin: 
 export const ESUTAMA_REALTIME_LIST_URL = 'https://estama.jp/admin/guest/realtime/';
 export const ESUTAMA_REALTIME_EDIT_URL = 'https://estama.jp/admin/guest/realtime/edit/';
 export const ESUTAMA_REALTIME_POST_URL = 'https://estama.jp/admin_post/realtime_edit';
+
+// ── 画像（第1812便・2026-11-09）──────────────────────────────────────────
+// ★★★ 実測（2026-11-09・croppic.js / my_crop.js を読んだ。送ってはいない）
+//   ① 仮置き  POST /post/uptemp/   multipart: img=<ファイル> ＋ ctk   → JSON { status:'success', url, width, height }（error なら message）
+//   ② 切り抜き POST /post/cropping/ multipart: imgUrl, imgInitW, imgInitH, imgW, imgH, imgY1, imgX1, cropH, cropW, rotation（＋ ctk）
+//              → JSON { status:'success', url }
+//      ★ 枠（#photo_1-imgupload）は 300×300。画面では「枠を覆うように縮めた絵」を動かして切る
+//   ③ 投稿フォームに hidden「photo_1-imgupload = ②の url」が足され、image_delete_0 = 0 のまま「投稿する」
+// ★ こちらの画像は、コネックエフで上げたときに 600×600 の正方形（中央で切る）にしてある → ② は全体をそのまま 300×300 に
+export const ESUTAMA_POST_IMAGE_MAX = 5;
+export const ESUTAMA_UPTEMP_URL = 'https://estama.jp/post/uptemp/';
+export const ESUTAMA_CROPPING_URL = 'https://estama.jp/post/cropping/';
+export const ESUTAMA_REALTIME_CROP_BOX = 300;
+/** 投稿フォームに足す欄の名前（実測） */
+export const ESUTAMA_REALTIME_IMG_FIELD = 'photo_1-imgupload';
+/** コネックエフに上げた投稿用の画像の置き場（salon-images/<店>/esutama_post_<時刻>.jpg）だけ */
+export function isEsutamaPostImagePath(p: string): boolean {
+  return /^\d{1,10}\/esutama_post_[A-Za-z0-9_\-]{1,80}\.jpg$/.test(String(p ?? '')) && !String(p).includes('..');
+}
+
+/** croppic の応答（仮置き・切り抜き）。★ JSON でなければ失敗 */
+export function parseCroppicResponse(body: string): { ok: boolean; url: string | null; width: number | null; height: number | null; message: string | null } {
+  try {
+    const j = JSON.parse(String(body ?? '')) as Record<string, unknown>;
+    const url = typeof j.url === 'string' && j.url.length > 0 && j.url.length < 500 ? j.url : null;
+    const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : null);
+    if (j.status === 'success' && url) return { ok: true, url, width: num(j.width), height: num(j.height), message: null };
+    return { ok: false, url: null, width: null, height: null, message: stripTags(String(j.message ?? j.status ?? '')).slice(0, 120) || '失敗' };
+  } catch {
+    return { ok: false, url: null, width: null, height: null, message: '応答が JSON ではなかった' };
+  }
+}
+
+type MultipartReq = { method: 'POST'; url: string; headers: Record<string, string>; multipart: RelayMultipart };
+function multipartHeaders(cookie: string) {
+  // ★★ content-type は付けない。★ multipart の境界は中継役（curl）が決める
+  return {
+    'user-agent': RELAY_USER_AGENT, accept: 'application/json, text/javascript, */*; q=0.01', 'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
+    'x-requested-with': 'XMLHttpRequest', referer: 'https://estama.jp/admin/guest/realtime/edit/', origin: 'https://estama.jp', cookie,
+  };
+}
+const okCtk = (ctk: string | null): ctk is string => !!ctk && /^[A-Za-z0-9]{16,64}$/.test(ctk);
+
+/** ★ ① 仮置き（エステ魂の一時置き場に上がるだけ。投稿はまだ） */
+export function buildRealtimeImageUploadRequest(cookie: string, ctk: string | null, fileUrl: string, filename: string): MultipartReq {
+  if (!cookie) throw new Error('Cookie が無いまま送らない');
+  if (!okCtk(ctk)) throw new Error('ctk の形が違うまま送らない');
+  assertRelayFileUrl(fileUrl);
+  if (!/^[A-Za-z0-9_\-]{1,64}\.jpg$/.test(filename)) throw new Error('ファイル名の形が不正');
+  return {
+    method: 'POST', url: ESUTAMA_UPTEMP_URL, headers: multipartHeaders(cookie),
+    multipart: { fields: { ctk }, files: [{ field: 'img', url: fileUrl, filename, contentType: 'image/jpeg' }] },
+  };
+}
+
+/** ★ ② 切り抜き（枠 300×300 を覆うように縮めて中央で切る） */
+export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null, up: { url: string; width: number | null; height: number | null }): MultipartReq {
+  if (!cookie) throw new Error('Cookie が無いまま送らない');
+  if (!okCtk(ctk)) throw new Error('ctk の形が違うまま送らない');
+  const w = up.width ?? 600, h = up.height ?? 600;
+  const box = ESUTAMA_REALTIME_CROP_BOX;
+  const scale = box / Math.min(w, h);
+  const imgW = Math.max(box, Math.round(w * scale)), imgH = Math.max(box, Math.round(h * scale));
+  return {
+    method: 'POST', url: ESUTAMA_CROPPING_URL, headers: multipartHeaders(cookie),
+    multipart: {
+      fields: {
+        imgUrl: up.url, imgInitW: String(w), imgInitH: String(h), imgW: String(imgW), imgH: String(imgH),
+        imgY1: String(Math.floor((imgH - box) / 2)), imgX1: String(Math.floor((imgW - box) / 2)),
+        cropH: String(box), cropW: String(box), rotation: '0', ctk,
+      },
+      files: [],
+    },
+  };
+}
 
 const len = (s: string) => [...String(s ?? '')].length;
 
@@ -158,7 +234,7 @@ export function buildRealtimePageRequest(cookie: string, which: 'edit' | 'list')
 }
 
 /** ★★ リアルタイム集客を1件投稿する（画面の serializeArray と同じ str[n][name]/str[n][value] ＋ brws_shop_id ＋ ctk） */
-export function buildRealtimePostRequest(cookie: string, page: RealtimeEditPage, title: string, body: string): Req {
+export function buildRealtimePostRequest(cookie: string, page: RealtimeEditPage, title: string, body: string, imageUrl?: string | null): Req {
   if (!cookie) throw new Error('Cookie が無いまま送らない');
   if (!page.ctk || !/^[A-Za-z0-9]{16,64}$/.test(page.ctk)) throw new Error('ctk の形が違うまま送らない');
   if (page.shopId === null) throw new Error('brws_shop_id が無いまま送らない');
@@ -167,6 +243,14 @@ export function buildRealtimePostRequest(cookie: string, page: RealtimeEditPage,
   // ★ 画面の並びのまま、title・body だけ差し替える。★ テンプレート保存（add_template）は付けない
   const fields = page.fields.filter(([n]) => n !== 'add_template').map(([n, v]): [string, string] => [n, n === 'title' ? title : n === 'body' ? body : v]);
   if (!fields.some(([n]) => n === 'title') || !fields.some(([n]) => n === 'body')) throw new Error('title / body の欄が無いまま送らない');
+  // ★ 第1812便: 切り抜いた画像があれば、画面と同じく hidden「photo_1-imgupload」を足す（image_delete_0 は 0）
+  if (imageUrl) {
+    if (imageUrl.length > 500 || /[\s"'<>]/.test(imageUrl)) throw new Error('画像の場所の形が不正');
+    const at = fields.findIndex(([n]) => n === 'image_delete_0');
+    const del = fields.findIndex(([n]) => n === 'image_delete_0');
+    if (del >= 0) fields[del] = ['image_delete_0', '0'];
+    fields.splice(at >= 0 ? at : fields.length, 0, [ESUTAMA_REALTIME_IMG_FIELD, imageUrl]);
+  }
   const payload: Array<[string, string]> = [];
   fields.forEach(([n, v], i) => { payload.push([`str[${i}][name]`, n]); payload.push([`str[${i}][value]`, v]); });
   payload.push(['brws_shop_id', page.shopId]);
@@ -182,4 +266,13 @@ export function buildRealtimePostRequest(cookie: string, page: RealtimeEditPage,
     },
     body: encodePayload(payload),
   };
+}
+
+/** ★ 次に使う画像（順番に回す）。★ 置き場の形が違うものは使わない。無ければ undefined（画像はいまのまま） */
+export function pickEsutamaPostImage(images: unknown, nextImage: unknown): { path: string; index: number } | undefined {
+  const list = (Array.isArray(images) ? images : []).map(String).filter(isEsutamaPostImagePath);
+  if (list.length === 0) return undefined;
+  const n = Number.isInteger(Number(nextImage)) && Number(nextImage) >= 0 ? Number(nextImage) : 0;
+  const index = n % list.length;
+  return { path: list[index], index };
 }

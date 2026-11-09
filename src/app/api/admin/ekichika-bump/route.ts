@@ -4,7 +4,7 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaBump';
 import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
-import { shouldPostEsutama, esutamaPostTextProblem } from '@/lib/esutamaPost';
+import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImage } from '@/lib/esutamaPost';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -137,7 +137,7 @@ export async function POST(req: Request) {
   // ★★ 第1811便: エステ魂【オプション】の投稿（リアルタイム集客）も同じ周で送る。★ crontab はそのまま
   //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 表が無い（SQL 未適用）ときは黙って飛ばす
   const posts = await svc.from('conecf_esutama_posts')
-    .select('salon_id, post_key, title, body, start_min, end_min, interval_min, last_at, read_at')
+    .select('salon_id, post_key, title, body, start_min, end_min, interval_min, last_at, read_at, images, next_image')
     .eq('admin_enabled', true).eq('auto', true);
   if (!posts.error) {
     for (const o of posts.data ?? []) {
@@ -159,7 +159,7 @@ export async function POST(req: Request) {
         const f = await startRelayFlow({
           salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
           intent: 'bump_auto', actor: 'cron:esutama-post',
-          esutamaPost: { key, title, body: bodyText },
+          esutamaPost: { key, title, body: bodyText, image: pickEsutamaPostImage(o.images, o.next_image) },
         });
         results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
       } catch (e) {
