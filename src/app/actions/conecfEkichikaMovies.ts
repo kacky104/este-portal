@@ -79,7 +79,7 @@ export async function createConecfVideoUpload(input: { size: number; type: strin
   if (!VIDEO_TYPES.includes(type)) return { ok: false, error: '動画は MP4 か MOV にしてください' };
   const size = Number(input.size);
   if (!Number.isFinite(size) || size <= 0) return { ok: false, error: '動画を選んでください' };
-  if (size > EKICHIKA_VIDEO_MAX_BYTES) return { ok: false, error: '動画が大きすぎます（駅ちかの上限は256MBです）' };
+  if (size > EKICHIKA_VIDEO_MAX_BYTES) return { ok: false, error: '動画が大きすぎます（1本50MBまでです。短くするか、書き出しの画質を下げてください）' };
   const rand = Math.random().toString(36).slice(2, 10).replace(/[^a-z0-9]/g, '') || 'v';
   const path = `${r.salonId}/${Date.now()}_${rand}.${type === 'video/quicktime' ? 'mov' : 'mp4'}`;
   const { data, error } = await r.svc.storage.from(CONECF_VIDEO_BUCKET).createSignedUploadUrl(path);

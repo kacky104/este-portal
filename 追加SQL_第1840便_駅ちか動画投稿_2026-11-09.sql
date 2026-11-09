@@ -2,9 +2,9 @@
 -- ★ 3つ作る: バケット conecf-videos・表 conecf_videos（店の動画置き場）・表 conecf_ekichika_movies（枠ごとの設定）
 -- ★ どれも service_role のサーバーだけが読み書き（RLS は閉じる・バケットは非公開）
 
--- 1. バケット（非公開・1本 256MB まで・mp4 / mov）
+-- 1. バケット（非公開・1本 50MB まで＝ Spend cap が ON のため・mp4 / mov）
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('conecf-videos', 'conecf-videos', false, 268435456, array['video/mp4', 'video/quicktime'])
+values ('conecf-videos', 'conecf-videos', false, 52428800, array['video/mp4', 'video/quicktime'])
 on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
 
 -- 2. 店の動画置き場（ベンリーの「動画登録 / 管理」にあたる）

@@ -39,7 +39,7 @@ function VideoLibrary({ videos, onToast, reload }: { videos: ConecfVideo[]; onTo
     if (!file) return;
     const type = file.type === 'video/quicktime' ? 'video/quicktime' : file.type === 'video/mp4' ? 'video/mp4' : '';
     if (!type) { onToast('動画は MP4 か MOV にしてください'); return; }
-    if (file.size > EKICHIKA_VIDEO_MAX_BYTES) { onToast('動画が大きすぎます（駅ちかの上限は256MBです）'); return; }
+    if (file.size > EKICHIKA_VIDEO_MAX_BYTES) { onToast('動画が大きすぎます（1本50MBまでです。短くするか、書き出しの画質を下げてください）'); return; }
     setBusy(true);
     try {
       const a = await createConecfVideoUpload({ size: file.size, type });
@@ -54,7 +54,7 @@ function VideoLibrary({ videos, onToast, reload }: { videos: ConecfVideo[]; onTo
   return (
     <section className={`${CARD} p-5 space-y-3`}>
       <h2 className="text-[17px] font-bold text-violet-700">動画の置き場</h2>
-      <p className="text-[13px] text-slate-600">投稿に使う動画を登録します（MP4・MOV、1本256MBまで）。登録した動画は下の「投稿する時刻」で選べます。</p>
+      <p className="text-[13px] text-slate-600">投稿に使う動画を登録します（MP4・MOV、1本50MBまで）。登録した動画は下の「投稿する時刻」で選べます。</p>
       <div className="flex flex-wrap items-center gap-2 text-[14px]">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名前（例: りな動画）" className="w-48 border border-slate-300 px-2 py-1" />
         <label className={`cursor-pointer px-4 py-1.5 font-bold text-white ${busy ? 'bg-slate-400' : 'bg-violet-600'}`}>

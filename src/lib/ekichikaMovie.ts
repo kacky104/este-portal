@@ -18,7 +18,8 @@ export const EKICHIKA_MOVIE_LIST_URL = 'https://ranking-deli.jp/admin/movies/';
 export const EKICHIKA_MOVIE_DAILY_MAX = 5;
 export const EKICHIKA_MOVIE_TITLE_MAX = 50;
 export const EKICHIKA_MOVIE_BODY_MAX = 1000;
-export const EKICHIKA_VIDEO_MAX_BYTES = 256 * 1024 * 1024;
+// ★ 第1841便: 駅ちかの上限は256MBだが、Supabase の使いすぎ防止（Spend cap）を ON にしているため1ファイル50MBまで（カッキーさん）
+export const EKICHIKA_VIDEO_MAX_BYTES = 50 * 1024 * 1024;
 export const CONECF_VIDEO_BUCKET = 'conecf-videos';
 
 /** 動画の置き場（conecf-videos の中）。★ <店>/<時刻>_<英数字>.mp4|mov だけ */
