@@ -78,10 +78,11 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
       (x) => Number(x.id), (x) => x.name, (x) => !x.isActive, ord.ok ? ord.data.order : [],
     ));
     const all = ov.ok ? (ov.data.sites as Site[]) : [];
-    // ★ 列にするのは ID・PASS があるサイト（駅ちか・エステ魂）。★ 同じ枠は1列
+    // ★ 列にするのは ID・PASS があるサイト（駅ちか・エステ魂・全国エステランキング）。★ 同じ枠は1列
+    //   ★ 第1867便（カッキーさん）: 全国エステランキングの列を足した（名簿の読み直し・連携・登録は第1865便までで揃っている）
     const cols: Site[] = [];
     for (const s of all) {
-      if (!['ekichika', 'esutama'].includes(s.provider)) continue;
+      if (!['ekichika', 'esutama', 'zenkoku'].includes(s.provider)) continue;
       if (cols.some((c) => c.provider === s.provider && c.slot === s.slot)) continue;
       cols.push(s);
     }
@@ -418,7 +419,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                     </ul>
                   )}
                   <p className="text-[12.5px] text-slate-500 leading-relaxed">
-                    登録は{s.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。消すときは、{s.label}の管理画面から直接消してください（この画面からは消せません）。同じ名前の方が{s.label}にすでにいる場合は、登録されずに終わります。
+                    登録は{s.label}に<b className="font-bold text-slate-700">すぐ公開</b>されます。消すときは、セラピスト一覧の「削除」から各サイトもまとめて消せます。同じ名前の方が{s.label}にすでにいる場合は、登録されずに終わります。
                   </p>
                   <div className="flex gap-2">
                     <button type="button" disabled={busy !== ''} onClick={() => setPreview(null)}

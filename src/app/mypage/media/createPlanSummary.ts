@@ -9,7 +9,7 @@ export function summarizeCreatePlan(plan: Record<string, unknown>): Array<{ k: s
   const v = (plan.values && typeof plan.values === 'object' ? plan.values : {}) as Record<string, unknown>;
   const s = (x: unknown) => (x === null || x === undefined || x === '' ? '' : String(x));
   const rows: Array<{ k: string; v: string }> = [];
-  rows.push({ k: '名前', v: s(v.name) || '（空）' });
+  rows.push({ k: '名前', v: s(v.name) || s(v.nickname) || '（空）' });   // ★ 第1867便: 全国は nickname
   rows.push({ k: '年齢', v: s(v.age) ? `${s(v.age)}歳` : '送りません（未設定）' });
   // ★ 第264便: 欄の名前が媒体で違う（駅ちか bust/waist/hip/cup ／ エステ魂 sizeB/sizeW/sizeH/sizeCup）。★ どちらでも読む
   const bust = s(v.bust) || s(v.sizeB), waist = s(v.waist) || s(v.sizeW), hip = s(v.hip) || s(v.sizeH), cup = s(v.cup) || s(v.sizeCup);
@@ -24,6 +24,11 @@ export function summarizeCreatePlan(plan: Record<string, unknown>): Array<{ k: s
   // ★ 第431便: エステ魂は count／駅ちかは alsoSlots（2枚目以降）で枚数を出す
   const ph = (hasPhoto ? plan.photo : {}) as { count?: unknown; alsoSlots?: unknown };
   const photoCount = !hasPhoto ? 0 : Number(ph.count) > 0 ? Number(ph.count) : 1 + (Array.isArray(ph.alsoSlots) ? ph.alsoSlots.length : 0);
+  // ★ 第1867便: 全国エステランキングは photos（枚数）
+  if (typeof plan.photos === 'number') {
+    rows.push({ k: '写真', v: plan.photos > 0 ? `${plan.photos}枚送ります（1枚目がトップ画像になります）` : '送りません（写真が見つかりません）' });
+    return rows;
+  }
   rows.push({ k: '写真', v: hasPhoto ? `${photoCount}枚送ります（1枚目がトップ画像になります）` : photoNote });
   return rows;
 }
