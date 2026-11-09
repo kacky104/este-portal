@@ -229,7 +229,10 @@ export async function runConecfEsutamaPostNow(input: { key: string }): Promise<R
       intent: 'bump_push', actor: 'shop:' + r.userId,
       esutamaPost: { key, title, body, force: true, image: pickEsutamaPostImage(row.images, row.next_image) },
     });
-    if (!f.ok) return { ok: false, error: f.note };
+    if (!f.ok) {
+      await r.svc.from('conecf_esutama_posts').update({ read_at: (row.read_at as string | null) ?? null }).eq('salon_id', r.salonId).eq('post_key', key);
+      return { ok: false, error: f.note };
+    }
     return { ok: true, data: { note: f.note } };
   } catch (e) {
     console.error('[conecf] エステ魂の投稿を始められなかった', (e as Error).message);

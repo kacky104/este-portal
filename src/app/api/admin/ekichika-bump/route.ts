@@ -161,6 +161,9 @@ export async function POST(req: Request) {
           intent: 'bump_auto', actor: 'cron:esutama-post',
           esutamaPost: { key, title, body: bodyText, image: pickEsutamaPostImage(o.images, o.next_image) },
         });
+        // ★ 第1816便: 始められなかった（同じ店のエステ魂で別の流れが走っていた等）ときは「始めた時刻」を戻す。
+        //   ★ 戻さないと、次に試すのが約1時間後になる（11/9 12:04 に集客アピールとぶつかって1回抜けた）。戻せば5分後の周でまた試す
+        if (!f.ok) await svc.from('conecf_esutama_posts').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('post_key', key);
         results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
       } catch (e) {
         console.error('[esutama-post] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
