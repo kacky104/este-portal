@@ -12,6 +12,10 @@ export type DiaryForwardLabel = { text: string; tone: DiaryForwardTone };
 export function diaryForwardLabel(status: string): DiaryForwardLabel {
   const s = String(status ?? '').trim();
   if (s === 'sent') return { text: '送信しました', tone: 'ok' };
+  // ★ 第1853便: 駅ちかで書かれて取り込んだ日記を、ほかの駅ちかの枠へ送った記録
+  if (s === 'sent:imported') return { text: '駅ちかで書かれた日記を、この枠へも送りました', tone: 'ok' };
+  if (s === 'failed:imported') return { text: '駅ちかで書かれた日記を、この枠へ送れませんでした（送り直しはしません）', tone: 'ng' };
+  if (s === 'skipped:no_address:imported') return { text: '駅ちかで書かれた日記：ほかの枠の投稿用アドレスが無いため送っていません', tone: 'skip' };
   if (s === 'retrying') return { text: '送信中', tone: 'wait' };
   if (s === 'waiting_address') return { text: '投稿用アドレスの読み込み待ち（数分〜十数分）', tone: 'wait' };
   if (s === 'failed') return { text: '送れませんでした（自動で送り直します）', tone: 'ng' };

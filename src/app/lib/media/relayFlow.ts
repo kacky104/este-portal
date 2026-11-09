@@ -78,6 +78,7 @@ import { isAutomaticActor, loginBackoff, LOGIN_BACKOFF_MIN } from '@/lib/loginBa
 import { loginRejectStreak, decideLoginAutoPause, loginRejectPauseSummary, loginRejectPauseNote, LOGIN_REJECT_PAUSE_STREAK, LOGIN_REJECT_REASON, LOGIN_GUARD_ACTOR } from '@/lib/loginAutoPause';
 import { loadLoginPauseFacts } from '@/app/lib/media/loginAutoPause';
 import { syncDiarySource } from '@/app/lib/media/diarySourceSync';
+import { forwardsImportedDiary, DIARY_IMPORT_FORWARD_MAX_AGE_MS } from '@/lib/diarySource';
 import { isSiteGoneAudit } from '@/lib/girlDeleteFinish';
 import { finishGirlDelete } from '@/app/lib/conecf/girlDeleteFinish';
 import { esutamaWindowDates, esutamaTodayISO, esutamaApprovedFromDiff } from '@/lib/esutamaFlow';
@@ -3599,8 +3600,31 @@ async function saveDiaryDetail(
     console.error('[diary] 取り込みの記録を残せなかった', params.salonId, diaryId, err);
   }
 
+  // ⑥ ★★★ 第1853便（カッキーさん）: 移行期間に取り込んだ日記（＝まだ駅ちかで書いている方）を、取り込み元以外の駅ちかの枠（B・C…）へも送る。
+  //   ★ ベンリーの写メ日記転送をやめた店だけ（lib/diarySource.ts の DIARY_IMPORT_FORWARD_SALON_IDS）。
+  //   ★ 遡り（初回の40日ぶん）では送らない・駅ちかに載ってから6時間より古いものも送らない（古い日記を一斉に出さない）。
+  //   ★ 記録が残らなかったとき（err）は送らない（次の周で同じ日記がもう1件入ったときに二重に送らない）。
+  //   ★ 失敗しても取り込みそのものは成立させる（例外を外へ出さない）。
+  let fwdNote = '';
+  const postedMs = postedAt ? Date.parse(postedAt) : NaN;
+  if (
+    !err && ctx.diaryMixedSince && params.provider === 'ekichika' && !ctx.diaryBackfill && !ctx.diarySince &&
+    forwardsImportedDiary(params.salonId) && Number.isFinite(postedMs) && Date.now() - postedMs <= DIARY_IMPORT_FORWARD_MAX_AGE_MS
+  ) {
+    try {
+      const { forwardDiary } = await import('@/app/lib/diary/forwardDiary');
+      const fr = await forwardDiary(diaryPostId, true, { importedFrom: { provider: 'ekichika', slot: params.slot } });
+      const sent = fr.宛先.filter((t) => t.status === 'sent:imported').map((t) => '枠' + String(t.枠 ?? '?'));
+      const ng = fr.宛先.filter((t) => t.status.startsWith('failed'));
+      fwdNote = '。ほかの駅ちかの枠へ: ' + (sent.length ? sent.join('・') + ' に送った' : '送り先なし') + (ng.length ? '（' + ng.length + '件 送れなかった）' : '');
+    } catch (e) {
+      console.error('[diary] 取り込んだ日記をほかの枠へ送れなかった', params.salonId, diaryPostId, e instanceof Error ? e.message : 'unknown');
+      fwdNote = '。★ ほかの駅ちかの枠へ送れなかった';
+    }
+  }
+
   return done(
-    '日記 ' + diaryId + ' を取り込んだ（' + imageNote + '）' +
+    '日記 ' + diaryId + ' を取り込んだ（' + imageNote + '）' + fwdNote +
       (err ? '。★★ 記録を残せなかった（次の周で二重になるおそれ）: ' + err.slice(0, 80) : ''),
     [
       {

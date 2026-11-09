@@ -235,3 +235,16 @@ export function shouldStartDiaryBackfill(input: {
   if (typeof input.importedCount !== 'number' || input.importedCount > 0) return false;
   return importsDiaryFromEkichika(input.source) || input.conecfMixedRunning === true;
 }
+
+/**
+ * ★★★ 第1853便（2026-11-09・カッキーさん）: 移行期間に駅ちかから取り込んだ日記（＝まだ駅ちかで書いている方の日記）を、
+ *   取り込み元の枠【以外】の駅ちかの枠（B・C…）へもコネックエフから送る店。
+ *   ★ ベンリーの写メ日記転送（駅ちか無印 → B・C）をやめた店だけ。ベンリーが動いている店に入れると、B・C に同じ日記が2件並ぶ。
+ *   ★ DB の列にしていない（まずはオイルクエスト様だけで様子を見る）。増やすときはここに足す。
+ */
+export const DIARY_IMPORT_FORWARD_SALON_IDS: readonly number[] = [5];
+export function forwardsImportedDiary(salonId: number): boolean {
+  return DIARY_IMPORT_FORWARD_SALON_IDS.includes(Number(salonId));
+}
+/** ★ 取り込んだ日記をほかの枠へ送るのは、駅ちかに載ってからこの時間以内のものだけ（遡りで古い日記を一斉に送らない） */
+export const DIARY_IMPORT_FORWARD_MAX_AGE_MS = 6 * 3600 * 1000;

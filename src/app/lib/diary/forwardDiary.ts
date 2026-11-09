@@ -141,7 +141,20 @@ async function buildPayload(svc: Svc, diaryId: string): Promise<{ ok: true; payl
  * @param diaryId diary_posts.id（uuid）
  * @param apply   true で実際に送る。既定 false は試し打ち（1通も送らない）。
  */
-export async function forwardDiary(diaryId: string, apply = false): Promise<ForwardResult> {
+export async function forwardDiary(
+  diaryId: string,
+  apply = false,
+  /**
+   * ★★ 第1853便: 移行期間に駅ちかから取り込んだ日記を、取り込み元以外の駅ちかの枠へ送るとき。
+   *   ・送るのは駅ちかの枠だけ（取り込み元の枠には送らない＝そこにはもう載っている）
+   *   ・記録の status に ':imported' を付ける。★ 'sent' にすると「この方はもうフクエスで書いている」と読まれ、
+   *     次からその方の駅ちかの日記を取り込まなくなる（relayFlow の saveDiaryDetail ③b・conecf/diaryMixed.ts）
+   *   ・アドレスが無い枠は待たない（待って送ると 'sent' が残るため）・失敗しても送り直さない（'failed:imported'）
+   */
+  opts?: { importedFrom?: { provider: 'ekichika'; slot: number } },
+): Promise<ForwardResult> {
+  const imp = opts?.importedFrom ?? null;
+  const tag = (st: string) => (imp ? st + ':imported' : st);
   const base: ForwardResult = {
     ok: true, apply,
     注意: apply ? '送信しました' : '試し打ち（1通も送っていません）',
@@ -159,7 +172,8 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
     .from('therapist_diary_forward')
     .select('provider, slot, address, is_enabled')
     .eq('therapist_id', therapistId);
-  const rows = fwd ?? [];
+  // ★ 第1853便: 取り込んだ日記は、取り込み元以外の駅ちかの枠だけ
+  const rows = (fwd ?? []).filter((r) => !imp || (String(r.provider) === 'ekichika' && Number((r as { slot?: number }).slot ?? 1) !== imp.slot));
 
   const result: ForwardResult = {
     ...base,
@@ -221,12 +235,13 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
   for (const [key, lm] of linkModeOf) {
     const [prov, slotStr] = key.split('#');
     if (prov !== 'ekichika' || haveSlot.has(key)) continue;
+    if (imp) continue;   // ★ 第1853便: 取り込んだ日記はアドレスを待たない（待って送ると 'sent' の記録になる）
     if (diaryForwardAllowed(lm, writePref)) missingEkichika.push(Number(slotStr));
   }
 
   if (rows.length === 0 && missingEkichika.length === 0) {
-    result.宛先.push({ provider: '-', 宛先: '-', status: 'skipped:no_address' });
-    if (apply) await log('-', 'skipped:no_address');
+    result.宛先.push({ provider: '-', 宛先: '-', status: tag('skipped:no_address') });
+    if (apply) await log('-', tag('skipped:no_address'));
     return result;
   }
   if (!title && !content && attachments.length === 0) {
@@ -290,17 +305,17 @@ export async function forwardDiary(diaryId: string, apply = false): Promise<Forw
         ...(attachments.length ? { attachments } : {}),
       });
       if (error) {
-        result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'failed', error: error.message });
-        await log(provider, 'failed', error.message, slot);
+        result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: imp ? 'failed:imported' : 'failed', error: error.message });
+        await log(provider, imp ? 'failed:imported' : 'failed', error.message, slot);
         result.ok = false;
       } else {
-        result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'sent' });
-        await log(provider, 'sent', undefined, slot);
+        result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: tag('sent') });
+        await log(provider, tag('sent'), undefined, slot);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'unknown';
-      result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: 'failed', error: msg });
-      await log(provider, 'failed', msg, slot);
+      result.宛先.push({ provider, 枠: slot, 宛先: mask(address), status: imp ? 'failed:imported' : 'failed', error: msg });
+      await log(provider, imp ? 'failed:imported' : 'failed', msg, slot);
       result.ok = false;
     }
   }
