@@ -54,7 +54,8 @@ export function splitWorkNotes(notes: ReadonlyArray<WorkNote> | null | undefined
   for (const n of notes ?? []) {
     if (!n || typeof n.detail !== 'string') continue;
     // ★ 第1269便: 古い計画の「送らない」の行（種類が unmapped_therapist のまま）も、同じく出さない
-    if (HIDDEN_KINDS.includes(n.kind) || isLegacyTargetOff(n) || isNoRowsNote(n)) continue;
+    // ★ 第1829便（カッキーさん）: 全国エステランキングに居ない方のお知らせは出さない（店舗様には直しようがない）
+    if (HIDDEN_KINDS.includes(n.kind) || isLegacyTargetOff(n) || isNoRowsNote(n) || n.detail.includes('全国エステランキングに同じ名前で登録すると')) continue;
     if (UNSENT_KINDS.includes(n.kind)) unsent.push(n);
     else info.push(n);
   }
