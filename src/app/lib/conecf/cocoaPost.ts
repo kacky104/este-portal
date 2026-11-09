@@ -104,3 +104,56 @@ export async function postCocoaForSalon(svc: Svc, salonId: number, apply: boolea
 }
 
 export { COCOA_TEMPLATES_MAX };
+
+// ── ★★ 第1833便: A・B・C の3アカウント（conecf_cocoa_accounts）──
+export type CocoaAccountPostResult = CocoaPostResult & { slot: number };
+
+/**
+ * ★ 1アカウントに1本投稿する。templateId があればそれ（休み中・無ければ順番に）、無ければ順番に（最後に投稿したのが古いもの）。
+ * @param dueAt 自動の周が受け持った予定時刻（★ 送る前に書く＝二重に送らない）。手動は null
+ */
+export async function postCocoaForAccount(svc: Svc, salonId: number, slot: number, templateId: number | null, apply: boolean, dueAt: string | null, now = new Date()): Promise<CocoaAccountPostResult> {
+  const base = { salonId, slot };
+  const { data: salon } = await svc.from('salons').select('id, is_hidden, conecf_enabled_at, crm_until').eq('id', salonId).maybeSingle();
+  if (!salon || salon.is_hidden) return { ...base, posted: false, skipped: 'salon-hidden' };
+  if (!salon.conecf_enabled_at) return { ...base, posted: false, skipped: 'conecf-not-enabled' };
+  if (isConecfStopped({ conecfEnabledAt: salon.conecf_enabled_at as string | null, crmUntil: (salon as { crm_until?: string | null }).crm_until ?? null }, getCalendarDateJST())) {
+    return { ...base, posted: false, skipped: 'set-plan-off' };
+  }
+  if (!(await hasEkichikaLogin(svc, salonId))) return { ...base, posted: false, skipped: 'no-ekichika-login' };
+
+  const { data: acc } = await svc.from('conecf_cocoa_accounts').select('post_email').eq('salon_id', salonId).eq('slot', slot).maybeSingle();
+  const to = (acc?.post_email as string | null)?.trim() ?? '';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return { ...base, posted: false, skipped: 'no-address' };
+
+  const { data: temps } = await svc.from('conecf_cocoa_templates').select('*').eq('salon_id', salonId).eq('is_active', true);
+  const list = (temps ?? []).map(toTemplate);
+  const pick = (templateId !== null ? list.find((t) => t.id === templateId) : undefined) ?? pickCocoaTemplate(list);
+  if (!pick) return { ...base, posted: false, skipped: 'no-template' };
+  if (!pick.title.trim() && !pick.body.trim()) return { ...base, posted: false, skipped: 'empty' };
+  if (!apply) return { ...base, posted: false, templateId: pick.id, title: pick.title, skipped: 'dry-run' };
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { ...base, posted: false, error: 'RESEND_API_KEY 未設定' };
+  const nowIso = now.toISOString();
+  // ★ 自動の周は、送る前に「受け持った予定時刻」を書く（10分後の周がもう一度送らないように）
+  if (dueAt) {
+    const { error: mErr } = await svc.from('conecf_cocoa_accounts').update({ last_due_at: dueAt, updated_at: nowIso }).eq('salon_id', salonId).eq('slot', slot);
+    if (mErr) return { ...base, posted: false, error: '印を書けなかった: ' + mErr.message };
+  }
+  const resend = new Resend(apiKey);
+  const attachments = await attachmentOf(pick.imageUrl);
+  const { error } = await resend.emails.send({
+    from: FROM, to,
+    subject: pick.title.trim() || '店長ブログ',
+    text: cocoaMailBody(pick.body ?? ''),
+    ...(attachments.length ? { attachments } : {}),
+  });
+  if (error) {
+    await svc.from('conecf_cocoa_accounts').update({ last_result: 'failed:' + error.message.slice(0, 120), updated_at: nowIso }).eq('salon_id', salonId).eq('slot', slot);
+    return { ...base, posted: false, templateId: pick.id, title: pick.title, error: error.message };
+  }
+  await svc.from('conecf_cocoa_templates').update({ last_posted_at: nowIso, updated_at: nowIso }).eq('id', pick.id);
+  await svc.from('conecf_cocoa_accounts').update({ last_posted_at: nowIso, last_result: 'sent: ' + pick.title.slice(0, 60), updated_at: nowIso }).eq('salon_id', salonId).eq('slot', slot);
+  return { ...base, posted: true, templateId: pick.id, title: pick.title };
+}

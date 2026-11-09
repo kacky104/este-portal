@@ -3,8 +3,8 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { autoPostTimeLabel } from '@/lib/announceAuto';
-import { COCOA_TEMPLATES_MAX, COCOA_TITLE_MAX, COCOA_BODY_MAX, titleTooLong, bodyTooLong } from '@/lib/conecfCocoa';
-import { postCocoaForSalon, hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
+import { COCOA_TEMPLATES_MAX, COCOA_TITLE_MAX, COCOA_BODY_MAX, titleTooLong, bodyTooLong, COCOA_ACCOUNT_SLOTS, COCOA_ACCOUNT_LABEL, normalizeCocoaSchedule, effectiveCocoaSchedule, type CocoaScheduleRow } from '@/lib/conecfCocoa';
+import { postCocoaForSalon, postCocoaForAccount, hasEkichikaLogin } from '@/app/lib/conecf/cocoaPost';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
@@ -36,6 +36,15 @@ export type CocoaData = {
   timeLabel: string | null; max: number; titleMax: number; bodyMax: number; templates: CocoaTemplateRow[];
   /** ★ 第474便: 駅ちかのID・PASSがあるか（★ 無ければ自動投稿は止まっている） */
   hasEkichika: boolean;
+  /** ★ 第1833便: A・B・C の3アカウント（表 conecf_cocoa_accounts が無ければ null＝今までの1つの画面） */
+  accounts: CocoaAccountRow[] | null;
+};
+
+export type CocoaAccountRow = {
+  slot: number; label: string; enabled: boolean; postEmail: string;
+  /** 保存してある行（空なら今までどおり1日1回） */ schedule: CocoaScheduleRow[];
+  /** 実際に使う行（空のときは店ごとに決まった時刻1つ） */ effective: CocoaScheduleRow[];
+  lastPostedAt: string | null; lastResult: string | null;
 };
 
 export async function getConecfCocoa(): Promise<Result<CocoaData>> {
@@ -43,6 +52,16 @@ export async function getConecfCocoa(): Promise<Result<CocoaData>> {
   if (!r.ok) return r;
   const { data: st } = await r.svc.from('conecf_cocoa_settings').select('*').eq('salon_id', r.salonId).maybeSingle();
   const { data: temps } = await r.svc.from('conecf_cocoa_templates').select('*').eq('salon_id', r.salonId).order('sort_order').order('id');
+  const acc = await r.svc.from('conecf_cocoa_accounts').select('slot, enabled, post_email, schedule, last_posted_at, last_result').eq('salon_id', r.salonId);
+  const accounts: CocoaAccountRow[] | null = acc.error ? null : COCOA_ACCOUNT_SLOTS.map((slot) => {
+    const x = (acc.data ?? []).find((d) => Number(d.slot) === slot);
+    const schedule = normalizeCocoaSchedule(x?.schedule);
+    return {
+      slot, label: COCOA_ACCOUNT_LABEL[slot], enabled: x?.enabled === true, postEmail: (x?.post_email as string | null) ?? '',
+      schedule, effective: effectiveCocoaSchedule(r.salonId, schedule),
+      lastPostedAt: (x?.last_posted_at as string | null) ?? null, lastResult: (x?.last_result as string | null) ?? null,
+    };
+  });
   return {
     ok: true,
     data: {
@@ -54,6 +73,7 @@ export async function getConecfCocoa(): Promise<Result<CocoaData>> {
       timeLabel: autoPostTimeLabel(r.salonId),
       max: COCOA_TEMPLATES_MAX, titleMax: COCOA_TITLE_MAX, bodyMax: COCOA_BODY_MAX,
       hasEkichika: await hasEkichikaLogin(r.svc, r.salonId),
+      accounts,
       templates: (temps ?? []).map((t) => ({
         id: Number(t.id), title: String(t.title ?? ''), body: String(t.body ?? ''),
         imageUrl: (t.image_url as string | null) ?? null, isActive: t.is_active !== false,
@@ -137,8 +157,52 @@ export async function getConecfCocoaNavVisible(): Promise<boolean> {
     if (!r.ok) return true;   // ★ 店が決められないときは今までどおり出す
     if (await hasEkichikaLogin(r.svc, r.salonId)) return true;
     const { data: st } = await r.svc.from('conecf_cocoa_settings').select('enabled').eq('salon_id', r.salonId).maybeSingle();
-    return st?.enabled === true;
+    if (st?.enabled === true) return true;
+    // ★ 第1833便: A・B・C のどれかが自動のまま
+    const a = await r.svc.from('conecf_cocoa_accounts').select('slot').eq('salon_id', r.salonId).eq('enabled', true).limit(1);
+    return !a.error && (a.data ?? []).length > 0;
   } catch {
     return true;
   }
+}
+
+// ── ★★ 第1833便: A・B・C の3アカウント ──
+export async function saveConecfCocoaAccount(input: { slot: number; enabled: boolean; postEmail: string; schedule: CocoaScheduleRow[] }): Promise<Result<{ saved: true }>> {
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const slot = Number(input.slot);
+  if (!(COCOA_ACCOUNT_SLOTS as readonly number[]).includes(slot)) return { ok: false, error: 'アカウントの指定が不正です' };
+  const email = String(input.postEmail ?? '').trim();
+  if (email !== '' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: '投稿用メールアドレスの形が正しくありません' };
+  if (input.enabled && email === '') return { ok: false, error: '自動投稿を始めるには、投稿用メールアドレスを入れてください' };
+  const schedule = normalizeCocoaSchedule(input.schedule);
+  // ★ 選んだテンプレートが自店のものか
+  const ids = schedule.map((x) => x.templateId).filter((x): x is number => x !== null);
+  if (ids.length > 0) {
+    const { data: own } = await r.svc.from('conecf_cocoa_templates').select('id').eq('salon_id', r.salonId).in('id', ids);
+    const ok = new Set((own ?? []).map((d) => Number(d.id)));
+    if (ids.some((i) => !ok.has(i))) return { ok: false, error: '選んだテンプレートが見つかりません。読み込み直してください' };
+  }
+  const { error } = await r.svc.from('conecf_cocoa_accounts').upsert({
+    salon_id: r.salonId, slot, enabled: input.enabled === true, post_email: email || null, schedule, updated_at: new Date().toISOString(),
+  }, { onConflict: 'salon_id,slot' });
+  if (error) return { ok: false, error: `保存に失敗しました: ${error.message}` };
+  // ★ A は今までの表にも写す（表が切り替わる前の画面・周と食い違わないように）
+  if (slot === 1) {
+    await r.svc.from('conecf_cocoa_settings').upsert({ salon_id: r.salonId, enabled: input.enabled === true, post_email: email || null, updated_at: new Date().toISOString() }, { onConflict: 'salon_id' });
+  }
+  return { ok: true, data: { saved: true } };
+}
+
+/** 「いま1回投稿する」（アカウントごと。テンプレートは順番に） */
+export async function postConecfCocoaAccountNow(input: { slot: number }): Promise<Result<{ title: string }>> {
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const slot = Number(input.slot);
+  if (!(COCOA_ACCOUNT_SLOTS as readonly number[]).includes(slot)) return { ok: false, error: 'アカウントの指定が不正です' };
+  const res = await postCocoaForAccount(r.svc, r.salonId, slot, null, true, null);
+  if (res.posted) return { ok: true, data: { title: res.title ?? '' } };
+  if (res.skipped === 'no-ekichika-login') return { ok: false, error: '駅ちかのID・パスワードが登録されていない（または一時停止中の）ため投稿できません' };
+  if (res.skipped === 'no-address') return { ok: false, error: '投稿用メールアドレスを入れて「保存」を押してください' };
+  return { ok: false, error: res.error ?? '投稿できませんでした（' + (res.skipped ?? '') + '）' };
 }

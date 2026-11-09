@@ -144,3 +144,55 @@ export function cocoaUnquoteAttrs(html: string): string {
       return /^[^\s"'=<>`]+$/.test(v) ? name + '=' + v : all;
     }));
 }
+
+// ── ★★ 第1833便（2026-11-09・カッキーさん）: A・B・C の3アカウント（ベンリーのココア／ココア-B／ココア-C）──
+// ★ 1アカウントに「時刻＋テンプレート（null＝順番に）」の行を持つ（ベンリーの時刻指定更新と同じ）。★ 表は conecf_cocoa_accounts
+export const COCOA_ACCOUNT_SLOTS = [1, 2, 3] as const;
+export const COCOA_ACCOUNT_LABEL: Record<number, string> = { 1: 'ココア（A）', 2: 'ココア-B', 3: 'ココア-C' };
+export const COCOA_SCHEDULE_MAX = 12;
+export type CocoaScheduleRow = { min: number; templateId: number | null };
+
+/** 朝6時はじまりの分（6:00 = 360 … 翌5:59 = 1799）に直して並べる。★ 同じ時刻は1つにする */
+export function normalizeCocoaSchedule(v: unknown): CocoaScheduleRow[] {
+  const rows = (Array.isArray(v) ? v : []).map((x) => {
+    const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+    const min = Number(o.min);
+    const tid = o.templateId === null || o.templateId === undefined || o.templateId === '' ? null : Number(o.templateId);
+    return { min, templateId: tid !== null && Number.isInteger(tid) && tid > 0 ? tid : null };
+  }).filter((r) => Number.isInteger(r.min) && r.min >= 360 && r.min < 1800);
+  const seen = new Set<number>();
+  return rows.sort((a, b) => a.min - b.min).filter((r) => (seen.has(r.min) ? false : (seen.add(r.min), true))).slice(0, COCOA_SCHEDULE_MAX);
+}
+
+/** ★ 行が無いアカウントは今までどおり「1日1回・店ごとに決まった時刻・順番に」 */
+export function effectiveCocoaSchedule(salonId: number, schedule: CocoaScheduleRow[]): CocoaScheduleRow[] {
+  if (schedule.length > 0) return schedule;
+  const m = autoPostMinuteOfDay(salonId);
+  return m === null ? [] : [{ min: 360 + m, templateId: null }];
+}
+
+/** 「12:00」「翌1:00」 */
+export function cocoaMinLabel(m: number): string {
+  return m >= 1440 ? `翌${Math.floor((m - 1440) / 60)}:${String(m % 60).padStart(2, '0')}` : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/**
+ * ★ いまこのアカウントで送るか。いちばん近い過去の予定時刻（今日の・朝6時はじまり）を出し、まだ受け持っていなければ送る。
+ *   ★ 90分より遅れた予定は送らない（次の時刻を待つ）。
+ */
+export function shouldPostCocoaAccount(input: { now: Date; salonId: number; schedule: CocoaScheduleRow[]; lastDueAt: string | null }):
+  { post: boolean; reason: string; dueAt: string | null; templateId: number | null } {
+  const sched = effectiveCocoaSchedule(input.salonId, input.schedule);
+  if (sched.length === 0) return { post: false, reason: 'no-schedule', dueAt: null, templateId: null };
+  const elapsed = elapsedMinSinceDayStart(input.now);   // 朝6時からの分
+  const b = 360 + elapsed;
+  let row: CocoaScheduleRow | null = null;
+  for (const r of sched) if (r.min <= b) row = r;
+  if (!row) return { post: false, reason: 'before-time', dueAt: null, templateId: null };
+  const dayStartMs = input.now.getTime() - elapsed * 60000 - (input.now.getTime() % 60000);
+  const dueMs = dayStartMs + (row.min - 360) * 60000;
+  const dueAt = new Date(dueMs).toISOString();
+  if (input.lastDueAt && Date.parse(input.lastDueAt) >= dueMs - 60000) return { post: false, reason: 'done', dueAt, templateId: row.templateId };
+  if (input.now.getTime() - dueMs > 90 * 60000) return { post: false, reason: 'too-late', dueAt, templateId: row.templateId };
+  return { post: true, reason: 'ok', dueAt, templateId: row.templateId };
+}

@@ -7,11 +7,12 @@ import { OPERATOR_NOT_YET_MESSAGE } from '@/lib/conecfActing';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
-import { widthCount, bodyTooLong, COCOA_TITLE_MAX, COCOA_BODY_MAX } from '@/lib/conecfCocoa';
+import { widthCount, bodyTooLong, COCOA_TITLE_MAX, COCOA_BODY_MAX, COCOA_SCHEDULE_MAX, cocoaMinLabel } from '@/lib/conecfCocoa';
 import { TextMarkToolbar, TextMarkPreview } from '@/app/components/TextMarkTools';
 import {
   getConecfCocoa, saveConecfCocoaSettings, saveConecfCocoaTemplate, setConecfCocoaTemplateActive,
   deleteConecfCocoaTemplate, postConecfCocoaNow, type CocoaData, type CocoaTemplateRow,
+  saveConecfCocoaAccount, postConecfCocoaAccountNow, type CocoaAccountRow,
 } from '@/app/actions/conecfCocoa';
 
 // コネックエフ「ココア店長ブログ」（第404便・2026-09-17）。
@@ -105,12 +106,98 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   );
 }
 
+/** 「12:00」「翌1:00」→ 朝6時はじまりの分 */
+function parseCocoaTime(t: string): number {
+  const m = /^(翌)?\s*(\d{1,2}):(\d{2})$/.exec(t.trim());
+  if (!m) return NaN;
+  const v = Number(m[2]) * 60 + Number(m[3]);
+  return m[1] || v < 360 ? v + 1440 : v;
+}
+
+/**
+ * ★★ 第1833便（カッキーさん）: A・B・C の3アカウントのカード（開け閉めできる）。
+ *   アカウントごとに 投稿用メールアドレス・自動の ON/OFF・「時刻＋テンプレート（または順番に）」の行（ベンリーの時刻指定更新と同じ）
+ */
+function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
+  a: CocoaAccountRow; templates: CocoaTemplateRow[]; open: boolean; onToggle: () => void; guard: () => boolean; onToast: (m: string) => void; reload: () => Promise<void>;
+}) {
+  const [postEmail, setPostEmail] = useState(a.postEmail);
+  const [auto, setAuto] = useState(a.enabled);
+  const [rows, setRows] = useState<Array<{ time: string; templateId: string }>>(() =>
+    a.effective.map((r) => ({ time: cocoaMinLabel(r.min), templateId: r.templateId === null ? '' : String(r.templateId) })));
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!guard()) return;
+    const used = rows.filter((r) => r.time.trim() !== '');
+    const mins = used.map((r) => parseCocoaTime(r.time));
+    if (mins.some((m) => !Number.isFinite(m))) { onToast('時刻は「12:00」のように入れてください（翌朝は「翌1:00」）'); return; }
+    if (new Set(mins).size !== mins.length) { onToast('同じ時刻が2つあります'); return; }
+    setBusy(true);
+    const res = await saveConecfCocoaAccount({ slot: a.slot, enabled: auto, postEmail, schedule: used.map((r, i) => ({ min: mins[i], templateId: r.templateId === '' ? null : Number(r.templateId) })) });
+    setBusy(false);
+    onToast(res.ok ? '保存しました' : res.error);
+    if (res.ok) await reload();
+  };
+  const now = async () => {
+    if (!guard()) return;
+    setBusy(true);
+    const res = await postConecfCocoaAccountNow({ slot: a.slot });
+    setBusy(false);
+    onToast(res.ok ? `「${res.data.title}」を投稿しました。ココアの店長ブログをご確認ください` : res.error);
+    if (res.ok) await reload();
+  };
+  const last = a.lastPostedAt ? `${hm(a.lastPostedAt)}（${a.lastResult?.startsWith('sent') ? '成功' : a.lastResult ?? ''}）` : 'まだ';
+  const active = templates.filter((t) => t.isActive);
+  return (
+    <div className={`${CARD} p-4 space-y-3`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left">
+          <span className={`inline-block w-4 text-indigo-600 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
+          <span className="text-[16px] font-black text-slate-800">{a.label}</span>
+          <span className={`border px-2 py-0.5 text-[12px] font-bold ${a.enabled ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{a.enabled ? '自動 ON' : '自動 OFF'}</span>
+          {!open && <span className="truncate text-[12px] text-slate-500">{a.effective.map((r) => cocoaMinLabel(r.min)).join('・') || '—'} ／ 最後：{last}</span>}
+        </button>
+        <button type="button" disabled={busy || active.length === 0} onClick={() => void now()} className="px-3 py-1.5 border border-indigo-300 text-[13px] text-indigo-700 font-bold disabled:opacity-40">{busy ? '…' : 'いま1回投稿する'}</button>
+      </div>
+      {open && (<>
+        <div>
+          <label className="block text-[13px] font-bold text-slate-600 mb-1">投稿用メールアドレス</label>
+          <input className={`${INPUT} max-w-[420px]`} value={postEmail} onChange={(e) => setPostEmail(e.target.value)} placeholder="ココアの店長ブログ「アドレス管理」に出るアドレス" />
+          <p className="text-[12px] text-slate-400 mt-1">{a.label}の管理画面 → 店長ブログ → アドレス管理 に出ている投稿用アドレスを入れてください。</p>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[13px] font-bold text-slate-600">投稿する時刻とテンプレート</p>
+          {rows.map((r, i) => (
+            <div key={i} className="flex flex-wrap items-center gap-2 text-[14px]">
+              <input value={r.time} onChange={(e) => setRows((rs) => rs.map((x, k) => (k === i ? { ...x, time: e.target.value } : x)))} placeholder="12:00" className="w-24 border border-slate-200 px-2 py-1.5" />
+              <select value={r.templateId} onChange={(e) => setRows((rs) => rs.map((x, k) => (k === i ? { ...x, templateId: e.target.value } : x)))} className="min-w-[220px] border border-slate-200 px-2 py-1.5">
+                <option value="">順番に（最後に投稿したのが古いもの）</option>
+                {templates.map((t) => <option key={t.id} value={t.id}>{(t.title || '（タイトルなし）') + (t.isActive ? '' : '（休み中）')}</option>)}
+              </select>
+              <button type="button" onClick={() => setRows((rs) => rs.filter((_, k) => k !== i))} className="text-[12.5px] font-bold text-rose-500">消す</button>
+            </div>
+          ))}
+          {rows.length < COCOA_SCHEDULE_MAX && <button type="button" onClick={() => setRows((rs) => [...rs, { time: '', templateId: '' }])} className="border border-dashed border-indigo-300 px-3 py-1 text-[13px] text-indigo-700">＋ 時刻を足す</button>}
+          <p className="text-[12px] text-slate-400">時刻は朝6時はじまりの1日です（翌朝は「翌1:00」）。休み中のテンプレートを選んだ行は、順番に選んで送ります。ココアの残り回数（店長ブログ・動画投稿で共通）に気をつけてください。</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-[14px]">
+          <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 自動で投稿する</label>
+          <button type="button" disabled={busy} onClick={() => void save()} className="px-4 py-1.5 bg-indigo-600 text-white font-bold disabled:opacity-50">保存</button>
+          <span className="text-[12.5px] text-slate-400">最後の投稿：{last}</span>
+        </div>
+      </>)}
+    </div>
+  );
+}
+
 function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => void }) {
   const [data, setData] = useState<CocoaData | null>(null);
   const [error, setError] = useState('');
   const [postEmail, setPostEmail] = useState('');
   const [editing, setEditing] = useState<CocoaTemplateRow | null | 'new'>(null);
   const [busy, setBusy] = useState('');
+  // ★ 第1833便: 開いているアカウントのカード（はじめは閉じる）
+  const [openSlots, setOpenSlots] = useState<Record<number, boolean>>({});
 
   // ★ 第1117便: 自動投稿のオン・オフを変えたら、外枠（メニューの「ココア店長ブログ」の出し分け）も読み直す
   const { refresh: refreshShell } = useConecfSession();
@@ -173,12 +260,22 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 
       {/* 説明 */}
       <div className={`${CARD} p-4 text-[13.5px] text-slate-500 leading-relaxed`}>
-        ココアの「店長ブログ」へ、登録したテンプレを1日1回、順番に自動投稿します（メールで投稿）。
+        ココアの「店長ブログ」へ、登録したテンプレを決めた時刻に自動投稿します（メールで投稿）。ココア（A）・ココア-B・ココア-C のアカウントごとに、時刻と出すテンプレートを決められます。
         投稿は3ヶ月で自動的に消えるため、定期的に投稿して新しく保てます。★ 投稿・編集あわせて残り回数の上限がココア側にあります。
       </div>
 
-      {/* 自動投稿 */}
-      <div className={`${CARD} p-4 space-y-3`}>
+      {/* ★ 第1833便: A・B・C の3アカウント（表が無いときは下の今までの1つの画面） */}
+      {data.accounts && !data.hasEkichika && (
+        <div className="border border-rose-200 bg-rose-50 px-4 py-2 text-[13px] font-bold text-rose-700">駅ちかのID・パスワードが登録されていない（または一時停止中の）ため、いまは投稿しません。</div>
+      )}
+      {data.accounts && data.accounts.map((a) => (
+        <AccountCard key={a.slot + String(a.lastPostedAt) + String(a.enabled) + a.postEmail + JSON.stringify(a.schedule)} a={a} templates={data.templates}
+          open={openSlots[a.slot] === true} onToggle={() => setOpenSlots((m) => ({ ...m, [a.slot]: !m[a.slot] }))}
+          guard={guard} onToast={onToast} reload={async () => { await load(); void refreshShell(); }} />
+      ))}
+
+      {/* 自動投稿（★ 第1833便の表が無いときだけ） */}
+      {!data.accounts && <div className={`${CARD} p-4 space-y-3`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-[16px] font-black text-slate-800">自動投稿</p>
@@ -210,7 +307,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
             {busy === 'now' ? '投稿しています…' : 'いま1回投稿する'}
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* テンプレ */}
       {editing === 'new' || editing ? (

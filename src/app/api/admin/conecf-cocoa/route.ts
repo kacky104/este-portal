@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { postCocoaForSalon } from '@/app/lib/conecf/cocoaPost';
-import { shouldPostCocoa, pickCocoaTemplate, type CocoaTemplate } from '@/lib/conecfCocoa';
+import { postCocoaForSalon, postCocoaForAccount } from '@/app/lib/conecf/cocoaPost';
+import { shouldPostCocoa, pickCocoaTemplate, shouldPostCocoaAccount, normalizeCocoaSchedule, type CocoaTemplate } from '@/lib/conecfCocoa';
 
 // ココア店長ブログの自動投稿の周（第404便・1日1回）。
 //
@@ -21,6 +21,30 @@ export async function POST(req: Request) {
   const apply = new URL(req.url).searchParams.get('apply') === '1';
   const now = new Date();
   const svc = createServiceClient();
+
+  // ★★ 第1833便: A・B・C の3アカウント（conecf_cocoa_accounts）。アカウントごとに「時刻＋テンプレート」の行で送る。
+  //   ★ 表が無い（追加SQL_第1833便が未適用）ときだけ、下の今までの作り（1店1つ・1日1回）で動く
+  const accs = await svc.from('conecf_cocoa_accounts')
+    .select('salon_id, slot, schedule, last_due_at, salons!inner(is_hidden, conecf_enabled_at)')
+    .eq('enabled', true).eq('salons.is_hidden', false);
+  if (!accs.error) {
+    const results = [];
+    for (const a of accs.data ?? []) {
+      const rel = (a as unknown as { salons?: { conecf_enabled_at?: string | null } | Array<{ conecf_enabled_at?: string | null }> }).salons;
+      const s0 = Array.isArray(rel) ? rel[0] : rel;
+      const salonId = Number(a.salon_id);
+      const slot = Number(a.slot);
+      if (!s0?.conecf_enabled_at) { results.push({ salonId, slot, skipped: 'conecf-not-enabled' }); continue; }
+      const judged = shouldPostCocoaAccount({ now, salonId, schedule: normalizeCocoaSchedule(a.schedule), lastDueAt: (a.last_due_at as string | null) ?? null });
+      if (!judged.post) { results.push({ salonId, slot, skipped: judged.reason }); continue; }
+      try {
+        results.push(await postCocoaForAccount(svc, salonId, slot, judged.templateId, apply, apply ? judged.dueAt : null, now));
+      } catch (e) {
+        results.push({ salonId, slot, error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    return NextResponse.json({ ok: true, apply, at: now.toISOString(), accounts: true, results });
+  }
 
   const { data: sts, error } = await svc
     .from('conecf_cocoa_settings')
