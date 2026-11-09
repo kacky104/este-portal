@@ -59,6 +59,9 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ ok: false, error: '自動の上位表示の設定を読めなかった: ' + error.message }, { status: 500 });
 
   const results: Array<{ salonId: number; provider: string; slot: number; reason: string; started?: boolean; note?: string }> = [];
+  // ★ 第1826便: エステ魂は同じ店で1回の周に1つだけ始める（同時に始めると2つ目以降は「別の手順がまだ走っていた」で止まり、更新結果が埋まる）。
+  //   ★ 始められなかったものは「始めた時刻」を書かないので、5分後の周で順に始まる
+  const esutamaStarted = new Set<number>();
   for (const r of (data ?? []) as Row[]) {
     const slot = Number(r.slot ?? 1);
     const setting: BumpSetting = {
@@ -87,6 +90,7 @@ export async function POST(req: Request) {
         intent: 'bump_auto', actor: 'cron:ekichika-bump',
         bump: { setting },
       });
+      if (r.provider === 'esutama') esutamaStarted.add(Number(r.salon_id));
       results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'ok', started: f.ok, note: f.note });
     } catch (e) {
       console.error('[ekichika-bump] 流れを始められなかった', r.salon_id, slot, e instanceof Error ? e.message : 'unknown');
@@ -116,6 +120,7 @@ export async function POST(req: Request) {
       });
       const base = { salonId: Number(o.salon_id), provider: 'esutama:' + key, slot: 1 };
       if (!judge.press || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+      if (esutamaStarted.has(Number(o.salon_id))) { results.push({ ...base, reason: 'next_round' }); continue; }
       // ★ 始める前に「読みに行った時刻」を書く（同じ行を立て続けに始めない）。★ 書けなければ始めない
       const { error: mErr } = await svc.from('conecf_esutama_options')
         .update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('option_key', key);
@@ -126,6 +131,7 @@ export async function POST(req: Request) {
           intent: 'bump_auto', actor: 'cron:esutama-option',
           esutamaOpt: { key },
         });
+        esutamaStarted.add(Number(o.salon_id));
         results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
       } catch (e) {
         console.error('[esutama-option] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
@@ -151,6 +157,7 @@ export async function POST(req: Request) {
         state: { lastAt: (o.last_at as string | null) ?? null, readAt: (o.read_at as string | null) ?? null, updatedAt: (o.updated_at as string | null) ?? null },
       });
       if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+      if (esutamaStarted.has(Number(o.salon_id))) { results.push({ ...base, reason: 'next_round' }); continue; }
       // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない＝二重に投稿しない）。★ 書けなければ始めない
       const { error: mErr } = await svc.from('conecf_esutama_posts')
         .update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('post_key', key);
@@ -163,6 +170,7 @@ export async function POST(req: Request) {
         });
         // ★ 第1816便: 始められなかった（同じ店のエステ魂で別の流れが走っていた等）ときは「始めた時刻」を戻す。
         //   ★ 戻さないと、次に試すのが約1時間後になる（11/9 12:04 に集客アピールとぶつかって1回抜けた）。戻せば5分後の周でまた試す
+        esutamaStarted.add(Number(o.salon_id));
         if (!f.ok) await svc.from('conecf_esutama_posts').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('post_key', key);
         results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
       } catch (e) {
