@@ -79,7 +79,8 @@ export function buildZenkokuDaySaveRequest(cookie: string, dateISO: string, body
   return {
     method: 'POST',
     url,
-    headers: { ...baseHeaders(), 'content-type': 'application/x-www-form-urlencoded', origin: ZENKOKU_ORIGIN, referer: url, cookie },
+    // ★ 第1861便: expect を空に＝curl の「Expect: 100-continue」を付けない（11/9 夜、保存だけが 500「An Internal Error Has Occurred」。手で同じ保存をすると通る）
+    headers: { ...baseHeaders(), 'content-type': 'application/x-www-form-urlencoded', origin: ZENKOKU_ORIGIN, referer: url, cookie, expect: '' },
     body,
   };
 }

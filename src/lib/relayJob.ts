@@ -51,6 +51,9 @@ export const RELAY_ALLOWED_REQUEST_HEADERS: readonly string[] = [
   'origin',
   // ★ 第107便: 駅ちかの画像登録は jQuery の ajax（X-Requested-With が付く）。★ 付けないと is_ajax で弾かれうる
   'x-requested-with',
+  // ★ 第1861便: 空の値で送ると curl が自動の「Expect: 100-continue」を付けない（1KB を超える POST に付く）。
+  //   全国エステランキングの出勤の保存（約10KB）が、これで中身の無い POST として届き「Internal Error」になっていた疑い
+  'expect',
 ];
 
 /** ★ 持ち帰るレスポンスヘッダー。セッションの持ち回りと、リダイレクト・WAF判定に要るものだけ。 */
