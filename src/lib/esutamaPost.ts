@@ -22,9 +22,17 @@ import { readEsutamaCsrf } from './esutamaParse';
 import { businessMinOf } from './esutamaOption';
 import { assertRelayFileUrl, type RelayMultipart } from './relayMultipart';
 
-export type EsutamaPostKey = 'guest_realtime';
-export const ESUTAMA_POST_KEYS: EsutamaPostKey[] = ['guest_realtime'];
-export const ESUTAMA_POST_LABEL: Record<EsutamaPostKey, string> = { guest_realtime: 'リアルタイム集客' };
+export type EsutamaPostKey = 'guest_realtime' | 'job_realtime';
+export const ESUTAMA_POST_KEYS: EsutamaPostKey[] = ['guest_realtime', 'job_realtime'];
+export const ESUTAMA_POST_LABEL: Record<EsutamaPostKey, string> = { guest_realtime: 'リアルタイム集客', job_realtime: 'リアルタイム求人' };
+// ★ 第1813便: リアルタイム求人（/admin/job/realtime/）も同じ形（2026-11-09 実測・読んだだけ）。違うのは hidden の page=job / table=shop_job / real_type=job だけ
+const REALTIME_BASE: Record<EsutamaPostKey, { path: string; realType: string }> = {
+  guest_realtime: { path: 'https://estama.jp/admin/guest/realtime/', realType: 'shop' },
+  job_realtime: { path: 'https://estama.jp/admin/job/realtime/', realType: 'job' },
+};
+const baseOf = (key?: string) => REALTIME_BASE[(key ?? 'guest_realtime') as EsutamaPostKey] ?? REALTIME_BASE.guest_realtime;
+export const realtimeListUrl = (key?: string) => baseOf(key).path;
+export const realtimeEditUrl = (key?: string) => baseOf(key).path + 'edit/';
 export const ESUTAMA_POST_TITLE_MAX = 30;
 export const ESUTAMA_POST_BODY_MAX = 300;
 /** ★ 選べる間隔（分） */
@@ -69,29 +77,29 @@ export function parseCroppicResponse(body: string): { ok: boolean; url: string |
 }
 
 type MultipartReq = { method: 'POST'; url: string; headers: Record<string, string>; multipart: RelayMultipart };
-function multipartHeaders(cookie: string) {
+function multipartHeaders(cookie: string, key?: string) {
   // ★★ content-type は付けない。★ multipart の境界は中継役（curl）が決める
   return {
     'user-agent': RELAY_USER_AGENT, accept: 'application/json, text/javascript, */*; q=0.01', 'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
-    'x-requested-with': 'XMLHttpRequest', referer: 'https://estama.jp/admin/guest/realtime/edit/', origin: 'https://estama.jp', cookie,
+    'x-requested-with': 'XMLHttpRequest', referer: realtimeEditUrl(key), origin: 'https://estama.jp', cookie,
   };
 }
 const okCtk = (ctk: string | null): ctk is string => !!ctk && /^[A-Za-z0-9]{16,64}$/.test(ctk);
 
 /** ★ ① 仮置き（エステ魂の一時置き場に上がるだけ。投稿はまだ） */
-export function buildRealtimeImageUploadRequest(cookie: string, ctk: string | null, fileUrl: string, filename: string): MultipartReq {
+export function buildRealtimeImageUploadRequest(cookie: string, ctk: string | null, fileUrl: string, filename: string, key?: string): MultipartReq {
   if (!cookie) throw new Error('Cookie が無いまま送らない');
   if (!okCtk(ctk)) throw new Error('ctk の形が違うまま送らない');
   assertRelayFileUrl(fileUrl);
   if (!/^[A-Za-z0-9_\-]{1,64}\.jpg$/.test(filename)) throw new Error('ファイル名の形が不正');
   return {
-    method: 'POST', url: ESUTAMA_UPTEMP_URL, headers: multipartHeaders(cookie),
+    method: 'POST', url: ESUTAMA_UPTEMP_URL, headers: multipartHeaders(cookie, key),
     multipart: { fields: { ctk }, files: [{ field: 'img', url: fileUrl, filename, contentType: 'image/jpeg' }] },
   };
 }
 
 /** ★ ② 切り抜き（枠 300×300 を覆うように縮めて中央で切る） */
-export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null, up: { url: string; width: number | null; height: number | null }): MultipartReq {
+export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null, up: { url: string; width: number | null; height: number | null }, key?: string): MultipartReq {
   if (!cookie) throw new Error('Cookie が無いまま送らない');
   if (!okCtk(ctk)) throw new Error('ctk の形が違うまま送らない');
   const w = up.width ?? 600, h = up.height ?? 600;
@@ -99,7 +107,7 @@ export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null
   const scale = box / Math.min(w, h);
   const imgW = Math.max(box, Math.round(w * scale)), imgH = Math.max(box, Math.round(h * scale));
   return {
-    method: 'POST', url: ESUTAMA_CROPPING_URL, headers: multipartHeaders(cookie),
+    method: 'POST', url: ESUTAMA_CROPPING_URL, headers: multipartHeaders(cookie, key),
     multipart: {
       fields: {
         imgUrl: up.url, imgInitW: String(w), imgInitH: String(h), imgW: String(imgW), imgH: String(imgH),
@@ -155,7 +163,7 @@ const stripTags = (s: string) => s.replace(/<script[\s\S]*?<\/script>/gi, ' ').r
 export type RealtimeEditPage = { ctk: string | null; shopId: string | null; fields: Array<[string, string]>; problems: string[] };
 
 /** 新規投稿の画面（#form-realtime_edit の中身を画面の並びのまま・ctk・brws_shop_id） */
-export function parseRealtimeEditPage(html: string): RealtimeEditPage {
+export function parseRealtimeEditPage(html: string, key?: string): RealtimeEditPage {
   const src = String(html ?? '');
   const problems: string[] = [];
   const fields: Array<[string, string]> = [];
@@ -185,7 +193,8 @@ export function parseRealtimeEditPage(html: string): RealtimeEditPage {
     }
     for (const k of ['title', 'body', 'real_type']) if (!fields.some(([n]) => n === k)) problems.push(k + ' が無い');
     const rt = fields.find(([n]) => n === 'real_type')?.[1];
-    if (rt !== undefined && rt !== 'shop') problems.push('real_type が shop ではない（' + rt + '）');
+    const want = baseOf(key).realType;
+    if (rt !== undefined && rt !== want) problems.push('real_type が ' + want + ' ではない（' + rt + '）');
   }
   const ctk = readEsutamaCsrf(src);
   if (!ctk) problems.push('ctk（#csrf_footer）が見つからない');
@@ -225,16 +234,16 @@ export function realtimePostResponse(body: string): { accepted: boolean; error: 
 type Req = { method: 'GET' | 'POST'; url: string; headers: Record<string, string>; body?: string };
 const baseHeaders = (cookie: string) => ({ 'user-agent': RELAY_USER_AGENT, 'accept-language': 'ja,en-US;q=0.9,en;q=0.8', cookie });
 
-export function buildRealtimePageRequest(cookie: string, which: 'edit' | 'list'): Req {
+export function buildRealtimePageRequest(cookie: string, which: 'edit' | 'list', key?: string): Req {
   if (!cookie) throw new Error('Cookie が無いまま読みに行かない');
   return {
-    method: 'GET', url: which === 'edit' ? ESUTAMA_REALTIME_EDIT_URL : ESUTAMA_REALTIME_LIST_URL,
-    headers: { ...baseHeaders(cookie), accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', referer: which === 'edit' ? ESUTAMA_REALTIME_LIST_URL : 'https://estama.jp/admin/' },
+    method: 'GET', url: which === 'edit' ? realtimeEditUrl(key) : realtimeListUrl(key),
+    headers: { ...baseHeaders(cookie), accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', referer: which === 'edit' ? realtimeListUrl(key) : 'https://estama.jp/admin/' },
   };
 }
 
 /** ★★ リアルタイム集客を1件投稿する（画面の serializeArray と同じ str[n][name]/str[n][value] ＋ brws_shop_id ＋ ctk） */
-export function buildRealtimePostRequest(cookie: string, page: RealtimeEditPage, title: string, body: string, imageUrl?: string | null): Req {
+export function buildRealtimePostRequest(cookie: string, page: RealtimeEditPage, title: string, body: string, imageUrl?: string | null, key?: string): Req {
   if (!cookie) throw new Error('Cookie が無いまま送らない');
   if (!page.ctk || !/^[A-Za-z0-9]{16,64}$/.test(page.ctk)) throw new Error('ctk の形が違うまま送らない');
   if (page.shopId === null) throw new Error('brws_shop_id が無いまま送らない');
@@ -262,7 +271,7 @@ export function buildRealtimePostRequest(cookie: string, page: RealtimeEditPage,
       accept: 'application/json, text/javascript, */*; q=0.01',
       'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
       'x-requested-with': 'XMLHttpRequest',
-      referer: ESUTAMA_REALTIME_EDIT_URL, origin: 'https://estama.jp',
+      referer: realtimeEditUrl(key), origin: 'https://estama.jp',
     },
     body: encodePayload(payload),
   };

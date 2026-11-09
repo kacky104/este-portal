@@ -41,7 +41,7 @@ function postStep(ctx: RelayFlowContext, cookie: string, page: RealtimeEditPage,
   const title = ctx.esutamaPost?.title ?? '';
   const body = ctx.esutamaPost?.body ?? '';
   let r;
-  try { r = buildRealtimePostRequest(cookie, page, title, body, imageUrl); } catch (e) {
+  try { r = buildRealtimePostRequest(cookie, page, title, body, imageUrl, keyOf(ctx)); } catch (e) {
     return finish(ctx, { readAt, posted: false, outcome: 'error: ' + (e as Error).message },
       [{ event: 'push_bump', outcome: 'stopped', summary: label + 'を送りませんでした（' + (e as Error).message + '）', detail: { post: keyOf(ctx), reason: 'bad_text', flowId: ctx.flowId } }], label + 'を送らなかった: ' + (e as Error).message);
   }
@@ -54,7 +54,7 @@ function postStep(ctx: RelayFlowContext, cookie: string, page: RealtimeEditPage,
 
 /** ログインできたあとの最初の段 */
 export function buildEsutamaPostReadStep(cookie: string, ctx: RelayFlowContext) {
-  const r = buildRealtimePageRequest(cookie, 'edit');
+  const r = buildRealtimePageRequest(cookie, 'edit', keyOf(ctx));
   return { purpose: 'esutama_post_read' as const, method: r.method, url: r.url, headers: r.headers, body: '', context: { ...ctx, cookie } };
 }
 
@@ -72,7 +72,7 @@ export function afterEsutamaPostRead(input: Input, ctx: RelayFlowContext, nowArg
     return finish(ctx, { readAt, posted: false, outcome: 'error: http ' + input.status },
       [{ event: 'push_bump', outcome: 'failed', summary: label + 'の画面を読めませんでした', detail: { post: key, httpStatus: input.status, reason: 'http_error', manual, flowId } }], label + 'の画面の応答が ' + input.status);
   }
-  const p = parseRealtimeEditPage(input.body);
+  const p = parseRealtimeEditPage(input.body, keyOf(ctx));
   if (p.problems.length > 0) {
     return finish(ctx, { readAt, posted: false, outcome: 'error: unparseable' },
       [{ event: 'push_bump', outcome: 'failed', summary: label + 'の画面を読めませんでした', detail: { post: key, reason: 'unparseable', problems: p.problems.slice(0, 4).join(' / '), manual, flowId } }], label + 'の画面を読めなかった: ' + p.problems.join(' / '));
@@ -83,7 +83,7 @@ export function afterEsutamaPostRead(input: Input, ctx: RelayFlowContext, nowArg
   if (img && isEsutamaPostImagePath(img.path)) {
     try {
       const fileName = (img.path.split('/').pop() ?? 'image.jpg');
-      const up = buildRealtimeImageUploadRequest(cookie, p.ctk, relayFileUrl('salon-images', img.path), fileName);
+      const up = buildRealtimeImageUploadRequest(cookie, p.ctk, relayFileUrl('salon-images', img.path), fileName, keyOf(ctx));
       return {
         kind: 'next', audits: [],
         next: { purpose: 'esutama_post_img_up', method: up.method, url: up.url, headers: up.headers, body: '', multipart: up.multipart, context: { ...ctx, cookie, esutamaPostPage: page } },
@@ -105,7 +105,7 @@ export function afterEsutamaPostImgUp(input: Input, ctx: RelayFlowContext, nowAr
   const r = input.status === 200 ? parseCroppicResponse(input.body) : { ok: false, url: null, width: null, height: null, message: 'http ' + input.status };
   if (!r.ok || !r.url) return postStep(ctx, cookie, page, null, readAt, '画像を一時置き場へ上げられなかった（' + r.message + '）。画像なしで');
   try {
-    const c = buildRealtimeImageCropRequest(cookie, page.ctk, { url: r.url, width: r.width, height: r.height });
+    const c = buildRealtimeImageCropRequest(cookie, page.ctk, { url: r.url, width: r.width, height: r.height }, keyOf(ctx));
     return {
       kind: 'next', audits: [],
       next: { purpose: 'esutama_post_img_crop', method: c.method, url: c.url, headers: c.headers, body: '', multipart: c.multipart, context: { ...ctx, cookie } },
@@ -145,7 +145,7 @@ export function afterEsutamaPostSet(input: Input, ctx: RelayFlowContext, nowArg?
   }
   // ★ 受け付けた（または応答の形が分からない）→ 一覧の履歴で確かめる
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
-  const r = buildRealtimePageRequest(cookie, 'list');
+  const r = buildRealtimePageRequest(cookie, 'list', keyOf(ctx));
   return {
     kind: 'next', audits: [],
     next: { purpose: 'esutama_post_verify', method: r.method, url: r.url, headers: r.headers, body: '', context: { ...ctx, cookie } },

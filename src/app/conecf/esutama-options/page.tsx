@@ -129,6 +129,7 @@ function OptionCard({ o, onToast, reload }: { o: ConecfEsutamaOption; onToast: (
 
 // ★ 第1811便: 投稿（リアルタイム集客）。保存した文章を、決めた間隔で投稿する
 const POST_DESC: Record<string, string> = {
+  job_realtime: 'エステ魂の「リアルタイム求人」（お店の求人ページに出ます）に、下の文章を決めた間隔で投稿します。画像を入れておくと、投稿のたびに1枚ずつ順番に替えます（画像が無いときは、いまエステ魂に出ている画像のまま）。',
   guest_realtime: 'エステ魂の「リアルタイム集客」に、下の文章を決めた間隔で投稿します。画像を入れておくと、投稿のたびに1枚ずつ順番に替えます（画像が無いときは、いまエステ魂に出ている画像のまま）。',
 };
 const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '投稿できました' : o === 'ok: 画像は前のまま' ? '投稿できました（画像は前のまま）' : o.startsWith('error') ? 'うまくいきませんでした' : o);

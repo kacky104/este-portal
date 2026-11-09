@@ -64,5 +64,12 @@ const qi = new URLSearchParams(ri.body);
 const names = []; for (let i = 0; qi.has(`str[${i}][name]`); i++) names.push(qi.get(`str[${i}][name]`) + '=' + qi.get(`str[${i}][value]`).slice(0, 18));
 eq('画像の hidden は image_delete_0 の前', names.slice(2, 5), ['default_img=https://static-v3.', 'photo_1-imgupload=/temp/crop_x.jpg', 'image_delete_0=0']);
 
+console.log('── 6. リアルタイム求人（第1813便）');
+const jhtml = html.replace('value="shop"><input type="hidden" name="auto_set"', 'value="job"><input type="hidden" name="auto_set"').replace('name="table" value="shop"', 'name="table" value="shop_job"').replace('name="real_type" value="shop"', 'name="real_type" value="job"');
+eq('求人の画面は job で読める', m.parseRealtimeEditPage(jhtml, 'job_realtime').problems, []);
+eq('集客の画面を求人として読まない', m.parseRealtimeEditPage(html, 'job_realtime').problems.length > 0, true);
+eq('求人の URL', [m.buildRealtimePageRequest('c=1', 'edit', 'job_realtime').url, m.buildRealtimePageRequest('c=1', 'list', 'job_realtime').url], ['https://estama.jp/admin/job/realtime/edit/', 'https://estama.jp/admin/job/realtime/']);
+eq('投稿先は同じ（referer は求人）', [m.buildRealtimePostRequest('c=1', m.parseRealtimeEditPage(jhtml, 'job_realtime'), 't', 'b', null, 'job_realtime').url, m.buildRealtimePostRequest('c=1', m.parseRealtimeEditPage(jhtml, 'job_realtime'), 't', 'b', null, 'job_realtime').headers.referer], ['https://estama.jp/admin_post/realtime_edit', 'https://estama.jp/admin/job/realtime/edit/']);
+
 console.log(fail ? `\n✗ ${fail} 件 NG` : '\n✓ すべて ok');
 process.exit(fail ? 1 : 0);
