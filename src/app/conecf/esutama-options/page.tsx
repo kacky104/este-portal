@@ -262,7 +262,8 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
         {daily ? (
           <label className="flex items-center gap-2">送る時刻
             <select value={startMin} onChange={(e) => { setStart(Number(e.target.value)); setEnd(1800); setIntervalMin(ESUTAMA_POST_DAILY); }} className="border border-slate-300 px-2 py-1">
-              {DAILY_TIMES.map((m) => <option key={m} value={m}>{label(m)}</option>)}
+              {/* ★ 第1818便: 15分きざみに無い時刻（既定の 11:47 など）も、いまの値として出す（出さないと 6:00 に見えて、そのまま保存すると 6:00 になる） */}
+              {(DAILY_TIMES.includes(startMin) ? DAILY_TIMES : [...DAILY_TIMES, startMin].sort((x, y) => x - y)).map((m) => <option key={m} value={m}>{label(m)}</option>)}
             </select>
           </label>
         ) : (<>
