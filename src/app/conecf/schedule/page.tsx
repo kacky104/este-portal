@@ -258,7 +258,13 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                   const dirty = !!edits[key(r.id, d)];
                   const label = shiftLabel(c);
                   return (
-                    <td key={d} className={`border-l border-slate-100 p-1 ${i === 0 ? 'bg-indigo-50/40' : ''}`}>
+                    <td key={d} className={`group relative border-l border-slate-100 p-1 ${i === 0 ? 'bg-indigo-50/40' : ''}`}>
+                      {/* ★ 第1857便（カッキーさん）: 出勤のマスにカーソルを乗せると右上に ✕。押すと未設定に戻す（保存するまでは保存されない） */}
+                      {c.isActive && r.isActive && (
+                        <button type="button" aria-label={`${r.name}の${d}の出勤を未設定に戻す`} title="未設定に戻す"
+                          onClick={(e) => { e.stopPropagation(); setCell(r, d, { date: d, isActive: false, start: null, end: null }); }}
+                          className="absolute right-0.5 top-0.5 z-10 hidden h-5 w-5 items-center justify-center rounded-full bg-white text-[13px] font-bold leading-none text-rose-500 shadow ring-1 ring-rose-200 hover:bg-rose-50 group-hover:flex focus:flex">×</button>
+                      )}
                       <button
                         type="button"
                         disabled={!r.isActive}
