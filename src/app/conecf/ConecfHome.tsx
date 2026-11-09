@@ -360,11 +360,11 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
                     text: workProblemShort(s.problem) + (s.problem.kind === 'auto_off' && fmtWhen(s.problem.at) ? `（${fmtWhen(s.problem.at)}）` : ''), tone: 'text-rose-700',
                     link: s.problem.kind === 'login'
                       ? { href: href('/sites'), label: 'ID・パスワードを確認する' }
-                      : { href: href('/schedule/sync'), label: s.problem.kind === 'auto_off' ? '再開する' : '確認する' },
+                      : { href: href('/schedule/sync') + `?site=${s.provider}_${s.slot ?? 1}`, label: s.problem.kind === 'auto_off' ? '再開する' : '確認する' },
                   }
                 : s.autoOn
                   ? { text: '出勤は自動で更新しています', tone: 'text-slate-500', link: null }
-                  : { text: '出勤の自動更新が未設定です', tone: 'text-rose-700', link: { href: href('/schedule/sync'), label: '設定する' } };
+                  : { text: '出勤の自動更新が未設定です', tone: 'text-rose-700', link: { href: href('/schedule/sync') + `?site=${s.provider}_${s.slot ?? 1}`, label: '設定する' } };
             } else if (s.direction === 'read') {
               status = { text: 'フクエスリンクで反映中', tone: 'text-amber-700' };
               action = (

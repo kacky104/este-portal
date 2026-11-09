@@ -145,6 +145,16 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
     setSite((prev) => {
       const list = ov.data.sites as Site[];
       if (prev) return list.find((x) => keyOf(x.provider, x.slot) === keyOf(prev.provider, prev.slot)) ?? list[0] ?? null;
+      // ★ 第1808便（カッキーさん）: ホームの「設定する ›」から来たときは、そのサイトのタブを開く（?site=zenkoku#1 → zenkoku と 1）
+      //   これまでは必ず駅ちかのタブが開き、全国エステランキングの設定をしたつもりで駅ちかを見ていた
+      try {
+        const want = new URLSearchParams(window.location.search).get('site');
+        if (want) {
+          const [wp, ws] = want.split('_');
+          const hit = list.find((x) => x.provider === wp && Number(x.slot) === Number(ws || 1));
+          if (hit) return hit;
+        }
+      } catch { /* 読めなければ今までどおり */ }
       return list.find((x) => x.direction === 'write') ?? list[0] ?? null;
     });
 
