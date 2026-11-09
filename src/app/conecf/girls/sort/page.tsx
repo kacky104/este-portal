@@ -17,7 +17,7 @@ import { revalidateSalon } from '@/app/lib/revalidateTop';
 // ★ 第1860便: 並び替え固定枠。固定枠の方はいつも先頭にこの順で並び、並び順の適用（50音順など）では動かない（conecf_girl_order.fixed_ids）。
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
-const LONG_PRESS_MS = 300;
+const LONG_PRESS_MS = 100;   // ★ 第1862便（カッキーさん）: 0.3秒 → 0.1秒
 
 type Preset = '' | 'joined' | 'registered' | 'kana' | 'today' | 'now' | 'tomorrow' | 'randomToday' | 'randomTomorrow';
 const PRESETS: Array<[Preset, string]> = [
