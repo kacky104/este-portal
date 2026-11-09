@@ -150,7 +150,7 @@ export function isValidEsutamaPostSetting(s: EsutamaPostSetting, key?: string): 
 
 /** ★ 周（5分ごと）で投稿するか。readAt は「始めた時刻」（失敗した回も立て続けに始めない） */
 export function shouldPostEsutama(args: {
-  setting: EsutamaPostSetting; state: { lastAt: string | null; readAt: string | null }; now: Date; hasText: boolean; key?: string;
+  setting: EsutamaPostSetting; state: { lastAt: string | null; readAt: string | null; updatedAt?: string | null }; now: Date; hasText: boolean; key?: string;
 }): { post: boolean; reason: string } {
   const { setting, state, now } = args;
   if (!args.hasText) return { post: false, reason: 'no_text' };
@@ -160,6 +160,9 @@ export function shouldPostEsutama(args: {
     if (b0 < setting.startMin) return { post: false, reason: 'before_time' };
     const dueAt = lastResetAt(now).getTime() + (setting.startMin - 360) * 60000;
     if (state.lastAt && Date.parse(state.lastAt) >= dueAt - 60000) return { post: false, reason: 'done_today' };
+    // ★ 第1820便: その日の送る時刻を過ぎてから設定を変えた（自動を入れた・時刻を早めた）日は送らない。次の日から。
+    //   ★ 11/9 12:52 に 11:17 で保存したら、12:55 にその日2通目が出てしまった（ベンリーが 11:47 に送ったあと）
+    if (state.updatedAt && Date.parse(state.updatedAt) > dueAt) return { post: false, reason: 'set_after_time' };
     // ★ 失敗した回は30分おいてから（その日のうちに何度も送りに行かない）
     if (state.readAt && now.getTime() - Date.parse(state.readAt) < 30 * 60000) return { post: false, reason: 'recent_try' };
     // ★ 送る時刻から3時間を過ぎたら、その日は送らない（夜中にいきなりメールを出さない）

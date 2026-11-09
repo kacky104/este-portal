@@ -89,5 +89,8 @@ eq('送ったあとは送らない', sp(jst(2026, 11, 10, 12, 4), jst(2026, 11, 
 eq('失敗のあと30分は待つ', sp(jst(2026, 11, 10, 12, 4), null, jst(2026, 11, 10, 11, 49).toISOString()), 'recent_try');
 eq('3時間を過ぎたら送らない', sp(jst(2026, 11, 10, 15, 4), null, null), 'too_late');
 
+eq('送る時刻のあとに設定した日は送らない', m.shouldPostEsutama({ key: 'mailmag', setting: { startMin: 677, endMin: 1800, intervalMin: 1440 }, state: { lastAt: null, readAt: null, updatedAt: jst(2026, 11, 9, 12, 52).toISOString() }, now: jst(2026, 11, 9, 12, 54), hasText: true }).reason, 'set_after_time');
+eq('次の日は送る', m.shouldPostEsutama({ key: 'mailmag', setting: { startMin: 707, endMin: 1800, intervalMin: 1440 }, state: { lastAt: null, readAt: null, updatedAt: jst(2026, 11, 9, 12, 52).toISOString() }, now: jst(2026, 11, 10, 11, 49), hasText: true }).reason, 'ok');
+
 console.log(fail ? `\n✗ ${fail} 件 NG` : '\n✓ すべて ok');
 process.exit(fail ? 1 : 0);

@@ -137,7 +137,7 @@ export async function POST(req: Request) {
   // ★★ 第1811便: エステ魂【オプション】の投稿（リアルタイム集客）も同じ周で送る。★ crontab はそのまま
   //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 表が無い（SQL 未適用）ときは黙って飛ばす
   const posts = await svc.from('conecf_esutama_posts')
-    .select('salon_id, post_key, title, body, start_min, end_min, interval_min, last_at, read_at, images, next_image')
+    .select('salon_id, post_key, title, body, start_min, end_min, interval_min, last_at, read_at, images, next_image, updated_at')
     .eq('admin_enabled', true).eq('auto', true);
   if (!posts.error) {
     for (const o of posts.data ?? []) {
@@ -148,7 +148,7 @@ export async function POST(req: Request) {
       const judge = shouldPostEsutama({
         now, key, hasText: esutamaPostTextProblem(title, bodyText, key) === null,
         setting: { startMin: Number(o.start_min), endMin: Number(o.end_min), intervalMin: Number(o.interval_min) },
-        state: { lastAt: (o.last_at as string | null) ?? null, readAt: (o.read_at as string | null) ?? null },
+        state: { lastAt: (o.last_at as string | null) ?? null, readAt: (o.read_at as string | null) ?? null, updatedAt: (o.updated_at as string | null) ?? null },
       });
       if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
       // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない＝二重に投稿しない）。★ 書けなければ始めない
