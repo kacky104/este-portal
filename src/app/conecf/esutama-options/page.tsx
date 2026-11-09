@@ -9,8 +9,6 @@ import {
   addConecfEsutamaPostImage, removeConecfEsutamaPostImage,
 } from '@/app/actions/conecfEsutamaOptions';
 import { ESUTAMA_POST_TITLE_MAX, esutamaPostBodyMax, ESUTAMA_POST_INTERVALS, ESUTAMA_POST_IMAGE_MAX, ESUTAMA_POST_DAILY, isDailyPostKey } from '@/lib/esutamaPost';
-// ★ 第1817便: メールマガジンの送る時刻（15分きざみ・朝6時〜翌5:45）
-const DAILY_TIMES = Array.from({ length: 96 }, (_, i) => 360 + i * 15);
 
 /** ★ 第1812便: ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
 async function shrinkToJpeg(file: File): Promise<Blob> {
@@ -261,10 +259,15 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
         </label>
         {daily ? (
           <label className="flex items-center gap-2">送る時刻
-            <select value={startMin} onChange={(e) => { setStart(Number(e.target.value)); setEnd(1800); setIntervalMin(ESUTAMA_POST_DAILY); }} className="border border-slate-300 px-2 py-1">
-              {/* ★ 第1818便: 15分きざみに無い時刻（既定の 11:47 など）も、いまの値として出す（出さないと 6:00 に見えて、そのまま保存すると 6:00 になる） */}
-              {(DAILY_TIMES.includes(startMin) ? DAILY_TIMES : [...DAILY_TIMES, startMin].sort((x, y) => x - y)).map((m) => <option key={m} value={m}>{label(m)}</option>)}
-            </select>
+            {/* ★ 第1819便: 1分単位で選べるように（ベンリーの 11:47 などそのまま入れられる）。0〜5時台は翌日の扱い（朝6時はじまり） */}
+            <input type="time" step={60} value={`${String(Math.floor(startMin / 60) % 24).padStart(2, '0')}:${String(startMin % 60).padStart(2, '0')}`}
+              onChange={(e) => {
+                const m = /^(\d{2}):(\d{2})$/.exec(e.target.value);
+                if (!m) return;
+                const v = Number(m[1]) * 60 + Number(m[2]);
+                setStart(v < 360 ? v + 1440 : v); setEnd(1800); setIntervalMin(ESUTAMA_POST_DAILY);
+              }}
+              className="border border-slate-300 px-2 py-1" />
           </label>
         ) : (<>
         <span className="flex items-center gap-1">
