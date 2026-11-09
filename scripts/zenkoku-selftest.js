@@ -68,8 +68,10 @@ const q = new URLSearchParams(body);
 eq('_method・user_id', [q.get('_method'), q.get('user_id')], ['POST', 'bb77-uuid']);
 eq('みみ: 13:00〜22:00', [q.getAll('1[start_work]'), q.getAll('1[end_work]'), q.getAll('1[delete_flag]')], [['13:00'], ['22:00'], ['0']]);
 eq('あんな: 出勤解除にチェック（時刻はそのまま）', [q.getAll('2[delete_flag]'), q.getAll('2[start_work]')], [['0', '1'], ['10:00']]);
-eq('★★ ゆゆ（計画に無い）: 読んだとおり送り返す（未定のチェックも残す）', [q.getAll('3[id]'), q.getAll('3[is_time_not_set]'), q.getAll('3[start_work]'), q.getAll('3[end_work]')], [['555'], ['0', '1'], ['13:00'], ['22:00']]);
-eq('★ 全員ぶん入っている', ['1', '2', '3'].every((g) => q.has(g + '[id]')), true);
+// ★ 第1866便: 相手の画面と同じく【変える人の行だけ】送る（変えない行・行の印 "<番号>" は送らない。全員ぶん送ると 500）
+eq('★★ ゆゆ（計画に無い）: 送らない', [q.getAll('3[id]'), q.getAll('3[start_work]')], [[], []]);
+eq('★ 変える人の行だけ入っている', [q.has('1[id]'), q.has('2[id]'), q.has('3[id]')], [true, true, false]);
+eq('★ 行の印（"<番号>"）は送らない', [q.has('1'), q.has('2'), q.has('3')], [false, false, false]);
 
 console.log('── 5. 時刻 ──');
 eq('20:00〜03:00', m.toZenkokuRange('20:00', '03:00'), { ok: true, label: '20:00-03:00', note: null });

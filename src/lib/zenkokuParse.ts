@@ -193,7 +193,7 @@ export type ZenkokuChange = { gid: string; after: string };
 export const ZENKOKU_MAX_FIELDS = 950;
 
 /**
- * ★★★ その日の保存の中身を組む。★ 読んだ画面を【全員ぶん】そのまま送り返し、変える人だけ差し替える。
+ * ★★★ その日の保存の中身を組む。★ 第1866便から【変える人の行だけ】を送る（相手の画面と同じ）。
  *   ・after が 'HH:MM-HH:MM' … その時刻で出勤（未定・解除のチェックは外す）
  *   ・after が '─'           … 出勤解除にチェック（画面で人が解除するのと同じ。時刻はそのまま）
  *   ★ 変えない人の行は、読んだとおり（未定のチェックも残す）。★ フクエスに居ない人を消さない。
@@ -202,8 +202,14 @@ export function buildZenkokuDayPayload(page: ZenkokuDayPage, changes: ReadonlyAr
   const want = new Map<string, string>();
   for (const c of changes) want.set(c.gid, c.after);
   const parts: Array<[string, string]> = [['_method', 'POST'], ['user_id', page.userId]];
+  // ★★★ 第1866便（カッキーさん・11/10 0:4x に相手の画面のスクリプト script_schedule.js を読んで分かった）:
+  //   相手の画面は「保存する」を押した瞬間に、【変えていない行】の select・input をすべて disabled にしてから送る
+  //   （行の印 <input type=hidden name="<番号>" id="dis-key-<番号>"> が変えた行で disabled になり、残った行をまとめて止める）。
+  //   ＝ 送られるのは【変えた行だけ】。しかも変えた行の印（"<番号>"=''）も送られない。
+  //   第1804便から 55名全員の行を送っていたため、相手のサーバーが「An Internal Error Has Occurred」（500）になっていた。
   for (const r of page.rows) {
     const after = want.get(r.gid);
+    if (after === undefined) continue;   // ★ 変えない行は送らない（画面と同じ）
     let start = r.start, end = r.end, notSet = r.notSet, del = r.deleteChecked;
     if (after !== undefined) {
       if (after === '─') {
@@ -221,7 +227,7 @@ export function buildZenkokuDayPayload(page: ZenkokuDayPage, changes: ReadonlyAr
     if (notSet) parts.push([r.gid + '[is_time_not_set]', '1']);
     parts.push([r.gid + '[start_work]', start]);
     parts.push([r.gid + '[end_work]', end]);
-    parts.push([r.gid, '']);
+    // ★ 第1866便: 行の印（"<番号>"）は送らない（変えた行では disabled になって送られない）
   }
   return {
     body: parts.map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&'),
