@@ -57,7 +57,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
 ];
 
 /** ★ 第1847便: 「サイト自動更新」の中にまとめた画面（サイドバーには出さず、開いているときは「サイト自動更新」を光らせる） */
-export const AUTO_HUB_CHILDREN: readonly ConecfNavKey[] = ['ekiRankImg', 'ekiMovie', 'ekiMagazine', 'esutamaOpt', 'zenkokuOpt'];
+//   ★ 第1848便: 駅ちか新着情報・ココア店長ブログも駅ちかの中へ（カッキーさん）
+export const AUTO_HUB_CHILDREN: readonly ConecfNavKey[] = ['news', 'ekiRankImg', 'ekiMovie', 'ekiMagazine', 'cocoa', 'esutamaOpt', 'zenkokuOpt'];
 
 export function conecfNavItem(key: ConecfNavKey): ConecfNavItem {
   return CONECF_NAV.find((n) => n.key === key) ?? CONECF_NAV[0];

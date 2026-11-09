@@ -103,7 +103,8 @@ export function ConecfShell({
   const ekiMagazineNav = session.state?.ekiMagazineNav ?? false;
   const ekiRankImgNav = session.state?.ekiRankImgNav ?? false;
   // ★ 第1847便: 「サイト自動更新」は中の項目が1つでも使える店だけ。中の画面を開いているときは、それを光らせる
-  const autoHubNav = esutamaOptNav || zenkokuOptNav || ekiMovieNav || ekiMagazineNav || ekiRankImgNav;
+  //   ★ 第1848便: 駅ちか新着情報（どの店にも出す）が中に入ったので、いつも出す
+  const autoHubNav = true;
   const inAutoHub = AUTO_HUB_CHILDREN.includes(current);
   // ★ 第1740便: 新しい希望の数（お店ごと・表を開くと 0 に戻る）
   const shiftNew = session.state?.shiftNew ?? 0;

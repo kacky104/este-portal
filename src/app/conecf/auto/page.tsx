@@ -20,9 +20,11 @@ export default function ConecfAutoHubPage() {
     {
       site: '駅ちか',
       items: [
+        { href: '/news', label: '新着情報（ニュース）', note: '速報NEWS・新人速報などのカテゴリーごとに、1日1回ずつ順番に投稿します', on: true },
         { href: '/ekichika-rankimgs', label: 'ランキング画像（店舗メイン／ランキング）', note: '決めた間隔で、店舗メイン・ランキングの女の子を順番に入れ替えます', on: st?.ekiRankImgNav ?? false },
         { href: '/ekichika-movies', label: '動画投稿', note: '決めた時刻に、女の子の動画を投稿します（前の同じ記事は消してから）', on: st?.ekiMovieNav ?? false },
         { href: '/ekichika-magazines', label: 'プラチナムマガジン', note: '決めた時刻に、マイショップ登録の会員さんへマガジンを配信します', on: st?.ekiMagazineNav ?? false },
+        { href: '/cocoa', label: 'ココア店長ブログ', note: '駅ちかの求人サイト「ココア」の店長ブログを、決めた時刻にメールで投稿します', on: st?.cocoaNav ?? false },
       ],
     },
     {
