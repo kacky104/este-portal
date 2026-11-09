@@ -45,7 +45,7 @@ function Field({ label, badge, children }: { label: string; badge?: '必須'; ch
     <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr] gap-1.5 sm:gap-3 items-start py-2.5 border-b border-slate-100 last:border-b-0">
       <div className="flex items-center gap-1.5 pt-2">
         {badge && (
-          <span className="text-[11px] font-bold px-1.5 py-0.5 text-rose-600 bg-rose-50">{badge}</span>
+          <span className="rounded text-[10.5px] font-bold px-1.5 py-0.5 text-rose-600 bg-rose-50 ring-1 ring-rose-100">{badge}</span>
         )}
         <span className="text-[14px] font-bold text-slate-600">{label}</span>
       </div>
@@ -58,7 +58,7 @@ function Field({ label, badge, children }: { label: string; badge?: '必須'; ch
 function PairLabel({ label, badge }: { label: string; badge?: '必須' }) {
   return (
     <div className="flex items-center gap-1.5 pt-2">
-      {badge && <span className="text-[11px] font-bold px-1.5 py-0.5 text-rose-600 bg-rose-50">{badge}</span>}
+      {badge && <span className="rounded text-[10.5px] font-bold px-1.5 py-0.5 text-rose-600 bg-rose-50 ring-1 ring-rose-100">{badge}</span>}
       <span className="text-[14px] font-bold text-slate-600">{label}</span>
     </div>
   );
@@ -213,10 +213,10 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
   // ★ 第724便（カッキーさん）: コメント／各サイト項目／Q&A → サイトごと（フクエス／駅ちか／エステ魂）。★ そのサイトに反映するものが1タブにまとまる
   const TABS: Array<[Tab, string]> = [['basic', '基本情報'], ['fukues', 'フクエス'], ['ekichika', '駅ちか'], ['esutama', 'エステ魂'], ['diary', '写メ日記'], ['images', '画像'], ['sites', '送り先サイト']];
   const saveBtn = (onClick: () => void, label = '保存する') => (
-    <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex items-center justify-end gap-3">
-      {!enabled && <span className="text-[12.5px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
+    <div className="sticky bottom-0 rounded-b-xl bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-3 flex items-center justify-end gap-3">
+      {!enabled && <span className="text-[12.5px] text-amber-700">保存は、ホームで「コネックエフに切り替える」を押してから</span>}
       <button type="button" disabled={saving || !enabled} onClick={onClick}
-        className="px-8 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold disabled:opacity-50">
+        className="h-10 px-8 bg-indigo-600 hover:bg-indigo-700 text-white text-[14px] font-bold disabled:opacity-50">
         {saving ? '保存しています…' : label}
       </button>
     </div>
@@ -250,20 +250,20 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
               onRemove={() => void pushEs.send(true)} onKeep={() => void pushEs.send(false)} onCancel={() => pushEs.setRemovals(null)} />
           </div>
         )}
-        <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-end gap-3">
-          {!enabled && <span className="text-[12.5px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
+        <div className="sticky bottom-0 rounded-b-xl bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-end gap-2.5">
+          {!enabled && <span className="text-[12.5px] text-amber-700">保存は、ホームで「コネックエフに切り替える」を押してから</span>}
           <button type="button" disabled={saving || pushing || !enabled}
             onClick={() => void (async () => {
               const ok = await onSave();
               // ★ 第1505便: 登録直後（相手サイトに写真が無い）の子は、「保存」だけでも送る
               if (ok) { const extra = await autoPushFresh(images); if (extra) onToast(extra); }
             })()}
-            className="h-8 min-w-[80px] px-5 rounded border border-[#218925] bg-white text-[#218925] text-[12px] disabled:opacity-40">
+            className="h-10 min-w-[88px] px-5 border border-emerald-600 bg-white text-emerald-700 text-[13.5px] font-bold hover:bg-emerald-50 disabled:opacity-40">
             {saving ? '保存中…' : label}
           </button>
           <button type="button" disabled={saving || pushing || !enabled} onClick={() => void onSaveAndPush()}
-            className="h-8 min-w-[80px] px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40">
-            {saving ? '保存中…' : pushing ? '受け付けています…' : `${label}してフクエス・駅ちか・エステ魂へ更新`}
+            className="h-10 min-w-[88px] px-5 bg-emerald-600 hover:bg-emerald-700 text-white text-[13.5px] font-bold disabled:opacity-40">
+            {saving ? '保存中…' : pushing ? '受け付けています…' : `${label}して各サイトへ更新`}
           </button>
         </div>
       </>
@@ -272,38 +272,51 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <Link href={href('/girls')} className="text-[14px] font-bold text-slate-500 hover:text-indigo-600">‹ セラピスト一覧へ</Link>
-        <button type="button" disabled={saving || !enabled} onClick={() => void onToggleActive()}
-          className={`px-3 py-1.5 text-[13px] font-bold border ${form.isActive ? 'text-indigo-700 border-indigo-300 bg-indigo-50' : 'text-slate-500 border-slate-300 bg-white'} disabled:opacity-50`}>
-          {form.isActive ? '公開中（押すと非公開）' : '非公開（押すと公開）'}
+      {/* ★ 第1875便（カッキーさん「見た目を整理」）: 上に写真・名前・公開スイッチをまとめた見出し */}
+      <Link href={href('/girls')} className="inline-block text-[13px] font-bold text-slate-500 hover:text-indigo-600">‹ セラピスト一覧へ</Link>
+      <div className={`${CARD} flex items-center gap-3 px-4 py-3`}>
+        <div className={`h-[64px] w-[48px] flex-none overflow-hidden rounded-lg bg-slate-100 ring-1 ring-slate-200 ${form.isActive ? '' : 'opacity-60'}`}>
+          {images[0]
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={images[0]} alt="" className="h-full w-full object-cover" />
+            : <span className="grid h-full w-full place-items-center text-[10px] text-slate-400">写真なし</span>}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[17px] font-bold text-slate-900">{form.name || '（名前なし）'}{form.isNewFace && <span className="ml-2 align-middle rounded bg-pink-500 px-1.5 py-px text-[10.5px] font-bold text-white">NEW</span>}</p>
+          <p className="text-[12.5px] text-slate-500">{[form.age ? `${form.age}歳` : '', form.cup ? `${form.cup}カップ` : ''].filter(Boolean).join('・') || '年齢・カップ未入力'}</p>
+        </div>
+        <button type="button" role="switch" aria-checked={form.isActive} disabled={saving || !enabled} onClick={() => void onToggleActive()}
+          title={form.isActive ? '押すと非公開にします' : '押すと公開にします'}
+          className={`relative h-7 w-[84px] flex-none rounded-full text-[12px] font-bold text-white transition-colors disabled:opacity-50 ${form.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+          <span className={`absolute top-1/2 -translate-y-1/2 ${form.isActive ? 'left-2.5' : 'right-2.5'}`}>{form.isActive ? '公開中' : '非公開'}</span>
+          <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow ${form.isActive ? 'right-0.5' : 'left-0.5'}`} />
         </button>
       </div>
 
       {/* ── 第1501便: 新規登録の直後の「次にやること」── */}
       {showNext && (
-        <div className="border border-indigo-200 bg-indigo-50/60 px-4 py-3">
+        <div className="border border-indigo-200 bg-indigo-50 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <p className="text-[15px] font-bold text-indigo-800">{form.name ? form.name + 'さんを登録しました。' : '登録しました。'}次にやること</p>
             <button type="button" onClick={() => setShowNext(false)} className="text-[13px] text-slate-500 hover:text-slate-700 whitespace-nowrap">閉じる ×</button>
           </div>
           <ol className="mt-2 space-y-1.5 text-[14px] text-slate-700 leading-relaxed list-decimal pl-5">
             <li>
-              <b className="font-bold">写真・年齢・サイズを入れて「保存して更新」</b>（このページの基本情報・画像のタブ）
+              <b className="font-bold">写真・年齢・サイズを入れて「保存して各サイトへ更新」</b>
             </li>
             <li>
               <b className="font-bold">駅ちか・エステ魂へ登録</b> →
-              <Link href={href('/girls/sync')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">「サイトへ登録」を開く ›</Link>
-              <span className="block text-[13px] text-slate-500">駅ちかやエステ魂で先に登録してある方は、同じ名前なら新しく作らずに結びつけます。これが無いと、出勤・写真・写メ日記がその方に届きません。</span>
+              <Link href={href('/girls/sync')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">登録状況一覧を開く ›</Link>
+              <span className="block text-[13px] text-slate-500">同じ名前の方がいれば連携します。未登録だと出勤・写真・写メ日記が届きません。</span>
             </li>
             <li>
               <b className="font-bold">写メ日記を書いてもらうなら、本人をセラピストページに招待</b>（下の「リンク・QRで招待」）
-              <span className="block text-[13px] text-slate-500">駅ちかへの写メ日記は、登録が結びついていれば自動で届きます。エステ魂へも送るなら、本人が「魂セラピスト」を始めてから【写メ日記】タブで「了承あり」にしてください。</span>
+              <span className="block text-[13px] text-slate-500">エステ魂へも送るなら、本人が「魂セラピスト」を始めてから「写メ日記」タブで「了承あり」に。</span>
             </li>
             <li>
               <b className="font-bold">出勤を入れる</b> →
               <Link href={href('/schedule')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">出勤スケジュールを開く ›</Link>
-              <span className="block text-[13px] text-slate-500">出勤の自動更新が ON なら、各サイトへは30分以内に反映します。</span>
+              <span className="block text-[13px] text-slate-500">自動更新が ON なら、各サイトへ30分以内に反映します。</span>
             </li>
           </ol>
         </div>
@@ -312,10 +325,11 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
       {/* ★ 第734便: 上の3ブロック（フクエス 自動更新／駅ちか・エステ魂の「更新する」）は消した。
           ★ 更新は各タブの「保存して○○へ更新」から（★ 保存せずに更新だけ、は無くなった。どれかのタブで保存して更新すれば同じ） */}
 
-      <div className="flex flex-wrap border-b border-slate-200">
+      {/* ★ 第1875便: タブは丸いボタンの列（スマホは横にスクロール） */}
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-none">
         {TABS.map(([k, label]) => (
-          <button key={k} type="button" onClick={() => setTab(k)}
-            className={`px-4 py-2.5 text-[14.5px] font-bold border-b-2 -mb-px ${tab === k ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+          <button key={k} type="button" onClick={() => setTab(k)} aria-pressed={tab === k}
+            className={`flex-none !rounded-full px-4 py-2 text-[13.5px] font-bold ring-1 transition-colors ${tab === k ? 'bg-indigo-600 text-white ring-indigo-600 shadow-sm' : 'bg-white text-slate-600 ring-slate-200 hover:bg-indigo-50 hover:text-indigo-700'}`}>
             {label}
           </button>
         ))}
@@ -334,7 +348,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
             <Field label="セラピスト名" badge="必須">
               {/* ★ 第764便（カッキーさん）: 左に1枚目の画像（トップ画像） */}
               <div className="flex items-start gap-3">
-                <div className="w-[60px] h-[80px] flex-none bg-slate-100 border border-slate-200 overflow-hidden grid place-items-center">
+                <div className="w-[60px] h-[80px] flex-none rounded-lg bg-slate-100 ring-1 ring-slate-200 overflow-hidden grid place-items-center">
                   {images[0]
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={images[0]} alt="" className="w-full h-full object-cover" />
@@ -344,13 +358,12 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
                   <input className={INPUT} value={form.name} maxLength={CONECF_NAME_MAX} onChange={(e) => set('name', e.target.value)} />
                   <p className="text-[12px] text-slate-400 mt-1">{[...form.name].length}/{CONECF_NAME_MAX}文字。</p>
                   {/* ★★ 第450便（カッキーさん）: 名前だけは自動で送れないので、赤字で気づけるようにした */}
-                  <p className="text-[12.5px] font-bold text-rose-700 mt-1">名前の変更は駅ちか・エステ魂はサイトでも直接変更が必要です。</p>
+                  <p className="text-[12.5px] font-bold text-rose-600 mt-1">名前は各サイトへ送りません。変えたら各サイトの管理画面でも直してください。</p>
                   {/* ★★ 第1549便: 駅ちかは1枚目の写真が無いとプロフィールを保存しない。お店の既定画像があればそれを送るので、無いときだけ案内 */}
                   {images.length === 0 && !d.hasSalonPlaceholder && (
                     <p className="text-[12.5px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 mt-2 leading-relaxed">
-                      写真がまだありません。駅ちかは写真が1枚も無いとプロフィール（年齢・サイズ・紹介文）を保存しません。
-                      「画像」タブで写真を入れてから「保存してフクエス・駅ちか・エステ魂へ更新」を押してください。
-                      写真の無い子には、お店の「<Link href={href('/girls/placeholder')} className="underline">セラピスト既定画像</Link>」を自動で使えます（左メニュー「セラピスト既定画像」で設定）。
+                      写真がありません。駅ちかは写真が無いとプロフィールを保存しません。「画像」タブで写真を入れるか、
+                      「<Link href={href('/girls/placeholder')} className="underline">セラピスト既定画像</Link>」を設定してください。
                     </p>
                   )}
                 </div>
@@ -416,29 +429,29 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
       {tab === 'images' && (
         <div className={CARD}>
           <div className="p-4 space-y-3">
-            <p className="text-[14px] text-slate-500">最大{CONECF_MAX_IMAGES}枚。1枚目がトップ画像です。</p>
+            <p className="text-[13.5px] text-slate-500">最大{CONECF_MAX_IMAGES}枚。1枚目がトップ画像です。← → で順番を変えられます。</p>
             {/* ★ 第875便（カッキーさん）: サイトごとの入り方（フクエス／駅ちか／エステ魂）の3行は消した */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {Array.from({ length: Math.min(images.length + 1, CONECF_MAX_IMAGES) }).map((_, i) => {
                 const url = images[i];
                 return (
                   <div key={i} className="space-y-1.5">
-                    <div className="aspect-[3/4] bg-slate-100 border border-slate-200 overflow-hidden relative">
+                    <div className="aspect-[3/4] rounded-xl bg-slate-100 ring-1 ring-slate-200 overflow-hidden relative">
                       {url
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={url} alt="" className="w-full h-full object-cover" />
                         : <span className="absolute inset-0 grid place-items-center text-[12px] text-slate-400">No.{i + 1}</span>}
-                      {i === 0 && url && <span className="absolute top-1 left-1 text-[11px] font-bold text-white bg-indigo-600 px-1.5 py-0.5">トップ</span>}
+                      {i === 0 && url && <span className="absolute top-1.5 left-1.5 rounded text-[11px] font-bold text-white bg-indigo-600 px-1.5 py-0.5 shadow">トップ</span>}
                     </div>
-                    <label className="block text-center text-[12.5px] font-bold text-indigo-600 border border-indigo-200 py-1 cursor-pointer hover:bg-indigo-50">
+                    <label className="block rounded-lg text-center text-[12.5px] font-bold text-indigo-600 border border-indigo-200 bg-white py-1.5 cursor-pointer hover:bg-indigo-50">
                       {uploading === i ? 'アップロード中…' : url ? '差し替え' : '画像を選択'}
                       <input type="file" accept="image/*" className="hidden" disabled={uploading !== null} onChange={(e) => void onUpload(e, i)} />
                     </label>
                     {url && (
                       <div className="flex gap-1">
-                        <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="flex-1 text-[12px] border border-slate-200 py-0.5 disabled:opacity-30">←</button>
-                        <button type="button" onClick={() => move(i, 1)} disabled={i === images.length - 1} className="flex-1 text-[12px] border border-slate-200 py-0.5 disabled:opacity-30">→</button>
-                        <button type="button" onClick={() => setImages((p) => p.filter((_, j) => j !== i))} className="flex-1 text-[12px] border border-slate-200 py-0.5 text-rose-600">削除</button>
+                        <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="flex-1 rounded-md text-[12px] border border-slate-200 bg-white py-1 hover:bg-slate-50 disabled:opacity-30">←</button>
+                        <button type="button" onClick={() => move(i, 1)} disabled={i === images.length - 1} className="flex-1 rounded-md text-[12px] border border-slate-200 bg-white py-1 hover:bg-slate-50 disabled:opacity-30">→</button>
+                        <button type="button" onClick={() => setImages((p) => p.filter((_, j) => j !== i))} className="flex-1 rounded-md text-[12px] border border-rose-200 bg-white py-1 text-rose-600 hover:bg-rose-50">削除</button>
                       </div>
                     )}
                   </div>
@@ -454,12 +467,12 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
         <div className={CARD}>
           <div className="p-4 space-y-3">
             <p className="text-[14px] text-slate-500 leading-relaxed">
-              この方の出勤・今すぐ・写真・新規登録を送るサイトを選びます。
-              <span className="block text-[13px] text-slate-400 mt-1">
-                ※ オフにすると、そのサイトへ新しく送らなくなります。すでにそのサイトに載っている出勤などはそのまま残るので、必要ならそのサイトで消してください。写メ日記はこの設定とは別です。
+              この方の出勤・今すぐ・写真を送るサイトを選びます。
+              <span className="block text-[12.5px] text-slate-400 mt-1">
+                外すと、そのサイトへ新しく送らなくなります（載っている内容は残ります）。写メ日記はこの設定とは別です。
               </span>
             </p>
-            <ul className="border border-slate-200 divide-y divide-slate-100">
+            <ul className="overflow-hidden rounded-xl border border-slate-200 divide-y divide-slate-100">
               <li className="flex items-center gap-3 px-3 py-2.5">
                 <input type="checkbox" checked disabled className="accent-indigo-600" />
                 <b className="text-[15px] font-bold text-slate-700">フクエス</b>

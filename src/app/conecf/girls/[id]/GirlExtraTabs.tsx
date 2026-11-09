@@ -217,15 +217,15 @@ export function GirlExtraTab({
               onRemove={() => void pushEs.send(true)} onKeep={() => void pushEs.send(false)} onCancel={() => pushEs.setRemovals(null)} />
           </div>
         )}
-        <div className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-end gap-3">
-          {!enabled && <span className="text-[12px] text-amber-700">保存するには、ホームで「コネックエフに切り替える」を押してください</span>}
+        <div className="sticky bottom-0 rounded-b-xl bg-white/95 backdrop-blur border-t border-slate-200 px-4 py-3 flex flex-wrap items-center justify-end gap-2.5">
+          {!enabled && <span className="text-[12.5px] text-amber-700">保存は、ホームで「コネックエフに切り替える」を押してから</span>}
           {enabled && !x.ready && <span className="text-[12px] text-amber-700">準備中です（運営の設定が済むと保存できます）</span>}
           <button type="button" disabled={saving || pushing || !enabled || !x.ready} onClick={() => void onSave()}
-            className="h-8 min-w-[80px] px-5 rounded border border-[#218925] bg-white text-[#218925] text-[12px] disabled:opacity-40">
+            className="h-10 min-w-[88px] px-5 border border-emerald-600 bg-white text-emerald-700 text-[13.5px] font-bold hover:bg-emerald-50 disabled:opacity-40">
             {saving ? '保存中…' : '保存'}
           </button>
           <button type="button" disabled={saving || pushing || !enabled || !x.ready} onClick={() => void onSaveAndPush()}
-            className="h-8 min-w-[80px] px-5 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40"
+            className="h-10 min-w-[88px] px-5 bg-emerald-600 hover:bg-emerald-700 text-white text-[13.5px] font-bold disabled:opacity-40"
             title={`保存してから、${siteLabel}へ更新を送ります`}>
             {saving ? '保存中…' : pushing ? '受け付けています…' : `保存して${siteLabel}へ更新`}
           </button>

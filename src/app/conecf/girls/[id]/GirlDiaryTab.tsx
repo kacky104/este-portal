@@ -145,7 +145,7 @@ export function GirlDiaryTab({ id, salonId, onToast }: { id: number; salonId: nu
                   <button
                     type="button" disabled={saving === key}
                     onClick={() => void onSave(s.p, s.label, row)}
-                    className="flex-none h-8 min-w-[80px] px-4 rounded bg-[#218925] text-white text-[12px] disabled:opacity-40"
+                    className="flex-none h-9 min-w-[80px] px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-bold disabled:opacity-40"
                   >
                     {saving === key ? '保存中…' : '保存'}
                   </button>

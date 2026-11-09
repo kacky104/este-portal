@@ -402,15 +402,15 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       type="button"
       onClick={() => setFukuesOn(true)}
       aria-pressed={fukuesSelected}
-      className={`relative flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
+      className={`relative flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
         fukuesSelected
           ? 'border-2 border-indigo-600 bg-indigo-50 shadow-sm'
-          : 'border border-slate-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/40'
+          : 'border border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/40'
       }`}
     >
       <span
         aria-hidden
-        className={`mt-0.5 w-7 h-7 flex-none grid place-items-center text-[13px] font-black ${
+        className={`mt-0.5 w-7 h-7 flex-none grid place-items-center rounded-lg text-[13px] font-black ${
           fukuesSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
         }`}
       >
@@ -479,15 +479,15 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 type="button"
                 onClick={() => { setSite(x); setFukuesOn(false); }}
                 aria-pressed={on}
-                className={`relative flex items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                className={`relative flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
                   on
                     ? 'border-2 border-indigo-600 bg-indigo-50 shadow-sm'
-                    : 'border border-slate-300 bg-white hover:border-indigo-300 hover:bg-indigo-50/40'
+                    : 'border border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/40'
                 }`}
               >
                 <span
                   aria-hidden
-                  className={`mt-0.5 w-7 h-7 flex-none grid place-items-center text-[13px] font-black ${
+                  className={`mt-0.5 w-7 h-7 flex-none grid place-items-center rounded-lg text-[13px] font-black ${
                     on ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
                   }`}
                 >
@@ -525,7 +525,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
               // ★ 第319便: 「変えると◯◯からの反映は止まります。」は書かない（押したときの問いが言う）
               ? brand.text(`いまは${view.label}から反映しています。更新するには「フクエスから反映」に変えてください。`)
               : view.direction === 'off'
-                ? (brand.isConecf ? 'いまはこのサイトを更新していません。更新するには、ホームでこのサイトの「更新する」を押してください。' : '「反映しない」を選んでいます。更新するには「フクエスから反映」に変えてください。')
+                ? (brand.isConecf ? 'いまはこのサイトを更新していません。ホームでこのサイトの「更新する」を押すと始めます。' : '「反映しない」を選んでいます。更新するには「フクエスから反映」に変えてください。')
                 // ★ 鍵はあるが向きが決まっていない枠と、鍵がまだ無い枠を書き分ける（第87便・§223 の作法）
                 : view.hasCredential
                   ? brand.text('まだ反映の向きが決まっていません。「フクエスから反映」にすると更新できます。')
@@ -611,7 +611,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     : '自動更新の準備をしています。この画面のまましばらくお待ちください…'}
                 </p>
                 <p className="mt-1 text-[13px] text-indigo-900/70 leading-relaxed">
-                  ほかの画面へ移ると止まります。できあがると自動で続きます（ふつう1〜3分）。
+                  ほかの画面へ移ると止まります（ふつう1〜3分で終わります）。
                   {tick > 0 && `　待ち時間 ${Math.floor((tick * POLL_MS) / 60000)}分${Math.floor(((tick * POLL_MS) % 60000) / 1000)}秒`}
                 </p>
               </div>
@@ -664,7 +664,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {s.autoOn && (
                   <p className="text-[13px] text-slate-400 leading-relaxed">
                     {/* ★ 第1700便（B-1）: 変更がない間は待機していることを言う */}
-                    出勤に変更があれば、{AUTO_PUSH_INTERVAL_MIN}分以内に{s.label}を更新します（変更がない間は待機しています）。更新できないときは止めて、赤い枠でここに出します。
+                    出勤が変わると、{AUTO_PUSH_INTERVAL_MIN}分以内に{s.label}へ送ります。うまくいかないときは、ここに赤い枠で出します。
                   </p>
                 )}
 
@@ -683,8 +683,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   s.provider === 'ekichika' && s.slot >= 2 ? (
                     <div className="text-[14px] text-amber-900 bg-amber-50 border border-amber-200 px-3 py-2 leading-relaxed space-y-1">
                       <p className="font-bold">{s.label}には、まだセラピストが登録されていません。</p>
-                      <p>これから、{s.label}のページにセラピストを <b>20分に1人ずつ自動で登録</b>していきます（枠1と同じ顔ぶれになります）。登録が済んだ方から順に、出勤・写真・即ヒメも{s.label}に反映されます。何もしなくて大丈夫です。</p>
-                      <p className="text-[13px] text-amber-800/80">進み具合は「更新結果」と「セラピスト登録状況一覧」でご覧になれます。急ぐ方は「セラピスト登録状況一覧」で「登録する」を押すと、その場で登録できます。</p>
+                      <p>枠1と同じ顔ぶれになるよう、<b>20分に1人ずつ自動で登録</b>します。登録できた方から出勤・写真・即ヒメも届きます。何もしなくて大丈夫です。</p>
+                      <p className="text-[13px] text-amber-800/80">急ぐ方は「セラピスト登録状況一覧」で「登録する」を押すと、すぐ登録できます。</p>
                     </div>
                   ) : (
                     <p className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
@@ -705,7 +705,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {plan && plan.sendable !== true && plan.blockers.length === 0 && plan.targets > 0 && (
                   <p className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
                     いまは自動更新にできませんでした。少し時間をおいて、もう一度お試しください。
-                    続くようでしたら「連携の記録」の時刻を添えて運営にお知らせください。
+                    続くときは「{brand.isConecf ? '更新結果' : '連携の記録'}」の時刻を添えて運営にお知らせください。
                   </p>
                 )}
 
@@ -713,7 +713,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                 {plan && plan.blockers.length > 0 && (
                   <ul className="space-y-1.5">
                     {plan.blockers.map((b, i) => (
-                      <li key={`b-${i}`} className="text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
+                      <li key={`b-${i}`} className="rounded-lg text-[14px] text-rose-600 bg-rose-50 px-3 py-2 leading-relaxed">
                         {b.detail}
                       </li>
                     ))}
@@ -779,7 +779,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     <p className="text-[15px] font-bold text-indigo-700 leading-relaxed">
                       {s.label}の出勤が{plan.changeCount}件変わります。更新してから自動更新にします。
                     </p>
-                    <details className="border border-slate-200">
+                    <details className="rounded-lg border border-slate-200">
                       <summary className="cursor-pointer select-none px-3 py-2 text-[13.5px] font-bold text-slate-500">
                         変わるところを見る（{plan.changeCount}件）
                       </summary>
@@ -809,7 +809,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                           </table>
                         </div>
                         <p className="text-[13px] text-slate-400">
-                          同じ内容の行は出していません。{plan.dateLabels.length || 7}日ぶんのうち、変わる{plan.changeCount}件だけです。
+                          変わる{plan.changeCount}件だけを出しています。
                         </p>
                       </div>
                     </details>
@@ -839,7 +839,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                       <button
                         onClick={() => void onCheck(s, 'push_now')}
                         disabled={isBusy}
-                        className="px-4 py-2 border border-slate-200 text-[14px] font-bold text-slate-600 disabled:opacity-50"
+                        className="px-4 py-2 border border-indigo-300 bg-white text-[14px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
                       >
                         いますぐ更新する
                       </button>
@@ -855,7 +855,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     <button
                       onClick={() => void doPush(s.provider, s.slot, plan.fingerprint, true)}
                       disabled={isBusy}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
                     >
                       {isBusy ? '更新しています…' : '更新して自動にする'}
                     </button>
@@ -863,7 +863,7 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                     <button
                       onClick={() => onMakeAuto(s)}
                       disabled={isBusy || switching === k}
-                      className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[14px] font-bold shadow-sm disabled:opacity-50"
                     >
                       {switching === k ? '切り替えています…' : '出勤を自動更新にする'}
                     </button>

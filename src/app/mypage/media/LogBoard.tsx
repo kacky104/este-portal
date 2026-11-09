@@ -82,10 +82,10 @@ function Pills({
             type="button"
             onClick={() => onChange(o.v)}
             aria-pressed={value === o.v}
-            className={`px-2.5 py-1 border text-[13.5px] font-bold transition-colors ${
+            className={`rounded-full px-3 py-1 border text-[13px] font-bold transition-colors ${
               value === o.v
-                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                : 'bg-white text-slate-400 border-slate-200 hover:text-slate-600'
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-700'
             }`}
           >
             {o.t}
@@ -163,13 +163,11 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
   return (
     <div className="space-y-3">
       {/* ── この画面は何か ── */}
-      <div className={`${CARD} p-4`}>
-        {/* ★ 第211便（2026-09-07・カッキーさん）: 76字 → 1文。★ 「新しい順・失敗も残す」は一覧を見れば分かるので言わない */}
-        <p className="text-[14.5px] text-slate-500 leading-relaxed">
-          {/* ★ 第718便: フクエスリンクは駅ちかだけ（カッキーさん） */}
-          {brand.isConecf ? `${brand.name}が各サイトへ行ったことの記録です` : 'フクエスが駅ちかで行ったことの記録です'}（<b className="text-slate-700">書き換えできません</b>）。
-        </p>
-      </div>
+      {/* ★ 第211便（2026-09-07・カッキーさん）: 76字 → 1文。★ 第1875便: カードをやめて1行に */}
+      <p className="px-1 text-[13.5px] text-slate-500 leading-relaxed">
+        {/* ★ 第718便: フクエスリンクは駅ちかだけ（カッキーさん） */}
+        {brand.isConecf ? `${brand.name}が各サイトへ行ったことの記録です` : 'フクエスが駅ちかで行ったことの記録です'}（書き換えできません）。
+      </p>
 
       {/* ── ★ 第1684便: 枠1と同じにする登録の進み具合（20分に1人・第1681便 → 第1689便で出勤が先） ── */}
       {mirror.map((m) => {
@@ -186,19 +184,19 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
               {/* ★ 第1700便（B-4）: 出勤の送信と交互なので、残り時間は「目安」。長いときは時間で */}
               {!stopped && <span className="text-[13px] text-slate-500">（20分に1人・残りの目安 約{left * 20 >= 60 ? `${Math.floor((left * 20) / 60)}時間${(left * 20) % 60 ? `${(left * 20) % 60}分` : ''}` : `${left * 20}分`}）</span>}
             </div>
-            <div className="mt-2 h-2 w-full bg-slate-100 overflow-hidden">
-              <div className="h-full bg-indigo-500" style={{ width: `${pct}%` }} />
+            <div className="mt-2 h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${pct}%` }} />
             </div>
-            <p className="mt-1.5 text-[13px] text-slate-500 leading-relaxed">枠1と同じ顔ぶれになるよう、自動で順に登録しています。登録が済んだ方から出勤・写真・即ヒメも反映されます。うまくいった登録は、この下の一覧にはまとめて出しません（「くわしい記録」で見られます）。</p>
+            <p className="mt-1.5 text-[13px] text-slate-500 leading-relaxed">枠1と同じ顔ぶれになるよう、順に自動で登録しています。登録できた方から出勤・写真・即ヒメも届きます。</p>
             {held.length > 0 && (
               <div className="mt-2 border border-amber-300 bg-amber-50 px-3 py-2 space-y-1">
-                <p className="text-[13.5px] font-bold text-amber-800">自動では登録できなかった方（{held.length}名）: 3回試してうまくいかなかったため、自動では試していません。</p>
+                <p className="text-[13.5px] font-bold text-amber-800">自動で登録できなかった方（{held.length}名）</p>
                 <ul className="text-[13px] text-slate-700 leading-relaxed list-disc pl-5">
                   {held.map((h) => <li key={h.therapistId}><b className="font-bold">{h.name}</b> さん … {h.reason}</li>)}
                 </ul>
                 <p className="text-[12.5px] text-slate-500 leading-relaxed">
                   <a href={brand.link('roster')} className="font-bold text-indigo-600 underline underline-offset-4">セラピスト登録状況一覧</a>
-                  で、この方の「△ 登録する」から連携・登録してください。セラピストの内容を直して保存すると、自動の登録もまた試します。
+                  の「△」から連携・登録してください。内容を直して保存すると、自動でもまた試します。
                 </p>
               </div>
             )}
@@ -208,7 +206,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
 
       {/* ── 数 ── */}
       <div className={`${CARD} grid grid-cols-2`}>
-        <div className="px-3 py-2.5 border-r border-slate-200">
+        <div className="px-4 py-3 border-r border-slate-200">
           <div className="text-[12.5px] font-bold text-slate-400">
             {logCountLabel({
               scope,
@@ -222,7 +220,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
             {tally !== null && <span className="text-[13.5px] font-bold text-slate-400 ml-0.5">件</span>}
           </div>
         </div>
-        <div className="px-3 py-2.5">
+        <div className="px-4 py-3">
           <div className="text-[12.5px] font-bold text-slate-400">うまくいかなかったもの</div>
           <div className={`text-[21px] font-black tabular-nums ${tally && tally.failed > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
             {tally === null ? '—' : tally.failed}
@@ -277,7 +275,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
         <p className="text-[14px] text-rose-600 leading-relaxed px-1">
           記録を読み込めませんでした：{loadError}
           <br />
-          記録が無いのか読めていないのかが分からないため、この画面では件数を「—」にしています。
+          件数は「—」にしています。
         </p>
       )}
 
@@ -292,16 +290,16 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
             {shown.map((r) => {
               const tone = outcomeTone(r.outcome, r.noChange);
               return (
-                <li key={r.id} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-2.5">
+                <li key={r.id} className="py-3 first:pt-0 last:pb-0 flex items-start gap-2.5">
                   <span
-                    className={`mt-1.5 w-1.5 h-1.5 flex-none ${TONE_DOT[tone]}`}
+                    className={`mt-1.5 w-2 h-2 rounded-full flex-none ${TONE_DOT[tone]}`}
                     aria-hidden
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[13px] text-slate-400 tabular-nums">{fmt(r.createdAt)}</span>
                       {/* ★★ 4サイトになったので、どこへの記録かを毎行に出す */}
-                      <span className="text-[13px] font-bold px-1.5 border border-slate-200 text-slate-500">
+                      <span className="rounded text-[12px] font-bold px-1.5 py-px bg-slate-100 text-slate-600">
                         {providerLabel(r.provider)}（枠{r.slot}）
                       </span>
                       <span className={`text-[13px] font-bold ${TONE_TEXT[tone]}`}>
@@ -340,7 +338,7 @@ export function LogBoard({ salonId }: { salonId: number | null }) {
         <div className="text-center">
           {nextLimit === null ? (
             <p className="text-[13.5px] text-slate-400">
-              直近{limit}件まで表示しています。これより古い記録はこの画面には出しません。
+              直近{limit}件まで表示しています。
             </p>
           ) : (
             <button
