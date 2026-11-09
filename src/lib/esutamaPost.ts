@@ -64,6 +64,8 @@ export const ESUTAMA_CROPPING_URL = 'https://estama.jp/post/cropping/';
 export const ESUTAMA_REALTIME_CROP_BOX = 300;
 /** 投稿フォームに足す欄の名前（実測） */
 export const ESUTAMA_REALTIME_IMG_FIELD = 'photo_1-imgupload';
+/** 仮置きのときに送る枠の箱の id（実測 upload_id=photo_1-imgupload） */
+export const ESUTAMA_REALTIME_UPLOAD_ID = 'photo_1-imgupload';
 /** コネックエフに上げた投稿用の画像の置き場（salon-images/<店>/esutama_post_<時刻>.jpg）だけ */
 export function isEsutamaPostImagePath(p: string): boolean {
   return /^\d{1,10}\/esutama_post_[A-Za-z0-9_\-]{1,80}\.jpg$/.test(String(p ?? '')) && !String(p).includes('..');
@@ -101,7 +103,9 @@ export function buildRealtimeImageUploadRequest(cookie: string, ctk: string | nu
   if (!/^[A-Za-z0-9_\-]{1,64}\.jpg$/.test(filename)) throw new Error('ファイル名の形が不正');
   return {
     method: 'POST', url: ESUTAMA_UPTEMP_URL, headers: multipartHeaders(cookie, key),
-    multipart: { fields: { ctk }, files: [{ field: 'img', url: fileUrl, filename, contentType: 'image/jpeg' }] },
+    // ★★ 第1821便: 画面の croppic は upload_id（枠の箱の id）と text='test' も送っている（2026-11-09 13:20 実測・
+    //   ブラウザで1枚だけ仮置きして見た）。★ これが無いと応答は ["OUT",null] になる（11/9 の「画像は前のまま」の原因）
+    multipart: { fields: { upload_id: ESUTAMA_REALTIME_UPLOAD_ID, text: 'test', ctk }, files: [{ field: 'img', url: fileUrl, filename, contentType: 'image/jpeg' }] },
   };
 }
 
@@ -119,7 +123,9 @@ export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null
       fields: {
         imgUrl: up.url, imgInitW: String(w), imgInitH: String(h), imgW: String(imgW), imgH: String(imgH),
         imgY1: String(Math.floor((imgH - box) / 2)), imgX1: String(Math.floor((imgW - box) / 2)),
-        cropH: String(box), cropW: String(box), rotation: '0', ctk,
+        cropH: String(box), cropW: String(box), rotation: '0',
+        // ★ 第1821便: 仮置きと同じく upload_id・text も付ける（croppic の cropData も同じものと見ている）
+        upload_id: ESUTAMA_REALTIME_UPLOAD_ID, text: 'test', ctk,
       },
       files: [],
     },

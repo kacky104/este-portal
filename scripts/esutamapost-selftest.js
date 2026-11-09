@@ -52,11 +52,11 @@ eq('置き場の形', [m.isEsutamaPostImagePath('5/esutama_post_1731.jpg'), m.is
 eq('順番に回す', [m.pickEsutamaPostImage(['5/esutama_post_a.jpg', '5/esutama_post_b.jpg', '5/esutama_post_c.jpg'], 4), m.pickEsutamaPostImage([], 0)], [{ path: '5/esutama_post_b.jpg', index: 1 }, undefined]);
 const fu = 'https://fukues.com/api/relay/file?bucket=salon-images&path=5%2Fesutama_post_a.jpg';
 const up = m.buildRealtimeImageUploadRequest('c=1', CTK, fu, 'esutama_post_a.jpg');
-eq('仮置き（img ＋ ctk）', [up.url, up.multipart.fields, up.multipart.files[0].field, up.headers['content-type']], ['https://estama.jp/post/uptemp/', { ctk: CTK }, 'img', undefined]);
+eq('仮置き（img ＋ upload_id ＋ text ＋ ctk）', [up.url, up.multipart.fields, up.multipart.files[0].field, up.headers['content-type']], ['https://estama.jp/post/uptemp/', { upload_id: 'photo_1-imgupload', text: 'test', ctk: CTK }, 'img', undefined]);
 eq('仮置きの応答', m.parseCroppicResponse('{"status":"success","url":"/temp/file_x.jpg","width":600,"height":600}'), { ok: true, url: '/temp/file_x.jpg', width: 600, height: 600, message: null });
 eq('仮置きの失敗', m.parseCroppicResponse('{"status":"error","message":"<p>大きすぎ</p>"}').ok, false);
 const cr = m.buildRealtimeImageCropRequest('c=1', CTK, { url: '/temp/file_x.jpg', width: 600, height: 600 });
-eq('切り抜き（600角→300角・全体）', cr.multipart.fields, { imgUrl: '/temp/file_x.jpg', imgInitW: '600', imgInitH: '600', imgW: '300', imgH: '300', imgY1: '0', imgX1: '0', cropH: '300', cropW: '300', rotation: '0', ctk: CTK });
+eq('切り抜き（600角→300角・全体）', cr.multipart.fields, { imgUrl: '/temp/file_x.jpg', imgInitW: '600', imgInitH: '600', imgW: '300', imgH: '300', imgY1: '0', imgX1: '0', cropH: '300', cropW: '300', rotation: '0', upload_id: 'photo_1-imgupload', text: 'test', ctk: CTK });
 const cr2 = m.buildRealtimeImageCropRequest('c=1', CTK, { url: '/temp/y.jpg', width: 800, height: 1200 });
 eq('縦長は中央', [cr2.multipart.fields.imgW, cr2.multipart.fields.imgH, cr2.multipart.fields.imgY1, cr2.multipart.fields.imgX1], ['300', '450', '75', '0']);
 const ri = m.buildRealtimePostRequest('c=1', p, '本日限定割引', 'x', '/temp/crop_x.jpg');
