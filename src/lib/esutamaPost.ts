@@ -70,9 +70,10 @@ export function parseCroppicResponse(body: string): { ok: boolean; url: string |
     const url = typeof j.url === 'string' && j.url.length > 0 && j.url.length < 500 ? j.url : null;
     const num = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : null);
     if (j.status === 'success' && url) return { ok: true, url, width: num(j.width), height: num(j.height), message: null };
-    return { ok: false, url: null, width: null, height: null, message: stripTags(String(j.message ?? j.status ?? '')).slice(0, 120) || '失敗' };
+    return { ok: false, url: null, width: null, height: null, message: (stripTags(String(j.message ?? j.status ?? '')).slice(0, 80) || '失敗') + ' / ' + JSON.stringify(j).slice(0, 80) };
   } catch {
-    return { ok: false, url: null, width: null, height: null, message: '応答が JSON ではなかった' };
+    // ★ 第1814便: 何が返ったかを残す（原因を見るため。Cookie などは入らない応答の頭だけ）
+    return { ok: false, url: null, width: null, height: null, message: 'JSON ではない: ' + stripTags(String(body ?? '')).slice(0, 80) };
   }
 }
 

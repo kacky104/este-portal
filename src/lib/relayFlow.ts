@@ -964,6 +964,8 @@ export type RelayFlowContext = {
   /** ★ 第1812便: 画像を付けるときの、投稿の画面の中身（ctk・brws_shop_id・欄）と、切り抜いた画像の場所 */
   esutamaPostPage?: { ctk: string | null; shopId: string | null; fields: Array<[string, string]>; problems: string[] };
   esutamaPostImageUrl?: string;
+  /** ★ 第1814便: 画像を付けられなかった理由（結果に残して原因を見る） */
+  esutamaPostImageProblem?: string;
   // ── ここから下は intent='sort_push' のときだけ入る（第1557便）──
   /** コネックエフの並び（上から順の、そのサイトの番号） */
   sortWant?: string[];

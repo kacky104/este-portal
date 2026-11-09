@@ -36,7 +36,7 @@ function finish(ctx: RelayFlowContext, r: { readAt: string; posted: boolean; out
 }
 
 /** 投稿の段（画像があればその hidden も足す） */
-function postStep(ctx: RelayFlowContext, cookie: string, page: RealtimeEditPage, imageUrl: string | null, readAt: string, note: string): FlowOutcome {
+function postStep(ctx: RelayFlowContext, cookie: string, page: RealtimeEditPage, imageUrl: string | null, readAt: string, note: string, imageProblem?: string): FlowOutcome {
   const label = labelOf(ctx);
   const title = ctx.esutamaPost?.title ?? '';
   const body = ctx.esutamaPost?.body ?? '';
@@ -47,7 +47,7 @@ function postStep(ctx: RelayFlowContext, cookie: string, page: RealtimeEditPage,
   }
   return {
     kind: 'next', audits: [],
-    next: { purpose: 'esutama_post_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaPostSentAt: readAt, esutamaPostImageUrl: imageUrl ?? undefined } },
+    next: { purpose: 'esutama_post_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaPostSentAt: readAt, esutamaPostImageUrl: imageUrl ?? undefined, ...(imageProblem ? { esutamaPostImageProblem: imageProblem.slice(0, 120) } : {}) } },
     note: note + ' → 「' + title + '」を投稿する' + (imageUrl ? '（画像つき）' : ''),
   };
 }
@@ -103,7 +103,7 @@ export function afterEsutamaPostImgUp(input: Input, ctx: RelayFlowContext, nowAr
   const page = ctx.esutamaPostPage as RealtimeEditPage | undefined;
   if (!page) return finish(ctx, { readAt, posted: false, outcome: 'error: no_page' }, [], '投稿の画面の中身が文脈に無い');
   const r = input.status === 200 ? parseCroppicResponse(input.body) : { ok: false, url: null, width: null, height: null, message: 'http ' + input.status };
-  if (!r.ok || !r.url) return postStep(ctx, cookie, page, null, readAt, '画像を一時置き場へ上げられなかった（' + r.message + '）。画像なしで');
+  if (!r.ok || !r.url) return postStep(ctx, cookie, page, null, readAt, '画像を一時置き場へ上げられなかった（' + r.message + '）。画像なしで', '仮置き: ' + r.message);
   try {
     const c = buildRealtimeImageCropRequest(cookie, page.ctk, { url: r.url, width: r.width, height: r.height }, keyOf(ctx));
     return {
@@ -112,7 +112,7 @@ export function afterEsutamaPostImgUp(input: Input, ctx: RelayFlowContext, nowAr
       note: '画像を一時置き場へ上げた（' + r.width + '×' + r.height + '）→ 300×300 に切り抜く',
     };
   } catch (e) {
-    return postStep(ctx, cookie, page, null, readAt, '画像を切り抜けない（' + (e as Error).message + '）。画像なしで');
+    return postStep(ctx, cookie, page, null, readAt, '画像を切り抜けない（' + (e as Error).message + '）。画像なしで', '切り抜き前: ' + (e as Error).message);
   }
 }
 
@@ -123,7 +123,7 @@ export function afterEsutamaPostImgCrop(input: Input, ctx: RelayFlowContext, now
   const page = ctx.esutamaPostPage as RealtimeEditPage | undefined;
   if (!page) return finish(ctx, { readAt, posted: false, outcome: 'error: no_page' }, [], '投稿の画面の中身が文脈に無い');
   const r = input.status === 200 ? parseCroppicResponse(input.body) : { ok: false, url: null, width: null, height: null, message: 'http ' + input.status };
-  if (!r.ok || !r.url) return postStep(ctx, cookie, page, null, readAt, '画像を切り抜けなかった（' + r.message + '）。画像なしで');
+  if (!r.ok || !r.url) return postStep(ctx, cookie, page, null, readAt, '画像を切り抜けなかった（' + r.message + '）。画像なしで', '切り抜き: ' + r.message);
   return postStep(ctx, cookie, page, r.url, readAt, '画像を切り抜いた');
 }
 
@@ -168,7 +168,7 @@ export function afterEsutamaPostVerify(input: Input, ctx: RelayFlowContext, nowA
   const fresh = !!top?.at && Date.parse(top.at) >= Math.floor(sentAt / 60000) * 60000 - 60000;
   const same = !!top && (top.title === title || top.title.startsWith(title) || title.startsWith(top.title));
   if (fresh && same) {
-    return finish(ctx, { readAt, posted: true, outcome: ctx.esutamaPost?.image && !ctx.esutamaPostImageUrl ? 'ok: 画像は前のまま' : 'ok', lastAt: readAt },
+    return finish(ctx, { readAt, posted: true, outcome: ctx.esutamaPost?.image && !ctx.esutamaPostImageUrl ? 'ok: 画像は前のまま' + (ctx.esutamaPostImageProblem ? '（' + ctx.esutamaPostImageProblem + '）' : '') : 'ok', lastAt: readAt },
       [{ event: 'push_bump', outcome: 'ok', summary: label + 'を投稿しました（' + title + '）', detail: { post: key, manual, flowId } }], label + 'を投稿できた（' + title + '）');
   }
   return finish(ctx, { readAt, posted: false, outcome: top ? 'error: not_in_history' : 'error: verify_unreadable' },
