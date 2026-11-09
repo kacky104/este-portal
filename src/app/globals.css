@@ -625,6 +625,10 @@ body.paw-bg {
   box-shadow: none;
 }
 .conecf-venrey td[class~="bg-white"], .conecf-venrey th[class~="bg-white"], .conecf-venrey tr[class~="bg-white"] { border-radius: 0; }
+/* ★ 第1873便: 表を上下に分けて貼り付けている所（出勤スケジュール）は、角丸を付けない／下だけ丸める */
+.conecf-venrey .cf-flat { border-radius: 0 !important; box-shadow: none !important; }
+.conecf-venrey .cf-flat.rounded-t-xl { border-radius: 12px 12px 0 0 !important; }
+.conecf-venrey .cf-flat-top { border-top-left-radius: 0 !important; border-top-right-radius: 0 !important; }
 /* ★ 外枠（サイドバー・見出し・ドロワー・貼り付く保存バー）は四角のまま */
 .conecf-venrey aside, .conecf-venrey header, .conecf-venrey nav, .conecf-venrey [class*="sticky"][class~="bg-white"], .conecf-venrey [class*="fixed"][class~="bg-white"] { border-radius: 0; box-shadow: none; }
 .conecf-venrey [class*="bg-amber-50"][class*="border"], .conecf-venrey [class*="bg-rose-50"][class*="border"],

@@ -170,9 +170,13 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
         </div>
       )}
 
+      {/* ★ 第1873便（カッキーさん「見た目を整理」）: 上の操作を1段に。今日の出勤数は札、検索は丸い入力欄、使い方は1行 */}
       <div className={`${CARD} p-3 flex flex-wrap items-center gap-3`}>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1.5 text-[13px] font-bold text-indigo-700 ring-1 ring-indigo-100">
+          今日の出勤 <b className="text-[16px] tabular-nums">{todayCount}</b>名
+        </span>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="セラピスト名で検索"
-          className="flex-1 min-w-[160px] border border-slate-200 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-indigo-200" />
+          className="flex-1 min-w-[160px] max-w-[320px] !rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-[14px] focus:bg-white" />
         {/* ★ 第1472便: 入れられる日数（7〜30日）。保存していない変更があるときは変えられない */}
         <label className="flex items-center gap-1.5 text-[13px] font-bold text-slate-500" title={dirtyCount > 0 ? '先に変更を保存してください' : ''}>
           表示する日数
@@ -183,9 +187,9 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
             ))}
           </select>
         </label>
-        <span className="text-[13px] font-bold text-slate-500">今日の出勤 <b className="text-indigo-700 text-[16px] tabular-nums">{todayCount}</b>名</span>
-        <Link href={href('/schedule/sync')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">出勤をサイトへ ›</Link>
+        <Link href={href('/schedule/sync')} className="ml-auto inline-flex items-center h-9 px-3.5 border border-indigo-300 bg-white text-[13px] font-bold text-indigo-700 hover:bg-indigo-50">出勤をサイトへ ›</Link>
       </div>
+      <p className="!mt-2 px-1 text-[12.5px] text-slate-500">マスを押して出勤・時間を入れ、最後に下の「保存する」を押します。</p>
 
       {/* ★ 第1473便: 上の横スクロールバー（表が横にはみ出すときだけ）。第1775便で日付の行と一緒に貼り付く箱へ */}
       {/* ★★ 第1775便（カッキーさん）: 日付の行（と上の横スクロールバー）は、下へスクロールしても画面の上に残る。
@@ -193,11 +197,11 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       {/* ★ 第1856便: -mb-3 だと表の1行目に12px重なっていた（space-y の余白は下に付く）。ちょうど付くように !mb-0 */}
       <div className="sticky z-20 !mb-0" style={{ top: 'var(--conecf-header-h, 0px)' }}>
         {scrollW > clientW + 1 && (
-          <div ref={topBarRef} onScroll={() => syncScroll('top')} className="overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
+          <div ref={topBarRef} onScroll={() => syncScroll('top')} className="cf-flat overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
             <div style={{ width: scrollW, height: 1 }} />
           </div>
         )}
-        <div ref={headBoxRef} className="overflow-hidden border-x border-t border-slate-200 bg-slate-50 shadow-[0_2px_4px_rgba(31,35,51,0.06)]">
+        <div ref={headBoxRef} className="cf-flat overflow-hidden rounded-t-xl border-x border-t border-slate-200 bg-slate-50 shadow-[0_2px_4px_rgba(31,35,51,0.06)]">
           <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]" style={dates.length > 7 ? { minWidth: 150 + dates.length * 96 } : undefined}>
             <colgroup>
               <col className="w-[64px] sm:w-[150px]" />
@@ -213,7 +217,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                       <div className={`text-[13px] font-black ${h.tone}`}>{h.top}</div>
                       <div className={`text-[11px] font-bold ${h.tone}`}>{h.sub}</div>
                       <div className="mt-0.5">
-                        <span className={`inline-block min-w-[34px] px-1.5 py-px text-[11px] font-black tabular-nums ${
+                        <span className={`inline-block min-w-[34px] rounded-full px-1.5 py-px text-[11px] font-black tabular-nums ${
                           countOf(d) > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400'
                         }`}>
                           {countOf(d)}名
@@ -228,7 +232,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           </table>
         </div>
       </div>
-      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} overflow-x-auto !border-t-0`}>
+      <div ref={tableBoxRef} onScroll={() => syncScroll('box')} className={`${CARD} cf-flat-top overflow-x-auto !border-t-0`}>
         {/* ★★ 第438便（カッキーさん）: 日付のマスは【いつも同じ幅】。★ table-fixed で中身の文字数に引っぱられない */}
         {/* ★ 第1472便: 8日以上は1日を 96px にして横にスクロール（セラピストの列は左に貼り付く） */}
         <table className="w-full min-w-[760px] table-fixed border-collapse text-[13px]" style={dates.length > 7 ? { minWidth: 150 + dates.length * 96 } : undefined}>
@@ -245,8 +249,8 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                   <span className="flex flex-col items-center gap-1 sm:flex-row sm:items-center sm:gap-2">
                     {r.imageUrl
                       // eslint-disable-next-line @next/next/no-img-element -- ★ 第1074便: 他サイトの小さな顔写真（next/image の許可ドメイン外）
-                      ? <img src={r.imageUrl} alt="" width={40} height={54} className="w-9 h-12 sm:w-10 sm:h-[54px] object-cover border border-slate-200 bg-slate-100 shrink-0" loading="lazy" />
-                      : <span className="w-9 h-12 sm:w-10 sm:h-[54px] border border-slate-200 bg-slate-50 shrink-0" aria-hidden />}
+                      ? <img src={r.imageUrl} alt="" width={40} height={54} className="w-9 h-12 sm:w-10 sm:h-[54px] rounded-md object-cover ring-1 ring-slate-200 bg-slate-100 shrink-0" loading="lazy" />
+                      : <span className="w-9 h-12 sm:w-10 sm:h-[54px] rounded-md ring-1 ring-slate-200 bg-slate-50 shrink-0" aria-hidden />}
                     <span className="min-w-0 w-full sm:w-auto text-center sm:text-left">
                       <span className="block truncate text-[11px] sm:text-[13px] max-w-full sm:max-w-[92px] leading-tight">{r.name || '（名前なし）'}</span>
                       {!r.isActive && <span className="block text-[10px] sm:text-[10.5px] font-bold text-slate-400">非公開</span>}
@@ -269,8 +273,8 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                         type="button"
                         disabled={!r.isActive}
                         onClick={() => setOpen({ id: r.id, date: d })}
-                        className={`w-full min-h-[44px] px-1 py-1.5 text-center leading-tight border ${
-                          dirty ? 'border-amber-400 bg-amber-50' : c.isActive ? 'border-indigo-200 bg-indigo-50' : 'border-transparent hover:border-slate-200'
+                        className={`w-full min-h-[44px] rounded-lg px-1 py-1.5 text-center leading-tight border transition-colors ${
+                          dirty ? 'border-amber-400 bg-amber-50' : c.isActive ? 'border-indigo-200 bg-indigo-50 hover:border-indigo-400' : 'border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40'
                         } disabled:cursor-not-allowed`}
                       >
                         {/* ★★ 第443便: 出勤・開始・終了の3段（★ 終了時刻が2段にまたがって読みにくかった） */}
@@ -288,7 +292,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                                 : <span className="block text-[12px] font-bold text-slate-700 tabular-nums leading-tight">{label}</span>}
                             </>
                           )
-                          : <span className="text-[12px] text-slate-300">未設定</span>}
+                          : <span className="text-[12px] text-slate-300">＋</span>}
                       </button>
                     </td>
                   );
@@ -303,7 +307,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       {open && openRow && openCell && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(null)} aria-hidden />
-          <div className="relative w-full sm:w-[380px] bg-white shadow-2xl p-5 space-y-4">
+          <div className="relative w-full sm:w-[400px] rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-[16px] font-black text-slate-800">{openRow.name}　{dateHead(open.date, dates.indexOf(open.date)).top}（{dateHead(open.date, dates.indexOf(open.date)).sub}）</p>
               <button type="button" onClick={() => setOpen(null)} className="text-slate-400 text-[20px] leading-none" aria-label="閉じる">×</button>
@@ -348,23 +352,23 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
                       className="py-2 border border-sky-400 bg-sky-50 text-[13.5px] font-bold text-sky-700 hover:bg-sky-100">{label}</button>
                   ))}
                 </div>
-                <p className="text-[11.5px] leading-relaxed text-slate-400">翌日から毎日、同じ時間の出勤を入れます（既に入っている日も上書きします）。1ヶ月は、表示している日数（最大30日）までです。</p>
+                <p className="text-[11.5px] leading-relaxed text-slate-400">翌日から毎日、同じ時間で入れます（入っている日も上書き）。表示している日数までです。</p>
               </div>
             )}
-            <button type="button" onClick={() => setOpen(null)} className="w-full py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">決定</button>
-            <p className="text-[12px] text-slate-400">決定しただけでは保存されません。画面下の「保存する」を押してください。</p>
+            <button type="button" onClick={() => setOpen(null)} className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[15px] font-bold">決定</button>
+            <p className="text-center text-[12px] text-slate-400">最後に画面下の「保存する」で保存されます。</p>
           </div>
         </div>
       )}
 
       {/* ── 保存バー ── */}
       {dirtyCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 md:left-[288px] z-40 bg-white/95 backdrop-blur border-t border-amber-300 px-4 py-3 flex items-center justify-between gap-3">
-          <p className="text-[14px] font-bold text-amber-800">まだ保存していない変更が {dirtyCount} マスあります</p>
+        <div className="fixed bottom-0 left-0 right-0 md:left-[272px] z-40 bg-white/95 backdrop-blur border-t-2 border-amber-300 px-4 py-3 flex items-center justify-between gap-3 shadow-[0_-4px_14px_rgba(31,35,51,0.08)]">
+          <p className="text-[14px] font-bold text-amber-800">未保存の変更 <b className="tabular-nums">{dirtyCount}</b> マス</p>
           <div className="flex gap-2">
             <button type="button" onClick={() => setEdits({})} disabled={saving} className="px-3 py-2 border border-slate-300 text-[14px] font-bold text-slate-600">元に戻す</button>
             <button type="button" onClick={() => void onSave()} disabled={saving || !enabled}
-              className="px-6 py-2 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[14px] font-bold disabled:opacity-50">
+              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[14px] font-bold disabled:opacity-50">
               {saving ? '保存しています…' : '保存する'}
             </button>
           </div>

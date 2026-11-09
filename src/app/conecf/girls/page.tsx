@@ -420,7 +420,9 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
 
   return (
     <div className="space-y-4 text-[14px] text-[#212121]">
-      {/* ── 上のボタン（ベンリーと同じ緑の丸いボタン）── */}
+      {/* ── 上のボタン ──
+          ★ 第1873便（カッキーさん「見た目を整理」）: 1段目＝登録・取り込み（丸いボタン）／右に「サイトへ登録」「並び替え」。
+            2段目＝「チェックした方に」まとめてする操作（更新・削除）。何人選んでいるかを先頭に出す */}
       <div className="flex flex-wrap items-center gap-2.5">
         <button
           type="button"
@@ -447,25 +449,45 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             <span className="text-[16px] leading-none">⤓</span>写真取り込み
           </button>
         )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Link href={href('/girls/sync')} className="inline-flex items-center h-9 px-3.5 border border-slate-300 bg-white text-[13px] font-bold text-slate-700 hover:bg-slate-50">
+            登録状況を見る
+          </Link>
+          <Link href={href('/girls/sort')} className="inline-flex items-center h-9 px-3.5 border border-slate-300 bg-white text-[13px] font-bold text-slate-700 hover:bg-slate-50">
+            並び替え
+          </Link>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-slate-50 px-3 py-2.5">
+        <span className="mr-1 text-[13px] font-bold text-slate-600">
+          チェックした方に{picked.size > 0 ? <b className="ml-1 text-indigo-700">（{picked.size}名）</b> : <span className="ml-1 font-normal text-slate-400">（下の表でチェック）</span>}
+        </span>
         <button
           type="button"
           disabled={bulkBusy}
           onClick={() => void onBulk()}
-          className="inline-flex items-center h-8 px-3 rounded border border-[#218925] bg-[#fefdfd] text-[#218925] text-[12px] disabled:opacity-40"
+          className="inline-flex items-center h-8 px-3 border border-emerald-600 bg-white text-emerald-700 text-[12.5px] font-bold hover:bg-emerald-50 disabled:opacity-40"
         >
-          {bulkBusy ? '受け付けています…' : `駅ちかへまとめて更新${picked.size > 0 ? `（${picked.size}名）` : ''}`}
+          {bulkBusy ? '受け付けています…' : '駅ちかへ更新'}
         </button>
         <button
           type="button"
           disabled={bulkBusy}
           onClick={() => void onBulkEsutama()}
-          className="inline-flex items-center h-8 px-3 rounded border border-[#218925] bg-[#fefdfd] text-[#218925] text-[12px] disabled:opacity-40"
+          className="inline-flex items-center h-8 px-3 border border-emerald-600 bg-white text-emerald-700 text-[12.5px] font-bold hover:bg-emerald-50 disabled:opacity-40"
         >
-          {bulkBusy ? '受け付けています…' : `エステ魂へまとめて更新${picked.size > 0 ? `（${picked.size}名）` : ''}`}
+          {bulkBusy ? '受け付けています…' : 'エステ魂へ更新'}
         </button>
-        <Link href={href('/girls/sync')} className="inline-flex items-center h-8 px-3 rounded border border-slate-300 bg-[#fefdfd] text-[12px]">
-          サイトへ登録
-        </Link>
+        {/* ★ 第1557便: いまの並び順を駅ちか・エステ魂へ（チェックとは関係なく全員の順） */}
+        <button
+          type="button"
+          disabled={sortSending || !enabled}
+          onClick={() => void onSendOrder()}
+          className="inline-flex items-center h-8 px-3 border border-indigo-500 bg-white text-indigo-700 text-[12.5px] font-bold hover:bg-indigo-50 disabled:opacity-40"
+        >
+          {sortSending ? '受け付けています…' : '並び順をサイトへ送る'}
+        </button>
         {/* ★ 第1864便: チェックした方をまとめて削除 */}
         <button
           type="button"
@@ -474,18 +496,9 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
             if (picked.size === 0) { onToast('削除するセラピストにチェックを入れてください'); return; }
             setDelTargets((rows ?? []).filter((g) => picked.has(g.id)).map((g) => ({ id: g.id, name: g.name })));
           }}
-          className="inline-flex items-center h-8 px-3 rounded border border-[#c62828] bg-[#fefdfd] text-[#c62828] text-[12px]"
+          className="ml-auto inline-flex items-center h-8 px-3 border border-rose-500 bg-white text-rose-600 text-[12.5px] font-bold hover:bg-rose-50"
         >
-          {`選んだ方を削除${picked.size > 0 ? `（${picked.size}名）` : ''}`}
-        </button>
-        {/* ★ 第1557便: いまの並び順を駅ちか・エステ魂へ */}
-        <button
-          type="button"
-          disabled={sortSending || !enabled}
-          onClick={() => void onSendOrder()}
-          className="inline-flex items-center h-8 px-3 rounded border border-[#2563eb] bg-[#fefdfd] text-[#1d4ed8] text-[12px] disabled:opacity-40"
-        >
-          {sortSending ? '受け付けています…' : '並び順を駅ちか・エステ魂へ送る'}
+          選んだ方を削除
         </button>
       </div>
 
@@ -508,9 +521,9 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
               <b className="font-bold">{askSites.sites.join('・')}</b>へも、いま登録しますか？
             </p>
             <ul className="text-[12.5px] text-slate-500 leading-relaxed list-disc pl-5 space-y-0.5">
-              <li>名前・年齢・サイズで登録します。写真は、あとで編集画面の「保存して更新」で送れます。</li>
-              <li>すでに同じ名前の方がそのサイトにいる場合は、新しく作らずに結びつけます。</li>
-              <li>登録しないと、出勤・写真・写メ日記はそのサイトのこの方には届きません。</li>
+              <li>名前・年齢・サイズで登録します。写真はあとから送れます。</li>
+              <li>同じ名前の方がサイトにいれば、新しく作らずに連携します。</li>
+              <li>登録しないと、そのサイトに出勤・写真・写メ日記が届きません。</li>
             </ul>
             <div className="flex flex-wrap gap-2 pt-1">
               <button type="button" disabled={askBusy} onClick={() => void onRegisterSites()}
@@ -546,7 +559,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
               {busy ? '登録しています…' : '登録して編集へ'}
             </button>
           </div>
-          <p className="text-[12px] text-slate-500">登録するとフクエスに公開の状態で追加され、続けて駅ちか・エステ魂へも登録するかを聞きます（あとから「サイトへ登録」でもできます）。</p>
+          <p className="text-[12.5px] text-slate-500">フクエスに公開で追加し、続けて各サイトへも登録するかを聞きます。</p>
         </div>
       )}
 
@@ -555,11 +568,11 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         <div className="bg-white border border-slate-200 p-4 space-y-3">
           <p className="font-bold">駅ちかからセラピストと出勤を取り込む（最初の1回だけ）</p>
           <ul className="text-[13px] text-slate-600 leading-relaxed list-disc pl-5">
-            <li>駅ちかに載っているセラピスト・年齢・サイズ・1週間の出勤を、まとめて取り込みます</li>
-            <li>まだ居ないセラピストは公開で追加します（新人マークは付けません）</li>
-            <li>入力済みの出勤の日はそのまま残します／年齢・サイズは空欄だけ埋めます</li>
-            <li>写真がまだ無いセラピストは、駅ちかの写真も取り込みます（写真を入れてあるセラピストはそのまま）</li>
-            <li>1回だけ押せます</li>
+            <li>駅ちかのセラピスト・年齢・サイズ・1週間の出勤をまとめて取り込みます</li>
+            <li>いない方は公開で追加します（新人マークは付けません）</li>
+            <li>入力済みの出勤・年齢・サイズは上書きしません</li>
+            <li>写真の無い方は、駅ちかの写真も取り込みます</li>
+            <li>押せるのは1回だけです</li>
           </ul>
           <div className="flex gap-2">
             <button type="button" onClick={() => setImportOpen(false)} disabled={importBusy} className="h-8 px-4 rounded bg-black/[0.07] text-[12px]">キャンセル</button>
@@ -574,11 +587,10 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         <div className="bg-white border border-slate-200 p-4 space-y-3">
           <p className="font-bold">駅ちかから写真を取り込む（1回だけ）</p>
           <ul className="text-[13px] text-slate-600 leading-relaxed list-disc pl-5">
-            <li>写真がまだ無いセラピスト（{pst?.noPhotoCount ?? 0}名）に、駅ちかに載っている写真を取り込みます</li>
-            <li>写真を入れてあるセラピストはそのままです</li>
-            <li>駅ちかで写真の枠が空いている場合は、詰めて並べます（次に「駅ちかへ更新」したとき、駅ちか側も詰まります）</li>
-            <li>取り込んだあとは、コネックエフで写真を消すと駅ちかからも消えます</li>
-            <li>1回だけ押せます</li>
+            <li>写真の無いセラピスト（{pst?.noPhotoCount ?? 0}名）に、駅ちかの写真を取り込みます</li>
+            <li>写真のある方はそのままです</li>
+            <li>取り込んだあと、コネックエフで写真を消すと駅ちかからも消えます</li>
+            <li>押せるのは1回だけです</li>
           </ul>
           <div className="flex gap-2">
             <button type="button" onClick={() => setPhotoOpen(false)} disabled={photoBusy} className="h-8 px-4 rounded bg-black/[0.07] text-[12px]">キャンセル</button>
@@ -599,14 +611,14 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
       )}
       {st && st.phase === 'done' && st.summary && st.summary.unmatched.length > 0 && (
         <p className="bg-white border border-slate-200 px-4 py-2.5 text-[12px] text-slate-500">
-          駅ちかから取り込めなかったセラピスト：{st.summary.unmatched.join('、')}（「＋新規登録」から登録してください）
+          駅ちかから取り込めなかった方：{st.summary.unmatched.join('、')}（「＋新規登録」から登録してください）
         </p>
       )}
 
       {/* ── 表 ── */}
       <div className="bg-white border border-slate-200">
         <div className="flex flex-wrap items-center gap-3 px-5 py-4">
-          <label className="flex items-center gap-2 flex-1 min-w-[200px] max-w-[520px] h-10 px-4 rounded-full border border-[#90caf9] bg-[#f5faff]">
+          <label className="flex items-center gap-2 flex-1 min-w-[200px] max-w-[420px] h-10 px-4 rounded-full border border-slate-200 bg-slate-50 focus-within:border-indigo-400 focus-within:bg-white">
             <span className="text-slate-400" aria-hidden>⌕</span>
             <input
               value={q}
@@ -615,17 +627,16 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
               className="flex-1 min-w-0 bg-transparent text-[14px] focus:outline-none"
             />
           </label>
-          <span className="ml-auto text-[14px] tabular-nums">{rows ? `${shown.length > 0 ? 1 : 0}-${shown.length}人 / ${total}人中` : ''}</span>
+          <span className="ml-auto text-[13px] font-bold text-slate-500 tabular-nums">{rows ? (q.trim() ? `${shown.length}人 / ${total}人中` : `全${total}人`) : ''}</span>
         </div>
         {/* ★ 第1384便: 並べ替えの説明（2人以上いるときだけ） */}
         {rows && rows.length > 1 && (
           <p className="px-5 -mt-1.5 pb-3 text-[12px] leading-relaxed text-slate-500">
-            左の<span className="inline-block align-[-3px] mx-1 text-slate-400"><GripIcon /></span>をつまんで上下に動かすと、並び順を変えられます（「先頭へ」でいちばん上へ）。
-            セラピスト登録状況一覧・出勤スケジュールも同じ順になります。
+            <span className="inline-block align-[-3px] mx-0.5 text-slate-400"><GripIcon /></span>をつまんで上下に動かすと並び順が変わります（出勤スケジュールなども同じ順）。
           </p>
         )}
 
-        <div className={`${COLS} items-center px-2 h-9 border-b border-slate-200 text-[12px] font-bold text-black/50`}>
+        <div className={`${COLS} items-center px-2 h-9 border-y border-slate-200 bg-slate-50 text-[12px] font-bold text-slate-500`}>
           <label className="pl-1 md:pl-2 flex items-center gap-1 font-normal cursor-pointer">
             <span className="w-7 md:mr-1" aria-hidden />
             <input
@@ -642,7 +653,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           <span className="text-center">年齢</span>
           <span className="hidden md:block">サイズ</span>
           <span className="hidden md:block text-center">公開状態</span>
-          <span className="hidden md:block text-center">セラピストページ連携</span>
+          <span className="hidden md:block text-center">セラピストページ</span>
           <span />
         </div>
 
@@ -656,7 +667,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                 key={g.id}
                 data-gid={g.id}
                 data-pub={g.isActive ? '1' : '0'}
-                className={`${COLS} items-center px-2 py-2.5 border-b border-slate-100 ${dragId === g.id ? 'relative z-10 bg-[#e3f2fd] shadow-[inset_0_0_0_2px_#1e88e5]' : 'hover:bg-black/[0.03]'}`}
+                className={`${COLS} items-center px-2 py-2.5 border-b border-slate-100 ${dragId === g.id ? 'relative z-10 bg-indigo-50 shadow-[inset_0_0_0_2px_#6366f1]' : g.isActive ? 'hover:bg-slate-50' : 'bg-slate-50/60 hover:bg-slate-50'}`}
               >
                 <span className="pl-1 md:pl-2 flex items-center gap-1 md:gap-2">
                   {/* ★ 第1384便: つまみ（公開中の方だけ）。つまんで上下に動かすと並び順が変わる */}
@@ -681,16 +692,16 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                     aria-label={`${g.name}を選ぶ`}
                   />
                   <span className="flex flex-col items-start gap-1">
-                    <Link href={href(`/girls/${g.id}`)} className="inline-flex items-center gap-1 text-[12px] text-[#1558d6] underline underline-offset-2">
+                    <Link href={href(`/girls/${g.id}`)} className="inline-flex items-center gap-1 text-[12px] font-bold text-indigo-600 hover:underline">
                       編集
                     </Link>
                     {/* ★ 第1864便: 一覧から1人ずつ削除 */}
                     <button type="button"
                       onClick={() => (enabled ? setDelTargets([{ id: g.id, name: g.name }]) : needEnabled('削除するには、ホームで「コネックエフに切り替える」を押してください'))}
-                      className="text-[12px] text-[#c62828] underline underline-offset-2">削除</button>
+                      className="text-[12px] text-rose-500 hover:text-rose-700 hover:underline">削除</button>
                   </span>
                 </span>
-                <Link href={href(`/girls/${g.id}`)} className="block w-[60px] h-[80px] bg-slate-100 overflow-hidden">
+                <Link href={href(`/girls/${g.id}`)} className={`block w-[60px] h-[80px] rounded-lg bg-slate-100 overflow-hidden ring-1 ring-slate-200 ${g.isActive ? '' : 'opacity-60'}`}>
                   {g.imageUrl
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={g.imageUrl} alt="" className="w-full h-full object-cover" />
@@ -700,7 +711,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                   {g.isNewFace && (
                     <span className="block w-fit mb-1 px-1.5 rounded-sm bg-[#e91e63] text-white text-[10.5px] font-bold leading-[18px] tracking-wide">NEW</span>
                   )}
-                  <span className="block truncate">{g.name || '（名前なし）'}</span>
+                  <Link href={href(`/girls/${g.id}`)} className="block truncate font-bold hover:text-indigo-700">{g.name || '（名前なし）'}</Link>
                   {/* ★ 第1504便（カッキーさん・C）: 駅ちかの番号が結びついていない方に札。押すとセラピスト登録状況一覧へ */}
                   {g.ekichikaLinked === false && g.isActive && (
                     <Link href={href('/girls/sync')} className="block w-fit mt-1 px-1.5 rounded-sm bg-rose-600 text-white text-[10.5px] font-bold leading-[18px] tracking-wide hover:bg-rose-700">駅ちか未登録</Link>
@@ -717,7 +728,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                     aria-checked={g.isActive}
                     disabled={toggling === g.id}
                     onClick={() => void onToggle(g)}
-                    className={`relative h-6 w-[76px] rounded-full text-[11px] text-white transition-colors disabled:opacity-50 ${g.isActive ? 'bg-[#1e88e5]' : 'bg-slate-400'}`}
+                    className={`relative h-6 w-[76px] rounded-full text-[11px] font-bold text-white transition-colors disabled:opacity-50 ${g.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`}
                   >
                     <span className={`absolute top-1/2 -translate-y-1/2 ${g.isActive ? 'left-2' : 'right-2'}`}>{g.isActive ? '公開中' : '非公開'}</span>
                     <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow ${g.isActive ? 'right-0.5' : 'left-0.5'}`} />
