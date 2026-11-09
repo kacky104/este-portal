@@ -108,7 +108,7 @@ function NewsCard({ o, onToast, reload, open, onToggle }: { o: ConecfZenkokuOpti
         <button type="button" disabled={busy} onClick={now} className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ1件投稿</button>
       </AccHead>
       {open && (<>
-      <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行のニュースを全国エステランキングへ投稿します。1日5回まで（毎朝6時に戻ります）。「今すぐ1件投稿」も1回に数えます。</p>
+      <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行のニュースを投稿します。1日5回まで（毎朝6時に戻ります）。「今すぐ1件投稿」も1回に数えます。</p>
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-2">
         <div>最後に送れた：<b className="text-slate-800">{when(o.lastAt)}</b></div>
         <div>最後の結果：{outcomeText(o.lastOutcome)}</div>
@@ -179,7 +179,7 @@ function RecommendCard({ o, therapists, onToast, reload, open, onToggle }: { o: 
         <button type="button" disabled={busy} onClick={now} className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ次の方にする</button>
       </AccHead>
       {open && (<>
-      <p className="text-[13px] leading-relaxed text-slate-600">毎日決めた時刻に、リストの上から順に1人ずつ、全国エステランキングの「おすすめセラピスト」（1名）を入れ替えます。全国エステランキングでは<b>おすすめの変更回数に月ごとの上限</b>があり、使い切った月はそれ以上入れ替えません。全国エステランキングに居ない方・非公開の方は飛ばします。</p>
+      <p className="text-[13px] leading-relaxed text-slate-600">毎日決めた時刻に、リストの上から1人ずつ「おすすめセラピスト」を入れ替えます。<b>変更回数には月ごとの上限</b>があり、使い切った月は入れ替えません。サイトにいない方・非公開の方は飛ばします。</p>
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-3">
         <div>今月の残り：<b className="text-slate-800">{o.remaining ?? '—'}</b>回（{when(o.readAt)} 時点）</div>
         <div>最後に入れ替えた：<b className="text-slate-800">{when(o.lastAt)}</b></div>
@@ -234,7 +234,7 @@ export default function ConecfZenkokuOptionsPage() {
     <ConecfShell current="zenkokuOpt" title="全国エステランキング設定" toast={toast}>
       {() => (
         <div className="space-y-4">
-          <p className="text-[14px] leading-relaxed text-slate-600">全国エステランキングの「ニュース投稿」と「おすすめセラピスト」を、コネックエフから決めた時刻に送ります。時刻は朝6時はじまりの1日です（翌朝は「翌1:00」のように入れます）。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">全国エステランキングの「ニュース」と「おすすめセラピスト」を、決めた時刻に自動で送ります。1日は朝6時はじまりです（翌朝は「翌1:00」のように入れます）。</p>
           {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
           {!error && !opts && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {opts && opts.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使える設定はまだありません。運営事務局までご連絡ください。</div>}

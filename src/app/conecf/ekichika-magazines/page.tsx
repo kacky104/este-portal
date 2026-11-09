@@ -62,7 +62,7 @@ function SettingCard({ s, onToast, reload, open, onToggle }: { s: ConecfEkichika
         {!open && <span className="truncate text-[12px] text-slate-500">{s.schedule.map((r) => magazineMinLabel(r.min)).join('・') || '—'} ／ 最後：{when(s.lastAt)}・{outcomeText(s.lastOutcome)}</span>}
       </button>
       {open && (<>
-        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行のタイトル・本文でマガジンを投稿します。駅ちかの配信時刻は10分刻みなので、送った時刻を10分単位に切り上げた時刻で配信されます。自動は5分おきに見回るので、<b>配信したい時刻の5分前</b>を入れてください（12:20 に配信したいなら「12:15」）。</p>
+        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行のタイトル・本文を投稿します。駅ちかの配信は10分刻みのため、<b>配信したい時刻の5分前</b>を入れてください（12:20 に配信 → 「12:15」）。</p>
         <p className="text-[12.5px] leading-relaxed text-slate-500">本文は HTML です。駅ちかの管理画面でいまのマガジンを開き、本文の「HTMLタグを表示」で出てくる中身をそのまま貼り付けてください。</p>
         <div className="text-[13px] text-slate-600">最後に送れた：<b>{when(s.lastAt)}</b> ／ 最後の結果：{outcomeText(s.lastOutcome)}</div>
         {rows.map((r, i) => (
@@ -110,7 +110,7 @@ export default function ConecfEkichikaMagazinesPage() {
     <ConecfShell current="ekiMagazine" title="駅ちかプラチナムマガジン" toast={toast}>
       {() => (
         <div className="space-y-4">
-          <p className="text-[14px] leading-relaxed text-slate-600">駅ちか（駅ちか人気！風俗ランキング）の「プラチナムマガジン」を、決めた時刻に投稿します。届くのは駅ちかでお店をマイショップ登録している会員さんです。時刻は朝6時はじまりの1日です。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「プラチナムマガジン」を、決めた時刻に投稿します。届くのはお店をマイショップ登録している会員です。1日は朝6時はじまりです。</p>
           {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
           {!error && !data && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {data && data.settings.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるようになっていません。運営事務局までご連絡ください。</div>}

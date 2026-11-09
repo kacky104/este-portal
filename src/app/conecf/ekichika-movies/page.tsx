@@ -54,7 +54,7 @@ function VideoLibrary({ videos, onToast, reload }: { videos: ConecfVideo[]; onTo
   return (
     <section className={`${CARD} p-5 space-y-3`}>
       <h2 className="text-[17px] font-bold text-violet-700">動画の置き場</h2>
-      <p className="text-[13px] text-slate-600">投稿に使う動画を登録します（MP4・MOV、1本50MBまで）。登録した動画は下の「投稿する時刻」で選べます。</p>
+      <p className="text-[13px] text-slate-600">投稿に使う動画を登録します（MP4・MOV、1本50MBまで）。下の「投稿する時刻」で選べます。</p>
       <div className="flex flex-wrap items-center gap-2 text-[14px]">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="名前（例: りな動画）" className="w-48 border border-slate-300 px-2 py-1" />
         <label className={`cursor-pointer px-4 py-1.5 font-bold text-white ${busy ? 'bg-slate-400' : 'bg-violet-600'}`}>
@@ -110,7 +110,7 @@ function SettingCard({ s, videos, girls, onToast, reload, open, onToggle }: { s:
         {!open && <span className="truncate text-[12px] text-slate-500">{s.schedule.map((r) => movieMinLabel(r.min)).join('・') || '—'} ／ 最後：{when(s.lastAt)}・{outcomeText(s.lastOutcome)}</span>}
       </button>
       {open && (<>
-        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行の女の子の動画を駅ちかへ投稿します。駅ちかは1日{EKICHIKA_MOVIE_DAILY_MAX}件まで・同じ女の子で同じタイトルを5分以内に出すと反映されません。「前の同じ記事を消す」にすると、同じ女の子・同じタイトルの前の記事を消してから出します（ベンリーと同じ）。</p>
+        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行の女の子の動画を投稿します。駅ちかは1日{EKICHIKA_MOVIE_DAILY_MAX}件まで。「前の同じ記事を消す」にすると、同じ女の子・同じタイトルの前の記事を消してから投稿します。</p>
         <div className="text-[13px] text-slate-600">最後に送れた：<b>{when(s.lastAt)}</b> ／ 最後の結果：{outcomeText(s.lastOutcome)}</div>
         {rows.map((r, i) => (
           <div key={i} className="grid gap-2 border border-slate-200 p-3 text-[14px]">
@@ -160,7 +160,7 @@ export default function ConecfEkichikaMoviesPage() {
     <ConecfShell current="ekiMovie" title="駅ちか動画投稿" toast={toast}>
       {() => (
         <div className="space-y-4">
-          <p className="text-[14px] leading-relaxed text-slate-600">駅ちか（駅ちか人気！風俗ランキング）の「動画投稿」に、女の子の動画を決めた時刻に投稿します。時刻は朝6時はじまりの1日です。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「動画投稿」へ、女の子の動画を決めた時刻に投稿します。1日は朝6時はじまりです。</p>
           {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
           {!error && !data && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {data && data.settings.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるようになっていません。運営事務局までご連絡ください。</div>}

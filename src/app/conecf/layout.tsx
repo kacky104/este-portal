@@ -1,7 +1,5 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
-import { getTheme } from '@/app/lib/themes';
-import { fetchThemeWallpapers } from '@/app/lib/ranking';
 import { conecfBaseFor } from '@/lib/conecfHost';
 import { ConecfBaseProvider } from './ConecfBase';
 import { ConecfSessionProvider } from './ConecfSession';
@@ -9,7 +7,8 @@ import { ConecfSessionProvider } from './ConecfSession';
 // コネックエフ（conecf.com）の共通レイアウト（第395便・1a・2026-09-17・カッキーさん）。
 //
 // ★ 入口は conecf.com。src/proxy.ts が https://conecf.com/xxx → /conecf/xxx へ rewrite する。
-// ★ 色はフクエスリンクの紺を引き継ぐ（カッキーさんの決定）。★ 地はブルーのテーマ壁紙（/mypage/media と同じ作り）。
+// ★ 色はフクエスリンクの紺を引き継ぐ（カッキーさんの決定）。
+// ★ 第1872便（カッキーさん「全体の見た目を良くする」）: 地はテーマ壁紙（花柄）をやめ、薄い灰青のグラデーションに（★ 白いカードが浮いて読みやすい）。
 // ★★ 表向きフクエスのサイトではないので、タイトル・OGP にフクエスの名前を出さない。
 // ★ 管理画面なので検索に出さない。
 
@@ -37,19 +36,10 @@ export default async function ConecfLayout({ children }: { children: React.React
   const h = await headers();
   const base = conecfBaseFor(h.get('x-forwarded-host') ?? h.get('host'));
 
-  const theme = getTheme('blue');
-  const wallpapers = await fetchThemeWallpapers();
-  const wallpaperUrl = wallpapers[theme.key] ?? null;
   const bgStyle = {
-    backgroundColor: theme.bg,
-    ...(wallpaperUrl
-      ? {
-          backgroundImage: `linear-gradient(${theme.bg}D9, ${theme.bg}D9), url(${wallpaperUrl})`,
-          backgroundSize: 'cover' as const,
-          backgroundPosition: 'center' as const,
-          backgroundAttachment: 'fixed' as const,
-        }
-      : {}),
+    backgroundColor: '#f3f5fa',
+    backgroundImage: 'radial-gradient(1200px 600px at 100% -10%, rgba(99, 102, 241, 0.10), transparent 60%), radial-gradient(900px 500px at -10% 100%, rgba(236, 72, 153, 0.06), transparent 60%)',
+    backgroundAttachment: 'fixed' as const,
   };
 
   return (

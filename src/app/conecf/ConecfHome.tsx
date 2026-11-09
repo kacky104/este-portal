@@ -46,6 +46,23 @@ type Overview = { therapistCount: number; sites: Site[] };
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 
+// ★ 第1872便（カッキーさん「全体の見た目を良くする」）: 状態は色つきの丸＋短い言葉の「札」で出す。説明は1行・短く。
+function StatusPill({ tone, children }: { tone: 'ok' | 'off' | 'warn' | 'bad'; children: React.ReactNode }) {
+  const cls = {
+    ok: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    off: 'bg-slate-100 text-slate-500 ring-slate-200',
+    warn: 'bg-amber-50 text-amber-800 ring-amber-200',
+    bad: 'bg-rose-50 text-rose-700 ring-rose-200',
+  }[tone];
+  const dot = { ok: 'bg-emerald-500', off: 'bg-slate-400', warn: 'bg-amber-500', bad: 'bg-rose-500' }[tone];
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-bold ring-1 ${cls}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden />
+      {children}
+    </span>
+  );
+}
+
 /** ★ 第1700便（B-3）: 「10/28 14:36」。読めなければ空 */
 function fmtWhen(iso: string | null | undefined): string {
   const t = Date.parse(String(iso ?? ''));
@@ -166,7 +183,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
     return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>店舗が選ばれていません。</div>;
   }
   if (error) {
-    return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>連携の状態を読み込めませんでした（{error}）。しばらくしてから開き直してください。</div>;
+    return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>連携の状態を読み込めませんでした（{error}）。しばらくして開き直してください。</div>;
   }
 
   const sites = data?.sites ?? [];
@@ -226,7 +243,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
                 </li>
               ))}
             </ul>
-            <p className="mt-1 text-[13.5px] text-amber-900/70 leading-relaxed">直していただくと、次の周で自動の登録を再開します。</p>
+            <p className="mt-1 text-[13.5px] text-amber-900/70 leading-relaxed">直すと、次の周から自動の登録を再開します。</p>
             <Link href={href('/girls/sync')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">セラピスト登録状況一覧を開く ›</Link>
             <button type="button" onClick={closeStuck} aria-label="閉じる"
               className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-[18px] leading-none text-amber-700 hover:bg-amber-100">×</button>
@@ -252,7 +269,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
           {diaryReady.ekichikaUnlinked.length > 0 && (
             <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">
               <b className="font-bold">駅ちか</b>: {diaryReady.ekichikaUnlinked.map((p) => p.name).join('・')}（{diaryReady.ekichikaUnlinked.length}名）
-              — 駅ちかの登録と結びついていないため、投稿用アドレスを読み込めません。
+　— 駅ちかと連携していないため、投稿用アドレスを読めません。
               <Link href={href('/girls/sync')} className="ml-1 font-bold underline underline-offset-4">セラピスト登録状況一覧で連携する ›</Link>
             </p>
           )}
@@ -264,8 +281,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
         <div className="border border-amber-300 bg-amber-50 px-4 py-3">
           <p className="text-[15px] font-bold text-amber-800">セラピスト既定画像が未設定です</p>
           <p className="mt-1 text-[14px] text-amber-900/80 leading-relaxed">
-            写真がまだ無いセラピストに使う画像です。未設定だと、写真の無い新人のプロフィール・ジャンルが駅ちかに入りません（駅ちかは1枚目の写真が無いとプロフィールを保存しないため）。
-            「NO PHOTO」などの画像を1枚入れておいてください。
+            写真が無いセラピストに使う画像です。未設定だと、写真の無い新人のプロフィールが駅ちかに入りません。「NO PHOTO」などの画像を1枚入れてください。
           </p>
           <Link href={href('/girls/placeholder')} className="inline-block mt-2 text-[14px] font-bold text-amber-800 underline underline-offset-4">セラピスト既定画像を設定する ›</Link>
         </div>
@@ -275,44 +291,59 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
           ★ 同じことを、下の【そのサイトの行】に1行で出している（第437便）。★ 二重に出さない。 */}
 
       {/* ── 数 ── */}
-      <div className={`${CARD} grid grid-cols-2`}>
-        <div className="px-4 py-3 border-r border-slate-200">
-          <div className="text-[12.5px] font-bold text-slate-400">セラピスト</div>
-          <div className="text-[22px] font-black text-slate-800 tabular-nums">
-            {data ? data.therapistCount : '—'}<span className="text-[13px] font-bold text-slate-400 ml-0.5">名</span>
+      <div className="grid grid-cols-2 gap-3">
+        <Link href={href('/girls')} className={`${CARD} group flex items-center gap-3 px-4 py-3.5 hover:border-indigo-300`}>
+          <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-pink-50 text-pink-500">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></svg>
+          </span>
+          <div className="min-w-0">
+            <div className="text-[12px] font-bold text-slate-400">セラピスト</div>
+            <div className="text-[22px] font-black leading-tight text-slate-800 tabular-nums">
+              {data ? data.therapistCount : '—'}<span className="ml-0.5 text-[13px] font-bold text-slate-400">名</span>
+            </div>
           </div>
-        </div>
-        <div className="px-4 py-3">
-          <div className="text-[12.5px] font-bold text-slate-400">更新しているサイト</div>
-          <div className="text-[22px] font-black text-slate-800 tabular-nums">
-            {data ? (enabled && !stopped ? updating.length + 1 : 0) : '—'}<span className="text-[13px] font-bold text-slate-400 ml-0.5">サイト</span>
+        </Link>
+        <div className={`${CARD} flex items-center gap-3 px-4 py-3.5`}>
+          <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-indigo-50 text-indigo-500">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 21v-5h5" /><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5" /></svg>
+          </span>
+          <div className="min-w-0">
+            <div className="text-[12px] font-bold text-slate-400">更新しているサイト</div>
+            <div className="text-[22px] font-black leading-tight text-slate-800 tabular-nums">
+              {data ? (enabled && !stopped ? updating.length + 1 : 0) : '—'}<span className="ml-0.5 text-[13px] font-bold text-slate-400">サイト</span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── サイトごとの状態 ── */}
       <div className={CARD}>
-        <p className="px-4 pt-3.5 pb-2 text-[15px] font-black text-slate-800">各サイトの状態</p>
+        <div className="flex items-center justify-between px-4 pt-4 pb-2.5">
+          <p className="text-[15px] font-black text-slate-800">各サイトの状態</p>
+          <Link href={href('/sites')} className="text-[13px] font-bold text-indigo-600 hover:underline">ID・パスワード登録 ›</Link>
+        </div>
         <ul className="divide-y divide-slate-100 border-t border-slate-100">
           <li className="px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <b className="text-[15.5px] font-black text-slate-800">フクエス</b>
+            <b className="text-[15px] font-black text-slate-800">フクエス</b>
             {/* ★ 第721便（カッキーさん）: 写メ日記はフクエスから投稿だが、利用者に分かりやすいよう並べて出す */}
             {/* ★ 第769便（カッキーさん）: スマホは 1行目 サイト名／2行目 送るもの／3行目 状態 */}
             <div className="basis-full sm:basis-auto">
               <span className="inline-block text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">出勤・セラピスト・写メ日記・今すぐ・お知らせ</span>
             </div>
-            {stopped
-              ? <span className="sm:ml-auto text-[13.5px] font-bold text-amber-700">止めています</span>
-              : enabled
-                ? <span className="sm:ml-auto text-[13.5px] font-bold text-emerald-700">更新中</span>
-                : <span className="sm:ml-auto text-[13.5px] font-bold text-slate-400">更新していません</span>}
+            <span className="sm:ml-auto">
+              {stopped
+                ? <StatusPill tone="warn">止めています</StatusPill>
+                : enabled
+                  ? <StatusPill tone="ok">更新中</StatusPill>
+                  : <StatusPill tone="off">更新していません</StatusPill>}
+            </span>
           </li>
 
           {!data && <li className="px-4 py-3 text-[14px] text-slate-400">読み込み中…</li>}
 
           {sites.map((s) => {
             const k = s.provider + '#' + s.slot;
-            let status: { text: string; tone: string };
+            let status: { text: string; tone: 'ok' | 'off' | 'warn' | 'bad' };
             let action: React.ReactNode = null;
             /** ★ 第437便: 状態の下に出す1行（★ 直し方まで書く） */
             let note: { text: string; tone: string; link: { href: string; label: string } | null } | null = null;
@@ -320,21 +351,21 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
             if (!enabled) {
               // ★ 第756便: 切り替える前は見るだけ。★ 駅ちかから反映中だけは事実として出す
               status = s.direction === 'read'
-                ? { text: 'フクエスリンクで反映中', tone: 'text-amber-700' }
-                : { text: '更新していません', tone: 'text-slate-400' };
+                ? { text: 'フクエスリンクで反映中', tone: 'warn' }
+                : { text: '更新していません', tone: 'off' };
             } else if (s.needsConsent) {
-              status = { text: s.consentReadOnly ? 'ご同意が必要です（いまは更新していません）' : '同意の取り直しが必要です（いまは更新していません）', tone: 'text-amber-700' };
+              status = { text: s.consentReadOnly ? 'ご同意が必要です' : '同意の取り直しが必要です', tone: 'warn' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
             } else if (!s.hasCredential && s.credentialRejected) {
               // ★ 第1378便: 自動で止めた枠は、理由を言う（店舗様が自分で止めた「一時停止中」と分ける）
-              status = { text: 'ID・パスワードが違うため止めています', tone: 'text-rose-700' };
+              status = { text: 'ID・パスワードが違います', tone: 'bad' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">入れ直す</Link>;
             } else if (!s.hasCredential && s.credentialPaused) {
               // ★ 第1294便: 一時停止しただけの枠を「未登録」と言わない（登録は残っている。再開は ID・パスワード登録から）
-              status = { text: 'ID・パスワードを一時停止中', tone: 'text-slate-500' };
+              status = { text: '一時停止中', tone: 'off' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">開く</Link>;
             } else if (!s.hasCredential) {
-              status = { text: 'ID・パスワード未登録', tone: 'text-slate-400' };
+              status = { text: 'ID・パスワード未登録', tone: 'off' };
               action = <Link href={href('/sites')} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">登録する</Link>;
             } else if (s.direction === 'write') {
               // ★★ 第437便（カッキーさん）: 「更新中（出勤の自動更新は未設定）」＋「更新しない」は、
@@ -342,7 +373,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
               //   → 状態は【コネックエフから更新中】の1つだけ。出勤の自動更新は【別の行】で直し方まで出す。
               //   → ボタンは押したあとの結果が分かる言葉（★ 「更新を止める」）にする。
               // ★ 第1294便: 止めている店（セットのご契約が確認できない）は、送っていないので「更新中」と言わない
-              status = stopped ? { text: '止めています', tone: 'text-amber-700' } : { text: '更新中', tone: 'text-emerald-700' };
+              status = stopped ? { text: '止めています', tone: 'warn' } : { text: '更新中', tone: 'ok' };
               action = (
                 <button type="button" disabled={busy !== ''} onClick={() => void onSet(s, 'none')}
                   className="px-3 py-1.5 border border-slate-300 bg-white text-[13px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">
@@ -353,7 +384,7 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
               //   ★ 自動が切られた店に「未設定です」と出していた（＝設定し忘れに見える）。「止まりました」と言う。
               //   ★ 詳しい説明と直し方は行き先の画面が出す。ここは1行と行き先だけ。
               note = stopped
-                ? { text: 'フクエスCRMのご契約が確認できないため、更新を止めています', tone: 'text-amber-700', link: null }
+                ? { text: 'フクエスCRMのご契約が確認できないため止めています', tone: 'text-amber-700', link: null }
                 : s.problem
                 ? {
                     // ★ 第1700便（B-3）: 自動が止まったときは、いつ止まったかも添える
@@ -363,24 +394,24 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
                       : { href: href('/schedule/sync') + `?site=${s.provider}_${s.slot ?? 1}`, label: s.problem.kind === 'auto_off' ? '再開する' : '確認する' },
                   }
                 : s.autoOn
-                  ? { text: '出勤は自動で更新しています', tone: 'text-slate-500', link: null }
-                  : { text: '出勤の自動更新が未設定です', tone: 'text-rose-700', link: { href: href('/schedule/sync') + `?site=${s.provider}_${s.slot ?? 1}`, label: '設定する' } };
+                  ? { text: '出勤は自動更新中', tone: 'text-slate-500', link: null }
+                  : { text: '出勤の自動更新が未設定', tone: 'text-rose-700', link: { href: href('/schedule/sync') + `?site=${s.provider}_${s.slot ?? 1}`, label: '設定する' } };
             } else if (s.direction === 'read') {
-              status = { text: 'フクエスリンクで反映中', tone: 'text-amber-700' };
+              status = { text: 'フクエスリンクで反映中', tone: 'warn' };
               action = (
                 <button type="button" disabled={busy !== ''} onClick={() => void onSet(s, 'write')}
-                  className="px-3 py-1.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[13px] font-bold disabled:opacity-40">
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold disabled:opacity-40">
                   {busy === k ? '変えています…' : 'コネックエフから更新する'}
                 </button>
               );
             } else if (s.provider === 'zenkoku' && !s.canSwitch) {
               // ★ 第1770便（カッキーさん）: 全国エステランキングは、出勤の反映ができあがるまで「更新する」を出さない（押せない）
-              status = { text: '出勤の反映は準備中です', tone: 'text-slate-400' };
+              status = { text: '準備中', tone: 'off' };
             } else {
-              status = { text: '更新していません', tone: 'text-slate-400' };
+              status = { text: '更新していません', tone: 'off' };
               action = (
                 <button type="button" disabled={busy !== ''} onClick={() => void onSet(s, 'write')}
-                  className="px-3 py-1.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[13px] font-bold disabled:opacity-40">
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold disabled:opacity-40">
                   {busy === k ? '変えています…' : '更新する'}
                 </button>
               );
@@ -388,17 +419,17 @@ export function ConecfHome({ salonId, enabled = true, stopped = false, onToast }
 
             return (
               <li key={k} className="px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                <b className="text-[15.5px] font-black text-slate-800">{s.label}</b>
+                <b className="text-[15px] font-black text-slate-800">{s.label}</b>
                 {s.capabilities.length > 0 && (
                   <div className="basis-full sm:basis-auto">
                     {/* ★ 第769便（カッキーさん）: 駅ちかはココア（店長ブログ）にも送れるので最後に足す */}
                     <span className="inline-block text-[12px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5">{[...s.capabilities, ...(s.provider === 'ekichika' ? ['ココア'] : [])].join('・')}</span>
                   </div>
                 )}
-                <span className={`sm:ml-auto text-[13.5px] font-bold ${status.tone}`}>{status.text}</span>
+                <span className="sm:ml-auto"><StatusPill tone={status.tone}>{status.text}</StatusPill></span>
                 {action && <span className="ml-auto sm:ml-0">{action}</span>}
                 {note && (
-                  <span className={`basis-full text-[12.5px] font-bold ${note.tone}`}>
+                  <span className={`basis-full text-[12.5px] font-bold ${note.tone} sm:pl-0`}>
                     {note.text}
                     {note.link && (
                       <Link href={note.link.href} className="ml-2 font-bold text-indigo-600 underline underline-offset-4">{note.link.label} ›</Link>

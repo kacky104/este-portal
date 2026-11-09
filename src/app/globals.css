@@ -606,6 +606,55 @@ body.paw-bg {
 .conecf-venrey label:has(input[type="radio"]) { cursor: pointer !important; }
 .conecf-venrey button:disabled { cursor: not-allowed !important; }
 
+/* ── コネックエフの見た目の整え（第1872便・2026-11-10・カッキーさん「全体の見た目を良くする」）──
+   ★ /conecf 配下だけ。★ 各画面の Tailwind はそのままに、ここで「角丸・影・押し心地・入力欄」をそろえる。
+   ★ 白いカード（bg-white ＋ border）は角丸 12px・薄い影。色つきのお知らせ（amber/rose/indigo…-50 ＋ border）は角丸 10px。
+   ★ ボタン・リンクのボタン（背景色つき）は角丸 8px・押すと少し沈む。入力欄は角丸 8px・フォーカスは紺の輪。 */
+.conecf-venrey { -webkit-font-smoothing: antialiased; }
+.conecf-venrey [class~="bg-white"][class*="border"] {
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(31, 35, 51, 0.04), 0 4px 14px -6px rgba(31, 35, 51, 0.08);
+}
+/* ★ カードの中の白い小箱（入力欄・小さなボタン・行）は大きな角丸にしない */
+.conecf-venrey [class~="bg-white"][class*="border"] [class~="bg-white"][class*="border"],
+.conecf-venrey button[class~="bg-white"], .conecf-venrey a[class~="bg-white"],
+.conecf-venrey input[class~="bg-white"], .conecf-venrey select[class~="bg-white"], .conecf-venrey textarea[class~="bg-white"],
+.conecf-venrey li[class~="bg-white"], .conecf-venrey td[class~="bg-white"], .conecf-venrey th[class~="bg-white"], .conecf-venrey tr[class~="bg-white"],
+.conecf-venrey label[class~="bg-white"], .conecf-venrey span[class~="bg-white"] {
+  border-radius: 8px;
+  box-shadow: none;
+}
+.conecf-venrey td[class~="bg-white"], .conecf-venrey th[class~="bg-white"], .conecf-venrey tr[class~="bg-white"] { border-radius: 0; }
+/* ★ 外枠（サイドバー・見出し・ドロワー・貼り付く保存バー）は四角のまま */
+.conecf-venrey aside, .conecf-venrey header, .conecf-venrey nav, .conecf-venrey [class*="sticky"][class~="bg-white"], .conecf-venrey [class*="fixed"][class~="bg-white"] { border-radius: 0; box-shadow: none; }
+.conecf-venrey [class*="bg-amber-50"][class*="border"], .conecf-venrey [class*="bg-rose-50"][class*="border"],
+.conecf-venrey [class*="bg-indigo-50"][class*="border"], .conecf-venrey [class*="bg-emerald-50"][class*="border"],
+.conecf-venrey [class*="bg-sky-50"][class*="border"], .conecf-venrey [class*="bg-pink-50"][class*="border"],
+.conecf-venrey [class*="bg-violet-50"][class*="border"], .conecf-venrey [class*="bg-slate-50"][class*="border"] { border-radius: 10px; }
+.conecf-venrey button[class*="bg-"], .conecf-venrey a[class*="bg-gradient"], .conecf-venrey a[class*="bg-indigo"], .conecf-venrey a[class*="bg-white"],
+.conecf-venrey [class*="bg-slate-100"][class*="px-2"] {
+  border-radius: 8px;
+  transition: transform .08s ease, filter .12s ease, background-color .12s ease, box-shadow .12s ease;
+}
+.conecf-venrey button[class*="bg-gradient"], .conecf-venrey a[class*="bg-gradient"], .conecf-venrey button[class*="bg-indigo-6"], .conecf-venrey button[class*="bg-pink-5"], .conecf-venrey button[class*="bg-emerald-"], .conecf-venrey button[class*="bg-rose-"] {
+  box-shadow: 0 1px 2px rgba(31, 35, 51, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.conecf-venrey button[class*="bg-gradient"]:not(:disabled):hover, .conecf-venrey a[class*="bg-gradient"]:hover { filter: brightness(1.06); }
+.conecf-venrey button:not(:disabled):active { transform: translateY(1px); }
+.conecf-venrey button[class*="rounded-full"], .conecf-venrey span[class*="rounded-full"], .conecf-venrey a[class*="rounded-full"] { border-radius: 9999px; }
+.conecf-venrey input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), .conecf-venrey select, .conecf-venrey textarea {
+  border-radius: 8px;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.conecf-venrey input:not([type="checkbox"]):not([type="radio"]):focus-visible, .conecf-venrey select:focus-visible, .conecf-venrey textarea:focus-visible {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+}
+.conecf-venrey input[type="checkbox"], .conecf-venrey input[type="radio"] { accent-color: #4f46e5; }
+.conecf-venrey details > summary { border-radius: 8px; }
+.conecf-venrey details > summary:hover { background: rgba(99, 102, 241, 0.05); }
+
 /* ★ 第905便（カッキーさん）: フクエスリンク（MediaShell）もコネックエフと同じく、押せるところは手の形 */
 .media-shell-hand button:not(:disabled) { cursor: pointer !important; }
 .media-shell-hand a[href] { cursor: pointer !important; }

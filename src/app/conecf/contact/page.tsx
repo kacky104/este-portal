@@ -49,7 +49,7 @@ function Form({ onToast }: { onToast: (m: string) => void }) {
     return (
       <div className={`${CARD} p-6 space-y-3`}>
         <p className="text-[17px] font-black text-slate-800">お問い合わせを受け付けました</p>
-        <p className="text-[14px] text-slate-600 leading-relaxed">内容を確認し、ご連絡先メールアドレスへご返信いたします。状況の確認のため、管理画面にログインして調べることがあります。</p>
+        <p className="text-[14px] text-slate-600 leading-relaxed">内容を確認し、ご連絡先のメールへ返信します。確認のため、管理画面にログインして調べることがあります。</p>
         <button type="button" onClick={() => setSent(false)} className="px-4 py-2 border border-slate-300 bg-white text-[14px] font-bold text-slate-600 hover:bg-slate-50">続けてお問い合わせする</button>
       </div>
     );

@@ -27,10 +27,10 @@ function SwitchCard({ enabledAt, canSwitch, applyHref, onToast }: { enabledAt: s
 
   if (!canSwitch) {
     return (
-      <div className="bg-white border-2 border-indigo-300 px-5 py-4 space-y-3">
+      <div className="bg-white border-2 border-indigo-200 px-5 py-4 space-y-3">
         <p className="text-[16px] font-black text-indigo-800">コネックエフは、フクエスCRMの無料オプションです</p>
         <p className="text-[14px] text-slate-600 leading-relaxed">
-          いまは見るだけです。{CONECF_OPTION_LINE}{SET_PLAN_APPLY_LINE}ご契約後に「コネックエフに切り替える」を押せるようになります。
+          いまは見るだけです。{CONECF_OPTION_LINE}{SET_PLAN_APPLY_LINE}ご契約後に切り替えられます。
         </p>
         <a href={applyHref} className="inline-block px-5 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
           運営に申し込む
@@ -53,10 +53,10 @@ function SwitchCard({ enabledAt, canSwitch, applyHref, onToast }: { enabledAt: s
   };
 
   return (
-    <div className="bg-white border-2 border-indigo-300 px-5 py-4 space-y-3">
+    <div className="bg-white border-2 border-indigo-200 px-5 py-4 space-y-3">
       <p className="text-[16px] font-black text-indigo-800">コネックエフに切り替えましょう</p>
       <p className="text-[14px] text-slate-600 leading-relaxed">
-        いまは見るだけです。切り替えると、セラピストの追加・写真・年齢・サイズ・公開と出勤を、コネックエフから各サイトへ反映できる様になります。
+        いまは見るだけです。切り替えると、セラピスト・写真・出勤をコネックエフから各サイトへ反映できます。
       </p>
       {!ask ? (
         <button type="button" onClick={() => setAsk(true)} className="px-5 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500 text-white text-[15px] font-bold">
@@ -66,11 +66,11 @@ function SwitchCard({ enabledAt, canSwitch, applyHref, onToast }: { enabledAt: s
         <div className="border border-amber-300 bg-amber-50 px-4 py-3 space-y-2.5">
           <p className="text-[14px] font-bold text-amber-900">切り替えますか？</p>
           <ul className="text-[13.5px] text-amber-900/90 leading-relaxed list-disc pl-5 space-y-0.5">
-            <li>セラピストの追加・写真・年齢・サイズ・公開と出勤は、フクエスのマイページではなくコネックエフで編集するようになります。</li>
+            <li>セラピストの追加・写真・年齢・サイズ・公開・出勤は、コネックエフで編集します（フクエスのマイページでは編集しません）。</li>
             {/* ★ 第470便: キャッチ・紹介文はコネックエフの「コメント」タブでも編集できる（★ フクエスと同じ列・駅ちか・エステ魂へも送れる） */}
-            <li>キャッチ・紹介文は、マイページとコネックエフのどちらでも編集できます（同じ内容です）。</li>
+            <li>キャッチ・紹介文は、どちらでも編集できます。</li>
             <li>クーポン・ネット予約などは、これまでどおりマイページで編集します。</li>
-            <li>フクエスのマイページでの編集に戻したいときは、運営までご連絡ください。</li>
+            <li>マイページでの編集に戻すときは、運営までご連絡ください。</li>
           </ul>
           {reading && (
             <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 text-[13.5px] text-rose-800 leading-relaxed">

@@ -312,7 +312,7 @@ export default function ConecfEsutamaOptionsPage() {
     <ConecfShell current="esutamaOpt" title="エステ魂オプション" toast={toast}>
       {() => (
       <div className="space-y-4">
-        <p className="text-[14px] leading-relaxed text-slate-600">エステ魂でご契約の有料オプションのボタンを、コネックエフから押します。時間は朝6時はじまりの1日です（エステ魂の回数は毎朝6時に戻ります）。</p>
+        <p className="text-[14px] leading-relaxed text-slate-600">エステ魂で契約中の有料オプションを、決めた時間に自動で押します。1日は朝6時はじまりです（回数は毎朝6時に戻ります）。</p>
         {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
         {!error && !opts && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
         {opts && opts.length === 0 && posts.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるオプションはまだありません。運営事務局までご連絡ください。</div>}

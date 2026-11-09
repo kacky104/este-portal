@@ -30,6 +30,8 @@ function trackHeaderHeight(el: HTMLElement | null) {
 // ★ 色は紺（indigo）を引き継ぐ（カッキーさんの決定）。
 // ★ 権限はサーバー（getConecfAccess）で決める。★ ログインしていなければログイン画面へ。
 // ★ 第1117便: 権限・赤帯・ココアの出し分けは ConecfSession（layout の下）が1回で読む。ここは受け取って描くだけ。
+// ★ 第1872便（カッキーさん「全体の見た目を良くする」）: サイドバーは「いま居る画面」を角丸の紺の帯に（全幅の帯＋三角はやめた）。
+//   まとまりの見出しは小さな色つきの文字、ロゴ・店名のまとまりを整理。見出し（h1）は太く・大きく。トーストは紺の濃い帯。
 
 export function ConecfLogo({ size = 36 }: { size?: number }) {
   // ★ コネックエフの新ロゴ（青いF・透過）。第405便・2026-09-17・カッキーさん。
@@ -211,29 +213,26 @@ export function ConecfShell({
       return (
         <div key={n.key} className="contents">
           {n.group && (
-            <div className={`px-4 pt-3 pb-1 text-[12px] font-normal ${GROUP_TONE[n.group] ?? 'text-slate-400'}`}>{n.group}</div>
+            <div className={`px-5 pt-4 pb-1 text-[11.5px] font-bold tracking-wide ${GROUP_TONE[n.group] ?? 'text-slate-400'}`}>{n.group}</div>
           )}
           <Link
             href={href(n.href)}
             onClick={onPick}
             aria-current={on ? 'true' : undefined}
-            className={`relative flex items-center gap-2.5 whitespace-nowrap px-4 py-2.5 font-normal transition-colors ${
+            className={`relative mx-2 flex items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 transition-colors ${
               // ★★ 第462便: 名前の長い項目だけ小さめ（★ 232pxのサイドバーでも1行に収める）
               n.dense ? 'text-[12.5px] tracking-tight' : 'text-[14px]'
             } ${
-              on ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white' : 'text-[#212121] hover:bg-indigo-50'
+              on ? 'bg-indigo-600 font-bold text-white shadow-sm' : 'font-normal text-slate-700 hover:bg-indigo-50 hover:text-indigo-800'
             }`}
           >
             {/* ★ 第1850〜1852便（カッキーさん）: まとまりごとのアイコンの色（セラピスト＝ピンク・出勤＝緑・写メ日記・新着＝黄） */}
-            <span className={on ? 'text-white' : (ICON_TONE[n.key] ?? 'text-indigo-500')}><NavIcon k={n.key} /></span>
+            <span className={`grid h-7 w-7 flex-none place-items-center rounded-md ${on ? 'bg-white/15 text-white' : `bg-slate-50 ${ICON_TONE[n.key] ?? 'text-indigo-500'}`}`}><NavIcon k={n.key} /></span>
             {n.label}
             {n.key === 'shift' && shiftNew > 0 && !on && (
               <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-black leading-[20px] text-white" aria-label={`新しい希望 ${shiftNew}件`}>
                 {shiftNew > 99 ? '99+' : shiftNew}
               </span>
-            )}
-            {on && (
-              <span className="hidden md:block absolute -right-px top-1/2 -translate-y-1/2 w-0 h-0 border-y-[8px] border-y-transparent border-r-[8px] border-r-slate-100" />
             )}
           </Link>
         </div>
@@ -241,11 +240,13 @@ export function ConecfShell({
     });
 
   const shopBox = (small: boolean) => (
-    <div className={`px-4 ${small ? 'py-2.5' : 'py-3'} border-b border-slate-100`}>
-      <div className={`text-[12px] font-normal text-slate-400`}>
-        {access.role === 'operator' ? '運営' : '店舗'}
+    <div className={`mx-4 ${small ? 'my-2.5' : 'my-3'} rounded-xl bg-slate-50 px-3.5 py-2.5`}>
+      <div className="flex items-center gap-2">
+        <span className={`inline-block rounded px-1.5 py-px text-[10.5px] font-bold ${access.role === 'operator' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}`}>
+          {access.role === 'operator' ? '運営' : '店舗'}
+        </span>
       </div>
-      <div className={`text-[14px] font-bold text-[#212121] mt-0.5 leading-snug break-words`}>
+      <div className="mt-1 text-[14px] font-bold leading-snug text-slate-800 break-words">
         {access.salonName || access.email}
       </div>
     </div>
@@ -255,20 +256,20 @@ export function ConecfShell({
     <MediaBrandProvider value={brand}>
     <div className="min-h-screen md:flex">
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-white border border-indigo-200 shadow-lg px-6 py-3 text-[16px] font-bold text-indigo-700">
+        <div className="fixed top-4 left-1/2 z-50 max-w-[92vw] -translate-x-1/2 rounded-xl bg-slate-900/95 px-5 py-3 text-[15px] font-bold text-white shadow-xl">
           {toast}
         </div>
       )}
       {/* ── 左サイドバー（PC）── */}
-      <aside className="hidden md:block bg-white md:border-r border-slate-200 md:w-[272px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
-        <Link href={href('/')} className="flex items-center gap-2.5 px-4 py-4 border-b border-slate-100">
-          <ConecfLogo />
-          <b className="text-[18px] font-bold text-[#212121]">コネックエフ</b>
+      <aside className="hidden md:block bg-white md:border-r border-slate-200/80 md:w-[272px] md:flex-none md:h-screen md:overflow-y-auto md:overscroll-contain scrollbar-none md:sticky md:top-0 md:self-start md:pb-12">
+        <Link href={href('/')} className="flex items-center gap-2.5 px-5 pt-5 pb-3">
+          <ConecfLogo size={32} />
+          <b className="text-[17px] font-bold tracking-tight text-slate-900">コネックエフ</b>
         </Link>
         {shopBox(false)}
-        <nav aria-label="画面" className="flex flex-col py-2">{navList()}</nav>
-        <div className="px-4 pt-3 mt-2 border-t border-slate-100">
-          <button type="button" onClick={() => void onLogout()} className="text-[13.5px] font-bold text-slate-400 hover:text-indigo-600">
+        <nav aria-label="画面" className="flex flex-col gap-0.5 pb-2">{navList()}</nav>
+        <div className="mx-4 mt-3 border-t border-slate-100 pt-3">
+          <button type="button" onClick={() => void onLogout()} className="text-[13px] font-bold text-slate-400 hover:text-indigo-600">
             ログアウト
           </button>
         </div>
@@ -276,15 +277,15 @@ export function ConecfShell({
 
       {/* ── 右側 ── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header ref={trackHeaderHeight} className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <header ref={trackHeaderHeight} className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
           {/* ★★★ 第1399便（カッキーさん）: 運営だけに出る帯。店を選んで開く／ほかの人の店を操作中は、どの画面でもいちばん上に出す */}
           {access.role === 'operator' && <OperatorBar access={access} />}
           <Link
             href={href('/')}
             aria-label="ホームへ"
-            className="md:hidden flex w-full items-center gap-2.5 px-4 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-500"
+            className="md:hidden flex w-full items-center gap-2.5 px-4 py-2.5 bg-indigo-600"
           >
-            <span className="w-7 h-7 flex-none grid place-items-center bg-white text-indigo-600">
+            <span className="w-7 h-7 flex-none grid place-items-center rounded-md bg-white text-indigo-600">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="6" cy="12" r="3" /><circle cx="18" cy="6" r="3" /><circle cx="18" cy="18" r="3" /><path d="M8.6 10.5l6.8-3.2M8.6 13.5l6.8 3.2" />
               </svg>
@@ -292,7 +293,7 @@ export function ConecfShell({
             <b className="text-[16px] font-black text-white tracking-tight">コネックエフ</b>
             <span className="ml-auto text-[11.5px] font-bold text-white/85 truncate max-w-[45%]">{access.salonName}</span>
           </Link>
-          <div className="px-4 md:px-6 py-3 flex items-center gap-2 min-w-0">
+          <div className="px-4 md:px-6 py-3 md:py-3.5 flex items-center gap-2 min-w-0">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -305,9 +306,9 @@ export function ConecfShell({
               </svg>
             </button>
             {inAutoHub && (
-              <Link href={href('/auto')} className="flex-none text-[13px] text-indigo-600 hover:underline whitespace-nowrap">サイト自動更新一覧 ›</Link>
+              <Link href={href('/auto')} className="flex-none text-[13px] font-bold text-indigo-600 hover:underline whitespace-nowrap">サイト自動更新一覧 <span className="text-slate-400">/</span></Link>
             )}
-            <h1 className="text-[16px] font-normal text-[#212121] truncate">{title}</h1>
+            <h1 className="text-[17px] md:text-[18px] font-bold tracking-tight text-slate-900 truncate">{title}</h1>
           </div>
           {/* ★ 第1243便（カッキーさん）: セット（コネックエフ＋フクエスCRM）を OFF にした店＝切り替え済みで契約が無い店。
               どの画面でもいちばん上に「止めています」を出す（保存・各サイトへの更新はサーバーが止めている）。 */}
@@ -333,7 +334,7 @@ export function ConecfShell({
           )}
         </header>
 
-        <main className={`px-4 md:px-6 py-4 md:py-5 w-full ${wide ? '' : 'max-w-5xl'}`}>{children(access)}</main>
+        <main className={`px-4 md:px-6 py-4 md:py-6 w-full ${wide ? '' : 'max-w-5xl'}`}>{children(access)}</main>
       </div>
 
       {/* ── スマホの左ドロワー ── */}
@@ -356,7 +357,7 @@ export function ConecfShell({
               </button>
             </div>
             {shopBox(true)}
-            <div className="flex flex-col py-1.5">{navList(() => setDrawerOpen(false))}</div>
+            <div className="flex flex-col gap-0.5 py-1.5">{navList(() => setDrawerOpen(false))}</div>
             <button
               type="button"
               onClick={() => void onLogout()}
