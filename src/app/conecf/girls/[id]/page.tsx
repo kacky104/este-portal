@@ -302,7 +302,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
             </li>
             <li>
               <b className="font-bold">出勤を入れる</b> →
-              <Link href={href('/schedule')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">週間スケジュールを開く ›</Link>
+              <Link href={href('/schedule')} className="ml-1 font-bold text-indigo-700 underline underline-offset-4">出勤スケジュールを開く ›</Link>
               <span className="block text-[13px] text-slate-500">出勤の自動更新が ON なら、各サイトへは30分以内に反映します。</span>
             </li>
           </ol>

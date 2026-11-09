@@ -190,7 +190,8 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       {/* ★ 第1473便: 上の横スクロールバー（表が横にはみ出すときだけ）。第1775便で日付の行と一緒に貼り付く箱へ */}
       {/* ★★ 第1775便（カッキーさん）: 日付の行（と上の横スクロールバー）は、下へスクロールしても画面の上に残る。
           ★ 見出し（運営の帯など）の高さは --conecf-header-h（ConecfShell が測る）。★ 横の位置は表と同じに動く */}
-      <div className="sticky z-20 -mb-3" style={{ top: 'var(--conecf-header-h, 0px)' }}>
+      {/* ★ 第1856便: -mb-3 だと表の1行目に12px重なっていた（space-y の余白は下に付く）。ちょうど付くように !mb-0 */}
+      <div className="sticky z-20 !mb-0" style={{ top: 'var(--conecf-header-h, 0px)' }}>
         {scrollW > clientW + 1 && (
           <div ref={topBarRef} onScroll={() => syncScroll('top')} className="overflow-x-auto overflow-y-hidden border border-slate-200 bg-white" aria-hidden>
             <div style={{ width: scrollW, height: 1 }} />
@@ -370,7 +371,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 export default function ConecfSchedulePage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="schedule" title="週間スケジュール" toast={toast} wide>
+    <ConecfShell current="schedule" title="出勤スケジュール" toast={toast} wide>
       {(a) => <Body enabled={!!a.enabledAt} onToast={showToast} />}
     </ConecfShell>
   );

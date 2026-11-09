@@ -85,10 +85,10 @@ export const CONECF_GUIDE: GuideContent = {
       linkLabel: 'セラピスト登録状況一覧を開く',
     },
     {
-      title: '週間スケジュールに出勤を入力する',
+      title: '出勤スケジュールに出勤を入力する',
       body: '入力した出勤は、フクエスにはその場で反映されます。',
       link: 'schedule',
-      linkLabel: '週間スケジュールを開く',
+      linkLabel: '出勤スケジュールを開く',
     },
     {
       title: '「出勤を自動更新にする」を押す',

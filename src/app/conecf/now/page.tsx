@@ -188,7 +188,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           )}
         </div>
         {targets.length === 0
-          ? <p className="px-4 pb-4 text-[14px] text-slate-500">今日の出勤の方がいません。<Link href={href('/schedule')} className="font-bold text-indigo-600 underline">週間スケジュール</Link>で出勤を入れてください。</p>
+          ? <p className="px-4 pb-4 text-[14px] text-slate-500">今日の出勤の方がいません。<Link href={href('/schedule')} className="font-bold text-indigo-600 underline">出勤スケジュール</Link>で出勤を入れてください。</p>
           : <ul className="divide-y divide-slate-100 border-t border-slate-100">{targets.map((r, i) => rowView(r, i, 'target'))}</ul>}
       </div>
 

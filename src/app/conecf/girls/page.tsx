@@ -606,7 +606,7 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         {rows && rows.length > 1 && (
           <p className="px-5 -mt-1.5 pb-3 text-[12px] leading-relaxed text-slate-500">
             左の<span className="inline-block align-[-3px] mx-1 text-slate-400"><GripIcon /></span>をつまんで上下に動かすと、並び順を変えられます（「先頭へ」でいちばん上へ）。
-            セラピスト登録状況一覧・週間スケジュールも同じ順になります。
+            セラピスト登録状況一覧・出勤スケジュールも同じ順になります。
           </p>
         )}
 
