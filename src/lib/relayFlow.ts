@@ -958,12 +958,15 @@ export type RelayFlowContext = {
   esutamaOptDone?: string[];
   // ── ここから下は エステ魂【オプション】の投稿（第1811便・リアルタイム集客）のときだけ入る（intent は bump_push / bump_auto）──
   /** 投稿の種類・送る文章。force … 店舗様がコネックエフで押した */
-  esutamaPost?: { key: string; title: string; body: string; force?: boolean; image?: { path: string; index: number } };
+  esutamaPost?: { key: string; title: string; body: string; force?: boolean; image?: { path: string; index: number }; images?: Array<{ path: string; index: number }> };
   /** 送る前に画面を読んだ時刻（履歴で今回のものか見分ける） */
   esutamaPostSentAt?: string;
   /** ★ 第1812便: 画像を付けるときの、投稿の画面の中身（ctk・brws_shop_id・欄）と、切り抜いた画像の場所 */
   esutamaPostPage?: { ctk: string | null; shopId: string | null; fields: Array<[string, string]>; problems: string[] };
   esutamaPostImageUrl?: string;
+  /** ★ 第1822便: 切り抜けた画像（順に）と、試した画像の数 */
+  esutamaPostImageUrls?: string[];
+  esutamaPostImgTried?: number;
   /** ★ 第1814便: 画像を付けられなかった理由（結果に残して原因を見る） */
   esutamaPostImageProblem?: string;
   // ── ここから下は intent='sort_push' のときだけ入る（第1557便）──

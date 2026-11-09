@@ -92,5 +92,20 @@ eq('3時間を過ぎたら送らない', sp(jst(2026, 11, 10, 15, 4), null, null
 eq('送る時刻のあとに設定した日は送らない', m.shouldPostEsutama({ key: 'mailmag', setting: { startMin: 677, endMin: 1800, intervalMin: 1440 }, state: { lastAt: null, readAt: null, updatedAt: jst(2026, 11, 9, 12, 52).toISOString() }, now: jst(2026, 11, 9, 12, 54), hasText: true }).reason, 'set_after_time');
 eq('次の日は送る', m.shouldPostEsutama({ key: 'mailmag', setting: { startMin: 707, endMin: 1800, intervalMin: 1440 }, state: { lastAt: null, readAt: null, updatedAt: jst(2026, 11, 9, 12, 52).toISOString() }, now: jst(2026, 11, 10, 11, 49), hasText: true }).reason, 'ok');
 
+console.log('── 8. 店長の求人ブログ（第1822便）');
+const bhtml = `<input type="hidden" id="brws_shop_id" value="43555"><form id="form-job_blog_edit" class="go_step_1"><input type="hidden" name="main[category_id]" value="1"><input type="text" name="main[title]" value=""><textarea name="main[content]"></textarea>
+<input type="radio" name="future[post]" value="0" checked><input type="radio" name="future[post]" value="1"><select name="future[date_ymd]"><option value="2026-11-09">9</option></select><select name="future[date_h]"><option value="00">00</option></select><select name="future[date_i]"><option value="00">00</option></select><input type="hidden" name="blog_id" value="0"></form><input type="hidden" id="csrf_footer" value="${CTK}">`;
+const bp = m.parseBlogEditPage(bhtml);
+eq('新規の画面', [bp.problems, bp.fields.map((f) => f[0])], [[], ['main[category_id]', 'main[title]', 'main[content]', 'future[post]', 'future[date_ymd]', 'future[date_h]', 'future[date_i]', 'blog_id']]);
+eq('編集の画面は読まない', m.parseBlogEditPage(bhtml.replace('name="blog_id" value="0"', 'name="blog_id" value="3271709"')).problems.some((x) => /新規ではない/.test(x)), true);
+const br = m.buildBlogPostRequest('c=1', bp, '求人募集中です', '本文', ['/temp/a.jpg', '/temp/b.jpg', '/temp/c.jpg']);
+const bq = new URLSearchParams(br.body); const bn = []; for (let i = 0; bq.has(`str[${i}][name]`); i++) bn.push(bq.get(`str[${i}][name]`) + '=' + bq.get(`str[${i}][value]`));
+eq('送る中身（画像3枚は blog_id の前）', [br.url, bn], ['https://estama.jp/admin_post/job_blog_edit', ['main[category_id]=1', 'main[title]=求人募集中です', 'main[content]=本文', 'future[post]=0', 'future[date_ymd]=2026-11-09', 'future[date_h]=00', 'future[date_i]=00', 'blog_icon_1-imgupload=/temp/a.jpg', 'blog_icon_2-imgupload=/temp/b.jpg', 'blog_icon_3-imgupload=/temp/c.jpg', 'blog_id=0']]);
+eq('一覧', m.parseBlogList('<p>本日の残り回数6回</p><h3>投稿した求人ブログ</h3> 全選択 1～20件を表示 選択した内容をまとめて削除 <p>求人募集中です</p><dt>投稿日時</dt><dd>2026/11/09 12:51</dd> 削除 編集'), { top: { at: '2026-11-09T03:51:00.000Z', title: '求人募集中です' }, remaining: 6 });
+eq('画像の組（3枚・並びをずらす）', m.pickEsutamaPostImages('job_blog', ['5/esutama_post_a.jpg', '5/esutama_post_b.jpg', '5/esutama_post_c.jpg'], 1).map((x) => x.path.slice(-5)), ['b.jpg', 'c.jpg', 'a.jpg']);
+eq('リアルタイムは1枚', m.pickEsutamaPostImages('guest_realtime', ['5/esutama_post_a.jpg', '5/esutama_post_b.jpg'], 1).length, 1);
+eq('ブログの仮置きの枠', m.buildRealtimeImageUploadRequest('c=1', CTK, fu, 'esutama_post_a.jpg', 'job_blog', m.imageSlotsOf('job_blog')[1]).multipart.fields.upload_id, 'blog_icon_2-imgupload');
+eq('ブログの切り抜きは400角', m.buildRealtimeImageCropRequest('c=1', CTK, { url: '/temp/x.jpg', width: 600, height: 600 }, 'job_blog').multipart.fields.cropW, '400');
+
 console.log(fail ? `\n✗ ${fail} 件 NG` : '\n✓ すべて ok');
 process.exit(fail ? 1 : 0);

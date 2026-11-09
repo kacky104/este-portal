@@ -145,11 +145,12 @@ function OptionCard({ o, onToast, reload, open, onToggle }: { o: ConecfEsutamaOp
 
 // ★ 第1811便: 投稿（リアルタイム集客）。保存した文章を、決めた間隔で投稿する
 const POST_DESC: Record<string, string> = {
+  job_blog: 'エステ魂の「店長の求人ブログ」に、下の文章を決めた間隔で投稿します（1日10回まで・毎朝6時に戻ります）。画像は1回に3枚まで付け、投稿のたびに並びを1つずつずらします。',
   mailmag: 'エステ魂の「メールマガジン」を、毎日決めた時刻に1通配信します（メールマガジンに登録しているお客様へ本当にメールが届きます）。送る時刻から3時間を過ぎたら、その日は送りません。',
   job_realtime: 'エステ魂の「リアルタイム求人」（お店の求人ページに出ます）に、下の文章を決めた間隔で投稿します。画像を入れておくと、投稿のたびに1枚ずつ順番に替えます（画像が無いときは、いまエステ魂に出ている画像のまま）。',
   guest_realtime: 'エステ魂の「リアルタイム集客」に、下の文章を決めた間隔で投稿します。画像を入れておくと、投稿のたびに1枚ずつ順番に替えます（画像が無いときは、いまエステ魂に出ている画像のまま）。',
 };
-const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '送れました' : o.startsWith('ok: 画像は前のまま') ? '投稿できました（画像は前のまま）' + o.slice('ok: 画像は前のまま'.length) : o.startsWith('error') ? 'うまくいきませんでした' : o);
+const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '送れました' : o.startsWith('ok: 画像は前のまま') ? '投稿できました（画像は前のまま）' + o.slice('ok: 画像は前のまま'.length) : o.startsWith('ok: 画像なし') ? '投稿できました（画像なし）' + o.slice('ok: 画像なし'.length) : o.startsWith('error') ? 'うまくいきませんでした' : o);
 
 function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(p.auto);
@@ -230,7 +231,7 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
       <div className="space-y-2 border-t border-slate-100 pt-3 text-[14px]">
         <div>
           <span className="font-bold">画像</span>
-          <span className="ml-2 text-[12px] text-slate-500">{p.images.length}/{ESUTAMA_POST_IMAGE_MAX}枚・投稿のたびに順番に替わります（正方形に切り抜いて送ります）</span>
+          <span className="ml-2 text-[12px] text-slate-500">{p.images.length}/{ESUTAMA_POST_IMAGE_MAX}枚・{p.key === 'job_blog' ? '1回に3枚まで付け、投稿のたびに並びを1つずらします' : '投稿のたびに順番に替わります'}（正方形に切り抜いて送ります）</span>
         </div>
         <div className="flex flex-wrap gap-3">
           {p.images.map((im, i) => (

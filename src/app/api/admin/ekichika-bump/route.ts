@@ -4,7 +4,7 @@ import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaBump';
 import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
-import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImage, isDailyPostKey } from '@/lib/esutamaPost';
+import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImages, isDailyPostKey } from '@/lib/esutamaPost';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -159,7 +159,7 @@ export async function POST(req: Request) {
         const f = await startRelayFlow({
           salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
           intent: 'bump_auto', actor: 'cron:esutama-post',
-          esutamaPost: { key, title, body: bodyText, image: isDailyPostKey(key) ? undefined : pickEsutamaPostImage(o.images, o.next_image) },
+          esutamaPost: { key, title, body: bodyText, images: isDailyPostKey(key) ? [] : pickEsutamaPostImages(key, o.images, o.next_image) },
         });
         // ★ 第1816便: 始められなかった（同じ店のエステ魂で別の流れが走っていた等）ときは「始めた時刻」を戻す。
         //   ★ 戻さないと、次に試すのが約1時間後になる（11/9 12:04 に集客アピールとぶつかって1回抜けた）。戻せば5分後の周でまた試す

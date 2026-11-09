@@ -10,7 +10,7 @@ import { adminGetEsutamaOptions, adminSetEsutamaOption, adminGetEsutamaPosts, ad
 type SalonOption = { id: number; name: string };
 const KEYS: Array<[string, string]> = [['shop_boost', '集客ブースト'], ['cast_appeal', 'セラピストアピール'], ['job_appeal', '求人ワンクリックアピール']];
 // ★ 第1811便: 投稿（conecf_esutama_posts）
-const POST_KEYS: Array<[string, string]> = [['guest_realtime', 'リアルタイム集客（投稿）'], ['job_realtime', 'リアルタイム求人（投稿）'], ['mailmag', 'メールマガジン（配信）']];
+const POST_KEYS: Array<[string, string]> = [['guest_realtime', 'リアルタイム集客（投稿）'], ['job_realtime', 'リアルタイム求人（投稿）'], ['mailmag', 'メールマガジン（配信）'], ['job_blog', '店長の求人ブログ（投稿）']];
 
 export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons: SalonOption[]; onToast: (msg: string) => void }) {
   const [salonId, setSalonId] = useState<number>(0);

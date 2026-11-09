@@ -22,9 +22,9 @@ import { readEsutamaCsrf } from './esutamaParse';
 import { businessMinOf, lastResetAt } from './esutamaOption';
 import { assertRelayFileUrl, type RelayMultipart } from './relayMultipart';
 
-export type EsutamaPostKey = 'guest_realtime' | 'job_realtime' | 'mailmag';
-export const ESUTAMA_POST_KEYS: EsutamaPostKey[] = ['guest_realtime', 'job_realtime', 'mailmag'];
-export const ESUTAMA_POST_LABEL: Record<EsutamaPostKey, string> = { guest_realtime: 'リアルタイム集客', job_realtime: 'リアルタイム求人', mailmag: 'メールマガジン' };
+export type EsutamaPostKey = 'guest_realtime' | 'job_realtime' | 'mailmag' | 'job_blog';
+export const ESUTAMA_POST_KEYS: EsutamaPostKey[] = ['guest_realtime', 'job_realtime', 'mailmag', 'job_blog'];
+export const ESUTAMA_POST_LABEL: Record<EsutamaPostKey, string> = { guest_realtime: 'リアルタイム集客', job_realtime: 'リアルタイム求人', mailmag: 'メールマガジン', job_blog: '店長の求人ブログ' };
 /** ★ 第1817便: メールマガジンは「1日1回・決めた時刻」（ベンリーは毎日 11:47）。リアルタイムは「間隔ごと」 */
 export const isDailyPostKey = (key?: string) => key === 'mailmag';
 // ★ 第1813便: リアルタイム求人（/admin/job/realtime/）も同じ形（2026-11-09 実測・読んだだけ）。違うのは hidden の page=job / table=shop_job / real_type=job だけ
@@ -38,7 +38,7 @@ export const realtimeEditUrl = (key?: string) => baseOf(key).path + 'edit/';
 export const ESUTAMA_POST_TITLE_MAX = 30;
 export const ESUTAMA_POST_BODY_MAX = 300;
 /** ★ メールマガジンの本文は1500文字まで（2026-11-09 実測） */
-export const esutamaPostBodyMax = (key?: string) => (key === 'mailmag' ? 1500 : ESUTAMA_POST_BODY_MAX);
+export const esutamaPostBodyMax = (key?: string) => (key === 'mailmag' || key === 'job_blog' ? 1500 : ESUTAMA_POST_BODY_MAX);
 /** ★ 選べる間隔（分） */
 export const ESUTAMA_POST_INTERVALS = [30, 60, 90, 120, 150, 180];
 /** ★ 1日1回のもの（メールマガジン）の間隔の値 */
@@ -90,13 +90,13 @@ function multipartHeaders(cookie: string, key?: string) {
   // ★★ content-type は付けない。★ multipart の境界は中継役（curl）が決める
   return {
     'user-agent': RELAY_USER_AGENT, accept: 'application/json, text/javascript, */*; q=0.01', 'accept-language': 'ja,en-US;q=0.9,en;q=0.8',
-    'x-requested-with': 'XMLHttpRequest', referer: realtimeEditUrl(key), origin: 'https://estama.jp', cookie,
+    'x-requested-with': 'XMLHttpRequest', referer: key === 'job_blog' ? ESUTAMA_BLOG_EDIT_URL : realtimeEditUrl(key), origin: 'https://estama.jp', cookie,
   };
 }
 const okCtk = (ctk: string | null): ctk is string => !!ctk && /^[A-Za-z0-9]{16,64}$/.test(ctk);
 
 /** ★ ① 仮置き（エステ魂の一時置き場に上がるだけ。投稿はまだ） */
-export function buildRealtimeImageUploadRequest(cookie: string, ctk: string | null, fileUrl: string, filename: string, key?: string): MultipartReq {
+export function buildRealtimeImageUploadRequest(cookie: string, ctk: string | null, fileUrl: string, filename: string, key?: string, slot?: EsutamaImageSlot): MultipartReq {
   if (!cookie) throw new Error('Cookie が無いまま送らない');
   if (!okCtk(ctk)) throw new Error('ctk の形が違うまま送らない');
   assertRelayFileUrl(fileUrl);
@@ -105,16 +105,17 @@ export function buildRealtimeImageUploadRequest(cookie: string, ctk: string | nu
     method: 'POST', url: ESUTAMA_UPTEMP_URL, headers: multipartHeaders(cookie, key),
     // ★★ 第1821便: 画面の croppic は upload_id（枠の箱の id）と text='test' も送っている（2026-11-09 13:20 実測・
     //   ブラウザで1枚だけ仮置きして見た）。★ これが無いと応答は ["OUT",null] になる（11/9 の「画像は前のまま」の原因）
-    multipart: { fields: { upload_id: ESUTAMA_REALTIME_UPLOAD_ID, text: 'test', ctk }, files: [{ field: 'img', url: fileUrl, filename, contentType: 'image/jpeg' }] },
+    multipart: { fields: { upload_id: (slot ?? imageSlotsOf(key)[0]).uploadId, text: 'test', ctk }, files: [{ field: 'img', url: fileUrl, filename, contentType: 'image/jpeg' }] },
   };
 }
 
 /** ★ ② 切り抜き（枠 300×300 を覆うように縮めて中央で切る） */
-export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null, up: { url: string; width: number | null; height: number | null }, key?: string): MultipartReq {
+export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null, up: { url: string; width: number | null; height: number | null }, key?: string, slot?: EsutamaImageSlot): MultipartReq {
+  const sl = slot ?? imageSlotsOf(key)[0];
   if (!cookie) throw new Error('Cookie が無いまま送らない');
   if (!okCtk(ctk)) throw new Error('ctk の形が違うまま送らない');
   const w = up.width ?? 600, h = up.height ?? 600;
-  const box = ESUTAMA_REALTIME_CROP_BOX;
+  const box = sl.box;
   const scale = box / Math.min(w, h);
   const imgW = Math.max(box, Math.round(w * scale)), imgH = Math.max(box, Math.round(h * scale));
   return {
@@ -125,7 +126,7 @@ export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null
         imgY1: String(Math.floor((imgH - box) / 2)), imgX1: String(Math.floor((imgW - box) / 2)),
         cropH: String(box), cropW: String(box), rotation: '0',
         // ★ 第1821便: 仮置きと同じく upload_id・text も付ける（croppic の cropData も同じものと見ている）
-        upload_id: ESUTAMA_REALTIME_UPLOAD_ID, text: 'test', ctk,
+        upload_id: sl.uploadId, text: 'test', ctk,
       },
       files: [],
     },
@@ -133,6 +134,21 @@ export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null
 }
 
 const len = (s: string) => [...String(s ?? '')].length;
+
+/** ★ 第1822便: 画像の枠（エステ魂の画面の croppic の箱）。リアルタイムは1枠 300×300、求人ブログは3枠 400×400（実測） */
+export type EsutamaImageSlot = { uploadId: string; box: number };
+export function imageSlotsOf(key?: string): EsutamaImageSlot[] {
+  if (key === 'job_blog') return [1, 2, 3].map((n) => ({ uploadId: `blog_icon_${n}-imgupload`, box: 400 }));
+  return [{ uploadId: ESUTAMA_REALTIME_UPLOAD_ID, box: ESUTAMA_REALTIME_CROP_BOX }];
+}
+/** ★ 1回の投稿に付ける画像（順番に回す）。リアルタイムは1枚、求人ブログは3枚まで（ベンリーと同じく、同じ組を並びだけ替えて） */
+export function pickEsutamaPostImages(key: string, images: unknown, nextImage: unknown): Array<{ path: string; index: number }> {
+  const list = (Array.isArray(images) ? images : []).map(String).filter(isEsutamaPostImagePath);
+  if (list.length === 0) return [];
+  const n = Number.isInteger(Number(nextImage)) && Number(nextImage) >= 0 ? Number(nextImage) : 0;
+  const count = Math.min(imageSlotsOf(key).length, list.length);
+  return Array.from({ length: count }, (_, i) => { const index = (n + i) % list.length; return { path: list[index], index }; });
+}
 
 /** タイトル・本文が送れる形か（空でない・上限以内） */
 export function esutamaPostTextProblem(title: string, body: string, key?: string): string | null {
@@ -370,5 +386,110 @@ export function buildMailPostRequest(cookie: string, page: { ctk: string | null;
       ['str[1][name]', 'body'], ['str[1][value]', body],
       ['brws_shop_id', page.shopId], ['ctk', page.ctk],
     ]),
+  };
+}
+
+// ── 店長の求人ブログ（第1822便・2026-11-09 実測・読んだだけ。投稿はしていない）───────────────
+//   一覧  GET /admin/job_blog/ … 「本日の残り回数6回」「※1日10回まで投稿できます。※毎日朝6時に投稿回数がリセット」
+//          「投稿した求人ブログ」… タイトル ＋ 投稿日時 2026/11/09 12:51
+//   新規  GET /admin/job_blog_edit/ … <form id="form-job_blog_edit">
+//          main[category_id]=1（hidden）/ main[title]（30文字）/ main[content]（1500文字）/ future[post]（0=すぐ公開*・1=日時を指定）
+//          future[date_ymd] / future[date_h] / future[date_i] / blog_id=0
+//          画像は3枠（blog_icon_1〜3・croppic 400×400）。切り抜くと hidden「blog_icon_N-imgupload」がフォームに入る
+//   送る  「投稿する」= .send-post（data-post=job_blog_edit）→ POST /admin_post/job_blog_edit（str[]・brws_shop_id・ctk）
+// ★★ 1日10回まで。★ 投稿が1件増える（送り直さない）
+export const ESUTAMA_BLOG_LIST_URL = 'https://estama.jp/admin/job_blog/';
+export const ESUTAMA_BLOG_EDIT_URL = 'https://estama.jp/admin/job_blog_edit/';
+export const ESUTAMA_BLOG_POST_URL = 'https://estama.jp/admin_post/job_blog_edit';
+
+export function buildBlogPageRequest(cookie: string, which: 'edit' | 'list'): Req {
+  if (!cookie) throw new Error('Cookie が無いまま読みに行かない');
+  return { method: 'GET', url: which === 'edit' ? ESUTAMA_BLOG_EDIT_URL : ESUTAMA_BLOG_LIST_URL, headers: { ...baseHeaders(cookie), accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', referer: which === 'edit' ? ESUTAMA_BLOG_LIST_URL : 'https://estama.jp/admin/' } };
+}
+
+/** 新規投稿の画面（#form-job_blog_edit を画面の並びのまま） */
+export function parseBlogEditPage(html: string): RealtimeEditPage {
+  const src = String(html ?? '');
+  const problems: string[] = [];
+  const fields: Array<[string, string]> = [];
+  const fm = /<form\b[^>]*\bid=["']form-job_blog_edit["'][^>]*>([\s\S]*?)<\/form>/i.exec(src);
+  if (!fm) problems.push('求人ブログのフォームが見つからない');
+  else {
+    const re = /<input\b[^>]*>|<select\b[^>]*>[\s\S]*?<\/select>|<textarea\b[^>]*>[\s\S]*?<\/textarea>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(fm[1])) !== null) {
+      const tag = m[0];
+      const name = attr(tag, 'name');
+      if (!name) continue;
+      if (/\bdisabled\b/i.test(tag.split('>')[0])) continue;
+      const kind = /^<(\w+)/.exec(tag)?.[1].toLowerCase() ?? '';
+      if (kind === 'input') {
+        const type = (attr(tag, 'type') ?? 'text').toLowerCase();
+        if ((type === 'checkbox' || type === 'radio') && !/\bchecked\b/i.test(tag)) continue;
+        if (type === 'submit' || type === 'button' || type === 'file') continue;
+        fields.push([name, decodeEnt(attr(tag, 'value') ?? '')]);
+      } else if (kind === 'select') {
+        const opts = [...tag.matchAll(/<option\b[^>]*>/gi)].map((o) => o[0]);
+        const sel = opts.find((o) => /\bselected\b/i.test(o)) ?? opts[0];
+        fields.push([name, sel ? decodeEnt(attr(sel, 'value') ?? '') : '']);
+      } else {
+        fields.push([name, decodeEnt(/<textarea\b[^>]*>([\s\S]*?)<\/textarea>/i.exec(tag)?.[1] ?? '')]);
+      }
+    }
+    for (const k of ['main[title]', 'main[content]', 'blog_id']) if (!fields.some(([n]) => n === k)) problems.push(k + ' が無い');
+    const bid = fields.find(([n]) => n === 'blog_id')?.[1];
+    if (bid !== undefined && bid !== '0') problems.push('新規ではない（blog_id=' + bid + '）');
+    const fp = fields.find(([n]) => n === 'future[post]')?.[1];
+    if (fp !== undefined && fp !== '0') problems.push('「すぐ公開する」が選ばれていない');
+  }
+  const ctk = readEsutamaCsrf(src);
+  if (!ctk) problems.push('ctk（#csrf_footer）が見つからない');
+  let shopId: string | null = null;
+  for (const t of src.match(/<input\b[^>]*>/gi) ?? []) {
+    if (attr(t, 'id') === 'brws_shop_id' || attr(t, 'name') === 'brws_shop_id') { shopId = attr(t, 'value') ?? ''; break; }
+  }
+  if (shopId === null) problems.push('brws_shop_id が見つからない');
+  return { ctk, shopId, fields, problems };
+}
+
+/** 一覧のいちばん上（タイトル・投稿日時）と、本日の残り回数 */
+export function parseBlogList(html: string): { top: { at: string; title: string } | null; remaining: number | null } {
+  const t = stripTags(String(html ?? ''));
+  const rm = /本日の残り回数\s*(\d{1,3})\s*回/.exec(t);
+  const from = t.indexOf('投稿した求人ブログ');
+  const s2 = from >= 0 ? t.slice(from) : t;
+  const m = /まとめて削除\s*(.*?)\s*投稿日時\s*(\d{4})\/(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/.exec(s2);
+  const top = m ? { at: new Date(Date.UTC(+m[2], +m[3] - 1, +m[4], +m[5], +m[6]) - 9 * 3600 * 1000).toISOString(), title: m[1].trim() } : null;
+  return { top, remaining: rm ? Number(rm[1]) : null };
+}
+
+/** ★★ 求人ブログを1件投稿する（すぐ公開）。切り抜いた画像は blog_icon_N-imgupload で足す */
+export function buildBlogPostRequest(cookie: string, page: RealtimeEditPage, title: string, body: string, imageUrls: string[]): Req {
+  if (!cookie) throw new Error('Cookie が無いまま送らない');
+  if (!page.ctk || !/^[A-Za-z0-9]{16,64}$/.test(page.ctk)) throw new Error('ctk の形が違うまま送らない');
+  if (page.shopId === null) throw new Error('brws_shop_id が無いまま送らない');
+  const p = esutamaPostTextProblem(title, body, 'job_blog');
+  if (p) throw new Error(p);
+  const fields = page.fields.map(([n, v]): [string, string] => [n, n === 'main[title]' ? title : n === 'main[content]' ? body : v]);
+  if (!fields.some(([n]) => n === 'main[title]') || !fields.some(([n]) => n === 'main[content]')) throw new Error('タイトル・本文の欄が無いまま送らない');
+  const slots = imageSlotsOf('job_blog');
+  imageUrls.slice(0, slots.length).forEach((u, i) => {
+    if (u.length > 500 || /[\s"'<>]/.test(u)) throw new Error('画像の場所の形が不正');
+    // ★ 画面では切り抜くとフォームの先頭側（枠の箱の前）に入る。並びは送る中身に効かないので、blog_id の前に置く
+    const at = fields.findIndex(([n]) => n === 'blog_id');
+    fields.splice(at >= 0 ? at : fields.length, 0, [slots[i].uploadId, u]);
+  });
+  const payload: Array<[string, string]> = [];
+  fields.forEach(([n, v], i) => { payload.push([`str[${i}][name]`, n]); payload.push([`str[${i}][value]`, v]); });
+  payload.push(['brws_shop_id', page.shopId]);
+  payload.push(['ctk', page.ctk]);
+  return {
+    method: 'POST', url: ESUTAMA_BLOG_POST_URL,
+    headers: {
+      ...baseHeaders(cookie), accept: 'application/json, text/javascript, */*; q=0.01',
+      'content-type': 'application/x-www-form-urlencoded; charset=UTF-8', 'x-requested-with': 'XMLHttpRequest',
+      referer: ESUTAMA_BLOG_EDIT_URL, origin: 'https://estama.jp',
+    },
+    body: encodePayload(payload),
   };
 }

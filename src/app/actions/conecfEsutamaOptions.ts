@@ -12,7 +12,7 @@ import {
 } from '@/lib/esutamaOption';
 import {
   ESUTAMA_POST_KEYS, ESUTAMA_POST_LABEL, ESUTAMA_POST_DEFAULT, esutamaPostTextProblem, isValidEsutamaPostSetting, type EsutamaPostKey,
-  ESUTAMA_POST_IMAGE_MAX, isEsutamaPostImagePath, pickEsutamaPostImage, isDailyPostKey, ESUTAMA_POST_DAILY,
+  ESUTAMA_POST_IMAGE_MAX, isEsutamaPostImagePath, pickEsutamaPostImages, isDailyPostKey, ESUTAMA_POST_DAILY,
 } from '@/lib/esutamaPost';
 
 // エステ魂【オプション】の受け口（第1799便・2026-11-09・カッキーさんの決定）。
@@ -227,7 +227,7 @@ export async function runConecfEsutamaPostNow(input: { key: string }): Promise<R
     const f = await startRelayFlow({
       salonId: r.salonId, provider: 'esutama', slot: 1,
       intent: 'bump_push', actor: 'shop:' + r.userId,
-      esutamaPost: { key, title, body, force: true, image: isDailyPostKey(key) ? undefined : pickEsutamaPostImage(row.images, row.next_image) },
+      esutamaPost: { key, title, body, force: true, images: isDailyPostKey(key) ? [] : pickEsutamaPostImages(key, row.images, row.next_image) },
     });
     if (!f.ok) {
       await r.svc.from('conecf_esutama_posts').update({ read_at: (row.read_at as string | null) ?? null }).eq('salon_id', r.salonId).eq('post_key', key);
@@ -261,6 +261,8 @@ export async function adminSetEsutamaPost(input: { salonId: number; key: string;
     : await svc.from('conecf_esutama_posts').insert({ salon_id: salonId, post_key: key, admin_enabled: input.enabled === true, ...(isDailyPostKey(key)
         // ★ 第1817便: メールマガジンは1日1回。既定はベンリーと同じ 11:47
         ? { start_min: 707, end_min: 1800, interval_min: ESUTAMA_POST_DAILY }
+        // ★ 第1822便: 求人ブログは1日10回まで。既定は 6:00〜翌1:00 を120分おき（＝10回・ベンリーと同じ）
+        : key === 'job_blog' ? { start_min: 360, end_min: 1500, interval_min: 120 }
         : { start_min: ESUTAMA_POST_DEFAULT.startMin, end_min: ESUTAMA_POST_DEFAULT.endMin, interval_min: ESUTAMA_POST_DEFAULT.intervalMin }) });
   if (res.error) return { ok: false, error: '保存できませんでした: ' + res.error.message };
   return { ok: true, data: null };
