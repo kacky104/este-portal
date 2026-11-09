@@ -279,6 +279,18 @@ export function afterZenkokuDayRead(input: Input, ctx: RelayFlowContext): FlowOu
   };
 }
 
+/**
+ * ★ 第1854便: 保存が 500 などで断られたときの、相手の応答の先頭（タグを落とした文字）。
+ *   監査の値は1つ120字までなので、115字ずつ3つに分けて残す（bodyHead1〜3）
+ */
+function zenkokuErrorHead(body: string): Record<string, string> {
+  const t = String(body ?? '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim().replace(/PHPSESSID|https?:\/\/\S+/gi, '');
+  const out: Record<string, string> = {};
+  for (let i = 0; i < 3; i += 1) { const part = t.slice(i * 115, (i + 1) * 115); if (part) out['bodyHead' + (i + 1)] = part; }
+  return out;
+}
+
 export function afterZenkokuDaySave(input: Input, ctx: RelayFlowContext): FlowOutcome {
   const dateISO = dayOf(ctx);
   if (!dateISO) return stop([], '保存した日が文脈に無い');
@@ -287,7 +299,8 @@ export function afterZenkokuDaySave(input: Input, ctx: RelayFlowContext): FlowOu
     return nextZenkokuDay({ ...ctx, cookie }, [{
       event: 'write_work', outcome: 'failed',
       summary: '全国エステランキングへ出勤（' + dateISO + '）を送れませんでした（応答 ' + input.status + '）',
-      detail: { httpStatus: input.status, dateISO, flowId: ctx.flowId },
+      // ★ 第1854便: 500 の原因を追うため、相手の応答の先頭（タグを落とした文字）を残す。★ 手で同じ保存をすると通る（11/9 23:1x）
+      detail: { httpStatus: input.status, dateISO, flowId: ctx.flowId, ...zenkokuErrorHead(input.body), sentPeople: ctx.zenkokuExpect ? Object.keys(ctx.zenkokuExpect).length : 0 },
     }], dateISO + ' の保存が ' + input.status);
   }
   // ★ 応答では判定しない。★ 読み直して確かめる
