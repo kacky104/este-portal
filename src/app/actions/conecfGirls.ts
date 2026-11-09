@@ -148,7 +148,16 @@ export async function getConecfGirlOrder(): Promise<Result<{ order: number[] }>>
   return { ok: true, data: { order: await readConecfGirlOrder(r.data.svc, r.data.salonId) } };
 }
 
-export async function saveConecfGirlOrder(input: { ids: number[] }): Promise<Result<{ count: number }>> {
+/** ★ 第1860便: 並び替えの固定枠（先頭から順の id）。★ 列が無い（SQL 前）・読めないときは空 */
+export async function getConecfGirlFixed(): Promise<Result<{ fixed: number[]; ready: boolean }>> {
+  const r = await resolveSalon();
+  if (!r.ok) return r;
+  const { data, error } = await r.data.svc.from('conecf_girl_order').select('fixed_ids').eq('salon_id', r.data.salonId).maybeSingle();
+  if (error) return { ok: true, data: { fixed: [], ready: false } };
+  return { ok: true, data: { fixed: ((data?.fixed_ids as unknown[] | null) ?? []).map(Number).filter((n) => Number.isFinite(n)), ready: true } };
+}
+
+export async function saveConecfGirlOrder(input: { ids: number[]; fixedIds?: number[] }): Promise<Result<{ count: number }>> {
   const r = await resolveSalon({ write: true });
   if (!r.ok) return r;
   const { svc, salonId } = r.data;
@@ -168,9 +177,25 @@ export async function saveConecfGirlOrder(input: { ids: number[] }): Promise<Res
   const ownIds = new Set((own ?? []).map((t) => Number(t.id)));
   if (ids.some((id) => !ownIds.has(id))) return { ok: false, error: '並び順を保存できませんでした。画面を読み込み直してから、もう一度お試しください' };
 
+  // ★★ 第1860便: 固定枠。渡されたら覚え直す（並び順に入っている方だけ）。渡されなければ（セラピスト一覧のつまみ）今の固定枠を読む。
+  //   どちらでも、固定枠の方を先頭にこの順で置いてから保存する（固定した方は、ほかの画面で動かしても先頭のまま）
+  const idSet = new Set(ids);
+  let fixed: number[] | null = null;
+  if (Array.isArray(input?.fixedIds)) {
+    const fs = new Set<number>();
+    fixed = [];
+    for (const x of input.fixedIds) { const n = Number(x); if (idSet.has(n) && !fs.has(n)) { fs.add(n); fixed.push(n); } }
+  } else {
+    const { data: cur, error: curErr } = await svc.from('conecf_girl_order').select('fixed_ids').eq('salon_id', salonId).maybeSingle();
+    if (!curErr) fixed = ((cur?.fixed_ids as unknown[] | null) ?? []).map(Number).filter((n) => idSet.has(n));
+  }
+  const ordered = fixed && fixed.length > 0 ? [...fixed, ...ids.filter((n) => !fixed!.includes(n))] : ids;
+  const row: Record<string, unknown> = { salon_id: salonId, therapist_ids: ordered, updated_at: new Date().toISOString() };
+  if (Array.isArray(input?.fixedIds)) row.fixed_ids = fixed ?? [];
   const { error } = await svc
     .from('conecf_girl_order')
-    .upsert({ salon_id: salonId, therapist_ids: ids, updated_at: new Date().toISOString() }, { onConflict: 'salon_id' });
+    .upsert(row, { onConflict: 'salon_id' });
+  if (error && error.code === '42703') return { ok: false, error: '固定枠の保存先がまだ用意されていません（追加SQL 第1860便）。運営事務局までご連絡ください' };
   if (error) {
     if (isMissingOrderTable(error.code)) return { ok: false, error: '並び順の保存先がまだ用意されていません（追加SQL 第1384便）。運営事務局までご連絡ください' };
     console.error('[conecf] 並び順を保存できなかった', salonId, error.code, error.message);

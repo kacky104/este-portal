@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ConecfShell } from '../../ConecfShell';
 import { useToast } from '@/app/components/useToast';
-import { listConecfGirls, saveConecfGirlOrder, type ConecfGirlRow } from '@/app/actions/conecfGirls';
+import { listConecfGirls, saveConecfGirlOrder, getConecfGirlFixed, type ConecfGirlRow } from '@/app/actions/conecfGirls';
 import { sendConecfGirlOrderToSites } from '@/app/actions/conecfSort';
 import { getConecfSchedule, type ConecfScheduleRow } from '@/app/actions/conecfSchedule';
 import { manualOrderToSave } from '@/lib/therapistOrder';
@@ -14,6 +14,7 @@ import { revalidateSalon } from '@/app/lib/revalidateTop';
 // ★ 並び順の選択（入店日順・50音順・当日出勤順…）・新人を先頭へ・前回保存時に戻す。保存は下の「保存する」でまとめて。
 // ★ 保存先はセラピスト一覧のつまみと同じ（saveConecfGirlOrder・第1384便）。非公開の方は今までどおり最後（動かせない）。
 // ★ 「並び順をサイトへ送る」は第1557便の受け口（駅ちか・エステ魂）。
+// ★ 第1860便: 並び替え固定枠。固定枠の方はいつも先頭にこの順で並び、並び順の適用（50音順など）では動かない（conecf_girl_order.fixed_ids）。
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const LONG_PRESS_MS = 300;
@@ -55,17 +56,33 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   const [dragId, setDragId] = useState<number | null>(null);
   const listRef = useRef<ConecfGirlRow[] | null>(null);
   useEffect(() => { listRef.current = list; }, [list]);
+  // ★ 第1860便: 固定枠（先頭から順の id）。fixedReady=false は列が無い（追加SQL 前）＝固定枠を使えない
+  const [fixed, setFixed] = useState<number[]>([]);
+  const [savedFixed, setSavedFixed] = useState<number[]>([]);
+  const [fixedReady, setFixedReady] = useState(true);
+  const fixedRef = useRef<number[]>([]);
+  useEffect(() => { fixedRef.current = fixed; }, [fixed]);
+  /** 固定枠の方 → 通常枠の公開中の方 → 非公開の方 の順に並べ直す */
+  const arrange = (rows: ConecfGirlRow[], fx: number[]) => {
+    const act = rows.filter((x) => x.isActive), hid = rows.filter((x) => !x.isActive);
+    const head = fx.map((id) => act.find((x) => x.id === id)).filter((x): x is ConecfGirlRow => !!x);
+    return [...head, ...act.filter((x) => !fx.includes(x.id)), ...hid];
+  };
 
   const load = useCallback(async () => {
-    const [g, s] = await Promise.all([listConecfGirls(), getConecfSchedule()]);
+    const [g, s, f] = await Promise.all([listConecfGirls(), getConecfSchedule(), getConecfGirlFixed()]);
     if (!g.ok) { setError(g.error); return; }
-    const act = g.data.girls.filter((x) => x.isActive), hid = g.data.girls.filter((x) => !x.isActive);
-    setSaved([...act, ...hid]); setList([...act, ...hid]); setSalonId(g.data.salonId); setError('');
+    const activeIds = new Set(g.data.girls.filter((x) => x.isActive).map((x) => x.id));
+    const fx = f.ok ? f.data.fixed.filter((id) => activeIds.has(id)) : [];
+    setFixedReady(f.ok ? f.data.ready : false);
+    const arranged = arrange(g.data.girls, fx);
+    setSaved(arranged); setList(arranged); setFixed(fx); setSavedFixed(fx); setSalonId(g.data.salonId); setError('');
     if (s.ok) setSched({ today: s.data.dates[0] ?? '', tomorrow: s.data.dates[1] ?? '', rows: s.data.rows });
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  const dirty = useMemo(() => !!list && !!saved && list.map((x) => x.id).join(',') !== saved.map((x) => x.id).join(','), [list, saved]);
+  const dirty = useMemo(() => !!list && !!saved && (list.map((x) => x.id).join(',') !== saved.map((x) => x.id).join(',') || fixed.join(',') !== savedFixed.join(',')), [list, saved, fixed, savedFixed]);
+  const resetToSaved = () => { if (saved) { setList(saved); setFixed(savedFixed); } };
   useEffect(() => {
     if (!dirty) return;
     const f = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; return ''; };
@@ -79,11 +96,20 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     return d && d.isActive ? d : null;
   }, [sched]);
 
-  /** 公開中の方だけを並べ替える（非公開の方は最後のまま） */
+  /** 通常枠の公開中の方だけを並べ替える（固定枠の方は先頭のまま・非公開の方は最後のまま） */
   const reorderActive = (fn: (act: ConecfGirlRow[]) => ConecfGirlRow[]) => {
     if (!list) return;
-    const act = list.filter((x) => x.isActive), hid = list.filter((x) => !x.isActive);
-    setList([...fn(act), ...hid]);
+    const head = list.filter((x) => x.isActive && fixed.includes(x.id));
+    const act = list.filter((x) => x.isActive && !fixed.includes(x.id)), hid = list.filter((x) => !x.isActive);
+    setList([...head, ...fn(act), ...hid]);
+  };
+  /** 📌 固定枠へ入れる（固定枠の最後へ）／固定を外す（通常枠の先頭へ） */
+  const togglePin = (g: ConecfGirlRow) => {
+    if (!list || !g.isActive) return;
+    if (!fixedReady) { onToast('固定枠はまだ使えません（運営事務局の準備待ちです）'); return; }
+    const nf = fixed.includes(g.id) ? fixed.filter((x) => x !== g.id) : [...fixed, g.id];
+    setFixed(nf);
+    setList(arrange(list, nf));
   };
   const byShift = (date: string, random: boolean) => (act: ConecfGirlRow[]) => {
     const on = act.filter((x) => shiftOf(x.id, date)), off = act.filter((x) => !shiftOf(x.id, date));
@@ -116,11 +142,11 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   const onSave = async () => {
     if (!list) return;
     setSaving(true);
-    const res = await saveConecfGirlOrder({ ids: manualOrderToSave(list, (x) => x.id, (x) => !x.isActive) });
+    const res = await saveConecfGirlOrder({ ids: manualOrderToSave(list, (x) => x.id, (x) => !x.isActive), ...(fixedReady ? { fixedIds: fixed } : {}) });
     setSaving(false);
     if (!res.ok) { onToast(res.error); return; }
     if (salonId != null) void revalidateSalon(salonId);
-    setSaved(list);
+    setSaved(list); setSavedFixed(fixed);
     onToast('並び順を保存しました（フクエスのお店ページにも、この順で出ます）');
   };
   const onSend = async () => {
@@ -152,17 +178,38 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     const id = dragging.current;
     const cur = listRef.current;
     if (id == null || !cur) return;
-    const el = document.elementFromPoint(x, y)?.closest('[data-sort-id]') as HTMLElement | null;
-    const over = el ? Number(el.dataset.sortId) : NaN;
+    const hit = document.elementFromPoint(x, y);
+    const el = hit?.closest('[data-sort-id]') as HTMLElement | null;
+    const fx = fixedRef.current;
+    const isFixed = fx.includes(id);
+    // ★ 第1860便: 固定枠の空いている所に落とした＝固定枠の最後へ
+    if (!el) {
+      const zone = (hit?.closest('[data-sort-zone]') as HTMLElement | null)?.dataset.sortZone;
+      if (zone === 'fixed' && !isFixed && fixedReady) {
+        const nf = [...fx, id]; fixedRef.current = nf; setFixed(nf);
+        const next = arrange(cur, nf); listRef.current = next; setList(next);
+      }
+      return;
+    }
+    const over = Number(el.dataset.sortId);
     if (!Number.isFinite(over) || over === id) return;
     const target = cur.find((g) => g.id === over);
     if (!target || !target.isActive) return;
+    const overFixed = fx.includes(over);
+    if (overFixed !== isFixed && !fixedReady) return;
+    // ★ 固定枠と通常枠のあいだを移るときは、固定の印も付け替える
+    let nf = fx;
+    if (overFixed && !isFixed) { nf = [...fx]; nf.splice(fx.indexOf(over), 0, id); }
+    else if (!overFixed && isFixed) nf = fx.filter((v) => v !== id);
+    else if (overFixed && isFixed) { nf = fx.filter((v) => v !== id); nf.splice(fx.indexOf(over), 0, id); }
+    if (nf !== fx) { fixedRef.current = nf; setFixed(nf); }
     const from = cur.findIndex((g) => g.id === id), to = cur.findIndex((g) => g.id === over);
-    const next = [...cur];
-    const [m] = next.splice(from, 1);
-    next.splice(to, 0, m);
+    const moved = [...cur];
+    const [m] = moved.splice(from, 1);
+    moved.splice(to, 0, m);
+    const next = arrange(moved, nf);
     listRef.current = next; setList(next);
-  }, []);
+  }, [fixedReady]);
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       const p = press.current;
@@ -215,44 +262,72 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           <button type="button" onClick={applyPreset} disabled={!preset || saving} className="border border-pink-400 px-3 py-1.5 font-bold text-pink-600 disabled:opacity-40">並び順を適用</button>
           <span className="mx-1 hidden h-5 border-l border-slate-200 sm:inline-block" />
           <button type="button" onClick={newFirst} disabled={saving} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">新人を先頭へ</button>
-          <button type="button" onClick={() => saved && setList(saved)} disabled={!dirty || saving} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4 disabled:text-slate-300 disabled:no-underline">前回保存時に戻す</button>
+          <button type="button" onClick={resetToSaved} disabled={!dirty || saving} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4 disabled:text-slate-300 disabled:no-underline">前回保存時に戻す</button>
           <span className="ml-auto" />
           <button type="button" onClick={() => void onSend()} disabled={sending || !enabled} className="bg-pink-500 px-4 py-2 text-[13.5px] font-bold text-white hover:bg-pink-600 disabled:opacity-40">{sending ? '受け付けています…' : '並び順をサイトへ送る（駅ちか・エステ魂）'}</button>
         </div>
       </div>
 
-      <div className={`${CARD} p-2 ${dragId != null ? 'select-none' : ''}`}>
-        <ul className="grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9">
-          {list.map((g, i) => {
-            const t = sched ? shiftOf(g.id, sched.today) : null;
-            return (
-              <li key={g.id} data-sort-id={g.id}
-                onPointerDown={(e) => onDown(e, g)}
-                onContextMenu={(e) => e.preventDefault()}
-                className={`relative flex flex-col items-center border px-1 pb-1.5 pt-5 text-center transition-shadow ${
-                  !g.isActive ? 'border-slate-100 bg-slate-50 opacity-50' : dragId === g.id ? 'z-10 border-pink-400 bg-pink-50 shadow-lg ring-2 ring-pink-300' : 'cursor-grab border-slate-200 bg-white hover:border-pink-300'
-                }`}
-                style={{ touchAction: dragId != null ? 'none' : 'manipulation', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}>
-                <span className="absolute left-1 top-1 text-[10.5px] font-bold tabular-nums text-slate-400">{g.isActive ? i + 1 : '非公開'}</span>
-                {t && <span className="absolute right-1 top-1 bg-emerald-600 px-1 text-[10px] font-bold text-white">出勤</span>}
-                {g.isNewFace && <span className="absolute right-1 top-5 bg-sky-500 px-1 text-[10px] font-bold text-white">新人</span>}
-                {g.imageUrl
-                  // eslint-disable-next-line @next/next/no-img-element -- 他サイトの小さな顔写真（セラピスト一覧と同じ）
-                  ? <img src={g.imageUrl} alt="" draggable={false} className="pointer-events-none h-[96px] w-[72px] border border-slate-200 bg-slate-100 object-cover" loading="lazy" />
-                  : <span className="h-[96px] w-[72px] border border-slate-200 bg-slate-100" aria-hidden />}
-                <span className="mt-1 w-full truncate text-[12.5px] font-bold text-slate-700">{g.name || '（名前なし）'}</span>
-                <span className="h-[14px] text-[10.5px] tabular-nums text-slate-400">{t && t.start && t.end ? `${t.start}〜${t.end}` : ''}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {(() => {
+        const card = (g: ConecfGirlRow, no: number | null) => {
+          const t = sched ? shiftOf(g.id, sched.today) : null;
+          const pinned = fixed.includes(g.id);
+          return (
+            <li key={g.id} data-sort-id={g.id}
+              onPointerDown={(e) => onDown(e, g)}
+              onContextMenu={(e) => e.preventDefault()}
+              className={`group relative flex flex-col items-center border px-1 pb-1.5 pt-5 text-center transition-shadow ${
+                !g.isActive ? 'border-slate-100 bg-slate-50 opacity-50' : dragId === g.id ? 'z-10 border-pink-400 bg-pink-50 shadow-lg ring-2 ring-pink-300' : pinned ? 'cursor-grab border-amber-300 bg-white hover:border-pink-300' : 'cursor-grab border-slate-200 bg-white hover:border-pink-300'
+              }`}
+              style={{ touchAction: dragId != null ? 'none' : 'manipulation', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}>
+              <span className="absolute left-1 top-1 text-[10.5px] font-bold tabular-nums text-slate-400">{no != null ? no : '非公開'}</span>
+              {t && <span className="absolute right-1 top-1 bg-emerald-600 px-1 text-[10px] font-bold text-white">出勤</span>}
+              {g.isNewFace && <span className="absolute right-1 top-5 bg-sky-500 px-1 text-[10px] font-bold text-white">新人</span>}
+              {g.isActive && fixedReady && (
+                <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => togglePin(g)}
+                  title={pinned ? '固定を外す' : '固定枠へ入れる'} aria-label={pinned ? `${g.name}の固定を外す` : `${g.name}を固定枠へ入れる`}
+                  className={`absolute bottom-1 right-1 h-6 w-6 items-center justify-center rounded-full text-[13px] ${pinned ? 'flex bg-amber-100 text-amber-600' : 'hidden bg-white text-slate-400 shadow ring-1 ring-slate-200 group-hover:flex'}`}>📌</button>
+              )}
+              {g.imageUrl
+                // eslint-disable-next-line @next/next/no-img-element -- 他サイトの小さな顔写真（セラピスト一覧と同じ）
+                ? <img src={g.imageUrl} alt="" draggable={false} className="pointer-events-none h-[96px] w-[72px] border border-slate-200 bg-slate-100 object-cover" loading="lazy" />
+                : <span className="h-[96px] w-[72px] border border-slate-200 bg-slate-100" aria-hidden />}
+              <span className="mt-1 w-full truncate text-[12.5px] font-bold text-slate-700">{g.name || '（名前なし）'}</span>
+              <span className="h-[14px] text-[10.5px] tabular-nums text-slate-400">{t && t.start && t.end ? `${t.start}〜${t.end}` : ''}</span>
+            </li>
+          );
+        };
+        const GRID = 'grid grid-cols-3 gap-1.5 sm:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9';
+        const head = list.filter((g) => g.isActive && fixed.includes(g.id));
+        const rest = list.filter((g) => !(g.isActive && fixed.includes(g.id)));
+        return (
+          <div className={dragId != null ? 'select-none space-y-3' : 'space-y-3'}>
+            {/* ★ 第1860便: 並び替え固定枠（ベンリーと同じ）。ここに入れた方は、いつも先頭にこの順で並ぶ */}
+            <section className={`${CARD} p-3`}>
+              <h2 className="mb-1 text-[15px] font-bold text-amber-700">並び替え固定枠</h2>
+              {!fixedReady
+                ? <p className="text-[13px] text-slate-500">固定枠はまだ使えません（運営事務局の準備待ちです）。</p>
+                : (
+                  <div data-sort-zone="fixed" className="min-h-[150px] border-2 border-dashed border-amber-300 bg-amber-50/60 p-2">
+                    {head.length === 0
+                      ? <p className="p-3 text-[13px] leading-relaxed text-amber-800">ここに女性を（長押しして）運ぶか、写真の右下の📌を押すと、並び順を固定できます。固定した方は、いつも先頭にこの順で並び、「並び順を適用」をしても動きません。</p>
+                      : <ul className={GRID}>{head.map((g, i) => card(g, i + 1))}</ul>}
+                  </div>
+                )}
+            </section>
+            <section className={`${CARD} p-3`}>
+              <h2 className="mb-1 text-[15px] font-bold text-slate-600">通常枠</h2>
+              <ul className={GRID}>{rest.map((g, i) => card(g, g.isActive ? head.length + i + 1 : null))}</ul>
+            </section>
+          </div>
+        );
+      })()}
 
       {dirty && (
         <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-between gap-3 border-t border-amber-300 bg-white/95 px-4 py-3 backdrop-blur md:left-[288px]">
           <p className="text-[14px] font-bold text-amber-800">並び順を変えました（まだ保存していません）</p>
           <div className="flex gap-2">
-            <button type="button" onClick={() => saved && setList(saved)} disabled={saving} className="border border-slate-300 px-3 py-2 text-[14px] font-bold text-slate-600">元に戻す</button>
+            <button type="button" onClick={resetToSaved} disabled={saving} className="border border-slate-300 px-3 py-2 text-[14px] font-bold text-slate-600">元に戻す</button>
             <button type="button" onClick={() => void onSave()} disabled={saving || !enabled} className="bg-gradient-to-r from-indigo-700 to-indigo-500 px-6 py-2 text-[14px] font-bold text-white disabled:opacity-50">{saving ? '保存しています…' : '保存する'}</button>
           </div>
         </div>
