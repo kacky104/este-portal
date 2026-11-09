@@ -47,6 +47,14 @@ export function ConecfLogo({ size = 36 }: { size?: number }) {
   );
 }
 
+// ★ 第1850〜1852便（カッキーさん）: サイドバーのまとまりごとの色（見出しとアイコン）。書いていないものは今まで通り
+const GROUP_TONE: Record<string, string> = { 'セラピスト': 'text-pink-500', '出勤': 'text-emerald-600', '写メ日記・新着': 'text-amber-500' };
+const ICON_TONE: Partial<Record<ConecfNavKey, string>> = {
+  girls: 'text-pink-500', girlsSync: 'text-pink-500', placeholder: 'text-pink-500',
+  schedule: 'text-emerald-600', scheduleSync: 'text-emerald-600', shift: 'text-emerald-600', now: 'text-emerald-600', bump: 'text-emerald-600',
+  diary: 'text-amber-500', announce: 'text-amber-500', news: 'text-amber-500', cocoa: 'text-amber-500',
+};
+
 function NavIcon({ k }: { k: ConecfNavKey }) {
   const p = {
     width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
@@ -194,7 +202,7 @@ export function ConecfShell({
       return (
         <div key={n.key} className="contents">
           {n.group && (
-            <div className={`px-4 pt-3 pb-1 text-[12px] font-normal ${n.group === 'セラピスト' ? 'text-pink-500' : 'text-slate-400'}`}>{n.group}</div>
+            <div className={`px-4 pt-3 pb-1 text-[12px] font-normal ${GROUP_TONE[n.group] ?? 'text-slate-400'}`}>{n.group}</div>
           )}
           <Link
             href={href(n.href)}
@@ -207,8 +215,8 @@ export function ConecfShell({
               on ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white' : 'text-[#212121] hover:bg-indigo-50'
             }`}
           >
-            {/* ★ 第1850便（カッキーさん）: セラピストのまとまりのアイコンはピンク */}
-            <span className={on ? 'text-white' : (n.key === 'girls' || n.key === 'girlsSync' || n.key === 'placeholder') ? 'text-pink-500' : 'text-indigo-500'}><NavIcon k={n.key} /></span>
+            {/* ★ 第1850〜1852便（カッキーさん）: まとまりごとのアイコンの色（セラピスト＝ピンク・出勤＝緑・写メ日記・新着＝黄） */}
+            <span className={on ? 'text-white' : (ICON_TONE[n.key] ?? 'text-indigo-500')}><NavIcon k={n.key} /></span>
             {n.label}
             {n.key === 'shift' && shiftNew > 0 && !on && (
               <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-black leading-[20px] text-white" aria-label={`新しい希望 ${shiftNew}件`}>
