@@ -22,6 +22,9 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'autoHub',      label: 'サイト自動更新一覧',     href: '/auto' },
   { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
   { key: 'girlsSync',    label: 'セラピスト登録状況一覧', href: '/girls/sync' },
+  // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
+  // ★ 第1874便（カッキーさん）: 並び替えの上へ移した
+  { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
   // ★ 第1859便（カッキーさん・オイルクエスト様）: 写真を長押しで動かす並び替え（ベンリーの「並び替え」と同じ）
   { key: 'girlsSort',    label: '並び替え',               href: '/girls/sort' },
   // ★ 第1722便（カッキーさん）: 写真が無いセラピストに使う画像（お店の既定画像）を独立した画面に。
@@ -31,8 +34,6 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
   // ★ 2026-11-04: シフト管理表（セラピストの希望を確定）。SHIFT_SALON_IDS の店だけ出す（ConecfShell の shiftNav）
   { key: 'shift',        label: 'シフト希望管理表',       href: '/shift' },
-  // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
-  { key: 'now',          label: '今すぐ／即ヒメ／即セラ設定', href: '/now',           dense: true },
   // ★ 第1306便（カッキーさん）: フクエスと駅ちかの上位表示（手で押す・時間帯と間隔で自動で押す）をまとめた画面。今すぐの下
   { key: 'bump',         label: '上位表示設定',           href: '/bump' },
   // ★ 第1799便: エステ魂の有料オプション（集客ブースト・セラピストアピールなど）。運営が ON にした店だけ（ConecfShell の esutamaOptNav）

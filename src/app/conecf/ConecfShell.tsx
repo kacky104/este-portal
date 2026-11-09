@@ -53,7 +53,8 @@ export function ConecfLogo({ size = 36 }: { size?: number }) {
 const GROUP_TONE: Record<string, string> = { 'セラピスト': 'text-pink-500', '出勤': 'text-emerald-600', '写メ日記・新着': 'text-amber-500', '記録': 'text-violet-600', 'ご案内': 'text-sky-600' };
 const ICON_TONE: Partial<Record<ConecfNavKey, string>> = {
   girls: 'text-pink-500', girlsSync: 'text-pink-500', girlsSort: 'text-pink-500', placeholder: 'text-pink-500',
-  schedule: 'text-emerald-600', scheduleSync: 'text-emerald-600', shift: 'text-emerald-600', now: 'text-emerald-600', bump: 'text-emerald-600',
+  now: 'text-pink-500',
+  schedule: 'text-emerald-600', scheduleSync: 'text-emerald-600', shift: 'text-emerald-600', bump: 'text-emerald-600',
   diary: 'text-amber-500', announce: 'text-amber-500', news: 'text-amber-500', cocoa: 'text-amber-500',
   // ★ 第1858便: 記録＝紫・ご案内＝水色（ほかのまとまりと被らない色）
   log: 'text-violet-600', matrix: 'text-violet-600', analytics: 'text-violet-600',
