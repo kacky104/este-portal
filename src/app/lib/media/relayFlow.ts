@@ -2057,6 +2057,36 @@ async function planEsutama(
   const links: Array<{ therapistId: number; castId: string }> = [];
   for (const [tid, cid] of maps.castIdOf) if (cid) links.push({ therapistId: tid, castId: cid });
 
+  // ★★ 第1843便（2026-11-09・カッキーさん）: 名前がぴったり同じ方を、出勤を送るときに自動で結ぶ（全国エステランキングの planZenkoku と同じ考え方）。
+  //   ★ これまでも出勤は名前で探して送っていた（lib/esutamaPlan.ts planRosterWrite）が、結びつきを残していなかったので、
+  //     「セラピスト登録状況一覧」で全員 △ のままだった（オイルクエスト様 65人・ベンリーから切り替えた店）。
+  //   ★ 結ぶのは: 公開中の方・まだ結んでいない方・名簿に同じ名前がぴったり1人・その番号がまだ誰とも結ばれていない・フクエス側にも同じ名前が1人だけ
+  //   ★ 書けなくても流れは止めない（今までどおり名前で探して送る）
+  {
+    const linkedCast = new Set(links.map((l) => l.castId));
+    const linkedTid = new Set(links.map((l) => l.therapistId));
+    const byName = new Map<string, EsutamaRosterRow[]>();
+    for (const r of rosterRows) {
+      const k = normalizeMediaName(r.name);
+      byName.set(k, [...(byName.get(k) ?? []), r]);
+    }
+    const fukuesByName = new Map<string, number>();
+    for (const t of candidates) {
+      const k = normalizeMediaName(t.name);
+      fukuesByName.set(k, (fukuesByName.get(k) ?? 0) + 1);
+    }
+    let newlyLinked = 0;
+    for (const t of candidates) {
+      if (!t.active || linkedTid.has(t.therapistId)) continue;
+      const k = normalizeMediaName(t.name);
+      const hits = (byName.get(k) ?? []).filter((r) => !linkedCast.has(r.castId));
+      if (hits.length !== 1 || (byName.get(k) ?? []).length !== 1 || fukuesByName.get(k) !== 1) continue;
+      const r = await rememberCastId(supabase, { therapistId: t.therapistId, provider: params.provider, slot: params.slot, castId: hits[0].castId });
+      if (r.ok) { links.push({ therapistId: t.therapistId, castId: hits[0].castId }); linkedCast.add(hits[0].castId); linkedTid.add(t.therapistId); newlyLinked += 1; }
+    }
+    if (newlyLinked > 0) console.log('[relay] エステ魂: 名前で結んだ方 ' + newlyLinked + '名', params.salonId, params.slot);
+  }
+
   const ids = candidates.map((t) => t.therapistId);
   const { data: sched, error: schErr } = ids.length
     ? await supabase
