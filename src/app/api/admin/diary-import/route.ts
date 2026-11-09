@@ -185,9 +185,12 @@ export async function POST(req: Request) {
   const canRun = (salonId: number, slot: number): boolean => {
     // ★ 第1749便: フクエスリンクの店は枠1だけ（枠2は同じ日記＝二重に並ぶ）。lib/diaryStall.ts の決まり
     if (importsDiaryFromEkichika(sourceOf.get(salonId))) return diaryImportSlotAllowed(slot);
-    if (isMixed(salonId, slot)) return true;
+    // ★★ 第1805便（2026-11-09・オイルクエスト様の切り替え直後に見つけた）: コネックエフの店の移行期間の取り込みも【枠1だけ】。
+    //   枠2以降は枠1と同じお店の同じ日記なので、4枠あると同じ写メ日記が4件並ぶ（枠2〜4 から取り込み始めていた）。
+    if (isMixed(salonId, slot)) return diaryImportSlotAllowed(slot);
     const b = backfillOf.get(salonId);
-    return !!(b && b.until);
+    // ★ 第1805便: 遡りも枠1だけ（同じ理由）
+    return !!(b && b.until) && diaryImportSlotAllowed(slot);
   };
   const slotOf = (c: unknown): number => Number((c as { slot?: number | null }).slot ?? 1);
   const targets = consented.filter((c) => canRun(Number((c as { salon_id: number }).salon_id), slotOf(c)));
