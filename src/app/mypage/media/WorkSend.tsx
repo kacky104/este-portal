@@ -348,8 +348,8 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
       setGaveUp((g) => { const n = new Set(g); n.delete(k); return n; });
       setTick(0);   // ★ 経過時間は押した瞬間から（effect の中で触らない・lint の作法）
       onToast(act === 'make_auto'
-        ? '自動更新の準備をしています。この画面のままお待ちください'
-        : 'いまの内容を確かめています。この画面のままお待ちください');
+        ? '自動更新の準備をしています。この画面のまましばらくお待ちください'
+        : 'いまの内容を確かめています。この画面のまましばらくお待ちください');
     } finally {
       setBusy(null);
     }
@@ -577,11 +577,11 @@ export function WorkSend({ salonId, onToast }: { salonId: number | null; onToast
                   style={WAIT_BLINK_STYLE}
                 >
                   {s.autoOn
-                    ? 'いまの内容を確かめています。しばらくお待ちください…'
-                    : '自動更新の準備をしています。しばらくお待ちください…'}
+                    ? 'いまの内容を確かめています。この画面のまましばらくお待ちください…'
+                    : '自動更新の準備をしています。この画面のまましばらくお待ちください…'}
                 </p>
                 <p className="mt-1 text-[13px] text-indigo-900/70 leading-relaxed">
-                  できあがると、この画面のまま自動で続きます（ふつう1〜3分）。
+                  ほかの画面へ移ると止まります。できあがると自動で続きます（ふつう1〜3分）。
                   {tick > 0 && `　待ち時間 ${Math.floor((tick * POLL_MS) / 60000)}分${Math.floor(((tick * POLL_MS) % 60000) / 1000)}秒`}
                 </p>
               </div>
