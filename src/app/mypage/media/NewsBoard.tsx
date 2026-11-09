@@ -328,7 +328,7 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
                   className={
                     'px-4 py-2 border text-[14.5px] font-bold transition-colors disabled:opacity-60 ' +
                     (on
-                      ? 'bg-slate-800 text-white border-slate-800'
+                      ? 'bg-indigo-600 text-white border-indigo-600'
                       : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50')
                   }
                 >

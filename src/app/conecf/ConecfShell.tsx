@@ -207,7 +207,8 @@ export function ConecfShell({
               on ? 'bg-gradient-to-r from-indigo-700 to-indigo-500 text-white' : 'text-[#212121] hover:bg-indigo-50'
             }`}
           >
-            <span className={on ? 'text-white' : 'text-indigo-500'}><NavIcon k={n.key} /></span>
+            {/* ★ 第1850便（カッキーさん）: セラピストのまとまりのアイコンはピンク */}
+            <span className={on ? 'text-white' : (n.key === 'girls' || n.key === 'girlsSync' || n.key === 'placeholder') ? 'text-pink-500' : 'text-indigo-500'}><NavIcon k={n.key} /></span>
             {n.label}
             {n.key === 'shift' && shiftNew > 0 && !on && (
               <span className="ml-auto inline-flex min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-black leading-[20px] text-white" aria-label={`新しい希望 ${shiftNew}件`}>
