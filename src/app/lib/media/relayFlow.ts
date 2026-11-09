@@ -476,7 +476,8 @@ export async function startRelayFlow(params: {
     .maybeSingle();
   // ★ 第1774便: 全国エステランキングは、書き込みを開けるまで「フクエスから反映」にできない（第1770便）。
   //   その間だけ、接続テスト（＝7日分を読むだけ・第1773便）は「反映しない」の枠でも通す。★ 送る用事（work_push / work_auto）は今までどおり止める
-  const zenkokuReadOnlyTest = params.provider === 'zenkoku' && !ZENKOKU_WRITE_ENABLED
+  //   ★ 第1804便: 書き込みを開けたあとも、接続テスト・試し打ち（読むだけ）は「反映しない」の枠で通す（はじめて送る前に違いを見られるように）
+  const zenkokuReadOnlyTest = params.provider === 'zenkoku'
     && (params.intent === 'connect_test' || params.intent === 'work_dryrun');
   if (src && String((src as { link_mode?: string }).link_mode) === 'none' && !zenkokuReadOnlyTest) {
     // ★ 第198便（2026-09-07）: 文言を今の画面の言葉（「反映しない」・第90便）に揃え、直し方まで書く。
@@ -1881,7 +1882,7 @@ async function planZenkoku(
 
   const planAudit: FlowAudit = {
     event: 'plan_work', outcome: 'ok',
-    summary: '全国エステランキングの出勤を読みに行きます（' + gidOf.size + '名・' + windowDates.length + '日分' + (newlyLinked > 0 ? '・名前で結んだ方 ' + newlyLinked + '名' : '') + '）' + (ZENKOKU_WRITE_ENABLED ? '' : '。いまは読むだけです'),
+    summary: '全国エステランキングの出勤を読みに行きます（' + gidOf.size + '名・' + windowDates.length + '日分' + (newlyLinked > 0 ? '・名前で結んだ方 ' + newlyLinked + '名' : '') + '）' + (ZENKOKU_WRITE_ENABLED && (ctx.intent === 'work_push' || ctx.intent === 'work_auto') ? '' : '。いまは読むだけです'),
     detail: { ...AUDIT_SHOP_HIDDEN, people: gidOf.size, linkedNow: newlyLinked, blocked: blocked.length, roster: rosterRows.length, flowId },
   };
   if (gidOf.size === 0) {

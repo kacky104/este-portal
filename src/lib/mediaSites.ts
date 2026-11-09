@@ -287,7 +287,8 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     accepting: true,
     notYet: '',
     notYetKind: '',
-    stageNote: '出勤の反映は準備中です（いまはログインの確認と、出勤の読み取りまで）。',
+    // ★ 第1804便: 出勤（7日分）の書き込みを開けた。待機中（今すぐ）はまだ
+    stageNote: '送るのは出勤（7日分）です。待機中（今すぐ）の反映は準備中です。',
     // ★ 実測（2026-11-07）: ログインは「ログイン名」と「パスワード」の2つだけ。店舗IDは無い
     loginIdLabel: 'ログイン名',
     // ★ 写メ日記そのものが無い

@@ -25,7 +25,10 @@ import { buildZenkokuGirlsRequest, buildZenkokuDayReadRequest, buildZenkokuDaySa
  * ★★★ 全国エステランキングへ出勤を【書き込む】のを許すか。
  *   ★ 第1769便では false（読むだけの段まで）。★ 読むだけで実物と合うのを確かめてから、次の便で true にする。
  */
-export const ZENKOKU_WRITE_ENABLED = false;
+// ★ 第1804便（2026-11-09・カッキーさん）: 開けた。保存のフォームの中身（項目の並び・332項目＝2＋55名×6）を
+//   11/10 の出勤画面で実物と照らし合わせ、buildZenkokuDayPayload と同じ形であることを確かめた（読むだけ）。
+//   ★ 送るのは「フクエスから反映」にした枠だけ（work_push / work_auto）。接続テスト・試し打ちは今までどおり読むだけ。
+export const ZENKOKU_WRITE_ENABLED = true;
 
 /** 全国エステランキングへ送る日数（今日の営業日から） */
 export const ZENKOKU_WINDOW_DAYS = 7;
