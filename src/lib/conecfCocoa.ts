@@ -148,7 +148,7 @@ export function cocoaUnquoteAttrs(html: string): string {
 // ── ★★ 第1833便（2026-11-09・カッキーさん）: A・B・C の3アカウント（ベンリーのココア／ココア-B／ココア-C）──
 // ★ 1アカウントに「時刻＋テンプレート（null＝順番に）」の行を持つ（ベンリーの時刻指定更新と同じ）。★ 表は conecf_cocoa_accounts
 export const COCOA_ACCOUNT_SLOTS = [1, 2, 3] as const;
-export const COCOA_ACCOUNT_LABEL: Record<number, string> = { 1: 'ココア（A）', 2: 'ココア-B', 3: 'ココア-C' };
+export const COCOA_ACCOUNT_LABEL: Record<number, string> = { 1: 'ココア（A）', 2: 'ココア（B）', 3: 'ココア（C）' };
 export const COCOA_SCHEDULE_MAX = 12;
 export type CocoaScheduleRow = { min: number; templateId: number | null };
 
