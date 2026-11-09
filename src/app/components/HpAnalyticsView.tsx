@@ -152,6 +152,8 @@ function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
     ['閲覧ページ', cur.pv, prev.pv, '見られたページの数'],
     ['電話タップ', cur.tel, prev.tel, '電話番号のボタンが押された数'],
     ['LINEタップ', cur.line, prev.line, 'LINE 予約のボタンが押された数'],
+    // ★ 第1878便: ネット予約（フクエスの予約ページへ）のボタン
+    ['ネット予約タップ', cur.book ?? 0, prev.book ?? 0, 'ネット予約のボタンが押された数'],
     ['お問い合わせ', cur.contact, prev.contact, 'お問い合わせフォームが送られた数'],
   ];
   return (
@@ -224,8 +226,8 @@ function Summary({ d }: { d: HpAnalytics }) {
   const spPct = total > 0 ? Math.round((d.devices.sp / total) * 100) : 0;
   return (
     <div className="space-y-5 border border-slate-200 bg-white p-3 sm:p-4">
-      <Bars label="人数の推移" data={d.daily.map((x) => ({ x: x.day, v: x.users, sub: `閲覧 ${nf(x.pv)}・電話 ${x.tel}・LINE ${x.line}` }))} />
-      <Bars label="電話・LINE・お問い合わせの推移" data={d.daily.map((x) => ({ x: x.day, v: x.tel + x.line + x.contact, sub: `電話 ${x.tel}・LINE ${x.line}・お問い合わせ ${x.contact}` }))} />
+      <Bars label="人数の推移" data={d.daily.map((x) => ({ x: x.day, v: x.users, sub: `閲覧 ${nf(x.pv)}・電話 ${x.tel}・LINE ${x.line}・ネット予約 ${x.book ?? 0}` }))} />
+      <Bars label="電話・LINE・ネット予約・お問い合わせの推移" data={d.daily.map((x) => ({ x: x.day, v: x.tel + x.line + (x.book ?? 0) + x.contact, sub: `電話 ${x.tel}・LINE ${x.line}・ネット予約 ${x.book ?? 0}・お問い合わせ ${x.contact}` }))} />
       {total > 0 && (
         <div>
           <p className="mb-1.5 text-[15px] font-bold text-slate-700">▼見ている端末</p>
@@ -247,17 +249,17 @@ function Sources({ d }: { d: HpAnalytics }) {
   const kindLabel = { search: '検索', direct: '直接', site: '外部サイト' } as const;
   return (
     <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
-      <p className="text-[13px] leading-relaxed text-slate-600">どこから見に来て、そこから電話・LINE・お問い合わせにどれだけつながったかが分かります。「つながった率」は、訪問のうち電話・LINE・お問い合わせがあった割合です。</p>
+      <p className="text-[13px] leading-relaxed text-slate-600">どこから見に来て、電話・LINE・ネット予約・お問い合わせにどれだけつながったかが分かります。「つながった率」は、訪問のうちそれらがあった割合です。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse">
           <thead><tr className="border-b border-slate-200 bg-slate-50">
             <th className={th}>流入元</th><th className={th}>種類</th><th className={`${th} text-right`}>人数</th><th className={`${th} text-right`}>訪問</th>
-            <th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>お問い合わせ</th><th className={`${th} text-right`}>つながった率</th>
-            <th className={`${th} text-right`} title="その人が最初に公式ホームページを知った流入元で数えた電話・LINE・お問い合わせ">最初に知った<br />きっかけの成果</th>
+            <th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>ネット予約</th><th className={`${th} text-right`}>お問い合わせ</th><th className={`${th} text-right`}>つながった率</th>
+            <th className={`${th} text-right`} title="その人が最初に公式ホームページを知った流入元で数えた電話・LINE・ネット予約・お問い合わせ">最初に知った<br />きっかけの成果</th>
           </tr></thead>
           <tbody>
             {d.sources.map((s) => {
-              const out = s.tel + s.line + s.contact;
+              const out = s.tel + s.line + s.contact + (s.book ?? 0);
               return (
                 <tr key={s.key} className="border-b border-slate-100">
                   <td className={`${td} font-bold`}>{s.label}{s.label !== s.key && <span className="ml-1 text-[11px] font-normal text-slate-400">{s.key}</span>}</td>
@@ -266,13 +268,14 @@ function Sources({ d }: { d: HpAnalytics }) {
                   <td className={`${td} text-right`}>{nf(s.sessions)}</td>
                   <td className={`${td} text-right`}>{s.tel || '—'}</td>
                   <td className={`${td} text-right`}>{s.line || '—'}</td>
+                  <td className={`${td} text-right`}>{s.book || '—'}</td>
                   <td className={`${td} text-right`}>{s.contact || '—'}</td>
                   <td className={`${td} text-right font-bold`}>{s.sessions > 0 && out > 0 ? `${Math.round((out / s.sessions) * 1000) / 10}%` : '—'}</td>
-                  <td className={`${td} text-right`}>{s.firstTel + s.firstLine + s.firstContact || '—'}</td>
+                  <td className={`${td} text-right`}>{s.firstTel + s.firstLine + s.firstContact + (s.firstBook ?? 0) || '—'}</td>
                 </tr>
               );
             })}
-            {d.sources.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
+            {d.sources.length === 0 && <tr><td colSpan={10} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
           </tbody>
         </table>
       </div>
@@ -283,11 +286,11 @@ function Sources({ d }: { d: HpAnalytics }) {
 function Pages({ d }: { d: HpAnalytics }) {
   return (
     <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
-      <p className="text-[13px] text-slate-600">どのページがどれだけ見られたか（セラピストのページは「セラピスト」のタブ）。電話・LINE は、そのページを見ているときに押された数です。</p>
+      <p className="text-[13px] text-slate-600">どのページがどれだけ見られたか（セラピストのページは「セラピスト」のタブ）。電話・LINE・ネット予約は、そのページを見ているときに押された数です。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse">
           <thead><tr className="border-b border-slate-200 bg-slate-50">
-            <th className={th}>ページ</th><th className={`${th} text-right`}>閲覧</th><th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>お問い合わせ</th>
+            <th className={th}>ページ</th><th className={`${th} text-right`}>閲覧</th><th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>ネット予約</th><th className={`${th} text-right`}>お問い合わせ</th>
           </tr></thead>
           <tbody>
             {d.pages.map((p) => (
@@ -296,10 +299,11 @@ function Pages({ d }: { d: HpAnalytics }) {
                 <td className={`${td} text-right`}>{nf(p.pv)} <Delta cur={p.pv} prev={p.prevPv} /></td>
                 <td className={`${td} text-right`}>{p.tel || '—'}</td>
                 <td className={`${td} text-right`}>{p.line || '—'}</td>
+                <td className={`${td} text-right`}>{p.book || '—'}</td>
                 <td className={`${td} text-right`}>{p.contact || '—'}</td>
               </tr>
             ))}
-            {d.pages.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
+            {d.pages.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
           </tbody>
         </table>
       </div>
@@ -314,7 +318,7 @@ function Therapists({ d }: { d: HpAnalytics }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse">
           <thead><tr className="border-b border-slate-200 bg-slate-50">
-            <th className={th}>セラピスト</th><th className={`${th} text-right`}>閲覧</th><th className={`${th} text-right`}>電話・LINE</th>
+            <th className={th}>セラピスト</th><th className={`${th} text-right`}>閲覧</th><th className={`${th} text-right`}>電話・LINE・ネット予約</th>
             <th className={`${th} text-right`}>出勤日数</th><th className={`${th} text-right`}>写メ日記</th><th className={`${th} text-right`}>1出勤あたりの閲覧</th>
           </tr></thead>
           <tbody>
@@ -330,7 +334,7 @@ function Therapists({ d }: { d: HpAnalytics }) {
                   </span>
                 </td>
                 <td className={`${td} text-right`}>{nf(t.pv)} <Delta cur={t.pv} prev={t.prevPv} /></td>
-                <td className={`${td} text-right`}>{t.tel + t.line || '—'}</td>
+                <td className={`${td} text-right`}>{t.tel + t.line + (t.book ?? 0) || '—'}</td>
                 <td className={`${td} text-right`}>{t.workDays}日</td>
                 <td className={`${td} text-right`}>{t.diaries}件</td>
                 <td className={`${td} text-right`}>{t.workDays > 0 ? Math.round((t.pv / t.workDays) * 10) / 10 : '—'}</td>

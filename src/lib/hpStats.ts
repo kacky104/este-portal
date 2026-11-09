@@ -1,7 +1,7 @@
 // ★ 第1792便（カッキーさん・2026-11-08）: 公式HP（フクエスサイト）のアクセス解析の【決まり】。純粋関数だけ（画面・API・点検で使う）。
 //   計測（公式HPの小さなスクリプト）→ /api/hp/track → 表 hp_stats（日 × 切り口 × 値 ごとの数）→ マイページ／コネックエフの解析画面。
 
-export const HP_STAT_EVENTS = ['pv', 'tel', 'line', 'contact'] as const;
+export const HP_STAT_EVENTS = ['pv', 'tel', 'line', 'contact', 'book'] as const;   // ★ 第1878便: book＝ネット予約のタップ
 export type HpStatEvent = (typeof HP_STAT_EVENTS)[number];
 
 /** 流入元の名前をそろえる（google.co.jp → google、www. を外す など）。★ 計測スクリプトと同じ決まり（点検で両方を確かめる） */

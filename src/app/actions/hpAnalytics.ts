@@ -10,15 +10,15 @@ import { hpPageLabel, hpSourceKind, hpSourceLabel, jstDayHour } from '@/lib/hpSt
 //   ★ 見られるのは、その店のオーナー様と運営だけ（コネックエフで運営が店舗として操作中も同じ）。
 //   ★ 数は表 hp_stats（日 × 切り口 × 値）。期間とその前の同じ長さの期間を読み、くらべた数（Δ）も返す。
 
-export type HpTotals = { users: number; newUsers: number; sessions: number; pv: number; tel: number; line: number; contact: number };
+export type HpTotals = { users: number; newUsers: number; sessions: number; pv: number; tel: number; line: number; contact: number; book: number };   // ★ 第1878便: book＝ネット予約のタップ
 export type HpAnalytics = {
   site: { domain: string | null; slug: string } | null;
   from: string; to: string; prevFrom: string; prevTo: string;
   totals: HpTotals; prev: HpTotals;
-  daily: Array<{ day: string; users: number; pv: number; tel: number; line: number; contact: number }>;
-  sources: Array<{ key: string; label: string; kind: 'search' | 'direct' | 'site'; users: number; sessions: number; pv: number; tel: number; line: number; contact: number; firstTel: number; firstLine: number; firstContact: number; prevUsers: number }>;
-  pages: Array<{ key: string; label: string; pv: number; prevPv: number; tel: number; line: number; contact: number }>;
-  therapists: Array<{ id: number; name: string; imageUrl: string | null; pv: number; prevPv: number; tel: number; line: number; workDays: number; diaries: number }>;
+  daily: Array<{ day: string; users: number; pv: number; tel: number; line: number; contact: number; book: number }>;
+  sources: Array<{ key: string; label: string; kind: 'search' | 'direct' | 'site'; users: number; sessions: number; pv: number; tel: number; line: number; contact: number; book: number; firstTel: number; firstLine: number; firstContact: number; firstBook: number; prevUsers: number }>;
+  pages: Array<{ key: string; label: string; pv: number; prevPv: number; tel: number; line: number; contact: number; book: number }>;
+  therapists: Array<{ id: number; name: string; imageUrl: string | null; pv: number; prevPv: number; tel: number; line: number; book: number; workDays: number; diaries: number }>;
   heat: number[][];     // [曜日 0=日..6][時 0..23] の閲覧
   heatOut: number[][];  // 同じ形の 電話＋LINE＋お問い合わせ
   devices: { sp: number; pc: number };
@@ -26,7 +26,7 @@ export type HpAnalytics = {
 };
 
 type Fail = { ok: false; error: string };
-type StatRow = { day: string; dim: string; key: string; pv: number; sessions: number; users: number; new_users: number; tel: number; line: number; contact: number };
+type StatRow = { day: string; dim: string; key: string; pv: number; sessions: number; users: number; new_users: number; tel: number; line: number; contact: number; book: number };
 
 async function assertOwner(salonId: number): Promise<{ ok: true } | Fail> {
   const supabase = await createClient();
@@ -47,7 +47,7 @@ function addDays(day: string, n: number): string {
 function daysBetween(a: string, b: string): number {
   return Math.round((new Date(`${b}T00:00:00Z`).getTime() - new Date(`${a}T00:00:00Z`).getTime()) / 86400_000) + 1;
 }
-const zero = (): HpTotals => ({ users: 0, newUsers: 0, sessions: 0, pv: 0, tel: 0, line: 0, contact: 0 });
+const zero = (): HpTotals => ({ users: 0, newUsers: 0, sessions: 0, pv: 0, tel: 0, line: 0, contact: 0, book: 0 });
 const pct = (cur: number, prev: number) => (prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null);
 
 export async function getHpAnalytics(input: { salonId: number; from: string; to: string }): Promise<{ ok: true; data: HpAnalytics } | Fail> {
@@ -66,25 +66,25 @@ export async function getHpAnalytics(input: { salonId: number; from: string; to:
   const prevTo = addDays(input.from, -1);
   const prevFrom = addDays(prevTo, -(len - 1));
   const rows = await fetchAllRows<StatRow>((a, b) => svc.from('hp_stats')
-    .select('day, dim, key, pv, sessions, users, new_users, tel, line, contact')
+    .select('day, dim, key, pv, sessions, users, new_users, tel, line, contact, book')
     .eq('salon_id', salonId).gte('day', prevFrom).lte('day', input.to)
     .order('day').order('dim').order('key').range(a, b) as unknown as PromiseLike<{ data: StatRow[] | null; error: { message?: string } | null }>, 'hp_stats');
   const isCur = (r: StatRow) => r.day >= input.from;
 
   // ── 合計・日ごと（流入元の行を足すと全体になる）──
   const totals = zero(), prev = zero();
-  const dailyMap = new Map<string, { day: string; users: number; pv: number; tel: number; line: number; contact: number }>();
-  for (let i = 0; i < len; i++) { const d = addDays(input.from, i); dailyMap.set(d, { day: d, users: 0, pv: 0, tel: 0, line: 0, contact: 0 }); }
+  const dailyMap = new Map<string, { day: string; users: number; pv: number; tel: number; line: number; contact: number; book: number }>();
+  for (let i = 0; i < len; i++) { const d = addDays(input.from, i); dailyMap.set(d, { day: d, users: 0, pv: 0, tel: 0, line: 0, contact: 0, book: 0 }); }
   const srcMap = new Map<string, HpAnalytics['sources'][number]>();
   const srcOf = (k: string) => {
     let s = srcMap.get(k);
-    if (!s) { s = { key: k, label: hpSourceLabel(k), kind: hpSourceKind(k), users: 0, sessions: 0, pv: 0, tel: 0, line: 0, contact: 0, firstTel: 0, firstLine: 0, firstContact: 0, prevUsers: 0 }; srcMap.set(k, s); }
+    if (!s) { s = { key: k, label: hpSourceLabel(k), kind: hpSourceKind(k), users: 0, sessions: 0, pv: 0, tel: 0, line: 0, contact: 0, book: 0, firstTel: 0, firstLine: 0, firstContact: 0, firstBook: 0, prevUsers: 0 }; srcMap.set(k, s); }
     return s;
   };
   const pageMap = new Map<string, HpAnalytics['pages'][number]>();
   const pageOf = (k: string) => {
     let p = pageMap.get(k);
-    if (!p) { p = { key: k, label: hpPageLabel(k), pv: 0, prevPv: 0, tel: 0, line: 0, contact: 0 }; pageMap.set(k, p); }
+    if (!p) { p = { key: k, label: hpPageLabel(k), pv: 0, prevPv: 0, tel: 0, line: 0, contact: 0, book: 0 }; pageMap.set(k, p); }
     return p;
   };
   const heat = Array.from({ length: 7 }, () => Array<number>(24).fill(0));
@@ -95,31 +95,31 @@ export async function getHpAnalytics(input: { salonId: number; from: string; to:
     const cur = isCur(r);
     if (r.dim === 'src') {
       const t = cur ? totals : prev;
-      t.users += r.users; t.newUsers += r.new_users; t.sessions += r.sessions; t.pv += r.pv; t.tel += r.tel; t.line += r.line; t.contact += r.contact;
+      t.users += r.users; t.newUsers += r.new_users; t.sessions += r.sessions; t.pv += r.pv; t.tel += r.tel; t.line += r.line; t.contact += r.contact; t.book += r.book ?? 0;
       if (cur) {
         const d = dailyMap.get(r.day);
-        if (d) { d.users += r.users; d.pv += r.pv; d.tel += r.tel; d.line += r.line; d.contact += r.contact; }
+        if (d) { d.users += r.users; d.pv += r.pv; d.tel += r.tel; d.line += r.line; d.contact += r.contact; d.book += r.book ?? 0; }
         const s = srcOf(r.key);
-        s.users += r.users; s.sessions += r.sessions; s.pv += r.pv; s.tel += r.tel; s.line += r.line; s.contact += r.contact;
+        s.users += r.users; s.sessions += r.sessions; s.pv += r.pv; s.tel += r.tel; s.line += r.line; s.contact += r.contact; s.book += r.book ?? 0;
       } else srcOf(r.key).prevUsers += r.users;
     } else if (r.dim === 'first' && cur) {
       const s = srcOf(r.key);
-      s.firstTel += r.tel; s.firstLine += r.line; s.firstContact += r.contact;
+      s.firstTel += r.tel; s.firstLine += r.line; s.firstContact += r.contact; s.firstBook += r.book ?? 0;
     } else if (r.dim === 'page') {
       const p = pageOf(r.key);
-      if (cur) { p.pv += r.pv; p.tel += r.tel; p.line += r.line; p.contact += r.contact; } else p.prevPv += r.pv;
+      if (cur) { p.pv += r.pv; p.tel += r.tel; p.line += r.line; p.contact += r.contact; p.book += r.book ?? 0; } else p.prevPv += r.pv;
     } else if (r.dim === 'hour' && cur) {
       const dow = new Date(`${r.day}T00:00:00Z`).getUTCDay();
       const h = Number(r.key);
-      if (h >= 0 && h < 24) { heat[dow][h] += r.pv; heatOut[dow][h] += r.tel + r.line + r.contact; }
+      if (h >= 0 && h < 24) { heat[dow][h] += r.pv; heatOut[dow][h] += r.tel + r.line + r.contact + (r.book ?? 0); }
     } else if (r.dim === 'device' && cur) {
       if (r.key === 'pc') devices.pc += r.users; else devices.sp += r.users;
     }
   }
 
-  const sources = [...srcMap.values()].filter((s) => s.users + s.sessions + s.tel + s.line + s.contact + s.firstTel + s.firstLine + s.firstContact > 0)
+  const sources = [...srcMap.values()].filter((s) => s.users + s.sessions + s.tel + s.line + s.contact + s.book + s.firstTel + s.firstLine + s.firstContact + s.firstBook > 0)
     .sort((a, b) => b.users - a.users || (b.tel + b.line) - (a.tel + a.line));
-  const pagesAll = [...pageMap.values()].filter((p) => p.pv + p.tel + p.line + p.contact > 0);
+  const pagesAll = [...pageMap.values()].filter((p) => p.pv + p.tel + p.line + p.contact + p.book > 0);
 
   // ── セラピスト（/therapist/{番号}）。名前・写真・期間中の出勤日数と写メ日記 ──
   const tIds = pagesAll.map((p) => /^\/therapist\/(\d+)$/.exec(p.key)?.[1]).filter((v): v is string => !!v).map(Number);
@@ -143,7 +143,7 @@ export async function getHpAnalytics(input: { salonId: number; from: string; to:
       p.label = `${String(t.name ?? '')}さんのプロフィール`;
       therapists.push({
         id: Number(t.id), name: String(t.name ?? ''), imageUrl: (t.profile_image_url as string | null) ?? null,
-        pv: p.pv, prevPv: p.prevPv, tel: p.tel, line: p.line,
+        pv: p.pv, prevPv: p.prevPv, tel: p.tel, line: p.line, book: p.book,
         workDays: work.get(Number(t.id)) ?? 0, diaries: diaries.get(Number(t.id)) ?? 0,
       });
     }
@@ -153,18 +153,18 @@ export async function getHpAnalytics(input: { salonId: number; from: string; to:
 
   // ── ひとこと（数字を読まなくても分かる一文。多すぎないよう最大4つ）──
   const insights: string[] = [];
-  const outs = (t: HpTotals) => t.tel + t.line + t.contact;
+  const outs = (t: HpTotals) => t.tel + t.line + t.contact + t.book;
   const du = pct(totals.users, prev.users);
   if (du != null && Math.abs(du) >= 10) insights.push(`人数は前の期間より ${du > 0 ? `${du}% 増えました` : `${-du}% 減りました`}（${prev.users.toLocaleString()} → ${totals.users.toLocaleString()}人）。`);
   const dOut = pct(outs(totals), outs(prev));
-  if (dOut != null && Math.abs(dOut) >= 10) insights.push(`電話・LINE・お問い合わせは前の期間より ${dOut > 0 ? `${dOut}% 増えました` : `${-dOut}% 減りました`}（${outs(prev)} → ${outs(totals)}件）。`);
-  const bestSrc = [...sources].filter((s) => s.tel + s.line + s.contact > 0).sort((a, b) => (b.tel + b.line + b.contact) - (a.tel + a.line + a.contact))[0];
-  if (bestSrc) insights.push(`電話・LINE がいちばん多かった流入元は「${bestSrc.label}」（${bestSrc.tel + bestSrc.line + bestSrc.contact}件）。`);
+  if (dOut != null && Math.abs(dOut) >= 10) insights.push(`電話・LINE・ネット予約・お問い合わせは前の期間より ${dOut > 0 ? `${dOut}% 増えました` : `${-dOut}% 減りました`}（${outs(prev)} → ${outs(totals)}件）。`);
+  const bestSrc = [...sources].filter((s) => s.tel + s.line + s.contact + s.book > 0).sort((a, b) => (b.tel + b.line + b.contact + b.book) - (a.tel + a.line + a.contact + a.book))[0];
+  if (bestSrc) insights.push(`電話・LINE・ネット予約がいちばん多かった流入元は「${bestSrc.label}」（${bestSrc.tel + bestSrc.line + bestSrc.contact + bestSrc.book}件）。`);
   const grow = sources.filter((s) => s.prevUsers >= 5 && s.users >= s.prevUsers * 1.5).sort((a, b) => (b.users - b.prevUsers) - (a.users - a.prevUsers))[0];
   if (grow && insights.length < 4) insights.push(`「${grow.label}」からの人数が大きく伸びています（${grow.prevUsers} → ${grow.users}人）。`);
   let bestCell: [number, number, number] | null = null;
   for (let d = 0; d < 7; d++) for (let h = 0; h < 24; h++) if (!bestCell || heatOut[d][h] > bestCell[2]) bestCell = [d, h, heatOut[d][h]];
-  if (bestCell && bestCell[2] >= 3 && insights.length < 4) insights.push(`電話・LINE が多いのは ${'日月火水木金土'[bestCell[0]]}曜日の ${bestCell[1]}時台です。`);
+  if (bestCell && bestCell[2] >= 3 && insights.length < 4) insights.push(`電話・LINE・ネット予約が多いのは ${'日月火水木金土'[bestCell[0]]}曜日の ${bestCell[1]}時台です。`);
   if (totals.pv === 0) insights.splice(0, insights.length, 'この期間の記録はまだありません（計測はこの機能を入れた日から始まります）。');
 
   return {

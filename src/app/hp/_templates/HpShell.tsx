@@ -172,7 +172,7 @@ export function HpShell({
               {/* ★ 第1877便（カッキーさん）: フクエスでネット予約・LINE予約を受け付けている店は、電話番号の下にも出す */}
               {(salon.bookUrl || salon.lineUrl) && (
                 <div className="hp-drawer-reserve">
-                  {salon.bookUrl && <a className="hp-drawer-book" href={salon.bookUrl} target="_blank" rel="noopener">ネット予約</a>}
+                  {salon.bookUrl && <a className="hp-drawer-book" data-hp-ev="book" href={salon.bookUrl} target="_blank" rel="noopener">ネット予約</a>}
                   {salon.lineUrl && <a className="hp-drawer-line" data-hp-ev="line" href={salon.lineUrl} target="_blank" rel="noopener noreferrer">LINE予約</a>}
                 </div>
               )}
@@ -300,13 +300,13 @@ export function HpShell({
       {(salon.phone || salon.lineUrl || salon.bookUrl) && (
         <div className="hp-cta">
           {salon.phone && <a className="hp-cta-tel" href={`tel:${salon.phone}`}>電話予約</a>}
-          {salon.bookUrl && <a className="hp-cta-book" href={salon.bookUrl} target="_blank" rel="noopener">ネット予約</a>}
+          {salon.bookUrl && <a className="hp-cta-book" data-hp-ev="book" href={salon.bookUrl} target="_blank" rel="noopener">ネット予約</a>}
           {/* LINE予約だけは他社サービスで計測の必要が無いので noreferrer のまま */}
           {salon.lineUrl && <a className="hp-cta-line" data-hp-ev="line" href={salon.lineUrl} target="_blank" rel="noopener noreferrer">LINE予約</a>}
         </div>
       )}
 
-      {/* ★ 第1792便: アクセス解析の計測（閲覧・電話/LINE のタップ。中身は src/app/hp/_lib/trackScript.ts） */}
+      {/* ★ 第1792便: アクセス解析の計測（閲覧・電話/LINE/ネット予約（第1878便）のタップ。中身は src/app/hp/_lib/trackScript.ts） */}
       <script dangerouslySetInnerHTML={{ __html: hpTrackScript(site.slug) }} />
     </div>
   );

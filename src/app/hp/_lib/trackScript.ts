@@ -27,7 +27,7 @@ try{if(navigator.sendBeacon&&navigator.sendBeacon('/api/hp/track',new Blob([b],{
 try{fetch('/api/hp/track',{method:'POST',body:b,keepalive:true,headers:{'content-type':'text/plain'}})}catch(e){}}
 send('pv',{ns:ns?1:0,nu:nu?1:0,u:u?1:0});
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a'):null;if(!a)return;var h=a.getAttribute('href')||'';
-if(/^tel:/i.test(h))send('tel');else if(a.getAttribute('data-hp-ev')==='line'||/(^|\\/\\/)(line\\.me|lin\\.ee)\\//i.test(h))send('line')},true);
+if(/^tel:/i.test(h))send('tel');else if(a.getAttribute('data-hp-ev')==='book')send('book');else if(a.getAttribute('data-hp-ev')==='line'||/(^|\\/\\/)(line\\.me|lin\\.ee)\\//i.test(h))send('line')},true);
 window.__fkHpTrack=function(t){if(t==='contact')send('contact')};
 }catch(e){}})();`;
 }
