@@ -20,6 +20,7 @@ import {
   planZenkokuDay, buildZenkokuDayPayload, zenkokuCellLabel, ZENKOKU_MAX_FIELDS,
 } from './zenkokuParse';
 import { buildZenkokuGirlsRequest, buildZenkokuDayReadRequest, buildZenkokuDaySaveRequest, ZENKOKU_LOGIN_URL } from './zenkokuRequests';
+import { buildZenkokuWaitReadRequest } from './zenkokuWait';
 
 /**
  * ★★★ 全国エステランキングへ出勤を【書き込む】のを許すか。
@@ -97,6 +98,16 @@ export function afterZenkokuLogin(input: Input, ctx: RelayFlowContext): FlowOutc
       [{ event: 'login', outcome: 'failed', summary: '全国エステランキングにログインできませんでした（応答 ' + input.status + '）', detail: { httpStatus: input.status, reason: 'http_error', flowId: ctx.flowId } }],
       '全国エステランキングのログインの応答が ' + input.status + ' だった',
     );
+  }
+  // ★ 第1810便: 待機中の周は、セラピスト一覧ではなく【その日の出勤画面だけ】を読む（読めた＝ログインできた）
+  if (ctx.zenkokuWait) {
+    const w = buildZenkokuWaitReadRequest(cookie, ctx.zenkokuWait.dateISO);
+    return {
+      kind: 'next',
+      next: { purpose: 'zenkoku_wait_read', method: w.method, url: w.url, headers: w.headers, body: '', context: { ...ctx, cookie } },
+      audits: [],
+      note: '全国エステランキングにログインした → 待機中のために ' + ctx.zenkokuWait.dateISO + ' の出勤を読む',
+    };
   }
   // ★ 本当にログインできたかは、次のセラピスト一覧が読めたかで確かめる（駅ちか・エステ魂と同じ作法）
   const r = buildZenkokuGirlsRequest(cookie);

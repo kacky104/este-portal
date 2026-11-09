@@ -43,7 +43,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   'esutama_diary_token', 'esutama_diary_proxy', 'esutama_diary_page', 'esutama_diary_end',
   'esutama_sokusera_token', 'esutama_sokusera_proxy', 'esutama_sokusera_page', 'esutama_sokusera_verify', 'esutama_sokusera_end',
   // ── 全国エステランキング: 読むだけ（第1769便）──
-  'zenkoku_login_page', 'zenkoku_roster', 'zenkoku_day_read', 'zenkoku_day_verify',
+  'zenkoku_login_page', 'zenkoku_roster', 'zenkoku_day_read', 'zenkoku_day_verify', 'zenkoku_wait_read',
   // ── 疎通確認 ──
   'selftest',
 ];
@@ -72,7 +72,7 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'esutama_diary_post',
   'esutama_sokusera_start',
   // ── 全国エステランキング（第1769便）──
-  'zenkoku_login', 'zenkoku_day_save',
+  'zenkoku_login', 'zenkoku_day_save', 'zenkoku_wait_set',
 ];
 
 /** この段は、返事が無かったときに送り直してよいか。★ 知らない段は false（送り直さない）。 */

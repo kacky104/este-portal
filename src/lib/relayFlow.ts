@@ -132,6 +132,7 @@ import type { EsutamaRosterRow } from './esutamaParse';
 // ★ 第1769便: 全国エステランキングの段（段名 'zenkoku_…' で分けている）
 import type { ZenkokuLoginForm, ZenkokuGirl } from './zenkokuParse';
 import { afterZenkokuLoginPage, afterZenkokuLogin, afterZenkokuRoster, afterZenkokuDayRead, afterZenkokuDaySave, afterZenkokuDayVerify } from './zenkokuFlow';
+import { afterZenkokuWaitRead, afterZenkokuWaitSet } from './zenkokuWaitFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
 import {
@@ -1024,6 +1025,8 @@ export type RelayFlowContext = {
   // ── ここから下は 全国エステランキング（provider='zenkoku'）のときだけ入る（第1769便）──
   /** 送る日（営業日の 'YYYY-MM-DD'・7日分） */
   zenkokuWindow?: string[];
+  /** ★ 第1810便: 待機中の周（その日の出勤時間に入った方を全員待機中にする）。営業日と、このあと押す方 */
+  zenkokuWait?: { dateISO: string; queue?: Array<{ gid: string; rowId: string; name: string }>; done?: string[]; failed?: string[]; already?: number };
   /** いま何日目か（zenkokuWindow の添字） */
   zenkokuDayIndex?: number;
   /** 日付 → girl id → あるべき姿（'HH:MM-HH:MM' ／ '─'）。★ DB 側が名簿を読んだあと入れる。★ ここに無い人は触らない */
@@ -1129,7 +1132,9 @@ export type FlowNextRequest = {
     // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える
     | 'girls_sort' | 'esutama_sort_read' | 'esutama_sort_save'
     // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
-    | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify';
+    | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify'
+    // ★ 第1810便: 全国エステランキングの待機中。★ zenkoku_wait_set だけが相手を書き換える
+    | 'zenkoku_wait_read' | 'zenkoku_wait_set';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1763,6 +1768,10 @@ function advanceFlowStep(
       return afterZenkokuDaySave(input, ctx);
     case 'zenkoku_day_verify':
       return afterZenkokuDayVerify(input, ctx);
+    case 'zenkoku_wait_read':
+      return afterZenkokuWaitRead(input, ctx);
+    case 'zenkoku_wait_set':
+      return afterZenkokuWaitSet(input, ctx);
     case 'esutama_login_page':
       return afterEsutamaLoginPage(input, ctx);
     case 'esutama_login':

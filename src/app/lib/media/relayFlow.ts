@@ -420,6 +420,8 @@ export async function startRelayFlow(params: {
    *   ★ 結果は conecf_esutama_options に書く（salon_import_sources の bump_* には書かない）
    */
   esutamaOpt?: { key: string; force?: boolean };
+  /** ★ 第1810便: 全国エステランキングの待機中の周（intent は bump_auto / bump_push）。その営業日の出勤時間に入った方を全員待機中にする */
+  zenkokuWait?: { dateISO: string };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
   sort?: { want: string[] };
 }): Promise<StartFlowResult> {
@@ -717,6 +719,7 @@ export async function startRelayFlow(params: {
     ...(params.bump?.force === true ? { bumpForce: true } : {}),
     // ★ 第1799便: エステ魂【オプション】。★ 渡されたときだけ入れる
     ...(params.esutamaOpt ? { esutamaOpt: { key: params.esutamaOpt.key, ...(params.esutamaOpt.force === true ? { force: true } : {}) } } : {}),
+    ...(params.zenkokuWait ? { zenkokuWait: { dateISO: params.zenkokuWait.dateISO } } : {}),
     // ★ 第1557便: セラピストの並び順。★ 渡されたときだけ入れる
     ...(params.sort ? { sortWant: params.sort.want.map(String) } : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
@@ -737,7 +740,10 @@ export async function startRelayFlow(params: {
   if (params.esutamaOpt && params.provider !== 'esutama') {
     throw new Error('esutamaOpt はエステ魂だけ');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt) {
+  if (params.zenkokuWait && params.provider !== 'zenkoku') {
+    throw new Error('zenkokuWait は全国エステランキングだけ');
+  }
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.zenkokuWait) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {

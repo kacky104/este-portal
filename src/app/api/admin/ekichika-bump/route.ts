@@ -3,6 +3,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaBump';
 import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
+import { businessDateJSTFrom } from '@/lib/dutyStatus';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -128,6 +129,35 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error('[esutama-option] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
         results.push({ ...base, reason: 'start_failed' });
+      }
+    }
+  }
+
+  // ★★ 第1810便（カッキーさん「A」）: 全国エステランキングの待機中。その営業日の出勤時間に入った方を全員待機中にする
+  //   ★ 対象は「フクエスから反映（自動）」の全国エステランキングの枠だけ。★ 15分に1回まで（bump_auto_at を使う）
+  {
+    const zk = await svc.from('salon_import_sources')
+      .select('salon_id, slot, bump_auto_at, salons!inner(conecf_enabled_at)')
+      .eq('provider', 'zenkoku').eq('link_mode', 'write_auto').eq('is_enabled', true)
+      .not('salons.conecf_enabled_at', 'is', null);
+    if (!zk.error) {
+      const dateISO = businessDateJSTFrom(now.getTime());
+      for (const z of zk.data ?? []) {
+        const slot = Number(z.slot ?? 1);
+        const base = { salonId: Number(z.salon_id), provider: 'zenkoku:wait', slot };
+        const last = z.bump_auto_at ? Date.parse(String(z.bump_auto_at)) : 0;
+        if (now.getTime() - last < 14 * 60000) { results.push({ ...base, reason: 'interval' }); continue; }
+        if (!apply) { results.push({ ...base, reason: 'ok' }); continue; }
+        const { error: mErr } = await svc.from('salon_import_sources').update({ bump_auto_at: now.toISOString() })
+          .eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot);
+        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
+        try {
+          const f = await startRelayFlow({ salonId: Number(z.salon_id), provider: 'zenkoku', slot, intent: 'bump_auto', actor: 'cron:zenkoku-wait', zenkokuWait: { dateISO } });
+          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+        } catch (e) {
+          console.error('[zenkoku-wait] 流れを始められなかった', z.salon_id, e instanceof Error ? e.message : 'unknown');
+          results.push({ ...base, reason: 'start_failed' });
+        }
       }
     }
   }
