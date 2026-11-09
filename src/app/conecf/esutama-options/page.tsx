@@ -8,7 +8,9 @@ import {
   getConecfEsutamaPosts, saveConecfEsutamaPost, runConecfEsutamaPostNow, type ConecfEsutamaPost,
   addConecfEsutamaPostImage, removeConecfEsutamaPostImage,
 } from '@/app/actions/conecfEsutamaOptions';
-import { ESUTAMA_POST_TITLE_MAX, ESUTAMA_POST_BODY_MAX, ESUTAMA_POST_INTERVALS, ESUTAMA_POST_IMAGE_MAX } from '@/lib/esutamaPost';
+import { ESUTAMA_POST_TITLE_MAX, esutamaPostBodyMax, ESUTAMA_POST_INTERVALS, ESUTAMA_POST_IMAGE_MAX, ESUTAMA_POST_DAILY, isDailyPostKey } from '@/lib/esutamaPost';
+// ★ 第1817便: メールマガジンの送る時刻（15分きざみ・朝6時〜翌5:45）
+const DAILY_TIMES = Array.from({ length: 96 }, (_, i) => 360 + i * 15);
 
 /** ★ 第1812便: ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
 async function shrinkToJpeg(file: File): Promise<Blob> {
@@ -145,10 +147,11 @@ function OptionCard({ o, onToast, reload, open, onToggle }: { o: ConecfEsutamaOp
 
 // ★ 第1811便: 投稿（リアルタイム集客）。保存した文章を、決めた間隔で投稿する
 const POST_DESC: Record<string, string> = {
+  mailmag: 'エステ魂の「メールマガジン」を、毎日決めた時刻に1通配信します（メールマガジンに登録しているお客様へ本当にメールが届きます）。送る時刻から3時間を過ぎたら、その日は送りません。',
   job_realtime: 'エステ魂の「リアルタイム求人」（お店の求人ページに出ます）に、下の文章を決めた間隔で投稿します。画像を入れておくと、投稿のたびに1枚ずつ順番に替えます（画像が無いときは、いまエステ魂に出ている画像のまま）。',
   guest_realtime: 'エステ魂の「リアルタイム集客」に、下の文章を決めた間隔で投稿します。画像を入れておくと、投稿のたびに1枚ずつ順番に替えます（画像が無いときは、いまエステ魂に出ている画像のまま）。',
 };
-const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '投稿できました' : o.startsWith('ok: 画像は前のまま') ? '投稿できました（画像は前のまま）' + o.slice('ok: 画像は前のまま'.length) : o.startsWith('error') ? 'うまくいきませんでした' : o);
+const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '送れました' : o.startsWith('ok: 画像は前のまま') ? '投稿できました（画像は前のまま）' + o.slice('ok: 画像は前のまま'.length) : o.startsWith('error') ? 'うまくいきませんでした' : o);
 
 function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(p.auto);
@@ -159,6 +162,7 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
   const [intervalMin, setIntervalMin] = useState(p.intervalMin);
   const [busy, setBusy] = useState(false);
   const dirty = title !== p.title || body !== p.body;
+  const daily = isDailyPostKey(p.key);
   const addImage = async (file: File | undefined) => {
     if (!file) return;
     setBusy(true);
@@ -193,7 +197,7 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
   };
   const now = async () => {
     if (dirty) { onToast('文章を変えたときは、先に「保存」を押してください'); return; }
-    if (!window.confirm('いまの文章で、エステ魂に1件投稿します。よろしいですか？')) return;
+    if (!window.confirm(daily ? 'いまの文章で、メールマガジンを1通配信します（登録しているお客様へ本当にメールが届きます）。よろしいですか？' : 'いまの文章で、エステ魂に1件投稿します。よろしいですか？')) return;
     setBusy(true);
     const r = await runConecfEsutamaPostNow({ key: p.key });
     setBusy(false);
@@ -204,12 +208,12 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
     <section className={`${CARD} p-5 space-y-3`}>
       <AccHead title={p.label} open={open} onToggle={onToggle} auto={p.auto} last={`${when(p.lastAt)}・${postOutcomeText(p.lastOutcome)}`}>
         <button type="button" disabled={busy} onClick={now}
-          className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ投稿</button>
+          className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">{daily ? '今すぐ配信' : '今すぐ投稿'}</button>
       </AccHead>
       {open && (<>
       <p className="text-[13px] leading-relaxed text-slate-600">{POST_DESC[p.key]}</p>
       <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-2">
-        <div>最後に投稿できた：<b className="text-slate-800">{when(p.lastAt)}</b></div>
+        <div>{daily ? '最後に配信できた' : '最後に投稿できた'}：<b className="text-slate-800">{when(p.lastAt)}</b></div>
         <div>最後の結果：{postOutcomeText(p.lastOutcome)}</div>
       </div>
       <div className="space-y-2 border-t border-slate-100 pt-3 text-[14px]">
@@ -220,10 +224,11 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
         </label>
         <label className="block">
           <span className="font-bold">本文</span>
-          <span className="ml-2 text-[12px] text-slate-500">{[...body].length}/{ESUTAMA_POST_BODY_MAX}</span>
+          <span className="ml-2 text-[12px] text-slate-500">{[...body].length}/{esutamaPostBodyMax(p.key)}</span>
           <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} className="mt-1 w-full border border-slate-300 px-2 py-1.5" />
         </label>
       </div>
+      {!daily && (
       <div className="space-y-2 border-t border-slate-100 pt-3 text-[14px]">
         <div>
           <span className="font-bold">画像</span>
@@ -249,10 +254,18 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
           )}
         </div>
       </div>
+      )}
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3 text-[14px]">
         <label className="flex items-center gap-2 font-bold">
-          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 自動で投稿する
+          <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> {daily ? '毎日自動で配信する' : '自動で投稿する'}
         </label>
+        {daily ? (
+          <label className="flex items-center gap-2">送る時刻
+            <select value={startMin} onChange={(e) => { setStart(Number(e.target.value)); setEnd(1800); setIntervalMin(ESUTAMA_POST_DAILY); }} className="border border-slate-300 px-2 py-1">
+              {DAILY_TIMES.map((m) => <option key={m} value={m}>{label(m)}</option>)}
+            </select>
+          </label>
+        ) : (<>
         <span className="flex items-center gap-1">
           <select value={startMin} onChange={(e) => setStart(Number(e.target.value))} className="border border-slate-300 px-2 py-1">
             {HOURS.slice(0, -1).map((m) => <option key={m} value={m}>{label(m)}</option>)}
@@ -265,6 +278,7 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
         <select value={intervalMin} onChange={(e) => setIntervalMin(Number(e.target.value))} className="border border-slate-300 px-2 py-1">
           {ESUTAMA_POST_INTERVALS.map((m) => <option key={m} value={m}>{m}分おき</option>)}
         </select>
+        </>)}
         <button type="button" disabled={busy} onClick={save} className="border border-violet-600 px-4 py-1.5 font-bold text-violet-700 disabled:opacity-40">保存</button>
       </div>
       </>)}

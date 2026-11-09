@@ -19,24 +19,30 @@
 import { encodePayload } from './ekichikaWorkParse';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 import { readEsutamaCsrf } from './esutamaParse';
-import { businessMinOf } from './esutamaOption';
+import { businessMinOf, lastResetAt } from './esutamaOption';
 import { assertRelayFileUrl, type RelayMultipart } from './relayMultipart';
 
-export type EsutamaPostKey = 'guest_realtime' | 'job_realtime';
-export const ESUTAMA_POST_KEYS: EsutamaPostKey[] = ['guest_realtime', 'job_realtime'];
-export const ESUTAMA_POST_LABEL: Record<EsutamaPostKey, string> = { guest_realtime: 'リアルタイム集客', job_realtime: 'リアルタイム求人' };
+export type EsutamaPostKey = 'guest_realtime' | 'job_realtime' | 'mailmag';
+export const ESUTAMA_POST_KEYS: EsutamaPostKey[] = ['guest_realtime', 'job_realtime', 'mailmag'];
+export const ESUTAMA_POST_LABEL: Record<EsutamaPostKey, string> = { guest_realtime: 'リアルタイム集客', job_realtime: 'リアルタイム求人', mailmag: 'メールマガジン' };
+/** ★ 第1817便: メールマガジンは「1日1回・決めた時刻」（ベンリーは毎日 11:47）。リアルタイムは「間隔ごと」 */
+export const isDailyPostKey = (key?: string) => key === 'mailmag';
 // ★ 第1813便: リアルタイム求人（/admin/job/realtime/）も同じ形（2026-11-09 実測・読んだだけ）。違うのは hidden の page=job / table=shop_job / real_type=job だけ
-const REALTIME_BASE: Record<EsutamaPostKey, { path: string; realType: string }> = {
+const REALTIME_BASE: Record<'guest_realtime' | 'job_realtime', { path: string; realType: string }> = {
   guest_realtime: { path: 'https://estama.jp/admin/guest/realtime/', realType: 'shop' },
   job_realtime: { path: 'https://estama.jp/admin/job/realtime/', realType: 'job' },
 };
-const baseOf = (key?: string) => REALTIME_BASE[(key ?? 'guest_realtime') as EsutamaPostKey] ?? REALTIME_BASE.guest_realtime;
+const baseOf = (key?: string) => REALTIME_BASE[(key ?? 'guest_realtime') as 'guest_realtime' | 'job_realtime'] ?? REALTIME_BASE.guest_realtime;
 export const realtimeListUrl = (key?: string) => baseOf(key).path;
 export const realtimeEditUrl = (key?: string) => baseOf(key).path + 'edit/';
 export const ESUTAMA_POST_TITLE_MAX = 30;
 export const ESUTAMA_POST_BODY_MAX = 300;
+/** ★ メールマガジンの本文は1500文字まで（2026-11-09 実測） */
+export const esutamaPostBodyMax = (key?: string) => (key === 'mailmag' ? 1500 : ESUTAMA_POST_BODY_MAX);
 /** ★ 選べる間隔（分） */
 export const ESUTAMA_POST_INTERVALS = [30, 60, 90, 120, 150, 180];
+/** ★ 1日1回のもの（メールマガジン）の間隔の値 */
+export const ESUTAMA_POST_DAILY = 1440;
 /** ★ 既定: 一日中（朝6時〜翌6時）・60分おき（ベンリーと同じ） */
 export const ESUTAMA_POST_DEFAULT = { startMin: 360, endMin: 1800, intervalMin: 60 };
 
@@ -123,16 +129,20 @@ export function buildRealtimeImageCropRequest(cookie: string, ctk: string | null
 const len = (s: string) => [...String(s ?? '')].length;
 
 /** タイトル・本文が送れる形か（空でない・上限以内） */
-export function esutamaPostTextProblem(title: string, body: string): string | null {
+export function esutamaPostTextProblem(title: string, body: string, key?: string): string | null {
   if (len(title.trim()) === 0) return 'タイトルを入れてください';
   if (len(title) > ESUTAMA_POST_TITLE_MAX) return `タイトルは${ESUTAMA_POST_TITLE_MAX}文字以内にしてください`;
   if (len(body.trim()) === 0) return '本文を入れてください';
-  if (len(body) > ESUTAMA_POST_BODY_MAX) return `本文は${ESUTAMA_POST_BODY_MAX}文字以内にしてください`;
+  if (len(body) > esutamaPostBodyMax(key)) return `本文は${esutamaPostBodyMax(key)}文字以内にしてください`;
   return null;
 }
 
 export type EsutamaPostSetting = { startMin: number; endMin: number; intervalMin: number };
-export function isValidEsutamaPostSetting(s: EsutamaPostSetting): boolean {
+export function isValidEsutamaPostSetting(s: EsutamaPostSetting, key?: string): boolean {
+  if (isDailyPostKey(key)) {
+    // ★ startMin が送る時刻（朝6時はじまりの分）。endMin は使わない（1800 にしておく）
+    return Number.isInteger(s.startMin) && s.startMin >= 360 && s.startMin < 1800 && s.intervalMin === ESUTAMA_POST_DAILY;
+  }
   return [s.startMin, s.endMin, s.intervalMin].every((v) => Number.isInteger(v))
     && s.startMin >= 360 && s.endMin <= 1800 && s.startMin < s.endMin
     && ESUTAMA_POST_INTERVALS.includes(s.intervalMin);
@@ -140,10 +150,22 @@ export function isValidEsutamaPostSetting(s: EsutamaPostSetting): boolean {
 
 /** ★ 周（5分ごと）で投稿するか。readAt は「始めた時刻」（失敗した回も立て続けに始めない） */
 export function shouldPostEsutama(args: {
-  setting: EsutamaPostSetting; state: { lastAt: string | null; readAt: string | null }; now: Date; hasText: boolean;
+  setting: EsutamaPostSetting; state: { lastAt: string | null; readAt: string | null }; now: Date; hasText: boolean; key?: string;
 }): { post: boolean; reason: string } {
   const { setting, state, now } = args;
   if (!args.hasText) return { post: false, reason: 'no_text' };
+  if (isDailyPostKey(args.key)) {
+    // ★ 1日1回: その日（朝6時はじまり）の送る時刻を過ぎていて、まだ送れていなければ送る
+    const b0 = businessMinOf(now);
+    if (b0 < setting.startMin) return { post: false, reason: 'before_time' };
+    const dueAt = lastResetAt(now).getTime() + (setting.startMin - 360) * 60000;
+    if (state.lastAt && Date.parse(state.lastAt) >= dueAt - 60000) return { post: false, reason: 'done_today' };
+    // ★ 失敗した回は30分おいてから（その日のうちに何度も送りに行かない）
+    if (state.readAt && now.getTime() - Date.parse(state.readAt) < 30 * 60000) return { post: false, reason: 'recent_try' };
+    // ★ 送る時刻から3時間を過ぎたら、その日は送らない（夜中にいきなりメールを出さない）
+    if (now.getTime() - dueAt > 3 * 3600 * 1000) return { post: false, reason: 'too_late' };
+    return { post: true, reason: 'ok' };
+  }
   const b = businessMinOf(now);
   if (b < setting.startMin || b >= setting.endMin) return { post: false, reason: 'outside_hours' };
   const gap = (iso: string | null) => (iso ? now.getTime() - Date.parse(iso) : Infinity);
@@ -285,4 +307,59 @@ export function pickEsutamaPostImage(images: unknown, nextImage: unknown): { pat
   const n = Number.isInteger(Number(nextImage)) && Number(nextImage) >= 0 ? Number(nextImage) : 0;
   const index = n % list.length;
   return { path: list[index], index };
+}
+
+// ── メールマガジン（第1817便・2026-11-09 実測・読んだだけ。送ってはいない）───────────────
+//   一覧  GET /admin/mail/ … 「配信日時：2026年11月09日 11時47分」＋タイトル＋配信数（4件）。brws_shop_id・#csrf_footer がある
+//   作成  「メールマガジンを配信する」= .send-get_modal（data-row=mailmag,0）→ POST /admin_post/modal/ でフォームの HTML が来る
+//          <form id="form-mail_edit"> title（30文字以内）/ body（1500文字以内）だけ
+//   送る  「メルマガを送信」= .send-modal_post（data-post=mail_edit）→ sendPost: POST /admin_post/mail_edit
+//          data = { str: serializeArray（title, body）, brws_shop_id, ctk }。応答 [0]=='OUT' なら入力エラー
+// ★★ 登録している方（オイルクエスト様は4件）へ本当にメールが届く。二度送ると2通届く → 送り直さない
+export const ESUTAMA_MAIL_LIST_URL = 'https://estama.jp/admin/mail/';
+export const ESUTAMA_MAIL_POST_URL = 'https://estama.jp/admin_post/mail_edit';
+
+export function buildMailPageRequest(cookie: string): Req {
+  if (!cookie) throw new Error('Cookie が無いまま読みに行かない');
+  return { method: 'GET', url: ESUTAMA_MAIL_LIST_URL, headers: { ...baseHeaders(cookie), accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', referer: 'https://estama.jp/admin/' } };
+}
+
+/** 一覧（ctk・brws_shop_id・いちばん上の配信） */
+export function parseMailPage(html: string): { ctk: string | null; shopId: string | null; top: { at: string; title: string } | null; problems: string[] } {
+  const src = String(html ?? '');
+  const problems: string[] = [];
+  const ctk = readEsutamaCsrf(src);
+  if (!ctk) problems.push('ctk（#csrf_footer）が見つからない');
+  let shopId: string | null = null;
+  for (const t of src.match(/<input\b[^>]*>/gi) ?? []) {
+    if (attr(t, 'id') === 'brws_shop_id' || attr(t, 'name') === 'brws_shop_id') { shopId = attr(t, 'value') ?? ''; break; }
+  }
+  if (shopId === null) problems.push('brws_shop_id が見つからない');
+  if (!/メールマガジン/.test(src)) problems.push('メールマガジンの画面ではない');
+  const txt = stripTags(src);
+  const m = /配信日時\s*[：:]\s*(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2})時(\d{1,2})分\s*(.*?)\s+\d+\s*件/.exec(txt);
+  const top = m ? { at: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) - 9 * 3600 * 1000).toISOString(), title: m[6].trim() } : null;
+  return { ctk, shopId, top, problems };
+}
+
+/** ★★ メールマガジンを1通配信する（本当に届く） */
+export function buildMailPostRequest(cookie: string, page: { ctk: string | null; shopId: string | null }, title: string, body: string): Req {
+  if (!cookie) throw new Error('Cookie が無いまま送らない');
+  if (!page.ctk || !/^[A-Za-z0-9]{16,64}$/.test(page.ctk)) throw new Error('ctk の形が違うまま送らない');
+  if (page.shopId === null) throw new Error('brws_shop_id が無いまま送らない');
+  const p = esutamaPostTextProblem(title, body, 'mailmag');
+  if (p) throw new Error(p);
+  return {
+    method: 'POST', url: ESUTAMA_MAIL_POST_URL,
+    headers: {
+      ...baseHeaders(cookie), accept: 'application/json, text/javascript, */*; q=0.01',
+      'content-type': 'application/x-www-form-urlencoded; charset=UTF-8', 'x-requested-with': 'XMLHttpRequest',
+      referer: ESUTAMA_MAIL_LIST_URL, origin: 'https://estama.jp',
+    },
+    body: encodePayload([
+      ['str[0][name]', 'title'], ['str[0][value]', title],
+      ['str[1][name]', 'body'], ['str[1][value]', body],
+      ['brws_shop_id', page.shopId], ['ctk', page.ctk],
+    ]),
+  };
 }

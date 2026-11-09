@@ -71,5 +71,23 @@ eq('集客の画面を求人として読まない', m.parseRealtimeEditPage(html
 eq('求人の URL', [m.buildRealtimePageRequest('c=1', 'edit', 'job_realtime').url, m.buildRealtimePageRequest('c=1', 'list', 'job_realtime').url], ['https://estama.jp/admin/job/realtime/edit/', 'https://estama.jp/admin/job/realtime/']);
 eq('投稿先は同じ（referer は求人）', [m.buildRealtimePostRequest('c=1', m.parseRealtimeEditPage(jhtml, 'job_realtime'), 't', 'b', null, 'job_realtime').url, m.buildRealtimePostRequest('c=1', m.parseRealtimeEditPage(jhtml, 'job_realtime'), 't', 'b', null, 'job_realtime').headers.referer], ['https://estama.jp/admin_post/realtime_edit', 'https://estama.jp/admin/job/realtime/edit/']);
 
+console.log('── 7. メールマガジン（第1817便）');
+const mhtml = `<h2>メールマガジン</h2><input type="hidden" id="brws_shop_id" value="43555"><table><tr><td>配信日時：2026年11月09日 11時47分<br>ネット予約限定割引</td><td>4件</td><td><button>再配信</button></td></tr>
+<tr><td>配信日時：2026年11月08日 11時47分<br>ネット予約限定割引</td><td>4件</td></tr></table><input type="hidden" id="csrf_footer" value="${CTK}">`;
+const mp = m.parseMailPage(mhtml);
+eq('一覧（いちばん上・JST→UTC）', [mp.problems, mp.shopId, mp.top], [[], '43555', { at: '2026-11-09T02:47:00.000Z', title: 'ネット予約限定割引' }]);
+const mr = m.buildMailPostRequest('c=1', mp, 'ネット予約限定割引', '☆全コース2000円OFF\n※フリー限定');
+const mq = new URLSearchParams(mr.body);
+eq('送り先と中身', [mr.url, mq.get('str[0][name]'), mq.get('str[0][value]'), mq.get('str[1][name]'), mq.get('str[1][value]'), mq.get('brws_shop_id'), mq.get('ctk')], ['https://estama.jp/admin_post/mail_edit', 'title', 'ネット予約限定割引', 'body', '☆全コース2000円OFF\n※フリー限定', '43555', CTK]);
+eq('本文は1500文字まで', [m.esutamaPostTextProblem('t', 'x'.repeat(1500), 'mailmag'), m.esutamaPostTextProblem('t', 'x'.repeat(301))], [null, '本文は300文字以内にしてください']);
+const ds = { startMin: 707, endMin: 1800, intervalMin: 1440 };
+eq('時刻の値', [m.isValidEsutamaPostSetting(ds, 'mailmag'), m.isValidEsutamaPostSetting(ds)], [true, false]);
+const sp = (now, lastAt, readAt) => m.shouldPostEsutama({ key: 'mailmag', setting: ds, state: { lastAt, readAt }, now, hasText: true }).reason;
+eq('11:44 はまだ', sp(jst(2026, 11, 10, 11, 44), null, null), 'before_time');
+eq('11:49 に送る', sp(jst(2026, 11, 10, 11, 49), jst(2026, 11, 9, 11, 49).toISOString(), null), 'ok');
+eq('送ったあとは送らない', sp(jst(2026, 11, 10, 12, 4), jst(2026, 11, 10, 11, 49).toISOString(), null), 'done_today');
+eq('失敗のあと30分は待つ', sp(jst(2026, 11, 10, 12, 4), null, jst(2026, 11, 10, 11, 49).toISOString()), 'recent_try');
+eq('3時間を過ぎたら送らない', sp(jst(2026, 11, 10, 15, 4), null, null), 'too_late');
+
 console.log(fail ? `\n✗ ${fail} 件 NG` : '\n✓ すべて ok');
 process.exit(fail ? 1 : 0);

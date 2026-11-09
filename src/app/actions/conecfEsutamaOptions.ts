@@ -12,7 +12,7 @@ import {
 } from '@/lib/esutamaOption';
 import {
   ESUTAMA_POST_KEYS, ESUTAMA_POST_LABEL, ESUTAMA_POST_DEFAULT, esutamaPostTextProblem, isValidEsutamaPostSetting, type EsutamaPostKey,
-  ESUTAMA_POST_IMAGE_MAX, isEsutamaPostImagePath, pickEsutamaPostImage,
+  ESUTAMA_POST_IMAGE_MAX, isEsutamaPostImagePath, pickEsutamaPostImage, isDailyPostKey, ESUTAMA_POST_DAILY,
 } from '@/lib/esutamaPost';
 
 // エステ魂【オプション】の受け口（第1799便・2026-11-09・カッキーさんの決定）。
@@ -197,10 +197,10 @@ export async function saveConecfEsutamaPost(input: { key: string; auto: boolean;
   if (!r.ok) return r;
   const title = String(input.title ?? '').trim();
   const body = String(input.body ?? '').replace(/\r\n/g, '\n').trim();
-  const p = esutamaPostTextProblem(title, body);
+  const p = esutamaPostTextProblem(title, body, key);
   if (p && (input.auto === true || title !== '' || body !== '')) return { ok: false, error: p };
   const s = { startMin: Number(input.startMin), endMin: Number(input.endMin), intervalMin: Number(input.intervalMin) };
-  if (!isValidEsutamaPostSetting(s)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
+  if (!isValidEsutamaPostSetting(s, key)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
   const { data, error } = await r.svc.from('conecf_esutama_posts')
     .update({ auto: input.auto === true, title, body, start_min: s.startMin, end_min: s.endMin, interval_min: s.intervalMin, updated_at: new Date().toISOString() })
     .eq('salon_id', r.salonId).eq('post_key', key).eq('admin_enabled', true).select('post_key');
@@ -218,7 +218,7 @@ export async function runConecfEsutamaPostNow(input: { key: string }): Promise<R
   const { data: row } = await r.svc.from('conecf_esutama_posts').select('title, body, read_at, images, next_image').eq('salon_id', r.salonId).eq('post_key', key).eq('admin_enabled', true).maybeSingle();
   if (!row) return { ok: false, error: 'この投稿は使えるようになっていません。運営事務局までご連絡ください' };
   const title = String(row.title ?? ''); const body = String(row.body ?? '');
-  const p = esutamaPostTextProblem(title, body);
+  const p = esutamaPostTextProblem(title, body, key);
   if (p) return { ok: false, error: p + '（入れたら「保存」を押してください）' };
   // ★ 押し間違いで立て続けに投稿しない（2分以内は送らない）
   if (row.read_at && Date.now() - Date.parse(String(row.read_at)) < 2 * 60000) return { ok: false, error: 'いま送っているところです。2分ほどおいてください' };
@@ -227,7 +227,7 @@ export async function runConecfEsutamaPostNow(input: { key: string }): Promise<R
     const f = await startRelayFlow({
       salonId: r.salonId, provider: 'esutama', slot: 1,
       intent: 'bump_push', actor: 'shop:' + r.userId,
-      esutamaPost: { key, title, body, force: true, image: pickEsutamaPostImage(row.images, row.next_image) },
+      esutamaPost: { key, title, body, force: true, image: isDailyPostKey(key) ? undefined : pickEsutamaPostImage(row.images, row.next_image) },
     });
     if (!f.ok) {
       await r.svc.from('conecf_esutama_posts').update({ read_at: (row.read_at as string | null) ?? null }).eq('salon_id', r.salonId).eq('post_key', key);
@@ -258,7 +258,10 @@ export async function adminSetEsutamaPost(input: { salonId: number; key: string;
   const { data: cur } = await svc.from('conecf_esutama_posts').select('post_key').eq('salon_id', salonId).eq('post_key', key).maybeSingle();
   const res = cur
     ? await svc.from('conecf_esutama_posts').update({ admin_enabled: input.enabled === true, ...(input.enabled ? {} : { auto: false }), updated_at: new Date().toISOString() }).eq('salon_id', salonId).eq('post_key', key)
-    : await svc.from('conecf_esutama_posts').insert({ salon_id: salonId, post_key: key, admin_enabled: input.enabled === true, start_min: ESUTAMA_POST_DEFAULT.startMin, end_min: ESUTAMA_POST_DEFAULT.endMin, interval_min: ESUTAMA_POST_DEFAULT.intervalMin });
+    : await svc.from('conecf_esutama_posts').insert({ salon_id: salonId, post_key: key, admin_enabled: input.enabled === true, ...(isDailyPostKey(key)
+        // ★ 第1817便: メールマガジンは1日1回。既定はベンリーと同じ 11:47
+        ? { start_min: 707, end_min: 1800, interval_min: ESUTAMA_POST_DAILY }
+        : { start_min: ESUTAMA_POST_DEFAULT.startMin, end_min: ESUTAMA_POST_DEFAULT.endMin, interval_min: ESUTAMA_POST_DEFAULT.intervalMin }) });
   if (res.error) return { ok: false, error: '保存できませんでした: ' + res.error.message };
   return { ok: true, data: null };
 }

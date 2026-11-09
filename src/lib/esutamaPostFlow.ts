@@ -12,6 +12,7 @@ import {
   ESUTAMA_POST_LABEL, buildRealtimePageRequest, buildRealtimePostRequest, parseRealtimeEditPage, parseRealtimeHistoryTop,
   realtimePostResponse, isEsutamaPostImagePath, buildRealtimeImageUploadRequest, buildRealtimeImageCropRequest, parseCroppicResponse,
   type EsutamaPostKey, type RealtimeEditPage,
+  buildMailPageRequest, parseMailPage, buildMailPostRequest,
 } from './esutamaPost';
 import { relayFileUrl } from './relayMultipart';
 // ★ 第1812便: 画像があれば ① esutama_post_img_up（仮置き）→ ② esutama_post_img_crop（切り抜き）→ esutama_post_set（hidden を足して投稿）
@@ -54,7 +55,8 @@ function postStep(ctx: RelayFlowContext, cookie: string, page: RealtimeEditPage,
 
 /** ログインできたあとの最初の段 */
 export function buildEsutamaPostReadStep(cookie: string, ctx: RelayFlowContext) {
-  const r = buildRealtimePageRequest(cookie, 'edit', keyOf(ctx));
+  // ★ 第1817便: メールマガジンは一覧の画面（ctk・brws_shop_id）を読む
+  const r = keyOf(ctx) === 'mailmag' ? buildMailPageRequest(cookie) : buildRealtimePageRequest(cookie, 'edit', keyOf(ctx));
   return { purpose: 'esutama_post_read' as const, method: r.method, url: r.url, headers: r.headers, body: '', context: { ...ctx, cookie } };
 }
 
@@ -71,6 +73,24 @@ export function afterEsutamaPostRead(input: Input, ctx: RelayFlowContext, nowArg
   if (input.status !== 200) {
     return finish(ctx, { readAt, posted: false, outcome: 'error: http ' + input.status },
       [{ event: 'push_bump', outcome: 'failed', summary: label + 'の画面を読めませんでした', detail: { post: key, httpStatus: input.status, reason: 'http_error', manual, flowId } }], label + 'の画面の応答が ' + input.status);
+  }
+  if (key === 'mailmag') {
+    const m = parseMailPage(input.body);
+    if (m.problems.length > 0) {
+      return finish(ctx, { readAt, posted: false, outcome: 'error: unparseable' },
+        [{ event: 'push_bump', outcome: 'failed', summary: label + 'の画面を読めませんでした', detail: { post: key, reason: 'unparseable', problems: m.problems.slice(0, 4).join(' / '), manual, flowId } }], label + 'の画面を読めなかった: ' + m.problems.join(' / '));
+    }
+    const ck = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+    let r;
+    try { r = buildMailPostRequest(ck, m, ctx.esutamaPost?.title ?? '', ctx.esutamaPost?.body ?? ''); } catch (e) {
+      return finish(ctx, { readAt, posted: false, outcome: 'error: ' + (e as Error).message },
+        [{ event: 'push_bump', outcome: 'stopped', summary: label + 'を送りませんでした（' + (e as Error).message + '）', detail: { post: key, reason: 'bad_text', manual, flowId } }], label + 'を送らなかった: ' + (e as Error).message);
+    }
+    return {
+      kind: 'next', audits: [],
+      next: { purpose: 'esutama_post_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie: ck, esutamaPostSentAt: readAt } },
+      note: label + 'の画面を読めた → 「' + (ctx.esutamaPost?.title ?? '') + '」を配信する',
+    };
   }
   const p = parseRealtimeEditPage(input.body, keyOf(ctx));
   if (p.problems.length > 0) {
@@ -145,7 +165,7 @@ export function afterEsutamaPostSet(input: Input, ctx: RelayFlowContext, nowArg?
   }
   // ★ 受け付けた（または応答の形が分からない）→ 一覧の履歴で確かめる
   const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
-  const r = buildRealtimePageRequest(cookie, 'list', keyOf(ctx));
+  const r = key === 'mailmag' ? buildMailPageRequest(cookie) : buildRealtimePageRequest(cookie, 'list', keyOf(ctx));
   return {
     kind: 'next', audits: [],
     next: { purpose: 'esutama_post_verify', method: r.method, url: r.url, headers: r.headers, body: '', context: { ...ctx, cookie } },
@@ -163,7 +183,7 @@ export function afterEsutamaPostVerify(input: Input, ctx: RelayFlowContext, nowA
   const manual = ctx.esutamaPost?.force === true;
   const title = (ctx.esutamaPost?.title ?? '').trim();
   const sentAt = Date.parse(ctx.esutamaPostSentAt ?? readAt);
-  const top = input.status === 200 ? parseRealtimeHistoryTop(input.body) : null;
+  const top = input.status === 200 ? (key === 'mailmag' ? parseMailPage(input.body).top : parseRealtimeHistoryTop(input.body)) : null;
   // ★ 投稿日時は分まで。送る前に読んだ時刻の分より前でなければ今回のもの
   const fresh = !!top?.at && Date.parse(top.at) >= Math.floor(sentAt / 60000) * 60000 - 60000;
   const same = !!top && (top.title === title || top.title.startsWith(title) || title.startsWith(top.title));
