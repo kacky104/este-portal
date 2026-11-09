@@ -40,6 +40,8 @@ export const ESUTAMA_CAST_LIST_URL = 'https://estama.jp/admin/cast/';
  *   ★ こちらは【非表示にする】ためだけに使う。★ 表示に戻す口は作らない（要るときに足す）。
  */
 export const ESUTAMA_CAST_DISABLE_URL = 'https://estama.jp/admin_post/cast_disabled';
+/** ★ 第1864便: セラピストの削除（セラピスト設定の「削 除」・my_post.js の .send-post_delete・11/9 23:5x に読むだけで確かめた） */
+export const ESUTAMA_POST_DELETE_URL = 'https://estama.jp/admin_post/post_delete/';
 
 /**
  * ★★★ セラピストの追加／編集フォーム（第231便）。★ **GET も POST も同じ場所**（自分自身へ送る）。
@@ -232,6 +234,24 @@ export function buildEsutamaCastDisableRequest(cookie: string, castId: string, c
     url: ESUTAMA_CAST_DISABLE_URL,
     headers: ajaxHeaders(cookie, ESUTAMA_CAST_LIST_URL),
     body: encodePayload([['post_data', castId], ['ctk', ctk]]),
+  };
+}
+
+/**
+ * ★★★ 第1864便（カッキーさん・オイルクエスト様のご要望）: セラピストを【削除】する POST。★ **相手を書き換える（戻せない）。**
+ *   ★ 実物（my_post.js の .send-post_delete）と同じ形:
+ *       POST /admin_post/post_delete/   { post_data: 'cast,<cast_id>,', ctk: <#csrf_footer> }
+ *   ★ 相手は【1人だけ】。★ 番号の形をここで確かめる。
+ */
+export function buildEsutamaCastDeleteRequest(cookie: string, castId: string, ctk: string): RelayRequest {
+  if (!cookie) throw new Error('Cookie が無いまま削除しない');
+  if (!/^\d{1,12}$/.test(castId)) throw new Error('エステ魂の cast_id の形が違います（' + castId + '）');
+  if (!ctk) throw new Error('ctk が無いまま削除しない');
+  return {
+    method: 'POST',
+    url: ESUTAMA_POST_DELETE_URL,
+    headers: ajaxHeaders(cookie, ESUTAMA_CAST_LIST_URL),
+    body: encodePayload([['post_data', 'cast,' + castId + ','], ['ctk', ctk]]),
   };
 }
 

@@ -81,6 +81,7 @@ export type RelayPurpose =
   //   ★ esutama_cast_hide だけが相手を書き換える。★ 1人だけ・非表示にする側だけ
   | 'esutama_cast_list'
   | 'esutama_cast_hide'
+  | 'esutama_cast_delete' | 'zenkoku_del_list' | 'zenkoku_girl_delete'
   // ★★ セラピストの新規登録（第232便）。★ esutama_cast_create だけが相手に人を増やす
   | 'esutama_cast_form'
   | 'esutama_cast_create'

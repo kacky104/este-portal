@@ -81,7 +81,7 @@ export function DeleteGirlPanel({ id, enabled, onToast }: { id: number; enabled:
               <span>
                 <b>サイトからも一緒に消す</b>：
                 {autoSites.map((l) => siteName(l) + (l.auto === 'delete' ? 'は削除' : 'は非表示')).join('・')}
-                <span className="block text-[12px] text-slate-500">駅ちかで削除した写真・情報は戻せません。エステ魂は非表示なので、エステ魂の画面から戻せます</span>
+                <span className="block text-[12px] text-slate-500">各サイトで削除した写真・情報は戻せません</span>
               </span>
             </label>
           )}

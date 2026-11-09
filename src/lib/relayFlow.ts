@@ -109,7 +109,7 @@ import {
   afterEsutamaLoginPage, afterEsutamaLogin, afterEsutamaRoster,
   afterEsutamaWorkRead, afterEsutamaWorkSave, afterEsutamaWorkVerify,
   // ★ セラピスト設定の段（第229便）。★ 非表示にする道だけが通る
-  afterEsutamaCastList, afterEsutamaCastHide,
+  afterEsutamaCastList, afterEsutamaCastHide, afterEsutamaCastDelete,
   // ★ セラピストの新規登録の段（第232便）
   afterEsutamaCastForm, afterEsutamaCastCreate,
 } from './esutamaFlow';
@@ -137,6 +137,7 @@ import { afterZenkokuWaitRead, afterZenkokuWaitSet } from './zenkokuWaitFlow';
 import { ekichikaMovieFirstStep, afterEkimovieForm, afterEkimovieList, afterEkimovieDelete, afterEkimoviePost, afterEkimovieVerify } from './ekichikaMovieFlow';
 import { ekichikaMagazineFirstStep, afterEkimagForm, afterEkimagPost, afterEkimagVerify } from './ekichikaMagazineFlow';
 import { ekichikaRankImageFirstStep, afterEkirankRead, afterEkirankSet, afterEkirankVerify } from './ekichikaRankImageFlow';
+import { afterZenkokuDelList, afterZenkokuGirlDelete } from './zenkokuGirlDeleteFlow';
 import { afterZenkokuNewsRead, afterZenkokuNewsSet, afterZenkokuNewsVerify, afterZenkokuRecRead, afterZenkokuRecSet, afterZenkokuRecVerify } from './zenkokuOptionFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
@@ -1144,7 +1145,7 @@ export type FlowNextRequest = {
     // ★ エステ魂の段（第109便）。★ 名前を分けることで、駅ちか・エステラブの段の判定に一切触れない
     | 'esutama_login_page' | 'esutama_login' | 'esutama_roster'
     // ★★ エステ魂のセラピスト設定（第229便）。★ 名簿（出勤）とは別の画面。★ 名前を分けて既存の段に触れない
-    | 'esutama_cast_list' | 'esutama_cast_hide'
+    | 'esutama_cast_list' | 'esutama_cast_hide' | 'esutama_cast_delete' | 'zenkoku_del_list' | 'zenkoku_girl_delete'
     // ★★ セラピストの新規登録（第232便）。★ esutama_cast_create だけが相手に人を増やす
     | 'esutama_cast_form' | 'esutama_cast_create'
     // ★★ エステ魂へ写真を送る（第243便）。★ esutama_photo_save だけが相手の設定を書き換える
@@ -1895,6 +1896,13 @@ function advanceFlowStep(
       return afterEsutamaAppealVerify(input, ctx);
     case 'esutama_cast_hide':
       return afterEsutamaCastHide(input, ctx);
+    // ★ 第1864便: エステ魂・全国エステランキングからの削除
+    case 'esutama_cast_delete':
+      return afterEsutamaCastDelete(input, ctx);
+    case 'zenkoku_del_list':
+      return afterZenkokuDelList(input, ctx);
+    case 'zenkoku_girl_delete':
+      return afterZenkokuGirlDelete(input, ctx);
     // ── セラピストの新規登録（第232便）★ 段名で分けている。既存の case には触れていない ──
     case 'esutama_cast_form':
       return afterEsutamaCastForm(input, ctx);

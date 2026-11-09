@@ -25,7 +25,7 @@ console.log('── 1. ★★★ 段の名前が、すべて分類されてい�
   const b = src.indexOf('export type LeasedJob');
   const block = src.slice(a, b).split('\n').map((l) => l.replace(/\/\/.*$/, '')).join('\n');
   const purposes = [...block.matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
-  eq('★ 段の名前を読めた（60前後）', purposes.length > 50 && purposes.length < 90, true);
+  eq('★ 段の名前を読めた（60〜200）', purposes.length > 50 && purposes.length < 200, true);
   const safe = new Set(m.RETRY_SAFE_PURPOSES), no = new Set(m.NO_RETRY_PURPOSES);
   eq('★★★ どちらにも入っていない段は無い（足したら lib/relayRetry.ts に分類を書くこと）', purposes.filter((p) => !safe.has(p) && !no.has(p)), []);
   eq('★★★ 両方に入っている段は無い', purposes.filter((p) => safe.has(p) && no.has(p)), []);

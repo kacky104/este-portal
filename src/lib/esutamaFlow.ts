@@ -37,7 +37,7 @@ import { AUDIT_SHOP_HIDDEN } from './mediaAudit';
 import { businessDateJSTFrom } from './dutyStatus';
 import {
   buildEsutamaRosterRequest, buildEsutamaWorkReadRequest, buildEsutamaWorkSaveRequest,
-  buildEsutamaCastListRequest, buildEsutamaCastDisableRequest,
+  buildEsutamaCastListRequest, buildEsutamaCastDisableRequest, buildEsutamaCastDeleteRequest,
   // ★ セラピストの新規登録（第232便）。★ 読む → 組み立てる
   buildEsutamaCastFormRequest, buildEsutamaCastCreateRequest,
 } from './esutamaRequests';
@@ -244,7 +244,8 @@ export function afterEsutamaLogin(input: Input, ctx: RelayFlowContext): FlowOutc
 
   // ★★★ 非表示（第229便）と 新規登録（第232便）は【出勤名簿を読まない】。
   //   ★ 表示状態も「もう居るか」も、セラピスト設定（/admin/cast/）にしか無い。
-  if (ctx.intent === 'cast_hide' || ctx.intent === 'cast_create') {
+  // ★ 第1864便: 削除（girl_delete）も、セラピスト設定を読んでから
+  if (ctx.intent === 'cast_hide' || ctx.intent === 'cast_create' || ctx.intent === 'girl_delete') {
     const c = buildEsutamaCastListRequest(cookie);
     return {
       kind: 'next',
@@ -350,6 +351,8 @@ export function afterEsutamaCastList(input: Input, ctx: RelayFlowContext): FlowO
 
   // ★★★ 新規登録の道はここで分かれる（第232便）。★ 非表示の判定には一切触れない
   if (ctx.intent === 'cast_create') return castCreateAfterList(parsed.rows, input.body, cookie, ctx);
+  // ★ 第1864便: 削除の道（非表示の判定には触れない）
+  if (ctx.intent === 'girl_delete') return castDeleteAfterList(parsed.rows, input.body, cookie, ctx);
 
   const castId = String(ctx.hideCastId ?? '');
   const found = parsed.rows.find((r) => r.castId === castId) ?? null;
@@ -996,4 +999,72 @@ export function esutamaWindowDates(todayISO: string, days = 14): string[] {
   const out: string[] = [];
   for (let i = 0; i < days; i++) out.push(addDays(todayISO, i));
   return out;
+}
+
+// ───────── ★★★ 第1864便: セラピストを1人 削除する（2026-11-09・カッキーさん・オイルクエスト様）─────────
+//   段: login → esutama_cast_list（居るか＋ctk）→ esutama_cast_delete → esutama_cast_list（照合: 居なくなったか）
+//   ★ 記録は駅ちかの削除と同じ event='delete_girl'（ok／stopped・not_listed）。コネックエフの削除の続き（girlDeleteFinish）がこれを見る。
+//   ★ 戻せない。★ 成否は応答では判定せず、読み直して確かめる。
+function castDeleteAfterList(rows: Array<{ castId: string; name: string }>, body: string, cookie: string, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  const castId = String(ctx.deleteCastId ?? '');
+  const found = rows.find((r) => r.castId === castId) ?? null;
+  if (ctx.deleteStage === 'verify') {
+    const who = ctx.deleteName ? ctx.deleteName + 'さん' : 'cast_id ' + castId;
+    if (found !== null) {
+      return stop(
+        [{ event: 'delete_girl', outcome: 'failed', summary: who + 'をエステ魂から削除できませんでした（まだ一覧にいます）', detail: { castId, name: found.name, reason: 'still_listed', flowId } }],
+        '削除を送ったが、読み直すとまだ一覧に居た',
+      );
+    }
+    return {
+      kind: 'done',
+      audits: [{ event: 'delete_girl', outcome: 'ok', summary: who + 'をエステ魂から削除しました', detail: { castId, name: ctx.deleteName ?? null, people: rows.length, flowId } }],
+      note: '削除を確認した（' + rows.length + '名を読み直した）',
+    };
+  }
+  if (!/^\d{1,12}$/.test(castId)) {
+    return stop([{ event: 'delete_girl', outcome: 'stopped', summary: '削除する相手が指定されていないため、何もしませんでした', detail: { reason: 'no_cast_id', flowId } }], '削除する相手が文脈に無い');
+  }
+  if (found === null) {
+    return {
+      kind: 'done',
+      audits: [{ event: 'delete_girl', outcome: 'stopped', summary: 'cast_id ' + castId + ' はエステ魂の一覧に居ないため、何もしませんでした', detail: { castId, people: rows.length, reason: 'not_listed', flowId } }],
+      note: '一覧に居ないので削除しない',
+    };
+  }
+  const ctk = readEsutamaCsrf(body);
+  if (!ctk) {
+    return stop([{ event: 'delete_girl', outcome: 'failed', summary: 'エステ魂の画面から必要な値を読み取れなかったため、削除しませんでした', detail: { castId, name: found.name, reason: 'no_ctk', flowId } }], 'ctk を拾えなかった');
+  }
+  const req = buildEsutamaCastDeleteRequest(cookie, castId, ctk);
+  return {
+    kind: 'next',
+    audits: [{ event: 'login', outcome: 'ok', summary: 'エステ魂にログインしました', detail: { flowId } }],
+    note: found.name + 'さん（cast_id ' + castId + '）を削除します',
+    next: {
+      purpose: 'esutama_cast_delete',
+      method: req.method, url: req.url, headers: req.headers, body: req.body ?? '',
+      context: { ...ctx, cookie, deleteStage: 'verify', deleteName: found.name },
+    },
+  };
+}
+
+/** 削除の POST の応答。★ 成否はここでは決めず、読み直して照合する */
+export function afterEsutamaCastDelete(input: Input, ctx: RelayFlowContext): FlowOutcome {
+  const flowId = ctx.flowId;
+  if (redirectedToLogin(input)) {
+    return stop([{ event: 'login', outcome: 'failed', summary: 'エステ魂のセッションが切れました（削除は行われていません）', detail: { httpStatus: input.status, reason: 'back_to_login', flowId } }], '削除の応答がログイン画面へ戻された');
+  }
+  if (input.status >= 400) {
+    return stop([{ event: 'delete_girl', outcome: 'failed', summary: 'エステ魂の削除で想定外の応答がありました', detail: { castId: ctx.deleteCastId ?? null, httpStatus: input.status, reason: 'http_error', flowId } }], '削除の応答が ' + input.status);
+  }
+  const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+  const c = buildEsutamaCastListRequest(cookie);
+  return {
+    kind: 'next',
+    audits: [],
+    note: '削除を送った。★ 成否は読み直して確かめる',
+    next: { purpose: 'esutama_cast_list', method: c.method, url: c.url, headers: c.headers, body: '', context: { ...ctx, cookie, deleteStage: 'verify' } },
+  };
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
+import { DeleteGirlsDialog } from './DeleteGirlsDialog';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { matchesSearch } from '@/lib/searchNormalize';
@@ -132,6 +133,8 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
   const [importBusy, setImportBusy] = useState(false);
   // ★ 第420便: 駅ちかへまとめて更新（チェックした人）
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  // ★ 第1864便: 一覧から削除（1人・まとめて）の小窓に出す方
+  const [delTargets, setDelTargets] = useState<Array<{ id: number; name: string }> | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkNote, setBulkNote] = useState('');
   // ★★ 第428便: 駅ちかから写真が消える人がいるときの確認
@@ -463,6 +466,18 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
         <Link href={href('/girls/sync')} className="inline-flex items-center h-8 px-3 rounded border border-slate-300 bg-[#fefdfd] text-[12px]">
           サイトへ登録
         </Link>
+        {/* ★ 第1864便: チェックした方をまとめて削除 */}
+        <button
+          type="button"
+          onClick={() => {
+            if (!enabled) { needEnabled('削除するには、ホームで「コネックエフに切り替える」を押してください'); return; }
+            if (picked.size === 0) { onToast('削除するセラピストにチェックを入れてください'); return; }
+            setDelTargets((rows ?? []).filter((g) => picked.has(g.id)).map((g) => ({ id: g.id, name: g.name })));
+          }}
+          className="inline-flex items-center h-8 px-3 rounded border border-[#c62828] bg-[#fefdfd] text-[#c62828] text-[12px]"
+        >
+          {`選んだ方を削除${picked.size > 0 ? `（${picked.size}名）` : ''}`}
+        </button>
         {/* ★ 第1557便: いまの並び順を駅ちか・エステ魂へ */}
         <button
           type="button"
@@ -665,9 +680,15 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
                     className="accent-[#1e88e5]"
                     aria-label={`${g.name}を選ぶ`}
                   />
-                  <Link href={href(`/girls/${g.id}`)} className="inline-flex items-center gap-1 text-[12px] text-[#1558d6] underline underline-offset-2">
-                    編集
-                  </Link>
+                  <span className="flex flex-col items-start gap-1">
+                    <Link href={href(`/girls/${g.id}`)} className="inline-flex items-center gap-1 text-[12px] text-[#1558d6] underline underline-offset-2">
+                      編集
+                    </Link>
+                    {/* ★ 第1864便: 一覧から1人ずつ削除 */}
+                    <button type="button"
+                      onClick={() => (enabled ? setDelTargets([{ id: g.id, name: g.name }]) : needEnabled('削除するには、ホームで「コネックエフに切り替える」を押してください'))}
+                      className="text-[12px] text-[#c62828] underline underline-offset-2">削除</button>
+                  </span>
                 </span>
                 <Link href={href(`/girls/${g.id}`)} className="block w-[60px] h-[80px] bg-slate-100 overflow-hidden">
                   {g.imageUrl
@@ -726,6 +747,12 @@ function GirlsBody({ enabled, onToast }: { enabled: boolean; onToast: (m: string
           })}
         </ul>
       </div>
+
+      {delTargets && (
+        <DeleteGirlsDialog girls={delTargets} onToast={onToast}
+          onClose={() => setDelTargets(null)}
+          onDone={() => { setPicked(new Set()); void load(); }} />
+      )}
 
       {/* ★ 第1550便の「写真が無いセラピストに使う画像」は、第1722便で左メニュー「セラピスト既定画像」（/girls/placeholder）へ移した */}
     </div>

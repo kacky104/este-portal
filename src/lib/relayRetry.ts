@@ -44,7 +44,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   'esutama_diary_token', 'esutama_diary_proxy', 'esutama_diary_page', 'esutama_diary_end',
   'esutama_sokusera_token', 'esutama_sokusera_proxy', 'esutama_sokusera_page', 'esutama_sokusera_verify', 'esutama_sokusera_end',
   // ── 全国エステランキング: 読むだけ（第1769便）──
-  'zenkoku_login_page', 'zenkoku_roster', 'zenkoku_day_read', 'zenkoku_day_verify', 'zenkoku_wait_read',
+  'zenkoku_login_page', 'zenkoku_roster', 'zenkoku_day_read', 'zenkoku_day_verify', 'zenkoku_wait_read', 'zenkoku_del_list',
   'zenkoku_news_read', 'zenkoku_news_verify', 'zenkoku_rec_read', 'zenkoku_rec_verify',  // ★ 第1831便
   'ekimovie_form', 'ekimovie_list', 'ekimovie_verify',  // ★ 第1840便
   'ekimag_form', 'ekimag_verify',  // ★ 第1844便
@@ -74,6 +74,7 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   // ── エステ魂 ──
   'esutama_work_save',
   'esutama_cast_hide', 'esutama_cast_create',
+  'esutama_cast_delete', 'zenkoku_girl_delete',  // ★ 第1864便: セラピストが消える（戻せない・送り直さない）
   'esutama_photo_tmp', 'esutama_photo_save',
   'esutama_edit_save',
   'esutama_diary_post',

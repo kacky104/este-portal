@@ -651,7 +651,8 @@ async function linkedSites(svc: Svc, salonId: number, therapistId: number, legac
     const provider = String(l.provider);
     return {
       provider, slot: Number(l.slot ?? 1), castId: String(l.external_cast_id ?? ''), label: providerLabel(provider),
-      auto: provider === 'ekichika' ? 'delete' as const : provider === 'esutama' ? 'hide' as const : null,
+      // ★ 第1864便（カッキーさん・オイルクエスト様）: エステ魂も非表示ではなく削除に。全国エステランキングも自動で削除
+      auto: provider === 'ekichika' || provider === 'esutama' || provider === 'zenkoku' ? 'delete' as const : null,
     };
   });
   // ★ 駅ちかの枠1は、古い結びつき（therapists.import_cast_id）だけの人がいる
