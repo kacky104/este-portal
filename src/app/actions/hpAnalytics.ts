@@ -5,6 +5,8 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { fetchAllRows } from '@/app/lib/fetchAllRows';
 import { hpPageLabel, hpSourceKind, hpSourceLabel, jstDayHour } from '@/lib/hpStats';
+import { sanitizeHpBlocks } from '@/app/lib/hpSite';
+import { isSalonBookable } from '@/app/salon/[id]/salonBookable';
 
 // ★ 第1792便（カッキーさん・2026-11-08・オイルクエスト様のご要望）: 公式HP（フクエスサイト）のアクセス解析の読み取り。
 //   ★ 見られるのは、その店のオーナー様と運営だけ（コネックエフで運営が店舗として操作中も同じ）。
@@ -23,6 +25,8 @@ export type HpAnalytics = {
   heatOut: number[][];  // 同じ形の 電話＋LINE＋お問い合わせ
   devices: { sp: number; pc: number };
   insights: string[];
+  /** ★ 第1879便: いま使っているか（使っていないものはタイルに「未使用」と出す）。LINE＝URLあり／ネット予約＝予約受付ON＋コースあり／お問い合わせ＝フォームON */
+  usage: { line: boolean; book: boolean; contact: boolean };
 };
 
 type Fail = { ok: false; error: string };
@@ -60,7 +64,16 @@ export async function getHpAnalytics(input: { salonId: number; from: string; to:
   if (!auth.ok) return auth;
   const svc = createServiceClient();
 
-  const { data: siteRow } = await svc.from('salon_sites').select('slug, domain, status').eq('salon_id', salonId).maybeSingle();
+  const [{ data: siteRow }, { data: salonRow }] = await Promise.all([
+    svc.from('salon_sites').select('slug, domain, status, blocks').eq('salon_id', salonId).maybeSingle(),
+    svc.from('salons').select('line_url, booking_enabled, booking_courses').eq('id', salonId).maybeSingle(),
+  ]);
+  const lineRaw = String(salonRow?.line_url ?? '').trim();
+  const usage = {
+    line: lineRaw !== '' && lineRaw !== '#',
+    book: isSalonBookable(salonRow?.booking_enabled, salonRow?.booking_courses),
+    contact: siteRow ? sanitizeHpBlocks(siteRow.blocks).contact.on : false,
+  };
   const site = siteRow && siteRow.status === 'live' ? { slug: String(siteRow.slug), domain: (siteRow.domain as string | null) ?? null } : null;
 
   const prevTo = addDays(input.from, -1);
@@ -171,7 +184,7 @@ export async function getHpAnalytics(input: { salonId: number; from: string; to:
     ok: true,
     data: {
       site, from: input.from, to: input.to, prevFrom, prevTo, totals, prev,
-      daily: [...dailyMap.values()], sources, pages, therapists, heat, heatOut, devices, insights,
+      daily: [...dailyMap.values()], sources, pages, therapists, heat, heatOut, devices, insights, usage,
     },
   };
 }

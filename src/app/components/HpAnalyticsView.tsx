@@ -120,7 +120,7 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
         </p>
       ) : (
         <>
-          {tab !== 'help' && <Tiles cur={d.totals} prev={d.prev} />}
+          {tab !== 'help' && <Tiles cur={d.totals} prev={d.prev} usage={d.usage} />}
 
           {/* ひとこと（サマリーだけ） */}
           {tab === 'summary' && d.insights.length > 0 && (
@@ -144,7 +144,15 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
   );
 }
 
-function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
+// ★ 第1879便（カッキーさん）: 使っていないもの（LINE・ネット予約・お問い合わせ）は、0件と見分けがつくよう「未使用」と出す
+const UNUSED_NOTE: Record<string, [string, string]> = {
+  'LINEタップ': ['LINEのURL未登録', 'フクエスのマイページで LINE 予約の URL を入れると、公式ホームページに LINE 予約のボタンが出ます'],
+  'ネット予約タップ': ['予約受付OFF', 'フクエスのマイページでネット予約の受付を ON にすると、公式ホームページにネット予約のボタンが出ます'],
+  'お問い合わせ': ['フォームOFF', '「お問い合わせ」でお問い合わせフォームを ON にすると、公式ホームページにお問い合わせのページが出ます'],
+};
+
+function Tiles({ cur, prev, usage }: { cur: HpTotals; prev: HpTotals; usage?: HpAnalytics['usage'] }) {
+  const unused = (l: string) => !!usage && ((l === 'LINEタップ' && !usage.line) || (l === 'ネット予約タップ' && !usage.book) || (l === 'お問い合わせ' && !usage.contact));
   const items: Array<[string, number, number, string]> = [
     ['人数', cur.users, prev.users, '1日ごとに数えた、見に来た人（端末）の数の合計'],
     ['はじめての人', cur.newUsers, prev.newUsers, 'この端末ではじめて公式ホームページを見た人'],
@@ -159,11 +167,19 @@ function Tiles({ cur, prev }: { cur: HpTotals; prev: HpTotals }) {
   return (
     <div className="grid grid-cols-2 gap-2 bg-[#ececec] p-2 sm:grid-cols-[repeat(auto-fit,minmax(118px,1fr))] sm:gap-3 sm:p-3">
       {items.map(([l, c, p, t]) => (
-        <div key={l} title={t} className="rounded-lg bg-white px-3 py-3 text-center shadow-sm">
-          <p className="whitespace-nowrap text-[13px] text-slate-600">{l}</p>
-          <p className="mt-0.5 text-[26px] leading-tight sm:text-[30px] tabular-nums text-slate-800">{nf(c)}</p>
-          <Delta cur={c} prev={p} />
-        </div>
+        unused(l) && c === 0 ? (
+          <div key={l} title={UNUSED_NOTE[l][1]} className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-center">
+            <p className="whitespace-nowrap text-[13px] text-slate-500">{l}</p>
+            <p className="mt-1.5 inline-block rounded-full bg-slate-200 px-3 py-1 text-[14px] font-bold text-slate-600">未使用</p>
+            <p className="mt-1.5 text-[11.5px] leading-tight text-slate-400">{UNUSED_NOTE[l][0]}</p>
+          </div>
+        ) : (
+          <div key={l} title={t} className="rounded-lg bg-white px-3 py-3 text-center shadow-sm">
+            <p className="whitespace-nowrap text-[13px] text-slate-600">{l}</p>
+            <p className="mt-0.5 text-[26px] leading-tight sm:text-[30px] tabular-nums text-slate-800">{nf(c)}</p>
+            <Delta cur={c} prev={p} />
+          </div>
+        )
       ))}
     </div>
   );
