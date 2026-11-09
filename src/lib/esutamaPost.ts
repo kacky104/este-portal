@@ -36,7 +36,7 @@ export const realtimeEditUrl = (key?: string) => baseOf(key).path + 'edit/';
 export const ESUTAMA_POST_TITLE_MAX = 30;
 export const ESUTAMA_POST_BODY_MAX = 300;
 /** ★ 選べる間隔（分） */
-export const ESUTAMA_POST_INTERVALS = [30, 60, 90, 120, 180];
+export const ESUTAMA_POST_INTERVALS = [30, 60, 90, 120, 150, 180];
 /** ★ 既定: 一日中（朝6時〜翌6時）・60分おき（ベンリーと同じ） */
 export const ESUTAMA_POST_DEFAULT = { startMin: 360, endMin: 1800, intervalMin: 60 };
 
