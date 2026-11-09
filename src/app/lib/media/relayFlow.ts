@@ -2121,8 +2121,14 @@ async function saveEsutamaPlan(
       counts_before: [],
       counts_after: [],
       diff: plan.diffs.map((d) => ({ girlId: d.castId, name: d.name, dayIndex: d.dayIndex, before: d.before, after: d.after })),
-      blockers: plan.blocked.map((m) => ({ kind: 'unmapped_therapist', detail: m })),
+      // ★★ 第1806便（2026-11-09・カッキーさん「店舗様が自分で設定するのは無理」）: 全国エステランキングは、
+      //   向こうに居ない方を【止める理由】にしない（コネックエフから全国へ新規登録する仕組みがまだ無く、店舗様には直しようがない）。
+      //   その方は送らないだけ。画面には「送れていない方」として名前と直し方を出す（notes の unmapped_therapist）。
+      blockers: params.provider === 'zenkoku' ? [] : plan.blocked.map((m) => ({ kind: 'unmapped_therapist', detail: m })),
       notes: [
+        ...(params.provider === 'zenkoku'
+          ? plan.blocked.map((m) => ({ kind: 'unmapped_therapist', detail: m.replace(/）$/, '。この方の出勤は送りません。全国エステランキングに同じ名前で登録すると、自動で結びつきます）') }))
+          : []),
         ...plan.notes.map((n) => ({ kind: 'time_snapped', detail: n })),
         // ★ 第1696便（A-1）: 次の計画が「全日休み」を送る相手を決めるための控え（運営用・画面には出さない）
         { kind: ESUTAMA_ACTIVE_NOTE_KIND, detail: 'エステ魂に出勤が残っている方（運営用の控え）', names: plan.activeCastIds ?? [] },

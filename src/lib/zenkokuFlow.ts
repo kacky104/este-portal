@@ -159,7 +159,9 @@ function summaryOf(ctx: RelayFlowContext): EsutamaPlanSummary {
     changed: ctx.zenkokuChanged ?? 0,
     saved: ctx.zenkokuSaved ?? 0,
     // ★ 書き込みを開けるまでは、人が押しても送れない
-    sendable: ZENKOKU_WRITE_ENABLED && diffs.length > 0,
+    // ★ 第1806便（カッキーさん）: 違いが0件でも「送れる」＝自動にできる（0件なら送るものが無いだけ）。
+    //   全国エステランキングに居ない方（blocked）は止める理由にしない（その方は送らないだけ・lib 側で notes に出す）
+    sendable: ZENKOKU_WRITE_ENABLED,
     fingerprint: diffs.map((d) => d.castId + ':' + d.dayIndex + ':' + d.after).sort().join('|'),
   };
 }
