@@ -25,7 +25,20 @@ export const RELAY_FILE_MAX_COUNT = 1;
 /** 文字の項目の数の上限。★ 駅ちかの form は多くても十数個。 */
 export const RELAY_FIELD_MAX_COUNT = 30;
 /** 送ってよい種類。★ 駅ちかの画面の注記どおり jpg / png だけ。 */
-export const RELAY_FILE_ALLOWED_TYPES: readonly string[] = ['image/jpeg', 'image/png'];
+export const RELAY_FILE_ALLOWED_TYPES: readonly string[] = ['image/jpeg', 'image/png', 'video/mp4', 'video/quicktime'];
+
+// ── ★★★ 第1840便: 駅ちかの動画投稿。動画は Supabase の【署名付き URL】から VPS が直接取る ──
+//   ★ Vercel（/api/relay/file）を通すと大きいファイルを返せない（数MBまで）。
+//   ★ 取りに行ってよいのは、このプロジェクトの conecf-videos バケットの署名付き URL だけ（VPS 側 relay.sh の VIDEO_HOST / VIDEO_PATH_PREFIX と同じ組）
+export const RELAY_VIDEO_HOST = 'efjrpanojfahqjwqpagg.supabase.co';
+export const RELAY_VIDEO_PATH_PREFIX = '/storage/v1/object/sign/conecf-videos/';
+export const RELAY_VIDEO_TYPES: readonly string[] = ['video/mp4', 'video/quicktime'];
+export function isRelayVideoUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' && u.hostname === RELAY_VIDEO_HOST && u.pathname.startsWith(RELAY_VIDEO_PATH_PREFIX) && !u.pathname.includes('..');
+  } catch { return false; }
+}
 
 export type RelayFile = {
   /** multipart の項目名（駅ちかの画像登録は 'upfile'） */
@@ -45,7 +58,7 @@ export type RelayMultipart = {
 };
 
 const FIELD_NAME = /^[A-Za-z0-9_\-\[\]]{1,64}$/;
-const FILE_NAME = /^[A-Za-z0-9_\-]{1,64}\.(jpg|jpeg|png)$/;
+const FILE_NAME = /^[A-Za-z0-9_\-]{1,64}\.(jpg|jpeg|png|mp4|mov)$/;
 
 function fail(msg: string): never {
   throw new Error('ファイル付き POST の形が不正: ' + msg);
@@ -88,6 +101,8 @@ export function assertRelayMultipart(input: unknown): RelayMultipart {
     }
     if (typeof url !== 'string') fail('url が文字ではない');
     assertRelayFileUrl(url);
+    // ★ 第1840便: 動画の種類は動画の置き場からだけ・画像の種類は fukues.com からだけ（取り違えを通さない）
+    if (isRelayVideoUrl(url) !== RELAY_VIDEO_TYPES.includes(contentType)) fail('種類と取り先が合わない: ' + contentType);
     files.push({ field, url, filename, contentType });
   }
   return { fields, files };
@@ -107,6 +122,11 @@ export function assertRelayFileUrl(url: string): URL {
   if (u.protocol !== 'https:') fail('https 以外から取らない: ' + u.protocol);
   if (u.username || u.password) fail('ユーザー情報つき url から取らない');
   if (u.port) fail('ポート指定つき url から取らない');
+  // ★ 第1840便: 動画は conecf-videos バケットの署名付き URL だけ
+  if (u.hostname === RELAY_VIDEO_HOST) {
+    if (!u.pathname.startsWith(RELAY_VIDEO_PATH_PREFIX) || u.pathname.includes('..')) fail('取りに行ってよい動画の置き場ではない: ' + u.pathname.slice(0, 60));
+    return u;
+  }
   // ★ 前方一致・後方一致で判定しない（fukues.com.evil.com が通る）
   if (!RELAY_FILE_HOSTS.includes(u.hostname)) fail('取りに行ってよい先ではない: ' + u.hostname);
   if (u.pathname !== RELAY_FILE_PATH_PREFIX) fail('取りに行く口ではない: ' + u.pathname.slice(0, 60));

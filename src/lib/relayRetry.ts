@@ -46,6 +46,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   // ── 全国エステランキング: 読むだけ（第1769便）──
   'zenkoku_login_page', 'zenkoku_roster', 'zenkoku_day_read', 'zenkoku_day_verify', 'zenkoku_wait_read',
   'zenkoku_news_read', 'zenkoku_news_verify', 'zenkoku_rec_read', 'zenkoku_rec_verify',  // ★ 第1831便
+  'ekimovie_form', 'ekimovie_list', 'ekimovie_verify',  // ★ 第1840便
   // ── 疎通確認 ──
   'selftest',
 ];
@@ -77,6 +78,7 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'esutama_sokusera_start',
   // ── 全国エステランキング（第1769便）──
   'zenkoku_login', 'zenkoku_day_save', 'zenkoku_wait_set',
+  'ekimovie_delete', 'ekimovie_post',  // ★ 第1840便: 記事が消える・1件増える（送り直さない）
   'zenkoku_news_set', 'zenkoku_rec_set',  // ★ 第1831便: ニュースが1件増える・おすすめの月の回数が減る（送り直さない）
 ];
 

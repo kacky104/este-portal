@@ -11,6 +11,7 @@
 //   ログイン失敗を投げ直すと相手のアカウントが凍る（設計メモ §17-1）。
 //   'stop' が返ったらそこで終わり。人が直すまで再開しない。
 
+import { isRelayVideoUrl } from '@/lib/relayMultipart';
 import type { EsutamaCastEditValues } from '@/lib/esutamaCastEdit';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
@@ -428,6 +429,8 @@ export async function startRelayFlow(params: {
   /** ★ 第1810便: 全国エステランキングの待機中の周（intent は bump_auto / bump_push）。その営業日の出勤時間に入った方を全員待機中にする */
   zenkokuWait?: { dateISO: string };
   /** ★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト（intent は bump_auto / bump_push）。★ 結果は conecf_zenkoku_options に書く */
+  /** ★ 第1840便: 駅ちかの動画投稿（intent は bump_auto / bump_push・provider='ekichika'）。videoPath は conecf-videos の置き場（署名付き URL はここで作る） */
+  ekichikaMovie?: { index: number; girlName: string; title: string; body: string; deleteSame: boolean; videoPath: string; videoType: string };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
   sort?: { want: string[] };
@@ -601,6 +604,16 @@ export async function startRelayFlow(params: {
     password,
   });
 
+  // ★ 第1840便: 駅ちかの動画投稿。動画は conecf-videos の署名付き URL（期限1時間）を VPS が直接取る（Vercel を通さない）
+  let movieVideoUrl = '';
+  if (params.ekichikaMovie) {
+    const { data: signed, error: sErr } = await createServiceClient().storage.from('conecf-videos').createSignedUrl(params.ekichikaMovie.videoPath, 3600);
+    if (sErr || !signed?.signedUrl || !isRelayVideoUrl(signed.signedUrl)) {
+      return { ok: false, reason: 'unsupported', note: '動画の置き場を開けませんでした（' + (sErr?.message ?? '署名付き URL の形が違う') + '）' };
+    }
+    movieVideoUrl = signed.signedUrl;
+  }
+
   const context: RelayFlowContext = {
     ...newFlowContext({
       flowId: crypto.randomUUID(),
@@ -728,6 +741,8 @@ export async function startRelayFlow(params: {
     ...(params.esutamaOpt ? { esutamaOpt: { key: params.esutamaOpt.key, ...(params.esutamaOpt.force === true ? { force: true } : {}) } } : {}),
     ...(params.zenkokuWait ? { zenkokuWait: { dateISO: params.zenkokuWait.dateISO } } : {}),
     // ★ 第1831便: 全国エステランキングのニュース・おすすめ。★ 渡されたときだけ入れる
+    // ★ 第1840便: 駅ちかの動画投稿
+    ...(params.ekichikaMovie ? { ekichikaMovie: { index: params.ekichikaMovie.index, girlName: params.ekichikaMovie.girlName, title: params.ekichikaMovie.title, body: params.ekichikaMovie.body, deleteSame: params.ekichikaMovie.deleteSame, videoUrl: movieVideoUrl, videoType: params.ekichikaMovie.videoType } } : {}),
     ...(params.zenkokuOpt ? { zenkokuOpt: { key: params.zenkokuOpt.key, ...(params.zenkokuOpt.force === true ? { force: true } : {}), ...(params.zenkokuOpt.item ? { item: { title: params.zenkokuOpt.item.title, body: params.zenkokuOpt.item.body, image: params.zenkokuOpt.item.image ?? null } } : {}), ...(params.zenkokuOpt.items ? { items: params.zenkokuOpt.items.map((x) => ({ name: x.name })) } : {}), nextIndex: Number(params.zenkokuOpt.nextIndex ?? 0) } } : {}),
     // ★ 第1811便: エステ魂の投稿。★ 渡されたときだけ入れる
     ...(params.esutamaPost ? { esutamaPost: { key: params.esutamaPost.key, title: params.esutamaPost.title, body: params.esutamaPost.body, ...(params.esutamaPost.force === true ? { force: true } : {}), ...(params.esutamaPost.image ? { image: { path: params.esutamaPost.image.path, index: params.esutamaPost.image.index } } : {}), ...(params.esutamaPost.images && params.esutamaPost.images.length > 0 ? { images: params.esutamaPost.images.map((x) => ({ path: x.path, index: x.index })) } : {}) } } : {}),
@@ -754,13 +769,16 @@ export async function startRelayFlow(params: {
   if (params.esutamaPost && params.provider !== 'esutama') {
     throw new Error('esutamaPost はエステ魂だけ');
   }
+  if (params.ekichikaMovie && params.provider !== 'ekichika') {
+    throw new Error('ekichikaMovie は駅ちかだけ');
+  }
   if (params.zenkokuOpt && params.provider !== 'zenkoku') {
     throw new Error('zenkokuOpt は全国エステランキングだけ');
   }
   if (params.zenkokuWait && params.provider !== 'zenkoku') {
     throw new Error('zenkokuWait は全国エステランキングだけ');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt) {
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.ekichikaMovie) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
@@ -1215,6 +1233,17 @@ export async function advanceRelayFlow(params: {
       .eq('salon_id', params.salonId).eq('post_key', o.key);
     if (pErr) console.error('[relay] エステ魂の投稿の状態を書けなかった', params.salonId, o.key, pErr.message);
     else note = note + ' → 投稿の状態（' + o.outcome.slice(0, 40) + '）を記録した';
+  }
+
+  // ★★ 第1840便: 駅ちかの動画投稿の結果を表に書く。★ 書けなくても流れは止めない（黙らない）
+  if (outcome.kind === 'done' && outcome.ekichikaMovie && params.provider === 'ekichika') {
+    const o = outcome.ekichikaMovie;
+    const { error: mErr } = await createServiceClient()
+      .from('conecf_ekichika_movies')
+      .update({ last_outcome: o.outcome.slice(0, 200), ...(o.done && o.lastAt ? { last_at: o.lastAt } : {}), updated_at: new Date().toISOString() })
+      .eq('salon_id', params.salonId).eq('slot', params.slot);
+    if (mErr) console.error('[relay] 駅ちかの動画投稿の状態を書けなかった', params.salonId, params.slot, mErr.message);
+    else note = note + ' → 動画投稿の状態（' + o.outcome.slice(0, 40) + '）を記録した';
   }
 
   // ★★ 第1831便: 全国エステランキングのニュース・おすすめの結果を表に書く。★ 書けなくても流れは止めない（黙らない）

@@ -135,6 +135,7 @@ export type RelayPurpose =
   | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify'
   | 'zenkoku_wait_read' | 'zenkoku_wait_set'
   | 'zenkoku_news_read' | 'zenkoku_news_set' | 'zenkoku_news_verify' | 'zenkoku_rec_read' | 'zenkoku_rec_set' | 'zenkoku_rec_verify'
+  | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify'
   | 'selftest';
 
 export type LeasedJob = {
@@ -430,7 +431,10 @@ export async function leaseRelayJob(
       continue;   // 次の候補へ
     }
 
-    const until = new Date(Date.now() + leaseSeconds * 1000).toISOString();
+    // ★ 第1840便: 動画を送る段は長くかかる（VPS が動画を取り、駅ちかへ最大256MBを送る・relay.sh の上限は300秒）。
+    //   ★ 期限が先に切れると「報告が来ないまま期限切れ（書き換える段なので打ち切り）」になるので、この段だけ長く持たせる
+    const effLease = row.purpose === 'ekimovie_post' ? Math.max(leaseSeconds, 600) : leaseSeconds;
+    const until = new Date(Date.now() + effLease * 1000).toISOString();
     const { data: updated, error: upErr } = await supabase
       .from('media_relay_jobs')
       .update({

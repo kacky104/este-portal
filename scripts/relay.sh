@@ -88,6 +88,16 @@ FILE_PATH = "/api/relay/file"
 FILE_MAX_BYTES = 10 * 1024 * 1024   # 駅ちかの画面の注記「10MB 以下」
 FILE_TMP = "/tmp/relay.f"
 MAX_TIME = 30          # 1リクエストの上限（秒）
+# ★★★ 第1840便: 駅ちかの動画投稿。動画は Supabase の【署名付き URL】から直接取る（Vercel を通すと大きいファイルを返せない）
+#   ★ 取りに行ってよいのは、このプロジェクトの conecf-videos バケットの署名付き URL だけ（フクエス側 relayMultipart.ts と同じ組）
+#   ★ 動画は VPS の手元に置いて使い回す（同じ置き場の動画は2回目から取りに行かない）。7日使わなければ消す
+VIDEO_HOST = "efjrpanojfahqjwqpagg.supabase.co"
+VIDEO_PATH_PREFIX = "/storage/v1/object/sign/conecf-videos/"
+VIDEO_MAX_BYTES = 256 * 1024 * 1024  # 駅ちかの上限「最大256MB」
+VIDEO_TYPES = {"video/mp4", "video/quicktime"}
+VIDEO_CACHE = "/root/relay-video-cache"
+VIDEO_CACHE_DAYS = 7
+MAX_TIME_VIDEO = 300   # 動画を送る1リクエストの上限（秒）
 BACKOFF_SEC = 1800     # 429（多すぎる）を見たら30分引く
 BACKOFF_SEC_5XX = 600  # 5xx（駅ちか側の不調）は10分（第636便・import.sh と揃えた）
 IDLE_SLEEP = 5         # ジョブが無いときの待ち
@@ -122,12 +132,21 @@ def check_url(url):
         return "許可していない宛先: %s" % u.hostname
     return None
 
+def is_video_url(url):
+    u = urlparse(url)
+    return u.hostname == VIDEO_HOST and u.path.startswith(VIDEO_PATH_PREFIX)
+
 def check_file_url(url):
     """★ 画像の取り先の検査。フクエス側（relayMultipart.ts）と同じ規則。"""
     u = urlparse(url)
     if u.scheme != "https":      return "https 以外から取らない: %s" % u.scheme
     if u.username or u.password: return "ユーザー情報つきURLから取らない"
     if u.port:                   return "ポート指定つきURLから取らない"
+    # ★ 第1840便: 動画は Supabase の署名付き URL（conecf-videos バケットだけ・.. を含まない）
+    if u.hostname == VIDEO_HOST:
+        if not u.path.startswith(VIDEO_PATH_PREFIX) or ".." in u.path:
+            return "取りに行ってよい動画の置き場ではない: %s" % u.path[:60]
+        return None
     if u.hostname not in FILE_HOSTS:
         return "取りに行ってよい先ではない: %s" % u.hostname
     if u.path != FILE_PATH:
@@ -149,6 +168,39 @@ def fetch_file(url, dest):
     if not os.path.exists(dest) or os.path.getsize(dest) == 0:
         raise Exception("画像が空だった")
 
+def video_cache_path(url):
+    """★ 置き場（バケットの中のパス）から、VPS の手元のファイル名を決める（署名の部分は使わない）"""
+    key = urlparse(url).path[len(VIDEO_PATH_PREFIX):]
+    safe = "".join(c if (c.isalnum() or c in "._-") else "_" for c in key)[:200]
+    return os.path.join(VIDEO_CACHE, safe)
+
+def fetch_video(url):
+    """★ 動画を手元に置いて使い回す。★ 無ければ Supabase から取る（署名付き URL なので鍵は付けない）"""
+    os.makedirs(VIDEO_CACHE, exist_ok=True)
+    # ★ 古い動画を片づける（7日使っていないもの）
+    now = time.time()
+    for n in os.listdir(VIDEO_CACHE):
+        fp = os.path.join(VIDEO_CACHE, n)
+        try:
+            if now - os.path.getmtime(fp) > VIDEO_CACHE_DAYS * 86400: os.remove(fp)
+        except OSError: pass
+    dest = video_cache_path(url)
+    if os.path.exists(dest) and os.path.getsize(dest) > 0:
+        os.utime(dest, None)   # ★ 使った印（7日の数え直し）
+        return dest
+    tmp = dest + ".part"
+    r = subprocess.run(
+        ["curl", "-s", "--max-time", str(MAX_TIME_VIDEO), "--max-filesize", str(VIDEO_MAX_BYTES),
+         "-o", tmp, "-w", "%{http_code}", url],
+        capture_output=True, text=True)
+    code = (r.stdout or "0").strip()
+    if code != "200" or not os.path.exists(tmp) or os.path.getsize(tmp) == 0:
+        try: os.remove(tmp)
+        except OSError: pass
+        raise Exception("動画を取れなかった（%s）" % code)
+    os.replace(tmp, dest)
+    return dest
+
 def send(job):
     """駅ちかへ1回投げて、(status, headers, body) を返す。"""
     for f in (HDR, BDY):
@@ -157,7 +209,8 @@ def send(job):
 
     req = job["request"]
     mp = req.get("multipart")
-    args = ["curl", "-s", "--max-time", str(MAX_TIME), "-D", HDR, "-o", BDY,
+    has_video = bool(mp) and any(is_video_url(f.get("url", "")) for f in (mp.get("files") or []))
+    args = ["curl", "-s", "--max-time", str(MAX_TIME_VIDEO if has_video else MAX_TIME), "-D", HDR, "-o", BDY,
             "-w", "%{http_code}", "-X", req["method"], req["url"]]
     for k, v in (req.get("headers") or {}).items():
         # ★ ファイル付きのときは content-type を渡さない（境界は curl が付ける）
@@ -176,9 +229,14 @@ def send(job):
             for i, f in enumerate(mp.get("files") or []):
                 ng = check_file_url(f["url"])
                 if ng: raise Exception("画像の取り先を拒否: " + ng)
-                dest = FILE_TMP + str(i)
-                fetch_file(f["url"], dest)
-                tmpfiles.append(dest)
+                if is_video_url(f["url"]):
+                    # ★ 第1840便: 動画（手元に置いて使い回す＝ tmpfiles に入れない）
+                    if f.get("contentType") not in VIDEO_TYPES: raise Exception("送れない動画の種類: %s" % str(f.get("contentType"))[:40])
+                    dest = fetch_video(f["url"])
+                else:
+                    dest = FILE_TMP + str(i)
+                    fetch_file(f["url"], dest)
+                    tmpfiles.append(dest)
                 # ★ filename と type はフクエス側で英数字に限ってある（; や " が入らない）
                 args += ["-F", "%s=@%s;type=%s;filename=%s" % (f["field"], dest, f["contentType"], f["filename"])]
             r = subprocess.run(args, capture_output=True, text=True)
