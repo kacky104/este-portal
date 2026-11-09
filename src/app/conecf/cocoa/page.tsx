@@ -66,6 +66,34 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
     }
   };
 
+  // ★ 第1836便（2026-11-09・カッキーさん）: 本文の途中に画像を入れる。
+  //   ★ ココアのメール投稿は本文の <img> を通す（11/9 17:00 オイルクエスト様のココア（A）で確かめた・blogid40310534 で画像が出た）。
+  //   ★ 画像は写真と同じ置き場（salon-images）へ上げ、カーソルの位置に <img src="…" width="540"> を入れる（送るときに " は外れる）
+  const [inlineUp, setInlineUp] = useState(false);
+  const onInlineImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; e.target.value = '';
+    if (!file) return;
+    setInlineUp(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', await shrinkToJpeg(file), 'photo.jpg');
+      const res = await uploadConecfCocoaImage(fd);
+      if (!res.ok) { onToast(res.error); return; }
+      const tag = `<img src="${res.data.url}" width="540">`;
+      const el = bodyRef.current;
+      const at = el ? el.selectionStart : body.length;
+      const before = body.slice(0, at), after = body.slice(at);
+      const next = before + (before === '' || before.endsWith('\n') ? '' : '\n') + tag + (after.startsWith('\n') ? '' : '\n') + after;
+      setBody(next);
+      onToast('本文に画像を入れました（保存を押すと反映されます）');
+    } catch {
+      onToast('画像を読めませんでした（JPEG・PNG にしてください）');
+    } finally {
+      setInlineUp(false);
+    }
+  };
+  const inlineImages = [...body.matchAll(/<img\b[^>]*\ssrc=["']?(https:\/\/[^"'\s>]+)/gi)].map((m) => m[1]);
+
   const save = async () => {
     setBusy(true);
     const res = await saveConecfCocoaTemplate({ id: tpl?.id, title, body, imageUrl });
@@ -89,12 +117,28 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
         <label className="block text-[13px] font-bold text-slate-600 mb-1">本文</label>
         {/* ★ 第1320便: 文字の飾りのボタン（選んだ文字に付ける）。★ 第1321便で共通の部品にした（駅ちか新着情報と同じもの） */}
         <TextMarkToolbar textareaRef={bodyRef} value={body} onChange={setBody} />
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+          <label className="cursor-pointer border border-indigo-200 px-3 py-1 text-[13px] font-bold text-indigo-600 hover:bg-indigo-50">
+            {inlineUp ? 'アップロード中…' : '🖼 本文に画像を入れる'}
+            <input type="file" accept="image/*" className="hidden" disabled={inlineUp} onChange={(e) => void onInlineImage(e)} />
+          </label>
+          <span className="text-[12px] text-slate-400">本文のカーソルの位置に画像が入ります（何枚でも）。消すときは &lt;img …&gt; の行を消してください。</span>
+        </div>
         <textarea ref={bodyRef} className={`${INPUT} min-h-[160px]`} value={body} onChange={(e) => setBody(e.target.value)} />
         <p className={`text-[12px] mt-1 ${bOver ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>全角{COCOA_BODY_MAX}文字まで。改行と絵文字はそのままココアに反映されます。外部リンクは載りません。</p>
         <TextMarkPreview value={body} label="ココアでの見え方（めやす）" />
+        {inlineImages.length > 0 && (
+          <div className="mt-1.5">
+            <p className="text-[12px] text-slate-500">本文に入っている画像（{inlineImages.length}枚・上から順）</p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {inlineImages.map((u, i) => <img key={i} src={u} alt="" className="h-20 w-20 border border-slate-200 object-cover" />)}
+            </div>
+          </div>
+        )}
       </div>
       <div>
-        <label className="block text-[13px] font-bold text-slate-600 mb-1">写真（1枚・任意）</label>
+        <label className="block text-[13px] font-bold text-slate-600 mb-1">添付の写真（1枚・任意・記事の上か下に出ます）</label>
         <div className="flex items-center gap-3">
           <div className="w-20 h-20 flex-none bg-slate-100 border border-slate-200 overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
