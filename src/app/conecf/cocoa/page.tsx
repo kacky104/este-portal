@@ -163,7 +163,8 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
 
 /** 「12:00」「翌1:00」→ 朝6時はじまりの分 */
 function parseCocoaTime(t: string): number {
-  const m = /^(翌)?\s*(\d{1,2}):(\d{2})$/.exec(t.trim());
+  // ★ 第1838便: 全角の数字・コロン（２１：４２）や「時」区切りでも通す
+  const m = /^(翌)?\s*(\d{1,2})\s*[:時]\s*(\d{2})\s*分?$/.exec(t.normalize('NFKC').trim());
   if (!m) return NaN;
   const v = Number(m[2]) * 60 + Number(m[3]);
   return m[1] || v < 360 ? v + 1440 : v;
