@@ -84,14 +84,14 @@ export function afterEsutamaOptRead(input: Input, ctx: RelayFlowContext, nowArg?
     const p = parseJobNowPage(input.body);
     if (p.problems.length > 0 || !p.ctk) {
       return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'error: unparseable' },
-        [{ event: 'read_bump', outcome: 'failed', detail: { opt: key, reason: 'unparseable', problems: p.problems.slice(0, 4).join(' / '), flowId } }], '本日体験入店の画面を読めなかった: ' + p.problems.join(' / '));
+        [{ event: 'read_bump', outcome: 'failed', summary: '本日体験入店の画面を読み取れませんでした', detail: { opt: key, reason: 'unparseable', problems: p.problems.slice(0, 4).join(' / '), flowId } }], '本日体験入店の画面を読めなかった: ' + p.problems.join(' / '));
     }
     if (p.listed) {
-      return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'already' }, [readAudit], '本日体験入店はもう掲載中だった（押していない）');
+      return finish(ctx, { remaining: null, readAt, pressed: false, outcome: 'already' }, [{ ...readAudit, summary: '本日体験入店は掲載中でした（押していません）' }], '本日体験入店はもう掲載中だった（押していない）');
     }
     const r = buildJobNowStartRequest(cookie, p.ctk, p.startRow as string);
     return {
-      kind: 'next', audits: [readAudit],
+      kind: 'next', audits: [{ ...readAudit, summary: '本日体験入店が止まっていたので、【掲載開始】を押します' }],
       next: { purpose: 'esutama_opt_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaOptBefore: { remaining: null, castId: null, castName: null, lastAt: null } } },
       note: '本日体験入店が止まっていた → 【掲載開始】を押す',
     };
