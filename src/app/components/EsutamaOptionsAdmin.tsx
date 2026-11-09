@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { adminGetEsutamaOptions, adminSetEsutamaOption, adminGetEsutamaPosts, adminSetEsutamaPost } from '@/app/actions/conecfEsutamaOptions';
 import { adminGetZenkokuOptions, adminSetZenkokuOption } from '@/app/actions/conecfZenkokuOptions';
 import { adminGetEkichikaMovies, adminSetEkichikaMovies } from '@/app/actions/conecfEkichikaMovies';
+import { adminGetEkichikaMagazines, adminSetEkichikaMagazines } from '@/app/actions/conecfEkichikaMagazines';
 
 type SalonOption = { id: number; name: string };
 const KEYS: Array<[string, string]> = [['shop_boost', '集客ブースト'], ['cast_appeal', 'セラピストアピール'], ['job_appeal', '求人ワンクリックアピール'], ['job_now', '本日体験入店']];
@@ -24,6 +25,7 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
   const [postEnabled, setPostEnabled] = useState<Record<string, boolean>>({});
   const [zkEnabled, setZkEnabled] = useState<Record<string, boolean>>({});
   const [movieEnabled, setMovieEnabled] = useState(false);
+  const [magEnabled, setMagEnabled] = useState(false);
 
   useEffect(() => {
     if (!salonId) { setEnabled({}); return; }
@@ -43,6 +45,10 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
     adminGetEkichikaMovies(salonId).then((r) => {
       if (!alive) return;
       if (r.ok) setMovieEnabled(r.data.enabled); else onToast(r.error);
+    });
+    adminGetEkichikaMagazines(salonId).then((r) => {
+      if (!alive) return;
+      if (r.ok) setMagEnabled(r.data.enabled); else onToast(r.error);
     });
     return () => { alive = false; };
   }, [salonId, onToast]);
@@ -93,6 +99,10 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
           <label className="flex items-center gap-3 px-3 py-2">
             <input type="checkbox" disabled={busy} checked={movieEnabled} onChange={async (e) => { const on = e.target.checked; setBusy(true); const r = await adminSetEkichikaMovies({ salonId, enabled: on }); setBusy(false); if (!r.ok) { onToast(r.error); return; } setMovieEnabled(on); onToast(on ? 'ON にしました' : 'OFF にしました（その店の自動も止めました）'); }} />
             <span className="font-bold">駅ちか：動画投稿</span>
+          </label>
+          <label className="flex items-center gap-3 px-3 py-2">
+            <input type="checkbox" disabled={busy} checked={magEnabled} onChange={async (e) => { const on = e.target.checked; setBusy(true); const r = await adminSetEkichikaMagazines({ salonId, enabled: on }); setBusy(false); if (!r.ok) { onToast(r.error); return; } setMagEnabled(on); onToast(on ? 'ON にしました' : 'OFF にしました（その店の自動も止めました）'); }} />
+            <span className="font-bold">駅ちか：プラチナムマガジン</span>
           </label>
           {ZENKOKU_KEYS.map(([k, l]) => (
             <label key={k} className="flex items-center gap-3 px-3 py-2">

@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync' | 'placeholder'
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
-  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'announce' | 'cocoa'
+  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'ekiMagazine' | 'announce' | 'cocoa'
   | 'log' | 'matrix' | 'analytics'
   | 'guide' | 'qa';
 
@@ -37,6 +37,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'diary',        label: '写メ日記転送',           href: '/diary',         group: '写メ日記・新着' },
   // ★ 第1840便: 駅ちかの動画投稿。運営が ON にした店だけ（ConecfShell の ekiMovieNav）
   { key: 'ekiMovie',     label: '駅ちか動画投稿',         href: '/ekichika-movies' },
+  // ★ 第1844便: 駅ちかのプラチナムマガジン。運営が ON にした店だけ（ConecfShell の ekiMagazineNav）
+  { key: 'ekiMagazine',  label: '駅ちかマガジン',         href: '/ekichika-magazines' },
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
   // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）
   { key: 'announce',     label: 'フクエスお知らせ',       href: '/announce' },

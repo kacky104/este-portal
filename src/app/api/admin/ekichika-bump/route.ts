@@ -6,6 +6,7 @@ import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImages, isDailyPostKey } from '@/lib/esutamaPost';
 import { normalizeMovieSchedule, shouldPostEkichikaMovie, movieRowProblem, isConecfVideoPath } from '@/lib/ekichikaMovie';
+import { normalizeMagazineSchedule, shouldPostEkichikaMagazine, magazineRowProblem } from '@/lib/ekichikaMagazine';
 import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
@@ -214,6 +215,42 @@ export async function POST(req: Request) {
         } catch (e) {
           console.error('[ekichika-movie] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
           await svc.from('conecf_ekichika_movies').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
+          results.push({ ...base, reason: 'start_failed' });
+        }
+      }
+    }
+  }
+
+  // ★★ 第1844便: 駅ちかのプラチナムマガジン（ベンリーから移す）。★ 表が無い（SQL 未適用）ときは黙って飛ばす
+  //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 会員にメールが届くので二重送りは特に避ける
+  {
+    const mg = await svc.from('conecf_ekichika_magazines')
+      .select('salon_id, slot, schedule, last_due_at, salons!inner(conecf_enabled_at)')
+      .eq('admin_enabled', true).eq('auto', true)
+      .not('salons.conecf_enabled_at', 'is', null);
+    if (!mg.error) {
+      for (const o of mg.data ?? []) {
+        const sid = Number(o.salon_id), slot = Number(o.slot ?? 1);
+        const base = { salonId: sid, provider: 'ekichika:magazine', slot };
+        const schedule = normalizeMagazineSchedule(o.schedule);
+        const judge = shouldPostEkichikaMagazine({ now, schedule, lastDueAt: (o.last_due_at as string | null) ?? null });
+        if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+        const row = schedule[judge.index];
+        if (magazineRowProblem(row)) { results.push({ ...base, reason: 'row_problem' }); continue; }
+        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に送らない）。★ 書けなければ始めない
+        const { error: gErr } = await svc.from('conecf_ekichika_magazines').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot);
+        if (gErr) { results.push({ ...base, reason: 'mark_failed', note: gErr.message }); continue; }
+        try {
+          const f = await startRelayFlow({
+            salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:ekichika-magazine',
+            ekichikaMagazine: { index: judge.index, title: row.title, body: row.body },
+          });
+          // ★ 始められなかった（同じ枠で別の流れが走っていた等）ときは印を戻す（5分後の周でまた試す）
+          if (!f.ok) await svc.from('conecf_ekichika_magazines').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
+          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+        } catch (e) {
+          console.error('[ekichika-magazine] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
+          await svc.from('conecf_ekichika_magazines').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
           results.push({ ...base, reason: 'start_failed' });
         }
       }

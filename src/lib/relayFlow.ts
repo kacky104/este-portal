@@ -135,6 +135,7 @@ import type { ZenkokuLoginForm, ZenkokuGirl } from './zenkokuParse';
 import { afterZenkokuLoginPage, afterZenkokuLogin, afterZenkokuRoster, afterZenkokuDayRead, afterZenkokuDaySave, afterZenkokuDayVerify } from './zenkokuFlow';
 import { afterZenkokuWaitRead, afterZenkokuWaitSet } from './zenkokuWaitFlow';
 import { ekichikaMovieFirstStep, afterEkimovieForm, afterEkimovieList, afterEkimovieDelete, afterEkimoviePost, afterEkimovieVerify } from './ekichikaMovieFlow';
+import { ekichikaMagazineFirstStep, afterEkimagForm, afterEkimagPost, afterEkimagVerify } from './ekichikaMagazineFlow';
 import { afterZenkokuNewsRead, afterZenkokuNewsSet, afterZenkokuNewsVerify, afterZenkokuRecRead, afterZenkokuRecSet, afterZenkokuRecVerify } from './zenkokuOptionFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
@@ -1052,6 +1053,8 @@ export type RelayFlowContext = {
    *   csrf・girlId・deleted は段の途中で入る
    */
   ekichikaMovie?: { index: number; girlName: string; title: string; body: string; deleteSame: boolean; videoUrl: string; videoType: string; csrf?: string; girlId?: string; deleted?: number };
+  /** ★ 第1844便: 駅ちかのプラチナムマガジン（lib/ekichikaMagazineFlow.ts）。at（配信日時の表示）は段の途中で入る */
+  ekichikaMagazine?: { index: number; title: string; body: string; at?: string };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; readAt?: string; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number; target?: { gid: string; name: string; index: number } };
   /** いま何日目か（zenkokuWindow の添字） */
   zenkokuDayIndex?: number;
@@ -1167,7 +1170,9 @@ export type FlowNextRequest = {
     // ★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト。★ *_set だけが相手を書き換える
     | 'zenkoku_news_read' | 'zenkoku_news_set' | 'zenkoku_news_verify' | 'zenkoku_rec_read' | 'zenkoku_rec_set' | 'zenkoku_rec_verify'
     // ★ 第1840便: 駅ちかの動画投稿。★ ekimovie_delete / ekimovie_post だけが相手を書き換える
-    | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify';
+    | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify'
+    // ★ 第1844便: 駅ちかのプラチナムマガジン。★ ekimag_post だけが相手を書き換える
+    | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1208,6 +1213,8 @@ export type FlowOutcome =
       /** ★ 第1831便: 全国エステランキングのニュース・おすすめの結果。★ 表（conecf_zenkoku_options）に書くのは呼び出し側 */
       /** ★ 第1840便: 駅ちかの動画投稿の結果。★ 表（conecf_ekichika_movies）に書くのは呼び出し側 */
       ekichikaMovie?: { index: number; done: boolean; outcome: string; lastAt: string | null; deleted: number };
+      /** ★ 第1844便: 駅ちかのプラチナムマガジンの結果。★ 表（conecf_ekichika_magazines）に書くのは呼び出し側 */
+      ekichikaMagazine?: { index: number; done: boolean; outcome: string; lastAt: string | null };
       zenkokuOpt?: { key: string; readAt: string; done: boolean; outcome: string; lastAt: string | null; nextIndex: number | null; remaining: number | null };
       /**
        * ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **番号を表に書くのは呼び出し側**。
@@ -1821,6 +1828,12 @@ function advanceFlowStep(
       return afterEkimoviePost(input, ctx);
     case 'ekimovie_verify':
       return afterEkimovieVerify(input, ctx);
+    case 'ekimag_form':
+      return afterEkimagForm(input, ctx);
+    case 'ekimag_post':
+      return afterEkimagPost(input, ctx);
+    case 'ekimag_verify':
+      return afterEkimagVerify(input, ctx);
     case 'zenkoku_news_read':
       return afterZenkokuNewsRead(input, ctx);
     case 'zenkoku_news_set':
@@ -2010,6 +2023,8 @@ function afterLogin(
 
   // ★ 第1840便: 駅ちかの動画投稿は、動画投稿の画面だけを読む（読めた＝ログインできた）
   if (ctx.ekichikaMovie && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaMovieFirstStep(ctx, cookie);
+  // ★ 第1844便: プラチナムマガジンは、新規作成の画面だけを読む（読めた＝ログインできた）
+  if (ctx.ekichikaMagazine && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaMagazineFirstStep(ctx, cookie);
 
   if (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push') {
     // ★ 第1305便: まず管理画面トップを読む（残り回数・最終更新日・店舗番号）。★ 読めた＝ログインできた

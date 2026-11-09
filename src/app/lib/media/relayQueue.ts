@@ -136,6 +136,7 @@ export type RelayPurpose =
   | 'zenkoku_wait_read' | 'zenkoku_wait_set'
   | 'zenkoku_news_read' | 'zenkoku_news_set' | 'zenkoku_news_verify' | 'zenkoku_rec_read' | 'zenkoku_rec_set' | 'zenkoku_rec_verify'
   | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify'
+  | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify'
   | 'selftest';
 
 export type LeasedJob = {
