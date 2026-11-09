@@ -19,7 +19,7 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'sites',        label: 'ID・パスワード登録',          href: '/sites' },
   // ★ 第1847便（カッキーさん）: ベンリーから移した各サイトの自動更新（駅ちか・エステ魂・全国エステランキング）を1つにまとめた入口。
   //   中の画面（AUTO_HUB_CHILDREN）はサイドバーには出さない。運営が ON にした項目が1つでもある店だけ（ConecfShell）
-  { key: 'autoHub',      label: 'サイト自動更新',         href: '/auto' },
+  { key: 'autoHub',      label: 'サイト自動更新一覧',     href: '/auto' },
   { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
   { key: 'girlsSync',    label: 'セラピスト登録状況一覧', href: '/girls/sync' },
   // ★ 第1722便（カッキーさん）: 写真が無いセラピストに使う画像（お店の既定画像）を独立した画面に。

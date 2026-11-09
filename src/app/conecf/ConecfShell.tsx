@@ -287,7 +287,7 @@ export function ConecfShell({
               </svg>
             </button>
             {inAutoHub && (
-              <Link href={href('/auto')} className="flex-none text-[13px] text-indigo-600 hover:underline whitespace-nowrap">サイト自動更新 ›</Link>
+              <Link href={href('/auto')} className="flex-none text-[13px] text-indigo-600 hover:underline whitespace-nowrap">サイト自動更新一覧 ›</Link>
             )}
             <h1 className="text-[16px] font-normal text-[#212121] truncate">{title}</h1>
           </div>

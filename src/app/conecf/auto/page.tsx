@@ -42,9 +42,9 @@ export default function ConecfAutoHubPage() {
   ];
   const shown = groups.map((g) => ({ ...g, items: g.items.filter((i) => i.on) })).filter((g) => g.items.length > 0);
   return (
-    <ConecfShell current="autoHub" title="サイト自動更新">
+    <ConecfShell current="autoHub" title="サイト自動更新一覧">
       {() => (
-        <div className="space-y-4">
+        <div className="space-y-4 pb-32">
           <p className="text-[14px] leading-relaxed text-slate-600">各サイトへの自動の投稿・更新を、サイトごとにまとめています。項目を開くと、時刻や間隔・自動の ON／OFF を設定できます。結果は「更新結果」に出ます。</p>
           {!st && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {st && shown.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるようになっている項目がありません。運営事務局までご連絡ください。</div>}
