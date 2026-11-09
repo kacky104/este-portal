@@ -391,9 +391,23 @@ export function NewsBoard({ salonId, onToast }: { salonId: number | null; onToas
           ★★ 消した2行のうち【読み直す】は、枠の状態バッジの脇へ移した（★ 入口は失わせない）。
              ★ 「この状態はいつのものか」を直すボタンなので、状態のすぐ隣がいちばん意味が通る。
           ★ board.summary / board.postedToday は受け口に残してある（★ 戻すならここに1行） */}
-      <p className="text-[14px] text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-2.5 leading-relaxed">
-        {brand.isConecf ? 'ホームで駅ちかを「更新中」にしている時のみ自動投稿できます。' : '「フクエスから反映」の時のみ自動投稿できます。'}
-      </p>
+      {/* ★ 第1845便（カッキーさん・2026-11-09）: 自動の周が実際に回る条件がそろっていれば「自動投稿中」とはっきり出す。
+          ★ 条件＝コネックエフに切り替え済み・駅ちかを読み取り済み・この枠が「反映しない」でない・自動の印の文章が1本以上
+          （article-auto ／ postOneArticle が見ているものと同じ） */}
+      {(() => {
+        const autoSlots = board.slotAuto.filter((x) => x.activeCount > 0).length;
+        const running = board.conecfOn && board.readAt !== null && curMedia?.linkMode !== 'none' && autoSlots > 0;
+        return running ? (
+          <p className="text-[14px] text-emerald-800 bg-emerald-50 border border-emerald-300 px-3.5 py-2.5 leading-relaxed">
+            <b>● 現在、自動投稿中です。</b>
+            自動投稿中の文章があるカテゴリー（{autoSlots}つ）に、1日1回ずつ順番に投稿しています。
+          </p>
+        ) : (
+          <p className="text-[14px] text-amber-800 bg-amber-50 border border-amber-200 px-3.5 py-2.5 leading-relaxed">
+            {brand.isConecf ? 'ホームで駅ちかを「更新中」にしている時のみ自動投稿できます。' : '「フクエスから反映」の時のみ自動投稿できます。'}
+          </p>
+        );
+      })()}
 
       {/* ───────── ① 写真（第373便・店舗に1つ／第374便でアコーディオン） ───────── */}
       <section className="bg-white border border-slate-200">

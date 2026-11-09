@@ -166,6 +166,8 @@ export type ArticleBoard = {
   readAt: string | null;
   templates: ArticleTemplateRow[];
   autoEnabled: boolean;
+  /** ★ 第1845便: コネックエフに切り替え済みか（salons.conecf_enabled_at あり）。★ 自動の周はこの店だけを回す（article-auto・第1262便） */
+  conecfOn: boolean;
   /** ★★★ 枠ごとの自動投稿の様子（第376便）。★ 必ず5枠ぶん */
   slotAuto: ArticleSlotAuto[];
   /** ★ 1枠に登録できる本数の上限。★ 画面が同じ数字を持たないよう、ここから渡す */
@@ -297,6 +299,9 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
   //   ★ 回るかどうかは【文章の「自動投稿中」の印】だけで決まる。★ 既定は false なので暴発しない。
   //   ★★ 列（auto_enabled）と受け口（saveArticleSettings）は残してある。★ 読まないだけ。
   const autoEnabled = true;
+  // ★ 第1845便: 画面に「自動投稿中」を出すため。★ 読めなければ false（★ 動いていると言い切らない）
+  const { data: salRow } = await svc.from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle();
+  const conecfOn = !!salRow?.conecf_enabled_at;
   const today = dayKeyJST(new Date());
 
   // ★★★ 枠ごとの自動投稿の様子（第376便）。★ 必ず5枠ぶん作る（★ 文章が0本の枠も出す）
@@ -359,6 +364,7 @@ export async function getArticleBoard(input: { salonId: string | number; slot?: 
       readAt: snap?.read_at ? String(snap.read_at) : null,
       templates,
       autoEnabled,
+      conecfOn,
       slotAuto,
       perSlotMax: ARTICLE_TEMPLATES_PER_SLOT_MAX,
       therapists,
