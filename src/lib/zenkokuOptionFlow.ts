@@ -135,6 +135,10 @@ export function afterZenkokuRecRead(input: Input, ctx: RelayFlowContext): FlowOu
   if (!page.formSeen || page.rows.length === 0) {
     return finish(ctx, { done: false, outcome: 'error: 一覧の形が違う' }, [{ event: 'read_bump', outcome: 'failed', summary: '全国エステランキングのセラピスト一覧を読み取れませんでした（画面の作りが変わった可能性があります）', detail: { opt: 'zenkoku_recommend', reason: 'form_missing', flowId: ctx.flowId } }], '一覧の形が違う');
   }
+  // ★ 第1880便: おすすめの変更は全国エステランキングの審議のあとに反映される。審議中のあいだは送らない（重ねて申請しない）
+  if (page.reviewing) {
+    return finish(ctx, { done: false, outcome: 'reviewing', remaining: page.remaining }, [{ event: 'push_bump', outcome: 'stopped', summary: '全国エステランキングのおすすめセラピストは、前の変更が審議中のため今回は送りませんでした', detail: { opt: 'zenkoku_recommend', reason: 'reviewing', flowId: ctx.flowId } }], '審議中');
+  }
   const items = ctx.zenkokuOpt?.items ?? [];
   const pick = pickRecommend(items, ctx.zenkokuOpt?.nextIndex ?? 0, page);
   if (pick.kind === 'none') {
@@ -176,6 +180,12 @@ export function afterZenkokuRecVerify(input: Input, ctx: RelayFlowContext): Flow
   const row = t ? page.rows.find((r) => r.gid === t.gid) : undefined;
   const ok = !!row && row.checked;
   if (!t) return finish(ctx, { done: false, outcome: 'error: 相手が分からない' }, [], '入れる方が文脈に無い');
+  // ★ 第1880便: 保存すると「審議中」になり、チェックは審議のあとに付く。審議中が出ていれば申請できたとみる（次の方へ進める）
+  if (!ok && page.reviewing) {
+    return finish(ctx, { done: true, outcome: 'requested: ' + t.name, nextIndex: t.index + 1, remaining: page.remaining },
+      [{ event: 'push_bump', outcome: 'ok', summary: '全国エステランキングのおすすめセラピストを ' + t.name + ' さんに変更申請しました（審議のあとに反映されます）', detail: { opt: 'zenkoku_recommend', reviewing: true, flowId: ctx.flowId } }],
+      t.name + 'さんで申請できた（審議中）');
+  }
   if (!ok) {
     // ★ 保存は届いた（応答はエラーではない）が、チェックが付いていない。回数を使ったかは分からないので、同じ方へもう一度は行かない（次の時刻に任せる）
     return finish(ctx, { done: false, outcome: 'error: ' + t.name + 'さんにチェックが付かなかった', remaining: page.remaining },

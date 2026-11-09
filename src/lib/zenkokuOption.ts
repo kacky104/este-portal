@@ -130,6 +130,10 @@ export type ZenkokuNewsForm = {
   typeOptions: Array<[string, string]>;
   titleName: string; bodyName: string; imageName: string | null;
   hasIndefinite: boolean; hasEndPublished: boolean;
+  /** ★ 第1880便: ブラウザがそのまま送る値（選択欄の今の値・チェックの付いたラジオ）。type は別に決める。
+   *   2026-11-10 に画面で確かめた: 「公開開始時刻設定」publish_now（ラジオ 1=すぐに公開・既定）と published_h・published_m（選択欄）が
+   *   あり、これを送っていなかったので「ニュースの保存に失敗しました」で断られていた */
+  defaults: Record<string, string>;
 };
 
 /** 新規投稿のフォーム（題名と本文の欄があるフォーム） */
@@ -154,12 +158,27 @@ export function parseZenkokuNewsForm(html: string): ZenkokuNewsForm | null {
     const typeOptions: Array<[string, string]> = [];
     const sel = /<select\b[^>]*name=["']type["'][^>]*>([\s\S]*?)<\/select>/i.exec(body);
     if (sel) for (const om of sel[1].matchAll(/<option\b([^>]*)>([\s\S]*?)<\/option>/gi)) typeOptions.push([attr(' ' + om[1], 'value') ?? '', stripTags(om[2])]);
+    const defaults: Record<string, string> = {};
+    for (const sm of body.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi)) {
+      const name = attr(' ' + sm[1], 'name');
+      if (!name || name === 'type') continue;
+      const opts = [...sm[2].matchAll(/<option\b([^>]*)>/gi)].map((o) => ' ' + o[1]);
+      const pick = opts.find((o) => /\sselected\b/i.test(o)) ?? opts[0];
+      if (pick !== undefined) defaults[name] = attr(pick, 'value') ?? '';
+    }
+    for (const im of body.matchAll(/<input\b[^>]*>/gi)) {
+      const t = im[0];
+      if ((attr(t, 'type') ?? '').toLowerCase() !== 'radio') continue;
+      const name = attr(t, 'name');
+      if (name && /\schecked\b/i.test(t)) defaults[name] = attr(t, 'value') ?? '';
+    }
     const file = /<input\b[^>]*type=["']file["'][^>]*>/i.exec(body);
     const fileName = file ? attr(file[0], 'name') : null;
     return {
       action: action.startsWith('http') ? action : ZENKOKU_ORIGIN + (action.startsWith('/') ? action : '/' + action),
       hidden, typeOptions, titleName: 'title', bodyName: 'content', imageName: fileName,
       hasIndefinite: /name=["']indefinite["']/i.test(body), hasEndPublished: /name=["']end_published["']/i.test(body),
+      defaults,
     };
   }
   return null;
@@ -185,8 +204,10 @@ export function buildZenkokuNewsPostRequest(cookie: string, form: ZenkokuNewsFor
   if (!cookie) throw new Error('Cookie が無いまま投稿しない');
   const p = newsItemProblem(item);
   if (p) throw new Error(p);
-  const fields: Record<string, string> = { ...form.hidden };
+  const fields: Record<string, string> = { ...form.hidden, ...form.defaults };
   if (!('_method' in fields)) fields._method = 'POST';
+  // ★ 第1880便: いつも「すぐに公開」（予約投稿はしない）
+  fields.publish_now = '1';
   if (form.typeOptions.length > 0) {
     const t = form.typeOptions.find(([, l]) => l === typeLabel) ?? form.typeOptions.find(([v]) => v !== '') ?? form.typeOptions[0];
     fields.type = t[0];
@@ -206,7 +227,8 @@ export function buildZenkokuNewsPostRequest(cookie: string, form: ZenkokuNewsFor
 
 // ── おすすめセラピスト ──
 export type ZenkokuRecRow = { gid: string; name: string; hidden: boolean; checked: boolean };
-export type ZenkokuRecPage = { rows: ZenkokuRecRow[]; remaining: number | null; formSeen: boolean };
+/** ★ 第1880便: reviewing … 「おすすめセラピストの変更を審議中です」が出ている（変更は全国エステランキングの審査のあとに反映される） */
+export type ZenkokuRecPage = { rows: ZenkokuRecRow[]; remaining: number | null; formSeen: boolean; reviewing: boolean };
 
 export function parseZenkokuRecommendPage(html: string): ZenkokuRecPage {
   const src = String(html ?? '');
@@ -229,7 +251,7 @@ export function parseZenkokuRecommendPage(html: string): ZenkokuRecPage {
     const nameCell = bi > 0 ? cells[bi - 1].text.replace(/\s*非公開中$/, '') : '';
     rows.push({ gid, name: nameCell.trim(), hidden: /\bgi-hide\b/.test(cls), checked });
   }
-  return { rows, remaining: rm ? Number(rm[1]) : null, formSeen: /name=["']ads\[\]["']/.test(src) && /name=["']sorts["']/.test(src) };
+  return { rows, remaining: rm ? Number(rm[1]) : null, formSeen: /name=["']ads\[\]["']/.test(src) && /name=["']sorts["']/.test(src), reviewing: /おすすめセラピストの変更を審議中/.test(t) };
 }
 
 /** 名前の比べ方（空白・全角半角の違いは見ない） */
@@ -274,4 +296,5 @@ export const ZENKOKU_OPT_OUTCOME: Record<string, string> = {
   no_remaining: '今月の変更回数が残っていませんでした',
   no_items: '中身が登録されていません',
   no_match: '全国エステランキングに登録（公開）されている方がリストにいませんでした',
+  reviewing: '前の変更が全国エステランキングで審議中のため、今回は送りませんでした',
 };

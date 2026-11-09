@@ -18,6 +18,7 @@ const outcomeText = (o: string | null) => {
   if (o.startsWith('ok: ')) return `「${o.slice(4)}」を送れました`;
   if (o.startsWith('ok_unverified: ')) return `「${o.slice(15)}」を送りました（一覧での確認はまだ）`;
   if (o.startsWith('already: ')) return `${o.slice(9)}さんはもう入っていました`;
+  if (o.startsWith('requested: ')) return `${o.slice(11)}さんで変更を申請しました（審議のあとに反映）`;
   if (o.startsWith('error')) return 'うまくいきませんでした（' + o.replace(/^error:\s*/, '') + '）';
   return ZENKOKU_OPT_OUTCOME[o] ?? o;
 };
