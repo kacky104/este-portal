@@ -433,6 +433,8 @@ export async function startRelayFlow(params: {
   ekichikaMovie?: { index: number; girlName: string; title: string; body: string; deleteSame: boolean; videoPath: string; videoType: string };
   /** ★ 第1844便: 駅ちかのプラチナムマガジン（この時刻の1行） */
   ekichikaMagazine?: { index: number; title: string; body: string };
+  /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（この1組・終わったら next_index を nextIndex に） */
+  ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
   sort?: { want: string[] };
@@ -746,6 +748,7 @@ export async function startRelayFlow(params: {
     // ★ 第1840便: 駅ちかの動画投稿
     ...(params.ekichikaMovie ? { ekichikaMovie: { index: params.ekichikaMovie.index, girlName: params.ekichikaMovie.girlName, title: params.ekichikaMovie.title, body: params.ekichikaMovie.body, deleteSame: params.ekichikaMovie.deleteSame, videoUrl: movieVideoUrl, videoType: params.ekichikaMovie.videoType } } : {}),
     ...(params.ekichikaMagazine ? { ekichikaMagazine: { index: params.ekichikaMagazine.index, title: params.ekichikaMagazine.title, body: params.ekichikaMagazine.body } } : {}),
+    ...(params.ekichikaRankImage ? { ekichikaRankImage: { index: params.ekichikaRankImage.index, nextIndex: params.ekichikaRankImage.nextIndex, main: params.ekichikaRankImage.main, ranking: params.ekichikaRankImage.ranking } } : {}),
     ...(params.zenkokuOpt ? { zenkokuOpt: { key: params.zenkokuOpt.key, ...(params.zenkokuOpt.force === true ? { force: true } : {}), ...(params.zenkokuOpt.item ? { item: { title: params.zenkokuOpt.item.title, body: params.zenkokuOpt.item.body, image: params.zenkokuOpt.item.image ?? null } } : {}), ...(params.zenkokuOpt.items ? { items: params.zenkokuOpt.items.map((x) => ({ name: x.name })) } : {}), nextIndex: Number(params.zenkokuOpt.nextIndex ?? 0) } } : {}),
     // ★ 第1811便: エステ魂の投稿。★ 渡されたときだけ入れる
     ...(params.esutamaPost ? { esutamaPost: { key: params.esutamaPost.key, title: params.esutamaPost.title, body: params.esutamaPost.body, ...(params.esutamaPost.force === true ? { force: true } : {}), ...(params.esutamaPost.image ? { image: { path: params.esutamaPost.image.path, index: params.esutamaPost.image.index } } : {}), ...(params.esutamaPost.images && params.esutamaPost.images.length > 0 ? { images: params.esutamaPost.images.map((x) => ({ path: x.path, index: x.index })) } : {}) } } : {}),
@@ -778,6 +781,12 @@ export async function startRelayFlow(params: {
   if (params.ekichikaMagazine && params.provider !== 'ekichika') {
     throw new Error('ekichikaMagazine は駅ちかだけ');
   }
+  if (params.ekichikaRankImage && params.provider !== 'ekichika') {
+    throw new Error('ekichikaRankImage は駅ちかだけ');
+  }
+  if (params.ekichikaRankImage && (params.ekichikaMagazine || params.ekichikaMovie)) {
+    throw new Error('店舗メイン／ランキングは別々に送る');
+  }
   if (params.ekichikaMagazine && params.ekichikaMovie) {
     throw new Error('マガジンと動画は別々に送る');
   }
@@ -787,7 +796,7 @@ export async function startRelayFlow(params: {
   if (params.zenkokuWait && params.provider !== 'zenkoku') {
     throw new Error('zenkokuWait は全国エステランキングだけ');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.ekichikaMovie && !params.ekichikaMagazine) {
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.ekichikaMovie && !params.ekichikaMagazine && !params.ekichikaRankImage) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
@@ -1264,6 +1273,17 @@ export async function advanceRelayFlow(params: {
       .eq('salon_id', params.salonId).eq('slot', params.slot);
     if (gErr) console.error('[relay] 駅ちかのマガジンの状態を書けなかった', params.salonId, params.slot, gErr.message);
     else note = note + ' → マガジンの状態（' + o.outcome.slice(0, 40) + '）を記録した';
+  }
+
+  // ★★ 第1846便: 駅ちかの店舗メイン／ランキングの結果を表に書く。★ うまくいったら次の組へ進める。書けなくても流れは止めない
+  if (outcome.kind === 'done' && outcome.ekichikaRankImage && params.provider === 'ekichika') {
+    const o = outcome.ekichikaRankImage;
+    const { error: rErr } = await createServiceClient()
+      .from('conecf_ekichika_rankimgs')
+      .update({ last_outcome: o.outcome.slice(0, 200), ...(o.done && o.lastAt ? { last_at: o.lastAt, next_index: o.nextIndex } : {}), updated_at: new Date().toISOString() })
+      .eq('salon_id', params.salonId).eq('slot', params.slot);
+    if (rErr) console.error('[relay] 駅ちかの店舗メイン／ランキングの状態を書けなかった', params.salonId, params.slot, rErr.message);
+    else note = note + ' → 店舗メイン／ランキングの状態（' + o.outcome.slice(0, 40) + '）を記録した';
   }
 
   // ★★ 第1831便: 全国エステランキングのニュース・おすすめの結果を表に書く。★ 書けなくても流れは止めない（黙らない）

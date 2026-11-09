@@ -136,6 +136,7 @@ import { afterZenkokuLoginPage, afterZenkokuLogin, afterZenkokuRoster, afterZenk
 import { afterZenkokuWaitRead, afterZenkokuWaitSet } from './zenkokuWaitFlow';
 import { ekichikaMovieFirstStep, afterEkimovieForm, afterEkimovieList, afterEkimovieDelete, afterEkimoviePost, afterEkimovieVerify } from './ekichikaMovieFlow';
 import { ekichikaMagazineFirstStep, afterEkimagForm, afterEkimagPost, afterEkimagVerify } from './ekichikaMagazineFlow';
+import { ekichikaRankImageFirstStep, afterEkirankRead, afterEkirankSet, afterEkirankVerify } from './ekichikaRankImageFlow';
 import { afterZenkokuNewsRead, afterZenkokuNewsSet, afterZenkokuNewsVerify, afterZenkokuRecRead, afterZenkokuRecSet, afterZenkokuRecVerify } from './zenkokuOptionFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
@@ -1055,6 +1056,8 @@ export type RelayFlowContext = {
   ekichikaMovie?: { index: number; girlName: string; title: string; body: string; deleteSame: boolean; videoUrl: string; videoType: string; csrf?: string; girlId?: string; deleted?: number };
   /** ★ 第1844便: 駅ちかのプラチナムマガジン（lib/ekichikaMagazineFlow.ts）。at（配信日時の表示）は段の途中で入る */
   ekichikaMagazine?: { index: number; title: string; body: string; at?: string };
+  /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（lib/ekichikaRankImageFlow.ts）。plan・step は段の途中で入る */
+  ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string; plan?: Array<{ target: 'main' | 'ranking'; id: string; old: string; name: string }>; step?: number };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; readAt?: string; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number; target?: { gid: string; name: string; index: number } };
   /** いま何日目か（zenkokuWindow の添字） */
   zenkokuDayIndex?: number;
@@ -1172,7 +1175,9 @@ export type FlowNextRequest = {
     // ★ 第1840便: 駅ちかの動画投稿。★ ekimovie_delete / ekimovie_post だけが相手を書き換える
     | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify'
     // ★ 第1844便: 駅ちかのプラチナムマガジン。★ ekimag_post だけが相手を書き換える
-    | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify';
+    | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify'
+    // ★ 第1846便: 駅ちかの店舗メイン／ランキング。★ ekirank_set だけが相手を書き換える
+    | 'ekirank_read' | 'ekirank_set' | 'ekirank_verify';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1215,6 +1220,8 @@ export type FlowOutcome =
       ekichikaMovie?: { index: number; done: boolean; outcome: string; lastAt: string | null; deleted: number };
       /** ★ 第1844便: 駅ちかのプラチナムマガジンの結果。★ 表（conecf_ekichika_magazines）に書くのは呼び出し側 */
       ekichikaMagazine?: { index: number; done: boolean; outcome: string; lastAt: string | null };
+      /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの結果。★ 表（conecf_ekichika_rankimgs）に書くのは呼び出し側 */
+      ekichikaRankImage?: { index: number; nextIndex: number; done: boolean; outcome: string; lastAt: string | null };
       zenkokuOpt?: { key: string; readAt: string; done: boolean; outcome: string; lastAt: string | null; nextIndex: number | null; remaining: number | null };
       /**
        * ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **番号を表に書くのは呼び出し側**。
@@ -1834,6 +1841,12 @@ function advanceFlowStep(
       return afterEkimagPost(input, ctx);
     case 'ekimag_verify':
       return afterEkimagVerify(input, ctx);
+    case 'ekirank_read':
+      return afterEkirankRead(input, ctx);
+    case 'ekirank_set':
+      return afterEkirankSet(input, ctx);
+    case 'ekirank_verify':
+      return afterEkirankVerify(input, ctx);
     case 'zenkoku_news_read':
       return afterZenkokuNewsRead(input, ctx);
     case 'zenkoku_news_set':
@@ -2025,6 +2038,8 @@ function afterLogin(
   if (ctx.ekichikaMovie && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaMovieFirstStep(ctx, cookie);
   // ★ 第1844便: プラチナムマガジンは、新規作成の画面だけを読む（読めた＝ログインできた）
   if (ctx.ekichikaMagazine && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaMagazineFirstStep(ctx, cookie);
+  // ★ 第1846便: 店舗メイン／ランキングは、女の子一覧だけを読む（読めた＝ログインできた）
+  if (ctx.ekichikaRankImage && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaRankImageFirstStep(ctx, cookie);
 
   if (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push') {
     // ★ 第1305便: まず管理画面トップを読む（残り回数・最終更新日・店舗番号）。★ 読めた＝ログインできた

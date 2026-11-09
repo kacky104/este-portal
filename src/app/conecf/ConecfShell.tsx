@@ -100,6 +100,7 @@ export function ConecfShell({
   const zenkokuOptNav = session.state?.zenkokuOptNav ?? false;
   const ekiMovieNav = session.state?.ekiMovieNav ?? false;
   const ekiMagazineNav = session.state?.ekiMagazineNav ?? false;
+  const ekiRankImgNav = session.state?.ekiRankImgNav ?? false;
   // ★ 第1740便: 新しい希望の数（お店ごと・表を開くと 0 に戻る）
   const shiftNew = session.state?.shiftNew ?? 0;
   // ★ 一度も読めていないときだけ、読めなかった案内を出す
@@ -183,7 +184,7 @@ export function ConecfShell({
   }
 
   const navList = (onPick?: () => void) =>
-    CONECF_NAV.filter((n) => (n.key !== 'cocoa' || cocoaNav || current === 'cocoa') && (n.key !== 'shift' || shiftNav || current === 'shift') && (n.key !== 'esutamaOpt' || esutamaOptNav || current === 'esutamaOpt') && (n.key !== 'zenkokuOpt' || zenkokuOptNav || current === 'zenkokuOpt') && (n.key !== 'ekiMovie' || ekiMovieNav || current === 'ekiMovie') && (n.key !== 'ekiMagazine' || ekiMagazineNav || current === 'ekiMagazine')).map((n) => {
+    CONECF_NAV.filter((n) => (n.key !== 'cocoa' || cocoaNav || current === 'cocoa') && (n.key !== 'shift' || shiftNav || current === 'shift') && (n.key !== 'esutamaOpt' || esutamaOptNav || current === 'esutamaOpt') && (n.key !== 'zenkokuOpt' || zenkokuOptNav || current === 'zenkokuOpt') && (n.key !== 'ekiMovie' || ekiMovieNav || current === 'ekiMovie') && (n.key !== 'ekiMagazine' || ekiMagazineNav || current === 'ekiMagazine') && (n.key !== 'ekiRankImg' || ekiRankImgNav || current === 'ekiRankImg')).map((n) => {
       const on = n.key === current;
       return (
         <div key={n.key} className="contents">

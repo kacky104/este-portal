@@ -7,6 +7,7 @@ import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImages, isDailyPostKey } from '@/lib/esutamaPost';
 import { normalizeMovieSchedule, shouldPostEkichikaMovie, movieRowProblem, isConecfVideoPath } from '@/lib/ekichikaMovie';
 import { normalizeMagazineSchedule, shouldPostEkichikaMagazine, magazineRowProblem } from '@/lib/ekichikaMagazine';
+import { normalizeRankImagePairs, normalizeRankImageInterval, shouldRotateRankImage } from '@/lib/ekichikaRankImage';
 import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
@@ -215,6 +216,43 @@ export async function POST(req: Request) {
         } catch (e) {
           console.error('[ekichika-movie] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
           await svc.from('conecf_ekichika_movies').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
+          results.push({ ...base, reason: 'start_failed' });
+        }
+      }
+    }
+  }
+
+  // ★★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（ベンリーから移す）。★ 表が無い（SQL 未適用）ときは黙って飛ばす
+  //   ★ 運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。間隔が過ぎていたら next_index の組を置く
+  {
+    const rk = await svc.from('conecf_ekichika_rankimgs')
+      .select('salon_id, slot, interval_min, pairs, next_index, last_due_at, salons!inner(conecf_enabled_at)')
+      .eq('admin_enabled', true).eq('auto', true)
+      .not('salons.conecf_enabled_at', 'is', null);
+    if (!rk.error) {
+      for (const o of rk.data ?? []) {
+        const sid = Number(o.salon_id), slot = Number(o.slot ?? 1);
+        const base = { salonId: sid, provider: 'ekichika:rankimg', slot };
+        const pairs = normalizeRankImagePairs(o.pairs);
+        const prevDue = (o.last_due_at as string | null) ?? null;
+        const judge = shouldRotateRankImage({ now, intervalMin: normalizeRankImageInterval(o.interval_min), lastDueAt: prevDue, pairCount: pairs.length });
+        if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+        const index = Math.max(0, Number(o.next_index ?? 0)) % pairs.length;
+        const pair = pairs[index];
+        // ★ 始める前に「受け持った時刻」を書く（同じ回を二重に始めない）。★ 書けなければ始めない
+        const { error: gErr } = await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot);
+        if (gErr) { results.push({ ...base, reason: 'mark_failed', note: gErr.message }); continue; }
+        try {
+          const f = await startRelayFlow({
+            salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:ekichika-rankimg',
+            ekichikaRankImage: { index, nextIndex: (index + 1) % pairs.length, main: pair.main, ranking: pair.ranking },
+          });
+          // ★ 始められなかった（同じ枠で別の流れが走っていた等）ときは印を戻す（5分後の周でまた試す）
+          if (!f.ok) await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: prevDue }).eq('salon_id', sid).eq('slot', slot);
+          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+        } catch (e) {
+          console.error('[ekichika-rankimg] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
+          await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: prevDue }).eq('salon_id', sid).eq('slot', slot);
           results.push({ ...base, reason: 'start_failed' });
         }
       }
