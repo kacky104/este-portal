@@ -194,7 +194,7 @@ export function ConecfShell({
       return (
         <div key={n.key} className="contents">
           {n.group && (
-            <div className="px-4 pt-3 pb-1 text-[12px] font-normal text-slate-400">{n.group}</div>
+            <div className={`px-4 pt-3 pb-1 text-[12px] font-normal ${n.group === 'セラピスト' ? 'text-pink-500' : 'text-slate-400'}`}>{n.group}</div>
           )}
           <Link
             href={href(n.href)}
