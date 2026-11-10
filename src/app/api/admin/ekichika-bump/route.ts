@@ -76,6 +76,13 @@ export async function POST(req: Request) {
   // ★ 第1826便: エステ魂は同じ店で1回の周に1つだけ始める（同時に始めると2つ目以降は「別の手順がまだ走っていた」で止まり、更新結果が埋まる）。
   //   ★ 始められなかったものは「始めた時刻」を書かないので、5分後の周で順に始まる
   const esutamaStarted = new Set<number>();
+  /** ★ 第1926便: 時刻指定の回を始められなかったとき、書いた印（済みの回・始めた時刻）を元の値に戻す */
+  const undoTimesMark = async (r: Row, slot: number) => {
+    const { error: uErr } = await svc.from('salon_import_sources')
+      .update({ bump_times_done_at: r.bump_times_done_at ?? null, bump_auto_at: r.bump_auto_at ?? null })
+      .eq('salon_id', r.salon_id).eq('provider', r.provider).eq('slot', slot);
+    if (uErr) console.error('[ekichika-bump] 時刻指定の印を戻せなかった', r.salon_id, slot, uErr.message);
+  };
   for (const r of data ?? []) {
     const slot = Number(r.slot ?? 1);
     const setting: BumpSetting = {
@@ -108,9 +115,13 @@ export async function POST(req: Request) {
         bump: { setting },
       });
       if (r.provider === 'esutama') esutamaStarted.add(Number(r.salon_id));
+      // ★ 第1926便（2026-11-11・03:36 の回が抜けた）: 同じ枠で別の流れ（即ヒメなど）が走っていて始められなかったときは、
+      //   時刻指定の「済み」と始めた時刻を元に戻す＝5分後の見回りで同じ回をやり直す（時刻を30分過ぎるまで）
+      if (!f.ok && f.reason === 'busy' && dueAt) await undoTimesMark(r, slot);
       results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'ok', started: f.ok, note: f.note });
     } catch (e) {
       console.error('[ekichika-bump] 流れを始められなかった', r.salon_id, slot, e instanceof Error ? e.message : 'unknown');
+      if (dueAt) await undoTimesMark(r, slot);
       results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'start_failed' });
     }
   }
