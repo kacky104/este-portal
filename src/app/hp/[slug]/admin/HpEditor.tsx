@@ -29,6 +29,8 @@ import {
   HP_DIARY_COUNT_MAX,
   HP_REVIEWS_COUNT_MIN,
   HP_REVIEWS_COUNT_MAX,
+  HP_COUNT_ALL,
+  HP_PEOPLE_COUNT_OPTIONS,
   HP_DEMO_SLUG,
   normalizeHpSiteKey,
   hpDemoImageSlots,
@@ -177,7 +179,7 @@ export function HpEditor({
     switch (k) {
       case 'concept':    patchBlocks({ concept: { on } }); break;
       case 'courses':    patchBlocks({ courses: { on } }); break;
-      case 'therapists': patchBlocks({ therapists: { on } }); break;
+      case 'therapists': patchBlocks({ therapists: { ...form.blocks.therapists, on } }); break;
       case 'schedule':   patchBlocks({ schedule: { ...form.blocks.schedule, on } }); break;
       case 'diary':      patchBlocks({ diary: { ...form.blocks.diary, on } }); break;
       case 'reviews':    patchBlocks({ reviews: { ...form.blocks.reviews, on } }); break;
@@ -801,6 +803,28 @@ export function HpEditor({
                   )}
                 </span>
 
+                {/* ★ 第1896便: トップに出す人数（セラピスト一覧・本日の出勤） */}
+                {(k === 'therapists' || k === 'schedule') && (
+                  <select
+                    value={form.blocks[k].count}
+                    onChange={(e) =>
+                      k === 'therapists'
+                        ? patchBlocks({ therapists: { ...form.blocks.therapists, count: Number(e.target.value) } })
+                        : patchBlocks({ schedule: { ...form.blocks.schedule, count: Number(e.target.value) } })
+                    }
+                    disabled={!form.blocks[k].on}
+                    aria-label={`${sectionLabel(k)}をトップに出す人数`}
+                    className="rounded-none border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
+                  >
+                    <option value={0}>
+                      {k === 'therapists' ? (site.blocks.multipage ? '標準（6名）' : '標準（全員）') : '標準（全員）'}
+                    </option>
+                    {HP_PEOPLE_COUNT_OPTIONS.map((n) => (
+                      <option key={n} value={n}>{n}名</option>
+                    ))}
+                    <option value={HP_COUNT_ALL}>全員</option>
+                  </select>
+                )}
                 {k === 'diary' && (
                   <select
                     value={form.blocks.diary.count}

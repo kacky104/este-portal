@@ -92,6 +92,13 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           ? [{ pc: heroBundled[0], sp: heroBundled[1] ?? null }]
           : [];
   const onDuty = therapists.filter((t) => t.onDuty);
+  // ★ 第1896便: トップに出す人数（管理画面「表示ブロック」で店ごとに選ぶ）。0=標準（今までどおり）
+  const thCount = b.therapists.count;
+  const thLimit = thCount > 0 ? thCount : multipage ? HP_DIGEST_THERAPISTS : undefined;
+  const thCut = thLimit !== undefined && therapists.length > thLimit;
+  const schedCount = b.schedule.count;
+  const onDutyShown = schedCount > 0 ? onDuty.slice(0, schedCount) : onDuty;
+  const schedCut = onDutyShown.length < onDuty.length;
 
   // ── セクションの表示順（2026-08-10）──
   //   DOM の並びは全ひな形共通のまま（作業ルール1）で、画面の並びは flex の order で作る。
@@ -230,14 +237,19 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <section id="therapist" data-hp-reveal className={secCls('therapists', 'hp-sec-therapists', false)} style={ord('therapists')}>
           <SecHead no="03" en="Therapist" jp="セラピスト" />
           {/* detailBase: 個別ページが実在する店（subs.therapist）だけHP内へ。それ以外は従来どおり本体へ（2026-08-20 第25便） */}
-          <TherapistCards therapists={therapists} limit={multipage ? HP_DIGEST_THERAPISTS : undefined} detailBase={subs.therapist ? basePath : null} />
-          {multipage && (
+          <TherapistCards therapists={therapists} limit={thLimit} detailBase={subs.therapist ? basePath : null} />
+          {multipage ? (
             <a className="hp-more" href={`${basePath}/therapist`}>
-              {therapists.length > HP_DIGEST_THERAPISTS
+              {thCut
                 ? `セラピスト一覧をすべて見る（全${therapists.length}名） →`
                 : 'セラピスト一覧を見る →'}
             </a>
-          )}
+          ) : thCut ? (
+            // ★ 第1896便: 1ページ構成で人数を絞ったときは、残りを本体の一覧で見られるように
+            <a className="hp-more" href={`${salonUrl}/therapists`} target="_blank" rel="noopener">
+              {`セラピスト一覧をすべて見る（全${therapists.length}名） →`}
+            </a>
+          ) : null}
         </section>
       )}
 
@@ -252,7 +264,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <div className="hp-sched-date">{data.todayLabel}</div>
           {/* 行の DOM は /schedule と共用（parts.tsx の ScheduleRows）。
               片方だけ直して食い違うのを防ぐため、ここに書き写さないこと。 */}
-          <ScheduleRows rows={onDuty.map((t) => ({ t, time: t.todayTime ?? '' }))} detailBase={subs.therapist ? basePath : null} />
+          <ScheduleRows rows={onDutyShown.map((t) => ({ t, time: t.todayTime ?? '' }))} detailBase={subs.therapist ? basePath : null} />
 
           {/* 週間の出勤（2026-08-18 第23便で自社の /schedule に変更）。
               それまではフクエス本体の店舗スケジュールへ外部リンクしていたが、
@@ -262,11 +274,11 @@ export function HpTemplate({ data }: { data: HpPageData }) {
                 そのときだけ従来どおりフクエス本体へ送る（導線を絶やさない）。 */}
           {multipage && subs.schedule ? (
             <a className="hp-more" href={`${basePath}/schedule`}>
-              週間の出勤スケジュールを見る →
+              {schedCut ? `本日の出勤をすべて見る（全${onDuty.length}名） →` : '週間の出勤スケジュールを見る →'}
             </a>
           ) : (
             <a className="hp-more" href={`${salonUrl}/schedule`} target="_blank" rel="noopener">
-              出勤スケジュールをもっと見る →
+              {schedCut ? `本日の出勤をすべて見る（全${onDuty.length}名） →` : '出勤スケジュールをもっと見る →'}
             </a>
           )}
         </section>
