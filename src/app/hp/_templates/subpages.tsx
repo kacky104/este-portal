@@ -550,7 +550,8 @@ export async function HpVoiceView({ data }: ViewProps) {
     // 平均評価は自店モードのときだけ出す（全店の平均を1店のHPに出しても意味が無い）
     isDemo ? Promise.resolve(null) : getSalonReviewStats(salon.id),
   ]);
-  const moreHref = isDemo ? `${EMBED_SITE_URL}/reviews` : `${EMBED_SITE_URL}/salon/${salon.id}/reviews`;
+  // ★ 第1913便: 駅ちか対策（もっと見る）が ON の店は、「もっと見る」を駅ちかのお店の口コミページへ
+  const moreHref = data.ekichikaShop ? `${data.ekichikaShop}review/` : (isDemo ? `${EMBED_SITE_URL}/reviews` : `${EMBED_SITE_URL}/salon/${salon.id}/reviews`);
 
   return (
     <HpShell data={data} page="voice">
