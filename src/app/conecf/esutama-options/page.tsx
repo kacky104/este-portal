@@ -51,7 +51,18 @@ const DESC: Record<string, string> = {
 };
 const OUTCOME: Record<string, string> = { already: '掲載中でした（押していません）', ok: '押せました', no_remaining: '残り0回でした', no_cast: '出勤時間内のセラピストがいませんでした', not_ready: '準備中' };
 // ★ 'ok: ◯◯' の◯◯は、セラピストアピールは名前・求人ワンクリックアピールは行の名前（求人情報・お仕事体験談）
-const outcomeText = (o: string | null, key?: string) => (!o ? '—' : o.startsWith('ok: ') ? (key === 'cast_appeal' ? `${o.slice(4)}さんを押せました` : `${o.slice(4)}を押せました`) : OUTCOME[o] ?? (o.startsWith('error') ? 'うまくいきませんでした' : o));
+// ★ 第1882便: 失敗の理由も出す（「うまくいきませんでした」だけでは何が起きたか分からなかった）
+const errorText = (o: string) => {
+  const r = o.replace(/^error:\s*/, '');
+  const m: Record<string, string> = {
+    unparseable: 'エステ魂の画面を読み取れませんでした',
+    not_accepted: '押しましたが、回数が減りませんでした',
+    verify_unreadable: '押したあと、画面を読み直せませんでした',
+    not_listed: '掲載開始を押しましたが、掲載中になりませんでした',
+  };
+  return 'うまくいきませんでした（' + (m[r] ?? (/^http \d+$/.test(r) ? 'エステ魂の応答 ' + r.slice(5) : r)) + '）';
+};
+const outcomeText = (o: string | null, key?: string) => (!o ? '—' : o.startsWith('ok: ') ? (key === 'cast_appeal' ? `${o.slice(4)}さんを押せました` : `${o.slice(4)}を押せました`) : OUTCOME[o] ?? (o.startsWith('error') ? errorText(o) : o));
 
 // ★ 第1815便: 縦に長くなったので、カードを開け閉めできるように（閉じていても名前・自動・最後の結果と「今すぐ」は見える）
 function AccHead({ title, open, onToggle, auto, last, children }: { title: string; open: boolean; onToggle: () => void; auto: boolean; last: string; children?: ReactNode }) {
@@ -151,7 +162,7 @@ const POST_DESC: Record<string, string> = {
   job_realtime: '「リアルタイム求人」に下の文章を決めた間隔で投稿します。画像は投稿のたびに1枚ずつ替えます（無ければ今の画像のまま）。',
   guest_realtime: '「リアルタイム集客」に下の文章を決めた間隔で投稿します。画像は投稿のたびに1枚ずつ替えます（無ければ今の画像のまま）。',
 };
-const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '送れました' : o.startsWith('ok: 画像は前のまま') ? '投稿できました（画像は前のまま）' + o.slice('ok: 画像は前のまま'.length) : o.startsWith('ok: 画像なし') ? '投稿できました（画像なし）' + o.slice('ok: 画像なし'.length) : o.startsWith('error') ? 'うまくいきませんでした' : o);
+const postOutcomeText = (o: string | null) => (!o ? '—' : o === 'ok' ? '送れました' : o.startsWith('ok: 画像は前のまま') ? '投稿できました（画像は前のまま）' + o.slice('ok: 画像は前のまま'.length) : o.startsWith('ok: 画像なし') ? '投稿できました（画像なし）' + o.slice('ok: 画像なし'.length) : o.startsWith('error') ? errorText(o) : o);
 
 function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(p.auto);

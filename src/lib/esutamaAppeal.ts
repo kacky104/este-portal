@@ -59,11 +59,31 @@ export function parseEsutamaAppealTime(text: string, now: Date): string | null {
 }
 
 /** 行（data-row="<rowKey>" のボタンを含む <tr>）を切り出す。無ければ null。★ 既定は店舗情報の行 */
+/**
+ * ★ 第1882便: 行の名前（ボタンが消えたときの目印）。
+ *   エステ魂は残りが0回になると「アピールする」ボタンが消える（セラピストアピールで実測済み・求人ワンクリックアピールも同じ作り）。
+ *   ボタンだけを目印にすると、使い切った日は行ごと読めず「読み取れない」で失敗し、朝6時まで30分おきに読み直していた（11/9〜10 オイルクエスト様）。
+ */
+const APPEAL_ROW_NAME: Record<string, string> = {
+  ...ESUTAMA_APPEAL_ROW_LABEL,
+  'shop_job,job_appeal': '求人情報', 'shop_job_exp,job_appeal': 'お仕事体験談',
+};
+
 export function esutamaAppealRowHtml(html: string, rowKey: string = ESUTAMA_APPEAL_ROW): string | null {
   const src = String(html ?? '');
   const esc = rowKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const btn = new RegExp(`<a\\b[^>]*\\bdata-row=["']${esc}["'][^>]*>`, 'i').exec(src);
-  if (!btn) return null;
+  if (!btn) {
+    // ★ 第1882便: ボタンが無いときは、行の名前で始まり「残り N 回」がある <tr> を探す（残り0回の日）
+    const name = APPEAL_ROW_NAME[rowKey];
+    if (!name) return null;
+    for (const m of src.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)) {
+      const t = m[0].replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+      // ★ ほかの行のボタン（data-row）がある行は使わない（別の行の数字を取り違えない）
+      if (t.startsWith(name + ' ') && /\btg_num\b/.test(m[0]) && !/\bdata-row=/.test(m[0])) return m[0];
+    }
+    return null;
+  }
   const start = src.lastIndexOf('<tr', btn.index);
   const end = src.indexOf('</tr>', btn.index);
   if (start < 0 || end < 0) return null;
