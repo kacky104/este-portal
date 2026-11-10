@@ -411,6 +411,7 @@ export async function startRelayFlow(params: {
   /**
    * ★★★ 第1296便: 同じ店・サイト・枠で前の更新が動いているとき、断らずに【順番待ち】で受け付ける。
    *   ★ 効くのは、人が押した【削除・プロフィール更新・新規登録】だけ（lib/relayWait.ts の WAIT_INTENTS）。
+   *   ★ 第1929便: 例外として、駅ちかの上位表示の時刻指定（intent='bump_auto' で bump.setting.times がある）は周からでも待つ。
    *     ほかの流れ・自動の周（actor が cron: / system）は、渡しても今までどおり断る。
    *   ★ 入口の検査（同意・切り替え・停止・「反映しない」）とログインの中身は【押した時点】のまま。繰り上がるときには見直さない
    *     （だから待つのは15分まで）。
@@ -840,6 +841,11 @@ export async function startRelayFlow(params: {
     }
   }
 
+  // ★ 第1929便（2026-11-11・カッキーさん）: 駅ちかの上位表示の【時刻指定】の回だけは、自動の周でも順番待ちにする。
+  //   同じ枠で即ヒメ・写メ日記などが走っていると始められず、指定の時刻から5〜10分遅れていた（03:36・04:05 の回）。
+  //   ★ 前の流れが終わりしだい始まる。待つのは15分まで（relayWait の決まりのまま）。★ タイマー更新は今までどおり次の周
+  const timedBumpWait = params.whenBusy === 'wait' && params.intent === 'bump_auto' && params.provider === 'ekichika'
+    && Array.isArray(params.bump?.setting?.times) && (params.bump?.setting?.times?.length ?? 0) > 0;
   const r = await enqueueRelayJob({
     salonId: params.salonId,
     provider: params.provider,
@@ -852,7 +858,7 @@ export async function startRelayFlow(params: {
     context,
     ...(params.notBefore ? { notBefore: params.notBefore } : {}),
     // ★ 第1296便: 順番待ちにしてよいのは、人が押した 削除・プロフィール更新・新規登録 だけ（呼び出し側の頼みを、ここでもう一度ふるいにかける）
-    ...(params.whenBusy === 'wait' && canWaitIntent(params.intent) && !isAutomaticActor(params.actor) ? { whenBusy: 'wait' as const } : {}),
+    ...((params.whenBusy === 'wait' && canWaitIntent(params.intent) && !isAutomaticActor(params.actor)) || timedBumpWait ? { whenBusy: 'wait' as const } : {}),
   });
 
   if (r.ok && r.waiting === true) {
@@ -865,7 +871,8 @@ export async function startRelayFlow(params: {
       event: 'flow_stalled',
       outcome: 'ok',   // ★ 断っていない。受け付けて、あとで始める
       summary: waitAcceptedSummary(targetLabel(params.provider, params.slot), params.intent),
-      detail: { reason: WAIT_REASON_ACCEPTED, intent: params.intent, flowId: context.flowId },
+      // ★ 第1929便: 上位表示の時刻指定の順番待ちは、店舗様の画面からたたむ（自動の周の中のことなので）
+      detail: { reason: WAIT_REASON_ACCEPTED, intent: params.intent, flowId: context.flowId, ...(timedBumpWait ? AUDIT_SHOP_HIDDEN : {}) },
       actor: params.actor ?? 'system',
       jobId: r.jobId,
     });

@@ -68,13 +68,15 @@ import { sokuhimeOwnedSinceISO } from '@/lib/ekichikaSokuhimePlan';
 // crontab（VPS・★ 第327便で10分ごとへ）:
 //   ★★ 2026-09-13 に VPS を見たら、**この行はそもそも入っていなかった**（第215便で入れ忘れ）。
 //     ★ つまり即ヒメの周は、この日まで一度も回っていない。★ 同じ取りこぼしを防ぐため、ここに実物を写しておく。
-//   ★ 分は 8-59/10（8・18・28・38・48・58分）。★ 他の周とぶつからない分を選んだ:
+//   ★★ 第1929便（2026-11-11）: 分を 2-59/10（2・12・22…分）へ移す。8分は上位表示の周（ekichika-bump・4-59/5 の 9分）と
+//     同じ枠でぶつかり、駅ちかの時刻指定の回が始められなかった（03:39・04:09）。2分なら 0・1・3・4・5 のどれとも重ならない。
+//     （もとの説明）分は 8-59/10（8・18・28・38・48・58分）。★ 他の周とぶつからない分を選んだ:
 //       3-59/10 … work-news-auto ／ */10 … announce-auto
 //       */5・1-59/5 … diary-auto-push・sokusera-push・article-auto（★ 8 は5で割り切れないので当たらない）
 //   ★ まず試し打ち（駅ちかを1文字も触らない・記録だけ溜める）:
 //   8-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d dryrun=true >> /root/import.log 2>&1
 //   ★ 記録が狙いどおりなら dryrun=true を apply=true に差し替える（実弾）:
-//   8-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
+//   2-59/10 * * * * . /root/import.env; /usr/bin/curl -sS -X POST https://fukues.com/api/admin/sokuhime-push --oauth2-bearer $CRON_SECRET -d apply=true >> /root/import.log 2>&1
 //   ★ 記録が狙いどおりなら、-d dryrun=true を -d apply=true に差し替える（実弾）。
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

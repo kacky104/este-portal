@@ -113,6 +113,8 @@ export async function POST(req: Request) {
         salonId: r.salon_id, provider: r.provider, slot,
         intent: 'bump_auto', actor: 'cron:ekichika-bump',
         bump: { setting },
+        // ★ 第1929便: 時刻指定の回は、同じ枠で別の流れが走っていたら順番待ち（終わりしだい始まる・15分まで）
+        ...(dueAt ? { whenBusy: 'wait' as const } : {}),
       });
       if (r.provider === 'esutama') esutamaStarted.add(Number(r.salon_id));
       // ★ 第1926便（2026-11-11・03:36 の回が抜けた）: 同じ枠で別の流れ（即ヒメなど）が走っていて始められなかったときは、
