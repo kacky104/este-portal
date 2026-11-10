@@ -156,7 +156,7 @@ export function HpEditor({
   // ★ 第1906便: 駅ちかのランキング対策の欄の材料（ウィジェットの画面を開いたときだけ読む）
   const [ekInfo, setEkInfo] = useState<{ total: number; slots: { slot: number; url: string; linked: number }[] } | null>(null);
   useEffect(() => {
-    if (section !== 'widget' || isDemo) return;
+    if (section !== 'ekichika' || isDemo) return;
     let alive = true;
     getHpEkichikaInfo(siteKey).then((res) => { if (alive && res.ok) setEkInfo({ total: res.total, slots: res.slots }); });
     return () => { alive = false; };
@@ -1134,11 +1134,14 @@ export function HpEditor({
       </div>
       )}
       {/* ── 駅ちかのランキング対策（第1906便・2026-11-10・カッキーさん） ── */}
-      {show('widget') && !isDemo && (
+      {show('ekichika') && isDemo && (
+        <div className="bg-white border border-slate-100 shadow-sm p-5 text-[12px] text-slate-500">デモ店では使えません。</div>
+      )}
+      {show('ekichika') && !isDemo && (
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
         <h3 className="text-sm font-black text-slate-800">駅ちかのランキング対策</h3>
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ 駅ちかは、公式ホームページから駅ちかへのリンクがあると、ランキングの点数を加点します。ONにすると、下のリンク先が駅ちかに変わります（ネット予約はフクエスのままです）。写メ・口コミのウィジェットは、上の「ウィジェット」に駅ちかの設置タグを貼ってください。
+          ※ 駅ちかは、公式ホームページから駅ちかへのリンクがあると、ランキングの点数を加点します。ONにすると、下のリンク先が駅ちかに変わります（ネット予約はフクエスのままです）。写メ・口コミのウィジェットは、左メニューの「ウィジェット」に駅ちかの設置タグを貼ってください。
         </p>
         {ekInfo && ekInfo.slots.length === 0 && (
           <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます。</p>

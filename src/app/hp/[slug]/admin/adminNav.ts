@@ -14,6 +14,7 @@ export type HpAdminSection =
   | 'widget'    // ★ 第1899便: 外部ウィジェット（iframe のコード）
   | 'contact'   // お問い合わせフォーム（第1717便・2026-11-02）
   | 'brand'     // ヘッダーのロゴ・ファビコン
+  | 'ekichika'  // ★ 第1907便: 駅ちかのランキング対策（HpEditor が受け持つ・保存の枠あり）
   | 'analytics'; // ★ 第1792便: アクセス解析（HpAnalyticsView・HpEditor は受け持たない）
 // ★ 'account'（ホームページ担当者のアカウント）は第279便（2026-09-12・カッキーさんの指示）で
 //   画面ごと撤去した。★ 戻すときは、この型・NAV・TITLE・HpAdminApp の4か所を揃えて足すこと。
@@ -29,7 +30,7 @@ export type HpAdminSection =
 //   ★ 'home' が入っているのは、第282便でコンセプトをホームへ移したため（★ ホームでも保存する）。
 //   ★ ここに無い画面では HpEditor は何も描かない（★ ただし外さない＝入力中の内容を持ったまま控える）。
 export const HP_EDITOR_SECTIONS: HpAdminSection[] = [
-  'home', 'hero', 'blocks', 'banner', 'links', 'widget', 'contact', 'brand',
+  'home', 'hero', 'blocks', 'banner', 'links', 'widget', 'contact', 'brand', 'ekichika',
 ];
 
 export function isHpEditorSection(k: HpAdminSection): boolean {
@@ -47,6 +48,7 @@ export const HP_ADMIN_NAV: Array<{ key: HpAdminSection; label: string }> = [
   { key: 'contact', label: 'お問い合わせ' },
   { key: 'brand',   label: 'ロゴ・文字・背景' },   // ★ 第1884便: 背景画像も
   { key: 'analytics', label: 'アクセス解析' },
+  { key: 'ekichika', label: '駅ちか対策' },   // ★ 第1907便（カッキーさん）: アクセス解析の下
 ];
 
 // ★ 画面の頭に出す名前（★ サイドバーの字より少し詳しくてよい）。
@@ -60,4 +62,5 @@ export const HP_ADMIN_TITLE: Record<HpAdminSection, string> = {
   contact: 'お問い合わせフォーム',
   brand:   'ロゴ・ファビコン・文字・背景画像',
   analytics: 'アクセス解析',
+  ekichika: '駅ちかのランキング対策',
 };
