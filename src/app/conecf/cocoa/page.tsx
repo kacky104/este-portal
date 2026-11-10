@@ -312,7 +312,6 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
   const [busy, setBusy] = useState('');
   // ★ 第1833便: 開いているアカウントのカード（はじめは閉じる）
   const [openSlots, setOpenSlots] = useState<Record<number, boolean>>({});
-  const [showExtra, setShowExtra] = useState(false);
 
   // ★ 第1117便: 自動投稿のオン・オフを変えたら、外枠（メニューの「ココア店長ブログ」の出し分け）も読み直す
   const { refresh: refreshShell } = useConecfSession();
@@ -375,7 +374,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 
       {/* 説明 */}
       <div className={`${CARD} p-4 text-[13.5px] text-slate-500 leading-relaxed`}>
-        ココアの「店長ブログ」へ、テンプレートを決めた時刻に自動投稿します。アカウント（A・B・C）ごとに時刻とテンプレートを決められます。
+        ココアの「店長ブログ」へ、テンプレートを決めた時刻に自動投稿します。
         投稿は3ヶ月で消えるので、定期的に投稿して新しく保てます。投稿・編集の回数にはココア側の上限があります。
       </div>
 
@@ -383,16 +382,12 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
       {data.accounts && !data.hasEkichika && (
         <div className="border border-rose-200 bg-rose-50 px-4 py-2 text-[13px] font-bold text-rose-700">駅ちかのID・パスワードが登録されていない（または一時停止中の）ため、いまは投稿しません。</div>
       )}
-      {/* ★ 第1919便: 求人ココアは1店舗1掲載。B・C は自動（店長ブログ・動画）がどちらも OFF なら隠す（「アカウントを足す」で出す） */}
-      {data.accounts && data.accounts.filter((a) => a.slot === 1 || a.enabled || a.movie?.enabled || showExtra || openSlots[a.slot]).map((a) => (
+      {/* ★ 第1919便: 求人ココアは1店舗1掲載。B・C は自動（店長ブログ・動画）がどちらも OFF なら隠す */}
+      {data.accounts && data.accounts.filter((a) => a.slot === 1 || a.enabled || a.movie?.enabled || openSlots[a.slot]).map((a) => (
         <AccountCard key={a.slot + String(a.lastPostedAt) + String(a.enabled) + a.postEmail + JSON.stringify(a.schedule)} a={a} templates={data.templates}
           open={openSlots[a.slot] === true} onToggle={() => setOpenSlots((m) => ({ ...m, [a.slot]: !m[a.slot] }))}
           guard={guard} onToast={onToast} reload={async () => { await load(); void refreshShell(); }} />
       ))}
-
-      {data.accounts && !showExtra && data.accounts.some((a) => a.slot !== 1 && !a.enabled && !a.movie?.enabled) && (
-        <button type="button" onClick={() => setShowExtra(true)} className="text-[12.5px] text-slate-400 underline">ほかのココアのアカウント（B・C）を出す</button>
-      )}
 
       {/* 自動投稿（★ 第1833便の表が無いときだけ） */}
       {!data.accounts && <div className={`${CARD} p-4 space-y-3`}>
