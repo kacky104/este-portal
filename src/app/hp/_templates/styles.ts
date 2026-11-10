@@ -84,6 +84,9 @@ const COMMON = `
    埋め込みの中は 余白16px×2・列の間8px×2 なので、1枚の一辺 = (iframe の幅 - 48px) / 3。
    見出しと「もっと見る」と枠線のぶんを足して少しゆとりを持たせる。cqw が使えないブラウザは今までの 480px。 */
 .hp-sec-diary { container-type: inline-size; }
+/* ★ 第1899便: 外部ウィジェット。貼られた幅のまま中央に。画面より広いときは画面の幅まで縮める（高さはそのまま） */
+.hp-widgets { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+.hp-widget { display: block; max-width: 100%; border: 0; background: transparent; }
 .hp-embed-diary { height: 480px; }
 @supports (height: 1cqw) {
   .hp-embed-diary { height: calc(var(--hp-diary-rows, 4) * ((100cqw - 52px) / 3) + (var(--hp-diary-rows, 4) - 1) * 8px + 112px); }

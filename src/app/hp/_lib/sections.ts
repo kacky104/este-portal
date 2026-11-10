@@ -60,6 +60,7 @@ export function hpVisibleSections(data: HpPageData): Record<HpSectionKey, boolea
     info:       true,
     links:      b.links.on && site.link_banners.length > 0,
     banners:    site.banners.length > 0,
+    widgets:    b.widgets.length > 0,   // ★ 第1899便: 中身があるときだけ（メニューには出さない）
   };
 }
 

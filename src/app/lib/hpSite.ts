@@ -55,6 +55,8 @@ export type HpBlocksConfig = {
   jobs:       { on: boolean };                 // 求人リンク（フクエスワーク）
   freePages:  { on: boolean };                 // フリーページ（最大3・salon_free_pages）
   links:      { on: boolean };                 // リンク（相互リンクのバナー群・link_banners）
+  /** 外部サイトのウィジェット（第1899便・2026-11-10）。貼られた iframe の src・幅・高さだけを持つ。最大 MAX_HP_WIDGETS */
+  widgets:    HpWidget[];
   /**
    * お問い合わせフォーム（第1717便・2026-11-02）。on=true で /contact ページとメニューが出る。
    * note はフォームの上の案内文（空なら lib/hp/contact.ts の既定文）。
@@ -132,6 +134,7 @@ export const HP_SECTIONS = [
   { key: 'info',       label: '店舗情報' },
   { key: 'links',      label: 'リンク' },
   { key: 'banners',    label: 'バナー' },
+  { key: 'widgets',    label: 'ウィジェット' },
 ] as const;
 
 export type HpSectionKey = (typeof HP_SECTIONS)[number]['key'];
@@ -150,6 +153,7 @@ export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = [
   'courses',    // コース料金
   'therapists', // セラピスト一覧
   'diary',      // 写メ日記
+  'widgets',    // ウィジェット（第1899便・中身があるときだけ出る）
   'reviews',    // 口コミ
   'coupon',     // クーポン
   'news',       // お知らせ
@@ -166,7 +170,7 @@ export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = [
  * （以前はタイプSだけCSSで並べ替えていたため、管理画面の表示とずれていた）。
  */
 export const DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE: Record<HpTemplateKey, HpSectionKey[]> = {
-  s: ['schedule', 'concept', 'courses', 'therapists', 'diary', 'reviews', 'coupon', 'news', 'freePages', 'info', 'links', 'banners'],
+  s: ['schedule', 'concept', 'courses', 'therapists', 'diary', 'widgets', 'reviews', 'coupon', 'news', 'freePages', 'info', 'links', 'banners'],
   a: DEFAULT_HP_SECTION_ORDER,
   b: DEFAULT_HP_SECTION_ORDER,
   c: DEFAULT_HP_SECTION_ORDER,
@@ -215,6 +219,57 @@ export const HP_REVIEWS_COUNT_MAX = 10;
 export const HP_COUNT_ALL = 100;
 export const HP_PEOPLE_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30] as const;
 
+// ── 外部ウィジェット（第1899便・2026-11-10・カッキーさん）──────────
+//   例: <iframe width=340 height=690 frameborder="0" src="https://ranking-deli.jp/diarywidget/..."></iframe>
+//   ★ 貼られた HTML はそのまま出さない。<iframe> の src（https のみ）・width・height だけを取り出し、
+//     こちらで作った iframe（sandbox 付き）で出す。script などが混ざっていても取り込まれない。
+//     （店舗の独自ドメインは管理画面と同じオリジンなので、自由HTMLの許可は事故の元。バナーと同じ考え）
+export type HpWidget = { src: string; width: number; height: number };
+export const MAX_HP_WIDGETS = 3;
+const HP_WIDGET_W = { min: 100, max: 1200, def: 340 };
+const HP_WIDGET_H = { min: 100, max: 2400, def: 600 };
+
+function widgetSize(v: unknown, r: { min: number; max: number; def: number }): number {
+  const n = typeof v === 'number' ? v : parseInt(String(v ?? ''), 10);
+  if (!Number.isFinite(n)) return r.def;
+  return Math.min(r.max, Math.max(r.min, Math.trunc(n)));
+}
+
+/** iframe のコードから src・幅・高さを取り出す。複数貼られていれば全部（上限まで）。取れなければ空配列。 */
+export function parseHpWidgetCode(code: string): HpWidget[] {
+  if (typeof code !== 'string' || code.length > 8000) return [];
+  const unescape = (v: string) =>
+    v.replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#0?39;|&apos;/gi, "'").trim();
+  const attr = (tag: string, name: string): string => {
+    const m = new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i').exec(tag);
+    return m ? unescape(m[2] ?? m[3] ?? m[4] ?? '') : '';
+  };
+  const out: HpWidget[] = [];
+  for (const m of code.matchAll(/<iframe\b[^>]*>/gi)) {
+    const tag = m[0];
+    const src = attr(tag, 'src');
+    if (!isSafeImageUrl(src)) continue;   // ★ https のみ・長さの上限も同じ
+    out.push({ src, width: widgetSize(attr(tag, 'width'), HP_WIDGET_W), height: widgetSize(attr(tag, 'height'), HP_WIDGET_H) });
+    if (out.length >= MAX_HP_WIDGETS) break;
+  }
+  return out;
+}
+
+/** DB から読んだ blocks.widgets を丸める。不正な要素は捨てる。 */
+export function sanitizeHpWidgets(raw: unknown): HpWidget[] {
+  if (!Array.isArray(raw)) return [];
+  const out: HpWidget[] = [];
+  for (const v of raw) {
+    if (!v || typeof v !== 'object') continue;
+    const o = v as Record<string, unknown>;
+    const src = typeof o.src === 'string' ? o.src : '';
+    if (!isSafeImageUrl(src)) continue;
+    out.push({ src, width: widgetSize(o.width, HP_WIDGET_W), height: widgetSize(o.height, HP_WIDGET_H) });
+    if (out.length >= MAX_HP_WIDGETS) break;
+  }
+  return out;
+}
+
 export type HpBackground = { url: string; fit: 'cover' | 'repeat'; fade: 0 | 1 | 2 };
 export const DEFAULT_HP_BACKGROUND: HpBackground = { url: '', fit: 'cover', fade: 1 };
 export function sanitizeHpBackground(raw: unknown): HpBackground {
@@ -237,6 +292,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   jobs:       { on: true },
   freePages:  { on: true },
   links:      { on: true },
+  widgets:    [],
   contact:    { on: false, note: '' }, // 既定 OFF（通知先メールを入れて ON にする）
   order:      null,  // 未設定＝ひな形の既定順
   multipage:  false, // 既定は従来どおりの1ページ構成
@@ -286,6 +342,7 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     jobs:      { on: boolOr(r.jobs?.on, d.jobs.on) },
     freePages: { on: boolOr(r.freePages?.on, d.freePages.on) },
     links:     { on: boolOr(r.links?.on, d.links.on) },
+    widgets:   sanitizeHpWidgets(rawObj.widgets),
     contact:   {
       on:   boolOr(r.contact?.on, d.contact.on),
       note: typeof r.contact?.note === 'string' ? r.contact.note.slice(0, 400) : d.contact.note,

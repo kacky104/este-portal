@@ -405,6 +405,30 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         </section>
       )}
 
+      {/* ── ウィジェット（第1899便・2026-11-10）──
+           外部サイト（口コミ風俗情報局など）の写メ日記ウィジェット等。src・幅・高さは lib/hpSite.ts の parseHpWidgetCode で取り出したものだけ。
+           ★ sandbox: 中のスクリプトとリンク（新しいタブ）は動かすが、こちらのページを勝手に移動させない（押したときだけ）。 */}
+      {visible.widgets && (
+        <section id="widget" data-hp-reveal className={secCls('widgets', 'hp-sec-widgets', false)} style={ord('widgets')}>
+          <div className="hp-widgets">
+            {b.widgets.map((w, i) => (
+              <iframe
+                key={i}
+                className="hp-widget"
+                src={w.src}
+                width={w.width}
+                height={w.height}
+                style={{ width: w.width, height: w.height }}
+                title={`ウィジェット${i + 1}`}
+                loading="lazy"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── バナー ── */}
       {visible.banners && (
         <section data-hp-reveal className={secCls('banners', 'hp-sec-banners', false)} style={ord('banners')}>

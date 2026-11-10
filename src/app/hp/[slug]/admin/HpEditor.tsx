@@ -10,6 +10,9 @@ import {
   type HpBlocksConfig,
   type HpBanner,
   type HpLinkBanner,
+  type HpWidget,
+  parseHpWidgetCode,
+  MAX_HP_WIDGETS,
   type HpLinkSize,
   HP_LINK_SIZES,
   type HpHeroSlide,
@@ -128,6 +131,7 @@ export function HpEditor({
   const [bannerCode, setBannerCode] = useState('');
   // リンク欄（相互リンク）の貼り付け欄
   const [linkCode, setLinkCode] = useState('');
+  const [widgetCode, setWidgetCode] = useState('');
 
   const patch = (p: Partial<FormState>) => setForm((prev) => ({ ...prev, ...p }));
   const patchBlocks = (p: Partial<HpBlocksConfig>) =>
@@ -246,6 +250,31 @@ export function HpEditor({
   };
 
   /** 貼り付けたコードからリンクを何件でも取り出して、リンク欄の末尾に足す。 */
+  // ★ 第1899便: 外部ウィジェット
+  const setWidgets = (w: HpWidget[]) => patchBlocks({ widgets: w });
+  const addWidgets = () => {
+    const parsed = parseHpWidgetCode(widgetCode);
+    if (parsed.length === 0) {
+      onToast('ウィジェットを読み取れませんでした。<iframe … src="https://…"> を含むコードを貼ってください');
+      return;
+    }
+    const room = MAX_HP_WIDGETS - form.blocks.widgets.length;
+    if (room <= 0) {
+      onToast(`ウィジェットは${MAX_HP_WIDGETS}つまでです。いらないものを消してから追加してください`);
+      return;
+    }
+    setWidgets([...form.blocks.widgets, ...parsed.slice(0, room)]);
+    setWidgetCode('');
+    onToast(`ウィジェットを${Math.min(room, parsed.length)}つ追加しました。下の「保存」で公開されます`);
+  };
+  const moveWidget = (i: number, d: -1 | 1) => {
+    const w = [...form.blocks.widgets];
+    const j = i + d;
+    if (j < 0 || j >= w.length) return;
+    [w[i], w[j]] = [w[j], w[i]];
+    setWidgets(w);
+  };
+
   const addLinkBanners = () => {
     const parsed = parseHpLinkBanners(linkCode);
     if (parsed.length === 0) {
@@ -1007,6 +1036,55 @@ export function HpEditor({
                   )}
                 </div>
                 <button type="button" onClick={() => removeLinkBanner(i)} aria-label="削除"
+                  className="w-7 h-7 shrink-0 rounded-full bg-slate-100 text-slate-500 text-xs font-bold hover:bg-rose-100 hover:text-rose-500">×</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      )}
+
+      {/* ── ウィジェット（第1899便・2026-11-10・カッキーさん） ── */}
+      {show('widget') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+        <h3 className="text-sm font-black text-slate-800">ウィジェット（最大{MAX_HP_WIDGETS}つ）</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ 掲載サイトから配られる写メ日記などのウィジェットのコード（&lt;iframe …&gt;）を貼って「追加する」を押すと、
+          トップページの「ウィジェット」欄に並びます。表示する位置は「表示ブロック」の並び順で変えられます。
+          読み取るのは表示先のURL（https:// のもの）・幅・高さだけです。
+        </p>
+        <textarea
+          value={widgetCode}
+          onChange={(e) => setWidgetCode(e.target.value)}
+          rows={4}
+          spellCheck={false}
+          placeholder={'<iframe width=340 height=690 frameborder="0" src="https://example.com/widget/..."></iframe>'}
+          className={`${inputCls} font-mono text-[11px] leading-relaxed`}
+        />
+        <button
+          type="button"
+          onClick={addWidgets}
+          disabled={widgetCode.trim() === '' || form.blocks.widgets.length >= MAX_HP_WIDGETS}
+          className="px-4 py-2 rounded-none bg-slate-800 text-white text-xs font-bold disabled:opacity-30"
+        >
+          追加する
+        </button>
+
+        {form.blocks.widgets.length > 0 && (
+          <ul className="divide-y divide-slate-100 border-t border-slate-100 pt-1">
+            {form.blocks.widgets.map((w, i) => (
+              <li key={i} className="flex items-center gap-2 py-2">
+                <div className="flex flex-col shrink-0">
+                  <button type="button" onClick={() => moveWidget(i, -1)} disabled={i === 0} aria-label="上へ"
+                    className="w-7 h-5 rounded-none-md border border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▲</button>
+                  <button type="button" onClick={() => moveWidget(i, 1)} disabled={i === form.blocks.widgets.length - 1} aria-label="下へ"
+                    className="w-7 h-5 rounded-none-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▼</button>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-slate-600">ウィジェット{i + 1}（幅 {w.width} × 高さ {w.height}）</div>
+                  <div className="text-[10px] text-slate-400 truncate">{w.src}</div>
+                </div>
+                <button type="button" onClick={() => setWidgets(form.blocks.widgets.filter((_, j) => j !== i))} aria-label="削除"
                   className="w-7 h-7 shrink-0 rounded-full bg-slate-100 text-slate-500 text-xs font-bold hover:bg-rose-100 hover:text-rose-500">×</button>
               </li>
             ))}
