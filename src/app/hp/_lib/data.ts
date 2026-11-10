@@ -29,6 +29,8 @@ import {
   isHpDomainKey,
   mapHpSiteRow,
   normalizeHpSiteKey,
+  hpEkichikaShopUrl,
+  hpEkichikaGirlUrl,
 } from '@/app/lib/hpSite';
 
 export type HpCourse = { name: string; duration: string; price: string };
@@ -45,6 +47,8 @@ export type HpTherapist = {
   badges:      string[];       // 特徴バッジ（lib/therapistBadges の sanitizeBadges 済みラベル）
   /** 週間スケジュール用。days[i] は weekDays[i] に対応（出勤日は「12:00〜22:00」・休みは null） */
   week:        (string | null)[];
+  /** ★ 第1906便: 駅ちかのプロフィールの URL（駅ちか対策が ON で、番号が結びついている方だけ）。あれば写真・名前のリンク先はここ */
+  extUrl?:     string;
 };
 
 /** 週間スケジュールの日付見出し（本日から7日ぶん。/schedule のタブと本文に使う）。 */
@@ -103,6 +107,8 @@ export type HpPageData = {
   wallpaperUrl: string | null;
   /** ★ 第1884便: お店が決めた背景画像なら true（並べ方・薄さは site.blocks.background） */
   wallpaperOwn: boolean;
+  /** ★ 第1906便: 駅ちかのお店ページの URL（駅ちか対策の「もっと見る」が ON のときだけ。ほかは null） */
+  ekichikaShop: string | null;
   /**
    * このサイトのルート（同一サイト内リンクの前置き）。
    *   独自ドメイン経由 … '' （/terms でそのまま届く。proxy.ts が /hp/{host}/terms へ rewrite）
@@ -319,6 +325,38 @@ export async function fetchHpPageData(
   // 出勤中を先頭に（並びの安定のため名前で二次ソート）
   therapists.sort((x, y) => Number(y.onDuty) - Number(x.onDuty) || x.name.localeCompare(y.name, 'ja'));
 
+  // ★★ 第1906便: 駅ちかのランキング対策（店舗様が ON にした店だけ）。
+  //   ★ 駅ちかのお店ページ（salon_import_sources.shop_url）と番号（therapist_media_ids）は anon から読めないので、ここだけ service_role で読む。
+  //     番号は駅ちかの公開 URL に出ている値。読むのは ON の店だけ（OFF の店は今までと1行も変わらない）。
+  //   ★ 読めなかったら OFF と同じ（今までのリンクのまま）。ページは落とさない
+  let ekichikaShop: string | null = null;
+  const ek = site.blocks.ekichika;
+  if ((ek.therapist || ek.more) && siteKey !== HP_DEMO_SLUG) {
+    try {
+      const svc = createServiceClient();
+      const { data: src, error: srcErr } = await svc.from('salon_import_sources').select('shop_url')
+        .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', ek.slot).maybeSingle();
+      if (srcErr) throw new Error(srcErr.message);
+      const shop = hpEkichikaShopUrl(src?.shop_url);
+      if (shop) {
+        if (ek.more) ekichikaShop = shop;
+        if (ek.therapist && therapistIds.length > 0) {
+          const { data: ids, error: idErr } = await svc.from('therapist_media_ids').select('therapist_id, external_cast_id')
+            .eq('provider', 'ekichika').eq('slot', ek.slot).in('therapist_id', therapistIds);
+          if (idErr) throw new Error(idErr.message);
+          const urlOf = new Map<string, string>();
+          for (const r of ids ?? []) {
+            const u = hpEkichikaGirlUrl(shop, r.external_cast_id);
+            if (u) urlOf.set(String(r.therapist_id), u);
+          }
+          for (const t of therapists) { const u = urlOf.get(t.id); if (u) t.extUrl = u; }
+        }
+      }
+    } catch (e) {
+      console.error('[hp] 駅ちか対策のリンク先を読めなかった（今までのリンクのまま出す）', salonId, e instanceof Error ? e.message : e);
+    }
+  }
+
   const courses: HpCourse[] = Array.isArray(salonRow.courses)
     ? (salonRow.courses as Record<string, unknown>[])
         .map((c) => ({
@@ -373,6 +411,7 @@ export async function fetchHpPageData(
     weekDays,
     wallpaperUrl,
     wallpaperOwn: !!ownBg,
+    ekichikaShop,
   };
 }
 

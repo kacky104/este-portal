@@ -113,8 +113,9 @@ export function TherapistCards({
         <a
           key={t.id}
           className="hp-th-card"
-          href={internal ? `${detailBase}/therapist/${t.id}` : `${EMBED_SITE_URL}/therapist/${t.id}`}
-          {...(internal ? {} : { target: '_blank', rel: 'noopener' })}
+          // ★ 第1906便: 駅ちか対策が ON で番号が結びついている方は、駅ちかのプロフィールへ（別タブ）
+          href={t.extUrl ?? (internal ? `${detailBase}/therapist/${t.id}` : `${EMBED_SITE_URL}/therapist/${t.id}`)}
+          {...(internal && !t.extUrl ? {} : { target: '_blank', rel: 'noopener' })}
         >
           <div className="hp-th-frame">
             {t.imageUrl ? (
@@ -180,8 +181,9 @@ export function ScheduleRows({ rows, detailBase = null }: { rows: { t: HpTherapi
         <a
           key={t.id}
           className="hp-sched-row"
-          href={internal ? `${detailBase}/therapist/${t.id}` : `${EMBED_SITE_URL}/therapist/${t.id}`}
-          {...(internal ? {} : { target: '_blank', rel: 'noopener' })}
+          // ★ 第1906便: 駅ちか対策が ON で番号が結びついている方は、駅ちかのプロフィールへ（別タブ）
+          href={t.extUrl ?? (internal ? `${detailBase}/therapist/${t.id}` : `${EMBED_SITE_URL}/therapist/${t.id}`)}
+          {...(internal && !t.extUrl ? {} : { target: '_blank', rel: 'noopener' })}
         >
           <span className="hp-sched-thumb">
             {t.imageUrl ? (

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/app/lib/supabase/client';
 import { isHpEditorSection, type HpAdminSection } from './adminNav';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
-import { listHpTherapists, saveHpSiteContent } from '@/app/actions/hpAdmin';
+import { listHpTherapists, saveHpSiteContent, getHpEkichikaInfo } from '@/app/actions/hpAdmin';
 import {
   type HpSite,
   type HpBlocksConfig,
@@ -152,6 +152,15 @@ export function HpEditor({
     });
     return () => { alive = false; };
   }, [isDemo, siteKey]);
+
+  // ★ 第1906便: 駅ちかのランキング対策の欄の材料（ウィジェットの画面を開いたときだけ読む）
+  const [ekInfo, setEkInfo] = useState<{ total: number; slots: { slot: number; url: string; linked: number }[] } | null>(null);
+  useEffect(() => {
+    if (section !== 'widget' || isDemo) return;
+    let alive = true;
+    getHpEkichikaInfo(siteKey).then((res) => { if (alive && res.ok) setEkInfo({ total: res.total, slots: res.slots }); });
+    return () => { alive = false; };
+  }, [section, isDemo, siteKey]);
 
   // ── セクションの並び順（2026-08-10）────────────────
   // 公開ページと同じ hpSectionOrder() を使う＝この一覧の並び＝実際のサイトの並び。
@@ -1122,6 +1131,50 @@ export function HpEditor({
             ))}
           </ul>
         )}
+      </div>
+      )}
+      {/* ── 駅ちかのランキング対策（第1906便・2026-11-10・カッキーさん） ── */}
+      {show('widget') && !isDemo && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+        <h3 className="text-sm font-black text-slate-800">駅ちかのランキング対策</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ 駅ちかは、公式ホームページから駅ちかへのリンクがあると、ランキングの点数を加点します。ONにすると、下のリンク先が駅ちかに変わります（ネット予約はフクエスのままです）。写メ・口コミのウィジェットは、上の「ウィジェット」に駅ちかの設置タグを貼ってください。
+        </p>
+        {ekInfo && ekInfo.slots.length === 0 && (
+          <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます。</p>
+        )}
+        {ekInfo && ekInfo.slots.length > 0 && (() => {
+          const cur = ekInfo.slots.find((x) => x.slot === form.blocks.ekichika.slot) ?? ekInfo.slots[0];
+          const rate = ekInfo.total > 0 ? Math.floor((cur.linked / ekInfo.total) * 100) : 0;
+          const setEk = (patch: Partial<typeof form.blocks.ekichika>) => patchBlocks({ ekichika: { ...form.blocks.ekichika, slot: cur.slot, ...patch } });
+          return (
+            <div className="space-y-3">
+              {ekInfo.slots.length > 1 && (
+                <label className="flex flex-wrap items-center gap-2 text-[12px] text-slate-600">
+                  <span className="font-bold">リンク先の駅ちかのページ</span>
+                  <select value={cur.slot} onChange={(e) => setEk({ slot: Number(e.target.value) })} className="border border-slate-200 px-2 py-1 text-[12px]">
+                    {ekInfo.slots.map((x) => <option key={x.slot} value={x.slot}>枠{x.slot}：{x.url.replace('https://ranking-deli.jp', '')}</option>)}
+                  </select>
+                </label>
+              )}
+              <label className="flex items-start gap-2 text-[12px] text-slate-700">
+                <input type="checkbox" className="mt-0.5" checked={form.blocks.ekichika.therapist} onChange={(e) => setEk({ therapist: e.target.checked })} />
+                <span>
+                  <b>セラピストの写真・名前を押したら、駅ちかのプロフィールを開く</b>（駅ちかの採点表の7番：在籍の9割以上で5点・半分以上で3点）
+                  <span className="block text-[11px] text-slate-500">
+                    いま在籍{ekInfo.total}名のうち <b className={rate >= 90 ? 'text-emerald-600' : 'text-amber-600'}>{cur.linked}名（{rate}%）</b> が駅ちかと結びついています。結びついていない方は、今までどおりホームページの中のページが開きます。
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-[12px] text-slate-700">
+                <input type="checkbox" className="mt-0.5" checked={form.blocks.ekichika.more} onChange={(e) => setEk({ more: e.target.checked })} />
+                <span><b>出勤・写メ日記・口コミの「もっと見る」を、駅ちかのページにする</b>（採点表の5番：2点）</span>
+              </label>
+              <p className="text-[11px] text-slate-400">保存すると反映されます（公開ページに出るまで最大10分ほどかかります）。点数は駅ちかへの申請・確認のあとに付きます。</p>
+            </div>
+          );
+        })()}
+        {!ekInfo && <p className="text-[11px] text-slate-400">読み込み中…</p>}
       </div>
       )}
 

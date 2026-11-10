@@ -272,7 +272,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
               （内部リンクが全ページに通るぶんSEOにも効く）。
               ★ 7日ぶんの出勤が1件も無い店では /schedule が404なので、リンクも出さない。
                 そのときだけ従来どおりフクエス本体へ送る（導線を絶やさない）。 */}
-          {multipage && subs.schedule ? (
+          {/* ★ 第1906便: 駅ちか対策（もっと見る）が ON の店は、駅ちかの出勤ページへ */}
+          {data.ekichikaShop ? (
+            <a className="hp-more" href={`${data.ekichikaShop}schedule/`} target="_blank" rel="noopener">出勤スケジュールをもっと見る →</a>
+          ) : multipage && subs.schedule ? (
             <a className="hp-more" href={`${basePath}/schedule`}>
               {schedCut ? `本日の出勤をすべて見る（全${onDuty.length}名） →` : '週間の出勤スケジュールを見る →'}
             </a>
@@ -296,7 +299,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
             loading="lazy"
             style={{ ['--hp-diary-rows' as string]: Math.ceil(b.diary.count / 3) } as React.CSSProperties}
           />
-          <a className="hp-more" href={`${salonUrl}/diary`} target="_blank" rel="noopener">もっと見る →</a>
+          <a className="hp-more" href={data.ekichikaShop ? `${data.ekichikaShop}maildiary/` : `${salonUrl}/diary`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
 
@@ -305,7 +308,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <section id="voice" data-hp-reveal className={secCls('reviews', 'hp-sec-reviews', true)} style={ord('reviews')}>
           <SecHead no="06" en="Voice" jp="口コミ" />
           <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews`} title="口コミ" loading="lazy" style={{ height: 420 }} />
-          <a className="hp-more" href={`${salonUrl}/reviews`} target="_blank" rel="noopener">もっと見る →</a>
+          <a className="hp-more" href={data.ekichikaShop ? `${data.ekichikaShop}review/` : `${salonUrl}/reviews`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
 

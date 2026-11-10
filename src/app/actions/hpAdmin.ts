@@ -26,6 +26,7 @@ import {
   MAX_HP_CATCH_LEN,
   MAX_HP_TITLE_LEN,
   MAX_HP_CONCEPT_LEN,
+  hpEkichikaShopUrl,
 } from '@/app/lib/hpSite';
 
 // 公式ホームページ 段階3（2026-08-09）のサーバーアクション群。
@@ -193,6 +194,35 @@ export async function listHpTherapists(
       imageUrl: (t.profile_image_url as string | null) ?? null,
     })),
   };
+}
+
+/**
+ * ★ 第1906便: 駅ちかのランキング対策の欄に出す材料。
+ *   slots  … コネックエフに駅ちかのお店ページの URL が入っている枠（番号・URL・在籍のうち駅ちかの番号が結びついている人数）
+ *   total  … 公開中の在籍の人数
+ */
+export async function getHpEkichikaInfo(
+  siteKey: string,
+): Promise<{ ok: true; total: number; slots: { slot: number; url: string; linked: number }[] } | Err> {
+  const r = await resolveAccess(siteKey);
+  if ('ok' in r) return r;
+  const salonId = r.site.salon_id;
+  const [srcRes, thRes] = await Promise.all([
+    r.svc.from('salon_import_sources').select('slot, shop_url').eq('salon_id', salonId).eq('provider', 'ekichika').order('slot'),
+    r.svc.from('therapists').select('id').eq('salon_id', salonId).eq('is_active', true),
+  ]);
+  if (srcRes.error || thRes.error) return { ok: false, error: '駅ちかの連携の状態を読めませんでした' };
+  const ids = (thRes.data ?? []).map((t) => t.id);
+  const linkedOf = new Map<number, number>();
+  if (ids.length > 0) {
+    const { data: m } = await r.svc.from('therapist_media_ids').select('slot').eq('provider', 'ekichika').in('therapist_id', ids);
+    for (const x of m ?? []) linkedOf.set(Number(x.slot), (linkedOf.get(Number(x.slot)) ?? 0) + 1);
+  }
+  const slots = (srcRes.data ?? []).flatMap((x) => {
+    const url = hpEkichikaShopUrl(x.shop_url);
+    return url ? [{ slot: Number(x.slot), url, linked: linkedOf.get(Number(x.slot)) ?? 0 }] : [];
+  });
+  return { ok: true, total: ids.length, slots };
 }
 
 // ── デザイン確定（ギャラリー） ───────────────────────────

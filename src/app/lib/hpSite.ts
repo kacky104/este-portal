@@ -110,6 +110,14 @@ export type HpBlocksConfig = {
   /** 文字の色（第1905便）。default=デザインのまま。ほかは HP_TEXT_COLORS のキー（明るい地のひな形と暗い地のひな形で色が変わる） */
   textColor: HpTextColorKey;
   /**
+   * ★ 第1906便（2026-11-10・カッキーさん）: 駅ちかのランキング対策（駅ちかの「オフィシャルHP側での施策点数表」）。店舗様が選ぶ。既定はすべて OFF＝今までどおり。
+   *   therapist … セラピストの写真・名前を押したら、駅ちかのプロフィールへ（番号が結びついている方だけ。ほかは今までどおり）
+   *   more      … 出勤・写メ日記・口コミの「もっと見る」を駅ちかのページへ
+   *   slot      … 駅ちかのどの枠（掲載）のページへ向けるか
+   *   ★ ネット予約はどの設定でもフクエスのまま
+   */
+  ekichika: { therapist: boolean; more: boolean; slot: number };
+  /**
    * カラー別のセラピスト写真（2026-08-11）。
    * キー=カラーキー / 値={ セラピストID: 画像URL }。heroByColor と同じくデモ店専用。
    *
@@ -262,6 +270,19 @@ export const HP_TEXT_COLORS = [
   { key: 'wine',    light: { label: 'ワイン',         color: '#5c1f33' }, dark: { label: '淡いピンク',     color: '#f3d3de' } },
 ] as const;
 export type HpTextColorKey = (typeof HP_TEXT_COLORS)[number]['key'];
+// ── 駅ちかのランキング対策（第1906便）──
+/** 駅ちかのお店ページの URL（https://ranking-deli.jp/<県>/<エリア>/<業種>/<番号>/）か。末尾の / を付けて返す。違えば null */
+export function hpEkichikaShopUrl(v: unknown): string | null {
+  const s = String(v ?? '').trim().split(/[?#]/)[0];
+  const m = /^https:\/\/ranking-deli\.jp\/([a-z0-9_-]+\/){1,4}\d{1,9}\/?$/.exec(s);
+  return m ? (s.endsWith('/') ? s : s + '/') : null;
+}
+/** 駅ちかのセラピストのプロフィール（お店ページ／番号／）。番号の形が違えば null */
+export function hpEkichikaGirlUrl(shopUrl: string, castId: unknown): string | null {
+  const id = String(castId ?? '');
+  return /^\d{1,12}$/.test(id) ? shopUrl + id + '/' : null;
+}
+
 /** 暗い地のひな形か（タイプA） */
 export const hpIsDarkTemplate = (t: string) => t === 'a';
 /** ひな形に合わせた色と呼び名。default・知らないキーは null */
@@ -349,6 +370,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   fontSize: 'sm', // 既定は今までの大きさ（第1901便）
   font: 'default', // 既定はデザインのまま（第1901便）
   textColor: 'default', // 既定はデザインのまま（第1905便）
+  ekichika: { therapist: false, more: false, slot: 1 }, // 既定は OFF（第1906便）
   therapistImagesByColor: {}, // 同上（既定は空＝掲載データの写真をそのまま使う）
 };
 
@@ -415,6 +437,11 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     fontSize: rawObj.fontSize === 'md' || rawObj.fontSize === 'lg' ? rawObj.fontSize : 'sm',
     font: HP_FONTS.some((f) => f.key === rawObj.font) ? (rawObj.font as HpFontKey) : 'default',
     textColor: HP_TEXT_COLORS.some((c) => c.key === rawObj.textColor) ? (rawObj.textColor as HpTextColorKey) : 'default',
+    ekichika: (() => {
+      const e = (rawObj.ekichika && typeof rawObj.ekichika === 'object' ? rawObj.ekichika : {}) as Record<string, unknown>;
+      const slot = Math.trunc(Number(e.slot));
+      return { therapist: e.therapist === true, more: e.more === true, slot: Number.isInteger(slot) && slot >= 1 && slot <= 9 ? slot : 1 };
+    })(),
     therapistImagesByColor: renameLegacyImageSlots(sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor)),
   };
 }
