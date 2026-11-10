@@ -312,6 +312,14 @@ ${HP_SCHED_TAB_RULES}
 /* テーマ壁紙レイヤー（有効時は .hp-has-wallpaper が付き、ひな形側で透過調整する） */
 .hp-wallpaper { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
 .hp-wallpaper::after { content: ''; position: absolute; inset: 0; }
+/* ★ 第1884便: お店が決めた背景画像。並べ方（cover／repeat）と薄さ（白い膜・濃い色のひな形は黒い膜） */
+.hp-wallpaper.hp-wallpaper-own.hp-wp-cover { background-size: cover; background-repeat: no-repeat; background-position: center; }
+.hp-wallpaper.hp-wallpaper-own.hp-wp-repeat { background-size: 360px auto; background-repeat: repeat; }
+.hp-wallpaper.hp-wallpaper-own.hp-wp-fade0::after { background: transparent !important; }
+.hp-wallpaper.hp-wallpaper-own.hp-wp-fade1::after { background: rgba(255,255,255,.35); }
+.hp-wallpaper.hp-wallpaper-own.hp-wp-fade2::after { background: rgba(255,255,255,.65); }
+.hp-a .hp-wallpaper.hp-wallpaper-own.hp-wp-fade1::after { background: rgba(23,22,26,.45); }
+.hp-a .hp-wallpaper.hp-wallpaper-own.hp-wp-fade2::after { background: rgba(23,22,26,.72); }
 /* スクロール出現（reduced-motion 時はアニメなしで常時表示） */
 @media (prefers-reduced-motion: no-preference) {
   [data-hp-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }

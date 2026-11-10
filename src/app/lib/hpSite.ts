@@ -91,6 +91,13 @@ export type HpBlocksConfig = {
    */
   heroByColor: Record<string, string[]>;
   /**
+   * ★ 第1884便（2026-11-10・カッキーさん）: お店が決める背景画像。url が空ならひな形の既定の壁紙（今までどおり）。
+   *   fit … cover（画面いっぱいに1枚）／ repeat（並べて敷く）
+   *   fade … 0 そのまま／1 少し薄く／2 かなり薄く（文字を読みやすくする白か黒の膜。濃い色のひな形は黒）
+   *   ★ 画像は公開の salon-images（blocks は anon から読める列なので、公開してよいものだけ置く）
+   */
+  background: HpBackground;
+  /**
    * カラー別のセラピスト写真（2026-08-11）。
    * キー=カラーキー / 値={ セラピストID: 画像URL }。heroByColor と同じくデモ店専用。
    *
@@ -199,6 +206,16 @@ export const HP_DIARY_COUNT_MAX   = 12;
 export const HP_REVIEWS_COUNT_MIN = 1;
 export const HP_REVIEWS_COUNT_MAX = 10;
 
+export type HpBackground = { url: string; fit: 'cover' | 'repeat'; fade: 0 | 1 | 2 };
+export const DEFAULT_HP_BACKGROUND: HpBackground = { url: '', fit: 'cover', fade: 1 };
+export function sanitizeHpBackground(raw: unknown): HpBackground {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const url = typeof o.url === 'string' && isSafeImageUrl(o.url) ? o.url : '';
+  const fit = o.fit === 'repeat' ? 'repeat' : 'cover';
+  const fade = o.fade === 0 || o.fade === 2 ? o.fade : 1;
+  return { url, fit, fade };
+}
+
 export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   concept:    { on: true },
   courses:    { on: true },
@@ -215,6 +232,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   order:      null,  // 未設定＝ひな形の既定順
   multipage:  false, // 既定は従来どおりの1ページ構成
   heroByColor: {},   // 既定は空＝全カラーで hero_images を使う（デモ店だけが使う欄）
+  background: DEFAULT_HP_BACKGROUND, // 既定は空＝ひな形の壁紙（第1884便）
   therapistImagesByColor: {}, // 同上（既定は空＝掲載データの写真をそのまま使う）
 };
 
@@ -263,6 +281,7 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     // ★ order と同じく最上位のキー。ネストしている他のキーと違い r ではなく rawObj から取る。
     multipage: boolOr(rawObj.multipage, d.multipage),
     heroByColor: renameLegacyImageSlots(sanitizeHpHeroByColor(rawObj.heroByColor)),
+    background: sanitizeHpBackground(rawObj.background),
     therapistImagesByColor: renameLegacyImageSlots(sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor)),
   };
 }

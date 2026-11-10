@@ -1162,6 +1162,77 @@ export function HpEditor({
       </div>
       )}
 
+      {/* ── 背景画像（第1884便・2026-11-10・カッキーさん）── */}
+      {show('brand') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+        <h3 className="text-sm font-black text-slate-800">背景画像</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ ホームページ全体の後ろに敷く画像です。選ばなければ、デザインの既定の背景のままです。
+          横長の写真（1920×1080 くらい）か、模様の画像がおすすめです。
+        </p>
+        <div className="flex items-center gap-3">
+          {form.blocks.background.url ? (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={form.blocks.background.url} alt="背景画像" className="w-40 h-24 object-cover rounded-none border border-slate-200" />
+              <button
+                onClick={() => {
+                  const url = form.blocks.background.url;
+                  patchBlocks({ background: { ...form.blocks.background, url: '' } });
+                  if (url) removeIfUnsaved(url);
+                }}
+                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-black/50 text-white text-xs font-bold"
+                aria-label="削除"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <label className="flex items-center justify-center w-40 h-24 rounded-none border-2 border-dashed border-slate-200 text-[11px] text-slate-400 cursor-pointer hover:border-pink-300">
+              {uploadingSlot === 'background' ? 'アップ中…' : '背景画像を選ぶ'}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={uploadingSlot !== null}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  const publicUrl = await uploadImage('background', file);
+                  if (publicUrl) patchBlocks({ background: { ...form.blocks.background, url: publicUrl } });
+                }}
+              />
+            </label>
+          )}
+        </div>
+        {form.blocks.background.url && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="w-16 text-[11px] font-bold text-slate-500">敷き方</span>
+              {([['cover', '画面いっぱいに1枚'], ['repeat', '並べて敷く（模様向け）']] as const).map(([k, l]) => (
+                <button key={k} type="button" onClick={() => patchBlocks({ background: { ...form.blocks.background, fit: k } })}
+                  className={`px-2.5 py-1 text-[11px] font-bold border ${form.blocks.background.fit === k ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="w-16 text-[11px] font-bold text-slate-500">薄さ</span>
+              {([[0, 'そのまま'], [1, '少し薄く'], [2, 'かなり薄く']] as const).map(([k, l]) => (
+                <button key={k} type="button" onClick={() => patchBlocks({ background: { ...form.blocks.background, fade: k } })}
+                  className={`px-2.5 py-1 text-[11px] font-bold border ${form.blocks.background.fade === k ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
+                  {l}
+                </button>
+              ))}
+              <span className="text-[10.5px] text-slate-400">（文字が読みにくいときは薄く）</span>
+            </div>
+          </div>
+        )}
+        <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
+      </div>
+      )}
+
       {/* ── 保存 ── */}
       {isEditorPage && (
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-2">

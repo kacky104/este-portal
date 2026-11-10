@@ -43,7 +43,7 @@ export const HP_ADMIN_NAV: Array<{ key: HpAdminSection; label: string }> = [
   { key: 'banner',  label: 'バナー' },
   { key: 'links',   label: 'リンク' },
   { key: 'contact', label: 'お問い合わせ' },
-  { key: 'brand',   label: 'ロゴ・アイコン' },
+  { key: 'brand',   label: 'ロゴ・アイコン・背景' },   // ★ 第1884便: 背景画像も
   { key: 'analytics', label: 'アクセス解析' },
 ];
 
@@ -55,6 +55,6 @@ export const HP_ADMIN_TITLE: Record<HpAdminSection, string> = {
   banner:  'バナー',
   links:   'リンク',
   contact: 'お問い合わせフォーム',
-  brand:   'ロゴ・ファビコン',
+  brand:   'ロゴ・ファビコン・背景画像',
   analytics: 'アクセス解析',
 };

@@ -90,7 +90,10 @@ export function HpShell({
            background-attachment: fixed はモバイルで無視されるため /salon/[id] と同じ固定配置レイヤー方式。
            暗色オーバーレイは各ひな形のCSS（.hp-wallpaper::after）が持つ。 ── */}
       {data.wallpaperUrl && (
-        <div className="hp-wallpaper" style={{ backgroundImage: `url(${data.wallpaperUrl})` }} />
+        <div
+          className={'hp-wallpaper' + (data.wallpaperOwn ? ` hp-wallpaper-own hp-wp-${site.blocks.background.fit} hp-wp-fade${site.blocks.background.fade}` : '')}
+          style={{ backgroundImage: `url(${data.wallpaperUrl})` }}
+        />
       )}
 
       {chrome === 'doc' ? (

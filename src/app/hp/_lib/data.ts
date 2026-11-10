@@ -101,6 +101,8 @@ export type HpPageData = {
   weekDays:   HpWeekDay[];
   /** テーマ壁紙のURL（theme_wallpapers・/admin でアップロードした画像を流用）。無ければ null */
   wallpaperUrl: string | null;
+  /** ★ 第1884便: お店が決めた背景画像なら true（並べ方・薄さは site.blocks.background） */
+  wallpaperOwn: boolean;
   /**
    * このサイトのルート（同一サイト内リンクの前置き）。
    *   独自ドメイン経由 … '' （/terms でそのまま届く。proxy.ts が /hp/{host}/terms へ rewrite）
@@ -272,7 +274,9 @@ export async function fetchHpPageData(
   // テーマ壁紙（ひな形に対応するキーがある場合のみ・/salon/[id] と同じ theme_wallpapers を流用）
   // 専用壁紙があればそれ。無ければ本体のテーマ壁紙（theme_wallpapers）を借りる。
   const wallpaperKey = HP_WALLPAPER_THEME[site.template_key];
-  let wallpaperUrl: string | null = HP_BUNDLED_WALLPAPER[site.template_key];
+  // ★ 第1884便: お店が背景画像を決めていれば、それを使う
+  const ownBg = site.blocks.background.url || null;
+  let wallpaperUrl: string | null = ownBg ?? HP_BUNDLED_WALLPAPER[site.template_key];
   if (!wallpaperUrl && wallpaperKey) {
     const { data: wp } = await supabase
       .from('theme_wallpapers')
@@ -368,6 +372,7 @@ export async function fetchHpPageData(
     todayLabel: formatTodayLabel(today),
     weekDays,
     wallpaperUrl,
+    wallpaperOwn: !!ownBg,
   };
 }
 
