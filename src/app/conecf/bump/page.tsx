@@ -279,18 +279,15 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
 function EkichikaSlotList({ site, slots }: { site: SiteTheme; slots: ConecfBumpSlot[] }) {
   const href = useConecfHref();
   return (
-    <div className={`bg-white border ${site.border} shadow-sm`}>
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-slate-100 text-[11px] font-bold text-slate-400">
-        <span className="w-14">枠</span><span className="w-28">本日の残り</span><span className="flex-1">自動更新</span><span className="hidden sm:block w-28 text-right">最後に上位表示</span><span className="w-14" />
-      </div>
-      <ul className="divide-y divide-slate-100">
+    <div className="space-y-2">
+      <ul className="space-y-2">
         {slots.map((s) => {
           const ok = s.hasCredential && !s.linkOff;
           const quota = s.quota ?? site.defaultQuota;
           const r = s.countStale && quota != null ? quota : s.remaining;
           return (
             <li key={s.slot}>
-              <Link href={href(`/bump/ekichika/${s.slot}`)} className="flex items-center gap-3 px-4 py-3 text-[13px] tabular-nums hover:bg-orange-50/60 transition-colors">
+              <Link href={href(`/bump/ekichika/${s.slot}`)} className={`flex items-center gap-3 px-4 py-4 bg-white border ${site.border} shadow-sm text-[13px] tabular-nums hover:bg-orange-50/60 hover:border-orange-300 transition-colors`}>
                 <span className="w-14 flex-shrink-0 font-black text-slate-700">枠{s.slot}</span>
                 <span className="w-28 flex-shrink-0 text-slate-500">
                   {ok ? <>あと <b className={`text-[18px] font-black ${r === 0 ? 'text-slate-400' : site.big}`}>{r === null ? '—' : r}</b>{quota != null && <span className="text-[11px]"> / {quota}回</span>}</> : <span className="text-[12px] font-bold text-amber-700">ID・PW 未登録</span>}
@@ -307,14 +304,14 @@ function EkichikaSlotList({ site, slots }: { site: SiteTheme; slots: ConecfBumpS
                     </span>
                   )}
                 </span>
-                <span className="hidden sm:block w-28 flex-shrink-0 text-right text-[11px] text-slate-400">{s.lastAt ? hm(s.lastAt) : '—'}</span>
+                <span className="hidden sm:block w-32 flex-shrink-0 text-right text-[11px] text-slate-400">{s.lastAt ? `最後 ${hm(s.lastAt)}` : 'まだ押していません'}</span>
                 <span className="w-14 flex-shrink-0 text-right text-[12px] font-bold text-blue-600">✎ 編集</span>
               </Link>
             </li>
           );
         })}
       </ul>
-      <p className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-400">行を押すと、その枠の「タイマー更新／時刻指定更新」の設定と「いま1回上位表示する」が開きます。</p>
+      <p className="px-1 text-[11px] text-slate-400">枠を押すと、その枠の「タイマー更新／時刻指定更新」の設定と「いま1回上位表示する」が開きます。</p>
     </div>
   );
 }
