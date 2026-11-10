@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
@@ -319,4 +320,81 @@ export async function runEsutamaAppealRowNow(input: { row: string }): Promise<Re
   } catch {
     return { ok: false, error: '受け付けられませんでした。時間をおいてお試しください' };
   }
+}
+
+// ── ★ 第1931便（2026-11-11・カッキーさん）: フクエスの上位表示も「タイマー更新／時刻指定更新」の画面で（駅ちか・エステ魂と同じ部品）──
+//   ★ 回数・押すのは今までどおり salons と RPC（salon_bump_apply／salon_bump_auto_run）。時刻指定だけ conecf_fukues_bump_times（追加SQL_第1931便）
+async function resolveFukues() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: 'ログインが必要です' };
+  const svc = createServiceClient();
+  const actingId = await operatorActingSalonId(user.id);
+  const { data: salon } = await scopeConecfSalon(svc.from('salons').select('id'), user.id, actingId).limit(1).maybeSingle();
+  if (!salon) return { ok: false as const, error: '店舗情報が見つかりません' };
+  return { ok: true as const, svc, salonId: Number(salon.id) };
+}
+
+export async function getFukuesSchedule(): Promise<Result<ConecfBumpSlot>> {
+  const r = await resolveFukues();
+  if (!r.ok) return r;
+  const { data, error } = await r.svc.from('salons')
+    .select('bumped_at, bump_day, bump_used, jobs_enabled, bump_auto_enabled, bump_auto_start_min, bump_auto_end_min, bump_auto_interval_min')
+    .eq('id', r.salonId).maybeSingle();
+  if (error || !data) return { ok: false, error: '読み込めませんでした' };
+  const t = await r.svc.from('conecf_fukues_bump_times').select('times').eq('salon_id', r.salonId).maybeSingle();
+  const today = getBusinessDateJSTForBump();
+  const used = (data.bump_day as string | null) === today ? Number(data.bump_used ?? 0) : 0;
+  const quota = 40;
+  return {
+    ok: true,
+    data: {
+      slot: 1, hasCredential: true, linkOff: false,
+      enabled: data.bump_auto_enabled === true,
+      startMin: Number(data.bump_auto_start_min ?? 600), endMin: Number(data.bump_auto_end_min ?? 1380), intervalMin: Number(data.bump_auto_interval_min ?? 30),
+      area: null, times: t.error ? null : normalizeBumpTimes(t.data?.times), timesReady: !t.error,
+      lastAt: (data.bumped_at as string | null) ?? null,
+      remaining: Math.max(0, quota - used), quota, readAt: new Date().toISOString(), countStale: false, resetMin: 360,
+    },
+  };
+}
+
+/** 営業日（朝6時区切り・RPC と同じ） */
+function getBusinessDateJSTForBump(): string {
+  const d = new Date(Date.now() + 9 * 3600000 - 6 * 3600000);
+  return d.toISOString().slice(0, 10);
+}
+
+export async function saveFukuesSchedule(input: { enabled: boolean; startMin: number; endMin: number; intervalMin: number; times?: number[] }): Promise<Result<{ perDay: number }>> {
+  const r = await resolveFukues();
+  if (!r.ok) return r;
+  const setting = { enabled: input.enabled === true, startMin: Number(input.startMin), endMin: Number(input.endMin), intervalMin: Number(input.intervalMin) };
+  if (!isValidBumpSetting(setting) || !isCustomBumpInterval(setting.intervalMin) || setting.startMin === setting.endMin) return { ok: false, error: '時間帯か間隔の値が正しくありません（間隔は10〜240分）' };
+  const times = input.times !== undefined ? normalizeBumpTimes(input.times) : undefined;
+  if (times && times.length > BUMP_TIMES_MAX) return { ok: false, error: `時刻は${BUMP_TIMES_MAX}個までです` };
+  const { error } = await r.svc.from('salons').update({
+    bump_auto_enabled: setting.enabled, bump_auto_start_min: setting.startMin, bump_auto_end_min: setting.endMin, bump_auto_interval_min: setting.intervalMin,
+  }).eq('id', r.salonId);
+  if (error) {
+    if (/bump_auto_range/.test(error.message)) return { ok: false, error: 'この分数はまだ保存できません。運営事務局までご連絡ください（10・15・20・30・60分は保存できます）' };
+    return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
+  }
+  if (times !== undefined) {
+    const tw = times
+      ? await r.svc.from('conecf_fukues_bump_times').upsert({ salon_id: r.salonId, times, times_done_at: new Date().toISOString(), updated_at: new Date().toISOString() }, { onConflict: 'salon_id' })
+      : await r.svc.from('conecf_fukues_bump_times').delete().eq('salon_id', r.salonId);
+    if (tw.error) return { ok: false, error: '時刻指定を保存できませんでした（運営事務局までご連絡ください）' };
+  }
+  return { ok: true, data: { perDay: bumpSlotsPerDay({ ...setting, times: times ?? null }) } };
+}
+
+export async function runFukuesBumpNow(): Promise<Result<{ note: string }>> {
+  const r = await resolveFukues();
+  if (!r.ok) return r;
+  let res = await r.svc.rpc('salon_bump_apply', { p_salon_id: r.salonId, p_auto: false });
+  if (res.error && /permission|denied/i.test(res.error.message)) res = await r.svc.rpc('salon_bump_auto_run', { p_salon_id: r.salonId });
+  const out = (res.data ?? null) as { ok?: boolean; error?: string; remaining?: number } | null;
+  if (res.error || !out?.ok) return { ok: false, error: out?.error ?? '実行できませんでした。時間をおいてお試しください。' };
+  try { revalidatePath('/'); revalidatePath('/area/[slug]', 'page'); } catch { /* 表示の作り直しは失敗しても押せている */ }
+  return { ok: true, data: { note: `上位表示しました（本日残り ${out.remaining ?? '?'}回）` } };
 }

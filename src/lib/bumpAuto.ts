@@ -64,6 +64,11 @@ export const BUMP_AUTO_DEFAULT_START_MIN = 600;   // 10:00
 export const BUMP_AUTO_DEFAULT_END_MIN = 1380;    // 23:00
 export const BUMP_AUTO_DEFAULT_INTERVAL_MIN = 30;
 
+/** ★ 第1931便（2026-11-11）: 自動の判断で使ってよい間隔（選択肢のほかに、10〜240分の好きな分数）。★ 選べる選択肢は isValidBumpInterval のまま */
+export function isUsableBumpInterval(v: unknown): boolean {
+  return isValidBumpInterval(v) || (typeof v === 'number' && Number.isInteger(v) && v >= 10 && v <= 240);
+}
+
 export function isValidBumpInterval(v: unknown): boolean {
   return typeof v === 'number' && (BUMP_AUTO_INTERVALS as readonly number[]).includes(v);
 }
@@ -118,7 +123,7 @@ export function bumpWindowLength(startMin: number, endMin: number): number {
  * ★ 開始ちょうどに1回、あとは間隔ごと。★ 残り回数とは別（少ないほうで止まる）。
  */
 export function bumpAutoMaxPerDay(startMin: number, endMin: number, intervalMin: number): number {
-  if (!isValidBumpInterval(intervalMin)) return 0;
+  if (!isUsableBumpInterval(intervalMin)) return 0;
   return Math.floor(bumpWindowLength(startMin, endMin) / intervalMin) + 1;
 }
 
@@ -163,7 +168,7 @@ export function shouldAutoBump(input: {
 
   if (!input.enabled) return no('off');
 
-  if (!isValidMinuteOfDay(input.startMin) || !isValidMinuteOfDay(input.endMin) || !isValidBumpInterval(input.intervalMin)) {
+  if (!isValidMinuteOfDay(input.startMin) || !isValidMinuteOfDay(input.endMin) || !isUsableBumpInterval(input.intervalMin)) {
     return no('bad_setting');
   }
 
@@ -206,7 +211,7 @@ export function bumpAutoNote(input: {
   /** 営業日で数え直した残り回数。★ 読めていなければ null */
   remaining: number | null;
 }): string | null {
-  if (!isValidMinuteOfDay(input.startMin) || !isValidMinuteOfDay(input.endMin) || !isValidBumpInterval(input.intervalMin)) {
+  if (!isValidMinuteOfDay(input.startMin) || !isValidMinuteOfDay(input.endMin) || !isUsableBumpInterval(input.intervalMin)) {
     return '時間帯か間隔の設定を見直してください。';
   }
   if (!input.enabled) return '自動実行はお休み中です。手動のボタンはいつでも押せます。';

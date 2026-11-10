@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { shouldAutoBump, bumpRemaining, minuteLabel } from '@/lib/bumpAuto';
+import { normalizeBumpTimes, nextDueBumpTime } from '@/lib/ekichikaBump';
 
 // ── 上位表示（bump）の自動実行の周（第385便・2026-09-15）────────────────
 //   POST /api/admin/bump-auto  (Authorization: Bearer <CRON_SECRET>)
@@ -65,6 +66,14 @@ export async function POST(req: Request) {
 
   const targets = (rows ?? []) as Row[];
 
+  // ★ 第1931便（2026-11-11・カッキーさん「フクエスも時刻指定を」）: 時刻指定の店（conecf_fukues_bump_times）。★ 表が無ければ今までどおり
+  const tRes = await svc.from('conecf_fukues_bump_times').select('salon_id, times, times_done_at');
+  const timesOf = new Map<number, { times: number[]; doneAt: string | null }>();
+  if (!tRes.error) for (const t of tRes.data ?? []) {
+    const times = normalizeBumpTimes(t.times);
+    if (times) timesOf.set(Number(t.salon_id), { times, doneAt: (t.times_done_at as string | null) ?? null });
+  }
+
   const bumped: string[] = [];
   const skipped: Array<{ salonId: number; why: string }> = [];
   const failed: Array<{ salonId: number; why: string }> = [];
@@ -79,6 +88,24 @@ export async function POST(req: Request) {
       bumpDay: row.bump_day ?? null,
       bumpUsed: typeof row.bump_used === 'number' ? row.bump_used : null,
     });
+
+    // ★ 第1931便: 時刻指定の店は、時間帯・間隔ではなく「押す時刻が来たか」で決める。★ 押しに行く前に「済み」を書く（同じ回を2回押さない）
+    const tset = timesOf.get(salonId);
+    if (tset) {
+      if (remaining === null) { skipped.push({ salonId, why: 'unknown' }); continue; }
+      if (remaining <= 0) { skipped.push({ salonId, why: 'no_quota' }); continue; }
+      const dueAt = nextDueBumpTime(now, tset.times, tset.doneAt);
+      if (!dueAt) { skipped.push({ salonId, why: 'out_of_window' }); continue; }
+      if (!apply) { bumped.push(String(salonId)); continue; }
+      const { error: mErr } = await svc.from('conecf_fukues_bump_times').update({ times_done_at: dueAt }).eq('salon_id', salonId);
+      if (mErr) { failed.push({ salonId, why: 'mark_failed: ' + mErr.message.slice(0, 120) }); continue; }
+      const { data: tr, error: tErr } = await svc.rpc('salon_bump_auto_run', { p_salon_id: salonId });
+      if (tErr) { failed.push({ salonId, why: tErr.message.slice(0, 200) }); continue; }
+      const tout = (tr ?? null) as { ok?: boolean; error?: string; remaining?: number } | null;
+      if (!tout?.ok) { failed.push({ salonId, why: (tout?.error ?? '押せませんでした').slice(0, 200) }); continue; }
+      bumped.push(`${salonId}(時刻指定・残${tout.remaining ?? '?'})`);
+      continue;
+    }
 
     const judged = shouldAutoBump({
       now,
