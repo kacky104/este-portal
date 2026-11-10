@@ -6,7 +6,8 @@ import { ConecfShell } from '../ConecfShell';
 import { useConecfActing } from '../ConecfSession';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
-import { getConecfBump, type ConecfBumpSlot } from '@/app/actions/conecfBump';
+import { getConecfBump, getEsutamaAppealRows, type ConecfBumpSlot, type EsutamaAppealRowSlot } from '@/app/actions/conecfBump';
+import { ESUTAMA_APPEAL_ROW_SLUG, esutamaAppealRowLabel, type EsutamaAppealRowKey } from '@/lib/esutamaAppealRows';
 import { CARD, SITES, BumpRow, ShineStyle, FukuesBumpRow, type SiteTheme } from './BumpParts';
 
 // コネックエフ「上位表示設定」（第1305便で駅ちかを作り、第1306便でフクエスも同じ画面に入れた・2026-10-08・カッキーさん）。
@@ -50,12 +51,18 @@ function SlotRowList({ site, slots }: { site: SiteTheme; slots: ConecfBumpSlot[]
 function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; heading: string; enabled: boolean; onToast: (m: string) => void }) {
   const href = useConecfHref();
   const [data, setData] = useState<{ ready: boolean; slots: ConecfBumpSlot[] } | null>(null);
+  // ★ 第1930便: エステ魂の集客アピールは、行ごとの表があれば3行（店舗情報・クーポン情報・お店体験談）で出す
+  const [appealRows, setAppealRows] = useState<EsutamaAppealRowSlot[] | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     const res = await getConecfBump(site.provider);
     if (!res.ok) { setError(res.error); return; }
     setData({ ready: res.data.ready, slots: res.data.slots }); setError('');
+    if (site.provider === 'esutama') {
+      const ar = await getEsutamaAppealRows();
+      setAppealRows(ar.ok && ar.data.ready ? ar.data.rows : null);
+    }
   }, [site.provider]);
   useEffect(() => { void load(); }, [load]);
 
@@ -75,7 +82,24 @@ function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; hea
           {data.slots.length === 0 && (
             <div className={`${CARD} p-5 text-[14px] text-slate-500`}>{site.name}の店舗ページが登録されていません。「ID・パスワード登録」から{site.name}を登録してください。</div>
           )}
-          {data.slots.length > 0 && <SlotRowList site={site} slots={data.slots} />}
+          {data.slots.length > 0 && (appealRows
+            ? (
+              <ul className="space-y-2">
+                {appealRows.map((r) => {
+                  const ok = r.hasCredential && !r.linkOff;
+                  const rem = r.countStale ? (r.quota ?? 10) : r.remaining;
+                  return (
+                    <li key={r.rowKey}>
+                      <BumpRow href={href(`/bump/esutama/${ESUTAMA_APPEAL_ROW_SLUG[r.rowKey as EsutamaAppealRowKey]}`)} theme={ROW_THEME.esutama}
+                        name={<>集客アピール<span className={`ml-1.5 ${r.enabled && ok ? '' : 'text-slate-500'}`}>{esutamaAppealRowLabel(r.rowKey)}</span></>}
+                        lit={r.enabled && ok} remaining={rem} quota={r.quota} enabled={r.enabled} lastAt={r.lastAt}
+                        note={ok ? undefined : 'ID・PW 未登録'} />
+                    </li>
+                  );
+                })}
+              </ul>
+            )
+            : <SlotRowList site={site} slots={data.slots} />)}
         </>
       )}
     </section>

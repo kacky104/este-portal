@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { shouldBumpNow, bumpResetMinOf, normalizeBumpTimes, nextDueBumpTime, type BumpSetting } from '@/lib/ekichikaBump';
+import { esutamaAppealRowLabel } from '@/lib/esutamaAppealRows';
 import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImages, isDailyPostKey } from '@/lib/esutamaPost';
@@ -83,7 +84,14 @@ export async function POST(req: Request) {
       .eq('salon_id', r.salon_id).eq('provider', r.provider).eq('slot', slot);
     if (uErr) console.error('[ekichika-bump] 時刻指定の印を戻せなかった', r.salon_id, slot, uErr.message);
   };
+  // ★ 第1930便: 集客ワンクリックアピールを行ごとに設定している店（conecf_esutama_appeal_rows に行がある店）は、
+  //   今までの「3行まとめて」（salon_import_sources の esutama）では押さない。★ 表が無い（SQL 未適用）ときは今までどおり
+  const appealRowsRes = await svc.from('conecf_esutama_appeal_rows')
+    .select('salon_id, row_key, auto, start_min, end_min, interval_min, times, times_done_at, auto_at, last_at, remaining, read_at');
+  const appealRows = appealRowsRes.error ? [] : (appealRowsRes.data ?? []);
+  const appealRowSalons = new Set(appealRows.map((x) => Number(x.salon_id)));
   for (const r of data ?? []) {
+    if (r.provider === 'esutama' && appealRowSalons.has(Number(r.salon_id))) continue;
     const slot = Number(r.slot ?? 1);
     const setting: BumpSetting = {
       enabled: true,
@@ -125,6 +133,59 @@ export async function POST(req: Request) {
       console.error('[ekichika-bump] 流れを始められなかった', r.salon_id, slot, e instanceof Error ? e.message : 'unknown');
       if (dueAt) await undoTimesMark(r, slot);
       results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'start_failed' });
+    }
+  }
+
+  // ★★ 第1930便: 集客ワンクリックアピールの行ごとの自動。★ 同じ店で押す時刻が来た行をまとめて、1つの流れで順に押す
+  {
+    const bySalon = new Map<number, typeof appealRows>();
+    for (const x of appealRows) {
+      if (x.auto !== true) continue;
+      const sid = Number(x.salon_id);
+      bySalon.set(sid, [...(bySalon.get(sid) ?? []), x]);
+    }
+    for (const [sid, rows] of bySalon) {
+      const due: Array<{ x: (typeof appealRows)[number]; dueAt: string | null }> = [];
+      for (const x of rows) {
+        const times = normalizeBumpTimes(x.times);
+        const setting: BumpSetting = { enabled: true, startMin: Number(x.start_min), endMin: Number(x.end_min), intervalMin: Number(x.interval_min), times };
+        const judge = shouldBumpNow({
+          now, setting,
+          state: { lastAt: x.last_at ?? null, remaining: x.remaining == null ? null : Number(x.remaining), readAt: x.read_at ?? null, autoAt: x.auto_at ?? null, timesDoneAt: x.times_done_at ?? null },
+          resetMin: bumpResetMinOf('esutama'),
+        });
+        if (judge.bump) due.push({ x, dueAt: times ? nextDueBumpTime(now, times, x.times_done_at ?? null) : null });
+      }
+      if (due.length === 0) continue;
+      const label = due.map((d) => esutamaAppealRowLabel(String(d.x.row_key))).join('・');
+      if (!apply) { results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'ok', note: label }); continue; }
+      if (esutamaStarted.has(sid)) { results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'busy_this_round', note: label }); continue; }
+      // ★ 始める前に印を書く（同じ回を2回押さない）。★ 始められなかったら元に戻す（次の周でやり直す）
+      for (const d of due) {
+        await svc.from('conecf_esutama_appeal_rows')
+          .update(d.dueAt ? { auto_at: now.toISOString(), times_done_at: d.dueAt } : { auto_at: now.toISOString() })
+          .eq('salon_id', sid).eq('row_key', d.x.row_key);
+      }
+      const undo = async () => {
+        for (const d of due) {
+          await svc.from('conecf_esutama_appeal_rows')
+            .update({ auto_at: d.x.auto_at ?? null, times_done_at: d.x.times_done_at ?? null })
+            .eq('salon_id', sid).eq('row_key', d.x.row_key);
+        }
+      };
+      try {
+        const f = await startRelayFlow({
+          salonId: sid, provider: 'esutama', slot: 1, intent: 'bump_auto', actor: 'cron:esutama-appeal',
+          esutamaAppeal: { rows: due.map((d) => String(d.x.row_key)) },
+        });
+        if (f.ok) esutamaStarted.add(sid);
+        else if (f.reason === 'busy') await undo();
+        results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'ok', started: f.ok, note: label + '／' + f.note });
+      } catch (e) {
+        console.error('[ekichika-bump] 集客アピール（行ごと）を始められなかった', sid, e instanceof Error ? e.message : 'unknown');
+        await undo();
+        results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'start_failed', note: label });
+      }
     }
   }
 

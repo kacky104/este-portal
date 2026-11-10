@@ -32,6 +32,26 @@ function looksLikeLoginPage(body: string): boolean {
   return /post\/login_shop|name=["']login_id["']|ログインID/.test(String(body ?? '')) && !/l-appeal_limit_num/.test(String(body ?? ''));
 }
 
+
+/** ★ 第1930便: 画面の3行ぶんの残り・最終アピール（行ごとの記録に書く） */
+function readAllRows(html: string, now: Date, results: Record<string, { ok: boolean }> = {}) {
+  return ESUTAMA_APPEAL_ROWS.map((row) => {
+    const r = parseEsutamaAppealRow(html, row, now);
+    return { row, remaining: r?.remaining ?? null, lastAt: r?.lastAt ?? null, pressed: results[row]?.ok === true };
+  });
+}
+
+/** ★ 第1930便: 行ごとの設定で押すとき（ctx.esutamaAppealOnly）。残りのある行だけを順に押す */
+function nextOnlyRow(html: string, now: Date, queue: string[]): { row: string; before: { remaining: number | null; lastAt: string | null }; rest: string[] } | null {
+  const q = [...queue];
+  while (q.length > 0) {
+    const row = q.shift() as string;
+    const b = parseEsutamaAppealRow(html, row, now);
+    if (b && (b.remaining ?? 0) > 0) return { row, before: { remaining: b.remaining, lastAt: b.lastAt }, rest: q };
+  }
+  return null;
+}
+
 /** ログインできたあとの最初の段（esutamaFlow.afterEsutamaLogin から呼ぶ） */
 export function buildEsutamaAppealReadStep(cookie: string, ctx: RelayFlowContext) {
   const r = buildEsutamaAppealPageRequest(cookie);
@@ -71,6 +91,26 @@ export function afterEsutamaAppealRead(input: Input, ctx: RelayFlowContext, nowA
     { event: 'login', outcome: 'ok', detail: { flowId } },
     { event: 'read_bump', outcome: 'ok', detail: { remaining: page.remaining, quota: ESUTAMA_APPEAL_DAILY, flowId, ...AUDIT_SHOP_HIDDEN } },
   ];
+  // ★ 第1930便: 行ごとの設定（周が押す行を決めた・店舗様が行の「いま1回」を押した）。★ 店舗情報での判断はしない
+  if (Array.isArray(ctx.esutamaAppealOnly) && ctx.esutamaAppealOnly.length > 0) {
+    const first = nextOnlyRow(input.body, now, ctx.esutamaAppealOnly);
+    if (!first) {
+      const extra: FlowAudit[] = ctx.bumpForce === true
+        ? [{ event: 'push_bump', outcome: 'stopped', detail: { reason: 'no_quota', manual: true, rows: ctx.esutamaAppealOnly.map((k) => ESUTAMA_APPEAL_ROW_LABEL[k] ?? k).join('・'), flowId } }]
+        : [];
+      return { kind: 'done', audits: [...audits, ...extra], note: 'アピールする行の残りがなかった', esutamaAppealRows: { readAt, rows: readAllRows(input.body, now) } };
+    }
+    const p1 = buildEsutamaAppealPostRequest(cookie, String(page.ctk), first.row);
+    return {
+      kind: 'next',
+      next: {
+        purpose: 'esutama_appeal_set', method: p1.method, url: p1.url, headers: p1.headers, body: p1.body ?? '',
+        context: { ...ctx, cookie, esutamaAppealRow: first.row, esutamaAppealQueue: first.rest, esutamaAppealRowBefore: first.before, esutamaAppealResults: {} },
+      },
+      audits,
+      note: (ESUTAMA_APPEAL_ROW_LABEL[first.row] ?? first.row) + 'をアピールする（残り ' + first.before.remaining + '）',
+    };
+  }
   const decision = ctx.bumpForce === true
     ? ((page.remaining ?? 0) > 0 ? { bump: true, reason: 'ok' as const } : { bump: false, reason: 'no_quota' as const })
     : shouldBumpNow({
@@ -110,6 +150,14 @@ export function afterEsutamaAppealSet(input: Input, ctx: RelayFlowContext): Flow
   if (backToLogin(input)) {
     return stop([{ event: 'push_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'back_to_login', manual, flowId } }], 'アピールを押したらログイン画面へ戻された');
   }
+  if (input.status >= 400 && Array.isArray(ctx.esutamaAppealOnly) && ctx.esutamaAppealOnly.length > 0) {
+    // ★ 第1930便: 行ごとのときは、行ごとの表には書かない（読めていないので）。次の周が読み直す
+    return {
+      kind: 'done',
+      audits: [{ event: 'push_bump', outcome: 'failed', detail: { httpStatus: input.status, reason: 'http_error', manual, rows: ESUTAMA_APPEAL_ROW_LABEL[ctx.esutamaAppealRow ?? ''] ?? '', flowId } }],
+      note: 'アピールの応答が ' + input.status + ' だった',
+    };
+  }
   if (input.status >= 400) {
     return {
       kind: 'done',
@@ -138,6 +186,44 @@ export function afterEsutamaAppealVerify(input: Input, ctx: RelayFlowContext, no
   const row = ctx.esutamaAppealRow ?? ESUTAMA_APPEAL_ROW;
   const extra = [...(ctx.esutamaAppealExtra ?? [])];
   const page = input.status === 200 ? parseEsutamaAppealPage(input.body, now) : null;
+
+  // ── ★ 第1930便: 行ごとの設定で押しているとき（店舗情報を特別に扱わない） ──
+  if (Array.isArray(ctx.esutamaAppealOnly) && ctx.esutamaAppealOnly.length > 0) {
+    const results = { ...(ctx.esutamaAppealResults ?? {}) };
+    const b = ctx.esutamaAppealRowBefore ?? { remaining: null, lastAt: null };
+    const a = page ? parseEsutamaAppealRow(input.body, row, now) : null;
+    const ok = !!a && ((b.remaining !== null && a.remaining !== null && a.remaining < b.remaining)
+      || (!!a.lastAt && (!b.lastAt || Date.parse(a.lastAt) > Date.parse(b.lastAt))));
+    results[row] = { ok, remaining: a?.remaining ?? b.remaining, lastAt: a?.lastAt ?? b.lastAt };
+    if (page && page.ctk) {
+      const nx = nextOnlyRow(input.body, now, ctx.esutamaAppealQueue ?? []);
+      if (nx) {
+        const cookie = mergeCookies(ctx.cookie, input.headers['set-cookie'] as string | string[] | undefined);
+        const p = buildEsutamaAppealPostRequest(cookie, page.ctk, nx.row);
+        return {
+          kind: 'next',
+          next: {
+            purpose: 'esutama_appeal_set', method: p.method, url: p.url, headers: p.headers, body: p.body ?? '',
+            context: { ...ctx, cookie, esutamaAppealRow: nx.row, esutamaAppealQueue: nx.rest, esutamaAppealRowBefore: nx.before, esutamaAppealResults: results },
+          },
+          audits: [],
+          note: (ESUTAMA_APPEAL_ROW_LABEL[nx.row] ?? nx.row) + 'も続けてアピールする（残り ' + nx.before.remaining + '）',
+        };
+      }
+    }
+    const okRows = Object.entries(results).filter(([, v]) => v.ok).map(([k]) => ESUTAMA_APPEAL_ROW_LABEL[k] ?? k);
+    const ngRows = Object.entries(results).filter(([, v]) => !v.ok).map(([k]) => ESUTAMA_APPEAL_ROW_LABEL[k] ?? k);
+    const rowsState = page ? readAllRows(input.body, now, results)
+      : ESUTAMA_APPEAL_ROWS.map((k) => ({ row: k, remaining: results[k]?.remaining ?? null, lastAt: results[k]?.lastAt ?? null, pressed: results[k]?.ok === true }));
+    return {
+      kind: 'done',
+      audits: okRows.length > 0
+        ? [{ event: 'push_bump', outcome: 'ok', detail: { manual, flowId, rows: okRows.join('・'), ...(ngRows.length ? { notAccepted: ngRows.join('・') } : {}) } }]
+        : [{ event: 'push_bump', outcome: 'failed', detail: { reason: page ? 'not_accepted' : 'verify_unreadable', manual, flowId, rows: ngRows.join('・') } }],
+      note: okRows.length > 0 ? okRows.join('・') + 'をアピールできた' : 'アピールを送ったが、押せたか確かめられなかった',
+      esutamaAppealRows: { readAt, rows: rowsState },
+    };
+  }
 
   // ── 店舗情報の結果 ──
   let shop = ctx.esutamaAppealShop;

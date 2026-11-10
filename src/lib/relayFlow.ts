@@ -957,6 +957,13 @@ export type RelayFlowContext = {
   /** 店舗情報の結果（押せた／押せなかった）と、続けて押せた行の名前 */
   esutamaAppealShop?: { ok: boolean; remaining: number | null; lastAt: string | null };
   esutamaAppealExtra?: string[];
+  /**
+   * ★ 第1930便（2026-11-11・カッキーさん「店舗情報・クーポン情報・お店体験談を3つに分けて」）: 行ごとの設定で押すとき、押す行だけ。
+   *   入っていれば「店舗情報で決めてほかを続けて押す」作りは使わず、ここの行（残りがあるもの）だけを順に押す
+   */
+  esutamaAppealOnly?: string[];
+  /** その流れで押した行の結果（行ごと） */
+  esutamaAppealResults?: Record<string, { ok: boolean; remaining: number | null; lastAt: string | null }>;
   // ── ここから下は エステ魂【オプション】（第1799便）のときだけ入る（intent は bump_push / bump_auto）──
   /** 押すオプション（shop_boost / cast_appeal / job_appeal）。force … 店舗様がコネックエフで押した */
   esutamaOpt?: { key: string; force?: boolean };
@@ -1231,6 +1238,11 @@ export type FlowOutcome =
        *   pressed … この流れで押せたか
        */
       ekichikaBump?: { remaining: number | null; quota: number | null; lastAt: string | null; readAt: string; pressed: boolean };
+      /**
+       * ★ 第1930便: エステ魂の集客ワンクリックアピールの【行ごと】の状態（読み直した画面の3行ぶん）。
+       *   ★ 表（conecf_esutama_appeal_rows）に書くのは呼び出し側。pressed … この流れでその行を押せたか
+       */
+      esutamaAppealRows?: { readAt: string; rows: Array<{ row: string; remaining: number | null; lastAt: string | null; pressed: boolean }> };
       /** ★ 第1799便: エステ魂【オプション】の結果。★ 表（conecf_esutama_options）に書くのは呼び出し側 */
       esutamaOpt?: { key: string; remaining: number | null; readAt: string; pressed: boolean; outcome: string; lastAt: string | null };
       /** ★ 第1811便: エステ魂【オプション】の投稿の結果。★ 表（conecf_esutama_posts）に書くのは呼び出し側 */

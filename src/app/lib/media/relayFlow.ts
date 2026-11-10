@@ -431,6 +431,11 @@ export async function startRelayFlow(params: {
    */
   esutamaOpt?: { key: string; force?: boolean };
   /**
+   * ★ 第1930便: エステ魂の集客ワンクリックアピールを【行ごと】に押す（intent は bump_auto / bump_push・provider='esutama'）。
+   *   rows … 押す行（'shop,guest_appeal' など）。★ 結果は conecf_esutama_appeal_rows に書く
+   */
+  esutamaAppeal?: { rows: string[] };
+  /**
    * ★ 第1811便: エステ魂【オプション】の投稿（リアルタイム集客）。intent は bump_push / bump_auto・provider='esutama'。
    *   ★ 結果は conecf_esutama_posts に書く
    */
@@ -756,6 +761,8 @@ export async function startRelayFlow(params: {
     // ★ 第1305便: 駅ちかの上位表示。★ 渡されたときだけ入れる
     ...(params.bump?.setting ? { bumpSetting: params.bump.setting } : {}),
     ...(params.bump?.force === true ? { bumpForce: true } : {}),
+    // ★ 第1930便: 集客ワンクリックアピールの行ごと。★ 渡されたときだけ入れる
+    ...(params.esutamaAppeal && params.esutamaAppeal.rows.length > 0 ? { esutamaAppealOnly: [...params.esutamaAppeal.rows] } : {}),
     // ★ 第1799便: エステ魂【オプション】。★ 渡されたときだけ入れる
     ...(params.esutamaOpt ? { esutamaOpt: { key: params.esutamaOpt.key, ...(params.esutamaOpt.force === true ? { force: true } : {}) } } : {}),
     ...(params.zenkokuWait ? { zenkokuWait: { dateISO: params.zenkokuWait.dateISO } } : {}),
@@ -824,7 +831,7 @@ export async function startRelayFlow(params: {
   if (params.zenkokuWait && params.provider !== 'zenkoku') {
     throw new Error('zenkokuWait は全国エステランキングだけ');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.vanillaBlog && !params.ekichikaMovie && !params.ekichikaMagazine && !params.ekichikaRankImage && !params.cocoaMovie) {
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaAppeal && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.vanillaBlog && !params.ekichikaMovie && !params.ekichikaMagazine && !params.ekichikaRankImage && !params.cocoaMovie) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
@@ -1250,6 +1257,24 @@ export async function advanceRelayFlow(params: {
       .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot);
     if (bErr) console.error('[relay] 上位表示の状態を書けなかった', params.salonId, params.slot, bErr.message);
     else note = note + ' → 上位表示の状態（残り ' + (b.remaining ?? '?') + '）を記録した';
+  }
+
+  // ★★ 第1930便: 集客ワンクリックアピールの行ごとの状態を表に書く。★ 書けなくても流れは止めない（黙らない）
+  if (outcome.kind === 'done' && outcome.esutamaAppealRows && params.provider === 'esutama') {
+    const a = outcome.esutamaAppealRows;
+    const svcA = createServiceClient();
+    for (const r of a.rows) {
+      const { error: rErr } = await svcA.from('conecf_esutama_appeal_rows')
+        .update({
+          remaining: r.remaining,
+          read_at: a.readAt,
+          ...(r.lastAt ? { last_at: r.lastAt } : {}),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('salon_id', params.salonId).eq('row_key', r.row);
+      if (rErr) console.error('[relay] 集客アピールの行の状態を書けなかった', params.salonId, r.row, rErr.message);
+    }
+    note = note + ' → 集客アピールの行ごとの状態を記録した';
   }
 
   // ★★ 第1799便: エステ魂【オプション】の状態（残り回数・最後に押せた時刻・結果）を表に書く。★ 書けなくても流れは止めない（黙らない）
