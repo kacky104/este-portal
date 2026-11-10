@@ -10,7 +10,7 @@
 //  - 店舗のファビコンは設定時のみ出す（未設定なら /favicon.ico にフォールバック）。
 
 import type { Metadata } from 'next';
-import { isHpDomainKey, normalizeHpSiteKey } from '@/app/lib/hpSite';
+import { hpHeroSlides, isHpDomainKey, normalizeHpSiteKey } from '@/app/lib/hpSite';
 import type { HpPageData } from './data';
 
 /**
@@ -47,6 +47,7 @@ export function buildHpMetadata(
   const alwaysNoindex = opts.noindex === true;
   const indexable = !alwaysNoindex && isHpIndexable(data, key);
   const origin = hpSiteOrigin(data);
+  const ogImage = hpHeroSlides(data.site)[0]?.pc || data.site.logo_url || null;
 
   return {
     title: opts.title,
@@ -59,6 +60,24 @@ export function buildHpMetadata(
     // 未設定の店は <link rel="icon"> を出さない → /favicon.ico にフォールバック
     // （店舗ドメインでは proxy.ts が /hp/[slug]/favicon.ico ルートへ回す）。
     ...(data.site.favicon_url ? { icons: { icon: data.site.favicon_url } } : {}),
+    // ★★ 第1894便（カッキーさん）: LINE・X などで送ったときの見え方（OGP）。
+    //   指定しないとフクエス本体の OGP（ogp.png・「フクエス」）を引き継いでいた（oilquest-esthe.com を LINE で送るとフクエスの画像が出た）。
+    //   画像はヒーローの1枚目（PC）→ 無ければロゴ。どちらも無ければ画像なし（フクエスの画像は出さない）
+    openGraph: {
+      title: opts.title,
+      description: opts.description,
+      siteName: data.salon.name,
+      type: 'website',
+      locale: 'ja_JP',
+      ...(origin ? { url: `${origin}${opts.path === '' ? '/' : opts.path}` } : {}),
+      images: ogImage ? [{ url: ogImage }] : [],
+    },
+    twitter: {
+      card: ogImage ? 'summary_large_image' : 'summary',
+      title: opts.title,
+      description: opts.description,
+      images: ogImage ? [ogImage] : [],
+    },
   };
 }
 
