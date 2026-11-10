@@ -27,8 +27,6 @@ import {
   type HpSectionKey,
   HP_DIARY_COUNT_MIN,
   HP_DIARY_COUNT_MAX,
-  HP_REVIEWS_COUNT_MIN,
-  HP_REVIEWS_COUNT_MAX,
   HP_COUNT_ALL,
   HP_PEOPLE_COUNT_OPTIONS,
   HP_DEMO_SLUG,
@@ -837,18 +835,7 @@ export function HpEditor({
                     ))}
                   </select>
                 )}
-                {k === 'reviews' && (
-                  <select
-                    value={form.blocks.reviews.count}
-                    onChange={(e) => patchBlocks({ reviews: { ...form.blocks.reviews, count: Number(e.target.value) } })}
-                    disabled={!form.blocks.reviews.on}
-                    className="rounded-none border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
-                  >
-                    {Array.from({ length: HP_REVIEWS_COUNT_MAX - HP_REVIEWS_COUNT_MIN + 1 }, (_, n) => HP_REVIEWS_COUNT_MIN + n).map((n) => (
-                      <option key={n} value={n}>{n}件</option>
-                    ))}
-                  </select>
-                )}
+                {/* ★ 第1898便: 口コミの件数は選ばせない（トップは常に3件・埋め込みの中で決まる） */}
 
                 {on === null ? (
                   <span className="w-4 h-4 shrink-0" />
