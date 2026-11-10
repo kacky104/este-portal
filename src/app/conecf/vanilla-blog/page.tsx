@@ -25,20 +25,26 @@ const outcomeText = (o: string | null) => {
   if (o.startsWith('error')) return 'うまくいきませんでした（' + o.replace(/^error:\s*/, '') + '）';
   return o;
 };
-/** 「6:08」「翌1:00」→ 朝6時はじまりの分 */
-function parseTime(t: string): number {
-  const m = /^(翌)?\s*(\d{1,2})\s*[:時]\s*(\d{2})\s*分?$/.exec(t.normalize('NFKC').trim());
-  if (!m) return NaN;
-  const v = Number(m[2]) * 60 + Number(m[3]);
-  if (v >= 1440) return NaN;
-  return m[1] || v < 360 ? v + 1440 : v;
+// ★ 第1904便（カッキーさん）: 時刻は文字で打たず、時と分のプルダウンで選ぶ（「28:00」のような書き方で詰まらないように）
+//   値は朝6時はじまりの分（6:00 = 360 … 翌5:59 = 1799）
+const HOURS = Array.from({ length: 24 }, (_, i) => 6 + i);   // 6 … 29（＝翌5時）
+const hourLabel = (h: number) => (h >= 24 ? `翌${h - 24}時` : `${h}時`);
+function TimePick({ value, onChange, minutes = true }: { value: number; onChange: (m: number) => void; minutes?: boolean }) {
+  const h = Math.floor(value / 60), m = value % 60;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <select value={h} onChange={(e) => onChange(Number(e.target.value) * 60 + (minutes ? m : 0))} className="border border-slate-300 bg-white px-1.5 py-1">
+        {HOURS.map((x) => <option key={x} value={x}>{hourLabel(x)}</option>)}
+      </select>
+      {minutes && (
+        <select value={m} onChange={(e) => onChange(h * 60 + Number(e.target.value))} className="border border-slate-300 bg-white px-1.5 py-1">
+          {Array.from({ length: 60 }, (_, i) => i).map((x) => <option key={x} value={x}>{String(x).padStart(2, '0')}分</option>)}
+        </select>
+      )}
+    </span>
+  );
 }
-/** 「6:08 7:38 9:08」のように、空白・読点・改行で区切った時刻 */
-function parseTimes(s: string): number[] | null {
-  const parts = s.normalize('NFKC').split(/[\s,、，]+/).map((x) => x.trim()).filter(Boolean);
-  const out = parts.map(parseTime);
-  return out.some((x) => !Number.isFinite(x)) ? null : [...new Set(out)].sort((a, b) => a - b);
-}
+const GAP_CHOICES = [30, 45, 60, 90, 120, 180, 240];
 
 /** ★ ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
 async function shrinkToJpeg(file: File): Promise<Blob> {
@@ -60,24 +66,28 @@ function Editor({ v, onToast, reload }: { v: ConecfVanillaBlog; onToast: (m: str
   const href = useConecfHref();
   const [auto, setAuto] = useState(v.auto);
   const [deleteOld, setDeleteOld] = useState(v.deleteOld);
-  const [times, setTimes] = useState(v.timesMin.map(vanillaMinLabel).join(' '));
+  const [times, setTimes] = useState<number[]>(v.timesMin);
+  const [addAt, setAddAt] = useState(368);
   const [rows, setRows] = useState<Row[]>(() => (v.items.length > 0 ? v.items.map((x) => ({ ...x })) : [{ title: '', body: '', image: null, imageUrl: null }]));
   // ★ 間隔で入れる（ベンリーの「間隔で更新」の代わり）
-  const [gapFrom, setGapFrom] = useState('6:08');
-  const [gapTo, setGapTo] = useState('翌3:00');
-  const [gapMin, setGapMin] = useState('90');
+  const [gapFrom, setGapFrom] = useState(368);
+  const [gapTo, setGapTo] = useState(1620);
+  const [gapMin, setGapMin] = useState(90);
   const [busy, setBusy] = useState(false);
   const set = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...patch } : r)));
   const move = (i: number, d: -1 | 1) => setRows((rs) => { const a = [...rs]; const j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a; });
 
   const fillByGap = () => {
-    const a = parseTime(gapFrom), b = parseTime(gapTo), g = Number(gapMin.normalize('NFKC'));
-    if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) { onToast('はじめと終わりの時刻は「6:08」「翌3:00」のように入れてください'); return; }
-    if (!Number.isInteger(g) || g < 30) { onToast('間隔は30分以上で入れてください'); return; }
+    if (gapTo < gapFrom) { onToast('終わりの時刻は、はじめの時刻より後にしてください'); return; }
     const list: number[] = [];
-    for (let t = a; t <= b && list.length < VANILLA_BLOG_TIMES_MAX; t += g) list.push(t);
-    setTimes(list.map(vanillaMinLabel).join(' '));
+    for (let t = gapFrom; t <= gapTo && list.length < VANILLA_BLOG_TIMES_MAX; t += gapMin) list.push(t);
+    setTimes(list);
     onToast(`${list.length}個の時刻を入れました（「保存」を押すと決まります）`);
+  };
+  const addTime = () => {
+    if (times.includes(addAt)) { onToast('その時刻はもう入っています'); return; }
+    if (times.length >= VANILLA_BLOG_TIMES_MAX) { onToast(`時刻は${VANILLA_BLOG_TIMES_MAX}個までです`); return; }
+    setTimes((ts) => [...ts, addAt].sort((x, y) => x - y));
   };
   const upload = async (i: number, file: File | undefined) => {
     if (!file) return;
@@ -90,9 +100,7 @@ function Editor({ v, onToast, reload }: { v: ConecfVanillaBlog; onToast: (m: str
     setBusy(false);
   };
   const save = async () => {
-    const t = parseTimes(times);
-    if (!t) { onToast('時刻は「6:08 7:38 9:08」のように、空白で区切って入れてください'); return; }
-    if (t.length > VANILLA_BLOG_TIMES_MAX) { onToast(`時刻は${VANILLA_BLOG_TIMES_MAX}個までです`); return; }
+    const t = [...new Set(times)].sort((x, y) => x - y);
     const used = rows.filter((r) => r.title.trim() !== '' || r.body.trim() !== '' || r.image);
     setBusy(true);
     const res = await saveConecfVanillaBlog({ auto, deleteOld, timesMin: t, items: used.map((r) => ({ title: r.title, body: r.body, image: r.image })) });
@@ -127,19 +135,33 @@ function Editor({ v, onToast, reload }: { v: ConecfVanillaBlog; onToast: (m: str
           <div>最後の結果：{outcomeText(v.lastOutcome)}</div>
         </div>
         <p className="text-[13px] leading-relaxed text-slate-600">
-          決めた時刻が来るたびに、下の記事を上から順に1本ずつ投稿します（最後まで行ったら1本目へ戻ります）。1日は朝6時はじまりで、翌朝の時刻は「翌1:00」のように入れます。
+          決めた時刻が来るたびに、下の記事を上から順に1本ずつ投稿します（最後まで行ったら1本目へ戻ります）。1日は朝6時はじまりです（夜中の0時〜5時台は「翌0時」〜「翌5時」で選びます）。
         </p>
-        <label className="block text-[13px] font-bold text-slate-700">時刻（空白で区切る・{VANILLA_BLOG_TIMES_MAX}個まで）
-          <textarea value={times} onChange={(e) => setTimes(e.target.value)} rows={2} placeholder="6:08 7:38 9:08 10:38" className="mt-1 w-full border border-slate-300 px-2 py-1 font-normal" />
-        </label>
+        <div className="text-[13px] font-bold text-slate-700">時刻（{times.length}個・{VANILLA_BLOG_TIMES_MAX}個まで）</div>
+        <div className="flex flex-wrap gap-1.5">
+          {times.length === 0 && <span className="text-[13px] text-slate-400">まだ入っていません（下で選んで足してください）</span>}
+          {times.map((t) => (
+            <span key={t} className="inline-flex items-center gap-1 border border-violet-300 bg-violet-50 px-2 py-0.5 text-[13px] text-violet-800">
+              {vanillaMinLabel(t)}
+              <button type="button" onClick={() => setTimes((ts) => ts.filter((x) => x !== t))} className="text-violet-400 hover:text-rose-600" aria-label={vanillaMinLabel(t) + 'を消す'}>×</button>
+            </span>
+          ))}
+          {times.length > 0 && <button type="button" onClick={() => setTimes([])} className="px-1 text-[12px] text-slate-500 underline">すべて消す</button>}
+        </div>
         <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
-          <span>間隔で入れる：</span>
-          <input value={gapFrom} onChange={(e) => setGapFrom(e.target.value)} className="w-20 border border-slate-300 px-2 py-1" />
+          <span>1つ足す：</span>
+          <TimePick value={addAt} onChange={setAddAt} />
+          <button type="button" onClick={addTime} className="border border-violet-400 px-3 py-1 text-violet-700">足す</button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-[13px] text-slate-600">
+          <span>間隔でまとめて入れる：</span>
+          <TimePick value={gapFrom} onChange={setGapFrom} />
           <span>から</span>
-          <input value={gapTo} onChange={(e) => setGapTo(e.target.value)} className="w-20 border border-slate-300 px-2 py-1" />
+          <TimePick value={gapTo} onChange={setGapTo} />
           <span>まで</span>
-          <input value={gapMin} onChange={(e) => setGapMin(e.target.value)} className="w-16 border border-slate-300 px-2 py-1" />
-          <span>分おき</span>
+          <select value={gapMin} onChange={(e) => setGapMin(Number(e.target.value))} className="border border-slate-300 bg-white px-1.5 py-1">
+            {GAP_CHOICES.map((g) => <option key={g} value={g}>{g}分おき</option>)}
+          </select>
           <button type="button" onClick={fillByGap} className="border border-violet-400 px-3 py-1 text-violet-700">時刻を入れる</button>
         </div>
         <label className="flex items-start gap-2 text-[13px] text-slate-700">
