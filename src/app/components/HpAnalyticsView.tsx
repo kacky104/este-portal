@@ -10,7 +10,8 @@ import { FUKUES_ORIGIN } from '@/lib/crmHost';
 //   ★ コネックエフ（/analytics）と公式HP管理（/hp/{slug}/admin の「アクセス解析」）で同じ部品を使う。
 //   ★ 色: 1系列の棒は1色（青）。時間帯の表は青の濃淡（多いほど濃い）。増減の矢印は文字＋記号（色だけにしない）。
 
-type Tab = 'summary' | 'sources' | 'pages' | 'therapists' | 'hours' | 'help';
+// ★ 第1889便（カッキーさん）: スマホだけ「TOP」（数のタイル）を1ページ目にする。ほかのタブ（スマホ）は数のタイルを出さない
+type Tab = 'top' | 'summary' | 'sources' | 'pages' | 'therapists' | 'hours' | 'help';
 const TABS: Array<[Tab, string]> = [
   ['summary', 'サマリー'], ['sources', '流入元'], ['pages', 'ページ'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方'],
 ];
@@ -39,6 +40,7 @@ function Delta({ cur, prev }: { cur: number; prev: number }) {
 
 // ★ 第1793便: タブごとの見出しと説明（すぐる君の「サマリーレポート」の形）
 const TAB_HEAD: Record<Tab, [string, string]> = {
+  top: ['TOP', '公式ホームページに来た人数や、電話・LINE などが押された数です'],
   summary: ['サマリーレポート', '公式ホームページに来た人数や、電話・LINE が押された数などのおおまかなレポートです'],
   sources: ['集客レポート', 'お客様がどのサイトから来たのか、そこから電話・LINE にどれだけつながったのかが分かるデータです'],
   pages: ['ページレポート', 'サイトの中のどのページがどれだけ見られたのかが分かるデータです'],
@@ -55,7 +57,16 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
   const today = useMemo(() => jstDayHour(Date.now()).day, []);
   const [range, setRange] = useState<[string, string]>([addDays(today, -27), today]);
   const [preset, setPreset] = useState('28');
+  // ★ 第1889便: スマホ（640px 未満）は TOP から。PC は今までどおりサマリーから（TOP のタブは無い）
   const [tab, setTab] = useState<Tab>('summary');
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 画面幅は描いたあとでないと分からない（サーバーとの食い違いを避ける）
+    if (mq.matches) setTab('top');
+    const onChange = () => { if (!mq.matches) setTab((t) => (t === 'top' ? 'summary' : t)); };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   const [res, setRes] = useState<{ key: string; data: HpAnalytics | null; err: string } | null>(null);
   const key = `${salonId}|${range[0]}|${range[1]}`;
 
@@ -86,9 +97,10 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
     <div className="space-y-4">
       {/* ★ 第1793便（カッキーさん「すぐる君に寄せて」）: タブは上の中央・青い下線 */}
       <div className="flex gap-x-1 overflow-x-auto border-b border-slate-200 bg-white sm:flex-wrap sm:justify-center sm:gap-x-2">
-        {TABS.map(([k, l]) => (
+        {/* ★ 第1889便: TOP はスマホだけ */}
+        {([['top', 'TOP'] as [Tab, string], ...TABS]).map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
-            className={`-mb-px flex-none whitespace-nowrap border-b-[3px] px-3 py-2.5 text-[15px] font-black sm:px-5 sm:py-3 sm:text-[17px] ${tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-700 hover:text-blue-600'}`}>{l}</button>
+            className={`${k === 'top' ? 'sm:hidden ' : ''}-mb-px flex-none whitespace-nowrap border-b-[3px] px-3 py-2.5 text-[15px] font-black sm:px-5 sm:py-3 sm:text-[17px] ${tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-700 hover:text-blue-600'}`}>{l}</button>
         ))}
       </div>
 
@@ -138,11 +150,15 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
               </a>
             </div>
           )}
-          {tab !== 'help' && <Tiles cur={d.totals} prev={d.prev} usage={d.usage} />}
+          {/* ★ 第1889便: 数のタイル — スマホは TOP だけ／PC は今までどおり見方以外のタブで */}
+          {tab !== 'help' && (
+            <div className={tab === 'top' ? '' : 'hidden sm:block'}><Tiles cur={d.totals} prev={d.prev} usage={d.usage} /></div>
+          )}
 
-          {/* ひとこと（サマリーだけ） */}
+          {/* ひとこと（サマリーだけ）。★ 第1889便: スマホはグラフの下・PC はグラフの上（今までどおり） */}
+          <div className="flex flex-col gap-4">
           {tab === 'summary' && d.insights.length > 0 && (
-            <div className="border-l-4 border-blue-500 bg-blue-50 px-4 py-3">
+            <div className="order-2 border-l-4 border-blue-500 bg-blue-50 px-4 py-3 sm:order-1">
               <p className="mb-1 text-[12px] font-black text-blue-800">この期間のひとこと</p>
               <ul className="space-y-0.5 text-[14px] leading-relaxed text-slate-800">
                 {d.insights.map((s, i) => <li key={i}>・{s}</li>)}
@@ -150,7 +166,8 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
             </div>
           )}
 
-          {tab === 'summary' && <Summary d={d} />}
+          {tab === 'summary' && <div className="order-1 sm:order-2"><Summary d={d} /></div>}
+          </div>
           {tab === 'sources' && <Sources d={d} />}
           {tab === 'pages' && <Pages d={d} />}
           {tab === 'therapists' && <Therapists d={d} />}
