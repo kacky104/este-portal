@@ -576,6 +576,8 @@ export type HpLinkBanner = {
   label:     string; // 文字リンクの表示文字／画像バナーの alt
   /** ★ 第1883便: 画像バナーの表示の大きさ（横幅の上限）。無し＝元の画像の大きさのまま */
   size?:     HpLinkSize;
+  /** ★ 第1932便（2026-11-11・バニラ）: 配られたコードに rel="nofollow" があった＝リンクに nofollow を付ける（付けるよう求めるサイトがある） */
+  nofollow?: boolean;
 };
 
 /** ★ 第1883便（カッキーさん）: 小 300px・中 468px（よくあるバナーの幅）・大 728px。元の画像より大きくはしない（上限だけ） */
@@ -603,7 +605,7 @@ export function sanitizeHpLinkBanners(raw: unknown): HpLinkBanner[] {
     // 画像も文字も無いものは表示できないので捨てる
     if (image === '' && label === '') continue;
     const size = HP_LINK_SIZES.some((s) => s.key === o.size) ? (o.size as HpLinkSize) : undefined;
-    out.push(size ? { image_url: image, link, label, size } : { image_url: image, link, label });
+    out.push({ image_url: image, link, label, ...(size ? { size } : {}), ...(o.nofollow === true ? { nofollow: true } : {}) });
   }
   return out;
 }
@@ -628,13 +630,13 @@ export function parseHpLinkBanners(code: string): HpLinkBanner[] {
     return m ? unescape(m[2] ?? m[3] ?? m[4] ?? '') : '';
   };
   const out: HpLinkBanner[] = [];
-  const push = (image: string, link: string, label: string) => {
+  const push = (image: string, link: string, label: string, nofollow = false) => {
     if (out.length >= MAX_HP_LINK_BANNERS) return;
     const img = isSafeImageUrl(image) ? image : '';
     const href = isSafeHttpUrl(link) ? link : '';
     const text = label.replace(/\s+/g, ' ').trim().slice(0, MAX_HP_LINK_LABEL_LEN);
     if (img === '' && text === '') return;
-    out.push({ image_url: img, link: href, label: text });
+    out.push({ image_url: img, link: href, label: text, ...(nofollow && href ? { nofollow: true } : {}) });
   };
 
   // <a …>…</a> を順に拾う（入れ子は想定しない＝配布コードは単純な形のため）
@@ -648,7 +650,7 @@ export function parseHpLinkBanners(code: string): HpLinkBanner[] {
     const imgTag = /<img\b[^>]*>/i.exec(inner)?.[0] ?? '';
     const image = attr(imgTag, 'src');
     const label = imgTag !== '' ? attr(imgTag, 'alt') : inner.replace(/<[^>]*>/g, '');
-    push(image, href, unescape(label));
+    push(image, href, unescape(label), /\bnofollow\b/i.test(attr(`<a${m[1]}>`, 'rel')));
   }
   // <a> が無く <img> だけのコード（リンクなしバナー）
   if (!matched) {

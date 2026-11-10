@@ -385,7 +385,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
             {/* ★ 第1883便: 大きさ（小・中・大）は hp-link-sm/md/lg（横幅の上限）。無ければ元の大きさ */}
             {site.link_banners.map((l, i) =>
               l.link ? (
-                <a key={i} className={'hp-link-item' + (l.size ? ' hp-link-' + l.size : '')} href={l.link} target="_blank" rel="noopener">
+                <a key={i} className={'hp-link-item' + (l.size ? ' hp-link-' + l.size : '')} href={l.link} target="_blank" rel={l.nofollow ? 'nofollow noopener' : 'noopener'}>
                   {l.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={l.image_url} alt={l.label} loading="lazy" />
