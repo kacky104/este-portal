@@ -80,6 +80,14 @@ const COMMON = `
 }
 .hp-rule { display: none; }
 .hp-embed { display: block; width: 100%; border: none; background: #fff; }
+/* ★ 第1897便: 写メ日記の埋め込みは件数（1〜12・3列の正方形）から高さを決める。
+   埋め込みの中は 余白16px×2・列の間8px×2 なので、1枚の一辺 = (iframe の幅 - 48px) / 3。
+   見出しと「もっと見る」と枠線のぶんを足して少しゆとりを持たせる。cqw が使えないブラウザは今までの 480px。 */
+.hp-sec-diary { container-type: inline-size; }
+.hp-embed-diary { height: 480px; }
+@supports (height: 1cqw) {
+  .hp-embed-diary { height: calc(var(--hp-diary-rows, 4) * ((100cqw - 52px) / 3) + (var(--hp-diary-rows, 4) - 1) * 8px + 112px); }
+}
 .hp-more { display: inline-block; margin-top: 12px; text-decoration: none; font-size: 11px; font-weight: 700; }
 .hp-note { margin-top: 14px; font-size: 10px; opacity: .7; }
 /* 料金表の備考（salons.course_note）。改行を保持し、ひな形の文字色をそのまま継ぐ。

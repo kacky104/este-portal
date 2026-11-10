@@ -288,7 +288,14 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {visible.diary && (
         <section id="diary" data-hp-reveal className={secCls('diary', 'hp-sec-diary', false)} style={ord('diary')}>
           <SecHead no="05" en="Diary" jp="写メ日記" />
-          <iframe className="hp-embed" src={`/embed/salon/${salon.id}/diary`} title="写メ日記" loading="lazy" style={{ height: 480 }} />
+          {/* ★ 第1897便: 管理画面の件数（1〜12）で出す。高さは件数の段数（3列）から CSS で合わせる（styles.ts の .hp-embed-diary） */}
+          <iframe
+            className="hp-embed hp-embed-diary"
+            src={`/embed/salon/${salon.id}/diary/n/${b.diary.count}`}
+            title="写メ日記"
+            loading="lazy"
+            style={{ ['--hp-diary-rows' as string]: Math.ceil(b.diary.count / 3) } as React.CSSProperties}
+          />
           <a className="hp-more" href={`${salonUrl}/diary`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
