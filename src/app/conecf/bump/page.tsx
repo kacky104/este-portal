@@ -193,10 +193,10 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
       {autoOpen && (
         <div className="mt-3 space-y-3">
           <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-slate-600">
-            <input type="time" step={600} value={start} onChange={(e) => setStart(e.target.value)}
+            <input type="time" step={60} value={start} onChange={(e) => setStart(e.target.value)}
               className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`} />
             <span className="font-bold">〜</span>
-            <input type="time" step={600} value={end} onChange={(e) => setEnd(e.target.value)}
+            <input type="time" step={60} value={end} onChange={(e) => setEnd(e.target.value)}
               className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`} />
             <span className="font-bold">の間</span>
             <select value={interval} onChange={(e) => setIntervalMin(Number(e.target.value))}
@@ -345,10 +345,10 @@ function AllSlotsCard({ site, slots, enabled, onToast, onSaved }: {
         {autoOpen && (
           <div className="mt-3 space-y-3">
             <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-slate-600">
-              <input type="time" step={600} value={start} onChange={(e) => setStart(e.target.value)}
+              <input type="time" step={60} value={start} onChange={(e) => setStart(e.target.value)}
                 className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`} />
               <span className="font-bold">〜</span>
-              <input type="time" step={600} value={end} onChange={(e) => setEnd(e.target.value)}
+              <input type="time" step={60} value={end} onChange={(e) => setEnd(e.target.value)}
                 className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`} />
               <span className="font-bold">の間</span>
               <select value={interval} onChange={(e) => setIntervalMin(Number(e.target.value))}
