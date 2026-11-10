@@ -2,6 +2,7 @@
 
 import { hasConecfEsutamaOptions } from './conecfEsutamaOptions';
 import { hasConecfZenkokuOptions } from './conecfZenkokuOptions';
+import { hasConecfVanillaBlog } from './conecfVanillaBlog';
 import { hasConecfEkichikaMovies } from './conecfEkichikaMovies';
 import { hasConecfEkichikaMagazines } from './conecfEkichikaMagazines';
 import { hasConecfEkichikaRankImages } from './conecfEkichikaRankImages';
@@ -179,11 +180,11 @@ export async function setConecfActingSalon(input: { salonId: number | null }): P
  * ★ ココアの出し分け: 駅ちかの ID・PASS がある店、または自動投稿がオンの店（第474便）。
  *   ★ 読めなければ出す（★ 止める道を隠さない）。★ 赤帯は読めなければ空（★ 画面は止めない）。
  */
-export type ConecfShellState = { access: ConecfAccess; alerts: MediaLinkAlert[]; cocoaNav: boolean; /** ★ 2026-11-04: シフト管理表を出すか（SHIFT_SALON_IDS） */ shiftNav: boolean; /** ★ 第1740便: 新しい希望の数（左メニューのバッジ） */ shiftNew: number; /** ★ 第1799便: エステ魂オプションを出すか（運営が ON にした店だけ） */ esutamaOptNav?: boolean; /** ★ 第1831便: 全国エステランキングのニュース・おすすめを出すか */ zenkokuOptNav?: boolean; /** ★ 第1840便: 駅ちか動画投稿を出すか */ ekiMovieNav?: boolean; /** ★ 第1844便: 駅ちかプラチナムマガジンを出すか */ ekiMagazineNav?: boolean; /** ★ 第1846便: 駅ちかの店舗メイン／ランキングを出すか */ ekiRankImgNav?: boolean };
+export type ConecfShellState = { access: ConecfAccess; alerts: MediaLinkAlert[]; cocoaNav: boolean; /** ★ 2026-11-04: シフト管理表を出すか（SHIFT_SALON_IDS） */ shiftNav: boolean; /** ★ 第1740便: 新しい希望の数（左メニューのバッジ） */ shiftNew: number; /** ★ 第1799便: エステ魂オプションを出すか（運営が ON にした店だけ） */ esutamaOptNav?: boolean; /** ★ 第1831便: 全国エステランキングのニュース・おすすめを出すか */ zenkokuOptNav?: boolean; /** ★ 第1840便: 駅ちか動画投稿を出すか */ ekiMovieNav?: boolean; /** ★ 第1844便: 駅ちかプラチナムマガジンを出すか */ ekiMagazineNav?: boolean; /** ★ 第1846便: 駅ちかの店舗メイン／ランキングを出すか */ ekiRankImgNav?: boolean; /** ★ 第1903便: バニラ店長ブログを出すか */ vanillaBlogNav?: boolean };
 
 export async function getConecfShellState(): Promise<ConecfShellState> {
   const access = await getConecfAccess();
-  if (!access.ok || access.salonId == null) return { access, alerts: [], cocoaNav: false, shiftNav: false, shiftNew: 0, esutamaOptNav: false, zenkokuOptNav: false, ekiMovieNav: false, ekiMagazineNav: false, ekiRankImgNav: false };
+  if (!access.ok || access.salonId == null) return { access, alerts: [], cocoaNav: false, shiftNav: false, shiftNew: 0, esutamaOptNav: false, zenkokuOptNav: false, ekiMovieNav: false, ekiMagazineNav: false, ekiRankImgNav: false, vanillaBlogNav: false };
   const svc = createServiceClient();
   const salonId = access.salonId;
   const [alerts, cocoaNav] = await Promise.all([
@@ -202,8 +203,8 @@ export async function getConecfShellState(): Promise<ConecfShellState> {
   const shiftNav = shiftAllowedForSalon(salonId);
   // ★ 2026-11-05: メニューは開ける店ならオフでも出す（そこでオンにする）。バッジはオンの店だけ
   const shiftNew = shiftNav && (await readShiftEnabled(svc, salonId)) ? await countShiftNew(svc, salonId) : 0;
-  const [esutamaOptNav, zenkokuOptNav, ekiMovieNav, ekiMagazineNav, ekiRankImgNav] = await Promise.all([hasConecfEsutamaOptions(salonId), hasConecfZenkokuOptions(salonId), hasConecfEkichikaMovies(salonId), hasConecfEkichikaMagazines(salonId), hasConecfEkichikaRankImages(salonId)]);
-  return { access, alerts, cocoaNav, shiftNav, shiftNew, esutamaOptNav, zenkokuOptNav, ekiMovieNav, ekiMagazineNav, ekiRankImgNav };
+  const [esutamaOptNav, zenkokuOptNav, ekiMovieNav, ekiMagazineNav, ekiRankImgNav, vanillaBlogNav] = await Promise.all([hasConecfEsutamaOptions(salonId), hasConecfZenkokuOptions(salonId), hasConecfEkichikaMovies(salonId), hasConecfEkichikaMagazines(salonId), hasConecfEkichikaRankImages(salonId), hasConecfVanillaBlog(salonId)]);
+  return { access, alerts, cocoaNav, shiftNav, shiftNew, esutamaOptNav, zenkokuOptNav, ekiMovieNav, ekiMagazineNav, ekiRankImgNav, vanillaBlogNav };
 }
 
 /**

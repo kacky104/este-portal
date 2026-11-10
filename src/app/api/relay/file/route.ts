@@ -2,6 +2,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { PLACEHOLDER_BUCKET, isPlaceholderPath } from '@/app/lib/media/therapistPhotoFile';
 import { isZenkokuNewsImagePath } from '@/lib/zenkokuOption';
 import { isEsutamaPostImagePath } from '@/lib/esutamaPost';
+import { isVanillaBlogImagePath } from '@/lib/vanillaBlog';
 
 // ── 中継役が画像を取りに来る口（第106便・案B）────────────────────────────
 //   GET /api/relay/file?bucket=<bucket>&path=<path>  (Authorization: Bearer <CRON_SECRET>)
@@ -42,7 +43,9 @@ export async function GET(req: Request) {
   const postImageOk = bucket === 'salon-images' && isEsutamaPostImagePath(path);
   // ★ 第1831便: 全国エステランキングのニュースの画像（salon-images の <店>/zenkoku_news_ だけ）
   const zenkokuNewsOk = bucket === 'salon-images' && isZenkokuNewsImagePath(path);
-  if (!ALLOWED_BUCKETS.includes(bucket) && !placeholderOk && !postImageOk && !zenkokuNewsOk) {
+  // ★ 第1903便: バニラの店長ブログの画像（salon-images の <店>/vanilla_blog_ だけ）
+  const vanillaBlogOk = bucket === 'salon-images' && isVanillaBlogImagePath(path);
+  if (!ALLOWED_BUCKETS.includes(bucket) && !placeholderOk && !postImageOk && !zenkokuNewsOk && !vanillaBlogOk) {
     return Response.json({ ok: false, error: '取りに来てよいバケットではない' }, { status: 400 });
   }
   if (!SAFE_PATH.test(path) || path.includes('..') || path.includes('//')) {

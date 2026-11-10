@@ -49,6 +49,8 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   'ekimovie_form', 'ekimovie_list', 'ekimovie_verify',  // ★ 第1840便
   'ekimag_form', 'ekimag_verify',  // ★ 第1844便
   'ekirank_read', 'ekirank_verify',  // ★ 第1846便
+  // ★ 第1903便: バニラ。ログインと読むだけの段。確認画面（vanilla_blog_confirm）はまだ載らない（画像を仮置きするだけ）
+  'vanilla_login', 'vanilla_top', 'vanilla_blog_form', 'vanilla_blog_confirm', 'vanilla_blog_list',
   // ── 疎通確認 ──
   'selftest',
 ];
@@ -85,6 +87,7 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'ekimovie_delete', 'ekimovie_post',  // ★ 第1840便: 記事が消える・1件増える（送り直さない）
   'ekimag_post',  // ★ 第1844便: 会員にマガジンが1通届く（送り直さない）
   'ekirank_set',  // ★ 第1846便: 店舗メイン／ランキングの子が変わる（送り直さない）
+  'vanilla_blog_post', 'vanilla_blog_delete',  // ★ 第1903便: 店長ブログが1本増える・1本消える（送り直さない）
   'zenkoku_news_set', 'zenkoku_rec_set',  // ★ 第1831便: ニュースが1件増える・おすすめの月の回数が減る（送り直さない）
 ];
 

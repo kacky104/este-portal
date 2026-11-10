@@ -35,7 +35,8 @@ import { assertRelayMultipart, type RelayMultipart } from './relayMultipart';
  * ★ 2026-09-02（第109便）で estama.jp（エステ魂）を追加。★ VPS 側（scripts/relay.sh）も同時に。
  * ★ 2026-11-07（第1769便）で www.esthe-ranking.jp（全国エステランキング）を追加。★ VPS 側（scripts/relay.sh）も同時に。
  */
-export const RELAY_ALLOWED_HOSTS: readonly string[] = ['ranking-deli.jp', 'eslove.jp', 'estama.jp', 'www.esthe-ranking.jp'];
+// ★ 2026-11-10（第1903便）で qzin.jp（バニラ）を追加。★ VPS 側（scripts/relay.sh）も同時に。
+export const RELAY_ALLOWED_HOSTS: readonly string[] = ['ranking-deli.jp', 'eslove.jp', 'estama.jp', 'www.esthe-ranking.jp', 'qzin.jp'];
 
 /**
  * ★ 送ってよいリクエストヘッダー。ここに無いものは落とす。

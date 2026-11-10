@@ -55,7 +55,7 @@ const ICON_TONE: Partial<Record<ConecfNavKey, string>> = {
   girls: 'text-pink-500', girlsSync: 'text-pink-500', girlsSort: 'text-pink-500', placeholder: 'text-pink-500',
   now: 'text-pink-500',
   schedule: 'text-emerald-600', scheduleSync: 'text-emerald-600', shift: 'text-emerald-600', bump: 'text-emerald-600',
-  diary: 'text-amber-500', announce: 'text-amber-500', news: 'text-amber-500', cocoa: 'text-amber-500',
+  diary: 'text-amber-500', announce: 'text-amber-500', news: 'text-amber-500', cocoa: 'text-amber-500', vanillaBlog: 'text-amber-500',
   // ★ 第1858便: 記録＝紫・ご案内＝水色（ほかのまとまりと被らない色）
   log: 'text-violet-600', matrix: 'text-violet-600', analytics: 'text-violet-600',
   guide: 'text-sky-600', qa: 'text-sky-600', contact: 'text-sky-600',
@@ -83,6 +83,7 @@ function NavIcon({ k }: { k: ConecfNavKey }) {
     case 'news':         return (<svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>);
     case 'announce':     return (<svg {...p}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>);
     case 'cocoa':        return (<svg {...p}><path d="M4 8h13a3 3 0 0 1 0 6h-1" /><path d="M4 8v7a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V8z" /><path d="M8 2v2M12 2v2" /></svg>);
+    case 'vanillaBlog':  return (<svg {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>);
     case 'log':          return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>);
     case 'analytics':    return (<svg {...p}><path d="M3 3v18h18" /><path d="M7 15l4-4 3 3 5-6" /></svg>);
     case 'matrix':       return (<svg {...p}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M3 15h18M9 4v16" /></svg>);

@@ -39,6 +39,13 @@ export default function ConecfAutoHubPage() {
         { href: '/zenkoku-options', label: 'ニュース・おすすめセラピスト', note: 'ニュースの投稿と、おすすめセラピストの入れ替え', on: st?.zenkokuOptNav ?? false },
       ],
     },
+    {
+      site: 'バニラ',
+      items: [
+        // ★ 第1903便
+        { href: '/vanilla-blog', label: '店長ブログ', note: '求人サイト「バニラ」の店長ブログを、決めた時刻に順番に投稿（前の記事は消す）', on: st?.vanillaBlogNav ?? false },
+      ],
+    },
   ];
   const shown = groups.map((g) => ({ ...g, items: g.items.filter((i) => i.on) })).filter((g) => g.items.length > 0);
   return (

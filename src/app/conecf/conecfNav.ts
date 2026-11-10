@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync' | 'girlsSort' | 'placeholder'
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
-  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'ekiMagazine' | 'ekiRankImg' | 'announce' | 'cocoa'
+  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'ekiMagazine' | 'ekiRankImg' | 'announce' | 'cocoa' | 'vanillaBlog'
   | 'log' | 'matrix' | 'analytics'
   | 'guide' | 'qa' | 'contact';
 
@@ -51,6 +51,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）
   { key: 'announce',     label: 'フクエスお知らせ',       href: '/announce' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
+  // ★ 第1903便: バニラの店長ブログ。運営が ON にした店だけ（ConecfShell の vanillaBlogNav）。サイト自動更新一覧の中
+  { key: 'vanillaBlog',  label: 'バニラ店長ブログ',       href: '/vanilla-blog' },
   { key: 'log',          label: '更新結果',               href: '/log',           group: '記録' },
   { key: 'matrix',       label: '反映の早見表',           href: '/matrix' },
   // ★ 第1792便（カッキーさん）: 公式ホームページ（フクエスサイト）のアクセス解析
@@ -63,7 +65,7 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
 
 /** ★ 第1847便: 「サイト自動更新」の中にまとめた画面（サイドバーには出さず、開いているときは「サイト自動更新」を光らせる） */
 //   ★ 第1848便: 駅ちか新着情報・ココア店長ブログも駅ちかの中へ（カッキーさん）
-export const AUTO_HUB_CHILDREN: readonly ConecfNavKey[] = ['news', 'ekiRankImg', 'ekiMovie', 'ekiMagazine', 'cocoa', 'esutamaOpt', 'zenkokuOpt'];
+export const AUTO_HUB_CHILDREN: readonly ConecfNavKey[] = ['news', 'ekiRankImg', 'ekiMovie', 'ekiMagazine', 'cocoa', 'esutamaOpt', 'zenkokuOpt', 'vanillaBlog'];
 
 export function conecfNavItem(key: ConecfNavKey): ConecfNavItem {
   return CONECF_NAV.find((n) => n.key === key) ?? CONECF_NAV[0];

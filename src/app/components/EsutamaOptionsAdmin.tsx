@@ -10,6 +10,7 @@ import { adminGetZenkokuOptions, adminSetZenkokuOption } from '@/app/actions/con
 import { adminGetEkichikaMovies, adminSetEkichikaMovies } from '@/app/actions/conecfEkichikaMovies';
 import { adminGetEkichikaMagazines, adminSetEkichikaMagazines } from '@/app/actions/conecfEkichikaMagazines';
 import { adminGetEkichikaRankImages, adminSetEkichikaRankImages } from '@/app/actions/conecfEkichikaRankImages';
+import { adminGetVanillaBlog, adminSetVanillaBlog } from '@/app/actions/conecfVanillaBlog';
 
 type SalonOption = { id: number; name: string };
 const KEYS: Array<[string, string]> = [['shop_boost', '集客ブースト'], ['cast_appeal', 'セラピストアピール'], ['job_appeal', '求人ワンクリックアピール'], ['job_now', '本日体験入店']];
@@ -28,6 +29,7 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
   const [movieEnabled, setMovieEnabled] = useState(false);
   const [magEnabled, setMagEnabled] = useState(false);
   const [rankImgEnabled, setRankImgEnabled] = useState(false);
+  const [vanillaEnabled, setVanillaEnabled] = useState(false);
 
   useEffect(() => {
     if (!salonId) { setEnabled({}); return; }
@@ -55,6 +57,11 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
     adminGetEkichikaRankImages(salonId).then((r) => {
       if (!alive) return;
       if (r.ok) setRankImgEnabled(r.data.enabled); else onToast(r.error);
+    });
+    // ★ 第1903便: バニラ店長ブログ（conecf_vanilla_blog）
+    adminGetVanillaBlog(salonId).then((r) => {
+      if (!alive) return;
+      if (r.ok) setVanillaEnabled(r.data.enabled); else onToast(r.error);
     });
     return () => { alive = false; };
   }, [salonId, onToast]);
@@ -120,6 +127,10 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
               <span className="font-bold">{l}</span>
             </label>
           ))}
+          <label className="flex items-center gap-3 px-3 py-2">
+            <input type="checkbox" disabled={busy} checked={vanillaEnabled} onChange={async (e) => { const on = e.target.checked; setBusy(true); const r = await adminSetVanillaBlog({ salonId, enabled: on }); setBusy(false); if (!r.ok) { onToast(r.error); return; } setVanillaEnabled(on); onToast(on ? 'ON にしました' : 'OFF にしました（その店の自動も止めました）'); }} />
+            <span className="font-bold">バニラ：店長ブログ</span>
+          </label>
           {POST_KEYS.map(([k, l]) => (
             <label key={k} className="flex items-center gap-3 px-3 py-2">
               <input type="checkbox" disabled={busy} checked={postEnabled[k] === true} onChange={(e) => togglePost(k, e.target.checked)} />

@@ -9,6 +9,7 @@ import { normalizeMovieSchedule, shouldPostEkichikaMovie, movieRowProblem, isCon
 import { normalizeMagazineSchedule, shouldPostEkichikaMagazine, magazineRowProblem } from '@/lib/ekichikaMagazine';
 import { normalizeRankImagePairs, normalizeRankImageInterval, shouldRotateRankImage } from '@/lib/ekichikaRankImage';
 import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
+import { shouldRunVanillaBlog, normalizeVanillaBlogItems, pickVanillaBlogItem } from '@/lib/vanillaBlog';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -289,6 +290,42 @@ export async function POST(req: Request) {
         } catch (e) {
           console.error('[ekichika-magazine] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
           await svc.from('conecf_ekichika_magazines').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
+          results.push({ ...base, reason: 'start_failed' });
+        }
+      }
+    }
+  }
+
+  // ★★ 第1903便: バニラの店長ブログ（ベンリーから移す）。★ crontab はそのまま（この周に入れた）
+  //   ★ 見るのは、運営が ON（admin_enabled）にして、店舗様が自動を入れた（auto）行だけ。★ 表が無い（SQL 未適用）ときは黙って飛ばす
+  {
+    const vb = await svc.from('conecf_vanilla_blog')
+      .select('salon_id, times_min, items, next_item, delete_old, last_blog_id, read_at, last_at, salons!inner(conecf_enabled_at)')
+      .eq('admin_enabled', true).eq('auto', true)
+      .not('salons.conecf_enabled_at', 'is', null);
+    if (!vb.error) {
+      for (const o of vb.data ?? []) {
+        const sid = Number(o.salon_id);
+        const base = { salonId: sid, provider: 'vanilla:blog', slot: 1 };
+        const judge = shouldRunVanillaBlog({
+          now, timesMin: Array.isArray(o.times_min) ? (o.times_min as number[]).map(Number) : [],
+          state: { lastAt: (o.last_at as string | null) ?? null, readAt: (o.read_at as string | null) ?? null },
+        });
+        if (!judge.run || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+        const pick = pickVanillaBlogItem(normalizeVanillaBlogItems(o.items), Number(o.next_item ?? 0));
+        if (!pick) { results.push({ ...base, reason: 'no_items' }); continue; }
+        const { error: mErr } = await svc.from('conecf_vanilla_blog').update({ read_at: now.toISOString() }).eq('salon_id', sid);
+        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
+        try {
+          const f = await startRelayFlow({
+            salonId: sid, provider: 'vanilla', slot: 1, intent: 'bump_auto', actor: 'cron:vanilla-blog',
+            vanillaBlog: { item: pick.item, index: pick.index, deleteOld: o.delete_old !== false, prevId: (o.last_blog_id as string | null) ?? null },
+          });
+          // ★ 始められなかった（別の流れが走っていた等）ときは「始めた時刻」を戻す（5分後の周でまた試す）
+          if (!f.ok) await svc.from('conecf_vanilla_blog').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid);
+          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+        } catch (e) {
+          console.error('[vanilla-blog] 流れを始められなかった', sid, e instanceof Error ? e.message : 'unknown');
           results.push({ ...base, reason: 'start_failed' });
         }
       }

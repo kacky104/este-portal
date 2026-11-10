@@ -140,6 +140,8 @@ export type RelayPurpose =
   | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify'
   | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify'
   | 'ekirank_read' | 'ekirank_set' | 'ekirank_verify'
+  // ★ 第1903便: バニラ。★ vanilla_blog_post / vanilla_blog_delete だけが相手を書き換える（送り直さない）
+  | 'vanilla_login' | 'vanilla_top' | 'vanilla_blog_form' | 'vanilla_blog_confirm' | 'vanilla_blog_post' | 'vanilla_blog_list' | 'vanilla_blog_delete'
   | 'selftest';
 
 export type LeasedJob = {

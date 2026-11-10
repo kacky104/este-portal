@@ -140,6 +140,8 @@ import { ekichikaRankImageFirstStep, afterEkirankRead, afterEkirankSet, afterEki
 import { afterZenkokuDelList, afterZenkokuGirlDelete } from './zenkokuGirlDeleteFlow';
 import { afterZenkokuCreateList, afterZenkokuCreateForm, afterZenkokuCreateSave, afterZenkokuCreateFind, afterZenkokuCreateDetail, afterZenkokuCreatePhoto } from './zenkokuGirlCreateFlow';
 import { afterZenkokuNewsRead, afterZenkokuNewsSet, afterZenkokuNewsVerify, afterZenkokuRecRead, afterZenkokuRecSet, afterZenkokuRecVerify } from './zenkokuOptionFlow';
+// ★ 第1903便: バニラ（qzin.jp）の段（段名 'vanilla_…' で分けている）
+import { afterVanillaLogin, afterVanillaTop, afterVanillaBlogForm, afterVanillaBlogConfirm, afterVanillaBlogPost, afterVanillaBlogList, afterVanillaBlogDelete } from './vanillaBlogFlow';
 import type { AuditDetail, MediaAuditEvent, MediaAuditOutcome } from './mediaAudit';
 import { AUDIT_SHOP_HIDDEN } from './mediaAudit';   // ★ 第1305便: 上位表示の「読んだだけ」の行をたたむ
 import {
@@ -1063,6 +1065,11 @@ export type RelayFlowContext = {
   /** ★ 第1865便: 全国エステランキングへ1人登録（lib/zenkokuGirlCreateFlow.ts）。before・gid・slots・photoAt・verify は段の途中で入る */
   zenkokuCreate?: { therapistId: number; values: { nickname: string; age: string; tall: string; bust: string; waist: string; hip: string; cup: string }; photos: Array<{ bucket: string; path: string }>; before?: string[]; gid?: string; slots?: number[]; photoAt?: number; verify?: boolean };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; readAt?: string; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number; target?: { gid: string; name: string; index: number } };
+  // ── ここから下は バニラ（provider='vanilla'）のときだけ入る（第1903便）──
+  /** ログインの印（URL の entry_sid・entry_time）。★ ログインの応答で入る。以後のページはこの2つを付けて開く */
+  vanilla?: { sid: string; time: string };
+  /** 店長ブログの1本（lib/vanillaBlogFlow.ts）。index … items の何番目か／prevId … 前にコネックエフが出した記事（消す相手）／newId … 今出した記事 */
+  vanillaBlog?: { item: { title: string; body: string; image: string | null }; index: number; deleteOld: boolean; prevId: string | null; force?: boolean; readAt?: string; newId?: string };
   /** いま何日目か（zenkokuWindow の添字） */
   zenkokuDayIndex?: number;
   /** 日付 → girl id → あるべき姿（'HH:MM-HH:MM' ／ '─'）。★ DB 側が名簿を読んだあと入れる。★ ここに無い人は触らない */
@@ -1182,7 +1189,9 @@ export type FlowNextRequest = {
     // ★ 第1844便: 駅ちかのプラチナムマガジン。★ ekimag_post だけが相手を書き換える
     | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify'
     // ★ 第1846便: 駅ちかの店舗メイン／ランキング。★ ekirank_set だけが相手を書き換える
-    | 'ekirank_read' | 'ekirank_set' | 'ekirank_verify';
+    | 'ekirank_read' | 'ekirank_set' | 'ekirank_verify'
+    // ★ 第1903便: バニラ（ログイン・店長ブログ）。★ vanilla_blog_post / vanilla_blog_delete だけが相手を書き換える
+    | 'vanilla_login' | 'vanilla_top' | 'vanilla_blog_form' | 'vanilla_blog_confirm' | 'vanilla_blog_post' | 'vanilla_blog_list' | 'vanilla_blog_delete';
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
@@ -1228,6 +1237,8 @@ export type FlowOutcome =
       /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの結果。★ 表（conecf_ekichika_rankimgs）に書くのは呼び出し側 */
       ekichikaRankImage?: { index: number; nextIndex: number; done: boolean; outcome: string; lastAt: string | null };
       zenkokuOpt?: { key: string; readAt: string; done: boolean; outcome: string; lastAt: string | null; nextIndex: number | null; remaining: number | null };
+      /** ★ 第1903便: バニラの店長ブログの結果。★ 表（conecf_vanilla_blog）に書くのは呼び出し側 */
+      vanillaBlog?: { readAt: string; done: boolean; outcome: string; lastAt: string | null; nextIndex: number | null; blogId: string | null; deleted: boolean };
       /**
        * ★★★ 媒体に1人 登録できた（第232便＝エステ魂／第234便＝駅ちか）。★ **番号を表に書くのは呼び出し側**。
        *   ★ このファイルは DB を知らない。★ 「誰の番号がいくつか」を返すところまでが仕事。
@@ -1852,6 +1863,21 @@ function advanceFlowStep(
       return afterEkirankSet(input, ctx);
     case 'ekirank_verify':
       return afterEkirankVerify(input, ctx);
+    // ── バニラ（第1903便）★ 段名で分けている。既存の case には触れていない ──
+    case 'vanilla_login':
+      return afterVanillaLogin(input, ctx);
+    case 'vanilla_top':
+      return afterVanillaTop(input, ctx);
+    case 'vanilla_blog_form':
+      return afterVanillaBlogForm(input, ctx);
+    case 'vanilla_blog_confirm':
+      return afterVanillaBlogConfirm(input, ctx);
+    case 'vanilla_blog_post':
+      return afterVanillaBlogPost(input, ctx);
+    case 'vanilla_blog_list':
+      return afterVanillaBlogList(input, ctx);
+    case 'vanilla_blog_delete':
+      return afterVanillaBlogDelete(input, ctx);
     case 'zenkoku_news_read':
       return afterZenkokuNewsRead(input, ctx);
     case 'zenkoku_news_set':

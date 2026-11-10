@@ -118,6 +118,7 @@ import {
 import type { EsuloveTherapistRow } from '@/lib/esuloveTherapistParse';
 // ★ 第1769便: 全国エステランキング
 import { buildZenkokuLoginPageRequest, buildZenkokuLoginRequest } from '@/lib/zenkokuRequests';
+import { buildVanillaLoginRequest } from '@/lib/vanillaBlog';
 import { zenkokuFirstDayRequest, ZENKOKU_WINDOW_DAYS, ZENKOKU_WRITE_ENABLED } from '@/lib/zenkokuFlow';
 import { toZenkokuRange, type ZenkokuLoginForm, type ZenkokuGirl } from '@/lib/zenkokuParse';
 import { normalizeName as normalizeMediaName } from '@/lib/mediaMatch';
@@ -130,7 +131,8 @@ import { normalizeName as normalizeMediaName } from '@/lib/mediaMatch';
  */
 // ★ 2026-09-02（第109便）でエステ魂を追加。★ ログイン → 名簿 → 出勤表（人ごと）→ 保存 → 照合。
 // ★ 2026-11-07（第1769便）で全国エステランキングを追加。★ ログイン → セラピスト一覧 → 日ごとの出勤（7日）。書き込みは zenkokuFlow.ZENKOKU_WRITE_ENABLED が開けるまで読むだけ
-const SUPPORTED_PROVIDERS = ['ekichika', 'esulove', 'esutama', 'zenkoku'] as const;
+// ★ 2026-11-10（第1903便）でバニラを追加。★ ログイン → 管理画面トップ（接続テスト）／店長ブログの投稿だけ
+const SUPPORTED_PROVIDERS = ['ekichika', 'esulove', 'esutama', 'zenkoku', 'vanilla'] as const;
 
 /**
  * 媒体ごとの「最初の段」。
@@ -140,7 +142,12 @@ const SUPPORTED_PROVIDERS = ['ekichika', 'esulove', 'esutama', 'zenkoku'] as con
 function firstStep(
   provider: string,
   cred: { shopId: string; loginId: string; password: string },
-): { purpose: 'login' | 'esulove_login' | 'esutama_login_page' | 'zenkoku_login_page'; method: 'GET' | 'POST'; url: string; headers: Record<string, string>; body: string } {
+): { purpose: 'login' | 'esulove_login' | 'esutama_login_page' | 'zenkoku_login_page' | 'vanilla_login'; method: 'GET' | 'POST'; url: string; headers: Record<string, string>; body: string } {
+  if (provider === 'vanilla') {
+    // ★ 第1903便: バニラのログインは ID とパスワードだけ（隠し値なし）。いきなり POST する（エステラブと同じ）
+    const r = buildVanillaLoginRequest({ loginId: cred.loginId, password: cred.password });
+    return { purpose: 'vanilla_login', method: 'POST', url: r.url, headers: r.headers, body: r.body };
+  }
   if (provider === 'zenkoku') {
     // ★ 第1769便: 先にログイン画面を GET して隠し値3つと Cookie を拾う。★ 認証情報はまだ使わない
     const r = buildZenkokuLoginPageRequest();
@@ -439,6 +446,8 @@ export async function startRelayFlow(params: {
   /** ★ 第1865便: 全国エステランキングへ1人登録（intent='girl_create'・provider='zenkoku'） */
   zenkokuCreate?: { therapistId: number; values: { nickname: string; age: string; tall: string; bust: string; waist: string; hip: string; cup: string }; photos: Array<{ bucket: string; path: string }> };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number };
+  /** ★ 第1903便: バニラの店長ブログ（intent は bump_auto / bump_push・provider='vanilla'）。★ 結果は conecf_vanilla_blog に書く */
+  vanillaBlog?: { item: { title: string; body: string; image: string | null }; index: number; deleteOld: boolean; prevId: string | null; force?: boolean };
   /** ★ 第1557便: intent='sort_push' のとき。コネックエフの並び（上から順の、そのサイトの番号） */
   sort?: { want: string[] };
 }): Promise<StartFlowResult> {
@@ -754,6 +763,8 @@ export async function startRelayFlow(params: {
     ...(params.zenkokuCreate ? { zenkokuCreate: { therapistId: params.zenkokuCreate.therapistId, values: params.zenkokuCreate.values, photos: params.zenkokuCreate.photos } } : {}),
     ...(params.ekichikaRankImage ? { ekichikaRankImage: { index: params.ekichikaRankImage.index, nextIndex: params.ekichikaRankImage.nextIndex, main: params.ekichikaRankImage.main, ranking: params.ekichikaRankImage.ranking } } : {}),
     ...(params.zenkokuOpt ? { zenkokuOpt: { key: params.zenkokuOpt.key, ...(params.zenkokuOpt.force === true ? { force: true } : {}), ...(params.zenkokuOpt.item ? { item: { title: params.zenkokuOpt.item.title, body: params.zenkokuOpt.item.body, image: params.zenkokuOpt.item.image ?? null } } : {}), ...(params.zenkokuOpt.items ? { items: params.zenkokuOpt.items.map((x) => ({ name: x.name })) } : {}), nextIndex: Number(params.zenkokuOpt.nextIndex ?? 0) } } : {}),
+    // ★ 第1903便: バニラの店長ブログ。★ 渡されたときだけ入れる
+    ...(params.vanillaBlog ? { vanillaBlog: { item: { title: params.vanillaBlog.item.title, body: params.vanillaBlog.item.body, image: params.vanillaBlog.item.image ?? null }, index: Number(params.vanillaBlog.index) || 0, deleteOld: params.vanillaBlog.deleteOld === true, prevId: params.vanillaBlog.prevId ?? null, ...(params.vanillaBlog.force === true ? { force: true } : {}) } } : {}),
     // ★ 第1811便: エステ魂の投稿。★ 渡されたときだけ入れる
     ...(params.esutamaPost ? { esutamaPost: { key: params.esutamaPost.key, title: params.esutamaPost.title, body: params.esutamaPost.body, ...(params.esutamaPost.force === true ? { force: true } : {}), ...(params.esutamaPost.image ? { image: { path: params.esutamaPost.image.path, index: params.esutamaPost.image.index } } : {}), ...(params.esutamaPost.images && params.esutamaPost.images.length > 0 ? { images: params.esutamaPost.images.map((x) => ({ path: x.path, index: x.index })) } : {}) } } : {}),
     // ★ 第1557便: セラピストの並び順。★ 渡されたときだけ入れる
@@ -800,10 +811,13 @@ export async function startRelayFlow(params: {
   if (params.zenkokuOpt && params.provider !== 'zenkoku') {
     throw new Error('zenkokuOpt は全国エステランキングだけ');
   }
+  if (params.vanillaBlog && params.provider !== 'vanilla') {
+    throw new Error('vanillaBlog はバニラだけ');
+  }
   if (params.zenkokuWait && params.provider !== 'zenkoku') {
     throw new Error('zenkokuWait は全国エステランキングだけ');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.ekichikaMovie && !params.ekichikaMagazine && !params.ekichikaRankImage) {
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.vanillaBlog && !params.ekichikaMovie && !params.ekichikaMagazine && !params.ekichikaRankImage) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
@@ -1309,6 +1323,25 @@ export async function advanceRelayFlow(params: {
       .eq('salon_id', params.salonId).eq('option_key', o.key);
     if (zErr) console.error('[relay] 全国エステランキングのオプションの状態を書けなかった', params.salonId, o.key, zErr.message);
     else note = note + ' → 全国の' + o.key + 'の状態（' + o.outcome.slice(0, 40) + '）を記録した';
+  }
+
+  // ★★ 第1903便: バニラの店長ブログの結果を表に書く。★ 書けなくても流れは止めない（黙らない）
+  if (outcome.kind === 'done' && outcome.vanillaBlog && params.provider === 'vanilla') {
+    const o = outcome.vanillaBlog;
+    const { error: vErr } = await createServiceClient()
+      .from('conecf_vanilla_blog')
+      .update({
+        read_at: o.readAt,
+        last_outcome: o.outcome.slice(0, 200),
+        ...(o.done && o.lastAt ? { last_at: o.lastAt } : {}),
+        ...(o.nextIndex !== null ? { next_item: o.nextIndex } : {}),
+        // ★ 一覧で確かめられた記事だけを「次に消す相手」にする（確かめられなかったときは前のまま＝消さない）
+        ...(o.blogId ? { last_blog_id: o.blogId } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('salon_id', params.salonId);
+    if (vErr) console.error('[relay] バニラの店長ブログの状態を書けなかった', params.salonId, vErr.message);
+    else note = note + ' → バニラの店長ブログの状態（' + o.outcome.slice(0, 40) + '）を記録した';
   }
 
   // ★★★ 第421便: 写真を枠へ合わせ終えた記録（★ 変わった枠だけ送る・減った枠を消すのに使う）。

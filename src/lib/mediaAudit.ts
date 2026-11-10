@@ -266,6 +266,7 @@ export const PROVIDER_LABELS: Record<string, string> = {
   esulove: 'エステラブ',
   esutama: 'エステ魂',
   zenkoku: '全国エステランキング',
+  vanilla: 'バニラ',
 };
 // ★★ src/lib/mediaSites.ts の MEDIA_SITES と【名前が一致していること】を
 //   check:mediasites で走査している（第64便）。★ 表に足してラベルを足し忘れると落ちる。

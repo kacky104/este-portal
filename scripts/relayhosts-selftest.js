@@ -61,7 +61,7 @@ if (fukues && vps) {
 
   // ★ いま許しているのはこの3つだけ。★ 増やすときはここも直す（気づかず増えないように）
   eq('★ いま許しているのは駅ちか・エステラブ・エステ魂・全国エステランキングだけ（第1769便）',
-    sortU(fukues), ['eslove.jp', 'estama.jp', 'ranking-deli.jp', 'www.esthe-ranking.jp']);
+    sortU(fukues), ['eslove.jp', 'estama.jp', 'qzin.jp', 'ranking-deli.jp', 'www.esthe-ranking.jp']);
 }
 
 // ── 判定の規則そのもの（両方に同じ文言でコメントがあること）──

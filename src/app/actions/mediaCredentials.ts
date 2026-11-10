@@ -79,7 +79,8 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 //   ★ DB 側の CHECK 制約（20260831_import_sources_esulove.sql）も同じ組でそろえる。
 //   ★ 2026-09-02（第109便）でエステ魂（esutama）を追加。★ 画面の accepting は実弾で確かめてから開ける。
 //   ★ 2026-11-07（第1772便）で全国エステランキング（zenkoku）を追加（DB の CHECK は 20261107_import_sources_zenkoku.sql）。
-const PROVIDERS = ['ekichika', 'esulove', 'esutama', 'zenkoku'];
+//   ★ 2026-11-10（第1903便）でバニラ（vanilla）を追加。★ 店長ブログだけ。連携の向き（salon_import_sources）は作らない（下の ensureSendOnlySource）
+const PROVIDERS = ['ekichika', 'esulove', 'esutama', 'zenkoku', 'vanilla'];
 
 /** その店舗を操作してよいか（オーナー本人・運営）。 */
 async function assertSalonOwner(salonId: number): Promise<Result<{ userId: string; /** ★ 第1399便: 持ち主本人か（運営がほかの人の店を触っているときは false） */ isOwner: boolean }>> {
@@ -148,6 +149,8 @@ async function ensureSendOnlySource(input: {
   if (!site) return;                              // ★ 知らない媒体には作らない
   if (site.accepting !== true) return;            // ★ 送り先が無い媒体には作らない
   if (canReadProvider(input.provider)) return;    // ★★★ 読める媒体（駅ちか）には作らない
+  // ★ 第1903便: 出勤を送らない媒体（バニラ・店長ブログだけ）には作らない（作ると「反映しない」の枠になり、投稿の入口で止まる）
+  if (!site.can.includes('work')) return;
 
   const { data: existing, error: readErr } = await input.svc
     .from('salon_import_sources')
@@ -2216,6 +2219,8 @@ export async function getMediaOverview(input: { salonId: string | number; servic
   for (const k of keys) {
     const [provider, slotStr] = k.split('#');
     const slot = Number(slotStr);
+    // ★ 第1903便: 出勤を送らない媒体（バニラ・店長ブログだけ）は、出勤の一覧に出さない（「出勤の自動更新が未設定」と出てしまうため）
+    if (findMediaSite(provider) && !findMediaSite(provider)!.can.includes('work')) continue;
     const src = sourceOf.get(k);
     const cred = credOf.get(k);
 

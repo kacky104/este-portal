@@ -15,7 +15,8 @@
 /** 各サイトへ送れるもの。★ 増えるときはここに足す（画面には触らない） */
 //   ★ 'news' … 新着情報（駅ちかの「ニュース編集」5枠・第188便・2026-09-06）。
 //     ★★ 呼び方は【新着情報】。★ フクエス自身の「お知らせ」タブ（駅ちかへは送らない）と混ぜないため。
-export type MediaCapability = 'work' | 'therapist' | 'diary' | 'sokuhime' | 'sokusera' | 'news';
+//   ★ 'blog' … 店長ブログ（バニラ・第1903便）
+export type MediaCapability = 'work' | 'therapist' | 'diary' | 'sokuhime' | 'sokusera' | 'news' | 'blog';
 
 export type MediaSite = {
   provider: string;
@@ -299,6 +300,27 @@ export const MEDIA_SITES: readonly MediaSite[] = [
     idLabel: '',
     idHint: '',
   },
+  {
+    provider: 'vanilla',
+    name: 'バニラ',
+    // ★★ 2026-11-10（第1903便）: 求人サイト。送るのは店長ブログだけ（コネックエフの「バニラ店長ブログ」の画面で記事と時刻を決める）。
+    //   ★ 出勤・セラピストの連携は無い。★ 連携の向き（salon_import_sources）も作らない（mediaCredentials.ensureSendOnlySource で飛ばす）
+    //   ★ 急募情報は無料プランでは表示されない（11/10 オイルクエスト様で確認）ので作っていない
+    can: ['blog'],
+    slots: 1,
+    readable: false,
+    accepting: true,
+    notYet: '',
+    notYetKind: '',
+    stageNote: '送るのは店長ブログです（記事と時刻は「バニラ店長ブログ」で決めます）。',
+    // ★ 実測（2026-11-10）: ログインは「ログインID」と「パスワード」の2つだけ。店舗IDは無い
+    loginIdLabel: '',
+    diaryAddressSource: 'none',
+    diaryPostMethod: 'none',
+    needsShopId: false,
+    idLabel: '',
+    idHint: '',
+  },
 ];
 
 const CAPABILITY_LABEL: Record<string, string> = {
@@ -308,6 +330,7 @@ const CAPABILITY_LABEL: Record<string, string> = {
   sokuhime: '即ヒメ',
   sokusera: '即セラ',
   news: '新着情報',   // ★ 第188便。★ 「お知らせ」と書かない（フクエスのお知らせタブと混ざる）
+  blog: '店長ブログ',   // ★ 第1903便（バニラ）
 };
 
 /** ★ 知らない種別は空文字。★ 「その他」と書かない（何が送れるか分からないものを送れると見せない） */
@@ -331,6 +354,7 @@ const SITE_MARK: Record<string, string> = {
   esutama: '魂',
   esulove: 'ラ',
   esran: '全',
+  vanilla: 'バ',
 };
 export function siteMark(provider: string, label: string): string {
   return SITE_MARK[provider] ?? (typeof label === 'string' ? label.slice(0, 1) : '') ?? '';

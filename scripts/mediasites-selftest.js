@@ -56,14 +56,14 @@ eq('預かるサイトには見出しがある',
   v.MEDIA_SITES.filter((s) => s.needsShopId && (!s.idLabel || !s.idHint)).length, 0);
 
 console.log('── 1. 表そのもの ──');
-eq('4サイトある', v.MEDIA_SITES.length, 4);
+eq('5サイトある（第1903便でバニラ）', v.MEDIA_SITES.length, 5);
 eq('★ 読めるのは1つだけ（駅ちか）', v.MEDIA_SITES.filter((s) => s.readable).length, 1);
 eq('★ 読めるのは駅ちか', v.MEDIA_SITES.find((s) => s.readable).provider, 'ekichika');
 // ★ 第80便でエステラブを開けたが、★ 第82便で閉じ直した（403・追記61 §333）。
 //   ★ 増やす／減らすときは、ここも一緒に直す
 // ★ 第1769便: 全国エステランキングを受け付け始めた（出勤を読むところまで）
-eq('★ いま受け付けているのは駅ちか・エステ魂・全国（第1769便）',
-   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika', 'esutama', 'zenkoku']);
+eq('★ いま受け付けているのは駅ちか・エステ魂・全国（第1769便）・バニラ（第1903便）',
+   v.MEDIA_SITES.filter((s) => s.accepting).map((s) => s.provider), ['ekichika', 'esutama', 'zenkoku', 'vanilla']);
 // ★★ 受け付けていないサイトには、必ず理由の文がある（黙って押せない口を作らない）
 eq('★★ 受け付けないサイトには理由が書いてある',
    v.MEDIA_SITES.filter((s) => !s.accepting).every((s) => s.notYet.length > 0), true);
@@ -339,7 +339,7 @@ console.log('\n── ★★ ログイン情報の並び ──');
      ]).map((s) => s.provider), ['a', 'b']);
   // ★★ 元の表は並べ替えない（他の画面もこの順を使う）
   eq('★★ MEDIA_SITES そのものは動かない',
-     v.MEDIA_SITES.map((s) => s.provider), ['ekichika', 'esulove', 'esutama', 'zenkoku']);
+     v.MEDIA_SITES.map((s) => s.provider), ['ekichika', 'esulove', 'esutama', 'zenkoku', 'vanilla']);
 }
 
 console.log('\n── ★★★ いま送れるもの（第117便）──');
