@@ -13,6 +13,8 @@ import {
   type HpWidget,
   parseHpWidgetCode,
   MAX_HP_WIDGETS,
+  MAX_HP_WIDGET_HEAD_EN,
+  MAX_HP_WIDGET_HEAD_JP,
   type HpLinkSize,
   HP_LINK_SIZES,
   type HpHeroSlide,
@@ -1053,6 +1055,33 @@ export function HpEditor({
           トップページの「ウィジェット」欄に並びます。表示する位置は「表示ブロック」の並び順で変えられます。
           読み取るのは表示先のURL（https:// のもの）・幅・高さだけです。
         </p>
+        {/* ★ 第1900便: 欄の見出し（ほかの欄の「Diary／写メ日記」と同じ形） */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-[11px] font-bold text-slate-600">見出し（大きい字）</span>
+            <input
+              type="text"
+              value={form.blocks.widgetsHead.jp}
+              maxLength={MAX_HP_WIDGET_HEAD_JP}
+              onChange={(e) => patchBlocks({ widgetsHead: { ...form.blocks.widgetsHead, jp: e.target.value } })}
+              placeholder="例：みんなの写メ日記"
+              className={inputCls}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[11px] font-bold text-slate-600">見出しの上の英字（小さい字）</span>
+            <input
+              type="text"
+              value={form.blocks.widgetsHead.en}
+              maxLength={MAX_HP_WIDGET_HEAD_EN}
+              onChange={(e) => patchBlocks({ widgetsHead: { ...form.blocks.widgetsHead, en: e.target.value } })}
+              placeholder="例：Diary"
+              className={inputCls}
+            />
+          </label>
+        </div>
+        <p className="text-[10px] text-slate-400">※ 2つとも空にすると、見出しを出さずにウィジェットだけを並べます。</p>
+
         <textarea
           value={widgetCode}
           onChange={(e) => setWidgetCode(e.target.value)}

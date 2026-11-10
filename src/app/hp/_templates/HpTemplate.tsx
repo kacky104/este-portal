@@ -410,6 +410,10 @@ export function HpTemplate({ data }: { data: HpPageData }) {
            ★ sandbox: 中のスクリプトとリンク（新しいタブ）は動かすが、こちらのページを勝手に移動させない（押したときだけ）。 */}
       {visible.widgets && (
         <section id="widget" data-hp-reveal className={secCls('widgets', 'hp-sec-widgets', false)} style={ord('widgets')}>
+          {/* ★ 第1900便: 見出し（管理画面「ウィジェット」で店ごとに入れる。両方空なら出さない） */}
+          {(b.widgetsHead.en || b.widgetsHead.jp) && (
+            <SecHead no="13" en={b.widgetsHead.en} jp={b.widgetsHead.jp} />
+          )}
           <div className="hp-widgets">
             {b.widgets.map((w, i) => (
               <iframe

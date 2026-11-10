@@ -57,6 +57,8 @@ export type HpBlocksConfig = {
   links:      { on: boolean };                 // リンク（相互リンクのバナー群・link_banners）
   /** 外部サイトのウィジェット（第1899便・2026-11-10）。貼られた iframe の src・幅・高さだけを持つ。最大 MAX_HP_WIDGETS */
   widgets:    HpWidget[];
+  /** ウィジェット欄の見出し（第1900便）。英字（小さい字）と日本語（大きい字）。両方空なら見出しを出さない */
+  widgetsHead: { en: string; jp: string };
   /**
    * お問い合わせフォーム（第1717便・2026-11-02）。on=true で /contact ページとメニューが出る。
    * note はフォームの上の案内文（空なら lib/hp/contact.ts の既定文）。
@@ -226,6 +228,8 @@ export const HP_PEOPLE_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30] as cons
 //     （店舗の独自ドメインは管理画面と同じオリジンなので、自由HTMLの許可は事故の元。バナーと同じ考え）
 export type HpWidget = { src: string; width: number; height: number };
 export const MAX_HP_WIDGETS = 3;
+export const MAX_HP_WIDGET_HEAD_EN = 30;
+export const MAX_HP_WIDGET_HEAD_JP = 30;
 const HP_WIDGET_W = { min: 100, max: 1200, def: 340 };
 const HP_WIDGET_H = { min: 100, max: 2400, def: 600 };
 
@@ -293,6 +297,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   freePages:  { on: true },
   links:      { on: true },
   widgets:    [],
+  widgetsHead: { en: 'Pickup', jp: 'ピックアップ' },
   contact:    { on: false, note: '' }, // 既定 OFF（通知先メールを入れて ON にする）
   order:      null,  // 未設定＝ひな形の既定順
   multipage:  false, // 既定は従来どおりの1ページ構成
@@ -343,6 +348,14 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     freePages: { on: boolOr(r.freePages?.on, d.freePages.on) },
     links:     { on: boolOr(r.links?.on, d.links.on) },
     widgets:   sanitizeHpWidgets(rawObj.widgets),
+    widgetsHead: (() => {
+      const h = rawObj.widgetsHead as Record<string, unknown> | undefined;
+      if (!h || typeof h !== 'object') return { ...d.widgetsHead };
+      return {
+        en: typeof h.en === 'string' ? h.en.trim().slice(0, MAX_HP_WIDGET_HEAD_EN) : d.widgetsHead.en,
+        jp: typeof h.jp === 'string' ? h.jp.trim().slice(0, MAX_HP_WIDGET_HEAD_JP) : d.widgetsHead.jp,
+      };
+    })(),
     contact:   {
       on:   boolOr(r.contact?.on, d.contact.on),
       note: typeof r.contact?.note === 'string' ? r.contact.note.slice(0, 400) : d.contact.note,
