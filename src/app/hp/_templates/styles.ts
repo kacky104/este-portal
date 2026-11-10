@@ -1006,6 +1006,13 @@ ${COMMON}
 .hp-s .hp-hero-name { font-size: clamp(17px, 2.2vw, 30px); font-weight: 500; letter-spacing: .3em; color: var(--hp-accent, #b98d4f); position: relative; padding-bottom: 14px; }
 .hp-s .hp-hero-name::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; width: 76px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-hero-area { margin-top: 16px; font-size: clamp(10px, 1.05vw, 13px); color: #9b8c74; letter-spacing: .3em; }
+.hp-s .hp-hero .hp-hero-text { background: rgba(255,255,255,.88); max-width: none; }
+.hp-s .hp-hero .hp-hero-text > * { max-width: 900px; }
+/* ★ 第1886便（カッキーさん「文字を濃く」）: 背景画像の上でも読めるよう、白い帯の上に濃い色で。配色ごとの薄い色より強くする（.hp-hero を挟んで詳細度を上げる） */
+.hp-s .hp-hero .hp-hero-text .hp-hero-catch { color: #1f1b16; text-shadow: none; }
+.hp-s .hp-hero .hp-hero-text .hp-hero-en { color: #4a4238; }
+.hp-s .hp-hero .hp-hero-text .hp-hero-name { color: color-mix(in srgb, var(--hp-accent, #b98d4f) 70%, #000); font-weight: 600; }
+.hp-s .hp-hero .hp-hero-text .hp-hero-area { color: #4a4238; }
 @media (max-width: 639px) {
   .hp-s .hp-hero-text { padding: 28px 16px 32px; }
   .hp-s .hp-hero-en { letter-spacing: .28em; }
