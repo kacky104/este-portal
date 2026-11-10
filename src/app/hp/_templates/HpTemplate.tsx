@@ -307,7 +307,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {visible.reviews && (
         <section id="voice" data-hp-reveal className={secCls('reviews', 'hp-sec-reviews', true)} style={ord('reviews')}>
           <SecHead no="06" en="Voice" jp="口コミ" />
-          <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews`} title="口コミ" loading="lazy" style={{ height: 420 }} />
+          <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews${data.ekichikaShop ? `/ek/${b.ekichika.slot}` : ''}`} title="口コミ" loading="lazy" style={{ height: 420 }} />
           <a className="hp-more" href={data.ekichikaShop ? `${data.ekichikaShop}review/` : `${salonUrl}/reviews`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
