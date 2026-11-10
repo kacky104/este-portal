@@ -94,13 +94,12 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
   const [head, sub] = TAB_HEAD[tab];
 
   return (
-    <div className="space-y-4">
-      {/* ★ 第1793便（カッキーさん「すぐる君に寄せて」）: タブは上の中央・青い下線 */}
-      <div className="flex gap-x-1 overflow-x-auto border-b border-slate-200 bg-white sm:flex-wrap sm:justify-center sm:gap-x-2">
-        {/* ★ 第1889便: TOP はスマホだけ */}
-        {([['top', 'TOP'] as [Tab, string], ...TABS]).map(([k, l]) => (
+    <div className="space-y-4 pb-24 sm:pb-0">
+      {/* ★ 第1793便（カッキーさん「すぐる君に寄せて」）: タブは上の中央・青い下線。★ 第1890便: PC だけ（スマホは画面下の固定メニュー） */}
+      <div className="hidden gap-x-1 overflow-x-auto border-b border-slate-200 bg-white sm:flex sm:flex-wrap sm:justify-center sm:gap-x-2">
+        {TABS.map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)}
-            className={`${k === 'top' ? 'sm:hidden ' : ''}-mb-px flex-none whitespace-nowrap border-b-[3px] px-3 py-2.5 text-[15px] font-black sm:px-5 sm:py-3 sm:text-[17px] ${tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-700 hover:text-blue-600'}`}>{l}</button>
+            className={`-mb-px flex-none whitespace-nowrap border-b-[3px] px-3 py-2.5 text-[15px] font-black sm:px-5 sm:py-3 sm:text-[17px] ${tab === k ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-700 hover:text-blue-600'}`}>{l}</button>
         ))}
       </div>
 
@@ -175,6 +174,53 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
           {tab === 'help' && <Help />}
         </>
       )}
+
+      {/* ★★ 第1890便（カッキーさん）: スマホは画面下に固定メニュー（アプリのように）。TOP・サマリー・流入元・ページ・ほか。
+          「ほか」を押すとセラピスト・時間帯・見方を選べる小さな一覧 */}
+      <MobileNav tab={tab} onPick={(t) => { setTab(t); window.scrollTo({ top: 0 }); }} />
+    </div>
+  );
+}
+
+const NAV_ICON: Record<string, React.ReactNode> = {
+  top: <path d="M3 11l9-8 9 8M5 10v10h14V10" />,
+  summary: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
+  sources: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>,
+  pages: <><path d="M14 3H6v18h12V7z" /><path d="M14 3v4h4" /></>,
+  more: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
+};
+const MORE_TABS: Array<[Tab, string]> = [['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方']];
+
+function MobileNav({ tab, onPick }: { tab: Tab; onPick: (t: Tab) => void }) {
+  const [open, setOpen] = useState(false);
+  const items: Array<[Tab | 'more', string]> = [['top', 'TOP'], ['summary', 'サマリー'], ['sources', '流入元'], ['pages', 'ページ'], ['more', 'ほか']];
+  const inMore = MORE_TABS.some(([k]) => k === tab);
+  return (
+    <div className="sm:hidden">
+      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />}
+      {open && (
+        <div className="fixed bottom-[68px] right-2 z-50 w-44 border border-slate-200 bg-white py-1 shadow-xl" style={{ marginBottom: 'env(safe-area-inset-bottom)' }}>
+          {MORE_TABS.map(([k, l]) => (
+            <button key={k} type="button" onClick={() => { setOpen(false); onPick(k); }}
+              className={`block w-full px-4 py-3 text-left text-[15px] font-bold ${tab === k ? 'bg-blue-50 text-blue-600' : 'text-slate-700'}`}>{l}</button>
+          ))}
+        </div>
+      )}
+      <nav aria-label="レポートの切り替え"
+        className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-slate-200 bg-white/95 backdrop-blur"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {items.map(([k, l]) => {
+          const on = k === 'more' ? inMore || open : tab === k;
+          return (
+            <button key={k} type="button" aria-current={on ? 'page' : undefined}
+              onClick={() => (k === 'more' ? setOpen((v) => !v) : (setOpen(false), onPick(k)))}
+              className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold ${on ? 'text-blue-600' : 'text-slate-500'}`}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{NAV_ICON[k]}</svg>
+              {k === 'more' && inMore ? (MORE_TABS.find(([t]) => t === tab)?.[1] ?? l) : l}
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }
