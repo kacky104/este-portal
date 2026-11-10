@@ -1129,7 +1129,6 @@ export function HpEditor({
         )}
         {ekInfo && ekInfo.slots.length > 0 && (() => {
           const cur = ekInfo.slots.find((x) => x.slot === form.blocks.ekichika.slot) ?? ekInfo.slots[0];
-          const rate = ekInfo.total > 0 ? Math.floor((cur.linked / ekInfo.total) * 100) : 0;
           const setEk = (patch: Partial<typeof form.blocks.ekichika>) => patchBlocks({ ekichika: { ...form.blocks.ekichika, slot: cur.slot, ...patch } });
           return (
             <div className="space-y-3">
@@ -1154,12 +1153,6 @@ export function HpEditor({
                     <div key={k} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
                       <div className="min-w-0 flex-1">
                         <div className="text-[13px] font-black text-slate-800">{name}</div>
-                        <div className="text-[11px] text-slate-500">{what}・{point}</div>
-                        {k === 'therapist' && (
-                          <div className="text-[11px] text-slate-500">
-                            在籍{ekInfo.total}名のうち <b className={rate >= 90 ? 'text-emerald-600' : 'text-amber-600'}>{cur.linked}名（{rate}%）</b> が駅ちかと結びついています（結びついていない方はホームページの中のページ）。
-                          </div>
-                        )}
                       </div>
                       <div className="flex flex-none">
                         <button type="button" onClick={() => setEk({ [k]: true })}
