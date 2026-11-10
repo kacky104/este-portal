@@ -97,6 +97,8 @@ export type HpBlocksConfig = {
    *   ★ 画像は公開の salon-images（blocks は anon から読める列なので、公開してよいものだけ置く）
    */
   background: HpBackground;
+  /** ★ 第1892便（カッキーさん）: ヘッダーのロゴの大きさ。sm＝今まで（PC 36px・スマホ 30px）／md（56・36）／lg（80・44） */
+  logoSize: 'sm' | 'md' | 'lg';
   /**
    * カラー別のセラピスト写真（2026-08-11）。
    * キー=カラーキー / 値={ セラピストID: 画像URL }。heroByColor と同じくデモ店専用。
@@ -233,6 +235,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   multipage:  false, // 既定は従来どおりの1ページ構成
   heroByColor: {},   // 既定は空＝全カラーで hero_images を使う（デモ店だけが使う欄）
   background: DEFAULT_HP_BACKGROUND, // 既定は空＝ひな形の壁紙（第1884便）
+  logoSize: 'sm', // 既定は今までの大きさ（第1892便）
   therapistImagesByColor: {}, // 同上（既定は空＝掲載データの写真をそのまま使う）
 };
 
@@ -282,6 +285,7 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     multipage: boolOr(rawObj.multipage, d.multipage),
     heroByColor: renameLegacyImageSlots(sanitizeHpHeroByColor(rawObj.heroByColor)),
     background: sanitizeHpBackground(rawObj.background),
+    logoSize: rawObj.logoSize === 'md' || rawObj.logoSize === 'lg' ? rawObj.logoSize : 'sm',
     therapistImagesByColor: renameLegacyImageSlots(sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor)),
   };
 }

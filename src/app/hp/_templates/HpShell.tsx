@@ -68,7 +68,7 @@ export function HpShell({
   // 検索エンジン・読み上げから店名が消えることはない。
   const logo = site.logo_url ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img className="hp-topbar-logo" src={site.logo_url} alt={salon.name} />
+    <img className={'hp-topbar-logo' + (site.blocks.logoSize !== 'sm' ? ' hp-logo-' + site.blocks.logoSize : '')} src={site.logo_url} alt={salon.name} />
   ) : (
     <span className="hp-topbar-name">{salon.name}</span>
   );

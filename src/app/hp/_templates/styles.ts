@@ -71,6 +71,13 @@ const COMMON = `
    縦を揃えたいので高さで合わせ、横は原寸比のまま。長い横長ロゴは max-width で抑える。 */
 .hp-topbar-logo { display: block; height: 30px; width: auto; max-width: 190px; object-fit: contain; }
 @media (min-width: 768px) { .hp-topbar-logo { height: 36px; max-width: 260px; } }
+/* ★ 第1892便: お店ごとのロゴの大きさ（公式HP管理で選ぶ）。中・大 */
+.hp-topbar-logo.hp-logo-md { height: 36px; max-width: 230px; }
+.hp-topbar-logo.hp-logo-lg { height: 44px; max-width: 260px; }
+@media (min-width: 768px) {
+  .hp-topbar-logo.hp-logo-md { height: 56px; max-width: 380px; }
+  .hp-topbar-logo.hp-logo-lg { height: 80px; max-width: 520px; }
+}
 .hp-rule { display: none; }
 .hp-embed { display: block; width: 100%; border: none; background: #fff; }
 .hp-more { display: inline-block; margin-top: 12px; text-decoration: none; font-size: 11px; font-weight: 700; }

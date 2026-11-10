@@ -1066,8 +1066,8 @@ export function HpEditor({
         <h3 className="text-sm font-black text-slate-800">ヘッダーのロゴ</h3>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           ※ ページ上部の固定ヘッダーに表示されます。未設定のときは店名の文字が出ます。
-          横長の透過PNG推奨（高さ80ピクセル以上・横幅600ピクセルまで）。
-          高さを揃えて表示するので、横幅は元の比率のままになります。
+          横長の透過PNG推奨。余白はできるだけ切り詰めてください。
+          画像の高さの目安：標準・中は 120〜170px、大は 240px くらい（表示の約3倍だと、くっきり見えます）。
         </p>
         <div className="flex items-center gap-3">
           {form.logo_url ? (
@@ -1109,7 +1109,17 @@ export function HpEditor({
               />
             </label>
           )}
-          <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
+        </div>
+        {/* ★ 第1892便: ロゴの大きさ（PC の高さ／スマホの高さ） */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="w-16 text-[11px] font-bold text-slate-500">大きさ</span>
+          {([['sm', '標準（PC 36px）'], ['md', '中（PC 56px）'], ['lg', '大（PC 80px）']] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => patchBlocks({ logoSize: k })}
+              className={`px-2.5 py-1 text-[11px] font-bold border ${form.blocks.logoSize === k ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
+              {l}
+            </button>
+          ))}
+          <p className="basis-full text-[11px] text-slate-400">保存すると反映されます。</p>
         </div>
       </div>
       )}
