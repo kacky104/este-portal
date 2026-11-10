@@ -5,7 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor, normalizeBumpTimes, BUMP_TIMES_MAX } from '@/lib/ekichikaBump';
+import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor, normalizeBumpTimes, BUMP_TIMES_MAX, isCustomBumpInterval } from '@/lib/ekichikaBump';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 import { ekichikaAreaFromUrl } from '@/lib/ekichikaArea';
 
@@ -132,7 +132,9 @@ export async function saveConecfBump(input: { provider?: BumpProvider; slot: num
   const slot = Number(input.slot);
   if (!Number.isInteger(slot) || slot < 1) return { ok: false, error: '枠の指定が不正です' };
   const setting = { enabled: input.enabled === true, startMin: Number(input.startMin), endMin: Number(input.endMin), intervalMin: Number(input.intervalMin) };
-  if (!isValidBumpSetting(setting) || !bumpIntervalsFor(provider).includes(setting.intervalMin)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
+  // ★ 第1925便: 駅ちかは好きな分数（10〜240分）も入れられる。エステ魂は今までどおり選択肢だけ
+  const intervalOk = provider === 'ekichika' ? isCustomBumpInterval(setting.intervalMin) : bumpIntervalsFor(provider).includes(setting.intervalMin);
+  if (!isValidBumpSetting(setting) || !intervalOk) return { ok: false, error: provider === 'ekichika' ? '時間帯か間隔の値が正しくありません（間隔は10〜240分）' : '時間帯か間隔の値が正しくありません' };
   const touchTimes = input.times !== undefined;
   const times = touchTimes ? normalizeBumpTimes(input.times) : undefined;
   if (touchTimes && provider !== 'ekichika' && times) return { ok: false, error: '時刻指定は駅ちかだけです' };
@@ -144,7 +146,11 @@ export async function saveConecfBump(input: { provider?: BumpProvider; slot: num
     .update(patch)
     .eq('salon_id', r.salonId).eq('provider', provider).eq('slot', slot)
     .select('slot');
-  if (error) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
+  if (error) {
+    // ★ 第1925便: 追加SQL_第1925便（間隔を10〜240分に）がまだのときに、選択肢にない分数を保存した
+    if (/bump_range/.test(error.message ?? '')) return { ok: false, error: 'この分数はまだ保存できません。運営事務局までご連絡ください（10・15・20・30・60分は保存できます）' };
+    return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
+  }
   if (!data || data.length === 0) return { ok: false, error: `${PROVIDER_NAME[provider]}の店舗ページが登録されていません。運営事務局までご連絡ください` };
   return { ok: true, data: { perDay: bumpSlotsPerDay({ ...setting, times: times ?? null }) } };
 }

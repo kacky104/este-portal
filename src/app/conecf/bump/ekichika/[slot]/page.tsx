@@ -12,7 +12,7 @@ import { ConecfShell } from '../../../ConecfShell';
 import { useConecfHref } from '../../../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { getConecfBump, saveConecfBump, runConecfBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
-import { bumpSlotsPerDay, EKICHIKA_BUMP_INTERVALS, parseBumpTimesText, BUMP_TIMES_MAX } from '@/lib/ekichikaBump';
+import { bumpSlotsPerDay, EKICHIKA_BUMP_INTERVAL_CHOICES, BUMP_CUSTOM_INTERVAL_MIN, BUMP_CUSTOM_INTERVAL_MAX, isCustomBumpInterval, parseBumpTimesText, BUMP_TIMES_MAX } from '@/lib/ekichikaBump';
 import { minuteLabel, minuteFromLabel } from '@/lib/bumpAuto';
 
 function hm(iso: string | null): string {
@@ -30,6 +30,9 @@ function Editor({ s, enabled, onToast, onSaved }: { s: ConecfBumpSlot; enabled: 
   const [start, setStart] = useState(minuteLabel(s.startMin));
   const [end, setEnd] = useState(minuteLabel(s.endMin));
   const [interval, setIntervalMin] = useState(s.intervalMin);
+  // ★ 第1925便: 好きな分数を入れる（ベンリーの「入力…」）。選択肢にない分数で保存されていれば、はじめから入力の形
+  const [customOn, setCustomOn] = useState(!(EKICHIKA_BUMP_INTERVAL_CHOICES as readonly number[]).includes(s.intervalMin));
+  const [customText, setCustomText] = useState(String(s.intervalMin));
   const [rows, setRows] = useState<string[]>((s.times ?? []).map((t) => minuteLabel(t)));
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulk, setBulk] = useState('');
@@ -40,11 +43,14 @@ function Editor({ s, enabled, onToast, onSaved }: { s: ConecfBumpSlot; enabled: 
   const remaining = s.countStale ? quota : s.remaining;
   const startMin = minuteFromLabel(start);
   const endMin = minuteFromLabel(end);
+  const customVal = Number(customText.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)));
+  const intervalNow = customOn ? customVal : interval;
+  const intervalOk = isCustomBumpInterval(intervalNow);
   const filled = rows.map((r) => r.trim()).filter(Boolean);
   const badRows = filled.filter((r) => minuteFromLabel(r) === null);
   const timesMin = [...new Set(filled.map((r) => minuteFromLabel(r)).filter((m): m is number => m !== null))].sort((a, b) => a - b);
   const perDay = tab === 'times' ? timesMin.length
-    : startMin !== null && endMin !== null ? bumpSlotsPerDay({ startMin, endMin, intervalMin: interval }) : 0;
+    : startMin !== null && endMin !== null && intervalOk ? bumpSlotsPerDay({ startMin, endMin, intervalMin: intervalNow }) : 0;
 
   const guard = () => {
     if (!enabled) { onToast('保存するには、ホームで「コネックエフに切り替える」を押してください'); return false; }
@@ -56,6 +62,7 @@ function Editor({ s, enabled, onToast, onSaved }: { s: ConecfBumpSlot; enabled: 
   const save = async (nextOn: boolean, label: string) => {
     if (!guard()) return;
     if (startMin === null || endMin === null) { onToast('タイマー更新の時間帯を「10:00」のような形で入れてください'); return; }
+    if (tab === 'timer' && !intervalOk) { onToast(`間隔は${BUMP_CUSTOM_INTERVAL_MIN}〜${BUMP_CUSTOM_INTERVAL_MAX}分の数字で入れてください`); return; }
     let times: number[] | undefined;
     if (tab === 'times') {
       if (badRows.length > 0) { onToast(`読めない時刻があります: ${badRows.slice(0, 5).join('・')}`); return; }
@@ -67,7 +74,7 @@ function Editor({ s, enabled, onToast, onSaved }: { s: ConecfBumpSlot; enabled: 
       times = [];
     }
     setBusy(label);
-    const res = await saveConecfBump({ provider: 'ekichika', slot: s.slot, enabled: nextOn, startMin, endMin, intervalMin: interval, times });
+    const res = await saveConecfBump({ provider: 'ekichika', slot: s.slot, enabled: nextOn, startMin, endMin, intervalMin: intervalOk ? intervalNow : s.intervalMin, times });
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     onToast(nextOn
@@ -156,13 +163,23 @@ function Editor({ s, enabled, onToast, onSaved }: { s: ConecfBumpSlot; enabled: 
                 <span className="font-bold">〜</span>
                 <input type="time" step={60} value={end} onChange={(e) => setEnd(e.target.value)} className="px-2 py-1.5 border border-slate-300 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-200" />
                 <span className="font-bold">の間</span>
-                <select value={interval} onChange={(e) => setIntervalMin(Number(e.target.value))} className="px-2 py-1.5 border border-slate-300 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-200">
-                  {EKICHIKA_BUMP_INTERVALS.map((m) => <option key={m} value={m}>{m}分</option>)}
+                <select value={customOn ? 'custom' : interval} onChange={(e) => { if (e.target.value === 'custom') { setCustomOn(true); setCustomText(String(interval)); } else { setCustomOn(false); setIntervalMin(Number(e.target.value)); } }}
+                  className="px-2 py-1.5 border border-slate-300 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-200">
+                  {EKICHIKA_BUMP_INTERVAL_CHOICES.map((m) => <option key={m} value={m}>{m}分</option>)}
+                  <option value="custom">入力…</option>
                 </select>
+                {customOn && (
+                  <span className="inline-flex items-center gap-1">
+                    <input type="text" inputMode="numeric" value={customText} onChange={(e) => setCustomText(e.target.value)} aria-label="間隔（分）"
+                      className={`w-20 px-2 py-1 border bg-white text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-200 ${intervalOk ? 'border-slate-300' : 'border-rose-400'}`} />
+                    <span className="font-bold">分</span>
+                  </span>
+                )}
                 <span className="font-bold">間隔で更新</span>
               </div>
               <p className="text-[16px] text-slate-500">
                 この設定だと1日に最大 <b className="tabular-nums text-slate-700">{perDay}</b> 回押します。
+                {customOn && !intervalOk && <span className="text-rose-700">間隔は{BUMP_CUSTOM_INTERVAL_MIN}〜{BUMP_CUSTOM_INTERVAL_MAX}分の数字で入れてください。</span>}
                 {perDay > quota && <span className="text-rose-700">駅ちかは1日{quota}回までなので、超えた分は押しません。</span>}
                 {startMin !== null && endMin !== null && startMin > endMin && <span>日をまたぐ時間帯として扱います。</span>}
               </p>

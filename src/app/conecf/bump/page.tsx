@@ -280,6 +280,7 @@ function EkichikaSlotList({ site, slots }: { site: SiteTheme; slots: ConecfBumpS
   const href = useConecfHref();
   return (
     <div className="space-y-2">
+      <style>{`.conecf-shine{background:linear-gradient(100deg,#334155 0%,#334155 40%,#2563eb 46%,#93c5fd 50%,#2563eb 54%,#334155 60%,#334155 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:conecf-shine 3.2s ease-in-out infinite}@keyframes conecf-shine{0%{background-position:100% 0}60%,100%{background-position:0 0}}@media (prefers-reduced-motion:reduce){.conecf-shine{animation:none;color:#334155;background:none}}`}</style>
       <ul className="space-y-2">
         {slots.map((s) => {
           const ok = s.hasCredential && !s.linkOff;
@@ -289,9 +290,9 @@ function EkichikaSlotList({ site, slots }: { site: SiteTheme; slots: ConecfBumpS
             <li key={s.slot}>
               <Link href={href(`/bump/ekichika/${s.slot}`)} className={`flex items-center gap-3 px-4 py-2.5 bg-white border ${site.border} shadow-sm text-[17px] tabular-nums hover:bg-orange-50/60 hover:border-orange-300 transition-colors`}>
                 <span className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 text-[16px] font-bold text-blue-600 border border-blue-200 bg-blue-50">✎ 編集</span>
-                <span className="w-56 flex-shrink-0 min-w-0">
-                  <span className="font-black text-slate-700">枠{s.slot}</span>
-                  {s.area && <span className="ml-1.5 text-[16px] font-bold text-slate-500">{s.area}</span>}
+                {/* ★ 第1925便（カッキーさん）: 自動更新中の枠は、枠名に青い光が流れる（サイト自動更新一覧と同じ .conecf-shine） */}
+                <span className={`w-56 flex-shrink-0 min-w-0 font-black ${s.enabled && ok ? 'conecf-shine' : 'text-slate-700'}`}>
+                  枠{s.slot}{s.area && <span className={`ml-1.5 ${s.enabled && ok ? '' : 'text-slate-500'}`}>{s.area}</span>}
                 </span>
                 <span className="w-36 flex-shrink-0 text-slate-500">
                   {ok ? <>あと <b className={`text-[26px] font-black ${r === 0 ? 'text-slate-400' : site.big}`}>{r === null ? '—' : r}</b>{quota != null && <span className="text-[15px]"> / {quota}回</span>}</> : <span className="text-[16px] font-bold text-amber-700">ID・PW 未登録</span>}

@@ -42,8 +42,19 @@ export { BUMP_AUTO_INTERVALS as EKICHIKA_BUMP_INTERVALS };
 export const ESUTAMA_BUMP_INTERVALS = [10, 15, 20, 30, 60, 90, 120, 180] as const;
 /** 自動の判断・回数の計算で使ってよい間隔（どのサイトでも）。★ 保存できる間隔はサイトごとに intervalsFor で絞る */
 function isKnownInterval(v: unknown): boolean {
-  return typeof v === 'number' && ((ESUTAMA_BUMP_INTERVALS as readonly number[]).includes(v) || isValidBumpInterval(v));
+  return typeof v === 'number' && ((ESUTAMA_BUMP_INTERVALS as readonly number[]).includes(v) || isValidBumpInterval(v) || isCustomBumpInterval(v));
 }
+/**
+ * ★ 第1925便（2026-11-11・カッキーさん「ベンリーみたいに好きな分数を」）: 駅ちかのタイマー更新は、選択肢のほかに好きな分数（10〜240分の整数）も入れられる。
+ *   ★ DB の決まり（salon_import_sources_bump_range）は 追加SQL_第1925便 で 10〜240 に広げる
+ */
+export const BUMP_CUSTOM_INTERVAL_MIN = 10;
+export const BUMP_CUSTOM_INTERVAL_MAX = 240;
+export function isCustomBumpInterval(v: unknown): boolean {
+  return typeof v === 'number' && Number.isInteger(v) && v >= BUMP_CUSTOM_INTERVAL_MIN && v <= BUMP_CUSTOM_INTERVAL_MAX;
+}
+/** 駅ちかのタイマー更新の選択肢（ベンリーに近い並び）。これ以外は「入力…」で入れる */
+export const EKICHIKA_BUMP_INTERVAL_CHOICES = [10, 15, 20, 30, 45, 60, 90] as const;
 export function bumpIntervalsFor(provider: string): readonly number[] {
   return provider === 'esutama' ? ESUTAMA_BUMP_INTERVALS : BUMP_AUTO_INTERVALS;
 }
