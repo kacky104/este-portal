@@ -15,7 +15,7 @@ import type { FlowAudit, FlowOutcome, RelayFlowContext } from './relayFlow';
 import { mergeCookies } from './relayJob';
 import { RELAY_USER_AGENT } from './relayUserAgent';
 import {
-  buildCocoaLogin, buildCocoaList, buildCocoaCopyOpen, buildCocoaCopySubmit, buildCocoaDelete,
+  buildCocoaLogin, buildCocoaList, buildCocoaFollow, buildCocoaCopyOpen, buildCocoaCopySubmit, buildCocoaDelete,
   parseCocoaEntryForm, extractCocoaLid, looksLikeCocoaLoggedOut, parseCocoaBlogList, parseCocoaCopyForm, cocoaPosted, parseCocoaRemaining,
   cocoaMovieDeleteTargets, type CocoaBlogRow,
 } from './cocoaMovie';
@@ -83,8 +83,14 @@ export function afterCocomovList(input: Input, ctx: RelayFlowContext): FlowOutco
 export function afterCocomovCopy(input: Input, ctx: RelayFlowContext): FlowOutcome {
   const cm = ctx.cocoaMovie!;
   const ck = mergeCookies(cm.ck ?? '', setCookieOf(input));
+  // ★ 複製の応答が行き先（302）だったら、1回だけその画面を読む
+  if (input.status >= 300 && input.status < 400 && locationOf(input) && !cm.followed) {
+    try {
+      return next(ctx, 'cocomov_copy', buildCocoaFollow(ck, cm.lid!, locationOf(input), 'https://cocoa-job.jp/entry/blog/copy/'), { ...cm, ck, followed: true }, '複製の応答が行き先だった → その画面を読む');
+    } catch { /* 下で失敗にする */ }
+  }
   const form = input.status === 200 ? parseCocoaCopyForm(input.body) : null;
-  if (!form) return fail(ctx, 'error: 複製の画面を読めなかった', '複製の画面を読み取れませんでした（画面の作りが変わった可能性があります）', input.status, '複製のフォームが無い', 'read_bump');
+  if (!form) return fail(ctx, 'error: 複製の画面を読めなかった（応答 ' + input.status + (input.status === 200 ? '・フォーム無し' + (/店長ブログ一覧/.test(input.body) ? '・一覧が返った' : '') + (/ログイン/.test(input.body.slice(0, 3000)) ? '・ログイン' : '') : '') + '）', '複製の画面を読み取れませんでした（画面の作りが変わった可能性があります）', input.status, '複製のフォームが無い', 'read_bump');
   const remaining = parseCocoaRemaining(input.body);
   if (remaining !== null && remaining <= 0) return fail(ctx, 'no_count', '今日の残り回数がありません（店長ブログと共通）', input.status, '残り0回');
   return next(ctx, 'cocomov_post', buildCocoaCopySubmit(ck, cm.lid!, form), { ...cm, ck, title: form.title, remaining: remaining ?? undefined }, '複製の画面を読めた（残り ' + (remaining ?? '?') + '回）→ 「' + form.title.slice(0, 20) + '」を投稿する');

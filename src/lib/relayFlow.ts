@@ -1063,7 +1063,7 @@ export type RelayFlowContext = {
   /** ★ 第1844便: 駅ちかのプラチナムマガジン（lib/ekichikaMagazineFlow.ts）。at（配信日時の表示）は段の途中で入る */
   ekichikaMagazine?: { index: number; title: string; body: string; at?: string };
   /** ★ 第1917便: ココアの店長ブログ「動画の記事」（lib/cocoaMovieFlow.ts）。slot＝ココアのアカウント（A=1・B=2・C=3＝駅ちかの枠）。ck 以降は段の途中で入る */
-  cocoaMovie?: { slot: number; ck?: string; lid?: string; sourceId?: string; title?: string; remaining?: number; postedMsg?: boolean; newId?: string; deleteQueue?: CocoaBlogRow[]; deleted?: number };
+  cocoaMovie?: { slot: number; ck?: string; lid?: string; sourceId?: string; title?: string; remaining?: number; postedMsg?: boolean; followed?: boolean; newId?: string; deleteQueue?: CocoaBlogRow[]; deleted?: number };
   /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（lib/ekichikaRankImageFlow.ts）。plan・step は段の途中で入る */
   ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string; plan?: Array<{ target: 'main' | 'ranking'; id: string; old: string; name: string }>; step?: number };
   /** ★ 第1865便: 全国エステランキングへ1人登録（lib/zenkokuGirlCreateFlow.ts）。before・gid・slots・photoAt・verify は段の途中で入る */

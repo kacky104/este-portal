@@ -143,7 +143,8 @@ export function parseCocoaBlogList(html: string): CocoaBlogRow[] {
 }
 /** 投稿画面（複製）のフォーム。★ entry（ブログを投稿する）で送る */
 export function parseCocoaCopyForm(html: string): { fields: Array<[string, string]>; title: string; movie: string } | null {
-  const f = parseForms(html).find((x) => /blog\/copy/.test(x.action) && x.fields.some(([k]) => k === 'post_val_movie'));
+  // ★ 複製の画面のフォームは action が「?lid=…」だけのこともある（一覧の削除と同じ）。★ 動画の欄（post_val_movie）があるフォームを選ぶ
+  const f = parseForms(html).find((x) => x.fields.some(([k]) => k === 'post_val_movie'));
   if (!f) return null;
   const movie = get(f, 'post_val_movie') ?? '';
   if (!movie || get(f, 'type_flg') !== '2') return null;
@@ -177,6 +178,13 @@ export function buildCocoaLogin(form: { email: string; password: string }): Req 
     headers: headers('', 'https://ranking-deli.jp/admin', { 'content-type': 'application/x-www-form-urlencoded', origin: 'https://ranking-deli.jp' }),
     body: enc([['email', form.email], ['password', form.password], ['submit', '風俗求人ココアの管理画面へ移動する']]),
   };
+}
+/** ★ 行き先（Location）を GET で読む。★ ココアの中だけ */
+export function buildCocoaFollow(cookie: string, lid: string, location: string, referer: string): Req {
+  const u = new URL(location, referer);
+  if (u.origin !== COCOA_ORIGIN) throw new Error('ココアの外へは行かない');
+  if (!u.searchParams.get('lid')) u.searchParams.set('lid', lid);
+  return { method: 'GET', url: u.toString(), headers: headers(cookie, referer), body: '' };
 }
 export function buildCocoaList(cookie: string, lid: string): Req {
   return { method: 'GET', url: COCOA_ORIGIN + '/entry/blog/' + q(lid), headers: headers(cookie, COCOA_ORIGIN + '/entry/top/' + q(lid)), body: '' };
