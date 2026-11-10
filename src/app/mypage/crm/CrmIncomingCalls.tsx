@@ -35,8 +35,14 @@ type Card = {
 
 function fmtTel(p: string): string {
   // 090-1234-5678 / 092-123-4567 の見た目（読みやすさだけ・保存は数字のみ）
-  if (/^0[789]0\d{8}$/.test(p)) return `${p.slice(0, 3)}-${p.slice(3, 7)}-${p.slice(7)}`;
-  if (/^0\d{9}$/.test(p)) return `${p.slice(0, 2)}-${p.slice(2, 6)}-${p.slice(6)}`;
+  //   携帯・IP（090/080/070/050）は 3-4-4。0120・0570 は 4-3-3、0800 は 4-3-4
+  //   固定（10けた）は市外局番の長さで区切る：03・06 は 2-4-4／福岡県の 4けたの局番は 4-2-4／それ以外は 3-3-4（092・093 など）
+  if (/^0800\d{7}$/.test(p)) return `${p.slice(0, 4)}-${p.slice(4, 7)}-${p.slice(7)}`;
+  if (/^0[5789]0\d{8}$/.test(p)) return `${p.slice(0, 3)}-${p.slice(3, 7)}-${p.slice(7)}`;
+  if (/^(0120|0570)\d{6}$/.test(p)) return `${p.slice(0, 4)}-${p.slice(4, 7)}-${p.slice(7)}`;
+  if (/^0[36]\d{8}$/.test(p)) return `${p.slice(0, 2)}-${p.slice(2, 6)}-${p.slice(6)}`;
+  if (/^(0930|094[02346789])\d{6}$/.test(p)) return `${p.slice(0, 4)}-${p.slice(4, 6)}-${p.slice(6)}`;
+  if (/^0\d{9}$/.test(p)) return `${p.slice(0, 3)}-${p.slice(3, 6)}-${p.slice(6)}`;
   return p;
 }
 function hhmm(iso: string): string {
