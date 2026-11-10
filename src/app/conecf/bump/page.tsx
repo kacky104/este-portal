@@ -288,7 +288,11 @@ function EkichikaSlotList({ site, slots }: { site: SiteTheme; slots: ConecfBumpS
           return (
             <li key={s.slot}>
               <Link href={href(`/bump/ekichika/${s.slot}`)} className={`flex items-center gap-3 px-4 py-4 bg-white border ${site.border} shadow-sm text-[13px] tabular-nums hover:bg-orange-50/60 hover:border-orange-300 transition-colors`}>
-                <span className="w-14 flex-shrink-0 font-black text-slate-700">枠{s.slot}</span>
+                <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 text-[12px] font-bold text-blue-600 border border-blue-200 bg-blue-50">✎ 編集</span>
+                <span className="w-40 flex-shrink-0 min-w-0">
+                  <span className="font-black text-slate-700">枠{s.slot}</span>
+                  {s.area && <span className="ml-1.5 text-[12px] font-bold text-slate-500">{s.area}</span>}
+                </span>
                 <span className="w-28 flex-shrink-0 text-slate-500">
                   {ok ? <>あと <b className={`text-[18px] font-black ${r === 0 ? 'text-slate-400' : site.big}`}>{r === null ? '—' : r}</b>{quota != null && <span className="text-[11px]"> / {quota}回</span>}</> : <span className="text-[12px] font-bold text-amber-700">ID・PW 未登録</span>}
                 </span>
@@ -305,7 +309,6 @@ function EkichikaSlotList({ site, slots }: { site: SiteTheme; slots: ConecfBumpS
                   )}
                 </span>
                 <span className="hidden sm:block w-32 flex-shrink-0 text-right text-[11px] text-slate-400">{s.lastAt ? `最後 ${hm(s.lastAt)}` : 'まだ押していません'}</span>
-                <span className="w-14 flex-shrink-0 text-right text-[12px] font-bold text-blue-600">✎ 編集</span>
               </Link>
             </li>
           );

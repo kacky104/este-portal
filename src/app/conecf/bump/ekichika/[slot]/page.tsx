@@ -105,6 +105,7 @@ function Editor({ s, enabled, onToast, onSaved }: { s: ConecfBumpSlot; enabled: 
   return (
     <div className="space-y-4 pb-40">
       <Link href={href('/bump')} className="inline-flex items-center gap-1 text-[13px] font-bold text-slate-500 hover:text-slate-700">← 上位表示設定の一覧へ</Link>
+      {s.area && <p className="text-[14px] font-black text-slate-700">枠{s.slot}　<span className="text-orange-600">{s.area}</span></p>}
 
       {/* ── 上：自動のオン・オフ・残り・今すぐ ── */}
       <div className="flex items-center gap-3 flex-wrap bg-white border border-orange-100 p-4">

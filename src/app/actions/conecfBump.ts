@@ -7,6 +7,7 @@ import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
 import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor, normalizeBumpTimes, BUMP_TIMES_MAX } from '@/lib/ekichikaBump';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
+import { ekichikaAreaFromUrl } from '@/lib/ekichikaArea';
 
 // コネックエフ「駅ちか上位表示」の受け口（第1305便・2026-10-08）。
 // ★ 駅ちかの管理画面トップの「上位表示する」を、自動（時間帯・間隔）と今すぐの2通りで押す。押すのは中継の流れ（bump_auto / bump_push）。
@@ -49,6 +50,8 @@ export type ConecfBumpSlot = {
   startMin: number;
   endMin: number;
   intervalMin: number;
+  /** ★ 第1924便: 駅ちかのお店ページの URL のエリア（福岡市・博多／中洲・天神 など）。読めなければ null */
+  area: string | null;
   /** ★ 第1922便: 時刻指定（0時からの分・時刻順）。null＝間隔で押す */
   times: number[] | null;
   /** 時刻指定の列がある（追加SQL_第1922便が済み）。false なら画面に時刻指定を出さない */
@@ -71,7 +74,7 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
   const r = await resolve(false);
   if (!r.ok) return r;
   const { svc, salonId } = r;
-  const BASE_COLS = 'slot, link_mode, bump_auto, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_quota, bump_read_at';
+  const BASE_COLS = 'slot, link_mode, shop_url, bump_auto, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_quota, bump_read_at';
   const readSrc = (cols: string) => svc.from('salon_import_sources')
     .select(cols).eq('salon_id', salonId).eq('provider', provider).order('slot', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -102,6 +105,7 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
       startMin: Number(x.bump_start_min ?? 600),
       endMin: Number(x.bump_end_min ?? 1380),
       intervalMin: Number(x.bump_interval_min ?? 20),
+      area: provider === 'ekichika' ? ekichikaAreaFromUrl(typeof x.shop_url === 'string' ? x.shop_url : null) : null,
       times: provider === 'ekichika' && timesReady ? normalizeBumpTimes(x.bump_times) : null,
       timesReady: provider === 'ekichika' && timesReady,
       lastAt: (x.bump_last_at as string | null) ?? null,
