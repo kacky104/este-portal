@@ -99,6 +99,10 @@ const COMMON = `
 .hp-links { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .hp-link-item { display: inline-flex; align-items: center; max-width: 100%; text-decoration: none; }
 .hp-link-item img { display: block; max-width: 100%; height: auto; }
+/* ★ 第1883便: リンクのバナーの大きさ（横幅の上限）。元の画像より大きくはしない */
+.hp-link-sm img { max-width: min(300px, 100%); }
+.hp-link-md img { max-width: min(468px, 100%); }
+.hp-link-lg img { max-width: min(728px, 100%); }
 .hp-link-text { display: inline-block; padding: 4px 10px; font-size: 11.5px; line-height: 1.7; }
 .hp-sec-banners { padding-top: 0; }
 /* 固定トップバーの下にアンカーが潜らないように（ドロワーからの遷移用） */

@@ -392,7 +392,17 @@ export type HpLinkBanner = {
   image_url: string; // 画像バナーのURL（https のみ）。空文字＝文字だけのリンク
   link:      string; // リンク先（http(s) のみ）。空文字＝リンクなし
   label:     string; // 文字リンクの表示文字／画像バナーの alt
+  /** ★ 第1883便: 画像バナーの表示の大きさ（横幅の上限）。無し＝元の画像の大きさのまま */
+  size?:     HpLinkSize;
 };
+
+/** ★ 第1883便（カッキーさん）: 小 300px・中 468px（よくあるバナーの幅）・大 728px。元の画像より大きくはしない（上限だけ） */
+export type HpLinkSize = 'sm' | 'md' | 'lg';
+export const HP_LINK_SIZES: Array<{ key: HpLinkSize; label: string; px: number }> = [
+  { key: 'sm', label: '小', px: 300 },
+  { key: 'md', label: '中', px: 468 },
+  { key: 'lg', label: '大', px: 728 },
+];
 
 export const MAX_HP_LINK_BANNERS = 30;
 export const MAX_HP_LINK_LABEL_LEN = 60;
@@ -410,7 +420,8 @@ export function sanitizeHpLinkBanners(raw: unknown): HpLinkBanner[] {
     const label = typeof o.label === 'string' ? o.label.slice(0, MAX_HP_LINK_LABEL_LEN) : '';
     // 画像も文字も無いものは表示できないので捨てる
     if (image === '' && label === '') continue;
-    out.push({ image_url: image, link, label });
+    const size = HP_LINK_SIZES.some((s) => s.key === o.size) ? (o.size as HpLinkSize) : undefined;
+    out.push(size ? { image_url: image, link, label, size } : { image_url: image, link, label });
   }
   return out;
 }

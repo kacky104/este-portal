@@ -10,6 +10,8 @@ import {
   type HpBlocksConfig,
   type HpBanner,
   type HpLinkBanner,
+  type HpLinkSize,
+  HP_LINK_SIZES,
   type HpHeroSlide,
   MAX_HP_HERO_IMAGES,
   MAX_HP_HERO_SLIDES,
@@ -271,6 +273,13 @@ export function HpEditor({
     [next[index], next[to]] = [next[to], next[index]];
     patch({ link_banners: next });
   };
+  // ★ 第1883便: リンクのバナーの大きさ（'' = 元のまま）
+  const setLinkSize = (index: number, size: string) =>
+    patch({ link_banners: form.link_banners.map((b, i) => {
+      if (i !== index) return b;
+      const { size: _drop, ...rest } = b; void _drop;
+      return size ? { ...rest, size: size as HpLinkSize } : rest;
+    }) });
   const removeLinkBanner = (index: number) =>
     patch({ link_banners: form.link_banners.filter((_, i) => i !== index) });
 
@@ -973,6 +982,18 @@ export function HpEditor({
                     <span className="text-xs font-bold text-slate-600">{l.label}</span>
                   )}
                   <div className="text-[10px] text-slate-400 truncate">{l.link || 'リンクなし'}</div>
+                  {/* ★ 第1883便: 画像バナーの大きさ（小・中・大）。選ばなければ元の大きさ */}
+                  {l.image_url && (
+                    <div className="mt-1 flex items-center gap-1">
+                      <span className="text-[10px] text-slate-400 mr-0.5">大きさ</span>
+                      {([['', '元のまま'], ...HP_LINK_SIZES.map((z) => [z.key, z.label] as [string, string])] as Array<[string, string]>).map(([k, lb]) => (
+                        <button key={k || 'orig'} type="button" onClick={() => setLinkSize(i, k)}
+                          className={`px-2 py-0.5 text-[10.5px] font-bold border ${(l.size ?? '') === k ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
+                          {lb}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button type="button" onClick={() => removeLinkBanner(i)} aria-label="削除"
                   className="w-7 h-7 shrink-0 rounded-full bg-slate-100 text-slate-500 text-xs font-bold hover:bg-rose-100 hover:text-rose-500">×</button>
