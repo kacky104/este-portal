@@ -475,7 +475,9 @@ export async function HpDiaryView({ data }: ViewProps) {
   const isDemo = isDemoSite(data);
   const items = await fetchHpDiaryItems(salon.id, isDemo);
   // 「もっと見る」の行き先。デモは全店の日記一覧、実店舗は自店の日記一覧（どちらもフクエス本体）
-  const moreHref = isDemo ? `${EMBED_SITE_URL}/diary` : `${EMBED_SITE_URL}/salon/${salon.id}/diary`;
+  // ★ 第1912便: 駅ちか対策（もっと見る）が ON の店は、画像も「もっと見る」も駅ちかのお店の写メ日記一覧へ
+  const ekDiary = data.ekichikaShop ? `${data.ekichikaShop}maildiary/` : null;
+  const moreHref = ekDiary ?? (isDemo ? `${EMBED_SITE_URL}/diary` : `${EMBED_SITE_URL}/salon/${salon.id}/diary`);
 
   return (
     <HpShell data={data} page="diary">
@@ -491,7 +493,7 @@ export async function HpDiaryView({ data }: ViewProps) {
               <a
                 key={e.id}
                 className="hp-dy-card"
-                href={`${EMBED_SITE_URL}/diary/${e.id}?from=salon`}
+                href={ekDiary ?? `${EMBED_SITE_URL}/diary/${e.id}?from=salon`}
                 target="_blank"
                 rel="noopener"
                 title={e.title || `${e.therapistName}の写メ日記`}
