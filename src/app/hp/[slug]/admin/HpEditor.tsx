@@ -385,8 +385,8 @@ export function HpEditor({
 
       {/* ── トップ（ヒーロー） ── */}
       {show('hero') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
-        <h3 className="text-sm font-black text-slate-800">トップ画像・キャッチコピー</h3>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />トップ画像・キャッチコピー</h3>
         {/* ★ キャッチコピーは【画像より上】へ（第293便・2026-09-12・カッキーさんの指示）。
             ★ 先に文字を決めてから写真を入れ替える並びにした。★ 中身・保存の仕方は変えていない。 */}
         <div>
@@ -508,12 +508,7 @@ export function HpEditor({
             );
           })}
         </div>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ スマートフォン用を設定すると、スマホで見たときだけそちらに自動で切り替わります（未設定ならパソコン用を共用）。
-          <br />
-          ※ <b className="text-slate-500">3枚とも同じサイズ（2400×960px）でご用意ください。</b>
-          サイズが違うと、1枚目の高さに合わせて2枚目以降の画像が切れます。
-        </p>
+        <p className="text-[12px] text-slate-500 leading-relaxed">スマホ用を入れると、スマホではそちらを表示します（未設定ならパソコン用を使います）。<br />画像は<b>3枚とも同じサイズ（2400×960px）</b>にしてください。サイズが違うと、2枚目以降が切れます。</p>
       </div>
       )}
 
@@ -523,8 +518,8 @@ export function HpEditor({
            その配色で見たときだけ差し替わる（/hp/demo/preview/{ひな形}/{カラー}）。
            セラピスト写真も同じ考え方で、掲載データの写真の代わりに使う。 */}
       {show('hero') && previewSlots.length > 0 && (
-        <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-          <h3 className="text-sm font-black text-slate-800">デザインごとの画像（デモ専用）</h3>
+        <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+          <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />デザインごとの画像（デモ専用）</h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">
             デザイン一覧のプレビューで、その見た目のときだけ差し替える写真です（トップ画像とセラピスト写真）。
             タイプS・A・Bは配色ごと、タイプCはひな形ごとに1セット（そのひな形の全カラーで共通）。
@@ -704,14 +699,12 @@ export function HpEditor({
              ★ 置き場所は「ホームページ管理」のカードのすぐ下（★ ホームの2枚目）。
              ★ 動かしたのは出す条件だけ。★ 中身・保存の仕方は何も変えていない。 */}
       {show('home') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
         {/* ★ どこに出る文章かを、枠の上に中央で置く（第293便・2026-09-12・カッキーさんの指示）。
             ★ 「公式ホームページ管理」と同じ形（太字・中央）。★ その下が中身の見出し。 */}
         <h3 className="text-sm font-black text-slate-800 text-center">TOPページ表示</h3>
-        <h3 className="text-sm font-black text-slate-800">コンセプト</h3>
-        <p className="text-[11px] text-slate-400">
-          ※ フクエス掲載ページの紹介文とは別の、ホームページ専用の文章です（同じ文章のコピーは検索評価の面で不利になります）。
-        </p>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />コンセプト</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ホームページ専用の文章です。フクエスの紹介文と同じ文章は避けてください（検索で不利になります）。</p>
         <div>
           <p className="text-xs font-bold text-slate-600 mb-1">見出し（最大{MAX_HP_TITLE_LEN}文字）</p>
           <input
@@ -777,7 +770,7 @@ export function HpEditor({
 
       {/* ── ブロック表示設定＋並び順 ── */}
       {show('blocks') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
         {/* ★ スマホでも1行に収める（第294便・2026-09-12・カッキーさんの指示）。
             ★ 折り返さない（whitespace-nowrap）ぶん、狭いときは文字を少し小さくする。
             ★ md 以上は今までの大きさ。 */}
@@ -796,13 +789,8 @@ export function HpEditor({
         {/* ★ 文言を短く（第293便・2026-09-12・カッキーさんの指示）。
             ★ 「上から順に表示される／▲▼で入れ替えられる」は見れば分かるので落とした。 */}
         {/* ★ 2つの話なので段落を分ける（第294便）。★ 間に1行あける。 */}
-        <p className="text-[11px] text-slate-400">
-          トップ画像・電話／LINEの予約ボタン・フッターの位置は固定。
-        </p>
-        <p className="text-[11px] text-slate-400">
-          各ブロックの中身（セラピスト・出勤・写メ日記・口コミ・クーポン・お知らせ等）は、
-          フクエスのマイページで編集した内容がそのまま表示。
-        </p>
+        <p className="text-[12px] text-slate-500 leading-relaxed">トップ画像・予約ボタン・フッターの位置は固定です。</p>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ブロックの中身は、フクエスのマイページの内容がそのまま出ます。</p>
 
         <ul className="divide-y divide-slate-100 border-y border-slate-100">
           {sectionOrder.map((k, i) => {
@@ -910,9 +898,9 @@ export function HpEditor({
 
       {/* ── バナー ── */}
       {show('banner') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
-        <h3 className="text-sm font-black text-slate-800">バナー（最大{MAX_HP_BANNERS}枠）</h3>
-        <p className="text-[11px] text-slate-400">※ ページ下部に表示するバナーです。リンクは任意（空欄=リンクなし）。</p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />バナー（最大{MAX_HP_BANNERS}枠）</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ページ下部に出すバナーです。リンクは空欄でもかまいません。</p>
         {Array.from({ length: MAX_HP_BANNERS }, (_, i) => {
           const banner = form.banners[i];
           const slotKey = `banner${i}`;
@@ -967,10 +955,7 @@ export function HpEditor({
              上のバナー枠に入れる。script や onclick が混ざっていても取り込まれない。 */}
         <div className="pt-4 border-t border-slate-100 space-y-2">
           <h4 className="text-xs font-black text-slate-700">バナーのコードから登録</h4>
-          <p className="text-[11px] text-slate-400">
-            ※ フクエスなど相互リンク用のバナーコードを貼って「取り込む」を押すと、空いている枠に入ります。
-            読み取るのは画像URLとリンク先だけです（画像URLは https:// のもののみ）。
-          </p>
+          <p className="text-[12px] text-slate-500 leading-relaxed">バナーコードを貼って「取り込む」を押すと、空いている枠に入ります（画像URLとリンク先だけを読み取ります）。</p>
           <textarea
             value={bannerCode}
             onChange={(e) => setBannerCode(e.target.value)}
@@ -993,13 +978,9 @@ export function HpEditor({
 
       {/* ── リンク（相互リンク） ── */}
       {show('links') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">リンク（最大{MAX_HP_LINK_BANNERS}件）</h3>
-        <p className="text-[11px] text-slate-400">
-          ※ 掲載サイト・求人サイトから配られる相互リンク用のコードを貼って「追加する」を押すと、
-          ページの「リンク」欄に並びます。複数まとめて貼れます。画像の無い文字だけのリンクにも対応しています。
-          読み取るのは画像URL・リンク先・表示文字だけです。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />リンク（最大{MAX_HP_LINK_BANNERS}件）</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">相互リンク用のコードを貼って「追加する」を押すと、「リンク」欄に並びます。複数まとめて貼れます。文字だけのリンクも使えます。</p>
 
         <textarea
           value={linkCode}
@@ -1060,13 +1041,9 @@ export function HpEditor({
 
       {/* ── ウィジェット（第1899便・2026-11-10・カッキーさん） ── */}
       {show('widget') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">ウィジェット（最大{MAX_HP_WIDGETS}つ）</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ 掲載サイトから配られる写メ日記などのウィジェットのコード（&lt;iframe …&gt;）を貼って「追加する」を押すと、
-          トップページの「ウィジェット」欄に並びます。表示する位置は「表示ブロック」の並び順で変えられます。
-          読み取るのは表示先のURL（https:// のもの）・幅・高さだけです。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />ウィジェット（最大{MAX_HP_WIDGETS}つ）</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ウィジェットのコード（&lt;iframe …&gt;）を貼って「追加する」を押すと、トップページに並びます。位置は「表示ブロック」で変えられます。</p>
         {/* ★ 第1900便: 欄の見出し（ほかの欄の「Diary／写メ日記」と同じ形） */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block">
@@ -1092,7 +1069,7 @@ export function HpEditor({
             />
           </label>
         </div>
-        <p className="text-[10px] text-slate-400">※ 2つとも空にすると、見出しを出さずにウィジェットだけを並べます。</p>
+        <p className="text-[11px] text-slate-500">2つとも空にすると、見出しを出しません。</p>
 
         <textarea
           value={widgetCode}
@@ -1138,11 +1115,9 @@ export function HpEditor({
         <div className="bg-white border border-slate-100 shadow-sm p-5 text-[12px] text-slate-500">デモ店では使えません。</div>
       )}
       {show('ekichika') && !isDemo && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">駅ちかのランキング対策</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ 駅ちかは、公式ホームページから駅ちかへのリンクがあると、ランキングの点数を加点します。ONにすると、下のリンク先が駅ちかに変わります（ネット予約はフクエスのままです）。写メ・口コミのウィジェットは、左メニューの「ウィジェット」に駅ちかの設置タグを貼ってください。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />駅ちかのランキング対策</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">駅ちかは、公式ホームページから駅ちかへのリンクがあると加点します。ONにした項目のリンク先が駅ちかに変わります（ネット予約はフクエスのままです）。<br />写メ・口コミのウィジェットは、左メニューの「ウィジェット」に貼ってください。</p>
         {ekInfo && ekInfo.slots.length === 0 && (
           <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます。</p>
         )}
@@ -1173,7 +1148,7 @@ export function HpEditor({
                 <input type="checkbox" className="mt-0.5" checked={form.blocks.ekichika.more} onChange={(e) => setEk({ more: e.target.checked })} />
                 <span><b>出勤・写メ日記・口コミの「もっと見る」を、駅ちかのページにする</b>（採点表の5番：2点）</span>
               </label>
-              <p className="text-[11px] text-slate-400">保存すると反映されます（公開ページに出るまで最大10分ほどかかります）。点数は駅ちかへの申請・確認のあとに付きます。</p>
+              <p className="text-[12px] text-slate-500 leading-relaxed">公開ページに出るまで最大10分ほどかかります。点数は、駅ちかへ申請して確認されたあとに付きます。</p>
             </div>
           );
         })()}
@@ -1183,16 +1158,10 @@ export function HpEditor({
 
       {/* ── お問い合わせフォーム（第1717便・2026-11-02・カッキーさん） ── */}
       {show('contact') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-4">
-        <h3 className="text-sm font-black text-slate-800">お問い合わせフォーム</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ ONにすると、公式ホームページに「お問い合わせ」ページ（/contact）とメニューが出ます。
-          お客様が送った内容は下の通知先メールアドレスに届きます（お客様への自動返信はありません。送信後に画面で「お問い合わせありがとうございました」と表示します）。
-        </p>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          用件の選択肢は {HP_CONTACT_SUBJECTS.map((s) => s.label).join('／')} の4つです（全店共通）。
-          項目は「お名前・メールアドレス・電話番号（任意）・用件・内容」です。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />お問い合わせフォーム</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ONにすると、ホームページに「お問い合わせ」ページとメニューが出ます。届いた内容は、下の通知先メールアドレスに送ります（お客様への自動返信はありません）。</p>
+        <p className="text-[12px] text-slate-500 leading-relaxed">入力項目：お名前・メールアドレス・電話番号（任意）・用件・内容。用件は {HP_CONTACT_SUBJECTS.map((s) => s.label).join('／')} の4つです。</p>
 
         <label className="flex items-center gap-2 text-sm font-bold text-slate-700">
           <input
@@ -1217,7 +1186,7 @@ export function HpEditor({
             autoComplete="email"
             className={inputCls}
           />
-          <p className="text-[11px] text-slate-400">お問い合わせはこのアドレスに届きます。届いたメールに「返信」するとお客様への返事になります。</p>
+          <p className="text-[12px] text-slate-500 leading-relaxed">届いたメールに返信すると、お客様への返事になります。</p>
         </div>
 
         <div className="space-y-1">
@@ -1239,13 +1208,9 @@ export function HpEditor({
 
       {/* ── ヘッダーのロゴ ── */}
       {show('brand') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">ヘッダーのロゴ</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ ページ上部の固定ヘッダーに表示されます。未設定のときは店名の文字が出ます。
-          横長の透過PNG推奨。余白はできるだけ切り詰めてください。
-          画像の高さの目安：標準・中は 120〜170px、大は 240px くらい（表示の約3倍だと、くっきり見えます）。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />ヘッダーのロゴ</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ヘッダーに出すロゴです。未設定なら店名の文字が出ます。横長の透過PNGがおすすめです（高さの目安：標準・中 120〜170px、大 240px）。</p>
         <div className="flex items-center gap-3">
           {form.logo_url ? (
             <div className="relative">
@@ -1296,18 +1261,15 @@ export function HpEditor({
               {l}
             </button>
           ))}
-          <p className="basis-full text-[11px] text-slate-400">保存すると反映されます。</p>
         </div>
       </div>
       )}
 
       {/* ── 文字の大きさと字体（第1901便・2026-11-10・カッキーさん） ── */}
       {show('brand') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">文字の大きさ・字体・色</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ ホームページ全体の文字に効きます。「標準」「デザインのまま」は、今までの見た目のままです。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />文字の大きさ・字体・色</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ホームページ全体の文字に効きます。</p>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="w-16 text-[11px] font-bold text-slate-500">大きさ</span>
           {([['sm', '標準'], ['md', '中（1.1倍）'], ['lg', '大（1.2倍）']] as const).map(([k, l]) => (
@@ -1340,19 +1302,16 @@ export function HpEditor({
               </button>
             );
           })}
-          <p className="basis-full text-[11px] text-slate-400">文章（コンセプト・お知らせ・店舗情報など）の色が変わります。見出しや値段、ボタンの色はデザインのままです。保存すると反映されます。</p>
+          <p className="basis-full text-[12px] text-slate-500">文章（コンセプト・お知らせ・店舗情報など）の色が変わります。見出し・値段・ボタンはデザインの色のままです。</p>
         </div>
       </div>
       )}
 
       {/* ── ファビコン ── */}
       {show('brand') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">ファビコン（ブラウザタブのアイコン）</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ 独自ドメインで開いたとき、ブラウザのタブに表示される小さなアイコンです。
-          512×512ピクセルの正方形PNG推奨（お店のロゴマークなど）。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />ファビコン（ブラウザタブのアイコン）</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">独自ドメインで開いたとき、ブラウザのタブに出るアイコンです。512×512pxの正方形PNGがおすすめです。</p>
         <div className="flex items-center gap-3">
           {form.favicon_url ? (
             <div className="relative">
@@ -1388,19 +1347,15 @@ export function HpEditor({
               />
             </label>
           )}
-          <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
         </div>
       </div>
       )}
 
       {/* ── 背景画像（第1884便・2026-11-10・カッキーさん）── */}
       {show('brand') && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">背景画像</h3>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
-          ※ ホームページ全体の後ろに敷く画像です。選ばなければ、デザインの既定の背景のままです。
-          横長の写真（1920×1080 くらい）か、模様の画像がおすすめです。
-        </p>
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />背景画像</h3>
+        <p className="text-[12px] text-slate-500 leading-relaxed">ホームページ全体の後ろに敷く画像です。未設定ならデザインの背景のままです。横長の写真（1920×1080くらい）か、模様の画像がおすすめです。</p>
         <div className="flex items-center gap-3">
           {form.blocks.background.url ? (
             <div className="relative">
@@ -1460,13 +1415,12 @@ export function HpEditor({
             </div>
           </div>
         )}
-        <p className="text-[11px] text-slate-400">保存すると反映されます。</p>
       </div>
       )}
 
       {/* ── 保存 ── */}
       {isEditorPage && (
-      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-2">
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-2">
         <button
           onClick={handleSave}
           disabled={saving || uploadingSlot !== null}
