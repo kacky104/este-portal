@@ -991,29 +991,26 @@ ${COMMON}
 .hp-s .hp-link-item:hover .hp-link-text { color: var(--hp-accent, #b98d4f); border-color: var(--hp-accent-soft, #d5b98a); }
 .hp-s .hp-drawer-close { color: #9b8c74; }
 
-/* ── ヒーロー：全幅画像に文字を重ねる（PC=左側の余白へ／SP=下側の余白へ） ── */
+/* ── ヒーロー：全幅画像の【下】に、店名・キャッチ・エリアを中央そろえで（第1885便・2026-11-10・カッキーさん）──
+   ★ もとは画像の上に文字を重ねていた（PC=左側／SP=画面上は出さない）。文字入りのヒーロー画像（オイルクエスト様など）だと
+     重なって読めなくなるので、画像の下のブロックに出す。★ 画像を白くかすませる霞（.hp-hero::after）も外した。
+   ★ SP も画像の下に出す（重ならないので二重表示で読めなくなることはない）。店名はページ唯一の h1 のまま。 */
 .hp-s .hp-hero { position: relative; }
 .hp-s .hp-hero-img { max-height: none; }
-.hp-s .hp-hero-text { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-  text-align: left; padding: 0 0 0 13%; max-width: 60%; }
+.hp-s .hp-hero::after { display: none !important; }
+.hp-s .hp-hero-text { position: static; display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 40px 20px 44px; max-width: 900px; margin: 0 auto; }
 /* 大きく見せるのはキャッチコピー（順序はCSSで入れ替え） */
-.hp-s .hp-hero-catch { order: -1; margin: 0 0 4%; font-size: clamp(21px, 3.6vw, 48px); line-height: 1.7; letter-spacing: .1em; color: #4a4238;
-  text-shadow: 0 1px 12px rgba(253,251,247,.8); }
+.hp-s .hp-hero-catch { order: -1; margin: 0 0 22px; font-size: clamp(20px, 3vw, 40px); line-height: 1.7; letter-spacing: .1em; color: #4a4238; }
 .hp-s .hp-hero-en { font-size: clamp(10px, 1.15vw, 14px); letter-spacing: .42em; color: #9b8c74; margin-bottom: 12px; }
 .hp-s .hp-hero-name { font-size: clamp(17px, 2.2vw, 30px); font-weight: 500; letter-spacing: .3em; color: var(--hp-accent, #b98d4f); position: relative; padding-bottom: 14px; }
-.hp-s .hp-hero-name::after { content: ''; position: absolute; left: 2px; bottom: 0; width: 76px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
-.hp-s .hp-hero-area { margin-top: 16px; font-size: clamp(9px, 1.05vw, 13px); color: #9b8c74; letter-spacing: .3em; }
+.hp-s .hp-hero-name::after { content: ''; position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; width: 76px; border-top: 1px solid var(--hp-accent-soft, #d5b98a); }
+.hp-s .hp-hero-area { margin-top: 16px; font-size: clamp(10px, 1.05vw, 13px); color: #9b8c74; letter-spacing: .3em; }
 @media (max-width: 639px) {
-  /* SP: キービジュアルは写真1枚で見せる（2026-08-10）。
-     スマホ用の画像はもともと文字入りで作るため、店名・キャッチ・エリアを重ねると
-     二重表示になり、可読性のための明るいスクリムも写真を白くくすませていた。
-     そこで文字レイヤーごと消す（PCは従来どおり左側に文字を重ねる）。
-     display:none ではなく視覚的に隠すだけにするのは、ページ唯一の h1（店名）を
-     検索エンジンと読み上げに残すため。 */
-  .hp-s .hp-hero-text {
-    position: absolute; inset: auto; width: 1px; height: 1px;
-    padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); border: 0;
-  }
+  .hp-s .hp-hero-text { padding: 28px 16px 32px; }
+  .hp-s .hp-hero-en { letter-spacing: .28em; }
+  .hp-s .hp-hero-name { letter-spacing: .18em; }
+  .hp-s .hp-hero-area { letter-spacing: .16em; }
 }
 
 /* ── セクション見出し（金の英字＋明朝＋二重罫線。Aの意匠を明るい地に移植） ── */
