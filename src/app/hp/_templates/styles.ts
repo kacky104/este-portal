@@ -966,7 +966,7 @@ ${COMMON}
 
 /* ── 固定ナビ（白のすりガラス・店名／ナビ／メニューボタン） ── */
 .hp-s .hp-topbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: var(--hp-topbar-top, 0px); z-index: 30;
-  padding: 14px 22px; background: rgba(253,251,247,.86); backdrop-filter: blur(10px); border-bottom: 1px solid #eee4d4; }
+  padding: 10px 22px; background: rgba(253,251,247,.86); backdrop-filter: blur(10px); border-bottom: 1px solid #eee4d4; }   /* ★ 第1893便: 上下 14px → 10px（カッキーさん） */
 .hp-s.hp-scrolled .hp-topbar { background: rgba(253,251,247,.97); box-shadow: 0 2px 16px rgba(74,66,56,.13); }
 .hp-s .hp-topbar-name { font-size: 14px; letter-spacing: .24em; color: var(--hp-accent, #b98d4f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hp-s .hp-topbar-nav { display: none; gap: 26px; }
