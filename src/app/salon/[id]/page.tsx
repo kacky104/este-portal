@@ -71,9 +71,10 @@ import SalonScrollPopup from "@/app/components/SalonScrollPopup";
 import { SiteNoticeBanner } from '@/app/components/SiteNoticeBanner';
 import { SiteFooter } from '@/app/components/SiteFooter';
 
-// ISR：60秒ごとに再生成（保存時は /api/revalidate で即時無効化。これは即時破棄が
-// 届かなかった場合の保険で、最悪でも60秒で自動更新される。以前は600秒＝最長10分だった）。
-export const revalidate = 60;
+// ISR：600秒ごとに再生成（保存時は /api/revalidate で即時無効化。これは即時破棄が
+// 届かなかった場合の保険）。
+// ★ 第1895便: 60秒 → 600秒に戻す。巡回が来るたびに作り直しが起き、Vercel の ISR Writes が増えていたため。
+//   ★ 店舗の下のページ（/therapists・/schedule など）と公式HPはもともと600秒。保存・取り込みは即時無効化で反映される。
 
 // ビルド時に全サロンの詳細ページを事前生成（dynamicParams=true のままなので新規サロンは初回アクセスで生成）。
 export async function generateStaticParams() {

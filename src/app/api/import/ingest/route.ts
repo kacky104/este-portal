@@ -214,6 +214,12 @@ export async function POST(req: Request) {
   let schedulesUpserted = 0;
   let profilesUpdated = 0;
   let castIdFilled = 0;
+  // ★★ 第1895便: 公開ページを作り直すのは【実際に何かが変わったとき】だけ（ingest-list の第1119便と同じ考え）。
+  //   ★ 以前は毎回（10人ずつの chunk ごと・店ごと）サイト全体のキャッシュを捨てていて、Vercel の ISR Writes が増えていた。
+  //   ★ 変わった＝新しく作った・出勤の中身が違う・年齢サイズが違う・写真を入れた／消した。
+  //   ★ upsert 自体は今までどおり毎回する（imported_at を新しくしないと掃除の判定が狂う）。
+  let pageChanged = false;
+  const hm = (v: unknown): string | null => (v == null || v === '' ? null : String(v).slice(0, 5));
   // ★★ 第427便: 駅ちかの写真の取り込み（最初の1回・写真だけ）。★ 60秒の上限に近づいたら残りの人の写真は取らない（名前を残す）
   const startedMs = Date.now();
   const PHOTO_BUDGET_MS = 40_000;
@@ -331,6 +337,7 @@ export async function POST(req: Request) {
       byName.set(key, therapistId);
       if (c.castId) byCastId.set(c.castId, therapistId);
       createdNames.push(cast.name.trim());
+      pageChanged = true;
       current.set(therapistId, { age: cast.age ?? null, bodyType: cast.bodyType ?? null, isActive: true });
       isNew = true;
     }
@@ -378,7 +385,7 @@ export async function POST(req: Request) {
             start_time: d.start, end_time: d.end, imported_at: importedAt,
           }));
           const { error } = await supabase.from('therapist_schedules').upsert(rows, { onConflict: 'therapist_id,schedule_date' });
-          if (!error) schedulesUpserted += rows.length;
+          if (!error) { schedulesUpserted += rows.length; pageChanged = true; }
         }
       }
       if (!isNew) {
@@ -386,7 +393,7 @@ export async function POST(req: Request) {
         const patch = fillEmptyProfile(cur, { age: cast.age ?? null, bodyType: cast.bodyType ?? null });
         if (Object.keys(patch).length > 0) {
           const { error } = await supabase.from('therapists').update(patch).eq('id', therapistId);
-          if (!error) profilesUpdated++;
+          if (!error) { profilesUpdated++; pageChanged = true; }
         }
       }
       // ★★ 第427便: 最初の1回でも写真を取り込む（★ コネックエフの写真が0枚の人だけ）
@@ -396,6 +403,25 @@ export async function POST(req: Request) {
 
     // 4a. 出勤（設定ON かつ 出勤/休みの行があるときだけ）
     if (source.import_schedule && cast.schedule.length > 0) {
+      // ★ 第1895便: 書く前に今の行を読み、中身（出勤か・開始・終了）が1日でも違えば「変わった」にする
+      if (!pageChanged) {
+        const { data: ex, error: exErr } = await supabase
+          .from('therapist_schedules')
+          .select('schedule_date, is_active, start_time, end_time')
+          .eq('therapist_id', therapistId)
+          .in('schedule_date', cast.schedule.map((d) => d.date));
+        if (exErr) pageChanged = true;   // ★ 読めなければ安全側（作り直す）
+        else {
+          const have = new Map((ex ?? []).map((e) => [String(e.schedule_date), e]));
+          for (const d of cast.schedule) {
+            const e = have.get(d.date);
+            const work = d.status === 'work';
+            if (!e) { pageChanged = true; break; }
+            if ((e.is_active !== false) !== work) { pageChanged = true; break; }
+            if (work && (hm(e.start_time) !== hm(d.start) || hm(e.end_time) !== hm(d.end))) { pageChanged = true; break; }
+          }
+        }
+      }
       const rows = cast.schedule.map((d) => ({
         therapist_id: therapistId,
         schedule_date: d.date,
@@ -413,11 +439,13 @@ export async function POST(req: Request) {
     // 4b. 年齢・サイズ（設定ON かつ 取れた値だけ）
     if (source.import_profile) {
       const patch: Record<string, string> = {};
-      if (cast.age) patch.age = cast.age;
-      if (cast.bodyType) patch.body_type = cast.bodyType;
+      // ★ 第1895便: 今と同じ値は書かない（★ 書かなければ作り直しも要らない）
+      const cur = current.get(therapistId);
+      if (cast.age && String(cast.age) !== (cur?.age ?? null)) patch.age = cast.age;
+      if (cast.bodyType && cast.bodyType !== (cur?.bodyType ?? null)) patch.body_type = cast.bodyType;
       if (Object.keys(patch).length > 0) {
         const { error } = await supabase.from('therapists').update(patch).eq('id', therapistId);
-        if (!error) profilesUpdated++;
+        if (!error) { profilesUpdated++; pageChanged = true; }
       }
     }
 
@@ -464,11 +492,15 @@ export async function POST(req: Request) {
   }
 
   // 5. 公開ページを即時無効化（cron には cookie が無いので /api/revalidate は使わず直接呼ぶ）
-  revalidatePath('/salon/[id]', 'layout');
-  revalidatePath('/hp/[slug]', 'layout');
-  revalidatePath('/therapist/[id]', 'layout');
-  revalidatePath('/area/[slug]', 'page');
-  revalidatePath('/');
+  //   ★ 第1895便: 変わったときだけ（写真を入れた／消したも「変わった」）
+  if (photoSaved > 0 || photoCleared > 0) pageChanged = true;
+  if (pageChanged) {
+    revalidatePath('/salon/[id]', 'layout');
+    revalidatePath('/hp/[slug]', 'layout');
+    revalidatePath('/therapist/[id]', 'layout');
+    revalidatePath('/area/[slug]', 'page');
+    revalidatePath('/');
+  }
 
   // 6. 実行ログ確定＋設定側にも最終結果を反映
   const finishedAt = new Date().toISOString();
@@ -494,6 +526,7 @@ export async function POST(req: Request) {
   }).eq('id', sourceId);
 
   return NextResponse.json({
+    regenerated: pageChanged,   // ★ 第1895便: 公開ページを作り直したか
     ok: true,
     fetched: casts.length,
     matched,
