@@ -214,7 +214,7 @@ function Editor({ s, enabled, onToast, onSaved }: { s: ConecfBumpSlot; enabled: 
                 <button type="button" onClick={() => setRows((v) => [...v, ''])} className="px-3 py-1.5 text-[17px] font-bold text-slate-600 border border-dashed border-slate-300 hover:bg-slate-50">＋ 時刻を足す</button>
               )}
               <p className="text-[16px] text-slate-500 leading-relaxed">
-                1日に <b className="tabular-nums text-slate-700">{perDay}</b> 回押します。見回りは5分ごとなので、実際に押すのは指定の時刻の1〜6分あとです。時刻を30分以上過ぎた回は、あとから押しません。
+                1日に <b className="tabular-nums text-slate-700">{perDay}</b> 回押します。実際に上位表示に反映するのは数分以内になります。
               </p>
             </>
           )}
