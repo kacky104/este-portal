@@ -24,5 +24,5 @@ export default async function EmbedSalonDiaryCountPage({
   const { id, count } = await params;
   const n = Number(count);
   if (!Number.isInteger(n) || n < HP_DIARY_COUNT_MIN || n > HP_DIARY_COUNT_MAX) notFound();
-  return <DiaryEmbed id={id} max={n} />;
+  return <DiaryEmbed id={id} max={n} showMore={false} />; // 「もっと見る」はHP側に出す（第1902便）
 }

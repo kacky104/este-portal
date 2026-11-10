@@ -18,7 +18,8 @@ type Row = {
   therapists: { name: string | null } | { name: string | null }[] | null;
 };
 
-export async function DiaryEmbed({ id, max }: { id: string; max: number }) {
+// ★ 第1902便: showMore=false で中の「写メ日記をもっと見る」を出さない（公式HP向け。HP側に「もっと見る」があり2つ並んでいたため）
+export async function DiaryEmbed({ id, max, showMore = true }: { id: string; max: number; showMore?: boolean }) {
   const salonId = Number(id);
   if (!Number.isFinite(salonId)) notFound();
 
@@ -84,10 +85,12 @@ export async function DiaryEmbed({ id, max }: { id: string; max: number }) {
         </div>
       )}
 
-      <EmbedFooter
-        moreHref={`${EMBED_SITE_URL}/salon/${salonId}/diary`}
-        moreLabel="写メ日記をもっと見る"
-      />
+      {showMore && (
+        <EmbedFooter
+          moreHref={`${EMBED_SITE_URL}/salon/${salonId}/diary`}
+          moreLabel="写メ日記をもっと見る"
+        />
+      )}
     </div>
   );
 }

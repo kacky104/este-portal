@@ -89,7 +89,7 @@ const COMMON = `
 .hp-widget { display: block; max-width: 100%; border: 0; background: transparent; }
 .hp-embed-diary { height: 480px; }
 @supports (height: 1cqw) {
-  .hp-embed-diary { height: calc(var(--hp-diary-rows, 4) * ((100cqw - 52px) / 3) + (var(--hp-diary-rows, 4) - 1) * 8px + 112px); }
+  .hp-embed-diary { height: calc(var(--hp-diary-rows, 4) * ((100cqw - 52px) / 3) + (var(--hp-diary-rows, 4) - 1) * 8px + 84px); }  /* 第1902便: 埋め込みの「もっと見る」を外したぶん 112→84px */
 }
 .hp-more { display: inline-block; margin-top: 12px; text-decoration: none; font-size: 11px; font-weight: 700; }
 .hp-note { margin-top: 14px; font-size: 10px; opacity: .7; }
@@ -971,8 +971,9 @@ ${COMMON}
    <style> と <script> は display:none なので flex アイテムにならない。
    .hp-wallpaper / .hp-cta / .hp-drawer は position:fixed なので order の影響を受けない。 */
 /* 並べ替えで背景の縞（無地↔生成り）がずれるぶんを付け替える。
+   ★ 第1902便: ウィジェット（.hp-sec-widgets）も帯あり（写メ日記の続き）。地が透けて見出しが読みにくかったため。
    schedule=帯 / concept=無地 / courses=帯 / therapists=無地 …と交互に戻す。 */
-.hp-s .hp-sec-diary, .hp-s .hp-sec-coupon, .hp-s .hp-sec-free { background: rgba(247,242,234,.70); }
+.hp-s .hp-sec-diary, .hp-s .hp-sec-widgets, .hp-s .hp-sec-coupon, .hp-s .hp-sec-free { background: rgba(247,242,234,.70); }
 .hp-s .hp-sec-reviews, .hp-s .hp-sec-news, .hp-s .hp-sec-info { background: rgba(253,251,247,.30); }
 
 /* ── 固定ナビ（白のすりガラス・店名／ナビ／メニューボタン） ── */
@@ -1269,7 +1270,7 @@ const TYPE_S_WINE = `/* ══════════ 配色2: ワインレッ�
 /* セクションの地色（壁紙を透かすベール）。無地↔薔薇色の帯で縞を作るのは金と同じ */
 .hp-s.hp-s-wine .hp-sec { background: rgba(253,248,247,.34); }
 .hp-s.hp-s-wine .hp-sec-alt { background: rgba(248,235,235,.78); }
-.hp-s.hp-s-wine .hp-sec-diary, .hp-s.hp-s-wine .hp-sec-coupon, .hp-s.hp-s-wine .hp-sec-free { background: rgba(248,235,235,.78); }
+.hp-s.hp-s-wine .hp-sec-diary, .hp-s.hp-s-wine .hp-sec-widgets, .hp-s.hp-s-wine .hp-sec-coupon, .hp-s.hp-s-wine .hp-sec-free { background: rgba(248,235,235,.78); }
 .hp-s.hp-s-wine .hp-sec-reviews, .hp-s.hp-s-wine .hp-sec-news, .hp-s.hp-s-wine .hp-sec-info { background: rgba(253,248,247,.34); }
 
 /* トップバー: 地そのものを濃いワインにして、ヘッダーだけで「赤のサイト」と分かるようにする
@@ -1365,7 +1366,7 @@ const TYPE_S_BLUE = `/* ══════════ 配色3: ロイヤルブ�
 /* セクションの地色（壁紙を透かすベール）。無地↔淡い青の帯で縞を作る */
 .hp-s.hp-s-blue .hp-sec { background: rgba(247,249,253,.34); }
 .hp-s.hp-s-blue .hp-sec-alt { background: rgba(233,238,248,.78); }
-.hp-s.hp-s-blue .hp-sec-diary, .hp-s.hp-s-blue .hp-sec-coupon, .hp-s.hp-s-blue .hp-sec-free { background: rgba(233,238,248,.78); }
+.hp-s.hp-s-blue .hp-sec-diary, .hp-s.hp-s-blue .hp-sec-widgets, .hp-s.hp-s-blue .hp-sec-coupon, .hp-s.hp-s-blue .hp-sec-free { background: rgba(233,238,248,.78); }
 .hp-s.hp-s-blue .hp-sec-reviews, .hp-s.hp-s-blue .hp-sec-news, .hp-s.hp-s-blue .hp-sec-info { background: rgba(247,249,253,.34); }
 
 /* トップバー: 地そのものを濃紺にして、ヘッダーだけで「青のサイト」と分かるようにする。
@@ -1455,7 +1456,7 @@ const TYPE_S_EMERALD = `/* ══════════ 配色4: エメラル�
 /* セクションの地色（壁紙を透かすベール）。無地↔淡い翡翠の帯で縞を作る */
 .hp-s.hp-s-emerald .hp-sec { background: rgba(246,251,249,.34); }
 .hp-s.hp-s-emerald .hp-sec-alt { background: rgba(230,242,238,.78); }
-.hp-s.hp-s-emerald .hp-sec-diary, .hp-s.hp-s-emerald .hp-sec-coupon, .hp-s.hp-s-emerald .hp-sec-free { background: rgba(230,242,238,.78); }
+.hp-s.hp-s-emerald .hp-sec-diary, .hp-s.hp-s-emerald .hp-sec-widgets, .hp-s.hp-s-emerald .hp-sec-coupon, .hp-s.hp-s-emerald .hp-sec-free { background: rgba(230,242,238,.78); }
 .hp-s.hp-s-emerald .hp-sec-reviews, .hp-s.hp-s-emerald .hp-sec-news, .hp-s.hp-s-emerald .hp-sec-info { background: rgba(246,251,249,.34); }
 
 /* トップバー: 地そのものを深緑にして、ヘッダーだけで「緑のサイト」と分かるようにする。
