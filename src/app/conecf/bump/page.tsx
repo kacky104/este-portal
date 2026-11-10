@@ -180,7 +180,7 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
           <span className={'text-[11px] font-bold px-1.5 py-0.5 border ' + (on
             ? site.badge
             : 'text-slate-400 border-slate-200 bg-slate-50')}>
-            {on ? '自動実行中' : '未使用'}
+            {on ? '自動更新中' : '自動更新停止'}
           </span>
           {dirty && <span className="text-[11px] font-bold text-rose-500">未保存</span>}
         </span>
@@ -305,17 +305,40 @@ function AllSlotsCard({ site, slots, enabled, onToast, onSaved }: {
     <>
       <div className={`bg-white border ${site.border} shadow-sm p-5 space-y-3`}>
         <h3 className="text-center text-sm font-black text-slate-700">{site.name}（{slots.length}枠まとめて）{site.heading}</h3>
-        <div className="flex flex-wrap justify-center gap-2 text-[12px] tabular-nums">
+        {/* ★ カッキーさん（11/11）: 枠ごとに1行で「あと◯回・自動更新中／停止」がぱっと見で分かるように */}
+        <ul className="divide-y divide-slate-100 border border-slate-200">
           {slots.map((s) => {
             const r = remainOf(s);
             const ok = s.hasCredential && !s.linkOff;
+            const quota = s.quota ?? site.defaultQuota;
             return (
-              <span key={s.slot} className={`border px-2 py-1 ${ok ? 'border-slate-200 text-slate-600' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>
-                枠{s.slot}：{ok ? (r === null ? 'まだ読んでいません' : `残り ${r}回`) : 'ID・パスワード未登録'}{s.lastAt ? `（${hm(s.lastAt)}）` : ''}
-              </span>
+              <li key={s.slot} className="flex items-center gap-x-3 gap-y-1 flex-wrap px-3 py-2 text-[13px] tabular-nums">
+                <span className="w-10 flex-shrink-0 font-black text-slate-700">枠{s.slot}</span>
+                {ok ? (
+                  <>
+                    <span className="w-28 flex-shrink-0 text-slate-500">
+                      あと <b className={`text-[18px] font-black ${r === 0 ? 'text-slate-400' : site.big}`}>{r === null ? '—' : r}</b>
+                      {quota != null && <span className="text-[11px]"> / {quota}回</span>}
+                    </span>
+                    {s.enabled ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[12px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />自動更新中
+                        <span className="font-normal text-emerald-600">（{minuteLabel(s.startMin)}〜{minuteLabel(s.endMin)}・{s.intervalMin}分ごと）</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[12px] font-bold text-slate-500 bg-slate-50 border border-slate-200">
+                        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden />自動更新停止
+                      </span>
+                    )}
+                    <span className="ml-auto text-[11px] text-slate-400">{s.lastAt ? `最後 ${hm(s.lastAt)}` : 'まだ押していません'}</span>
+                  </>
+                ) : (
+                  <span className="text-[12px] font-bold text-amber-800">ID・パスワード未登録</span>
+                )}
+              </li>
             );
           })}
-        </div>
+        </ul>
         <button type="button" disabled={busy !== ''} onClick={() => void runAll()}
           className={`w-full py-3 text-sm font-black text-white shadow-md transition-all disabled:opacity-40 ${site.btn} active:scale-[0.99]`}>
           {busy === 'run' ? '受け付けています…' : `⬆ ${usable.length}枠まとめて上位表示する`}
@@ -333,7 +356,7 @@ function AllSlotsCard({ site, slots, enabled, onToast, onSaved }: {
           <span className="flex items-center gap-2 min-w-0">
             <h3 className="text-sm font-black text-slate-700">自動上位設定（{usable.length}枠まとめて）</h3>
             <span className={'text-[11px] font-bold px-1.5 py-0.5 border ' + (allOn ? site.badge : 'text-slate-400 border-slate-200 bg-slate-50')}>
-              {allOn ? '自動実行中' : usable.some((s) => s.enabled) ? '一部の枠だけ' : '未使用'}
+              {allOn ? '自動更新中' : usable.some((s) => s.enabled) ? '一部の枠だけ自動' : '自動更新停止'}
             </span>
             {!same && <span className="text-[11px] font-bold text-rose-500">枠ごとに設定が違います</span>}
           </span>
@@ -368,7 +391,7 @@ function AllSlotsCard({ site, slots, enabled, onToast, onSaved }: {
               </button>
               <button type="button" onClick={() => void saveAll(false)} disabled={busy !== '' || !usable.some((s) => s.enabled)}
                 className="px-4 py-2 text-[13px] font-black text-slate-500 border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-40 transition-colors">
-                全部の枠で設定解除
+                全部の枠の自動更新を止める
               </button>
             </div>
           </div>
