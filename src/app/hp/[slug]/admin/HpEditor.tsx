@@ -13,6 +13,7 @@ import {
   type HpWidget,
   parseHpWidgetCode,
   MAX_HP_WIDGETS,
+  HP_FONTS,
   MAX_HP_WIDGET_HEAD_EN,
   MAX_HP_WIDGET_HEAD_JP,
   type HpLinkSize,
@@ -1235,6 +1236,36 @@ export function HpEditor({
             <button key={k} type="button" onClick={() => patchBlocks({ logoSize: k })}
               className={`px-2.5 py-1 text-[11px] font-bold border ${form.blocks.logoSize === k ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
               {l}
+            </button>
+          ))}
+          <p className="basis-full text-[11px] text-slate-400">保存すると反映されます。</p>
+        </div>
+      </div>
+      )}
+
+      {/* ── 文字の大きさと字体（第1901便・2026-11-10・カッキーさん） ── */}
+      {show('brand') && (
+      <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+        <h3 className="text-sm font-black text-slate-800">文字の大きさと字体</h3>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          ※ ホームページ全体の文字に効きます。「標準」「デザインのまま」は、今までの見た目のままです。
+        </p>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="w-16 text-[11px] font-bold text-slate-500">大きさ</span>
+          {([['sm', '標準'], ['md', '中（1.1倍）'], ['lg', '大（1.2倍）']] as const).map(([k, l]) => (
+            <button key={k} type="button" onClick={() => patchBlocks({ fontSize: k })}
+              className={`px-2.5 py-1 text-[11px] font-bold border ${form.blocks.fontSize === k ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="w-16 text-[11px] font-bold text-slate-500">字体</span>
+          {HP_FONTS.map((f) => (
+            <button key={f.key} type="button" onClick={() => patchBlocks({ font: f.key })}
+              style={f.family ? { fontFamily: f.family } : undefined}
+              className={`px-2.5 py-1 text-[12px] font-bold border ${form.blocks.font === f.key ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
+              {f.label}
             </button>
           ))}
           <p className="basis-full text-[11px] text-slate-400">保存すると反映されます。</p>

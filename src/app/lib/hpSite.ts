@@ -103,6 +103,10 @@ export type HpBlocksConfig = {
   background: HpBackground;
   /** ★ 第1892便（カッキーさん）: ヘッダーのロゴの大きさ。sm＝今まで（PC 36px・スマホ 30px）／md（56・36）／lg（80・44） */
   logoSize: 'sm' | 'md' | 'lg';
+  /** 文字の大きさ（第1901便）。sm=今まで（デザインのまま）・md=1.1倍・lg=1.2倍 */
+  fontSize: 'sm' | 'md' | 'lg';
+  /** 字体（第1901便）。default=デザインのまま・mincho=明朝・gothic=ゴシック・maru=丸ゴシック */
+  font: HpFontKey;
   /**
    * カラー別のセラピスト写真（2026-08-11）。
    * キー=カラーキー / 値={ セラピストID: 画像URL }。heroByColor と同じくデモ店専用。
@@ -228,6 +232,18 @@ export const HP_PEOPLE_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30] as cons
 //     （店舗の独自ドメインは管理画面と同じオリジンなので、自由HTMLの許可は事故の元。バナーと同じ考え）
 export type HpWidget = { src: string; width: number; height: number };
 export const MAX_HP_WIDGETS = 3;
+
+// ── 文字の大きさと字体（第1901便・2026-11-10・カッキーさん）──────────
+//   ★ 大きさは、ひな形のCSSの font-size を「× --hp-fs」に書き換えて効かせる（HpShell・styles.ts の scaleHpFontSizes）。
+//   ★ 字体は .hp-root に hp-font-◯◯ を足して上書きする（Google Fonts は選んだ店のページにだけ読み込む）。
+export const HP_FONT_SIZE_SCALE: Record<'sm' | 'md' | 'lg', number> = { sm: 1, md: 1.1, lg: 1.2 };
+export const HP_FONTS = [
+  { key: 'default', label: 'デザインのまま', family: '', css: '' },
+  { key: 'mincho',  label: '明朝体',       family: "'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif", css: 'https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&display=swap' },
+  { key: 'gothic',  label: 'ゴシック体',   family: "'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif", css: 'https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap' },
+  { key: 'maru',    label: '丸ゴシック体', family: "'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', sans-serif", css: 'https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap' },
+] as const;
+export type HpFontKey = (typeof HP_FONTS)[number]['key'];
 export const MAX_HP_WIDGET_HEAD_EN = 30;
 export const MAX_HP_WIDGET_HEAD_JP = 30;
 const HP_WIDGET_W = { min: 100, max: 1200, def: 340 };
@@ -304,6 +320,8 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   heroByColor: {},   // 既定は空＝全カラーで hero_images を使う（デモ店だけが使う欄）
   background: DEFAULT_HP_BACKGROUND, // 既定は空＝ひな形の壁紙（第1884便）
   logoSize: 'sm', // 既定は今までの大きさ（第1892便）
+  fontSize: 'sm', // 既定は今までの大きさ（第1901便）
+  font: 'default', // 既定はデザインのまま（第1901便）
   therapistImagesByColor: {}, // 同上（既定は空＝掲載データの写真をそのまま使う）
 };
 
@@ -367,6 +385,8 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     heroByColor: renameLegacyImageSlots(sanitizeHpHeroByColor(rawObj.heroByColor)),
     background: sanitizeHpBackground(rawObj.background),
     logoSize: rawObj.logoSize === 'md' || rawObj.logoSize === 'lg' ? rawObj.logoSize : 'sm',
+    fontSize: rawObj.fontSize === 'md' || rawObj.fontSize === 'lg' ? rawObj.fontSize : 'sm',
+    font: HP_FONTS.some((f) => f.key === rawObj.font) ? (rawObj.font as HpFontKey) : 'default',
     therapistImagesByColor: renameLegacyImageSlots(sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor)),
   };
 }

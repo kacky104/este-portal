@@ -19,10 +19,10 @@
 // ★ ドロワー本体を .hp-topbar の外に出しているのは従来どおり。トップバーの
 //   backdrop-filter が position:fixed の包含ブロックになり、中に入れると全画面に広がらない。
 
-import { hpColorCssVars, hpColorRootClass } from '@/app/lib/hpSite';
+import { hpColorCssVars, hpColorRootClass, HP_FONT_SIZE_SCALE, HP_FONTS } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpFooterPageLinks, hpJobsUrl, hpMenuItems, hpTopbarNavItems, type HpPageKey } from '@/app/hp/_lib/sections';
-import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS } from './styles';
+import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS, scaleHpFontSizes } from './styles';
 import { hpTrackScript } from '@/app/hp/_lib/trackScript';
 
 /**
@@ -60,6 +60,9 @@ export function HpShell({
   // 地色まで変える配色（タイプSのワインレッド）だけがクラスを返す。
   // 従来の配色は空文字＝クラスが増えないので、既存店のDOMは完全に同じまま。
   const colorClass = hpColorRootClass(site.template_key, site.theme_key);
+  // ★ 第1901便: 文字の大きさと字体（管理画面「ロゴ・文字・背景」）
+  const fontScale = HP_FONT_SIZE_SCALE[site.blocks.fontSize];
+  const fontDef = site.blocks.font !== 'default' ? HP_FONTS.find((f) => f.key === site.blocks.font) ?? null : null;
   const homeHref = basePath || '/';
   const jobsUrl = hpJobsUrl(data);
   const footerLinks = hpFooterPageLinks(data);
@@ -75,14 +78,25 @@ export function HpShell({
 
   return (
     <div
-      className={`hp-root hp-${site.template_key}${colorClass ? ` ${colorClass}` : ''}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered`}
-      style={cssVars}
+      className={`hp-root hp-${site.template_key}${colorClass ? ` ${colorClass}` : ''}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered${fontDef ? ` hp-font-${fontDef.key}` : ''}`}
+      style={fontScale !== 1 ? ({ ...cssVars, ['--hp-fs' as string]: fontScale } as React.CSSProperties) : cssVars}
     >
+      {/* ★ 第1901便: 字体を選んだ店だけ、その字体を読み込んで上書きする（.hp-root と2つ重ねて、ひな形の指定より強くする） */}
+      {fontDef && (
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `@import url('${fontDef.css}');\n.hp-root.hp-font-${fontDef.key} { font-family: ${fontDef.family}; }`,
+          }}
+        />
+      )}
       {/* ひな形のCSS＋（地色まで変える配色なら）その配色の上書き。
           配色の上書きは該当の店のページにだけ足す＝従来の配色のHTMLは1バイトも増えない。 */}
       <style
         dangerouslySetInnerHTML={{
-          __html: TEMPLATE_CSS[site.template_key] + (colorClass ? TEMPLATE_VARIANT_CSS[colorClass] ?? '' : ''),
+          __html: (() => {
+            const css = TEMPLATE_CSS[site.template_key] + (colorClass ? TEMPLATE_VARIANT_CSS[colorClass] ?? '' : '');
+            return fontScale !== 1 ? scaleHpFontSizes(css) : css;   // ★ 第1901便: 文字の大きさ（標準の店はそのまま）
+          })(),
         }}
       />
 

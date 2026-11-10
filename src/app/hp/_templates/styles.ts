@@ -1219,6 +1219,21 @@ ${COMMON}
 }
 `;
 
+/**
+ * 文字の大きさ（第1901便）。CSS の font-size を「元の大きさ × var(--hp-fs)」に書き換える。
+ *   ★ 「標準」の店には使わない（HTML を1バイトも変えない）。結果は CSS の文字列ごとに覚えておく。
+ */
+const scaledCache = new Map<string, string>();
+export function scaleHpFontSizes(css: string): string {
+  const hit = scaledCache.get(css);
+  if (hit !== undefined) return hit;
+  const out = css
+    .replace(/font-size:\s*(clamp\([^;}]*\))/g, 'font-size: calc($1 * var(--hp-fs, 1))')
+    .replace(/font-size:\s*([0-9.]+px)/g, 'font-size: calc($1 * var(--hp-fs, 1))');
+  scaledCache.set(css, out);
+  return out;
+}
+
 export const TEMPLATE_CSS: Record<'s' | 'a' | 'b' | 'c', string> = {
   s: TYPE_S,
   a: TYPE_A,
