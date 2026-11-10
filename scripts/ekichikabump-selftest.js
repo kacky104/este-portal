@@ -153,5 +153,33 @@ console.log('\n── 5. ★★ ソースの見張り ──');
   eq('★ SQL の間隔の選択肢が lib と同じ', sql.includes('bump_interval_min in (' + [...m.EKICHIKA_BUMP_INTERVALS].join(', ') + ')'), true);
 }
 
+console.log('── 第1922便. ★★★ 時刻指定（ベンリーの「時刻指定更新」と同じ・オイルクエスト様の枠1）──');
+{
+  const venrey = '09:32 10:08 13:23 15:15 14:32 17:38 20:25 22:05 22:35 23:05 23:32 00:33 01:02 01:32 02:13 03:02 03:36 04:05 12:06 16:21 17:25 18:22 22:22 21:21 01:11 14:05 00:15 16:43 16:11 19:51 00:51 00:11 15:12 17:11 22:44 23:46 12:16 22:45 10:21 17:32';
+  const p = m.parseBumpTimesText(venrey);
+  eq('ベンリーの40個を読める（重複なし・時刻順）', [p.times.length, p.bad.length, p.times[0], p.times[39]], [40, 0, 11, 23 * 60 + 46]);
+  eq('全角・読点・改行も読む／読めないものは bad', m.parseBumpTimesText('０９：１３、9:43\n25:00 abc'), { times: [553, 583], bad: ['25:00', 'abc'] });
+  const S = { enabled: true, startMin: 550, endMin: 280, intervalMin: 30, times: p.times };
+  eq('時刻指定は1日の回数＝時刻の数（間隔は見ない）', [m.bumpSlotsPerDay(S), m.isValidBumpSetting(S)], [40, true]);
+  eq('41個は保存できない', m.isValidBumpSetting({ ...S, times: Array.from({ length: 41 }, (_, i) => i * 30) }), false);
+  const st = (doneAt) => ({ lastAt: null, remaining: 30, readAt: null, autoAt: null, timesDoneAt: doneAt });
+  const iso = (...x) => jst(...x).toISOString();
+  eq('22:49 の見回り: 22:44 の回（22:35 まで押した）', m.nextDueBumpTime(jst(2026, 11, 11, 22, 49), S.times, iso(2026, 11, 11, 22, 35)), iso(2026, 11, 11, 22, 44));
+  eq('22:54 の見回り: 22:45 の回（22:44 まで押した）', m.nextDueBumpTime(jst(2026, 11, 11, 22, 54), S.times, iso(2026, 11, 11, 22, 44)), iso(2026, 11, 11, 22, 45));
+  eq('22:59 の見回り: 押さない（22:45 まで押した・次は 23:05）', m.shouldBumpNow({ now: jst(2026, 11, 11, 22, 59), setting: S, state: st(iso(2026, 11, 11, 22, 45)) }).reason, 'out_of_window');
+  eq('04:05 の30分あと（04:39）はもう押さない＝古い時刻をあとから押さない', m.shouldBumpNow({ now: jst(2026, 11, 12, 4, 39), setting: S, state: st(iso(2026, 11, 12, 3, 36)) }).reason, 'out_of_window');
+  eq('04:34 はまだ 04:05 の回（押し損ねていたら押す）', m.shouldBumpNow({ now: jst(2026, 11, 12, 4, 34), setting: S, state: st(iso(2026, 11, 12, 3, 36)) }).reason, 'ok');
+  eq('流れの中（読んだあと）は残りだけ見る', [m.shouldBumpNow({ now: jst(2026, 11, 11, 13, 0), setting: S, state: st(null), atRead: true }).reason, m.shouldBumpNow({ now: jst(2026, 11, 11, 13, 0), setting: S, state: { ...st(null), remaining: 0 }, atRead: true }).reason], ['ok', 'no_quota']);
+  eq('日をまたぐ: 00:14 は 00:11 の回', m.currentBumpSlotAt(jst(2026, 11, 12, 0, 14), S), jst(2026, 11, 12, 0, 11).toISOString());
+  eq('時刻が空なら今までどおり間隔で押す', m.bumpSlotsPerDay({ ...S, times: [] }), 40);
+  // 1日の見回りで、ちょうど40回押す（押したら lastAt を更新）
+  let done = iso(2026, 11, 11, 4, 5), n = 0;
+  for (let x = jst(2026, 11, 11, 9, 4).getTime(); x < jst(2026, 11, 12, 9, 4).getTime(); x += 5 * 60000) {
+    const now = new Date(x);
+    if (m.shouldBumpNow({ now, setting: S, state: st(done) }).bump) { n++; done = m.nextDueBumpTime(now, S.times, done); }
+  }
+  eq('★★★ 5分ごとの見回りで1日ちょうど40回', n, 40);
+}
+
 console.log(fail === 0 ? '\n全部 ok' : '\nNG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

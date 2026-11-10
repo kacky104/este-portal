@@ -8,7 +8,7 @@ import { OperatorNotYet } from '../OperatorBar';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { getConecfBump, saveConecfBump, runConecfBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
-import { bumpSlotsPerDay, EKICHIKA_BUMP_INTERVALS, bumpIntervalsFor } from '@/lib/ekichikaBump';
+import { bumpSlotsPerDay, EKICHIKA_BUMP_INTERVALS, bumpIntervalsFor, parseBumpTimesText, BUMP_TIMES_MAX } from '@/lib/ekichikaBump';
 import { minuteLabel, minuteFromLabel } from '@/lib/bumpAuto';
 import { SalonBumpButton } from '@/app/components/SalonBumpButton';
 
@@ -73,19 +73,27 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
   const [start, setStart] = useState(minuteLabel(s.startMin));
   const [end, setEnd] = useState(minuteLabel(s.endMin));
   const [interval, setIntervalMin] = useState(s.intervalMin);
+  // ★ 第1922便（オイルクエスト様「ベンリーと同じに」）: 間隔で押す／時刻を指定して押す（駅ちかだけ）
+  const [mode, setMode] = useState<'interval' | 'times'>(s.times ? 'times' : 'interval');
+  const [timesText, setTimesText] = useState((s.times ?? []).map((t) => minuteLabel(t)).join(' '));
   const [busy, setBusy] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
   const [autoOpen, setAutoOpen] = useState(false);
 
   const startMin = minuteFromLabel(start);
   const endMin = minuteFromLabel(end);
-  const perDay = startMin !== null && endMin !== null ? bumpSlotsPerDay({ startMin, endMin, intervalMin: interval }) : 0;
+  const parsed = parseBumpTimesText(timesText);
+  const useTimes = s.timesReady && mode === 'times';
+  const perDay = useTimes ? parsed.times.length
+    : startMin !== null && endMin !== null ? bumpSlotsPerDay({ startMin, endMin, intervalMin: interval }) : 0;
   const quota = s.quota ?? site.defaultQuota;
   // ★ 第1407便: 読んだあとにサイトの回数が戻る時刻を過ぎていたら、サイトでは1日の回数に戻っている。
   //   ★ 古い「0回」のままボタンを止めない（本当の残りは、押しに行ったときにサイトの画面で確かめる）
   const remaining = s.countStale && quota != null ? quota : s.remaining;
   const resetLabel = s.resetMin != null ? minuteLabel(s.resetMin) : null;
-  const dirty = on !== s.enabled || startMin !== s.startMin || endMin !== s.endMin || interval !== s.intervalMin;
+  const timesKey = (a: number[] | null) => (a ?? []).join(',');
+  const dirty = on !== s.enabled || startMin !== s.startMin || endMin !== s.endMin || interval !== s.intervalMin
+    || (s.timesReady && (useTimes ? timesKey(parsed.times) !== timesKey(s.times) : !!s.times));
   const usable = s.hasCredential && !s.linkOff;
   const name = site.name + (many ? `（枠${s.slot}）` : '');
 
@@ -98,8 +106,14 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
   const save = async (nextOn: boolean) => {
     if (!guard()) return;
     if (startMin === null || endMin === null) { onToast('時間帯を「10:00」のような形で入れてください'); return; }
+    if (useTimes && nextOn) {
+      if (parsed.bad.length > 0) { onToast(`読めない時刻があります: ${parsed.bad.slice(0, 5).join('・')}（「9:32」のような形で入れてください）`); return; }
+      if (parsed.times.length === 0) { onToast('押す時刻を1つ以上入れてください'); return; }
+      if (parsed.times.length > BUMP_TIMES_MAX) { onToast(`時刻は${BUMP_TIMES_MAX}個までです（いま ${parsed.times.length}個）`); return; }
+    }
     setBusy('save');
-    const res = await saveConecfBump({ provider: site.provider, slot: s.slot, enabled: nextOn, startMin, endMin, intervalMin: interval });
+    const times = !s.timesReady ? undefined : useTimes ? (nextOn ? parsed.times : undefined) : (s.times ? [] : undefined);
+    const res = await saveConecfBump({ provider: site.provider, slot: s.slot, enabled: nextOn, startMin, endMin, intervalMin: interval, times });
     setBusy('');
     if (!res.ok) { onToast(res.error); return; }
     setOn(nextOn);
@@ -192,6 +206,27 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
 
       {autoOpen && (
         <div className="mt-3 space-y-3">
+          {s.timesReady && (
+            <div className="inline-flex border border-slate-300 text-[13px] font-bold">
+              {([['interval', '間隔で押す'], ['times', '時刻を指定して押す']] as const).map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setMode(k)} aria-pressed={mode === k}
+                  className={`px-3 py-1.5 transition-colors ${mode === k ? 'bg-slate-700 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}>{label}</button>
+              ))}
+            </div>
+          )}
+          {useTimes ? (
+            <div className="space-y-2">
+              <textarea value={timesText} onChange={(e) => setTimesText(e.target.value)} rows={4}
+                placeholder="09:32 10:08 10:21 12:06 …（空白・改行・読点で区切って、まとめて貼り付けできます）"
+                className={`w-full px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums leading-relaxed focus:outline-none focus:ring-2 ${site.ring}`} />
+              {parsed.times.length > 0 && (
+                <div className="flex flex-wrap gap-1 text-[12px] tabular-nums">
+                  {parsed.times.map((t) => <span key={t} className="border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-slate-600">{minuteLabel(t)}</span>)}
+                </div>
+              )}
+              {parsed.bad.length > 0 && <p className="text-[12px] font-bold text-rose-600">読めない時刻: {parsed.bad.slice(0, 8).join('・')}</p>}
+            </div>
+          ) : (
           <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-slate-600">
             <input type="time" step={60} value={start} onChange={(e) => setStart(e.target.value)}
               className={`px-2 py-1.5 border border-slate-200 bg-white text-[13px] tabular-nums focus:outline-none focus:ring-2 ${site.ring}`} />
@@ -205,10 +240,12 @@ function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
             </select>
             <span className="font-bold">ごと</span>
           </div>
+          )}
           <p className="text-[12px] text-slate-500">
             この設定だと1日に最大 <b className="tabular-nums text-slate-700">{perDay}</b> 回押します。
             {quota != null && perDay > quota && <span className="text-rose-700">{site.name}は1日{quota}回までなので、超えた分は押しません。</span>}
-            {startMin !== null && endMin !== null && startMin > endMin && <span>日をまたぐ時間帯として扱います。</span>}
+            {!useTimes && startMin !== null && endMin !== null && startMin > endMin && <span>日をまたぐ時間帯として扱います。</span>}
+            {useTimes && <span>見回りは5分ごとなので、実際に押すのは指定の時刻の1〜6分あとです。時刻を30分以上過ぎた回は、あとから押しません。</span>}
           </p>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -323,7 +360,7 @@ function AllSlotsCard({ site, slots, enabled, onToast, onSaved }: {
                     {s.enabled ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[12px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />自動更新中
-                        <span className="font-normal text-emerald-600">（{minuteLabel(s.startMin)}〜{minuteLabel(s.endMin)}・{s.intervalMin}分ごと）</span>
+                        <span className="font-normal text-emerald-600">{s.times ? `（時刻指定・${s.times.length}回）` : `（${minuteLabel(s.startMin)}〜${minuteLabel(s.endMin)}・${s.intervalMin}分ごと）`}</span>
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[12px] font-bold text-slate-500 bg-slate-50 border border-slate-200">
@@ -382,6 +419,7 @@ function AllSlotsCard({ site, slots, enabled, onToast, onSaved }: {
             </div>
             <p className="text-[12px] text-slate-500">
               この設定だと、各枠で1日に最大 <b className="tabular-nums text-slate-700">{perDay}</b> 回押します（枠ごとに回数があります）。
+              {usable.some((s) => s.times) && <span>時刻指定の枠（{usable.filter((s) => s.times).map((s) => '枠' + s.slot).join('・')}）は、時刻指定のまま（オン・オフだけ変わります）。</span>}
               {startMin !== null && endMin !== null && startMin > endMin && <span>日をまたぐ時間帯として扱います。</span>}
             </p>
             <div className="flex items-center gap-2 flex-wrap">

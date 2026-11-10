@@ -175,17 +175,87 @@ export function parseEkichikaBumpResult(status: number, body: string): EkichikaB
   return { ok: remaining !== null, remaining, lastAt, message };
 }
 
-export type BumpSetting = { enabled: boolean; startMin: number; endMin: number; intervalMin: number };
-export type BumpState = { lastAt: string | null; remaining: number | null; readAt: string | null; autoAt: string | null };
+export type BumpSetting = {
+  enabled: boolean; startMin: number; endMin: number; intervalMin: number;
+  /**
+   * ★ 第1922便（2026-11-11・オイルクエスト様「ベンリーと同じに」）: 時刻指定（0時からの分）。
+   *   1つ以上あれば、時間帯と間隔ではなくこの時刻で押す（ベンリーの「時刻指定更新」と同じ）。無い・空なら今までどおり間隔で押す
+   */
+  times?: number[] | null;
+};
+
+/** 時刻指定は1日40個まで（駅ちかの1日の回数） */
+export const BUMP_TIMES_MAX = 40;
+/** 時刻指定で、その時刻を過ぎてから何分までなら押しに行くか（押し損ねた古い時刻をあとから押さない） */
+export const BUMP_TIMES_STALE_MIN = 30;
+
+/** 時刻指定の値をそろえる（0〜1439 の整数・重複なし・時刻順）。1つも無ければ null */
+export function normalizeBumpTimes(v: unknown): number[] | null {
+  if (!Array.isArray(v)) return null;
+  const set = new Set<number>();
+  for (const x of v) {
+    const n = typeof x === 'string' ? Number(x) : x;
+    if (typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 1439) set.add(n);
+  }
+  const out = [...set].sort((a, b) => a - b);
+  return out.length > 0 ? out : null;
+}
+
+/** 「09:32 10:08、23:05」のような文から時刻指定を読む（全角・改行・読点も可）。読めなかったものは bad に入れる */
+export function parseBumpTimesText(text: string): { times: number[]; bad: string[] } {
+  const half = String(text ?? '').replace(/[０-９：]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  const bad: string[] = [];
+  const mins: number[] = [];
+  for (const tok of half.split(/[\s,、，]+/).filter(Boolean)) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(tok);
+    const h = m ? Number(m[1]) : NaN;
+    const mi = m ? Number(m[2]) : NaN;
+    if (!m || h > 23 || mi > 59) { bad.push(tok); continue; }
+    mins.push(h * 60 + mi);
+  }
+  return { times: normalizeBumpTimes(mins) ?? [], bad };
+}
+
+function hasBumpTimes(s: { times?: number[] | null }): s is { times: number[] } {
+  return Array.isArray(s.times) && s.times.length > 0;
+}
+
+/**
+ * 時刻指定で、いま押しに行く回（ISO）。
+ *   過ぎてから BUMP_TIMES_STALE_MIN 分以内の時刻のうち、まだ押しに行っていない（doneAt より後の）いちばん早いもの。
+ *   ★ 近い時刻（22:44 と 22:45）も、見回りごとに1つずつ押す。★ 押し損ねた古い時刻をあとから押さない
+ */
+export function nextDueBumpTime(now: Date, times: number[] | null | undefined, doneAt: string | null | undefined): string | null {
+  if (!Array.isArray(times) || times.length === 0) return null;
+  const nowMin = minuteOfDayJST(now);
+  const base = now.getTime() - now.getUTCSeconds() * 1000 - now.getUTCMilliseconds();
+  const done = doneAt ? Date.parse(doneAt) : NaN;
+  let best: number | null = null;
+  for (const t of times) {
+    const ago = (nowMin - t + 1440) % 1440;
+    if (ago > BUMP_TIMES_STALE_MIN) continue;
+    const at = base - ago * 60000;
+    if (Number.isFinite(done) && at <= done) continue;
+    if (best === null || at < best) best = at;
+  }
+  return best === null ? null : new Date(best).toISOString();
+}
+export type BumpState = {
+  lastAt: string | null; remaining: number | null; readAt: string | null; autoAt: string | null;
+  /** ★ 第1922便: 時刻指定で、自動で押しに行った最後の時刻（その日の何時の回か＝ISO）。salon_import_sources.bump_times_done_at */
+  timesDoneAt?: string | null;
+};
 
 export type BumpReason = 'ok' | 'off' | 'bad_setting' | 'out_of_window' | 'already_this_slot' | 'too_soon' | 'no_quota' | 'running' | 'unknown';
 
 export function isValidBumpSetting(s: BumpSetting): boolean {
+  if (hasBumpTimes(s)) return s.times.length <= BUMP_TIMES_MAX && s.times.every((t) => isValidMinuteOfDay(t));
   return isValidMinuteOfDay(s.startMin) && isValidMinuteOfDay(s.endMin) && isKnownInterval(s.intervalMin);
 }
 
 /** その時間帯・間隔で、1日に自動で押す最大の回数（開始ちょうどに1回、あとは間隔ごと） */
-export function bumpSlotsPerDay(s: Pick<BumpSetting, 'startMin' | 'endMin' | 'intervalMin'>): number {
+export function bumpSlotsPerDay(s: Pick<BumpSetting, 'startMin' | 'endMin' | 'intervalMin' | 'times'>): number {
+  if (hasBumpTimes(s)) return s.times.length;
   if (!isValidMinuteOfDay(s.startMin) || !isValidMinuteOfDay(s.endMin) || !isKnownInterval(s.intervalMin)) return 0;
   return Math.floor(bumpWindowLength(s.startMin, s.endMin) / s.intervalMin) + 1;
 }
@@ -197,7 +267,16 @@ export function bumpSlotsPerDay(s: Pick<BumpSetting, 'startMin' | 'endMin' | 'in
 export const EKICHIKA_BUMP_END_GRACE_MIN = 9;
 
 /** いまの区切りの始まり（ISO）。時間帯の外なら null */
-export function currentBumpSlotAt(now: Date, s: Pick<BumpSetting, 'startMin' | 'endMin' | 'intervalMin'>): string | null {
+export function currentBumpSlotAt(now: Date, s: Pick<BumpSetting, 'startMin' | 'endMin' | 'intervalMin' | 'times'>): string | null {
+  if (hasBumpTimes(s)) {
+    // ★ 時刻指定: いちばん近い「過ぎた時刻」。過ぎてから BUMP_TIMES_STALE_MIN 分より前のものは押さない
+    const nowMin = minuteOfDayJST(now);
+    let ago = Infinity;
+    for (const t of s.times) ago = Math.min(ago, (nowMin - t + 1440) % 1440);
+    if (!Number.isFinite(ago) || ago > BUMP_TIMES_STALE_MIN) return null;
+    const ms = now.getTime() - ago * 60000 - now.getUTCSeconds() * 1000 - now.getUTCMilliseconds();
+    return new Date(ms).toISOString();
+  }
   if (!isValidMinuteOfDay(s.startMin) || !isValidMinuteOfDay(s.endMin) || !isKnownInterval(s.intervalMin)) return null;
   const nowMin = minuteOfDayJST(now);
   const len = bumpWindowLength(s.startMin, s.endMin);
@@ -223,6 +302,22 @@ export function shouldBumpNow(input: {
   const no = (reason: BumpReason) => ({ bump: false, reason });
   if (!s.enabled) return no('off');
   if (!isValidBumpSetting(s)) return no('bad_setting');
+  if (hasBumpTimes(s)) {
+    // ★ 第1922便: 時刻指定。どの回を押すかは周が決めて bump_times_done_at に書く（駅ちかの最終更新日では、近い時刻を見分けられない）
+    //   ★ 流れの中（読んだあと）は、残り回数だけ見る（周がもう回を決めている）
+    if (state.remaining !== null && state.remaining <= 0) {
+      if (input.atRead) return no('no_quota');
+      const resume = bumpZeroResumeAt(state.readAt, s.startMin, input.resetMin);
+      if (resume && now.getTime() < Date.parse(resume)) return no('no_quota');
+    }
+    if (input.atRead) return { bump: true, reason: 'ok' };
+    if (state.autoAt) {
+      const a = Date.parse(state.autoAt);
+      if (!Number.isFinite(a)) return no('unknown');
+      if (now.getTime() - a < EKICHIKA_BUMP_RUNNING_MIN * 60000) return no('running');
+    }
+    return nextDueBumpTime(now, s.times, state.timesDoneAt) ? { bump: true, reason: 'ok' } : no('out_of_window');
+  }
   const slotAt = currentBumpSlotAt(now, s);
   if (!slotAt) return no('out_of_window');
 

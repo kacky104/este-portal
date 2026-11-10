@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { shouldBumpNow, bumpResetMinOf, type BumpSetting } from '@/lib/ekichikaBump';
+import { shouldBumpNow, bumpResetMinOf, normalizeBumpTimes, nextDueBumpTime, type BumpSetting } from '@/lib/ekichikaBump';
 import { shouldPressEsutamaOpt, ESUTAMA_OPT_DEFAULT, type EsutamaOptKey } from '@/lib/esutamaOption';
 import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImages, isDailyPostKey } from '@/lib/esutamaPost';
@@ -38,6 +38,9 @@ type Row = {
   bump_start_min: number | null;
   bump_end_min: number | null;
   bump_interval_min: number | null;
+  /** ★ 第1922便: 時刻指定（0時からの分）・押しに行った最後の回 */
+  bump_times?: number[] | null;
+  bump_times_done_at?: string | null;
   bump_last_at: string | null;
   bump_remaining: number | null;
   bump_read_at: string | null;
@@ -56,11 +59,16 @@ export async function POST(req: Request) {
 
   const svc = createServiceClient();
   const now = new Date();
-  const { data, error } = await svc
-    .from('salon_import_sources')
-    .select('salon_id, provider, slot, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_read_at, bump_auto_at')
-    .in('provider', ['ekichika', 'esutama'])
-    .eq('bump_auto', true);
+  const BASE_COLS = 'salon_id, provider, slot, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_read_at, bump_auto_at';
+  const readRows = async (cols: string): Promise<{ data: Row[] | null; error: { message: string } | null }> => {
+    const res = await svc.from('salon_import_sources').select(cols).in('provider', ['ekichika', 'esutama']).eq('bump_auto', true);
+    return { data: (res.data as unknown as Row[] | null) ?? null, error: res.error ? { message: res.error.message } : null };
+  };
+  let { data, error } = await readRows(BASE_COLS + ', bump_times, bump_times_done_at');
+  // ★ 第1922便: 時刻指定の列がまだ無い（追加SQL_第1922便が未適用）ときは、今までどおりの列で読み直す＝周（エステ魂・全国など）を止めない
+  if (error && /bump_times/.test(error.message)) {
+    ({ data, error } = await readRows(BASE_COLS));
+  }
   // ★ 列が無い（追加SQL_第1305便が未適用）ときもここで返す。★ 何もしない
   if (error) return NextResponse.json({ ok: false, error: '自動の上位表示の設定を読めなかった: ' + error.message }, { status: 500 });
 
@@ -68,25 +76,28 @@ export async function POST(req: Request) {
   // ★ 第1826便: エステ魂は同じ店で1回の周に1つだけ始める（同時に始めると2つ目以降は「別の手順がまだ走っていた」で止まり、更新結果が埋まる）。
   //   ★ 始められなかったものは「始めた時刻」を書かないので、5分後の周で順に始まる
   const esutamaStarted = new Set<number>();
-  for (const r of (data ?? []) as Row[]) {
+  for (const r of data ?? []) {
     const slot = Number(r.slot ?? 1);
     const setting: BumpSetting = {
       enabled: true,
       startMin: Number(r.bump_start_min),
       endMin: Number(r.bump_end_min),
       intervalMin: Number(r.bump_interval_min),
+      times: r.provider === 'ekichika' ? normalizeBumpTimes(r.bump_times) : null,
     };
     const judge = shouldBumpNow({
       now, setting,
-      state: { lastAt: r.bump_last_at, remaining: r.bump_remaining, readAt: r.bump_read_at, autoAt: r.bump_auto_at },
+      state: { lastAt: r.bump_last_at, remaining: r.bump_remaining, readAt: r.bump_read_at, autoAt: r.bump_auto_at, timesDoneAt: r.bump_times_done_at ?? null },
       // ★ 第1407便: 0回を読んだあとは、サイトの回数が戻る時刻（駅ちか 0:00・エステ魂 6:00）を過ぎたらまた見に行く
       resetMin: bumpResetMinOf(r.provider),
     });
     if (!judge.bump || !apply) { results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: judge.reason }); continue; }
 
     // ★ 始める前に「始めた時刻」を書く（同じ枠を立て続けに始めない）。★ 書けなければ始めない（二重に押しに行かない側）
+    // ★ 第1922便: 時刻指定は、どの回を押しに行くか（bump_times_done_at）も一緒に書く＝同じ回を2回押さない・近い時刻も1つずつ
+    const dueAt = setting.times ? nextDueBumpTime(now, setting.times, r.bump_times_done_at ?? null) : null;
     const { error: aErr } = await svc.from('salon_import_sources')
-      .update({ bump_auto_at: now.toISOString() })
+      .update(dueAt ? { bump_auto_at: now.toISOString(), bump_times_done_at: dueAt } : { bump_auto_at: now.toISOString() })
       .eq('salon_id', r.salon_id).eq('provider', r.provider).eq('slot', slot);
     if (aErr) { results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'mark_failed', note: aErr.message }); continue; }
 

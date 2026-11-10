@@ -5,7 +5,7 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor } from '@/lib/ekichikaBump';
+import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor, normalizeBumpTimes, BUMP_TIMES_MAX } from '@/lib/ekichikaBump';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 // コネックエフ「駅ちか上位表示」の受け口（第1305便・2026-10-08）。
@@ -49,6 +49,10 @@ export type ConecfBumpSlot = {
   startMin: number;
   endMin: number;
   intervalMin: number;
+  /** ★ 第1922便: 時刻指定（0時からの分・時刻順）。null＝間隔で押す */
+  times: number[] | null;
+  /** 時刻指定の列がある（追加SQL_第1922便が済み）。false なら画面に時刻指定を出さない */
+  timesReady: boolean;
   /** 駅ちかの最終更新日（＝最後に上位表示された時刻・手で押した分も入る） */
   lastAt: string | null;
   remaining: number | null;
@@ -67,12 +71,15 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
   const r = await resolve(false);
   if (!r.ok) return r;
   const { svc, salonId } = r;
-  const [src, cred] = await Promise.all([
-    svc.from('salon_import_sources')
-      .select('slot, link_mode, bump_auto, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_quota, bump_read_at')
-      .eq('salon_id', salonId).eq('provider', provider).order('slot', { ascending: true }),
-    svc.from('salon_media_credentials').select('slot, is_enabled').eq('salon_id', salonId).eq('provider', provider),
-  ]);
+  const BASE_COLS = 'slot, link_mode, bump_auto, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_quota, bump_read_at';
+  const readSrc = (cols: string) => svc.from('salon_import_sources')
+    .select(cols).eq('salon_id', salonId).eq('provider', provider).order('slot', { ascending: true });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let src: { data: any[] | null; error: { message?: string } | null } = await readSrc(BASE_COLS + ', bump_times');
+  // ★ 第1922便: 時刻指定の列がまだ無い（追加SQL_第1922便が未適用）ときは、今までの列で読む＝画面は今までどおり
+  const timesReady = !(src.error && /bump_times/.test(src.error.message ?? ''));
+  if (!timesReady) src = await readSrc(BASE_COLS);
+  const cred = await svc.from('salon_media_credentials').select('slot, is_enabled').eq('salon_id', salonId).eq('provider', provider);
   if (src.error) {
     if (/bump_/.test(src.error.message ?? '')) return { ok: true, data: { salonId, ready: false, slots: [] } };
     return { ok: false, error: '設定を読み込めませんでした。時間をおいてお試しください' };
@@ -95,6 +102,8 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
       startMin: Number(x.bump_start_min ?? 600),
       endMin: Number(x.bump_end_min ?? 1380),
       intervalMin: Number(x.bump_interval_min ?? 20),
+      times: provider === 'ekichika' && timesReady ? normalizeBumpTimes(x.bump_times) : null,
+      timesReady: provider === 'ekichika' && timesReady,
       lastAt: (x.bump_last_at as string | null) ?? null,
       remaining: x.bump_remaining == null ? null : Number(x.bump_remaining),
       quota: x.bump_quota == null ? null : Number(x.bump_quota),
@@ -107,7 +116,11 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
 }
 
 /** 自動の設定を保存する */
-export async function saveConecfBump(input: { provider?: BumpProvider; slot: number; enabled: boolean; startMin: number; endMin: number; intervalMin: number }): Promise<Result<{ perDay: number }>> {
+/**
+ * 自動の設定を保存する。
+ *   ★ 第1922便: times … undefined＝時刻指定はそのまま（4枠まとめて保存など）／null や []＝時刻指定をやめて間隔で押す／時刻の配列＝時刻指定で押す（駅ちかだけ）
+ */
+export async function saveConecfBump(input: { provider?: BumpProvider; slot: number; enabled: boolean; startMin: number; endMin: number; intervalMin: number; times?: number[] | null }): Promise<Result<{ perDay: number }>> {
   const provider = okProvider(input.provider ?? 'ekichika');
   if (!provider) return { ok: false, error: 'サイトの指定が不正です' };
   const r = await resolve(true);
@@ -116,13 +129,20 @@ export async function saveConecfBump(input: { provider?: BumpProvider; slot: num
   if (!Number.isInteger(slot) || slot < 1) return { ok: false, error: '枠の指定が不正です' };
   const setting = { enabled: input.enabled === true, startMin: Number(input.startMin), endMin: Number(input.endMin), intervalMin: Number(input.intervalMin) };
   if (!isValidBumpSetting(setting) || !bumpIntervalsFor(provider).includes(setting.intervalMin)) return { ok: false, error: '時間帯か間隔の値が正しくありません' };
+  const touchTimes = input.times !== undefined;
+  const times = touchTimes ? normalizeBumpTimes(input.times) : undefined;
+  if (touchTimes && provider !== 'ekichika' && times) return { ok: false, error: '時刻指定は駅ちかだけです' };
+  if (times && times.length > BUMP_TIMES_MAX) return { ok: false, error: `時刻は${BUMP_TIMES_MAX}個までです` };
+  const patch: Record<string, unknown> = { bump_auto: setting.enabled, bump_start_min: setting.startMin, bump_end_min: setting.endMin, bump_interval_min: setting.intervalMin };
+  // ★ 時刻を変えたら「どこまで押したか」も消す（新しい時刻の一覧で、いまから先を押す）
+  if (touchTimes) { patch.bump_times = times ?? null; patch.bump_times_done_at = times ? new Date().toISOString() : null; }
   const { data, error } = await r.svc.from('salon_import_sources')
-    .update({ bump_auto: setting.enabled, bump_start_min: setting.startMin, bump_end_min: setting.endMin, bump_interval_min: setting.intervalMin })
+    .update(patch)
     .eq('salon_id', r.salonId).eq('provider', provider).eq('slot', slot)
     .select('slot');
   if (error) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
   if (!data || data.length === 0) return { ok: false, error: `${PROVIDER_NAME[provider]}の店舗ページが登録されていません。運営事務局までご連絡ください` };
-  return { ok: true, data: { perDay: bumpSlotsPerDay(setting) } };
+  return { ok: true, data: { perDay: bumpSlotsPerDay({ ...setting, times: times ?? null }) } };
 }
 
 /** 今すぐ上位表示する（駅ちかへは1〜2分で届く） */
