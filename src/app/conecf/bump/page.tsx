@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfActing } from '../ConecfSession';
-import { OperatorNotYet } from '../OperatorBar';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { getConecfBump, saveConecfBump, runConecfBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
@@ -375,7 +374,7 @@ function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: 
       <section className="space-y-2">
         <h2 className={`${section} border-rose-400`}>フクエス</h2>
         {salonId != null
-          ? (acting ? <OperatorNotYet what="フクエスの上位表示" /> : <SalonBumpButton salonId={salonId} />)
+          ? <SalonBumpButton salonId={salonId} operator={!!acting} />
           : <div className={`${CARD} p-5 text-[14px] text-slate-500`}>店舗情報が見つかりません</div>}
       </section>
 

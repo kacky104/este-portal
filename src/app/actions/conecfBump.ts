@@ -176,3 +176,72 @@ export async function runConecfBumpNow(input: { provider?: BumpProvider; slot: n
     return { ok: false, error: '上位表示を始められませんでした。時間をおいてお試しください' };
   }
 }
+
+// ── ★ 第1927便（2026-11-11・カッキーさん「運営でもフクエスの上位表示を設定できるように」）──
+//   フクエスの上位表示（SalonBumpButton）は、店舗様のログインでは DB の決まり（RLS・salon_bump は持ち主だけ）で動く。
+//   ★ 運営が店を選んで操作しているときだけ、ここ（service role）で同じことをする。★ 店舗様のときは使わない（持ち主の道のまま）
+async function resolveOperatorSalon() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const, error: 'ログインが必要です' };
+  const actingId = await operatorActingSalonId(user.id);
+  if (actingId == null) return { ok: false as const, error: '運営として店舗を選んでいるときだけ使えます' };
+  return { ok: true as const, svc: createServiceClient(), salonId: Number(actingId) };
+}
+
+export type FukuesBumpState = {
+  bumpDay: string | null; bumpUsed: number; bumpedAt: string | null; jobsEnabled: boolean;
+  /** 自動の設定。列が無ければ null */
+  auto: { enabled: boolean; startMin: number | null; endMin: number | null; intervalMin: number | null; lastAt: string | null } | null;
+};
+
+export async function getFukuesBumpForOperator(): Promise<Result<FukuesBumpState>> {
+  const r = await resolveOperatorSalon();
+  if (!r.ok) return r;
+  const { data, error } = await r.svc.from('salons').select('bumped_at, bump_day, bump_used, jobs_enabled').eq('id', r.salonId).maybeSingle();
+  if (error || !data) return { ok: false, error: '読み込めませんでした' };
+  const a = await r.svc.from('salons')
+    .select('bump_auto_enabled, bump_auto_start_min, bump_auto_end_min, bump_auto_interval_min, bump_auto_at').eq('id', r.salonId).maybeSingle();
+  return {
+    ok: true,
+    data: {
+      bumpDay: (data.bump_day as string | null) ?? null,
+      bumpUsed: Number(data.bump_used ?? 0),
+      bumpedAt: (data.bumped_at as string | null) ?? null,
+      jobsEnabled: data.jobs_enabled === true,
+      auto: a.error || !a.data ? null : {
+        enabled: a.data.bump_auto_enabled === true,
+        startMin: (a.data.bump_auto_start_min as number | null) ?? null,
+        endMin: (a.data.bump_auto_end_min as number | null) ?? null,
+        intervalMin: (a.data.bump_auto_interval_min as number | null) ?? null,
+        lastAt: (a.data.bump_auto_at as string | null) ?? null,
+      },
+    },
+  };
+}
+
+/** いま1回押す（店舗様の salon_bump と同じ回数の財布）。返事は salon_bump と同じ形 */
+export async function pressFukuesBumpForOperator(): Promise<{ ok?: boolean; error?: string; used?: number; quota?: number; remaining?: number; bumped_at?: string }> {
+  const r = await resolveOperatorSalon();
+  if (!r.ok) return { ok: false, error: r.error };
+  // ★ 手で押した扱い（p_auto=false）。★ service role に実行の権限が無い DB では、周と同じ関数で押す（自動の足あとが付くだけ）
+  let res = await r.svc.rpc('salon_bump_apply', { p_salon_id: r.salonId, p_auto: false });
+  if (res.error && /permission|denied/i.test(res.error.message)) res = await r.svc.rpc('salon_bump_auto_run', { p_salon_id: r.salonId });
+  if (res.error) return { ok: false, error: '実行できませんでした。時間をおいてお試しください。' };
+  return (res.data ?? { ok: false, error: '実行できませんでした' }) as { ok?: boolean; error?: string };
+}
+
+export async function saveFukuesBumpAutoForOperator(input: { enabled: boolean; startMin: number; endMin: number; intervalMin: number }): Promise<Result<null>> {
+  const r = await resolveOperatorSalon();
+  if (!r.ok) return r;
+  const ok = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 1439;
+  if (!ok(input.startMin) || !ok(input.endMin) || input.startMin === input.endMin) return { ok: false, error: '時刻の形が読み取れません' };
+  const { error } = await r.svc.from('salons').update({
+    bump_auto_enabled: input.enabled === true,
+    bump_auto_start_min: input.startMin,
+    bump_auto_end_min: input.endMin,
+    bump_auto_interval_min: Number(input.intervalMin),
+  }).eq('id', r.salonId);
+  if (error) return { ok: false, error: `保存に失敗しました: ${error.message}` };
+  return { ok: true, data: null };
+}

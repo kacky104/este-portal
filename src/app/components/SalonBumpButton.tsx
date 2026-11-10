@@ -5,6 +5,7 @@ import { createClient } from '@/app/lib/supabase/client';
 import { revalidateTopAndAreas } from '@/app/lib/revalidateTop';
 import { bumpBoundaryMs } from '@/app/lib/salons';
 import { getBusinessDateJST } from '@/lib/dutyStatus';
+import { getFukuesBumpForOperator, pressFukuesBumpForOperator, saveFukuesBumpAutoForOperator } from '@/app/actions/conecfBump';
 import {
   BUMP_QUOTA_BASE,
   BUMP_AUTO_INTERVALS,
@@ -34,7 +35,10 @@ const sb = createClient();
 // ★ 2026-09-09（第224便）: 式の直書き（+9h -6h）をやめ、営業日の正本 dutyStatus に寄せた。
 //   ★ 6時区切りの決めごとを2か所に書かない（第150便の1本化）。★ SQL側 v_today を変えるときは両方。
 
-export function SalonBumpButton({ salonId }: { salonId: number }) {
+/**
+ * ★ 第1927便: operator … 運営が店を選んで操作しているとき（コネックエフ）。DB の決まりは持ち主だけなので、読み書きをサーバー（service role）に回す
+ */
+export function SalonBumpButton({ salonId, operator = false }: { salonId: number; operator?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [used, setUsed] = useState(0);
   const [quota, setQuota] = useState(BUMP_QUOTA_BASE);
@@ -69,11 +73,16 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
   //   ★ 回数とボタンは、自動実行とは関係なく必ず出る。★ 新しい機能で古い機能を道連れにしない。
   //   ★ salon_bump.sql が最初から言っていたこと（「未適用でも落ちない」）を、そのまま守る。
   const load = useCallback(async () => {
-    const { data } = await sb
-      .from('salons')
-      .select('bumped_at, bump_day, bump_used, jobs_enabled')
-      .eq('id', salonId)
-      .single();
+    // ★ 第1927便: 運営のときはサーバーで読む（同じ形に直してから下の処理に渡す）
+    const opState = operator ? await getFukuesBumpForOperator() : null;
+    if (opState && !opState.ok) return;
+    const { data } = opState && opState.ok
+      ? { data: { bumped_at: opState.data.bumpedAt, bump_day: opState.data.bumpDay, bump_used: opState.data.bumpUsed, jobs_enabled: opState.data.jobsEnabled } }
+      : await sb
+        .from('salons')
+        .select('bumped_at, bump_day, bump_used, jobs_enabled')
+        .eq('id', salonId)
+        .single();
     if (!data) return;
     const today = getBusinessDateJST();
     // 日付が違えば未使用扱い（RPC側と同じリセット規則を表示にも適用）。
@@ -83,11 +92,16 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
     setLoaded(true);
 
     // ★ 自動実行の設定は別に読む。★ ここだけが失敗しても、上の表示は残る
-    const { data: auto, error: autoErr } = await sb
-      .from('salons')
-      .select('bump_auto_enabled, bump_auto_start_min, bump_auto_end_min, bump_auto_interval_min, bump_auto_at')
-      .eq('id', salonId)
-      .single();
+    const opAuto = opState && opState.ok ? opState.data.auto : undefined;
+    const { data: auto, error: autoErr } = opState && opState.ok
+      ? (opAuto
+        ? { data: { bump_auto_enabled: opAuto.enabled, bump_auto_start_min: opAuto.startMin, bump_auto_end_min: opAuto.endMin, bump_auto_interval_min: opAuto.intervalMin, bump_auto_at: opAuto.lastAt }, error: null }
+        : { data: null, error: { message: 'no auto' } })
+      : await sb
+        .from('salons')
+        .select('bump_auto_enabled, bump_auto_start_min, bump_auto_end_min, bump_auto_interval_min, bump_auto_at')
+        .eq('id', salonId)
+        .single();
     // ★★ 列がまだ無い（SQL 未適用）＝この機能は出さない。★ 触らせて保存だけ失敗する形にしない
     if (autoErr || !auto) { setAutoReady(false); return; }
     const enabled = (auto.bump_auto_enabled as boolean | null) === true;
@@ -103,7 +117,7 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
     setAutoSaved({ enabled, start, end, interval });
     setAutoLastAt((auto.bump_auto_at as string | null) ?? null);
     setAutoReady(true);
-  }, [salonId]);
+  }, [salonId, operator]);
 
   useEffect(() => {
     load();
@@ -129,7 +143,9 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
     setSending(true);
     setMsg('');
     setError('');
-    const { data, error: rpcErr } = await sb.rpc('salon_bump', { p_salon_id: salonId });
+    const { data, error: rpcErr } = operator
+      ? { data: await pressFukuesBumpForOperator(), error: null }
+      : await sb.rpc('salon_bump', { p_salon_id: salonId });
     setSending(false);
     const res = (data ?? null) as { ok?: boolean; error?: string; used?: number; quota?: number; remaining?: number; bumped_at?: string } | null;
     if (rpcErr || !res?.ok) {
@@ -167,15 +183,18 @@ export function SalonBumpButton({ salonId }: { salonId: number }) {
       return;
     }
     setAutoSaving(true);
-    const { error: upErr } = await sb
-      .from('salons')
-      .update({
-        bump_auto_enabled: nextEnabled,
-        bump_auto_start_min: startMin,
-        bump_auto_end_min: endMin,
-        bump_auto_interval_min: autoInterval,
-      })
-      .eq('id', salonId);
+    const opSave = operator ? await saveFukuesBumpAutoForOperator({ enabled: nextEnabled, startMin, endMin, intervalMin: autoInterval }) : null;
+    const { error: upErr } = opSave
+      ? { error: opSave.ok ? null : { message: opSave.error } }
+      : await sb
+        .from('salons')
+        .update({
+          bump_auto_enabled: nextEnabled,
+          bump_auto_start_min: startMin,
+          bump_auto_end_min: endMin,
+          bump_auto_interval_min: autoInterval,
+        })
+        .eq('id', salonId);
     setAutoSaving(false);
     if (upErr) { setAutoError(`保存に失敗しました: ${upErr.message}`); return; }
     setAutoEnabled(nextEnabled);
