@@ -273,7 +273,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
               ★ 7日ぶんの出勤が1件も無い店では /schedule が404なので、リンクも出さない。
                 そのときだけ従来どおりフクエス本体へ送る（導線を絶やさない）。 */}
           {/* ★ 第1906便: 駅ちか対策（もっと見る）が ON の店は、駅ちかの出勤ページへ */}
-          {data.ekichikaShop ? (
+          {data.ekichikaShop && b.ekichika.schedule ? (
             <a className="hp-more" href={`${data.ekichikaShop}schedule/`} target="_blank" rel="noopener">出勤スケジュールをもっと見る →</a>
           ) : multipage && subs.schedule ? (
             <a className="hp-more" href={`${basePath}/schedule`}>
@@ -294,12 +294,12 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           {/* ★ 第1897便: 管理画面の件数（1〜12）で出す。高さは件数の段数（3列）から CSS で合わせる（styles.ts の .hp-embed-diary） */}
           <iframe
             className="hp-embed hp-embed-diary"
-            src={`/embed/salon/${salon.id}/diary/n/${b.diary.count}${data.ekichikaShop ? `/ek/${b.ekichika.slot}` : ''}`}
+            src={`/embed/salon/${salon.id}/diary/n/${b.diary.count}${data.ekichikaShop && b.ekichika.diary ? `/ek/${b.ekichika.slot}` : ''}`}
             title="写メ日記"
             loading="lazy"
             style={{ ['--hp-diary-rows' as string]: Math.ceil(b.diary.count / 3) } as React.CSSProperties}
           />
-          <a className="hp-more" href={data.ekichikaShop ? `${data.ekichikaShop}maildiary/` : `${salonUrl}/diary`} target="_blank" rel="noopener">もっと見る →</a>
+          <a className="hp-more" href={data.ekichikaShop && b.ekichika.diary ? `${data.ekichikaShop}maildiary/` : `${salonUrl}/diary`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
 
@@ -307,8 +307,8 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {visible.reviews && (
         <section id="voice" data-hp-reveal className={secCls('reviews', 'hp-sec-reviews', true)} style={ord('reviews')}>
           <SecHead no="06" en="Voice" jp="口コミ" />
-          <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews${data.ekichikaShop ? `/ek/${b.ekichika.slot}` : ''}`} title="口コミ" loading="lazy" style={{ height: 420 }} />
-          <a className="hp-more" href={data.ekichikaShop ? `${data.ekichikaShop}review/` : `${salonUrl}/reviews`} target="_blank" rel="noopener">もっと見る →</a>
+          <iframe className="hp-embed" src={`/embed/salon/${salon.id}/reviews${data.ekichikaShop && b.ekichika.review ? `/ek/${b.ekichika.slot}` : ''}`} title="口コミ" loading="lazy" style={{ height: 420 }} />
+          <a className="hp-more" href={data.ekichikaShop && b.ekichika.review ? `${data.ekichikaShop}review/` : `${salonUrl}/reviews`} target="_blank" rel="noopener">もっと見る →</a>
         </section>
       )}
 

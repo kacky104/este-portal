@@ -116,7 +116,8 @@ export type HpBlocksConfig = {
    *   slot      … 駅ちかのどの枠（掲載）のページへ向けるか
    *   ★ ネット予約はどの設定でもフクエスのまま
    */
-  ekichika: { therapist: boolean; more: boolean; slot: number };
+  // ★ 第1914便: 出勤・写メ日記・口コミを1つずつ選べるように（前の more は3つまとめての ON として読む）
+  ekichika: { therapist: boolean; schedule: boolean; diary: boolean; review: boolean; slot: number };
   /**
    * カラー別のセラピスト写真（2026-08-11）。
    * キー=カラーキー / 値={ セラピストID: 画像URL }。heroByColor と同じくデモ店専用。
@@ -370,7 +371,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   fontSize: 'sm', // 既定は今までの大きさ（第1901便）
   font: 'default', // 既定はデザインのまま（第1901便）
   textColor: 'default', // 既定はデザインのまま（第1905便）
-  ekichika: { therapist: false, more: false, slot: 1 }, // 既定は OFF（第1906便）
+  ekichika: { therapist: false, schedule: false, diary: false, review: false, slot: 1 }, // 既定は OFF（第1906便）
   therapistImagesByColor: {}, // 同上（既定は空＝掲載データの写真をそのまま使う）
 };
 
@@ -440,7 +441,9 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     ekichika: (() => {
       const e = (rawObj.ekichika && typeof rawObj.ekichika === 'object' ? rawObj.ekichika : {}) as Record<string, unknown>;
       const slot = Math.trunc(Number(e.slot));
-      return { therapist: e.therapist === true, more: e.more === true, slot: Number.isInteger(slot) && slot >= 1 && slot <= 9 ? slot : 1 };
+      // ★ 第1914便: 前の形（more）で保存した店は、出勤・写メ日記・口コミの3つとも ON として読む
+      const on = (k: string) => (typeof e[k] === 'boolean' ? e[k] === true : e.more === true);
+      return { therapist: e.therapist === true, schedule: on('schedule'), diary: on('diary'), review: on('review'), slot: Number.isInteger(slot) && slot >= 1 && slot <= 9 ? slot : 1 };
     })(),
     therapistImagesByColor: renameLegacyImageSlots(sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor)),
   };

@@ -1123,7 +1123,7 @@ export function HpEditor({
       {show('ekichika') && !isDemo && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
         <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />駅ちかのランキング対策</h3>
-        <p className="text-[12px] text-slate-500 leading-relaxed">駅ちかは、公式ホームページから駅ちかへのリンクがあると加点します。ONにした項目のリンク先が駅ちかに変わります（ネット予約はフクエスのままです）。<br />写メ・口コミのウィジェットは、左メニューの「ウィジェット」に貼ってください。</p>
+        <p className="text-[12px] text-slate-500 leading-relaxed">駅ちかは、公式ホームページから駅ちかへのリンクがあると加点します。項目ごとに、リンク先を駅ちかにするかフクエスのままにするかを選べます（ネット予約はいつもフクエスです）。<br />写メ・口コミのウィジェットは、左メニューの「ウィジェット」に貼ってください。</p>
         {ekInfo && ekInfo.slots.length === 0 && (
           <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます。</p>
         )}
@@ -1141,19 +1141,37 @@ export function HpEditor({
                   </select>
                 </label>
               )}
-              <label className="flex items-start gap-2 text-[12px] text-slate-700">
-                <input type="checkbox" className="mt-0.5" checked={form.blocks.ekichika.therapist} onChange={(e) => setEk({ therapist: e.target.checked })} />
-                <span>
-                  <b>セラピストの写真・名前を押したら、駅ちかのプロフィールを開く</b>（駅ちかの採点表の7番：在籍の9割以上で5点・半分以上で3点）
-                  <span className="block text-[11px] text-slate-500">
-                    いま在籍{ekInfo.total}名のうち <b className={rate >= 90 ? 'text-emerald-600' : 'text-amber-600'}>{cur.linked}名（{rate}%）</b> が駅ちかと結びついています。結びついていない方は、今までどおりホームページの中のページが開きます。
-                  </span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 text-[12px] text-slate-700">
-                <input type="checkbox" className="mt-0.5" checked={form.blocks.ekichika.more} onChange={(e) => setEk({ more: e.target.checked })} />
-                <span><b>出勤・写メ日記・口コミの「もっと見る」を、駅ちかのページにする</b>（採点表の5番：2点）</span>
-              </label>
+              {/* ★ 第1914便（カッキーさん）: 項目ごとに 駅ちか／フクエス を選ぶ */}
+              <div className="divide-y divide-slate-100 border border-slate-200">
+                {([
+                  ['therapist', 'セラピスト', '写真・名前を押した先（駅ちかのプロフィール）', '採点表7番：在籍の9割以上で5点・半分以上で3点'],
+                  ['schedule', '出勤', '「もっと見る」を押した先（駅ちかの出勤）', '採点表5番'],
+                  ['diary', '写メ日記', '画像と「もっと見る」を押した先（駅ちかの写メ日記）', '採点表5番'],
+                  ['review', '口コミ', '口コミと「もっと見る」を押した先（駅ちかの口コミ）', '採点表5番'],
+                ] as const).map(([k, name, what, point]) => {
+                  const on = form.blocks.ekichika[k];
+                  return (
+                    <div key={k} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-black text-slate-800">{name}</div>
+                        <div className="text-[11px] text-slate-500">{what}・{point}</div>
+                        {k === 'therapist' && (
+                          <div className="text-[11px] text-slate-500">
+                            在籍{ekInfo.total}名のうち <b className={rate >= 90 ? 'text-emerald-600' : 'text-amber-600'}>{cur.linked}名（{rate}%）</b> が駅ちかと結びついています（結びついていない方はホームページの中のページ）。
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-none">
+                        <button type="button" onClick={() => setEk({ [k]: true })}
+                          className={`px-3 py-1.5 text-[12px] font-bold border ${on ? 'border-pink-500 bg-pink-500 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-pink-300'}`}>駅ちか</button>
+                        <button type="button" onClick={() => setEk({ [k]: false })}
+                          className={`-ml-px px-3 py-1.5 text-[12px] font-bold border ${!on ? 'border-slate-600 bg-slate-600 text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-400'}`}>フクエス</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[12px] text-slate-500 leading-relaxed">出勤・写メ日記・口コミは、1つでも駅ちかにすれば採点表5番の2点の対象です（いくつ選んでも2点）。</p>
               <p className="text-[12px] text-slate-500 leading-relaxed">公開ページに出るまで最大10分ほどかかります。点数は、駅ちかへ申請して確認されたあとに付きます。</p>
             </div>
           );

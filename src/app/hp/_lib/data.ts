@@ -331,7 +331,8 @@ export async function fetchHpPageData(
   //   ★ 読めなかったら OFF と同じ（今までのリンクのまま）。ページは落とさない
   let ekichikaShop: string | null = null;
   const ek = site.blocks.ekichika;
-  if ((ek.therapist || ek.more) && siteKey !== HP_DEMO_SLUG) {
+  const ekPages = ek.schedule || ek.diary || ek.review;
+  if ((ek.therapist || ekPages) && siteKey !== HP_DEMO_SLUG) {
     try {
       const svc = createServiceClient();
       const { data: src, error: srcErr } = await svc.from('salon_import_sources').select('shop_url')
@@ -339,7 +340,7 @@ export async function fetchHpPageData(
       if (srcErr) throw new Error(srcErr.message);
       const shop = hpEkichikaShopUrl(src?.shop_url);
       if (shop) {
-        if (ek.more) ekichikaShop = shop;
+        if (ekPages) ekichikaShop = shop;
         if (ek.therapist && therapistIds.length > 0) {
           const { data: ids, error: idErr } = await svc.from('therapist_media_ids').select('therapist_id, external_cast_id')
             .eq('provider', 'ekichika').eq('slot', ek.slot).in('therapist_id', therapistIds);

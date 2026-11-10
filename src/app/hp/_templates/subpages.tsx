@@ -476,7 +476,7 @@ export async function HpDiaryView({ data }: ViewProps) {
   const items = await fetchHpDiaryItems(salon.id, isDemo);
   // 「もっと見る」の行き先。デモは全店の日記一覧、実店舗は自店の日記一覧（どちらもフクエス本体）
   // ★ 第1912便: 駅ちか対策（もっと見る）が ON の店は、画像も「もっと見る」も駅ちかのお店の写メ日記一覧へ
-  const ekDiary = data.ekichikaShop ? `${data.ekichikaShop}maildiary/` : null;
+  const ekDiary = data.ekichikaShop && data.site.blocks.ekichika.diary ? `${data.ekichikaShop}maildiary/` : null;
   const moreHref = ekDiary ?? (isDemo ? `${EMBED_SITE_URL}/diary` : `${EMBED_SITE_URL}/salon/${salon.id}/diary`);
 
   return (
@@ -551,7 +551,7 @@ export async function HpVoiceView({ data }: ViewProps) {
     isDemo ? Promise.resolve(null) : getSalonReviewStats(salon.id),
   ]);
   // ★ 第1913便: 駅ちか対策（もっと見る）が ON の店は、「もっと見る」を駅ちかのお店の口コミページへ
-  const moreHref = data.ekichikaShop ? `${data.ekichikaShop}review/` : (isDemo ? `${EMBED_SITE_URL}/reviews` : `${EMBED_SITE_URL}/salon/${salon.id}/reviews`);
+  const moreHref = data.ekichikaShop && data.site.blocks.ekichika.review ? `${data.ekichikaShop}review/` : (isDemo ? `${EMBED_SITE_URL}/reviews` : `${EMBED_SITE_URL}/salon/${salon.id}/reviews`);
 
   return (
     <HpShell data={data} page="voice">

@@ -48,7 +48,7 @@ export const HP_ADMIN_NAV: Array<{ key: HpAdminSection; label: string }> = [
   { key: 'contact', label: 'お問い合わせ' },
   { key: 'brand',   label: 'ロゴ・文字・背景' },   // ★ 第1884便: 背景画像も
   { key: 'analytics', label: 'アクセス解析' },
-  { key: 'ekichika', label: '駅ちか対策' },   // ★ 第1907便（カッキーさん）: アクセス解析の下
+  { key: 'ekichika', label: '駅ちかランキング対策' },   // ★ 第1907便（カッキーさん）: アクセス解析の下
 ];
 
 // ★ 画面の頭に出す名前（★ サイドバーの字より少し詳しくてよい）。
