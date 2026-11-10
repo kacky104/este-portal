@@ -287,33 +287,33 @@ function EkichikaSlotList({ site, slots }: { site: SiteTheme; slots: ConecfBumpS
           const r = s.countStale && quota != null ? quota : s.remaining;
           return (
             <li key={s.slot}>
-              <Link href={href(`/bump/ekichika/${s.slot}`)} className={`flex items-center gap-3 px-4 py-4 bg-white border ${site.border} shadow-sm text-[15px] tabular-nums hover:bg-orange-50/60 hover:border-orange-300 transition-colors`}>
-                <span className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 text-[14px] font-bold text-blue-600 border border-blue-200 bg-blue-50">✎ 編集</span>
-                <span className="w-48 flex-shrink-0 min-w-0">
+              <Link href={href(`/bump/ekichika/${s.slot}`)} className={`flex items-center gap-3 px-4 py-2.5 bg-white border ${site.border} shadow-sm text-[17px] tabular-nums hover:bg-orange-50/60 hover:border-orange-300 transition-colors`}>
+                <span className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 text-[16px] font-bold text-blue-600 border border-blue-200 bg-blue-50">✎ 編集</span>
+                <span className="w-56 flex-shrink-0 min-w-0">
                   <span className="font-black text-slate-700">枠{s.slot}</span>
-                  {s.area && <span className="ml-1.5 text-[14px] font-bold text-slate-500">{s.area}</span>}
+                  {s.area && <span className="ml-1.5 text-[16px] font-bold text-slate-500">{s.area}</span>}
                 </span>
-                <span className="w-32 flex-shrink-0 text-slate-500">
-                  {ok ? <>あと <b className={`text-[22px] font-black ${r === 0 ? 'text-slate-400' : site.big}`}>{r === null ? '—' : r}</b>{quota != null && <span className="text-[13px]"> / {quota}回</span>}</> : <span className="text-[14px] font-bold text-amber-700">ID・PW 未登録</span>}
+                <span className="w-36 flex-shrink-0 text-slate-500">
+                  {ok ? <>あと <b className={`text-[26px] font-black ${r === 0 ? 'text-slate-400' : site.big}`}>{r === null ? '—' : r}</b>{quota != null && <span className="text-[15px]"> / {quota}回</span>}</> : <span className="text-[16px] font-bold text-amber-700">ID・PW 未登録</span>}
                 </span>
                 <span className="flex-1 min-w-0">
                   {s.enabled ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[14px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[16px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />自動更新中
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[14px] font-bold text-slate-500 bg-slate-50 border border-slate-200">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[16px] font-bold text-slate-500 bg-slate-50 border border-slate-200">
                       <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden />自動更新停止
                     </span>
                   )}
                 </span>
-                <span className="hidden sm:block w-36 flex-shrink-0 text-right text-[13px] text-slate-400">{s.lastAt ? `最後 ${hm(s.lastAt)}` : 'まだ押していません'}</span>
+                <span className="hidden sm:block w-40 flex-shrink-0 text-right text-[15px] text-slate-400">{s.lastAt ? `最後 ${hm(s.lastAt)}` : 'まだ押していません'}</span>
               </Link>
             </li>
           );
         })}
       </ul>
-      <p className="px-1 text-[12px] text-slate-400">枠を押すと、その枠の「タイマー更新／時刻指定更新」の設定と「いま1回上位表示する」が開きます。</p>
+      <p className="px-1 text-[14px] text-slate-400">枠を押すと、その枠の「タイマー更新／時刻指定更新」の設定と「いま1回上位表示する」が開きます。</p>
     </div>
   );
 }
