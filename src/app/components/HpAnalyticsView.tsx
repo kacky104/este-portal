@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getHpAnalytics, type HpAnalytics, type HpTotals } from '@/app/actions/hpAnalytics';
 import { jstDayHour } from '@/lib/hpStats';
+import { FUKUES_ORIGIN } from '@/lib/crmHost';
 
 // ★ 第1792便（カッキーさん・2026-11-08・オイルクエスト様のご要望）: 公式HP（フクエスサイト）のアクセス解析の画面。
 //   ★ すぐる君（GA4＋Looker Studio）と同じく見やすいタブ。★ そのうえで「電話・LINE につながった流入元」「時間帯」「ひとこと」を足した。
@@ -46,7 +47,11 @@ const TAB_HEAD: Record<Tab, [string, string]> = {
   help: ['レポートの活用方法', 'このレポートをお店の集客に役立てるための見方をご紹介します'],
 };
 
-export function HpAnalyticsView({ salonId }: { salonId: number }) {
+/**
+ * ★ 第1888便（カッキーさん）: siteLinks … 公式ホームページ（フクエスサイト）と、その管理画面へのリンクを出す（コネックエフから使う）。
+ *   公式HP管理の中で開いているときは出さない（そこがもう管理画面なので）。
+ */
+export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: number; siteLinks?: boolean }) {
   const today = useMemo(() => jstDayHour(Date.now()).day, []);
   const [range, setRange] = useState<[string, string]>([addDays(today, -27), today]);
   const [preset, setPreset] = useState('28');
@@ -120,6 +125,19 @@ export function HpAnalyticsView({ salonId }: { salonId: number }) {
         </p>
       ) : (
         <>
+          {siteLinks && (
+            <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-white px-4 py-3">
+              <span className="mr-1 text-[13px] font-bold text-slate-600">フクエスサイト</span>
+              <a href={d.site.domain ? `https://${d.site.domain}` : `${FUKUES_ORIGIN}/hp/${d.site.slug}`} target="_blank" rel="noopener"
+                className="inline-flex items-center gap-1 border border-slate-300 bg-white px-3 py-1.5 text-[13px] font-bold text-slate-700 hover:bg-slate-50">
+                公式ホームページを見る <span aria-hidden>↗</span>
+              </a>
+              <a href={`${FUKUES_ORIGIN}/hp/${d.site.slug}/admin`} target="_blank" rel="noopener"
+                className="inline-flex items-center gap-1 border border-pink-300 bg-pink-50 px-3 py-1.5 text-[13px] font-bold text-pink-700 hover:bg-pink-100">
+                公式HP管理（写真・文章の変更）を開く <span aria-hidden>↗</span>
+              </a>
+            </div>
+          )}
           {tab !== 'help' && <Tiles cur={d.totals} prev={d.prev} usage={d.usage} />}
 
           {/* ひとこと（サマリーだけ） */}

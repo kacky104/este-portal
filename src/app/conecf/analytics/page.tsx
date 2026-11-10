@@ -8,7 +8,7 @@ import { HpAnalyticsView } from '@/app/components/HpAnalyticsView';
 export default function ConecfAnalyticsPage() {
   return (
     <ConecfShell current="analytics" title="アクセス解析（公式ホームページ）" wide>
-      {(a) => (a.salonId != null ? <HpAnalyticsView salonId={a.salonId} /> : null)}
+      {(a) => (a.salonId != null ? <HpAnalyticsView salonId={a.salonId} siteLinks /> : null)}
     </ConecfShell>
   );
 }
