@@ -25,8 +25,9 @@ console.log('── 1. ★★★ 決まり（カッキーさんの OK・10/8）�
   eq('★ 待つのは15分まで', m.WAIT_MAX_MINUTES, 15);
   eq('★ 同じ店・サイト・枠で待てるのは3件まで', m.WAIT_MAX_PER_SLOT, 3);
   eq('★ status の綴り', m.WAIT_STATUS, 'waiting');
-  eq('★★★ 順番待ちにしてよい流れは、削除・プロフィール更新・新規登録の6つだけ',
-    [...m.WAIT_INTENTS].sort(), ['cast_create', 'cast_edit', 'cast_hide', 'girl_create', 'girl_delete', 'girl_edit']);
+  // ★ 第1557便で並び順（sort_push）を足した
+  eq('★★★ 順番待ちにしてよい流れは、削除・プロフィール更新・新規登録・並び順の7つだけ',
+    [...m.WAIT_INTENTS].sort(), ['cast_create', 'cast_edit', 'cast_hide', 'girl_create', 'girl_delete', 'girl_edit', 'sort_push']);
   const never = ['work_push', 'work_auto', 'work_dryrun', 'connect_test', 'roster_read', 'sokuhime_read', 'sokuhime_push', 'sokuhime_auto',
     'sokusera_push', 'sokusera_auto', 'diary_push', 'diary_auto', 'diary_read', 'mail_apply', 'mail_dryrun', 'article_slots', 'photo_push', 'cast_photo', ''];
   eq('★★★ 出勤・即ヒメ・即セラ・写メ日記・新着情報・読み取りは、順番待ちにしない', never.filter((i) => m.canWaitIntent(i)), []);
@@ -144,11 +145,15 @@ console.log('\n── 5. ★★★ ソースの見張り ──');
   eq('★★★ 順番待ちを頼むのは、削除（conecfGirls）・プロフィール更新（conecfGirlEdit）・新規登録（mediaCredentials）と、入口の2ファイルだけ', users, [
     'app/actions/conecfGirlEdit.ts',
     'app/actions/conecfGirls.ts',
+    'app/actions/conecfSort.ts',            // ★ 第1557便: 並び順
     'app/actions/mediaCredentials.ts',
+    'app/api/admin/ekichika-bump/route.ts', // ★ 第1929便: 駅ちかの上位表示の【時刻指定】の回だけ（relayFlow で intent・provider・times を確かめる）
     'app/lib/media/relayFlow.ts',
     'app/lib/media/relayQueue.ts',
   ].sort());
-  eq('★★★ 自動の周・運営の口（app/api）は頼んでいない', users.filter((p) => p.startsWith('app/api/')), []);
+  eq('★★★ 自動の周・運営の口（app/api）で頼むのは、上位表示の時刻指定の周だけ', users.filter((p) => p.startsWith('app/api/')), ['app/api/admin/ekichika-bump/route.ts']);
+  const flowSrc = read('src', 'app', 'lib', 'media', 'relayFlow.ts');
+  eq('★★★ 周から待てるのは、駅ちかの bump_auto で時刻指定がある回だけ', flowSrc.includes("params.intent === 'bump_auto' && params.provider === 'ekichika'") && flowSrc.includes('params.bump?.setting?.times'), true);
   const cred = read('src', 'app', 'actions', 'mediaCredentials.ts');
   eq('★★ mediaCredentials で頼むのは新規登録の1か所だけ', [(cred.match(/whenBusy: 'wait'/g) || []).length, cred.includes("startRelayFlow({ ...m.flow, whenBusy: 'wait' })")], [1, true]);
 
