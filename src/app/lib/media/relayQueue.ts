@@ -139,6 +139,7 @@ export type RelayPurpose =
   | 'zenkoku_news_read' | 'zenkoku_news_set' | 'zenkoku_news_verify' | 'zenkoku_rec_read' | 'zenkoku_rec_set' | 'zenkoku_rec_verify'
   | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify'
   | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify'
+  | 'cocomov_admin' | 'cocomov_login' | 'cocomov_list' | 'cocomov_copy' | 'cocomov_post' | 'cocomov_verify' | 'cocomov_delete'
   | 'ekirank_read' | 'ekirank_set' | 'ekirank_verify'
   // ★ 第1903便: バニラ。★ vanilla_blog_post / vanilla_blog_delete だけが相手を書き換える（送り直さない）
   | 'vanilla_login' | 'vanilla_top' | 'vanilla_blog_form' | 'vanilla_blog_confirm' | 'vanilla_blog_post' | 'vanilla_blog_list' | 'vanilla_blog_delete'

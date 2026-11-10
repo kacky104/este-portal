@@ -10,6 +10,7 @@ import {
   getConecfCocoa, saveConecfCocoaSettings, saveConecfCocoaTemplate, setConecfCocoaTemplateActive,
   deleteConecfCocoaTemplate, postConecfCocoaNow, type CocoaData, type CocoaTemplateRow,
   saveConecfCocoaAccount, postConecfCocoaAccountNow, uploadConecfCocoaImage, type CocoaAccountRow,
+  saveConecfCocoaMovie, runConecfCocoaMovieNow,
 } from '@/app/actions/conecfCocoa';
 
 // コネックエフ「ココア店長ブログ」（第404便・2026-09-17）。
@@ -174,6 +175,56 @@ function parseCocoaTime(t: string): number {
  * ★★ 第1833便（カッキーさん）: A・B・C の3アカウントのカード（開け閉めできる）。
  *   アカウントごとに 投稿用メールアドレス・自動の ON/OFF・「時刻＋テンプレート（または順番に）」の行（ベンリーの時刻指定更新と同じ）
  */
+// ★ 第1917便: 動画の記事（ベンリーの「ココア(動画投稿)」と同じ）。いちばん新しい動画の記事を複製して出し、前の同じ記事は消す
+function MovieSection({ a, guard, onToast, reload }: { a: CocoaAccountRow; guard: () => boolean; onToast: (m: string) => void; reload: () => Promise<void> }) {
+  const mv = a.movie!;
+  const [auto, setAuto] = useState(mv.enabled);
+  const [times, setTimes] = useState<string[]>(() => mv.schedule.map((r) => cocoaMinLabel(r.min)));
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!guard()) return;
+    const used = times.filter((t) => t.trim() !== '');
+    const mins = used.map((t) => parseCocoaTime(t));
+    if (mins.some((m) => !Number.isFinite(m))) { onToast('時刻は「13:12」のように入れてください（翌朝は「翌1:00」）'); return; }
+    if (new Set(mins).size !== mins.length) { onToast('同じ時刻が2つあります'); return; }
+    setBusy(true);
+    const res = await saveConecfCocoaMovie({ slot: a.slot, enabled: auto, schedule: mins.map((min) => ({ min })) });
+    setBusy(false);
+    onToast(res.ok ? '保存しました' : res.error);
+    if (res.ok) await reload();
+  };
+  const now = async () => {
+    if (!guard()) return;
+    if (!window.confirm(a.label + 'に動画の記事を1件出します（残り回数を1回使います）。よろしいですか？')) return;
+    setBusy(true);
+    const res = await runConecfCocoaMovieNow({ slot: a.slot });
+    setBusy(false);
+    onToast(res.ok ? 'ココアへ送りました（1〜2分で結果が出ます）' : res.error);
+    if (res.ok) setTimeout(() => { void reload(); }, 90_000);
+  };
+  const r = mv.lastResult;
+  const result = !r ? '—' : r.startsWith('ok: ') ? '出せました' : r.startsWith('ok_unverified') ? '出しました（一覧での確認はまだ）' : r === 'no_movie' ? 'ココアに動画の記事がありません（ココアで1本投稿してください）' : r === 'no_count' ? '今日の残り回数がありませんでした' : 'うまくいきませんでした（' + r.replace(/^error:\s*/, '') + '）';
+  return (
+    <div className="space-y-1.5 border-t border-slate-100 pt-3">
+      <p className="text-[13px] font-bold text-slate-600">動画の記事</p>
+      <p className="text-[12px] text-slate-400">決めた時刻に、{a.label}のいちばん新しい動画の記事を複製して出し、前の同じ記事は消します（動画ファイルは送りません）。動画の記事が1本も無いときは、ココアの「動画投稿」で1本出してください。</p>
+      {times.map((t, i) => (
+        <div key={i} className="flex items-center gap-2 text-[14px]">
+          <input value={t} onChange={(e) => setTimes((ts) => ts.map((x, k) => (k === i ? e.target.value : x)))} placeholder="13:12" className="w-24 border border-slate-200 px-2 py-1.5" />
+          <button type="button" onClick={() => setTimes((ts) => ts.filter((_, k) => k !== i))} className="text-[12.5px] font-bold text-rose-500">消す</button>
+        </div>
+      ))}
+      {times.length < 6 && <button type="button" onClick={() => setTimes((ts) => [...ts, ''])} className="border border-dashed border-indigo-300 px-3 py-1 text-[13px] text-indigo-700">＋ 時刻を足す</button>}
+      <div className="flex flex-wrap items-center gap-3 pt-1 text-[14px]">
+        <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> 動画の記事を自動で出す</label>
+        <button type="button" disabled={busy} onClick={() => void save()} className="px-4 py-1.5 bg-indigo-600 text-white font-bold disabled:opacity-50">保存</button>
+        <button type="button" disabled={busy} onClick={() => void now()} className="px-3 py-1.5 border border-indigo-300 text-[13px] text-indigo-700 font-bold disabled:opacity-40">いま1回出す</button>
+        <span className="text-[12.5px] text-slate-400">最後：{mv.lastAt ? hm(mv.lastAt) : 'まだ'}・{result}</span>
+      </div>
+    </div>
+  );
+}
+
 function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
   a: CocoaAccountRow; templates: CocoaTemplateRow[]; open: boolean; onToggle: () => void; guard: () => boolean; onToast: (m: string) => void; reload: () => Promise<void>;
 }) {
@@ -247,6 +298,7 @@ function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
           <button type="button" disabled={busy} onClick={() => void save()} className="px-4 py-1.5 bg-indigo-600 text-white font-bold disabled:opacity-50">保存</button>
           <span className="text-[12.5px] text-slate-400">最後の投稿：{last}</span>
         </div>
+        {a.movie && <MovieSection a={a} guard={guard} onToast={onToast} reload={reload} />}
       </>)}
     </div>
   );

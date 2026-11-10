@@ -8,6 +8,8 @@ import { postCocoaForSalon, postCocoaForAccount, hasEkichikaLogin } from '@/app/
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
+import { startRelayFlow } from '@/app/lib/media/relayFlow';
+import { normalizeCocoaMovieSchedule, type CocoaMovieRow } from '@/lib/cocoaMovie';
 
 // コネックエフ「ココア店長ブログ」の受け口（第404便・2026-09-17）。
 // ★ 書き込みは「コネックエフに切り替え済み」の自店だけ（service_role）。
@@ -45,6 +47,8 @@ export type CocoaAccountRow = {
   /** 保存してある行（空なら今までどおり1日1回） */ schedule: CocoaScheduleRow[];
   /** 実際に使う行（空のときは店ごとに決まった時刻1つ） */ effective: CocoaScheduleRow[];
   lastPostedAt: string | null; lastResult: string | null;
+  /** ★ 第1917便: 動画の記事（列が無い＝SQL 未適用なら null） */
+  movie: { enabled: boolean; schedule: CocoaMovieRow[]; lastAt: string | null; lastResult: string | null } | null;
 };
 
 export async function getConecfCocoa(): Promise<Result<CocoaData>> {
@@ -53,13 +57,16 @@ export async function getConecfCocoa(): Promise<Result<CocoaData>> {
   const { data: st } = await r.svc.from('conecf_cocoa_settings').select('*').eq('salon_id', r.salonId).maybeSingle();
   const { data: temps } = await r.svc.from('conecf_cocoa_templates').select('*').eq('salon_id', r.salonId).order('sort_order').order('id');
   const acc = await r.svc.from('conecf_cocoa_accounts').select('slot, enabled, post_email, schedule, last_posted_at, last_result').eq('salon_id', r.salonId);
+  const mv = await r.svc.from('conecf_cocoa_accounts').select('slot, movie_enabled, movie_schedule, movie_last_at, movie_last_result').eq('salon_id', r.salonId);
   const accounts: CocoaAccountRow[] | null = acc.error ? null : COCOA_ACCOUNT_SLOTS.map((slot) => {
     const x = (acc.data ?? []).find((d) => Number(d.slot) === slot);
+    const y = mv.error ? null : (mv.data ?? []).find((d) => Number(d.slot) === slot);
     const schedule = normalizeCocoaSchedule(x?.schedule);
     return {
       slot, label: COCOA_ACCOUNT_LABEL[slot], enabled: x?.enabled === true, postEmail: (x?.post_email as string | null) ?? '',
       schedule, effective: effectiveCocoaSchedule(r.salonId, schedule),
       lastPostedAt: (x?.last_posted_at as string | null) ?? null, lastResult: (x?.last_result as string | null) ?? null,
+      movie: mv.error ? null : { enabled: y?.movie_enabled === true, schedule: normalizeCocoaMovieSchedule(y?.movie_schedule), lastAt: (y?.movie_last_at as string | null) ?? null, lastResult: (y?.movie_last_result as string | null) ?? null },
     };
   });
   return {
@@ -229,4 +236,36 @@ export async function uploadConecfCocoaImage(fd: FormData): Promise<Result<{ url
   const { error } = await r.svc.storage.from('salon-images').upload(path, out, { contentType: 'image/jpeg', cacheControl: '31536000', upsert: false });
   if (error) return { ok: false, error: 'アップロードに失敗しました: ' + error.message };
   return { ok: true, data: { url: r.svc.storage.from('salon-images').getPublicUrl(path).data.publicUrl } };
+}
+
+// ── ★ 第1917便: ココアの動画の記事（いちばん新しい動画の記事を複製して出す・前の同じ記事は消す） ──
+export async function saveConecfCocoaMovie(input: { slot: number; enabled: boolean; schedule: CocoaMovieRow[] }): Promise<Result<{ saved: true }>> {
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const slot = Number(input.slot);
+  if (!(COCOA_ACCOUNT_SLOTS as readonly number[]).includes(slot)) return { ok: false, error: '指定が不正です' };
+  const schedule = normalizeCocoaMovieSchedule(input.schedule);
+  if (input.enabled === true && schedule.length === 0) return { ok: false, error: '出す時刻を1つ以上入れてください' };
+  const { data, error } = await r.svc.from('conecf_cocoa_accounts')
+    .update({ movie_enabled: input.enabled === true, movie_schedule: schedule, updated_at: new Date().toISOString() })
+    .eq('salon_id', r.salonId).eq('slot', slot).select('slot');
+  if (error) return { ok: false, error: '保存できませんでした（追加SQL_第1917便は流しましたか？）' };
+  if (!data || data.length === 0) return { ok: false, error: 'このアカウントはまだ保存されていません。先に上の「保存」を押してください' };
+  return { ok: true, data: { saved: true } };
+}
+
+/** ★ いま1回（ココアの残り回数を1回使う） */
+export async function runConecfCocoaMovieNow(input: { slot: number }): Promise<Result<{ note: string }>> {
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const slot = Number(input.slot);
+  if (!(COCOA_ACCOUNT_SLOTS as readonly number[]).includes(slot)) return { ok: false, error: '指定が不正です' };
+  try {
+    const f = await startRelayFlow({ salonId: r.salonId, provider: 'ekichika', slot, intent: 'bump_push', actor: 'conecf:cocoa-movie', cocoaMovie: {} });
+    if (!f.ok) return { ok: false, error: f.note };
+    return { ok: true, data: { note: f.note } };
+  } catch (e) {
+    console.error('[conecf] ココアの動画の記事を始められなかった', (e as Error).message);
+    return { ok: false, error: '始められませんでした。時間をおいてお試しください' };
+  }
 }

@@ -80,7 +80,7 @@ BASE, SECRET, SPAN, BACKOFF_FILE = sys.argv[1], sys.argv[2], int(sys.argv[3]), s
 # ★ 2026-09-02（第109便）で estama.jp（エステ魂）を追加。
 # ★ 2026-11-07（第1769便）で www.esthe-ranking.jp（全国エステランキング）を追加。
 # ★ 2026-11-10（第1903便）で qzin.jp（バニラ）を追加。
-ALLOWED_HOSTS = {"ranking-deli.jp", "eslove.jp", "estama.jp", "www.esthe-ranking.jp", "qzin.jp"}
+ALLOWED_HOSTS = {"ranking-deli.jp", "eslove.jp", "estama.jp", "www.esthe-ranking.jp", "qzin.jp", "cocoa-job.jp"}  # 第1917便: ココアの動画の記事
 # ★★★ 第106便: ファイル付き POST のとき、画像を【取りに行ってよい先】。★ 宛先の表とは別（混ぜない）。
 #   ★ フクエス側（src/lib/relayMultipart.ts RELAY_FILE_HOSTS）と同じ組にすること。relayhosts の点検で突き合わせる。
 #   ★ 取りに行く口も1つに限る（/api/relay/file）。任意のURLを取りに行く道具にしない。

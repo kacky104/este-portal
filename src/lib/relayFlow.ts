@@ -136,6 +136,8 @@ import { afterZenkokuLoginPage, afterZenkokuLogin, afterZenkokuRoster, afterZenk
 import { afterZenkokuWaitRead, afterZenkokuWaitSet } from './zenkokuWaitFlow';
 import { ekichikaMovieFirstStep, afterEkimovieForm, afterEkimovieList, afterEkimovieDelete, afterEkimoviePost, afterEkimovieVerify } from './ekichikaMovieFlow';
 import { ekichikaMagazineFirstStep, afterEkimagForm, afterEkimagPost, afterEkimagVerify } from './ekichikaMagazineFlow';
+import { cocoaMovieFirstStep, afterCocomovAdmin, afterCocomovLogin, afterCocomovList, afterCocomovCopy, afterCocomovPost, afterCocomovVerify, afterCocomovDelete } from './cocoaMovieFlow';
+import type { CocoaBlogRow } from './cocoaMovie';
 import { ekichikaRankImageFirstStep, afterEkirankRead, afterEkirankSet, afterEkirankVerify } from './ekichikaRankImageFlow';
 import { afterZenkokuDelList, afterZenkokuGirlDelete } from './zenkokuGirlDeleteFlow';
 import { afterZenkokuCreateList, afterZenkokuCreateForm, afterZenkokuCreateSave, afterZenkokuCreateFind, afterZenkokuCreateDetail, afterZenkokuCreatePhoto } from './zenkokuGirlCreateFlow';
@@ -1060,6 +1062,8 @@ export type RelayFlowContext = {
   ekichikaMovie?: { index: number; girlName: string; title: string; body: string; deleteSame: boolean; videoUrl: string; videoType: string; csrf?: string; girlId?: string; deleted?: number };
   /** ★ 第1844便: 駅ちかのプラチナムマガジン（lib/ekichikaMagazineFlow.ts）。at（配信日時の表示）は段の途中で入る */
   ekichikaMagazine?: { index: number; title: string; body: string; at?: string };
+  /** ★ 第1917便: ココアの店長ブログ「動画の記事」（lib/cocoaMovieFlow.ts）。slot＝ココアのアカウント（A=1・B=2・C=3＝駅ちかの枠）。ck 以降は段の途中で入る */
+  cocoaMovie?: { slot: number; ck?: string; lid?: string; sourceId?: string; title?: string; remaining?: number; postedMsg?: boolean; newId?: string; deleteQueue?: CocoaBlogRow[]; deleted?: number };
   /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（lib/ekichikaRankImageFlow.ts）。plan・step は段の途中で入る */
   ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string; plan?: Array<{ target: 'main' | 'ranking'; id: string; old: string; name: string }>; step?: number };
   /** ★ 第1865便: 全国エステランキングへ1人登録（lib/zenkokuGirlCreateFlow.ts）。before・gid・slots・photoAt・verify は段の途中で入る */
@@ -1188,6 +1192,8 @@ export type FlowNextRequest = {
     | 'ekimovie_form' | 'ekimovie_list' | 'ekimovie_delete' | 'ekimovie_post' | 'ekimovie_verify'
     // ★ 第1844便: 駅ちかのプラチナムマガジン。★ ekimag_post だけが相手を書き換える
     | 'ekimag_form' | 'ekimag_post' | 'ekimag_verify'
+    // ★ 第1917便: ココアの動画の記事。★ cocomov_post / cocomov_delete だけが相手を書き換える
+    | 'cocomov_admin' | 'cocomov_login' | 'cocomov_list' | 'cocomov_copy' | 'cocomov_post' | 'cocomov_verify' | 'cocomov_delete'
     // ★ 第1846便: 駅ちかの店舗メイン／ランキング。★ ekirank_set だけが相手を書き換える
     | 'ekirank_read' | 'ekirank_set' | 'ekirank_verify'
     // ★ 第1903便: バニラ（ログイン・店長ブログ）。★ vanilla_blog_post / vanilla_blog_delete だけが相手を書き換える
@@ -1234,6 +1240,8 @@ export type FlowOutcome =
       ekichikaMovie?: { index: number; done: boolean; outcome: string; lastAt: string | null; deleted: number };
       /** ★ 第1844便: 駅ちかのプラチナムマガジンの結果。★ 表（conecf_ekichika_magazines）に書くのは呼び出し側 */
       ekichikaMagazine?: { index: number; done: boolean; outcome: string; lastAt: string | null };
+      /** ★ 第1917便: ココアの動画の記事の結果。★ 表（conecf_cocoa_accounts の movie_*）に書くのは呼び出し側 */
+      cocoaMovie?: { done: boolean; outcome: string; lastAt: string | null; deleted: number };
       /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの結果。★ 表（conecf_ekichika_rankimgs）に書くのは呼び出し側 */
       ekichikaRankImage?: { index: number; nextIndex: number; done: boolean; outcome: string; lastAt: string | null };
       zenkokuOpt?: { key: string; readAt: string; done: boolean; outcome: string; lastAt: string | null; nextIndex: number | null; remaining: number | null };
@@ -1857,6 +1865,20 @@ function advanceFlowStep(
       return afterEkimagPost(input, ctx);
     case 'ekimag_verify':
       return afterEkimagVerify(input, ctx);
+    case 'cocomov_admin':
+      return afterCocomovAdmin(input, ctx);
+    case 'cocomov_login':
+      return afterCocomovLogin(input, ctx);
+    case 'cocomov_list':
+      return afterCocomovList(input, ctx);
+    case 'cocomov_copy':
+      return afterCocomovCopy(input, ctx);
+    case 'cocomov_post':
+      return afterCocomovPost(input, ctx);
+    case 'cocomov_verify':
+      return afterCocomovVerify(input, ctx);
+    case 'cocomov_delete':
+      return afterCocomovDelete(input, ctx);
     case 'ekirank_read':
       return afterEkirankRead(input, ctx);
     case 'ekirank_set':
@@ -2089,6 +2111,8 @@ function afterLogin(
   if (ctx.ekichikaMovie && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaMovieFirstStep(ctx, cookie);
   // ★ 第1844便: プラチナムマガジンは、新規作成の画面だけを読む（読めた＝ログインできた）
   if (ctx.ekichikaMagazine && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaMagazineFirstStep(ctx, cookie);
+  // ★ 第1917便: ココアの動画の記事は、駅ちかの管理画面トップ（ココアへ入るフォーム）から
+  if (ctx.cocoaMovie && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return cocoaMovieFirstStep(ctx, cookie);
   // ★ 第1846便: 店舗メイン／ランキングは、女の子一覧だけを読む（読めた＝ログインできた）
   if (ctx.ekichikaRankImage && (ctx.intent === 'bump_auto' || ctx.intent === 'bump_push')) return ekichikaRankImageFirstStep(ctx, cookie);
 

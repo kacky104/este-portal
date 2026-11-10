@@ -441,6 +441,8 @@ export async function startRelayFlow(params: {
   ekichikaMovie?: { index: number; girlName: string; title: string; body: string; deleteSame: boolean; videoPath: string; videoType: string };
   /** ★ 第1844便: 駅ちかのプラチナムマガジン（この時刻の1行） */
   ekichikaMagazine?: { index: number; title: string; body: string };
+  /** ★ 第1917便: ココアの店長ブログ「動画の記事」（provider='ekichika'・slot＝駅ちかの枠＝ココアのアカウント）。★ 結果は conecf_cocoa_accounts の movie_* に書く */
+  cocoaMovie?: Record<string, never>;
   /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（この1組・終わったら next_index を nextIndex に） */
   ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string };
   /** ★ 第1865便: 全国エステランキングへ1人登録（intent='girl_create'・provider='zenkoku'） */
@@ -760,6 +762,7 @@ export async function startRelayFlow(params: {
     // ★ 第1840便: 駅ちかの動画投稿
     ...(params.ekichikaMovie ? { ekichikaMovie: { index: params.ekichikaMovie.index, girlName: params.ekichikaMovie.girlName, title: params.ekichikaMovie.title, body: params.ekichikaMovie.body, deleteSame: params.ekichikaMovie.deleteSame, videoUrl: movieVideoUrl, videoType: params.ekichikaMovie.videoType } } : {}),
     ...(params.ekichikaMagazine ? { ekichikaMagazine: { index: params.ekichikaMagazine.index, title: params.ekichikaMagazine.title, body: params.ekichikaMagazine.body } } : {}),
+    ...(params.cocoaMovie ? { cocoaMovie: { slot: params.slot } } : {}),
     ...(params.zenkokuCreate ? { zenkokuCreate: { therapistId: params.zenkokuCreate.therapistId, values: params.zenkokuCreate.values, photos: params.zenkokuCreate.photos } } : {}),
     ...(params.ekichikaRankImage ? { ekichikaRankImage: { index: params.ekichikaRankImage.index, nextIndex: params.ekichikaRankImage.nextIndex, main: params.ekichikaRankImage.main, ranking: params.ekichikaRankImage.ranking } } : {}),
     ...(params.zenkokuOpt ? { zenkokuOpt: { key: params.zenkokuOpt.key, ...(params.zenkokuOpt.force === true ? { force: true } : {}), ...(params.zenkokuOpt.item ? { item: { title: params.zenkokuOpt.item.title, body: params.zenkokuOpt.item.body, image: params.zenkokuOpt.item.image ?? null } } : {}), ...(params.zenkokuOpt.items ? { items: params.zenkokuOpt.items.map((x) => ({ name: x.name })) } : {}), nextIndex: Number(params.zenkokuOpt.nextIndex ?? 0) } } : {}),
@@ -796,6 +799,9 @@ export async function startRelayFlow(params: {
   if (params.ekichikaMagazine && params.provider !== 'ekichika') {
     throw new Error('ekichikaMagazine は駅ちかだけ');
   }
+  if (params.cocoaMovie && (params.provider !== 'ekichika' || params.ekichikaMagazine || params.ekichikaMovie || params.ekichikaRankImage)) {
+    throw new Error('cocoaMovie は駅ちかだけ・ほかの投稿と別々に送る');
+  }
   if (params.zenkokuCreate && params.provider !== 'zenkoku') {
     throw new Error('zenkokuCreate は全国エステランキングだけ');
   }
@@ -817,7 +823,7 @@ export async function startRelayFlow(params: {
   if (params.zenkokuWait && params.provider !== 'zenkoku') {
     throw new Error('zenkokuWait は全国エステランキングだけ');
   }
-  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.vanillaBlog && !params.ekichikaMovie && !params.ekichikaMagazine && !params.ekichikaRankImage) {
+  if (params.intent === 'bump_auto' && !params.bump?.setting && !params.esutamaOpt && !params.esutamaPost && !params.zenkokuWait && !params.zenkokuOpt && !params.vanillaBlog && !params.ekichikaMovie && !params.ekichikaMagazine && !params.ekichikaRankImage && !params.cocoaMovie) {
     throw new Error('bump_auto には bump.setting（時間帯・間隔）が要る');
   }
   if (params.intent === 'sokusera_push' && !params.sokusera) {
@@ -1283,6 +1289,17 @@ export async function advanceRelayFlow(params: {
       .eq('salon_id', params.salonId).eq('slot', params.slot);
     if (mErr) console.error('[relay] 駅ちかの動画投稿の状態を書けなかった', params.salonId, params.slot, mErr.message);
     else note = note + ' → 動画投稿の状態（' + o.outcome.slice(0, 40) + '）を記録した';
+  }
+
+  // ★★ 第1917便: ココアの動画の記事の結果を表に書く。★ 書けなくても流れは止めない（黙らない）
+  if (outcome.kind === 'done' && outcome.cocoaMovie && params.provider === 'ekichika') {
+    const o = outcome.cocoaMovie;
+    const { error: cErr } = await createServiceClient()
+      .from('conecf_cocoa_accounts')
+      .update({ movie_last_result: o.outcome.slice(0, 200), ...(o.done && o.lastAt ? { movie_last_at: o.lastAt } : {}), updated_at: new Date().toISOString() })
+      .eq('salon_id', params.salonId).eq('slot', params.slot);
+    if (cErr) console.error('[relay] ココアの動画の記事の状態を書けなかった', params.salonId, params.slot, cErr.message);
+    else note = note + ' → ココアの動画の記事の状態（' + o.outcome.slice(0, 40) + '）を記録した';
   }
 
   // ★★ 第1844便: 駅ちかのプラチナムマガジンの結果を表に書く。★ 書けなくても流れは止めない（黙らない）

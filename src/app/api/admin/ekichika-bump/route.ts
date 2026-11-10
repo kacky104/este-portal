@@ -7,6 +7,7 @@ import { businessDateJSTFrom } from '@/lib/dutyStatus';
 import { shouldPostEsutama, esutamaPostTextProblem, pickEsutamaPostImages, isDailyPostKey } from '@/lib/esutamaPost';
 import { normalizeMovieSchedule, shouldPostEkichikaMovie, movieRowProblem, isConecfVideoPath } from '@/lib/ekichikaMovie';
 import { normalizeMagazineSchedule, shouldPostEkichikaMagazine, magazineRowProblem } from '@/lib/ekichikaMagazine';
+import { normalizeCocoaMovieSchedule, shouldPostCocoaMovie } from '@/lib/cocoaMovie';
 import { normalizeRankImagePairs, normalizeRankImageInterval, shouldRotateRankImage } from '@/lib/ekichikaRankImage';
 import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
 import { shouldRunVanillaBlog, normalizeVanillaBlogItems, pickVanillaBlogItem } from '@/lib/vanillaBlog';
@@ -254,6 +255,36 @@ export async function POST(req: Request) {
         } catch (e) {
           console.error('[ekichika-rankimg] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
           await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: prevDue }).eq('salon_id', sid).eq('slot', slot);
+          results.push({ ...base, reason: 'start_failed' });
+        }
+      }
+    }
+  }
+
+  // ★★ 第1917便: ココアの店長ブログ「動画の記事」（ベンリーから移す）。★ 列が無い（SQL 未適用）ときは黙って飛ばす
+  //   ★ 見るのは movie_enabled の行だけ。★ 駅ちかの同じ枠でログインして、ココアへ入る
+  {
+    const cm = await svc.from('conecf_cocoa_accounts')
+      .select('salon_id, slot, movie_schedule, movie_last_due_at, salons!inner(conecf_enabled_at)')
+      .eq('movie_enabled', true)
+      .not('salons.conecf_enabled_at', 'is', null);
+    if (!cm.error) {
+      for (const o of cm.data ?? []) {
+        const sid = Number(o.salon_id), slot = Number(o.slot ?? 1);
+        const base = { salonId: sid, provider: 'ekichika:cocoa-movie', slot };
+        const prev = (o.movie_last_due_at as string | null) ?? null;
+        const judge = shouldPostCocoaMovie({ now, schedule: normalizeCocoaMovieSchedule(o.movie_schedule), lastDueAt: prev });
+        if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に出さない）。★ 書けなければ始めない
+        const { error: cErr } = await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot);
+        if (cErr) { results.push({ ...base, reason: 'mark_failed', note: cErr.message }); continue; }
+        try {
+          const f = await startRelayFlow({ salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:cocoa-movie', cocoaMovie: {} });
+          if (!f.ok) await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: prev }).eq('salon_id', sid).eq('slot', slot);
+          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+        } catch (e) {
+          console.error('[cocoa-movie] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
+          await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: prev }).eq('salon_id', sid).eq('slot', slot);
           results.push({ ...base, reason: 'start_failed' });
         }
       }
