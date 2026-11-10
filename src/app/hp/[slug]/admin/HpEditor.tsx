@@ -100,6 +100,12 @@ function validateImageFile(file: File): string | null {
   return null;
 }
 
+/** ★ 第1911便（カッキーさん）: 各欄の見出しの左に出すフクエスのロゴ（サイドバーと同じ /logo.png） */
+function HeadLogo() {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/logo.png" alt="" className="h-[18px] w-[18px] flex-none" />;
+}
+
 export function HpEditor({
   siteKey,
   site,
@@ -386,7 +392,7 @@ export function HpEditor({
       {/* ── トップ（ヒーロー） ── */}
       {show('hero') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />トップ画像・キャッチコピー</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />トップ画像・キャッチコピー</h3>
         {/* ★ キャッチコピーは【画像より上】へ（第293便・2026-09-12・カッキーさんの指示）。
             ★ 先に文字を決めてから写真を入れ替える並びにした。★ 中身・保存の仕方は変えていない。 */}
         <div>
@@ -519,7 +525,7 @@ export function HpEditor({
            セラピスト写真も同じ考え方で、掲載データの写真の代わりに使う。 */}
       {show('hero') && previewSlots.length > 0 && (
         <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-          <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />デザインごとの画像（デモ専用）</h3>
+          <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />デザインごとの画像（デモ専用）</h3>
           <p className="text-[11px] text-slate-400 leading-relaxed">
             デザイン一覧のプレビューで、その見た目のときだけ差し替える写真です（トップ画像とセラピスト写真）。
             タイプS・A・Bは配色ごと、タイプCはひな形ごとに1セット（そのひな形の全カラーで共通）。
@@ -703,7 +709,7 @@ export function HpEditor({
         {/* ★ どこに出る文章かを、枠の上に中央で置く（第293便・2026-09-12・カッキーさんの指示）。
             ★ 「公式ホームページ管理」と同じ形（太字・中央）。★ その下が中身の見出し。 */}
         <h3 className="text-sm font-black text-slate-800 text-center">TOPページ表示</h3>
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />コンセプト</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />コンセプト</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">ホームページ専用の文章です。フクエスの紹介文と同じ文章は避けてください（検索で不利になります）。</p>
         <div>
           <p className="text-xs font-bold text-slate-600 mb-1">見出し（最大{MAX_HP_TITLE_LEN}文字）</p>
@@ -899,7 +905,7 @@ export function HpEditor({
       {/* ── バナー ── */}
       {show('banner') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />バナー（最大{MAX_HP_BANNERS}枠）</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />バナー（最大{MAX_HP_BANNERS}枠）</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">ページ下部に出すバナーです。リンクは空欄でもかまいません。</p>
         {Array.from({ length: MAX_HP_BANNERS }, (_, i) => {
           const banner = form.banners[i];
@@ -979,7 +985,7 @@ export function HpEditor({
       {/* ── リンク（相互リンク） ── */}
       {show('links') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />リンク（最大{MAX_HP_LINK_BANNERS}件）</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />リンク（最大{MAX_HP_LINK_BANNERS}件）</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">相互リンク用のコードを貼って「追加する」を押すと、「リンク」欄に並びます。複数まとめて貼れます。文字だけのリンクも使えます。</p>
 
         <textarea
@@ -1042,7 +1048,7 @@ export function HpEditor({
       {/* ── ウィジェット（第1899便・2026-11-10・カッキーさん） ── */}
       {show('widget') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />ウィジェット（最大{MAX_HP_WIDGETS}つ）</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />ウィジェット（最大{MAX_HP_WIDGETS}つ）</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">ウィジェットのコード（&lt;iframe …&gt;）を貼って「追加する」を押すと、トップページに並びます。位置は「表示ブロック」で変えられます。</p>
         {/* ★ 第1900便: 欄の見出し（ほかの欄の「Diary／写メ日記」と同じ形） */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1116,7 +1122,7 @@ export function HpEditor({
       )}
       {show('ekichika') && !isDemo && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />駅ちかのランキング対策</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />駅ちかのランキング対策</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">駅ちかは、公式ホームページから駅ちかへのリンクがあると加点します。ONにした項目のリンク先が駅ちかに変わります（ネット予約はフクエスのままです）。<br />写メ・口コミのウィジェットは、左メニューの「ウィジェット」に貼ってください。</p>
         {ekInfo && ekInfo.slots.length === 0 && (
           <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます。</p>
@@ -1159,7 +1165,7 @@ export function HpEditor({
       {/* ── お問い合わせフォーム（第1717便・2026-11-02・カッキーさん） ── */}
       {show('contact') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />お問い合わせフォーム</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />お問い合わせフォーム</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">ONにすると、ホームページに「お問い合わせ」ページとメニューが出ます。届いた内容は、下の通知先メールアドレスに送ります（お客様への自動返信はありません）。</p>
         <p className="text-[12px] text-slate-500 leading-relaxed">入力項目：お名前・メールアドレス・電話番号（任意）・用件・内容。用件は {HP_CONTACT_SUBJECTS.map((s) => s.label).join('／')} の4つです。</p>
 
@@ -1209,7 +1215,7 @@ export function HpEditor({
       {/* ── ヘッダーのロゴ ── */}
       {show('brand') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />ヘッダーのロゴ</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />ヘッダーのロゴ</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">ヘッダーに出すロゴです。未設定なら店名の文字が出ます。横長の透過PNGがおすすめです（高さの目安：標準・中 120〜170px、大 240px）。</p>
         <div className="flex items-center gap-3">
           {form.logo_url ? (
@@ -1268,7 +1274,7 @@ export function HpEditor({
       {/* ── 文字の大きさと字体（第1901便・2026-11-10・カッキーさん） ── */}
       {show('brand') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />文字の大きさ・字体・色</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />文字の大きさ・字体・色</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">ホームページ全体の文字に効きます。</p>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="w-16 text-[11px] font-bold text-slate-500">大きさ</span>
@@ -1310,7 +1316,7 @@ export function HpEditor({
       {/* ── ファビコン ── */}
       {show('brand') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />ファビコン（ブラウザタブのアイコン）</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />ファビコン（ブラウザタブのアイコン）</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">独自ドメインで開いたとき、ブラウザのタブに出るアイコンです。512×512pxの正方形PNGがおすすめです。</p>
         <div className="flex items-center gap-3">
           {form.favicon_url ? (
@@ -1354,7 +1360,7 @@ export function HpEditor({
       {/* ── 背景画像（第1884便・2026-11-10・カッキーさん）── */}
       {show('brand') && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><span className="h-4 w-1 rounded-full bg-pink-500" aria-hidden />背景画像</h3>
+        <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />背景画像</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">ホームページ全体の後ろに敷く画像です。未設定ならデザインの背景のままです。横長の写真（1920×1080くらい）か、模様の画像がおすすめです。</p>
         <div className="flex items-center gap-3">
           {form.blocks.background.url ? (
