@@ -1123,7 +1123,7 @@ export function HpEditor({
       {show('ekichika') && !isDemo && (
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
         <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />駅ちかのランキング対策</h3>
-        <p className="text-[12px] text-slate-500 leading-relaxed">駅ちかは、公式ホームページから駅ちかへのリンクがあると加点します。項目ごとに、リンク先を駅ちかにするかフクエスのままにするかを選べます（ネット予約はいつもフクエスです）。<br />写メ・口コミのウィジェットは、左メニューの「ウィジェット」に貼ってください。</p>
+        <p className="text-[12px] text-slate-500 leading-relaxed">駅ちかは、公式ホームページから駅ちかへのリンクがあると加点します。項目ごとに、リンク先を駅ちかにするかフクエスのままにするかを選べます。<br />写メ・口コミのウィジェットは、左メニューの「ウィジェット」に貼ってください。</p>
         {ekInfo && ekInfo.slots.length === 0 && (
           <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます。</p>
         )}
