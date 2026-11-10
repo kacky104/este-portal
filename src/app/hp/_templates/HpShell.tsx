@@ -19,7 +19,7 @@
 // ★ ドロワー本体を .hp-topbar の外に出しているのは従来どおり。トップバーの
 //   backdrop-filter が position:fixed の包含ブロックになり、中に入れると全画面に広がらない。
 
-import { hpColorCssVars, hpColorRootClass, HP_FONT_SIZE_SCALE, HP_FONTS } from '@/app/lib/hpSite';
+import { hpColorCssVars, hpColorRootClass, HP_FONT_SIZE_SCALE, HP_FONTS, hpTextColorOf } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpFooterPageLinks, hpJobsUrl, hpMenuItems, hpTopbarNavItems, type HpPageKey } from '@/app/hp/_lib/sections';
 import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS, scaleHpFontSizes } from './styles';
@@ -63,6 +63,8 @@ export function HpShell({
   // ★ 第1901便: 文字の大きさと字体（管理画面「ロゴ・文字・背景」）
   const fontScale = HP_FONT_SIZE_SCALE[site.blocks.fontSize];
   const fontDef = site.blocks.font !== 'default' ? HP_FONTS.find((f) => f.key === site.blocks.font) ?? null : null;
+  // ★ 第1905便: 文字の色（選んだ店だけ。デザインのままの店は DOM も CSS も今までと同じ）
+  const textColor = hpTextColorOf(site.template_key, site.blocks.textColor);
   const homeHref = basePath || '/';
   const jobsUrl = hpJobsUrl(data);
   const footerLinks = hpFooterPageLinks(data);
@@ -78,9 +80,17 @@ export function HpShell({
 
   return (
     <div
-      className={`hp-root hp-${site.template_key}${colorClass ? ` ${colorClass}` : ''}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered${fontDef ? ` hp-font-${fontDef.key}` : ''}`}
-      style={fontScale !== 1 ? ({ ...cssVars, ['--hp-fs' as string]: fontScale } as React.CSSProperties) : cssVars}
+      className={`hp-root hp-${site.template_key}${colorClass ? ` ${colorClass}` : ''}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered${fontDef ? ` hp-font-${fontDef.key}` : ''}${textColor ? ' hp-tc' : ''}`}
+      style={fontScale !== 1 || textColor ? ({ ...cssVars, ...(fontScale !== 1 ? { ['--hp-fs' as string]: fontScale } : {}), ...(textColor ? { ['--hp-text' as string]: textColor.color } : {}) } as React.CSSProperties) : cssVars}
     >
+      {/* ★ 第1905便: 文字の色。読む文字だけ（見出し・値段・帯・ボタンなどアクセントの色はそのまま）。.hp-root を2つ重ねて、ひな形・配色の指定より強くする */}
+      {textColor && (
+        <style
+          dangerouslySetInnerHTML={{
+            __html: '.hp-root.hp-root.hp-tc{color:var(--hp-text)}.hp-root.hp-root.hp-tc :is(.hp-concept-text,.hp-card-title,.hp-card-body,.hp-card-meta,.hp-info-row dd,.hp-course-min,.hp-doc-p,.hp-doc-list li,.hp-thd-text,.hp-note,.hp-th-catch,.hp-sched-meta){color:var(--hp-text)}',
+          }}
+        />
+      )}
       {/* ★ 第1901便: 字体を選んだ店だけ、その字体を読み込んで上書きする（.hp-root と2つ重ねて、ひな形の指定より強くする） */}
       {fontDef && (
         <style

@@ -14,6 +14,8 @@ import {
   parseHpWidgetCode,
   MAX_HP_WIDGETS,
   HP_FONTS,
+  HP_TEXT_COLORS,
+  hpIsDarkTemplate,
   MAX_HP_WIDGET_HEAD_EN,
   MAX_HP_WIDGET_HEAD_JP,
   type HpLinkSize,
@@ -1246,7 +1248,7 @@ export function HpEditor({
       {/* ── 文字の大きさと字体（第1901便・2026-11-10・カッキーさん） ── */}
       {show('brand') && (
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
-        <h3 className="text-sm font-black text-slate-800">文字の大きさと字体</h3>
+        <h3 className="text-sm font-black text-slate-800">文字の大きさ・字体・色</h3>
         <p className="text-[11px] text-slate-400 leading-relaxed">
           ※ ホームページ全体の文字に効きます。「標準」「デザインのまま」は、今までの見た目のままです。
         </p>
@@ -1268,7 +1270,21 @@ export function HpEditor({
               {f.label}
             </button>
           ))}
-          <p className="basis-full text-[11px] text-slate-400">保存すると反映されます。</p>
+        </div>
+        {/* ★ 第1905便: 文字の色（読む文字だけ。見出し・値段・ボタンなどデザインの色はそのまま） */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="w-16 text-[11px] font-bold text-slate-500">文字の色</span>
+          {HP_TEXT_COLORS.map((c) => {
+            const v = hpIsDarkTemplate(site.template_key) ? c.dark : c.light;
+            return (
+              <button key={c.key} type="button" onClick={() => patchBlocks({ textColor: c.key })}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold border ${form.blocks.textColor === c.key ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-slate-200 text-slate-500 hover:border-pink-300'}`}>
+                {v.color && <span className="inline-block h-3 w-3 rounded-full border border-slate-300" style={{ background: v.color }} />}
+                {v.label}
+              </button>
+            );
+          })}
+          <p className="basis-full text-[11px] text-slate-400">文章（コンセプト・お知らせ・店舗情報など）の色が変わります。見出しや値段、ボタンの色はデザインのままです。保存すると反映されます。</p>
         </div>
       </div>
       )}

@@ -107,6 +107,8 @@ export type HpBlocksConfig = {
   fontSize: 'sm' | 'md' | 'lg';
   /** 字体（第1901便）。default=デザインのまま・mincho=明朝・gothic=ゴシック・maru=丸ゴシック */
   font: HpFontKey;
+  /** 文字の色（第1905便）。default=デザインのまま。ほかは HP_TEXT_COLORS のキー（明るい地のひな形と暗い地のひな形で色が変わる） */
+  textColor: HpTextColorKey;
   /**
    * カラー別のセラピスト写真（2026-08-11）。
    * キー=カラーキー / 値={ セラピストID: 画像URL }。heroByColor と同じくデモ店専用。
@@ -244,6 +246,30 @@ export const HP_FONTS = [
   { key: 'maru',    label: '丸ゴシック体', family: "'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', sans-serif", css: 'https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap' },
 ] as const;
 export type HpFontKey = (typeof HP_FONTS)[number]['key'];
+
+// ── 文字の色（第1905便・2026-11-10・カッキーさん）──────────
+//   ★ 変えるのは「読む文字」だけ（地の文字・コンセプトの本文・お知らせ・店舗情報の中身・コースの時間・説明ページの本文など）。
+//     見出し・値段・帯・ボタンなど、デザインの色（アクセント）で描いている所はそのまま（読みにくくならないように）。
+//   ★ 明るい地のひな形（S・B・C）は濃い色、暗い地のひな形（A）は明るい色を出す（同じキーで色だけ替える）。
+//   ★ 効かせ方は HpShell（選んだ店だけ .hp-tc と --hp-text を足す）。
+export const HP_TEXT_COLORS = [
+  { key: 'default', light: { label: 'デザインのまま', color: '' },        dark: { label: 'デザインのまま', color: '' } },
+  { key: 'ink',     light: { label: '黒',             color: '#1f1f1f' }, dark: { label: '白',             color: '#ffffff' } },
+  { key: 'gray',    light: { label: 'グレー',         color: '#555555' }, dark: { label: '銀',             color: '#c8c8c8' } },
+  { key: 'brown',   light: { label: 'こげ茶',         color: '#4a3326' }, dark: { label: '生成り',         color: '#efe4cf' } },
+  { key: 'navy',    light: { label: '紺',             color: '#1e2f52' }, dark: { label: '淡い青',         color: '#cfe0f5' } },
+  { key: 'green',   light: { label: '深緑',           color: '#1d4a3a' }, dark: { label: '淡い緑',         color: '#cfe8dc' } },
+  { key: 'wine',    light: { label: 'ワイン',         color: '#5c1f33' }, dark: { label: '淡いピンク',     color: '#f3d3de' } },
+] as const;
+export type HpTextColorKey = (typeof HP_TEXT_COLORS)[number]['key'];
+/** 暗い地のひな形か（タイプA） */
+export const hpIsDarkTemplate = (t: string) => t === 'a';
+/** ひな形に合わせた色と呼び名。default・知らないキーは null */
+export function hpTextColorOf(template: string, key: string): { label: string; color: string } | null {
+  const c = HP_TEXT_COLORS.find((x) => x.key === key);
+  if (!c || c.key === 'default') return null;
+  return hpIsDarkTemplate(template) ? c.dark : c.light;
+}
 export const MAX_HP_WIDGET_HEAD_EN = 30;
 export const MAX_HP_WIDGET_HEAD_JP = 30;
 const HP_WIDGET_W = { min: 100, max: 1200, def: 340 };
@@ -322,6 +348,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   logoSize: 'sm', // 既定は今までの大きさ（第1892便）
   fontSize: 'sm', // 既定は今までの大きさ（第1901便）
   font: 'default', // 既定はデザインのまま（第1901便）
+  textColor: 'default', // 既定はデザインのまま（第1905便）
   therapistImagesByColor: {}, // 同上（既定は空＝掲載データの写真をそのまま使う）
 };
 
@@ -387,6 +414,7 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     logoSize: rawObj.logoSize === 'md' || rawObj.logoSize === 'lg' ? rawObj.logoSize : 'sm',
     fontSize: rawObj.fontSize === 'md' || rawObj.fontSize === 'lg' ? rawObj.fontSize : 'sm',
     font: HP_FONTS.some((f) => f.key === rawObj.font) ? (rawObj.font as HpFontKey) : 'default',
+    textColor: HP_TEXT_COLORS.some((c) => c.key === rawObj.textColor) ? (rawObj.textColor as HpTextColorKey) : 'default',
     therapistImagesByColor: renameLegacyImageSlots(sanitizeHpTherapistImagesByColor(rawObj.therapistImagesByColor)),
   };
 }
