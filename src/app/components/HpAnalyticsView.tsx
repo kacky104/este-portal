@@ -40,13 +40,13 @@ function Delta({ cur, prev }: { cur: number; prev: number }) {
 
 // ★ 第1793便: タブごとの見出しと説明（すぐる君の「サマリーレポート」の形）
 const TAB_HEAD: Record<Tab, [string, string]> = {
-  top: ['TOP', '公式ホームページに来た人数や、電話・LINE などが押された数です'],
-  summary: ['サマリーレポート', '公式ホームページに来た人数や、電話・LINE が押された数などのおおまかなレポートです'],
-  sources: ['集客レポート', 'お客様がどのサイトから来たのか、そこから電話・LINE にどれだけつながったのかが分かるデータです'],
-  pages: ['ページレポート', 'サイトの中のどのページがどれだけ見られたのかが分かるデータです'],
-  therapists: ['セラピスト別レポート', '登録されているセラピストのページがどれだけ見られたのかが分かるデータです'],
-  hours: ['時間帯レポート', '何曜日の何時に見られて、何時に電話・LINE が来るのかが分かるデータです'],
-  help: ['レポートの活用方法', 'このレポートをお店の集客に役立てるための見方をご紹介します'],
+  top: ['TOP', '来た人数と、電話・LINE などが押された数'],
+  summary: ['サマリーレポート', '人数と、電話・LINE などの日ごとの動き'],
+  sources: ['集客レポート', 'どこから来て、どれだけ電話・LINE などにつながったか'],
+  pages: ['ページレポート', 'どのページがよく見られたか'],
+  therapists: ['セラピスト別レポート', 'どのセラピストのページがよく見られたか'],
+  hours: ['時間帯レポート', '何曜日の何時によく見られ、電話・LINE などが来るか'],
+  help: ['レポートの見方', '数字の読み方と、集客への使い方'],
 };
 
 /**
@@ -110,7 +110,7 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
           <p className="mt-1 text-[13px] text-slate-600">{sub}</p>
         </div>
         <div className="flex flex-col items-stretch gap-1 sm:items-end">
-          <p className="text-[12px] font-bold text-slate-700">▼表示するデータの期間を変更できます</p>
+          <p className="text-[12px] font-bold text-slate-700">▼期間を選ぶ</p>
           <select value={preset} onChange={(e) => pick(e.target.value)} aria-label="期間を選択"
             className="w-full cursor-pointer rounded-full sm:w-auto sm:min-w-[220px] border-0 bg-amber-400 px-4 py-1.5 text-[13px] font-bold text-slate-800 shadow-sm">
             {PRESETS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
@@ -132,7 +132,7 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
         <p className="border border-rose-200 bg-rose-50 p-4 text-[14px] font-bold text-rose-700">{res?.err}</p>
       ) : !d.site ? (
         <p className="border border-slate-200 bg-white p-6 text-[14px] leading-relaxed text-slate-600">
-          公式ホームページ（フクエスサイト）を公開しているお店で使えます。公式ホームページを公開すると、その日から自動で数え始めます。
+          公式ホームページ（フクエスサイト）を公開しているお店で使えます。公開した日から自動で数えます。
         </p>
       ) : (
         <>
@@ -227,17 +227,17 @@ function MobileNav({ tab, onPick }: { tab: Tab; onPick: (t: Tab) => void }) {
 
 // ★ 第1879便（カッキーさん）: 使っていないもの（LINE・ネット予約・お問い合わせ）は、0件と見分けがつくよう「未使用」と出す
 const UNUSED_NOTE: Record<string, [string, string]> = {
-  'LINEタップ': ['LINEのURL未登録', 'フクエスのマイページで LINE 予約の URL を入れると、公式ホームページに LINE 予約のボタンが出ます'],
-  'ネット予約タップ': ['予約受付OFF', 'フクエスのマイページでネット予約の受付を ON にすると、公式ホームページにネット予約のボタンが出ます'],
-  'お問い合わせ': ['フォームOFF', '「お問い合わせ」でお問い合わせフォームを ON にすると、公式ホームページにお問い合わせのページが出ます'],
+  'LINEタップ': ['LINEのURL未登録', 'マイページで LINE 予約の URL を入れると使えます'],
+  'ネット予約タップ': ['予約受付OFF', 'マイページでネット予約の受付を ON にすると使えます'],
+  'お問い合わせ': ['フォームOFF', '公式HP管理の「お問い合わせ」で ON にすると使えます'],
 };
 
 function Tiles({ cur, prev, usage }: { cur: HpTotals; prev: HpTotals; usage?: HpAnalytics['usage'] }) {
   const unused = (l: string) => !!usage && ((l === 'LINEタップ' && !usage.line) || (l === 'ネット予約タップ' && !usage.book) || (l === 'お問い合わせ' && !usage.contact));
   const items: Array<[string, number, number, string]> = [
-    ['人数', cur.users, prev.users, '1日ごとに数えた、見に来た人（端末）の数の合計'],
-    ['はじめての人', cur.newUsers, prev.newUsers, 'この端末ではじめて公式ホームページを見た人'],
-    ['訪問', cur.sessions, prev.sessions, '見に来た回数（同じ人でも、間をあけてまた来たら1回）'],
+    ['人数', cur.users, prev.users, '見に来た人（端末）の数。1日ごとに数えた合計'],
+    ['はじめての人', cur.newUsers, prev.newUsers, 'はじめて見に来た人'],
+    ['訪問', cur.sessions, prev.sessions, '見に来た回数（間をあけてまた来たら、もう1回）'],
     ['閲覧ページ', cur.pv, prev.pv, '見られたページの数'],
     ['電話タップ', cur.tel, prev.tel, '電話番号のボタンが押された数'],
     ['LINEタップ', cur.line, prev.line, 'LINE 予約のボタンが押された数'],
@@ -346,13 +346,13 @@ function Sources({ d }: { d: HpAnalytics }) {
   const kindLabel = { search: '検索', direct: '直接', site: '外部サイト' } as const;
   return (
     <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
-      <p className="text-[13px] leading-relaxed text-slate-600">どこから見に来て、電話・LINE・ネット予約・お問い合わせにどれだけつながったかが分かります。「つながった率」は、訪問のうちそれらがあった割合です。</p>
+      <p className="text-[13px] leading-relaxed text-slate-600">どこから来たか、そこから電話・LINE などにつながったか。「つながった率」は、訪問のうち電話・LINE などがあった割合です。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse">
           <thead><tr className="border-b border-slate-200 bg-slate-50">
             <th className={th}>流入元</th><th className={th}>種類</th><th className={`${th} text-right`}>人数</th><th className={`${th} text-right`}>訪問</th>
             <th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>ネット予約</th><th className={`${th} text-right`}>お問い合わせ</th><th className={`${th} text-right`}>つながった率</th>
-            <th className={`${th} text-right`} title="その人が最初に公式ホームページを知った流入元で数えた電話・LINE・ネット予約・お問い合わせ">最初に知った<br />きっかけの成果</th>
+            <th className={`${th} text-right`} title="はじめて知った入口で数えた電話・LINE など">最初に知った<br />きっかけ</th>
           </tr></thead>
           <tbody>
             {d.sources.map((s) => {
@@ -383,7 +383,7 @@ function Sources({ d }: { d: HpAnalytics }) {
 function Pages({ d }: { d: HpAnalytics }) {
   return (
     <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
-      <p className="text-[13px] text-slate-600">どのページがどれだけ見られたか（セラピストのページは「セラピスト」のタブ）。電話・LINE・ネット予約は、そのページを見ているときに押された数です。</p>
+      <p className="text-[13px] text-slate-600">ページごとの見られた数と、そのページで押された電話・LINE など（セラピストのページは「セラピスト」）。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse">
           <thead><tr className="border-b border-slate-200 bg-slate-50">
@@ -411,7 +411,7 @@ function Pages({ d }: { d: HpAnalytics }) {
 function Therapists({ d }: { d: HpAnalytics }) {
   return (
     <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
-      <p className="text-[13px] leading-relaxed text-slate-600">セラピストのプロフィールページがどれだけ見られたか。出勤した日数・写メ日記の数と並べると、「日記を出すと見られる」「出勤が多い子ほど見られる」が分かります。</p>
+      <p className="text-[13px] leading-relaxed text-slate-600">セラピストごとの見られた数。出勤日数・写メ日記と並べると、何が効いているかが分かります。</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse">
           <thead><tr className="border-b border-slate-200 bg-slate-50">
@@ -453,7 +453,7 @@ function Hours({ d }: { d: HpAnalytics }) {
   return (
     <div className="space-y-3 border border-slate-200 bg-white p-3 sm:p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[13px] text-slate-600">何曜日の何時に多いか（日本時間）。濃いほど多い。</p>
+        <p className="text-[13px] text-slate-600">何曜日の何時に多いか。色が濃いほど多い。</p>
         <span className="ml-auto flex gap-1">
           {([['pv', '閲覧'], ['out', '電話・LINE・お問い合わせ']] as const).map(([k, l]) => (
             <button key={k} type="button" onClick={() => setMode(k)}
@@ -489,14 +489,15 @@ function Hours({ d }: { d: HpAnalytics }) {
 function Help() {
   return (
     <div className="space-y-3 border border-slate-200 bg-white p-3 sm:p-4 text-[14px] leading-relaxed text-slate-700">
-      <p className="font-black text-slate-800">見方と使い方</p>
-      <p>・<b>上の数字の ▲▼</b> は、選んだ期間の「すぐ前の同じ長さの期間」とくらべた増減です（28日なら、その前の28日）。</p>
-      <p>・<b>流入元</b>：どこから見に来たか。「つながった率」が高いところは、お客様が来てくれやすい入口です。「最初に知ったきっかけの成果」は、その人がはじめて公式ホームページを知った入口で数えた電話・LINE です（いつもは検索から来る人でも、最初は媒体で知った、が分かります）。</p>
-      <p>・<b>セラピスト</b>：写メ日記を出した期間や出勤が多い期間に、見られる数が増えているかを見てください。</p>
-      <p>・<b>時間帯</b>：電話・LINE が多い時間に出勤を厚くする、媒体の上位表示をその少し前に入れる、などに使えます。</p>
-      <p className="font-black text-slate-800">大事なのは「変化」を追うこと</p>
-      <p>媒体のバナーを変えた・コンセプトのページを作った・ピックアップする女の子を変えた、などのあとで、数字がどう変わったかを見ると、その変更が効いたかどうかが分かります。</p>
-      <p className="text-[12px] text-slate-500">※ 数は公式ホームページに計測を入れた日（2026年11月）からです。人数は1日ごとに数えた合計です（同じ人が2日来たら2人）。年齢・性別は数えていません。</p>
+      {/* ★ 第1891便（カッキーさん「端的に短く」） */}
+      <p className="font-black text-slate-800">見方</p>
+      <p>・<b>▲▼</b>：ひとつ前の同じ長さの期間とくらべた増減（28日なら、その前の28日）。</p>
+      <p>・<b>流入元</b>：「つながった率」が高いほど、お客様につながりやすい入口です。「最初に知ったきっかけ」は、はじめて知った入口で数えた数です。</p>
+      <p>・<b>セラピスト</b>：写メ日記や出勤が多い時期に、見られる数が増えているか。</p>
+      <p>・<b>時間帯</b>：電話・LINE などが多い時間に出勤を厚くし、その少し前に上位表示を入れる。</p>
+      <p className="font-black text-slate-800">使い方のコツ</p>
+      <p>バナーやトップ画像などを変えたら、そのあと数字がどう変わったかを見ます。効いたかどうかが分かります。</p>
+      <p className="text-[12px] text-slate-500">※ 2026年11月から数えています。人数は日ごとの合計（同じ人が2日来たら2人）。年齢・性別は数えていません。</p>
     </div>
   );
 }
