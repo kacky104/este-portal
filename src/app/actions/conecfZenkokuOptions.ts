@@ -48,13 +48,6 @@ export type ConecfZenkokuOption = {
   remaining: number | null; readAt: string | null; lastAt: string | null; lastOutcome: string | null;
 };
 
-/** ★ コネックエフのメニューに出すか（運営が1つでも ON にしている）。読めなければ出さない */
-export async function hasConecfZenkokuOptions(salonId: number): Promise<boolean> {
-  try {
-    const { data, error } = await createServiceClient().from('conecf_zenkoku_options').select('option_key').eq('salon_id', salonId).eq('admin_enabled', true).limit(1);
-    return !error && (data ?? []).length > 0;
-  } catch { return false; }
-}
 
 export async function getConecfZenkokuOptions(): Promise<Result<{ options: ConecfZenkokuOption[]; therapists: string[] }>> {
   const r = await resolve(false);

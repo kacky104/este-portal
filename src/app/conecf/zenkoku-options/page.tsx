@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { shrinkToJpeg, when } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
@@ -13,7 +14,6 @@ import { ZENKOKU_NEWS_MAX, ZENKOKU_NEWS_TITLE_MAX, ZENKOKU_NEWS_BODY_MAX, ZENKOK
 // ★ 運営が /admin で ON にした店だけメニューに出る。★ 時間は朝6時はじまりの1日（全国エステランキングのニュースの回数は毎朝6時に戻る）
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
-const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
 const outcomeText = (o: string | null) => {
   if (!o) return '—';
   if (o.startsWith('ok: ')) return `「${o.slice(4)}」を送れました`;
@@ -24,19 +24,6 @@ const outcomeText = (o: string | null) => {
   return ZENKOKU_OPT_OUTCOME[o] ?? o;
 };
 
-/** ★ ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
-async function shrinkToJpeg(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new Image(); el.onload = () => resolve(el); el.onerror = () => reject(new Error('read')); el.src = url; });
-    const scale = Math.min(1, 1440 / Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const ctx = c.getContext('2d'); if (!ctx) throw new Error('canvas');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
-    return await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85));
-  } finally { URL.revokeObjectURL(url); }
-}
 
 /** ★ カードの見出し（閉じていても名前・自動・最後の結果と「今すぐ」は見える）。エステ魂オプションの画面と同じ形 */
 function AccHead({ title, open, onToggle, auto, last, children }: { title: string; open: boolean; onToggle: () => void; auto: boolean; last: string; children?: ReactNode }) {

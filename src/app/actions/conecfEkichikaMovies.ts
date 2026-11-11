@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/app/lib/supabase/server';
+import { hasConecfEkichikaMovies } from '@/app/lib/conecf/navFlags';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
@@ -43,13 +44,6 @@ async function requireAdmin(): Promise<boolean> {
 export type ConecfVideo = { id: number; name: string; bytes: number | null; createdAt: string };
 export type ConecfEkichikaMovieSetting = { slot: number; auto: boolean; schedule: EkichikaMovieRow[]; lastAt: string | null; lastOutcome: string | null };
 
-/** ★ コネックエフのメニューに出すか */
-export async function hasConecfEkichikaMovies(salonId: number): Promise<boolean> {
-  try {
-    const { data, error } = await createServiceClient().from('conecf_ekichika_movies').select('slot').eq('salon_id', salonId).eq('admin_enabled', true).limit(1);
-    return !error && (data ?? []).length > 0;
-  } catch { return false; }
-}
 
 export async function getConecfEkichikaMovies(): Promise<Result<{ settings: ConecfEkichikaMovieSetting[]; videos: ConecfVideo[]; girls: string[] }>> {
   const r = await resolve(false);

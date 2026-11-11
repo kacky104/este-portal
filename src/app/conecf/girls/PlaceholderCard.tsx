@@ -7,31 +7,10 @@
 //   ★ ブラウザで縦横1440以内の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側）。サーバーでも JPEG に作り直す。
 
 import { useEffect, useRef, useState } from 'react';
+import { shrinkToJpeg } from '../conecfClientUtil';
 import { getConecfPlaceholder, saveConecfPlaceholder, deleteConecfPlaceholder } from '@/app/actions/conecfGirls';
 import { revalidateSalon } from '@/app/lib/revalidateTop';
 
-async function shrinkToJpeg(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error('read'));
-      el.src = url;
-    });
-    const scale = Math.min(1, 1440 / Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const ctx = c.getContext('2d');
-    if (!ctx) throw new Error('canvas');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
-    return await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 export function PlaceholderCard({ onToast, alwaysOpen = false }: { onToast: (m: string) => void; alwaysOpen?: boolean }) {
   const [url, setUrl] = useState<string | null>(null);

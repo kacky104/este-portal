@@ -39,13 +39,6 @@ async function requireAdmin(): Promise<boolean> {
 
 export type ConecfEkichikaMagazineSetting = { slot: number; auto: boolean; schedule: EkichikaMagazineRow[]; lastAt: string | null; lastOutcome: string | null };
 
-/** ★ コネックエフのメニューに出すか */
-export async function hasConecfEkichikaMagazines(salonId: number): Promise<boolean> {
-  try {
-    const { data, error } = await createServiceClient().from('conecf_ekichika_magazines').select('slot').eq('salon_id', salonId).eq('admin_enabled', true).limit(1);
-    return !error && (data ?? []).length > 0;
-  } catch { return false; }
-}
 
 export async function getConecfEkichikaMagazines(): Promise<Result<{ settings: ConecfEkichikaMagazineSetting[] }>> {
   const r = await resolve(false);

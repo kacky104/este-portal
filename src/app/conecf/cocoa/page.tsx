@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { shrinkToJpeg } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfSession } from '../ConecfSession';
@@ -26,19 +27,6 @@ function hm(iso: string | null): string {
   return Number.isFinite(d.getTime()) ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(d) : '';
 }
 
-/** ★ 第1834便: ブラウザで長い辺 1440px の JPEG に縮める（サーバーアクションの上限 1MB の内側） */
-async function shrinkToJpeg(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new Image(); el.onload = () => resolve(el); el.onerror = () => reject(new Error('read')); el.src = url; });
-    const scale = Math.min(1, 1440 / Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const ctx = c.getContext('2d'); if (!ctx) throw new Error('canvas');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
-    return await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85));
-  } finally { URL.revokeObjectURL(url); }
-}
 
 function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   salonId: number; tpl: CocoaTemplateRow | null; onDone: () => void; onCancel: () => void; onToast: (m: string) => void;

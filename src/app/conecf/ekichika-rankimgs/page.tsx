@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { when } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
@@ -12,7 +13,6 @@ import { EKICHIKA_RANKIMG_INTERVALS, EKICHIKA_RANKIMG_PAIRS_MAX, nextRankImageAt
 // ★ ◯分おきに、駅ちかの女の子一覧の上の「店舗メイン」「ランキング」の女の子を、決めた組の順に入れ替える
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
-const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
 const outcomeText = (o: string | null) => {
   if (!o) return '—';
   if (o.startsWith('ok: ')) return `入れ替えました（${o.slice(4)}）`;

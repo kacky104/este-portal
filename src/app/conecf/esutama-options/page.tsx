@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { shrinkToJpeg, when } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
@@ -12,29 +13,6 @@ import { getConecfEsutamaNote, type ConecfEsutamaNote } from '@/app/actions/cone
 import { EsutamaNoteCard } from './NoteCard';
 import { ESUTAMA_POST_TITLE_MAX, esutamaPostBodyMax, ESUTAMA_POST_INTERVALS, ESUTAMA_POST_IMAGE_MAX, ESUTAMA_POST_DAILY, isDailyPostKey } from '@/lib/esutamaPost';
 
-/** ★ 第1812便: ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
-async function shrinkToJpeg(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error('read'));
-      el.src = url;
-    });
-    const scale = Math.min(1, 1440 / Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const ctx = c.getContext('2d');
-    if (!ctx) throw new Error('canvas');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
-    return await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 // コネックエフ「エステ魂オプション」（第1799便・2026-11-09・カッキーさんの決定）。
 // ★ 運営が /admin で ON にした店だけメニューに出る。★ 押すのはエステ魂で契約している有料オプションのボタン。
@@ -43,7 +21,6 @@ async function shrinkToJpeg(file: File): Promise<Blob> {
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const HOURS = Array.from({ length: 25 }, (_, i) => 360 + i * 60); // 6:00 〜 翌6:00
 const label = (m: number) => (m >= 1440 ? `翌${Math.floor((m - 1440) / 60)}:${String(m % 60).padStart(2, '0')}` : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`);
-const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
 
 const DESC: Record<string, string> = {
   job_now: '「本日体験入店できるお店」をいつも掲載中にします。1時間に1回見て、止まっていたら掲載開始を押します（毎日0時に止まるため）。',

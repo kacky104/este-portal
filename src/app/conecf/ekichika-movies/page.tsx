@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { when } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
@@ -16,7 +17,6 @@ import { CONECF_VIDEO_BUCKET, EKICHIKA_MOVIE_DAILY_MAX, EKICHIKA_MOVIE_TITLE_MAX
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const supabase = createClient();
-const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
 const mb = (b: number | null) => (b == null ? '' : (b / 1024 / 1024).toFixed(1) + 'MB');
 const outcomeText = (o: string | null) => {
   if (!o) return '—';

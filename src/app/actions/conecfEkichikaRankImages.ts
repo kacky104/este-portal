@@ -41,13 +41,6 @@ export type ConecfEkichikaRankImageSetting = {
   lastDueAt: string | null; lastAt: string | null; lastOutcome: string | null;
 };
 
-/** ★ コネックエフのメニューに出すか */
-export async function hasConecfEkichikaRankImages(salonId: number): Promise<boolean> {
-  try {
-    const { data, error } = await createServiceClient().from('conecf_ekichika_rankimgs').select('slot').eq('salon_id', salonId).eq('admin_enabled', true).limit(1);
-    return !error && (data ?? []).length > 0;
-  } catch { return false; }
-}
 
 export async function getConecfEkichikaRankImages(): Promise<Result<{ settings: ConecfEkichikaRankImageSetting[]; girls: string[] }>> {
   const r = await resolve(false);

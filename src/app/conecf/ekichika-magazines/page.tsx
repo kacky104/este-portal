@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { when } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
@@ -13,7 +14,6 @@ import { EKICHIKA_MAGAZINE_TITLE_MAX, EKICHIKA_MAGAZINE_BODY_MAX, EKICHIKA_MAGAZ
 // ★ 決めた時刻に、同じタイトル・本文（HTML）のマガジンを投稿する。受け取るのは駅ちかの会員（マイショップ登録者）
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
-const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
 const outcomeText = (o: string | null) => {
   if (!o) return '—';
   if (o.startsWith('ok: ')) return `投稿できました（${o.slice(4)} 配信）`;

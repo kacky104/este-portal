@@ -1,16 +1,11 @@
 'use server';
 
-import { hasConecfEsutamaOptions } from './conecfEsutamaOptions';
-import { hasConecfZenkokuOptions } from './conecfZenkokuOptions';
-import { hasConecfVanillaBlog } from './conecfVanillaBlog';
-import { hasConecfEkichikaMovies } from './conecfEkichikaMovies';
-import { hasConecfEkichikaMagazines } from './conecfEkichikaMagazines';
-import { hasConecfEkichikaRankImages } from './conecfEkichikaRankImages';
 import { readShiftEnabled, shiftAllowedForSalon } from '@/app/lib/shift/access';
 import { countShiftNew } from '@/app/lib/shift/newCount';
 import { createClient } from '@/app/lib/supabase/server';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { hasConecfEsutamaOptions, hasConecfZenkokuOptions, hasConecfVanillaBlog, hasConecfEkichikaMovies, hasConecfEkichikaMagazines, hasConecfEkichikaRankImages } from '@/app/lib/conecf/navFlags';
 import { setMediaLinkMode } from '@/app/actions/mediaCredentials';
 import { providerLabel } from '@/lib/mediaAudit';
 import { computeStoreLinkAlerts } from '@/app/lib/media/storeStallHold';

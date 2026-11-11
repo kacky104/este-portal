@@ -14,6 +14,8 @@ export type ConecfNavKey =
 // ★★ 第462便（カッキーさん）: dense＝名前が長い項目（★ サイドバーで1行に収める。★ 折り返すと読みにくい）
 export type ConecfNavItem = { key: ConecfNavKey; label: string; href: string; group?: string; dense?: boolean };
 
+// ★ 第1957便（総点検の整理）: AUTO_HUB_CHILDREN（下）に入っている項目は、サイドバーには出ない（サイト自動更新一覧の中から開く）。
+//   この並びの中の位置・group は、それらの項目では表示に使われない（題名と href の置き場）。
 export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'home',         label: 'ホーム',               href: '/' },
   { key: 'sites',        label: 'ID・パスワード登録',          href: '/sites' },

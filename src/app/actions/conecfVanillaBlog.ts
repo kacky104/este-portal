@@ -51,13 +51,6 @@ export type ConecfVanillaBlog = {
   hasLogin: boolean;
 };
 
-/** ★ コネックエフのメニューに出すか（運営が ON にしている）。読めなければ出さない */
-export async function hasConecfVanillaBlog(salonId: number): Promise<boolean> {
-  try {
-    const { data, error } = await createServiceClient().from('conecf_vanilla_blog').select('salon_id').eq('salon_id', salonId).eq('admin_enabled', true).limit(1);
-    return !error && (data ?? []).length > 0;
-  } catch { return false; }
-}
 
 export async function getConecfVanillaBlog(): Promise<Result<ConecfVanillaBlog | null>> {
   const r = await resolve(false);

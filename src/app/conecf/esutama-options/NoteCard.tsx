@@ -5,6 +5,7 @@
 //   何件か並べ、決めた間隔で上から順に1件ずつ投稿する。並べた内容は「設定を保存」で決まる。
 
 import { useState } from 'react';
+import { shrinkToJpeg, when } from '../conecfClientUtil';
 import {
   saveConecfEsutamaNote, runConecfEsutamaNoteNow, uploadConecfEsutamaNoteImage, type ConecfEsutamaNote,
 } from '@/app/actions/conecfEsutamaNotes';
@@ -16,33 +17,9 @@ import { ESUTAMA_POST_INTERVALS } from '@/lib/esutamaPost';
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 const HOURS = Array.from({ length: 25 }, (_, i) => 360 + i * 60); // 6:00 〜 翌6:00
 const label = (m: number) => (m >= 1440 ? `翌${Math.floor((m - 1440) / 60)}:${String(m % 60).padStart(2, '0')}` : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`);
-const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
 const intervalLabel = (m: number) => (m % 60 === 0 ? `${m / 60}時間` : m > 60 ? `${Math.floor(m / 60)}時間${m % 60}分` : `${m}分`);
 const outcomeText = (o: string | null) => (!o ? '—' : o === 'sent' ? '送れました' : o === 'unknown' ? '送りました（受け取られたか判定できませんでした）' : 'うまくいきませんでした' + (o.startsWith('failed: ') ? '（' + o.slice(8).split(' → ').slice(-1)[0] + '）' : ''));
 
-/** ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限の内側） */
-async function shrinkToJpeg(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const el = new Image();
-      el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error('read'));
-      el.src = url;
-    });
-    const scale = Math.min(1, 1440 / Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    const ctx = c.getContext('2d');
-    if (!ctx) throw new Error('canvas');
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
-    return await new Promise<Blob>((resolve, reject) => c.toBlob((b) => (b ? resolve(b) : reject(new Error('blob'))), 'image/jpeg', 0.85));
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 type Row = { title: string; body: string; categoryId: string; therapistId: number | null; images: Array<{ path: string; url: string }> };
 const emptyRow = (): Row => ({ title: '', body: '', categoryId: '1', therapistId: null, images: [] });

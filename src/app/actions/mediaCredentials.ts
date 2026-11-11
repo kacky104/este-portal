@@ -32,7 +32,6 @@ import { workProblemOf, type WorkProblem } from '@/lib/workProblem';
 // ★ 第1770便: 全国エステランキングは、書き込みを開けるまで【フクエスから反映】にできない
 import { ZENKOKU_WRITE_ENABLED } from '@/lib/zenkokuFlow';
 import { loadLoginRejectPaused } from '@/app/lib/media/loginAutoPause';
-import type { SokuhimeSnapshotView } from '@/lib/ekichikaSokuhimeParse';
 import { isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
 // ★ 第372便: セラピストの既定画像（本人→店舗→運営）を当てる（第217便の決め方をそのまま使う）
 import { fillTherapistImages } from '@/app/lib/therapistPlaceholder';
@@ -1687,89 +1686,6 @@ export async function startMediaRosterRead(input: {
 }
 
 /**
- * ★★★ 駅ちかの即ヒメ設定画面を読みに行く（第213便・2026-09-08）。★ 読むだけ。駅ちかへは1文字も書かない。
- * ★ 駅ちかだけ（READABLE_PROVIDERS ではなく、即ヒメの画面を持つのが駅ちかだけ）。
- * ★ 向きは問わない（read でも write でも読める。★ 押す側は write のときだけ・次の便）。
- * ★ 同意が済んでいない枠では走らせない（認証情報を使う操作は同意の後ろ）。
- */
-export async function startMediaSokuhimeRead(input: {
-  salonId: string | number; slot?: number;
-}): Promise<Result<{ jobId: string; note: string }>> {
-  const salonId = Number(input.salonId);
-  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
-  const slot = Math.trunc(Number(input.slot ?? 1));
-  const provider = 'ekichika';
-  const ng = validTarget(provider, slot);
-  if (ng) return { ok: false, error: ng };
-  const guard = await assertSalonOwner(salonId);
-  if (!guard.ok) return guard;
-
-  const svc = createServiceClient();
-  const { data: row } = await svc
-    .from('salon_media_credentials')
-    .select('consent_version')
-    .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot)
-    .maybeSingle();
-  if (!row) return { ok: false, error: '駅ちかのログイン情報が登録されていません' };
-  if (needsConsent(row.consent_version as string | null)) {
-    return { ok: false, error: '連携の説明に同意してから実行してください' };
-  }
-  try {
-    const r = await startRelayFlow({ salonId, provider, slot, intent: 'sokuhime_read', actor: 'shop:' + guard.data.userId });
-    if (!r.ok) return { ok: false, error: r.note };
-    return { ok: true, data: { jobId: r.jobId, note: r.note } };
-  } catch (e) {
-    console.error('[media] 即ヒメ設定の読み取りを始められなかった', (e as Error).message);
-    return { ok: false, error: '即ヒメ設定の読み取りを開始できませんでした。時間をおいてお試しください' };
-  }
-}
-
-/**
- * ★ 即ヒメ設定の写し（第213便）。★ 無ければ null（「0/0」と出さない・0件と分からないを混ぜない）。
- * ★ 枠の子の名前は写しの一覧（出勤中）から引く。★ 一覧に居なければ名簿の写し（media_roster_snapshots）から。無ければ null
- */
-export async function getMediaSokuhime(input: { salonId: string | number; slot?: number }): Promise<Result<SokuhimeSnapshotView | null>> {
-  const salonId = Number(input.salonId);
-  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
-  const slot = Math.trunc(Number(input.slot ?? 1));
-  const guard = await assertSalonOwner(salonId);
-  if (!guard.ok) return guard;
-  const svc = createServiceClient();
-  const { data, error } = await svc
-    .from('media_sokuhime_snapshots')
-    .select('read_at, slot_count, boxes, working, counted_plan, remaining_count')
-    .eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot)
-    .maybeSingle();
-  if (error) return { ok: false, error: '即ヒメ設定の写しを読めませんでした' };
-  if (!data) return { ok: true, data: null };
-  type Box = { index: number; girlId: string | null; sokuikuId: string | null; expiresAtUnix: number | null; untilLabel: string | null };
-  type Girl = { castId: string; name: string; isSokuhime: boolean };
-  const boxes = ((data.boxes as Box[] | null) ?? []);
-  const working = ((data.working as Girl[] | null) ?? []).map((w) => ({ castId: String(w.castId), name: String(w.name), isSokuhime: w.isSokuhime === true }));
-  const { data: snap } = await svc
-    .from('media_roster_snapshots').select('entries').eq('salon_id', salonId).eq('provider', 'ekichika').eq('slot', slot).maybeSingle();
-  const rosterName = new Map<string, string>();
-  for (const e of ((snap?.entries as Array<{ castId?: unknown; name?: unknown }> | null) ?? [])) {
-    if (e?.castId) rosterName.set(String(e.castId), String(e.name ?? ''));
-  }
-  return {
-    ok: true,
-    data: {
-      readAtISO: String(data.read_at),
-      slotCount: Number(data.slot_count ?? boxes.length),
-      used: boxes.filter((b) => b.girlId !== null).length,
-      countedPlan: data.counted_plan === true,
-      remainingCount: (data.remaining_count as number | null) ?? null,
-      boxes: boxes.map((b) => ({
-        ...b,
-        name: b.girlId ? (working.find((w) => w.castId === b.girlId)?.name ?? rosterName.get(b.girlId) ?? null) : null,
-      })),
-      working,
-    },
-  };
-}
-
-/**
  * ★★★ 即ヒメの自動（第215便・2026-09-08）のいまの状態。★ 「出勤を送る」の即ヒメの箱に出す。
  *
  * ★ 3つを分けて返す（★ 1つの真偽値にまとめない）:
@@ -1853,54 +1769,6 @@ export async function setSokuhimeAuto(input: {
     actor: 'shop:' + guard.data.userId,
   });
   return { ok: true, data: { auto: on } };
-}
-
-/**
- * ★★★ フクエスの「今すぐ」を駅ちかの即ヒメへ、1人だけ送る（第214便・2026-09-08）。
- * ★ apply=false（既定）は試し打ち＝読んで計画を「連携の記録」に残すだけ。★ 駅ちかを触らない。
- * ★ apply=true で実弾（1人）。★ 駅ちかの枠が write / write_auto のときだけ（方針: 駅ちかから取り込む店はフクエスから書かない）。
- */
-export async function startMediaSokuhimePush(input: {
-  salonId: string | number; therapistId: number; apply?: boolean; slot?: number;
-}): Promise<Result<{ jobId: string; note: string }>> {
-  const salonId = Number(input.salonId);
-  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
-  const therapistId = Number(input.therapistId);
-  if (!Number.isFinite(therapistId) || therapistId <= 0) return { ok: false, error: 'セラピストの指定が不正です' };
-  const slot = Math.trunc(Number(input.slot ?? 1));
-  const provider = 'ekichika';
-  const guard = await assertSalonOwner(salonId);
-  if (!guard.ok) return guard;
-  const svc = createServiceClient();
-  const { data: row } = await svc
-    .from('salon_media_credentials').select('consent_version')
-    .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot).maybeSingle();
-  if (!row) return { ok: false, error: '駅ちかのログイン情報が登録されていません' };
-  // ★ 第1287便: 即ヒメは書き込み（試し打ちもコネックエフの機能）。コネックエフの文に同意した枠だけ
-  {
-    const note = conecfConsentMissingNote(row.consent_version as string | null, '駅ちか');
-    if (note) return { ok: false, error: note };
-  }
-  // ★★★ 実弾は write の枠だけ。★ 画面だけで守らない（第38便 §17-16）
-  if (input.apply === true) {
-    const { data: src } = await svc.from('salon_import_sources').select('link_mode, is_enabled')
-      .eq('salon_id', salonId).eq('provider', provider).eq('slot', slot).maybeSingle();
-    if (!src || src.is_enabled !== true || !isWriteDirection(src.link_mode as string | null)) {
-      return { ok: false, error: '駅ちかが「フクエスから反映」になっていないため送れません。ホームで「フクエスから反映」にしてください' };
-    }
-  }
-  try {
-    const r = await startRelayFlow({
-      salonId, provider, slot, intent: 'sokuhime_push',
-      sokuhime: { therapistId, apply: input.apply === true },
-      actor: 'shop:' + guard.data.userId,
-    });
-    if (!r.ok) return { ok: false, error: r.note };
-    return { ok: true, data: { jobId: r.jobId, note: r.note } };
-  } catch (e) {
-    console.error('[media] 即ヒメの送信を始められなかった', (e as Error).message);
-    return { ok: false, error: '即ヒメの送信を開始できませんでした。時間をおいてお試しください' };
-  }
 }
 
 /**

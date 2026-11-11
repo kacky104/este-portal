@@ -3,7 +3,7 @@
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
-import { isDiarySource, forwardsDiaryFromFukues, diaryForwardAllowed } from '@/lib/diarySource';
+import { forwardsDiaryFromFukues, diaryForwardAllowed } from '@/lib/diarySource';
 import { isConsentState } from '@/lib/therapistMediaConsent';
 import { findMediaSite } from '@/lib/mediaSites';
 // ★ 第372便: セラピストの既定画像（本人→店舗→運営）を当てる（第217便の決め方をそのまま使う）
@@ -143,81 +143,6 @@ export async function saveDiaryForward(input: { therapistId: string | number; pr
   }, { onConflict: 'therapist_id,provider,slot' });
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: { saved: true } };
-}
-
-/** 店舗の「写メ日記の正本」を読む。 */
-export async function getSalonDiarySource(input: { therapistId: string | number }):
-  Promise<Result<{ salonId: number; source: string }>> {
-  const therapistId = Number(input.therapistId);
-  if (!Number.isFinite(therapistId)) return { ok: false, error: '対象セラピストが不正です' };
-  const guard = await assertCanEdit(therapistId);
-  if (!guard.ok) return guard;
-
-  const svc = createServiceClient();
-  const { data } = await svc.from('salons').select('diary_source').eq('id', guard.data.salonId).maybeSingle();
-  return { ok: true, data: { salonId: guard.data.salonId, source: (data?.diary_source as string | null) ?? 'benry' } };
-}
-
-/**
- * 店舗の「写メ日記の入口」を切り替える。
- * ★★★ これが二重投稿を防ぐ唯一の仕掛け。★ 入口は常に1つだけ（第99便で3値化）。
- *   'benry'    … メールで受け取る（駅ちかの取り込みは回さない）
- *   'ekichika' … 駅ちかの管理画面から取り込む（メールは受け取らない）
- *   'fukues'   … フクエスで書いて各媒体へ送る（どちらも受け取らない）
- * ★ 判定は src/lib/diarySource.ts。★ ここに値を直書きしない。
- */
-/**
- * ★★★ 第128便（2026-09-04）で【店舗ID】で受けるようにした。
- *
- * ★★★ なぜ変えたか —— **店舗全体の設定が、セラピスト個人の画面にあった**
- *   これは salons.diary_source（店舗単位）を変える口なのに、
- *   入口が /mypage/therapist/[id] にしか無かった。
- *   ★ 見出しは「〇〇 のプロフィール編集」。★ 中身は店舗全体の設定。
- *   ★★ **在籍が101人なら、同じ設定を変える入口が101個**あることになる。
- *     ★ どの子の画面で変えても店舗全体が変わる＝上書き事故の入口（第111便の決めごと②と同じ危険）。
- *   ★ しかも媒体連携の画面はこの値を【読んで説明している】のに、変える手段はそこに無かった。
- *
- * ★★ 権限も変えた。★ 前は【本人でも変えられた】（assertCanEdit は isSelf を通す）。
- *   ★ 店舗全体の設定をセラピスト本人が変えられるのはおかしい。★ オーナー（と運営）だけにする。
- */
-export async function setSalonDiarySource(input: { salonId: string | number; source: string }):
-  Promise<Result<{ source: string }>> {
-  const salonId = Number(input.salonId);
-  if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
-  if (!isDiarySource(input.source)) return { ok: false, error: '指定が不正です' };
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'ログインが必要です' };
-
-  const svc = createServiceClient();
-  const { data: salonRow } = await svc.from('salons').select('owner_id').eq('id', salonId).maybeSingle();
-  if (!salonRow) return { ok: false, error: '店舗が見つかりません' };
-  if ((salonRow.owner_id as string | null) !== user.id && user.id !== ADMIN_UUID) {
-    return { ok: false, error: 'この店舗の操作権限がありません' };
-  }
-  const guard = { data: { salonId } };
-
-  // ★★★ 'ekichika' は【鍵を預けていただいた店】でしか動かない（第99便）。
-  //   ★ 鍵が無いまま切り替えると、メールも受け取らず取り込みも回らない＝
-  //     **日記が1件も入らない状態**になる。★ しかも誰も気づかない。
-  //   ★ 「保存したのに何も起きない」を作らないため、ここで止めて理由を返す。
-  if (input.source === 'ekichika') {
-    const { data: cred } = await svc
-      .from('salon_media_credentials')
-      .select('salon_id, is_enabled, consent_version')
-      .eq('salon_id', guard.data.salonId)
-      .eq('provider', 'ekichika')
-      .eq('is_enabled', true);
-    const ready = (cred ?? []).some((c) => typeof (c as { consent_version?: string | null }).consent_version === 'string');
-    if (!ready) {
-      return { ok: false, error: '駅ちかのログイン情報がまだご登録されていないため、この設定にはできません。先に「媒体連携」で駅ちかのログイン情報とご同意をご登録ください。' };
-    }
-  }
-
-  const { error } = await svc.from('salons').update({ diary_source: input.source }).eq('id', guard.data.salonId);
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, data: { source: input.source } };
 }
 
 // ── セラピスト本人の了承（第118便・2026-09-03）────────────────────────
