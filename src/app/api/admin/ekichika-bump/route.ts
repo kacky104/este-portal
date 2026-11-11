@@ -63,17 +63,12 @@ export async function POST(req: Request) {
 
   const svc = createServiceClient();
   const now = new Date();
-  const BASE_COLS = 'salon_id, provider, slot, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_read_at, bump_auto_at';
-  const readRows = async (cols: string): Promise<{ data: Row[] | null; error: { message: string } | null }> => {
-    const res = await svc.from('salon_import_sources').select(cols).in('provider', ['ekichika', 'esutama']).eq('bump_auto', true);
-    return { data: (res.data as unknown as Row[] | null) ?? null, error: res.error ? { message: res.error.message } : null };
-  };
-  let { data, error } = await readRows(BASE_COLS + ', bump_times, bump_times_done_at');
-  // ★ 第1922便: 時刻指定の列がまだ無い（追加SQL_第1922便が未適用）ときは、今までどおりの列で読み直す＝周（エステ魂・全国など）を止めない
-  if (error && /bump_times/.test(error.message)) {
-    ({ data, error } = await readRows(BASE_COLS));
-  }
-  // ★ 列が無い（追加SQL_第1305便が未適用）ときもここで返す。★ 何もしない
+  // ★ 第1960便（総点検の整理）: 追加SQL_第1305便・第1922便は流してある（11/12 確認）。列が無いときの読み直しは消した
+  const rowsRes = await svc.from('salon_import_sources')
+    .select('salon_id, provider, slot, bump_start_min, bump_end_min, bump_interval_min, bump_last_at, bump_remaining, bump_read_at, bump_auto_at, bump_times, bump_times_done_at')
+    .in('provider', ['ekichika', 'esutama']).eq('bump_auto', true);
+  const data = (rowsRes.data as unknown as Row[] | null) ?? null;
+  const error = rowsRes.error;
   if (error) return NextResponse.json({ ok: false, error: '自動の上位表示の設定を読めなかった: ' + error.message }, { status: 500 });
 
   const results: RoundResult[] = [];
@@ -88,13 +83,15 @@ export async function POST(req: Request) {
     if (uErr) console.error('[ekichika-bump] 時刻指定の印を戻せなかった', r.salon_id, slot, uErr.message);
   };
   // ★ 第1930便: 集客ワンクリックアピールを行ごとに設定している店（conecf_esutama_appeal_rows に行がある店）は、
-  //   今までの「3行まとめて」（salon_import_sources の esutama）では押さない。★ 表が無い（SQL 未適用）ときは今までどおり
+  //   今までの「3行まとめて」（salon_import_sources の esutama）では押さない
   const appealRowsRes = await svc.from('conecf_esutama_appeal_rows')
     .select('salon_id, row_key, auto, start_min, end_min, interval_min, times, times_done_at, auto_at, last_at, remaining, read_at');
   const appealRows = appealRowsRes.error ? [] : (appealRowsRes.data ?? []);
+  // ★ 第1960便: 行ごとの設定を読めなかった回は、エステ魂の「3行まとめて」も押さない（行ごとの店を前の押し方で押してしまわないように）
+  const appealUnknown = !!appealRowsRes.error;
   const appealRowSalons = new Set(appealRows.map((x) => Number(x.salon_id)));
   for (const r of data ?? []) {
-    if (r.provider === 'esutama' && appealRowSalons.has(Number(r.salon_id))) continue;
+    if (r.provider === 'esutama' && (appealUnknown || appealRowSalons.has(Number(r.salon_id)))) continue;
     const slot = Number(r.slot ?? 1);
     const setting: BumpSetting = {
       enabled: true,

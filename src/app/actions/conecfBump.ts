@@ -81,10 +81,9 @@ export async function getConecfBump(providerArg: BumpProvider = 'ekichika'): Pro
   const readSrc = (cols: string) => svc.from('salon_import_sources')
     .select(cols).eq('salon_id', salonId).eq('provider', provider).order('slot', { ascending: true });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let src: { data: any[] | null; error: { message?: string } | null } = await readSrc(BASE_COLS + ', bump_times');
-  // ★ 第1922便: 時刻指定の列がまだ無い（追加SQL_第1922便が未適用）ときは、今までの列で読む＝画面は今までどおり
-  const timesReady = !(src.error && /bump_times/.test(src.error.message ?? ''));
-  if (!timesReady) src = await readSrc(BASE_COLS);
+  const src: { data: any[] | null; error: { message?: string } | null } = await readSrc(BASE_COLS + ', bump_times');
+  // ★ 第1960便（総点検の整理）: 追加SQL_第1922便は流してある（11/12 確認）。列が無いときの読み直しは消した
+  const timesReady = true;
   const cred = await svc.from('salon_media_credentials').select('slot, is_enabled').eq('salon_id', salonId).eq('provider', provider);
   if (src.error) {
     if (/bump_/.test(src.error.message ?? '')) return { ok: true, data: { salonId, ready: false, slots: [] } };

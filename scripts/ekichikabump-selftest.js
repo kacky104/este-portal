@@ -149,7 +149,7 @@ console.log('\n── 5. ★★ ソースの見張り ──');
   eq('周は apply が無ければ何も積まない・判断は shouldBumpNow', [route.includes('const apply = body.apply === true;'), route.includes('shouldBumpNow(')], [true, true]);
   const wait = read('src', 'lib', 'relayWait.ts');
   eq('★ 上位表示は順番待ちにしない（遅れて押しても意味が薄い）', /'bump_(auto|push)'/.test(wait), false);
-  const sql = read('追加SQL_第1305便_駅ちかの上位表示の自動_2026-10-08.sql');
+  const sql = read('SQL/追加SQL_第1305便_駅ちかの上位表示の自動_2026-10-08.sql');
   eq('★ SQL の間隔の選択肢が lib と同じ', sql.includes('bump_interval_min in (' + [...m.EKICHIKA_BUMP_INTERVALS].join(', ') + ')'), true);
 }
 

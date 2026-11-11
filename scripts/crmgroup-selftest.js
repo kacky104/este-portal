@@ -19,7 +19,7 @@ eq('知らない分類は通さない', [v.isCrmGroupKind('theft'), v.isCrmGroup
 eq('知らない段は通さない', [v.isCrmGroupLevel('ng'), v.isCrmGroupLevel('caution'), v.isCrmGroupLevel('vip')], [true, true, false]);
 {
   // ★ DB の check と、コードの並びが同じこと（片方だけ直して、保存で断られるのを防ぐ）
-  const sql = read('追加SQL_第1324便_CRMのグループ共有の表_2026-10-09.sql');
+  const sql = read('SQL/追加SQL_第1324便_CRMのグループ共有の表_2026-10-09.sql');
   const kinds = /kind\s+text\s+not null check \(kind in \(([^)]*)\)\)/.exec(sql);
   const levels = /level\s+text\s+not null check \(level in \(([^)]*)\)\)/.exec(sql);
   const list = (m) => (m ? m[1].split(',').map((x) => x.trim().replace(/'/g, '')) : []);
@@ -95,7 +95,7 @@ console.log('\n── 7. 帯の見出しと、予約カードの印（★ 出し
   eq('印: 当たりが無ければ出さない', [v.crmGroupBadge([]), v.crmGroupBadge(null), v.crmGroupBadge(undefined)], [null, null, null]);
   eq('並び: NG が先・同じ段なら新しい日付が先', v.sortCrmGroupHits([h({ id: 1, level: 'caution', happenedOn: '2026-10-09' }), h({ id: 2, happenedOn: '2026-09-01' }), h({ id: 3, happenedOn: '2026-10-01' })]).map((x) => x.id), [3, 2, 1]);
   {
-    const sql = read('追加SQL_第1324便_CRMのグループ共有の表_2026-10-09.sql');
+    const sql = read('SQL/追加SQL_第1324便_CRMのグループ共有の表_2026-10-09.sql');
     const cs = /certainty\s+text\s+not null default 'confirmed' check \(certainty in \(([^)]*)\)\)/.exec(sql);
     eq('★★★ 追加SQL の確かさの check と同じ並び', cs ? cs[1].split(',').map((x) => x.trim().replace(/'/g, '')) : [], v.CRM_GROUP_CERTAINTIES.map((x) => x.key));
   }
@@ -317,7 +317,7 @@ console.log('\n── 13. 画面での申込み・承認の口（第1328便）�
   const admin = read('src/app/actions/crmGroupAdmin.ts');
   eq('★★★ 署名待ちで入れる・取りやめる・記録を見るのは、運営だけ', ['adminInviteCrmGroupMember', 'adminCancelCrmGroupInvite', 'adminListCrmGroupSignatures'].map((n) => { const f = admin.slice(admin.indexOf('export async function ' + n)); return /const a = await requireAdmin\(\);\s*\n\s*if \(!a\.ok\) return a;/.test(f.slice(0, 500)); }), [true, true, true]);
   eq('★★ グループを終わらせるとき、署名待ちも取りやめる', /update\(\{ status: 'cancelled', closed_at: nowIso \}\)\.eq\('group_id', id\)\.eq\('status', 'pending'\)/.test(admin), true);
-  const sql = read('追加SQL_第1328便_CRMのグループ共有の画面での申込み_2026-10-09.sql');
+  const sql = read('SQL/追加SQL_第1328便_CRMのグループ共有の画面での申込み_2026-10-09.sql');
   eq('★★★ 追加SQL: 2つの表とも RLS を有効にし、anon・authenticated から外す', ['crm_group_invites', 'crm_group_signatures'].map((t) => new RegExp('alter table public\\.' + t + '\\s+enable row level security;').test(sql) && new RegExp('revoke all on public\\.' + t + '\\s+from anon, authenticated;').test(sql)), [true, true]);
   eq('★★★ 追加SQL: 署名の記録は追記専用（直せない・消せない）', /create trigger crm_group_signatures_no_update\s+before update or delete on public\.crm_group_signatures\s+for each row execute function public\.crm_group_logs_append_only\(\);/.test(sql), true);
   eq('★★ 追加SQL: 1店が署名待ちでいられるのは1つだけ', /create unique index if not exists crm_group_invites_one_pending\s+on public\.crm_group_invites \(salon_id\) where status = 'pending';/.test(sql), true);
@@ -332,7 +332,7 @@ console.log('\n── 13. 画面での申込み・承認の口（第1328便）�
 
 console.log('\n── 14. 古い行を消す（第1331便・追加SQL）──');
 {
-  const sql = read('追加SQL_第1331便_CRMのグループ共有の古い行を消す_2026-10-09.sql');
+  const sql = read('SQL/追加SQL_第1331便_CRMのグループ共有の古い行を消す_2026-10-09.sql');
   const code = sql.split('\n').filter((l) => !/^\s*--/.test(l)).join('\n');
   const ended = /\(s\.crm_until is null and s\.crm_ended_on is not null and s\.crm_ended_on <= today - 90\)\s*or \(s\.crm_until is not null and s\.crm_until <= today - 90\)/g;
   eq('★★★ 解約して90日の条件は、店舗データを消す決まり（crm_purge_ended_salons）と同じ（外す店・署名待ちの2か所）', (code.match(ended) || []).length, 2);

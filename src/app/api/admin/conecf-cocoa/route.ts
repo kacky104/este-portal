@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
-import { postCocoaForSalon, postCocoaForAccount } from '@/app/lib/conecf/cocoaPost';
-import { shouldPostCocoa, pickCocoaTemplate, shouldPostCocoaAccount, normalizeCocoaSchedule, type CocoaTemplate } from '@/lib/conecfCocoa';
+import { postCocoaForAccount } from '@/app/lib/conecf/cocoaPost';
+import { shouldPostCocoaAccount, normalizeCocoaSchedule } from '@/lib/conecfCocoa';
 
 // ココア店長ブログの自動投稿の周（第404便・1日1回）。
 //
@@ -23,11 +23,13 @@ export async function POST(req: Request) {
   const svc = createServiceClient();
 
   // ★★ 第1833便: A・B・C の3アカウント（conecf_cocoa_accounts）。アカウントごとに「時刻＋テンプレート」の行で送る。
-  //   ★ 表が無い（追加SQL_第1833便が未適用）ときだけ、下の今までの作り（1店1つ・1日1回）で動く
   const accs = await svc.from('conecf_cocoa_accounts')
     .select('salon_id, slot, schedule, last_due_at, salons!inner(is_hidden, conecf_enabled_at)')
     .eq('enabled', true).eq('salons.is_hidden', false);
-  if (!accs.error) {
+  // ★ 第1960便（総点検の整理）: 追加SQL_第1833便は流してある（11/12 確認）。前の作り（1店1つ・1日1回）へ落ちる道は消した。
+  //   ★ 読めなかった回は何も送らずに返す（前は、読めないと前の作りで送りに行っていた）
+  if (accs.error) return NextResponse.json({ ok: false, error: accs.error.message }, { status: 500 });
+  {
     const results = [];
     for (const a of accs.data ?? []) {
       const rel = (a as unknown as { salons?: { conecf_enabled_at?: string | null } | Array<{ conecf_enabled_at?: string | null }> }).salons;
@@ -46,33 +48,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, apply, at: now.toISOString(), accounts: true, results });
   }
 
-  const { data: sts, error } = await svc
-    .from('conecf_cocoa_settings')
-    .select('salon_id, enabled, last_auto_day, salons!inner(is_hidden, conecf_enabled_at)')
-    .eq('enabled', true)
-    .eq('salons.is_hidden', false);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-  const results = [];
-  for (const s of sts ?? []) {
-    const rel = (s as unknown as { salons?: { conecf_enabled_at?: string | null } | Array<{ conecf_enabled_at?: string | null }> }).salons;
-    const s0 = Array.isArray(rel) ? rel[0] : rel;
-    if (!s0?.conecf_enabled_at) { results.push({ salonId: Number(s.salon_id), skipped: 'conecf-not-enabled' }); continue; }
-    const salonId = Number(s.salon_id);
-    const { data: temps } = await svc.from('conecf_cocoa_templates').select('*').eq('salon_id', salonId).eq('is_active', true);
-    const active = (temps ?? []).map((r): CocoaTemplate => ({
-      id: Number(r.id), title: String(r.title ?? ''), body: String(r.body ?? ''),
-      imageUrl: (r.image_url as string | null) ?? null, isActive: r.is_active !== false,
-      sortOrder: Number(r.sort_order ?? 0), lastPostedAt: (r.last_posted_at as string | null) ?? null,
-    }));
-    const judged = shouldPostCocoa({ now, salonId, enabled: true, activeCount: active.length, lastAutoDay: (s.last_auto_day as string | null) ?? null });
-    if (!judged.post) { results.push({ salonId, skipped: judged.reason }); continue; }
-    if (!apply) { results.push({ salonId, would_post: pickCocoaTemplate(active)?.title ?? '' }); continue; }
-    try {
-      results.push(await postCocoaForSalon(svc, salonId, true, true, now));
-    } catch (e) {
-      results.push({ salonId, error: e instanceof Error ? e.message : String(e) });
-    }
-  }
-  return NextResponse.json({ ok: true, apply, at: now.toISOString(), results });
 }

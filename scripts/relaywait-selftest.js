@@ -168,7 +168,7 @@ console.log('\n── 5. ★★★ ソースの見張り ──');
   eq('★★ 記録の種類は足していない（古い画面が知らない種類を出さない）', /'flow_waiting'|'wait_expired',\s*\/\//.test(audit), false);
 
   // SQL
-  const sql = read('追加SQL_第1296便_中継ジョブに順番待ち_2026-10-08.sql');
+  const sql = read('SQL/追加SQL_第1296便_中継ジョブに順番待ち_2026-10-08.sql');
   eq('★★★ SQL の check 制約に、同じ綴りの値が入っている', sql.includes("check (status in ('queued', 'leased', 'done', 'failed', 'expired', '" + m.WAIT_STATUS + "'))"), true);
   eq('★★★ 走っているジョブを1件に限る索引には触らない（順番待ちを数えない）', /media_relay_jobs_one_active/.test(sql.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n')), false);
   const mig = read('supabase', 'migrations', '20260827_media_relay_jobs.sql');
