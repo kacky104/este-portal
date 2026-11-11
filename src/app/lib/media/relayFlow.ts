@@ -3843,7 +3843,8 @@ async function planEsutamaNote(
     ...ctx,
     esutamaDiaryCastId: castId,
     esutamaDiaryCastName: media.name || fukuesName,
-    esutamaDiaryDraft: { title: n.title, content: n.body, categoryId: n.categoryId },
+    // ★ 第1943便: 半角の「<」はエステ魂で「&lt;」と文字のまま出てしまう（11/11 12:26 みあさんの題名）→ 全角の「＜」にして送る
+    esutamaDiaryDraft: { title: n.title.replace(/</g, '＜'), content: n.body.replace(/</g, '＜'), categoryId: n.categoryId },
     esutamaDiaryPhotoUrls: photoPick.urls.length > 0 ? photoPick.urls : undefined,
     esutamaDiaryPhotoSkipped: photoPick.skipped > 0 ? photoPick.skipped : undefined,
     esutamaDiaryPhotoCount: undefined,
