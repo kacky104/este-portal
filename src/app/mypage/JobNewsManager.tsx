@@ -6,6 +6,8 @@ import { getLinkedXProfileForSalon } from '@/app/lib/xLink';
 import { revalidateJobsForOwner, enforceWorkNewsLimit, repostMyWorkNews } from '@/app/actions/jobs';
 import { WORK_NEWS_MAX } from '@/app/lib/jobs';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
+// ★ 第1962便: コネックエフの中（/conecf/work-news）で使うときは、確認の窓がコネックエフの見た目になる。マイページでは今までどおりブラウザ標準の窓
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 
 // mypage「求人」タブの新着情報（work_news）管理カード。本体お知らせ（announcements）管理を
 // フクエスワーク向けに忠実移植したもの。書き込みはブラウザSupabaseクライアント直（RLSで自店のみ許可）。
@@ -115,13 +117,13 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
 
   // 「編集」トグル。同一行なら閉じる。別行を開くとき、展開中の行に未保存変更があれば confirm で警告し、
   // 破棄OKなら前の行のフォームを保存済み値へ戻してから切り替える（同時展開は常に1件）。
-  const handleEditToggle = (id: string) => {
+  const handleEditToggle = async (id: string) => {
     if (expandedId === id) {
       setExpandedId(null);
       return;
     }
     if (expandedId !== null && isDirty(expandedId)) {
-      if (!window.confirm('編集中の内容が保存されていません。破棄して別の項目を編集しますか？')) return;
+      if (!(await conecfConfirm('編集中の内容が保存されていません。破棄して別の項目を編集しますか？', { ok: '破棄する', danger: true }))) return;
       resetForm(expandedId);
     }
     setExpandedId(id);
@@ -329,9 +331,10 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
   //   ★★ サーバー側の口を通す（repostMyWorkNews）。★ 画面から published_at を直に書かない。
   //     理由は「手で出した日」の記録（last_manual_at）が要るため——その表は画面からは書けない。
   const handleRepost = async (id: string) => {
-    if (!window.confirm(
-      'この新着情報を再投稿しますか？\n投稿日時が現在時刻に更新され、求人ページの新着で先頭に出ます。\n（元の投稿日時は失われます）'
-    )) return;
+    if (!(await conecfConfirm(
+      'この新着情報を再投稿しますか？\n投稿日時が現在時刻に更新され、求人ページの新着で先頭に出ます。\n（元の投稿日時は失われます）',
+      { ok: '再投稿する' },
+    ))) return;
     setRepostingId(id);
     setMsg(null);
     const res = await repostMyWorkNews({ salonId, id });
@@ -346,7 +349,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
 
   // 削除（確認あり）。行削除成功後に添付画像も削除（remove() 戻り値検査）。
   const handleDelete = async (id: string) => {
-    if (!window.confirm('この新着情報を削除しますか？\nこの操作は取り消せません。')) return;
+    if (!(await conecfConfirm('この新着情報を削除しますか？\nこの操作は取り消せません。', { ok: '削除する', danger: true }))) return;
     setDeletingId(id);
     setMsg(null);
     const target = items.find((n) => n.id === id);
@@ -615,7 +618,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
                   {/* 閉じているときのバー：公開バッジ ＋ 自動配信の印 ＋ タイトル ＋ 投稿日時 ＋ 山形 */}
                   <button
                     type="button"
-                    onClick={() => handleEditToggle(n.id)}
+                    onClick={() => void handleEditToggle(n.id)}
                     aria-expanded={expanded}
                     className="w-full flex items-center gap-2 px-5 py-4 text-left hover:bg-emerald-50/40 transition-colors"
                   >

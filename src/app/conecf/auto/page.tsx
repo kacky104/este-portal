@@ -23,6 +23,15 @@ export default function ConecfAutoHubPage() {
   useEffect(() => { getConecfAutoActive().then(setActive).catch(() => {}); }, []);
   const groups: Array<{ site: string; items: Item[] }> = [
     {
+      // ★ 第1962便（カッキーさん）: フクエスをいちばん上に。上位表示は「上位表示設定」にあるので、ここには出さない。
+      //   フクエスワーク新着情報は、求人があるお店だけ（getConecfAutoActive の 'has:/work-news'）
+      site: 'フクエス',
+      items: [
+        { href: '/announce', label: 'お知らせ', note: '「自動投稿」にしたお知らせを、1日1回・順番に新着の先頭へ', on: true },
+        { href: '/work-news', label: 'フクエスワーク新着情報', note: '「自動投稿」にした求人の新着情報を、1日1回・順番に求人ページの新着の先頭へ', on: active['has:/work-news'] ?? false },
+      ],
+    },
+    {
       site: '駅ちか',
       items: [
         { href: '/news', label: '新着情報（ニュース）', note: 'カテゴリーごとに1日1回、順番に投稿', on: true },

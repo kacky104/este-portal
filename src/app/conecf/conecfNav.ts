@@ -7,7 +7,7 @@ export type ConecfNavKey =
   | 'girls' | 'girlsSync' | 'girlsSort' | 'placeholder'
   | 'schedule' | 'scheduleSync' | 'shift'
   | 'now'
-  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'ekiMagazine' | 'ekiRankImg' | 'announce' | 'cocoa' | 'vanillaBlog'
+  | 'diary' | 'news' | 'bump' | 'esutamaOpt' | 'zenkokuOpt' | 'ekiMovie' | 'ekiMagazine' | 'ekiRankImg' | 'announce' | 'workNews' | 'cocoa' | 'vanillaBlog'
   | 'log' | 'matrix' | 'analytics'
   | 'guide' | 'qa' | 'contact';
 
@@ -53,6 +53,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'news',         label: '駅ちか新着情報',         href: '/news' },
   // ★ 第475便: フクエスのお知らせ（マイページのお知らせタブと同じことができる）
   { key: 'announce',     label: 'フクエスお知らせ',       href: '/announce' },
+  // ★ 第1962便: フクエスワーク（求人ページ）の新着情報。マイページの新着情報と同じことができる。サイト自動更新一覧の中
+  { key: 'workNews',     label: 'フクエスワーク新着情報', href: '/work-news' },
   { key: 'cocoa',        label: 'ココア店長ブログ',       href: '/cocoa' },
   // ★ 第1903便: バニラの店長ブログ。運営が ON にした店だけ（ConecfShell の vanillaBlogNav）。サイト自動更新一覧の中
   { key: 'vanillaBlog',  label: 'バニラ店長ブログ',       href: '/vanilla-blog' },
@@ -68,7 +70,8 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
 
 /** ★ 第1847便: 「サイト自動更新」の中にまとめた画面（サイドバーには出さず、開いているときは「サイト自動更新」を光らせる） */
 //   ★ 第1848便: 駅ちか新着情報・ココア店長ブログも駅ちかの中へ（カッキーさん）
-export const AUTO_HUB_CHILDREN: readonly ConecfNavKey[] = ['news', 'ekiRankImg', 'ekiMovie', 'ekiMagazine', 'cocoa', 'esutamaOpt', 'zenkokuOpt', 'vanillaBlog'];
+//   ★ 第1962便: フクエス（お知らせ・フクエスワーク新着情報）もいちばん上に（カッキーさん）。フクエスお知らせはサイドバーから一覧の中へ移した
+export const AUTO_HUB_CHILDREN: readonly ConecfNavKey[] = ['announce', 'workNews', 'news', 'ekiRankImg', 'ekiMovie', 'ekiMagazine', 'cocoa', 'esutamaOpt', 'zenkokuOpt', 'vanillaBlog'];
 
 export function conecfNavItem(key: ConecfNavKey): ConecfNavItem {
   return CONECF_NAV.find((n) => n.key === key) ?? CONECF_NAV[0];
