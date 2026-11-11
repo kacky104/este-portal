@@ -13,6 +13,8 @@ import { normalizeRankImagePairs, normalizeRankImageInterval, shouldRotateRankIm
 import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
 import { shouldRunVanillaBlog, normalizeVanillaBlogItems, pickVanillaBlogItem } from '@/lib/vanillaBlog';
 import { normalizeEsutamaNoteItems, pickEsutamaNoteItem } from '@/lib/esutamaNote';
+// ★ 第1958便: 「印を書く → 流れを始める → 始められなかったら印を戻す」の手順はここ1か所（前は12か所に同じ形を書いていた）
+import { runMarked, type RoundResult } from '@/lib/markedStart';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -74,7 +76,7 @@ export async function POST(req: Request) {
   // ★ 列が無い（追加SQL_第1305便が未適用）ときもここで返す。★ 何もしない
   if (error) return NextResponse.json({ ok: false, error: '自動の上位表示の設定を読めなかった: ' + error.message }, { status: 500 });
 
-  const results: Array<{ salonId: number; provider: string; slot: number; reason: string; started?: boolean; note?: string }> = [];
+  const results: RoundResult[] = [];
   // ★ 第1826便: エステ魂は同じ店で1回の周に1つだけ始める（同時に始めると2つ目以降は「別の手順がまだ走っていた」で止まり、更新結果が埋まる）。
   //   ★ 始められなかったものは「始めた時刻」を書かないので、5分後の周で順に始まる
   const esutamaStarted = new Set<number>();
@@ -112,29 +114,23 @@ export async function POST(req: Request) {
     // ★ 始める前に「始めた時刻」を書く（同じ枠を立て続けに始めない）。★ 書けなければ始めない（二重に押しに行かない側）
     // ★ 第1922便: 時刻指定は、どの回を押しに行くか（bump_times_done_at）も一緒に書く＝同じ回を2回押さない・近い時刻も1つずつ
     const dueAt = setting.times ? nextDueBumpTime(now, setting.times, r.bump_times_done_at ?? null) : null;
-    const { error: aErr } = await svc.from('salon_import_sources')
-      .update(dueAt ? { bump_auto_at: now.toISOString(), bump_times_done_at: dueAt } : { bump_auto_at: now.toISOString() })
-      .eq('salon_id', r.salon_id).eq('provider', r.provider).eq('slot', slot);
-    if (aErr) { results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'mark_failed', note: aErr.message }); continue; }
-
-    try {
-      const f = await startRelayFlow({
+    results.push(await runMarked({
+      tag: 'ekichika-bump', base: { salonId: r.salon_id, provider: r.provider, slot }, undoOn: 'busy',
+      mark: async () => await svc.from('salon_import_sources')
+        .update(dueAt ? { bump_auto_at: now.toISOString(), bump_times_done_at: dueAt } : { bump_auto_at: now.toISOString() })
+        .eq('salon_id', r.salon_id).eq('provider', r.provider).eq('slot', slot),
+      // ★ 第1926便（2026-11-11・03:36 の回が抜けた）: 同じ枠で別の流れ（即ヒメなど）が走っていて始められなかったときは、
+      //   時刻指定の「済み」と始めた時刻を元に戻す＝5分後の見回りで同じ回をやり直す（時刻を30分過ぎるまで）。間隔で押す設定のときは戻さない
+      undo: async () => { if (dueAt) await undoTimesMark(r, slot); },
+      afterStart: () => { if (r.provider === 'esutama') esutamaStarted.add(Number(r.salon_id)); },
+      start: () => startRelayFlow({
         salonId: r.salon_id, provider: r.provider, slot,
         intent: 'bump_auto', actor: 'cron:ekichika-bump',
         bump: { setting },
         // ★ 第1929便: 時刻指定の回は、同じ枠で別の流れが走っていたら順番待ち（終わりしだい始まる・15分まで）
         ...(dueAt ? { whenBusy: 'wait' as const } : {}),
-      });
-      if (r.provider === 'esutama') esutamaStarted.add(Number(r.salon_id));
-      // ★ 第1926便（2026-11-11・03:36 の回が抜けた）: 同じ枠で別の流れ（即ヒメなど）が走っていて始められなかったときは、
-      //   時刻指定の「済み」と始めた時刻を元に戻す＝5分後の見回りで同じ回をやり直す（時刻を30分過ぎるまで）
-      if (!f.ok && f.reason === 'busy' && dueAt) await undoTimesMark(r, slot);
-      results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'ok', started: f.ok, note: f.note });
-    } catch (e) {
-      console.error('[ekichika-bump] 流れを始められなかった', r.salon_id, slot, e instanceof Error ? e.message : 'unknown');
-      if (dueAt) await undoTimesMark(r, slot);
-      results.push({ salonId: r.salon_id, provider: r.provider, slot, reason: 'start_failed' });
-    }
+      }),
+    }));
   }
 
   // ★★ 第1930便: 集客ワンクリックアピールの行ごとの自動。★ 同じ店で押す時刻が来た行をまとめて、1つの流れで順に押す
@@ -162,11 +158,6 @@ export async function POST(req: Request) {
       if (!apply) { results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'ok', note: label }); continue; }
       if (esutamaStarted.has(sid)) { results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'busy_this_round', note: label }); continue; }
       // ★ 始める前に印を書く（同じ回を2回押さない）。★ 始められなかったら元に戻す（次の周でやり直す）
-      for (const d of due) {
-        await svc.from('conecf_esutama_appeal_rows')
-          .update(d.dueAt ? { auto_at: now.toISOString(), times_done_at: d.dueAt } : { auto_at: now.toISOString() })
-          .eq('salon_id', sid).eq('row_key', d.x.row_key);
-      }
       const undo = async () => {
         for (const d of due) {
           await svc.from('conecf_esutama_appeal_rows')
@@ -174,19 +165,25 @@ export async function POST(req: Request) {
             .eq('salon_id', sid).eq('row_key', d.x.row_key);
         }
       };
-      try {
-        const f = await startRelayFlow({
+      results.push(await runMarked({
+        tag: 'esutama-appeal', base: { salonId: sid, provider: 'esutama:appeal', slot: 1 }, undoOn: 'busy',
+        mark: async () => {
+          for (const d of due) {
+            await svc.from('conecf_esutama_appeal_rows')
+              .update(d.dueAt ? { auto_at: now.toISOString(), times_done_at: d.dueAt } : { auto_at: now.toISOString() })
+              .eq('salon_id', sid).eq('row_key', d.x.row_key);
+          }
+          return { error: null };
+        },
+        undo,
+        afterStart: (f) => { if (f.ok) esutamaStarted.add(sid); },
+        note: (f) => label + '／' + f.note,
+        failNote: label,
+        start: () => startRelayFlow({
           salonId: sid, provider: 'esutama', slot: 1, intent: 'bump_auto', actor: 'cron:esutama-appeal',
           esutamaAppeal: { rows: due.map((d) => String(d.x.row_key)) },
-        });
-        if (f.ok) esutamaStarted.add(sid);
-        else if (f.reason === 'busy') await undo();
-        results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'ok', started: f.ok, note: label + '／' + f.note });
-      } catch (e) {
-        console.error('[ekichika-bump] 集客アピール（行ごと）を始められなかった', sid, e instanceof Error ? e.message : 'unknown');
-        await undo();
-        results.push({ salonId: sid, provider: 'esutama:appeal', slot: 1, reason: 'start_failed', note: label });
-      }
+        }),
+      }));
     }
   }
 
@@ -213,26 +210,19 @@ export async function POST(req: Request) {
       const base = { salonId: Number(o.salon_id), provider: 'esutama:' + key, slot: 1 };
       if (!judge.press || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
       if (esutamaStarted.has(Number(o.salon_id))) { results.push({ ...base, reason: 'next_round' }); continue; }
-      // ★ 始める前に「読みに行った時刻」を書く（同じ行を立て続けに始めない）。★ 書けなければ始めない
-      const { error: mErr } = await svc.from('conecf_esutama_options')
-        .update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('option_key', key);
-      if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
-      try {
-        const f = await startRelayFlow({
+      // ★ 始める前に「読みに行った時刻」を書く（同じ行を立て続けに始めない）。
+      // ★ 第1954便: 同じ店のエステ魂で別の流れとぶつかって始められなかったときは戻す（戻さないと、時刻で押す種類は約30分後になる）
+      results.push(await runMarked({
+        tag: 'esutama-option', base, undoOn: 'busy',
+        mark: async () => await svc.from('conecf_esutama_options').update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('option_key', key),
+        undo: async () => { await svc.from('conecf_esutama_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('option_key', key); },
+        afterStart: () => { esutamaStarted.add(Number(o.salon_id)); },
+        start: () => startRelayFlow({
           salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
           intent: 'bump_auto', actor: 'cron:esutama-option',
           esutamaOpt: { key },
-        });
-        esutamaStarted.add(Number(o.salon_id));
-        // ★ 第1954便: 同じ店のエステ魂で別の流れが走っていて始められなかったときは、印（読みに行った時刻）を戻す＝5分後の周でまた試す。
-        //   ★ 戻さないと、時刻で押す種類は次に試すのが約30分後になる（リアルタイム集客は第1816便で直してあった）
-        if (!f.ok && f.reason === 'busy') await svc.from('conecf_esutama_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('option_key', key);
-        results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-      } catch (e) {
-        console.error('[esutama-option] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
-        await svc.from('conecf_esutama_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('option_key', key);
-        results.push({ ...base, reason: 'start_failed' });
-      }
+        }),
+      }));
     }
   }
 
@@ -254,26 +244,19 @@ export async function POST(req: Request) {
       });
       if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
       if (esutamaStarted.has(Number(o.salon_id))) { results.push({ ...base, reason: 'next_round' }); continue; }
-      // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない＝二重に投稿しない）。★ 書けなければ始めない
-      const { error: mErr } = await svc.from('conecf_esutama_posts')
-        .update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('post_key', key);
-      if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
-      try {
-        const f = await startRelayFlow({
+      // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない＝二重に投稿しない）。
+      // ★ 第1816便: 始められなかったときは戻す（戻さないと次に試すのが約1時間後。11/9 12:04 に集客アピールとぶつかって1回抜けた）
+      results.push(await runMarked({
+        tag: 'esutama-post', base, undoOn: 'any',
+        mark: async () => await svc.from('conecf_esutama_posts').update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id).eq('post_key', key),
+        undo: async () => { await svc.from('conecf_esutama_posts').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('post_key', key); },
+        afterStart: () => { esutamaStarted.add(Number(o.salon_id)); },
+        start: () => startRelayFlow({
           salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
           intent: 'bump_auto', actor: 'cron:esutama-post',
           esutamaPost: { key, title, body: bodyText, images: isDailyPostKey(key) ? [] : pickEsutamaPostImages(key, o.images, o.next_image) },
-        });
-        // ★ 第1816便: 始められなかった（同じ店のエステ魂で別の流れが走っていた等）ときは「始めた時刻」を戻す。
-        //   ★ 戻さないと、次に試すのが約1時間後になる（11/9 12:04 に集客アピールとぶつかって1回抜けた）。戻せば5分後の周でまた試す
-        esutamaStarted.add(Number(o.salon_id));
-        if (!f.ok) await svc.from('conecf_esutama_posts').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('post_key', key);
-        results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-      } catch (e) {
-        console.error('[esutama-post] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
-        await svc.from('conecf_esutama_posts').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('post_key', key);
-        results.push({ ...base, reason: 'start_failed' });
-      }
+        }),
+      }));
     }
   }
 
@@ -295,24 +278,18 @@ export async function POST(req: Request) {
         });
         if (!judge.post || !pick || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
         if (esutamaStarted.has(Number(o.salon_id))) { results.push({ ...base, reason: 'next_round' }); continue; }
-        // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない）。★ 書けなければ始めない
-        const { error: mErr } = await svc.from('conecf_esutama_notes').update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id);
-        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({
+        // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない）。始められなかったら戻す（5分後の周でまた試す）
+        results.push(await runMarked({
+          tag: 'esutama-note', base, undoOn: 'any',
+          mark: async () => await svc.from('conecf_esutama_notes').update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id),
+          undo: async () => { await svc.from('conecf_esutama_notes').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id); },
+          afterStart: () => { esutamaStarted.add(Number(o.salon_id)); },
+          start: () => startRelayFlow({
             salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
             intent: 'diary_auto', actor: 'cron:esutama-note',
             esutamaNote: { index: pick.index, nextIndex: pick.nextIndex, therapistId: pick.item.therapistId as number, title: pick.item.title, body: pick.item.body, categoryId: pick.item.categoryId, images: pick.item.images },
-          });
-          esutamaStarted.add(Number(o.salon_id));
-          // ★ 始められなかった（同じ店のエステ魂で別の流れが走っていた等）ときは「始めた時刻」を戻す（5分後の周でまた試す）
-          if (!f.ok) await svc.from('conecf_esutama_notes').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[esutama-note] 流れを始められなかった', o.salon_id, e instanceof Error ? e.message : 'unknown');
-          await svc.from('conecf_esutama_notes').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+          }),
+        }));
       }
     }
   }
@@ -335,22 +312,16 @@ export async function POST(req: Request) {
         if (movieRowProblem(row)) { results.push({ ...base, reason: 'row_problem' }); continue; }
         const { data: video } = await svc.from('conecf_videos').select('path, content_type').eq('id', row.videoId).eq('salon_id', sid).maybeSingle();
         if (!video || !isConecfVideoPath(String(video.path))) { results.push({ ...base, reason: 'no_video' }); continue; }
-        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に送らない）。★ 書けなければ始めない
-        const { error: mErr } = await svc.from('conecf_ekichika_movies').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot);
-        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({
+        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に送らない）。始められなかったら戻す
+        results.push(await runMarked({
+          tag: 'ekichika-movie', base, undoOn: 'any',
+          mark: async () => await svc.from('conecf_ekichika_movies').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot),
+          undo: async () => { await svc.from('conecf_ekichika_movies').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot); },
+          start: () => startRelayFlow({
             salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:ekichika-movie',
             ekichikaMovie: { index: judge.index, girlName: row.girlName, title: row.title, body: row.body, deleteSame: row.deleteSame, videoPath: String(video.path), videoType: String(video.content_type ?? 'video/mp4') },
-          });
-          // ★ 始められなかった（同じ枠で別の流れが走っていた等）ときは印を戻す（5分後の周でまた試す）
-          if (!f.ok) await svc.from('conecf_ekichika_movies').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[ekichika-movie] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
-          await svc.from('conecf_ekichika_movies').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+          }),
+        }));
       }
     }
   }
@@ -372,22 +343,16 @@ export async function POST(req: Request) {
         if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
         const index = Math.max(0, Number(o.next_index ?? 0)) % pairs.length;
         const pair = pairs[index];
-        // ★ 始める前に「受け持った時刻」を書く（同じ回を二重に始めない）。★ 書けなければ始めない
-        const { error: gErr } = await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot);
-        if (gErr) { results.push({ ...base, reason: 'mark_failed', note: gErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({
+        // ★ 始める前に「受け持った時刻」を書く（同じ回を二重に始めない）。始められなかったら戻す
+        results.push(await runMarked({
+          tag: 'ekichika-rankimg', base, undoOn: 'any',
+          mark: async () => await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot),
+          undo: async () => { await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: prevDue }).eq('salon_id', sid).eq('slot', slot); },
+          start: () => startRelayFlow({
             salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:ekichika-rankimg',
             ekichikaRankImage: { index, nextIndex: (index + 1) % pairs.length, main: pair.main, ranking: pair.ranking },
-          });
-          // ★ 始められなかった（同じ枠で別の流れが走っていた等）ときは印を戻す（5分後の周でまた試す）
-          if (!f.ok) await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: prevDue }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[ekichika-rankimg] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
-          await svc.from('conecf_ekichika_rankimgs').update({ last_due_at: prevDue }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+          }),
+        }));
       }
     }
   }
@@ -406,18 +371,13 @@ export async function POST(req: Request) {
         const prev = (o.movie_last_due_at as string | null) ?? null;
         const judge = shouldPostCocoaMovie({ now, schedule: normalizeCocoaMovieSchedule(o.movie_schedule), lastDueAt: prev });
         if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
-        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に出さない）。★ 書けなければ始めない
-        const { error: cErr } = await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot);
-        if (cErr) { results.push({ ...base, reason: 'mark_failed', note: cErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({ salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:cocoa-movie', cocoaMovie: {} });
-          if (!f.ok) await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: prev }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[cocoa-movie] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
-          await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: prev }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に出さない）。始められなかったら戻す
+        results.push(await runMarked({
+          tag: 'cocoa-movie', base, undoOn: 'any',
+          mark: async () => await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot),
+          undo: async () => { await svc.from('conecf_cocoa_accounts').update({ movie_last_due_at: prev }).eq('salon_id', sid).eq('slot', slot); },
+          start: () => startRelayFlow({ salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:cocoa-movie', cocoaMovie: {} }),
+        }));
       }
     }
   }
@@ -438,22 +398,16 @@ export async function POST(req: Request) {
         if (!judge.post || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
         const row = schedule[judge.index];
         if (magazineRowProblem(row)) { results.push({ ...base, reason: 'row_problem' }); continue; }
-        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に送らない）。★ 書けなければ始めない
-        const { error: gErr } = await svc.from('conecf_ekichika_magazines').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot);
-        if (gErr) { results.push({ ...base, reason: 'mark_failed', note: gErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({
+        // ★ 始める前に「受け持った予定時刻」を書く（同じ時刻に二重に送らない）。始められなかったら戻す（5分後の周でまた試す）
+        results.push(await runMarked({
+          tag: 'ekichika-magazine', base, undoOn: 'any',
+          mark: async () => await svc.from('conecf_ekichika_magazines').update({ last_due_at: judge.dueAt }).eq('salon_id', sid).eq('slot', slot),
+          undo: async () => { await svc.from('conecf_ekichika_magazines').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot); },
+          start: () => startRelayFlow({
             salonId: sid, provider: 'ekichika', slot, intent: 'bump_auto', actor: 'cron:ekichika-magazine',
             ekichikaMagazine: { index: judge.index, title: row.title, body: row.body },
-          });
-          // ★ 始められなかった（同じ枠で別の流れが走っていた等）ときは印を戻す（5分後の周でまた試す）
-          if (!f.ok) await svc.from('conecf_ekichika_magazines').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[ekichika-magazine] 流れを始められなかった', sid, slot, e instanceof Error ? e.message : 'unknown');
-          await svc.from('conecf_ekichika_magazines').update({ last_due_at: (o.last_due_at as string | null) ?? null }).eq('salon_id', sid).eq('slot', slot);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+          }),
+        }));
       }
     }
   }
@@ -476,21 +430,15 @@ export async function POST(req: Request) {
         if (!judge.run || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
         const pick = pickVanillaBlogItem(normalizeVanillaBlogItems(o.items), Number(o.next_item ?? 0));
         if (!pick) { results.push({ ...base, reason: 'no_items' }); continue; }
-        const { error: mErr } = await svc.from('conecf_vanilla_blog').update({ read_at: now.toISOString() }).eq('salon_id', sid);
-        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({
+        results.push(await runMarked({
+          tag: 'vanilla-blog', base, undoOn: 'any',
+          mark: async () => await svc.from('conecf_vanilla_blog').update({ read_at: now.toISOString() }).eq('salon_id', sid),
+          undo: async () => { await svc.from('conecf_vanilla_blog').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid); },
+          start: () => startRelayFlow({
             salonId: sid, provider: 'vanilla', slot: 1, intent: 'bump_auto', actor: 'cron:vanilla-blog',
             vanillaBlog: { item: pick.item, index: pick.index, deleteOld: o.delete_old !== false, prevId: (o.last_blog_id as string | null) ?? null },
-          });
-          // ★ 始められなかった（別の流れが走っていた等）ときは「始めた時刻」を戻す（5分後の周でまた試す）
-          if (!f.ok) await svc.from('conecf_vanilla_blog').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[vanilla-blog] 流れを始められなかった', sid, e instanceof Error ? e.message : 'unknown');
-          await svc.from('conecf_vanilla_blog').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+          }),
+        }));
       }
     }
   }
@@ -520,22 +468,16 @@ export async function POST(req: Request) {
         if (key === 'news' && (!item || newsItemProblem(item))) { results.push({ ...base, reason: 'no_items' }); continue; }
         if (key === 'recommend' && recs.length === 0) { results.push({ ...base, reason: 'no_items' }); continue; }
         if (zenkokuStarted.has(sid)) { results.push({ ...base, reason: 'next_round' }); continue; }
-        const { error: mErr } = await svc.from('conecf_zenkoku_options').update({ read_at: now.toISOString() }).eq('salon_id', sid).eq('option_key', key);
-        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({
+        results.push(await runMarked({
+          tag: 'zenkoku-option', base, undoOn: 'any',
+          mark: async () => await svc.from('conecf_zenkoku_options').update({ read_at: now.toISOString() }).eq('salon_id', sid).eq('option_key', key),
+          undo: async () => { await svc.from('conecf_zenkoku_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid).eq('option_key', key); },
+          afterStart: () => { zenkokuStarted.add(sid); },
+          start: () => startRelayFlow({
             salonId: sid, provider: 'zenkoku', slot: 1, intent: 'bump_auto', actor: 'cron:zenkoku-option',
             zenkokuOpt: key === 'news' ? { key, item } : { key, items: recs, nextIndex: Number(o.next_item ?? 0) },
-          });
-          zenkokuStarted.add(sid);
-          // ★ 始められなかった（別の流れが走っていた等）ときは「始めた時刻」を戻す（5分後の周でまた試す）
-          if (!f.ok) await svc.from('conecf_zenkoku_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid).eq('option_key', key);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[zenkoku-option] 流れを始められなかった', sid, key, e instanceof Error ? e.message : 'unknown');
-          await svc.from('conecf_zenkoku_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid).eq('option_key', key);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+          }),
+        }));
       }
     }
   }
@@ -556,19 +498,13 @@ export async function POST(req: Request) {
         const last = z.bump_auto_at ? Date.parse(String(z.bump_auto_at)) : 0;
         if (now.getTime() - last < 14 * 60000) { results.push({ ...base, reason: 'interval' }); continue; }
         if (!apply) { results.push({ ...base, reason: 'ok' }); continue; }
-        const { error: mErr } = await svc.from('salon_import_sources').update({ bump_auto_at: now.toISOString() })
-          .eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot);
-        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
-        try {
-          const f = await startRelayFlow({ salonId: Number(z.salon_id), provider: 'zenkoku', slot, intent: 'bump_auto', actor: 'cron:zenkoku-wait', zenkokuWait: { dateISO } });
-          // ★ 第1954便: 別の流れが走っていて始められなかったときは印を戻す（15分待たず、5分後の周でまた試す）
-          if (!f.ok && f.reason === 'busy') await svc.from('salon_import_sources').update({ bump_auto_at: (z.bump_auto_at as string | null) ?? null }).eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot);
-          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
-        } catch (e) {
-          console.error('[zenkoku-wait] 流れを始められなかった', z.salon_id, e instanceof Error ? e.message : 'unknown');
-          await svc.from('salon_import_sources').update({ bump_auto_at: (z.bump_auto_at as string | null) ?? null }).eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot);
-          results.push({ ...base, reason: 'start_failed' });
-        }
+        // ★ 第1954便: 別の流れとぶつかって始められなかったときは印を戻す（15分待たず、5分後の周でまた試す）
+        results.push(await runMarked({
+          tag: 'zenkoku-wait', base, undoOn: 'busy',
+          mark: async () => await svc.from('salon_import_sources').update({ bump_auto_at: now.toISOString() }).eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot),
+          undo: async () => { await svc.from('salon_import_sources').update({ bump_auto_at: (z.bump_auto_at as string | null) ?? null }).eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot); },
+          start: () => startRelayFlow({ salonId: Number(z.salon_id), provider: 'zenkoku', slot, intent: 'bump_auto', actor: 'cron:zenkoku-wait', zenkokuWait: { dateISO } }),
+        }));
       }
     }
   }

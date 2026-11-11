@@ -32,6 +32,7 @@
     "check:mediamatrix": "tsc src/lib/mediaMatrix.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediamatrix-selftest.js",
     "check:mediaoverview": "tsc src/lib/mediaOverview.ts src/lib/mediaSites.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediaoverview-selftest.js",
     "check:all": "node scripts/check-all.mjs",
+    "check:markedstart": "tsc src/lib/markedStart.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/markedstart-selftest.js",
     "check:mediaconsent": "tsc src/lib/mediaConsent.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediaconsent-selftest.js",
     "check:mediasites": "tsc src/lib/mediaSites.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediasites-selftest.js",
     "check:medialogview": "tsc src/lib/mediaLogView.ts src/lib/mediaSites.ts src/lib/mediaAudit.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/medialogview-selftest.js",
