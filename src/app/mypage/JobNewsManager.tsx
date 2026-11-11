@@ -61,7 +61,18 @@ function formatPublishedAt(iso: string): string {
 
 // ★ 第1963便: operator＝運営が店舗様の代わりに操作中（コネックエフの「運営として操作中」）。
 //   そのときは fukuX への同時投稿を出さない（ログインしている運営の fukuX アカウントに出てしまうため）。
-export function JobNewsManager({ salonId, operator = false }: { salonId: number; operator?: boolean }) {
+// ★ 第1964便（カッキーさん）: tone='conecf'＝コネックエフの中で使うときは、緑ではなくコネックエフの紺（indigo）にする。
+//   クラス名は緑（emerald）のまま、この部品の中だけ色の変数を紺に差し替える（Tailwind v4 は色を --color-emerald-* の変数で引く）。
+//   じかに色を書いている所（帯・ボタン）は PAL から引く。マイページ（tone='work'）は今までどおり緑。
+const TONE_VARS_CONECF = {
+  '--color-emerald-50': '#eef2ff', '--color-emerald-100': '#e0e7ff', '--color-emerald-200': '#c7d2fe', '--color-emerald-300': '#a5b4fc',
+  '--color-emerald-500': '#6366f1', '--color-emerald-600': '#4f46e5', '--color-emerald-700': '#4338ca',
+} as React.CSSProperties;
+const PAL_WORK = { btn: 'linear-gradient(95deg,#10B981,#84CC16)', bar: 'linear-gradient(to bottom,#10B981,#84CC16)', border: '#6EE7B7', text: '#059669', soft: '#34D399' } as const;
+const PAL_CONECF = { btn: 'linear-gradient(95deg,#4338ca,#6366f1)', bar: 'linear-gradient(to bottom,#4338ca,#6366f1)', border: '#a5b4fc', text: '#4f46e5', soft: '#818cf8' } as const;
+
+export function JobNewsManager({ salonId, operator = false, tone = 'work' }: { salonId: number; operator?: boolean; tone?: 'work' | 'conecf' }) {
+  const PAL = tone === 'conecf' ? PAL_CONECF : PAL_WORK;
   const supabase = createClient();
 
   const [items, setItems] = useState<WorkNews[]>([]);
@@ -459,7 +470,7 @@ export function JobNewsManager({ salonId, operator = false }: { salonId: number;
   const textareaClass = `${inputClass} resize-none`;
   const labelClass = 'text-[11px] font-bold text-slate-400 block mb-1';
   const saveBtn = 'px-5 py-2 rounded-none text-white font-bold text-xs shadow-sm disabled:opacity-50 hover:opacity-90 transition-opacity';
-  const saveBtnStyle = { background: 'linear-gradient(95deg,#10B981,#84CC16)' } as const;
+  const saveBtnStyle = { background: PAL.btn } as const;
 
   const imageBox = (url: string | null, onClear: () => void, uploading: boolean, onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void) => (
     url ? (
@@ -496,7 +507,7 @@ export function JobNewsManager({ salonId, operator = false }: { salonId: number;
     //   ★ 上＝これから書く場所／下＝書いたものを直す場所。★ 用事が違うので枠も分ける。
     //   ★ 結果の知らせ（msg）は2枚の【外の上】に置く。★ 追加も保存も削除もここに出るため、
     //     どちらかの中に入れると、片方の操作のときに画面の外で鳴ることになる。
-    <div className="space-y-4">
+    <div className="space-y-4" style={tone === 'conecf' ? TONE_VARS_CONECF : undefined}>
       {msg && (
         <p className={`text-xs rounded-none px-3 py-2 border ${
           msg.kind === 'ok' ? 'text-emerald-700 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100'
@@ -517,9 +528,9 @@ export function JobNewsManager({ salonId, operator = false }: { salonId: number;
           aria-expanded={newOpen}
           className="w-full flex items-center gap-2 p-5 text-left hover:bg-slate-50/60 transition-colors"
         >
-          <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+          <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: PAL.bar }} />
           <h2 className="text-sm font-black text-slate-700">新着情報を新規追加</h2>
-          <span className="ml-auto px-3 py-1.5 rounded-none border text-xs font-bold flex-shrink-0" style={{ borderColor: '#6EE7B7', color: '#059669' }}>
+          <span className="ml-auto px-3 py-1.5 rounded-none border text-xs font-bold flex-shrink-0" style={{ borderColor: PAL.border, color: PAL.text }}>
             {newOpen ? '閉じる' : '＋ 新しく書く'}
           </span>
         </button>
@@ -594,7 +605,7 @@ export function JobNewsManager({ salonId, operator = false }: { salonId: number;
           ★★ 見出しは細いカード1枚で残す。★ フクエス側の「自動でお知らせを回す」と同じ位置づけ。 */}
       <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-1.5">
         <div className="flex items-center gap-2">
-          <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: 'linear-gradient(to bottom,#10B981,#84CC16)' }} />
+          <span className="w-1 h-5 rounded-none flex-shrink-0" style={{ background: PAL.bar }} />
           <h2 className="text-sm font-black text-slate-700">投稿した新着情報{items.length > 0 ? `（${items.length}件）` : ''}</h2>
         </div>
         <p className="text-[11px] text-slate-400 leading-relaxed">
@@ -648,7 +659,7 @@ export function JobNewsManager({ salonId, operator = false }: { salonId: number;
                       <span className="hidden sm:inline text-[10px] text-slate-400">{formatPublishedAt(n.published_at)}</span>
                       <svg
                         className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-                        style={{ color: '#34D399' }}
+                        style={{ color: PAL.soft }}
                         fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                         aria-hidden
                       >
@@ -690,7 +701,7 @@ export function JobNewsManager({ salonId, operator = false }: { salonId: number;
                           onClick={() => handleTogglePublish(n.id)}
                           disabled={togglingId === n.id}
                           className="px-3 py-1.5 rounded-none border text-xs font-bold transition-colors disabled:opacity-50 hover:bg-emerald-50"
-                          style={{ borderColor: '#6EE7B7', color: '#059669' }}
+                          style={{ borderColor: PAL.border, color: PAL.text }}
                         >
                           {n.is_published ? '非公開にする' : '公開にする'}
                         </button>
@@ -768,7 +779,7 @@ export function JobNewsManager({ salonId, operator = false }: { salonId: number;
                   type="button"
                   onClick={() => setShowAll((v) => !v)}
                   className="text-xs font-bold px-4 py-2 rounded-none border bg-white transition-colors"
-                  style={{ borderColor: '#6EE7B7', color: '#059669' }}
+                  style={{ borderColor: PAL.border, color: PAL.text }}
                 >
                   {showAll ? '折りたたむ' : `もっと見る（残り${items.length - INITIAL_VISIBLE}件）`}
                 </button>

@@ -35,7 +35,7 @@ function Body({ salonId, enabled, operator }: { salonId: number; enabled: boolea
         フクエスワークの求人ページに出る「新着情報」です。自動投稿にすると、1日1回・順番に新着の先頭へ出します。
       </div>
       {enabled
-        ? <JobNewsManager salonId={salonId} operator={operator} />
+        ? <JobNewsManager salonId={salonId} operator={operator} tone="conecf" />
         : (
           <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] text-amber-900 leading-relaxed">
             新着情報を書くには、ホームで「コネックエフに切り替える」を押してください。
