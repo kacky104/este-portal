@@ -205,7 +205,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 export default function ConecfNowPage() {
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="now" title="今すぐ・即ヒメ・即セラ自動設定" toast={toast}>
+    <ConecfShell current="now" title="今すぐ／即ヒメ／即セラ設定" toast={toast}>
       {(a) => <Body enabled={!!a.enabledAt} onToast={showToast} />}
     </ConecfShell>
   );

@@ -26,16 +26,16 @@ export default function ConecfAutoHubPage() {
       site: '駅ちか',
       items: [
         { href: '/news', label: '新着情報（ニュース）', note: 'カテゴリーごとに1日1回、順番に投稿', on: true },
-        { href: '/ekichika-rankimgs', label: '店舗メイン・ランキング画像', note: '決めた間隔で、写る女の子を入れ替え', on: st?.ekiRankImgNav ?? false },
-        { href: '/ekichika-movies', label: '動画投稿', note: '決めた時刻に、女の子の動画を投稿', on: st?.ekiMovieNav ?? false },
+        { href: '/ekichika-rankimgs', label: '店舗メイン・ランキング画像', note: '決めた間隔で、写るセラピストを入れ替え', on: st?.ekiRankImgNav ?? false },
+        { href: '/ekichika-movies', label: '動画投稿', note: '決めた時刻に、セラピストの動画を投稿', on: st?.ekiMovieNav ?? false },
         { href: '/ekichika-magazines', label: 'プラチナムマガジン', note: '決めた時刻に、マイショップ会員へマガジンを配信', on: st?.ekiMagazineNav ?? false },
-        { href: '/cocoa', label: 'ココア店長ブログ', note: '求人サイト「ココア」の店長ブログを、決めた時刻に投稿', on: st?.cocoaNav ?? false },
+        { href: '/cocoa', label: 'ココア店長ブログ', note: '求人サイト「ココア」の店長ブログ（動画の記事も）を、決めた時刻に投稿', on: st?.cocoaNav ?? false },
       ],
     },
     {
       site: 'エステ魂',
       items: [
-        { href: '/esutama-options', label: 'エステ魂オプション', note: '集客ブースト・セラピストアピール・求人アピール・本日体験入店 など', on: st?.esutamaOptNav ?? false },
+        { href: '/esutama-options', label: 'エステ魂オプション', note: '集客ブースト・セラピストアピール・求人アピール・本日体験入店・リアルタイム集客・メールマガジン・写メNote など', on: st?.esutamaOptNav ?? false },
       ],
     },
     {

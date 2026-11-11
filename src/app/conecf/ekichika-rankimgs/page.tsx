@@ -49,7 +49,7 @@ function SettingCard({ s, girls, onToast, reload, open, onToggle }: { s: ConecfE
     if (r.ok) reload();
   };
   const now = async (i: number) => {
-    if (!window.confirm('駅ちかの店舗メイン／ランキングを、この組の女の子にいま入れ替えますか？')) return;
+    if (!window.confirm('駅ちかの店舗メイン／ランキングを、この組のセラピストにいま入れ替えますか？')) return;
     setBusy(true);
     const r = await runConecfEkichikaRankImageNow({ slot: s.slot, index: i });
     setBusy(false);
@@ -111,10 +111,10 @@ export default function ConecfEkichikaRankImagesPage() {
   }, []);
   useEffect(() => { void load(); }, [load]);
   return (
-    <ConecfShell current="ekiRankImg" title="駅ちかランキング画像（店舗メイン／ランキング）" toast={toast}>
+    <ConecfShell current="ekiRankImg" title="駅ちか店舗メイン・ランキング画像" toast={toast}>
       {() => (
         <div className="space-y-4">
-          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「店舗メイン」「ランキング」の女の子を、決めた間隔で入れ替えます。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「店舗メイン」「ランキング」のセラピストを、決めた間隔で入れ替えます。</p>
           {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
           {!error && !data && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {data && data.settings.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるようになっていません。運営事務局までご連絡ください。</div>}

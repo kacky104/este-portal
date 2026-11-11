@@ -22,7 +22,7 @@ const outcomeText = (o: string | null) => {
   if (!o) return '—';
   if (o.startsWith('ok: ')) return `${o.slice(4)}さんの動画を投稿できました`;
   if (o.startsWith('ok_unverified: ')) return `${o.slice(15)}さんの動画を投稿しました（一覧での確認はまだ）`;
-  if (o === 'no_girl') return '駅ちかにその女の子がいませんでした';
+  if (o === 'no_girl') return '駅ちかにそのセラピストがいませんでした';
   if (o.startsWith('error')) return 'うまくいきませんでした（' + o.replace(/^error:\s*/, '') + '）';
   return o;
 };
@@ -105,14 +105,14 @@ function SettingCard({ s, videos, girls, onToast, reload, open, onToggle }: { s:
         {!open && <span className="truncate text-[12px] text-slate-500">{s.schedule.map((r) => movieMinLabel(r.min)).join('・') || '—'} ／ 最後：{when(s.lastAt)}・{outcomeText(s.lastOutcome)}</span>}
       </button>
       {open && (<>
-        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行の動画を投稿します（1日{EKICHIKA_MOVIE_DAILY_MAX}件まで）。「前の同じ記事を消す」で、同じ女の子・タイトルの前の記事を消してから投稿します。</p>
+        <p className="text-[13px] leading-relaxed text-slate-600">決めた時刻に、その行の動画を投稿します（1日{EKICHIKA_MOVIE_DAILY_MAX}件まで）。「前の同じ記事を消す」で、同じセラピスト・タイトルの前の記事を消してから投稿します。</p>
         <div className="text-[13px] text-slate-600">最後に送れた：<b>{when(s.lastAt)}</b> ／ 最後の結果：{outcomeText(s.lastOutcome)}</div>
         {rows.map((r, i) => (
           <div key={i} className="grid gap-2 border border-slate-200 p-3 text-[14px]">
             <div className="flex flex-wrap items-center gap-2">
               <input value={r.time} onChange={(e) => set(i, { time: e.target.value })} placeholder="12:00" className="w-20 border border-slate-300 px-2 py-1" />
               <select value={r.girlName} onChange={(e) => set(i, { girlName: e.target.value })} className="border border-slate-300 px-2 py-1">
-                <option value="">女の子を選ぶ…</option>
+                <option value="">セラピストを選ぶ…</option>
                 {[...new Set([r.girlName, ...girls].filter(Boolean))].map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
               <select value={r.videoId} onChange={(e) => set(i, { videoId: e.target.value })} className="border border-slate-300 px-2 py-1">
@@ -155,7 +155,7 @@ export default function ConecfEkichikaMoviesPage() {
     <ConecfShell current="ekiMovie" title="駅ちか動画投稿" toast={toast}>
       {() => (
         <div className="space-y-4">
-          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「動画投稿」へ、女の子の動画を決めた時刻に投稿します。1日は朝6時はじまりです。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">駅ちかの「動画投稿」へ、セラピストの動画を決めた時刻に投稿します。1日は朝6時はじまりです。</p>
           {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
           {!error && !data && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {data && data.settings.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるようになっていません。運営事務局までご連絡ください。</div>}

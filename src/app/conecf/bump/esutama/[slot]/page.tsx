@@ -69,7 +69,7 @@ export default function ConecfEsutamaBumpSlotPage() {
   const slotNo = Number(params?.slot);
   const { toast, showToast } = useToast();
   return (
-    <ConecfShell current="bump" title="エステ魂の集客アピール" toast={toast}>
+    <ConecfShell current="bump" title="エステ魂の集客ワンクリックアピール" toast={toast}>
       {(a) => rowKey ? <RowBody rowKey={rowKey} enabled={!!a.enabledAt} onToast={showToast} /> : (Number.isInteger(slotNo) && slotNo >= 1
         ? <Body slotNo={slotNo} enabled={!!a.enabledAt} onToast={showToast} />
         : <div className="bg-white border border-slate-200 p-5 text-[14px] text-slate-500">枠の指定が正しくありません。</div>)}
