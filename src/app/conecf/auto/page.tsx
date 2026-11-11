@@ -26,7 +26,7 @@ export default function ConecfAutoHubPage() {
       site: '駅ちか',
       items: [
         { href: '/news', label: '新着情報（ニュース）', note: 'カテゴリーごとに1日1回、順番に投稿', on: true },
-        { href: '/ekichika-rankimgs', label: 'ランキング画像（店舗メイン／ランキング）', note: '決めた間隔で、店舗メイン・ランキングの女の子を入れ替え', on: st?.ekiRankImgNav ?? false },
+        { href: '/ekichika-rankimgs', label: '店舗メイン・ランキング画像', note: '決めた間隔で、写る女の子を入れ替え', on: st?.ekiRankImgNav ?? false },
         { href: '/ekichika-movies', label: '動画投稿', note: '決めた時刻に、女の子の動画を投稿', on: st?.ekiMovieNav ?? false },
         { href: '/ekichika-magazines', label: 'プラチナムマガジン', note: '決めた時刻に、マイショップ会員へマガジンを配信', on: st?.ekiMagazineNav ?? false },
         { href: '/cocoa', label: 'ココア店長ブログ', note: '求人サイト「ココア」の店長ブログを、決めた時刻に投稿', on: st?.cocoaNav ?? false },
@@ -59,7 +59,7 @@ export default function ConecfAutoHubPage() {
         <div className="space-y-4 pb-32">
           {/* ★ 第1920便: 自動更新中のタイトルに光が流れる（動きを減らす設定の方には止める） */}
           <style>{`.conecf-shine{background:linear-gradient(100deg,#212121 0%,#212121 40%,#6366f1 46%,#c4b5fd 50%,#6366f1 54%,#212121 60%,#212121 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:conecf-shine 3.2s ease-in-out infinite}@keyframes conecf-shine{0%{background-position:100% 0}60%,100%{background-position:0 0}}@media (prefers-reduced-motion:reduce){.conecf-shine{animation:none;color:#212121;background:none}}`}</style>
-          <p className="text-[14px] leading-relaxed text-slate-600">各サイトの自動投稿・自動更新をまとめた画面です。項目を開いて、時刻・間隔・ON／OFF を設定します。結果は「更新結果」で確認できます。</p>
+          <p className="text-[14px] leading-relaxed text-slate-600">各サイトの自動投稿・自動更新をまとめた画面です。項目を開いて、時刻・間隔・ON／OFF を設定します。</p>
           {!st && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
           {st && shown.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使える項目がまだありません。「運営お問い合わせ」からご連絡ください。</div>}
           {shown.map((g) => (
