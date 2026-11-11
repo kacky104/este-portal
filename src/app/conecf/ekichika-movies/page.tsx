@@ -105,7 +105,7 @@ function SettingCard({ s, videos, girls, onToast, reload, open, onToggle }: { s:
     <section className={`${CARD} p-5 space-y-3`}>
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 text-left">
         <span className={`inline-block w-4 text-violet-600 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
-        <h2 className="text-[17px] font-bold text-violet-700">駅ちか（枠{s.slot}）</h2>
+        <h2 className={`text-[17px] font-bold ${s.auto ? 'conecf-glint' : 'text-violet-700'}`}>駅ちか（枠{s.slot}）</h2>
         <span className={`border px-2 py-0.5 text-[12px] font-bold ${s.auto ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{s.auto ? '自動 ON' : '自動 OFF'}</span>
         {!open && <span className="truncate text-[12px] text-slate-500">{s.schedule.map((r) => movieMinLabel(r.min)).join('・') || '—'} ／ 最後：{when(s.lastAt)}・{outcomeText(s.lastOutcome)}</span>}
       </button>

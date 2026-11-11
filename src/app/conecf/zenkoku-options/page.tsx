@@ -51,7 +51,7 @@ function AccHead({ title, open, onToggle, auto, last, children }: { title: strin
     <div className="flex flex-wrap items-center gap-3">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left">
         <span className={`inline-block w-4 text-violet-600 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
-        <h2 className="text-[17px] font-bold text-violet-700">{title}</h2>
+        <h2 className={`text-[17px] font-bold ${auto ? 'conecf-glint' : 'text-violet-700'}`}>{title}</h2>
         <span className={`border px-2 py-0.5 text-[12px] font-bold ${auto ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{auto ? '自動 ON' : '自動 OFF'}</span>
         {!open && <span className="truncate text-[12px] text-slate-500">最後：{last}</span>}
       </button>

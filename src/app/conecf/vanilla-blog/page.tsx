@@ -126,7 +126,7 @@ function Editor({ v, onToast, reload }: { v: ConecfVanillaBlog; onToast: (m: str
       )}
       <section className={`${CARD} space-y-3 p-5`}>
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-[17px] font-bold text-violet-700">投稿の時刻</h2>
+          <h2 className={`text-[17px] font-bold ${v.auto ? 'conecf-glint' : 'text-violet-700'}`}>投稿の時刻</h2>
           <span className={`border px-2 py-0.5 text-[12px] font-bold ${v.auto ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{v.auto ? '自動 ON' : '自動 OFF'}</span>
           <button type="button" disabled={busy || !v.hasLogin} onClick={now} className="ml-auto bg-violet-600 px-4 py-2 text-[14px] font-bold text-white disabled:opacity-40">今すぐ次の1本を投稿</button>
         </div>

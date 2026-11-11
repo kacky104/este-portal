@@ -258,6 +258,8 @@ export function ConecfShell({
   return (
     <MediaBrandProvider value={brand}>
     <div className="min-h-screen md:flex">
+      {/* ★ 第1939便: 自動更新中の名前のきらり（サイト自動更新一覧の中の画面）。色は --glint-base で変えられる（既定は紫） */}
+      <style>{`.conecf-glint{background:linear-gradient(100deg,var(--glint-base,#6d28d9) 0%,var(--glint-base,#6d28d9) 40%,#a78bfa 46%,#ede9fe 50%,#a78bfa 54%,var(--glint-base,#6d28d9) 60%,var(--glint-base,#6d28d9) 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:conecf-glint 3.2s ease-in-out infinite}@keyframes conecf-glint{0%{background-position:100% 0}60%,100%{background-position:0 0}}@media (prefers-reduced-motion:reduce){.conecf-glint{animation:none;color:var(--glint-base,#6d28d9);background:none}}`}</style>
       {toast && (
         <div className="fixed top-4 left-1/2 z-50 max-w-[92vw] -translate-x-1/2 rounded-xl bg-slate-900/95 px-5 py-3 text-[15px] font-bold text-white shadow-xl">
           {toast}

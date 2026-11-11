@@ -261,7 +261,7 @@ function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={onToggle} aria-expanded={open} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-left">
           <span className={`inline-block w-4 text-indigo-600 transition-transform ${open ? 'rotate-90' : ''}`}>▶</span>
-          <span className="text-[16px] font-black text-slate-800">{a.label}</span>
+          <span className={`text-[16px] font-black ${a.enabled ? 'conecf-glint [--glint-base:#1e293b]' : 'text-slate-800'}`}>{a.label}</span>
           <span className={`border px-2 py-0.5 text-[12px] font-bold ${a.enabled ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-300 bg-slate-50 text-slate-500'}`}>{a.enabled ? '自動 ON' : '自動 OFF'}</span>
           {!open && <span className="truncate text-[12px] text-slate-500">{a.effective.map((r) => cocoaMinLabel(r.min)).join('・') || '—'} ／ 最後：{last}</span>}
         </button>
