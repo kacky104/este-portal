@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
-import { EMBED_SITE_URL, EmbedFooter } from '../embedShared';
+import { EMBED_SITE_URL, EmbedFooter, EmbedEkTapScript } from '../embedShared';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { hpEkichikaShopUrl, hpEkichikaGirlUrl } from '@/app/lib/hpSite';
 
@@ -81,6 +81,7 @@ export async function DiaryEmbed({ id, max, showMore = true, ekSlot }: { id: str
 
   return (
     <div className="bg-white p-4 font-sans">
+      {ekShop && <EmbedEkTapScript />}
       <p className="text-[13px] font-bold text-slate-700 mb-3">写メ日記一覧</p>
 
       {entries.length === 0 ? (

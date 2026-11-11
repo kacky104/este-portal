@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { getHpAnalytics, type HpAnalytics, type HpTotals } from '@/app/actions/hpAnalytics';
-import { jstDayHour } from '@/lib/hpStats';
+import { jstDayHour, HP_EK_KINDS, HP_EK_LABEL } from '@/lib/hpStats';
 import { FUKUES_ORIGIN } from '@/lib/crmHost';
 
 // ★ 第1792便（カッキーさん・2026-11-08・オイルクエスト様のご要望）: 公式HP（フクエスサイト）のアクセス解析の画面。
@@ -151,7 +151,7 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
           )}
           {/* ★ 第1889便: 数のタイル — スマホは TOP だけ／PC は今までどおり見方以外のタブで */}
           {tab !== 'help' && (
-            <div className={tab === 'top' ? '' : 'hidden sm:block'}><Tiles cur={d.totals} prev={d.prev} usage={d.usage} /></div>
+            <div className={tab === 'top' ? '' : 'hidden sm:block'}><Tiles cur={d.totals} prev={d.prev} usage={d.usage} ekBy={d.ekBy} /></div>
           )}
 
           {/* ひとこと（サマリーだけ）。★ 第1889便: スマホはグラフの下・PC はグラフの上（今までどおり） */}
@@ -232,7 +232,7 @@ const UNUSED_NOTE: Record<string, [string, string]> = {
   'お問い合わせ': ['フォームOFF', '公式HP管理の「お問い合わせ」で ON にすると使えます'],
 };
 
-function Tiles({ cur, prev, usage }: { cur: HpTotals; prev: HpTotals; usage?: HpAnalytics['usage'] }) {
+function Tiles({ cur, prev, usage, ekBy }: { cur: HpTotals; prev: HpTotals; usage?: HpAnalytics['usage']; ekBy?: HpAnalytics['ekBy'] }) {
   const unused = (l: string) => !!usage && ((l === 'LINEタップ' && !usage.line) || (l === 'ネット予約タップ' && !usage.book) || (l === 'お問い合わせ' && !usage.contact));
   const items: Array<[string, number, number, string]> = [
     ['人数', cur.users, prev.users, '見に来た人（端末）の数。1日ごとに数えた合計'],
@@ -245,6 +245,9 @@ function Tiles({ cur, prev, usage }: { cur: HpTotals; prev: HpTotals; usage?: Hp
     ['ネット予約タップ', cur.book ?? 0, prev.book ?? 0, 'ネット予約のボタンが押された数'],
     ['お問い合わせ', cur.contact, prev.contact, 'お問い合わせフォームが送られた数'],
   ];
+  // ★ 第1940便: 駅ちかへのタップ（公式HP管理でリンク先を駅ちかにしている店、または数がある店だけ）。電話・LINE などの「成果」とは別に数える
+  const showEk = !!usage?.ek || (cur.ek ?? 0) + (prev.ek ?? 0) > 0;
+  if (showEk) items.push(['駅ちかへ', cur.ek ?? 0, prev.ek ?? 0, '駅ちかへのリンク（写メ日記・出勤・口コミ・セラピスト）が押された数']);
   return (
     <div className="grid grid-cols-2 gap-2 bg-[#ececec] p-2 sm:grid-cols-[repeat(auto-fit,minmax(118px,1fr))] sm:gap-3 sm:p-3">
       {items.map(([l, c, p, t]) => (
@@ -259,6 +262,9 @@ function Tiles({ cur, prev, usage }: { cur: HpTotals; prev: HpTotals; usage?: Hp
             <p className="whitespace-nowrap text-[13px] text-slate-600">{l}</p>
             <p className="mt-0.5 text-[26px] leading-tight sm:text-[30px] tabular-nums text-slate-800">{nf(c)}</p>
             <Delta cur={c} prev={p} />
+            {l === '駅ちかへ' && ekBy && (
+              <p className="mt-0.5 text-[11px] leading-tight text-slate-400">{HP_EK_KINDS.filter((k) => ekBy[k] > 0).map((k) => `${HP_EK_LABEL[k]}${ekBy[k]}`).join('・') || '—'}</p>
+            )}
           </div>
         )
       ))}
@@ -381,13 +387,15 @@ function Sources({ d }: { d: HpAnalytics }) {
 }
 
 function Pages({ d }: { d: HpAnalytics }) {
+  const showEk = d.usage.ek || d.pages.some((p) => (p.ek ?? 0) > 0);   // ★ 第1940便: 駅ちかへのタップの列
   return (
     <div className="space-y-2 border border-slate-200 bg-white p-3 sm:p-4">
-      <p className="text-[13px] text-slate-600">ページごとの見られた数と、そのページで押された電話・LINE など（セラピストのページは「セラピスト」）。</p>
+      <p className="text-[13px] text-slate-600">ページごとの見られた数と、そのページで押された電話・LINE など（セラピストのページは「セラピスト」）。{showEk && '「駅ちかへ」は、そのページで駅ちかへのリンクが押された数です（トップの写メ日記・口コミの欄の中で押した分も入ります）。'}</p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse">
           <thead><tr className="border-b border-slate-200 bg-slate-50">
             <th className={th}>ページ</th><th className={`${th} text-right`}>閲覧</th><th className={`${th} text-right`}>電話</th><th className={`${th} text-right`}>LINE</th><th className={`${th} text-right`}>ネット予約</th><th className={`${th} text-right`}>お問い合わせ</th>
+            {showEk && <th className={`${th} text-right`} title="そのページで駅ちかへのリンクが押された数">駅ちかへ</th>}
           </tr></thead>
           <tbody>
             {d.pages.map((p) => (
@@ -398,9 +406,10 @@ function Pages({ d }: { d: HpAnalytics }) {
                 <td className={`${td} text-right`}>{p.line || '—'}</td>
                 <td className={`${td} text-right`}>{p.book || '—'}</td>
                 <td className={`${td} text-right`}>{p.contact || '—'}</td>
+                {showEk && <td className={`${td} text-right`}>{p.ek || '—'}</td>}
               </tr>
             ))}
-            {d.pages.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
+            {d.pages.length === 0 && <tr><td colSpan={showEk ? 7 : 6} className="p-6 text-center text-[13px] text-slate-400">この期間の記録はありません</td></tr>}
           </tbody>
         </table>
       </div>

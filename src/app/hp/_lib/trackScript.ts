@@ -1,5 +1,7 @@
 // ★ 第1792便（カッキーさん・2026-11-08）: 公式HPに入れる計測の小さなスクリプト（HpShell が全ページに置く）。
 //   ★ 送るのは: ページを見た／電話・LINE を押した／お問い合わせを送った、の4つだけ。名前・電話番号などは送らない。
+//   ★ 第1940便: 駅ちか（ranking-deli.jp）へのリンクを押したことも送る（写メ日記・出勤・口コミ・セラピストのどれか）。
+//     写メ日記・口コミの埋め込み（iframe・同じホストの /embed）の中で押した分は、埋め込みが postMessage で知らせてくる（同じ origin だけ受け取る）
 //   ★ 人の数え方（端末の中だけで覚える・Cookie は使わない）:
 //       localStorage fk_hp_first … その端末が最初に来た流入元（はじめての人の判定にも使う）
 //       localStorage fk_hp_day   … 最後に見た日（日本時間）＝ その日はじめてなら「人数」に1
@@ -27,7 +29,10 @@ try{if(navigator.sendBeacon&&navigator.sendBeacon('/api/hp/track',new Blob([b],{
 try{fetch('/api/hp/track',{method:'POST',body:b,keepalive:true,headers:{'content-type':'text/plain'}})}catch(e){}}
 send('pv',{ns:ns?1:0,nu:nu?1:0,u:u?1:0});
 document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a'):null;if(!a)return;var h=a.getAttribute('href')||'';
-if(/^tel:/i.test(h))send('tel');else if(a.getAttribute('data-hp-ev')==='book')send('book');else if(a.getAttribute('data-hp-ev')==='line'||/(^|\\/\\/)(line\\.me|lin\\.ee)\\//i.test(h))send('line')},true);
+if(/^tel:/i.test(h))send('tel');else if(a.getAttribute('data-hp-ev')==='book')send('book');else if(a.getAttribute('data-hp-ev')==='line'||/(^|\\/\\/)(line\\.me|lin\\.ee)\\//i.test(h))send('line');else ek(h)},true);
+function ek(h){var m=/^https:\\/\\/ranking-deli\\.jp(\\/[^?#]*)/i.exec(h||'');if(!m)return;var p=m[1];
+if(/\\/maildiary\\//.test(p))send('ek_diary');else if(/\\/schedule\\//.test(p))send('ek_schedule');else if(/\\/review\\//.test(p))send('ek_review');else if(/\\/\\d+\\/\\d+\\/?$/.test(p))send('ek_therapist')}
+window.addEventListener('message',function(e){if(e.origin!==location.origin||!e.data||typeof e.data.fkHpEk!=='string')return;ek(e.data.fkHpEk)});
 window.__fkHpTrack=function(t){if(t==='contact')send('contact')};
 }catch(e){}})();`;
 }

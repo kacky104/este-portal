@@ -1,7 +1,11 @@
 // ★ 第1792便（カッキーさん・2026-11-08）: 公式HP（フクエスサイト）のアクセス解析の【決まり】。純粋関数だけ（画面・API・点検で使う）。
 //   計測（公式HPの小さなスクリプト）→ /api/hp/track → 表 hp_stats（日 × 切り口 × 値 ごとの数）→ マイページ／コネックエフの解析画面。
 
-export const HP_STAT_EVENTS = ['pv', 'tel', 'line', 'contact', 'book'] as const;   // ★ 第1878便: book＝ネット予約のタップ
+export const HP_STAT_EVENTS = ['pv', 'tel', 'line', 'contact', 'book', 'ek_therapist', 'ek_schedule', 'ek_diary', 'ek_review'] as const;   // ★ 第1878便: book＝ネット予約のタップ／★ 第1940便: ek_*＝駅ちかへのタップ（項目ごと）
+/** ★ 第1940便: 駅ちかへのタップの項目（採点表のリンクの項目と同じ並び） */
+export const HP_EK_KINDS = ['therapist', 'schedule', 'diary', 'review'] as const;
+export type HpEkKind = (typeof HP_EK_KINDS)[number];
+export const HP_EK_LABEL: Record<HpEkKind, string> = { therapist: 'セラピスト', schedule: '出勤', diary: '写メ日記', review: '口コミ' };
 export type HpStatEvent = (typeof HP_STAT_EVENTS)[number];
 
 /** 流入元の名前をそろえる（google.co.jp → google、www. を外す など）。★ 計測スクリプトと同じ決まり（点検で両方を確かめる） */

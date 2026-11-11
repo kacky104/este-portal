@@ -27,3 +27,8 @@ export function EmbedFooter({ moreHref, moreLabel }: { moreHref: string; moreLab
     </div>
   );
 }
+
+/** ★ 第1940便: 公式HP向け（駅ちかへ飛ぶとき）だけ置く。押したリンクを親（公式HP）へ知らせる。数えるのは公式HP側の計測（同じ origin だけ）。よそのサイトに貼られていても届かないので何も起きない */
+export function EmbedEkTapScript() {
+  return <script dangerouslySetInnerHTML={{ __html: "document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a'):null;if(!a||window.parent===window)return;try{window.parent.postMessage({fkHpEk:a.href},location.origin)}catch(_){}},true);" }} />;
+}

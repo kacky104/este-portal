@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { createPublicClient } from '@/app/lib/supabase/public';
 import { getSalonApprovedReviews, getSalonReviewStats } from '@/app/lib/reviews';
-import { EMBED_SITE_URL, EmbedFooter } from '../embedShared';
+import { EMBED_SITE_URL, EmbedFooter, EmbedEkTapScript } from '../embedShared';
 
 // 契約店舗の公式サイトに iframe で貼る「口コミ」埋め込みウィジェット（2026-08-06 新設）。
 //
@@ -63,6 +63,7 @@ export async function ReviewsEmbed({ id, ekSlot }: { id: string; ekSlot?: number
 
   return (
     <div className="bg-white p-4 font-sans">
+      {ekSlot && reviewsUrl.startsWith('https://ranking-deli.jp/') && <EmbedEkTapScript />}
       <div className="flex items-baseline gap-2 mb-3 flex-wrap">
         <p className="text-[13px] font-bold text-slate-700">口コミ</p>
         {stats.avgOverall != null && (

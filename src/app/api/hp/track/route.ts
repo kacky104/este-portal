@@ -8,7 +8,7 @@ import { HP_STAT_EVENTS, isBotUA, jstDayHour, normalizeHpPath, normalizeHpSource
 //   ★ サイトの指定（k）から店を引く（★ 画面から来た salon_id は信用しない）。公開中（live）のサイトだけ数える。
 //   ★ 数は表 hp_stats に「日 × 切り口 × 値」で足すだけ（関数 hp_stat_add・1回の呼び出し）。生の記録は持たない。
 
-type Row = { dim: 'src' | 'first' | 'page' | 'hour' | 'device'; key: string; pv?: number; sessions?: number; users?: number; new_users?: number; tel?: number; line?: number; contact?: number; book?: number };
+type Row = { dim: 'src' | 'first' | 'page' | 'hour' | 'device'; key: string; pv?: number; sessions?: number; users?: number; new_users?: number; tel?: number; line?: number; contact?: number; book?: number; ek_therapist?: number; ek_schedule?: number; ek_diary?: number; ek_review?: number };
 
 // サイトの指定 → 店の番号（10分覚える。公式HPの数は少ないので小さい）
 const siteCache = new Map<string, { salonId: number | null; at: number }>();
