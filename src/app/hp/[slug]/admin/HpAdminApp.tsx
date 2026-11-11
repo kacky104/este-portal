@@ -190,7 +190,7 @@ export function HpAdminApp({
         {site.design_locked ? (
           <HpEditor siteKey={siteKey} site={site} contactEmail={ctx.contactEmail} section={current} onSaved={patchSite} onToast={showToast} />
         ) : (
-          <DesignPendingCard />
+          <DesignPendingCard isOperator={ctx.role === 'operator'} />
         )}
       </div>
     </HpShell>
@@ -198,9 +198,15 @@ export function HpAdminApp({
 }
 
 // ── デザイン打ち合わせ中（店舗向け・design_locked=false のとき） ──────
-function DesignPendingCard() {
+function DesignPendingCard({ isOperator }: { isOperator: boolean }) {
   return (
     <div className="bg-white rounded-none border border-slate-100 shadow-sm p-5 space-y-3">
+      {/* ★ 第1952便: 運営で開いたときだけ、編集画面にする手順を一言出す（お店様には出さない） */}
+      {isOperator && (
+        <p className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 leading-relaxed">
+          運営の方へ：/admin の「公式HP管理」→ この店の「編集」でデザイン確定ロックを入れて保存すると、ここが編集画面になります。
+        </p>
+      )}
       <h3 className="text-sm font-black text-slate-800">ホームページのデザインを準備中です</h3>
       <p className="text-xs text-slate-500 leading-relaxed">
         ホームページのデザイン（ひな形とカラー）は、担当者との打ち合わせで決定します。
