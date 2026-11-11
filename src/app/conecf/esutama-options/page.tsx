@@ -8,6 +8,8 @@ import {
   getConecfEsutamaPosts, saveConecfEsutamaPost, runConecfEsutamaPostNow, type ConecfEsutamaPost,
   addConecfEsutamaPostImage, removeConecfEsutamaPostImage,
 } from '@/app/actions/conecfEsutamaOptions';
+import { getConecfEsutamaNote, type ConecfEsutamaNote } from '@/app/actions/conecfEsutamaNotes';
+import { EsutamaNoteCard } from './NoteCard';
 import { ESUTAMA_POST_TITLE_MAX, esutamaPostBodyMax, ESUTAMA_POST_INTERVALS, ESUTAMA_POST_IMAGE_MAX, ESUTAMA_POST_DAILY, isDailyPostKey } from '@/lib/esutamaPost';
 
 /** ★ 第1812便: ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
@@ -307,6 +309,7 @@ export default function ConecfEsutamaOptionsPage() {
   const { toast, showToast } = useToast();
   const [opts, setOpts] = useState<ConecfEsutamaOption[] | null>(null);
   const [posts, setPosts] = useState<ConecfEsutamaPost[]>([]);
+  const [note, setNote] = useState<ConecfEsutamaNote | null>(null);
   // ★ 開いているカード（読み直しでカードが作り直されても閉じないよう、ここで持つ）。はじめは全部閉じる
   const [openKeys, setOpenKeys] = useState<Record<string, boolean>>({});
   const toggle = (k: string) => setOpenKeys((m) => ({ ...m, [k]: !m[k] }));
@@ -317,6 +320,8 @@ export default function ConecfEsutamaOptionsPage() {
     setOpts(r.data.options); setError('');
     const pr = await getConecfEsutamaPosts();
     if (pr.ok) setPosts(pr.data.posts);
+    const nr = await getConecfEsutamaNote();
+    if (nr.ok) setNote(nr.data);
   }, []);
   useEffect(() => { void load(); }, [load]);
   return (
@@ -326,9 +331,11 @@ export default function ConecfEsutamaOptionsPage() {
         <p className="text-[14px] leading-relaxed text-slate-600">エステ魂で契約中の有料オプションを、決めた時間に自動で押します。1日は朝6時はじまりです（回数は毎朝6時に戻ります）。</p>
         {error && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>}
         {!error && !opts && <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>}
-        {opts && opts.length === 0 && posts.length === 0 && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるオプションはまだありません。運営事務局までご連絡ください。</div>}
+        {opts && opts.length === 0 && posts.length === 0 && !note && <div className={`${CARD} p-5 text-[14px] text-slate-500`}>使えるオプションはまだありません。運営事務局までご連絡ください。</div>}
         {opts?.map((o) => <OptionCard key={o.key + String(o.lastAt) + String(o.readAt)} o={o} onToast={showToast} reload={load} open={openKeys[o.key] === true} onToggle={() => toggle(o.key)} />)}
         {posts.map((p) => <PostCard key={p.key + String(p.lastAt) + String(p.readAt)} p={p} onToast={showToast} reload={load} open={openKeys[p.key] === true} onToggle={() => toggle(p.key)} />)}
+        {/* ★ 第1941便: 写メNote（ベンリーの【新】写メNote と同じ使い方） */}
+        {note && <EsutamaNoteCard key={'note' + String(note.lastAt) + String(note.readAt) + note.items.length} n={note} onToast={showToast} reload={load} open={openKeys.note === true} onToggle={() => toggle('note')} />}
       </div>
       )}
     </ConecfShell>

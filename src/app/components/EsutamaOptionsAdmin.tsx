@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { adminGetEsutamaOptions, adminSetEsutamaOption, adminGetEsutamaPosts, adminSetEsutamaPost } from '@/app/actions/conecfEsutamaOptions';
 import { adminGetZenkokuOptions, adminSetZenkokuOption } from '@/app/actions/conecfZenkokuOptions';
+import { adminGetEsutamaNote, adminSetEsutamaNote } from '@/app/actions/conecfEsutamaNotes';
 import { adminGetEkichikaMovies, adminSetEkichikaMovies } from '@/app/actions/conecfEkichikaMovies';
 import { adminGetEkichikaMagazines, adminSetEkichikaMagazines } from '@/app/actions/conecfEkichikaMagazines';
 import { adminGetEkichikaRankImages, adminSetEkichikaRankImages } from '@/app/actions/conecfEkichikaRankImages';
@@ -30,6 +31,8 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
   const [magEnabled, setMagEnabled] = useState(false);
   const [rankImgEnabled, setRankImgEnabled] = useState(false);
   const [vanillaEnabled, setVanillaEnabled] = useState(false);
+  const [noteEnabled, setNoteEnabled] = useState(false);
+  const [noteReady, setNoteReady] = useState(true);
 
   useEffect(() => {
     if (!salonId) { setEnabled({}); return; }
@@ -62,6 +65,11 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
     adminGetVanillaBlog(salonId).then((r) => {
       if (!alive) return;
       if (r.ok) setVanillaEnabled(r.data.enabled); else onToast(r.error);
+    });
+    // ★ 第1941便: エステ魂の写メNote（conecf_esutama_notes）
+    adminGetEsutamaNote(salonId).then((r) => {
+      if (!alive) return;
+      if (r.ok) { setNoteEnabled(r.data.enabled); setNoteReady(r.data.ready); } else onToast(r.error);
     });
     return () => { alive = false; };
   }, [salonId, onToast]);
@@ -130,6 +138,11 @@ export default function EsutamaOptionsAdmin({ allSalons, onToast }: { allSalons:
           <label className="flex items-center gap-3 px-3 py-2">
             <input type="checkbox" disabled={busy} checked={vanillaEnabled} onChange={async (e) => { const on = e.target.checked; setBusy(true); const r = await adminSetVanillaBlog({ salonId, enabled: on }); setBusy(false); if (!r.ok) { onToast(r.error); return; } setVanillaEnabled(on); onToast(on ? 'ON にしました' : 'OFF にしました（その店の自動も止めました）'); }} />
             <span className="font-bold">バニラ：店長ブログ</span>
+          </label>
+          <label className="flex items-center gap-3 px-3 py-2">
+            <input type="checkbox" disabled={busy || !noteReady} checked={noteEnabled} onChange={async (e) => { const on = e.target.checked; setBusy(true); const r = await adminSetEsutamaNote({ salonId, enabled: on }); setBusy(false); if (!r.ok) { onToast(r.error); return; } setNoteEnabled(on); onToast(on ? 'ON にしました' : 'OFF にしました（その店の自動も止めました）'); }} />
+            <span className="font-bold">エステ魂：写メNote</span>
+            {!noteReady && <span className="text-[11px] text-amber-600">追加SQL_第1941便 を流すと使えます</span>}
           </label>
           {POST_KEYS.map(([k, l]) => (
             <label key={k} className="flex items-center gap-3 px-3 py-2">

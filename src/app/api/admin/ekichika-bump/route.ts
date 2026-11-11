@@ -12,6 +12,7 @@ import { normalizeCocoaMovieSchedule, shouldPostCocoaMovie } from '@/lib/cocoaMo
 import { normalizeRankImagePairs, normalizeRankImageInterval, shouldRotateRankImage } from '@/lib/ekichikaRankImage';
 import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
 import { shouldRunVanillaBlog, normalizeVanillaBlogItems, pickVanillaBlogItem } from '@/lib/vanillaBlog';
+import { normalizeEsutamaNoteItems, pickEsutamaNoteItem } from '@/lib/esutamaNote';
 
 // ── 駅ちかの上位表示を自動で押す周（第1305便・2026-10-08）────────────────
 // ★★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）も同じ周で押す（provider='esutama' の行）。
@@ -267,6 +268,45 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error('[esutama-post] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
         results.push({ ...base, reason: 'start_failed' });
+      }
+    }
+  }
+
+  // ★★ 第1941便: エステ魂の写メNote（決めた投稿内容を、決めた間隔で1件ずつ・代理ログイン）。★ crontab はそのまま。★ 表が無い（SQL 未適用）ときは黙って飛ばす
+  //   ★ 間隔の決まりはリアルタイム集客と同じ（shouldPostEsutama）。★ 同じ店のエステ魂で別の流れを始めた回は次の周へ
+  {
+    const notes = await svc.from('conecf_esutama_notes')
+      .select('salon_id, items, next_index, start_min, end_min, interval_min, last_at, read_at, updated_at, salons!inner(conecf_enabled_at)')
+      .eq('admin_enabled', true).eq('auto', true)
+      .not('salons.conecf_enabled_at', 'is', null);
+    if (!notes.error) {
+      for (const o of notes.data ?? []) {
+        const base = { salonId: Number(o.salon_id), provider: 'esutama:note', slot: 1 };
+        const pick = pickEsutamaNoteItem(normalizeEsutamaNoteItems(o.items), Number(o.next_index ?? 0));
+        const judge = shouldPostEsutama({
+          now, hasText: pick !== null,
+          setting: { startMin: Number(o.start_min), endMin: Number(o.end_min), intervalMin: Number(o.interval_min) },
+          state: { lastAt: (o.last_at as string | null) ?? null, readAt: (o.read_at as string | null) ?? null, updatedAt: (o.updated_at as string | null) ?? null },
+        });
+        if (!judge.post || !pick || !apply) { results.push({ ...base, reason: judge.reason }); continue; }
+        if (esutamaStarted.has(Number(o.salon_id))) { results.push({ ...base, reason: 'next_round' }); continue; }
+        // ★ 始める前に「始めた時刻」を書く（同じ行を立て続けに始めない）。★ 書けなければ始めない
+        const { error: mErr } = await svc.from('conecf_esutama_notes').update({ read_at: now.toISOString() }).eq('salon_id', o.salon_id);
+        if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
+        try {
+          const f = await startRelayFlow({
+            salonId: Number(o.salon_id), provider: 'esutama', slot: 1,
+            intent: 'diary_auto', actor: 'cron:esutama-note',
+            esutamaNote: { index: pick.index, nextIndex: pick.nextIndex, therapistId: pick.item.therapistId as number, title: pick.item.title, body: pick.item.body, categoryId: pick.item.categoryId, images: pick.item.images },
+          });
+          esutamaStarted.add(Number(o.salon_id));
+          // ★ 始められなかった（同じ店のエステ魂で別の流れが走っていた等）ときは「始めた時刻」を戻す（5分後の周でまた試す）
+          if (!f.ok) await svc.from('conecf_esutama_notes').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id);
+          results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
+        } catch (e) {
+          console.error('[esutama-note] 流れを始められなかった', o.salon_id, e instanceof Error ? e.message : 'unknown');
+          results.push({ ...base, reason: 'start_failed' });
+        }
       }
     }
   }

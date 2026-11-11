@@ -877,6 +877,12 @@ export type RelayFlowContext = {
   /** 送る中身。★ 題名と本文とカテゴリ。★ 秘密ではない（店舗様が書いたもの） */
   esutamaDiaryDraft?: { title: string; content: string; categoryId?: string };
   /**
+   * ★ 第1941便: エステ魂の写メNote（決めた間隔で1件ずつ・lib/esutamaNote.ts）。intent は diary_auto・provider='esutama'。
+   *   ★ これがあるときは、魂セラピスト一覧を読んだあと planEsutamaNote が相手を決める（写メ日記の転送 planEsutamaDiary には行かない）。
+   *   ★ 結果は conecf_esutama_notes に書く。images は salon-images の置き場（公開 URL は流れの中で作る）
+   */
+  esutamaNote?: { index: number; nextIndex: number; therapistId: number; title: string; body: string; categoryId: string; images: string[] };
+  /**
    * ★★★ 第1284便: この日記に付ける写真の【場所】（フクエスの保管庫の公開 URL・先頭から3枚まで）。
    *   ★ 写真の中身（base64）は文脈に入れない。★ 投稿の段を積む直前に、呼び出し側（app/lib/media/relayFlow.ts）が
    *     取ってきて整え、その1回の送信の本文にだけ載せる（文脈は段ごとに保存されるので、重いものを持ち回らない）。

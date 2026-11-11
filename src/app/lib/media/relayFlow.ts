@@ -440,6 +440,8 @@ export async function startRelayFlow(params: {
    *   ★ 結果は conecf_esutama_posts に書く
    */
   esutamaPost?: { key: string; title: string; body: string; force?: boolean; image?: { path: string; index: number }; images?: Array<{ path: string; index: number }> };
+  /** ★ 第1941便: エステ魂の写メNote（intent は diary_auto・provider='esutama'）。★ 結果は conecf_esutama_notes に書く */
+  esutamaNote?: { index: number; nextIndex: number; therapistId: number; title: string; body: string; categoryId: string; images: string[] };
   /** ★ 第1810便: 全国エステランキングの待機中の周（intent は bump_auto / bump_push）。その営業日の出勤時間に入った方を全員待機中にする */
   zenkokuWait?: { dateISO: string };
   /** ★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト（intent は bump_auto / bump_push）。★ 結果は conecf_zenkoku_options に書く */
@@ -778,6 +780,8 @@ export async function startRelayFlow(params: {
     ...(params.vanillaBlog ? { vanillaBlog: { item: { title: params.vanillaBlog.item.title, body: params.vanillaBlog.item.body, image: params.vanillaBlog.item.image ?? null }, index: Number(params.vanillaBlog.index) || 0, deleteOld: params.vanillaBlog.deleteOld === true, prevId: params.vanillaBlog.prevId ?? null, ...(params.vanillaBlog.force === true ? { force: true } : {}) } } : {}),
     // ★ 第1811便: エステ魂の投稿。★ 渡されたときだけ入れる
     ...(params.esutamaPost ? { esutamaPost: { key: params.esutamaPost.key, title: params.esutamaPost.title, body: params.esutamaPost.body, ...(params.esutamaPost.force === true ? { force: true } : {}), ...(params.esutamaPost.image ? { image: { path: params.esutamaPost.image.path, index: params.esutamaPost.image.index } } : {}), ...(params.esutamaPost.images && params.esutamaPost.images.length > 0 ? { images: params.esutamaPost.images.map((x) => ({ path: x.path, index: x.index })) } : {}) } } : {}),
+    // ★ 第1941便: エステ魂の写メNote。★ 渡されたときだけ入れる
+    ...(params.esutamaNote ? { esutamaNote: { index: Number(params.esutamaNote.index), nextIndex: Number(params.esutamaNote.nextIndex), therapistId: Number(params.esutamaNote.therapistId), title: String(params.esutamaNote.title), body: String(params.esutamaNote.body), categoryId: String(params.esutamaNote.categoryId), images: params.esutamaNote.images.map(String) } } : {}),
     // ★ 第1557便: セラピストの並び順。★ 渡されたときだけ入れる
     ...(params.sort ? { sortWant: params.sort.want.map(String) } : {}),
     // ★ エステ魂の写メ日記（第133便）。★ 渡されたときだけ入れる
@@ -797,6 +801,9 @@ export async function startRelayFlow(params: {
   }
   if (params.esutamaOpt && params.provider !== 'esutama') {
     throw new Error('esutamaOpt はエステ魂だけ');
+  }
+  if (params.esutamaNote && (params.provider !== 'esutama' || params.intent !== 'diary_auto')) {
+    throw new Error('esutamaNote はエステ魂の diary_auto だけ');
   }
   if (params.esutamaPost && params.provider !== 'esutama') {
     throw new Error('esutamaPost はエステ魂だけ');
@@ -1143,6 +1150,12 @@ export async function advanceRelayFlow(params: {
     audits.push(...r.audits);
     note = outcome.note + ' → ' + r.note;
     next = r.next ?? null;
+  } else if (outcome.kind === 'esutama_therapists' && context.esutamaNote) {
+    // ★ 第1941便: 写メNote（決めた投稿内容を1件）。★ 写メ日記の転送とは相手の決め方が違う
+    const r = await planEsutamaNote(params, outcome.rows, outcome.ctk, outcome.context);
+    audits.push(...r.audits);
+    note = outcome.note + ' → ' + r.note;
+    next = r.next ?? null;
   } else if (outcome.kind === 'esutama_therapists') {
     const r = await planEsutamaDiary(params, outcome.rows, outcome.ctk, outcome.context);
     audits.push(...r.audits);
@@ -1480,6 +1493,18 @@ export async function advanceRelayFlow(params: {
     const r = await settleDiaryMark(params, context, note);
     audits.push(...r.audits);
     note = note + ' → ' + r.note;
+  }
+  // ★ 第1941便: 写メNote の流れが終わった → 結果を conecf_esutama_notes に書く（送れた・判定できない回は「最後」を進める）
+  if (!next && context.esutamaNote) {
+    try {
+      const posted = context.esutamaDiaryVerdict === 'sent' || context.esutamaDiaryVerdict === 'unknown';
+      const outcomeText = context.esutamaDiaryVerdict === 'sent' ? 'sent' : context.esutamaDiaryVerdict === 'unknown' ? 'unknown' : 'failed: ' + note.slice(-120);
+      await createServiceClient().from('conecf_esutama_notes')
+        .update({ last_outcome: outcomeText, ...(posted ? { last_at: new Date().toISOString() } : {}) })
+        .eq('salon_id', params.salonId);
+    } catch (e) {
+      console.error('[relay] 写メNote の結果を書けなかった', params.salonId, e instanceof Error ? e.message : 'unknown');
+    }
   }
 
   // ★★★ 自動の周が「見ただけ」で終わったら、記録を残さない（第140便）。
@@ -3762,6 +3787,70 @@ const DIARY_SCAN_LIMIT = 200;
  *   ★★ 運営の口が diaryId を名指ししたときは【この上限を通さない】（人が選んだものなので）。
  */
 const DIARY_MAX_AGE_DAYS = 14;
+
+/**
+ * ★ 第1941便: 写メNote（lib/esutamaNote.ts）。魂セラピスト一覧を読んだあと、決めた1件を送る相手を確かめて token 発行の段を積む。
+ *   ★ 本人の了承は見ない（カッキーさんの決定 2026-11-11）。見るのは「名簿が結びついている」「エステ魂で魂セラピストを始めている（一覧に居る）」だけ。
+ *   ★★★ 代理ログインに入る【前】に「次の番号」を進める（投稿は消せない。結果が分からなくても同じ行を二度送らない）。
+ */
+async function planEsutamaNote(
+  params: { salonId: number; provider: string; slot: number },
+  mediaRows: Array<{ castId: string; name: string; state: string }>,
+  ctk: string | null,
+  ctx: RelayFlowContext,
+): Promise<{ audits: FlowAudit[]; note: string; next?: FlowNextRequest }> {
+  const n = ctx.esutamaNote;
+  const flowId = ctx.flowId;
+  const stopped = (reason: string, summary: string, extra?: Record<string, unknown>): { audits: FlowAudit[]; note: string } => ({
+    audits: [{ event: 'push_diary', outcome: 'stopped', summary: '写メNote: ' + summary, detail: { reason, kind: 'esutama_note', flowId, ...(extra ?? {}) } }],
+    note: '写メNote を送らない: ' + summary,
+  });
+  if (!n) return stopped('no_note', '送る内容がありません');
+  const supabase = createServiceClient();
+  // ★ その行のせいで送れないとき（セラピストが居ない・結びが無い・始めていない）は次の行へ進める（同じ行で毎回止まって、ほかの行まで出なくなるのを避ける）
+  const skipRow = async (r: { audits: FlowAudit[]; note: string }) => {
+    await supabase.from('conecf_esutama_notes').update({ next_index: n.nextIndex }).eq('salon_id', params.salonId);
+    return { ...r, note: r.note + '（次の回は ' + (n.nextIndex + 1) + '件目から）' };
+  };
+  const { data: th } = await supabase.from('therapists').select('id, name, salon_id').eq('id', n.therapistId).maybeSingle();
+  if (!th || Number(th.salon_id) !== params.salonId) return skipRow(stopped('therapist_not_found', 'セラピストが見つかりません（' + (n.index + 1) + '件目）', { therapistId: n.therapistId }));
+  const fukuesName = String(th.name ?? '');
+  const { maps, error: castErr } = await loadCastIds(supabase, { therapists: [{ id: n.therapistId }], provider: params.provider, slot: params.slot });
+  if (castErr) return stopped('cast_ids_read_failed', '名簿の結びを読めませんでした');
+  const castId = maps.castIdOf.get(n.therapistId) ?? null;
+  if (!castId) return skipRow(stopped('no_cast_id', fukuesName + 'さんがエステ魂の名簿と結びついていません（セラピスト一覧の「エステ魂」で結んでください）', { therapistId: n.therapistId }));
+  const media = mediaRows.find((r) => r.castId === castId);
+  if (!media) return skipRow(stopped('not_started', fukuesName + 'さんはエステ魂で魂セラピストを始めていないため、代理ログインできません', { therapistId: n.therapistId, castId }));
+  if (!ctk) return stopped('no_ctk', 'エステ魂の一覧ページを正しく読めなかったため、送りませんでした（次の回でもう一度試します）');
+  // ★★★ 次の番号を先に進める（書けなければ送らない＝同じ行を二度送らない）
+  const { error: advErr } = await supabase.from('conecf_esutama_notes')
+    .update({ next_index: n.nextIndex }).eq('salon_id', params.salonId);
+  if (advErr) return stopped('advance_failed', '次の番号を書けなかったため、送りませんでした');
+  const photoPick = pickEsutamaDiaryPhotoUrls(
+    n.images.map((p) => supabase.storage.from('salon-images').getPublicUrl(p).data.publicUrl),
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+  );
+  const nextCtx: RelayFlowContext = {
+    ...ctx,
+    esutamaDiaryCastId: castId,
+    esutamaDiaryCastName: media.name || fukuesName,
+    esutamaDiaryDraft: { title: n.title, content: n.body, categoryId: n.categoryId },
+    esutamaDiaryPhotoUrls: photoPick.urls.length > 0 ? photoPick.urls : undefined,
+    esutamaDiaryPhotoSkipped: photoPick.skipped > 0 ? photoPick.skipped : undefined,
+    esutamaDiaryPhotoCount: undefined,
+    esutamaDiaryPhotoRetried: undefined,
+  };
+  const step = buildEsutamaDiaryTokenStep(nextCtx, castId, ctk);
+  return {
+    audits: [{
+      event: 'plan_diary', outcome: 'ok',
+      summary: '写メNote: ' + (n.index + 1) + '件目「' + n.title.slice(0, 30) + '」を ' + (media.name || fukuesName) + 'さんの名前で送ります',
+      detail: { kind: 'esutama_note', index: n.index, therapistId: n.therapistId, castId, photos: photoPick.urls.length, flowId },
+    }],
+    note: '写メNote ' + (n.index + 1) + '件目を ' + (media.name || fukuesName) + 'さんへ送ります' + (photoPick.urls.length > 0 ? '（写真' + photoPick.urls.length + '枚）' : ''),
+    next: { purpose: step.purpose, method: step.method, url: step.url, headers: step.headers, body: step.body, context: nextCtx },
+  };
+}
 
 /**
  * ★★★ 誰のどの日記をエステ魂へ送るかを決める（第133便）。

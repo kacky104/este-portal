@@ -53,7 +53,10 @@ export async function hasConecfEsutamaOptions(salonId: number): Promise<boolean>
     if (!error && (data ?? []).length > 0) return true;
     // ★ 第1811便: 投稿（リアルタイム集客）だけ ON の店も出す
     const p = await svc.from('conecf_esutama_posts').select('post_key').eq('salon_id', salonId).eq('admin_enabled', true).limit(1);
-    return !p.error && (p.data ?? []).length > 0;
+    if (!p.error && (p.data ?? []).length > 0) return true;
+    // ★ 第1941便: 写メNote だけ ON の店も出す
+    const nt = await svc.from('conecf_esutama_notes').select('salon_id').eq('salon_id', salonId).eq('admin_enabled', true).limit(1);
+    return !nt.error && (nt.data ?? []).length > 0;
   } catch { return false; }
 }
 
