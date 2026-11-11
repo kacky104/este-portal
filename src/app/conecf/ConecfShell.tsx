@@ -54,7 +54,8 @@ const GROUP_TONE: Record<string, string> = { 'セラピスト': 'text-pink-500',
 const ICON_TONE: Partial<Record<ConecfNavKey, string>> = {
   girls: 'text-pink-500', girlsSync: 'text-pink-500', girlsSort: 'text-pink-500', placeholder: 'text-pink-500',
   now: 'text-pink-500',
-  schedule: 'text-emerald-600', scheduleSync: 'text-emerald-600', shift: 'text-emerald-600', bump: 'text-emerald-600',
+  schedule: 'text-emerald-600', scheduleSync: 'text-emerald-600', shift: 'text-emerald-600',
+  // ★ 第1938便: 上位表示設定はサイト自動更新一覧の下へ移したので、上の3つ（ホーム・ID・サイト自動更新一覧）と同じ青（既定の indigo）
   diary: 'text-amber-500', announce: 'text-amber-500', news: 'text-amber-500', cocoa: 'text-amber-500', vanillaBlog: 'text-amber-500',
   // ★ 第1858便: 記録＝紫・ご案内＝水色（ほかのまとまりと被らない色）
   log: 'text-violet-600', matrix: 'text-violet-600', analytics: 'text-violet-600',
