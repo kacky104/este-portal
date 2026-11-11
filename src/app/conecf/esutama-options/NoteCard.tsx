@@ -161,7 +161,7 @@ export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: Con
                   <textarea value={r.body} onChange={(e) => set(i, { body: e.target.value })} rows={5} className="mt-1 w-full border border-slate-300 bg-white px-2 py-1.5" />
                 </label>
                 <div>
-                  <span className="font-bold">画像</span><span className="ml-2 text-[12px] text-slate-500">{r.images.length}/{ESUTAMA_NOTE_IMAGE_MAX}枚（無くても送れます）</span>
+                  <span className="font-bold">画像</span><span className="ml-2 text-[12px] text-slate-500">{r.images.length}/{ESUTAMA_NOTE_IMAGE_MAX}枚（入れないときは、セラピストのプロフィール写真から1枚を付けます）</span>
                   <div className="mt-1 flex flex-wrap gap-2">
                     {r.images.map((im, k) => (
                       <div key={im.path} className="relative w-[84px] border border-slate-200 bg-white">

@@ -3812,7 +3812,7 @@ async function planEsutamaNote(
     await supabase.from('conecf_esutama_notes').update({ next_index: n.nextIndex }).eq('salon_id', params.salonId);
     return { ...r, note: r.note + '（次の回は ' + (n.nextIndex + 1) + '件目から）' };
   };
-  const { data: th } = await supabase.from('therapists').select('id, name, salon_id').eq('id', n.therapistId).maybeSingle();
+  const { data: th } = await supabase.from('therapists').select('id, name, salon_id, profile_image_url, profile_images').eq('id', n.therapistId).maybeSingle();
   if (!th || Number(th.salon_id) !== params.salonId) return skipRow(stopped('therapist_not_found', 'セラピストが見つかりません（' + (n.index + 1) + '件目）', { therapistId: n.therapistId }));
   const fukuesName = String(th.name ?? '');
   const { maps, error: castErr } = await loadCastIds(supabase, { therapists: [{ id: n.therapistId }], provider: params.provider, slot: params.slot });
@@ -3826,8 +3826,17 @@ async function planEsutamaNote(
   const { error: advErr } = await supabase.from('conecf_esutama_notes')
     .update({ next_index: n.nextIndex }).eq('salon_id', params.salonId);
   if (advErr) return stopped('advance_failed', '次の番号を書けなかったため、送りませんでした');
+  // ★ 第1942便（カッキーさん「ベンリーのは写真つきなのに」）: 行に画像が無いときは、そのセラピストのプロフィール写真から1枚を付ける（毎回ちがう1枚）。
+  //   ★ ベンリーは画像の欄が空でも写真つきで載っていた（エステ魂のアルバムから選んでいると思われる）。こちらはフクエスのプロフィール写真を使う
+  const profileUrls = [...new Set([
+    ...(Array.isArray(th.profile_images) ? (th.profile_images as unknown[]) : []),
+    th.profile_image_url,
+  ].filter((u): u is string => typeof u === 'string' && u.length > 0))];
+  const fromProfile = n.images.length === 0 && profileUrls.length > 0;
   const photoPick = pickEsutamaDiaryPhotoUrls(
-    n.images.map((p) => supabase.storage.from('salon-images').getPublicUrl(p).data.publicUrl),
+    fromProfile
+      ? [profileUrls[Math.floor(Math.random() * profileUrls.length)]]
+      : n.images.map((p) => supabase.storage.from('salon-images').getPublicUrl(p).data.publicUrl),
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
   );
   const nextCtx: RelayFlowContext = {
@@ -3845,9 +3854,9 @@ async function planEsutamaNote(
     audits: [{
       event: 'plan_diary', outcome: 'ok',
       summary: '写メNote: ' + (n.index + 1) + '件目「' + n.title.slice(0, 30) + '」を ' + (media.name || fukuesName) + 'さんの名前で送ります',
-      detail: { kind: 'esutama_note', index: n.index, therapistId: n.therapistId, castId, photos: photoPick.urls.length, flowId },
+      detail: { kind: 'esutama_note', index: n.index, therapistId: n.therapistId, castId, photos: photoPick.urls.length, fromProfile, flowId },
     }],
-    note: '写メNote ' + (n.index + 1) + '件目を ' + (media.name || fukuesName) + 'さんへ送ります' + (photoPick.urls.length > 0 ? '（写真' + photoPick.urls.length + '枚）' : ''),
+    note: '写メNote ' + (n.index + 1) + '件目を ' + (media.name || fukuesName) + 'さんへ送ります' + (photoPick.urls.length > 0 ? '（写真' + photoPick.urls.length + '枚' + (fromProfile ? '・プロフィール写真から' : '') + '）' : ''),
     next: { purpose: step.purpose, method: step.method, url: step.url, headers: step.headers, body: step.body, context: nextCtx },
   };
 }
