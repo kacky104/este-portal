@@ -10,6 +10,7 @@ import { safeAction, useCrmDirty } from '../CrmBase';
 import { addCrmGroupConsentClause, CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_CONSENT_MARK } from '@/lib/crmGroup';
 import { ImportDialog } from '../ImportDialog';
 import { CtiSettingsSection } from '../CtiSettingsSection';
+import { MessageTemplatesSection } from '../MessageTemplatesSection';
 
 // フクエスCRM「設定」（第548便・2026-09-19）。
 // ★ スケジュールの時間軸の始まりと終わり・終わりの時刻の既定のバッジ（受まで／上がり）。
@@ -36,6 +37,7 @@ const SETTING_TABS = [
   { key: 'toggles', label: '出勤情報の項目（追加）' },
   { key: 'alarms', label: '予約アラーム' },
   { key: 'cti', label: '着信ポップ（準備中）' }, // ★ 第1688便: 端末の導入が始まるまで「準備中」。外すときは CtiSettingsSection の見出しも
+  { key: 'messages', label: '連絡文のひな形' }, // ★ 第1947便
   { key: 'consent', label: '来店時の同意書（QR）' },
   { key: 'cast', label: 'セラピストへの公開' },
   { key: 'money', label: '金銭授受' },
@@ -481,11 +483,12 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
       )}
 
       {tab === 'cti' && <CtiSettingsSection salonId={salonId} />}
+      {tab === 'messages' && <MessageTemplatesSection salonId={salonId} />}
       {tab === 'import' && <ImportSection salonId={salonId} />}
 
       {/* ★ 保存ボタンは画面の下についてくる（第564便） */}
       {/* ★ 第1228便: 「データの取り込み」でも、未保存の変更があるときは保存バーを出す（前は隠れていて、そのまま移ると編集が消えた） */}
-      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${(tab === 'import' || tab === 'cti') && !dirty ? 'hidden' : ''}`}>
+      <div className={`sticky bottom-0 z-20 -mx-3 mt-4 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur ${(tab === 'import' || tab === 'cti' || tab === 'messages') && !dirty ? 'hidden' : ''}`}>
         {err && <p className="mb-2 text-[13px] font-bold text-rose-600">{err}</p>}
         {msg && !dirty && <p className="mb-2 text-[13px] font-bold text-emerald-700">{msg}</p>}
         {dirty && <p className="mb-2 text-[13px] font-bold text-amber-700">まだ保存していない変更があります</p>}

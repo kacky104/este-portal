@@ -96,6 +96,7 @@ import { castNotifyText } from '@/lib/crmCastNotify';
 import { LineShareLink } from '@/app/components/LineShareLink';
 import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vibrateAlarm } from '@/app/lib/crm/alarmSound';
 import { ConsentView } from './ConsentView';
+import { MessageMenu } from './MessageMenu'; // ★ 第1947便: 予約の「連絡文▼」
 import { GroupHitBand } from './GroupShare';
 import { CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_BADGE_LABEL, crmGroupBadge, type CrmGroupHit } from '@/lib/crmGroup';
 import { shiftRangeText, shiftNextDayMarks } from '@/lib/scheduleFormat';
@@ -713,6 +714,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           }
           salonId={salonId}
           adminSalonQuery={adminSalonQuery}
+          scheduleData={data}
           onClose={() => setPicked(null)}
           onChanged={(b) => { setPicked(b); reload(); }}
           onDone={() => { setPicked(null); reload(); }}
@@ -1369,12 +1371,14 @@ function BookingCard({
 }
 
 function DetailPanel({
-  booking: b, therapistName, salonId, adminSalonQuery, onClose, onChanged, onDone, onEdit,
+  booking: b, therapistName, salonId, adminSalonQuery, scheduleData, onClose, onChanged, onDone, onEdit,
 }: {
   booking: CrmScheduleBooking;
   therapistName: string;
   salonId: number;
   adminSalonQuery: string;
+  /** ★ 第1947便: 連絡文の差し込み（部屋・出勤情報の項目）に使う */
+  scheduleData: CrmScheduleData | null;
   onClose: () => void;
   onChanged: (b: CrmScheduleBooking) => void;
   /** 状態を変えた・消した → 閉じて読み直す */
@@ -1598,6 +1602,8 @@ function DetailPanel({
           </dl>
           {/* 操作 */}
           <div className="mt-4 flex flex-wrap gap-2">
+            {/* ★ 第1947便: 連絡文のひな形（無いお店には出ない） */}
+            {b.status !== 'cancelled' && <MessageMenu salonId={salonId} booking={b} data={scheduleData} />}
             {b.status !== 'cancelled' && (
               <button type="button" disabled={busy} onClick={onEdit} className="bg-[#3f51b5] px-3 py-1.5 text-[13px] font-bold text-white disabled:opacity-50">
                 変更する
