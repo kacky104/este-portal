@@ -15,6 +15,7 @@ import {
   ESUTAMA_OPT_LABEL, ESUTAMA_JOB_APPEAL_ROWS, ESUTAMA_JOB_APPEAL_LABEL, buildJobAppealRequest, parseGoNowPage, goNowBoostAccepted, parseCastAppealPage, pickCastToAppeal,
   buildEsutamaOptPageRequest, buildGoNowBoostRequest, buildCastAppealRequest, type EsutamaOptKey,
   parseJobNowPage, buildJobNowStartRequest,
+  parseGoNowCastTimes, applyGoNowCastStatus, businessMinOf as goNowBusinessMinOf,
 } from './esutamaOption';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
@@ -71,11 +72,15 @@ export function afterEsutamaOptRead(input: Input, ctx: RelayFlowContext, nowArg?
       return finish(ctx, { remaining: p.remaining, readAt, pressed: false, outcome: 'no_remaining' },
         [readAudit, ...(manual ? [{ event: 'push_bump', outcome: 'stopped', detail: { opt: key, reason: 'no_quota', manual, flowId } } as FlowAudit] : [])], '集客ブーストの残りが0回なので押さなかった');
     }
-    const r = buildGoNowBoostRequest(cookie, p.ctk, p.fields);
+    // ★ 第1945便: 出勤時間内の人を「今すぐ」・終わった人を「受付終了」にして、ボタンと一緒に送る（回数はボタンの1回だけ）
+    const cast = applyGoNowCastStatus(p.fields, parseGoNowCastTimes(input.body), goNowBusinessMinOf(now));
+    const r = buildGoNowBoostRequest(cookie, p.ctk, cast.fields);
     return {
-      kind: 'next', audits: [readAudit],
+      kind: 'next', audits: [{ ...readAudit, detail: { ...readAudit.detail, castNow: cast.toNow.length, castClosed: cast.toClosed.length } }],
       next: { purpose: 'esutama_opt_set', method: r.method, url: r.url, headers: r.headers, body: r.body ?? '', context: { ...ctx, cookie, esutamaOptBefore: { remaining: p.remaining, castId: null, castName: null, lastAt: null } } },
-      note: 'ご案内状況の画面を読めた（残り ' + p.remaining + '）→ 「◎今すぐご案内可」で表示する',
+      note: 'ご案内状況の画面を読めた（残り ' + p.remaining + '）→ 「◎今すぐご案内可」で表示する'
+        + (cast.toNow.length > 0 ? '。今すぐにする: ' + cast.toNow.join('・') : '')
+        + (cast.toClosed.length > 0 ? '。受付終了にする: ' + cast.toClosed.join('・') : ''),
     };
   }
 

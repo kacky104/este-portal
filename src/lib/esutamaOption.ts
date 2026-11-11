@@ -164,6 +164,51 @@ export function parseGoNowPage(html: string): GoNowPage {
   return { remaining, ctk, fields, problems };
 }
 
+// ── 第1945便（2026-11-11・カッキーさん「今すぐに自動設定にしたい」）: 出勤セラピストの「ご案内状況」──
+// ★★★ 実測（2026-11-11 12:58・オイルクエスト様の go_now を読んだだけ）:
+//   1人ずつ <div class="p-boost_cast_box …"> の中に <span class="p-boost_cast_work_time">10:00～16:00</span> と
+//   <select name="current_work[cast][<ID>][current_work_status]">（0未設定 1今すぐ 2 30分以内 3 1時間以内 4完売 5待ち時間あり 6残りわずか 7ご予約受付中 8TEL確認 9受付終了）
+//   時刻は朝6時はじまりの書き方（翌朝5時は 29:00）。集客ブーストのボタンを押すと、この選択がそのまま一緒に送られる（回数は1回だけ減る）
+// ★ 決まり（カッキーさん「出勤時間内の人全員」）: 出勤時間内 → 今すぐ（未設定・受付終了だった人だけ。お店が手で選んだ 完売・30分以内 などは変えない）／
+//   終わった人 → 受付終了／まだ始まっていない人 → そのまま
+export const GO_NOW_STATUS = { unset: '0', now: '1', closed: '9' } as const;
+
+/** 出勤セラピストの出勤時間（ID → 朝6時はじまりの分） */
+export function parseGoNowCastTimes(html: string): Map<string, { startMin: number; endMin: number; name: string }> {
+  const out = new Map<string, { startMin: number; endMin: number; name: string }>();
+  const parts = String(html ?? '').split(/<div\b[^>]*class=["'][^"']*\bp-boost_cast_box\b/i).slice(1);
+  for (const part of parts) {
+    const t = /p-boost_cast_work_time[^>]*>\s*(\d{1,2}):(\d{2})\s*[～~〜-]\s*(\d{1,2}):(\d{2})\s*</i.exec(part);
+    const id = /name=["']current_work\[cast\]\[(\d{1,12})\]\[current_work_status\]["']/i.exec(part)?.[1];
+    if (!t || !id) continue;
+    const norm = (h: number, m: number) => { const v = h * 60 + m; return v < 360 ? v + 1440 : v; };
+    const startMin = norm(Number(t[1]), Number(t[2]));
+    let endMin = Number(t[3]) * 60 + Number(t[4]);
+    if (endMin <= startMin) endMin += 1440;
+    const name = decodeEnt(/class=["'][^"']*\bcast_name\b[^"']*["'][^>]*>([^<]*)</i.exec(part)?.[1]?.trim() ?? '');
+    out.set(id, { startMin, endMin, name });
+  }
+  return out;
+}
+
+/** 出勤時間に合わせて、送るご案内状況を入れ替える（★ 純粋）。nowMin は朝6時はじまりの分（businessMinOf） */
+export function applyGoNowCastStatus(fields: Array<[string, string]>, times: Map<string, { startMin: number; endMin: number; name: string }>, nowMin: number): { fields: Array<[string, string]>; toNow: string[]; toClosed: string[] } {
+  const toNow: string[] = [];
+  const toClosed: string[] = [];
+  const next = fields.map(([k, v]): [string, string] => {
+    const id = /^current_work\[cast\]\[(\d{1,12})\]\[current_work_status\]$/.exec(k)?.[1];
+    const t = id ? times.get(id) : undefined;
+    if (!id || !t) return [k, v];
+    if (nowMin >= t.startMin && nowMin < t.endMin) {
+      if (v === GO_NOW_STATUS.unset || v === GO_NOW_STATUS.closed) { toNow.push(t.name || id); return [k, GO_NOW_STATUS.now]; }
+      return [k, v];
+    }
+    if (nowMin >= t.endMin && v !== GO_NOW_STATUS.closed) { toClosed.push(t.name || id); return [k, GO_NOW_STATUS.closed]; }
+    return [k, v];
+  });
+  return { fields: next, toNow, toClosed };
+}
+
 /** 集客ブーストの応答（JSON の "0" が "OK"） */
 export function goNowBoostAccepted(body: string): boolean {
   try {
