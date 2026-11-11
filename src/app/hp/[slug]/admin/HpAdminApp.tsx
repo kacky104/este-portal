@@ -103,7 +103,11 @@ export function HpAdminApp({
   const viewHref =
     site.status === 'live' && (site.domain ?? '').trim() !== ''
       ? `https://${normalizeHpSiteKey(site.domain as string)}/`
-      : previewHref;
+      : site.status === 'live'
+      ? previewHref
+      // ★ 第1953便: 公開前は「ただいま準備中です」しか出ないので、実データ入りのプレビュー
+      //   （/preview/{ひな形}/{カラー}・運営とオーナーだけが見られる）へ飛ばす。
+      : `${previewHref.replace(/\/$/, '')}/preview/${site.template_key}/${colorVariant.key}`;
 
   // ★★★ サイドバーに出す画面（第278便・2026-09-12・カッキーさんの指示）。
   //   ★ 判断はこの1か所。★ 出さない画面は、押す道そのものを作らない。
