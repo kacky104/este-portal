@@ -107,7 +107,7 @@ import {
 } from '@/lib/esutamaSokuseraTargets';
 import { buildEsutamaSokuseraTokenStep } from '@/lib/esutamaSokuseraFlow';
 import { isImasuguLiveRow, isOwnerLiveRow, isCastLiveRow, type ImasuguRow } from '@/lib/imasugu';
-import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND, sokuhimeOwnedSinceISO, sokuhimeIdleCheck, type SokuhimePerson } from '@/lib/ekichikaSokuhimePlan';
+import { planSokuhime, sokuhimePlanSummary, SOKUHIME_MAX_PER_ROUND, sokuhimeOwnedSinceISO, sokuhimeIdleCheck, sokuhimeFullWaitCheck, type SokuhimePerson } from '@/lib/ekichikaSokuhimePlan';
 import { buildSokuhimeCheckStep, buildSokuhimeDelStep } from '@/lib/relayFlow';
 import { buildEsutamaDiaryTokenStep, attachEsutamaDiaryPhotos } from '@/lib/esutamaDiaryFlow';
 import {
@@ -2726,7 +2726,7 @@ function sokuhimePeopleOf(
  */
 export async function hasSokuhimeWork(params: {
   salonId: number; provider: string; slot: number;
-}): Promise<{ ok: true; count: number } | { ok: false; why: string }> {
+}): Promise<{ ok: true; count: number; fullWait?: { wouldSkip: boolean; reason: string; freeAt: string | null } } | { ok: false; why: string }> {
   const supabase = createServiceClient();
   const now = new Date();
   const nowUnix = Math.floor(now.getTime() / 1000);
@@ -2769,7 +2769,18 @@ export async function hasSokuhimeWork(params: {
         : '「今すぐ」の方は全員、フクエスが押した即ヒメがまだ続いている（外す枠も無い）ので入らなかった',
     };
   }
-  return { ok: true, count: people.filter((p) => p.imasuguByFukues).length };
+  // ★ 第1946便: 【試し・数えるだけ】期限に合わせて見に行く決め方なら、この周は入らなかったか（判断は変えない）
+  let fullWait: { wouldSkip: boolean; reason: string; freeAt: string | null } | undefined;
+  try {
+    const { data: snap } = await supabase.from('media_sokuhime_snapshots').select('read_at, boxes')
+      .eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot).maybeSingle();
+    const f = sokuhimeFullWaitCheck({
+      idleReason: v.reason, people, nowMs: now.getTime(),
+      snapshot: snap ? { readAtMs: Date.parse(String(snap.read_at)), boxes: (Array.isArray(snap.boxes) ? snap.boxes : []) as Array<{ girlId: string | null; expiresAtUnix: number | null; untilLabel?: string | null }> } : null,
+    });
+    fullWait = { wouldSkip: f.wouldSkip, reason: f.reason, freeAt: f.freeAtMs ? new Date(f.freeAtMs).toISOString() : null };
+  } catch { /* 試しなので、読めなくても今までどおり */ }
+  return { ok: true, count: people.filter((p) => p.imasuguByFukues).length, ...(fullWait ? { fullWait } : {}) };
 }
 
 /**

@@ -256,3 +256,61 @@ export function sokuhimeIdleCheck(input: {
   if (live.some((p) => !fresh.has(String(p.castId)))) return go('needs_push');
   return { idle: true, reason: 'all_on' };
 }
+
+/**
+ * ★★★ 第1946便（2026-11-11・カッキーさんの決定「店舗が増える前に」）: 【試し・数えるだけ】期限に合わせて見に行く。
+ *   いまの周（10分ごと）は、即ヒメ枠が【全部埋まっていて、待っている人がいる】ときも、毎回ログインして「空いていない」を確かめている
+ *   （11/11 オイルクエスト様の枠4: 「即ヒメ枠が空いていないため送れません」が10分ごと）。
+ *   枠が空くのは、いちばん早く切れる枠の時刻（「～17:18 迄」）より前には来ない → それまでは入らなくてよい。
+ * ★ この便では【判断を変えない】。周の結果（/root/import.log）に「新しい決め方なら入らなかった」を出して、1日ぶん数える。
+ *
+ * ★ 「入らない」と言うのは、次が【すべて】そろったときだけ（1つでも欠けたら今までどおり入る）:
+ *   ① いまの下調べ（sokuhimeIdleCheck）の答えが needs_push（外す枠・連携していない方・読めない記録 は今までどおり入る）
+ *   ② 即ヒメ設定画面の写し（media_sokuhime_snapshots）が新しい（50分以内）
+ *   ③ 写しの枠が全部埋まっていて、どの枠も切れる時刻が読めて、いま＋余裕より先
+ *   ④ 「今すぐ」の方のうち、まだ枠に居ない方が1人以上いる（＝待っている人がいるから needs_push になっている）
+ *   ⑤ 枠に居る「今すぐ」の方は、その枠がまだ続いている（③で見ている）
+ * ★ 切れる時刻は画面の「～ HH:MM 迄」（untilLabel）を、写しを読んだ時刻のあとで最初に来るその時刻として読む。読めなければ入る。
+ */
+export const SOKUHIME_FULL_WAIT_MARGIN_MIN = 2;
+export const SOKUHIME_SNAPSHOT_FRESH_MIN = 50;
+
+/** 「HH:MM」→ 写しを読んだ時刻のあとで最初に来るその時刻（ms・日本時間）。読めなければ null */
+export function sokuhimeUntilMs(untilLabel: string | null | undefined, readAtMs: number): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(untilLabel ?? '').trim());
+  if (!m || !Number.isFinite(readAtMs)) return null;
+  const JST = 9 * 3600 * 1000;
+  const j = new Date(readAtMs + JST);
+  let t = Date.UTC(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate(), Number(m[1]) % 24, Number(m[2])) - JST;
+  if (t < readAtMs - 60 * 1000) t += 24 * 3600 * 1000;
+  // ★ 即ヒメは45分で切れる。写しから50分より先の時刻は読み違いとみなす
+  if (t - readAtMs > 50 * 60 * 1000) return null;
+  return t;
+}
+
+export function sokuhimeFullWaitCheck(input: {
+  idleReason: SokuhimeIdleReason;
+  people: ReadonlyArray<Pick<SokuhimePerson, 'castId' | 'imasuguByFukues'>>;
+  snapshot: { readAtMs: number; boxes: ReadonlyArray<{ girlId: string | null; expiresAtUnix: number | null; untilLabel?: string | null }> } | null;
+  nowMs: number;
+}): { wouldSkip: boolean; reason: string; freeAtMs: number | null } {
+  const no = (reason: string) => ({ wouldSkip: false, reason, freeAtMs: null });
+  if (input.idleReason !== 'needs_push') return no('not_needs_push');
+  const s = input.snapshot;
+  if (!s || !Number.isFinite(s.readAtMs)) return no('no_snapshot');
+  if (input.nowMs - s.readAtMs > SOKUHIME_SNAPSHOT_FRESH_MIN * 60 * 1000) return no('old_snapshot');
+  if (s.boxes.length === 0) return no('no_boxes');
+  const ends: number[] = [];
+  for (const b of s.boxes) {
+    if (!b.girlId) return no('free_box');
+    const end = b.expiresAtUnix !== null && Number.isFinite(b.expiresAtUnix) ? b.expiresAtUnix * 1000 : sokuhimeUntilMs(b.untilLabel ?? null, s.readAtMs);
+    if (end === null) return no('until_unknown');
+    if (end <= input.nowMs + SOKUHIME_FULL_WAIT_MARGIN_MIN * 60 * 1000) return no('ending_soon');
+    ends.push(end);
+  }
+  const inBox = new Set(s.boxes.map((b) => String(b.girlId)));
+  const waiting = input.people.filter((p) => p.imasuguByFukues && p.castId && !inBox.has(String(p.castId)));
+  if (waiting.length === 0) return no('no_waiting');
+  const freeAtMs = Math.min(...ends) - SOKUHIME_FULL_WAIT_MARGIN_MIN * 60 * 1000;
+  return { wouldSkip: true, reason: 'full_until', freeAtMs };
+}

@@ -211,6 +211,8 @@ export async function POST(req: Request) {
 
   const started: string[] = [];
   const skipped: Array<{ target: string; why: string }> = [];
+  // ★ 第1946便: 【試し・数えるだけ】期限に合わせて見に行く決め方なら入らなかった枠（判断は変えていない）。/root/import.log で1日ぶん数える
+  const fullWaitWouldSkip: Array<{ target: string; freeAt: string | null }> = [];
 
   for (const r of rows) {
     const target = r.salon_id + '/' + PROVIDER + '#' + r.slot;
@@ -234,6 +236,7 @@ export async function POST(req: Request) {
     //   ★ 数えるだけ（apply も dryrun も無し）でもここを通す＝本番で、ジョブを積まずに下調べの結果を見られる。
     const work = await hasSokuhimeWork({ salonId: Number(r.salon_id), provider: PROVIDER, slot: Number(r.slot) });
     if (!work.ok) { skipped.push({ target, why: work.why }); continue; }
+    if (work.fullWait?.wouldSkip) fullWaitWouldSkip.push({ target, freeAt: work.fullWait.freeAt });
     if (started.length >= MAX_SALONS_PER_RUN) { skipped.push({ target, why: '今回の上限に達したので次の周へ' }); continue; }
     // ★ dryrun も apply も付いていなければ、数えるだけ（中継ジョブを積まない）
     if (!apply && !dryrun) { started.push(target); continue; }
@@ -257,6 +260,8 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true, apply, dryrun, targets: rows.length, started, skipped,
+    // ★ 第1946便: 試し。下の数が多いほど、期限に合わせる決め方で減らせるログイン（started のうち、新しい決め方なら入らなかったもの）
+    fullWaitTrial: { wouldSkip: fullWaitWouldSkip.length, of: started.length, items: fullWaitWouldSkip },
     見かた: apply
       ? '中継ジョブを積みました。1店舗につき1人だけ押します。結果は各店舗の「連携の記録」に出ます'
       : dryrun
