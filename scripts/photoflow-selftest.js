@@ -67,7 +67,8 @@ console.log('\n── 2. 編集ページの読み取り ──');
   eq('★ problems なし', pg.problems, []);
   eq('★★★ 別の子のページなら problems', p.parsePhotoPage(editPage({ girl: '9999999' }), GIRL).problems.some((x) => /別の子/.test(x)), true);
   eq('★ csrf が無ければ problems', p.parsePhotoPage(editPage({ token: '' }), GIRL).problems.some((x) => /fuel_csrf_token/.test(x)), true);
-  eq('★ 枠が8つ無ければ problems', p.parsePhotoPage(editPage({ slots: 5 }), GIRL).problems.some((x) => /枠の数/.test(x)), true);
+  // ★ 第1956便（2026-11-12・総点検）: 今の決まりに合わせた。 第1693便: 枠の数が 8 でなくても止めない（1枠目があれば進む）
+  eq('★ 枠が8つ無くても止めない（第1693便）', p.parsePhotoPage(editPage({ slots: 5 }), GIRL).problems.some((x) => /枠の数/.test(x)), false);
   eq('★ ログイン画面（画像の form が無い）は problems', p.parsePhotoPage(LOGIN_PAGE, GIRL).problems.length > 0, true);
   eq('★ 埋め込みの他社ログイン form を画像の form と取り違えない', pg.slots.every((s) => p.isPhotoSlot(s.slot)), true);
   eq('★★★ 第246便: 生の image も返る（★ 差し替えを見つけるのに要る）', pg.slots[0].image, S3 + '1_20260809230626.jpg');
@@ -177,7 +178,7 @@ eq('★ upload の文字の項目（upfile は別に渡す）', Object.keys(p.bu
 }
 eq('★ 画像の外に出る切り抜きは断る', /画像の外/.test(throws(() => p.buildMainCropFields(ids, 'https://s3/x.jpg', { x: 0, y: 0, w: 700, h: 900 }, { width: 600, height: 800 }))), true);
 eq('★ 収まらないサムネイルは断る', /収まって/.test(throws(() => p.buildThumbCropFields(ids, 'https://s3/x.jpg', { x: 200, y: 0, w: 180, h: 180 }))), true);
-eq('★ 枠 9 は断る', /1〜8/.test(throws(() => p.buildUploadFields({ ...ids, slot: 9 }))), true);
+eq('★ 枠 21 は断る（第1693便: 読める枠は 20 まで）', /1〜20/.test(throws(() => p.buildUploadFields({ ...ids, slot: 21 }))), true);
 eq('★ csrf 空は断る', /fuel_csrf_token/.test(throws(() => p.buildUploadFields({ ...ids, csrfToken: '' }))), true);
 eq('★ 編集ページの URL', p.ekichikaGirlEditUrl('5232208'), 'https://ranking-deli.jp/admin/girls/edit/5232208');
 eq('★ girl_id が数字でなければ断る', /不正/.test(throws(() => p.ekichikaGirlEditUrl('../admin'))), true);

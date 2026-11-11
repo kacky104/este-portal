@@ -93,7 +93,12 @@ const r6 = run('read_photo_page', Object.assign({}, c, { photoStage: 'sync_delet
 eq('★ 枠5を消した記録＋枠6は空なので記録だけ → 終わり、次の人へ', [r6.kind, r6.next && r6.next.purpose], ['next', 'girl_edit_form']);
 eq('★ 記録（5 と 6 を消す）', r6.photoSynced, [{ therapistId: 25, imageSlot: 5, sourceUrl: null }, { therapistId: 25, imageSlot: 6, sourceUrl: null }]);
 eq('★ まとめの1行', r6.audits.map((a) => a.summary).pop(), 'るうさんの駅ちかの写真を合わせました（入れた枠 1・2／消した枠 5）');
-const n = r6.next.context;
+// ★ 第1956便（2026-11-12・総点検）: 今の決まりに合わせた。 第1549便: 写真を入れ終えたら、同じ人のプロフィールをもう1回だけ送ってから次の人へ
+const again = r6.next.context;
+eq('★ 第1549便: 写真のあと、同じ人のプロフィールをもう1回送る（写真は送らない）', [again.editCastId === c.editCastId, again.editRetried, again.editPhotos, again.editQueue.length], [true, true, undefined, 1]);
+const rAgain = run("girl_edit_form", again, { status: 500 });
+eq('★ 送り直しが済んだら次の人へ', [rAgain.kind, rAgain.next && rAgain.next.purpose], ["next", "girl_edit_form"]);
+const n = rAgain.next.context;
 eq('★★ 次の人に写真の道を持ち越さない', [n.editCastId, n.photoSync, n.photoSyncOps, n.photoGirlId, n.photoPut, n.editTherapistId, n.editPhotos.length], ['999', undefined, undefined, undefined, undefined, 26, 1]);
 const top = run('read_photo_page', base({ photoSync: true, photoGirlId: GIRL, photoStage: 'sync', photoSyncOps: [{ slot: 1, action: 'remove', sourceUrl: null, recorded: true }] }), { body: editPage({ occupied: [1] }) });
 eq('★★ 画像1は消さない（記録だけ外す）', [top.kind, top.audits[0].detail.reason, top.photoSynced], ['done', 'top_no_delete', [{ therapistId: 25, imageSlot: 1, sourceUrl: null }]]);

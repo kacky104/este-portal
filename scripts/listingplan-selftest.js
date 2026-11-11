@@ -69,7 +69,8 @@ console.log('\n── 3. ★★★ /listing の部品（注記を外した中身
   eq('★★ 金額を部品に直接書いていない（lib/listingPlan.ts の値を使う）', has(/120,000|90,000|30,000|20,000|10,000/), []);
   eq('★★ 部品は画像を読んでいない（いまは文字で組んでいる。画像に戻したら、この行と sr-only を一緒に直す）',
     shown.filter((f) => f !== 'page.tsx' && /\/listing\/[a-z-]+\.webp/.test(body[f])), []);
-  eq('★★★ 古い掲載案内 PDF への入口を出していない', /<ListingGuidePdfLink\b|fukues-listing-guide\.pdf/.test(body['page.tsx']), false);
+  // ★ 第1956便（2026-11-12・総点検）: 今の決まりに合わせた。 第1746便で 2026年11月版の PDF に差し替えて入口を戻した
+  eq('★★ 掲載案内 PDF（2026年11月版・第1746便）への入口がある', /<ListingGuidePdfLink\b/.test(body['page.tsx']), true);
   eq('料金プランは、キャンペーンの名前と3つの金額を lib から出している',
     ['LISTING_CAMPAIGN_NAME', 'LISTING_FEE_YEN', 'LISTING_CAMPAIGN_FEE_YEN', 'LISTING_CAMPAIGN_OFF_YEN', 'LISTING_SET_OPTION_YEN'].filter((k) => !body['ListingPricePlans.tsx'].includes(k)), []);
   eq('★★ 期限を書いていない（カッキーさんの決定: 期限は書かない）', has(/まで(の|に)ご契約|先着|月末まで|期間限定/), []);

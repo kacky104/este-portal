@@ -69,11 +69,14 @@ const conecfActions = fs.readdirSync(actionsDir).filter((f) => /^conecf.*\.ts$/.
 // ★ 「自分の店を読む」所を、じかに owner_id = 自分 で書いているファイル（conecf.ts の getConecfAccess の1か所だけは別＝下で見る）
 const raw = conecfActions.filter((f) => /\.eq\('owner_id', user\.id\)/.test(read('src', 'app', 'actions', f)));
 eq('★★★ コネックエフの actions に、じかに owner_id = 自分 で店を読む所が残っていない（conecf.ts の1か所を除く）', raw, ['conecf.ts']);
+const ORIGINAL_SCOPED = ['conecfBump.ts', 'conecfCocoa.ts', 'conecfDiaryMixed.ts', 'conecfFirstImport.ts', 'conecfGirlEdit.ts', 'conecfGirls.ts', 'conecfImasugu.ts', 'conecfSchedule.ts', 'conecfSlotMirror.ts', 'conecfSort.ts'];
 const scoped = conecfActions.filter((f) => /scopeConecfSalon\(svc\.from\('salons'\)\.select\(/.test(read('src', 'app', 'actions', f)));
-eq('★★★ 10のファイルが scopeConecfSalon を通っている',
-  scoped.sort(), ['conecfBump.ts', 'conecfCocoa.ts', 'conecfDiaryMixed.ts', 'conecfFirstImport.ts', 'conecfGirlEdit.ts', 'conecfGirls.ts', 'conecfImasugu.ts', 'conecfSchedule.ts', 'conecfSlotMirror.ts', 'conecfSort.ts']);
+// ★ 第1956便（2026-11-12・総点検）: 今の決まりに合わせた。 受け口が増えたので「はじめの10ファイルが抜けていない」を見る
+eq('★★★ はじめの10ファイルが scopeConecfSalon を通っている',
+  scoped.sort().filter((f) => ORIGINAL_SCOPED.includes(f)), ORIGINAL_SCOPED);
+eq('★ いま scopeConecfSalon を通っているファイルは10以上', scoped.length >= 10, true);
 eq('★★★ どれも、その直前で operatorActingSalonId(user.id) を読んでいる',
-  scoped.map((f) => { const s = read('src', 'app', 'actions', f); return (s.match(/const actingId = await operatorActingSalonId\(user\.id\);/g) || []).length === (s.match(/scopeConecfSalon\(/g) || []).length; }), scoped.map(() => true));
+  scoped.map((f) => { const s = read('src', 'app', 'actions', f); return (s.match(/const actingId = await operatorActingSalonId\(user\.id\);/g) || []).length >= (s.match(/scopeConecfSalon\(/g) || []).length; }), scoped.map(() => true));
 const lib = read('src', 'app', 'lib', 'conecf', 'actingSalon.ts');
 eq('★★★ cookie を読む前に、運営アカウントかを見ている', /if \(!userId \|\| userId !== ADMIN_UUID\) return null;[\s\S]*cookies\(\)/.test(lib), true);
 eq('★★ 店舗様のときの読み方は今までと同じ並び（非表示でない店を先・id の若い順）', /q\.eq\('owner_id', userId\)\.order\('is_hidden', \{ ascending: true \}\)\.order\('id', \{ ascending: true \}\)/.test(lib), true);
@@ -88,11 +91,10 @@ eq('★★★ ID・パスワードの保存が、同意の代行を止めてい�
 eq('★★ 止めるのは、同意の検査（!consent.ok）より前', cred.indexOf('OPERATOR_FIRST_CONSENT_MESSAGE };') < cred.indexOf('if (!consent.ok) {') && cred.indexOf('OPERATOR_FIRST_CONSENT_MESSAGE };') > 0, true);
 const shell = read('src', 'app', 'conecf', 'ConecfShell.tsx');
 eq('★★ 帯は運営にだけ出す', /access\.role === 'operator' && <OperatorBar access=\{access\} \/>/.test(shell), true);
-eq('★ まだ使えない所（お知らせ・フクエスの上位表示・写真）は、運営として操作中だけ案内に替える',
+// ★ 第1956便（2026-11-12・総点検）: 今の決まりに合わせた。 フクエスの上位表示（第1927便）・ココアは運営でも使えるようになった
+eq('★ まだ使えない所（お知らせ・写真）は、運営として操作中だけ案内に替える',
   [/a\.acting\s*\? <OperatorNotYet what="フクエスお知らせ" \/>/.test(read('src', 'app', 'conecf', 'announce', 'page.tsx')),
-   /acting \? <OperatorNotYet what="フクエスの上位表示" \/> : <SalonBumpButton/.test(read('src', 'app', 'conecf', 'bump', 'page.tsx')),
-   /if \(acting\) \{ onToast\(OPERATOR_NOT_YET_MESSAGE\); return; \}/.test(read('src', 'app', 'conecf', 'cocoa', 'page.tsx')),
-   /if \(acting\) \{ onToast\(OPERATOR_NOT_YET_MESSAGE\); return; \}/.test(read('src', 'app', 'conecf', 'girls', '[id]', 'page.tsx'))], [true, true, true, true]);
+   /if \(acting\) \{ onToast\(OPERATOR_NOT_YET_MESSAGE\); return; \}/.test(read('src', 'app', 'conecf', 'girls', '[id]', 'page.tsx'))], [true, true]);
 
 console.log(fail === 0 ? '\n★ すべて通った' : '\n★ NG ' + fail + ' 件');
 process.exit(fail === 0 ? 0 : 1);

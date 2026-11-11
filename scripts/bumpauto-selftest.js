@@ -22,21 +22,22 @@ const jst = (d, h, mi) => new Date(Date.parse('2026-09-' + String(d).padStart(2,
   + 'T' + String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0') + ':00+09:00'));
 
 console.log('── 1. 回数の上限 ──');
-eq('★ 土台は20回', B.bumpQuota(false), 20);
+// ★ 第1956便（2026-11-12・総点検）: 今の決まりに合わせた。 全店 40 回（カッキーさん 11/12「意図どおり」）
+eq('★ どの店も40回', B.bumpQuota(false), 40);
 eq('★★ ワーク掲載店は40回', B.bumpQuota(true), 40);
-eq('★ 数字は定数で持つ', [B.BUMP_QUOTA_BASE, B.BUMP_QUOTA_JOBS_BONUS], [20, 20]);
+eq('★ 数字は定数で持つ', [B.BUMP_QUOTA_BASE, B.BUMP_QUOTA_JOBS_BONUS], [40, 0]);
 
 console.log('\n── 2. ★★★ 残り回数（朝6時区切り） ──');
 {
   const now = jst(15, 15, 0);                       // 2026-09-15 15:00 JST → 営業日は 2026-09-15
-  eq('★ 今日ぶんを5回使っていれば残り15', B.bumpRemaining({ now, jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 5 }), 15);
-  eq('★★ 昨日の記録は関係ない（満タン）', B.bumpRemaining({ now, jobsEnabled: false, bumpDay: '2026-09-14', bumpUsed: 20 }), 20);
+  eq('★ 今日ぶんを5回使っていれば残り35', B.bumpRemaining({ now, jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 5 }), 35);
+  eq('★★ 昨日の記録は関係ない（満タン）', B.bumpRemaining({ now, jobsEnabled: false, bumpDay: '2026-09-14', bumpUsed: 20 }), 40);
   eq('★ 一度も押していなければ満タン', B.bumpRemaining({ now, jobsEnabled: true, bumpDay: null, bumpUsed: null }), 40);
-  eq('★★ 使い切っていれば0（負にしない）', B.bumpRemaining({ now, jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 25 }), 0);
+  eq('★★ 使い切っていれば0（負にしない）', B.bumpRemaining({ now, jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 45 }), 0);
   eq('★★★ 今日の記録なのに回数が読めない → null', B.bumpRemaining({ now, jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: null }), null);
   // ★ 朝6時前は「前日」あつかい（SQL 側 v_today と同じ切り方）
-  eq('★★ 朝5時は前日ぶんの続き', B.bumpRemaining({ now: jst(16, 5, 0), jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 7 }), 13);
-  eq('★★ 朝6時で戻る', B.bumpRemaining({ now: jst(16, 6, 0), jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 7 }), 20);
+  eq('★★ 朝5時は前日ぶんの続き', B.bumpRemaining({ now: jst(16, 5, 0), jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 7 }), 33);
+  eq('★★ 朝6時で戻る', B.bumpRemaining({ now: jst(16, 6, 0), jobsEnabled: false, bumpDay: '2026-09-15', bumpUsed: 7 }), 40);
 }
 
 console.log('\n── 3. 設定の値 ──');

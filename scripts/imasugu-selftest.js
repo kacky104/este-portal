@@ -17,18 +17,19 @@ const eq = (name, got, want) => {
 };
 
 console.log('── 1. ★★★ 同時に出せる人数 ──');
-eq('★ ふつうの店は10名（第1254便）', I.imasuguMax(false), 10);
+// ★ 第1956便（2026-11-12・総点検）: 今の決まりに合わせた。 全店 15 名（カッキーさん 11/12「意図どおり」）
+eq('★ どの店も15名', I.imasuguMax(false), 15);
 eq('★★ フクエスワーク掲載店は15名（第1253便）', I.imasuguMax(true), 15);
-eq('★ 数字は定数で持つ', [I.IMASUGU_MAX_BASE, I.IMASUGU_MAX_JOBS_BONUS], [10, 5]);
+eq('★ 数字は定数で持つ', [I.IMASUGU_MAX_BASE, I.IMASUGU_MAX_JOBS_BONUS], [15, 0]);
 
 console.log('\n── 2. ★★ 掲載の判定は厳しく（true 以外は上乗せしない） ──');
-eq('★★★ null は10名（★ 読めていない店を15名にしない）', I.imasuguMax(null), 10);
-eq('★★ undefined は10名', I.imasuguMax(undefined), 10);
-eq('★★ 文字列 "true" は10名（★ 値が壊れていても上乗せしない）', I.imasuguMax('true'), 10);
-eq('★ 数字の1は10名', I.imasuguMax(1), 10);
+eq('★ null でも15名', I.imasuguMax(null), 15);
+eq('★ undefined でも15名', I.imasuguMax(undefined), 15);
+eq('★ 文字列 "true" でも15名', I.imasuguMax('true'), 15);
+eq('★ 数字の1でも15名', I.imasuguMax(1), 15);
 
 console.log('\n── 3. ★ 上限に達したときの1行 ──');
-eq('★ 10名の店', I.imasuguLimitNote(I.imasuguMax(false)), '今すぐは最大10名までです');
+eq('★ 上限の文', I.imasuguLimitNote(I.imasuguMax(false)), '今すぐは最大15名までです');
 eq('★★ 15名の店', I.imasuguLimitNote(I.imasuguMax(true)), '今すぐは最大15名までです');
 eq('★ 文言に「★」を混ぜない', /★/.test(I.imasuguLimitNote(5)), false);
 eq('★ 内部の言葉を出さない', /imasugu|jobs|max/i.test(I.imasuguLimitNote(5)), false);

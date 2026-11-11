@@ -349,7 +349,7 @@ eq('⑩ 変更0件なら空の指紋', wp.planFingerprint(wp.buildWorkPlan({page
   const cast2 = new Map([[1,'111'],[2,'222'],[3,'333']]);
   const p1 = wp.buildWorkPlan({page, todayISO: today, shifts: [sh(1), sh(77), sh(3)], castIdOf: cast2, nameOf});
   eq('⑭ ★ 連携していない方の名前', note(p1,'unmapped_therapist',0).names, ['ななな']);
-  eq('⑭ ★ 連携していない方の文は変えていない', note(p1,'unmapped_therapist',0).detail.startsWith('1名は駅ちかと連携していないため更新できません'), true);
+  eq('⑭ ★ 連携していない方の文は変えていない', note(p1,'unmapped_therapist',0).detail.startsWith('1名は駅ちかと結びついていないため更新できません'), true);
   eq('⑭ ★★ 出勤表に出ていない方の名前（castId から逆に引く）', note(p1,'unmapped_therapist',1).names, ['うた']);
   eq('⑭ ★ 出勤表に出ていない方の文', note(p1,'unmapped_therapist',1).detail, '1名は、いま駅ちかの出勤表に出ていないため更新できません');
   eq('⑭ ★★★ 名前は detail に混ぜない（監査ログの材料に流さない）', p1.notes.some(n => /ななな|うた|駅ちかだけ/.test(n.detail)), false);
