@@ -246,11 +246,12 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
             </>
           ) : (
             <>
-              <div className="flex items-center gap-4 flex-wrap text-[17px] font-bold text-blue-600 border-b border-slate-100 pb-2">
+              {/* ★ 第1935便: スマホでも1行に（短い名前・小さめの文字） */}
+              <div className="flex items-center gap-3 sm:gap-4 whitespace-nowrap text-[15px] sm:text-[17px] font-bold text-blue-600 border-b border-slate-100 pb-2">
                 <button type="button" onClick={() => setBulkOpen((v) => !v)} className="underline">🔧 一括登録</button>
-                <button type="button" onClick={() => setRows(timesMin.map((m) => minuteLabel(m)))} className="underline">⇅ 時刻順に並べ替え</button>
-                <button type="button" onClick={() => { if (window.confirm('時刻をすべて消しますか？（「設定を保存」を押すまでは決まりません）')) setRows([]); }} className="underline">🗑 すべて削除</button>
-                <span className="ml-auto text-[16px] font-normal text-slate-500 tabular-nums">{timesMin.length} / {BUMP_TIMES_MAX}個</span>
+                <button type="button" onClick={() => setRows(timesMin.map((m) => minuteLabel(m)))} className="underline">⇅ <span className="sm:hidden">並べ替え</span><span className="hidden sm:inline">時刻順に並べ替え</span></button>
+                <button type="button" onClick={() => { if (window.confirm('時刻をすべて消しますか？（「設定を保存」を押すまでは決まりません）')) setRows([]); }} className="underline">🗑 <span className="sm:hidden">全削除</span><span className="hidden sm:inline">すべて削除</span></button>
+                <span className="ml-auto text-[14px] sm:text-[16px] font-normal text-slate-500 tabular-nums">{timesMin.length}/{BUMP_TIMES_MAX}<span className="hidden sm:inline">個</span></span>
               </div>
               {bulkOpen && (
                 <div className="relative space-y-3 border border-slate-200 bg-slate-100 p-3 sm:p-4 text-[16px] text-slate-700">
