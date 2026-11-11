@@ -82,13 +82,13 @@ export function MessageMenu({ salonId, booking, data }: { salonId: number; booki
       {done && (
         <div className="fixed inset-x-3 bottom-3 z-[60] mx-auto max-w-[520px] border border-emerald-300 bg-white p-3 shadow-2xl">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-bold text-emerald-700">{err ? '' : `「${done.name}」をコピーしました`}</span>
-            {/* LINE の送る画面を開く（スマホ用・PC は貼り付けで） */}
+            <span className="mr-auto text-[13px] font-bold text-emerald-700">{err ? '' : `「${done.name}」をコピーしました`}</span>
+            {/* LINE の送る画面を開く（スマホだけ。PC は LINE の送る画面が開けないので、コピーした文を PC の LINE に貼る・第1791便と同じ） */}
             <a
               href={`https://line.me/R/share?text=${encodeURIComponent(done.text)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="ml-auto bg-[#06c755] px-2 py-1 text-[12px] font-bold text-white"
+              className="bg-[#06c755] px-2 py-1 text-[12px] font-bold text-white md:hidden"
             >
               LINEで開く
             </a>
