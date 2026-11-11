@@ -1,5 +1,6 @@
 'use client';
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useState } from 'react';
 import { when } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
@@ -41,7 +42,7 @@ function SettingCard({ s, onToast, reload, open, onToggle }: { s: ConecfEkichika
     if (r.ok) reload();
   };
   const now = async (i: number) => {
-    if (!window.confirm('駅ちかの会員さんにマガジンが1通届きます。いま送りますか？')) return;
+    if (!(await conecfConfirm('駅ちかの会員さんにマガジンが1通届きます。いま送りますか？', { ok: '送る' }))) return;
     setBusy(true);
     const r = await runConecfEkichikaMagazineNow({ slot: s.slot, index: i });
     setBusy(false);

@@ -1,5 +1,6 @@
 'use client';
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { shrinkToJpeg, when } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
@@ -171,7 +172,7 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
     }
   };
   const removeImage = async (path: string) => {
-    if (!window.confirm('この画像を消します。よろしいですか？')) return;
+    if (!(await conecfConfirm('この画像を消します。よろしいですか？', { ok: '消す', danger: true }))) return;
     setBusy(true);
     const r = await removeConecfEsutamaPostImage({ key: p.key, path });
     setBusy(false);
@@ -187,7 +188,7 @@ function PostCard({ p, onToast, reload, open, onToggle }: { p: ConecfEsutamaPost
   };
   const now = async () => {
     if (dirty) { onToast('文章を変えたときは、先に「保存」を押してください'); return; }
-    if (!window.confirm(daily ? 'いまの文章で、メールマガジンを1通配信します（登録しているお客様へ本当にメールが届きます）。よろしいですか？' : 'いまの文章で、エステ魂に1件投稿します。よろしいですか？')) return;
+    if (!(await conecfConfirm(daily ? 'いまの文章で、メールマガジンを1通配信します（登録しているお客様へ本当にメールが届きます）。よろしいですか？' : 'いまの文章で、エステ魂に1件投稿します。よろしいですか？', { ok: daily ? '配信する' : '投稿する' }))) return;
     setBusy(true);
     const r = await runConecfEsutamaPostNow({ key: p.key });
     setBusy(false);

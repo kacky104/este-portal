@@ -1,5 +1,6 @@
 'use client';
 
+import { conecfPrompt } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useState } from 'react';
 import { when } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
@@ -63,7 +64,7 @@ function VideoLibrary({ videos, onToast, reload }: { videos: ConecfVideo[]; onTo
           <li key={v.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-[14px]">
             <span className="font-bold">{v.name}</span>
             <span className="text-[12px] text-slate-400">{mb(v.bytes)}・{when(v.createdAt)}</span>
-            <button type="button" className="ml-auto text-[12.5px] text-indigo-600 underline" onClick={async () => { const n = window.prompt('新しい名前', v.name); if (!n) return; const r = await renameConecfVideo({ id: v.id, name: n }); onToast(r.ok ? '名前を変えました' : r.error); if (r.ok) reload(); }}>名前を変える</button>
+            <button type="button" className="ml-auto text-[12.5px] text-indigo-600 underline" onClick={async () => { const n = await conecfPrompt('新しい名前', v.name, { ok: '名前を変える' }); if (!n) return; const r = await renameConecfVideo({ id: v.id, name: n }); onToast(r.ok ? '名前を変えました' : r.error); if (r.ok) reload(); }}>名前を変える</button>
             <button type="button" className="text-[12.5px] text-rose-600 underline" onClick={async () => { const r = await deleteConecfVideo({ id: v.id }); onToast(r.ok ? '消しました' : r.error); if (r.ok) reload(); }}>消す</button>
           </li>
         ))}

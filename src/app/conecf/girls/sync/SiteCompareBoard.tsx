@@ -1,5 +1,6 @@
 'use client';
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -175,7 +176,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
   const onLinkExact = async (s: Site) => {
     const list = exactPairs(s);
     if (list.length === 0) return;
-    if (!window.confirm(`${s.label}で、名前がまったく同じ ${list.length}人 をまとめて連携します。よろしいですか？`)) return;
+    if (!(await conecfConfirm(`${s.label}で、名前がまったく同じ ${list.length}人 をまとめて連携します。よろしいですか？`, { ok: '連携する' }))) return;
     setBulkBusy(key(s));
     let ok = 0, ng = 0;
     try {

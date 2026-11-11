@@ -4,6 +4,7 @@
 // ★ ベンリーの「エステ魂【オプション】(【新】写メNote)」と同じ形: 投稿内容（タイトル・本文・画像3枚・カテゴリ・セラピスト）を
 //   何件か並べ、決めた間隔で上から順に1件ずつ投稿する。並べた内容は「設定を保存」で決まる。
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useState } from 'react';
 import { shrinkToJpeg, when } from '../conecfClientUtil';
 import {
@@ -65,7 +66,7 @@ export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: Con
   const now = async () => {
     if (dirty) { onToast('内容を変えたときは、先に「設定を保存」を押してください'); return; }
     if (nextNo < 0) { onToast('投稿内容を1件以上入れてください'); return; }
-    if (!window.confirm(`${nextNo + 1}件目を、いまエステ魂の写メNote に1件投稿します（セラピストの名前で載り、お店からは消せません）。よろしいですか？`)) return;
+    if (!(await conecfConfirm(`${nextNo + 1}件目を、いまエステ魂の写メNote に1件投稿します（セラピストの名前で載り、お店からは消せません）。よろしいですか？`, { ok: '投稿する' }))) return;
     setBusy(true);
     const r = await runConecfEsutamaNoteNow();
     setBusy(false);
@@ -123,7 +124,7 @@ export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: Con
                 <span className="flex gap-3 text-[13px] font-bold text-blue-600">
                   {i > 0 && <button type="button" onClick={() => setRows((v) => { const c = [...v]; [c[i - 1], c[i]] = [c[i], c[i - 1]]; return c; })} className="underline">↑</button>}
                   {i < rows.length - 1 && <button type="button" onClick={() => setRows((v) => { const c = [...v]; [c[i + 1], c[i]] = [c[i], c[i + 1]]; return c; })} className="underline">↓</button>}
-                  <button type="button" onClick={() => { if (window.confirm(`${i + 1}件目を消しますか？（「設定を保存」を押すまでは決まりません）`)) setRows((v) => v.filter((_, j) => j !== i)); }} className="text-rose-600 underline">枠を削除</button>
+                  <button type="button" onClick={async () => { if (await conecfConfirm(`${i + 1}件目を消しますか？\n（「設定を保存」を押すまでは決まりません）`, { ok: '消す', danger: true })) setRows((v) => v.filter((_, j) => j !== i)); }} className="text-rose-600 underline">枠を削除</button>
                 </span>
               </div>
               <div className="space-y-2 p-3 text-[14px]">

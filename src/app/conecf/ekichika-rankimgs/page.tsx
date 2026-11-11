@@ -1,5 +1,6 @@
 'use client';
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useState } from 'react';
 import { when } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
@@ -49,7 +50,7 @@ function SettingCard({ s, girls, onToast, reload, open, onToggle }: { s: ConecfE
     if (r.ok) reload();
   };
   const now = async (i: number) => {
-    if (!window.confirm('駅ちかの店舗メイン／ランキングを、この組のセラピストにいま入れ替えますか？')) return;
+    if (!(await conecfConfirm('駅ちかの店舗メイン／ランキングを、この組のセラピストにいま入れ替えますか？', { ok: '入れ替える' }))) return;
     setBusy(true);
     const r = await runConecfEkichikaRankImageNow({ slot: s.slot, index: i });
     setBusy(false);

@@ -6,6 +6,7 @@
 //   ★ 保存先はフクエスのマイページと同じ（どちらで変えても同じ画像）。
 //   ★ ブラウザで縦横1440以内の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側）。サーバーでも JPEG に作り直す。
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useEffect, useRef, useState } from 'react';
 import { shrinkToJpeg } from '../conecfClientUtil';
 import { getConecfPlaceholder, saveConecfPlaceholder, deleteConecfPlaceholder } from '@/app/actions/conecfGirls';
@@ -53,7 +54,7 @@ export function PlaceholderCard({ onToast, alwaysOpen = false }: { onToast: (m: 
   };
 
   const onDelete = async () => {
-    if (!window.confirm('写真が無いセラピストの画像を外しますか？（フクエスでは共通の画像になり、駅ちかへは送らなくなります）')) return;
+    if (!(await conecfConfirm('写真が無いセラピストの画像を外しますか？\n（フクエスでは共通の画像になり、駅ちかへは送らなくなります）', { ok: '外す', danger: true }))) return;
     setBusy(true);
     const r = await deleteConecfPlaceholder();
     setBusy(false);

@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { conecfBaseFor } from '@/lib/conecfHost';
 import { ConecfBaseProvider } from './ConecfBase';
 import { ConecfSessionProvider } from './ConecfSession';
+import { ConecfConfirmHost } from './ConecfConfirm';
 
 // コネックエフ（conecf.com）の共通レイアウト（第395便・1a・2026-09-17・カッキーさん）。
 //
@@ -46,7 +47,7 @@ export default async function ConecfLayout({ children }: { children: React.React
     <ConecfBaseProvider base={base}>
       {/* ★ 第1117便: 外枠の状態（権限・赤帯・ココア）は layout の下で1回読む（画面を行き来しても読み直さない） */}
       <ConecfSessionProvider>
-        <div className="conecf-venrey min-h-screen" style={bgStyle}>{children}</div>
+        <div className="conecf-venrey min-h-screen" style={bgStyle}>{children}{/* ★ 第1961便: 確認の窓（conecfConfirm）の本体は、ここに1つだけ */}<ConecfConfirmHost /></div>
       </ConecfSessionProvider>
     </ConecfBaseProvider>
   );

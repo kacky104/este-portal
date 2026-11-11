@@ -2,6 +2,7 @@
 
 // ★ 第1930便（2026-11-11）: 「タイマー更新／時刻指定更新」の設定画面の中身を部品にした（駅ちかの枠・エステ魂の集客アピールの行で使う）
 //   ★ もとは /bump/ekichika/[slot]/page.tsx の Editor。保存・いま1回は呼び出し側が渡す
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useConecfHref } from '../ConecfBase';
@@ -104,7 +105,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
       if (timesMin.length > BUMP_TIMES_MAX) { onToast(`時刻は${BUMP_TIMES_MAX}個までです（いま ${timesMin.length}個）`); return; }
       times = timesMin;
     } else if (s.times) {
-      if (!window.confirm(`タイマー更新に切り替えると、時刻指定更新の${s.times.length}個の時刻は消えます。よろしいですか？`)) return;
+      if (!(await conecfConfirm(`タイマー更新に切り替えると、時刻指定更新の${s.times.length}個の時刻は消えます。よろしいですか？`, { ok: '切り替える' }))) return;
       times = [];
     }
     setBusy(label);
@@ -119,7 +120,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
 
   const runNow = async () => {
     if (!guard()) return;
-    if (!window.confirm(`${siteName}（${name}）の${what}をいま1回押しますか？${remaining != null ? `（本日残り ${remaining}回）` : ''}`)) return;
+    if (!(await conecfConfirm(`${siteName}（${name}）の${what}をいま1回押しますか？${remaining != null ? `（本日残り ${remaining}回）` : ''}`, { ok: '押す' }))) return;
     setBusy('run');
     const res = await runFn();
     setBusy('');
@@ -250,7 +251,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
               <div className="flex items-center gap-3 sm:gap-4 whitespace-nowrap text-[15px] sm:text-[17px] font-bold text-blue-600 border-b border-slate-100 pb-2">
                 <button type="button" onClick={() => setBulkOpen((v) => !v)} className="underline">🔧 一括登録</button>
                 <button type="button" onClick={() => setRows(timesMin.map((m) => minuteLabel(m)))} className="underline">⇅ <span className="sm:hidden">並べ替え</span><span className="hidden sm:inline">時刻順に並べ替え</span></button>
-                <button type="button" onClick={() => { if (window.confirm('時刻をすべて消しますか？（「設定を保存」を押すまでは決まりません）')) setRows([]); }} className="underline">🗑 <span className="sm:hidden">全削除</span><span className="hidden sm:inline">すべて削除</span></button>
+                <button type="button" onClick={async () => { if (await conecfConfirm('時刻をすべて消しますか？\n（「設定を保存」を押すまでは決まりません）', { ok: 'すべて消す', danger: true })) setRows([]); }} className="underline">🗑 <span className="sm:hidden">全削除</span><span className="hidden sm:inline">すべて削除</span></button>
                 <span className="ml-auto text-[14px] sm:text-[16px] font-normal text-slate-500 tabular-nums">{timesMin.length}/{BUMP_TIMES_MAX}<span className="hidden sm:inline">個</span></span>
               </div>
               {bulkOpen && (

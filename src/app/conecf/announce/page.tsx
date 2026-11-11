@@ -14,6 +14,7 @@
 // ★ マイページのお知らせタブはそのまま（★ どちらで書いても同じお知らせ・カッキーさんの決定）。
 // ★ 保存できるのは「コネックエフに切り替える」を押した店だけ（★ ほかの画面と同じ）。
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
 import { OperatorNotYet } from '../OperatorBar';
@@ -312,7 +313,7 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
   };
   const onDelete = async (a: Announcement) => {
     if (!guard()) return;
-    if (!window.confirm('このお知らせを削除しますか？\nこの操作は取り消せません。')) return;
+    if (!(await conecfConfirm('このお知らせを削除しますか？\nこの操作は取り消せません。', { ok: '削除する', danger: true }))) return;
     setBusy('del:' + a.id);
     const { data: deleted, error: delErr } = await supabase.from('announcements').delete().eq('id', a.id).select('id');
     setBusy('');

@@ -1,5 +1,6 @@
 'use client';
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { shrinkToJpeg } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
@@ -176,7 +177,7 @@ function MovieSection({ a, guard, onToast, reload }: { a: CocoaAccountRow; guard
   };
   const now = async () => {
     if (!guard()) return;
-    if (!window.confirm(a.label + 'に動画の記事を1件出します（残り回数を1回使います）。よろしいですか？')) return;
+    if (!(await conecfConfirm(a.label + 'に動画の記事を1件出します（残り回数を1回使います）。よろしいですか？', { ok: '出す' }))) return;
     setBusy(true);
     const res = await runConecfCocoaMovieNow({ slot: a.slot });
     setBusy(false);

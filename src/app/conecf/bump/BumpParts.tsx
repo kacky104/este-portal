@@ -1,6 +1,7 @@
 'use client';
 
 // ★ 第1928便（2026-11-11）: 上位表示設定の部品を page.tsx から分けた（エステ魂の枠の画面 /bump/esutama/<枠> でも SlotCard を使うため）
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useConecfHref } from '../ConecfBase';
@@ -117,7 +118,7 @@ export function SlotCard({ site, s, many, enabled, onToast, onSaved }: {
     if (!guard()) return;
     // ★ 第1315便（カッキーさん）: フクエスと同じく、押す前に1回確かめる
     const left = remaining !== null ? `（本日残り ${remaining}回）` : '';
-    if (!window.confirm(`${name}の${site.what}を実行しますか？${left}`)) return;
+    if (!(await conecfConfirm(`${name}の${site.what}を実行しますか？${left}`, { ok: '実行する' }))) return;
     setBusy('run');
     const res = await runConecfBumpNow({ provider: site.provider, slot: s.slot });
     setBusy('');

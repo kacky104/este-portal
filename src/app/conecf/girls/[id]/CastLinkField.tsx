@@ -1,5 +1,6 @@
 'use client';
 
+import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { maskEmail } from '@/lib/maskEmail';
 import { suggestEmailFix } from '@/lib/emailTypo';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
@@ -78,7 +79,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
 
   const onCancel = async () => {
     if (!st?.email) return;
-    if (!window.confirm(`招待を取り消します（${maskEmail(st.email)}）。\nよろしいですか？`)) return;
+    if (!(await conecfConfirm(`招待を取り消します（${maskEmail(st.email)}）。\nよろしいですか？`, { ok: '取り消す', danger: true }))) return;
     setBusy(true);
     const res = await cancelCastInvite({ therapistId: tid, salonId });
     setBusy(false);
@@ -88,7 +89,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
   };
 
   const onUnlink = async () => {
-    if (!window.confirm('このセラピストの本人ログイン（/cast）の連携を解除しますか？\n（アカウント自体は消えません。公開・出勤には影響しません）')) return;
+    if (!(await conecfConfirm('このセラピストの本人ログイン（/cast）の連携を解除しますか？\n（アカウント自体は消えません。公開・出勤には影響しません）', { ok: '解除する', danger: true }))) return;
     setBusy(true);
     const res = await unlinkCast({ therapistId: tid, salonId });
     setBusy(false);
