@@ -171,6 +171,8 @@ export function HpSitesManager({ onToast }: { onToast: (msg: string) => void }) 
             const days = daysUntil(s.domainExpiresAt);
             const isEditing = editingId === s.salonId;
             const templateLabel = HP_TEMPLATES.find((t) => t.key === s.templateKey)?.label ?? s.templateKey;
+            // ★ 第1951便: カラーは中の名前（gold など）ではなく表示名（アイボリーブラック など）で出す
+            const colorLabel = (HP_COLOR_VARIANTS[s.templateKey as HpTemplateKey] ?? []).find((c) => c.key === s.themeKey)?.label ?? s.themeKey;
             return (
               <div key={s.salonId} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 {/* サマリー行 */}
@@ -183,7 +185,7 @@ export function HpSitesManager({ onToast }: { onToast: (msg: string) => void }) 
                     {STATUS_LABEL[s.status] ?? s.status}
                   </span>
                   <span className="inline-flex px-2 py-0.5 rounded-full bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-500">
-                    {templateLabel}/{s.themeKey}{s.designLocked ? '・確定済' : '・未確定'}
+                    {templateLabel}/{colorLabel}{s.designLocked ? '・確定済' : '・未確定'}
                   </span>
                   {s.domain ? (
                     <span className="text-[11px] font-bold text-slate-600">{s.domain}</span>
