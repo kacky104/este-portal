@@ -17,7 +17,6 @@
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
-import { OperatorNotYet } from '../OperatorBar';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -78,8 +77,8 @@ async function fetchList(salonId: number): Promise<Announcement[]> {
 }
 
 /** fukuX 同時投稿のチェック（新規・再投稿で共用） */
-function CrosspostChecks({ linked, on, setOn, noReplies, setNoReplies }: {
-  linked: boolean; on: boolean; setOn: (v: boolean) => void; noReplies: boolean; setNoReplies: (v: boolean) => void;
+function CrosspostChecks({ linked, operator, on, setOn, noReplies, setNoReplies }: {
+  linked: boolean; operator: boolean; on: boolean; setOn: (v: boolean) => void; noReplies: boolean; setNoReplies: (v: boolean) => void;
 }) {
   return (
     <div className="space-y-2">
@@ -89,7 +88,7 @@ function CrosspostChecks({ linked, on, setOn, noReplies, setNoReplies }: {
           className="w-4 h-4 accent-indigo-600" />
         <span className="text-[13.5px] font-bold text-slate-600">fukuX にも投稿する</span>
       </label>
-      {!linked && <p className="text-[12px] text-slate-400 pl-6">fukuX店舗アカウントと連携すると同時投稿できます</p>}
+      {!linked && <p className="text-[12px] text-slate-400 pl-6">{operator ? '運営として操作しているときは、fukuX への同時投稿はできません' : 'fukuX店舗アカウントと連携すると同時投稿できます'}</p>}
       {linked && on && (
         <label className="flex items-center gap-2 cursor-pointer select-none pl-6">
           <input type="checkbox" checked={noReplies} onChange={(e) => setNoReplies(e.target.checked)} className="w-4 h-4 accent-indigo-600" />
@@ -131,7 +130,7 @@ function ImagePicker({ url, uploading, onPick, onClear }: {
   );
 }
 
-function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean; onToast: (m: string) => void }) {
+function Body({ salonId, enabled, operator, onToast }: { salonId: number; enabled: boolean; operator: boolean; onToast: (m: string) => void }) {
   const [list, setList] = useState<Announcement[] | null>(null);
   const [error, setError] = useState('');
   const [forms, setForms] = useState<Record<string, Form>>({});
@@ -170,11 +169,13 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
     void load();
     void refreshAuto();
     // ★ fukuX の店舗アカウント（ログイン中の本人の連携）。★ 読めなければ同時投稿は出さない
+    // ★ 第1963便: 運営として操作中は読まない（運営の fukuX アカウントに出てしまうため・同時投稿は出さない）
+    if (operator) return;
     supabase.auth.getUser()
       .then(({ data }) => getLinkedXProfileForSalon(data.user?.id ?? null))
       .then((p) => setXProfileId(p?.profileId ?? null))
       .catch(() => setXProfileId(null));
-  }, [load, refreshAuto]);
+  }, [load, refreshAuto, operator]);
 
   const guard = () => {
     if (!enabled) { onToast('保存するには、ホームで「コネックエフに切り替える」を押してください'); return false; }
@@ -366,7 +367,7 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
               <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft((d) => ({ ...d, is_published: e.target.checked }))} className="w-4 h-4 accent-indigo-600" />
               <span className="text-[13.5px] font-bold text-slate-600">公開する（オフにすると非公開で保存）</span>
             </label>
-            <CrosspostChecks linked={!!xProfileId} on={newX} setOn={setNewX} noReplies={newNoReplies} setNoReplies={setNewNoReplies} />
+            <CrosspostChecks linked={!!xProfileId} operator={operator} on={newX} setOn={setNewX} noReplies={newNoReplies} setNoReplies={setNewNoReplies} />
             <p className="text-[12.5px] text-slate-500 bg-slate-50 px-3 py-2">公開して新規投稿すると、フクエスで店舗を保存している会員に通知されます。内容を確かめてから追加してください。</p>
             <div className="flex justify-end">
               <button type="button" onClick={() => void onAdd()} disabled={busy !== '' || uploading !== ''} className={SAVE_BTN}>
@@ -465,7 +466,7 @@ function Body({ salonId, enabled, onToast }: { salonId: number; enabled: boolean
           <div className="bg-white shadow-xl w-full max-w-sm p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
             <p className="text-[15px] font-bold text-slate-800 leading-relaxed">このお知らせを再投稿しますか？<br />投稿日時が今の時刻になり、フクエスの新着の先頭に出ます。</p>
             <p className="text-[12.5px] text-slate-500 leading-relaxed bg-slate-50 p-3 whitespace-pre-line">{'同じ内容の再投稿でトップの新着が上がるのは、30分に1回までです。\n内容を書き替えた場合は、すぐに上がります。'}</p>
-            <CrosspostChecks linked={!!xProfileId} on={repX} setOn={setRepX} noReplies={repNoReplies} setNoReplies={setRepNoReplies} />
+            <CrosspostChecks linked={!!xProfileId} operator={operator} on={repX} setOn={setRepX} noReplies={repNoReplies} setNoReplies={setRepNoReplies} />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setRepostId(null)} disabled={busy !== ''} className="px-4 py-2 border border-slate-300 text-[14px] font-bold text-slate-600 disabled:opacity-50">やめる</button>
               <button type="button" onClick={() => void onRepost()} disabled={busy !== ''} className={SAVE_BTN}>{busy ? '処理中…' : '再投稿する'}</button>
@@ -483,11 +484,10 @@ export default function ConecfAnnouncePage() {
     <ConecfShell current="announce" title="フクエスお知らせ" toast={toast}>
       {(a) => (a.salonId == null
         ? <div className={`${CARD} p-5 text-[14px] text-slate-500`}>店舗が選ばれていません。</div>
-        // ★ 第1399便: この画面はブラウザから直接お知らせ・画像を読み書きする（DB の決まりが「持ち主だけ」）。
-        //   運営がほかの人の店を操作中は、一覧が空に見えたり保存が失敗したりするので、画面ごと案内に替える（次の便で対応）。
-        : a.acting
-          ? <OperatorNotYet what="フクエスお知らせ" />
-          : <Body salonId={a.salonId} enabled={!!a.enabledAt} onToast={showToast} />)}
+        // ★ 第1399便: この画面はブラウザから直接お知らせ・画像を読み書きする。
+        // ★ 第1963便（カッキーさん）: 運営がほかの人の店を操作中でも使える（追加SQL_第1963便 で、非公開のお知らせの読み取りと画像の箱を運営に開ける）。
+        //   fukuX への同時投稿だけは出さない。
+        : <Body salonId={a.salonId} enabled={!!a.enabledAt} operator={!!a.acting} onToast={showToast} />)}
     </ConecfShell>
   );
 }

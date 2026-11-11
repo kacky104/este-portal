@@ -59,7 +59,9 @@ function formatPublishedAt(iso: string): string {
   }).format(d);
 }
 
-export function JobNewsManager({ salonId }: { salonId: number }) {
+// ★ 第1963便: operator＝運営が店舗様の代わりに操作中（コネックエフの「運営として操作中」）。
+//   そのときは fukuX への同時投稿を出さない（ログインしている運営の fukuX アカウントに出てしまうため）。
+export function JobNewsManager({ salonId, operator = false }: { salonId: number; operator?: boolean }) {
   const supabase = createClient();
 
   const [items, setItems] = useState<WorkNews[]>([]);
@@ -159,7 +161,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
     (async () => {
       await fetchList();
       // 連携fukuX店舗プロフィールを解決（best-effort・未連携/失敗は null＝チェック無効表示）。
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = operator ? { data: { user: null } } : await supabase.auth.getUser();
       if (user) {
         try {
           const p = await getLinkedXProfileForSalon(user.id);
@@ -437,7 +439,7 @@ export function JobNewsManager({ salonId }: { salonId: number }) {
         <span className="text-xs font-bold text-slate-600">fukuX にも投稿する</span>
       </label>
       {!xShopProfileId && (
-        <p className="text-[10px] text-slate-400 pl-6">fukuX店舗アカウントと連携すると同時投稿できます</p>
+        <p className="text-[10px] text-slate-400 pl-6">{operator ? '運営として操作しているときは、fukuX への同時投稿はできません' : 'fukuX店舗アカウントと連携すると同時投稿できます'}</p>
       )}
       {xShopProfileId && enabled && (
         <label className="flex items-center gap-2 cursor-pointer select-none pl-6">

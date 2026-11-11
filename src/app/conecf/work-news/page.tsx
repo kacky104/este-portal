@@ -8,16 +8,17 @@
 // ★ 入口はサイト自動更新一覧の「フクエス」（サイドバーには出さない・conecfNav の AUTO_HUB_CHILDREN）。
 // ★ 求人がまだ無いお店には、出す先が無いことを案内する（真っ白にしない）。
 // ★ 保存できるのは「コネックエフに切り替える」を押した店だけ（ほかの画面と同じ）。
-// ★ 運営がほかの人の店を操作中は使えない（ブラウザから直接読み書きする＝DB の決まりが「持ち主だけ」。フクエスお知らせと同じ）。
+// ★ 第1963便（カッキーさん）: 運営がほかの人の店を操作中でも使える。
+//   表（work_news）は前から運営に開いている。画像の箱（work-news-images）は 追加SQL_第1963便 で運営に開ける。
+//   fukuX への同時投稿だけは出さない（運営の fukuX アカウントに出てしまうため）。
 
 import { ConecfShell } from '../ConecfShell';
-import { OperatorNotYet } from '../OperatorBar';
 import { JobNewsManager } from '@/app/mypage/JobNewsManager';
 import { useMyJob } from '@/app/mypage/jobs/useMyJob';
 
 const CARD = 'bg-white border border-slate-200 shadow-[0_1px_2px_rgba(31,35,51,0.05)]';
 
-function Body({ salonId, enabled }: { salonId: number; enabled: boolean }) {
+function Body({ salonId, enabled, operator }: { salonId: number; enabled: boolean; operator: boolean }) {
   const { job, loading, loadError } = useMyJob(salonId);
   if (loading) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
   if (loadError) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{loadError}）</div>;
@@ -34,7 +35,7 @@ function Body({ salonId, enabled }: { salonId: number; enabled: boolean }) {
         フクエスワークの求人ページに出る「新着情報」です。自動投稿にすると、1日1回・順番に新着の先頭へ出します。
       </div>
       {enabled
-        ? <JobNewsManager salonId={salonId} />
+        ? <JobNewsManager salonId={salonId} operator={operator} />
         : (
           <div className="border border-amber-300 bg-amber-50 px-4 py-3 text-[14px] text-amber-900 leading-relaxed">
             新着情報を書くには、ホームで「コネックエフに切り替える」を押してください。
@@ -49,9 +50,7 @@ export default function ConecfWorkNewsPage() {
     <ConecfShell current="workNews" title="フクエスワーク新着情報">
       {(a) => (a.salonId == null
         ? <div className={`${CARD} p-5 text-[14px] text-slate-500`}>店舗が選ばれていません。</div>
-        : a.acting
-          ? <OperatorNotYet what="フクエスワーク新着情報" />
-          : <Body salonId={a.salonId} enabled={!!a.enabledAt} />)}
+        : <Body salonId={a.salonId} enabled={!!a.enabledAt} operator={!!a.acting} />)}
     </ConecfShell>
   );
 }
