@@ -17,6 +17,26 @@ function hm(iso: string | null): string {
 }
 
 type Tab = 'timer' | 'times';
+type BulkMode = 'step' | 'range' | 'paste';
+const BULK_STEPS = [5, 10, 15, 20, 30, 40, 45, 60, 90, 120, 150, 180, 240] as const;
+
+/** 全角数字も読める回数 */
+function countFrom(text: string): number | null {
+  const n = Number(text.trim().replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)));
+  return Number.isInteger(n) && n >= 1 && n <= BUMP_TIMES_MAX ? n : null;
+}
+
+/** ① 始まりから「間隔」ごとに「回数」個（0時をまたいだら翌日の時刻として回す） */
+export function bulkByStep(startMin: number, stepMin: number, count: number): number[] {
+  return Array.from({ length: count }, (_, i) => (startMin + i * stepMin) % 1440);
+}
+
+/** ② 始まり〜終わりの間に「回数」個を均等に（両端を含む・終わりが始まり以前なら日をまたぐ） */
+export function bulkByRange(startMin: number, endMin: number, count: number): number[] {
+  const span = endMin > startMin ? endMin - startMin : endMin + 1440 - startMin;
+  if (count === 1) return [startMin];
+  return Array.from({ length: count }, (_, i) => (startMin + Math.round((i * span) / (count - 1))) % 1440);
+}
 
 export type ScheduleSaveInput = { enabled: boolean; startMin: number; endMin: number; intervalMin: number; times?: number[] };
 type SaveResult = { ok: true; data: { perDay: number } } | { ok: false; error: string };
@@ -44,6 +64,12 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
   const [rows, setRows] = useState<string[]>((s.times ?? []).map((t) => minuteLabel(t)));
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulk, setBulk] = useState('');
+  // ★ 第1934便: 一括登録をベンリーと同じ形に（①間隔と回数から ②範囲と回数から間隔を ③まとめて貼り付け）
+  const [bulkMode, setBulkMode] = useState<BulkMode>('step');
+  const [bStart, setBStart] = useState('');
+  const [bEnd, setBEnd] = useState('');
+  const [bStep, setBStep] = useState(15);
+  const [bCount, setBCount] = useState('');
   const [busy, setBusy] = useState('');
 
   const usable = s.hasCredential && !s.linkOff;
@@ -100,14 +126,40 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
     onToast(res.ok ? `${what}を受け付けました。1〜2分で${siteName}に反映されます` : res.error);
   };
 
-  const addBulk = () => {
-    const p = parseBumpTimesText(bulk);
-    if (p.times.length === 0) { onToast('読める時刻がありませんでした（「9:32 10:08」のように入れてください）'); return; }
-    const merged = [...new Set([...timesMin, ...p.times])].sort((a, b) => a - b);
-    if (merged.length > BUMP_TIMES_MAX) { onToast(`合わせて${merged.length}個になります。${BUMP_TIMES_MAX}個までです`); return; }
+  /** 作った時刻を今の時刻に足す（同じ時刻は1つ・時刻順） */
+  const mergeTimes = (add: number[], bad: string[] = []) => {
+    const merged = [...new Set([...timesMin, ...add])].sort((a, b) => a - b);
+    if (merged.length > BUMP_TIMES_MAX) { onToast(`合わせて${merged.length}個になります。${BUMP_TIMES_MAX}個までです（今 ${timesMin.length}個・あと${BUMP_TIMES_MAX - timesMin.length}個まで）`); return false; }
+    const added = merged.length - timesMin.length;
     setRows(merged.map((m) => minuteLabel(m)));
-    setBulk(''); setBulkOpen(false);
-    onToast(`${p.times.length}個を入れました${p.bad.length ? `（読めなかったもの: ${p.bad.slice(0, 5).join('・')}）` : ''}。「設定を保存」で決まります`);
+    onToast(`${added}個を足しました${add.length > added ? `（同じ時刻の${add.length - added}個はまとめました）` : ''}${bad.length ? `（読めなかったもの: ${bad.slice(0, 5).join('・')}）` : ''}。「設定を保存」で決まります`);
+    return true;
+  };
+
+  const bStartMin = minuteFromLabel(bStart);
+  const bEndMin = minuteFromLabel(bEnd);
+  const bN = countFrom(bCount);
+  const bulkReady = bulkMode === 'paste' ? bulk.trim() !== ''
+    : bulkMode === 'step' ? bStartMin !== null && bN !== null
+    : bStartMin !== null && bEndMin !== null && bStartMin !== bEndMin && bN !== null;
+  const rangeGap = bulkMode === 'range' && bStartMin !== null && bEndMin !== null && bStartMin !== bEndMin && bN !== null && bN > 1
+    ? Math.round(((bEndMin > bStartMin ? bEndMin - bStartMin : bEndMin + 1440 - bStartMin) / (bN - 1)) * 10) / 10 : null;
+
+  const addBulk = () => {
+    let ok = false;
+    if (bulkMode === 'paste') {
+      const p = parseBumpTimesText(bulk);
+      if (p.times.length === 0) { onToast('読める時刻がありませんでした（「9:32 10:08」のように入れてください）'); return; }
+      ok = mergeTimes(p.times, p.bad);
+      if (ok) setBulk('');
+    } else if (bulkMode === 'step') {
+      if (bStartMin === null || bN === null) { onToast(`範囲のはじめの時刻と、回数（1〜${BUMP_TIMES_MAX}）を入れてください`); return; }
+      ok = mergeTimes(bulkByStep(bStartMin, bStep, bN));
+    } else {
+      if (bStartMin === null || bEndMin === null || bStartMin === bEndMin || bN === null) { onToast(`範囲の時刻（はじめと終わりは別の時刻）と、回数（1〜${BUMP_TIMES_MAX}）を入れてください`); return; }
+      ok = mergeTimes(bulkByRange(bStartMin, bEndMin, bN));
+    }
+    if (ok) setBulkOpen(false);
   };
 
   const tabBtn = (k: Tab, label: string) => (
@@ -201,11 +253,59 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
                 <span className="ml-auto text-[16px] font-normal text-slate-500 tabular-nums">{timesMin.length} / {BUMP_TIMES_MAX}個</span>
               </div>
               {bulkOpen && (
-                <div className="space-y-2 border border-blue-100 bg-blue-50/40 p-3">
-                  <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={3}
-                    placeholder="09:32 10:08 10:21 …（空白・改行・読点で区切って、まとめて貼り付け。全角も可）"
-                    className="w-full px-2 py-1.5 border border-slate-300 bg-white text-[17px] tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-200" />
-                  <button type="button" onClick={addBulk} className="px-4 py-1.5 text-[17px] font-black text-white bg-blue-600 hover:bg-blue-700">入れる</button>
+                <div className="relative space-y-3 border border-slate-200 bg-slate-100 p-3 sm:p-4 text-[16px] text-slate-700">
+                  <button type="button" onClick={() => setBulkOpen(false)} aria-label="一括登録を閉じる" className="absolute right-2 top-1.5 px-2 text-[22px] leading-none text-slate-500 hover:text-slate-800">×</button>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1.5 pr-8 border-b border-slate-200 pb-2 font-bold">
+                    {([['step', '更新間隔と回数から設定'], ['range', '指定範囲時間と回数から間隔を設定'], ['paste', 'まとめて貼り付け']] as const).map(([k, label]) => (
+                      <label key={k} className="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input type="radio" name="bulk-mode" checked={bulkMode === k} onChange={() => setBulkMode(k)} />{label}
+                      </label>
+                    ))}
+                  </div>
+                  {bulkMode === 'paste' ? (
+                    <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={3}
+                      placeholder="09:32 10:08 10:21 …（空白・改行・読点で区切って、まとめて貼り付け。全角も可）"
+                      className="w-full px-2 py-1.5 border border-slate-300 bg-white text-[17px] tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="text-[15px] font-bold text-slate-500">範囲</div>
+                      <div className="flex items-center gap-2 flex-wrap tabular-nums">
+                        <input type="time" step={60} value={bStart} onChange={(e) => setBStart(e.target.value)} aria-label="範囲のはじめ"
+                          className="px-2 py-1.5 border border-slate-300 bg-amber-50 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                        {bulkMode === 'step' ? (
+                          <>
+                            <span>から</span>
+                            <select value={bStep} onChange={(e) => setBStep(Number(e.target.value))} aria-label="間隔"
+                              className="px-2 py-1.5 border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200">
+                              {BULK_STEPS.map((m) => <option key={m} value={m}>{m}分</option>)}
+                            </select>
+                            <span>間隔で</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>〜</span>
+                            <input type="time" step={60} value={bEnd} onChange={(e) => setBEnd(e.target.value)} aria-label="範囲の終わり"
+                              className="px-2 py-1.5 border border-slate-300 bg-amber-50 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                            <span>の間に</span>
+                          </>
+                        )}
+                        <input type="text" inputMode="numeric" value={bCount} onChange={(e) => setBCount(e.target.value)} aria-label="回数"
+                          className={`w-20 px-2 py-1.5 border text-right bg-amber-50 focus:outline-none focus:ring-2 focus:ring-blue-200 ${bCount.trim() && bN === null ? 'border-rose-400' : 'border-slate-300'}`} />
+                        <span>回追加する</span>
+                      </div>
+                      <p className="text-[14px] text-slate-500">
+                        {bulkMode === 'step'
+                          ? '例: 10:00 から 15分間隔で 4回 → 10:00・10:15・10:30・10:45。0時をまたいだ分は次の日の時刻になります。'
+                          : rangeGap !== null ? `約${rangeGap}分ごと（はじめと終わりの時刻も入ります）。終わりがはじめより前なら日をまたぎます。`
+                          : 'はじめと終わりの時刻も入れて、その間を回数で均等に分けます。'}
+                        {' '}今 {timesMin.length}個・あと{BUMP_TIMES_MAX - timesMin.length}個まで足せます。
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <button type="button" onClick={addBulk} disabled={!bulkReady}
+                      className="px-5 py-2 text-[16px] font-black text-white bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400">一括登録</button>
+                  </div>
                 </div>
               )}
               <ol className="space-y-1">
