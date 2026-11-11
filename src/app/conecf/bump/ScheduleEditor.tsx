@@ -43,7 +43,7 @@ export type ScheduleSaveInput = { enabled: boolean; startMin: number; endMin: nu
 type SaveResult = { ok: true; data: { perDay: number } } | { ok: false; error: string };
 type RunResult = { ok: true; data?: unknown } | { ok: false; error: string };
 
-export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, heading, defaultQuota, choices, save: saveFn, run: runFn, what = '上位表示' }: {
+export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, heading, defaultQuota, choices, save: saveFn, run: runFn, what = '上位表示', back = { href: '/bump', label: '上位表示設定の一覧へ' }, timesMax = BUMP_TIMES_MAX, verb = '押し', lagNote, quotaNote }: {
   s: ConecfBumpSlot; enabled: boolean; onToast: (m: string) => void; onSaved: () => Promise<void>;
   /** 「枠1」「店舗情報」など */ name: string;
   /** 「駅ちか」「エステ魂」 */ siteName: string;
@@ -51,8 +51,14 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
   defaultQuota: number;
   choices: readonly number[];
   save: (input: ScheduleSaveInput) => Promise<SaveResult>;
-  run: () => Promise<RunResult>;
   /** 押すことの呼び名（「上位表示」「アピール」） */ what?: string;
+  /** ★ 第1965便（お知らせの自動投稿でも使う）: 戻り先 */ back?: { href: string; label: string };
+  /** 時刻指定の個数の上限（既定 40） */ timesMax?: number;
+  /** 「押し」ます／「投稿し」ます */ verb?: string;
+  /** 時刻指定の下の注記（既定: 実際に反映するのは数分以内） */ lagNote?: string;
+  /** 回数が上限を超える設定のときの注記（既定: ◯◯は1日N回までなので、超えた分は押しません） */ quotaNote?: string;
+  /** 無ければ「いま1回」のボタンを出さない */
+  run?: () => Promise<RunResult>;
 }) {
   const href = useConecfHref();
   const [tab, setTab] = useState<Tab>(s.times ? 'times' : 'timer');
@@ -102,7 +108,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
     if (tab === 'times') {
       if (badRows.length > 0) { onToast(`読めない時刻があります: ${badRows.slice(0, 5).join('・')}`); return; }
       if (timesMin.length === 0) { onToast('時刻指定更新の時刻を1つ以上入れてください'); return; }
-      if (timesMin.length > BUMP_TIMES_MAX) { onToast(`時刻は${BUMP_TIMES_MAX}個までです（いま ${timesMin.length}個）`); return; }
+      if (timesMin.length > timesMax) { onToast(`時刻は${timesMax}個までです（いま ${timesMin.length}個）`); return; }
       times = timesMin;
     } else if (s.times) {
       if (!(await conecfConfirm(`タイマー更新に切り替えると、時刻指定更新の${s.times.length}個の時刻は消えます。よろしいですか？`, { ok: '切り替える' }))) return;
@@ -119,7 +125,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
   };
 
   const runNow = async () => {
-    if (!guard()) return;
+    if (!runFn || !guard()) return;
     if (!(await conecfConfirm(`${siteName}（${name}）の${what}をいま1回押しますか？${remaining != null ? `（本日残り ${remaining}回）` : ''}`, { ok: '押す' }))) return;
     setBusy('run');
     const res = await runFn();
@@ -130,7 +136,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
   /** 作った時刻を今の時刻に足す（同じ時刻は1つ・時刻順） */
   const mergeTimes = (add: number[], bad: string[] = []) => {
     const merged = [...new Set([...timesMin, ...add])].sort((a, b) => a - b);
-    if (merged.length > BUMP_TIMES_MAX) { onToast(`合わせて${merged.length}個になります。${BUMP_TIMES_MAX}個までです（今 ${timesMin.length}個・あと${BUMP_TIMES_MAX - timesMin.length}個まで）`); return false; }
+    if (merged.length > timesMax) { onToast(`合わせて${merged.length}個になります。${timesMax}個までです（今 ${timesMin.length}個・あと${Math.max(0, timesMax - timesMin.length)}個まで）`); return false; }
     const added = merged.length - timesMin.length;
     setRows(merged.map((m) => minuteLabel(m)));
     onToast(`${added}個を足しました${add.length > added ? `（同じ時刻の${add.length - added}個はまとめました）` : ''}${bad.length ? `（読めなかったもの: ${bad.slice(0, 5).join('・')}）` : ''}。「設定を保存」で決まります`);
@@ -172,7 +178,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
 
   return (
     <div className="space-y-3 pb-40">
-      <Link href={href('/bump')} className="inline-flex items-center gap-1 text-[17px] font-bold text-slate-500 hover:text-slate-700">← 上位表示設定の一覧へ</Link>
+      <Link href={href(back.href)} className="inline-flex items-center gap-1 text-[17px] font-bold text-slate-500 hover:text-slate-700">← {back.label}</Link>
       {heading && <p className="text-[18px] font-black text-slate-700">{heading}</p>}
 
       {/* ── 上：自動のオン・オフ・残り・今すぐ ── */}
@@ -199,10 +205,12 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
         )}
         <span className="text-[18px] text-slate-600 tabular-nums">残 <b className="text-[30px] font-black text-orange-500">{remaining ?? '—'}</b> 回</span>
         <span className="text-[15px] text-slate-400">{s.lastAt ? `最後 ${hm(s.lastAt)}` : ''}</span>
-        <button type="button" disabled={busy !== '' || remaining === 0} onClick={() => void runNow()}
-          className="ml-auto px-4 py-2 text-[17px] font-black text-white bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 disabled:opacity-40">
-          {busy === 'run' ? '受け付けています…' : `⬆ いま1回${what}する`}
-        </button>
+        {runFn && (
+          <button type="button" disabled={busy !== '' || remaining === 0} onClick={() => void runNow()}
+            className="ml-auto px-4 py-2 text-[17px] font-black text-white bg-gradient-to-r from-orange-400 to-amber-500 hover:from-orange-500 hover:to-amber-600 disabled:opacity-40">
+            {busy === 'run' ? '受け付けています…' : `⬆ いま1回${what}する`}
+          </button>
+        )}
       </div>
       {!usable && (
         <p className="border border-amber-300 bg-amber-50 px-3 py-2 text-[17px] text-amber-900">
@@ -239,9 +247,9 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
                 <span className="font-bold">間隔で更新</span>
               </div>
               <p className="text-[16px] text-slate-500">
-                この設定だと1日に最大 <b className="tabular-nums text-slate-700">{perDay}</b> 回押します。
+                この設定だと1日に最大 <b className="tabular-nums text-slate-700">{perDay}</b> 回{verb}ます。
                 {customOn && !intervalOk && <span className="text-rose-700">間隔は{BUMP_CUSTOM_INTERVAL_MIN}〜{BUMP_CUSTOM_INTERVAL_MAX}分の数字で入れてください。</span>}
-                {perDay > quota && <span className="text-rose-700">{siteName}は1日{quota}回までなので、超えた分は押しません。</span>}
+                {perDay > quota && <span className="text-rose-700">{quotaNote ?? `${siteName}は1日${quota}回までなので、超えた分は押しません。`}</span>}
                 {startMin !== null && endMin !== null && startMin > endMin && <span>日をまたぐ時間帯として扱います。</span>}
               </p>
             </>
@@ -252,7 +260,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
                 <button type="button" onClick={() => setBulkOpen((v) => !v)} className="underline">🔧 一括登録</button>
                 <button type="button" onClick={() => setRows(timesMin.map((m) => minuteLabel(m)))} className="underline">⇅ <span className="sm:hidden">並べ替え</span><span className="hidden sm:inline">時刻順に並べ替え</span></button>
                 <button type="button" onClick={async () => { if (await conecfConfirm('時刻をすべて消しますか？\n（「設定を保存」を押すまでは決まりません）', { ok: 'すべて消す', danger: true })) setRows([]); }} className="underline">🗑 <span className="sm:hidden">全削除</span><span className="hidden sm:inline">すべて削除</span></button>
-                <span className="ml-auto text-[14px] sm:text-[16px] font-normal text-slate-500 tabular-nums">{timesMin.length}/{BUMP_TIMES_MAX}<span className="hidden sm:inline">個</span></span>
+                <span className="ml-auto text-[14px] sm:text-[16px] font-normal text-slate-500 tabular-nums">{timesMin.length}/{timesMax}<span className="hidden sm:inline">個</span></span>
               </div>
               {bulkOpen && (
                 <div className="relative space-y-3 border border-slate-200 bg-slate-100 p-3 sm:p-4 text-[16px] text-slate-700">
@@ -300,7 +308,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
                           ? '例: 10:00 から 15分間隔で 4回 → 10:00・10:15・10:30・10:45。0時をまたいだ分は次の日の時刻になります。'
                           : rangeGap !== null ? `約${rangeGap}分ごと（はじめと終わりの時刻も入ります）。終わりがはじめより前なら日をまたぎます。`
                           : 'はじめと終わりの時刻も入れて、その間を回数で均等に分けます。'}
-                        {' '}今 {timesMin.length}個・あと{BUMP_TIMES_MAX - timesMin.length}個まで足せます。
+                        {' '}今 {timesMin.length}個・あと{Math.max(0, timesMax - timesMin.length)}個まで足せます。
                       </p>
                     </div>
                   )}
@@ -320,11 +328,11 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
                   </li>
                 ))}
               </ol>
-              {rows.length < BUMP_TIMES_MAX && (
+              {rows.length < timesMax && (
                 <button type="button" onClick={() => setRows((v) => [...v, ''])} className="px-3 py-1.5 text-[17px] font-bold text-slate-600 border border-dashed border-slate-300 hover:bg-slate-50">＋ 時刻を足す</button>
               )}
               <p className="text-[16px] text-slate-500 leading-relaxed">
-                1日に <b className="tabular-nums text-slate-700">{perDay}</b> 回押します。実際に{siteName}に反映するのは数分以内になります。
+                1日に <b className="tabular-nums text-slate-700">{perDay}</b> 回{verb}ます。{lagNote ?? `実際に${siteName}に反映するのは数分以内になります。`}
               </p>
             </>
           )}
@@ -334,7 +342,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
               {busy === 'save' ? '保存中…' : '設定を保存'}
             </button>
             <span className="text-[16px] text-slate-500">
-              保存すると、この枠は「{tab === 'times' ? '時刻指定更新' : 'タイマー更新'}」で押します。{s.enabled ? '' : '自動更新は止まったままです（上の「始める」で始まります）。'}
+              保存すると、この枠は「{tab === 'times' ? '時刻指定更新' : 'タイマー更新'}」で{verb}ます。{s.enabled ? '' : '自動更新は止まったままです（上の「始める」で始まります）。'}
             </span>
           </div>
         </div>

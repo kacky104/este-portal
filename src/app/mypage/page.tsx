@@ -1073,7 +1073,7 @@ export default function MyPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   // お知らせ：自動配信の状態（第69便）。★ 周（/api/admin/announce-auto）と同じ判定から来る1行。
   //   ★ 読めなければ null のまま。読めていないことを「お休みです」と書き替えない
-  const [announceState, setAnnounceState] = useState<{ message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null; remainingToday: number | null } | null>(null);
+  const [announceState, setAnnounceState] = useState<{ message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null; remainingToday: number | null; dailyLimit?: number } | null>(null);
   const refreshAnnounceState = async () => {
     if (!salon) return;
     const r = await getAnnounceState({ salonId: Number(salon.id) });
@@ -5782,7 +5782,7 @@ export default function MyPage() {
                 <p className="text-[11px] text-slate-600 leading-relaxed">{announceState.message}</p>
                 {/* ★ 第500便: お知らせは1日5回まで（自動も含む・朝6時リセット） */}
                 {announceState.remainingToday != null && (
-                  <p className="text-[11px] text-slate-600 leading-relaxed">今日のお知らせ投稿：あと<span className="font-black text-pink-600">{announceState.remainingToday}</span>回（1日5回まで・自動投稿も含む・毎朝6時リセット）</p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">今日のお知らせ投稿：あと<span className="font-black text-pink-600">{announceState.remainingToday}</span>回（1日{announceState.dailyLimit ?? 5}回まで・自動投稿も含む・毎朝6時リセット）</p>
                 )}
                 {/* ★ 第1189便（カッキーさん）: フクエックスへの週1回の自動投稿の案内。
                     ★ 出すのは、店舗アカウントを開設していて、印の付いたお知らせがあるお店だけ（周 /api/admin/x-announce-weekly と同じ条件）。

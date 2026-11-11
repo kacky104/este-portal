@@ -6,7 +6,9 @@ import {
   shouldAutoPost,
   announceFingerprint,
   autoPostTimeLabel,
+  dayKeyJST,
 } from '@/lib/announceAuto';
+import { announceScheduleFromRow, shouldSchedulePost, type AnnounceScheduleSetting } from '@/lib/announceSchedule';
 
 // ── お知らせの自動配信の周（第69便・設計メモ 追記37 §192）────────────────
 //   POST /api/admin/announce-auto  (Authorization: Bearer <CRON_SECRET>)
@@ -68,6 +70,24 @@ export async function POST(req: Request) {
 
   const salonIds = Array.from(new Set((rows ?? []).map((r) => Number(r.salon_id)))).sort((a, b) => a - b);
 
+  // ★★ 第1965便（2026-11-12・カッキーさん）: コネックエフで時刻を設定して ON にした店は、決めた時刻（タイマー更新／時刻指定更新）で出す。
+  //   ・手動と自動を合わせて1日10回まで。手で投稿した日も止めない（判断は src/lib/announceSchedule.ts）
+  //   ・設定していない店・OFF の店・コネックエフに切り替えていない店は、今までどおり（1日1回・shouldAutoPost）
+  //   ★ 表が無い（追加SQL_第1965便の前）・読めないときは、全店が今までどおり
+  const scheduleOf = new Map<number, { setting: AnnounceScheduleSetting; slotDoneAt: string | null }>();
+  {
+    const sch = await svc.from('conecf_announce_schedule').select('salon_id, enabled, start_min, end_min, interval_min, times, slot_done_at').eq('enabled', true);
+    const ids = sch.error ? [] : (sch.data ?? []).map((r) => Number(r.salon_id));
+    if (ids.length > 0) {
+      const on = await svc.from('salons').select('id, conecf_enabled_at').in('id', ids);
+      const conecfOn = new Set((on.error ? [] : (on.data ?? [])).filter((r) => r.conecf_enabled_at != null).map((r) => Number(r.id)));
+      for (const r of sch.data ?? []) {
+        const setting = announceScheduleFromRow(r);
+        if (setting && conecfOn.has(Number(r.salon_id))) scheduleOf.set(Number(r.salon_id), { setting, slotDoneAt: (r.slot_done_at as string | null) ?? null });
+      }
+    }
+  }
+
   const posted: string[] = [];
   const skipped: Array<{ salonId: number; why: string }> = [];
   const failed: Array<{ salonId: number; why: string }> = [];
@@ -93,19 +113,42 @@ export async function POST(req: Request) {
     //   ここで null として進めると、その日の手動を見落として1日2回になる
     if (stErr) { failed.push({ salonId, why: stErr.message.slice(0, 200) }); continue; }
 
-    const judged = shouldAutoPost({
-      now,
-      salonId,
-      // ★ 数えられた件数を渡す。数えられていない場合はここへ来ていない（上で continue）
-      autoTargetCount: targetCount,
-      lastAutoDay: (state?.last_auto_day as string | null) ?? null,
-      lastManualAt: (state?.last_manual_at as string | null) ?? null,
-      rotationIndex: (state?.rotation_index as number | null) ?? null,
-    });
-
-    if (!judged.post) { skipped.push({ salonId, why: judged.reason }); continue; }
-    // ★ 第500便: お知らせは 1日5回まで（朝6時区切り・自動も1回）。★ 読めないとき（SQL 前）は止めない
-    {
+    const sch = scheduleOf.get(salonId) ?? null;
+    let judged: { index: number; dayKey: string; slotAt: string | null };
+    if (sch) {
+      // ── 決めた時刻で出す店（第1965便）──
+      const dayStart = new Date(new Date(now.getTime() + 3 * 3600_000).toISOString().slice(0, 10) + 'T06:00:00+09:00');
+      const { count: usedToday, error: usedErr } = await svc
+        .from('salon_rank_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('salon_id', salonId)
+        .in('kind', ['announce_manual', 'announce_auto'])
+        .gte('created_at', dayStart.toISOString());
+      const j = shouldSchedulePost({
+        now,
+        setting: sch.setting,
+        slotDoneAt: sch.slotDoneAt,
+        autoTargetCount: targetCount,
+        usedToday: usedErr ? null : (usedToday ?? 0),
+        rotationIndex: (state?.rotation_index as number | null) ?? null,
+      });
+      if (!j.post) { skipped.push({ salonId, why: 'schedule:' + j.reason }); continue; }
+      const dayKey = dayKeyJST(now);
+      if (!dayKey) { failed.push({ salonId, why: '日付を読めません' }); continue; }
+      judged = { index: j.index, dayKey, slotAt: j.slotAt };
+    } else {
+      // ── 今までどおりの店（1日1回・お店ごとに決まった時刻）──
+      const j = shouldAutoPost({
+        now,
+        salonId,
+        // ★ 数えられた件数を渡す。数えられていない場合はここへ来ていない（上で continue）
+        autoTargetCount: targetCount,
+        lastAutoDay: (state?.last_auto_day as string | null) ?? null,
+        lastManualAt: (state?.last_manual_at as string | null) ?? null,
+        rotationIndex: (state?.rotation_index as number | null) ?? null,
+      });
+      if (!j.post) { skipped.push({ salonId, why: j.reason }); continue; }
+      // ★ 第500便: お知らせは 1日5回まで（朝6時区切り・自動も1回）。★ 読めないとき（SQL 前）は止めない
       const dayStart = new Date(new Date(now.getTime() + 3 * 3600_000).toISOString().slice(0, 10) + 'T06:00:00+09:00');
       const { count: usedToday, error: usedErr } = await svc
         .from('salon_rank_events')
@@ -114,8 +157,9 @@ export async function POST(req: Request) {
         .in('kind', ['announce_manual', 'announce_auto'])
         .gte('created_at', dayStart.toISOString());
       if (!usedErr && (usedToday ?? 0) >= 5) { skipped.push({ salonId, why: '本日のお知らせ5回に達しています' }); continue; }
+      judged = { index: j.index, dayKey: j.dayKey, slotAt: null };
     }
-    if (!apply) { posted.push(`${salonId}#${judged.index}`); continue; }
+    if (!apply) { posted.push(`${salonId}#${judged.index}${judged.slotAt ? '@schedule' : ''}`); continue; }
 
     // ★★ 順番の位置の1本だけを取り出す（全件は読まない）。
     //   ★ 並びは created_at 昇順 → id 昇順で固定する。ここがぶれると順番が飛ぶ。
@@ -143,6 +187,12 @@ export async function POST(req: Request) {
     if (upErr) { failed.push({ salonId, why: upErr.message.slice(0, 200) }); continue; }
     // ★ 第775便: 画像なしのお知らせに写真の箱から1枚（★ 自分で付けた画像は触らない・失敗しても止めない）
     await applyAnnouncePhoto(svc, salonId, String(pick.id));
+
+    // ★ 第1965便: 決めた時刻の店は「この回は出した」を先に残す（残せなかったら、同じ回でもう1本出てしまう＝黙らない）
+    if (judged.slotAt) {
+      const { error: slotErr } = await svc.from('conecf_announce_schedule').update({ slot_done_at: judged.slotAt }).eq('salon_id', salonId);
+      if (slotErr) failed.push({ salonId, why: '出しましたが回の記録に失敗: ' + slotErr.message.slice(0, 150) });
+    }
 
     // ★★ 出したあとに順番を進める。★ 出せていないのに進めない（出す前に進めると1本飛ぶ）
     // ★ フクエスTOPの並びを動かしたので、守り3の起点も更新する。

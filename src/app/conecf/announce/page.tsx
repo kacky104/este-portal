@@ -15,8 +15,10 @@
 // ★ 保存できるのは「コネックエフに切り替える」を押した店だけ（★ ほかの画面と同じ）。
 
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ConecfShell } from '../ConecfShell';
+import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
 import { STORAGE_CACHE_CONTROL } from '@/app/lib/storage';
@@ -39,7 +41,7 @@ type Announcement = {
   published_at: string; image_url: string | null; auto_rotate: boolean;
 };
 type Form = { title: string; content: string; is_published: boolean; image_url: string | null };
-type AutoState = { message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null; remainingToday: number | null };
+type AutoState = { message: string; targetCount: number; autoTimeLabel: string | null; cycleMessage: string | null; remainingToday: number | null; dailyLimit: number; scheduled: boolean };
 
 function fmt(iso: string): string {
   const d = new Date(iso);
@@ -131,6 +133,7 @@ function ImagePicker({ url, uploading, onPick, onClear }: {
 }
 
 function Body({ salonId, enabled, operator, onToast }: { salonId: number; enabled: boolean; operator: boolean; onToast: (m: string) => void }) {
+  const href = useConecfHref();
   const [list, setList] = useState<Announcement[] | null>(null);
   const [error, setError] = useState('');
   const [forms, setForms] = useState<Record<string, Form>>({});
@@ -338,7 +341,7 @@ function Body({ salonId, enabled, operator, onToast }: { salonId: number; enable
       )}
 
       <div className={`${CARD} p-4 text-[13.5px] text-slate-500 leading-relaxed`}>
-        フクエスの店舗ページと新着に出る「お知らせ」です。自動投稿にすると、1日1回・順番に新着の先頭へ出します。
+        フクエスの店舗ページと新着に出る「お知らせ」です。自動投稿にすると、順番に新着の先頭へ出します（はじめは1日1回。時刻を設定すると、手動と合わせて1日10回まで）。
       </div>
 
       {/* ★ 第775便: 写真の箱（画像なしのお知らせにランダムで1枚） */}
@@ -380,14 +383,20 @@ function Body({ salonId, enabled, operator, onToast }: { salonId: number; enable
 
       {/* 自動投稿の状態（★ 周と同じ判定から来る1行・getAnnounceState） */}
       <div className={`${CARD} p-4 space-y-1`}>
-        <p className="text-[15px] font-black text-slate-800">自動投稿（1日1回・順番で投稿）</p>
+        {/* ★ 第1965便: 時刻（タイマー更新／時刻指定更新）は別の画面で決める。決めて ON にした店は、手動と合わせて1日10回まで */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <p className="text-[15px] font-black text-slate-800">{autoState?.scheduled ? '自動投稿（決めた時刻に・順番で投稿）' : '自動投稿（1日1回・順番で投稿）'}</p>
+          <Link href={href('/announce/schedule')} className="ml-auto border border-indigo-200 px-3 py-1.5 text-[13px] font-bold text-indigo-600 hover:bg-indigo-50">
+            {autoState?.scheduled ? '時刻の設定を変える' : '時刻を設定する（1日10回まで）'}
+          </Link>
+        </div>
         {autoState ? (
           <>
             <p className="text-[13.5px] text-slate-600 leading-relaxed">{autoState.message}</p>
             {autoState.cycleMessage && <p className="text-[12.5px] text-slate-400">{autoState.cycleMessage}</p>}
             {/* ★ 第500便: お知らせは1日5回まで（自動も含む・朝6時リセット） */}
             {autoState.remainingToday != null && (
-              <p className="text-[13.5px] text-slate-600">今日のお知らせ投稿：あと<span className="font-black text-pink-600">{autoState.remainingToday}</span>回（1日5回まで・自動投稿も含む・毎朝6時リセット）</p>
+              <p className="text-[13.5px] text-slate-600">今日のお知らせ投稿：あと<span className="font-black text-pink-600">{autoState.remainingToday}</span>回（1日{autoState.dailyLimit}回まで・自動投稿も含む・毎朝6時リセット）</p>
             )}
           </>
         ) : (

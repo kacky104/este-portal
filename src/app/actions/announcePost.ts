@@ -13,6 +13,7 @@ import {
   autoPostTimeLabel,
 } from '@/lib/announceAuto';
 import { applyAnnouncePhoto, listAnnouncePhotoTherapists } from '@/app/lib/announcePhoto';
+import { ANNOUNCE_DAILY_LIMIT, announceDailyLimit, announceLimitMessage, announceScheduleFromRow, announceScheduleMessage, type AnnounceScheduleSetting } from '@/lib/announceSchedule';
 import { ARTICLE_PHOTO_MAX, normalizeArticlePhotoIds } from '@/lib/articlePhotoPick';
 
 // お知らせの手動配信（第68便・設計メモ 追記37 §191 守り3 / §192）。
@@ -38,8 +39,19 @@ type Result<T> = { ok: true; data: T } | { ok: false; error: string };
 //   数えるのは salon_rank_events の announce_manual / announce_auto（フクエスTOPが動いた回）。
 //   ★ 新規（画面から直に INSERT）は DB のトリガ announcements_daily_limit_guard が止める。★ 再投稿はここで止める。
 //   ★ 表がまだ無い（SQL 前）・読めないときは null ＝ 止めない（今までどおり動かす）。
-const ANNOUNCE_DAILY_LIMIT = 5;
-const ANNOUNCE_LIMIT_MESSAGE = '本日のお知らせ投稿は5回までです（毎朝6時にリセットされます）';
+// ★★ 第1965便（2026-11-12・カッキーさん）: コネックエフで自動投稿の時刻を設定して ON にした店は、手動と自動を合わせて 1日10回まで。
+//   上限の数字と文は src/lib/announceSchedule.ts（announceDailyLimit・announceLimitMessage）。新規の INSERT を止めるトリガも 追加SQL_第1965便 で同じ決まりに。
+
+/** その店が「決めた時刻で自動投稿」の店か（設定が ON・コネックエフに切り替え済み）。★ 表が無い・読めないときは null ＝ 今までどおり */
+async function readAnnounceSchedule(svc: ReturnType<typeof createServiceClient>, salonId: number): Promise<AnnounceScheduleSetting | null> {
+  const [sch, salon] = await Promise.all([
+    svc.from('conecf_announce_schedule').select('enabled, start_min, end_min, interval_min, times').eq('salon_id', salonId).maybeSingle(),
+    svc.from('salons').select('conecf_enabled_at').eq('id', salonId).maybeSingle(),
+  ]);
+  if (sch.error || salon.error || !sch.data || salon.data?.conecf_enabled_at == null) return null;
+  const setting = announceScheduleFromRow(sch.data);
+  return setting && setting.enabled ? setting : null;
+}
 
 /** 朝6時区切りの「今日」のはじまり（ISO）。★ salon_bump の bump_day と同じ切り方 */
 function announceDayStartISO(now: Date): string {
@@ -133,7 +145,8 @@ export async function postAnnouncementManually(input: {
   // ★ 第500便: 1日5回まで。★ 再投稿で並びが動くときだけ見る（止められる回・新規は数え直さない）
   if (judged.bumpFukues && input.kind === 'repost') {
     const used = await countAnnounceToday(svc, salonId, now);
-    if (used != null && used >= ANNOUNCE_DAILY_LIMIT) return { ok: false, error: ANNOUNCE_LIMIT_MESSAGE };
+    const limit = announceDailyLimit((await readAnnounceSchedule(svc, salonId)) !== null);
+    if (used != null && used >= limit) return { ok: false, error: announceLimitMessage(limit) };
   }
 
   // ★ 並びを動かすときだけ published_at を進める（トリガは service role を通す）
@@ -208,6 +221,10 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
     cycleMessage: string | null;
     /** ★ 第500便: 今日あと何回お知らせを出せるか（朝6時区切り・自動も含む）。読めないときは null */
     remainingToday: number | null;
+    /** ★ 第1965便: 1日の上限（ふつうは5・決めた時刻で自動投稿の店は10） */
+    dailyLimit: number;
+    /** ★ 第1965便: 決めた時刻（タイマー更新／時刻指定更新）で自動投稿している店か */
+    scheduled: boolean;
   }>
 > {
   const salonId = Number(input.salonId);
@@ -246,6 +263,23 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
 
   const timeLabel = autoPostTimeLabel(salonId);
   const usedToday = await countAnnounceToday(svc, salonId, new Date());
+  // ★ 第1965便: 決めた時刻で出す店は、1行もその設定から作る（周と同じ設定を読む）
+  const schedule = await readAnnounceSchedule(svc, salonId);
+  if (schedule) {
+    const limit = announceDailyLimit(true);
+    return {
+      ok: true,
+      data: {
+        autoTimeLabel: null,
+        targetCount: targetCount ?? 0,
+        message: announceScheduleMessage(schedule, targetCount),
+        cycleMessage: null,
+        remainingToday: usedToday == null ? null : Math.max(0, limit - usedToday),
+        dailyLimit: limit,
+        scheduled: true,
+      },
+    };
+  }
   return {
     ok: true,
     data: {
@@ -256,6 +290,8 @@ export async function getAnnounceState(input: { salonId: string | number }): Pro
       // ★ 本数の上限は決めていない。代わりに周期を数字で出す（第70便）
       cycleMessage: targetCount === null ? null : rotationCycleMessage(targetCount),
       remainingToday: usedToday == null ? null : Math.max(0, ANNOUNCE_DAILY_LIMIT - usedToday),
+      dailyLimit: ANNOUNCE_DAILY_LIMIT,
+      scheduled: false,
     },
   };
 }

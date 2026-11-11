@@ -36,6 +36,7 @@
     "check:mediaconsent": "tsc src/lib/mediaConsent.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediaconsent-selftest.js",
     "check:mediasites": "tsc src/lib/mediaSites.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediasites-selftest.js",
     "check:medialogview": "tsc src/lib/mediaLogView.ts src/lib/mediaSites.ts src/lib/mediaAudit.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/medialogview-selftest.js",
+    "check:announceschedule": "tsc src/lib/announceSchedule.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/announceschedule-selftest.js",
     "check:announceauto": "tsc src/lib/announceAuto.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/announceauto-selftest.js",
     "check:hpdemoschedule": "tsc src/lib/hpDemoSchedule.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/hpdemoschedule-selftest.js",
     "check:mediamatch": "tsc src/lib/mediaMatch.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/mediamatch-selftest.js",
