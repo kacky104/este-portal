@@ -110,7 +110,7 @@ export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: Con
       {open && (<>
         <p className="text-[13px] leading-relaxed text-slate-600">
           並べた投稿内容を、決めた間隔で上から順に1件ずつ、選んだセラピストの写メNote に投稿します（最後まで行ったら1件目に戻ります）。
-          セラピスト本人のアカウントに代理ログインして投稿するので、エステ魂で魂セラピストを始めている方だけ送れます。投稿はお店からは消せません。
+          セラピスト本人のアカウントに代理ログインして投稿するので、エステ魂で魂セラピストを始めている方だけ送れます。
         </p>
         <div className="grid gap-1 text-[13px] text-slate-600 sm:grid-cols-3">
           <div>最後に投稿できた：<b className="text-slate-800">{when(n.lastAt)}</b></div>
