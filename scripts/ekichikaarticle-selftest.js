@@ -400,7 +400,11 @@ console.log('\n── ★★★ 第1321便・第1322便: 送る本文（印→�
   const fs = require('fs'), path = require('path');
   const src = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8').replace(/\r/g, '');
   const board = src('src/app/mypage/media/NewsBoard.tsx');
-  eq('★★★ 駅ちか新着情報の画面に、飾りのボタンと見え方の確認がある', [/<TextMarkToolbar textareaRef=\{bodyRef\}/.test(board), /<TextMarkPreview value=\{draft\.body\}/.test(board)], [true, true]);
+  // ★ 第1966便: 飾りのボタン＋見え方の確認（TextMarkToolbar・TextMarkPreview）は、見たまま飾れる欄（RichBodyEditor）に替わった
+  eq('★★★ 駅ちか新着情報の画面に、見たまま飾れる本文欄がある', /<RichBodyEditor value=\{draft\.body\}/.test(board), true);
+  const rich = src('src/app/components/RichBodyEditor.tsx');
+  eq('★★★ 本文欄は、前からの本文を送る形と同じ道（ekichikaArticleBody）で開く', /splitRichBody\(ekichikaArticleBody\(value\)\)/.test(rich), true);
+  eq('★★★ 本文欄は、画像とリンクを外す', [/'img'/.test(rich), /KEEP = new Set\(\[[^\]]*'a'/.test(rich)], [true, false]);
   const tools = src('src/app/components/TextMarkTools.tsx');
   eq('★★★ 見え方の確認は、送る形と同じ木（parseTextMarks）から作る', /parseTextMarks\(/.test(tools), true);
   eq('★★★ 見え方の確認に dangerouslySetInnerHTML を使わない', /dangerouslySetInnerHTML/.test(tools), false);
