@@ -113,6 +113,12 @@ async function resolveAccess(siteKey: string): Promise<Resolved | Err> {
   if (user.id === ADMIN_UUID) role = 'operator';
   else if (ownerId && ownerId === user.id) role = 'owner';
   if (!role) return { ok: false, error: 'このサイトを操作する権限がありません' };
+  // ★ 第1950便（カッキーさん 11/12）: お店様に渡すのは【公開と同時】。
+  //   ★ 非公開（制作中）・停止中のあいだは運営だけが操作できる（管理画面・プレビューとも）。
+  //   ★ マイページのバナーは制作中は押せないが、URL を直接開くと入れてしまっていたのをふさぐ。
+  if (role === 'owner' && site.status !== 'live') {
+    return { ok: false, error: 'ただいまホームページを準備中です。公開の準備ができしだい、運営事務局からご案内します。' };
+  }
 
   return {
     svc,
