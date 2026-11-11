@@ -224,9 +224,13 @@ export async function POST(req: Request) {
           esutamaOpt: { key },
         });
         esutamaStarted.add(Number(o.salon_id));
+        // ★ 第1954便: 同じ店のエステ魂で別の流れが走っていて始められなかったときは、印（読みに行った時刻）を戻す＝5分後の周でまた試す。
+        //   ★ 戻さないと、時刻で押す種類は次に試すのが約30分後になる（リアルタイム集客は第1816便で直してあった）
+        if (!f.ok && f.reason === 'busy') await svc.from('conecf_esutama_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('option_key', key);
         results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
       } catch (e) {
         console.error('[esutama-option] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
+        await svc.from('conecf_esutama_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('option_key', key);
         results.push({ ...base, reason: 'start_failed' });
       }
     }
@@ -267,6 +271,7 @@ export async function POST(req: Request) {
         results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
       } catch (e) {
         console.error('[esutama-post] 流れを始められなかった', o.salon_id, key, e instanceof Error ? e.message : 'unknown');
+        await svc.from('conecf_esutama_posts').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id).eq('post_key', key);
         results.push({ ...base, reason: 'start_failed' });
       }
     }
@@ -305,6 +310,7 @@ export async function POST(req: Request) {
           results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
         } catch (e) {
           console.error('[esutama-note] 流れを始められなかった', o.salon_id, e instanceof Error ? e.message : 'unknown');
+          await svc.from('conecf_esutama_notes').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', o.salon_id);
           results.push({ ...base, reason: 'start_failed' });
         }
       }
@@ -482,6 +488,7 @@ export async function POST(req: Request) {
           results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
         } catch (e) {
           console.error('[vanilla-blog] 流れを始められなかった', sid, e instanceof Error ? e.message : 'unknown');
+          await svc.from('conecf_vanilla_blog').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid);
           results.push({ ...base, reason: 'start_failed' });
         }
       }
@@ -526,6 +533,7 @@ export async function POST(req: Request) {
           results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
         } catch (e) {
           console.error('[zenkoku-option] 流れを始められなかった', sid, key, e instanceof Error ? e.message : 'unknown');
+          await svc.from('conecf_zenkoku_options').update({ read_at: (o.read_at as string | null) ?? null }).eq('salon_id', sid).eq('option_key', key);
           results.push({ ...base, reason: 'start_failed' });
         }
       }
@@ -553,9 +561,12 @@ export async function POST(req: Request) {
         if (mErr) { results.push({ ...base, reason: 'mark_failed', note: mErr.message }); continue; }
         try {
           const f = await startRelayFlow({ salonId: Number(z.salon_id), provider: 'zenkoku', slot, intent: 'bump_auto', actor: 'cron:zenkoku-wait', zenkokuWait: { dateISO } });
+          // ★ 第1954便: 別の流れが走っていて始められなかったときは印を戻す（15分待たず、5分後の周でまた試す）
+          if (!f.ok && f.reason === 'busy') await svc.from('salon_import_sources').update({ bump_auto_at: (z.bump_auto_at as string | null) ?? null }).eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot);
           results.push({ ...base, reason: 'ok', started: f.ok, note: f.note });
         } catch (e) {
           console.error('[zenkoku-wait] 流れを始められなかった', z.salon_id, e instanceof Error ? e.message : 'unknown');
+          await svc.from('salon_import_sources').update({ bump_auto_at: (z.bump_auto_at as string | null) ?? null }).eq('salon_id', z.salon_id).eq('provider', 'zenkoku').eq('slot', slot);
           results.push({ ...base, reason: 'start_failed' });
         }
       }

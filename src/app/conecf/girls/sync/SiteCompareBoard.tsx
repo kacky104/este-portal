@@ -107,6 +107,12 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
 
   useEffect(() => { void load(); }, [load]);
 
+  // ★ 第1954便: フック（useState・useEffect）は、下の「店がまだ無ければ描かない」より前に置く（React の決まり。後ろにあると画面が落ちることがある）
+  const [pressedAt, setPressedAt] = useState<Record<string, number>>({});
+  const [, setTick] = useState(0);
+  useEffect(() => { const id = window.setInterval(() => setTick((n) => n + 1), 30_000); return () => window.clearInterval(id); }, []);
+  const [bulkBusy, setBulkBusy] = useState('');
+
   if (salonId == null) return null;
 
   const cellOf = (t: Therapist, s: Site): Cell => {
@@ -121,9 +127,6 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
   };
 
   // ★ 第1700便（B-2）: 押した時刻（この画面を開いているあいだだけ覚える）
-  const [pressedAt, setPressedAt] = useState<Record<string, number>>({});
-  const [, setTick] = useState(0);
-  useEffect(() => { const id = window.setInterval(() => setTick((n) => n + 1), 30_000); return () => window.clearInterval(id); }, []);
   /** 再読込を押せるまでの残り（ms）。0 なら押せる */
   const coolLeft = (s: Site): number => {
     const read = Date.parse(String(pairsOf[key(s)]?.readAt ?? ''));
@@ -169,7 +172,6 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
     for (const x of picks) count.set(x.castId, (count.get(x.castId) ?? 0) + 1);
     return picks.filter((x) => count.get(x.castId) === 1);
   };
-  const [bulkBusy, setBulkBusy] = useState('');
   const onLinkExact = async (s: Site) => {
     const list = exactPairs(s);
     if (list.length === 0) return;

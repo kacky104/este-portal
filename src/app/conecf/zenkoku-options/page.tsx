@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
@@ -22,14 +23,6 @@ const outcomeText = (o: string | null) => {
   if (o.startsWith('error')) return 'うまくいきませんでした（' + o.replace(/^error:\s*/, '') + '）';
   return ZENKOKU_OPT_OUTCOME[o] ?? o;
 };
-/** 「6:11」「翌1:00」→ 朝6時はじまりの分 */
-function parseTime(t: string): number {
-  // ★ 第1838便: 全角の数字・コロン（２１：４２）や「時」区切りでも通す
-  const m = /^(翌)?\s*(\d{1,2})\s*[:時]\s*(\d{2})\s*分?$/.exec(t.normalize('NFKC').trim());
-  if (!m) return NaN;
-  const v = Number(m[2]) * 60 + Number(m[3]);
-  return m[1] || v < 360 ? v + 1440 : v;
-}
 
 /** ★ ブラウザで長い辺 1440px の JPEG に縮めてから送る（サーバーアクションの上限 1MB の内側） */
 async function shrinkToJpeg(file: File): Promise<Blob> {
@@ -85,7 +78,7 @@ function NewsCard({ o, onToast, reload, open, onToggle }: { o: ConecfZenkokuOpti
   };
   const save = async () => {
     const used = rows.filter((r) => r.time.trim() !== '' || r.title.trim() !== '' || r.body.trim() !== '');
-    const times = used.map((r) => parseTime(r.time));
+    const times = used.map((r) => parseConecfClock(r.time));
     if (times.some((t) => !Number.isFinite(t))) { onToast('時刻は「6:11」のように入れてください'); return; }
     if (new Set(times).size !== times.length) { onToast('同じ時刻が2つあります'); return; }
     // ★ 時刻の早い順に並べ替えて保存（i 番目の時刻に i 番目の中身を送る）
@@ -157,7 +150,7 @@ function RecommendCard({ o, therapists, onToast, reload, open, onToggle }: { o: 
   const [pick, setPick] = useState('');
   const [busy, setBusy] = useState(false);
   const save = async () => {
-    const t = parseTime(time);
+    const t = parseConecfClock(time);
     if (!Number.isFinite(t)) { onToast('時刻は「6:09」のように入れてください'); return; }
     setBusy(true);
     const r = await saveConecfZenkokuOption({ key: 'recommend', auto, timesMin: [t], recommend: names.map((name) => ({ name })) });

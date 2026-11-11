@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfSession } from '../ConecfSession';
 import { useToast } from '@/app/components/useToast';
@@ -162,14 +163,6 @@ function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
   );
 }
 
-/** 「12:00」「翌1:00」→ 朝6時はじまりの分 */
-function parseCocoaTime(t: string): number {
-  // ★ 第1838便: 全角の数字・コロン（２１：４２）や「時」区切りでも通す
-  const m = /^(翌)?\s*(\d{1,2})\s*[:時]\s*(\d{2})\s*分?$/.exec(t.normalize('NFKC').trim());
-  if (!m) return NaN;
-  const v = Number(m[2]) * 60 + Number(m[3]);
-  return m[1] || v < 360 ? v + 1440 : v;
-}
 
 /**
  * ★★ 第1833便（カッキーさん）: A・B・C の3アカウントのカード（開け閉めできる）。
@@ -184,7 +177,7 @@ function MovieSection({ a, guard, onToast, reload }: { a: CocoaAccountRow; guard
   const save = async () => {
     if (!guard()) return;
     const used = times.filter((t) => t.trim() !== '');
-    const mins = used.map((t) => parseCocoaTime(t));
+    const mins = used.map((t) => parseConecfClock(t));
     if (mins.some((m) => !Number.isFinite(m))) { onToast('時刻は「13:12」のように入れてください（翌朝は「翌1:00」）'); return; }
     if (new Set(mins).size !== mins.length) { onToast('同じ時刻が2つあります'); return; }
     setBusy(true);
@@ -237,7 +230,7 @@ function AccountCard({ a, templates, open, onToggle, guard, onToast, reload }: {
   const save = async () => {
     if (!guard()) return;
     const used = rows.filter((r) => r.time.trim() !== '');
-    const mins = used.map((r) => parseCocoaTime(r.time));
+    const mins = used.map((r) => parseConecfClock(r.time));
     if (mins.some((m) => !Number.isFinite(m))) { onToast('時刻は「12:00」のように入れてください（翌朝は「翌1:00」）'); return; }
     if (new Set(mins).size !== mins.length) { onToast('同じ時刻が2つあります'); return; }
     setBusy(true);

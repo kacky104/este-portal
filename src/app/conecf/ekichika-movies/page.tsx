@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import { createClient } from '@/app/lib/supabase/client';
@@ -25,12 +26,6 @@ const outcomeText = (o: string | null) => {
   if (o.startsWith('error')) return 'うまくいきませんでした（' + o.replace(/^error:\s*/, '') + '）';
   return o;
 };
-function parseTime(t: string): number {
-  const m = /^(翌)?\s*(\d{1,2})\s*[:時]\s*(\d{2})\s*分?$/.exec(t.normalize('NFKC').trim());
-  if (!m) return NaN;
-  const v = Number(m[2]) * 60 + Number(m[3]);
-  return m[1] || v < 360 ? v + 1440 : v;
-}
 
 function VideoLibrary({ videos, onToast, reload }: { videos: ConecfVideo[]; onToast: (m: string) => void; reload: () => void }) {
   const [name, setName] = useState('');
@@ -85,7 +80,7 @@ function SettingCard({ s, videos, girls, onToast, reload, open, onToggle }: { s:
   const [busy, setBusy] = useState(false);
   const set = (i: number, p: Partial<Row>) => setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...p } : r)));
   const save = async () => {
-    const mins = rows.map((r) => parseTime(r.time));
+    const mins = rows.map((r) => parseConecfClock(r.time));
     if (mins.some((m) => !Number.isFinite(m))) { onToast('時刻は「12:00」のように入れてください（翌朝は「翌1:00」）'); return; }
     if (new Set(mins).size !== mins.length) { onToast('同じ時刻が2つあります'); return; }
     setBusy(true);
