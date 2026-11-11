@@ -273,26 +273,29 @@ export function BumpRow({ href, theme, name, lit, remaining, quota, enabled, las
   name: React.ReactNode; lit: boolean; remaining: number | null; quota: number | null;
   enabled: boolean; lastAt: string | null; note?: string;
 }) {
+  const last = lastAt ? `最後 ${hm(lastAt)}` : 'まだ押していません';
+  // ★ 第1933便: スマホは2段（上: 編集・名前・残り／下: 自動更新・最後）。PC（sm 以上）は今までどおり1段
   return (
-    <Link href={href} className={`flex items-center gap-3 px-4 py-2.5 bg-white border ${theme.border} shadow-sm text-[17px] tabular-nums ${theme.hover} transition-colors`}>
-      <span className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 text-[16px] font-bold text-blue-600 border border-blue-200 bg-blue-50">✎ 編集</span>
-      <span className={`w-56 flex-shrink-0 min-w-0 font-black ${lit ? 'conecf-shine' : 'text-slate-700'}`}>{name}</span>
-      <span className="w-36 flex-shrink-0 text-slate-500">
-        {note ? <span className="text-[16px] font-bold text-amber-700">{note}</span>
-          : <>あと <b className={`text-[26px] font-black ${remaining === 0 ? 'text-slate-400' : theme.big}`}>{remaining === null ? '—' : remaining}</b>{quota != null && <span className="text-[15px]"> / {quota}回</span>}</>}
+    <Link href={href} className={`flex flex-wrap sm:flex-nowrap items-center gap-x-2 sm:gap-x-3 gap-y-2 px-3 sm:px-4 py-2.5 bg-white border ${theme.border} shadow-sm text-[15px] sm:text-[17px] tabular-nums ${theme.hover} transition-colors`}>
+      <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 sm:px-3 py-1 text-[14px] sm:text-[16px] font-bold text-blue-600 border border-blue-200 bg-blue-50">✎ 編集</span>
+      <span className={`flex-1 sm:flex-none sm:w-56 min-w-0 font-black ${lit ? 'conecf-shine' : 'text-slate-700'}`}>{name}</span>
+      <span className="flex-shrink-0 sm:w-36 text-right sm:text-left text-slate-500 whitespace-nowrap">
+        {note ? <span className="text-[14px] sm:text-[16px] font-bold text-amber-700">{note}</span>
+          : <>あと <b className={`text-[22px] sm:text-[26px] font-black ${remaining === 0 ? 'text-slate-400' : theme.big}`}>{remaining === null ? '—' : remaining}</b>{quota != null && <span className="text-[13px] sm:text-[15px]"> / {quota}回</span>}</>}
       </span>
-      <span className="flex-1 min-w-0">
+      <span className="basis-full sm:basis-auto sm:flex-1 min-w-0 flex items-center justify-between gap-2">
         {enabled ? (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[16px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+          <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 text-[13px] sm:text-[16px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 whitespace-nowrap">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />自動更新中
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[16px] font-bold text-slate-500 bg-slate-50 border border-slate-200">
+          <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 text-[13px] sm:text-[16px] font-bold text-slate-500 bg-slate-50 border border-slate-200 whitespace-nowrap">
             <span className="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden />自動更新停止
           </span>
         )}
+        <span className="sm:hidden text-[13px] text-slate-400 whitespace-nowrap">{last}</span>
       </span>
-      <span className="hidden sm:block w-40 flex-shrink-0 text-right text-[15px] text-slate-400">{lastAt ? `最後 ${hm(lastAt)}` : 'まだ押していません'}</span>
+      <span className="hidden sm:block w-40 flex-shrink-0 text-right text-[15px] text-slate-400">{last}</span>
     </Link>
   );
 }
