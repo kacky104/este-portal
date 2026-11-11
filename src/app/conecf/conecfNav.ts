@@ -20,6 +20,9 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   // ★ 第1847便（カッキーさん）: ベンリーから移した各サイトの自動更新（駅ちか・エステ魂・全国エステランキング）を1つにまとめた入口。
   //   中の画面（AUTO_HUB_CHILDREN）はサイドバーには出さない。運営が ON にした項目が1つでもある店だけ（ConecfShell）
   { key: 'autoHub',      label: 'サイト自動更新一覧',     href: '/auto' },
+  // ★ 第1306便: フクエスと駅ちかの上位表示（手で押す・時間帯と間隔で自動で押す）をまとめた画面
+  //   ★ 第1936便（カッキーさん）: 出勤のまとまりから、サイト自動更新一覧のすぐ下へ移した
+  { key: 'bump',         label: '上位表示設定',           href: '/bump' },
   { key: 'girls',        label: 'セラピスト一覧（新規登録など）', href: '/girls',         group: 'セラピスト' },
   { key: 'girlsSync',    label: 'セラピスト登録状況一覧', href: '/girls/sync' },
   // ★★ 第462便: 「今すぐ」の見出しはやめて、出勤のまとまりに入れた（★ 1項目だけの見出しは、並びを長くするだけ）
@@ -34,8 +37,6 @@ export const CONECF_NAV: readonly ConecfNavItem[] = [
   { key: 'scheduleSync', label: '出勤をサイトへ',         href: '/schedule/sync' },
   // ★ 2026-11-04: シフト管理表（セラピストの希望を確定）。SHIFT_SALON_IDS の店だけ出す（ConecfShell の shiftNav）
   { key: 'shift',        label: 'シフト希望管理表',       href: '/shift' },
-  // ★ 第1306便（カッキーさん）: フクエスと駅ちかの上位表示（手で押す・時間帯と間隔で自動で押す）をまとめた画面。今すぐの下
-  { key: 'bump',         label: '上位表示設定',           href: '/bump' },
   // ★ 第1799便: エステ魂の有料オプション（集客ブースト・セラピストアピールなど）。運営が ON にした店だけ（ConecfShell の esutamaOptNav）
   { key: 'esutamaOpt',   label: 'エステ魂オプション',     href: '/esutama-options' },
   // ★ 第1831便: 全国エステランキングのニュース・おすすめセラピスト。運営が ON にした店だけ（ConecfShell の zenkokuOptNav）
