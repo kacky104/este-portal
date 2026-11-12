@@ -1222,7 +1222,7 @@ ${COMMON}
 
 /**
  * 文字の大きさ（第1901便）。CSS の font-size を「元の大きさ × var(--hp-fs)」に書き換える。
- *   ★ 「標準」の店には使わない（HTML を1バイトも変えない）。結果は CSS の文字列ごとに覚えておく。
+ *   ★ 第2004便から全店に使う（PC だけ 1.1倍にするため）。結果は CSS の文字列ごとに覚えておく。
  */
 const scaledCache = new Map<string, string>();
 export function scaleHpFontSizes(css: string): string {
@@ -1234,6 +1234,22 @@ export function scaleHpFontSizes(css: string): string {
   scaledCache.set(css, out);
   return out;
 }
+
+/**
+ * PC（768px〜）の読みやすさ（第2004便・2026-11-12・カッキーさん「標準が小さすぎて読めません」）。全ひな形共通。
+ *   ★ 文字は 1.1倍（HpShell が --hp-fs に掛ける）。
+ *   ★ 文章を読む段（コンセプト・フリーページ・お知らせ・規約などの説明ページ）は横幅を 720/760px → 860px に広げる
+ *     ＝文字が大きくなっても、1行に入る文字数は前より少し増える。写真が並ぶ段（セラピスト・出勤など）は今までの幅のまま。
+ *   ★ ひな形のCSSの【あと】に足すこと（.hp-a .hp-sec などと詳細度が同じなので、後に書いたほうが勝つ）。
+ */
+export const HP_PC_FONT_SCALE = 1.1;
+export const HP_PC_READ_CSS = `
+@media (min-width: 768px) {
+  .hp-root .hp-sec-concept, .hp-root .hp-sec-free, .hp-root .hp-sec-news, .hp-root .hp-sec-doc {
+    padding-left: max(24px, calc((100% - 860px) / 2)); padding-right: max(24px, calc((100% - 860px) / 2));
+  }
+}
+`;
 
 export const TEMPLATE_CSS: Record<'s' | 'a' | 'b' | 'c', string> = {
   s: TYPE_S,

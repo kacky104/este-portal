@@ -62,12 +62,14 @@ export function Crumb({ homeHref, label }: { homeHref: string; label: string }) 
 }
 
 /** セクションの飾り（EN ラベル・番号・罫線）。表示の有無は各ひな形のCSSが決める。 */
-export function SecHead({ no, en, jp }: { no: string; en: string; jp: string }) {
+// ★ fit（第2004便）: お店が自由に書く見出し（コンセプト・フリーページ）用。2行になりそうなら1行に収まるまで文字を縮める
+//   （HpShell の data-hp-fitline）。スマホでも縮めるが、11px より小さくなるなら無理せず折り返す。
+export function SecHead({ no, en, jp, fit }: { no: string; en: string; jp: string; fit?: boolean }) {
   return (
     <>
       <div className="hp-idx">{no}</div>
       <div className="hp-en">{en}</div>
-      <h2 className="hp-h2">{jp}</h2>
+      {fit ? <h2 className="hp-h2" data-hp-fitline="always" data-hp-fitmin="11">{jp}</h2> : <h2 className="hp-h2">{jp}</h2>}
       <div className="hp-rule" />
     </>
   );

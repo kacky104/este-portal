@@ -22,7 +22,7 @@
 import { hpColorCssVars, hpColorRootClass, HP_FONT_SIZE_SCALE, HP_FONTS, hpTextColorOf } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpFooterPageLinks, hpJobsUrl, hpMenuItems, hpTopbarNavItems, type HpPageKey } from '@/app/hp/_lib/sections';
-import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS, scaleHpFontSizes } from './styles';
+import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS, scaleHpFontSizes, HP_PC_FONT_SCALE, HP_PC_READ_CSS } from './styles';
 import { hpTrackScript } from '@/app/hp/_lib/trackScript';
 import { HP_GA_ID, hpGaScript, isValidHpGaId } from '@/app/hp/_lib/gaHp';
 
@@ -82,7 +82,7 @@ export function HpShell({
   return (
     <div
       className={`hp-root hp-${site.template_key}${colorClass ? ` ${colorClass}` : ''}${data.wallpaperUrl ? ' hp-has-wallpaper' : ''} hp-ordered${fontDef ? ` hp-font-${fontDef.key}` : ''}${textColor ? ' hp-tc' : ''}`}
-      style={fontScale !== 1 || textColor ? ({ ...cssVars, ...(fontScale !== 1 ? { ['--hp-fs' as string]: fontScale } : {}), ...(textColor ? { ['--hp-text' as string]: textColor.color } : {}) } as React.CSSProperties) : cssVars}
+      style={textColor ? ({ ...cssVars, ...(textColor ? { ['--hp-text' as string]: textColor.color } : {}) } as React.CSSProperties) : cssVars}
     >
       {/* ★ 第1905便: 文字の色。読む文字だけ（見出し・値段・帯・ボタンなどアクセントの色はそのまま）。.hp-root を2つ重ねて、ひな形・配色の指定より強くする */}
       {textColor && (
@@ -106,7 +106,11 @@ export function HpShell({
         dangerouslySetInnerHTML={{
           __html: (() => {
             const css = TEMPLATE_CSS[site.template_key] + (colorClass ? TEMPLATE_VARIANT_CSS[colorClass] ?? '' : '');
-            return fontScale !== 1 ? scaleHpFontSizes(css) : css;   // ★ 第1901便: 文字の大きさ（標準の店はそのまま）
+            // ★ 第2004便（カッキーさん）: PC（768px〜）は文字を 1.1倍に。スマホは今までどおり。
+            //   --hp-fs は【ここ（CSS）】で決める（style 属性に書くとメディアクエリで変えられない）。
+            //   お店が選んだ大きさ（標準/大きめ/大）× PCの 1.1。HP_PC_READ_CSS は読み物の段の横幅を広げる。
+            const fs = `.hp-root{--hp-fs:${fontScale}}@media (min-width:768px){.hp-root{--hp-fs:${Math.round(fontScale * HP_PC_FONT_SCALE * 1000) / 1000}}}`;
+            return fs + scaleHpFontSizes(css) + HP_PC_READ_CSS;
           })(),
         }}
       />
@@ -288,7 +292,7 @@ export function HpShell({
                ウェブフォント読み込み後・リサイズ時に測り直す。JSなしなら折り返すだけ＝安全側。 ── */}
           <script
             dangerouslySetInnerHTML={{
-              __html: `(function(){var els=document.querySelectorAll('[data-hp-fitline]');if(!els.length)return;var mq=window.matchMedia('(min-width: 640px)');function fit(el){el.style.fontSize='';el.style.whiteSpace='';el.style.letterSpacing='';var wide=mq.matches;if(!wide&&el.getAttribute('data-hp-fitline')!=='always')return;var p=el.parentElement;if(!p)return;var pcs=getComputedStyle(p);var avail=p.clientWidth-parseFloat(pcs.paddingLeft)-parseFloat(pcs.paddingRight);el.style.whiteSpace='nowrap';var need=el.scrollWidth;if(need<=avail)return;if(!wide){var f0=parseFloat(getComputedStyle(el).fontSize);var ls=parseFloat(getComputedStyle(el).letterSpacing);if(ls>0&&f0>0){el.style.letterSpacing=(ls/f0/2)+'em';need=el.scrollWidth;if(need<=avail)return}}var cs=parseFloat(getComputedStyle(el).fontSize);var s=cs*avail/need*0.98;var min=wide?15:13;if(s<min){el.style.whiteSpace='';el.style.letterSpacing='';return}el.style.fontSize=s+'px'}function run(){els.forEach(fit)}run();if(document.fonts&&document.fonts.ready){document.fonts.ready.then(run)}var t=false;window.addEventListener('resize',function(){if(!t){t=true;requestAnimationFrame(function(){run();t=false})}},{passive:true})})();`,
+              __html: `(function(){var els=document.querySelectorAll('[data-hp-fitline]');if(!els.length)return;var mq=window.matchMedia('(min-width: 640px)');function fit(el){el.style.fontSize='';el.style.whiteSpace='';el.style.letterSpacing='';var wide=mq.matches;if(!wide&&el.getAttribute('data-hp-fitline')!=='always')return;var p=el.parentElement;if(!p)return;var pcs=getComputedStyle(p);var avail=p.clientWidth-parseFloat(pcs.paddingLeft)-parseFloat(pcs.paddingRight);el.style.whiteSpace='nowrap';var need=el.scrollWidth;if(need<=avail)return;if(!wide){var f0=parseFloat(getComputedStyle(el).fontSize);var ls=parseFloat(getComputedStyle(el).letterSpacing);if(ls>0&&f0>0){el.style.letterSpacing=(ls/f0/2)+'em';need=el.scrollWidth;if(need<=avail)return}}var cs=parseFloat(getComputedStyle(el).fontSize);var s=cs*avail/need*0.98;var min=parseFloat(el.getAttribute('data-hp-fitmin'))||(wide?15:13);if(s<min){el.style.whiteSpace='';el.style.letterSpacing='';return}el.style.fontSize=s+'px'}function run(){els.forEach(fit)}run();if(document.fonts&&document.fonts.ready){document.fonts.ready.then(run)}var t=false;window.addEventListener('resize',function(){if(!t){t=true;requestAnimationFrame(function(){run();t=false})}},{passive:true})})();`,
             }}
           />
 

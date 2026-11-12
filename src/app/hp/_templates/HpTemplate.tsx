@@ -206,7 +206,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {/* ── コンセプト ── */}
       {visible.concept && (
         <section id="concept" data-hp-reveal className={secCls('concept', 'hp-sec-concept', false)} style={ord('concept')}>
-          <SecHead no="01" en="Concept" jp={site.concept_title || 'コンセプト'} />
+          <SecHead no="01" en="Concept" jp={site.concept_title || 'コンセプト'} fit />
           {site.concept_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img className="hp-concept-img" src={site.concept_image_url} alt="" />
@@ -349,7 +349,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
       {/* ── フリーページ ── */}
       {visible.freePages && freePages.map((f, i) => (
         <section key={f.id} className={secCls('freePages', 'hp-sec-free', false)} style={ord('freePages')}>
-          <SecHead no={String(9 + i).padStart(2, '0')} en="Information" jp={f.title} />
+          <SecHead no={String(9 + i).padStart(2, '0')} en="Information" jp={f.title} fit />
           {f.images[0] && (
             // eslint-disable-next-line @next/next/no-img-element
             <img className="hp-concept-img" src={f.images[0]} alt="" />
