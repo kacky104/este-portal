@@ -45,7 +45,7 @@ const TAB_HEAD: Record<Tab, [string, string]> = {
   top: ['TOP', '来た人数と、電話・LINE などが押された数'],
   summary: ['サマリーレポート', '人数と、電話・LINE などの日ごとの動き'],
   sources: ['集客レポート', 'どこから来て、どれだけ電話・LINE などにつながったか'],
-  search: ['検索ワードレポート', 'Google でどんな言葉で探されて、どれだけ押されたか（Google Search Console）'],
+  search: ['検索ワードレポート', 'この項目は Google Search Console を使用しています。'],
   demo: ['ユーザー属性レポート', '来た人の性別と年齢（Google アナリティクス）'],
   pages: ['ページレポート', 'どのページがよく見られたか'],
   therapists: ['セラピスト別レポート', 'どのセラピストのページがよく見られたか'],
