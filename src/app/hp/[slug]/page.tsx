@@ -4,6 +4,7 @@ import { fetchHpPageData } from '@/app/hp/_lib/data';
 import { buildHpMetadata, HP_NOT_PUBLIC_METADATA } from '@/app/hp/_lib/meta';
 import { HpTemplate } from '@/app/hp/_templates/HpTemplate';
 import { hpTopTitle, hpTopDescription } from '@/lib/hpSeo';
+import { hpGscToken } from '@/app/hp/_lib/gscToken';
 
 // 掲載店舗の公式ホームページ（2026-08-08 段階2 → 2026-08-09 段階3で独自ドメイン対応）。
 //
@@ -40,11 +41,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   });
 
   // index/noindex・canonical・ファビコンの判定は _lib/meta.ts に集約（下層ページと共通）。
-  return buildHpMetadata(data, slug, {
+  const meta = buildHpMetadata(data, slug, {
     title: hpTopTitle(data.salon.name, data.salon.area, data.salon.address),
     description,
     path: '',
   });
+  // ★ 第1995便: 独自ドメインのトップにだけ、Search Console の「持ち主の確認」の文字（解析の「検索ワードを使う」で入る）
+  const gsc = await hpGscToken(slug);
+  return gsc ? { ...meta, verification: { ...(meta.verification ?? {}), google: gsc } } : meta;
 }
 
 export default async function HpPage({ params }: { params: Promise<{ slug: string }> }) {

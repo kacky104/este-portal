@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getHpAnalytics, type HpAnalytics, type HpTotals } from '@/app/actions/hpAnalytics';
+import { connectHpSearch, getHpSearch, type HpSearchData } from '@/app/actions/hpSearch';
 import { jstDayHour, HP_EK_KINDS, HP_EK_LABEL } from '@/lib/hpStats';
 import { FUKUES_ORIGIN } from '@/lib/crmHost';
 
@@ -11,9 +12,9 @@ import { FUKUES_ORIGIN } from '@/lib/crmHost';
 //   ★ 色: 1系列の棒は1色（青）。時間帯の表は青の濃淡（多いほど濃い）。増減の矢印は文字＋記号（色だけにしない）。
 
 // ★ 第1889便（カッキーさん）: スマホだけ「TOP」（数のタイル）を1ページ目にする。ほかのタブ（スマホ）は数のタイルを出さない
-type Tab = 'top' | 'summary' | 'sources' | 'pages' | 'therapists' | 'hours' | 'help';
+type Tab = 'top' | 'summary' | 'sources' | 'search' | 'pages' | 'therapists' | 'hours' | 'help';
 const TABS: Array<[Tab, string]> = [
-  ['summary', 'サマリー'], ['sources', '流入元'], ['pages', 'ページ'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方'],
+  ['summary', 'サマリー'], ['sources', '流入元'], ['search', '検索ワード'], ['pages', 'ページ'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方'],
 ];
 const BLUE = '#2563eb';
 const nf = (n: number) => n.toLocaleString('ja-JP');
@@ -43,6 +44,7 @@ const TAB_HEAD: Record<Tab, [string, string]> = {
   top: ['TOP', '来た人数と、電話・LINE などが押された数'],
   summary: ['サマリーレポート', '人数と、電話・LINE などの日ごとの動き'],
   sources: ['集客レポート', 'どこから来て、どれだけ電話・LINE などにつながったか'],
+  search: ['検索ワードレポート', 'Google でどんな言葉で探されて、どれだけ押されたか（Google Search Console）'],
   pages: ['ページレポート', 'どのページがよく見られたか'],
   therapists: ['セラピスト別レポート', 'どのセラピストのページがよく見られたか'],
   hours: ['時間帯レポート', '何曜日の何時によく見られ、電話・LINE などが来るか'],
@@ -54,7 +56,7 @@ const TAB_HEAD: Record<Tab, [string, string]> = {
  *   公式HP管理の中で開いているときは出さない（そこがもう管理画面なので）。
  */
 export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: number; siteLinks?: boolean }) {
-  const today = useMemo(() => jstDayHour(Date.now()).day, []);
+  const [today] = useState(() => jstDayHour(Date.now()).day); // ★ 第1995便: 開いたときの日（描くたびに読まない）
   const [range, setRange] = useState<[string, string]>([addDays(today, -27), today]);
   const [preset, setPreset] = useState('28');
   // ★ 第1889便: スマホ（640px 未満）は TOP から。PC は今までどおりサマリーから（TOP のタブは無い）
@@ -168,6 +170,7 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
           {tab === 'summary' && <div className="order-1 sm:order-2"><Summary d={d} /></div>}
           </div>
           {tab === 'sources' && <Sources d={d} />}
+          {tab === 'search' && <SearchWords salonId={salonId} from={range[0]} to={range[1]} />}
           {tab === 'pages' && <Pages d={d} />}
           {tab === 'therapists' && <Therapists d={d} />}
           {tab === 'hours' && <Hours d={d} />}
@@ -189,7 +192,7 @@ const NAV_ICON: Record<string, React.ReactNode> = {
   pages: <><path d="M14 3H6v18h12V7z" /><path d="M14 3v4h4" /></>,
   more: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
 };
-const MORE_TABS: Array<[Tab, string]> = [['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方']];
+const MORE_TABS: Array<[Tab, string]> = [['search', '検索ワード'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方']];
 
 function MobileNav({ tab, onPick }: { tab: Tab; onPick: (t: Tab) => void }) {
   const [open, setOpen] = useState(false);
@@ -507,6 +510,94 @@ function Help() {
       <p className="font-black text-slate-800">使い方のコツ</p>
       <p>バナーやトップ画像などを変えたら、そのあと数字がどう変わったかを見ます。効いたかどうかが分かります。</p>
       <p className="text-[12px] text-slate-500">※ 2026年11月から数えています。人数は日ごとの合計（同じ人が2日来たら2人）。年齢・性別は数えていません。</p>
+    </div>
+  );
+}
+
+// ── 検索ワード（第1995便・2026-11-12・カッキーさん）──────────────────
+// ★ Google Search Console の数。fukues.com/hp/〇〇 の分は準備なしで出る。独自ドメインの分は「検索ワードを使う」で登録してから。
+// ★ Google のデータは 2〜3 日遅れる。数の少ない検索ワードは Google が出さない。
+function SearchWords({ salonId, from, to }: { salonId: number; from: string; to: string }) {
+  const key = `${salonId}|${from}|${to}`;
+  const [res, setRes] = useState<{ key: string; data: HpSearchData | null; err: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [reload, setReload] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    getHpSearch({ salonId, from, to })
+      .then((r) => { if (alive) setRes(r.ok ? { key, data: r.data, err: '' } : { key, data: null, err: r.error }); })
+      .catch(() => { if (alive) setRes({ key, data: null, err: '読み込めませんでした。しばらくしてから開き直してください。' }); });
+    return () => { alive = false; };
+  }, [salonId, from, to, key, reload]);
+  const connect = async () => {
+    setBusy(true); setMsg('');
+    try {
+      const r = await connectHpSearch(salonId);
+      if (!r.ok) setMsg(r.error);
+      else if (r.state === 'verified') { setMsg('登録できました。数日すると、独自ドメインの検索ワードも出てきます。'); setReload((n) => n + 1); }
+      else setMsg(r.error || '確認がまだ通りませんでした。');
+    } catch { setMsg('通信できませんでした。もう一度お試しください'); }
+    setBusy(false);
+  };
+  if (!res || res.key !== key) return <div className="bg-white p-8 text-center text-[14px] text-slate-400">読み込み中…</div>;
+  if (!res.data) return <div className="bg-white p-6 text-center text-[14px] font-bold text-rose-600">{res.err}</div>;
+  const d = res.data;
+  const pctTxt = (v: number) => `${(v * 100).toFixed(1)}%`;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {([['クリック数', d.totals.clicks, d.prev.clicks, nf(d.totals.clicks)], ['表示回数', d.totals.impressions, d.prev.impressions, nf(d.totals.impressions)]] as const).map(([l, c, p, t]) => (
+          <div key={l} className="bg-slate-50 p-3"><p className="text-[12px] font-bold text-slate-500">{l}</p><p className="text-[22px] font-black text-slate-800">{t}</p><Delta cur={c} prev={p} /></div>
+        ))}
+        <div className="bg-slate-50 p-3"><p className="text-[12px] font-bold text-slate-500">クリック率</p><p className="text-[22px] font-black text-slate-800">{pctTxt(d.totals.ctr)}</p></div>
+        <div className="bg-slate-50 p-3"><p className="text-[12px] font-bold text-slate-500">平均の順位</p><p className="text-[22px] font-black text-slate-800">{d.totals.impressions > 0 ? d.totals.position.toFixed(1) : '—'}</p></div>
+      </div>
+
+      {d.domain && d.domainState !== 'verified' && (
+        <div className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
+          <p className="font-bold">独自ドメイン（{d.domain}）の検索ワードは、まだ出ていません</p>
+          {d.domainState === 'not_ready'
+            ? <p>この機能は準備中です（運営が設定すると使えます）。いまは fukues.com/hp の分だけ出ています。</p>
+            : <>
+                <p>下のボタンを押すと、フクエスが Google に「このお店の公式HPです」と確認してもらい、検索ワードを読めるようにします（お店の作業はありません）。</p>
+                <button type="button" disabled={busy} onClick={() => void connect()} className="mt-2 bg-blue-600 px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50">
+                  {busy ? '確認しています…' : d.domainState === 'pending' ? 'もう一度確かめる' : '検索ワードを使う'}
+                </button>
+              </>}
+          {msg && <p className="mt-2 font-bold">{msg}</p>}
+        </div>
+      )}
+      {d.domain && d.domainState === 'verified' && msg && <p className="text-[13px] font-bold text-emerald-700">{msg}</p>}
+      {d.partial && <p className="text-[13px] font-bold text-amber-700">{d.partial}</p>}
+
+      <div className="overflow-x-auto bg-white">
+        {d.rows.length === 0 ? (
+          <p className="p-6 text-center text-[13px] text-slate-500">この期間の検索ワードはまだありません（Google のデータは2〜3日遅れて出ます。数の少ない言葉は Google が出しません）</p>
+        ) : (
+          <table className="w-full min-w-[560px] text-left text-[13px]">
+            <thead className="bg-slate-100 text-slate-600">
+              <tr><th className="px-3 py-2">検索ワード</th><th className="px-3 py-2 text-right">クリック</th><th className="px-3 py-2 text-right">表示回数</th><th className="px-3 py-2 text-right">クリック率</th><th className="px-3 py-2 text-right">平均の順位</th></tr>
+            </thead>
+            <tbody>
+              {d.rows.map((r) => (
+                <tr key={r.query} className="border-t border-slate-100">
+                  <td className="px-3 py-1.5 font-bold text-slate-800">{r.query}</td>
+                  <td className="px-3 py-1.5 text-right">{nf(r.clicks)}</td>
+                  <td className="px-3 py-1.5 text-right">{nf(r.impressions)}</td>
+                  <td className="px-3 py-1.5 text-right">{pctTxt(r.ctr)}</td>
+                  <td className="px-3 py-1.5 text-right">{r.position.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <p className="text-[12px] leading-relaxed text-slate-500">
+        ・数は Google Search Console のものです（Google のデータは2〜3日遅れます）。<br />
+        ・「表示回数」は Google の検索結果に出た回数、「クリック」はそこから公式HP に来た回数です。「平均の順位」は小さいほど上に出ています。<br />
+        ・人数が少なくて個人が分かりそうな検索ワードは、Google が出しません（合計には入っています）。
+      </p>
     </div>
   );
 }

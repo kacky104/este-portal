@@ -35,18 +35,27 @@ function b64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// 取ったアクセストークンは 1 時間使える。同じ実行の中では使い回す。
-let cached: { token: string; exp: number } | null = null;
+// 取ったアクセストークンは 1 時間使える。同じ実行の中では使い回す（★ 第1995便: 権限（scope）ごとに）。
+const cached = new Map<string, { token: string; exp: number }>();
 
 export async function getGscAccessToken(): Promise<string> {
+  return getGoogleAccessToken(SCOPE);
+}
+
+/**
+ * ★ 第1995便: 同じサービスアカウントで、ほかの権限のトークンも取る（公式HP の Search Console 登録・GA4 の読み取り）。
+ *   scope は空白区切りで複数可。
+ */
+export async function getGoogleAccessToken(scope: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  if (cached && cached.exp - 60 > now) return cached.token;
+  const hit = cached.get(scope);
+  if (hit && hit.exp - 60 > now) return hit.token;
 
   const sa = loadServiceAccount();
   const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claim = b64url(JSON.stringify({
     iss: sa.client_email,
-    scope: SCOPE,
+    scope,
     aud: sa.token_uri ?? TOKEN_URL,
     iat: now,
     exp: now + 3600,
@@ -63,8 +72,8 @@ export async function getGscAccessToken(): Promise<string> {
   });
   if (!res.ok) throw new Error(`Google のトークン取得に失敗: ${res.status} ${(await res.text()).slice(0, 200)}`);
   const json = (await res.json()) as { access_token: string; expires_in: number };
-  cached = { token: json.access_token, exp: now + (json.expires_in ?? 3600) };
-  return cached.token;
+  cached.set(scope, { token: json.access_token, exp: now + (json.expires_in ?? 3600) });
+  return json.access_token;
 }
 
 export type GscDimension = 'query' | 'page' | 'country' | 'device' | 'date' | 'searchAppearance';
@@ -76,7 +85,7 @@ export async function gscQuery(params: {
   dimensions: GscDimension[];
   rowLimit?: number;
   /** 例: [{ dimension: 'page', operator: 'contains', expression: '/column/' }] */
-  filters?: Array<{ dimension: GscDimension; operator: 'equals' | 'contains' | 'notContains' | 'notEquals'; expression: string }>;
+  filters?: Array<{ dimension: GscDimension; operator: 'equals' | 'contains' | 'notContains' | 'notEquals' | 'includingRegex' | 'excludingRegex'; expression: string }>;
   /** 'web'（既定）/ 'image' / 'video' / 'news' / 'discover' / 'googleNews' */
   type?: string;
   siteUrl?: string;
