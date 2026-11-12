@@ -2271,7 +2271,7 @@ export default function MyPage() {
 
   const handleAvailableNowSave = async () => {
     // ★ 第401便（案B）: コネックエフに切り替えた店は、今すぐをコネックエフの「今すぐ一括」で扱う
-    if (conecfOn) { showToast('今すぐはコネックエフの「今すぐ／即ヒメ／即セラ設定」で編集します'); return; }
+    if (conecfOn) { showToast('今すぐは外部サイト、コネックエフの「今すぐ／即ヒメ／即セラ設定」で編集します'); return; }
     setSavingAvailable(true);
     // 「今すぐ」を付けられるのは「本日出勤中」かつ「チェック済み」のセラピストのみ。
     // ★ 人数の上限は imasuguMax（第390便 → 第1253〜1254便: 10名／フクエスワーク掲載店は15名 → 第1538便: 全店15名）。★ ここに数字を書かない。
@@ -4659,7 +4659,7 @@ export default function MyPage() {
           {/* ★ 第401便（コネックエフ 1e・案B） */}
           {conecfOn && (
             <div className="mb-3 bg-indigo-50 rounded-none border border-indigo-200 p-4 space-y-1.5">
-              <p className="text-xs font-black text-indigo-700">今すぐはコネックエフの「今すぐ／即ヒメ／即セラ設定」で編集します（この画面では保存できません）</p>
+              <p className="text-xs font-black text-indigo-700">今すぐは外部サイト、コネックエフの「今すぐ／即ヒメ／即セラ設定」で編集します（この画面では保存できません）</p>
               <a href="https://conecf.com/now" target="_blank" rel="noopener noreferrer" className="inline-block text-xs font-bold text-indigo-600 underline">
                 コネックエフの今すぐ／即ヒメ／即セラ設定を開く ›
               </a>
