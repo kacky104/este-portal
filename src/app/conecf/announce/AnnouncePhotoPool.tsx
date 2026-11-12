@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../conecfClientUtil';
 import { getAnnouncePhotoBoard, saveAnnouncePhotoPool } from '@/app/actions/announcePost';
 import { ARTICLE_PHOTO_MAX } from '@/lib/articlePhotoPick';
 
@@ -36,7 +37,7 @@ export function AnnouncePhotoPool({ salonId, enabled, onToast, tone = 'indigo' }
     setPool(r.data.photoIds);
   }, [salonId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   if (!board || !board.available) return null;
 

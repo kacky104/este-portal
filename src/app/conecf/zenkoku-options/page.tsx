@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { shrinkToJpeg, when } from '../conecfClientUtil';
+import { useCallback, useState, type ReactNode } from 'react';
+import { shrinkToJpeg, when, useLoadOnMount } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
@@ -210,7 +210,7 @@ export default function ConecfZenkokuOptionsPage() {
     if (!r.ok) { setError(r.error); return; }
     setOpts(r.data.options); setTherapists(r.data.therapists); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   return (
     <ConecfShell current="zenkokuOpt" title="全国エステランキング設定" toast={toast}>
       {() => (

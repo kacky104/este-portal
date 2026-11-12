@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLoadOnMount } from '../../conecfClientUtil';
 import { ConecfShell } from '../../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import { listConecfGirls, saveConecfGirlOrder, getConecfGirlFixed, type ConecfGirlRow } from '@/app/actions/conecfGirls';
@@ -79,7 +80,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     setSaved(arranged); setList(arranged); setFixed(fx); setSavedFixed(fx); setSalonId(g.data.salonId); setError('');
     if (s.ok) setSched({ today: s.data.dates[0] ?? '', tomorrow: s.data.dates[1] ?? '', rows: s.data.rows });
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   const dirty = useMemo(() => !!list && !!saved && (list.map((x) => x.id).join(',') !== saved.map((x) => x.id).join(',') || fixed.join(',') !== savedFixed.join(',')), [list, saved, fixed, savedFixed]);
   const resetToSaved = () => { if (saved) { setList(saved); setFixed(savedFixed); } };

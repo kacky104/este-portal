@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { shrinkToJpeg, when } from '../conecfClientUtil';
+import { useCallback, useState } from 'react';
+import { shrinkToJpeg, when, useLoadOnMount } from '../conecfClientUtil';
 import Link from 'next/link';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
@@ -210,7 +210,7 @@ export default function ConecfVanillaBlogPage() {
     if (!r.ok) { setError(r.error); return; }
     setV(r.data); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   return (
     <ConecfShell current="vanillaBlog" title="バニラ店長ブログ" toast={toast}>
       {() => (

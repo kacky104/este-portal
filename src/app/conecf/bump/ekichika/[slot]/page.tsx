@@ -6,7 +6,8 @@
 //   ★ 中身の保存は saveConecfBump（times: 配列＝時刻指定／[]＝タイマーに戻す）。押すのは VPS の周（/api/admin/ekichika-bump）
 
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../../../conecfClientUtil';
 import { ConecfShell } from '../../../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import { getConecfBump, saveConecfBump, runConecfBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
@@ -21,7 +22,7 @@ function Body({ slotNo, enabled, onToast }: { slotNo: number; enabled: boolean; 
     if (!res.ok) { setError(res.error); return; }
     setSlot(res.data.slots.find((x) => x.slot === slotNo) ?? null); setError('');
   }, [slotNo]);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   if (error) return <div className="bg-white border border-slate-200 p-5 text-[18px] text-slate-500">読み込めませんでした（{error}）</div>;
   if (slot === undefined) return <div className="bg-white border border-slate-200 p-5 text-[18px] text-slate-400">読み込み中…</div>;
   if (slot === null) return <div className="bg-white border border-slate-200 p-5 text-[18px] text-slate-500">駅ちかの枠{slotNo}は登録されていません。</div>;

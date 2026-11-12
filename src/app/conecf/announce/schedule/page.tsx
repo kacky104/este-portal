@@ -4,7 +4,8 @@
 //   画面の中身は上位表示と同じ部品（ScheduleEditor）。手動と自動を合わせて1日10回まで・朝6時に戻る。
 //   ★ 設定して「始める」を押した店だけ、この時刻で出る。止めると、今までどおり（1日1回・お店ごとに決まった時刻）に戻る。
 //   ★ 「いま1回」のボタンは出さない（お知らせの一覧の「再投稿」が同じ役目）。
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../../conecfClientUtil';
 import { ConecfShell } from '../../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import { getAnnounceSchedule, saveAnnounceSchedule } from '@/app/actions/conecfAnnounceSchedule';
@@ -22,7 +23,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     if (!r.ok) { setError(r.error); return; }
     setD(r.data); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   if (error) return <div className={`${BOX} text-slate-500`}>読み込めませんでした（{error}）</div>;
   if (!d) return <div className={`${BOX} text-slate-400`}>読み込み中…</div>;
   if (!d.ready) return <div className={`${BOX} text-slate-500`}>この設定は準備中です。運営事務局までご連絡ください。</div>;

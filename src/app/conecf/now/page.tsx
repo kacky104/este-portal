@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
@@ -40,7 +41,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     if (!res.ok) { setError(res.error); return; }
     setData(res.data); setSt(res.data.settings); setRows(res.data.rows); setOrderDirty(false); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   if (error) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>;
   if (!data || !st) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;

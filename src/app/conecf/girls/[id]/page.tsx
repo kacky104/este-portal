@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { uploadFileName } from '../../conecfClientUtil';
 import { ConecfShell } from '../../ConecfShell';
 import { useConecfHref } from '../../ConecfBase';
 import { useConecfActing } from '../../ConecfSession';
@@ -166,7 +167,7 @@ function EditBody({ id, enabled, onToast, initialTab = 'basic', autoInvite = fal
     if (acting) { onToast(OPERATOR_NOT_YET_MESSAGE); return; }
     setUploading(slot);
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${id}-${Date.now()}.${ext}`;
+    const path = uploadFileName(id, ext);
     const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { cacheControl: STORAGE_CACHE_CONTROL });
     setUploading(null);
     if (upErr) { onToast('アップロードに失敗しました: ' + upErr.message); return; }

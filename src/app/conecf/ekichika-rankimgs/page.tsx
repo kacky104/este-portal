@@ -1,8 +1,8 @@
 'use client';
 
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
-import { useCallback, useEffect, useState } from 'react';
-import { when } from '../conecfClientUtil';
+import { useCallback, useState } from 'react';
+import { when, useLoadOnMount } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
@@ -110,7 +110,7 @@ export default function ConecfEkichikaRankImagesPage() {
     if (!r.ok) { setError(r.error); return; }
     setData(r.data); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   return (
     <ConecfShell current="ekiRankImg" title="駅ちか店舗メイン・ランキング画像" toast={toast}>
       {() => (

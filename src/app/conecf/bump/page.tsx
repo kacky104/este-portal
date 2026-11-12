@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfActing } from '../ConecfSession';
 import { useConecfHref } from '../ConecfBase';
@@ -48,7 +49,7 @@ function SlotRowList({ site, slots }: { site: SiteTheme; slots: ConecfBumpSlot[]
   );
 }
 
-function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; heading: string; enabled: boolean; onToast: (m: string) => void }) {
+function SiteSection({ site, heading, enabled }: { site: SiteTheme; heading: string; enabled: boolean }) {
   const href = useConecfHref();
   const [data, setData] = useState<{ ready: boolean; slots: ConecfBumpSlot[] } | null>(null);
   // ★ 第1930便: エステ魂の集客アピールは、行ごとの表があれば3行（店舗情報・クーポン情報・お店体験談）で出す
@@ -64,7 +65,7 @@ function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; hea
       setAppealRows(ar.ok && ar.data.ready ? ar.data.rows : null);
     }
   }, [site.provider]);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   return (
     <section className="space-y-2">
@@ -106,7 +107,7 @@ function SiteSection({ site, heading, enabled, onToast }: { site: SiteTheme; hea
   );
 }
 
-function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: boolean; onToast: (m: string) => void }) {
+function Body({ salonId, enabled }: { salonId: number | null; enabled: boolean }) {
   // ★ 見出しの左線の色でサイトを見分ける（フクエス＝ピンク・駅ちか＝オレンジ・エステ魂＝紫）
   const section = 'text-[15px] font-black text-slate-800 border-l-4 pl-2.5';
   // ★ 第1399便: フクエスの上位表示（SalonBumpButton）は、DB の決まりが「持ち主だけ」。運営がほかの人の店を操作中は案内に替える（次の便で対応）
@@ -130,19 +131,19 @@ function Body({ salonId, enabled, onToast }: { salonId: number | null; enabled: 
       </section>
 
       {/* ── 駅ちか（エリア・市区町村・駅の店舗一覧）── */}
-      <SiteSection site={SITES.ekichika} heading={`${section} border-orange-400`} enabled={enabled} onToast={onToast} />
+      <SiteSection site={SITES.ekichika} heading={`${section} border-orange-400`} enabled={enabled} />
 
       {/* ── エステ魂（集客ワンクリックアピール・店舗情報）第1314便 ── */}
-      <SiteSection site={SITES.esutama} heading={`${section} border-violet-400`} enabled={enabled} onToast={onToast} />
+      <SiteSection site={SITES.esutama} heading={`${section} border-violet-400`} enabled={enabled} />
     </div>
   );
 }
 
 export default function ConecfBumpPage() {
-  const { toast, showToast } = useToast();
+  const { toast } = useToast();
   return (
     <ConecfShell current="bump" title="上位表示設定" toast={toast}>
-      {(a) => <Body salonId={a.salonId} enabled={!!a.enabledAt} onToast={showToast} />}
+      {(a) => <Body salonId={a.salonId} enabled={!!a.enabledAt} />}
     </ConecfShell>
   );
 }

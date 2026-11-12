@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLoadOnMount } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
@@ -70,7 +71,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     if (!res.ok) { setError(res.error); return; }
     setDates(res.data.dates); setDays(res.data.days); setRows(res.data.rows); setSalonId(res.data.salonId); setEdits({}); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   const key = (id: number, date: string) => `${id}#${date}`;
   const cellOf = useCallback((r: ConecfScheduleRow, date: string): ConecfShift =>

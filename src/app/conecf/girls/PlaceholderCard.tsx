@@ -24,6 +24,8 @@ export function PlaceholderCard({ onToast, alwaysOpen = false }: { onToast: (m: 
     let alive = true;
     // ★ #placeholder で来たら開いて見せる（セラピスト編集の案内から飛んでくる）
     if (typeof window !== 'undefined' && window.location.hash === '#placeholder') {
+      // ★ #placeholder（URL の # のあと）は画面を開いてからしか読めない＝ここで開くしかない（1回だけ描き直す）
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpen(true);
       // ★ 一覧の読み込みで位置がずれるので、少し待ってから見える所へ
       window.setTimeout(() => document.getElementById('placeholder')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 600);

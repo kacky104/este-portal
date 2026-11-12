@@ -4,7 +4,8 @@
 //   中身は今までの一覧のカード（SlotCard）をそのまま置いた
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../../../conecfClientUtil';
 import { ConecfShell } from '../../../ConecfShell';
 import { useConecfHref } from '../../../ConecfBase';
 import { useToast } from '@/app/components/useToast';
@@ -22,7 +23,7 @@ function Body({ slotNo, enabled, onToast }: { slotNo: number; enabled: boolean; 
     if (!res.ok) { setError(res.error); return; }
     setData({ slot: res.data.slots.find((x) => x.slot === slotNo) ?? null, many: res.data.slots.length > 1 }); setError('');
   }, [slotNo]);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   return (
     <div className="space-y-3 pb-40">
       <Link href={href('/bump')} className="inline-flex items-center gap-1 text-[15px] font-bold text-slate-500 hover:text-slate-700">← 上位表示設定の一覧へ</Link>
@@ -48,7 +49,7 @@ function RowBody({ rowKey, enabled, onToast }: { rowKey: string; enabled: boolea
     if (!res.data.ready) { setError('準備中です（運営事務局までご連絡ください）'); return; }
     setRow(res.data.rows.find((x) => x.rowKey === rowKey) ?? null); setError('');
   }, [rowKey]);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   const label = esutamaAppealRowLabel(rowKey);
   if (error) return <div className="bg-white border border-slate-200 p-5 text-[16px] text-slate-500">読み込めませんでした（{error}）</div>;
   if (row === undefined) return <div className="bg-white border border-slate-200 p-5 text-[16px] text-slate-400">読み込み中…</div>;

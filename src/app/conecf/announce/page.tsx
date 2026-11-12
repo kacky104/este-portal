@@ -17,6 +17,7 @@
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { useLoadOnMount } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfHref } from '../ConecfBase';
 import { useToast } from '@/app/components/useToast';
@@ -168,9 +169,9 @@ function Body({ salonId, enabled, operator, onToast }: { salonId: number; enable
     }
   }, [salonId]);
 
+  useLoadOnMount(load);
+  useLoadOnMount(refreshAuto);
   useEffect(() => {
-    void load();
-    void refreshAuto();
     // ★ fukuX の店舗アカウント（ログイン中の本人の連携）。★ 読めなければ同時投稿は出さない
     // ★ 第1963便: 運営として操作中は読まない（運営の fukuX アカウントに出てしまうため・同時投稿は出さない）
     if (operator) return;
@@ -178,7 +179,7 @@ function Body({ salonId, enabled, operator, onToast }: { salonId: number; enable
       .then(({ data }) => getLinkedXProfileForSalon(data.user?.id ?? null))
       .then((p) => setXProfileId(p?.profileId ?? null))
       .catch(() => setXProfileId(null));
-  }, [load, refreshAuto, operator]);
+  }, [operator]);
 
   const guard = () => {
     if (!enabled) { onToast('保存するには、ホームで「コネックエフに切り替える」を押してください'); return false; }

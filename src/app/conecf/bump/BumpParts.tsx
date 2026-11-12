@@ -3,7 +3,8 @@
 // ★ 第1928便（2026-11-11）: 上位表示設定の部品を page.tsx から分けた（エステ魂の枠の画面 /bump/esutama/<枠> でも SlotCard を使うため）
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../conecfClientUtil';
 import { useConecfHref } from '../ConecfBase';
 import { saveConecfBump, runConecfBumpNow, getFukuesBumpForOperator, type ConecfBumpSlot } from '@/app/actions/conecfBump';
 import { bumpSlotsPerDay, bumpIntervalsFor, parseBumpTimesText, BUMP_TIMES_MAX } from '@/lib/ekichikaBump';
@@ -328,7 +329,7 @@ export function FukuesBumpRow({ salonId, operator }: { salonId: number; operator
     const u = day === getBusinessDateJST() ? used : 0;
     setSt({ remaining: Math.max(0, quota - u), quota, enabled, lastAt: bumpedAt });
   }, [salonId, operator]);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   return (
     <BumpRow href={href('/bump/fukues')} theme={{ border: 'border-rose-100', big: 'text-rose-500', hover: 'hover:bg-rose-50/60 hover:border-rose-300' }}
       name="TOP・地域ページ" lit={!!st?.enabled} remaining={st ? st.remaining : null} quota={st ? st.quota : 40}

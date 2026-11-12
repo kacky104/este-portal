@@ -2,6 +2,7 @@
 
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLoadOnMount } from '../../conecfClientUtil';
 import Link from 'next/link';
 import {
   getSalonTherapists, getMediaOverview, getMediaLinkPairs,
@@ -106,12 +107,13 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
     setLoading(false);
   }, [salonId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   // ★ 第1954便: フック（useState・useEffect）は、下の「店がまだ無ければ描かない」より前に置く（React の決まり。後ろにあると画面が落ちることがある）
   const [pressedAt, setPressedAt] = useState<Record<string, number>>({});
-  const [, setTick] = useState(0);
-  useEffect(() => { const id = window.setInterval(() => setTick((n) => n + 1), 30_000); return () => window.clearInterval(id); }, []);
+  // ★ 第1985便（A-4）: 描くときの「今」は 30 秒ごとに覚え直す値（描くたびに Date.now() を読まない・React の決まり）
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(id); }, []);
   const [bulkBusy, setBulkBusy] = useState('');
 
   if (salonId == null) return null;
@@ -129,13 +131,13 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
 
   // ★ 第1700便（B-2）: 押した時刻（この画面を開いているあいだだけ覚える）
   /** 再読込を押せるまでの残り（ms）。0 なら押せる */
-  const coolLeft = (s: Site): number => {
+  const coolLeft = (s: Site, at: number = now): number => {
     const read = Date.parse(String(pairsOf[key(s)]?.readAt ?? ''));
     const last = Math.max(Number.isFinite(read) ? read : 0, pressedAt[key(s)] ?? 0);
-    return Math.max(0, last + REREAD_COOLDOWN_MS - Date.now());
+    return Math.max(0, last + REREAD_COOLDOWN_MS - at);
   };
   const onRead = async (s: Site) => {
-    if (coolLeft(s) > 0) { onToast('少し前に読み直したばかりです。数分後に画面を開き直すと反映されます'); return; }
+    if (coolLeft(s, Date.now()) > 0) { onToast('少し前に読み直したばかりです。数分後に画面を開き直すと反映されます'); return; }
     setPressedAt((m) => ({ ...m, [key(s)]: Date.now() }));
     setReading(key(s));
     try {
@@ -324,7 +326,7 @@ export function SiteCompareBoard({ salonId, onToast }: { salonId: number | null;
                             <div className="mt-1 text-[12px] text-slate-400">
                               {(pressedAt[key(s)] ?? 0) > Date.parse(String(p?.readAt ?? '0'))
                                 ? '読み直しています（数分後に開き直し）'
-                                : `${Math.max(1, Math.round((Date.now() - Date.parse(String(p?.readAt ?? ''))) / 60000))}分前に読込済み`}
+                                : `${Math.max(1, Math.round((now - Date.parse(String(p?.readAt ?? ''))) / 60000))}分前に読込済み`}
                             </div>
                           ) : (
                             <button type="button" disabled={reading === key(s)} onClick={() => void onRead(s)}

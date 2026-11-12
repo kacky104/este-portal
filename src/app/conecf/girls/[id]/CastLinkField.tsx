@@ -3,7 +3,8 @@
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
 import { maskEmail } from '@/lib/maskEmail';
 import { suggestEmailFix } from '@/lib/emailTypo';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
+import { useLoadOnMount } from '../../conecfClientUtil';
 import { CastInviteLinkButton } from '@/app/components/CastInviteLinkButton';
 import {
   getCastLinkStatus, inviteCast, resendCastInvite, cancelCastInvite, unlinkCast,
@@ -50,7 +51,7 @@ export function CastLinkField({ therapistId, salonId, onToast, note, tone = 'ind
     setSt({ status: res.status, email: res.email });
   }, [tid, salonId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   // ★ 第1780便（カッキーさん）: @ のあとの打ち間違い（cloud.com など）の確かめ。okFor＝「このまま送る」を押したアドレス
   const [fix, setFix] = useState<string | null>(null);

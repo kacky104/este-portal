@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../conecfClientUtil';
 import Link from 'next/link';
 import {
   MEDIA_SITES,
@@ -118,7 +119,7 @@ export function ConecfLoginBoard({ salonId, contract, stopped = false, onToast }
     setLoading(false);
   }, [salonId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   const rowsOf = (provider: string) => rows.filter((r) => r.provider === provider);
   const rowAt = (provider: string, n: number) => rows.find((r) => r.provider === provider && r.slot === n) ?? null;

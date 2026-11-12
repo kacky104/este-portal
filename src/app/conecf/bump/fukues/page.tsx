@@ -2,7 +2,8 @@
 
 // ★ 第1928便・第1931便（2026-11-11・カッキーさん）: フクエスの上位表示（TOP・地域ページ）の設定画面。
 //   駅ちかの枠・エステ魂の集客アピールと同じ「タイマー更新／時刻指定更新」（ScheduleEditor）。回数は1日40回・朝6時に戻る
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useLoadOnMount } from '../../conecfClientUtil';
 import { ConecfShell } from '../../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import { getFukuesSchedule, saveFukuesSchedule, runFukuesBumpNow, type ConecfBumpSlot } from '@/app/actions/conecfBump';
@@ -17,7 +18,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     if (!r.ok) { setError(r.error); return; }
     setS(r.data); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   if (error) return <div className="bg-white border border-slate-200 p-5 text-[16px] text-slate-500">読み込めませんでした（{error}）</div>;
   if (!s) return <div className="bg-white border border-slate-200 p-5 text-[16px] text-slate-400">読み込み中…</div>;
   return (

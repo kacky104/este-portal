@@ -1,8 +1,8 @@
 'use client';
 
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { shrinkToJpeg } from '../conecfClientUtil';
+import { useCallback, useRef, useState } from 'react';
+import { shrinkToJpeg, useLoadOnMount } from '../conecfClientUtil';
 import { parseConecfClock } from '@/lib/conecfClock';
 import { ConecfShell } from '../ConecfShell';
 import { useConecfSession } from '../ConecfSession';
@@ -29,8 +29,8 @@ function hm(iso: string | null): string {
 }
 
 
-function Editor({ salonId, tpl, onDone, onCancel, onToast }: {
-  salonId: number; tpl: CocoaTemplateRow | null; onDone: () => void; onCancel: () => void; onToast: (m: string) => void;
+function Editor({ tpl, onDone, onCancel, onToast }: {
+  tpl: CocoaTemplateRow | null; onDone: () => void; onCancel: () => void; onToast: (m: string) => void;
 }) {
   const [title, setTitle] = useState(tpl?.title ?? '');
   const [body, setBody] = useState(tpl?.body ?? '');
@@ -302,7 +302,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
     if (!res.ok) { setError(res.error); return; }
     setData(res.data); setPostEmail(res.data.postEmail); setError('');
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
 
   if (error) return <div className={`${CARD} p-5 text-[14px] text-slate-500`}>読み込めませんでした（{error}）</div>;
   if (!data) return <div className={`${CARD} p-5 text-[14px] text-slate-400`}>読み込み中…</div>;
@@ -408,7 +408,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
 
       {/* テンプレ */}
       {editing === 'new' || editing ? (
-        <Editor salonId={data.salonId} tpl={editing === 'new' ? null : editing} onDone={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} onToast={onToast} />
+        <Editor tpl={editing === 'new' ? null : editing} onDone={() => { setEditing(null); void load(); }} onCancel={() => setEditing(null)} onToast={onToast} />
       ) : (
         <div className={CARD}>
           <div className="flex items-center justify-between px-4 pt-3.5 pb-2">

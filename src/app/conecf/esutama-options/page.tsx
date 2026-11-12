@@ -1,8 +1,8 @@
 'use client';
 
 import { conecfConfirm } from '@/app/conecf/ConecfConfirm';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { shrinkToJpeg, when } from '../conecfClientUtil';
+import { useCallback, useState, type ReactNode } from 'react';
+import { shrinkToJpeg, when, useLoadOnMount } from '../conecfClientUtil';
 import { ConecfShell } from '../ConecfShell';
 import { useToast } from '@/app/components/useToast';
 import {
@@ -301,7 +301,7 @@ export default function ConecfEsutamaOptionsPage() {
     const nr = await getConecfEsutamaNote();
     if (nr.ok) setNote(nr.data);
   }, []);
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   return (
     <ConecfShell current="esutamaOpt" title="エステ魂オプション" toast={toast}>
       {() => (
