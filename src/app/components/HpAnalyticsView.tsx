@@ -576,7 +576,7 @@ function SearchWords({ salonId, from, to }: { salonId: number; from: string; to:
 
       <div className="overflow-x-auto bg-white">
         {d.rows.length === 0 ? (
-          <p className="p-6 text-center text-[13px] text-slate-500">この期間の検索ワードはまだありません（Google のデータは2〜3日遅れて出ます。数の少ない言葉は Google が出しません）</p>
+          <p className="p-6 text-center text-[13px] text-slate-500">この期間の検索ワードはまだありません</p>
         ) : (
           <table className="w-full min-w-[560px] text-left text-[13px]">
             <thead className="bg-slate-100 text-slate-600">
