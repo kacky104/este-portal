@@ -163,7 +163,7 @@ export function HpEditor({
   // ★ 第1906便: 駅ちかのランキング対策の欄の材料（ウィジェットの画面を開いたときだけ読む）
   const [ekInfo, setEkInfo] = useState<{ total: number; slots: { slot: number; url: string; linked: number }[] } | null>(null);
   useEffect(() => {
-    if (section !== 'ekichika' || isDemo) return;
+    if ((section !== 'ekichika' && section !== 'widget') || isDemo) return;   // ★ 第2001便: ウィジェットの画面でも読む（駅ちかのウィジェットを組み立てるため）
     let alive = true;
     getHpEkichikaInfo(siteKey).then((res) => { if (alive && res.ok) setEkInfo({ total: res.total, slots: res.slots }); });
     return () => { alive = false; };
@@ -287,6 +287,22 @@ export function HpEditor({
     setWidgets([...form.blocks.widgets, ...parsed.slice(0, room)]);
     setWidgetCode('');
     onToast(`ウィジェットを${Math.min(room, parsed.length)}つ追加しました。下の「保存」で公開されます`);
+  };
+  // ★ 第2001便（2026-11-12・カッキーさん）: 駅ちかの写メ日記・口コミのウィジェットを、お店ページの URL から組み立てて入れる。
+  //   駅ちかのコードは「お店ページの URL の頭に diarywidget/・reviewwidget/ を足した iframe」（11/12 に管理画面で確認）
+  const ekWidgetSlot = ekInfo?.slots.find((x) => x.slot === form.blocks.ekichika.slot) ?? ekInfo?.slots[0];
+  const ekWidgetPath = ekWidgetSlot ? /^https:\/\/ranking-deli\.jp\/(.+)$/.exec(ekWidgetSlot.url)?.[1] ?? null : null;
+  const addEkichikaWidgets = () => {
+    if (!ekWidgetPath) { onToast('駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます'); return; }
+    const want: HpWidget[] = [
+      { src: `https://ranking-deli.jp/diarywidget/${ekWidgetPath}`, width: 340, height: 690 },
+      { src: `https://ranking-deli.jp/reviewwidget/${ekWidgetPath}`, width: 340, height: 500 },
+    ].filter((w) => !form.blocks.widgets.some((x) => x.src === w.src));
+    if (want.length === 0) { onToast('駅ちかの写メ日記・口コミのウィジェットは、もう入っています'); return; }
+    const room = MAX_HP_WIDGETS - form.blocks.widgets.length;
+    if (room < want.length) { onToast(`ウィジェットは${MAX_HP_WIDGETS}つまでです。いらないものを消してから押してください（あと${want.length}つ入れます）`); return; }
+    setWidgets([...form.blocks.widgets, ...want]);
+    onToast(`駅ちかのウィジェットを${want.length}つ入れました。下の「保存」で公開されます`);
   };
   const moveWidget = (i: number, d: -1 | 1) => {
     const w = [...form.blocks.widgets];
@@ -1094,6 +1110,12 @@ export function HpEditor({
         >
           追加する
         </button>
+        {!isDemo && ekWidgetPath && (
+          <div className="border border-pink-200 bg-pink-50/50 px-3 py-2.5 space-y-1.5">
+            <button type="button" onClick={addEkichikaWidgets} className="px-4 py-2 rounded-none bg-pink-500 text-white text-xs font-bold hover:bg-pink-600">駅ちかの写メ日記・口コミのウィジェットを入れる</button>
+            <p className="text-[11.5px] text-slate-500 leading-relaxed">駅ちかのお店ページから、写メ日記と口コミのウィジェットを自動で作って入れます（コードのコピーは要りません）。駅ちかのサイトスコアの対象です（各1点）。</p>
+          </div>
+        )}
 
         {form.blocks.widgets.length > 0 && (
           <ul className="divide-y divide-slate-100 border-t border-slate-100 pt-1">
