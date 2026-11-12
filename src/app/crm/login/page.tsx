@@ -81,7 +81,11 @@ export default function CrmLoginPage() {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-[12px] leading-relaxed text-slate-500">
+        {/* ★ 第2007便（カッキーさん）: 契約店舗様専用の注意書き（コネックエフのログイン画面と同じ文） */}
+        <p className="mt-5 text-center text-[12px] text-slate-500 leading-relaxed">
+          この先は契約店舗様専用の画面です。画面の内容を第三者に見せたり、共有したりすることはご遠慮ください。
+        </p>
+        <p className="mt-2 text-center text-[12px] leading-relaxed text-slate-500">
           フクエスの店舗アカウント（マイページと同じメールアドレス・パスワード）でログインできます。
         </p>
         <p className="mt-2 text-center text-[12px]">

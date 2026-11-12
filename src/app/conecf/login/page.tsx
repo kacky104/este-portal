@@ -93,7 +93,11 @@ export default function ConecfLoginPage() {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-[12px] text-slate-400 leading-relaxed">
+        {/* ★ 第2007便（カッキーさん）: 契約店舗様専用の注意書き（他媒体の営業の方に画面を見せてほしいと言われた件） */}
+        <p className="mt-5 text-center text-[12px] text-slate-500 leading-relaxed">
+          この先は契約店舗様専用の画面です。画面の内容を第三者に見せたり、共有したりすることはご遠慮ください。
+        </p>
+        <p className="mt-2 text-center text-[12px] text-slate-400 leading-relaxed">
           ログインできない場合は、担当者までお問い合わせください。
         </p>
       </div>
