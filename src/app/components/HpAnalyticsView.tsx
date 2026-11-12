@@ -596,11 +596,6 @@ function SearchWords({ salonId, from, to }: { salonId: number; from: string; to:
           </table>
         )}
       </div>
-      <p className="text-[12px] leading-relaxed text-slate-500">
-        ・数は Google Search Console のものです（Google のデータは2〜3日遅れます）。<br />
-        ・「表示回数」は Google の検索結果に出た回数、「クリック」はそこから公式HP に来た回数です。「平均の順位」は小さいほど上に出ています。<br />
-        ・人数が少なくて個人が分かりそうな検索ワードは、Google が出しません（合計には入っています）。
-      </p>
     </div>
   );
 }
