@@ -1,6 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
+import { hpGscConnect } from '@/lib/hpGscConnect';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
@@ -247,6 +249,8 @@ export async function updateHpSiteOperator(
   //   新しいキー側も旧キー側も、全サイトぶんまとめて消える。
   //   （slug / ドメインを変えた直後の旧キーは、DB を引けなくなるので次のアクセスで自然に 404 になる。）
   revalidatePath('/hp/[slug]', 'layout');
+  // ★ 第1997便: 独自ドメインで公開中なら、Search Console への登録を裏で進める（検索ワードを最初から使えるように・失敗しても保存は成功のまま）
+  if (domain !== '' && patch.status === 'live') after(async () => { await hpGscConnect(salonId, { force: true }); });
   return { ok: true };
 }
 

@@ -2,18 +2,18 @@
 
 // ★ 第1995便（2026-11-12・カッキーさん）: 公式HP の「検索ワード」（Google Search Console）。
 //   ・fukues.com/hp/〇〇 の公式HP … フクエスの Search Console（sc-domain:fukues.com）を、その店のページだけに絞って読む（準備は要らない）
-//   ・独自ドメインの公式HP … 「検索ワードを使う」を押すと、フクエスのサービスアカウントで持ち主の確認 → Search Console に登録（lib/gscSiteSetup.ts）
+//   ・独自ドメインの公式HP … フクエスのサービスアカウントで持ち主の確認 → Search Console に登録（★ 第1997便: 自動・lib/hpGscConnect.ts）
 //     登録が済むと、そのドメインの検索ワードも合わせて出す
 //   ★ 見られるのは、その店のオーナー様と運営だけ（hpAnalytics と同じ）。
 //   ★ Google のデータは 2〜3 日遅れる。数の少ない検索ワードは Google が出さない（個人が分からないように）。
 
-import { revalidatePath } from 'next/cache';
 import { createClient } from '@/app/lib/supabase/server';
 import { createServiceClient } from '@/app/lib/supabase/service';
 import { ADMIN_UUID } from '@/app/lib/admin';
 import { normalizeHpSiteKey } from '@/app/lib/hpSite';
 import { gscQuery, type GscRow } from '@/lib/gsc';
-import { gscAddSite, gscGetMetaToken, gscVerify, hpGscSiteUrl } from '@/lib/gscSiteSetup';
+import { hpGscSiteUrl } from '@/lib/gscSiteSetup';
+import { hpGscConnect } from '@/lib/hpGscConnect';
 
 type Fail = { ok: false; error: string };
 export type HpSearchState = 'no_domain' | 'none' | 'pending' | 'verified' | 'not_ready';
@@ -91,6 +91,11 @@ export async function getHpSearch(input: { salonId: number; from: string; to: st
     if (tableMissing(gErr)) domainState = 'not_ready';
     else if (gErr) return { ok: false, error: '読み込めませんでした。もう一度お試しください' };
     else if (g && String(g.domain) === domain) { domainState = g.state as HpSearchState; lastError = String(g.last_error ?? ''); }
+    // ★ 第1997便: まだ登録が済んでいなければ、ここで登録を進める（前の試しから 10 分たっていれば）
+    if (domainState === 'none' || domainState === 'pending') {
+      const c = await hpGscConnect(salonId);
+      if (c.state === 'verified' || c.state === 'pending') domainState = c.state;
+    }
   }
 
   const len = Math.round((new Date(`${input.to}T00:00:00Z`).getTime() - new Date(`${input.from}T00:00:00Z`).getTime()) / 86400_000) + 1;
@@ -128,58 +133,5 @@ export async function getHpSearch(input: { salonId: number; from: string; to: st
   } catch (e) {
     console.error('[hpSearch]', salonId, e instanceof Error ? e.message : String(e));
     return { ok: false, error: 'Google から検索ワードを読み込めませんでした。しばらくしてから開き直してください' };
-  }
-}
-
-/**
- * 独自ドメインを Search Console に登録する（「検索ワードを使う」「もう一度確かめる」）。
- * ★ 1回目: 確認用の文字をもらって保存 → 公式HP のトップを作り直させる → 確認 → 登録。
- * ★ 確認が通らなかったら pending（もう一度押せる）。公式HP が公開中（live）で、ドメインがつながっている必要がある。
- */
-export async function connectHpSearch(salonId: number): Promise<{ ok: true; state: HpSearchState; error: string } | Fail> {
-  const auth = await assertOwner(Number(salonId));
-  if (!auth.ok) return auth;
-  const svc = createServiceClient();
-  const { data: site, error: sErr } = await svc.from('salon_sites').select('domain, status').eq('salon_id', salonId).maybeSingle();
-  if (sErr) return { ok: false, error: '読み込めませんでした。もう一度お試しください' };
-  if (!site?.domain) return { ok: false, error: '独自ドメインがまだつながっていません' };
-  if (site.status !== 'live') return { ok: false, error: '公式HP が公開中のときだけ登録できます' };
-  const domain = normalizeHpSiteKey(String(site.domain));
-  const siteUrl = hpGscSiteUrl(domain);
-
-  const { data: g, error: gErr } = await svc.from('hp_gsc_sites').select('domain, token, state').eq('salon_id', salonId).maybeSingle();
-  if (tableMissing(gErr)) return { ok: false, error: 'この機能は準備中です（運営が設定すると使えます）' };
-  if (gErr) return { ok: false, error: '読み込めませんでした。もう一度お試しください' };
-  if (g && String(g.domain) === domain && g.state === 'verified') return { ok: true, state: 'verified', error: '' };
-
-  const save = async (row: Record<string, unknown>) => {
-    const { error } = await svc.from('hp_gsc_sites').upsert({ salon_id: salonId, domain, updated_at: new Date().toISOString(), ...row });
-    if (error) throw new Error(error.message);
-  };
-  try {
-    let token = g && String(g.domain) === domain ? String(g.token ?? '') : '';
-    if (!token) {
-      const t = await gscGetMetaToken(siteUrl);
-      if (!t.ok) { await save({ token: '', state: 'pending', last_error: t.error.slice(0, 500) }); return { ok: true, state: 'pending', error: t.error }; }
-      token = t.token;
-      await save({ token, state: 'pending', last_error: '' });
-      // ★ トップのページを作り直させる（次に Google が見に来たとき meta が出ているように）
-      revalidatePath('/hp/[slug]', 'layout');
-    }
-    const v = await gscVerify(siteUrl);
-    if (!v.ok) {
-      await save({ token, state: 'pending', last_error: v.error.slice(0, 500) });
-      return { ok: true, state: 'pending', error: '確認がまだ通りませんでした。1〜2分おいて「もう一度確かめる」を押してください' };
-    }
-    const add = await gscAddSite(siteUrl);
-    if (!add.ok) {
-      await save({ token, state: 'pending', last_error: add.error.slice(0, 500) });
-      return { ok: true, state: 'pending', error: 'Search Console への登録でつまずきました。運営にご連絡ください' };
-    }
-    await save({ token, state: 'verified', last_error: '', verified_at: new Date().toISOString() });
-    return { ok: true, state: 'verified', error: '' };
-  } catch (e) {
-    console.error('[hpSearch] connect', salonId, e instanceof Error ? e.message : String(e));
-    return { ok: false, error: '登録できませんでした。しばらくしてからもう一度お試しください' };
   }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getHpAnalytics, type HpAnalytics, type HpTotals } from '@/app/actions/hpAnalytics';
-import { connectHpSearch, getHpSearch, type HpSearchData } from '@/app/actions/hpSearch';
+import { getHpSearch, type HpSearchData } from '@/app/actions/hpSearch';
 import { getHpDemographics, type HpDemographics, type HpDemoRow } from '@/app/actions/hpDemographics';
 import { jstDayHour, HP_EK_KINDS, HP_EK_LABEL } from '@/lib/hpStats';
 import { FUKUES_ORIGIN } from '@/lib/crmHost';
@@ -523,26 +523,13 @@ function Help() {
 function SearchWords({ salonId, from, to }: { salonId: number; from: string; to: string }) {
   const key = `${salonId}|${from}|${to}`;
   const [res, setRes] = useState<{ key: string; data: HpSearchData | null; err: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [reload, setReload] = useState(0);
   useEffect(() => {
     let alive = true;
     getHpSearch({ salonId, from, to })
       .then((r) => { if (alive) setRes(r.ok ? { key, data: r.data, err: '' } : { key, data: null, err: r.error }); })
       .catch(() => { if (alive) setRes({ key, data: null, err: '読み込めませんでした。しばらくしてから開き直してください。' }); });
     return () => { alive = false; };
-  }, [salonId, from, to, key, reload]);
-  const connect = async () => {
-    setBusy(true); setMsg('');
-    try {
-      const r = await connectHpSearch(salonId);
-      if (!r.ok) setMsg(r.error);
-      else if (r.state === 'verified') { setMsg('登録できました。数日すると、独自ドメインの検索ワードも出てきます。'); setReload((n) => n + 1); }
-      else setMsg(r.error || '確認がまだ通りませんでした。');
-    } catch { setMsg('通信できませんでした。もう一度お試しください'); }
-    setBusy(false);
-  };
+  }, [salonId, from, to, key]);
   if (!res || res.key !== key) return <div className="bg-white p-8 text-center text-[14px] text-slate-400">読み込み中…</div>;
   if (!res.data) return <div className="bg-white p-6 text-center text-[14px] font-bold text-rose-600">{res.err}</div>;
   const d = res.data;
@@ -557,21 +544,10 @@ function SearchWords({ salonId, from, to }: { salonId: number; from: string; to:
         <div className="bg-slate-50 p-3"><p className="text-[12px] font-bold text-slate-500">平均の順位</p><p className="text-[22px] font-black text-slate-800">{d.totals.impressions > 0 ? d.totals.position.toFixed(1) : '—'}</p></div>
       </div>
 
-      {d.domain && d.domainState !== 'verified' && (
-        <div className="border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-amber-900">
-          <p className="font-bold">独自ドメイン（{d.domain}）の検索ワードは、まだ出ていません</p>
-          {d.domainState === 'not_ready'
-            ? <p>この機能は準備中です（運営が設定すると使えます）。いまは fukues.com/hp の分だけ出ています。</p>
-            : <>
-                <p>下のボタンを押すと、フクエスが Google に「このお店の公式HPです」と確認してもらい、検索ワードを読めるようにします（お店の作業はありません）。</p>
-                <button type="button" disabled={busy} onClick={() => void connect()} className="mt-2 bg-blue-600 px-4 py-2 text-[13px] font-bold text-white disabled:opacity-50">
-                  {busy ? '確認しています…' : d.domainState === 'pending' ? 'もう一度確かめる' : '検索ワードを使う'}
-                </button>
-              </>}
-          {msg && <p className="mt-2 font-bold">{msg}</p>}
-        </div>
+      {/* ★ 第1997便: 独自ドメインの登録は自動（押すボタンは無い）。済んでいないあいだだけ一言 */}
+      {d.domain && d.domainState !== 'verified' && d.domainState !== 'not_ready' && (
+        <p className="border-l-4 border-blue-400 bg-blue-50 px-4 py-2 text-[13px] text-slate-700">独自ドメイン（{d.domain}）の検索ワードは、Google への登録の手続き中です（自動で行います）。登録が済むと、数日後から出てきます。</p>
       )}
-      {d.domain && d.domainState === 'verified' && msg && <p className="text-[13px] font-bold text-emerald-700">{msg}</p>}
       {d.partial && <p className="text-[13px] font-bold text-amber-700">{d.partial}</p>}
 
       <div className="overflow-x-auto bg-white">
