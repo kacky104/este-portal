@@ -1934,6 +1934,12 @@ export async function renameCrmRoom(
   // 2) 出勤情報の待機場所（過去の分も・その店の分だけ）
   const r2 = await svc.from('crm_work_days').update({ room: t }).eq('salon_id', salonId).eq('room', f);
   if (r2.error) return { ok: false, error: `出勤情報の書き換えに失敗しました（設定は変わっています）: ${r2.error.message}` };
+  // 2') ★ 2026-11-12 点検#4: この部屋を【借りている提携店】の出勤情報（room_salon_id＝この店）も新しい名前へ。
+  //   前は自店の分だけ書き換えていたので、提携店側は古い名前のまま残り、部屋の鍵（部屋の店, 部屋名）が合わなくなって
+  //   相手の予約の帯が出ない・相手の予約が QR の同意書の候補に出ない、になっていた（部屋共有・roomShare.ts）。
+  //   ★ 書き換えるのは「この店の部屋を借りている」行の部屋名だけ。提携店のほかの項目・提携店自身の部屋には触らない
+  const r2b = await svc.from('crm_work_days').update({ room: t }).eq('room_salon_id', salonId).eq('room', f);
+  if (r2b.error) return { ok: false, error: `提携店の出勤情報の書き換えに失敗しました（設定と、このお店の出勤情報は変わっています）: ${dbMessage(r2b.error, '書き換え')}` };
   // 3) QR のトークン（トークンはそのまま・部屋名だけ）
   const r3 = await svc.from('crm_room_tokens').update({ room: t }).eq('salon_id', salonId).eq('room', f);
   if (r3.error) return { ok: false, error: `QR の書き換えに失敗しました（設定・出勤情報は変わっています）: ${r3.error.message}` };
