@@ -25,7 +25,7 @@ const GUIDE_GROUPS: { label: string; heads: string[] }[] = [
 const SHORTCUTS: { title: string; desc: string; head: string }[] = [
   { title: '予約を受け付ける', desc: '帯の空いているところを押す → かんたん受付', head: '予約を受け付ける（かんたん受付）' },
   { title: '予約を変える・キャンセル', desc: 'カードを押す → 変更する／キャンセルにする', head: '予約を見る・変える・キャンセルする' },
-  { title: 'その日を締める', desc: '名前の下の「確定」→ 締め作業（日報を作る）', head: '報酬確定と締め作業' },
+  { title: 'その日を締める', desc: '名前の下の「確定」→ 上の「締め作業」', head: '報酬確定と締め作業' },
   { title: 'ログインできない', desc: 'マイページと同じアカウント。別に1回ログイン', head: 'ログインについて' },
 ];
 
