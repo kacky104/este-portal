@@ -294,15 +294,27 @@ export function HpEditor({
   const ekWidgetPath = ekWidgetSlot ? /^https:\/\/ranking-deli\.jp\/(.+)$/.exec(ekWidgetSlot.url)?.[1] ?? null : null;
   const addEkichikaWidgets = () => {
     if (!ekWidgetPath) { onToast('駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます'); return; }
-    const want: HpWidget[] = [
-      { src: `https://ranking-deli.jp/diarywidget/${ekWidgetPath}`, width: 340, height: 690 },
-      { src: `https://ranking-deli.jp/reviewwidget/${ekWidgetPath}`, width: 340, height: 500 },
-    ].filter((w) => !form.blocks.widgets.some((x) => x.src === w.src));
-    if (want.length === 0) { onToast('駅ちかの写メ日記・口コミのウィジェットは、もう入っています'); return; }
+    // 第2002便: 高さをそろえる（幅340のとき 写メ日記＝見出し30＋1段200×2段、口コミも同じ高さで2件ほど）
+    const all: HpWidget[] = [
+      { src: `https://ranking-deli.jp/diarywidget/${ekWidgetPath}`, width: 340, height: 432 },
+      { src: `https://ranking-deli.jp/reviewwidget/${ekWidgetPath}`, width: 340, height: 432 },
+    ];
+    const want = all.filter((w) => !form.blocks.widgets.some((x) => x.src === w.src));
     const room = MAX_HP_WIDGETS - form.blocks.widgets.length;
     if (room < want.length) { onToast(`ウィジェットは${MAX_HP_WIDGETS}つまでです。いらないものを消してから押してください（あと${want.length}つ入れます）`); return; }
-    setWidgets([...form.blocks.widgets, ...want]);
-    onToast(`駅ちかのウィジェットを${want.length}つ入れました。下の「保存」で公開されます`);
+    // もう入っているものは、大きさだけおすすめに直す
+    let resized = 0;
+    const kept = form.blocks.widgets.map((x) => {
+      const m = all.find((w) => w.src === x.src);
+      if (!m || (x.width === m.width && x.height === m.height)) return x;
+      resized++;
+      return { ...x, width: m.width, height: m.height };
+    });
+    if (want.length === 0 && resized === 0) { onToast('駅ちかの写メ日記・口コミのウィジェットは、もう入っています'); return; }
+    setWidgets([...kept, ...want]);
+    onToast(want.length > 0
+      ? `駅ちかのウィジェットを${want.length}つ入れました。下の「保存」で公開されます`
+      : '駅ちかのウィジェットの大きさをそろえました。下の「保存」で公開されます');
   };
   const moveWidget = (i: number, d: -1 | 1) => {
     const w = [...form.blocks.widgets];
@@ -1113,7 +1125,7 @@ export function HpEditor({
         {!isDemo && ekWidgetPath && (
           <div className="border border-pink-200 bg-pink-50/50 px-3 py-2.5 space-y-1.5">
             <button type="button" onClick={addEkichikaWidgets} className="px-4 py-2 rounded-none bg-pink-500 text-white text-xs font-bold hover:bg-pink-600">駅ちかの写メ日記・口コミのウィジェットを入れる</button>
-            <p className="text-[11.5px] text-slate-500 leading-relaxed">駅ちかのお店ページから、写メ日記と口コミのウィジェットを自動で作って入れます（コードのコピーは要りません）。駅ちかのサイトスコアの対象です（各1点）。</p>
+            <p className="text-[11.5px] text-slate-500 leading-relaxed">駅ちかのお店ページから、写メ日記と口コミのウィジェットを自動で作って入れます（コードのコピーは要りません）。駅ちかのサイトスコアの対象です（各1点）。もう入っているときは、大きさだけそろえます（どちらも幅340×高さ432）。</p>
           </div>
         )}
 
