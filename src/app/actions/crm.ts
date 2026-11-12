@@ -1037,13 +1037,15 @@ function parseItems(raw: unknown): CrmBookingItem[] {
 }
 
 async function readPriceItemsRaw(svc: Svc, salonId: number): Promise<CrmPriceItem[]> {
-  const { data } = await svc
+  const { data, error } = await svc
     .from('crm_price_items')
     .select('id, kind, name, minutes, price, pay, sort, is_active')
     .eq('salon_id', salonId)
     .order('kind', { ascending: true })
     .order('sort', { ascending: true })
     .order('id', { ascending: true });
+  // ★ 2026-11-12 点検#6: 読めなかったら投げる。前は「料金表が空」と受け取って、固定の指名をもう一度作りに行き、画面にも空の料金表が出ていた
+  if (error) throw new Error(error.message);
   const out: CrmPriceItem[] = [];
   for (const r of data ?? []) {
     const kind = toKind(r.kind);
@@ -1056,8 +1058,11 @@ async function readPriceItemsRaw(svc: Svc, salonId: number): Promise<CrmPriceIte
   }
   // ★ 第1782便: 女の子別の料金を項目に付ける（表がまだ無い＝SQL を流す前・読めないときは付けない＝基本のまま）
   if (out.length > 0) {
-    const { data: ov, error: ovErr } = await svc
+    const { data: ov, error: ovErr, status: ovStatus } = await svc
       .from('crm_price_overrides').select('therapist_id, price_item_id, price, pay').eq('salon_id', salonId);
+    // ★ 2026-11-12 点検#7: 表が無い（SQL の前）ときだけ「基本のまま」。ほかの失敗は投げる
+    //   （前は読めなかった回に黙って基本の料金に戻り、その回に保存した予約が基本の料金・報酬で写されていた）
+    if (ovErr && !crmGroupTableMissing(ovErr, ovStatus)) throw new Error(ovErr.message);
     if (!ovErr) {
       const byItem = new Map(out.map((p) => [p.id, p]));
       for (const r of ov ?? []) {
@@ -1124,7 +1129,11 @@ export async function listCrmPriceItems(
 ): Promise<{ ok: true; items: CrmPriceItem[] } | { ok: false; error: string }> {
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
-  return { ok: true, items: await readPriceItems(auth.svc, salonId) };
+  try {
+    return { ok: true, items: await readPriceItems(auth.svc, salonId) };
+  } catch (e) {
+    return readFail(e); // ★ 点検#6
+  }
 }
 
 export type CrmPriceItemInput = {
@@ -1281,7 +1290,8 @@ export async function setCrmBookingPricing(
     .from('salon_bookings').select('id, crm_items, therapist_id').eq('salon_id', salonId).eq('id', input.bookingId).maybeSingle();
   if (!b) return { ok: false, error: '予約が見つかりません' };
 
-  const priceItems = await readPriceItems(svc, salonId);
+  let priceItems: CrmPriceItem[];
+  try { priceItems = await readPriceItems(svc, salonId); } catch (e) { return readFail(e); } // ★ 点検#6・#7: 料金表を読めなかった回は保存しない
   const byId = new Map(priceItems.map((p) => [p.id, p]));
   // ★ 第1782便: 担当の女の子に個別の料金があれば、その金額で写す（フリーは基本のまま）
   const tid = b.therapist_id == null ? null : Number(b.therapist_id);
@@ -1707,9 +1717,10 @@ export async function getCrmMonthStats(
   if (error) return { ok: false, error: dbMessage(error) };
   const list = rows ?? [];
 
-  const { data: conf } = await svc
+  const { data: conf, error: confErr } = await svc
     .from('crm_pay_confirms').select('allowance')
     .eq('salon_id', salonId).gte('business_date', `${ym}-01`).lt('business_date', `${nextYm}-01`);
+  if (confErr) return readFail(new Error(confErr.message)); // ★ 2026-11-12 点検#8: 読めなかった回に「手当 0円」で出さない
   const allowance = (conf ?? []).reduce((a, c) => a + (Number(c.allowance) || 0), 0);
 
   // セラピスト名
@@ -1776,12 +1787,15 @@ export async function getCrmMonthStats(
   let repeatPeople = 0;
   if (people.length > 0) {
     const before = new Set<number>();
-    for (let i = 0; i < people.length; i += 300) {
-      const chunk = people.slice(i, i + 300);
-      const { data } = await svc
+    // ★ 2026-11-12 点検#8: 読めなかった回は止める（リピートの人を「新規」に数えない）。
+    //   1回に見る人数を 300 → 50 に（1回 5,000行までなので、通いの長いお客様が多いと途中で切れて「新規」に数えられていた）
+    for (let i = 0; i < people.length; i += 50) {
+      const chunk = people.slice(i, i + 50);
+      const { data, error: bErr } = await svc
         .from('salon_bookings').select('customer_id')
         .eq('salon_id', salonId).in('customer_id', chunk)
         .neq('status', 'cancelled').lt('slot_start', new Date(startMs).toISOString()).limit(5000);
+      if (bErr) return readFail(new Error(bErr.message));
       (data ?? []).forEach((r) => before.add(Number(r.customer_id)));
     }
     // 月の中で2回以上来た人もリピート
@@ -2466,11 +2480,13 @@ export async function getCrmMoney(
 
   const [y, m] = ym.split('-').map(Number);
   const next = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
-  const { data: mv } = await svc.from('crm_money_moves')
+  const { data: mv, error: mvErr } = await svc.from('crm_money_moves')
     .select('id, therapist_id, business_date, direction, category, amount, memo, created_at, cancelled_at')
     .eq('salon_id', salonId).gte('business_date', `${ym}-01`).lt('business_date', next)
     .order('business_date', { ascending: false }).order('id', { ascending: false }).limit(1000);
-  const { data: ts } = await svc.from('therapists').select('id, name, is_active').eq('salon_id', salonId).order('id');
+  if (mvErr) return readFail(new Error(mvErr.message)); // ★ 2026-11-12 点検#9: 読めなかった回に「動きが無い」と出さない
+  const { data: ts, error: tsErr } = await svc.from('therapists').select('id, name, is_active').eq('salon_id', salonId).order('id');
+  if (tsErr) return readFail(new Error(tsErr.message));
   return {
     ok: true,
     balances,
@@ -2496,7 +2512,7 @@ export async function getCrmMoneyDay(
   const totalsP = moneyTotals(svc, salonId, { therapistId, untilDate: dateISO, day: dateISO }) // ★ 第1226便
     .then((t) => ({ ok: true as const, t }))
     .catch((e: unknown) => ({ ok: false as const, e }));
-  const [totalsR, names, { data: conf }, { data: mv }] = await Promise.all([
+  const [totalsR, names, { data: conf, error: confErr }, { data: mv, error: mvErr }] = await Promise.all([
     totalsP,
     therapistNames(svc, salonId),
     svc.from('crm_pay_confirms').select('therapist_id').eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).maybeSingle(),
@@ -2505,6 +2521,9 @@ export async function getCrmMoneyDay(
       .eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).order('id'),
   ]);
   if (!totalsR.ok) return readFail(totalsR.e);
+  // ★ 2026-11-12 点検#9: 確定の印・その日の動きを読めなかった回は止める（「未確定」「動きなし」と出さない）
+  if (confErr) return readFail(new Error(confErr.message));
+  if (mvErr) return readFail(new Error(mvErr.message));
   const totals = totalsR.t;
   const tt = totals.get(therapistId);
   const today = tt?.day ?? emptyAgg();
