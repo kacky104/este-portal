@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { listCrmOperatorSalons, type CrmOperatorSalon } from '@/app/actions/crm';
-import { crmLeaveOk } from './CrmBase';
+import { crmLeaveAsk } from './CrmBase';
 
 // フクエスCRM: 運営だけに出る帯（第1438便・2026-10-13・カッキーさん。コネックエフの第1399便と同じ見た目）。
 //
@@ -21,8 +21,8 @@ export function CrmOperatorBar({ salonId, salonName }: { salonId: number | null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const go = (id: number | null) => {
-    if (!crmLeaveOk()) return;
+  const go = async (id: number | null) => {
+    if (!(await crmLeaveAsk())) return;
     const path = window.location.pathname;
     window.location.assign(id == null ? path : `${path}?salon=${id}`);
   };

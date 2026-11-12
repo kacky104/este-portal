@@ -6,6 +6,7 @@
 // ★ 「差し込みが空の行は消す」で、オプションの無い予約では「[オプション]：」の行ごと消える。
 // ★ プレビューは本日の予約から選ぶ。★ 「保存する」はこのタブの中（下の保存バーは使わない）。
 
+import { appConfirm } from '@/app/components/AppConfirm';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   deleteCrmMessageTemplate,
@@ -85,8 +86,8 @@ export function MessageTemplatesSection({ salonId }: { salonId: number }) {
 
   const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved);
 
-  const open = (t: CrmMessageTemplate | null) => {
-    if (dirty && !window.confirm('保存していない変更があります。捨てて切り替えますか？')) return;
+  const open = async (t: CrmMessageTemplate | null) => {
+    if (dirty && !(await appConfirm('保存していない変更があります。捨てて切り替えますか？', { ok: '捨てて切り替える', danger: true }))) return;
     const d: Draft = t ? { id: t.id, name: t.name, body: t.body, hideEmptyLines: t.hideEmptyLines, isActive: t.isActive } : { ...EMPTY };
     setDraft(d); setSaved(t ? d : null); setErr(''); setMsg(''); setDelConfirm(false);
   };
@@ -126,8 +127,8 @@ export function MessageTemplatesSection({ salonId }: { salonId: number }) {
     if (!r.ok) { setErr(r.error); await load(); }
   };
 
-  const addSample = () => {
-    if (dirty && !window.confirm('保存していない変更があります。捨てて見本を開きますか？')) return;
+  const addSample = async () => {
+    if (dirty && !(await appConfirm('保存していない変更があります。捨てて見本を開きますか？', { ok: '捨てて見本を開く', danger: true }))) return;
     setDraft({ name: CRM_MESSAGE_SAMPLE_NAME, body: CRM_MESSAGE_SAMPLE_BODY, hideEmptyLines: true, isActive: true });
     setSaved(null); setErr(''); setMsg('見本を開きました。直してから「保存する」を押してください');
   };

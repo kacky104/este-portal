@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { crmBaseFor } from '@/lib/crmHost';
 import { CrmBaseProvider } from './CrmBase';
+import { AppConfirmHost } from '@/app/components/AppConfirm';
 
 // フクエスCRM（/mypage/crm）の外枠（2026-09-19）。
 // ★ ログインの見張りは親（/mypage/layout.tsx）が済ませている。★ 有料かどうかはページ側（サーバー処理）で判定。
@@ -27,7 +28,7 @@ export default async function MypageCrmLayout({ children }: { children: React.Re
   const base = crmBaseFor(h.get('x-forwarded-host') ?? h.get('host'));
   return (
     <CrmBaseProvider base={base}>
-      <div className="min-h-screen bg-[#eef1f8]">{children}</div>
+      <div className="min-h-screen bg-[#eef1f8]">{children}{/* ★ 第1974便: 確認の窓（appConfirm）の本体は、ここに1つだけ */}<AppConfirmHost /></div>
     </CrmBaseProvider>
   );
 }

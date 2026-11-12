@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCrmLinks, safeAction } from './CrmBase';
+import { appConfirm } from '@/app/components/AppConfirm';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   closeCrmDay,
@@ -664,7 +665,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           onMoveRow={moveRow}
           endTypeOf={(tid) => data?.workEnds[tid] ?? data?.settings.defaultEndType ?? 'finish'}
           onToggleEnd={toggleEnd}
-          onEmpty={(therapistId, min) => {
+          onEmpty={async (therapistId, min) => {
             // ★ 休憩の時間は受付しない（第551便）
             const wd = therapistId != null ? data?.workDays[therapistId] : undefined;
             if (wd && wd.breakStartMin != null && wd.breakEndMin != null && min >= wd.breakStartMin && min < wd.breakEndMin) {
@@ -678,7 +679,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
                 const e = Math.round((new Date(bd.endISO).getTime() - baseMs) / 60000);
                 return min >= s && min < e;
               });
-              if (hit && !window.confirm(`${hit.room} は ${hit.salonName} の予約と重なる時間です。このまま受付しますか？`)) return;
+              if (hit && !(await appConfirm(`${hit.room} は ${hit.salonName} の予約と重なる時間です。このまま受付しますか？`, { ok: '受付する' }))) return;
             }
             setErr('');
             setPicked(null);
@@ -1918,7 +1919,7 @@ function BookingForm({
         const hm = (m: number) => `${m >= 1440 ? '翌' : ''}${Math.floor(m / 60) % 24}:${String(m % 60).padStart(2, '0')}`;
         const bs = Math.round((new Date(hit.startISO).getTime() - baseMs) / 60000);
         const be = Math.round((new Date(hit.endISO).getTime() - baseMs) / 60000);
-        if (!window.confirm(`この予約（${hm(s0)}〜${hm(e0)}）は、${hit.room} の ${hit.salonName} の予約（${hm(bs)}〜${hm(be)}）と重なります。このまま保存しますか？`)) return;
+        if (!(await appConfirm(`この予約（${hm(s0)}〜${hm(e0)}）は、${hit.room} の ${hit.salonName} の予約（${hm(bs)}〜${hm(be)}）と重なります。このまま保存しますか？`, { ok: '保存する' }))) return;
       }
     }
     setBusy(true);

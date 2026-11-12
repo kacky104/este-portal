@@ -7,7 +7,9 @@ import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
 import type { CrmAccess } from '@/app/lib/crm/types';
 import { isCrmHost } from '@/lib/crmHost';
 import { createClient } from '@/app/lib/supabase/client';
-import { crmLeaveOk, safeAction, useCrmLinks } from './CrmBase';
+import { crmDirty, crmLeaveAsk, safeAction, useCrmLinks } from './CrmBase';
+import { appConfirm } from '@/app/components/AppConfirm';
+import { useRouter } from 'next/navigation';
 import { CrmIntro } from './CrmIntro';
 import { CrmOperatorBar } from './CrmOperatorBar';
 import { CrmIncomingCalls } from './CrmIncomingCalls';
@@ -68,6 +70,7 @@ export function CrmShell({
   children: (a: Extract<CrmAccess, { ok: true }>) => React.ReactNode;
 }) {
   const links = useCrmLinks();
+  const router = useRouter();
   if (!access) return <p className="p-10 text-center text-[14px] text-slate-400">読み込み中です…</p>;
   if (!access.ok) {
     return (
@@ -110,8 +113,8 @@ export function CrmShell({
           {access.active && (
             <button
               type="button"
-              onClick={() => {
-                if (!crmLeaveOk()) return; // ★ 2026-10-09 点検#6
+              onClick={async () => {
+                if (!(await crmLeaveAsk())) return; // ★ 2026-10-09 点検#6
                 const ok = window.dispatchEvent(new CustomEvent('crm:refresh', { cancelable: true }));
                 if (ok) window.location.reload();
               }}
@@ -129,8 +132,8 @@ export function CrmShell({
           <button
             type="button"
             onClick={async () => {
-              if (!crmLeaveOk()) return;
-              if (!window.confirm('ログアウトしますか？')) return;
+              if (!(await crmLeaveAsk())) return;
+              if (!(await appConfirm('ログアウトしますか？', { ok: 'ログアウト' }))) return;
               try { await createClient().auth.signOut(); } catch { /* 失効済みでも進む */ }
               window.location.href = isCrmHost(window.location.hostname) ? '/login' : '/owner/login';
             }}
@@ -153,7 +156,13 @@ export function CrmShell({
                 href={links.href(n.href) + adminSalonQuery}
                 aria-current={current === n.key ? 'page' : undefined}
                 // ★ 2026-10-09 点検#6: 設定などに保存していない変更があるとき、タブで移る前に聞く（ソフト遷移は beforeunload が効かない）
-                onClick={(e) => { if (current !== n.key && !crmLeaveOk()) e.preventDefault(); }}
+                // ★ 第1974便: 聞くのは CRM の見た目の窓。答えを待つあいだは移動を止め、「移動する」なら自分で移る
+                onClick={(e) => {
+                  if (current === n.key || !crmDirty.current) return;
+                  e.preventDefault();
+                  const to = links.href(n.href) + adminSalonQuery;
+                  void crmLeaveAsk().then((ok) => { if (ok) { crmDirty.current = false; router.push(to); } });
+                }}
                 // ★ 第1228便: いま開いているタブが画面の外（右）にあるときは、開いたときに見える位置へ寄せる（スマホで「設定」「料金設定」が隠れていた）
                 ref={current === n.key ? (el) => { el?.scrollIntoView?.({ inline: 'center', block: 'nearest' }); } : undefined}
                 className={`flex-none whitespace-nowrap px-2.5 py-1.5 text-[12px] font-bold md:px-4 md:py-2 md:text-[14px] ${

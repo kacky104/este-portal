@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect } from 'react';
 import { crmHref, crmSpecialHref, fukuesHref, type CrmSpecialKey } from '@/lib/crmHost';
+import { appConfirm } from '@/app/components/AppConfirm';
 
 // ★ リンクの頭（fukuescrm.com なら ''、fukues.com・プレビューなら '/mypage/crm'）を画面に配る（第631便）。
 // ★ 値は layout.tsx がリクエストのホストから決める（★ 画面側で window を見ない＝描画のずれを作らない）。ConecfBase と同じ形。
@@ -45,6 +46,11 @@ export function useCrmDirty(dirty: boolean) {
 /** リンク・ボタンの onClick で使う。移動してよければ true */
 export function crmLeaveOk(): boolean {
   return !crmDirty.current || window.confirm(CRM_DIRTY_MSG);
+}
+/** ★ 第1974便: CRM の見た目の窓で聞く形（await して使う）。上の crmLeaveOk は、その場で答えが要る所のために残す */
+export async function crmLeaveAsk(): Promise<boolean> {
+  if (!crmDirty.current) return true;
+  return appConfirm(CRM_DIRTY_MSG, { ok: '移動する', danger: true });
 }
 
 // ★ 2026-10-09 点検#20: 画面から呼ぶ Server Action が【例外】（圏外・デプロイ直後の古いチャンク・5xx）で落ちたとき、
