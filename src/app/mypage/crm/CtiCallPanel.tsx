@@ -196,7 +196,7 @@ export function CtiCallPanel({
 
           {/* 利用履歴 */}
           <section className="border-r border-slate-200 p-3 md:col-span-3">
-            <h3 className="mb-1.5 text-[14px] font-black text-indigo-700">利用履歴{data && data.history.length > 0 ? `（新しい順・${data.history.length}件まで）` : ''}</h3>
+            <h3 className="mb-1.5 text-[14px] font-black text-indigo-700">利用履歴{data && data.history.length > 0 ? `（新しい順・${data.history.length}件${data.history.length >= 30 ? '・30件まで' : ''}）` : ''}</h3>
             {!data || data.history.length === 0 ? <p className="text-[13px] text-slate-400">{data ? 'まだありません' : '—'}</p> : (
               <div className="max-h-[260px] overflow-auto">
                 <table className="w-full text-left text-[13px]">

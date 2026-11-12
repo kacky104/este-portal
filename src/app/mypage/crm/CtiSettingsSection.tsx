@@ -51,7 +51,7 @@ export function CtiSettingsSection({ salonId }: { salonId: number }) {
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     try { window.dispatchEvent(new Event(CTI_TEST_EVENT)); } catch { /* 何もしない */ }
-    setMsg(r.duplicate ? '10秒以内の同じ番号なので1件にまとめました' : 'テスト着信を入れました。3秒ほどで右上にポップが出ます（この画面でも出ます）');
+    setMsg(r.duplicate ? '10秒以内の同じ番号なので1件にまとめました' : 'テスト着信を入れました。3秒ほどで着信の窓が開きます（この画面でも出ます）');
   };
 
   const hasDevice = (devices ?? []).length > 0;
@@ -63,8 +63,8 @@ export function CtiSettingsSection({ salonId }: { salonId: number }) {
       <p className="mt-1 text-[13px] font-bold text-amber-800">受付の Android 用アプリを準備しています。使えるようになりましたら、運営からご案内します。</p>
       <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
         受付の Android に入れた「フクエス着信」アプリが、かかってきた電話の番号をフクエスCRMに知らせます。
-        CRM を開いている画面（PC・タブレット・スマホ、どれでも）の右上に、お客様の名前・分類・次が何回目か・要注意メモ・グループ共有のNGが出ます。
-        台帳にない番号は「新規」と出て、「受付へ」「台帳」を押すと番号が入った状態で開きます。電話はいつも通り携帯で出てください（転送も通話料もありません）。
+        CRM を開いている画面（PC・タブレット・スマホ、どれでも）に着信の窓が開き、お客様の名前・分類・利用回数・女子NG・利用女子・要注意メモ・グループ共有のNG・利用履歴・前回の予約が出ます。「小さくする」で右上の小さなカードにたためます。
+        台帳にない番号は「新規」と出て、「＋新規予約」「台帳に登録」を押すと番号が入った状態で開きます。着信の記録は「着信履歴」のタブに残ります。電話はいつも通り携帯で出てください（転送も通話料もありません）。
       </p>
       <p className="mt-1 text-[12px] text-slate-400">アプリの設定（QR）は運営が行います。使い始めたい・端末を替えたいときは運営までご連絡ください。</p>
 
