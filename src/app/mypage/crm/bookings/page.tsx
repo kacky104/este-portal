@@ -7,13 +7,13 @@ import { getCrmTherapists, searchCrmBookings } from '@/app/actions/crm';
 import { CRM_RECEIVED_LABEL, isUnreceived, yen, type CrmBookingListRow, type CrmBookingSearch, type CrmReceivedBy, type CrmTherapist } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { ConsentView } from '../ConsentView';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 // フクエスCRM「予約一覧」（第571便・2026-09-20）。★ 日付をまたいで予約を探す（先月のキャンセル・担当ごと・名前や電話で）。
 // ★ 行の日時を押すとその日のスケジュール、名前を押すと顧客台帳（ひも付いている人だけ）を開く。
 
-function businessTodayJST(): string {
-  return new Date(Date.now() + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
-}
+/** 営業日（朝6時区切り）の YYYY-MM-DD。★ 第1986便: 正本は lib/dutyStatus（写しを4か所に持たない） */
+const businessTodayJST = (): string => getBusinessDateJST();
 function monthStart(d: string): string { return `${d.slice(0, 7)}-01`; }
 function dt(iso: string): string {
   return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', weekday: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));

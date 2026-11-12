@@ -31,8 +31,3 @@ export function castNotifyText(name: string, date: string): string {
   const day = shortDateLabel(date);
   return `${who}${day ? `${day}の` : ''}予定を更新しました。\nセラピストページで確認してください。\n${castScheduleLink(date)}`;
 }
-
-/** LINE の「送る画面」を、その文面で開くリンク */
-export function lineShareHref(text: string): string {
-  return `https://line.me/R/share?text=${encodeURIComponent(text)}`;
-}

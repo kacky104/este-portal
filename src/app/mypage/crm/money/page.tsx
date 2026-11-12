@@ -15,14 +15,14 @@ import {
 } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { safeAction } from '../CrmBase';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 // フクエスCRM「金銭授受」（第558便・2026-09-20）。★ 風俗CTIv2 の金銭授受履歴にあたる。
 //   上：女子ごとの残高（通算）＝ 女子が受領した料金 − 報酬 − 女子→お店 ＋ お店→女子
 //   下：月ごとのお金の動き（取り消しは消さずに線を引く）。釣銭・前借りなどはここから手で入れる。
 
-function businessTodayJST(): string {
-  return new Date(Date.now() + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
-}
+/** 営業日（朝6時区切り）の YYYY-MM-DD。★ 第1986便: 正本は lib/dutyStatus（写しを4か所に持たない） */
+const businessTodayJST = (): string => getBusinessDateJST();
 function shiftMonth(ym: string, n: number): string {
   const [y, m] = ym.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1 + n, 1)).toISOString().slice(0, 7);

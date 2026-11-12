@@ -104,6 +104,7 @@ import { CRM_GROUP_ALERT_SOURCE_LABEL, CRM_GROUP_BADGE_LABEL, crmGroupBadge, typ
 import { shiftRangeText, shiftNextDayMarks } from '@/lib/scheduleFormat';
 import { manualOrderRank } from '@/lib/therapistOrder';
 import { crmOrdinalLabel } from '@/lib/crmBookingOrdinal';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 // フクエスCRM「スケジュール」（第530便・2026-09-19）。★ 風俗CTIv2 の本日スケジュールにならった画面。
 //
@@ -171,11 +172,8 @@ const intervalOptionsWith = (cur: number): number[] =>
 
 const JST_HM = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false });
 
-/** 営業日（朝6時区切り）の YYYY-MM-DD */
-function businessTodayJST(): string {
-  const d = new Date(Date.now() + 9 * 3600_000 - 6 * 3600_000);
-  return d.toISOString().slice(0, 10);
-}
+/** 営業日（朝6時区切り）の YYYY-MM-DD。★ 第1986便: 正本は lib/dutyStatus（写しを4か所に持たない） */
+const businessTodayJST = (): string => getBusinessDateJST();
 function shiftDate(date: string, days: number): string {
   const d = new Date(`${date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -466,6 +464,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
     const tel = new URLSearchParams(window.location.search).get('tel') ?? '';
     if (!/^\d{10,13}$/.test(tel)) return;
     const today = businessTodayJST();
+    // ★ URL（?tel=）は画面を開いてからしか読めない＝今日へ戻すのはここ（1回だけ）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (date !== today) { setDate(today); return; }
     telOpened.current = true;
     try {

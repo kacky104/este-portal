@@ -8,6 +8,7 @@
 
 import { appConfirm } from '@/app/components/AppConfirm';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLoadOnMount } from '@/app/components/useLoadOnMount';
 import {
   deleteCrmMessageTemplate,
   getCrmMessageExtras,
@@ -28,13 +29,13 @@ import {
 } from '@/lib/crmMessage';
 import { safeAction } from './CrmBase';
 import { crmMessageContextOf, type CrmMessageExtras } from './messageContext';
+import { getBusinessDateJST } from '@/lib/dutyStatus';
 
 type Draft = { id?: number; name: string; body: string; hideEmptyLines: boolean; isActive: boolean };
 const EMPTY: Draft = { name: '', body: '', hideEmptyLines: true, isActive: true };
 
-function businessTodayJST(): string {
-  return new Date(Date.now() + 9 * 3600_000 - 6 * 3600_000).toISOString().slice(0, 10);
-}
+/** 営業日（朝6時区切り）の YYYY-MM-DD。★ 第1986便: 正本は lib/dutyStatus（写しを4か所に持たない） */
+const businessTodayJST = (): string => getBusinessDateJST();
 function hm(iso: string): string {
   return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
 }
@@ -62,7 +63,7 @@ export function MessageTemplatesSection({ salonId }: { salonId: number }) {
     setList(r.templates);
   }, [salonId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useLoadOnMount(load);
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -75,7 +76,7 @@ export function MessageTemplatesSection({ salonId }: { salonId: number }) {
     return () => { alive = false; };
   }, [salonId]);
   useEffect(() => {
-    if (!pick) { setExtras(null); return; }
+    if (!pick) return;
     let alive = true;
     void (async () => {
       const r = await safeAction(getCrmMessageExtras(salonId, pick));
@@ -152,8 +153,8 @@ export function MessageTemplatesSection({ salonId }: { salonId: number }) {
   const pickedBooking = sched?.bookings.find((b) => b.id === pick) ?? null;
   const preview = useMemo(() => {
     if (!draft || !sched || !pickedBooking) return '';
-    return renderCrmMessage(draft.body, crmMessageContextOf(pickedBooking, sched, extras), draft.hideEmptyLines);
-  }, [draft, sched, pickedBooking, extras]);
+    return renderCrmMessage(draft.body, crmMessageContextOf(pickedBooking, sched, pick ? extras : null), draft.hideEmptyLines);
+  }, [draft, sched, pickedBooking, extras, pick]);
   const toggleVars = (sched?.settings.customToggles ?? []).map((t) => ({ key: `${CRM_MESSAGE_TOGGLE_PREFIX}${t.title}`, label: `出勤情報の「${t.title}」`, example: '' }));
 
   if (!ready) {

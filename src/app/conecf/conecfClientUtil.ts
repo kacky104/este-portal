@@ -1,7 +1,7 @@
 // コネックエフの画面で使い回す小さな道具（第1957便・総点検の整理）。
 // ★ 画面ごとに同じ写しがあった（画像を縮める 6か所・日時 7か所）のを1か所に。中身は写しと同じ。
 
-import { useEffect } from 'react';
+export { useLoadOnMount } from '../components/useLoadOnMount';
 
 /** 「11/12 14:36」（日本時間）。無ければ「まだ」 */
 export const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(iso)) : 'まだ');
@@ -28,16 +28,6 @@ export async function shrinkToJpeg(file: File): Promise<Blob> {
   } finally {
     URL.revokeObjectURL(url);
   }
-}
-
-/**
- * 画面を開いたとき（と load が変わったとき）に1回読み込む（第1985便・総点検 A-4）。
- * ★ どの画面の load も、画面に入れる値は await のあとで入れている＝描き直しが続けて起きることは無い。
- *   eslint（react-hooks/set-state-in-effect）はそこを見分けられず 22 か所で警告していたので、呼び方をここにまとめた。
- * ★ load の最初（await の前）で setState すると1回よけいに描き直す。新しく使うときは await のあとに入れる
- */
-export function useLoadOnMount(load: () => Promise<unknown>) {
-  useEffect(() => { void load(); }, [load]);
 }
 
 /** アップロードするファイルの名前（`<id>-<今の時刻>.<拡張子>`）。★ 押したときにだけ呼ぶ */

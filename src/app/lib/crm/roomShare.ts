@@ -215,15 +215,6 @@ export async function sharedRoomBlocks(
   }
 }
 
-/** CRM の受付・変更で、相手の店の予約と重なるなら、確認に出す文を返す（止めはしない） */
-export async function sharedRoomWarning(svc: Svc, therapistId: number, slotStart: Date, slotEnd: Date): Promise<string | null> {
-  const hits = await sharedRoomBlocks(svc, therapistId, slotStart, slotEnd);
-  if (hits.length === 0) return null;
-  const hm = (iso: string) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
-  const h = hits[0];
-  return `${h.room} は ${h.salonName} の予約（${hm(h.slot_start)}〜${hm(h.slot_end)}）と重なります`;
-}
-
 /** 同意書: 鍵 (keySalon, room) の部屋を借りている相手の店の出勤（セラピスト）。QR の店が部屋共有のグループに入っているときだけ */
 export async function borrowersOfRoom(svc: Svc, keySalon: number, room: string, dateISO: string): Promise<Array<{ salonId: number; therapistId: number }>> {
   try {

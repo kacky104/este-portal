@@ -170,6 +170,8 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
 
   // ★ 女の子を選び直したとき・読み直したとき（保存のあと）は、今の内容で入れ直す
   const itemsKey = JSON.stringify(items.map((p) => [p.id, p.byTherapist ?? null]));
+  // ★ 選び直し・読み直しのたびに下書きを作り直す（「今の内容で入れ直す」がこの欄の決まり）
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setDraft(ovDraftOf(items, tid)); setMsg(''); setErr('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tid, itemsKey]);

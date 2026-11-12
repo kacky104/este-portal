@@ -238,7 +238,6 @@ export type CrmBookingItem = {
 };
 
 export const CRM_PAYMENT_METHODS = ['現金', 'カード', 'PayPay', 'その他'] as const;
-export type CrmPaymentMethod = (typeof CRM_PAYMENT_METHODS)[number];
 /** ★ 第1363便: 支払いの内訳（1本の予約を複数の方法で払ったとき） */
 export type CrmPaymentSplit = { method: string; amount: number };
 /** 支払いの内訳 → 表示（「カード 20,000・現金 5,000」）。内訳が無ければ payment_method をそのまま */

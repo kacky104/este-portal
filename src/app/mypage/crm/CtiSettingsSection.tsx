@@ -6,6 +6,7 @@
 // ★ 「保存する」は要らない（音・表示はその場でこの端末に覚える）。
 
 import { useCallback, useEffect, useState } from 'react';
+import { useLoadOnMount } from '@/app/components/useLoadOnMount';
 import { crmCtiTestCall, listCrmCtiDevices, type CrmCtiDeviceInfo } from '@/app/actions/crmCti';
 import { ctiPrefs, setCtiPrefs, type CtiPrefs } from '@/app/lib/crm/ctiPrefs';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
@@ -38,7 +39,10 @@ export function CtiSettingsSection({ salonId }: { salonId: number }) {
     if (!r.ok) { setErr(r.error); setDevices([]); return; }
     setReady(r.ready); setDevices(r.devices);
   }, [salonId]);
-  useEffect(() => { void load(); setPrefsState(ctiPrefs()); }, [load]);
+  useLoadOnMount(load);
+  // ★ この端末の設定（localStorage）は画面を開いてからしか読めない＝ここで入れるしかない（1回だけ描き直す）
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setPrefsState(ctiPrefs()); }, []);
 
   const setPref = (p: Partial<CtiPrefs>) => { setCtiPrefs(p); setPrefsState(ctiPrefs()); };
   const test = async (hidden: boolean) => {

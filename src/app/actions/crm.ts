@@ -3044,10 +3044,7 @@ async function exportCrmCsvInner(
   return { ok: true, csv: toCsv(rows), count: bs.length };
 }
 
-// ── 予約一覧・検索（第571便・2026-09-20）─────────────────
-const BOOKING_LIST_MAX = 1000;
-
-/** 日付の範囲（営業日・最大1年）と条件で予約を探す。新しい順・1000件まで */
+/** ★ 第596便から画面では使っていない。規約 第7条3（やめるときの書き出し）のために残してある（settings/page.tsx の注記） */
 /** ★ 2026-10-09 点検#10: readAll が投げるようになったので、ここで受けて ok:false にする */
 export async function exportCrmCsv(...args: Parameters<typeof exportCrmCsvInner>): ReturnType<typeof exportCrmCsvInner> {
   try {
@@ -3056,6 +3053,11 @@ export async function exportCrmCsv(...args: Parameters<typeof exportCrmCsvInner>
     return readFail(e);
   }
 }
+
+// ── 予約一覧・検索（第571便・2026-09-20）─────────────────
+const BOOKING_LIST_MAX = 1000;
+
+/** 日付の範囲（営業日・最大1年）と条件で予約を探す。新しい順・1000件まで */
 export async function searchCrmBookings(
   salonId: number,
   f: CrmBookingSearch,
