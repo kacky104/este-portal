@@ -83,7 +83,7 @@ function MoneyBody({ salonId }: { salonId: number }) {
   const td = 'px-2 py-2 text-right';
 
   const undo = async (id: number) => {
-    const r = await cancelCrmMoneyMove(salonId, id);
+    const r = await safeAction(cancelCrmMoneyMove(salonId, id));
     if (!r.ok) { setErr(r.error); return; }
     reload();
   };
@@ -262,9 +262,9 @@ function AddMoveForm({ salonId, therapists, onDone }: { salonId: number; therapi
 
   const save = async () => {
     setBusy(true); setErr(''); setOk('');
-    const r = await addCrmMoneyMove(salonId, {
+    const r = await safeAction(addCrmMoneyMove(salonId, {
       therapistId: Number(therapistId), date, direction, category, amount: Number(amount), memo,
-    });
+    }));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setAmount(''); setMemo(''); setOk('記録しました');

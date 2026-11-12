@@ -9,6 +9,7 @@
 //   ・crmCtiTestCall      … 店舗様の「テスト着信」ボタン
 
 import { assertCrmOwner } from '@/app/lib/crm/auth';
+import { dbMessage } from '@/app/lib/crm/dbError';
 import { normalizeIncomingPhone, parseHiddenReason, recordCtiCall, type CtiHiddenReason } from '@/app/lib/crm/cti';
 import { lookupCrmCustomerByPhone } from '@/app/actions/crm';
 import type { CrmScheduleCustomer } from '@/app/lib/crm/types';
@@ -46,7 +47,7 @@ export async function getCrmIncomingCalls(
     // 端末があるか（止めている端末も「ある」に数える＝運営が止めただけで店にはある）
     const { count, error } = await svc.from('crm_cti_devices').select('id', { count: 'exact', head: true }).eq('salon_id', salonId);
     if (tableMissing(error)) return { ok: true, enabled: false, calls: [], latestId: null };
-    if (error) return { ok: false, error: '着信の設定を読めませんでした: ' + error.message };
+    if (error) return { ok: false, error: dbMessage(error, '読み込み') };
     // 端末が無くてもテスト着信（直近 1 日）があれば見張る（端末が届く前の確認用）
     let enabled = (count ?? 0) > 0;
     if (!enabled) {
@@ -61,7 +62,7 @@ export async function getCrmIncomingCalls(
     const { data, error: e2 } = await svc.from('crm_cti_calls')
       .select('id, phone, hidden_reason, device_id, rang_at')
       .eq('salon_id', salonId).order('id', { ascending: false }).limit(10);
-    if (e2) return { ok: false, error: '着信を読めませんでした: ' + e2.message };
+    if (e2) return { ok: false, error: dbMessage(e2, '読み込み') };
     const rows = (data ?? []);
     const latestId = rows.length > 0 ? Number(rows[0].id) : 0;
     const recent = rows.filter((r) => String(r.rang_at) >= since2).reverse();
@@ -72,7 +73,7 @@ export async function getCrmIncomingCalls(
     .select('id, phone, hidden_reason, device_id, rang_at')
     .eq('salon_id', salonId).gt('id', afterId).order('id', { ascending: true }).limit(10);
   if (tableMissing(error)) return { ok: true, enabled: false, calls: [], latestId: afterId };
-  if (error) return { ok: false, error: '着信を読めませんでした: ' + error.message };
+  if (error) return { ok: false, error: dbMessage(error, '読み込み') };
   const rows = data ?? [];
   return { ok: true, enabled: true, calls: rows.map(toCall), latestId: rows.length > 0 ? Number(rows[rows.length - 1].id) : afterId };
 }
@@ -129,7 +130,7 @@ export async function listCrmCtiDevices(salonId: number): Promise<{ ok: true; re
     .select('id, name, is_enabled, last_seen_at, last_call_at, device_model, android_version, app_version')
     .eq('salon_id', salonId).order('id', { ascending: true });
   if (tableMissing(error)) return { ok: true, ready: false, devices: [] };
-  if (error) return { ok: false, error: '端末を読めませんでした: ' + error.message };
+  if (error) return { ok: false, error: dbMessage(error, '読み込み') };
   return {
     ok: true, ready: true,
     devices: (data ?? []).map((r) => ({
@@ -150,7 +151,8 @@ export async function crmCtiTestCall(salonId: number, input: { phone?: string; h
   const r = await recordCtiCall(a.svc, { salonId, deviceId: null, phone, hidden: phone ? null : 'withheld' });
   if (!r.ok) {
     if (/crm_cti_/.test(r.error) && /does not exist|schema cache/.test(r.error)) return { ok: false, error: '着信ポップはまだ準備中です（運営が設定すると使えます）' };
-    return { ok: false, error: 'テスト着信を入れられませんでした: ' + r.error };
+    console.error('[cti] テスト着信を入れられなかった', salonId, r.error);
+    return { ok: false, error: 'テスト着信を入れられませんでした。もう一度お試しください' };
   }
   return { ok: true, duplicate: r.duplicate };
 }

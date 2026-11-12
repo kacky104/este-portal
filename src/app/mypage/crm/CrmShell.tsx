@@ -189,7 +189,7 @@ function TermsGate({ salonId }: { salonId: number }) {
   const [err, setErr] = useState('');
   const agree = async () => {
     setBusy(true); setErr('');
-    const r = await agreeCrmTerms(salonId);
+    const r = await safeAction(agreeCrmTerms(salonId));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     window.location.reload();

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCrmLinks } from './CrmBase';
+import { useCrmLinks, safeAction } from './CrmBase';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   closeCrmDay,
@@ -2663,10 +2663,12 @@ function AlarmCenter({
     // ★ 第1116便: 変更マークが前回と同じなら読まない（マークを読めないときは毎回読む）
     let lastMark: string | null = null;
     const load = async () => {
-      const mark = await getCrmChangeMark(salonId);
+      // ★ 2026-11-12 点検#11: 例外（圏外など）で止まらないように。読めなかった回は、次の回（60秒後）にもう一度
+      let mark: string | null = null;
+      try { mark = await getCrmChangeMark(salonId); } catch { mark = null; }
       if (!alive) return;
       if (mark !== null && lastMark !== null && mark === lastMark) return;
-      const r = await getCrmSchedule(salonId, businessTodayJST(), { lite: true });
+      const r = await safeAction(getCrmSchedule(salonId, businessTodayJST(), { lite: true }));
       if (!alive) return;
       if (r.ok) { setOwn({ bookings: r.data.bookings, therapists: r.data.therapists }); lastMark = mark; }
     };
@@ -2786,7 +2788,7 @@ function SettleBox({ salonId, therapistId, date }: { salonId: number; therapistI
 
   useEffect(() => {
     let alive = true;
-    getCrmMoneyDay(salonId, therapistId, date).then((r) => {
+    safeAction(getCrmMoneyDay(salonId, therapistId, date)).then((r) => {
       if (!alive) return;
       if (!r.ok) { setErr(r.error); return; }
       setDay(r.day);
@@ -2897,7 +2899,7 @@ function CloseDialog({
 
   useEffect(() => {
     let alive = true;
-    getCrmDaySummary(salonId, date).then((r) => {
+    safeAction(getCrmDaySummary(salonId, date)).then((r) => {
       if (!alive) return;
       if (!r.ok) { setErr(r.error); return; }
       setSum(r.summary);

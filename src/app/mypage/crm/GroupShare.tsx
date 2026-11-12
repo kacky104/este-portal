@@ -1,5 +1,6 @@
 'use client';
 
+import { safeAction } from './CrmBase';
 import { useEffect, useState } from 'react';
 import {
   getCrmCustomerGroupShare,
@@ -108,10 +109,10 @@ function AlertForm({
 
   const submit = async () => {
     setBusy(true); setErr('');
-    const res = await saveCrmGroupAlert({
+    const res = await safeAction(saveCrmGroupAlert({
       salonId, customerId, alertId: mine?.id ?? null,
       level: f.level, kind: f.kind, certainty: f.certainty, happenedOn: f.happenedOn, what: f.what, checkedHow: f.checkedHow, phones: f.phones,
-    });
+    }));
     setBusy(false);
     if (!res.ok) { setErr(res.error); setSure(false); return; }
     onSaved();
@@ -243,7 +244,7 @@ export function GroupShareBox({ salonId, customerId }: { salonId: number; custom
 
   const withdraw = async (alertId: number) => {
     setBusy(true); setErr('');
-    const r = await withdrawCrmGroupAlert(salonId, alertId);
+    const r = await safeAction(withdrawCrmGroupAlert(salonId, alertId));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setSure(false);

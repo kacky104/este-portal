@@ -1,5 +1,6 @@
 'use client';
 
+import { safeAction } from './CrmBase';
 import { useEffect, useState } from 'react';
 import {
   answerCrmGroupJoin, getCrmGroupJoinTodo, signCrmGroupApply,
@@ -83,7 +84,7 @@ function ApplyCard({ salonId, view, readOnly, onDone }: { salonId: number; view:
 
   const submit = async () => {
     setBusy(true); setErr('');
-    const r = await signCrmGroupApply({ salonId, inviteId: view.inviteId, signerName: name, agree });
+    const r = await safeAction(signCrmGroupApply({ salonId, inviteId: view.inviteId, signerName: name, agree }));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onDone(r.joined);
@@ -141,7 +142,7 @@ function ApprovalCard({ salonId, view, readOnly, onDone }: { salonId: number; vi
 
   const send = async (approve: boolean) => {
     setBusy(true); setErr('');
-    const r = await answerCrmGroupJoin({ salonId, inviteId: view.inviteId, signerName: name, approve });
+    const r = await safeAction(answerCrmGroupJoin({ salonId, inviteId: view.inviteId, signerName: name, approve }));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onDone();

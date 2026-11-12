@@ -65,7 +65,7 @@ export function ConsentView({
   const fmt = (iso: string) => new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
   const mark = async () => {
     setBusy(true); setErr('');
-    const r = await markCrmConsentManual(salonId, bookingId);
+    const r = await safeAction(markCrmConsentManual(salonId, bookingId));
     setBusy(false); setSure('');
     if (!r.ok) { setErr(r.error); return; }
     setList(null); setOpen(false);
@@ -73,7 +73,7 @@ export function ConsentView({
   };
   const revoke = async () => {
     setBusy(true); setErr('');
-    const r = await revokeCrmConsentManual(salonId, bookingId);
+    const r = await safeAction(revokeCrmConsentManual(salonId, bookingId));
     setBusy(false); setSure('');
     if (!r.ok) { setErr(r.error); return; }
     setList(null); setOpen(false);

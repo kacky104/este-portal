@@ -116,7 +116,7 @@ function CustomerForm({
   const submit = async () => {
     setBusy(true);
     setErr('');
-    const res = await saveCrmCustomer({
+    const res = await safeAction(saveCrmCustomer({
       salonId,
       customerId: customer?.id ?? null,
       name: f.name,
@@ -127,7 +127,7 @@ function CustomerForm({
       ngTherapistIds: f.ngTherapistIds,
       cautionMemo: f.cautionMemo,
       memo: f.memo,
-    });
+    }));
     setBusy(false);
     if (!res.ok) { setErr(res.error); return; }
     onSaved(res.customerId);
@@ -221,7 +221,7 @@ function CustomerDetail({
   const [nowMs] = useState(() => Date.now());
 
   const load = useCallback(async () => {
-    const res = await getCrmCustomer(salonId, customerId);
+    const res = await safeAction(getCrmCustomer(salonId, customerId));
     if (!res.ok) { setErr(res.error); return; }
     setErr('');
     setData({ customer: res.customer, bookings: res.bookings, therapists: res.therapists });
@@ -240,7 +240,7 @@ function CustomerDetail({
 
   const toggleBad = async (b: CrmBookingRow) => {
     setBusyId(b.id);
-    const res = await setCrmCancelBad(salonId, b.id, !b.cancelBad);
+    const res = await safeAction(setCrmCancelBad(salonId, b.id, !b.cancelBad));
     setBusyId(null);
     if (!res.ok) { setErr(res.error); return; }
     await load();
@@ -562,7 +562,7 @@ function DeleteCustomer({ salonId, customerId, name, inGroup, onDeleted }: { sal
   const [err, setErr] = useState('');
   const run = async () => {
     setBusy(true); setErr('');
-    const r = await deleteCrmCustomer(salonId, customerId);
+    const r = await safeAction(deleteCrmCustomer(salonId, customerId));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onDeleted();

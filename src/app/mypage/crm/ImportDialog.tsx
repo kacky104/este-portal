@@ -1,5 +1,6 @@
 'use client';
 
+import { safeAction } from './CrmBase';
 import { useEffect, useRef, useState } from 'react';
 import { importCrmCustomers, previewCrmImport, type CrmImportPreviewRow } from '@/app/actions/crm';
 import { decodeText, parseCsv, parseVcf } from '@/app/lib/crm/importParse';
@@ -32,7 +33,7 @@ export function ImportDialog({ salonId, onClose, onDone }: { salonId: number; on
     const parsed = /BEGIN:VCARD/i.test(text) ? parseVcf(text) : parseCsv(text);
     if (parsed.length === 0) { setErr('読み取れる行がありませんでした（.vcf か CSV を選んでください）'); return; }
     setBusy(true);
-    const r = await previewCrmImport(salonId, parsed);
+    const r = await safeAction(previewCrmImport(salonId, parsed));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setRows(r.rows);
@@ -45,7 +46,7 @@ export function ImportDialog({ salonId, onClose, onDone }: { salonId: number; on
     const pickRows = rows.filter((_, i) => checked[i]).map((r) => ({ name: r.name, phones: r.phones }));
     if (pickRows.length === 0) { setErr('取り込む行にチェックを入れてください'); return; }
     setBusy(true); setErr('');
-    const r = await importCrmCustomers(salonId, pickRows);
+    const r = await safeAction(importCrmCustomers(salonId, pickRows));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setResult(`取り込みました：新しく ${r.created}人・もう台帳にいた人に追記 ${r.updated}人・変更なし／取り込まない ${r.skipped}件`);

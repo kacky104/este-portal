@@ -14,7 +14,7 @@ import {
   type CrmGroupKind,
   type CrmGroupLevel,
 } from '@/lib/crmGroup';
-import { useCrmLinks } from '../CrmBase';
+import { useCrmLinks, safeAction } from '../CrmBase';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { fmtGroupPhone } from '../GroupShare';
 import { GroupJoinTodo } from '../GroupJoin';
@@ -102,7 +102,7 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
 
   const withdraw = async (id: number) => {
     setBusy(true); setErr('');
-    const r = await withdrawCrmGroupAlert(salonId, id);
+    const r = await safeAction(withdrawCrmGroupAlert(salonId, id));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setSureId(null);

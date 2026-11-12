@@ -164,7 +164,7 @@ export async function listCrmOperatorSalons(): Promise<{ ok: true; data: CrmOper
   if (!user || user.id !== ADMIN_UUID) return { ok: false, error: '運営アカウントでログインしてください' };
   const svc = createServiceClient();
   const { data, error } = await svc.from('salons').select('id, name, is_hidden, crm_until').order('id', { ascending: true }).limit(1000);
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: dbMessage(error, '読み込み') };
   const rows: CrmOperatorSalon[] = (data ?? []).map((r) => ({
     id: Number(r.id),
     name: (r.name as string | null) ?? '',
@@ -639,7 +639,7 @@ export async function saveCrmCustomer(
   }
   if (toDel.length > 0) {
     const { error: dErr } = await svc.from('salon_customer_phones').delete().eq('customer_id', customerId).in('phone', toDel);
-    if (dErr) return { ok: false, error: `古い電話番号を外せませんでした（${dErr.message}）。もう一度保存してください` };
+    if (dErr) { console.error('[crm] 古い電話番号を外せなかった', dErr.message); return { ok: false, error: '古い電話番号を外せませんでした。もう一度保存してください' }; }
   }
   return { ok: true, customerId };
 }
@@ -1407,6 +1407,11 @@ function rowsOrThrow<T>(r: { data: T[] | null; error: { message: string } | null
 
 function readFail(e: unknown): { ok: false; error: string } {
   const m = e instanceof Error ? e.message : String(e);
+  // ★ 2026-11-12 点検#12: Postgres の英語の文は画面に出さない（記録には残す）。日本語の文（こちらで書いた理由）はそのまま出す
+  if (!/[぀-ヿ一-龯]/.test(m)) {
+    console.error('[crm] 読み込めなかった:', m);
+    return { ok: false, error: '読み込めませんでした。もう一度お試しください' };
+  }
   return { ok: false, error: `読み込めませんでした（${m}）。もう一度お試しください` };
 }
 
@@ -1930,10 +1935,10 @@ export async function renameCrmRoom(
   const roomColors: Record<string, string> = {};
   for (const [k, v] of Object.entries(st.roomColors)) roomColors[k === f ? t : k] = v;
   const r1 = await svc.from('crm_settings').update({ rooms, room_colors: roomColors, updated_at: new Date().toISOString() }).eq('salon_id', salonId);
-  if (r1.error) return { ok: false, error: `設定の書き換えに失敗しました: ${r1.error.message}` };
+  if (r1.error) return { ok: false, error: `設定の書き換えに失敗しました: ${dbMessage(r1.error, '書き換え')}` };
   // 2) 出勤情報の待機場所（過去の分も・その店の分だけ）
   const r2 = await svc.from('crm_work_days').update({ room: t }).eq('salon_id', salonId).eq('room', f);
-  if (r2.error) return { ok: false, error: `出勤情報の書き換えに失敗しました（設定は変わっています）: ${r2.error.message}` };
+  if (r2.error) return { ok: false, error: `出勤情報の書き換えに失敗しました（設定は変わっています）: ${dbMessage(r2.error, '書き換え')}` };
   // 2') ★ 2026-11-12 点検#4: この部屋を【借りている提携店】の出勤情報（room_salon_id＝この店）も新しい名前へ。
   //   前は自店の分だけ書き換えていたので、提携店側は古い名前のまま残り、部屋の鍵（部屋の店, 部屋名）が合わなくなって
   //   相手の予約の帯が出ない・相手の予約が QR の同意書の候補に出ない、になっていた（部屋共有・roomShare.ts）。
@@ -1942,10 +1947,10 @@ export async function renameCrmRoom(
   if (r2b.error) return { ok: false, error: `提携店の出勤情報の書き換えに失敗しました（設定と、このお店の出勤情報は変わっています）: ${dbMessage(r2b.error, '書き換え')}` };
   // 3) QR のトークン（トークンはそのまま・部屋名だけ）
   const r3 = await svc.from('crm_room_tokens').update({ room: t }).eq('salon_id', salonId).eq('room', f);
-  if (r3.error) return { ok: false, error: `QR の書き換えに失敗しました（設定・出勤情報は変わっています）: ${r3.error.message}` };
+  if (r3.error) return { ok: false, error: `QR の書き換えに失敗しました（設定・出勤情報は変わっています）: ${dbMessage(r3.error, '書き換え')}` };
   // 4) 同意書の履歴の部屋名
   const r4 = await svc.from('crm_consents').update({ room: t }).eq('salon_id', salonId).eq('room', f);
-  if (r4.error) return { ok: false, error: `同意書の書き換えに失敗しました（設定・出勤情報・QR は変わっています）: ${r4.error.message}` };
+  if (r4.error) return { ok: false, error: `同意書の書き換えに失敗しました（設定・出勤情報・QR は変わっています）: ${dbMessage(r4.error, '書き換え')}` };
   // 5) ★ 第1443便: 部屋メモも新しい名前へ（列がまだ無い・読めないときは何もしない＝名前の変更そのものは済んでいる）
   const n1 = await svc.from('crm_settings').select('room_notes').eq('salon_id', salonId).maybeSingle();
   if (!n1.error) {
@@ -2693,7 +2698,7 @@ export async function markCrmConsentManual(
     signature_png: '',
     user_agent: auth.userId === ADMIN_UUID ? CONSENT_MANUAL_UA + ':admin' : CONSENT_MANUAL_UA,
   }).select('created_at').single();
-  if (error || !ins) return { ok: false, error: error?.message ?? '保存できませんでした' };
+  if (error || !ins) return { ok: false, error: error ? dbMessage(error, '保存') : '保存できませんでした' };
   return { ok: true, consentAt: String(ins.created_at) };
 }
 
@@ -2815,7 +2820,7 @@ export async function importCrmCustomers(
     const { data, error } = await svc.from('salon_customers')
       .insert(chunk.map((r) => ({ salon_id: salonId, name: r.name, updated_at: now })))
       .select('id');
-    if (error || !data || data.length !== chunk.length) return { ok: false, error: `取り込みの途中で止まりました（${created}人まで登録済み）：${error?.message ?? ''}` };
+    if (error || !data || data.length !== chunk.length) { if (error) console.error('[crm] 取り込みが途中で止まった', salonId, error.message); return { ok: false, error: `取り込みの途中で止まりました（${created}人まで登録済み）。もう一度取り込むと、続きから入ります` }; }
     const phoneRows = chunk.flatMap((r, k) => r.phones.map((phone) => ({ customer_id: Number(data[k].id), salon_id: salonId, phone })));
     const { error: pErr } = await svc.from('salon_customer_phones').insert(phoneRows);
     if (pErr) {
@@ -2848,7 +2853,7 @@ export async function importCrmCustomers(
   for (let i = 0; i < existIds.length; i += 300) {
     const { data: cur, error: cErr } = await svc.from('salon_customer_phones').select('customer_id, phone')
       .eq('salon_id', salonId).in('customer_id', existIds.slice(i, i + 300));
-    if (cErr) return { ok: false, error: `取り込みの途中で止まりました（新規 ${created}人は登録済み・既存の人はまだ）：${cErr.message}` };
+    if (cErr) { console.error('[crm] 取り込みが途中で止まった', salonId, cErr.message); return { ok: false, error: `取り込みの途中で止まりました（新規 ${created}人は登録済み・既存の人はまだ）。もう一度取り込むと、続きから入ります` }; }
     for (const p of cur ?? []) {
       const k = Number(p.customer_id);
       if (!haveByCustomer.has(k)) haveByCustomer.set(k, new Set());

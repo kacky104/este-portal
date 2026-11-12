@@ -71,7 +71,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
     if (!to || to === renaming.from) { setRenaming(null); return; }
     if (dirty) { setErr('先に「保存する」を押してから、名前を変えてください（未保存の変更があります）'); return; }
     setRenameBusy(true); setErr(''); setMsg('');
-    const r = await renameCrmRoom(salonId, renaming.from, to);
+    const r = await safeAction(renameCrmRoom(salonId, renaming.from, to));
     setRenameBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     // 変えたあとは読み直す（色・QR も新しい名前で出る）
@@ -126,7 +126,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
 
   const save = async () => {
     setBusy(true); setErr(''); setMsg('');
-    const r = await saveCrmSettings(salonId, st);
+    const r = await safeAction(saveCrmSettings(salonId, st));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setMsg('保存しました');
@@ -516,7 +516,7 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
 
   const run = async (action: 'get' | 'regenerate' | 'revert') => {
     setBusy(true); setErr(''); setMsg('');
-    const r = await getCrmRoomQr(salonId, room, action);
+    const r = await safeAction(getCrmRoomQr(salonId, room, action));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     setUrl(r.url);

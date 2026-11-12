@@ -316,11 +316,11 @@ function useDraftRow(salonId: number, initial: Draft, onSaved: () => void) {
   const save = async () => {
     setBusy(true);
     setErr('');
-    const r = await saveCrmPriceItem({
+    const r = await safeAction(saveCrmPriceItem({
       salonId, id: d.id, kind: d.kind, name: d.name,
       minutes: Number(d.minutes) || 0, price: Number(d.price) || 0, pay: Number(d.pay) || 0,
       sort: Number(d.sort) || 0, isActive: d.isActive,
-    });
+    }));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     // ★ 2026-10-09 点検#23: 保存したら、読み直し後の initial と同じ形に（新規行は空に戻す・既存行は数字をそろえる）
@@ -331,7 +331,7 @@ function useDraftRow(salonId: number, initial: Draft, onSaved: () => void) {
   const del = async () => {
     if (!d.id) return;
     setBusy(true);
-    const r = await deleteCrmPriceItem(salonId, d.id);
+    const r = await safeAction(deleteCrmPriceItem(salonId, d.id));
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     onSaved();
