@@ -120,8 +120,9 @@ const NAME_W = 150;
 const MEMO_W = 160;             // 女子メモの列（2026-09-19）
 // ★★ 行の高さは伸ばさない（カッキーさん 2026-11-12:「店舗様は、できるだけ1画面にたくさんの行が写ることを喜ばれます」）。
 //   第1977便で 72 にしたのは誤り → 第1978便で 66 に戻した。
-//   名前・時刻・報酬の3行は、左の枠の中を詰めて 66px に収める（上下の余白 3px・1行目 20px・2行目 16px・3行目 22px ＝ 64px）。
-//   ★ 左の枠に何か足すときは、この 64px の中に収めること（はみ出すと3行目の「確定」と ▲▼ の下が切れる）
+//   名前・時刻・報酬の3行は、左の枠の中を詰めて 66px に収める（1行目 20px・2行目 16px・3行目 22px ＝ 58px）。
+//   ★ 第1980便: 左の枠の中身は【上下の真ん中】に置く（前は上にだけ隙間があって、下が切れていた）。文字・ボタンの大きさは元のまま
+//   ★ 左の枠に何か足すときは、65px の中に収めること（はみ出すと3行目の「確定」と ▲▼ が切れる）
 const ROW_H = 66;
 /** ★ 第1787便: グループ予約の最大人数 */
 const PARTY_MAX = 10;
@@ -1001,7 +1002,7 @@ function Grid({
           <div key={r.key} className={`relative flex border-b hover:z-[25] ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
             <div className={`sticky left-0 z-20 flex flex-none border-r border-slate-300 ${r.done ? 'bg-slate-300' : 'bg-white'}`} style={{ width: leftW }}>
-            <div className={`flex-none py-[3px] ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
+            <div className={`flex flex-none flex-col justify-center ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
               {r.therapist ? (
                 <>
                   <p className="flex items-center gap-1 leading-[20px]">
@@ -1018,14 +1019,14 @@ function Grid({
                       <LineShareLink
                         text={castNotifyText(r.therapist.name, date)}
                         title="予定を更新したことを LINE で知らせる（送り先は LINE の画面で選びます）"
-                        className="flex-none bg-[#06c755] px-1 text-[11px] font-black leading-[16px] text-white hover:opacity-85"
+                        className="flex-none bg-[#06c755] px-1 text-[10px] font-black leading-[16px] text-white hover:opacity-85"
                       >
                         LINE
                       </LineShareLink>
                     ) : (
                       <span
                         title="設定の「セラピストへの公開」を ON にすると、LINE で知らせるボタンが使えます"
-                        className="flex-none cursor-not-allowed bg-slate-300 px-1 text-[11px] font-black leading-[16px] text-white"
+                        className="flex-none cursor-not-allowed bg-slate-300 px-1 text-[10px] font-black leading-[16px] text-white"
                       >
                         LINE
                       </span>
@@ -1039,10 +1040,10 @@ function Grid({
                       if (wdr?.roomSalonId != null) {
                         const pn = partnerRooms.find((p) => p.salonId === wdr.roomSalonId)?.salonName ?? '提携店';
                         // ★ 第1671便（カッキーさん）: 店名を入れると長すぎて名前が消えた → バッジは「借 部屋名」だけ。店名は title（マウスを乗せる）で
-                        return <span className="max-w-[96px] flex-none truncate border border-slate-400 bg-slate-100 px-1 text-[11px] font-bold leading-[16px] text-slate-700" title={`${pn} の部屋を借りています`}>借 {room}</span>;
+                        return <span className="max-w-[96px] flex-none truncate border border-slate-400 bg-slate-100 px-1 text-[10px] font-bold leading-[16px] text-slate-700" title={`${pn} の部屋を借りています`}>借 {room}</span>;
                       }
                       const c = roomColor(roomColorOf(room));
-                      return <span className="flex-none truncate px-1 text-[11px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
+                      return <span className="flex-none truncate px-1 text-[10px] font-bold leading-[16px]" style={{ background: c.bg, color: c.fg, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.25)' }}>{room}</span>;
                     })()}
                   </p>
                   {/* ★ 第1369便: 出勤時刻と本数は必ず全部出す（flex-none・折り返さない）。幅が足りないときはバッジの側が切れる（前は時刻が「11:00…」と切れた） */}
@@ -1061,13 +1062,13 @@ function Grid({
                         <>
                           {wd.attendance && (
                             // ★ 第1368便: スマホは1文字（遅・欠・休）。色は今までどおり。PC は全文
-                            <span title={CRM_ATTENDANCE_LABEL[wd.attendance]} className={`flex-none px-1 text-[11px] font-bold text-white ${wd.attendance === 'late' ? 'bg-amber-500' : 'bg-rose-600'}`}>
+                            <span title={CRM_ATTENDANCE_LABEL[wd.attendance]} className={`flex-none px-1 text-[10px] font-bold text-white ${wd.attendance === 'late' ? 'bg-amber-500' : 'bg-rose-600'}`}>
                               {narrow ? CRM_ATTENDANCE_LABEL[wd.attendance].slice(0, 1) : CRM_ATTENDANCE_LABEL[wd.attendance]}
                             </span>
                           )}
                           {pickCrmToggleValues(toggleDefs, wd.toggles).map((tv) => (
                             // ★ 第1368便: スマホは3文字まで（「掛け持ち」→「掛け持…」）。PC は 96px まで
-                            <span key={tv.title} title={`${tv.title}：${tv.value}`} className={`min-w-0 shrink truncate border border-violet-300 bg-violet-50 px-1 text-[11px] font-bold text-violet-700 ${narrow ? 'max-w-[44px]' : 'max-w-[96px]'}`}>
+                            <span key={tv.title} title={`${tv.title}：${tv.value}`} className={`min-w-0 shrink truncate border border-violet-300 bg-violet-50 px-1 text-[10px] font-bold text-violet-700 ${narrow ? 'max-w-[44px]' : 'max-w-[96px]'}`}>
                               {narrow && tv.value.length > 3 ? `${tv.value.slice(0, 3)}…` : tv.value}
                             </span>
                           ))}
@@ -1088,14 +1089,14 @@ function Grid({
                             type="button"
                             onClick={() => onConfirm(r.therapist!)}
                             title={changed ? '確定のあとに予約が変わっています（押して確定し直し）' : '報酬確定済み（押すと内容・取り消し）'}
-                            className={`min-h-[22px] px-2 font-bold text-white ${changed ? 'bg-amber-500' : 'bg-emerald-600'}`}
+                            className={`min-h-[20px] px-1.5 font-bold text-white ${changed ? 'bg-amber-500' : 'bg-emerald-600'}`}
                           >
                             {changed ? '⚠変更あり' : '✓確定'} {yen(cf.payTotal + cf.allowance)}
                           </button>
                         ) : (
                           <>
                             <span className="bg-cyan-50 px-1 font-bold text-slate-700">報酬 {yen(pay)}</span>
-                            <button type="button" onClick={() => onConfirm(r.therapist!)} className={`min-h-[22px] bg-[#3f51b5] font-bold text-white ${narrow ? 'px-1.5' : 'px-2.5'}`}>確定</button>
+                            <button type="button" onClick={() => onConfirm(r.therapist!)} className={`min-h-[20px] bg-[#3f51b5] font-bold text-white ${narrow ? 'px-1' : 'px-1.5'}`}>確定</button>
                           </>
                         )}
                         {/* ★ 第1410便（ラビリンス様のご要望）: 並べ替え ▲▼（同じ組＝確定していない方どうし／確定した方どうし）。決めた順はコネックエフのセラピスト一覧にも効く。
@@ -1104,10 +1105,10 @@ function Grid({
                           const ids = rows.filter((x) => x.therapist && !!x.done === !!r.done).map((x) => x.therapist!.id);
                           if (ids.length < 2) return null;
                           const i = ids.indexOf(r.therapist!.id);
-                          // ★ 第1976便（点検 §5）: 縦に重ねた 14×10px・8px の文字は押しにくかった → 横に並べて 22×22px・11px（行の高さ 22px の中に収まる）
-                          const btn = 'block h-[22px] w-[22px] text-[11px] leading-[22px] text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 disabled:opacity-25 disabled:hover:bg-transparent';
+                          // ★ 第1980便: 第1976便で横並び 22×22px に大きくしたが、報酬が5桁になると右にはみ出し、当欠などの札にも被った → 元の大きさ（縦に重ねた 14×10px）に戻した（カッキーさん）
+                          const btn = 'block h-[10px] w-[14px] text-[8px] leading-[10px] text-slate-500 hover:bg-indigo-100 hover:text-indigo-700 disabled:opacity-25 disabled:hover:bg-transparent';
                           return (
-                            <span className="ml-auto flex flex-none divide-x divide-slate-300 border border-slate-300 bg-white">
+                            <span className="ml-auto flex flex-none flex-col border border-slate-300 bg-white">
                               <button type="button" aria-label="上へ" title="上へ" disabled={i <= 0} onClick={() => onMoveRow(ids, r.therapist!.id, -1)} className={btn}>▲</button>
                               <button type="button" aria-label="下へ" title="下へ" disabled={i >= ids.length - 1} onClick={() => onMoveRow(ids, r.therapist!.id, 1)} className={btn}>▼</button>
                             </span>
@@ -1123,7 +1124,7 @@ function Grid({
                   const lanes = shown.filter((x) => x.therapist == null);
                   const idx = lanes.findIndex((x) => x.key === r.key);
                   const last = idx === lanes.length - 1;
-                  const btn = 'border border-amber-400 bg-white px-1.5 text-[11px] font-bold leading-[18px] text-amber-700 hover:bg-amber-50 disabled:opacity-40';
+                  const btn = 'border border-amber-400 bg-white px-1 text-[10px] font-bold leading-[16px] text-amber-700 hover:bg-amber-50 disabled:opacity-40';
                   return (
                     <>
                       {idx === 0 ? (
@@ -1216,7 +1217,7 @@ function Grid({
                       type="button"
                       onClick={(ev) => { ev.stopPropagation(); onToggleEnd(tid, et === 'accept' ? 'finish' : 'accept'); }}
                       title="押すと「受まで」と「上がり」を切り替えます"
-                      className={`absolute top-0.5 z-[8] flex items-center gap-0.5 whitespace-nowrap border px-1.5 text-[11px] font-bold leading-[16px] ${
+                      className={`absolute top-0.5 z-[8] flex items-center gap-0.5 whitespace-nowrap border px-1 text-[10px] font-bold leading-[14px] ${
                         et === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'
                       }`}
                       style={outside ? { left: x(e) + 3 } : { left: Math.max(x(s), x(e) - 2), transform: 'translateX(-100%)' }}
