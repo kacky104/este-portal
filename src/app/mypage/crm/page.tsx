@@ -118,7 +118,9 @@ import { crmOrdinalLabel } from '@/lib/crmBookingOrdinal';
 const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
 const MEMO_W = 160;             // 女子メモの列（2026-09-19）
-const ROW_H = 66;
+// ★ 第1977便: 66 → 72。名前・時刻・報酬の3行が 66px に収まらず、3行目の「確定」と ▲▼ の下が切れていた（前から）。
+//   左の枠の上下の余白を 6px → 4px、1行目の行の高さを 20px にして、3行で 70px（4+20+18+2+22+4）に収めた
+const ROW_H = 72;
 /** ★ 第1787便: グループ予約の最大人数 */
 const PARTY_MAX = 10;
 /** ★ 第1786便: フリーの行の最大数（★ 第1788便: サーバーの「フリーは同じ時間に3件まで」と同じ数） */
@@ -996,10 +998,10 @@ function Grid({
           <div key={r.key} className={`relative flex border-b hover:z-[25] ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
             <div className={`sticky left-0 z-20 flex flex-none border-r border-slate-300 ${r.done ? 'bg-slate-300' : 'bg-white'}`} style={{ width: leftW }}>
-            <div className={`flex-none py-1.5 ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
+            <div className={`flex-none py-1 ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
               {r.therapist ? (
                 <>
-                  <p className="flex items-center gap-1">
+                  <p className="flex items-center gap-1 leading-[20px]">
                     {/* ★ 名前を押すと「出勤情報」（第550便） */}
                     <button type="button" onClick={() => onWork(r.therapist!)} className="truncate text-left text-[15px] font-black text-[#3f51b5] underline decoration-dotted underline-offset-2 hover:text-indigo-800">
                       {r.therapist.name}
