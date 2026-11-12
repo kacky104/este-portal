@@ -170,12 +170,12 @@ export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = [
   'courses',    // コース料金
   'therapists', // セラピスト一覧
   'diary',      // 写メ日記
-  'widgets',    // ウィジェット（第1899便・中身があるときだけ出る）
   'reviews',    // 口コミ
   'coupon',     // クーポン
   'news',       // お知らせ
   'freePages',  // フリーページ
   'banners',    // バナー
+  'widgets',    // ウィジェット（中身があるときだけ出る。第2003便で店舗情報のすぐ上へ・カッキーさんの指示）
   'info',       // 店舗情報
   'links',      // リンク
 ];
@@ -187,7 +187,7 @@ export const DEFAULT_HP_SECTION_ORDER: HpSectionKey[] = [
  * （以前はタイプSだけCSSで並べ替えていたため、管理画面の表示とずれていた）。
  */
 export const DEFAULT_HP_SECTION_ORDER_BY_TEMPLATE: Record<HpTemplateKey, HpSectionKey[]> = {
-  s: ['schedule', 'concept', 'courses', 'therapists', 'diary', 'widgets', 'reviews', 'coupon', 'news', 'freePages', 'info', 'links', 'banners'],
+  s: ['schedule', 'concept', 'courses', 'therapists', 'diary', 'reviews', 'coupon', 'news', 'freePages', 'widgets', 'info', 'links', 'banners'],
   a: DEFAULT_HP_SECTION_ORDER,
   b: DEFAULT_HP_SECTION_ORDER,
   c: DEFAULT_HP_SECTION_ORDER,
