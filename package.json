@@ -142,7 +142,8 @@
     "check:vpswatch": "tsc src/lib/vpsWatch.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/vpswatch-selftest.js",
     "check:zenkoku": "tsc src/lib/zenkokuParse.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/zenkoku-selftest.js",
     "check:stalldigest": "tsc src/lib/stallDigest.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/stalldigest-selftest.js",
-    "check:columnrefresh": "tsc src/lib/columnRefreshGuard.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/columnrefresh-selftest.js"
+    "check:columnrefresh": "tsc src/lib/columnRefreshGuard.ts --outDir _tmpcheck --module commonjs --target ES2020 --strict --skipLibCheck --esModuleInterop && node scripts/columnrefresh-selftest.js",
+    "check:mediapolicy": "node scripts/mediapolicy-selftest.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
