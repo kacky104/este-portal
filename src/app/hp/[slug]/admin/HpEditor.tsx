@@ -1140,7 +1140,7 @@ export function HpEditor({
                     className="w-7 h-5 rounded-none-md border border-t-0 border-slate-200 text-[10px] leading-none text-slate-500 disabled:opacity-25 hover:border-pink-300">▼</button>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-slate-600">ウィジェット{i + 1}（幅 {w.width} × 高さ {w.height}）</div>
+                  <div className="text-xs font-bold text-slate-600">{/^https:\/\/ranking-deli\.jp\/diarywidget\//.test(w.src) ? '駅ちか写メ日記ウィジェット' : /^https:\/\/ranking-deli\.jp\/reviewwidget\//.test(w.src) ? '駅ちか口コミウィジェット' : `ウィジェット${i + 1}`}（幅 {w.width} × 高さ {w.height}）</div>
                   <div className="text-[10px] text-slate-400 truncate">{w.src}</div>
                 </div>
                 <button type="button" onClick={() => setWidgets(form.blocks.widgets.filter((_, j) => j !== i))} aria-label="削除"
