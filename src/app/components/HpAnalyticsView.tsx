@@ -651,14 +651,6 @@ function Demographics({ salonId, from, to }: { salonId: number; from: string; to
         <DemoBars title="性別" rows={d.gender} />
         <DemoBars title="年齢" rows={d.age} />
       </div>
-      {d.thresholded && (
-        <p className="border-l-4 border-amber-500 bg-amber-50 px-4 py-2 text-[13px] text-amber-900">人数が少ないため、Google が一部の数を出していません（個人が分からないようにするため）。期間を長くすると出ることがあります。</p>
-      )}
-      <p className="text-[12px] leading-relaxed text-slate-500">
-        ・数は Google アナリティクスのものです（この期間の人数 {nf(d.users)}人）。上の「人数」とは数え方が違うので、少しずれます。<br />
-        ・性別と年齢が分かるのは、Google にログインして広告のカスタマイズを ON にしている人だけです。それ以外は「不明」になります。<br />
-        ・数は1日ほど遅れて出ます。測り始めた日（2026年11月）より前の数はありません。
-      </p>
     </div>
   );
 }
