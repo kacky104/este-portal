@@ -578,12 +578,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-1.5 py-0.5 text-[11px] font-bold text-white ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
           <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-1.5 py-0.5 text-[11px] font-bold text-white">▶</button>
           {nowButton}
-          <button type="button" onClick={toggleFold} className="ml-auto border border-slate-300 bg-white px-2.5 py-1.5 text-[12px] font-bold text-slate-600">▼ ひらく</button>
+          <button type="button" onClick={toggleFold} className="ml-auto border border-slate-300 bg-white px-4 py-0.5 text-[11px] font-bold text-slate-600">▼ ひらく</button>
         </div>
       ) : (
       <>
       <div className="-mb-1 flex justify-end">
-        <button type="button" onClick={toggleFold} className="border border-slate-300 bg-white px-2.5 py-1.5 text-[12px] font-bold text-slate-600">▲ たたむ</button>
+        <button type="button" onClick={toggleFold} className="border border-slate-300 bg-white px-4 py-0.5 text-[11px] font-bold text-slate-600">▲ たたむ</button>
       </div>
       {/* 日付と件数 */}
       {/* ★ スマホは風俗CTIv2 に近い詰めた形（日付と前日/今日/次日を1行・件数は小さく1行・第575便） */}
@@ -963,8 +963,9 @@ function Grid({
               )}
             </span>
             {memoOpen && (
-              <button type="button" onClick={toggleMemo} title="女子メモの列を閉じる（時間軸が広がります）" className="flex items-center border-l border-slate-300 px-2 text-left hover:bg-amber-100" style={{ width: memoW }}>
-                女子メモ<span className="ml-auto text-[11px] text-amber-700">◀</span>
+              <button type="button" onClick={toggleMemo} title="女子メモの列を閉じる（時間軸が広がります）" className={`flex items-center whitespace-nowrap border-l border-slate-300 text-left hover:bg-amber-100 ${narrow ? 'px-1' : 'px-2'}`} style={{ width: memoW }}>
+                {/* ★ 第1979便: スマホで「女子メ／モ」と2行に折れていた → 折り返さない・スマホは左右の余白を詰める */}
+                女子メモ<span className="ml-auto pl-0.5 text-[11px] text-amber-700">◀</span>
               </button>
             )}
           </div>
