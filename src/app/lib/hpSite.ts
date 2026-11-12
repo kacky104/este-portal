@@ -588,7 +588,7 @@ export const HP_LINK_SIZES: Array<{ key: HpLinkSize; label: string; px: number }
   { key: 'lg', label: '大', px: 728 },
 ];
 
-export const MAX_HP_LINK_BANNERS = 30;
+export const MAX_HP_LINK_BANNERS = 100;   // ★ 第1999便（2026-11-12・カッキーさん）: 30 → 100
 export const MAX_HP_LINK_LABEL_LEN = 60;
 
 /** DB から読んだ link_banners(jsonb) を安全な形に丸める。不正な要素は捨てる。 */
