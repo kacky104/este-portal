@@ -570,15 +570,19 @@ export async function saveCrmCustomer(
   if (phones.length > 5) return { ok: false, error: '電話番号は5件までです' };
 
   // 女子NGはこの店のセラピストだけに絞る
-  const { data: ts } = await svc.from('therapists').select('id').eq('salon_id', salonId);
+  // ★ 2026-11-12 点検#2: セラピストを読めなかったら保存しない。前は「この店にセラピストがいない」と受け取って、
+  //   女子NG が全部外れた状態で保存していた（画面は「保存しました」）
+  const { data: ts, error: tsErr } = await svc.from('therapists').select('id').eq('salon_id', salonId);
+  if (tsErr) return readFail(new Error(tsErr.message));
   const own = new Set((ts ?? []).map((t) => Number(t.id)));
   const ngIds = [...new Set((input.ngTherapistIds ?? []).map(Number))].filter((id) => own.has(id));
 
   // 電話番号が別のお客様に使われていないか
   if (phones.length > 0) {
-    const { data: used } = await svc
+    const { data: used, error: usedErr } = await svc
       .from('salon_customer_phones').select('customer_id, phone')
       .eq('salon_id', salonId).in('phone', phones);
+    if (usedErr) return readFail(new Error(usedErr.message)); // ★ 点検#2: 読めなかった回は「重なっていない」と決めつけない
     const clash = (used ?? []).find((u) => Number(u.customer_id) !== Number(input.customerId));
     if (clash) return { ok: false, error: `${clash.phone} は別のお客様に登録されています` };
   }
