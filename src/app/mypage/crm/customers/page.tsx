@@ -161,7 +161,7 @@ function CustomerForm({
       <div>
         <label className={labelCls}>女子NG（このお客様につけない人）</label>
         {shown.length === 0 ? (
-          <p className="text-[13px] text-slate-400">セラピストが登録されていません</p>
+          <p className="text-[13px] text-slate-400">女子が登録されていません</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {shown.map((t) => {

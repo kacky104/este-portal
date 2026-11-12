@@ -985,7 +985,7 @@ function Grid({
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
           <div className="sticky left-0 z-10 flex flex-none border-r border-slate-300 bg-slate-100 text-[12px] font-bold leading-[30px] text-slate-500" style={{ width: leftW }}>
             <span className={`flex items-center ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
-              セラピスト
+              女子
               {!memoOpen && (
                 <button type="button" onClick={toggleMemo} title="女子メモの列を開く" className="ml-auto whitespace-nowrap px-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100">
                   女子メモ ▶
@@ -1054,7 +1054,7 @@ function Grid({
                       </LineShareLink>
                     ) : (
                       <span
-                        title="設定の「セラピストへの公開」を ON にすると、LINE で知らせるボタンが使えます"
+                        title="設定の「女子への公開」を ON にすると、LINE で知らせるボタンが使えます"
                         className="flex-none cursor-not-allowed bg-slate-300 px-1 text-[10px] font-black leading-[16px] text-white"
                       >
                         LINE
@@ -2305,7 +2305,7 @@ function BookingForm({
             <div className="border border-indigo-200 bg-indigo-50/40 p-3">
               <p className="mb-2 text-[13px] font-black text-slate-700">料金（押して選ぶ）</p>
               {/* ★ 第1782便: 女の子別の料金を使っているとき */}
-              {customPricing && <p className="-mt-1 mb-2 text-[12px] font-bold text-emerald-700">{tName || 'この女の子'}さんの料金で計算しています</p>}
+              {customPricing && <p className="-mt-1 mb-2 text-[12px] font-bold text-emerald-700">{tName || 'この女子'}さんの料金で計算しています</p>}
               {CRM_PRICE_KINDS.map((kind) => {
                 const list = priceItems.filter((p) => p.kind === kind);
                 const kept = f.keepItems.filter((k) => k.kind === kind);
@@ -2495,7 +2495,7 @@ function MemoDialog({
           </div>
           <div className="p-4">
             <p className="mb-2 text-[12px] leading-relaxed text-slate-500">
-              お店の中だけのメモです（お客様・セラピスト本人には見えません）。日付に関係なく、この人にずっと残ります。
+              お店の中だけのメモです（お客様・女子本人には見えません）。日付に関係なく、この人にずっと残ります。
             </p>
             <textarea
               value={text}

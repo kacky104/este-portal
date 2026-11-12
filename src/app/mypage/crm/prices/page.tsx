@@ -206,15 +206,15 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
     <details className="group mb-3 border border-emerald-200 bg-white">
       <summary className="flex cursor-pointer list-none items-center gap-3 bg-emerald-50 px-4 py-2.5 [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">
-          <span className="text-[15px] font-black text-slate-800">女の子別の料金</span>
+          <span className="text-[15px] font-black text-slate-800">女子別の料金</span>
           {withCustom.size > 0 && <span className="ml-2 text-[12px] font-bold text-emerald-700">個別の料金あり {withCustom.size}人</span>}
         </span>
         <svg className="h-4 w-4 flex-none text-slate-400 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
       </summary>
       <div className="border-y border-emerald-200 bg-emerald-50 px-4 pb-2">
         <p className="text-[12px] leading-relaxed text-slate-600">
-          女の子によって料金・女子報酬が違うときに使います。変えたい項目だけ入れてください（空欄は上の基本の料金と同じ）。
-          予約の担当をその女の子にすると、その子の料金で計算されます。すでに入っている予約の金額は変わりません。
+          女子によって料金・女子報酬が違うときに使います。変えたい項目だけ入れてください（空欄は上の基本の料金と同じ）。
+          予約の担当をその女子にすると、その子の料金で計算されます。すでに入っている予約の金額は変わりません。
         </p>
       </div>
       <div className="space-y-3 px-4 py-3">
@@ -230,7 +230,7 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
           </div>
         )}
         <label className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-slate-600">
-          女の子を選ぶ
+          女子を選ぶ
           <select value={tid ?? ''} onChange={(e) => setTid(e.target.value ? Number(e.target.value) : null)}
             className="min-w-[200px] border border-slate-300 bg-white px-2 py-1.5 text-[14px] font-bold text-slate-700">
             <option value="">（選んでください）</option>

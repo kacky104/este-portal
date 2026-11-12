@@ -926,7 +926,7 @@ export async function saveCrmTherapistOrder(salonId: number, ids: number[]): Pro
   const raw = Array.isArray(ids) ? ids.map(Number).filter((n) => Number.isInteger(n) && n > 0) : [];
   if (raw.length === 0 || raw.length > 500) return { ok: false, error: '並び順を保存できませんでした' };
   const { data: ths, error: thErr } = await svc.from('therapists').select('id, name, is_active').eq('salon_id', salonId);
-  if (thErr) return { ok: false, error: 'セラピストを読み込めませんでした' };
+  if (thErr) return { ok: false, error: '女子を読み込めませんでした' };
   const all = (ths ?? []).map((t) => ({ id: Number(t.id), name: (t.name as string | null) ?? '', hidden: t.is_active === false }));
   const order = await readConecfGirlOrder(svc, salonId);
   // ★ いまの全体の並び（コネックエフの一覧と同じ並べ方）。公開中の方だけ
@@ -1024,7 +1024,7 @@ export async function saveCrmTherapistMemo(
 
   // その店のセラピストか確かめる
   const { data: t } = await svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
-  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: '女子が見つかりません' };
 
   if (!text) {
     const { error } = await svc.from('crm_therapist_memos').delete().eq('therapist_id', therapistId);
@@ -1260,7 +1260,7 @@ export async function saveCrmPriceOverrides(input: {
   const svc = auth.svc;
   const tid = Number(input.therapistId);
   const { data: t } = await svc.from('therapists').select('id').eq('salon_id', salonId).eq('id', tid).maybeSingle();
-  if (!t) return { ok: false, error: 'セラピストが見つかりません' };
+  if (!t) return { ok: false, error: '女子が見つかりません' };
   const { data: own } = await svc.from('crm_price_items').select('id').eq('salon_id', salonId);
   const ownIds = new Set((own ?? []).map((r) => Number(r.id)));
   const norm = (v: unknown): number | null | 'bad' => {
@@ -1527,7 +1527,7 @@ export async function confirmCrmPay(
   if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
   const svc = auth.svc;
   const { data: t } = await svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
-  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: '女子が見つかりません' };
   const al = Math.round(Number(allowance) || 0);
   if (al < -1000000 || al > 1000000) return { ok: false, error: '手当の金額が大きすぎます' };
   let mine: DayBooking[];
@@ -2170,7 +2170,7 @@ export async function setCrmWorkEnd(
   if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
   if (endType !== 'accept' && endType !== 'finish') return { ok: false, error: '種類が不正です' };
   const { data: t } = await auth.svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
-  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: '女子が見つかりません' };
   const { error } = await auth.svc.from('crm_work_ends').upsert({
     salon_id: salonId, therapist_id: therapistId, business_date: dateISO, end_type: endType,
     updated_at: new Date().toISOString(),
@@ -2224,7 +2224,7 @@ export async function saveCrmWorkDay(
   if (!auth.ok) return auth;
   if (!validDate(dateISO)) return { ok: false, error: '日付が不正です' };
   const { data: t } = await auth.svc.from('therapists').select('salon_id').eq('id', therapistId).maybeSingle();
-  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'セラピストが見つかりません' };
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: '女子が見つかりません' };
   const bs = wd.breakStartMin == null ? null : Math.round(Number(wd.breakStartMin));
   const be = wd.breakEndMin == null ? null : Math.round(Number(wd.breakEndMin));
   if ((bs == null) !== (be == null)) return { ok: false, error: '休憩は開始と終了の両方を選んでください' };
@@ -2588,14 +2588,14 @@ export async function addCrmMoneyMove(
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   const tid = Number(input.therapistId);
-  if (!Number.isInteger(tid) || tid <= 0) return { ok: false, error: 'セラピストを選んでください' };
+  if (!Number.isInteger(tid) || tid <= 0) return { ok: false, error: '女子を選んでください' };
   if (!validDate(String(input.date))) return { ok: false, error: '日付が不正です' };
   if (!(CRM_MONEY_DIRECTIONS as readonly string[]).includes(String(input.direction))) return { ok: false, error: '渡す向きが不正です' };
   if (!(CRM_MONEY_CATEGORIES as readonly string[]).includes(String(input.category))) return { ok: false, error: '種別が不正です' };
   const amount = Math.round(Number(input.amount) || 0);
   if (amount < 1 || amount > 10000000) return { ok: false, error: '金額は1円以上で入れてください' };
   const { data: t } = await auth.svc.from('therapists').select('salon_id').eq('id', tid).maybeSingle();
-  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'このお店のセラピストではありません' };
+  if (!t || Number(t.salon_id) !== salonId) return { ok: false, error: 'このお店の女子ではありません' };
   // ★ 第1225便（カッキーさん）: 二重送信よけ。同じセラピスト・同じ日・同じ向き・同じ種別・同じ金額の取り消していない記録が
   //   直近10秒以内にあれば入れない（画面の busy が効く前の二度押し・反応が遅いときの押し直し）。本当に2回なら10秒待てば入る。
   const { data: dup, error: dupErr } = await auth.svc.from('crm_money_moves').select('id')

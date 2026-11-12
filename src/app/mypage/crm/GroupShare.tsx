@@ -121,8 +121,8 @@ function AlertForm({
   return (
     <div className="space-y-3">
       <div className="border-l-4 border-indigo-300 bg-indigo-50 px-3 py-2 text-[12px] leading-relaxed text-slate-700">
-        <p>共有できるのは、セラピストやお店への危害だけです。無断キャンセル・料金のもめごとは共有できません（自店の台帳にだけ残してください）。</p>
-        <p className="mt-1">書くのは、起きた事実だけにしてください。セラピストの名前、お客様の住所・勤務先など、関係のないことは書かないでください。</p>
+        <p>共有できるのは、女子やお店への危害だけです。無断キャンセル・料金のもめごとは共有できません（自店の台帳にだけ残してください）。</p>
+        <p className="mt-1">書くのは、起きた事実だけにしてください。女子の名前、お客様の住所・勤務先など、関係のないことは書かないでください。</p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
@@ -171,11 +171,11 @@ function AlertForm({
       </div>
       <div>
         <label className={labelCls}>何をされたか <span className="text-rose-500">必須</span>（{CRM_GROUP_WHAT_MAX}字・ほかのお店の受付にも、そのまま出ます）</label>
-        <textarea className={`${inputCls} min-h-[72px]`} maxLength={CRM_GROUP_WHAT_MAX} value={f.what} onChange={(e) => set('what', e.target.value)} placeholder="例：施術のあと、セラピストの財布から現金がなくなっていた。" />
+        <textarea className={`${inputCls} min-h-[72px]`} maxLength={CRM_GROUP_WHAT_MAX} value={f.what} onChange={(e) => set('what', e.target.value)} placeholder="例：施術のあと、女子の財布から現金がなくなっていた。" />
       </div>
       <div>
         <label className={labelCls}>確かめ方（{CRM_GROUP_CHECKED_HOW_MAX}字）</label>
-        <input className={inputCls} maxLength={CRM_GROUP_CHECKED_HOW_MAX} value={f.checkedHow} onChange={(e) => set('checkedHow', e.target.value)} placeholder="例：セラピストの申告と、入室の記録で確認" />
+        <input className={inputCls} maxLength={CRM_GROUP_CHECKED_HOW_MAX} value={f.checkedHow} onChange={(e) => set('checkedHow', e.target.value)} placeholder="例：女子の申告と、入室の記録で確認" />
       </div>
       <div>
         <span className={labelCls}>共有する電話番号（台帳に載っている番号から選びます）</span>
@@ -306,7 +306,7 @@ export function GroupShareBox({ salonId, customerId }: { salonId: number; custom
             ) : (
               <>
                 <p className="text-[13px] leading-relaxed text-slate-600">
-                  暴力・盗み・つきまといなど、セラピストやお店に危害があったときに、このお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}へ知らせます。共有すると、この電話番号からほかのお店に予約が入ったとき、受付の画面に出ます。
+                  暴力・盗み・つきまといなど、女子やお店に危害があったときに、このお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}へ知らせます。共有すると、この電話番号からほかのお店に予約が入ったとき、受付の画面に出ます。
                 </p>
                 <button type="button" onClick={() => setEditing(true)} className="mt-2 border border-rose-400 bg-white px-3 py-1.5 text-[13px] font-bold text-rose-600">
                   {CRM_GROUP_ALERT_SOURCE_LABEL}に共有する

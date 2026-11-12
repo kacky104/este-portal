@@ -146,7 +146,7 @@ function GroupBody({ salonId, adminSalonQuery }: { salonId: number; adminSalonQu
           </button>
         </div>
         {/* ★ 第1326便（カッキーさん）: 説明は1行だけ（使い方の3行は消した） */}
-        <p className="mt-1.5 text-[12px] leading-relaxed text-slate-600">この内容を、{CRM_GROUP_ALERT_SOURCE_LABEL}の外に伝えたり、セラピストを守る目的のほかに使ったりしないでください。</p>
+        <p className="mt-1.5 text-[12px] leading-relaxed text-slate-600">この内容を、{CRM_GROUP_ALERT_SOURCE_LABEL}の外に伝えたり、女子を守る目的のほかに使ったりしないでください。</p>
         {guideOpen && guide && (
           <div className="mt-3 border border-indigo-200 bg-indigo-50 p-3">
             {guide.map((sec) => (

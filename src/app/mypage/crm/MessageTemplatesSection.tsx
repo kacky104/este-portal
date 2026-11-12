@@ -174,7 +174,7 @@ export function MessageTemplatesSection({ salonId }: { salonId: number }) {
         女子への予約連絡などを LINE に貼り付けて送るときにお使いください。使わない場合は、ひな形を作らなければ何も出ません。
       </p>
       <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-        ※ お客様の電話番号は入れられません（セラピストに電話番号を見せないため）。コピーした文章はフクエスCRMには残りません。
+        ※ お客様の電話番号は入れられません（女子に電話番号を見せないため）。コピーした文章はフクエスCRMには残りません。
       </p>
 
       {/* 一覧 */}

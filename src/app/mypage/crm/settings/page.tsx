@@ -39,7 +39,7 @@ const SETTING_TABS = [
   { key: 'cti', label: '着信ポップ（準備中）' }, // ★ 第1688便: 端末の導入が始まるまで「準備中」。外すときは CtiSettingsSection の見出しも
   { key: 'messages', label: '連絡文のひな形' }, // ★ 第1947便
   { key: 'consent', label: '来店時の同意書（QR）' },
-  { key: 'cast', label: 'セラピストへの公開' },
+  { key: 'cast', label: '女子への公開' },
   { key: 'money', label: '金銭授受' },
   { key: 'import', label: 'データの取り込み' },
 ] as const;
@@ -225,7 +225,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
 
       {tab === 'endbadge' && (
       <section className="mt-4 border border-slate-200 bg-white p-5">
-        <h2 className="text-[17px] font-black text-slate-800">セラピストの終わりの時刻のバッジ（既定）</h2>
+        <h2 className="text-[17px] font-black text-slate-800">女子の終わりの時刻のバッジ（既定）</h2>
         <div className="mt-3 space-y-2">
           {(['accept', 'finish'] as CrmEndType[]).map((t) => (
             <label key={t} className="flex cursor-pointer items-center gap-2 text-[14px]">
@@ -381,7 +381,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
       <section className="mt-4 border border-slate-200 bg-white p-5">
         <h2 className="text-[17px] font-black text-slate-800">来店時の同意書（QR）</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-          各部屋に置いた QR コードをお客様（かセラピスト・お店のタブレット）が読むと、この文面が出ます。
+          各部屋に置いた QR コードをお客様（か女子・お店のタブレット）が読むと、この文面が出ます。
           最後の「上記の内容をすべて了承します」に☑を入れ、指でサインして送信すると、その部屋のいまの予約に「了承済」とサインが記録されます。
           ★ スケジュールで名前を押した「出勤情報」で、その日の待機場所（部屋）を選んでおいてください（部屋から予約を探すため）。
         </p>
@@ -434,15 +434,15 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
 
       {tab === 'cast' && (
         <section className="border border-slate-200 bg-white p-5">
-          <h2 className="text-[17px] font-black text-slate-800">セラピストへの公開</h2>
+          <h2 className="text-[17px] font-black text-slate-800">女子への公開</h2>
           <label className="mt-3 flex cursor-pointer items-center gap-2 text-[15px] font-bold">
             <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.castPayEnabled} onChange={(e) => setSt({ ...st, castPayEnabled: e.target.checked })} />
-            セラピストにスケジュールを見せる
+            女子にスケジュールを見せる
           </label>
           <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
-            ON にすると、セラピスト本人のページ（/cast）に「スケジュール」タブが出て、<b>自分の出勤と予約</b>をタイムラインで見られます（日付を切り替えられます）。
+            ON にすると、女子本人のページ（/cast）に「スケジュール」タブが出て、<b>自分の出勤と予約</b>をタイムラインで見られます（日付を切り替えられます）。
             左の枠にはその日の待機場所（部屋）、予約には時間・お客様の名前・コースを出します。
-            報酬はその日の合計だけを出します（予約ごとの料金・報酬は出しません）。お客様の電話番号・お店のメモ・女子メモ・ほかのセラピストの予定は見せません。
+            報酬はその日の合計だけを出します（予約ごとの料金・報酬は出しません）。お客様の電話番号・お店のメモ・女子メモ・ほかの女子の予定は見せません。
           </p>
           <p className="mt-1 text-[12px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
         </section>
@@ -468,7 +468,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
               受領が未入力の予約は「女子が受領」とみなす
             </label>
             <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-              お客様がセラピストに直接お支払いするお店向けです。予約ごとに「受領」を選ばなくても、料金をセラピストが受け取ったものとして残高を数えます。
+              お客様が女子に直接お支払いするお店向けです。予約ごとに「受領」を選ばなくても、料金を女子が受け取ったものとして残高を数えます。
               支払いが<b>カード・PayPay</b>の分は「お店が受領」として数えます（現金とカードに分けた予約は、現金の分だけ女子が受領）。
               「受領」を選んだ予約は、選んだとおりに数えます。
             </p>
@@ -667,7 +667,7 @@ function ToggleSection({ toggles, onChange }: { toggles: CrmToggle[]; onChange: 
         選んだ選択肢は、スケジュールの名前の下にも小さく出ます（題名は出しません）。例）掛け持ち出勤　A・B・C
       </p>
       <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-        選択肢ごとに<b>予約の背景の色</b>（なし・黄・緑）を決められます。その選択肢を選んだ日は、そのセラピストの予約が選んだ色になります。
+        選択肢ごとに<b>予約の背景の色</b>（なし・黄・緑）を決められます。その選択肢を選んだ日は、その女子の予約が選んだ色になります。
       </p>
       <div className="mt-3 space-y-4">
         {toggles.map((t, i) => (
