@@ -8,6 +8,7 @@
 import { CRM_CATEGORY_CLASS, CRM_CATEGORY_LABEL, CRM_PLAY_LABEL, CRM_RECEIVED_LABEL, yen, type CrmPlayStatus } from '@/app/lib/crm/types';
 import type { CtiCallerInfo } from '@/app/actions/crmCti';
 import type { CtiHiddenReason } from '@/app/lib/crm/cti';
+import { useDragMove } from './_schedule/shared';
 
 export type CtiPanelCall = { phone: string | null; hidden: CtiHiddenReason | null; rangAtISO: string; test: boolean; count?: number };
 export type CtiPanelInfo = CtiCallerInfo | null | 'loading' | 'failed';
@@ -88,12 +89,13 @@ export function CtiCallPanel({
   const otherHits = hits.filter((h) => !h.mine);
   const isNg = cust?.category === 'ng' || otherHits.some((h) => h.level === 'ng');
   const last = data?.last ?? null;
+  const drag = useDragMove(); // ★ 上の青い帯をつかんで動かせる（受付フォームと同じ部品・ボタンは今までどおり押せる）
 
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-slate-900/40 p-2 pt-[70px] md:pt-[90px]" role="dialog" aria-modal="true" aria-label="着信">
-      <div className={`w-full max-w-[1180px] border-2 bg-white shadow-2xl ${isNg ? 'border-rose-600' : 'border-indigo-600'}`}>
+      <div style={drag.style} className={`w-full max-w-[1180px] border-2 bg-white shadow-2xl ${isNg ? 'border-rose-600' : 'border-indigo-600'}`}>
         {/* 上の帯：ボタン */}
-        <div className={`flex flex-wrap items-center gap-2 px-3 py-2 text-white ${isNg ? 'bg-rose-700' : 'bg-indigo-700'}`}>
+        <div {...drag.handle} className={`flex flex-wrap items-center gap-2 px-3 py-2 text-white ${drag.handleCls} ${isNg ? 'bg-rose-700' : 'bg-indigo-700'}`}>
           <span className="text-[16px] font-black">📞 着信</span>
           {call.test && <span className="border border-white/60 px-1 text-[11px] font-bold">テスト</span>}
           {(call.count ?? 1) > 1 && <span className="text-[12px]">（5分以内に{call.count}回）</span>}
