@@ -16,8 +16,18 @@ import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vib
 import { ctiPrefs, ctiLastId, setCtiLastId } from '@/app/lib/crm/ctiPrefs';
 import { crmGroupBadge } from '@/lib/crmGroup';
 import { safeAction, useCrmLinks } from './CrmBase';
+import { createClient } from '@/app/lib/supabase/client';
 
 const POLL_MS = 3_000;
+// ★ 第1973便（2026-11-12・点検#5）: 見張りを軽くする。
+//   前は 3秒ごとに Server Action（Vercel の関数1回＋Supabase 4往復）。画面1つで1日 約2.9万回。
+//   → 3秒ごとに読むのは「店ごとの印」（crm_cti_marks・最後の着信の番号だけ）を、ブラウザから Supabase へ直接1往復。
+//     番号が進んだときだけ、今までどおり Server Action で着信の中身を取りに行く。
+//   ・印を読めないとき（SQL の前・通信の失敗）は、その回は今までどおり Server Action で聞く（遅れない）
+//   ・印が動かなくても、SERVER_EVERY 回に1回（約60秒ごと）は Server Action で確かめる（印の付け忘れ・トリガーが無いときの保険）
+//   ・端末の無い店（60秒ごと）も、印が動いていなければ聞かない。IDLE_SERVER_EVERY 回に1回（約10分ごと）だけ確かめる
+const SERVER_EVERY = 20;
+const IDLE_SERVER_EVERY = 10;
 const IDLE_MS = 60_000; // 端末もテスト着信も無い店：1 分ごとに「まだ無いか」だけ軽く聞く（★ 第1686便の直し：前は止めっぱなしで、テスト着信を入れても画面更新まで出なかった）
 /** 設定タブの「テスト着信」が押されたとき（CtiSettingsSection → ここ）。すぐ聞きに行く */
 export const CTI_TEST_EVENT = 'crm:cti-test';
@@ -128,10 +138,37 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let busy = false;
+    let sinceServer = 0;                 // 最後に Server Action で聞いてから、印だけで済ませた回数
+    let idleMark: number | null = null;  // 端末の無い店で、最後に見た印の番号
+    let first = true;
+    /** 店ごとの印（最後の着信の番号）。読めなければ null */
+    const readMark = async (): Promise<number | null> => {
+      try {
+        const { data, error } = await createClient().from('crm_cti_marks').select('last_call_id').eq('salon_id', salonId).maybeSingle();
+        if (error) return null;
+        return data ? Number(data.last_call_id) || 0 : 0;
+      } catch { return null; }
+    };
     const poll = async () => {
       if (!alive || busy) return;
       busy = true;
       try {
+        // ★ 第1973便: まず印だけ読む。動いていなければ、この回はここで終わり（Server Action を呼ばない）
+        if (!first) {
+          const every = enabledRef.current ? SERVER_EVERY : IDLE_SERVER_EVERY;
+          if (sinceServer < every - 1) {
+            const mark = await readMark();
+            if (!alive) return;
+            if (mark !== null) {
+              const known = enabledRef.current ? lastIdRef.current : idleMark;
+              if (!enabledRef.current && idleMark === null) { idleMark = mark; sinceServer += 1; return; }
+              if (known != null && mark <= known) { sinceServer += 1; return; }
+              if (!enabledRef.current) idleMark = mark;
+            }
+          }
+        }
+        first = false;
+        sinceServer = 0;
         const r = await safeAction(getCrmIncomingCalls(salonId, lastIdRef.current));
         if (!alive) return;
         if (r.ok) {
@@ -153,7 +190,7 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
       }
     };
     // ★ テスト着信のボタン（設定タブ）→ 待たずにすぐ聞く
-    const onTest = () => { if (timer) clearTimeout(timer); timer = setTimeout(() => { void poll(); }, 300); };
+    const onTest = () => { first = true; if (timer) clearTimeout(timer); timer = setTimeout(() => { void poll(); }, 300); };
     window.addEventListener(CTI_TEST_EVENT, onTest);
     void poll();
     return () => { alive = false; if (timer) clearTimeout(timer); window.removeEventListener(CTI_TEST_EVENT, onTest); };
