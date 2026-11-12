@@ -118,9 +118,11 @@ import { crmOrdinalLabel } from '@/lib/crmBookingOrdinal';
 const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
 const MEMO_W = 160;             // 女子メモの列（2026-09-19）
-// ★ 第1977便: 66 → 72。名前・時刻・報酬の3行が 66px に収まらず、3行目の「確定」と ▲▼ の下が切れていた（前から）。
-//   左の枠の上下の余白を 6px → 4px、1行目の行の高さを 20px にして、3行で 70px（4+20+18+2+22+4）に収めた
-const ROW_H = 72;
+// ★★ 行の高さは伸ばさない（カッキーさん 2026-11-12:「店舗様は、できるだけ1画面にたくさんの行が写ることを喜ばれます」）。
+//   第1977便で 72 にしたのは誤り → 第1978便で 66 に戻した。
+//   名前・時刻・報酬の3行は、左の枠の中を詰めて 66px に収める（上下の余白 3px・1行目 20px・2行目 16px・3行目 22px ＝ 64px）。
+//   ★ 左の枠に何か足すときは、この 64px の中に収めること（はみ出すと3行目の「確定」と ▲▼ の下が切れる）
+const ROW_H = 66;
 /** ★ 第1787便: グループ予約の最大人数 */
 const PARTY_MAX = 10;
 /** ★ 第1786便: フリーの行の最大数（★ 第1788便: サーバーの「フリーは同じ時間に3件まで」と同じ数） */
@@ -998,7 +1000,7 @@ function Grid({
           <div key={r.key} className={`relative flex border-b hover:z-[25] ${r.done ? 'border-slate-300' : 'border-slate-200'}`} style={{ height: ROW_H }}>
             {/* 名前と女子メモ（左に固定） */}
             <div className={`sticky left-0 z-20 flex flex-none border-r border-slate-300 ${r.done ? 'bg-slate-300' : 'bg-white'}`} style={{ width: leftW }}>
-            <div className={`flex-none py-1 ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
+            <div className={`flex-none py-[3px] ${narrow ? 'px-1' : 'px-2'}`} style={{ width: nameW }}>
               {r.therapist ? (
                 <>
                   <p className="flex items-center gap-1 leading-[20px]">
@@ -1043,7 +1045,7 @@ function Grid({
                     })()}
                   </p>
                   {/* ★ 第1369便: 出勤時刻と本数は必ず全部出す（flex-none・折り返さない）。幅が足りないときはバッジの側が切れる（前は時刻が「11:00…」と切れた） */}
-                  <p className="flex items-center gap-1 overflow-hidden text-[12px] font-bold text-slate-600">
+                  <p className="flex items-center gap-1 overflow-hidden text-[12px] font-bold leading-[16px] text-slate-600">
                     <span className="flex-none whitespace-nowrap">
                       {r.therapist.schedules.length > 0
                         ? r.therapist.schedules.map((w) => shiftRangeText(w.start, w.end, '-')).join(' / ')
@@ -1079,7 +1081,7 @@ function Grid({
                     const cf = confirms.find((c) => c.therapistId === r.therapist!.id);
                     const changed = cf && (cf.payTotal !== pay || cf.bookingCount !== mine.length);
                     return (
-                      <div className="mt-0.5 flex min-h-[22px] items-center gap-1 whitespace-nowrap text-[12px] text-slate-500">{/* ★ 2026-10-09 点検（レイアウト）: 11px→12px・高さ22px。★ 第1367便: 本数は2行目へ・折り返さない */}
+                      <div className="flex h-[22px] items-center gap-1 whitespace-nowrap text-[12px] text-slate-500">{/* ★ 2026-10-09 点検（レイアウト）: 11px→12px・高さ22px。★ 第1367便: 本数は2行目へ・折り返さない */}
                         {cf ? (
                           <button
                             type="button"
@@ -1120,19 +1122,19 @@ function Grid({
                   const lanes = shown.filter((x) => x.therapist == null);
                   const idx = lanes.findIndex((x) => x.key === r.key);
                   const last = idx === lanes.length - 1;
-                  const btn = 'border border-amber-400 bg-white px-1.5 text-[11px] font-bold leading-[20px] text-amber-700 hover:bg-amber-50 disabled:opacity-40';
+                  const btn = 'border border-amber-400 bg-white px-1.5 text-[11px] font-bold leading-[18px] text-amber-700 hover:bg-amber-50 disabled:opacity-40';
                   return (
                     <>
                       {idx === 0 ? (
                         // ★ 第1785便: 押すとたたむ
-                        <button type="button" onClick={toggleFree} title="フリーの行をたたむ" className="flex items-center gap-1 text-left hover:opacity-80">
+                        <button type="button" onClick={toggleFree} title="フリーの行をたたむ" className="flex items-center gap-1 text-left leading-[20px] hover:opacity-80">
                           <span className="text-[11px] text-amber-700">▼</span>
                           <span className="text-[15px] font-black text-amber-600">フリー</span>
                         </button>
                       ) : (
-                        <p className="text-[15px] font-black text-amber-600">フリー{idx + 1}</p>
+                        <p className="text-[15px] font-black leading-[20px] text-amber-600">フリー{idx + 1}</p>
                       )}
-                      <p className="text-[11px] text-slate-400">担当未定の予約</p>
+                      <p className="text-[11px] leading-[14px] text-slate-400">担当未定の予約</p>
                       {last && (
                         <p className="mt-0.5 flex gap-1">
                           {lanes.length < FREE_ROWS_MAX && (
