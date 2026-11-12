@@ -116,6 +116,13 @@ import { crmOrdinalLabel } from '@/lib/crmBookingOrdinal';
 //   受付フォームで電話番号を入れると台帳を引き、分類・要注意・女子NG を出す（名前が空なら入れる）。
 // ★ 日付は【営業日】（朝6時区切り）。★ 表示は 6:00〜翌7:00 の中で、予定がある範囲（最低 10時〜翌5時）。
 
+/** ★ 第1984便: スマホの件数の行だけで使う短い金額。1万円以上は「12.5万」（0.1万＝千円の単位で四捨五入）、1万円未満は ¥9,500 */
+function yenShort(v: number): string {
+  if (Math.abs(v) < 10000) return yen(v);
+  const man = Math.round(v / 1000) / 10;
+  return `${Number.isInteger(man) ? man.toFixed(0) : man.toFixed(1)}万`;
+}
+
 const PX_PER_MIN = 1.6;       // 1時間＝96px
 const NAME_W = 150;
 const MEMO_W = 160;             // 女子メモの列（2026-09-19）
@@ -616,7 +623,16 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         </div>
         {nowButton}
         {view && (
-          <span className="w-full text-[11px] font-bold text-slate-700 md:ml-2 md:w-auto md:text-[14px]">
+          <>
+          {/* ★ 第1984便（カッキーさん）: スマホは件数を1行に収める。売上・報酬は「12.5万」の形（売上が6桁の日がほぼ毎日のため）・空白なし・「確定」と短く。
+              1万円未満はそのまま「¥9,500」。ぴったりの金額は PC と「締め作業」で見られる */}
+          <span className="w-full whitespace-nowrap text-[11px] font-bold tracking-tight text-slate-700 md:hidden">
+            予約<span className="text-[#3f51b5]">{view.activeCount}</span>本／出勤<span className="text-[#3f51b5]">{view.workingCount}</span>人／売上<span className="text-[#3f51b5]">{yenShort(view.sales)}</span>／報酬<span className="text-[#3f51b5]">{yenShort(view.payAll)}</span>（確定<span className="text-emerald-600">{data?.confirms.length ?? 0}</span>人）
+            {view.unreceived > 0 && (
+              <>／<button type="button" onClick={() => setPicked(view.unreceivedList[0])} className="text-rose-600 underline decoration-dotted underline-offset-2">未受領{view.unreceived}件</button></>
+            )}
+          </span>
+          <span className="hidden text-[14px] font-bold text-slate-700 md:ml-2 md:inline">
             予約数 <span className="text-[#3f51b5]">{view.activeCount}</span>本 ／ 出勤数 <span className="text-[#3f51b5]">{view.workingCount}</span>人
             {' '}／ 売上 <span className="text-[#3f51b5]">{yen(view.sales)}</span> ／ 報酬 <span className="text-[#3f51b5]">{yen(view.payAll)}</span>
             {' '}（報酬確定済 <span className="text-emerald-600">{data?.confirms.length ?? 0}</span>人）
@@ -625,6 +641,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
               <>{' '}／ <button type="button" onClick={() => setPicked(view.unreceivedList[0])} title="押すと、未受領のいちばん早い予約を開きます" className="text-rose-600 underline decoration-dotted underline-offset-2">未受領 {view.unreceived}件</button></>
             )}
           </span>
+          </>
         )}
         {data && (
           data.report ? (
