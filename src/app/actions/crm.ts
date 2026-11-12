@@ -2727,7 +2727,10 @@ async function phoneOwners(svc: Svc, salonId: number, phones: string[]): Promise
   const out = new Map<string, number>();
   const uniq = [...new Set(phones)];
   for (let i = 0; i < uniq.length; i += 300) {
-    const { data } = await svc.from('salon_customer_phones').select('phone, customer_id').eq('salon_id', salonId).in('phone', uniq.slice(i, i + 300));
+    const { data, error } = await svc.from('salon_customer_phones').select('phone, customer_id').eq('salon_id', salonId).in('phone', uniq.slice(i, i + 300));
+    // ★ 2026-11-12 点検#3: 読めなかったら投げる。前は「台帳に誰もいない」と受け取って全員を新規にし、
+    //   名前だけ作ったあと電話番号が重複で入らず、電話番号の無い同じ名前のお客様がまとめてできる道があった
+    if (error) throw new Error(error.message);
     (data ?? []).forEach((d) => out.set(String(d.phone), Number(d.customer_id)));
   }
   return out;
@@ -2741,7 +2744,8 @@ async function classifyImportUsing(svc: Svc, salonId: number, rows: { name: stri
   const ids = [...new Set([...owners.values()])];
   const names = new Map<number, string>();
   for (let i = 0; i < ids.length; i += 300) {
-    const { data } = await svc.from('salon_customers').select('id, name').eq('salon_id', salonId).in('id', ids.slice(i, i + 300));
+    const { data, error } = await svc.from('salon_customers').select('id, name').eq('salon_id', salonId).in('id', ids.slice(i, i + 300));
+    if (error) throw new Error(error.message); // ★ 点検#3: 名前を読めなかった回に「名前が空の人」と決めつけて上書きしない
     (data ?? []).forEach((c) => names.set(Number(c.id), String(c.name ?? '')));
   }
   const seen = new Set<string>();
@@ -2772,7 +2776,8 @@ export async function previewCrmImport(
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   const clean = cleanImportRows(rows);
-  const res = await classifyImport(auth.svc, salonId, clean);
+  let res: Awaited<ReturnType<typeof classifyImport>>;
+  try { res = await classifyImport(auth.svc, salonId, clean); } catch (e) { return readFail(e); } // ★ 点検#3
   return {
     ok: true,
     truncated: (rows ?? []).length > IMPORT_MAX,
@@ -2788,7 +2793,10 @@ export async function importCrmCustomers(
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
   const svc = auth.svc;
-  const { owners, rows: res } = await classifyImportWithOwners(svc, salonId, cleanImportRows(rows));
+  // ★ 点検#3: 台帳を読めなかった回は、1人も作らずに止める
+  let classified: Awaited<ReturnType<typeof classifyImportWithOwners>>;
+  try { classified = await classifyImportWithOwners(svc, salonId, cleanImportRows(rows)); } catch (e) { return readFail(e); }
+  const { owners, rows: res } = classified;
   let created = 0;
   let updated = 0;
   let skipped = 0;
@@ -2806,9 +2814,22 @@ export async function importCrmCustomers(
     const { error: pErr } = await svc.from('salon_customer_phones').insert(phoneRows);
     if (pErr) {
       // まとめて入らなければ1件ずつ（その間に同じ番号が登録された等）
-      for (const p of phoneRows) await svc.from('salon_customer_phones').insert(p);
+      // ★ 点検#3: 1つも番号が入らなかった人は、作った行を消す（電話番号の無いお客様を残さない＝次の電話で台帳に当たらない）
+      const okIds = new Set<number>();
+      for (const p of phoneRows) {
+        const { error: oneErr } = await svc.from('salon_customer_phones').insert(p);
+        if (!oneErr) okIds.add(p.customer_id);
+      }
+      const orphan = data.map((d) => Number(d.id)).filter((id) => !okIds.has(id));
+      if (orphan.length > 0) {
+        const { error: oErr } = await svc.from('salon_customers').delete().eq('salon_id', salonId).in('id', orphan);
+        if (oErr) console.error('[crm] 取り込み: 番号の入らなかった行を消せなかった', salonId, orphan.length, oErr.message);
+      }
+      created += chunk.length - orphan.length;
+      skipped += orphan.length;
+    } else {
+      created += chunk.length;
     }
-    created += chunk.length;
   }
 
   // もう台帳にいる人：名前が空なら入れる・足りない番号を足す（5件まで）
