@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCrmLinks, safeAction } from './CrmBase';
 import { appConfirm } from '@/app/components/AppConfirm';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import {
   closeCrmDay,
   confirmCrmPay,
@@ -553,6 +554,8 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   }, [data, date, baseMs, nowMs]);
 
   const isToday = date === businessTodayJST();
+  // ★ 第1981便: 「アラームの音をON」を置く場所（日付の行の右端）
+  const [alarmHost, setAlarmHost] = useState<HTMLSpanElement | null>(null);
   // ★ 第1218便: 「今」ボタン（今日だけ）。横に流したあと、赤い線の位置へ戻る手段が無かった。
   const [nowJump, setNowJump] = useState(0);
   const nowButton = isToday && view ? (
@@ -560,7 +563,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
   ) : null;
 
   return (
-    <div className="px-1.5 py-1.5 md:px-4 md:py-3">
+    <div className="px-1.5 py-1.5 md:px-4 md:py-2">
       {data && (
         <AlarmCenter
           salonId={salonId}
@@ -569,6 +572,7 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           therapists={data.therapists}
           alarms={data.settings.alarms}
           hideButton={folded}
+          buttonHost={alarmHost}
         />
       )}
       {folded ? (
@@ -579,16 +583,19 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
           <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-1.5 py-0.5 text-[11px] font-bold text-white ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
           <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-1.5 py-0.5 text-[11px] font-bold text-white">▶</button>
           {nowButton}
-          <button type="button" onClick={toggleFold} className="ml-auto border border-slate-300 bg-white px-4 py-0.5 text-[11px] font-bold text-slate-600">▼ ひらく</button>
+          <span className="ml-auto flex items-center gap-1">
+            <span ref={setAlarmHost} className="contents" />
+            <button type="button" onClick={toggleFold} className="border border-slate-300 bg-white px-4 py-0.5 text-[11px] font-bold text-slate-600">▼ ひらく</button>
+          </span>
         </div>
       ) : (
       <>
-      <div className="-mb-1 flex justify-end">
-        <button type="button" onClick={toggleFold} className="border border-slate-300 bg-white px-4 py-0.5 text-[11px] font-bold text-slate-600">▲ たたむ</button>
-      </div>
       {/* 日付と件数 */}
+      {/* ★ 第1981便（カッキーさん）: 表の上の隙間を詰めた。前は「アラームの音をON」「たたむ」「日付と件数」が3段だった
+          → 1段にまとめ、アラームの音と「たたむ」は右端へ（入りきらない幅では次の行の右に回る）。
+          「空いているところを押すと受付できます」は外した（使い方のページにある） */}
       {/* ★ スマホは風俗CTIv2 に近い詰めた形（日付と前日/今日/次日を1行・件数は小さく1行・第575便） */}
-      <div className="mb-1.5 flex flex-wrap items-center gap-1 md:mb-3 md:gap-2">
+      <div className="mb-1.5 flex flex-wrap items-center gap-1 md:mb-2 md:gap-2">
         <span className="text-[14px] font-black text-slate-800 md:text-[20px]">{dateLabel(date)}</span>
         <div className="flex">
           <label className="relative flex items-center bg-[#3f51b5] px-1.5 py-1 text-[11px] font-bold text-white md:hidden" aria-label="日付を選ぶ">
@@ -628,7 +635,10 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
             </button>
           )
         )}
-        <span className="ml-auto hidden text-[12px] text-slate-500 md:inline">空いているところを押すと受付できます</span>
+        <span className="ml-auto flex items-center gap-1 md:gap-2">
+          <span ref={setAlarmHost} className="contents" />
+          <button type="button" onClick={toggleFold} className="border border-slate-300 bg-white px-4 py-0.5 text-[11px] font-bold text-slate-600 md:py-1 md:text-[12px]">▲ たたむ</button>
+        </span>
       </div>
 
       </>
@@ -2632,7 +2642,7 @@ type ActiveAlarm = { key: string; bookingId: string; text: string; until: number
 const FIRED_KEY = 'crm_alarm_fired';
 
 function AlarmCenter({
-  salonId, isToday, bookings, therapists, alarms, hideButton = false,
+  salonId, isToday, bookings, therapists, alarms, hideButton = false, buttonHost = null,
 }: {
   salonId: number;
   isToday: boolean;
@@ -2641,6 +2651,8 @@ function AlarmCenter({
   alarms: CrmAlarm[];
   /** ★ 第1229便: 表の上をたたんでいるときは小さいボタンにする（前は出していなかった＝スマホは最初からたたんであるので、実質 ON にできなかった） */
   hideButton?: boolean;
+  /** ★ 第1981便: 「アラームの音をON」のボタンを置く場所（日付の行の右端）。無ければ今までどおり表の上に1行 */
+  buttonHost?: HTMLElement | null;
 }) {
   const [ready, setReady] = useState(false);
   const readyRef = useRef(false);
@@ -2752,22 +2764,27 @@ function AlarmCenter({
     }{animation:crmAlarmBlink .8s linear infinite;z-index:30}`
     : '';
 
+  // ★ 第1981便（カッキーさん）: 表の上の隙間を詰める。ボタンは日付の行の右端（buttonHost）へ出し、
+  //   鳴っているときの赤い帯だけここ（表の上）に出す。説明「画面を開くたびに1回押してください」はボタンの title へ
+  const button = !ready ? (
+    <button
+      type="button"
+      onClick={async () => { const ok = await unlockAlarmAudio(); setReady(ok && alarmAudioReady()); if (ok) playAlarmOnce(1); }}
+      title="アラームの音を鳴らせるようにします（画面を開くたびに1回押してください）"
+      className="whitespace-nowrap border border-amber-500 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 md:px-3 md:py-1 md:text-[13px]"
+    >
+      {hideButton ? '🔔 音をON' : '🔔 アラームの音をON'}
+    </button>
+  ) : (
+    <span className="inline-block whitespace-nowrap bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white md:py-1 md:text-[13px]">🔔 {hideButton ? 'ON' : 'アラームON'}</span>
+  );
+
   return (
-    <div className="mb-2">
+    <>
       {blinkCss && <style>{blinkCss}</style>}
-      {!ready ? (
-        <button
-          type="button"
-          onClick={async () => { const ok = await unlockAlarmAudio(); setReady(ok && alarmAudioReady()); if (ok) playAlarmOnce(1); }}
-          className="border border-amber-500 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 md:border-2 md:px-3 md:py-1 md:text-[13px]"
-        >
-          {hideButton ? '🔔 音をONにする' : <>🔔 アラームの音をONにする<span className="hidden md:inline">（画面を開くたびに1回押してください）</span></>}
-        </button>
-      ) : (
-        <span className="inline-block bg-emerald-600 px-2 py-0.5 text-[12px] font-bold text-white">🔔 {hideButton ? 'ON' : 'アラームON'}</span>
-      )}
+      {buttonHost ? createPortal(button, buttonHost) : <div className="mb-2">{button}</div>}
       {active.length > 0 && (
-        <div className="sticky top-0 z-40 mt-2 space-y-1">
+        <div className="sticky top-0 z-40 mb-2 space-y-1">
           {active.map((a) => (
             <div key={a.key} className="flex items-center gap-2 bg-rose-600 px-3 py-2 text-[14px] font-bold text-white shadow-lg">
               <span className="animate-pulse">⏰</span>
@@ -2780,7 +2797,7 @@ function AlarmCenter({
           )}
         </div>
       )}
-    </div>
+    </>
   );
 }
 
