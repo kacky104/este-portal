@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getHpAnalytics, type HpAnalytics, type HpTotals } from '@/app/actions/hpAnalytics';
 import { connectHpSearch, getHpSearch, type HpSearchData } from '@/app/actions/hpSearch';
+import { getHpDemographics, type HpDemographics, type HpDemoRow } from '@/app/actions/hpDemographics';
 import { jstDayHour, HP_EK_KINDS, HP_EK_LABEL } from '@/lib/hpStats';
 import { FUKUES_ORIGIN } from '@/lib/crmHost';
 
@@ -12,9 +13,9 @@ import { FUKUES_ORIGIN } from '@/lib/crmHost';
 //   ★ 色: 1系列の棒は1色（青）。時間帯の表は青の濃淡（多いほど濃い）。増減の矢印は文字＋記号（色だけにしない）。
 
 // ★ 第1889便（カッキーさん）: スマホだけ「TOP」（数のタイル）を1ページ目にする。ほかのタブ（スマホ）は数のタイルを出さない
-type Tab = 'top' | 'summary' | 'sources' | 'search' | 'pages' | 'therapists' | 'hours' | 'help';
+type Tab = 'top' | 'summary' | 'sources' | 'search' | 'demo' | 'pages' | 'therapists' | 'hours' | 'help';
 const TABS: Array<[Tab, string]> = [
-  ['summary', 'サマリー'], ['sources', '流入元'], ['search', '検索ワード'], ['pages', 'ページ'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方'],
+  ['summary', 'サマリー'], ['sources', '流入元'], ['search', '検索ワード'], ['demo', '性別・年齢'], ['pages', 'ページ'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方'],
 ];
 const BLUE = '#2563eb';
 const nf = (n: number) => n.toLocaleString('ja-JP');
@@ -45,6 +46,7 @@ const TAB_HEAD: Record<Tab, [string, string]> = {
   summary: ['サマリーレポート', '人数と、電話・LINE などの日ごとの動き'],
   sources: ['集客レポート', 'どこから来て、どれだけ電話・LINE などにつながったか'],
   search: ['検索ワードレポート', 'Google でどんな言葉で探されて、どれだけ押されたか（Google Search Console）'],
+  demo: ['ユーザー属性レポート', '来た人の性別と年齢（Google アナリティクス）'],
   pages: ['ページレポート', 'どのページがよく見られたか'],
   therapists: ['セラピスト別レポート', 'どのセラピストのページがよく見られたか'],
   hours: ['時間帯レポート', '何曜日の何時によく見られ、電話・LINE などが来るか'],
@@ -171,6 +173,7 @@ export function HpAnalyticsView({ salonId, siteLinks = false }: { salonId: numbe
           </div>
           {tab === 'sources' && <Sources d={d} />}
           {tab === 'search' && <SearchWords salonId={salonId} from={range[0]} to={range[1]} />}
+          {tab === 'demo' && <Demographics salonId={salonId} from={range[0]} to={range[1]} />}
           {tab === 'pages' && <Pages d={d} />}
           {tab === 'therapists' && <Therapists d={d} />}
           {tab === 'hours' && <Hours d={d} />}
@@ -192,7 +195,7 @@ const NAV_ICON: Record<string, React.ReactNode> = {
   pages: <><path d="M14 3H6v18h12V7z" /><path d="M14 3v4h4" /></>,
   more: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>,
 };
-const MORE_TABS: Array<[Tab, string]> = [['search', '検索ワード'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方']];
+const MORE_TABS: Array<[Tab, string]> = [['search', '検索ワード'], ['demo', '性別・年齢'], ['therapists', 'セラピスト'], ['hours', '時間帯'], ['help', '見方']];
 
 function MobileNav({ tab, onPick }: { tab: Tab; onPick: (t: Tab) => void }) {
   const [open, setOpen] = useState(false);
@@ -597,6 +600,64 @@ function SearchWords({ salonId, from, to }: { salonId: number; from: string; to:
         ・数は Google Search Console のものです（Google のデータは2〜3日遅れます）。<br />
         ・「表示回数」は Google の検索結果に出た回数、「クリック」はそこから公式HP に来た回数です。「平均の順位」は小さいほど上に出ています。<br />
         ・人数が少なくて個人が分かりそうな検索ワードは、Google が出しません（合計には入っています）。
+      </p>
+    </div>
+  );
+}
+
+// ── 性別・年齢（第1996便・2026-11-12・カッキーさん）──────────────────
+// ★ Google アナリティクス（GA4・Google シグナル）の数。Google にログインして広告のカスタマイズを ON にしている人だけ分かる（ほかは「不明」）。
+// ★ 人数が少ないと Google が行を出さない。1系列なので棒は1色（青）。割合は「分かった人」の中で出す（不明は別に数だけ）。
+function DemoBars({ title, rows }: { title: string; rows: HpDemoRow[] }) {
+  const known = rows.filter((r) => r.key !== 'unknown');
+  const unknown = rows.find((r) => r.key === 'unknown')?.users ?? 0;
+  const sum = known.reduce((a, r) => a + r.users, 0);
+  const max = Math.max(1, ...known.map((r) => r.users));
+  return (
+    <div className="bg-white p-4">
+      <p className="mb-2 text-[15px] font-black text-slate-800">{title}</p>
+      {known.length === 0 ? <p className="text-[13px] text-slate-500">まだ分かる人がいません</p> : (
+        <ul className="space-y-1.5">
+          {known.map((r) => (
+            <li key={r.key} className="grid grid-cols-[4.5em_1fr_6.5em] items-center gap-2 text-[13px]">
+              <span className="font-bold text-slate-700">{r.label}</span>
+              <span className="h-4 bg-slate-100"><span className="block h-4" style={{ width: `${(r.users / max) * 100}%`, background: BLUE }} /></span>
+              <span className="text-right text-slate-700">{nf(r.users)}人（{sum > 0 ? Math.round((r.users / sum) * 100) : 0}%）</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-[12px] text-slate-500">不明：{nf(unknown)}人（割合は分かった人の中で出しています）</p>
+    </div>
+  );
+}
+
+function Demographics({ salonId, from, to }: { salonId: number; from: string; to: string }) {
+  const key = `${salonId}|${from}|${to}`;
+  const [res, setRes] = useState<{ key: string; data: HpDemographics | null; err: string } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getHpDemographics({ salonId, from, to })
+      .then((r) => { if (alive) setRes(r.ok ? { key, data: r.data, err: '' } : { key, data: null, err: r.error }); })
+      .catch(() => { if (alive) setRes({ key, data: null, err: '読み込めませんでした。しばらくしてから開き直してください。' }); });
+    return () => { alive = false; };
+  }, [salonId, from, to, key]);
+  if (!res || res.key !== key) return <div className="bg-white p-8 text-center text-[14px] text-slate-400">読み込み中…</div>;
+  if (!res.data) return <div className="bg-white p-6 text-center text-[14px] font-bold text-rose-600">{res.err}</div>;
+  const d = res.data;
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2">
+        <DemoBars title="性別" rows={d.gender} />
+        <DemoBars title="年齢" rows={d.age} />
+      </div>
+      {d.thresholded && (
+        <p className="border-l-4 border-amber-500 bg-amber-50 px-4 py-2 text-[13px] text-amber-900">人数が少ないため、Google が一部の数を出していません（個人が分からないようにするため）。期間を長くすると出ることがあります。</p>
+      )}
+      <p className="text-[12px] leading-relaxed text-slate-500">
+        ・数は Google アナリティクスのものです（この期間の人数 {nf(d.users)}人）。上の「人数」とは数え方が違うので、少しずれます。<br />
+        ・性別と年齢が分かるのは、Google にログインして広告のカスタマイズを ON にしている人だけです。それ以外は「不明」になります。<br />
+        ・数は1日ほど遅れて出ます。測り始めた日（2026年11月）より前の数はありません。
       </p>
     </div>
   );

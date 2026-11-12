@@ -106,6 +106,15 @@ export function buildHpTerms(salonName: string): HpTermsSection[] {
       ],
     },
     {
+      // ★ 第1996便（2026-11-12）: Google アナリティクス（GA4・Google シグナル）を入れたので、外部への送信を知らせる（電気通信事業法の外部送信規律）
+      heading: 'アクセス解析ツールについて',
+      paragraphs: [
+        '本サイトでは、サイトの利用状況を把握するため、Google LLC が提供する「Google アナリティクス」を利用しています。Google アナリティクスは Cookie 等を使用して、閲覧したページ・閲覧日時・利用環境（端末・ブラウザ）・参照元などの情報を収集し、Google LLC に送信します。これらの情報には、お名前・電話番号など個人を特定する情報は含まれません。',
+        'また、Google のアカウントにログインし広告のカスタマイズを有効にしている方については、Google シグナルにより、年齢層・性別などの統計情報（個人を特定しない集計値）を利用することがあります。',
+        'Google によるデータの取り扱いは「Google のサービスを使用するサイトやアプリから収集した情報の Google による使用」（https://policies.google.com/technologies/partner-sites）をご覧ください。収集を望まない場合は、Google アナリティクス オプトアウト アドオン（https://tools.google.com/dlpage/gaoptout）をご利用いただくか、ブラウザの設定で Cookie を無効にしてください。',
+      ],
+    },
+    {
       heading: '本規約の変更',
       paragraphs: [
         '本規約の内容は、必要に応じて変更する場合があります。変更後の内容は、本ページに掲載した時点から効力を生じるものとします。',

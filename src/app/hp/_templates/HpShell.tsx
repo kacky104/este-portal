@@ -24,6 +24,7 @@ import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpFooterPageLinks, hpJobsUrl, hpMenuItems, hpTopbarNavItems, type HpPageKey } from '@/app/hp/_lib/sections';
 import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS, scaleHpFontSizes } from './styles';
 import { hpTrackScript } from '@/app/hp/_lib/trackScript';
+import { HP_GA_ID, hpGaScript, isValidHpGaId } from '@/app/hp/_lib/gaHp';
 
 /**
  * 外枠の作り。
@@ -335,6 +336,8 @@ export function HpShell({
 
       {/* ★ 第1792便: アクセス解析の計測（閲覧・電話/LINE/ネット予約（第1878便）のタップ。中身は src/app/hp/_lib/trackScript.ts） */}
       <script dangerouslySetInnerHTML={{ __html: hpTrackScript(site.slug) }} />
+      {/* ★ 第1996便: Google アナリティクス（全店共通のプロパティ「フクエス公式HP」・性別と年齢を見るため）。中身は src/app/hp/_lib/gaHp.ts */}
+      {isValidHpGaId(HP_GA_ID) && <script dangerouslySetInnerHTML={{ __html: hpGaScript(HP_GA_ID) }} />}
     </div>
   );
 }
