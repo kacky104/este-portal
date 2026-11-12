@@ -213,12 +213,14 @@ async function statsFor(svc: Svc, salonId: number, ids: number[]): Promise<Map<n
   }
   if (error) console.error('[crm] crm_customer_stats を読めませんでした（今までの読み方で数えます）:', error.message);
 
-  const { data } = await svc
+  const { data, error: fbErr } = await svc
     .from('salon_bookings')
     .select('customer_id, slot_start, status, cancel_bad')
     .eq('salon_id', salonId)
     .in('customer_id', ids)
     .limit(5000);
+  // ★ 第1987便（点検 §3）: 予備の道も読めなければ投げる（「利用0回」と出さない）。呼び出し側は try/catch → readFail
+  if (fbErr) throw new Error(fbErr.message);
   const now = Date.now();
   for (const b of data ?? []) {
     const s = out.get(Number(b.customer_id));
@@ -272,11 +274,13 @@ async function bookingOrdinalsFor(svc: Svc, salonId: number, customerIds: number
 async function phonesFor(svc: Svc, ids: number[]): Promise<Map<number, string[]>> {
   const out = new Map<number, string[]>();
   if (ids.length === 0) return out;
-  const { data } = await svc
+  const { data, error } = await svc
     .from('salon_customer_phones')
     .select('customer_id, phone')
     .in('customer_id', ids)
     .order('id', { ascending: true });
+  // ★ 第1987便（点検 §3）: 読めなければ投げる。★ 空のまま詳細を開くと、そのまま保存したときに登録済みの番号が消える
+  if (error) throw new Error(error.message);
   for (const p of data ?? []) {
     const k = Number(p.customer_id);
     out.set(k, [...(out.get(k) ?? []), String(p.phone)]);
@@ -358,7 +362,13 @@ export async function searchCrmCustomers(
   }
 
   const ids = rows.map((r) => Number(r.id));
-  const [stats, phones] = await Promise.all([statsFor(svc, salonId, ids), phonesFor(svc, ids)]);
+  let stats: Awaited<ReturnType<typeof statsFor>>;
+  let phones: Awaited<ReturnType<typeof phonesFor>>;
+  try {
+    [stats, phones] = await Promise.all([statsFor(svc, salonId, ids), phonesFor(svc, ids)]);
+  } catch (e) {
+    return readFail(e); // ★ 第1987便
+  }
   return {
     ok: true,
     customers: rows.map((r) => ({
@@ -394,7 +404,12 @@ export async function listCrmDormantCustomers(
   if (error) return { ok: false, error: dbMessage(error) };
   const rows = (data ?? []) as Array<{ id: unknown; name: unknown; member_no: unknown; category: unknown }>;
   const ids = rows.map((r) => Number(r.id));
-  const stats = await statsFor(svc, salonId, ids);
+  let stats: Awaited<ReturnType<typeof statsFor>>;
+  try {
+    stats = await statsFor(svc, salonId, ids);
+  } catch (e) {
+    return readFail(e); // ★ 第1987便
+  }
   const now = Date.now();
   const limitMs = now - d * 86400_000;
   const out: CrmDormantCustomer[] = [];
@@ -474,15 +489,24 @@ export async function getCrmCustomer(
   if (error || !c) return { ok: false, error: 'お客様が見つかりません' };
   const row = c as CustomerDbRow;
 
-  const [stats, phones, bRes, tRes] = await Promise.all([
-    statsFor(svc, salonId, [customerId]),
-    phonesFor(svc, [customerId]),
+  // ★ 第1987便（点検 §3）: 電話番号・予約履歴・セラピストのどれかを読めなければ、詳細を開かない
+  //   （電話番号が空のまま開いて保存すると、登録済みの番号が消える＝saveCrmCustomer は送られた番号に合わせて足し引きする）
+  let cMap: Map<string, string>;
+  const [statsR, phonesR, bRes, tRes] = await Promise.all([
+    statsFor(svc, salonId, [customerId]).then((v) => ({ ok: true as const, v })).catch((e: unknown) => ({ ok: false as const, e })),
+    phonesFor(svc, [customerId]).then((v) => ({ ok: true as const, v })).catch((e: unknown) => ({ ok: false as const, e })),
     svc.from('salon_bookings')
       .select('id, slot_start, slot_end, course_name, course_min, therapist_id, status, cancel_bad, source, note, customer_name')
       .eq('salon_id', salonId).eq('customer_id', customerId)
       .order('slot_start', { ascending: false }).limit(HISTORY_LIMIT),
     svc.from('therapists').select('id, name, is_active').eq('salon_id', salonId).order('id', { ascending: true }),
   ]);
+  if (!statsR.ok) return readFail(statsR.e);
+  if (!phonesR.ok) return readFail(phonesR.e);
+  if (bRes.error) return readFail(new Error(bRes.error.message));
+  if (tRes.error) return readFail(new Error(tRes.error.message));
+  const stats = statsR.v;
+  const phones = phonesR.v;
 
   const therapists: CrmTherapist[] = (tRes.data ?? []).map((t) => ({
     id: Number(t.id),
@@ -507,7 +531,11 @@ export async function getCrmCustomer(
     consentAt: null as string | null,
   }));
   // 同意書（第574便）：過去の予約のサインも台帳から見られるように
-  const cMap = await consentMap(svc, salonId, bookings.map((b) => b.id));
+  try {
+    cMap = await consentMap(svc, salonId, bookings.map((b) => b.id));
+  } catch (e) {
+    return readFail(e); // ★ 第1987便
+  }
   bookings.forEach((b) => { b.consentAt = cMap.get(b.id) ?? null; });
 
   return {
@@ -1201,8 +1229,10 @@ export async function deleteCrmPriceItem(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const auth = await assertCrm(salonId);
   if (!auth.ok) return auth;
-  const { data: cur } = await auth.svc
+  const { data: cur, error: curErr } = await auth.svc
     .from('crm_price_items').select('kind, name').eq('salon_id', salonId).eq('id', id).maybeSingle();
+  // ★ 第1987便（点検 §3）: 読めなければ消さない（最初から用意されている指名まで消せてしまう）
+  if (curErr) return { ok: false, error: '項目を確かめられませんでした。もう一度お試しください' };
   if (cur && isFixedNomination(String(cur.kind), String(cur.name))) {
     return { ok: false, error: '最初から用意されている項目は消せません（要らなければ「使う」を外してください）' };
   }
@@ -2253,14 +2283,18 @@ async function roomClash(svc: Svc, salonId: number, therapistId: number, dateISO
     .eq('salon_id', salonId).eq('business_date', dateISO).eq('room', room)
     .neq('therapist_id', therapistId);
   q = roomSalonId == null ? q.is('room_salon_id', null) : q.eq('room_salon_id', roomSalonId);
-  const { data: others } = await q;
+  // ★ 第1987便（点検 §3）: 読めなければ保存しない（重なりを見落として通さない）
+  const CLASH_READ_FAIL = '部屋の重なりを確かめられませんでした。もう一度お試しください';
+  const { data: others, error: oErr } = await q;
+  if (oErr) return CLASH_READ_FAIL;
   const otherIds = (others ?? []).map((o) => Number(o.therapist_id));
   if (otherIds.length === 0) return null;
   const ids = [therapistId, ...otherIds];
-  const { data: sch } = await svc
+  const { data: sch, error: sErr } = await svc
     .from('therapist_schedules')
     .select('therapist_id, start_time, end_time')
     .in('therapist_id', ids).eq('schedule_date', dateISO).eq('is_active', true);
+  if (sErr) return CLASH_READ_FAIL;
   const win = new Map<number, Array<{ s: number; e: number; label: string }>>();
   for (const r of sch ?? []) {
     if (!r.start_time || !r.end_time) continue;
@@ -2327,7 +2361,9 @@ function toMove(r: Record<string, unknown>, names: Map<number, string>): CrmMone
 }
 
 async function therapistNames(svc: Svc, salonId: number): Promise<Map<number, string>> {
-  const { data } = await svc.from('therapists').select('id, name').eq('salon_id', salonId);
+  const { data, error } = await svc.from('therapists').select('id, name').eq('salon_id', salonId);
+  // ★ 第1987便（点検 §3）: 読めなければ投げる（全員「(不明)」と出さない）。呼び出し側は try/catch → readFail
+  if (error) throw new Error(error.message);
   return new Map((data ?? []).map((t) => [Number(t.id), String(t.name ?? '')]));
 }
 
@@ -2512,15 +2548,17 @@ export async function getCrmMoneyDay(
   const totalsP = moneyTotals(svc, salonId, { therapistId, untilDate: dateISO, day: dateISO }) // ★ 第1226便
     .then((t) => ({ ok: true as const, t }))
     .catch((e: unknown) => ({ ok: false as const, e }));
-  const [totalsR, names, { data: conf, error: confErr }, { data: mv, error: mvErr }] = await Promise.all([
+  const [totalsR, namesR, { data: conf, error: confErr }, { data: mv, error: mvErr }] = await Promise.all([
     totalsP,
-    therapistNames(svc, salonId),
+    therapistNames(svc, salonId).then((n) => ({ ok: true as const, n })).catch((e: unknown) => ({ ok: false as const, e })),
     svc.from('crm_pay_confirms').select('therapist_id').eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).maybeSingle(),
     svc.from('crm_money_moves')
       .select('id, therapist_id, business_date, direction, category, amount, memo, created_at, cancelled_at')
       .eq('salon_id', salonId).eq('therapist_id', therapistId).eq('business_date', dateISO).order('id'),
   ]);
   if (!totalsR.ok) return readFail(totalsR.e);
+  if (!namesR.ok) return readFail(namesR.e); // ★ 第1987便
+  const names = namesR.n;
   // ★ 2026-11-12 点検#9: 確定の印・その日の動きを読めなかった回は止める（「未確定」「動きなし」と出さない）
   if (confErr) return readFail(new Error(confErr.message));
   if (mvErr) return readFail(new Error(mvErr.message));
@@ -2693,9 +2731,11 @@ export async function markCrmConsentManual(
     .eq('id', bookingId).maybeSingle();
   if (!b || Number(b.salon_id) !== salonId) return { ok: false, error: '予約が見つかりません' };
   if (b.status === 'cancelled') return { ok: false, error: 'キャンセルの予約には付けられません' };
-  const { count } = await auth.svc
+  const { count, error: cntErr } = await auth.svc
     .from('crm_consents').select('id', { count: 'exact', head: true })
     .eq('salon_id', salonId).eq('booking_id', bookingId).is('superseded_at', null);
+  // ★ 第1987便（点検 §3）: 読めなければ付けない（同じ予約に了承が2つ付く）
+  if (cntErr) return { ok: false, error: '了承済みかを確かめられませんでした。もう一度お試しください' };
   if ((count ?? 0) > 0) return { ok: false, error: 'もう了承済みです（画面を開き直してください）' };
   const { data: st } = await auth.svc.from('crm_settings').select('consent_title, consent_body').eq('salon_id', salonId).maybeSingle();
   // 部屋：その日のセラピストの待機場所（分かれば）
@@ -3088,7 +3128,12 @@ export async function searchCrmBookings(
   }
   const { data, error } = await q.order('slot_start', { ascending: false }).limit(BOOKING_LIST_MAX + 1);
   if (error) return { ok: false, error: dbMessage(error) };
-  const names = await therapistNames(svc, salonId);
+  let names: Map<number, string>;
+  try {
+    names = await therapistNames(svc, salonId);
+  } catch (e) {
+    return readFail(e); // ★ 第1987便
+  }
   const rows = (data ?? []).slice(0, BOOKING_LIST_MAX).map((b) => ({
     id: String(b.id),
     slotStartISO: String(b.slot_start),
@@ -3106,7 +3151,12 @@ export async function searchCrmBookings(
     receivedBy: String(b.received_by ?? ''),
     consentAt: null as string | null,
   }));
-  const cMap = await consentMap(svc, salonId, rows.map((r) => r.id));
+  let cMap: Map<string, string>;
+  try {
+    cMap = await consentMap(svc, salonId, rows.map((r) => r.id));
+  } catch (e) {
+    return readFail(e); // ★ 第1987便（同意書の印を「無し」と出さない）
+  }
   rows.forEach((r) => { r.consentAt = cMap.get(r.id) ?? null; });
   return { ok: true, rows, truncated: (data ?? []).length > BOOKING_LIST_MAX };
 }
@@ -3115,8 +3165,9 @@ export async function searchCrmBookings(
 async function consentMap(svc: Svc, salonId: number, bookingIds: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   for (let i = 0; i < bookingIds.length; i += 300) {
-    const { data } = await svc.from('crm_consents').select('booking_id, created_at')
+    const { data, error } = await svc.from('crm_consents').select('booking_id, created_at')
       .eq('salon_id', salonId).is('superseded_at', null).in('booking_id', bookingIds.slice(i, i + 300));
+    if (error) throw new Error(error.message); // ★ 第1987便（点検 §3）。呼び出し側は try/catch → readFail
     (data ?? []).forEach((c) => out.set(String(c.booking_id), String(c.created_at)));
   }
   return out;
