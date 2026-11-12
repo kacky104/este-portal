@@ -8,6 +8,8 @@
 // ★ 音は既定で鳴らす（決定②）。ブラウザは画面を一度触るまで音を出せないので、最初の操作で音の仕組みを起こす（unlockAlarmAudio）。
 //   鳴らせないときは振動（対応端末だけ）。音・表示の ON/OFF は設定タブ（ブラウザごと・ctiPrefs.ts）。
 // ★ 同じ番号から 5 分以内にもう一度 → 既存のポップの時刻だけ更新（積まない）。最大 3 枚。3 分たったら薄くなる。手で閉じるまで消えない。
+// ★ 第1994便（カッキーさん 11/12）: 新しい着信は【大きな窓】（CtiCallPanel・風俗CTI の着信の窓にならう）で開く。
+//   「小さくする」で今までの右上のカードにたたむ（カードの「詳細」でまた開く）。
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCrmIncomingCalls, lookupCtiCaller, type CrmIncomingCall, type CtiCallerInfo } from '@/app/actions/crmCti';
@@ -17,6 +19,7 @@ import { ctiPrefs, ctiLastId, setCtiLastId } from '@/app/lib/crm/ctiPrefs';
 import { crmGroupBadge } from '@/lib/crmGroup';
 import { safeAction, useCrmLinks } from './CrmBase';
 import { createClient } from '@/app/lib/supabase/client';
+import { CtiCallPanel, fmtTel, withQuery } from './CtiCallPanel';
 
 const POLL_MS = 3_000;
 // ★ 第1973便（2026-11-12・点検#5）: 見張りを軽くする。
@@ -43,33 +46,14 @@ type Card = {
   info: CtiCallerInfo | null | 'loading' | 'failed';
 };
 
-function fmtTel(p: string): string {
-  // 090-1234-5678 / 092-123-4567 の見た目（読みやすさだけ・保存は数字のみ）
-  //   携帯・IP（090/080/070/050）は 3-4-4。0120・0570 は 4-3-3、0800 は 4-3-4
-  //   固定（10けた）は市外局番の長さで区切る：03・06 は 2-4-4／福岡県の 4けたの局番は 4-2-4／それ以外は 3-3-4（092・093 など）
-  if (/^0800\d{7}$/.test(p)) return `${p.slice(0, 4)}-${p.slice(4, 7)}-${p.slice(7)}`;
-  if (/^0[5789]0\d{8}$/.test(p)) return `${p.slice(0, 3)}-${p.slice(3, 7)}-${p.slice(7)}`;
-  if (/^(0120|0570)\d{6}$/.test(p)) return `${p.slice(0, 4)}-${p.slice(4, 7)}-${p.slice(7)}`;
-  if (/^0[36]\d{8}$/.test(p)) return `${p.slice(0, 2)}-${p.slice(2, 6)}-${p.slice(6)}`;
-  if (/^(0930|094[02346789])\d{6}$/.test(p)) return `${p.slice(0, 4)}-${p.slice(4, 6)}-${p.slice(6)}`;
-  if (/^0\d{9}$/.test(p)) return `${p.slice(0, 3)}-${p.slice(3, 6)}-${p.slice(6)}`;
-  return p;
-}
 function hhmm(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
-function withQuery(href: string, params: Record<string, string>): string {
-  const [path, q = ''] = href.split('?');
-  const sp = new URLSearchParams(q);
-  for (const [k, v] of Object.entries(params)) sp.set(k, v);
-  const s = sp.toString();
-  return s ? `${path}?${s}` : path;
-}
-
 export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number; adminSalonQuery: string }) {
   const links = useCrmLinks();
   const [cards, setCards] = useState<Card[]>([]);
+  const [openKey, setOpenKey] = useState<string | null>(null); // ★ 第1994便: 大きな窓で開いているカード
   const [now, setNow] = useState(() => Date.now()); // 「◯分前」「薄くなる」の再描画（15 秒ごと・着信のたび）
   const lastIdRef = useRef<number | null>(null);
   const enabledRef = useRef<boolean>(true);
@@ -100,6 +84,7 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
     const now = Date.now();
     let changed = false;
     let fresh: Card[] = [...cardsRef.current];
+    let openNext: string | null = null;
     const toLookup: Array<{ key: string; phone: string }> = [];
     for (const c of calls) {
       const key = c.phone ?? `hidden-${c.id}`;
@@ -111,12 +96,14 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
       }
       fresh = fresh.filter((x) => x.key !== key);
       fresh.unshift({ key, call: c, count: 1, info: c.phone ? 'loading' : null });
+      openNext = key;
       if (c.phone) toLookup.push({ key, phone: c.phone });
       changed = true;
     }
     if (!changed) return;
     fresh = fresh.slice(0, MAX_CARDS);
     setCards(fresh);
+    if (openNext) setOpenKey(openNext);
     setNow(now);
     notify();
     if (document.visibilityState !== 'visible') {
@@ -204,10 +191,25 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
 
   if (cards.length === 0) return null;
   const q = adminSalonQuery ? Object.fromEntries(new URLSearchParams(adminSalonQuery)) : {};
+  const opened = openKey ? cards.find((x) => x.key === openKey) ?? null : null;
+  const closeCard = (key: string) => { setCards((cur) => cur.filter((x) => x.key !== key)); setOpenKey((k) => (k === key ? null : k)); };
+  const custOf = (card: Card) => (card.info && typeof card.info === 'object' ? card.info.customer : null);
 
   return (
+    <>
+    {opened && (
+      <CtiCallPanel
+        call={{ ...opened.call, count: opened.count }}
+        info={opened.info}
+        nowMs={now}
+        receptionHref={opened.call.phone ? withQuery(links.href('/'), { ...q, tel: opened.call.phone }) : null}
+        ledgerHref={opened.call.phone ? withQuery(links.href('/customers'), custOf(opened) ? { ...q, customer: String(custOf(opened)!.id) } : { ...q, tel: opened.call.phone }) : null}
+        onClose={() => closeCard(opened.key)}
+        onMinimize={() => setOpenKey(null)}
+      />
+    )}
     <div className="pointer-events-none fixed right-2 top-[88px] z-[60] flex w-[min(360px,calc(100vw-16px))] flex-col gap-2 md:top-[110px]" aria-live="polite">
-      {cards.map((card) => {
+      {cards.filter((card) => card.key !== openKey).map((card) => {
         const c = card.call;
         const age = now - new Date(c.rangAtISO).getTime();
         const faded = age > FADE_MS;
@@ -218,7 +220,7 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
         const isNg = cust?.category === 'ng' || badge === 'ng';
         const isCaution = !isNg && (badge != null || (cust?.cautionMemo ?? '') !== '');
         const tone = isNg ? 'border-rose-600 bg-rose-50' : isCaution ? 'border-amber-500 bg-amber-50' : !c.phone ? 'border-slate-400 bg-slate-50' : cust ? 'border-indigo-500 bg-white' : 'border-violet-600 bg-violet-50';
-        const close = () => setCards((cur) => cur.filter((x) => x.key !== card.key));
+        const close = () => closeCard(card.key);
         return (
           <div key={card.key} className={`pointer-events-auto border-l-[6px] border border-slate-300 shadow-xl transition-opacity ${tone} ${faded ? 'opacity-60' : ''}`} role="status">
             <div className="flex items-start gap-2 px-3 pt-2">
@@ -271,11 +273,13 @@ export function CrmIncomingCalls({ salonId, adminSalonQuery }: { salonId: number
                   <a href={withQuery(links.href('/customers'), cust ? { ...q, customer: String(cust.id) } : { ...q, tel: c.phone })} onClick={close} className="flex-1 border border-indigo-300 bg-white py-1.5 text-center text-[13px] font-bold text-indigo-700">台帳</a>
                 </>
               )}
+              <button type="button" onClick={() => setOpenKey(card.key)} className="border border-indigo-300 bg-white px-3 py-1.5 text-[13px] font-bold text-indigo-700">詳細</button>
               <button type="button" onClick={close} className={`${c.phone ? '' : 'flex-1 '}border border-slate-300 bg-white px-3 py-1.5 text-[13px] font-bold text-slate-600`}>閉じる</button>
             </div>
           </div>
         );
       })}
     </div>
+    </>
   );
 }

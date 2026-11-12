@@ -169,7 +169,7 @@ console.log('\n── 9. 受付・スケジュール・台帳へのつなぎ（�
   eq('★ タブと欄は、グループに入っている店にだけ（サーバーが判定）', /const grp = active \? await readCrmGroupAccess\(svc, Number\(data\.id\)\) : \{ inGroup: false, groupPending: false, groupTodo: 0 \};/.test(access) && /inGroup: grp\.inGroup,/.test(access), true);
 
   const shell = read('src/app/mypage/crm/CrmShell.tsx');
-  eq('★ 「グループ共有」のタブは、入っている店と、申込みの途中の店にだけ', /access\.inGroup \|\| access\.groupPending \? \[\.\.\.NAV\.slice\(0, 2\), NAV_GROUP, \.\.\.NAV\.slice\(2\)\] : NAV/.test(shell), true);
+  eq('★ 「グループ共有」のタブは、入っている店と、申込みの途中の店にだけ', /access\.inGroup \|\| access\.groupPending \? \[\.\.\.NAV\.slice\(0, 3\), NAV_GROUP, \.\.\.NAV\.slice\(3\)\] : NAV/.test(shell), true);
   const cust = read('src/app/mypage/crm/customers/page.tsx');
   eq('★ 顧客台帳の共有の欄は、入っている店にだけ', /\{inGroup && <GroupShareBox /.test(cust), true);
   // ★ 第1991便: スケジュールの部品は _schedule/ に分けた。まとめて読む

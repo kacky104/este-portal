@@ -21,11 +21,12 @@ import { CrmIncomingCalls } from './CrmIncomingCalls';
 //   ・契約中 → 上の帯（スケジュール／顧客台帳）＋中身
 // ★ 運営（ADMIN）は ?salon=店舗ID で、その店を確認・操作できる（タブを移っても ?salon を引き継ぐ）。★ 第1438便: 店は帯の「店舗を選んで開く」から選ぶ（CrmOperatorBar）
 
-export type CrmNavKey = 'schedule' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'rooms' | 'settings' | 'group';
+export type CrmNavKey = 'schedule' | 'calls' | 'customers' | 'bookings' | 'reports' | 'money' | 'stats' | 'prices' | 'rooms' | 'settings' | 'group';
 
 // ★ 第631便: href は CRM の中のパス。★ 実際のリンク先は useCrmLinks().href で作る（fukuescrm.com では '/customers'、本体では '/mypage/crm/customers'）。
 const NAV: Array<{ key: CrmNavKey; label: string; href: string }> = [
   { key: 'schedule', label: 'スケジュール', href: '/' },
+  { key: 'calls', label: '着信履歴', href: '/calls' }, // ★ 第1994便（風俗CTI の「本日着信」）
   { key: 'customers', label: '顧客台帳', href: '/customers' },
   { key: 'bookings', label: '予約一覧', href: '/bookings' },
   { key: 'reports', label: '日報', href: '/reports' },
@@ -151,7 +152,7 @@ export function CrmShell({
           <nav className="mt-1 flex gap-0.5 overflow-x-auto px-2 [scrollbar-width:none] md:mt-2 md:gap-1 md:px-3">
             {/* ★ スマホでタブが収まらないときは横にすべらせる（第541便） */}
             {/* ★ 第1415便: 設定で「金銭授受を使う」を OFF にしたお店には、金銭授受のタブを出さない */}
-            {(access.inGroup || access.groupPending ? [...NAV.slice(0, 2), NAV_GROUP, ...NAV.slice(2)] : NAV).filter((n) => n.key !== 'money' || access.moneyEnabled).map((n) => (
+            {(access.inGroup || access.groupPending ? [...NAV.slice(0, 3), NAV_GROUP, ...NAV.slice(3)] : NAV).filter((n) => n.key !== 'money' || access.moneyEnabled).map((n) => (
               <Link
                 key={n.key}
                 href={links.href(n.href) + adminSalonQuery}
