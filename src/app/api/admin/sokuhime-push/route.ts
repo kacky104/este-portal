@@ -211,8 +211,9 @@ export async function POST(req: Request) {
 
   const started: string[] = [];
   const skipped: Array<{ target: string; why: string }> = [];
-  // ★ 第1946便: 【試し・数えるだけ】期限に合わせて見に行く決め方なら入らなかった枠（判断は変えていない）。/root/import.log で1日ぶん数える
-  const fullWaitWouldSkip: Array<{ target: string; freeAt: string | null }> = [];
+  // ★ 第1946便で試し（11/11〜11/12 の24時間: 400回のうち235回は入らなくてよかった）→ ★ 第1998便（2026-11-12・カッキーさん「お願いします」）で有効にした。
+  //   即ヒメ枠が全部埋まっていて待っている人がいるときは、いちばん早く切れる枠の2分前まで入らない（決め方は lib/ekichikaSokuhimePlan.ts の sokuhimeFullWaitCheck）
+  const fullWaitSkipped: Array<{ target: string; freeAt: string | null }> = [];
 
   for (const r of rows) {
     const target = r.salon_id + '/' + PROVIDER + '#' + r.slot;
@@ -236,7 +237,12 @@ export async function POST(req: Request) {
     //   ★ 数えるだけ（apply も dryrun も無し）でもここを通す＝本番で、ジョブを積まずに下調べの結果を見られる。
     const work = await hasSokuhimeWork({ salonId: Number(r.salon_id), provider: PROVIDER, slot: Number(r.slot) });
     if (!work.ok) { skipped.push({ target, why: work.why }); continue; }
-    if (work.fullWait?.wouldSkip) fullWaitWouldSkip.push({ target, freeAt: work.fullWait.freeAt });
+    if (work.fullWait?.wouldSkip) {
+      fullWaitSkipped.push({ target, freeAt: work.fullWait.freeAt });
+      const at = work.fullWait.freeAt ? new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(new Date(work.fullWait.freeAt)) : '';
+      skipped.push({ target, why: '即ヒメ枠が全部埋まっていて、いちばん早く空くのは ' + (at || 'もう少し先') + ' ごろなので入らなかった' });
+      continue;
+    }
     if (started.length >= MAX_SALONS_PER_RUN) { skipped.push({ target, why: '今回の上限に達したので次の周へ' }); continue; }
     // ★ dryrun も apply も付いていなければ、数えるだけ（中継ジョブを積まない）
     if (!apply && !dryrun) { started.push(target); continue; }
@@ -261,7 +267,8 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true, apply, dryrun, targets: rows.length, started, skipped,
     // ★ 第1946便: 試し。下の数が多いほど、期限に合わせる決め方で減らせるログイン（started のうち、新しい決め方なら入らなかったもの）
-    fullWaitTrial: { wouldSkip: fullWaitWouldSkip.length, of: started.length, items: fullWaitWouldSkip },
+    // ★ 第1998便: 期限に合わせて入らなかった枠（数の見方は第1946便の試しと同じ: wouldSkip ＝ 入らなかった数・of ＝ 実際に入った数）
+    fullWaitTrial: { wouldSkip: fullWaitSkipped.length, of: started.length, items: fullWaitSkipped },
     見かた: apply
       ? '中継ジョブを積みました。1店舗につき1人だけ押します。結果は各店舗の「連携の記録」に出ます'
       : dryrun
