@@ -483,7 +483,7 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
                 <button
                   type="button"
                   onClick={() => openOnMobile(() => { setCreating(false); setSelected(c.id); })}
-                  className={`block w-full px-3 py-2.5 text-left hover:bg-indigo-50 ${selected === c.id ? 'bg-indigo-50' : ''}`}
+                  className={`block w-full px-3 py-[5px] text-left hover:bg-indigo-50 ${selected === c.id ? 'bg-indigo-50' : ''}`}
                 >
                   <div className="flex items-center gap-1.5">
                     <CategoryBadge c={c.category} />
