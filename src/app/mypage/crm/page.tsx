@@ -598,21 +598,23 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
       <div className="mb-1.5 flex flex-wrap items-center gap-1 md:mb-2 md:gap-2">
         <span className="text-[14px] font-black text-slate-800 md:text-[20px]">{dateLabel(date)}</span>
         <div className="flex">
-          <label className="relative flex items-center bg-[#3f51b5] px-1.5 py-1 text-[11px] font-bold text-white md:hidden" aria-label="日付を選ぶ">
+          {/* ★ 第1983便: PC も日付の欄をやめて 📅 にした（売上・報酬・未受領で件数が長い日に、右端のアラームと「たたむ」が2行目に落ちていた）。
+              押すと日付を選ぶ画面が開く（PC は showPicker） */}
+          <label className="relative flex cursor-pointer items-center bg-[#3f51b5] px-1.5 py-1 text-[11px] font-bold text-white md:px-2.5 md:py-1.5 md:text-[13px]" aria-label="日付を選ぶ" title="日付を選ぶ">
             📅
-            <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="absolute inset-0 opacity-0" />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              onClick={(e) => { try { e.currentTarget.showPicker?.(); } catch { /* 選ぶ画面を出せないブラウザは、そのまま */ } }}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
           </label>
           <button type="button" onClick={() => setDate(shiftDate(date, -1))} className="bg-[#3f51b5] px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">◀前日</button>
           <button type="button" onClick={() => setDate(businessTodayJST())} className={`px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px] ${isToday ? 'bg-pink-400' : 'bg-[#3f51b5]'}`}>今日</button>
           <button type="button" onClick={() => setDate(shiftDate(date, 1))} className="bg-[#3f51b5] px-2 py-1 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">次日▶</button>
         </div>
         {nowButton}
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => e.target.value && setDate(e.target.value)}
-          className="hidden min-w-0 max-w-full appearance-none border border-slate-300 bg-white px-2 py-1 text-[13px] md:block"
-        />
         {view && (
           <span className="w-full text-[11px] font-bold text-slate-700 md:ml-2 md:w-auto md:text-[14px]">
             予約数 <span className="text-[#3f51b5]">{view.activeCount}</span>本 ／ 出勤数 <span className="text-[#3f51b5]">{view.workingCount}</span>人
@@ -626,12 +628,12 @@ function ScheduleBody({ salonId, adminSalonQuery }: { salonId: number; adminSalo
         )}
         {data && (
           data.report ? (
-            <button type="button" onClick={() => setClosing(true)} className="bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">
-              ✓ 締め済み（日報）
+            <button type="button" onClick={() => setClosing(true)} title="日報を見る・締め直す" className="whitespace-nowrap bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white md:px-3 md:py-1.5 md:text-[13px]">
+              ✓ 締め済み
             </button>
           ) : (
-            <button type="button" onClick={() => setClosing(true)} className="border border-[#3f51b5] bg-white px-2 py-0.5 text-[11px] font-bold text-[#3f51b5] md:border-2 md:px-3 md:py-1 md:text-[13px]">
-              締め作業（日報を作る）
+            <button type="button" onClick={() => setClosing(true)} title="日報を作る" className="whitespace-nowrap border border-[#3f51b5] bg-white px-2 py-0.5 text-[11px] font-bold text-[#3f51b5] md:border-2 md:px-3 md:py-1 md:text-[13px]">
+              締め作業
             </button>
           )
         )}
