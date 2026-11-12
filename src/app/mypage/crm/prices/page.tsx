@@ -221,7 +221,7 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
             <span className="font-bold text-slate-500">個別の料金あり：</span>
             {[...withCustom].map((id) => (
               <button key={id} type="button" onClick={() => setTid(id)}
-                className={`border px-2 py-0.5 font-bold ${tid === id ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white text-emerald-700'}`}>
+                className={`border px-2 py-1.5 font-bold ${tid === id ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white text-emerald-700'}`}>
                 {nameOf(id)}
               </button>
             ))}
@@ -253,12 +253,12 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
                       return (
                         <div key={p.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-t border-slate-100 px-3 py-1.5 sm:grid-cols-[1fr_170px_170px]">
                           <span className="min-w-0 truncate text-[13px] font-bold text-slate-700">{p.name}{p.minutes && kind !== 'discount' ? ` ${p.minutes}分` : ''}</span>
-                          <label className="text-[10px] font-bold text-slate-400">
+                          <label className="text-[11px] font-bold text-slate-400">
                             {kind === 'discount' ? '料金から引く' : '料金'}（基本 {p.price.toLocaleString()}）
                             <input className={`${cell} w-[110px] sm:w-full ${v.price !== '' ? 'border-emerald-500 bg-emerald-50' : ''}`} inputMode="numeric"
                               value={v.price} placeholder={String(p.price)} onChange={(e) => setCell(p.id, 'price', e.target.value)} />
                           </label>
-                          <label className="text-[10px] font-bold text-slate-400">
+                          <label className="text-[11px] font-bold text-slate-400">
                             {kind === 'discount' ? '報酬から引く' : '女子報酬'}（基本 {p.pay.toLocaleString()}）
                             <input className={`${cell} w-[110px] sm:w-full ${v.pay !== '' ? 'border-emerald-500 bg-emerald-50' : ''}`} inputMode="numeric"
                               value={v.pay} placeholder={String(p.pay)} onChange={(e) => setCell(p.id, 'pay', e.target.value)} />
@@ -275,7 +275,7 @@ function TherapistPrices({ salonId, items, onSaved }: { salonId: number; items: 
                 className="bg-emerald-600 px-4 py-2 text-[13px] font-bold text-white disabled:opacity-40">
                 {busy ? '保存しています…' : `${nameOf(tid)}さんの料金を保存`}
               </button>
-              <button type="button" disabled={busy} onClick={clearAll} className="px-2 text-[12px] font-bold text-slate-500 underline">
+              <button type="button" disabled={busy} onClick={clearAll} className="px-2 py-1.5 text-[12px] font-bold text-slate-500 underline">
                 全部空欄にする（基本の料金に戻す）
               </button>
               {msg && <span className="text-[13px] font-bold text-emerald-700">{msg}</span>}
@@ -341,13 +341,13 @@ function useDraftRow(salonId: number, initial: Draft, onSaved: () => void) {
 
 function RowCard({ salonId, initial, onSaved }: { salonId: number; initial: Draft; onSaved: () => void }) {
   const { d, set, busy, err, confirmDel, setConfirmDel, isNew, fixed, dirty, numOnly, save, del } = useDraftRow(salonId, initial, onSaved);
-  const lab = 'block text-[10px] font-bold text-slate-400';
+  const lab = 'block text-[11px] font-bold text-slate-400';
   return (
     <div className={`px-3 py-2 ${isNew ? 'bg-slate-50/60' : ''} ${!d.isActive ? 'opacity-50' : ''}`}>
       {fixed ? (
         <div className="flex items-center gap-2 py-1">
           <span className="text-[14px] font-bold text-slate-800">{d.name}</span>
-          <span className="bg-slate-200 px-1.5 text-[10px] font-bold text-slate-600">固定</span>
+          <span className="bg-slate-200 px-1.5 text-[11px] font-bold text-slate-600">固定</span>
         </div>
       ) : (
         <input className={cell} value={d.name} maxLength={40} onChange={(e) => set('name', e.target.value)} placeholder={isNew ? '＋ 新しい項目の名前' : ''} aria-label="名前" />
@@ -376,7 +376,7 @@ function RowCard({ salonId, initial, onSaved }: { salonId: number; initial: Draf
           confirmDel ? (
             <button type="button" disabled={busy} onClick={del} className="bg-rose-600 px-2 py-1.5 text-[12px] font-bold text-white">本当に削除</button>
           ) : (
-            <button type="button" disabled={busy} onClick={() => setConfirmDel(true)} className="px-1 text-[12px] font-bold text-slate-400 underline">削除</button>
+            <button type="button" disabled={busy} onClick={() => setConfirmDel(true)} className="px-1.5 py-1.5 text-[12px] font-bold text-slate-400 underline">削除</button>
           )
         )}
       </div>
@@ -393,7 +393,7 @@ function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; o
         {fixed ? (
           <div className="flex items-center gap-2 px-1 py-1.5">
             <span className="text-[14px] font-bold text-slate-800">{d.name}</span>
-            <span className="bg-slate-200 px-1.5 text-[10px] font-bold text-slate-600">固定</span>
+            <span className="bg-slate-200 px-1.5 text-[11px] font-bold text-slate-600">固定</span>
           </div>
         ) : (
           <input className={cell} value={d.name} maxLength={40} onChange={(e) => set('name', e.target.value)} placeholder={isNew ? '＋ 新しい項目の名前' : ''} />
@@ -412,15 +412,15 @@ function Row({ salonId, initial, onSaved }: { salonId: number; initial: Draft; o
           type="button"
           disabled={busy || !d.name.trim() || (!dirty && !isNew)}
           onClick={save}
-          className="bg-indigo-600 px-2.5 py-1 text-[12px] font-bold text-white disabled:opacity-40"
+          className="bg-indigo-600 px-2.5 py-1.5 text-[12px] font-bold text-white disabled:opacity-40"
         >
           {isNew ? '追加' : '保存'}
         </button>
         {!isNew && !fixed && (
           confirmDel ? (
-            <button type="button" disabled={busy} onClick={del} className="ml-1 bg-rose-600 px-2 py-1 text-[12px] font-bold text-white">本当に削除</button>
+            <button type="button" disabled={busy} onClick={del} className="ml-1 bg-rose-600 px-2 py-1.5 text-[12px] font-bold text-white">本当に削除</button>
           ) : (
-            <button type="button" disabled={busy} onClick={() => setConfirmDel(true)} className="ml-1 px-1 text-[12px] font-bold text-slate-400 underline">削除</button>
+            <button type="button" disabled={busy} onClick={() => setConfirmDel(true)} className="ml-1 px-1.5 py-1.5 text-[12px] font-bold text-slate-400 underline">削除</button>
           )
         )}
       </td>

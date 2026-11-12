@@ -34,6 +34,7 @@ function shiftMonth(d: string, n: number): { from: string; to: string } {
   return { from: s.toISOString().slice(0, 10), to: e.toISOString().slice(0, 10) };
 }
 
+// ★ 第1975便（点検 §5）: 行の中のリンク（日時・お客様・電話）は高さ18px で押しにくかった → 見た目の行の高さは変えずに、押せる範囲だけ上下に広げた（-my-1.5 py-1.5＝約30px）
 export default function CrmBookingsPage() {
   const { access, adminSalonQuery } = useCrmAccess();
   return (
@@ -160,7 +161,7 @@ function BookingsBody({ salonId, adminSalonQuery, autoReceivedFrom, moneyEnabled
             return (
               <div key={b.id} className={`px-3 py-2 text-[13px] ${cancelled ? 'text-slate-400' : ''}`}>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <Link href={`${crm.href('/')}${adminSalonQuery}${sep}date=${businessDateOf(b.slotStartISO)}`} className="font-bold text-indigo-600">
+                  <Link href={`${crm.href('/')}${adminSalonQuery}${sep}date=${businessDateOf(b.slotStartISO)}`} className="-my-1.5 inline-block py-1.5 font-bold text-indigo-600">
                     {dt(b.slotStartISO)}
                   </Link>
                   <span className="text-slate-400">〜{hm(b.slotEndISO)}</span>
@@ -173,14 +174,14 @@ function BookingsBody({ salonId, adminSalonQuery, autoReceivedFrom, moneyEnabled
                   <span className="font-bold text-slate-700">{b.therapistName}</span>
                   <span className="text-slate-300">／</span>
                   {b.customerId ? (
-                    <Link href={`${crm.href('/customers')}${adminSalonQuery}${sep}customer=${b.customerId}`} className="font-bold text-slate-800 underline decoration-dotted underline-offset-2">
+                    <Link href={`${crm.href('/customers')}${adminSalonQuery}${sep}customer=${b.customerId}`} className="-my-1.5 inline-block py-1.5 font-bold text-slate-800 underline decoration-dotted underline-offset-2">
                       {b.customerName || '(名前なし)'}
                     </Link>
                   ) : (
                     <span>{b.customerName || '(名前なし)'}</span>
                   )}
                   {b.source === 'web' && <span className="border border-pink-500 px-1 text-[10px] font-bold text-pink-600">ﾌｸｴｽ</span>}
-                  {b.customerTel && <a href={`tel:${b.customerTel.replace(/[^0-9+]/g, '')}`} className="text-[11px] text-slate-400 underline decoration-dotted">{b.customerTel}</a>}
+                  {b.customerTel && <a href={`tel:${b.customerTel.replace(/[^0-9+]/g, '')}`} className="-my-1.5 inline-block py-1.5 text-[11px] text-slate-400 underline decoration-dotted">{b.customerTel}</a>}
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[12px] text-slate-600">
                   {b.courseName && <span>{b.courseName}</span>}
@@ -224,7 +225,7 @@ function BookingsBody({ salonId, adminSalonQuery, autoReceivedFrom, moneyEnabled
                 return (
                   <tr key={b.id} className={cancelled ? 'text-slate-400' : ''}>
                     <td className="whitespace-nowrap px-2 py-1.5">
-                      <Link href={`${crm.href('/')}${adminSalonQuery}${sep}date=${businessDateOf(b.slotStartISO)}`} className="font-bold text-indigo-600 hover:underline">
+                      <Link href={`${crm.href('/')}${adminSalonQuery}${sep}date=${businessDateOf(b.slotStartISO)}`} className="-my-1.5 inline-block py-1.5 font-bold text-indigo-600 hover:underline">
                         {dt(b.slotStartISO)}
                       </Link>
                       <span className="text-slate-400">〜{hm(b.slotEndISO)}</span>
@@ -232,7 +233,7 @@ function BookingsBody({ salonId, adminSalonQuery, autoReceivedFrom, moneyEnabled
                     <td className="whitespace-nowrap px-2 py-1.5">{b.therapistName}</td>
                     <td className="px-2 py-1.5">
                       {b.customerId ? (
-                        <Link href={`${crm.href('/customers')}${adminSalonQuery}${sep}customer=${b.customerId}`} className="font-bold text-slate-800 hover:underline">
+                        <Link href={`${crm.href('/customers')}${adminSalonQuery}${sep}customer=${b.customerId}`} className="-my-1.5 inline-block py-1.5 font-bold text-slate-800 hover:underline">
                           {b.customerName || '(名前なし)'}
                         </Link>
                       ) : (
