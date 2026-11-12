@@ -2657,6 +2657,11 @@ function AlarmCenter({
   const [ready, setReady] = useState(false);
   const readyRef = useRef(false);
   useEffect(() => { readyRef.current = ready; }, [ready]);
+  // ★ 第1982便（カッキーさん）: 一度 ON にすると切る手段が無かった → 緑のボタンを押すと音だけ止める（OFF）。もう一度押すと ON。
+  //   OFF のあいだも、時間が来た予約の赤い帯と点滅は出す（音と振動だけ止める）。画面を読み直すと、いつもの「音をON」に戻る
+  const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
 
   // ★ 第1229便: iOS はスリープ・電話・裏に回ると音の仕組みが止まる（state が running でなくなる）。
   //   前は一度 ON にすると「アラームON」のまま鳴らなかった → 画面に戻ったとき・1秒ごとの確認で止まっていたら、動かし直す。戻らなければボタンを出し直す。
@@ -2746,7 +2751,7 @@ function AlarmCenter({
         activeRef.current = next;
         setActive(next);
       }
-      if (next.length > 0 && now - lastPlayRef.current >= 1200) {
+      if (next.length > 0 && !mutedRef.current && now - lastPlayRef.current >= 1200) {
         lastPlayRef.current = now;
         playAlarmOnce(next[next.length - 1].sound);
         vibrateAlarm(); // ★ 第1229便: 音が出せない状態でも、対応しているスマホは振動で知らせる
@@ -2776,7 +2781,14 @@ function AlarmCenter({
       {hideButton ? '🔔 音をON' : '🔔 アラームの音をON'}
     </button>
   ) : (
-    <span className="inline-block whitespace-nowrap bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white md:py-1 md:text-[13px]">🔔 {hideButton ? 'ON' : 'アラームON'}</span>
+    <button
+      type="button"
+      onClick={() => setMuted((v) => !v)}
+      title={muted ? '押すとアラームの音を鳴らします' : '押すとアラームの音を止めます（時間が来た予約の赤い帯は出ます）'}
+      className={`whitespace-nowrap px-2 py-0.5 text-[11px] font-bold text-white md:px-3 md:py-1 md:text-[13px] ${muted ? 'bg-slate-500' : 'bg-emerald-600'}`}
+    >
+      {muted ? `🔕 ${hideButton ? 'OFF' : 'アラームOFF'}` : `🔔 ${hideButton ? 'ON' : 'アラームON'}`}
+    </button>
   );
 
   return (
