@@ -10,6 +10,10 @@ const eq = (name, got, want) => {
   else console.log('ok ' + name);
 };
 const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8').replace(/\r/g, '');
+// ★ 第1992便: actions/crm.ts を仕事ごとのファイルに分けた。元の並び順でつなげて、前と同じように読む
+const CRM_SPLIT = ['Access', 'Customers', 'Schedule', 'Prices', 'Close', 'Reports', 'Settings', 'Money', 'Consent', 'Import', 'Terms', 'BookingList']
+  .map((n) => `src/app/actions/crm${n}.ts`).concat(['src/app/lib/crm/server/core.ts']);
+const readCrm = () => CRM_SPLIT.map(read).join('\n');
 
 console.log('── 1. 分類と段（★ 危害だけ。無断キャンセル・料金のもめごとは共有しない）──');
 eq('段は NG と要注意の2つ', v.CRM_GROUP_LEVELS.map((x) => x.key), ['ng', 'caution']);
@@ -148,7 +152,7 @@ console.log('\n── 8. 店舗様の口（第1325便）★ 本人確認・グ�
 
 console.log('\n── 9. 受付・スケジュール・台帳へのつなぎ（第1325便）──');
 {
-  const crm = read('src/app/actions/crm.ts');
+  const crm = readCrm();
   const lookup = crm.slice(crm.indexOf('export async function lookupCrmCustomerByPhone'), crm.indexOf('export async function saveCrmTherapistMemo'));
   eq('★★★ 受付で電話番号を引くとき、共有リストも引く（本人確認のあと）', lookup.indexOf('await assertCrm(salonId)') > 0 && lookup.indexOf('await assertCrm(salonId)') < lookup.indexOf('crmGroupHitsForSalon(svc, salonId, [phone])'), true);
   eq('★★★ 自店の台帳にいなくても、当たりを返す（初めての電話）', /if \(!ph\) return \{ ok: true, customer: null, groupHits, groupFailed: group\.failed \};/.test(lookup), true);
@@ -168,7 +172,8 @@ console.log('\n── 9. 受付・スケジュール・台帳へのつなぎ（�
   eq('★ 「グループ共有」のタブは、入っている店と、申込みの途中の店にだけ', /access\.inGroup \|\| access\.groupPending \? \[\.\.\.NAV\.slice\(0, 2\), NAV_GROUP, \.\.\.NAV\.slice\(2\)\] : NAV/.test(shell), true);
   const cust = read('src/app/mypage/crm/customers/page.tsx');
   eq('★ 顧客台帳の共有の欄は、入っている店にだけ', /\{inGroup && <GroupShareBox /.test(cust), true);
-  const page = read('src/app/mypage/crm/page.tsx');
+  // ★ 第1991便: スケジュールの部品は _schedule/ に分けた。まとめて読む
+  const page = ['page', '_schedule/Grid', '_schedule/DetailPanel', '_schedule/BookingForm'].map((n) => read(`src/app/mypage/crm/${n}.tsx`)).join('\n');
   eq('★★★ 受付フォーム・予約の詳細・予約カードに出す', [/<GroupHitBand hits=\{group\.hits\} failed=\{group\.failed\}/.test(page), /<GroupHitBand hits=\{b\.groupHits\}/.test(page), /CRM_GROUP_BADGE_LABEL\[groupBadge\]/.test(page)], [true, true, true]);
   // ★★★ 画面の部品に、店の名前を出す道が無い
   const ui = read('src/app/mypage/crm/GroupShare.tsx') + read('src/app/mypage/crm/group/page.tsx');
@@ -213,7 +218,7 @@ console.log('\n── 10. お客様の同意書に足す文（第1327便）─�
   const page = read('src/app/mypage/crm/settings/page.tsx');
   eq('★ 設定の画面: 文を足す欄は、グループに入っている店にだけ', /\{inGroup && <GroupConsentBox /.test(page), true);
   eq('★★ 設定の画面: 押したときだけ足す（開いただけ・保存しただけでは、同意書を書き換えない）', (page.match(/addCrmGroupConsentClause\(/g) || []).length === 1 && /const add = \(\) => \{\s*const r = addCrmGroupConsentClause\(body\);/.test(page), true);
-  eq('★★★ サーバー側は、同意書を自動で書き換えない', /addCrmGroupConsentClause|CRM_GROUP_CONSENT_CLAUSE/.test(read('src/app/actions/crm.ts') + read('src/app/actions/crmGroupShare.ts') + read('src/app/actions/crmGroupAdmin.ts') + read('src/app/actions/consent.ts')), false);
+  eq('★★★ サーバー側は、同意書を自動で書き換えない', /addCrmGroupConsentClause|CRM_GROUP_CONSENT_CLAUSE/.test(readCrm() + read('src/app/actions/crmGroupShare.ts') + read('src/app/actions/crmGroupAdmin.ts') + read('src/app/actions/consent.ts')), false);
 }
 
 console.log('\n── 11. 公式HPの利用規約 ★ この機能のことを書かない（第1333便・カッキーさんの決定）──');

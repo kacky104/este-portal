@@ -11,7 +11,7 @@
 import { assertCrmOwner } from '@/app/lib/crm/auth';
 import { dbMessage } from '@/app/lib/crm/dbError';
 import { normalizeIncomingPhone, parseHiddenReason, recordCtiCall, type CtiHiddenReason } from '@/app/lib/crm/cti';
-import { lookupCrmCustomerByPhone } from '@/app/actions/crm';
+import { lookupCrmCustomerByPhone } from '@/app/actions/crmSchedule';
 import type { CrmScheduleCustomer } from '@/app/lib/crm/types';
 import type { CrmGroupHit } from '@/lib/crmGroup';
 

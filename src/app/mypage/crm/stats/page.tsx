@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getCrmMonthStats, listCrmDormantCustomers } from '@/app/actions/crm';
+import { getCrmMonthStats } from '@/app/actions/crmReports';
+import { listCrmDormantCustomers } from '@/app/actions/crmCustomers';
 import { CRM_CATEGORY_LABEL, yen, type CrmDormantCustomer, type CrmMonthStats, type CrmStatRow } from '@/app/lib/crm/types';
 import { safeAction, useCrmLinks } from '../CrmBase';
 import { CrmShell, useCrmAccess } from '../CrmShell';

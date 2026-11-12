@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useCrmLinks } from '../CrmBase';
 import { useEffect, useState } from 'react';
-import { setCrmCancelBad, setCrmPlayStatus, setCrmReceived } from '@/app/actions/crm';
+import { setCrmCancelBad } from '@/app/actions/crmCustomers';
+import { setCrmPlayStatus, setCrmReceived } from '@/app/actions/crmReports';
 import { deleteBooking, updateBookingStatus } from '@/app/actions/booking';
 import { CRM_CATEGORY_CLASS, CRM_CATEGORY_LABEL, paymentLabel, CRM_PLAY_LABEL, CRM_RECEIVED_LABEL, type CrmReceivedBy, type CrmPlayStatus, yen, type CrmScheduleBooking, type CrmScheduleData } from '@/app/lib/crm/types';
 import { ConsentView } from '../ConsentView';

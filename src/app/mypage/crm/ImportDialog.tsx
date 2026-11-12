@@ -2,7 +2,7 @@
 
 import { safeAction } from './CrmBase';
 import { useEffect, useRef, useState } from 'react';
-import { importCrmCustomers, previewCrmImport, type CrmImportPreviewRow } from '@/app/actions/crm';
+import { importCrmCustomers, previewCrmImport, type CrmImportPreviewRow } from '@/app/actions/crmImport';
 import { decodeText, parseCsv, parseVcf } from '@/app/lib/crm/importParse';
 
 // フクエスCRM：お客様の取り込み（第566便・第579便で設定の一番下へ移した）。

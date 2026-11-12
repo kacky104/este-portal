@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCrmRoomNotes, saveCrmRoomNote } from '@/app/actions/crm';
+import { getCrmRoomNotes, saveCrmRoomNote } from '@/app/actions/crmSettings';
 import { CRM_ROOM_NOTE_MAX, roomColor, type CrmRoomNote } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { safeAction, useCrmDirty, useCrmLinks } from '../CrmBase';

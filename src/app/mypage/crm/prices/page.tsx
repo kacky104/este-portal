@@ -1,13 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  deleteCrmPriceItem,
-  getCrmTherapists,
-  listCrmPriceItems,
-  saveCrmPriceItem,
-  saveCrmPriceOverrides,
-} from '@/app/actions/crm';
+import { deleteCrmPriceItem, listCrmPriceItems, saveCrmPriceItem, saveCrmPriceOverrides } from '@/app/actions/crmPrices';
+import { getCrmTherapists } from '@/app/actions/crmCustomers';
 import {
   CRM_PRICE_KINDS,
   CRM_PRICE_KIND_LABEL,

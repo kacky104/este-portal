@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { safeAction, useCrmLinks } from '../CrmBase';
 import { useEffect, useState } from 'react';
-import { getCrmTherapists, searchCrmBookings } from '@/app/actions/crm';
+import { getCrmTherapists } from '@/app/actions/crmCustomers';
+import { searchCrmBookings } from '@/app/actions/crmBookingList';
 import { CRM_RECEIVED_LABEL, isUnreceived, yen, type CrmBookingListRow, type CrmBookingSearch, type CrmReceivedBy, type CrmTherapist } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { ConsentView } from '../ConsentView';

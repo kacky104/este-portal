@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { addCrmMoneyMove, cancelCrmMoneyMove, getCrmMoney } from '@/app/actions/crm';
+import { addCrmMoneyMove, cancelCrmMoneyMove, getCrmMoney } from '@/app/actions/crmMoney';
 import {
   CRM_MONEY_CATEGORIES,
   CRM_MONEY_CATEGORY_LABEL,

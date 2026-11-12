@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { listCrmOperatorSalons, type CrmOperatorSalon } from '@/app/actions/crm';
+import { listCrmOperatorSalons, type CrmOperatorSalon } from '@/app/actions/crmAccess';
 import { crmLeaveAsk } from './CrmBase';
 
 // フクエスCRM: 運営だけに出る帯（第1438便・2026-10-13・カッキーさん。コネックエフの第1399便と同じ見た目）。

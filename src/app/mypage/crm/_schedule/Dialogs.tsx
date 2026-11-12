@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { confirmCrmPay, saveCrmTherapistMemo, unconfirmCrmPay } from '@/app/actions/crm';
+import { confirmCrmPay, unconfirmCrmPay } from '@/app/actions/crmClose';
+import { saveCrmTherapistMemo } from '@/app/actions/crmSchedule';
 import { inBusinessDay, yen, type CrmPayConfirm, type CrmScheduleBooking, type CrmScheduleTherapist } from '@/app/lib/crm/types';
 import { safeCall, hm, useDialogFocus } from './shared';
 import { fieldCls, labCls } from './BookingForm';

@@ -2,7 +2,8 @@
 
 import { appConfirm } from '@/app/components/AppConfirm';
 import { useEffect, useState } from 'react';
-import { lookupCrmCustomerByPhone, setCrmBookingPricing } from '@/app/actions/crm';
+import { lookupCrmCustomerByPhone } from '@/app/actions/crmSchedule';
+import { setCrmBookingPricing } from '@/app/actions/crmPrices';
 import { createManualBooking, moveBooking, updateBookingDetails } from '@/app/actions/booking';
 import { CRM_CATEGORY_CLASS, CRM_CATEGORY_LABEL, CRM_PAYMENT_METHODS, CRM_PRICE_KINDS, CRM_PRICE_KIND_LABEL, CRM_PRICE_SINGLE, type CrmRoomBand, sumCrmItems, priceForTherapist, yen, type CrmBookingItem, type CrmPriceItem, type CrmScheduleBooking, type CrmScheduleCustomer, type CrmScheduleData, type CrmScheduleTherapist } from '@/app/lib/crm/types';
 import { FREE_LANE_MAX } from '@/app/lib/booking/freeLane';

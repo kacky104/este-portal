@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { listCrmReports } from '@/app/actions/crm';
+import { listCrmReports } from '@/app/actions/crmReports';
 import { yen, type CrmDailyReport } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from '../CrmShell';
 import { safeAction } from '../CrmBase';

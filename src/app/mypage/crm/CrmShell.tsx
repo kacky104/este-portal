@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { agreeCrmTerms, getCrmAccess } from '@/app/actions/crm';
+import { agreeCrmTerms } from '@/app/actions/crmTerms';
+import { getCrmAccess } from '@/app/actions/crmAccess';
 import type { CrmAccess } from '@/app/lib/crm/types';
 import { isCrmHost } from '@/lib/crmHost';
 import { createClient } from '@/app/lib/supabase/client';

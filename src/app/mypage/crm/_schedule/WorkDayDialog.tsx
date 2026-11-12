@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { saveCrmWorkDay } from '@/app/actions/crm';
+import { saveCrmWorkDay } from '@/app/actions/crmSettings';
 import { CRM_END_LABEL, type CrmEndType, CRM_ATTENDANCE, CRM_ATTENDANCE_LABEL, type CrmPartnerRoom, type CrmToggle, type CrmAttendance, type CrmWorkDay, type CrmScheduleTherapist } from '@/app/lib/crm/types';
 import { shiftRangeText } from '@/lib/scheduleFormat';
 import { safeCall, dateLabel, hourLabel, useDialogFocus } from './shared';

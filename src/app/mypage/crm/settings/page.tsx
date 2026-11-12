@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCrmRoomQr, getCrmSettings, renameCrmRoom, saveCrmSettings } from '@/app/actions/crm';
+import { getCrmRoomQr } from '@/app/actions/crmConsent';
+import { getCrmSettings, renameCrmRoom, saveCrmSettings } from '@/app/actions/crmSettings';
 import QRCode from 'qrcode';
 import { CRM_ALARM_SOUNDS, CRM_CONSENT_DEFAULT_BODY, CRM_CONSENT_DEFAULT_TITLE, CRM_END_LABEL, CRM_ROOM_COLORS, roomColor, CRM_TOGGLE_MAX, CRM_TOGGLE_OPTION_MAX, CRM_TOGGLE_OPTION_LEN, CRM_TOGGLE_TITLE_LEN, CRM_TOGGLE_COLORS, type CrmToggleColor, type CrmAlarm, type CrmEndType, type CrmSettings, type CrmToggle } from '@/app/lib/crm/types';
 import { playAlarmOnce, unlockAlarmAudio } from '@/app/lib/crm/alarmSound';
@@ -742,7 +743,7 @@ function ToggleSection({ toggles, onChange }: { toggles: CrmToggle[]; onChange: 
   );
 }
 
-// ★ 第596便: 設定の「データの書き出し」は外した（カッキーさんの指示）。★ サーバー側の exportCrmCsv（actions/crm.ts）は残してある
+// ★ 第596便: 設定の「データの書き出し」は外した（カッキーさんの指示）。★ サーバー側の exportCrmCsv（actions/crmTerms.ts）は残してある
 //   （規約 第7条3「サービスをやめるときは店舗データを書き出す手段を用意する」のため）。戻すときは第569〜578便の ExportSection を git から戻す。
 
 // データの取り込み（第579便）。★ 最初の1回くらいしか使わないので設定の一番下に置く

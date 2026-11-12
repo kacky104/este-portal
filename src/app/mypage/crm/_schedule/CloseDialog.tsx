@@ -2,7 +2,8 @@
 
 import { safeAction } from '../CrmBase';
 import { useEffect, useState } from 'react';
-import { closeCrmDay, addCrmMoneyMove, cancelCrmMoneyMove, getCrmDaySummary, getCrmMoneyDay, reopenCrmDay } from '@/app/actions/crm';
+import { closeCrmDay, getCrmDaySummary, reopenCrmDay } from '@/app/actions/crmClose';
+import { addCrmMoneyMove, cancelCrmMoneyMove, getCrmMoneyDay } from '@/app/actions/crmMoney';
 import { CRM_MONEY_CATEGORY_LABEL, CRM_MONEY_DIRECTION_LABEL, moneyBalanceLabel, type CrmMoneyDay, yen, type CrmDaySummary } from '@/app/lib/crm/types';
 import { safeCall, dateLabel, useDialogFocus } from './shared';
 import { fieldCls, labCls } from './BookingForm';

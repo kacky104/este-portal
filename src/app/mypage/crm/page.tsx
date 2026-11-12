@@ -2,7 +2,8 @@
 
 import { appConfirm } from '@/app/components/AppConfirm';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getCrmChangeMark, getCrmSchedule, setCrmWorkEnd, saveCrmTherapistOrder } from '@/app/actions/crm';
+import { getCrmChangeMark, getCrmSchedule, saveCrmTherapistOrder } from '@/app/actions/crmSchedule';
+import { setCrmWorkEnd } from '@/app/actions/crmSettings';
 import { isUnreceived, type CrmEndType, CRM_EMPTY_WORK_DAY, inBusinessDay, yen, type CrmScheduleBooking, type CrmScheduleData, type CrmScheduleTherapist } from '@/app/lib/crm/types';
 import { CrmShell, useCrmAccess } from './CrmShell';
 import { CRM_GROUP_ALERT_SOURCE_LABEL } from '@/lib/crmGroup';

@@ -1,14 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  getCrmCustomer,
-  deleteCrmCustomer,
-  getCrmTherapists,
-  saveCrmCustomer,
-  searchCrmCustomers,
-  setCrmCancelBad,
-} from '@/app/actions/crm';
+import { getCrmCustomer, getCrmTherapists, saveCrmCustomer, searchCrmCustomers, setCrmCancelBad } from '@/app/actions/crmCustomers';
+import { deleteCrmCustomer } from '@/app/actions/crmTerms';
 import {
   CRM_CATEGORIES,
   CRM_CATEGORY_CLASS,

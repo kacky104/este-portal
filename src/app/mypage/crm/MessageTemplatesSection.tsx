@@ -17,7 +17,7 @@ import {
   saveCrmMessageTemplate,
   type CrmMessageTemplate,
 } from '@/app/actions/crmMessage';
-import { getCrmSchedule } from '@/app/actions/crm';
+import { getCrmSchedule } from '@/app/actions/crmSchedule';
 import type { CrmScheduleData } from '@/app/lib/crm/types';
 import {
   CRM_MESSAGE_SAMPLE_BODY,

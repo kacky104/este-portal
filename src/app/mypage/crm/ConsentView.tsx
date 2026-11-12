@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { getCrmBookingConsents, markCrmConsentManual, revokeCrmConsentManual } from '@/app/actions/crm';
+import { getCrmBookingConsents, markCrmConsentManual, revokeCrmConsentManual } from '@/app/actions/crmConsent';
 import type { CrmConsent } from '@/app/lib/crm/types';
 import { safeAction } from './CrmBase';
 

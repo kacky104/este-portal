@@ -3,7 +3,7 @@
 import { safeAction } from '../CrmBase';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getCrmChangeMark, getCrmSchedule } from '@/app/actions/crm';
+import { getCrmChangeMark, getCrmSchedule } from '@/app/actions/crmSchedule';
 import { type CrmScheduleBooking, type CrmScheduleTherapist, type CrmAlarm } from '@/app/lib/crm/types';
 import { alarmAudioReady, playAlarmOnce, resumeAlarmAudio, unlockAlarmAudio, vibrateAlarm } from '@/app/lib/crm/alarmSound';
 import { REFRESH_MS, businessTodayJST, hm } from './shared';
