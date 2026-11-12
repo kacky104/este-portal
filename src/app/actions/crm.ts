@@ -2582,9 +2582,12 @@ export async function getCrmRoomQr(
   let st: CrmSettings;
   try { st = await readSettings(auth.svc, salonId); } catch (e) { return readFail(e); } // ★ 第1219便
   if (!st.rooms.includes(r)) return { ok: false, error: 'この部屋は設定にありません（保存してからもう一度）' };
-  const { data: cur } = await auth.svc
+  const { data: cur, error: curErr } = await auth.svc
     .from('crm_room_tokens').select('token, created_at, prev_token, prev_created_at')
     .eq('salon_id', salonId).eq('room', r).maybeSingle();
+  // ★ 2026-11-12 点検#1: いまの QR を読めなかったら止める。前は「まだ QR が無い」と受け取って新しい QR を作り、上書きしていた
+  //   ＝設定で QR を開いただけで、印刷して部屋に貼ってある QR が使えなくなる道があった（一つ前にも残らない）
+  if (curErr) return readFail(new Error(curErr.message));
   const newToken = async () => (await import('node:crypto')).randomBytes(18).toString('base64url');
   let row = cur
     ? { token: String(cur.token), created_at: String(cur.created_at), prev_token: cur.prev_token ? String(cur.prev_token) : null, prev_created_at: cur.prev_created_at ? String(cur.prev_created_at) : null }
