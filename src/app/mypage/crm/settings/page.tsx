@@ -219,7 +219,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
             </select>
           </div>
         </div>
-        <p className="mt-2 text-[12px] text-slate-400">終了時刻は翌7時まで選べます。締め・日報の「その日の分」は、表示時間に関係なく朝6時で区切ります。</p>
+        <p className="mt-2 text-[13px] text-slate-400">終了時刻は翌7時まで選べます。締め・日報の「その日の分」は、表示時間に関係なく朝6時で区切ります。</p>
       </section>
       )}
 
@@ -228,7 +228,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
         <h2 className="text-[17px] font-black text-slate-800">女子の終わりの時刻のバッジ（既定）</h2>
         <div className="mt-3 space-y-2">
           {(['accept', 'finish'] as CrmEndType[]).map((t) => (
-            <label key={t} className="flex cursor-pointer items-center gap-2 text-[14px]">
+            <label key={t} className="flex cursor-pointer items-center gap-2 text-[13px]">
               <input type="radio" className="h-4 w-4 accent-indigo-600" checked={st.defaultEndType === t} onChange={() => setSt({ ...st, defaultEndType: t })} />
               <span className={`border px-1.5 text-[12px] font-bold ${t === 'accept' ? 'border-orange-400 bg-orange-50 text-orange-700' : 'border-pink-400 bg-white text-pink-600'}`}>{CRM_END_LABEL[t]}</span>
               <span className="text-slate-600">{t === 'accept' ? '受付までの時刻（その時刻まで予約を受ける）' : 'この時刻で終わり'}</span>
@@ -331,7 +331,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
             追加
           </button>
         </div>
-        <p className="mt-2 text-[12px] text-slate-400">追加・削除のあとは、下の「保存する」を押してください。</p>
+        <p className="mt-2 text-[13px] text-slate-400">追加・削除のあとは、下の「保存する」を押してください。</p>
       </section>
       )}
 
@@ -347,7 +347,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
           {st.alarms.map((a, i) => {
             const upd = (p: Partial<CrmAlarm>) => setSt({ ...st, alarms: st.alarms.map((x, j) => (j === i ? { ...x, ...p } : x)) });
             return (
-              <div key={i} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-[14px]">
+              <div key={i} className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-2 text-[13px]">
                 <select className="border border-slate-300 bg-white px-2 py-1.5" value={a.on} onChange={(e) => upd({ on: e.target.value === 'end' ? 'end' : 'start' })}>
                   <option value="start">予約開始</option>
                   <option value="end">予約終了</option>
@@ -373,7 +373,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
         >
           ＋ アラームを追加
         </button>
-        <p className="mt-2 text-[12px] text-slate-400">「○分前」は0〜120分、鳴らす秒数は5〜300秒です。変えたあとは、下の「保存する」を押してください。</p>
+        <p className="mt-2 text-[13px] text-slate-400">「○分前」は0〜120分、鳴らす秒数は5〜300秒です。変えたあとは、下の「保存する」を押してください。</p>
       </section>
       )}
 
@@ -385,7 +385,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
           最後の「上記の内容をすべて了承します」に☑を入れ、指でサインして送信すると、その部屋のいまの予約に「了承済」とサインが記録されます。
           ★ スケジュールで名前を押した「出勤情報」で、その日の待機場所（部屋）を選んでおいてください（部屋から予約を探すため）。
         </p>
-        <label className="mt-3 flex cursor-pointer items-center gap-2 text-[14px] font-bold">
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-[13px] font-bold">
           <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.consentEnabled} onChange={(e) => setSt({ ...st, consentEnabled: e.target.checked })} />
           同意書を使う
         </label>
@@ -411,7 +411,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
         </div>
         {/* ★ 第1327便: グループ・提携店で共有する店だけに出す（同意書に、共有の文を足す）。★ 押したときだけ足す。保存は店が押す */}
         {inGroup && <GroupConsentBox body={st.consentBody} onChange={(body) => setSt({ ...st, consentBody: body })} />}
-        <p className="mt-1 text-[12px] leading-relaxed text-slate-400">
+        <p className="mt-1 text-[13px] leading-relaxed text-slate-400">
           最初に入っている文面はひな形です。お店に合わせて自由に書き換えてください（書き換えたあとは下の「保存する」）。
           内容が法的に十分かどうかは、必要に応じて専門家にご確認ください。
         </p>
@@ -435,7 +435,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
       {tab === 'cast' && (
         <section className="border border-slate-200 bg-white p-5">
           <h2 className="text-[17px] font-black text-slate-800">女子への公開</h2>
-          <label className="mt-3 flex cursor-pointer items-center gap-2 text-[15px] font-bold">
+          <label className="mt-3 flex cursor-pointer items-center gap-2 text-[13px] font-bold">
             <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.castPayEnabled} onChange={(e) => setSt({ ...st, castPayEnabled: e.target.checked })} />
             女子にスケジュールを見せる
           </label>
@@ -444,7 +444,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
             左の枠にはその日の待機場所（部屋）、予約には時間・お客様の名前・コースを出します。
             報酬はその日の合計だけを出します（予約ごとの料金・報酬は出しません）。お客様の電話番号・お店のメモ・女子メモ・ほかの女子の予定は見せません。
           </p>
-          <p className="mt-1 text-[12px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
+          <p className="mt-1 text-[13px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
         </section>
       )}
 
@@ -453,7 +453,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
         <section className="space-y-4 border border-slate-200 bg-white p-5">
           <h2 className="text-[17px] font-black text-slate-800">金銭授受</h2>
           <div>
-            <label className="flex cursor-pointer items-center gap-2 text-[15px] font-bold">
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] font-bold">
               <input type="checkbox" className="h-5 w-5 accent-indigo-600" checked={st.moneyEnabled} onChange={(e) => setSt({ ...st, moneyEnabled: e.target.checked })} />
               金銭授受を使う
             </label>
@@ -463,7 +463,7 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
             </p>
           </div>
           <div className={st.moneyEnabled ? '' : 'opacity-50'}>
-            <label className="flex cursor-pointer items-center gap-2 text-[15px] font-bold">
+            <label className="flex cursor-pointer items-center gap-2 text-[13px] font-bold">
               <input type="checkbox" className="h-5 w-5 accent-indigo-600" disabled={!st.moneyEnabled} checked={!!st.autoReceivedFrom} onChange={(e) => setSt({ ...st, autoReceivedFrom: e.target.checked ? (st.autoReceivedFrom ?? 'on') : null })} />
               受領が未入力の予約は「女子が受領」とみなす
             </label>
@@ -472,13 +472,13 @@ function SettingsBody({ salonId, inGroup }: { salonId: number; inGroup: boolean 
               支払いが<b>カード・PayPay</b>の分は「お店が受領」として数えます（現金とカードに分けた予約は、現金の分だけ女子が受領）。
               「受領」を選んだ予約は、選んだとおりに数えます。
             </p>
-            <p className="mt-1 text-[12px] text-slate-500">
+            <p className="mt-1 text-[13px] text-slate-500">
               {st.autoReceivedFrom && st.autoReceivedFrom !== 'on'
                 ? `${st.autoReceivedFrom.replaceAll('-', '/')} の営業日から先の予約に効いています（それより前の残高は変えていません）。`
                 : 'ON にして保存した日（今日の営業日）から先の予約に効きます。それより前の残高は変わりません。'}
             </p>
           </div>
-          <p className="text-[12px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
+          <p className="text-[13px] text-slate-400">変えたあとは、下の「保存する」を押してください。</p>
         </section>
       )}
 
@@ -571,7 +571,7 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
             )}
           </div>
           {sure === 'regenerate' && (
-            <div className="mt-2 border border-rose-300 bg-rose-50 p-2 text-left text-[12px] leading-relaxed text-rose-700">
+            <div className="mt-2 border border-rose-300 bg-rose-50 p-2 text-left text-[13px] leading-relaxed text-rose-700">
               作り直すと、今の QR コード（{day(createdAt)} 作成）は<b>すぐに使えなくなります</b>。印刷した紙や、アクリル板などで作ったものも読めなくなります。
               間違えた場合は「一つ前の QR に戻す」で戻せます。
               <div className="mt-2 flex gap-2">
@@ -581,7 +581,7 @@ function RoomQr({ salonId, room }: { salonId: number; room: string }) {
             </div>
           )}
           {sure === 'revert' && prevAt && (
-            <div className="mt-2 border border-amber-300 bg-amber-50 p-2 text-left text-[12px] leading-relaxed text-amber-800">
+            <div className="mt-2 border border-amber-300 bg-amber-50 p-2 text-left text-[13px] leading-relaxed text-amber-800">
               一つ前の QR（{day(prevAt)} 作成）が使えるようになり、今の QR（{day(createdAt)} 作成）は使えなくなります。もう一度押せば、また入れ替わります。
               <div className="mt-2 flex gap-2">
                 <button type="button" disabled={busy} onClick={() => run('revert')} className="bg-amber-600 px-3 py-1.5 font-bold text-white disabled:opacity-50">一つ前に戻す</button>
@@ -620,7 +620,7 @@ function GroupConsentBox({ body, onChange }: { body: string; onChange: (body: st
   return (
     <div className="mt-3 border border-indigo-200 bg-indigo-50 p-3">
       <p className="text-[13px] font-bold text-slate-700">{CRM_GROUP_ALERT_SOURCE_LABEL}との共有についての文</p>
-      <p className="mt-1 text-[12px] leading-relaxed text-slate-600">
+      <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
         NG・要注意のお客様を{CRM_GROUP_ALERT_SOURCE_LABEL}で共有するには、お客様にあらかじめ知らせておく必要があります。同意書に、共有についての文を入れてください。文を足す前にサインされたお客様には、この同意は当たりません。
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -735,7 +735,7 @@ function ToggleSection({ toggles, onChange }: { toggles: CrmToggle[]; onChange: 
           ＋ 項目を追加
         </button>
       )}
-      <p className="mt-2 text-[12px] leading-relaxed text-slate-400">
+      <p className="mt-2 text-[13px] leading-relaxed text-slate-400">
         空の選択肢は保存のときに外れます。題名を変えても、これまでに選んだ内容はそのまま残ります（選択肢の文字を変えたときは、その選択肢を選んでいた日の表示が消えます）。変えたあとは、下の「保存する」を押してください。
       </p>
     </section>

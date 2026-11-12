@@ -301,7 +301,7 @@ function CustomerDetail({
             ))}
           </div>
 
-          <dl className="mt-3 grid grid-cols-[6.5em_1fr] gap-y-1.5 text-[14px]">
+          <dl className="mt-3 grid grid-cols-[6.5em_1fr] gap-y-1.5 text-[13px]">
             <dt className="font-bold text-slate-400">電話番号</dt>
             <dd className="text-slate-800">{c.phones.length ? c.phones.map(fmtPhone).join('／') : '—'}</dd>
             <dt className="font-bold text-slate-400">女子NG</dt>
@@ -346,7 +346,7 @@ function CustomerDetail({
                   )}
                 </div>
                 {b.consentAt && (
-                  <div className="mt-1 text-[12px]">
+                  <div className="mt-1 text-[13px]">
                     <ConsentView
                       salonId={salonId}
                       bookingId={b.id}
@@ -358,7 +358,7 @@ function CustomerDetail({
                   </div>
                 )}
                 {(b.note || (b.customerName && b.customerName !== c.name)) && (
-                  <p className="mt-0.5 text-[12px] text-slate-500">
+                  <p className="mt-0.5 text-[13px] text-slate-500">
                     {b.customerName && b.customerName !== c.name ? `予約時の名前：${b.customerName}　` : ''}
                     {b.note}
                   </p>
@@ -492,14 +492,14 @@ function CustomersBody({ salonId, inGroup }: { salonId: number; inGroup: boolean
                     {c.stats.upcoming > 0 && (
                       <span className="ml-auto flex-none bg-sky-100 px-1 text-[11px] font-bold text-sky-700">予約中{c.stats.upcoming}</span>
                     )}
-                    <span className={`${c.stats.upcoming > 0 ? '' : 'ml-auto '}flex-none text-[12px] text-slate-500`}>利用{c.stats.visits}</span>
+                    <span className={`${c.stats.upcoming > 0 ? '' : 'ml-auto '}flex-none text-[13px] text-slate-500`}>利用{c.stats.visits}</span>
                   </div>
                   {c.memoHit && (
-                    <p className={`mt-0.5 truncate text-[12px] ${c.memoHit.kind === 'caution' ? 'font-bold text-rose-600' : 'text-amber-700'}`}>
+                    <p className={`mt-0.5 truncate text-[13px] ${c.memoHit.kind === 'caution' ? 'font-bold text-rose-600' : 'text-amber-700'}`}>
                       {c.memoHit.kind === 'caution' ? '要注意' : 'メモ'}：{c.memoHit.text}
                     </p>
                   )}
-                  <div className="mt-0.5 flex gap-2 text-[12px] text-slate-400">
+                  <div className="mt-0.5 flex gap-2 text-[13px] text-slate-400">
                     <span>{c.phones[0] ? fmtPhone(c.phones[0]) : '電話なし'}</span>
                     <span>最終 {fmtDate(c.stats.lastVisitISO)}</span>
                     {c.stats.cancels > 0 && (
