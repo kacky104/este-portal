@@ -42,6 +42,7 @@ import {
   hpDemoImageSlots,
 } from '@/app/lib/hpSite';
 import { HP_CONTACT_DEFAULT_NOTE, HP_CONTACT_SUBJECTS, MAX_HP_CONTACT_NOTE_LEN } from '@/app/lib/hp/contact';
+import { ekichikaScoreItems } from '@/lib/hpEkichikaScore';
 
 // 公式HPの編集パネル（旧 mypage/HpTab.tsx を店舗ドメイン/admin へ移植・2026-08-09 段階3）。
 //
@@ -1124,6 +1125,37 @@ export function HpEditor({
       <div className="bg-white rounded-none border border-slate-200 shadow-sm p-5 md:p-6 space-y-4">
         <h3 className="flex items-center gap-2 text-[15px] font-black text-slate-800"><HeadLogo />駅ちかのランキング対策</h3>
         <p className="text-[12px] text-slate-500 leading-relaxed">駅ちかは、公式ホームページから駅ちかへのリンクがあると加点します。項目ごとに、リンク先を駅ちかにするかフクエスのままにするかを選べます。<br />写メ・口コミのウィジェットは、左メニューの「ウィジェット」に貼ってください。</p>
+        {/* ★ 第2000便（カッキーさん）: サイトスコアのチェック表（設定があるかを一覧で。点数は駅ちかへ申請して確認されたあとに付く） */}
+        {(() => {
+          const slot = ekInfo?.slots.find((x) => x.slot === form.blocks.ekichika.slot) ?? ekInfo?.slots[0];
+          const items = ekichikaScoreItems({
+            links: form.link_banners, widgets: form.blocks.widgets, ek: form.blocks.ekichika,
+            cast: ekInfo && slot ? { total: ekInfo.total, linked: slot.linked } : null,
+          });
+          const WHERE = { links: '「リンク」で貼る', widgets: '「ウィジェット」で貼る', ekichika: 'この下で選ぶ' } as const;
+          const MARK = { done: ['設定済', 'border-emerald-300 bg-emerald-50 text-emerald-700'], part: ['一部', 'border-amber-300 bg-amber-50 text-amber-700'], none: ['未設定', 'border-slate-300 bg-slate-50 text-slate-500'] } as const;
+          return (
+            <div className="border border-slate-200">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="text-[13px] font-black text-slate-800">サイトスコアのチェック表</span>
+                <span className="text-[12px] text-slate-500 tabular-nums">設定済 {items.filter((x) => x.state === 'done').length} ／ {items.length}</span>
+              </div>
+              <ul className="divide-y divide-slate-100">
+                {items.map((it, i) => (
+                  <li key={it.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+                    <span className={`flex-none border px-2 py-0.5 text-[11px] font-bold ${MARK[it.state][1]}`}>{MARK[it.state][0]}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-bold text-slate-800">{'①②③④⑤⑥⑦⑧'[i]} {it.label}<span className="ml-2 text-[12px] font-black text-pink-600">{it.points}</span></div>
+                      <div className="text-[11.5px] text-slate-500">{it.note}</div>
+                    </div>
+                    {it.state !== 'done' && <span className="flex-none text-[11.5px] text-slate-400">{WHERE[it.where]}</span>}
+                  </li>
+                ))}
+              </ul>
+              <p className="border-t border-slate-200 px-3 py-2 text-[11.5px] leading-relaxed text-slate-500">「設定済」は、このホームページに設定があるという意味です。点数は、保存したあと駅ちかの管理画面で「サイトスコア申請」をして、確認されてから付きます。バナーのコードは、駅ちかの管理画面の「サイトスコア」からコピーできます。</p>
+            </div>
+          );
+        })()}
         {ekInfo && ekInfo.slots.length === 0 && (
           <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">駅ちかのお店ページがまだ分かりません。コネックエフ（またはフクエスリンク）で駅ちかを連携すると使えます。</p>
         )}
