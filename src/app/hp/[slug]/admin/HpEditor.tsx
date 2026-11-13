@@ -890,12 +890,17 @@ export function HpEditor({
                   </select>
                 )}
                 {/* ★ 第2014便（オイルクエスト様のご要望）: 本日の出勤をスマホで1行に何人並べるか（PCは4人のまま） */}
-                {k === 'schedule' && (
+                {/* ★ 第2017便: セラピスト一覧も同じ選択（トップと /therapist の両方に効く） */}
+                {(k === 'schedule' || k === 'therapists') && (
                   <select
-                    value={form.blocks.schedule.spCols}
-                    onChange={(e) => patchBlocks({ schedule: { ...form.blocks.schedule, spCols: e.target.value === '4' ? 4 : 2 } })}
-                    disabled={!form.blocks.schedule.on}
-                    aria-label="本日の出勤をスマホで1行に並べる人数"
+                    value={form.blocks[k].spCols}
+                    onChange={(e) => {
+                      const spCols = e.target.value === '4' ? 4 : 2;
+                      if (k === 'schedule') patchBlocks({ schedule: { ...form.blocks.schedule, spCols } });
+                      else patchBlocks({ therapists: { ...form.blocks.therapists, spCols } });
+                    }}
+                    disabled={!form.blocks[k].on}
+                    aria-label={`${sectionLabel(k)}をスマホで1行に並べる人数`}
                     className="rounded-none border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-40"
                   >
                     <option value={2}>スマホ 1行2人</option>

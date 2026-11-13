@@ -95,6 +95,7 @@ export function TherapistCards({
   limit,
   grid = false,
   detailBase = null,
+  spCols = 2,
 }: {
   therapists: HpTherapist[];
   limit?: number;
@@ -106,11 +107,13 @@ export function TherapistCards({
   grid?: boolean;
   /** HP内のセラピスト個別ページへ飛ばすときの basePath（''も有効）。null なら従来どおり本体へ */
   detailBase?: string | null;
+  /** ★ 第2017便: 4 のとき hp-th-sp4 を付ける（スマホで1行4人。CSS は styles.ts の HP_TH_SP4_CSS） */
+  spCols?: 2 | 4;
 }) {
   const list = typeof limit === 'number' ? therapists.slice(0, limit) : therapists;
   const internal = typeof detailBase === 'string';
   return (
-    <div className={`hp-th-row${grid ? ' hp-th-grid' : ''}`}>
+    <div className={`hp-th-row${grid ? ' hp-th-grid' : ''}${spCols === 4 ? ' hp-th-sp4' : ''}`}>
       {list.map((t) => (
         <a
           key={t.id}

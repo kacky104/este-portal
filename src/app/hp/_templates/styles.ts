@@ -1261,6 +1261,32 @@ export const HP_SCHED_SP4_CSS = `
 }
 `;
 
+/**
+ * ★ 第2017便（2026-11-13・オイルクエスト様のご要望）: セラピスト一覧を【スマホで1行4人】にする上書き。
+ *   ★ 公式HP管理の「セラピスト一覧」で「スマホ 1行4人」を選んだ店にだけ HpShell が足す。トップと /therapist の両方。
+ *   ★ トップは横スクロール（A・B・C）の型もあるが、4人のときは全型そろって4列のグリッドにする。
+ *   ★ 1枚が約1/4の幅なので、ひとことキャッチ・特徴バッジ・体型は出さない（名前・年齢・本日出勤だけ）。
+ *   ★ タイプSは文字を写真に重ねる型なので、年齢は白・太字・濃い影（出勤の4人と同じ）。
+ */
+export const HP_TH_SP4_CSS = `
+@media (max-width: 767px) {
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-th-row.hp-th-sp4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; overflow: visible; padding: 0; flex-wrap: nowrap; }
+  :is(.hp-b, .hp-c) .hp-th-row.hp-th-sp4 { gap: 6px; margin-left: 0; margin-right: 0; border: none; background: transparent; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-th-row.hp-th-sp4 .hp-th-card { flex: none; min-width: 0; }
+  .hp-c .hp-th-row.hp-th-sp4 .hp-th-card { border: 2px solid var(--hp-ink, #111114); padding-bottom: 6px; }
+  .hp-b .hp-th-row.hp-th-sp4 .hp-th-frame { border-radius: 10px; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-th-sp4 :is(.hp-th-catch, .hp-th-badges, .hp-th-body-type) { display: none; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-th-sp4 .hp-th-name { font-size: 12px; letter-spacing: .04em; text-indent: 0; margin-top: 4px; padding-left: 2px; padding-right: 2px; line-height: 1.3; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-th-sp4 .hp-th-age { font-size: 10px; letter-spacing: 0; margin-top: 1px; padding-left: 2px; padding-right: 2px; line-height: 1.3; }
+  .hp-c .hp-th-sp4 .hp-th-name { padding-top: 4px; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-th-sp4 .hp-th-onduty { font-size: 8.5px; letter-spacing: 0; padding: 1px 4px; margin-top: 3px; white-space: nowrap; }
+  .hp-s .hp-th-sp4 .hp-th-body { padding: 0 2px 6px; gap: 0; }
+  .hp-s .hp-th-sp4 .hp-th-name { margin-top: 0; }
+  .hp-s .hp-th-sp4 .hp-th-age { color: #fff; font-weight: 700; text-shadow: 0 0 3px rgba(0,0,0,.9), 0 1px 5px rgba(0,0,0,.7); }
+  .hp-s .hp-th-sp4 .hp-th-onduty { padding: 0; margin-top: 2px; font-size: 9.5px; }
+}
+`;
+
 export const HP_PC_FONT_SCALE = 1.1;
 export const HP_PC_READ_CSS = `
 @media (min-width: 768px) {

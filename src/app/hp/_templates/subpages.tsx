@@ -87,7 +87,7 @@ export function HpTherapistView({ data, preview }: ViewProps) {
         <SecHead no="03" en="Therapist" jp="セラピスト" />
         {/* このページが出ている時点で個別ページの存在条件（マルチページ＋在籍1名以上）は満たすので、
             detailBase は常に basePath（2026-08-20 第25便・HP内の個別ページへ） */}
-        <TherapistCards therapists={therapists} grid detailBase={basePath} />
+        <TherapistCards therapists={therapists} grid detailBase={basePath} spCols={data.site.blocks.therapists.spCols} />
         <a className="hp-more" href={homeHref}>← ホームへ戻る</a>
       </section>
 

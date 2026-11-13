@@ -46,7 +46,7 @@ export const MAX_HP_LINK_LEN      = 300;
 export type HpBlocksConfig = {
   concept:    { on: boolean };                 // コンセプト（本文か見出しがあるときだけ出る）
   courses:    { on: boolean };                 // コース料金（登録があるときだけ出る）
-  therapists: { on: boolean; count: number };  // セラピスト一覧（count: トップに出す人数・第1896便。0=標準 / HP_COUNT_ALL=全員）
+  therapists: { on: boolean; count: number; spCols: 2 | 4 };  // セラピスト一覧（count: トップに出す人数・第1896便。0=標準 / HP_COUNT_ALL=全員・spCols＝スマホで1行に並べる人数 第2017便）
   schedule:   { on: boolean; days: number; count: number; spCols: 2 | 4 };   // 本日の出勤（days は週間表の削除でUIから隠した。下の注記参照・count は上と同じ・spCols＝スマホで1行に並べる人数 第2014便）
   diary:      { on: boolean; count: number };  // 写メ日記（埋め込み・表示件数 1〜12）
   reviews:    { on: boolean; count: number };  // 口コミ（埋め込み・表示件数 1〜10）
@@ -352,7 +352,7 @@ export function sanitizeHpBackground(raw: unknown): HpBackground {
 export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   concept:    { on: true },
   courses:    { on: true },
-  therapists: { on: true, count: 0 },
+  therapists: { on: true, count: 0, spCols: 2 },
   schedule:   { on: true, days: 7, count: 0, spCols: 2 },
   diary:      { on: true, count: 6 },
   reviews:    { on: true, count: 5 },
@@ -397,6 +397,8 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     therapists: {
       on:    boolOr(r.therapists?.on, d.therapists.on),
       count: clampInt(r.therapists?.count, 0, HP_COUNT_ALL, d.therapists.count),
+      // ★ 第2017便: スマホで1行に並べる人数。4 以外はすべて 2（今までどおり）
+      spCols: r.therapists?.spCols === 4 ? 4 : 2,
     },
     schedule: {
       on:    boolOr(r.schedule?.on, d.schedule.on),

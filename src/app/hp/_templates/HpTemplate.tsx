@@ -237,7 +237,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
         <section id="therapist" data-hp-reveal className={secCls('therapists', 'hp-sec-therapists', false)} style={ord('therapists')}>
           <SecHead no="03" en="Therapist" jp="セラピスト" />
           {/* detailBase: 個別ページが実在する店（subs.therapist）だけHP内へ。それ以外は従来どおり本体へ（2026-08-20 第25便） */}
-          <TherapistCards therapists={therapists} limit={thLimit} detailBase={subs.therapist ? basePath : null} />
+          <TherapistCards therapists={therapists} limit={thLimit} detailBase={subs.therapist ? basePath : null} spCols={b.therapists.spCols} />
           {multipage ? (
             <a className="hp-more" href={`${basePath}/therapist`}>
               {thCut
