@@ -70,6 +70,7 @@ export default function WorkLinePage() {
       salonName={salon?.name ?? null}
       salonId={salonId}
       title="LINEの履歴"
+      lead="求人ページの「LINEで応募する」ボタンと、LINEのQRコードが使われた日時です。"
       current="line"
       toast={toast}
     >
@@ -147,7 +148,6 @@ export default function WorkLinePage() {
           </div>
 
           <ul className="mt-4 text-[12.5px] text-slate-400 leading-relaxed space-y-1 list-disc pl-4">
-            <li>求人ページの「LINEで応募する」ボタンが押された時と、パソコン画面に出る LINE の QRコードがスマホで読み取られた時を記録しています。</li>
             <li>LINE が開いたあと、実際に友だち追加やメッセージをしなかった場合も記録されます。</li>
             <li>検索エンジンなどの機械による読み込みは数えていません。</li>
           </ul>

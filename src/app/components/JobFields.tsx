@@ -93,10 +93,26 @@ const inputClass =
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="text-[11px] font-bold text-slate-400 block mb-1">
+    <label className="text-[12.5px] font-bold text-slate-600 block mb-1">
       {children}
       {required && <span className="text-rose-400"> *</span>}
     </label>
+  );
+}
+
+// ★ 第2013便: 入力欄のまとまり（番号・見出し・1行の説明）。
+function Section({ no, title, desc, children }: { no: number; title: string; desc: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-3.5 md:p-4">
+      <div className="flex items-baseline gap-2 pb-2.5 mb-3.5 border-b border-slate-100">
+        <span className="flex-none w-6 h-6 grid place-items-center rounded-full text-[12px] font-black text-white" style={{ background: 'linear-gradient(135deg,#10B981,#84CC16)' }}>{no}</span>
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-black text-slate-700">{title}</h3>
+          <p className="text-[12px] text-slate-400 leading-relaxed">{desc}</p>
+        </div>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
   );
 }
 
@@ -117,7 +133,7 @@ function FieldWithCount({
     <div>
       <div className="flex items-baseline justify-between mb-1">
         <Label>{label}</Label>
-        <span className={`text-[10px] ${count > max ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+        <span className={`text-[11px] ${count > max ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
           {count}/{max}
         </span>
       </div>
@@ -153,64 +169,79 @@ export function JobFields({
 
   return (
     <div className="space-y-4">
-      {/* タイトル（必須） */}
-      <div>
-        <Label required>求人タイトル</Label>
-        <input
-          type="text"
-          className={inputClass}
-          placeholder="例）未経験歓迎！アロマセラピスト募集"
-          value={value.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-        />
-      </div>
-
-      {/* 給与（表示テキスト・必須） */}
-      <div>
-        <Label required>給与（表示テキスト）</Label>
-        <input
-          type="text"
-          className={inputClass}
-          placeholder="例）日給20,000円〜／完全歩合"
-          value={value.salary_text}
-          onChange={(e) => onChange({ salary_text: e.target.value })}
-        />
-      </div>
-
-      {/* 給与レンジ（任意・両方 or 両方空。構造化データ baseSalary に使用） */}
-      <div>
-        <Label>給与レンジ（任意・数値のみ／構造化データ用）</Label>
-        <div className="flex items-center gap-2">
+      {/* ★ 第2013便（2026-11-13・カッキーさん「整理整頓」）: 項目を5つのまとまりに分けた（並びも、上から書く順に）。 */}
+      <Section no={1} title="基本の情報" desc="求人ページのいちばん上に出る内容です。">
+        {/* タイトル（必須） */}
+        <div>
+          <Label required>求人タイトル</Label>
           <input
-            type="number"
-            min={0}
-            step={1000}
-            className={`${inputClass} text-right`}
-            placeholder="下限"
-            value={value.salary_min}
-            onChange={(e) => onChange({ salary_min: e.target.value })}
+            type="text"
+            className={inputClass}
+            placeholder="例）未経験歓迎！アロマセラピスト募集"
+            value={value.title}
+            onChange={(e) => onChange({ title: e.target.value })}
           />
-          <span className="text-sm text-slate-400 flex-none">〜</span>
-          <input
-            type="number"
-            min={0}
-            step={1000}
-            className={`${inputClass} text-right`}
-            placeholder="上限"
-            value={value.salary_max}
-            onChange={(e) => onChange({ salary_max: e.target.value })}
-          />
-          <span className="text-xs text-slate-400 flex-none">円</span>
         </div>
-        <p className="text-[10px] text-slate-400 mt-1">
-          下限・上限は「両方入力」か「両方空欄」で。片方だけは保存できません（日給想定）。サイトには表示されませんが、入力するとGoogle検索で貴店の求人が表示されやすくなります。
-        </p>
-      </div>
 
-      {/* 募集要項（任意・4項目）。求人詳細の「募集要項」表にそのまま並ぶ。上限字数はサーバーで
+        {/* 給与（表示テキスト・必須） */}
+        <div>
+          <Label required>給与（表示テキスト）</Label>
+          <input
+            type="text"
+            className={inputClass}
+            placeholder="例）日給20,000円〜／完全歩合"
+            value={value.salary_text}
+            onChange={(e) => onChange({ salary_text: e.target.value })}
+          />
+        </div>
+
+        {/* 給与レンジ（任意・両方 or 両方空。構造化データ baseSalary に使用） */}
+        <div>
+          <Label>給与レンジ（任意・数値のみ／構造化データ用）</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              className={`${inputClass} text-right`}
+              placeholder="下限"
+              value={value.salary_min}
+              onChange={(e) => onChange({ salary_min: e.target.value })}
+            />
+            <span className="text-sm text-slate-400 flex-none">〜</span>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              className={`${inputClass} text-right`}
+              placeholder="上限"
+              value={value.salary_max}
+              onChange={(e) => onChange({ salary_max: e.target.value })}
+            />
+            <span className="text-xs text-slate-400 flex-none">円</span>
+          </div>
+          <p className="text-[11.5px] text-slate-400 mt-1">
+            下限・上限は「両方入力」か「両方空欄」で。片方だけは保存できません（日給想定）。サイトには表示されませんが、入力するとGoogle検索で貴店の求人が表示されやすくなります。
+          </p>
+        </div>
+
+        {/* 仕事内容（必須） */}
+        <div>
+          <Label required>仕事内容</Label>
+          {/* ★ 見える高さを1/3ぶん広げた（第292便・2026-09-12・カッキーさんの指示）。★ 360 → 480px。
+              ★ resize-y は残す（自分で伸ばせる）。 */}
+          <textarea
+            className={`${inputClass} min-h-[480px] resize-y`}
+            placeholder="お仕事の内容・1日の流れ・お店の雰囲気など"
+            value={value.description}
+            onChange={(e) => onChange({ description: e.target.value })}
+          />
+        </div>
+      </Section>
+
+      <Section no={2} title="募集要項" desc="求人ページの「募集要項」の表に出ます。空欄の行は出ません。">
+        {/* 募集要項（任意・4項目）。求人詳細の「募集要項」表にそのまま並ぶ。上限字数はサーバーで
           クランプするが、UI にも字数カウンターを出して超過に気付けるようにする。 */}
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/30 p-3.5 space-y-3">
-        <p className="text-[11px] font-bold text-emerald-700">募集要項（任意）</p>
 
         <FieldWithCount label="エリア" count={value.area.length} max={MAX_JOB_AREA_LEN}>
           <input
@@ -249,156 +280,150 @@ export function JobFields({
             onChange={(e) => onChange({ qualifications: e.target.value })}
           />
         </FieldWithCount>
-      </div>
 
-      {/* 特徴タグ（任意・いくつでも）。選んだタグの絞り込みページ /jobs/tag/[slug] に掲載される。 */}
-      <div>
-        <Label>特徴タグ（任意）</Label>
-        <p className="text-[10px] text-slate-400 mb-2">
-          選んだタグの絞り込みページに掲載されます。現在 {value.features.length} 個
-        </p>
-        <div className="space-y-3">
-          {/* ★ 第958便: 求人詳細・カードと同じカテゴリー別の色（角だけ丸い長方形）。選ぶとその色で塗る。 */}
-          {JOB_FEATURE_GROUPS.map((g) => {
-            const gc = featureTagColor(g.slugs[0]);
-            return (
-            <div key={g.title}>
-              <p className="text-[11px] font-bold mb-1.5" style={{ color: gc.text }}>{g.title}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {g.slugs.map((slug) => {
-                  const checked = value.features.includes(slug);
-                  const disabled = false; // ★ 第1370便: 上限なし
-                  const c = featureTagColor(slug);
-                  return (
-                    <label
-                      key={slug}
-                      className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded border select-none transition-colors ${
-                        disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                      }`}
-                      style={
-                        checked
-                          ? { color: c.text, borderColor: c.text, backgroundColor: c.bg }
-                          : { color: c.text, borderColor: c.border, backgroundColor: '#ffffff' }
-                      }
-                    >
-                      <input
-                        type="checkbox"
-                        className="w-3.5 h-3.5"
-                        style={{ accentColor: c.text }}
-                        checked={checked}
-                        disabled={disabled}
-                        onChange={() => toggleFeature(slug)}
-                      />
-                      {featureLabel(slug)}
-                    </label>
-                  );
-                })}
+        {/* お祝い金（任意・公開）。求人詳細の募集要項下に表示される。空欄で非表示。正の整数のみ（上限100万円）。 */}
+        <div>
+          <Label>お祝い金（円・任意）</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              max={MAX_CELEBRATION_MONEY}
+              step={1000}
+              inputMode="numeric"
+              className={`${inputClass} text-right`}
+              placeholder="例）30000"
+              value={value.celebration_money}
+              onChange={(e) => onChange({ celebration_money: e.target.value })}
+            />
+            <span className="text-xs text-slate-400 flex-none">円</span>
+          </div>
+          <p className="text-[11.5px] text-slate-400 mt-1 leading-relaxed">
+            フクエスワーク経由の応募で採用が決まった方に店舗様から進呈するお祝い金です。金額を入力すると求人ページに表示されます（空欄で非表示）。
+          </p>
+          {celebrationErr && <p className="text-[11.5px] text-rose-500 mt-1">{celebrationErr}</p>}
+        </div>
+      </Section>
+
+      <Section no={3} title="特徴タグ" desc="選んだタグの絞り込みページにも載ります。いくつでも選べます。">
+        {/* 特徴タグ（任意・いくつでも）。選んだタグの絞り込みページ /jobs/tag/[slug] に掲載される。 */}
+        <div>
+          <p className="text-[11.5px] text-slate-400 mb-2">
+            いま {value.features.length} 個 選んでいます
+          </p>
+          <div className="space-y-3">
+            {/* ★ 第958便: 求人詳細・カードと同じカテゴリー別の色（角だけ丸い長方形）。選ぶとその色で塗る。 */}
+            {JOB_FEATURE_GROUPS.map((g) => {
+              const gc = featureTagColor(g.slugs[0]);
+              return (
+              <div key={g.title}>
+                <p className="text-[12px] font-bold mb-1.5" style={{ color: gc.text }}>{g.title}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {g.slugs.map((slug) => {
+                    const checked = value.features.includes(slug);
+                    const disabled = false; // ★ 第1370便: 上限なし
+                    const c = featureTagColor(slug);
+                    return (
+                      <label
+                        key={slug}
+                        className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded border select-none transition-colors ${
+                          disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                        }`}
+                        style={
+                          checked
+                            ? { color: c.text, borderColor: c.text, backgroundColor: c.bg }
+                            : { color: c.text, borderColor: c.border, backgroundColor: '#ffffff' }
+                        }
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5"
+                          style={{ accentColor: c.text }}
+                          checked={checked}
+                          disabled={disabled}
+                          onChange={() => toggleFeature(slug)}
+                        />
+                        {featureLabel(slug)}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </Section>
 
-      {/* 応募通知メール（必須）。応募があるとこのアドレスに通知が届く。 */}
-      <div>
-        <Label required>応募通知メール</Label>
-        <input
-          type="email"
-          className={inputClass}
-          placeholder="例）owner@example.com"
-          value={value.notify_email}
-          onChange={(e) => onChange({ notify_email: e.target.value })}
+      <Section no={4} title="写真・セラピストの声" desc="求人ページの見た目を作る画像と、在籍セラピストの声です。">
+        {/* 求人バナー画像（16:9・最大3枚・任意）。先頭が一覧・SNSシェア・「注目の求人」バナーで使われる。 */}
+        <JobHeroImageField
+          salonId={salonId ?? null}
+          value={value.hero_image_urls}
+          onChange={(urls) => onChange({ hero_image_urls: urls })}
         />
-        {value.notify_email.trim() !== '' && !isValidEmailFormat(value.notify_email) && (
-          <p className="text-[10px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
-        )}
-      </div>
 
-      {/* 応募用の公開連絡先（任意）。求人ページの応募セクションに表示される。未入力の手段は非表示。
-          notify_email（非公開の応募通知先）とは別物であることを注記で明示する。 */}
-      <div>
-        <Label>応募用メールアドレス（任意・公開）</Label>
-        <input
-          type="email"
-          className={inputClass}
-          placeholder="recruit@example.com"
-          value={value.apply_email}
-          onChange={(e) => onChange({ apply_email: e.target.value })}
+        {/* お店の雰囲気ギャラリー（正方形・最大6枚・任意・各画像にキャプション）。求人詳細に掲載。 */}
+        <JobGalleryField
+          salonId={salonId ?? null}
+          value={value.gallery_images}
+          onChange={(items) => onChange({ gallery_images: items })}
         />
-        <p className="text-[10px] text-slate-400 mt-1">求人ページに公開されます。応募通知メールとは別の設定です。</p>
-        {value.apply_email.trim() !== '' && !isValidEmailFormat(value.apply_email) && (
-          <p className="text-[10px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
-        )}
-      </div>
 
-      <div>
-        <Label>応募用LINE URL（任意・公開）</Label>
-        <input
-          type="url"
-          className={inputClass}
-          placeholder="https://lin.ee/xxxxx"
-          value={value.apply_line_url}
-          onChange={(e) => onChange({ apply_line_url: e.target.value })}
+        {/* 在籍セラピストの声（インタビュー形式・最大3件・任意）。求人詳細に掲載。 */}
+        <JobVoicesField
+          value={value.therapist_voices}
+          onChange={(voices) => onChange({ therapist_voices: voices })}
         />
-        <p className="text-[10px] text-slate-400 mt-1">LINE公式アカウントや友だち追加のURL（https://〜）。</p>
-      </div>
+      </Section>
 
-      {/* お祝い金（任意・公開）。求人詳細の募集要項下に表示される。空欄で非表示。正の整数のみ（上限100万円）。 */}
-      <div>
-        <Label>お祝い金（円・任意）</Label>
-        <div className="flex items-center gap-2">
+      <Section no={5} title="応募の受け方" desc="応募の通知先と、求人ページに出す連絡手段です。">
+        {/* 応募通知メール（必須）。応募があるとこのアドレスに通知が届く。 */}
+        <div>
+          <Label required>応募通知メール</Label>
           <input
-            type="number"
-            min={1}
-            max={MAX_CELEBRATION_MONEY}
-            step={1000}
-            inputMode="numeric"
-            className={`${inputClass} text-right`}
-            placeholder="例）30000"
-            value={value.celebration_money}
-            onChange={(e) => onChange({ celebration_money: e.target.value })}
+            type="email"
+            className={inputClass}
+            placeholder="例）owner@example.com"
+            value={value.notify_email}
+            onChange={(e) => onChange({ notify_email: e.target.value })}
           />
-          <span className="text-xs text-slate-400 flex-none">円</span>
+          <p className="text-[11.5px] text-slate-400 mt-1">応募があると、このアドレスにお知らせが届きます（求人ページには出ません）。</p>
+          {value.notify_email.trim() !== '' && !isValidEmailFormat(value.notify_email) && (
+            <p className="text-[11.5px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
+          )}
         </div>
-        <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-          フクエスワーク経由の応募で採用が決まった方に店舗様から進呈するお祝い金です。金額を入力すると求人ページに表示されます（空欄で非表示）。
-        </p>
-        {celebrationErr && <p className="text-[10px] text-rose-500 mt-1">{celebrationErr}</p>}
-      </div>
 
-      {/* 求人バナー画像（16:9・最大3枚・任意）。先頭が一覧・SNSシェア・「注目の求人」バナーで使われる。 */}
-      <JobHeroImageField
-        salonId={salonId ?? null}
-        value={value.hero_image_urls}
-        onChange={(urls) => onChange({ hero_image_urls: urls })}
-      />
+        {/* 応募用の公開連絡先（任意）。求人ページの応募セクションに表示される。未入力の手段は非表示。
+            notify_email（非公開の応募通知先）とは別物であることを注記で明示する。 */}
+        <div>
+          <Label>応募用メールアドレス（任意・公開）</Label>
+          <input
+            type="email"
+            className={inputClass}
+            placeholder="recruit@example.com"
+            value={value.apply_email}
+            onChange={(e) => onChange({ apply_email: e.target.value })}
+          />
+          <p className="text-[11.5px] text-slate-400 mt-1">求人ページに公開されます。応募通知メールとは別の設定です。</p>
+          {value.apply_email.trim() !== '' && !isValidEmailFormat(value.apply_email) && (
+            <p className="text-[11.5px] text-rose-500 mt-1">メールアドレスの形式が正しくありません。</p>
+          )}
+        </div>
 
-      {/* お店の雰囲気ギャラリー（正方形・最大6枚・任意・各画像にキャプション）。求人詳細に掲載。 */}
-      <JobGalleryField
-        salonId={salonId ?? null}
-        value={value.gallery_images}
-        onChange={(items) => onChange({ gallery_images: items })}
-      />
+        <div>
+          <Label>応募用LINE URL（任意・公開）</Label>
+          <input
+            type="url"
+            className={inputClass}
+            placeholder="https://lin.ee/xxxxx"
+            value={value.apply_line_url}
+            onChange={(e) => onChange({ apply_line_url: e.target.value })}
+          />
+          <p className="text-[11.5px] text-slate-400 mt-1 leading-relaxed">お店のLINEの友だち追加URL（https://〜）。入れると求人ページに「LINEで応募する」ボタンと（パソコンでは）QRコードが出ます。使われた数は「LINEの履歴」で見られます。</p>
+        </div>
+      </Section>
 
-      {/* 在籍セラピストの声（インタビュー形式・最大3件・任意）。求人詳細に掲載。 */}
-      <JobVoicesField
-        value={value.therapist_voices}
-        onChange={(voices) => onChange({ therapist_voices: voices })}
-      />
-
-      {/* 仕事内容（必須） */}
-      <div>
-        <Label required>仕事内容</Label>
-        {/* ★ 見える高さを1/3ぶん広げた（第292便・2026-09-12・カッキーさんの指示）。★ 360 → 480px。
-            ★ resize-y は残す（自分で伸ばせる）。 */}
-        <textarea
-          className={`${inputClass} min-h-[480px] resize-y`}
-          placeholder="お仕事の内容・1日の流れ・お店の雰囲気など"
-          value={value.description}
-          onChange={(e) => onChange({ description: e.target.value })}
-        />
-      </div>
     </div>
   );
 }

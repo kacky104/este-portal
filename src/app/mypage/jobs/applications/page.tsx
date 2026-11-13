@@ -23,6 +23,7 @@ export default function WorkApplicationsPage() {
       salonName={salon?.name ?? null}
       salonId={salonId}
       title="応募"
+      lead="求人ページの「WEBで応募する」から届いた応募です。連絡したら「連絡済みにする」を押してください。"
       current="applications"
       toast={toast}
     >

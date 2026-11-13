@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { toggleMyJobActive } from '@/app/actions/jobs';
 import { useJobsGate } from './useJobsGate';
 import { useMyJob } from './useMyJob';
-import { WorkShell } from './WorkShell';
+import { WorkShell, NavIcon, type WorkNavKey } from './WorkShell';
 import { useToast } from '@/app/components/useToast';
 import { useNewApplicationCount, NewCountBadge } from './useNewApplications';
 
@@ -114,32 +114,38 @@ export default function WorkHomePage() {
               {job
                 ? job.is_active
                   ? 'フクエスワークに掲載中です。'
-                  : 'いまは非公開です。'
-                : 'まだ求人がありません。「求人内容」から作成すると、フクエスワークに掲載されます（1店舗1件）。'}
+                  : 'いまは非公開です。「公開する」を押すと、求人ページに出ます。'
+                : 'まだ求人がありません。「求人内容」で作って保存すると、フクエスワークに掲載されます（1店舗1件）。'}
             </p>
           </>
         )}
       </div>
 
-      {/* ── 各画面への入口 ───────────────────────────── */}
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { href: '/mypage/jobs/edit', label: '求人内容', desc: job ? '掲載している内容を直す' : '求人をつくる', badge: 0 },
+      {/* ── 各画面への入口（第2013便: アイコン付き・説明は1行）──────────────── */}
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {([
+          { key: 'edit', href: '/mypage/jobs/edit', label: '求人内容', desc: job ? '求人ページに出る内容を直す' : 'まず求人をつくる', badge: 0 },
           // ★ 「応募」だけ、未対応の件数を赤丸で出す（2026-09-11・カッキーさんの指示）。
-          { href: '/mypage/jobs/applications', label: '応募', desc: '届いた応募を見る', badge: newApplications },
-          { href: '/mypage/jobs/line', label: 'LINEの履歴', desc: 'LINEボタン・QRが押された数', badge: 0 },
-          { href: '/mypage/jobs/news', label: '新着情報', desc: '求人ページに出るお知らせを書く', badge: 0 },
-        ].map((t) => (
+          { key: 'applications', href: '/mypage/jobs/applications', label: '応募', desc: '届いた応募を見る・連絡済みにする', badge: newApplications },
+          { key: 'line', href: '/mypage/jobs/line', label: 'LINEの履歴', desc: 'LINEボタン・QRが使われた数を見る', badge: 0 },
+          { key: 'news', href: '/mypage/jobs/news', label: '新着情報', desc: '求人ページのお知らせを書く', badge: 0 },
+        ] as Array<{ key: WorkNavKey; href: string; label: string; desc: string; badge: number }>).map((t) => (
           <Link
             key={t.href}
             href={t.href}
-            className="block bg-white border border-slate-200 shadow-sm p-4 hover:border-emerald-300 hover:shadow transition-all"
+            className="flex items-center gap-3 bg-white border border-slate-200 shadow-sm p-4 hover:border-emerald-300 hover:shadow transition-all"
           >
-            <p className="text-[15px] font-black text-slate-700 flex items-center gap-2">
-              {t.label}
-              <NewCountBadge count={t.badge} />
-            </p>
-            <p className="mt-1 text-[13px] text-slate-400 leading-relaxed">{t.desc}</p>
+            <span className="flex-none w-10 h-10 grid place-items-center rounded-full bg-emerald-50 text-emerald-600">
+              <NavIcon k={t.key} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="text-[15px] font-black text-slate-700 flex items-center gap-2">
+                {t.label}
+                <NewCountBadge count={t.badge} />
+              </span>
+              <span className="block mt-0.5 text-[13px] text-slate-400 leading-snug">{t.desc}</span>
+            </span>
+            <span className="flex-none text-slate-300" aria-hidden>›</span>
           </Link>
         ))}
       </div>

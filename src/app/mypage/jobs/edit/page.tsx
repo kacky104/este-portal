@@ -83,6 +83,7 @@ export default function WorkEditPage() {
       salonName={salon?.name ?? null}
       salonId={salonId}
       title="求人内容"
+      lead="求人ページに出る内容です。＊は必須です。保存するとすぐ求人ページに反映されます。"
       current="edit"
       toast={toast}
     >
@@ -95,9 +96,9 @@ export default function WorkEditPage() {
           <p className="text-[14px] text-rose-600">求人情報の取得に失敗しました：{jobError}</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 shadow-sm px-[5px] md:px-5 py-5 space-y-4">
+        <div className="space-y-4">
           {!job && (
-            <p className="text-[14px] text-slate-500 leading-relaxed">
+            <p className="text-[14px] text-slate-600 leading-relaxed bg-emerald-50 border border-emerald-100 px-3 py-2">
               フクエスワークに求人を掲載できます（1店舗1件）。下を入力して保存すると掲載されます。
             </p>
           )}

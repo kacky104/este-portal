@@ -36,7 +36,7 @@ const NAV: Array<{ key: WorkNavKey; label: string; href: string; group?: string 
   { key: 'news',         label: '新着情報',   href: '/mypage/jobs/news' },
 ];
 
-function NavIcon({ k }: { k: WorkNavKey }) {
+export function NavIcon({ k }: { k: WorkNavKey }) {
   const p = {
     width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
     strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
@@ -80,7 +80,7 @@ function BrandMark({ size = 'md', onGreen = false }: { size?: 'sm' | 'md'; onGre
 }
 
 export function WorkShell({
-  decision, loadError, salonName, salonId, title, current, toast, children,
+  decision, loadError, salonName, salonId, title, lead, current, toast, children,
 }: {
   decision: JobsPageDecision;
   loadError: string;
@@ -88,6 +88,8 @@ export function WorkShell({
   // ★ 未対応の応募の数を出すために要る（2026-09-11）。★ 渡さなければ数は出ないだけ。
   salonId?: number | null;
   title: string;
+  // ★ 第2013便: 見出しの下に出す1行の説明（その画面で何をするか）。無ければ出さない。
+  lead?: string;
   current: WorkNavKey;
   toast?: string;
   children: React.ReactNode;
@@ -247,7 +249,10 @@ export function WorkShell({
               zoom は組み直してくれるので、折り返しも横スクロールも崩れない。
             ★ かかるのは中身だけ。★ 左サイドバー・上の帯・見出しの行は元の大きさのまま。
             ★ 幅は max-w-3xl のまま＝見た目では 768×1.2 ≒ 920px 相当になる。 */}
-        <main className="px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full" style={{ zoom: 1.2 }}>{children}</main>
+        <main className="px-4 md:px-6 py-4 md:py-5 max-w-3xl w-full" style={{ zoom: 1.2 }}>
+          {lead && <p className="mb-3 text-[13.5px] text-slate-500 leading-relaxed">{lead}</p>}
+          {children}
+        </main>
       </div>
 
       {/* ── スマホの左ドロワー ───────────────────────────── */}

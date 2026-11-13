@@ -23,6 +23,7 @@ export default function WorkNewsPage() {
       salonName={salon?.name ?? null}
       salonId={salonId}
       title="新着情報"
+      lead="求人ページの「新着情報」に出るお知らせです。お店の近況や募集のお知らせを書けます。"
       current="news"
       toast={toast}
     >
