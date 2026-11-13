@@ -85,10 +85,11 @@ export function HpShell({
       style={textColor ? ({ ...cssVars, ...(textColor ? { ['--hp-text' as string]: textColor.color } : {}) } as React.CSSProperties) : cssVars}
     >
       {/* ★ 第1905便: 文字の色。読む文字だけ（見出し・値段・帯・ボタンなどアクセントの色はそのまま）。.hp-root を2つ重ねて、ひな形・配色の指定より強くする */}
+      {/* ★ 第2016便: .hp-sched-meta（出勤の年齢）は外した。写真の上に白で重ねる字なので、文字の色を濃くすると読めなくなる（オイルクエスト様） */}
       {textColor && (
         <style
           dangerouslySetInnerHTML={{
-            __html: '.hp-root.hp-root.hp-tc{color:var(--hp-text)}.hp-root.hp-root.hp-tc :is(.hp-concept-text,.hp-card-title,.hp-card-body,.hp-card-meta,.hp-info-row dd,.hp-course-min,.hp-doc-p,.hp-doc-list li,.hp-thd-text,.hp-note,.hp-th-catch,.hp-sched-meta){color:var(--hp-text)}',
+            __html: '.hp-root.hp-root.hp-tc{color:var(--hp-text)}.hp-root.hp-root.hp-tc :is(.hp-concept-text,.hp-card-title,.hp-card-body,.hp-card-meta,.hp-info-row dd,.hp-course-min,.hp-doc-p,.hp-doc-list li,.hp-thd-text,.hp-note,.hp-th-catch){color:var(--hp-text)}',
           }}
         />
       )}
