@@ -15,6 +15,7 @@ import { JobNewsList } from './JobNewsList';
 import { JobRelatedLinks } from './JobRelatedLinks';
 import { SaveButton } from '@/app/components/SaveButton';
 import { TelNoticeLink } from '@/app/components/TelNoticeLink';
+import QRCode from 'qrcode';
 
 const SITE_URL = 'https://fukues.com';
 
@@ -228,6 +229,18 @@ export default async function JobDetailPage({
   // それも空ならサロンの地域情報 areaLabel(salon.area) でフォールバック。全て空なら行ごと非表示。
   const areaValue = job.area || job.access || areaLabel(job.salon.area);
 
+  // ★ 第2012便（2026-11-13・オイルクエスト様のご要望・全店）: LINE で応募の QR（PC だけ出す）。
+  //   ★ QR もボタンも /jobs/<id>/line を通す（押された・読み取られた数を数えてから、お店の LINE へ飛ぶ）。
+  //   ★ ISR の生成時に SVG を作る（お客様の端末で JS を動かさない）。作れなければ QR を出さないだけ。
+  let lineQrSvg: string | null = null;
+  if (job.applyLineUrl) {
+    try {
+      lineQrSvg = await QRCode.toString(`${SITE_URL}/jobs/${job.id}/line?v=qr`, { type: 'svg', margin: 1, width: 132, errorCorrectionLevel: 'M' });
+    } catch {
+      lineQrSvg = null;
+    }
+  }
+
   const jsonLd = buildJobPostingJsonLd(job);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd(job);
   // </script> によるスクリプト早期終了を防ぐため < をエスケープしてから埋め込む。
@@ -432,9 +445,9 @@ export default async function JobDetailPage({
               外部リンクのため target="_blank" rel="noopener noreferrer"。LINEブランドの緑（#06C755）＋白文字。 */}
           {job.applyLineUrl && (
             <a
-              href={job.applyLineUrl}
+              href={`/jobs/${job.id}/line`}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="nofollow noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white shadow-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: '#06C755' }}
             >
@@ -443,6 +456,25 @@ export default async function JobDetailPage({
               </svg>
               LINEで応募する
             </a>
+          )}
+          {/* ★ 第2012便: PC で見ている方向けの LINE の QR（スマホでは自分の画面を読み取れないので出さない）。 */}
+          {job.applyLineUrl && lineQrSvg && (
+            <div className="hidden md:flex items-center gap-4 p-4 rounded-xl border bg-white" style={{ borderColor: '#A7E9C3' }}>
+              <div
+                className="flex-none w-[132px] h-[132px]"
+                aria-label="LINEで応募するためのQRコード"
+                role="img"
+                dangerouslySetInnerHTML={{ __html: lineQrSvg }}
+              />
+              <div className="min-w-0">
+                <p className="font-bold text-slate-800">スマホで読み取って、LINEで応募</p>
+                <p className="mt-1 text-[13px] text-slate-500 leading-relaxed">
+                  スマホのカメラでQRコードを読み取ると、お店のLINEが開きます。
+                  <br />
+                  ご連絡の際は「フクエスワークを見た」とお伝えいただくとスムーズです。
+                </p>
+              </div>
+            </div>
           )}
           {/* 本体フクエスへ渡る導線（サイトを跨ぐことが分かる文言に） */}
           <Link

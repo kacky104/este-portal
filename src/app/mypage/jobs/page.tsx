@@ -122,11 +122,12 @@ export default function WorkHomePage() {
       </div>
 
       {/* ── 各画面への入口 ───────────────────────────── */}
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { href: '/mypage/jobs/edit', label: '求人内容', desc: job ? '掲載している内容を直す' : '求人をつくる', badge: 0 },
           // ★ 「応募」だけ、未対応の件数を赤丸で出す（2026-09-11・カッキーさんの指示）。
           { href: '/mypage/jobs/applications', label: '応募', desc: '届いた応募を見る', badge: newApplications },
+          { href: '/mypage/jobs/line', label: 'LINEの履歴', desc: 'LINEボタン・QRが押された数', badge: 0 },
           { href: '/mypage/jobs/news', label: '新着情報', desc: '求人ページに出るお知らせを書く', badge: 0 },
         ].map((t) => (
           <Link

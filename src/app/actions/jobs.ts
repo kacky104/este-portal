@@ -1275,3 +1275,48 @@ export async function deleteApplication(
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
+
+// ── 求人の LINE ボタン・QR の履歴（第2012便・2026-11-13・オイルクエスト様のご要望・全店） ──
+//
+// ★ 表 job_line_taps（追加SQL_第2012便）を読む。★ 書くのは /jobs/[id]/line（押されたとき）だけ。
+// ★ 期間はエステラブワークの「電話・LINE履歴」と同じ「前月1日〜今」（日本時間）。
+// ★ 中身は日時とボタン／QR だけ（個人情報は無い）。★ 表がまだ無いときは「まだ記録がありません」と同じに見せる。
+export type JobLineTap = { id: number; via: 'btn' | 'qr'; created_at: string };
+
+export async function getJobLineTaps(
+  salonId: number,
+): Promise<{ ok: true; taps: JobLineTap[]; since: string; notReady: boolean } | Err> {
+  if (!Number.isFinite(salonId)) return { ok: false, error: '対象店舗が不正です' };
+  const auth = await requireUser();
+  if (!auth.ok) return auth;
+  const own = await assertSalonOwner(auth.supabase, auth.user.id, salonId);
+  if (!own.ok) return own;
+
+  // 前月1日 0:00（日本時間）
+  const jst = new Date(Date.now() + 9 * 3600_000);
+  const y = jst.getUTCFullYear();
+  const m = jst.getUTCMonth(); // 0始まり
+  const since = new Date(Date.UTC(m === 0 ? y - 1 : y, m === 0 ? 11 : m - 1, 1) - 9 * 3600_000).toISOString();
+
+  const svc = createServiceClient();
+  const { data, error } = await svc
+    .from('job_line_taps')
+    .select('id, via, created_at')
+    .eq('salon_id', salonId)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(2000);
+  if (error) {
+    // 表がまだ無い（SQL を流す前）
+    if (/job_line_taps/.test(error.message) && /(does not exist|schema cache|not find)/i.test(error.message)) {
+      return { ok: true, taps: [], since, notReady: true };
+    }
+    return { ok: false, error: error.message };
+  }
+  const taps = (data ?? []).map((r) => ({
+    id: Number(r.id),
+    via: (r.via === 'qr' ? 'qr' : 'btn') as 'btn' | 'qr',
+    created_at: String(r.created_at),
+  }));
+  return { ok: true, taps, since, notReady: false };
+}

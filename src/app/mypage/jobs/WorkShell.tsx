@@ -23,7 +23,7 @@ import { useNewApplicationCount, NewCountBadge } from './useNewApplications';
 //   ★ 作法は /mypage のドロワーと同じ: 背面タップ／×／Esc／項目タップで閉じる・開いている間は
 //     body の overflow を hidden・スクロールバーは出さない（scrollbar-none）。
 
-export type WorkNavKey = 'home' | 'edit' | 'applications' | 'news';
+export type WorkNavKey = 'home' | 'edit' | 'applications' | 'line' | 'news';
 
 const NAV: Array<{ key: WorkNavKey; label: string; href: string; group?: string }> = [
   { key: 'home',         label: 'ホーム',     href: '/mypage/jobs' },
@@ -31,6 +31,8 @@ const NAV: Array<{ key: WorkNavKey; label: string; href: string; group?: string 
   { key: 'edit',         label: '求人内容',   href: '/mypage/jobs/edit' },
   // ★ 見出し（group）は付けない（2026-09-11・カッキーさんの指示で「応募・お知らせ」を削除）。
   { key: 'applications', label: '応募',       href: '/mypage/jobs/applications' },
+  // ★ 第2012便: 求人ページの LINE ボタン・QR の履歴（2026-11-13）
+  { key: 'line',         label: 'LINEの履歴', href: '/mypage/jobs/line' },
   { key: 'news',         label: '新着情報',   href: '/mypage/jobs/news' },
 ];
 
@@ -52,6 +54,8 @@ function NavIcon({ k }: { k: WorkNavKey }) {
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       </svg>
     );
+    // QR（LINEの履歴）
+    case 'line': return (<svg {...p}><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><path d="M14 14h3v3h-3z" /><path d="M20 14v7h-6" /></svg>);
     // 吹き出し（新着情報）
     default: return (<svg {...p}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>);
   }
