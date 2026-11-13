@@ -22,7 +22,7 @@
 import { hpColorCssVars, hpColorRootClass, HP_FONT_SIZE_SCALE, HP_FONTS, hpTextColorOf } from '@/app/lib/hpSite';
 import type { HpPageData } from '@/app/hp/_lib/data';
 import { hpFooterPageLinks, hpJobsUrl, hpMenuItems, hpTopbarNavItems, type HpPageKey } from '@/app/hp/_lib/sections';
-import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS, scaleHpFontSizes, HP_PC_FONT_SCALE, HP_PC_READ_CSS } from './styles';
+import { TEMPLATE_CSS, TEMPLATE_VARIANT_CSS, scaleHpFontSizes, HP_PC_FONT_SCALE, HP_PC_READ_CSS, HP_SCHED_SP4_CSS } from './styles';
 import { hpTrackScript } from '@/app/hp/_lib/trackScript';
 import { HP_GA_ID, hpGaScript, isValidHpGaId } from '@/app/hp/_lib/gaHp';
 
@@ -105,7 +105,9 @@ export function HpShell({
       <style
         dangerouslySetInnerHTML={{
           __html: (() => {
-            const css = TEMPLATE_CSS[site.template_key] + (colorClass ? TEMPLATE_VARIANT_CSS[colorClass] ?? '' : '');
+            const css = TEMPLATE_CSS[site.template_key] + (colorClass ? TEMPLATE_VARIANT_CSS[colorClass] ?? '' : '')
+              // ★ 第2014便: 出勤をスマホで1行4人にした店だけ
+              + (site.blocks.schedule.spCols === 4 ? HP_SCHED_SP4_CSS : '');
             // ★ 第2004便（カッキーさん）: PC（768px〜）は文字を 1.1倍に。スマホは今までどおり。
             //   --hp-fs は【ここ（CSS）】で決める（style 属性に書くとメディアクエリで変えられない）。
             //   お店が選んだ大きさ（標準/大きめ/大）× PCの 1.1。HP_PC_READ_CSS は読み物の段の横幅を広げる。

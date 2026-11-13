@@ -365,7 +365,7 @@ export function HpScheduleView({ data, preview }: ViewProps) {
                 <p className="hp-note">この日の出勤予定はありません</p>
               ) : (
                 // detailBase: マルチページで在籍が居る店（このページが出ている時点で満たす）はHP内の個別ページへ（2026-08-20）
-                <ScheduleRows rows={byDay[i]} detailBase={therapists.length > 0 ? basePath : null} />
+                <ScheduleRows rows={byDay[i]} detailBase={therapists.length > 0 ? basePath : null} spCols={data.site.blocks.schedule.spCols} />
               )}
             </div>
           ))}

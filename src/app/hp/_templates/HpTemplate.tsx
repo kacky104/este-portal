@@ -264,7 +264,7 @@ export function HpTemplate({ data }: { data: HpPageData }) {
           <div className="hp-sched-date">{data.todayLabel}</div>
           {/* 行の DOM は /schedule と共用（parts.tsx の ScheduleRows）。
               片方だけ直して食い違うのを防ぐため、ここに書き写さないこと。 */}
-          <ScheduleRows rows={onDutyShown.map((t) => ({ t, time: t.todayTime ?? '' }))} detailBase={subs.therapist ? basePath : null} />
+          <ScheduleRows rows={onDutyShown.map((t) => ({ t, time: t.todayTime ?? '' }))} detailBase={subs.therapist ? basePath : null} spCols={b.schedule.spCols} />
 
           {/* 週間の出勤（2026-08-18 第23便で自社の /schedule に変更）。
               それまではフクエス本体の店舗スケジュールへ外部リンクしていたが、

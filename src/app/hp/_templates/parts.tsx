@@ -175,10 +175,11 @@ export function TherapistCards({
  * detailBase が渡されたらHP内の個別ページ（同じタブ）、null なら従来どおり本体へ（別タブ）。
  * ★ 空文字も有効な detailBase（独自ドメイン）。typeof で判定すること。
  */
-export function ScheduleRows({ rows, detailBase = null }: { rows: { t: HpTherapist; time: string }[]; detailBase?: string | null }) {
+// ★ 第2014便: spCols=4 のときだけ hp-sched-sp4 を足す（スマホで1行4人。CSS は styles.ts の HP_SCHED_SP4_CSS・HpShell がその店にだけ入れる）。
+export function ScheduleRows({ rows, detailBase = null, spCols = 2 }: { rows: { t: HpTherapist; time: string }[]; detailBase?: string | null; spCols?: 2 | 4 }) {
   const internal = typeof detailBase === 'string';
   return (
-    <div className="hp-sched-list">
+    <div className={spCols === 4 ? 'hp-sched-list hp-sched-sp4' : 'hp-sched-list'}>
       {rows.map(({ t, time }) => (
         <a
           key={t.id}

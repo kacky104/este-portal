@@ -1242,6 +1242,24 @@ export function scaleHpFontSizes(css: string): string {
  *     ＝文字が大きくなっても、1行に入る文字数は前より少し増える。写真が並ぶ段（セラピスト・出勤など）は今までの幅のまま。
  *   ★ ひな形のCSSの【あと】に足すこと（.hp-a .hp-sec などと詳細度が同じなので、後に書いたほうが勝つ）。
  */
+/**
+ * ★ 第2014便（2026-11-13・オイルクエスト様のご要望）: 出勤の写真グリッドを【スマホで1行4人】にする上書き。
+ *   ★ 公式HP管理の「本日の出勤」で「スマホ 1行4人」を選んだ店にだけ HpShell が足す（他の店のHTMLは増えない）。
+ *   ★ ScheduleRows が .hp-sched-list に hp-sched-sp4 を付ける。トップの「本日の出勤」と /schedule の両方に効く。
+ *   ★ :is(.hp-s,.hp-a,.hp-b,.hp-c) で詳細度を1段上げて、ひな形の「SP2列」に勝たせる。PC（768px〜）は今までどおり4列。
+ *   ★ 1枚が約1/4の幅になるので、名前・年齢・時間の字を小さく、余白を詰める。時間は1行に収める。
+ */
+export const HP_SCHED_SP4_CSS = `
+@media (max-width: 767px) {
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-list.hp-sched-sp4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-body { padding: 0 2px 6px; gap: 0; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-name { font-size: 11px; letter-spacing: .04em; text-indent: .04em; line-height: 1.3; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-meta { font-size: 9px; letter-spacing: 0; line-height: 1.3; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-time { margin-top: 2px; font-size: 8.5px; letter-spacing: 0; white-space: nowrap; line-height: 1.3; }
+  :is(.hp-b, .hp-c) .hp-sched-sp4 .hp-sched-time { padding: 1px 5px; }
+}
+`;
+
 export const HP_PC_FONT_SCALE = 1.1;
 export const HP_PC_READ_CSS = `
 @media (min-width: 768px) {
