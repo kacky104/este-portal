@@ -234,7 +234,8 @@ export const HP_REVIEWS_COUNT_MAX = 10;
  *   HP_COUNT_ALL = 全員
  */
 export const HP_COUNT_ALL = 100;
-export const HP_PEOPLE_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 30] as const;
+// ★ 第2015便: 28名・32名を足した（スマホ1行4人で割り切れる人数・オイルクエスト様のご要望）
+export const HP_PEOPLE_COUNT_OPTIONS = [4, 6, 8, 10, 12, 16, 20, 24, 28, 30, 32] as const;
 
 // ── 外部ウィジェット（第1899便・2026-11-10・カッキーさん）──────────
 //   例: <iframe width=340 height=690 frameborder="0" src="https://ranking-deli.jp/diarywidget/..."></iframe>

@@ -1253,9 +1253,10 @@ export const HP_SCHED_SP4_CSS = `
 @media (max-width: 767px) {
   :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-list.hp-sched-sp4 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px; }
   :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-body { padding: 0 2px 6px; gap: 0; }
-  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-name { font-size: 11px; letter-spacing: .04em; text-indent: .04em; line-height: 1.3; }
-  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-meta { font-size: 9px; letter-spacing: 0; line-height: 1.3; }
-  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-time { margin-top: 2px; font-size: 8.5px; letter-spacing: 0; white-space: nowrap; line-height: 1.3; }
+  /* ★ 第2015便: 字をひと回り大きく（名前 11→12px・年齢 9→10px・時間 8.5→9.5px）。年齢は白・太字・影を濃くして読みやすく */
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-name { font-size: 12px; letter-spacing: .04em; text-indent: .04em; line-height: 1.3; }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-meta { font-size: 10px; font-weight: 700; color: #fff; letter-spacing: 0; line-height: 1.3; text-shadow: 0 0 3px rgba(0,0,0,.9), 0 1px 5px rgba(0,0,0,.7); }
+  :is(.hp-s, .hp-a, .hp-b, .hp-c) .hp-sched-sp4 .hp-sched-time { margin-top: 2px; font-size: 9.5px; letter-spacing: 0; white-space: nowrap; line-height: 1.3; }
   :is(.hp-b, .hp-c) .hp-sched-sp4 .hp-sched-time { padding: 1px 5px; }
 }
 `;
