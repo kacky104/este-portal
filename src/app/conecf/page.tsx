@@ -65,6 +65,11 @@ function SwitchCard({ enabledAt, canSwitch, applyHref, onToast }: { enabledAt: s
       ) : (
         <div className="border border-amber-300 bg-amber-50 px-4 py-3 space-y-2.5">
           <p className="text-[14px] font-bold text-amber-900">切り替えますか？</p>
+          {/* ★ 第2018便（2026-11-14・カッキーさん）: 誤って押した店（コネクト様 11/12）で、駅ちかで書いた出勤・写メ日記がフクエスに入らなくなった。うっかり押しにくくする */}
+          <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 text-[13.5px] text-rose-800 leading-relaxed">
+            <b>切り替えると、駅ちかで入れた出勤・写メ日記はフクエスに入らなくなります。</b>
+            今後は出勤・写メ日記をコネックエフで入力し、各サイトへ「フクエスから反映」で送る形になります。駅ちかで入力を続ける場合は、切り替えないでください。
+          </div>
           <ul className="text-[13.5px] text-amber-900/90 leading-relaxed list-disc pl-5 space-y-0.5">
             <li>セラピストの追加・写真・年齢・サイズ・公開・出勤は、コネックエフで編集します（フクエスのマイページでは編集しません）。</li>
             {/* ★ 第470便: キャッチ・紹介文はコネックエフの「コメント」タブでも編集できる（★ フクエスと同じ列・駅ちか・エステ魂へも送れる） */}

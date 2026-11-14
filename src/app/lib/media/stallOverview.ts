@@ -23,6 +23,9 @@ type Svc = ReturnType<typeof createServiceClient>;
 /** 同時にいくつまで読むか（店が増えても、DB へ一度に押し寄せない） */
 const PARALLEL = 6;
 
+/** コネックエフに切り替えてから、何時間たっても「フクエスから反映」の枠が無ければ知らせるか（第2018便） */
+const CONECF_NO_WRITE_HOURS = 2;
+
 async function inBatches<T>(list: T[], fn: (x: T) => Promise<void>): Promise<void> {
   for (let i = 0; i < list.length; i += PARALLEL) {
     await Promise.all(list.slice(i, i + PARALLEL).map(fn));
@@ -177,6 +180,39 @@ export async function collectStallOverview(svc: Svc, now: Date): Promise<StallOv
         errors.push('店 ' + salonId + ' の一時停止の理由を調べている途中で落ちた: ' + (e instanceof Error ? e.message : '理由不明'));
       }
     });
+  }
+
+  // ── 5. コネックエフに切り替えたのに、どのサイトも「フクエスから反映」になっていない店（第2018便・2026-11-14・カッキーさん）──
+  //   ★ 起きていたこと: アロマメイ様（10/10）・コネクト様（11/12）が「コネックエフに切り替える」を押したあと、
+  //     駅ちかの「駅ちかから反映」は止まり、どのサイトも「反映しない」のまま。出勤・写メ日記がどこにも流れなくなった。
+  //     コネクト様は誤って押した（店舗様は駅ちかで書き続けていた）と見ている。
+  //   ★ 自動で「フクエスから反映」にすると、駅ちかで書いた分をフクエスの古い中身で上書きしてしまう → 自動では直さず、運営に知らせる。
+  //     運営が店舗様に確かめて、誤りなら手順SQL（コネックエフからフクエスリンクに戻す）で戻す。
+  //   ★ 切り替えてから2時間たっても write / write_auto の枠が1つも無い店だけ（設定の途中の店を拾わない）。
+  //   ★ 枠を読めなかった回は拾わない（上の 0 で errors に入っている。「無い」と読まない）。
+  if (!srcRes.error) {
+    const { data: sw, error: swErr } = await svc.from('salons').select('id, name, conecf_enabled_at').not('conecf_enabled_at', 'is', null);
+    if (swErr) {
+      errors.push('コネックエフに切り替えた店（salons.conecf_enabled_at）を読めなかった: ' + swErr.message);
+    } else {
+      const writing = new Set(sources.filter((x) => isWriteDirection(x.link_mode ?? null)).map((x) => Number(x.salon_id)));
+      for (const r of (sw ?? []) as Array<{ id: number; name: unknown; conecf_enabled_at: string }>) {
+        const sid = Number(r.id);
+        const t = Date.parse(r.conecf_enabled_at);
+        if (!Number.isFinite(t)) continue;
+        const hours = (now.getTime() - t) / 3600000;
+        if (hours < CONECF_NO_WRITE_HOURS || writing.has(sid)) continue;
+        const b5 = { watch: 'problem', salonId: sid, provider: 'conecf', slot: 0, reason: 'conecf_no_write' } as const;
+        items.push({
+          ...b5,
+          key: stallKey(b5),
+          salonName: nameOf.get(sid) ?? String(r.name ?? ''),
+          siteLabel: 'コネックエフ',
+          elapsedHours: hours,
+          message: 'コネックエフに切り替えたのに、どのサイトも「フクエスから反映」になっていません（出勤・写メ日記がどこにも流れていません）。誤って切り替えていないか店舗様に確認し、誤りなら手順SQL「フクエスリンクに戻す」で戻してください',
+        });
+      }
+    }
   }
 
   return {
