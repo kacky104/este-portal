@@ -204,10 +204,6 @@ function OwnerLoginInner() {
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 オーナーアカウントの発行は運営で行います。新規のお申し込みは運営までご連絡ください。
               </p>
-              <p className="text-xs text-slate-500">
-                一般のお客様（会員）のログインは
-                <Link href="/login" className="text-pink-600 font-medium hover:underline ml-1">こちら →</Link>
-              </p>
             </div>
           </>
         )}
