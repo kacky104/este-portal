@@ -190,9 +190,10 @@ export default function RankingTabs({
           <div className="flex sm:justify-center mb-5">
             <div className="flex w-full sm:w-auto">
               {([
+                // ★ 第2022便（2026-11-14・カッキーさん）: 並びを左から セラピスト・おすすめ・店舗 に（最初に開くタブはおすすめのまま）
+                ['therapist', 'セラピスト'],
                 ['overall', 'おすすめ'], // ★ 第500便: 総合→おすすめ（中身の key は overall のまま）
                 ['salon', '店舗'],
-                ['therapist', 'セラピスト'],
               ] as const).map(([key, label], i) => {
                 const selected = tab === key;
                 return (
