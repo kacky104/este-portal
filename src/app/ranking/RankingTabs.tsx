@@ -24,6 +24,8 @@ import { SiteFooter } from '@/app/components/SiteFooter';
 const TAB_THEME = { overall: 'white', salon: 'black', therapist: 'pink' } as const;
 type TabKey = keyof typeof TAB_THEME;
 const TAB_KEYS = ['overall', 'salon', 'therapist'] as const;
+/** 最初に開くタブ（第2023便・2026-11-14 から セラピスト） */
+const DEFAULT_TAB = 'therapist' as const;
 // SSR/クライアントで挙動を合わせるレイアウト計測フック（AutoFitText と同流儀）。
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
@@ -99,7 +101,8 @@ export default function RankingTabs({
   showcaseData: Record<number, ShowcaseSalonData>;
   adBanners: AdBannerData[];
 }) {
-  const [tab, setTab] = useState<TabKey>('overall');
+  // ★ 第2023便（2026-11-14・カッキーさん）: 最初に開くタブを「セラピスト」に（以前は おすすめ）
+  const [tab, setTab] = useState<TabKey>(DEFAULT_TAB);
   // ★ 第1576便（2026-10-20・カッキーさん・軽量化）: 一度でも開いたタブ。
   //   セラピストタブの豪華なカード（80人ぶん・約330KB）は、開くまで描かない。
   //   ★ ただし初期 HTML から 80 人のリンクが消えないように、開く前は【名前と店名だけの軽い一覧】（約10KB）を同じ場所に出す
@@ -110,12 +113,14 @@ export default function RankingTabs({
   useIsoLayoutEffect(() => {
     const h = window.location.hash.replace('#', '');
     if ((TAB_KEYS as readonly string[]).includes(h)) { setTab(h as TabKey); markVisited(h as TabKey); }
+    // ★ 第2023便: ハッシュが無い＝最初のタブ（セラピスト）。豪華なカードは開いたあとに描く（初期 HTML は第1576便の軽い一覧のまま＝重くしない）
+    else markVisited(DEFAULT_TAB);
   }, []);
   const changeTab = (key: TabKey) => {
     setTab(key);
     markVisited(key);
     try {
-      const url = key === 'overall' ? window.location.pathname + window.location.search : `#${key}`;
+      const url = key === DEFAULT_TAB ? window.location.pathname + window.location.search : `#${key}`;
       window.history.replaceState(null, '', url);
     } catch {}
   };
