@@ -178,19 +178,22 @@ export function AccountMenu() {
             <p className="text-sm text-slate-700 font-medium truncate">{email}</p>
           </div>
           {/* マイページ：メニュー内で一番押したくなる控えめな華やかさ（淡ピンク地＋丸地アイコン＋ブランド色文字） */}
-          <Link
-            href="/member"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-pink-700 bg-pink-50/70 hover:bg-pink-100/80 transition-colors"
-          >
-            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-pink-100 to-fuchsia-100 flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
-              </svg>
-            </span>
-            マイページ
-          </Link>
+          {/* ★ 第2021便（2026-11-14・カッキーさん）: 店舗オーナー・セラピストのアカウントには、会員のマイページ（/member）を出さない（店舗マイページ／セラピストページだけ） */}
+          {!isOwner && !isCast && (
+            <Link
+              href="/member"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-pink-700 bg-pink-50/70 hover:bg-pink-100/80 transition-colors"
+            >
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-pink-100 to-fuchsia-100 flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DB2777" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+                </svg>
+              </span>
+              マイページ
+            </Link>
+          )}
           {/* ★ 店舗オーナー／セラピスト本人だけに出る入口（2026-09-08）。★ 会員のマイページの下。 */}
           {isOwner && (
             <Link
