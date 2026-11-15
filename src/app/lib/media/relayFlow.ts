@@ -14,6 +14,7 @@
 import { isRelayVideoUrl } from '@/lib/relayMultipart';
 import type { EsutamaCastEditValues } from '@/lib/esutamaCastEdit';
 import { createServiceClient } from '@/app/lib/supabase/service';
+import { notifyAdmin } from '@/app/lib/notifyAdmin';
 import { recordMediaAudit } from '@/app/lib/media/mediaAudit';
 import { findMediaSite } from '@/lib/mediaSites';
 // ★ 第1287便: 書き込む流れは、コネックエフの文に同意した枠だけ（全フローの入口で見る）
@@ -1129,8 +1130,12 @@ export async function advanceRelayFlow(params: {
   // ★★★ 全国エステランキングのセラピスト一覧を読めた（第1769便）。写しを残し、出勤の用事なら7日分の計画を入れて1日目へ
   if (outcome.kind === 'zenkoku_roster') {
     if (outcome.warnings.length > 0) console.warn('[relay] 全国エステランキングの一覧の気になること:', outcome.warnings.join(' / '));
-    const snap = await saveEsutamaRoster(params, outcome.rows.map((r) => ({ castId: r.gid, name: r.name })) as EsutamaRosterRow[], outcome.context);
-    note = outcome.note + ' → ' + snap.note;
+    // ★★ 第2025便（2026-11-16・カッキーさん）: 非公開の人数の見張り。オイルクエスト様で 11/16 朝6時ごろ「5人だけ公開・あとは非公開」になっていた
+    //   （コネックエフの記録に非公開にする操作は無い・原因不明）。写しに非公開の印も残し、前の写しより急に増えたら運営にメールする。
+    const hiddenWatch = await watchZenkokuHidden(params, outcome.rows);
+    if (hiddenWatch.audit) audits.push(hiddenWatch.audit);
+    const snap = await saveEsutamaRoster(params, outcome.rows.map((r) => ({ castId: r.gid, name: r.name, hidden: r.hidden })) as EsutamaRosterRow[], outcome.context);
+    note = outcome.note + ' → ' + snap.note + (hiddenWatch.note ? ' → ' + hiddenWatch.note : '');
     // ★ 第1773便: 全国は書き込みを開けるまで、接続テストでも7日分を読む（読むだけ。店舗様・運営が画面のボタンで確かめられるように）
     if (context.intent === 'work_dryrun' || context.intent === 'work_push' || context.intent === 'work_auto' || context.intent === 'connect_test') {
       const r = await planZenkoku(params, outcome.rows, outcome.context);
@@ -2142,6 +2147,47 @@ async function planZenkoku(
 }
 
 /** エステ魂の名簿の写しを残す（駅ちかの saveRoster と同じ表・同じ形）。★ 名簿画面（mediaRoster）がこれを読む */
+/** ★ 第2025便: 非公開が前の写しよりこれだけ増えたら知らせる */
+const ZENKOKU_HIDDEN_JUMP = 3;
+
+/**
+ * ★★ 第2025便（2026-11-16）: 全国エステランキングの非公開の人数を、前の写し（media_roster_snapshots.entries の hidden）と比べる。
+ *   ★ 読むだけ・相手サイトへは何も送らない。★ 前の写しに非公開の印が無い（この便より前の写し）ときは比べない。
+ *   ★ 急に増えたら: 連携の記録に1行（read_girls・failed）＋ 運営にメール。★ 読めなかったら黙って進む（出勤の周は止めない）。
+ */
+async function watchZenkokuHidden(
+  params: { salonId: number; provider: string; slot: number },
+  rows: ReadonlyArray<{ gid: string; name: string; hidden: boolean }>,
+): Promise<{ note: string; audit: FlowAudit | null }> {
+  try {
+    const hiddenNow = rows.filter((r) => r.hidden);
+    const { data } = await createServiceClient().from('media_roster_snapshots')
+      .select('entries, read_at').eq('salon_id', params.salonId).eq('provider', params.provider).eq('slot', params.slot).maybeSingle();
+    const prev = Array.isArray(data?.entries) ? (data!.entries as Array<{ castId?: string; hidden?: unknown }>) : [];
+    if (prev.length === 0 || !prev.some((e) => typeof e.hidden === 'boolean')) return { note: '非公開 ' + hiddenNow.length + '名（前の写しに印が無いので比べない）', audit: null };
+    const prevHidden = new Set(prev.filter((e) => e.hidden === true).map((e) => String(e.castId)));
+    const newly = hiddenNow.filter((r) => !prevHidden.has(r.gid));
+    if (hiddenNow.length - prevHidden.size < ZENKOKU_HIDDEN_JUMP || newly.length < ZENKOKU_HIDDEN_JUMP) {
+      return { note: '非公開 ' + hiddenNow.length + '名（前は ' + prevHidden.size + '名）', audit: null };
+    }
+    const summary = '全国エステランキングで非公開の方が急に増えました（' + prevHidden.size + '名 → ' + hiddenNow.length + '名／全' + rows.length + '名）。コネックエフからは非公開にする操作は送っていません';
+    const { data: salon } = await createServiceClient().from('salons').select('name').eq('id', params.salonId).maybeSingle();
+    await notifyAdmin('【コネックエフ】全国エステランキングの非公開が急に増えました（' + String(salon?.name ?? '店 ' + params.salonId) + '）', [
+      summary,
+      '前の写し: ' + String(data?.read_at ?? '不明') + ' ／ 今回: ' + new Date().toISOString(),
+      '新しく非公開になった方: ' + newly.map((r) => r.name).join('・').slice(0, 400),
+      '全国エステランキングの管理画面（女性広告管理）で確かめ、店舗様に連絡してください。',
+    ]);
+    return {
+      note: '★ 非公開が急に増えた（' + prevHidden.size + ' → ' + hiddenNow.length + '）→ 運営に知らせた',
+      audit: { event: 'read_girls', outcome: 'failed', summary, detail: { reason: 'hidden_jump', before: prevHidden.size, after: hiddenNow.length, total: rows.length, newly: newly.slice(0, 60).map((r) => r.gid).join(',') } },
+    };
+  } catch (e) {
+    console.error('[relay] 全国エステランキングの非公開の見張りで落ちた（出勤の周は続ける）', e instanceof Error ? e.message : e);
+    return { note: '', audit: null };
+  }
+}
+
 async function saveEsutamaRoster(
   params: { salonId: number; provider: string; slot: number },
   rows: EsutamaRosterRow[],
@@ -2157,7 +2203,8 @@ async function saveEsutamaRoster(
       flow_id: ctx.flowId,
       read_at: new Date().toISOString(),
       total: rows.length,
-      entries: rows.map((r) => ({ castId: r.castId, name: r.name })),
+      // ★ 第2025便: 全国エステランキングは非公開の印も残す（見張りが次の回と比べる）
+      entries: rows.map((r) => ({ castId: r.castId, name: r.name, ...(typeof (r as { hidden?: unknown }).hidden === 'boolean' ? { hidden: (r as { hidden?: boolean }).hidden } : {}) })),
     },
     { onConflict: 'salon_id,provider,slot' },
   );
