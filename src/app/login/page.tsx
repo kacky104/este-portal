@@ -250,23 +250,7 @@ function LoginInner() {
               )}
             </div>
 
-            {/* ★ 店舗オーナー・セラピストの入口（2026-09-08・カッキーさんの相談）。
-                ★ 会員と同じID/PWで入れてしまい、会員のマイページが出て戸惑う、が実際に起きた。
-                ★ ログインする【前】に気づけるよう、ここに置く（ログインした後の出口は AccountMenu 側）。 */}
-            <div className="mt-4 pt-4 border-t border-slate-100 space-y-1.5 text-[11px] text-slate-500 leading-relaxed">
-              <p>
-                店舗オーナーの方：
-                <Link href="/owner/login" className="text-pink-600 font-medium hover:underline ml-1">
-                  店舗オーナーログインはこちら →
-                </Link>
-              </p>
-              <p>
-                セラピストの方：
-                <Link href="/cast/login" className="text-pink-600 font-medium hover:underline ml-1">
-                  セラピストログインはこちら →
-                </Link>
-              </p>
-            </div>
+            {/* ★ 第2024便（2026-11-16・カッキーさん）: 店舗オーナー・セラピストのログインへの入口は消した（店舗様から「サイトから行けるのは不安」の声） */}
           </div>
         )}
       </div>

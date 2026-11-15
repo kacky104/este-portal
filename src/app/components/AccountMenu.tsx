@@ -194,38 +194,8 @@ export function AccountMenu() {
               マイページ
             </Link>
           )}
-          {/* ★ 店舗オーナー／セラピスト本人だけに出る入口（2026-09-08）。★ 会員のマイページの下。 */}
-          {isOwner && (
-            <Link
-              href="/mypage"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
-            >
-              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 21h18" />
-                  <path d="M5 21V7l7-4 7 4v14" />
-                  <path d="M9 21v-6h6v6" />
-                </svg>
-              </span>
-              店舗マイページ
-            </Link>
-          )}
-          {isCast && (
-            <Link
-              href="/cast"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors border-t border-slate-100"
-            >
-              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 21s-7-4.5-7-10a7 7 0 0 1 14 0c0 5.5-7 10-7 10z" />
-                  <circle cx="12" cy="11" r="2.5" />
-                </svg>
-              </span>
-              セラピストページ
-            </Link>
-          )}
+          {/* ★ 第2024便（2026-11-16・カッキーさん）: 店舗マイページ／セラピストページへの入口は消した（店舗様から「サイトから行けるのは不安」の声）。
+              ★ 店舗オーナー・セラピストのアカウントには会員のマイページも出さない（第2021便・上） */}
           <button
             type="button"
             onClick={handleLogout}
