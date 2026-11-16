@@ -400,7 +400,7 @@ export function isHpSystemOpen(data: HpPageData): boolean {
 }
 
 export function HpSystemView({ data, preview }: ViewProps) {
-  const { salon, courses, courseNote, basePath } = data;
+  const { salon, courses, courseNote, basePath, therapists } = data;
   const grouped = groupCourses(courses);
   const homeHref = basePath || '/';
 
@@ -426,6 +426,21 @@ export function HpSystemView({ data, preview }: ViewProps) {
               </div>
             )}
           </dl>
+        )}
+        {/* ★ 第2028便（2026-11-16・カッキーさん・オイルクエスト様）: 在籍セラピストのお名前を、コース料金のページにも1行で載せる。
+            全国エステランキングは新人登録のとき、公式HPの /system を読んで在籍を確かめていた（Vercel のログ 23:23・23:28）。
+            ここに名前が無く「店舗様ホームページ内で在籍確認が取れないため登録できません」と断られていた（ひかるさん・ほのみさん）。
+            ★ data.therapists はもう読んである分（新しい読み込みは足していない）。隠し文字にはしない（見える形で載せる）。 */}
+        {therapists.length > 0 && (
+          <p className="hp-note">
+            在籍セラピスト：{therapists.map((t) => t.name).filter(Boolean).join('・')}
+            {isHpTherapistOpen(data) && (
+              <>
+                {' '}
+                <a href={`${basePath}/therapist`}>セラピスト一覧を見る →</a>
+              </>
+            )}
+          </p>
         )}
         <a className="hp-more" href={homeHref}>← ホームへ戻る</a>
       </section>
