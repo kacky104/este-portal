@@ -1,5 +1,6 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
 import { revalidateSalonTherapistOrder } from '@/app/lib/conecf/girlOrderRevalidate';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/app/lib/supabase/server';
@@ -224,6 +225,13 @@ export async function createConecfGirl(input: { name: string; isNewFace: boolean
   const dup = therapistNameDupMessage(error);
   if (dup) return { ok: false, error: dup };
   if (error || !data) return { ok: false, error: `追加に失敗しました: ${error?.message ?? ''}` };
+  // ★★ 第2030便（2026-11-17・カッキーさん）: 新人を登録したら、公式HP（フクエスサイト）をすぐ作り直す。
+  //   全国エステランキングは新人登録のとき、公式HPの /system を読んで在籍を確かめる（第2028便）。
+  //   公式HPは10分ごとの作り直し（ISR）なので、登録の直後に「各サイトへも登録しますか？→はい」を押すと、
+  //   まだ名前が載っておらず断られていた（ひかるさん・ほのみさん）。★ 雛形指定＝下層ページ（/system・/therapist）も消える（hpOperator と同じ）。
+  //   ★ 新人の登録のときだけ（1日に数回）。失敗しても登録は止めない（10分待てば載る）。
+  try { revalidatePath('/hp/[slug]', 'layout'); } catch { /* 何もしない */ }
+  revalidateSalonTherapistOrder(salonId);
   return { ok: true, data: { id: Number(data.id) } };
 }
 
