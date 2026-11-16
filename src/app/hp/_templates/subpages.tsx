@@ -432,15 +432,20 @@ export function HpSystemView({ data, preview }: ViewProps) {
             ここに名前が無く「店舗様ホームページ内で在籍確認が取れないため登録できません」と断られていた（ひかるさん・ほのみさん）。
             ★ data.therapists はもう読んである分（新しい読み込みは足していない）。隠し文字にはしない（見える形で載せる）。 */}
         {therapists.length > 0 && (
-          <p className="hp-note">
-            在籍セラピスト：{therapists.map((t) => t.name).filter(Boolean).join('・')}
-            {isHpTherapistOpen(data) && (
-              <>
-                {' '}
-                <a href={`${basePath}/therapist`}>セラピスト一覧を見る →</a>
-              </>
-            )}
-          </p>
+          // ★ 第2029便（2026-11-16・カッキーさん）: 名前が4行並んで目立つので、折りたたみに（押すと開く）。
+          //   名前はページの HTML に入ったまま＝全国エステランキングの在籍確認から読める。隠し文字にはしていない（お客様も開いて見られる）。
+          <details className="hp-note">
+            <summary style={{ cursor: 'pointer' }}>在籍セラピスト（{therapists.length}名）</summary>
+            <p style={{ marginTop: 6 }}>
+              {therapists.map((t) => t.name).filter(Boolean).join('・')}
+              {isHpTherapistOpen(data) && (
+                <>
+                  {' '}
+                  <a href={`${basePath}/therapist`}>セラピスト一覧を見る →</a>
+                </>
+              )}
+            </p>
+          </details>
         )}
         <a className="hp-more" href={homeHref}>← ホームへ戻る</a>
       </section>
