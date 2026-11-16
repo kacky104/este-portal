@@ -57,6 +57,7 @@ import { mergeCookies } from './relayJob';
 import { afterEsutamaAppealRead, afterEsutamaAppealSet, afterEsutamaAppealVerify } from './esutamaAppealFlow';
 import { afterEsutamaOptRead, afterEsutamaOptSet, afterEsutamaOptVerify } from './esutamaOptionFlow';
 import { afterEsutamaPostRead, afterEsutamaPostSet, afterEsutamaPostVerify, afterEsutamaPostImgUp, afterEsutamaPostImgCrop } from './esutamaPostFlow';
+import { afterZenkokuSortRead, afterZenkokuSortSave } from './zenkokuSortFlow';
 import { sortAfterEkichikaGirls, afterEkichikaGirlsSort, afterEsutamaSortRead, afterEsutamaSortSave } from './mediaSortFlow';
 // ★ 第1305便: 駅ちかの上位表示（判断と読み取りは ekichikaBump.ts）
 import { EKICHIKA_ADMIN_TOP_URL, EKICHIKA_BUMP_URL, parseEkichikaBumpTop, bumpTopUsable, buildEkichikaBumpBody, parseEkichikaBumpResult, shouldBumpNow, type BumpSetting } from './ekichikaBump';
@@ -1195,6 +1196,8 @@ export type FlowNextRequest = {
     | 'esutama_post_img_up' | 'esutama_post_img_crop'
     // ★ 第1557便: セラピストの並び順。★ girls_sort / esutama_sort_save だけが相手の並びを書き換える
     | 'girls_sort' | 'esutama_sort_read' | 'esutama_sort_save'
+    // ★ 第2026便: 全国エステランキングの並び順。★ zenkoku_sort_save だけが相手の並びを書き換える
+    | 'zenkoku_sort_read' | 'zenkoku_sort_save'
     // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
     | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify'
     // ★ 第1810便: 全国エステランキングの待機中。★ zenkoku_wait_set だけが相手を書き換える
@@ -1784,6 +1787,10 @@ function advanceFlowStep(
       return afterEsutamaSortRead(input, ctx);
     case 'esutama_sort_save':
       return afterEsutamaSortSave(input, ctx);
+    case 'zenkoku_sort_read':
+      return afterZenkokuSortRead(input, ctx);
+    case 'zenkoku_sort_save':
+      return afterZenkokuSortSave(input, ctx);
     // ── 駅ちかから1人削除（第228便）★ 段名で分けている。既存の case には触れていない ──
     case 'girl_delete':
       return afterGirlDelete(input, ctx);

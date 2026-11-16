@@ -15,7 +15,8 @@ import { readConecfGirlOrder } from '@/app/lib/conecf/girlOrder';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string };
-const SITES = [{ provider: 'ekichika', name: '駅ちか' }, { provider: 'esutama', name: 'エステ魂' }] as const;
+// ★ 第2026便（2026-11-16・オイルクエスト様）: 全国エステランキングも送り先に（lib/zenkokuSortFlow.ts）
+const SITES = [{ provider: 'ekichika', name: '駅ちか' }, { provider: 'esutama', name: 'エステ魂' }, { provider: 'zenkoku', name: '全国エステランキング' }] as const;
 
 /** 駅ちか・エステ魂へ、いまのコネックエフの並び順を送る */
 export async function sendConecfGirlOrderToSites(): Promise<Result<{ queued: string[]; skipped: string[] }>> {
@@ -75,6 +76,6 @@ export async function sendConecfGirlOrderToSites(): Promise<Result<{ queued: str
       }
     }
   }
-  if (queued.length === 0 && skipped.length === 0) return { ok: false, error: '並び順を送れるサイトがありません（駅ちか・エステ魂のログイン情報をご確認ください）' };
+  if (queued.length === 0 && skipped.length === 0) return { ok: false, error: '並び順を送れるサイトがありません（駅ちか・エステ魂・全国エステランキングのログイン情報をご確認ください）' };
   return { ok: true, data: { queued, skipped } };
 }

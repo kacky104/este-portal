@@ -265,7 +265,7 @@ function Body({ enabled, onToast }: { enabled: boolean; onToast: (m: string) => 
           <button type="button" onClick={newFirst} disabled={saving} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4">新人を先頭へ</button>
           <button type="button" onClick={resetToSaved} disabled={!dirty || saving} className="text-[13.5px] font-bold text-indigo-600 underline underline-offset-4 disabled:text-slate-300 disabled:no-underline">前回保存時に戻す</button>
           <span className="ml-auto" />
-          <button type="button" onClick={() => void onSend()} disabled={sending || !enabled} className="bg-pink-500 px-4 py-2 text-[13.5px] font-bold text-white hover:bg-pink-600 disabled:opacity-40">{sending ? '受け付けています…' : '並び順をサイトへ送る（駅ちか・エステ魂）'}</button>
+          <button type="button" onClick={() => void onSend()} disabled={sending || !enabled} className="bg-pink-500 px-4 py-2 text-[13.5px] font-bold text-white hover:bg-pink-600 disabled:opacity-40">{sending ? '受け付けています…' : '並び順をサイトへ送る（駅ちか・エステ魂・全国）'}</button>
         </div>
       </div>
 

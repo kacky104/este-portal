@@ -291,6 +291,24 @@ export function buildZenkokuRecommendSaveRequest(cookie: string, page: ZenkokuRe
   };
 }
 
+/**
+ * ★★ 第2026便: 並び順の保存（「保存する」ボタンと同じ形）。★ おすすめ（ads[]）は読んだときのまま送る＝変えない。
+ *   ★ order は一覧に居る全員ぶん（1人も落とさない・増やさない）。
+ */
+export function buildZenkokuSortSaveRequest(cookie: string, page: ZenkokuRecPage, order: readonly string[]): RelayRequest {
+  if (!cookie) throw new Error('Cookie が無いまま保存しない');
+  if (!page.formSeen || page.rows.length === 0) throw new Error('一覧が読めていないまま保存しない');
+  const have = new Set(page.rows.map((r) => r.gid));
+  if (order.length !== have.size || new Set(order).size !== have.size || order.some((g) => !/^\d{1,12}$/.test(g) || !have.has(g))) throw new Error('並びが一覧の全員と合っていないまま保存しない');
+  const parts = page.rows.filter((r) => r.checked).map((r) => encodeURIComponent('ads[]') + '=' + encodeURIComponent(r.gid));
+  parts.push('sorts=' + encodeURIComponent(order.join(',')));
+  return {
+    method: 'POST', url: ZENKOKU_GIRLS_URL,
+    headers: headers({ 'content-type': 'application/x-www-form-urlencoded', origin: ZENKOKU_ORIGIN, referer: ZENKOKU_GIRLS_URL, cookie }),
+    body: parts.join('&'),
+  };
+}
+
 export const ZENKOKU_OPT_OUTCOME: Record<string, string> = {
   limit: '今日の投稿回数（5回）を使い切っていました',
   no_remaining: '今月の変更回数が残っていませんでした',

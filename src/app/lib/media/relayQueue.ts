@@ -133,6 +133,8 @@ export type RelayPurpose =
   | 'girls_sort'
   | 'esutama_sort_read'
   | 'esutama_sort_save'
+  // ★ 第2026便: 全国エステランキングの並び順。★ zenkoku_sort_save だけが相手の並びを書き換える（送り直さない）
+  | 'zenkoku_sort_read' | 'zenkoku_sort_save'
   // ★ 第1769便: 全国エステランキング。★ zenkoku_day_save だけが相手を書き換える
   | 'zenkoku_login_page' | 'zenkoku_login' | 'zenkoku_roster' | 'zenkoku_day_read' | 'zenkoku_day_save' | 'zenkoku_day_verify'
   | 'zenkoku_wait_read' | 'zenkoku_wait_set'

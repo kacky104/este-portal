@@ -32,6 +32,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   'esutama_opt_read', 'esutama_opt_verify',         // ★ 第1799便: エステ魂【オプション】の画面を読むだけ
   'esutama_post_read', 'esutama_post_verify',       // ★ 第1811便: エステ魂の投稿の画面・一覧を読むだけ
   'esutama_sort_read',   // ★ 第1557便: エステ魂の表示順の画面を読むだけ
+  'zenkoku_sort_read',   // ★ 第2026便: 全国エステランキングのセラピスト一覧を読むだけ（並び順）
   // ── エステラブ: 読むだけ ──
   'esulove_therapists',
   // ── エステ魂: 読むだけ ──
@@ -73,7 +74,7 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'esutama_post_set',  // ★ 第1811便: 投稿が1件増える（二度送ると2件載る。送り直さない）
   'esutama_post_img_up', 'esutama_post_img_crop',  // ★ 第1812便: エステ魂の一時置き場へ画像を上げる・切り抜く（送り直さない）
   // ★ 第1557便: セラピストの並び順。★ 届いていれば並びが変わっている。送り直さない
-  'girls_sort', 'esutama_sort_save',
+  'girls_sort', 'esutama_sort_save', 'zenkoku_sort_save',
   // ── エステ魂 ──
   'esutama_work_save',
   'esutama_cast_hide', 'esutama_cast_create',
