@@ -74,7 +74,23 @@ export function afterZenkokuCreateSave(input: Input, ctx: RelayFlowContext): Flo
   if (loggedOut(input)) return loginStop(ctx, input, 'create_save');
   if (input.status >= 400) return stop(ctx, nameOf(ctx) + 'さんを全国エステランキングに登録できませんでした（応答 ' + input.status + '）', 'http_error', '保存の応答が ' + input.status, { httpStatus: input.status });
   const r = buildZenkokuGirlsRequest(cookie);
-  return { kind: 'next', next: { purpose: 'zenkoku_create_find', method: r.method, url: r.url, headers: r.headers, body: '', context: { ...ctx, cookie } }, audits: [], note: '登録を送った（' + input.status + '）→ 一覧で番号を探す' };
+  // ★★ 第2027便（2026-11-16・オイルクエスト様 ひかるさん・ほのみさん）: 登録が受け付けられなかったとき、相手の画面に出た文言を持っておく。
+  //   これまでは「一覧で見つけられませんでした」としか残らず、断られた理由が分からなかった。
+  const saveMsg = zenkokuSaveMessage(input.body);
+  return { kind: 'next', next: { purpose: 'zenkoku_create_find', method: r.method, url: r.url, headers: r.headers, body: '', context: { ...ctx, cookie, zenkokuCreate: { ...ctx.zenkokuCreate!, saveStatus: input.status, saveMsg } } }, audits: [], note: '登録を送った（' + input.status + '）→ 一覧で番号を探す' };
+}
+
+/** 保存の応答の画面に出た知らせ（.alert の中の文字）。無ければ空。★ 230字まで */
+export function zenkokuSaveMessage(html: string): string {
+  const src = String(html ?? '');
+  const out: string[] = [];
+  const re = /<(div|p|span|li)\b[^>]*class=["'][^"']*\b(?:alert|error|text-danger|help-block)\b[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null && out.length < 4) {
+    const t = m[2].replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/[×\s]+/g, ' ').trim();
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out.join(' ／ ').slice(0, 230);
 }
 
 function photoStep(ctx: RelayFlowContext, cookie: string, note: string, audits: FlowAudit[] = []): FlowOutcome {
@@ -101,7 +117,15 @@ export function afterZenkokuCreateFind(input: Input, ctx: RelayFlowContext): Flo
   const before = new Set(c.before ?? []);
   const hit = rows.filter((r) => !before.has(r.gid) && normZenkokuName(r.name) === normZenkokuName(c.values.nickname));
   if (hit.length !== 1) {
-    return stop(ctx, nameOf(ctx) + 'さんの登録を送りましたが、全国エステランキングの一覧で見つけられませんでした（全国の画面をご確認ください）', 'not_found_after', '登録後に一覧で見つからない', { found: hit.length });
+    // ★ 第2027便: 相手の画面の文言を記録に残し、店舗様には公式ホームページの名前の確認を案内する
+    //   （全国エステランキングの新規追加の画面:「必ず店舗様ホームページに登録されているお名前と同じお名前で…一致しない場合は登録できません」）
+    const msg = String(c.saveMsg ?? '');
+    return stop(ctx,
+      hit.length === 0
+        ? nameOf(ctx) + 'さんを全国エステランキングに登録できませんでした。全国エステランキングは、お店の公式ホームページに同じお名前で載っている方だけ登録できます。公式ホームページをご確認のうえ、もう一度お試しください'
+        : nameOf(ctx) + 'さんの登録を送りましたが、全国エステランキングの一覧で1人に決められませんでした（全国の画面をご確認ください）',
+      'not_found_after', '登録後に一覧で見つからない',
+      { found: hit.length, saveStatus: c.saveStatus ?? null, saveMsg1: msg.slice(0, 115) || null, saveMsg2: msg.slice(115, 230) || null });
   }
   const gid = hit[0].gid;
   const created = { therapistId: c.therapistId, castId: gid, name: c.values.nickname };

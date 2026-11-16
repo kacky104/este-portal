@@ -1081,7 +1081,7 @@ export type RelayFlowContext = {
   /** ★ 第1846便: 駅ちかの店舗メイン／ランキングの入れ替え（lib/ekichikaRankImageFlow.ts）。plan・step は段の途中で入る */
   ekichikaRankImage?: { index: number; nextIndex: number; main: string; ranking: string; plan?: Array<{ target: 'main' | 'ranking'; id: string; old: string; name: string }>; step?: number };
   /** ★ 第1865便: 全国エステランキングへ1人登録（lib/zenkokuGirlCreateFlow.ts）。before・gid・slots・photoAt・verify は段の途中で入る */
-  zenkokuCreate?: { therapistId: number; values: { nickname: string; age: string; tall: string; bust: string; waist: string; hip: string; cup: string }; photos: Array<{ bucket: string; path: string }>; before?: string[]; gid?: string; slots?: number[]; photoAt?: number; verify?: boolean };
+  zenkokuCreate?: { therapistId: number; values: { nickname: string; age: string; tall: string; bust: string; waist: string; hip: string; cup: string }; photos: Array<{ bucket: string; path: string }>; before?: string[]; gid?: string; slots?: number[]; photoAt?: number; verify?: boolean; /** ★ 第2027便: 保存の応答（断られた理由を記録に残すため） */ saveStatus?: number; saveMsg?: string };
   zenkokuOpt?: { key: 'news' | 'recommend'; force?: boolean; readAt?: string; item?: { title: string; body: string; image: string | null }; items?: Array<{ name: string }>; nextIndex?: number; target?: { gid: string; name: string; index: number } };
   // ── ここから下は バニラ（provider='vanilla'）のときだけ入る（第1903便）──
   /** ログインの印（URL の entry_sid・entry_time）。★ ログインの応答で入る。以後のページはこの2つを付けて開く */
