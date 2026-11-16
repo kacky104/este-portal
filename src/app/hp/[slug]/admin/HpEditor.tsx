@@ -944,7 +944,16 @@ export function HpEditor({
             <span className="ml-2 font-normal text-[10px] text-slate-400">フッター内・位置は固定</span>
           </span>
           <input type="checkbox" checked={form.blocks.jobs.on}
-            onChange={(e) => patchBlocks({ jobs: { on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
+            onChange={(e) => patchBlocks({ jobs: { ...form.blocks.jobs, on: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
+        </label>
+        {/* ★ 第2031便（2026-11-17・カッキーさん・コネクト様のご要望）: 上のメニューにも求人（RECRUIT）を出すか。店舗様が選ぶ */}
+        <label className={'flex items-center justify-between py-1' + (form.blocks.jobs.on ? '' : ' opacity-40')}>
+          <span className="text-xs font-bold text-slate-600">
+            求人を上のメニューにも出す（RECRUIT）
+            <span className="ml-2 font-normal text-[10px] text-slate-400">PCのヘッダーと、スマホのトップ画像まわりのメニュー（5つ並びになります）</span>
+          </span>
+          <input type="checkbox" checked={form.blocks.jobs.on && form.blocks.jobs.nav} disabled={!form.blocks.jobs.on}
+            onChange={(e) => patchBlocks({ jobs: { ...form.blocks.jobs, nav: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
         </label>
       </div>
       )}

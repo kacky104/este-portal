@@ -156,7 +156,7 @@ export function HpShell({
                 ＝4分割グリッドを崩さない。理由は hpTopbarNavItems のコメント参照。 */}
             <nav className="hp-topbar-nav">
               {hpTopbarNavItems(data, page, { withSchedule: true, withTop: true, withContact: true }).map((m) => (
-                <a key={m.label} href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})}>
+                <a key={m.label} href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})} {...(m.external ? { target: '_blank', rel: 'noopener' } : {})}>
                   {m.label}
                 </a>
               ))}

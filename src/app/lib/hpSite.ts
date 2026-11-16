@@ -52,7 +52,7 @@ export type HpBlocksConfig = {
   reviews:    { on: boolean; count: number };  // 口コミ（埋め込み・表示件数 1〜10）
   coupon:     { on: boolean };                 // クーポン
   news:       { on: boolean };                 // お知らせ
-  jobs:       { on: boolean };                 // 求人リンク（フクエスワーク）
+  jobs:       { on: boolean; nav: boolean };   // nav＝上のメニュー（PCヘッダー・スマホの4つ並び）にも RECRUIT を出す（第2031便・店舗様が選ぶ・既定は出さない）                 // 求人リンク（フクエスワーク）
   freePages:  { on: boolean };                 // フリーページ（最大3・salon_free_pages）
   links:      { on: boolean };                 // リンク（相互リンクのバナー群・link_banners）
   /** 外部サイトのウィジェット（第1899便・2026-11-10）。貼られた iframe の src・幅・高さだけを持つ。最大 MAX_HP_WIDGETS */
@@ -358,7 +358,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   reviews:    { on: true, count: 5 },
   coupon:     { on: true },
   news:       { on: true },
-  jobs:       { on: true },
+  jobs:       { on: true, nav: false },
   freePages:  { on: true },
   links:      { on: true },
   widgets:    [],
@@ -417,7 +417,7 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     },
     coupon:    { on: boolOr(r.coupon?.on, d.coupon.on) },
     news:      { on: boolOr(r.news?.on, d.news.on) },
-    jobs:      { on: boolOr(r.jobs?.on, d.jobs.on) },
+    jobs:      { on: boolOr(r.jobs?.on, d.jobs.on), nav: r.jobs?.nav === true },
     freePages: { on: boolOr(r.freePages?.on, d.freePages.on) },
     links:     { on: boolOr(r.links?.on, d.links.on) },
     widgets:   sanitizeHpWidgets(rawObj.widgets),

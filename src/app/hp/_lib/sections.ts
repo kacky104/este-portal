@@ -267,6 +267,7 @@ export function hpTopbarNavItems(
   const { basePath } = data;
   const hash = (id: string) => hpHashHref(basePath, page, id);
   const subs = hpSubpages(data);
+  const jobsUrl = hpJobsUrl(data);
   // 下層ページがあるときだけ本物のリンクにする（中身ゼロで404になるページへは飛ばさない）。
   // 無ければトップ内アンカーに落とす（お知らせ0件の店の NEWS など）。
   return [
@@ -301,5 +302,9 @@ export function hpTopbarNavItems(
     // CONTACT（第1717便・2026-11-02）。フォームを ON にした店だけ・ACCESS の右隣（一番右）。
     //   ★ opts.withContact は【PCヘッダー（HpShell）だけ true】。SPクイックナビ（QuickNav）は4分割グリッドのため足さない（withSchedule と同じ理由）。
     ...(opts?.withContact && subs.contact ? [{ href: `${basePath}/contact`, label: 'CONTACT', current: page === 'contact' }] : []),
+    // RECRUIT（第2031便・2026-11-17・カッキーさん・コネクト様のご要望）。店舗様が公式HP管理で「上のメニューにも出す」を選んだ店だけ。
+    //   行き先はフッターの「セラピスト求人はこちら」と同じ（フクエスワークのその店の求人・別タブ）。求人が無い店には出ない（hpJobsUrl）。
+    //   ★ PCヘッダーにもスマホのクイックナビにも出す。スマホは5つ並びになる（QuickNav が hp-qn5 を付けて字と余白を詰める）。
+    ...(data.site.blocks.jobs.nav && jobsUrl !== null ? [{ href: jobsUrl, label: 'RECRUIT', external: true }] : []),
   ];
 }

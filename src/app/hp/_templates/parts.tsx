@@ -27,6 +27,7 @@ const QN_JP: Record<string, string> = {
   SCHEDULE:  '出勤情報', // 予備（現状SPには渡していない。渡すなら上の★を読むこと）
   THERAPIST: 'セラピスト',
   ACCESS:    'アクセス',
+  RECRUIT:   '求人情報', // 第2031便: 店舗様が選んだ店だけ（5つ並びになる）
 };
 
 /**
@@ -36,9 +37,10 @@ const QN_JP: Record<string, string> = {
 export function QuickNav({ items, order = 0 }: { items: HpMenuItem[]; order?: number }) {
   return (
     // order の既定は 0（ヒーローの直下）。ヒーローより前に出したいひな形だけ負の値を渡す。
-    <nav className="hp-quicknav" style={{ order }} aria-label="クイックメニュー">
+    // ★ 第2031便: 5項目（RECRUIT 入り）のときは hp-qn5 を付ける＝5分割・字と余白を詰める（styles.ts）
+    <nav className={'hp-quicknav' + (items.length >= 5 ? ' hp-qn5' : '')} style={{ order }} aria-label="クイックメニュー">
       {items.map((m) => (
-        <a key={m.label} className="hp-qn-item" href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})}>
+        <a key={m.label} className="hp-qn-item" href={m.href} {...(m.current ? { 'aria-current': 'page' as const } : {})} {...(m.external ? { target: '_blank', rel: 'noopener' } : {})}>
           <span className="hp-qn-en">{m.label}</span>
           <span className="hp-qn-jp">{QN_JP[m.label] ?? ''}</span>
         </a>

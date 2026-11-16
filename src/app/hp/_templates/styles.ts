@@ -187,6 +187,11 @@ const COMMON = `
 .hp-qn-item + .hp-qn-item { border-left: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
 .hp-qn-en { font-size: 10px; letter-spacing: .18em; text-indent: .18em; font-weight: 700; }
 .hp-qn-jp { font-size: 8.5px; opacity: .6; letter-spacing: .06em; white-space: nowrap; }
+/* ★ 第2031便: RECRUIT 入りの5つ並び（店舗様が選んだ店だけ）。5分割にして、字を少し小さく・枠との隙間を詰める */
+.hp-quicknav.hp-qn5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.hp-qn5 .hp-qn-item { padding: 13px 0 12px; gap: 2px; }
+.hp-qn5 .hp-qn-en { font-size: 8.5px; letter-spacing: .06em; text-indent: .06em; }
+.hp-qn5 .hp-qn-jp { font-size: 7.5px; letter-spacing: 0; }
 
 /* ── マルチページ用（2026-08-11）──
    写メ日記の一覧ページ（/diary）。3列（PC4列）の正方形グリッド＋名前の小さなキャプション。
