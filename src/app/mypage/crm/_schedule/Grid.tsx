@@ -133,8 +133,27 @@ export function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nowJump]);
 
+  // ★ 第2035便: 表の高さを「画面の下端まで」に合わせる（横のスクロールバーが画面の外に出ないように）。
+  //   もとは 100dvh-170px の決め打ちで、運営として表示中の黄色い帯などで上が高くなると、
+  //   表の下端（＝横のスクロールバー）が画面の下にはみ出して見えなかった（2026-11-17・カッキーさん）。
+  //   ★ 測れないあいだは今までの CSS の高さのまま。
+  const [fitH, setFitH] = useState<number | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setFitH(Math.max(300, Math.floor(window.innerHeight - top - 8)));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(document.body);
+    return () => { window.removeEventListener('resize', measure); ro?.disconnect(); };
+  }, []);
+
   return (
-    <div ref={scrollRef} className="max-h-[calc(100dvh-130px)] overflow-auto border border-slate-300 bg-white md:max-h-[calc(100dvh-170px)]">
+    <div ref={scrollRef} style={fitH !== null ? { maxHeight: fitH } : undefined} className="max-h-[calc(100dvh-130px)] overflow-auto border border-slate-300 bg-white md:max-h-[calc(100dvh-170px)]">
       <div className="relative" style={{ width: leftW + width, zoom }}>
         {/* 時間の見出し（上に固定） */}
         <div className="sticky top-0 z-30 flex border-b border-slate-300 bg-slate-50" style={{ height: 30 }}>
