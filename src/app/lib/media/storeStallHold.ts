@@ -3,7 +3,7 @@ import { computeMediaLinkAlerts } from '@/app/lib/media/linkAlerts';
 import { stallKey, storeShowsStall } from '@/lib/stallDigest';
 import type { MediaLinkAlert } from '@/lib/mediaLinkStall';
 
-// 店舗様の画面に「止まっています」を出すのは、運営にメールが届いてから3時間後（第1767便・2026-11-07）。
+// 店舗様の画面に「止まっています」を出すのは、運営にメールが届いてから5時間後（第1767便・2026-11-07）。
 //
 // ★ 決まりそのものは lib/stallDigest.ts の storeShowsStall（STALL_STORE_HOLD_HOURS）。
 // ★ 運営向けの見張り（stallOverview → stall-watch のメール）は computeMediaLinkAlerts をそのまま使う（★ こちらで隠さない）。
@@ -30,7 +30,7 @@ export async function loadStoreStallHold(svc: Svc, salonId: number): Promise<Map
   }
 }
 
-/** 店舗様の画面の赤い帯（コネックエフ・フクエスリンク・マイページ）。メールから3時間たったものだけ */
+/** 店舗様の画面の赤い帯（コネックエフ・フクエスリンク・マイページ）。メールから5時間たったものだけ */
 export async function computeStoreLinkAlerts(
   svc: Svc,
   salonId: number,

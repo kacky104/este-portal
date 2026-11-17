@@ -42,7 +42,7 @@ export async function getMediaShellState(): Promise<MediaShellState> {
   if (!salon) return { ok: true, userId: user.id, email, salon: null, alerts: [] };
 
   const salonId = Number(salon.id);
-  // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから3時間後
+  // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから5時間後
   const alerts = await computeStoreLinkAlerts(createServiceClient(), salonId)
     .then((r) => (r.ok ? r.data : []))
     .catch(() => [] as MediaLinkAlert[]);

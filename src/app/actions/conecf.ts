@@ -183,7 +183,7 @@ export async function getConecfShellState(): Promise<ConecfShellState> {
   const svc = createServiceClient();
   const salonId = access.salonId;
   const [alerts, cocoaNav] = await Promise.all([
-    // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから3時間後（その間に直す）
+    // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから5時間後（その間に直す）
     computeStoreLinkAlerts(svc, salonId).then((r) => (r.ok ? r.data : [])).catch(() => [] as MediaLinkAlert[]),
     (async () => {
       try {

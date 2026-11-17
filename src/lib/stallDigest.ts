@@ -253,30 +253,30 @@ export function planStallAlerts(input: {
 }
 
 // ────────────────────────────────────────────────────────────
-// 店舗様の画面に出すのは、運営にメールが届いてから3時間後（第1767便・2026-11-07・カッキーさん決定）
+// 店舗様の画面に出すのは、運営にメールが届いてから5時間後（第1767便で3時間・第2034便で5時間に・カッキーさん決定）
 // ────────────────────────────────────────────────────────────
 //
 // ★ なぜ要るか: 止まり・うまくいっていないことは、運営にメールで届く（上の planStallAlerts）。
 //   その間に運営が直せば、店舗様に「止まっています」を見せずに済む（店舗様に不安を与えない）。
 // ★ 決め手は ops_stall_alerts の alerted_at（メールを出した時刻）。名前は stallKey と同じ。
 //   ・行が無い／まだメールを出していない … 出さない（30分ごとの見張りがまだ拾っていない）
-//   ・メールから3時間たった            … 出す
+//   ・メールから5時間たった            … 出す
 //   ・直って行が消えた                 … 出さない（店の画面の判定でも消えている）
 //   ・★ ログインできていない（problem・login）… すぐ出す（第1768便・店舗様にしか直せない）
 // ★★ 表が読めないとき（hold が null）は、今までどおりすぐ出す（★ 読めないせいで、ずっと隠したままにしない）。
 
-/** 3時間待たずに、すぐ店舗様に出すもの（ログインできていない＝problem の login） */
+/** 5時間待たずに、すぐ店舗様に出すもの（ログインできていない＝problem の login） */
 export function isStoreHoldExempt(key: string): boolean {
   return key.startsWith('problem:') && key.endsWith(':login');
 }
 
 /** 運営にメールが届いてから、店舗様の画面に出すまでの時間 */
-export const STALL_STORE_HOLD_HOURS = 3;
+export const STALL_STORE_HOLD_HOURS = 5;   // ★ 第2034便: 3 → 5（カッキーさん 11/17）
 
 /** その止まりを、店舗様の画面にもう出してよいか。hold は key → alerted_at（読めなかったら null） */
 export function storeShowsStall(key: string, hold: ReadonlyMap<string, string | null> | null, nowMs: number): boolean {
   // ★ 第1768便（カッキーさん 11/7）: 「ID・パスワードが違う（ログインできていない）」だけはすぐ出す。
-  //   ★ 直せるのは店舗様だけ（運営が3時間待っても直らない）
+  //   ★ 直せるのは店舗様だけ（運営が5時間待っても直らない）
   if (isStoreHoldExempt(key)) return true;
   if (hold === null) return true;
   const at = hold.get(key);

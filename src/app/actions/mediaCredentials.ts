@@ -1479,7 +1479,7 @@ export async function getMediaLinkAlerts(input: { salonId: string | number }): P
   if (!Number.isFinite(salonId)) return { ok: false, error: '店舗の指定が不正です' };
   const guard = await assertSalonOwner(salonId);
   if (!guard.ok) return guard;
-  // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから3時間後
+  // ★ 第1767便: 店舗様に出すのは、運営にメールが届いてから5時間後
   return computeStoreLinkAlerts(createServiceClient(), salonId);
 }
 
@@ -2056,7 +2056,7 @@ export async function getMediaOverview(input: { salonId: string | number; servic
   }
 
   // ★ 第1378便: 一時停止の枠のうち、「ID・パスワードが違う」ために自動で止めたもの（一時停止の枠が無い店では DB を読まない）
-  // ★ 第1767便: 「うまくいっていないこと」も、運営にメールが届いてから3時間後に出す（stall-watch と同じ名前で引く）
+  // ★ 第1767便: 「うまくいっていないこと」も、運営にメールが届いてから5時間後に出す（stall-watch と同じ名前で引く）
   const stallHold = await loadStoreStallHold(svc, salonId);
   const rejectedPaused = await loadLoginRejectPaused(
     svc, salonId,
