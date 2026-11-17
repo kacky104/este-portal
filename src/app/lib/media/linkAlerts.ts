@@ -104,11 +104,19 @@ export async function computeMediaLinkAlerts(svc: Svc, salonId: number): Promise
         .eq('source_id', Number(s.id))
         .order('started_at', { ascending: false })
         .limit(1)
-        .then((r) => ((r.data ?? [])[0] ? String((r.data ?? [])[0].started_at) : null)),
+        .then((r) => ({
+          error: r.error ? r.error.message : null,
+          at: (r.data ?? [])[0] ? String((r.data ?? [])[0].started_at) : null,
+        })),
     ),
   );
+  // ★★ 第2033便: 読めなかったときに「一度も走っていない」と判定しない（2026-11-17・Supabase の不調の最中に
+  //   アイリス様の駅ちか枠1が「週間予定を一度も取り込めていない（84日）」と誤って運営へメールされた。実際は当日 06:16 に走っていた）。
+  //   ★ 読めなかった店は ok:false にして、見張り側で「読めなかったもの」に回す（「止まっている」に数えない）。
+  const runErr = runRows.find((r) => r.error !== null);
+  if (runErr) return { ok: false, error: '取り込みの記録を確認できませんでした（' + runErr.error + '）' };
   const fullLastRunAtBySource = new Map<number, string | null>();
-  readSources.forEach((s, i) => fullLastRunAtBySource.set(Number(s.id), runRows[i] ?? null));
+  readSources.forEach((s, i) => fullLastRunAtBySource.set(Number(s.id), runRows[i]?.at ?? null));
 
   const now = new Date();
   const alerts: MediaLinkAlert[] = [];
