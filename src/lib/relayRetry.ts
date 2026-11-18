@@ -43,6 +43,7 @@ export const RETRY_SAFE_PURPOSES: readonly string[] = [
   // ── エステ魂: 代理ログインの出入り（中身を書き換えない）──
   //   ★ *_end は「本人のセッションを残さない」ための段。返事が無ければ、もう一度閉じに行く
   'esutama_diary_token', 'esutama_diary_proxy', 'esutama_diary_page', 'esutama_diary_end',
+  'esutama_note_list', 'esutama_note_edit', 'esutama_note_verify',  // ★ 第2036便: 写メNote の一覧・編集画面を読むだけ
   'esutama_sokusera_token', 'esutama_sokusera_proxy', 'esutama_sokusera_page', 'esutama_sokusera_verify', 'esutama_sokusera_end',
   // ── 全国エステランキング: 読むだけ（第1769便）──
   'zenkoku_login_page', 'zenkoku_roster', 'zenkoku_day_read', 'zenkoku_day_verify', 'zenkoku_wait_read', 'zenkoku_del_list', 'zenkoku_create_list', 'zenkoku_create_form', 'zenkoku_create_find', 'zenkoku_create_detail',
@@ -83,6 +84,7 @@ export const NO_RETRY_PURPOSES: readonly string[] = [
   'esutama_photo_tmp', 'esutama_photo_save',
   'esutama_edit_save',
   'esutama_diary_post',
+  'esutama_note_delete',  // ★ 第2036便: 写メNote が1件消える（戻せない・送り直さない）
   'esutama_sokusera_start',
   // ── 全国エステランキング（第1769便）──
   'zenkoku_login', 'zenkoku_day_save', 'zenkoku_wait_set',

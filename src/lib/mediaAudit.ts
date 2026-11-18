@@ -50,6 +50,7 @@ export const MEDIA_AUDIT_EVENTS = [
   'diary_post_page',     // ★ 投稿ページを読んだ（ctk を拾う）。読むだけ
   'diary_post_clamped',  // ★ 上限を超えたので切った（黙って切らない）
   'push_diary',          // ★★★ 写メ日記を送った。★ 相手を書き換える
+  'delete_diary',        // ★★★ 第2036便: 写メNote の前の同じ内容を消した。★ 戻せない
   'diary_proxy_end',     // ★★★ 代理ログインを終えた。★ 本人のセッションを残さない
   // ── 送った印（第133便・2026-09-04）★ 送る【前】に立て、送れなかったら倒す ──
   'plan_diary',          // ★ 誰のどの日記を送るかを組み立てた（★ dryrun はここで終わり）

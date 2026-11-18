@@ -104,6 +104,11 @@ export type RelayPurpose =
   | 'esutama_diary_page'
   | 'esutama_diary_post'
   | 'esutama_diary_end'
+  // ★ 第2036便: 写メNote の前の同じ内容を消す（esutama_note_delete だけが消す・送り直さない）
+  | 'esutama_note_list'
+  | 'esutama_note_edit'
+  | 'esutama_note_delete'
+  | 'esutama_note_verify'
   // ★ 即セラ（第143便）。★ 代理ログインを通るので段が多い
   //   ★★ esutama_sokusera_end は【必ず通る】。★ 本人のセッションを残さないため
   | 'esutama_sokusera_token'

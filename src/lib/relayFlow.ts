@@ -124,6 +124,7 @@ import {
   afterEsutamaTherapistList, afterEsutamaDiaryToken, afterEsutamaDiaryProxy,
   afterEsutamaDiaryPage, afterEsutamaDiaryPost, afterEsutamaDiaryEnd,
 } from './esutamaDiaryFlow';
+import { afterEsutamaNoteList, afterEsutamaNoteEdit, afterEsutamaNoteDelete, afterEsutamaNoteVerify } from './esutamaNoteDedupe';
 // ★ 即セラの段（第143便）
 import {
   afterEsutamaSokuseraToken, afterEsutamaSokuseraProxy, afterEsutamaSokuseraPage,
@@ -884,6 +885,13 @@ export type RelayFlowContext = {
    */
   esutamaNote?: { index: number; nextIndex: number; therapistId: number; title: string; body: string; categoryId: string; images: string[] };
   /**
+   * ★ 第2036便: 写メNote を送れたあと、同じ方の「同じ題名・同じ本文」の前の写メNote を消すか（conecf_esutama_notes.dedupe）。
+   *   ★ 段の並びと決まりは lib/esutamaNoteDedupe.ts。
+   */
+  esutamaNoteDedupe?: boolean;
+  /** ★ 第2036便: 前の写メNote を消す段の途中の状態（lib/esutamaNoteDedupe.ts の NoteDedupeState） */
+  esutamaNoteDd?: import('./esutamaNoteDedupe').NoteDedupeState;
+  /**
    * ★★★ 第1284便: この日記に付ける写真の【場所】（フクエスの保管庫の公開 URL・先頭から3枚まで）。
    *   ★ 写真の中身（base64）は文脈に入れない。★ 投稿の段を積む直前に、呼び出し側（app/lib/media/relayFlow.ts）が
    *     取ってきて整え、その1回の送信の本文にだけ載せる（文脈は段ごとに保存されるので、重いものを持ち回らない）。
@@ -1185,6 +1193,8 @@ export type FlowNextRequest = {
     | 'esutama_sokusera_start' | 'esutama_sokusera_verify' | 'esutama_sokusera_end'
     | 'esutama_therapist_list' | 'esutama_diary_token' | 'esutama_diary_proxy'
     | 'esutama_diary_page' | 'esutama_diary_post' | 'esutama_diary_end'
+    // ★ 第2036便: 写メNote の前の同じ内容を消す。★ esutama_note_delete だけが相手の日記を消す（戻せない）
+    | 'esutama_note_list' | 'esutama_note_edit' | 'esutama_note_delete' | 'esutama_note_verify'
     // ★ 第1305便: 駅ちかの上位表示。★ bump_set だけが相手の回数を減らす
     | 'read_bump' | 'bump_set'
     // ★ 第1314便: エステ魂の集客ワンクリックアピール（店舗情報）。★ esutama_appeal_set だけが相手の回数を減らす
@@ -2024,6 +2034,15 @@ function advanceFlowStep(
       return afterEsutamaDiaryPost(input, ctx);
     case 'esutama_diary_end':
       return afterEsutamaDiaryEnd(input, ctx);
+    // ── 第2036便: 写メNote の前の同じ内容を消す ──
+    case 'esutama_note_list':
+      return afterEsutamaNoteList(input, ctx);
+    case 'esutama_note_edit':
+      return afterEsutamaNoteEdit(input, ctx);
+    case 'esutama_note_delete':
+      return afterEsutamaNoteDelete(input, ctx);
+    case 'esutama_note_verify':
+      return afterEsutamaNoteVerify(input, ctx);
     // ── 即セラ（第143便）★ 段名で分けている ──
     case 'esutama_sokusera_token':
       return afterEsutamaSokuseraToken(input, ctx);

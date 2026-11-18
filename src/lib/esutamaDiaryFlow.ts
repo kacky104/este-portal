@@ -32,6 +32,7 @@ import {
   buildEsutamaCreateShopTokenRequest, buildEsutamaProxyLoginRequest,
   buildEsutamaDiaryPageRequest, buildEsutamaDiaryPostRequest, buildEsutamaEndProxyRequest,
 } from './esutamaRequests';
+import { startNoteDedupe } from './esutamaNoteDedupe';
 
 type Input = { status: number; headers: Record<string, string | string[]>; body: string };
 
@@ -304,6 +305,11 @@ export function afterEsutamaDiaryPost(input: Input, ctx: RelayFlowContext): Flow
     },
   }];
   const next = { ...ctx, cookie, esutamaDiaryPosted: posted, esutamaDiaryVerdict: j.verdict };
+  // ★ 第2036便: 写メNote を送れたら、同じ方の「同じ題名・同じ本文」の前の写メNote を消す段へ（店ごとの ON のときだけ・最後は必ず end_proxy）
+  const dedupe = startNoteDedupe(next);
+  if (dedupe) {
+    return { kind: 'next', next: dedupe, audits, note: '送りました（' + j.reason + '）。同じ内容の前の写メNote を探します' };
+  }
   // ★★★ 成功でも失敗でも end_proxy を通す。★ 本人のセッションを残さない
   return {
     kind: 'next',

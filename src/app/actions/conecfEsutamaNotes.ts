@@ -41,6 +41,8 @@ async function resolve(write: boolean) {
 export type ConecfEsutamaNoteTherapist = { id: number; name: string; linked: boolean };
 export type ConecfEsutamaNote = {
   auto: boolean; startMin: number; endMin: number; intervalMin: number;
+  /** ★ 第2036便: 送れたあと、同じ方の同じ題名・同じ本文の前の写メNote を消す（新しい1件は残す）。null＝まだ使えない（SQL 前） */
+  dedupe: boolean | null;
   items: Array<EsutamaNoteItem & { imageUrls: string[] }>;
   nextIndex: number; readAt: string | null; lastAt: string | null; lastOutcome: string | null;
   therapists: ConecfEsutamaNoteTherapist[];
@@ -63,10 +65,13 @@ export async function getConecfEsutamaNote(): Promise<Result<ConecfEsutamaNote |
     .eq('salon_id', r.salonId).eq('admin_enabled', true).maybeSingle();
   if (error || !data) return { ok: true, data: null };
   const url = (p: string) => r.svc.storage.from('salon-images').getPublicUrl(p).data.publicUrl;
+  // ★ 第2036便: 列が無い（SQL 前）ときに写メNote のカードごと消えないよう、別に読む
+  const { data: dd, error: ddErr } = await r.svc.from('conecf_esutama_notes').select('dedupe').eq('salon_id', r.salonId).maybeSingle();
   return {
     ok: true,
     data: {
       auto: data.auto === true,
+      dedupe: ddErr ? null : (dd as { dedupe?: unknown } | null)?.dedupe === true,
       startMin: Number(data.start_min), endMin: Number(data.end_min), intervalMin: Number(data.interval_min),
       items: normalizeEsutamaNoteItems(data.items).map((it) => ({ ...it, imageUrls: it.images.map(url) })),
       nextIndex: Number(data.next_index ?? 0),
@@ -76,7 +81,7 @@ export async function getConecfEsutamaNote(): Promise<Result<ConecfEsutamaNote |
   };
 }
 
-export async function saveConecfEsutamaNote(input: { auto: boolean; startMin: number; endMin: number; intervalMin: number; items: unknown }): Promise<Result<null>> {
+export async function saveConecfEsutamaNote(input: { auto: boolean; startMin: number; endMin: number; intervalMin: number; items: unknown; dedupe?: boolean | null }): Promise<Result<null>> {
   const r = await resolve(true);
   if (!r.ok) return r;
   const items = normalizeEsutamaNoteItems(input.items).map((it) => ({ ...it, title: it.title.trim(), body: it.body.replace(/\r\n/g, '\n').trim() }));
@@ -103,6 +108,11 @@ export async function saveConecfEsutamaNote(input: { auto: boolean; startMin: nu
     updated_at: new Date().toISOString(),
   }).eq('salon_id', r.salonId);
   if (error) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
+  // ★ 第2036便: 前の同じ写メNote を消すか（列が無い間は触らない）
+  if (typeof input.dedupe === 'boolean') {
+    const { error: ddErr } = await r.svc.from('conecf_esutama_notes').update({ dedupe: input.dedupe }).eq('salon_id', r.salonId);
+    if (ddErr) return { ok: false, error: '「同じ内容の前の写メNote を消す」を保存できませんでした。運営事務局までご連絡ください' };
+  }
   // ★ 使わなくなった画像を片づける（自分の店の写メNote の置き場だけ）
   const before = normalizeEsutamaNoteItems(cur.items).flatMap((it) => it.images);
   const now = new Set(items.flatMap((it) => it.images));

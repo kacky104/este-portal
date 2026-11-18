@@ -27,6 +27,7 @@ const emptyRow = (): Row => ({ title: '', body: '', categoryId: '1', therapistId
 
 export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: ConecfEsutamaNote; onToast: (m: string) => void; reload: () => void; open: boolean; onToggle: () => void }) {
   const [auto, setAuto] = useState(n.auto);
+  const [dedupe, setDedupe] = useState(n.dedupe === true);
   const [startMin, setStart] = useState(n.startMin);
   const [endMin, setEnd] = useState(n.endMin);
   const [intervalMin, setIntervalMin] = useState(n.intervalMin);
@@ -34,7 +35,7 @@ export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: Con
   const [busy, setBusy] = useState(false);
   const dirty = JSON.stringify(rows.map((r) => ({ ...r, images: r.images.map((x) => x.path) })))
     !== JSON.stringify(n.items.map((it) => ({ title: it.title, body: it.body, categoryId: it.categoryId, therapistId: it.therapistId, images: it.images })))
-    || auto !== n.auto || startMin !== n.startMin || endMin !== n.endMin || intervalMin !== n.intervalMin;
+    || auto !== n.auto || (n.dedupe !== null && dedupe !== n.dedupe) || startMin !== n.startMin || endMin !== n.endMin || intervalMin !== n.intervalMin;
   const set = (i: number, patch: Partial<Row>) => setRows((v) => v.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const nextNo = rows.length > 0 ? (n.nextIndex % rows.length) : -1;
 
@@ -58,7 +59,7 @@ export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: Con
     const bad = rows.findIndex((r) => esutamaNoteItemProblem({ ...r, images: [] }) !== null);
     if (bad >= 0) { onToast(`${bad + 1}件目: ${esutamaNoteItemProblem({ ...rows[bad], images: [] })}`); return; }
     setBusy(true);
-    const r = await saveConecfEsutamaNote({ auto, startMin, endMin, intervalMin, items: rows.map((x) => ({ ...x, images: x.images.map((im) => im.path) })) });
+    const r = await saveConecfEsutamaNote({ auto, startMin, endMin, intervalMin, dedupe: n.dedupe === null ? null : dedupe, items: rows.map((x) => ({ ...x, images: x.images.map((im) => im.path) })) });
     setBusy(false);
     onToast(r.ok ? '保存しました' : r.error);
     if (r.ok) reload();
@@ -113,6 +114,15 @@ export function EsutamaNoteCard({ n, onToast, reload, open, onToggle }: { n: Con
             {ESUTAMA_POST_INTERVALS.map((m) => <option key={m} value={m}>{intervalLabel(m)}おき</option>)}
           </select>
         </div>
+        {n.dedupe !== null && (
+          <label className="flex items-start gap-2 text-[14px]">
+            <input type="checkbox" className="mt-1" checked={dedupe} onChange={(e) => setDedupe(e.target.checked)} />
+            <span>
+              <b>同じ内容の前の写メNote を消す</b>
+              <span className="block text-[12.5px] text-slate-500">投稿できたあと、そのセラピストの写メNote から、題名も本文も同じ前の投稿を消します（いちばん新しい1件は残ります）。内容が少しでも違う日記は消しません。消した写メNote は元に戻せません。</span>
+            </span>
+          </label>
+        )}
 
         <ol className="space-y-3">
           {rows.map((r, i) => (

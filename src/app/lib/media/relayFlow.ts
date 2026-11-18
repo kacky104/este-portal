@@ -3897,8 +3897,12 @@ async function planEsutamaNote(
       : n.images.map((p) => supabase.storage.from('salon-images').getPublicUrl(p).data.publicUrl),
     process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
   );
+  // ★ 第2036便: 送れたあと、同じ内容の前の写メNote を消すか（店ごとの ON/OFF）。★ 列が無い（SQL 前）・読めないときは消さない
+  const { data: dd, error: ddErr } = await supabase.from('conecf_esutama_notes').select('dedupe').eq('salon_id', params.salonId).maybeSingle();
+  const dedupe = !ddErr && (dd as { dedupe?: unknown } | null)?.dedupe === true;
   const nextCtx: RelayFlowContext = {
     ...ctx,
+    esutamaNoteDedupe: dedupe,
     esutamaDiaryCastId: castId,
     esutamaDiaryCastName: media.name || fukuesName,
     // ★ 第1943便: 半角の「<」はエステ魂で「&lt;」と文字のまま出てしまう（11/11 12:26 みあさんの題名）→ 全角の「＜」にして送る
