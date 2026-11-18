@@ -32,9 +32,11 @@ type Input = { status: number; headers: Record<string, string | string[]>; body:
 const ORIGIN = 'https://estama.jp';
 const LIST_URL = ORIGIN + '/tamathera/diary/';
 /** 一覧を何ページまで読むか（1ページ10件） */
-export const NOTE_DEDUPE_MAX_PAGES = 5;
+export const NOTE_DEDUPE_MAX_PAGES = 15;
 /** 1回の流れで編集画面を読むのは何件まで */
 export const NOTE_DEDUPE_MAX_CHECKS = 40;
+/** ★ 第2037便: 1回の流れで消すのは何件まで（エステ魂へ一度にたくさんの削除を送らない。残りはその内容を次に送った回に続きを消す） */
+export const NOTE_DEDUPE_MAX_DELETES = 30;
 
 export type NoteDedupeState = {
   phase: 'scan' | 'check' | 'verify';
@@ -132,9 +134,33 @@ export function normalizeNoteText(s: string): string {
 export function sentNoteTitle(title: string): string { return String(title ?? '').replace(/</g, '＜'); }
 export function sentNoteBody(body: string): string { return String(body ?? '').replace(/</g, '＜'); }
 
+// ★★ 第2037便（カッキーさん 11/19「消えてなかったです」）: 比べ方をゆるめた。
+//   みあさんの写メNote で、ベンリー時代の投稿は題名の顔文字の記号が違い（(⋈◍＞◡＜◍) と (ᐡ◍>ᴗ＜◍)）、
+//   第1943便の前の投稿は「<」が「&lt;」と文字のまま載っていた。本文は同じでも「別の内容」と判定して残っていた。
+//   → 題名は ひらがな・カタカナ・漢字・英数字だけで比べる（顔文字・記号・絵文字の違いは見ない）。
+//   → 本文は 空白・改行の違いだけ見ない（文字が1つでも違えば別の内容）。
+function unEntity(s: string): string {
+  return String(s ?? '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+}
+/** 題名の比べる形（ひらがな・カタカナ・漢字・英数字だけ） */
+export function looseNoteTitle(s: string): string {
+  const t = unEntity(s).normalize('NFKC');
+  return (t.match(/[\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Han}ー々A-Za-z0-9]/gu) ?? []).join('');
+}
+/** 本文の比べる形（空白・改行を落とす） */
+export function looseNoteBody(s: string): string {
+  return unEntity(s).normalize('NFKC').replace(/[\s\u3000]+/g, '');
+}
+/** 題名が同じか（ゆるめた形。文字が1つも残らない題名だけは、そのままの形で比べる） */
+export function isSameNoteTitle(a: string, b: string): boolean {
+  const la = looseNoteTitle(a); const lb = looseNoteTitle(b);
+  if (la === '' || lb === '') return normalizeNoteText(unEntity(a)) === normalizeNoteText(unEntity(b));
+  return la === lb;
+}
+
 export function isSameNote(a: { title: string; content: string }, b: { title: string; body: string }): boolean {
-  return normalizeNoteText(a.title) === normalizeNoteText(sentNoteTitle(b.title))
-    && normalizeNoteText(a.content) === normalizeNoteText(sentNoteBody(b.body));
+  return isSameNoteTitle(a.title, sentNoteTitle(b.title))
+    && looseNoteBody(a.content) === looseNoteBody(sentNoteBody(b.body));
 }
 
 // ─────────────── 段を組む ───────────────
@@ -213,9 +239,8 @@ export function afterEsutamaNoteList(input: Input, ctx0: RelayFlowContext): Flow
   if (input.status < 200 || input.status >= 400) return fail('list_http', who(ctx) + '写メNote の一覧を読めませんでした（' + input.status + '）');
   const p = parseNoteListPage(input.body, st.page);
   if (!p.isList) return fail('not_list', who(ctx) + '写メNote の一覧を読めませんでした');
-  const title = normalizeNoteText(sentNoteTitle(n.title));
   const found = [...st.found];
-  for (const c of p.cards) if (normalizeNoteText(c.title) === title && !found.some((f) => f.id === c.id)) found.push({ id: c.id, at: c.at });
+  for (const c of p.cards) if (isSameNoteTitle(c.title, sentNoteTitle(n.title)) && !found.some((f) => f.id === c.id)) found.push({ id: c.id, at: c.at });
   const next: NoteDedupeState = { ...st, found, ctk: st.ctk ?? p.ctk, pages: st.page };
   if (p.hasNext && st.page < NOTE_DEDUPE_MAX_PAGES) {
     return { kind: 'next', next: listStep('esutama_note_list', st.page + 1, { ...ctx, esutamaNoteDd: { ...next, page: st.page + 1 } }), audits: [], note: '写メNote の一覧 ' + st.page + 'ページ目を読みました' };
@@ -232,6 +257,8 @@ export function afterEsutamaNoteList(input: Input, ctx0: RelayFlowContext): Flow
 
 /** 次の1件の編集画面へ。無ければ読み直しへ */
 function nextCheck(ctx: RelayFlowContext, st: NoteDedupeState, audits: FlowAudit[], note: string): FlowOutcome {
+  // ★ 第2037便: 1回に消すのは NOTE_DEDUPE_MAX_DELETES 件まで（残りは次の回）
+  if (st.deleted.length >= NOTE_DEDUPE_MAX_DELETES) st = { ...st, queue: [] };
   if (st.queue.length > 0) {
     const [id, ...rest] = st.queue;
     return { kind: 'next', next: editStep(id, { ...ctx, esutamaNoteDd: { ...st, queue: rest, current: id } }), audits, note };
