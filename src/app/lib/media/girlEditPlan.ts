@@ -7,6 +7,7 @@ import { PHOTO_SLOT_MAX, type PhotoSyncOp } from '@/lib/ekichikaPhoto';
 import { resolveTherapistPhotoFile, PLACEHOLDER_BUCKET, isPlaceholderPath } from '@/app/lib/media/therapistPhotoFile';
 import { photoKey, esutamaRemovalSlots, ESUTAMA_SYNC_MAX } from '@/lib/esutamaPhotoSync';
 import type { EsutamaEditPhotos } from '@/lib/relayFlow';
+import { ekichikaSameAsSlot1 } from '@/lib/conecfSiteFields';
 
 // ★★★ 駅ちかのプロフィール更新に送る材料を DB から作る（第415便・2026-09-17）。
 //   ★ 運営の口（/api/admin/media-girl-edit）と、あとで作る店舗様の画面の両方がここを通る（★ 2か所に書かない）。
@@ -44,7 +45,13 @@ export async function buildGirlEditValues(
   const prof = (p ?? {}) as Record<string, unknown>;
   const { data: sf } = await svc.from('conecf_therapist_site_fields').select('fields')
     .eq('therapist_id', therapistId).eq('provider', 'ekichika').eq('slot', slot).maybeSingle();
-  const f = ((sf?.fields ?? {}) as Record<string, unknown>);
+  let f = ((sf?.fields ?? {}) as Record<string, unknown>);
+  // ★ 第2039便: 枠2以降で「枠1と同じにする」なら、枠1の専用項目（タグ・ジャンル・キャッチ・メッセージ等）を送る
+  if (ekichikaSameAsSlot1(slot, f)) {
+    const { data: sf1 } = await svc.from('conecf_therapist_site_fields').select('fields')
+      .eq('therapist_id', therapistId).eq('provider', 'ekichika').eq('slot', 1).maybeSingle();
+    f = ((sf1?.fields ?? {}) as Record<string, unknown>);
+  }
   const body = parseBodyType((th.body_type as string | null) ?? null);
   const str = (v: unknown) => (v === null || v === undefined ? '' : String(v));
   const arr = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);

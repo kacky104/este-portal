@@ -91,7 +91,33 @@ export const CONSTELLATIONS: readonly string[] = ['おひつじ', 'おうし', '
 //   ★ 空ならフクエスの値（therapists.catchphrase / profile_text）を送る（girlEditPlan）。★ 入れた店だけサイトごとに変えられる
 export const EKICHIKA_CATCH_MAX = 15;
 export const EKICHIKA_COMMENTS_MAX = 2000;
-export type EkichikaFields = { pGenres: string[]; genres: string[]; options: string; rookie: string; constellation: string; catchcopy: string; comments: string };
+export type EkichikaFields = {
+  pGenres: string[]; genres: string[]; options: string; rookie: string; constellation: string; catchcopy: string; comments: string;
+  /** ★ 第2039便: 枠2以降で「枠1と同じにする」。true/false は店舗様が選んだ値。無い（undefined）ときは ekichikaSameAsSlot1 の既定で決める */
+  sameAsSlot1?: boolean;
+};
+
+/** ★ 第2039便: 駅ちかの専用項目が1つも入っていないか */
+export function ekichikaFieldsEmpty(f: Record<string, unknown> | null | undefined): boolean {
+  const x = f ?? {};
+  const has = (v: unknown) => (Array.isArray(v) ? v.length > 0 : typeof v === 'string' ? v.trim() !== '' : false);
+  return !['pGenres', 'genres', 'options', 'rookie', 'constellation', 'catchcopy', 'comments'].some((k) => has(x[k]));
+}
+
+/**
+ * ★★ 第2039便（2026-11-19・オイルクエスト様のご要望「駅ちか1〜4の連動」・カッキーさん）:
+ *   枠2以降の駅ちかの専用項目（優先タグ・ジャンル・キャッチ・お店からのメッセージ・オプション・新人・星座）を、枠1と同じにするか。
+ *   ・店舗様が選んでいればその値。
+ *   ・選んでいない（今までの保存）なら、中身が空の枠は「同じ」（＝既定 ON）、何か入っている枠は「別」（今の内容を消さない）。
+ *   ・枠1は常に false（自分自身）。
+ */
+export function ekichikaSameAsSlot1(slot: number, f: Record<string, unknown> | null | undefined): boolean {
+  if (Number(slot) <= 1) return false;
+  const v = (f ?? {}).sameAsSlot1;
+  if (v === true) return true;
+  if (v === false) return false;
+  return ekichikaFieldsEmpty(f);
+}
 
 /** 候補にあるものだけ・重複なし・選んだ順のまま・上限まで */
 export function pickFrom(input: unknown, candidates: readonly string[], max: number): string[] {
@@ -121,6 +147,7 @@ export function normalizeEkichikaFields(input: Record<string, unknown> | null | 
       pGenres: pickFrom(x.pGenres, EKICHIKA_P_GENRES, EKICHIKA_P_GENRE_MAX),
       genres: pickFrom(x.genres, EKICHIKA_GENRES, EKICHIKA_GENRE_MAX),
       options, rookie, constellation, catchcopy, comments,
+      ...(typeof x.sameAsSlot1 === 'boolean' ? { sameAsSlot1: x.sameAsSlot1 } : {}),
     },
   };
 }

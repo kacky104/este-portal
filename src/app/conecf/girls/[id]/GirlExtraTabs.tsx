@@ -9,7 +9,7 @@ import {
   QA_MAX, QA_TEXT_MAX, EKICHIKA_CATCH_MAX, EKICHIKA_COMMENTS_MAX, ESUTAMA_DESCRIPTION_MAX, ESUTAMA_CASTPR_MAX,
   EKICHIKA_P_GENRES, EKICHIKA_P_GENRE_MAX, EKICHIKA_GENRE_GROUPS, EKICHIKA_GENRE_MAX, EKICHIKA_OPTIONS_MAX, EKICHIKA_ROOKIE, CONSTELLATIONS,
   ESUTAMA_TYPES, ESUTAMA_TYPE_MAX, ESUTAMA_BODY_STYLES, ESUTAMA_QUESTIONS, ESUTAMA_QUESTION_MAX, ESUTAMA_QUALIFIED_MAX, ESUTAMA_SNS,
-  type QaItem,
+  type QaItem, ekichikaSameAsSlot1,
 } from '@/lib/conecfSiteFields';
 import { revalidateSalon, revalidateTherapist } from '@/app/lib/revalidateTop';
 // ★ 第1234便（カッキーさん）: AI でキャッチフレーズ・詳細プロフィールの下書き（マイページ /mypage/therapist/[id] と同じ server action・同じ枠・同じ決まり）
@@ -242,6 +242,8 @@ export function GirlExtraTab({
   const provider = tab === 'ekichika' ? 'ekichika' : tab === 'esutama' ? 'esutama' : null;
   const mine = provider ? x.siteFields.filter((s) => s.provider === provider) : [];
   const cur = mine.length > 0 ? mine[Math.min(slotIdx, mine.length - 1)] : null;
+  // ★ 第2039便: いま開いている駅ちかの枠が「枠1と同じ」か
+  const sameAs = !!cur && cur.provider === 'ekichika' && ekichikaSameAsSlot1(cur.slot, cur.fields);
   const setFields = (f: Record<string, unknown>) => setX((p) => (p && cur ? {
     ...p, siteFields: p.siteFields.map((s) => (s.provider === cur.provider && s.slot === cur.slot ? { ...s, fields: f } : s)),
   } : p));
@@ -250,7 +252,7 @@ export function GirlExtraTab({
       {mine.map((s, i) => (
         <button key={s.provider + '#' + s.slot} type="button" onClick={() => setSlotIdx(i)}
           className={`h-8 px-4 rounded-full text-[13px] ${i === slotIdx ? 'bg-[#1e88e5] text-white' : 'bg-black/[0.06] text-[#212121]'}`}>
-          {s.label}
+          {s.label}{s.provider === 'ekichika' && ekichikaSameAsSlot1(s.slot, s.fields) ? '（枠1と同じ）' : ''}
         </button>
       ))}
     </div>
@@ -401,12 +403,32 @@ export function GirlExtraTab({
     return (
       <div className={CARD}>
         {slotPills}
+        {/* ★ 第2039便（オイルクエスト様のご要望「駅ちか1〜4の連動」）: 枠2以降は「枠1と同じにする」を選べる（中身が空の枠は最初から ON） */}
+        {cur && cur.slot > 1 && (
+          <div className="mx-4 mt-4 border border-[#1e88e5]/30 bg-[#1e88e5]/[0.05] px-4 py-3">
+            <label className="flex items-center gap-2 text-[14px] font-bold">
+              <input type="checkbox" className="accent-[#1e88e5]" checked={sameAs}
+                onChange={(e) => {
+                  if (e.target.checked) { setFields({ ...cur.fields, sameAsSlot1: true }); return; }
+                  // ★ 外したときは、枠1の内容を写してから（そこから枠{n}だけ直せるように）
+                  const one = x.siteFields.find((s) => s.provider === 'ekichika' && s.slot === 1);
+                  setFields({ ...toEk(one?.fields ?? {}), sameAsSlot1: false });
+                }} />
+              枠1と同じにする
+            </label>
+            <p className="mt-1 text-[12.5px] text-slate-600">
+              {sameAs
+                ? '優先タグ・ジャンル・キャッチコピー・お店からのメッセージ・可能オプション・新人・星座は、駅ちか（枠1）のタブの内容を送ります。枠1を直せば、この枠も同じになります。'
+                : 'この枠だけ別の内容を送ります。下の欄に入れてください（チェックを外したときは、枠1の内容を写してあります）。'}
+            </p>
+          </div>
+        )}
         <Section title="駅ちかに反映">
           {/* ★ 第729便（カッキーさん）: 駅ちか専用のキャッチコピー・お店からのメッセージ（★ 空ならフクエスの内容を送る）。
               ★ 置き場は駅ちかの項目（site_fields）。★ ID・PASS が無い店は欄が出ない（送る先が無い） */}
-          {cur && (() => {
+          {cur && !sameAs && (() => {
             const f = toEk(cur.fields);
-            const up = (k: keyof Ek, v: unknown) => setFields({ ...f, [k]: v });
+            const up = (k: keyof Ek, v: unknown) => setFields({ ...cur.fields, ...f, [k]: v });
             return (
               <>
                 <Row label="女の子キャッチコピー" hint={f.catchcopy ? undefined : `空のままなら、フクエスのキャッチフレーズ「${c.catchphrase || '（未入力）'}」を送ります。`}>
@@ -428,9 +450,9 @@ export function GirlExtraTab({
             <textarea rows={5} className={INPUT} value={c.girlComment} onChange={(e) => setC('girlComment', e.target.value)} />
             <Counter text={c.girlComment} max={GIRL_COMMENT_MAX} limits={COMMENT_SITE_LIMITS.girlComment} />
           </Row>
-          {!cur ? noFields('駅ちか') : (() => {
+          {!cur ? noFields('駅ちか') : sameAs ? null : (() => {
             const f = toEk(cur.fields);
-            const up = (k: keyof Ek, v: unknown) => setFields({ ...f, [k]: v });
+            const up = (k: keyof Ek, v: unknown) => setFields({ ...cur.fields, ...f, [k]: v });
             return (
               <>
                 <Row label="優先タグ" hint={`女の子ランキングで上位に出やすくなるタグです。${EKICHIKA_P_GENRE_MAX}つまで。`}>
