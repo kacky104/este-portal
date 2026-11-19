@@ -955,6 +955,19 @@ export function HpEditor({
           <input type="checkbox" checked={form.blocks.jobs.on && form.blocks.jobs.nav} disabled={!form.blocks.jobs.on}
             onChange={(e) => patchBlocks({ jobs: { ...form.blocks.jobs, nav: e.target.checked } })} className="w-4 h-4 accent-pink-500" />
         </label>
+        {/* ★ 第2038便（2026-11-19・コネクト様のご要望）: 求人の行き先を別のサイト（バニラなど）にする。空ならフクエスワーク */}
+        <div className={'py-1 space-y-1' + (form.blocks.jobs.on ? '' : ' opacity-40')}>
+          <span className="block text-xs font-bold text-slate-600">
+            求人の行き先（URL）
+            <span className="ml-2 font-normal text-[10px] text-slate-400">空欄ならフクエスワークのお店の求人ページ。別の求人サイトへ飛ばすときだけ入れてください</span>
+          </span>
+          <input type="url" inputMode="url" value={form.blocks.jobs.url} disabled={!form.blocks.jobs.on}
+            onChange={(e) => patchBlocks({ jobs: { ...form.blocks.jobs, url: e.target.value } })}
+            placeholder="https://..." className="w-full border border-slate-300 px-2 py-1.5 text-[13px]" />
+          {form.blocks.jobs.url.trim() !== '' && !/^https?:\/\//.test(form.blocks.jobs.url.trim()) && (
+            <span className="block text-[11px] text-rose-600">https:// から始まるURLを入れてください（このままでは保存されません）</span>
+          )}
+        </div>
       </div>
       )}
 

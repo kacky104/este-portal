@@ -75,6 +75,8 @@ export function hpHasAnyDuty(data: HpPageData): boolean {
 /** 求人リンク（フクエスワークの求人ページ）を出すか。出すなら絶対URL、出さないなら null。 */
 export function hpJobsUrl(data: HpPageData): string | null {
   const { site, salon, jobId } = data;
+  // ★ 第2038便（コネクト様のご要望）: 店舗様が求人の行き先（別サイト・バニラなど）を入れていれば、そこへ
+  if (site.blocks.jobs.on && site.blocks.jobs.url) return site.blocks.jobs.url;
   return site.blocks.jobs.on && salon.jobsEnabled && jobId !== null
     ? `${EMBED_SITE_URL}/jobs/${jobId}`
     : null;

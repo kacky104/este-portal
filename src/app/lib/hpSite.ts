@@ -52,7 +52,9 @@ export type HpBlocksConfig = {
   reviews:    { on: boolean; count: number };  // 口コミ（埋め込み・表示件数 1〜10）
   coupon:     { on: boolean };                 // クーポン
   news:       { on: boolean };                 // お知らせ
-  jobs:       { on: boolean; nav: boolean };   // nav＝上のメニュー（PCヘッダー・スマホの4つ並び）にも RECRUIT を出す（第2031便・店舗様が選ぶ・既定は出さない）                 // 求人リンク（フクエスワーク）
+  // 求人リンク（既定はフクエスワーク）。nav＝上のメニュー（PCヘッダー・スマホの4つ並び）にも RECRUIT を出す（第2031便・店舗様が選ぶ・既定は出さない）
+  //   url＝求人の行き先を別のサイトにする（第2038便・コネクト様のご要望・バニラなど）。空ならフクエスワークのその店の求人
+  jobs:       { on: boolean; nav: boolean; url: string };
   freePages:  { on: boolean };                 // フリーページ（最大3・salon_free_pages）
   links:      { on: boolean };                 // リンク（相互リンクのバナー群・link_banners）
   /** 外部サイトのウィジェット（第1899便・2026-11-10）。貼られた iframe の src・幅・高さだけを持つ。最大 MAX_HP_WIDGETS */
@@ -358,7 +360,7 @@ export const DEFAULT_HP_BLOCKS: HpBlocksConfig = {
   reviews:    { on: true, count: 5 },
   coupon:     { on: true },
   news:       { on: true },
-  jobs:       { on: true, nav: false },
+  jobs:       { on: true, nav: false, url: '' },
   freePages:  { on: true },
   links:      { on: true },
   widgets:    [],
@@ -417,7 +419,7 @@ export function sanitizeHpBlocks(raw: unknown): HpBlocksConfig {
     },
     coupon:    { on: boolOr(r.coupon?.on, d.coupon.on) },
     news:      { on: boolOr(r.news?.on, d.news.on) },
-    jobs:      { on: boolOr(r.jobs?.on, d.jobs.on), nav: r.jobs?.nav === true },
+    jobs:      { on: boolOr(r.jobs?.on, d.jobs.on), nav: r.jobs?.nav === true, url: hpJobsLinkUrl(r.jobs?.url) },
     freePages: { on: boolOr(r.freePages?.on, d.freePages.on) },
     links:     { on: boolOr(r.links?.on, d.links.on) },
     widgets:   sanitizeHpWidgets(rawObj.widgets),
@@ -534,6 +536,12 @@ export type HpBanner = {
   image_url: string; // salon-images バケットの公開URL
   link:      string; // 任意。空文字=リンクなし
 };
+
+/** ★ 第2038便: 求人の行き先（別サイト）。http(s) の絶対URLだけ・それ以外は空（＝フクエスワーク） */
+export function hpJobsLinkUrl(v: unknown): string {
+  const t = typeof v === 'string' ? v.trim() : '';
+  return t !== '' && isSafeHttpUrl(t) ? t : '';
+}
 
 /** http(s) の絶対URLだけ許可（javascript: 等の混入防止）。空文字はOK（リンクなし）。 */
 export function isSafeHttpUrl(v: string): boolean {
