@@ -108,15 +108,15 @@ export function ekichikaFieldsEmpty(f: Record<string, unknown> | null | undefine
  * ★★ 第2039便（2026-11-19・オイルクエスト様のご要望「駅ちか1〜4の連動」・カッキーさん）:
  *   枠2以降の駅ちかの専用項目（優先タグ・ジャンル・キャッチ・お店からのメッセージ・オプション・新人・星座）を、枠1と同じにするか。
  *   ・店舗様が選んでいればその値。
- *   ・選んでいない（今までの保存）なら、中身が空の枠は「同じ」（＝既定 ON）、何か入っている枠は「別」（今の内容を消さない）。
+ *   ・選んでいない（今までの保存）なら「同じ」（既定 ON・第2041便で中身の有無を見なくなった）。
  *   ・枠1は常に false（自分自身）。
  */
 export function ekichikaSameAsSlot1(slot: number, f: Record<string, unknown> | null | undefined): boolean {
   if (Number(slot) <= 1) return false;
   const v = (f ?? {}).sameAsSlot1;
-  if (v === true) return true;
-  if (v === false) return false;
-  return ekichikaFieldsEmpty(f);
+  // ★ 第2041便（カッキーさん 11/19「枠1と同じにするをデフォルトに」）: 選んでいない枠は、中身があっても「同じ」（既定 ON）。
+  //   外すのは店舗様が「枠1と同じにする」のチェックを外して保存したときだけ（sameAsSlot1=false）。
+  return v !== false;
 }
 
 /** 候補にあるものだけ・重複なし・選んだ順のまま・上限まで */
