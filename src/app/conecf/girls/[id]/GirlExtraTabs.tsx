@@ -405,7 +405,7 @@ export function GirlExtraTab({
         {slotPills}
         {/* ★ 第2039便（オイルクエスト様のご要望「駅ちか1〜4の連動」）: 枠2以降は「枠1と同じにする」を選べる（中身が空の枠は最初から ON） */}
         {cur && cur.slot > 1 && (
-          <div className="mx-4 mt-4 border border-[#1e88e5]/30 bg-[#1e88e5]/[0.05] px-4 py-3">
+          <div className="mx-4 mt-4 border border-slate-300 bg-white px-4 py-3 text-slate-800">
             <label className="flex items-center gap-2 text-[14px] font-bold">
               <input type="checkbox" className="accent-[#1e88e5]" checked={sameAs}
                 onChange={(e) => {
