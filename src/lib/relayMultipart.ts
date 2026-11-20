@@ -157,6 +157,11 @@ export type RelayFileOptions = {
    *   ★★ 既定値を作らない。★ 基準を間違えると**顔が切れる**。★ 黙って決めない。
    */
   pos?: 'lefttop' | 'center';
+  /**
+   * ★ 第2042便: 縦横比を保ったまま、この寸法へ縮めて JPEG で返す（駅ちかの写真は長い辺 2000px まで）。
+   *   ★ 切り落とさない。fit とは一緒に使わない。
+   */
+  shrink?: { w: number; h: number };
 };
 
 /**
@@ -201,6 +206,12 @@ export function relayFileUrl(bucket: string, path: string, opt?: 'jpeg' | RelayF
     throw new Error('fit を指定せずに w / h / pos は指定しない');
   }
 
+  if (o.shrink !== undefined) {
+    if (o.fit !== undefined) throw new Error('shrink と fit は一緒に使わない');
+    const sw = Number(o.shrink.w); const sh = Number(o.shrink.h);
+    if (!Number.isInteger(sw) || sw < 1 || sw > 4000 || !Number.isInteger(sh) || sh < 1 || sh > 4000) throw new Error('shrink の形が不正（1〜4000の整数）');
+    q.push('shrink=1', 'sw=' + String(sw), 'sh=' + String(sh));
+  }
   if (o.as) q.push('as=jpeg');
   return 'https://' + RELAY_FILE_HOSTS[0] + RELAY_FILE_PATH_PREFIX + '?' + q.join('&');
 }

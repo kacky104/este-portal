@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { readImageSize } from '@/lib/imageSize';
+import { ekichikaPhotoSendSize } from '@/lib/ekichikaPhoto';
 
 // ── 駅ちかへ送る「1枚の写真」を用意する（第249便で1か所に寄せた）─────────────
 //
@@ -92,9 +93,11 @@ export async function resolveTherapistPhotoFile(
   }
   const buf = new Uint8Array(await blob.arrayBuffer());
   if (buf.byteLength === 0) return { ok: false, status: 400, error: '写真が空' };
-  if (buf.byteLength > PHOTO_MAX_BYTES) return { ok: false, status: 400, error: '写真が 10MB を超えている（駅ちかの上限）' };
   const size = readImageSize(buf);
   if (!size) return { ok: false, status: 400, error: 'jpg / png として寸法を読めない' };
+  // ★ 第2042便: 長い辺が 2000px を超える写真は、送るときに縮める（そのぶん元は大きくてよい・30MBまで）
+  const willShrink = ekichikaPhotoSendSize(size.width, size.height).shrunk;
+  if (buf.byteLength > (willShrink ? 30 * 1024 * 1024 : PHOTO_MAX_BYTES)) return { ok: false, status: 400, error: willShrink ? '写真が 30MB を超えている' : '写真が 10MB を超えている（駅ちかの上限）' };
   if (size.width < PHOTO_MIN_WIDTH || size.height < PHOTO_MIN_HEIGHT) {
     return {
       ok: false, status: 400,

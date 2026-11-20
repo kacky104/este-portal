@@ -269,6 +269,28 @@ export function isSafeSrc(src: string): boolean {
 
 // ────────────────────────── 切り抜きの範囲 ──────────────────────────
 
+/**
+ * ★★ 第2042便（2026-11-20・オイルクエスト様 ひかるさん）: 駅ちかは「幅2000px・高さ2000px・10MB以内」でないと写真を受け付けない
+ *   （「画像サイズは幅2000px、高さ2000px、10MB以内にしてください。」で4枠とも断られた。セラピストページから原寸のまま上がった写真）。
+ *   → 長い辺が 2000px を超える写真は、送るときだけ縦横比を保って縮める（元の写真は触らない・/api/relay/file の shrink）。
+ *   ★ 切り抜き（3:4 の枠）も縮めたあとの寸法で計算する（送る寸法と食い違わせない）。
+ */
+export const EKICHIKA_PHOTO_MAX_SIDE = 2000;
+export function ekichikaPhotoSendSize(width: number, height: number): { w: number; h: number; shrunk: boolean } {
+  const w = Math.floor(Number(width)); const h = Math.floor(Number(height));
+  const side = Math.max(w, h);
+  if (!(w > 0 && h > 0) || side <= EKICHIKA_PHOTO_MAX_SIDE) return { w, h, shrunk: false };
+  const k = EKICHIKA_PHOTO_MAX_SIDE / side;
+  return { w: Math.max(1, Math.min(EKICHIKA_PHOTO_MAX_SIDE, Math.round(w * k))), h: Math.max(1, Math.min(EKICHIKA_PHOTO_MAX_SIDE, Math.round(h * k))), shrunk: true };
+}
+/** 縮めたぶん、指定の切り抜きの枠も縮める（縮めないときはそのまま） */
+export function scaleCropRect(rect: Rect, from: { w: number; h: number }, to: { w: number; h: number }): Rect {
+  if (from.w === to.w && from.h === to.h) return rect;
+  const kx = to.w / from.w; const ky = to.h / from.h;
+  const x = Math.max(0, Math.floor(rect.x * kx)); const y = Math.max(0, Math.floor(rect.y * ky));
+  return { x, y, w: Math.min(to.w - x, Math.floor(rect.w * kx)), h: Math.min(to.h - y, Math.floor(rect.h * ky)) };
+}
+
 /** 実寸の画像の中で、いちばん大きい中央の 3:4 の枠。★ ②の x/y/w/h（sh_w/sh_h に実寸を添える）。 */
 export function centeredMainCrop(width: number, height: number): Rect {
   if (!(width > 0 && height > 0)) throw new Error('画像の寸法が不正');

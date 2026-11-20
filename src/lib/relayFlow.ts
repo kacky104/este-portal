@@ -77,7 +77,7 @@ import {
   buildUploadFields,
   buildMainCropFields,
   buildThumbCropFields,
-  centeredMainCrop,
+  centeredMainCrop, ekichikaPhotoSendSize, scaleCropRect,
   ekichikaGirlEditUrl,
   isPhotoSlot,
   THUMB_DEFAULT_RECT,
@@ -4685,12 +4685,7 @@ function afterReadPhotoPage(
     };
     const multipart: RelayMultipart = {
       fields: buildUploadFields(idsUp),
-      files: [{
-        field: 'upfile',
-        url: relayFileUrl(curFile.bucket, curFile.path),
-        filename: curFile.filename,
-        contentType: curFile.contentType,
-      }],
+      files: [ekichikaUploadFile(curFile)],
     };
     return {
       kind: 'next',
@@ -4720,8 +4715,12 @@ function afterReadPhotoPage(
   if (!src) return photoStop(ctx, 'no_src', '前の段の応答に画像の場所がありませんでした', 'photoSrc が無い');
 
   if (stage === 'crop_main') {
-    const rect = ctx.photoMainRect ?? centeredMainCrop(file.width, file.height);
-    const fields = buildMainCropFields(ids, src, rect, { width: file.width, height: file.height });
+    // ★ 第2042便: 長い辺が 2000px を超える写真は縮めて送っている。切り抜きも縮めたあとの寸法で
+    const sz = ekichikaPhotoSendSize(file.width, file.height);
+    const rect = ctx.photoMainRect
+      ? scaleCropRect(ctx.photoMainRect, { w: file.width, h: file.height }, { w: sz.w, h: sz.h })
+      : centeredMainCrop(sz.w, sz.h);
+    const fields = buildMainCropFields(ids, src, rect, { width: sz.w, height: sz.h });
     return {
       kind: 'next',
       next: {
@@ -4910,7 +4909,7 @@ function photoSyncUpload(c: RelayFlowContext, op: PhotoSyncOp, page: PhotoPage, 
   };
   const multipart: RelayMultipart = {
     fields,
-    files: [{ field: 'upfile', url: relayFileUrl(file.bucket, file.path), filename: file.filename, contentType: file.contentType }],
+    files: [ekichikaUploadFile(file)],
   };
   return {
     kind: 'next',
@@ -5279,5 +5278,21 @@ function afterBumpSet(
     note: '上位表示が通らなかった: ' + (r.message ?? ''),
     // ★ 押せなかった。読んだときの値だけ残す（回数は減っていないはず）
     ekichikaBump: { remaining: before.remaining, quota: before.quota, lastAt: before.lastAt, readAt: now, pressed: false },
+  };
+}
+
+
+/**
+ * ★ 第2042便: 駅ちかへ送る写真1枚（multipart のファイル）。長い辺が 2000px を超えるときは、取りに来た口で縮めて JPEG で渡す。
+ *   ★ 駅ちかは「幅2000px・高さ2000px・10MB以内」でないと受け付けない（ekichikaPhoto.ts の ekichikaPhotoSendSize）。
+ */
+function ekichikaUploadFile(file: { bucket: string; path: string; filename: string; contentType: string; width: number; height: number }) {
+  const sz = ekichikaPhotoSendSize(file.width, file.height);
+  if (!sz.shrunk) return { field: 'upfile', url: relayFileUrl(file.bucket, file.path), filename: file.filename, contentType: file.contentType };
+  return {
+    field: 'upfile',
+    url: relayFileUrl(file.bucket, file.path, { shrink: { w: sz.w, h: sz.h } }),
+    filename: file.filename.replace(/\.(png|jpe?g)$/i, '') + '.jpg',
+    contentType: 'image/jpeg',
   };
 }

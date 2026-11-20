@@ -77,6 +77,31 @@ export async function GET(req: Request) {
   //
   // ★★★★★ 切り取りの基準（pos）は **必ず指定させる**。★ 既定値を作らない。
   //   ★ 基準を間違えると **顔が切れる**。★ 黙って決めてよいことではない。
+  // ★★ 第2042便: shrink=1&sw=<幅>&sh=<高さ> … 縦横比を保ってこの寸法に縮め、JPEG で返す（駅ちかの写真は長い辺 2000px・10MB まで）。
+  //   ★ 向き（EXIF）は残す（縮める前と同じ見え方のまま。駅ちかへは今まで原寸を EXIF つきで送っていた）。
+  if (url.searchParams.get('shrink') === '1') {
+    const sw = Number(url.searchParams.get('sw'));
+    const sh = Number(url.searchParams.get('sh'));
+    if (!Number.isInteger(sw) || sw < 1 || sw > 4000 || !Number.isInteger(sh) || sh < 1 || sh > 4000) {
+      return Response.json({ ok: false, error: 'sw / sh の形が不正（1〜4000の整数）' }, { status: 400 });
+    }
+    try {
+      const sharp = (await import('sharp')).default;
+      const make = (q: number) => sharp(buf).resize(sw, sh, { fit: 'fill' }).flatten({ background: '#ffffff' }).withMetadata().jpeg({ quality: q }).toBuffer();
+      let out = await make(90);
+      // ★ Vercel が返せる大きさ（約4MB）と駅ちかの上限に収める
+      for (const q of [80, 70, 60]) { if (out.byteLength < 3_500_000) break; out = await make(q); }
+      if (out.byteLength === 0) throw new Error('変換の結果が空');
+      return new Response(new Uint8Array(out), {
+        status: 200,
+        headers: { 'Content-Type': 'image/jpeg', 'Content-Length': String(out.byteLength), 'Cache-Control': 'no-store' },
+      });
+    } catch (e) {
+      console.error('[relay/file] 縮められなかった', (e as Error).message);
+      return Response.json({ ok: false, error: '画像を縮められませんでした: ' + (e as Error).message.slice(0, 200) }, { status: 415 });
+    }
+  }
+
   const fit = url.searchParams.get('fit');
   if (fit !== null) {
     if (fit !== 'cover') {
