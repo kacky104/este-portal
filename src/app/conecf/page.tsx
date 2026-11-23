@@ -69,7 +69,7 @@ function SwitchCard({ enabledAt, canSwitch, applyHref, onToast }: { enabledAt: s
           {/* ★ 第2018便（2026-11-14）: 誤って押した店（コネクト様 11/12）で、駅ちかで書いた出勤・写メ日記がフクエスに入らなくなった。うっかり押しにくくする
               ★ 第2043便（2026-11-23・カッキーさん）: 文章を端的に（言うことは同じ） */}
           <div className="border border-rose-300 bg-rose-50 px-3 py-2.5 text-[13.5px] text-rose-800 leading-relaxed">
-            <b>駅ちかで入力した出勤・写メ日記は、フクエスに入らなくなります。</b>
+            <b>これからはコネックエフで出勤を上げます。フクエスから写メ日記を上げます。</b>
             <br />駅ちかで入力を続ける場合は、切り替えないでください。
           </div>
           <ul className="text-[13.5px] text-amber-900/90 leading-relaxed list-disc pl-5 space-y-0.5">
