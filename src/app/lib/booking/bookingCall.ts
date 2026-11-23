@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { notifyAdmin } from '@/app/lib/notifyAdmin';
 import { normalizeCallTel } from '@/app/lib/booking/callTel';
+import { speakBookingDateTime } from '@/lib/bookingDayLabel';
 
 export { normalizeCallTel };
 
@@ -103,14 +104,10 @@ export function inCallHours(start: string | null | undefined, end: string | null
 }
 
 // ── 読み上げ文 ─────────────────────────────────────────
-const WD: Record<string, string> = { Sun: '日', Mon: '月', Tue: '火', Wed: '水', Thu: '木', Fri: '金', Sat: '土' };
 /** 「11月3日、火曜日、午後8時30分」の形（数字の羅列にしない・午前/午後を付ける）。 */
+// ★ 第2046便: 深夜（朝6時より前）は営業日で読む（「11月27日、金曜日の深夜、1時、日付では11月28日」）。決まりは lib/bookingDayLabel.ts
 export function speakDateTimeJST(iso: string): string {
-  const { month, day, hour, minute, weekday } = jstParts(new Date(iso));
-  const ampm = hour < 12 ? '午前' : '午後';
-  const h = hour % 12 === 0 && hour >= 12 ? 12 : hour % 12;
-  const time = `${ampm}${h}時${minute > 0 ? `${minute}分` : ''}`;
-  return `${month}月${day}日、${WD[weekday] ?? ''}曜日、${time}`;
+  return speakBookingDateTime(iso);
 }
 
 export function buildBookingSpeech(i: {

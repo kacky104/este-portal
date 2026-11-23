@@ -24,6 +24,7 @@ import { breakBlocks, breakConflict } from '@/app/lib/crm/breakGuard';
 import { sharedRoomBlocks } from '@/app/lib/crm/roomShare';
 import { dbMessage } from '@/app/lib/crm/dbError';
 import { FREE_LANE_MAX, overlapLimit } from '@/app/lib/booking/freeLane';
+import { bookingSlotLabel } from '@/lib/bookingDayLabel';
 
 // ネット予約フェーズ1（客向け予約フロー）のサーバーアクション群。
 //
@@ -224,13 +225,9 @@ function isSlotConflictError(code: string | undefined): boolean {
   return code === '23505' || code === '23P01';
 }
 
+// ★ 第2046便: 深夜の予約は営業日で書く（11/28 1:00 → 「11/27(金) の深夜 翌1:00〜…（日付は 11/28(土) …）」）。決まりは lib/bookingDayLabel.ts
 function formatSlotLabelJST(startISO: string, endISO: string): string {
-  const s = new Date(startISO);
-  const e = new Date(endISO);
-  const md = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric' }).format(s);
-  const wd = new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', weekday: 'short' }).format(s);
-  const hm = (d: Date) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
-  return `${md}(${wd}) ${hm(s)}〜${hm(e)}`;
+  return bookingSlotLabel(startISO, endISO);
 }
 
 /**
