@@ -75,6 +75,20 @@ export function isValidEsutamaOptSetting(s: EsutamaOptSetting): boolean {
     && s.intervalMin >= 30 && s.intervalMin <= 1440;
 }
 
+/**
+ * ★★ 第2047便（2026-11-24・オイルクエスト様「集客ブーストが止まっている」）: 「今日はもう回数が無い」か。
+ *   以前は「残り0」と「read_at が朝6時より後」だけで決めていた。read_at は【始めるときに先に書く印】なので、
+ *   前の日に使い切った（残り0）まま、朝6時すぎに始めた回が途中で止まると（エステ魂のほかの手順とぶつかる・中継の不調）、
+ *   残り0が前の日の値のまま read_at だけ今日になり、【その日いっぱい押しに行かなくなった】（11/24 06:04〜・約17時間）。
+ *   → 「今日押せた（last_at が朝6時より後）うえで残り0」のときだけ、回数が無いとみなす。
+ *     今日まだ押せていないなら、残り0は前の日の値かもしれないので、読みに行く（読みに行くのは間隔ごとなので負荷は増えない）。
+ */
+function noQuotaToday(state: EsutamaOptState, resetMs: number): boolean {
+  if (state.remaining !== 0) return false;
+  const after = (iso: string | null) => !!iso && Date.parse(iso) >= resetMs;
+  return after(state.readAt) && after(state.lastAt);
+}
+
 export function shouldPressEsutamaOpt(args: {
   key: EsutamaOptKey; setting: EsutamaOptSetting; state: EsutamaOptState; now: Date; force?: boolean;
 }): { press: boolean; reason: string } {
@@ -90,12 +104,12 @@ export function shouldPressEsutamaOpt(args: {
     const dueAt = lastResetAt(now).getTime() + (due - 360) * 60000;
     if (state.lastAt && Date.parse(state.lastAt) >= dueAt - 60000) return { press: false, reason: 'done_for_time' };
     if (state.readAt && Date.parse(state.readAt) >= dueAt && now.getTime() - Date.parse(state.readAt) < 30 * 60000) return { press: false, reason: 'recent_read' };
-    if (state.remaining === 0 && state.readAt && Date.parse(state.readAt) >= lastResetAt(now).getTime()) return { press: false, reason: 'no_quota' };
+    if (noQuotaToday(state, lastResetAt(now).getTime())) return { press: false, reason: 'no_quota' };
     return { press: true, reason: 'ok' };
   }
   if (b < setting.startMin || b >= setting.endMin) return { press: false, reason: 'outside_hours' };
   const reset = lastResetAt(now).getTime();
-  if (state.remaining === 0 && state.readAt && Date.parse(state.readAt) >= reset) return { press: false, reason: 'no_quota' };
+  if (noQuotaToday(state, reset)) return { press: false, reason: 'no_quota' };
   const gapMs = (iso: string | null) => (iso ? now.getTime() - Date.parse(iso) : Infinity);
   // ★ 周は5分ごと。間隔ちょうどに押せるよう3分の遊び
   if (gapMs(state.lastAt) < (setting.intervalMin - 3) * 60000) return { press: false, reason: 'interval' };

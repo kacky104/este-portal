@@ -49,6 +49,8 @@ console.log('── 3. 押すかの判断');
   eq('30分前に押した → 待つ', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: s, state: st(30, 5, 30), now }).reason, 'interval');
   eq('58分前 → 押す（3分の遊び）', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: s, state: st(58, 5, 58), now }).press, true);
   eq('今日0回を読んだ → 押さない', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: s, state: st(120, 0, 120), now }).reason, 'no_quota');
+  // ★ 第2047便: 前の日に使い切って（残り0・最後に押せたのは朝6時前）、朝6時すぎに始めた印（read_at）だけ今日 → 押しに行く
+  eq('前の日に使い切り・今日の印だけ → 押す（11/24 の止まり）', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: s, state: st(515, 0, 356), now }).press, true);
   eq('0回を読んだのが朝6時前 → また見に行く', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: s, state: st(400, 0, 400), now }).press, true);
   eq('時間帯の外 → 押さない', m.shouldPressEsutamaOpt({ key: 'shop_boost', setting: { ...s, startMin: 780 }, state: st(null, null, null), now }).reason, 'outside_hours');
   const js = { ...s, timesMin: [604, 1206, 1320] };
