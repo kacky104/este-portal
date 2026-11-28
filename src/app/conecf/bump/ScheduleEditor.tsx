@@ -17,7 +17,7 @@ function hm(iso: string | null): string {
   return new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Tokyo' }).format(d);
 }
 
-type Tab = 'timer' | 'times';
+type Tab = 'timer' | 'times' | 'extra';
 type BulkMode = 'step' | 'range' | 'paste';
 const BULK_STEPS = [5, 10, 15, 20, 30, 40, 45, 60, 90, 120, 150, 180, 240] as const;
 
@@ -43,7 +43,7 @@ export type ScheduleSaveInput = { enabled: boolean; startMin: number; endMin: nu
 type SaveResult = { ok: true; data: { perDay: number } } | { ok: false; error: string };
 type RunResult = { ok: true; data?: unknown } | { ok: false; error: string };
 
-export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, heading, defaultQuota, choices, save: saveFn, run: runFn, what = '上位表示', back = { href: '/bump', label: '上位表示設定の一覧へ' }, timesMax = BUMP_TIMES_MAX, verb = '押し', lagNote, quotaNote }: {
+export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, heading, defaultQuota, choices, save: saveFn, run: runFn, what = '上位表示', back = { href: '/bump', label: '上位表示設定の一覧へ' }, timesMax = BUMP_TIMES_MAX, verb = '押し', lagNote, quotaNote, extraTab }: {
   s: ConecfBumpSlot; enabled: boolean; onToast: (m: string) => void; onSaved: () => Promise<void>;
   /** 「枠1」「店舗情報」など */ name: string;
   /** 「駅ちか」「エステ魂」 */ siteName: string;
@@ -59,6 +59,8 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
   /** 回数が上限を超える設定のときの注記（既定: ◯◯は1日N回までなので、超えた分は押しません） */ quotaNote?: string;
   /** 無ければ「いま1回」のボタンを出さない */
   run?: () => Promise<RunResult>;
+  /** ★ 第2049便: 3つ目のタブ（エステ魂の集客アピールの「曜日ごとの時刻指定」）。中身と保存はタブの側が持つ */
+  extraTab?: { label: string; content: React.ReactNode };
 }) {
   const href = useConecfHref();
   const [tab, setTab] = useState<Tab>(s.times ? 'times' : 'timer');
@@ -223,7 +225,11 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
         <div className="flex gap-0.5">
           {tabBtn('timer', 'タイマー更新')}
           {s.timesReady && tabBtn('times', '時刻指定更新')}
+          {extraTab && tabBtn('extra', extraTab.label)}
         </div>
+        {tab === 'extra' && extraTab ? (
+          <div className="bg-white border border-slate-200 px-5 py-3">{extraTab.content}</div>
+        ) : (
         <div className="bg-white border border-slate-200 px-5 py-3 space-y-3">
           {tab === 'timer' ? (
             <>
@@ -346,6 +352,7 @@ export function ScheduleEditor({ s, enabled, onToast, onSaved, name, siteName, h
             </span>
           </div>
         </div>
+        )}
       </div>
     </div>
   );

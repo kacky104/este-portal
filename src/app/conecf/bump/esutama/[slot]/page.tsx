@@ -62,10 +62,11 @@ function RowBody({ rowKey, enabled, onToast }: { rowKey: string; enabled: boolea
       name={label} siteName="エステ魂" defaultQuota={10} choices={ESUTAMA_APPEAL_INTERVAL_CHOICES}
       heading={<>エステ魂　<span className="text-violet-600">集客アピール（{label}）</span></>}
       save={(i) => saveEsutamaAppealRow({ row: rowKey, ...i })}
-      run={() => runEsutamaAppealRowNow({ row: rowKey })} what="アピール" />
-    {row.weekTimes && (
-      <WeekTimesEditor key={JSON.stringify(row.weekTimes)} rowKey={rowKey} week={row.weekTimes} enabled={enabled} onToast={onToast} onSaved={load} />
-    )}
+      run={() => runEsutamaAppealRowNow({ row: rowKey })} what="アピール"
+      extraTab={row.weekTimes ? {
+        label: '曜日ごとの時刻指定',
+        content: <WeekTimesEditor key={JSON.stringify(row.weekTimes)} rowKey={rowKey} week={row.weekTimes} enabled={enabled} onToast={onToast} onSaved={load} />,
+      } : undefined} />
     </div>
   );
 }
@@ -90,8 +91,7 @@ function WeekTimesEditor({ rowKey, week, enabled, onToast, onSaved }: {
     onSaved();
   };
   return (
-    <div className="bg-white border border-slate-200 p-5 space-y-3">
-      <h3 className="text-[16px] font-bold text-slate-800">曜日ごとの時刻指定</h3>
+    <div className="space-y-3">
       <p className="text-[13px] text-slate-500 leading-relaxed">
         曜日ごとに、押す時刻を{APPEAL_WEEK_TIMES_MAX}個まで入れられます（例 10:04 12:16 17:05）。1日は朝6時はじまりです（月曜の深夜1:00に押すときは「月」に 1:00 と入れます）。
         <br />時刻が空の曜日は、上の設定（タイマー更新／時刻指定更新）で押します。
