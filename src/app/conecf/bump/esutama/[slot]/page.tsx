@@ -71,47 +71,70 @@ function RowBody({ rowKey, enabled, onToast }: { rowKey: string; enabled: boolea
   );
 }
 
-const hhmm = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
-
 // ★ 第2048便（2026-11-28・オイルクエスト様のご要望）: 曜日ごとの時刻指定（月〜日それぞれ10個まで・朝6時はじまりの1日）
+// ★ 第2050便: 入力を「時刻指定更新」と同じ形に（1行に1つの時刻・×で消す・＋時刻を足す）。説明文をタブの位置に合わせる
 function WeekTimesEditor({ rowKey, week, enabled, onToast, onSaved }: {
   rowKey: string; week: AppealWeekTimes; enabled: boolean; onToast: (m: string) => void; onSaved: () => void;
 }) {
   const today = appealBusinessWeekKey(new Date());
   const [tab, setTab] = useState<AppealWeekKey>(today);
-  const [text, setText] = useState<Record<AppealWeekKey, string>>(() => Object.fromEntries(APPEAL_WEEK_KEYS.map((k) => [k, (week[k] ?? []).map(hhmm).join(' ')])) as Record<AppealWeekKey, string>);
+  const pad = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  const [rows, setRows] = useState<Record<AppealWeekKey, string[]>>(() => Object.fromEntries(APPEAL_WEEK_KEYS.map((k) => [k, (week[k] ?? []).map(pad)])) as Record<AppealWeekKey, string[]>);
   const [busy, setBusy] = useState(false);
-  const count = (k: AppealWeekKey) => text[k].split(/[\s,、，]+/).filter(Boolean).length;
+  const count = (k: AppealWeekKey) => rows[k].filter((v) => v.trim() !== '').length;
+  const cur = rows[tab];
+  const setCur = (f: (v: string[]) => string[]) => setRows((p) => ({ ...p, [tab]: f(p[tab]) }));
   const save = async () => {
     setBusy(true);
-    const r = await saveEsutamaAppealWeekTimes({ row: rowKey, week: text });
+    const r = await saveEsutamaAppealWeekTimes({ row: rowKey, week: Object.fromEntries(APPEAL_WEEK_KEYS.map((k) => [k, rows[k].filter((v) => v.trim() !== '').join(' ')])) });
     setBusy(false);
     if (!r.ok) { onToast(r.error); return; }
-    onToast(r.data.days > 0 ? `曜日ごとの時刻を保存しました（${r.data.days}曜日）` : '曜日ごとの時刻を空にしました（毎日、上の設定で押します）');
+    onToast(r.data.days > 0 ? `曜日ごとの時刻を保存しました（${r.data.days}曜日）` : '曜日ごとの時刻を空にしました（毎日「時刻指定更新」の設定で押します）');
     onSaved();
   };
   return (
     <div className="space-y-3">
-      <p className="text-[13px] text-slate-500 leading-relaxed">
-        曜日ごとに、押す時刻を{APPEAL_WEEK_TIMES_MAX}個まで入れられます（例 10:04 12:16 17:05）。1日は朝6時はじまりです（月曜の深夜1:00に押すときは「月」に 1:00 と入れます）。
-        <br />時刻が空の曜日は、上の設定（タイマー更新／時刻指定更新）で押します。
+      <p className="text-[15px] text-slate-500 leading-relaxed">
+        曜日ごとに、押す時刻を{APPEAL_WEEK_TIMES_MAX}個まで入れられます。1日は朝6時はじまりです（月曜の深夜1:00に押すときは「月」に 01:00 を入れます）。
+        <br />時刻を入れていない曜日は、「タイマー更新」「時刻指定更新」のタブの設定で押します。
       </p>
       <div className="flex flex-wrap gap-1">
         {APPEAL_WEEK_KEYS.map((k) => (
           <button key={k} type="button" onClick={() => setTab(k)}
-            className={`h-9 min-w-[52px] px-3 text-[14px] font-bold border ${k === tab ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-700 border-slate-300'}`}>
+            className={`h-10 min-w-[56px] px-3 text-[16px] font-bold border ${k === tab ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-700 border-slate-300'}`}>
             {APPEAL_WEEK_LABEL[k]}{count(k) > 0 ? `（${count(k)}）` : ''}{k === today ? '・今日' : ''}
           </button>
         ))}
       </div>
-      <div className="space-y-1">
-        <label className="block text-[13px] font-bold text-slate-600">{APPEAL_WEEK_LABEL[tab]}曜日に押す時刻</label>
-        <input value={text[tab]} onChange={(e) => setText((p) => ({ ...p, [tab]: e.target.value }))} disabled={!enabled}
-          placeholder="空欄なら上の設定で押します" className="w-full border border-slate-300 px-3 py-2 text-[15px]" />
-        <p className={`text-[12px] ${count(tab) > APPEAL_WEEK_TIMES_MAX ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>{count(tab)} / {APPEAL_WEEK_TIMES_MAX}個</p>
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <span className="text-[16px] font-bold text-slate-700">{APPEAL_WEEK_LABEL[tab]}曜日に押す時刻</span>
+        <span className="text-[15px] text-slate-500 tabular-nums">{count(tab)}/{APPEAL_WEEK_TIMES_MAX}個</span>
       </div>
-      <button type="button" onClick={() => void save()} disabled={busy || !enabled}
-        className="px-5 py-2 bg-violet-600 text-white text-[14px] font-bold disabled:opacity-50">{busy ? '保存しています…' : '曜日ごとの時刻を保存'}</button>
+      {cur.length === 0 ? (
+        <p className="text-[15px] text-slate-400">この曜日は時刻を入れていません（「タイマー更新」「時刻指定更新」のタブの設定で押します）。</p>
+      ) : (
+        <ol className="space-y-1.5">
+          {cur.map((v, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <span className="w-6 text-right text-[16px] text-slate-400 tabular-nums">{i + 1}</span>
+              <input type="time" step={60} value={v} disabled={!enabled}
+                onChange={(e) => { const x = e.target.value; setCur((arr) => arr.map((y, j) => (j === i ? x : y))); }}
+                className="w-52 px-3 py-1.5 text-[18px] border border-slate-300 bg-white tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-200" />
+              <button type="button" aria-label="この時刻を消す" onClick={() => setCur((arr) => arr.filter((_, j) => j !== i))}
+                className="px-2 text-[16px] text-slate-400 hover:text-rose-600">×</button>
+            </li>
+          ))}
+        </ol>
+      )}
+      {cur.length < APPEAL_WEEK_TIMES_MAX && (
+        <button type="button" disabled={!enabled} onClick={() => setCur((arr) => [...arr, ''])}
+          className="px-3 py-1.5 text-[17px] font-bold text-slate-600 border border-dashed border-slate-300 hover:bg-slate-50 disabled:opacity-40">＋ 時刻を足す</button>
+      )}
+      <div className="flex items-center gap-3 flex-wrap border-t border-slate-100 pt-3">
+        <button type="button" onClick={() => void save()} disabled={busy || !enabled}
+          className="px-6 py-2.5 text-[17px] font-black text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40">{busy ? '保存中…' : '曜日ごとの時刻を保存'}</button>
+        <span className="text-[16px] text-slate-500">月〜日の7曜日ぶんを、まとめて保存します。</span>
+      </div>
     </div>
   );
 }
