@@ -10,7 +10,7 @@ import { ConecfShell } from '../../../ConecfShell';
 import { useConecfHref } from '../../../ConecfBase';
 import { useToast } from '@/app/components/useToast';
 import { getConecfBump, getEsutamaAppealRows, saveEsutamaAppealRow, runEsutamaAppealRowNow, saveEsutamaAppealWeekTimes, type ConecfBumpSlot, type EsutamaAppealRowSlot } from '@/app/actions/conecfBump';
-import { APPEAL_WEEK_KEYS, APPEAL_WEEK_LABEL, APPEAL_WEEK_TIMES_MAX, appealBusinessWeekKey, type AppealWeekKey, type AppealWeekTimes } from '@/lib/esutamaAppealWeek';
+import { APPEAL_WEEK_KEYS, APPEAL_WEEK_LABEL, APPEAL_WEEK_TIMES_MAX, type AppealWeekKey, type AppealWeekTimes } from '@/lib/esutamaAppealWeek';
 import { esutamaAppealRowFromSlug, esutamaAppealRowLabel, ESUTAMA_APPEAL_INTERVAL_CHOICES } from '@/lib/esutamaAppealRows';
 import { ScheduleEditor } from '../../ScheduleEditor';
 import { SITES, SlotCard } from '../../BumpParts';
@@ -65,7 +65,7 @@ function RowBody({ rowKey, enabled, onToast }: { rowKey: string; enabled: boolea
       run={() => runEsutamaAppealRowNow({ row: rowKey })} what="アピール"
       extraTab={row.weekTimes ? {
         label: '曜日ごとの時刻指定',
-        content: <WeekTimesEditor key={JSON.stringify(row.weekTimes)} rowKey={rowKey} week={row.weekTimes} enabled={enabled} onToast={onToast} onSaved={load} />,
+        content: <WeekTimesEditor rowKey={rowKey} week={row.weekTimes} enabled={enabled} onToast={onToast} onSaved={load} />,
       } : undefined} />
     </div>
   );
@@ -76,8 +76,8 @@ function RowBody({ rowKey, enabled, onToast }: { rowKey: string; enabled: boolea
 function WeekTimesEditor({ rowKey, week, enabled, onToast, onSaved }: {
   rowKey: string; week: AppealWeekTimes; enabled: boolean; onToast: (m: string) => void; onSaved: () => void;
 }) {
-  const today = appealBusinessWeekKey(new Date());
-  const [tab, setTab] = useState<AppealWeekKey>(today);
+  // ★ 第2051便（カッキーさん）: はじめは「月」。「今日」の印と、今日の曜日へ合わせるのはやめた（保存のあとも開いている曜日のまま）
+  const [tab, setTab] = useState<AppealWeekKey>('mon');
   const pad = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
   const [rows, setRows] = useState<Record<AppealWeekKey, string[]>>(() => Object.fromEntries(APPEAL_WEEK_KEYS.map((k) => [k, (week[k] ?? []).map(pad)])) as Record<AppealWeekKey, string[]>);
   const [busy, setBusy] = useState(false);
@@ -102,7 +102,7 @@ function WeekTimesEditor({ rowKey, week, enabled, onToast, onSaved }: {
         {APPEAL_WEEK_KEYS.map((k) => (
           <button key={k} type="button" onClick={() => setTab(k)}
             className={`h-10 min-w-[56px] px-3 text-[16px] font-bold border ${k === tab ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-700 border-slate-300'}`}>
-            {APPEAL_WEEK_LABEL[k]}{count(k) > 0 ? `（${count(k)}）` : ''}{k === today ? '・今日' : ''}
+            {APPEAL_WEEK_LABEL[k]}{count(k) > 0 ? `（${count(k)}）` : ''}
           </button>
         ))}
       </div>
