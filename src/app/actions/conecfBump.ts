@@ -6,11 +6,12 @@ import { createServiceClient } from '@/app/lib/supabase/service';
 import { getCalendarDateJST } from '@/lib/dutyStatus';
 import { isConecfStopped, CONECF_STOPPED_MESSAGE } from '@/lib/setPlan';
 import { startRelayFlow } from '@/app/lib/media/relayFlow';
-import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor, normalizeBumpTimes, BUMP_TIMES_MAX, isCustomBumpInterval } from '@/lib/ekichikaBump';
+import { isValidBumpSetting, bumpSlotsPerDay, bumpCountStale, bumpResetMinOf, bumpIntervalsFor, normalizeBumpTimes, parseBumpTimesText, BUMP_TIMES_MAX, isCustomBumpInterval } from '@/lib/ekichikaBump';
 import { operatorActingSalonId, scopeConecfSalon } from '@/app/lib/conecf/actingSalon';
 import { ekichikaAreaFromUrl } from '@/lib/ekichikaArea';
 import { ESUTAMA_APPEAL_ROWS } from '@/lib/esutamaAppeal';
 import { isEsutamaAppealRowKey } from '@/lib/esutamaAppealRows';
+import { APPEAL_WEEK_KEYS, APPEAL_WEEK_LABEL, APPEAL_WEEK_TIMES_MAX, normalizeAppealWeekTimes, hasAppealWeekTimes, type AppealWeekTimes } from '@/lib/esutamaAppealWeek';
 
 // コネックエフ「駅ちか上位表示」の受け口（第1305便・2026-10-08）。
 // ★ 駅ちかの管理画面トップの「上位表示する」を、自動（時間帯・間隔）と今すぐの2通りで押す。押すのは中継の流れ（bump_auto / bump_push）。
@@ -250,7 +251,11 @@ export async function saveFukuesBumpAutoForOperator(input: { enabled: boolean; s
 
 // ── ★ 第1930便（2026-11-11）: エステ魂の集客ワンクリックアピールを行ごと（店舗情報・クーポン情報・お店体験談）に ──
 
-export type EsutamaAppealRowSlot = ConecfBumpSlot & { rowKey: string };
+export type EsutamaAppealRowSlot = ConecfBumpSlot & {
+  rowKey: string;
+  /** ★ 第2048便: 曜日ごとの時刻指定（朝6時はじまり）。null＝まだ使えない（追加SQL_第2048便 の前） */
+  weekTimes: AppealWeekTimes | null;
+};
 
 /** ready=false … 表がまだ無い（追加SQL_第1930便が未適用）。画面は今までの「3行まとめて」を出す */
 export async function getEsutamaAppealRows(): Promise<Result<{ ready: boolean; rows: EsutamaAppealRowSlot[] }>> {
@@ -266,12 +271,17 @@ export async function getEsutamaAppealRows(): Promise<Result<{ ready: boolean; r
   const now = new Date();
   const resetMin = bumpResetMinOf('esutama');
   const byKey = new Map((data ?? []).map((x) => [String(x.row_key), x]));
+  // ★ 第2048便: 曜日ごとの時刻。列が無い（SQL 前）ときは null（画面に曜日の欄を出さない）
+  const wk = await r.svc.from('conecf_esutama_appeal_rows').select('row_key, week_times').eq('salon_id', r.salonId);
+  const weekReady = !wk.error;
+  const weekByKey = new Map((wk.data ?? []).map((x) => [String(x.row_key), normalizeAppealWeekTimes(x.week_times)]));
   const rows: EsutamaAppealRowSlot[] = ESUTAMA_APPEAL_ROWS.map((k, i) => {
     const x = byKey.get(k);
     const readAt = (x?.read_at as string | null) ?? null;
     const remaining = x?.remaining == null ? null : Number(x.remaining);
     return {
       rowKey: k, slot: i + 1, hasCredential: hasCred, linkOff,
+      weekTimes: weekReady ? (weekByKey.get(k) ?? {}) : null,
       enabled: x?.auto === true,
       startMin: Number(x?.start_min ?? src.data?.bump_start_min ?? 600),
       endMin: Number(x?.end_min ?? src.data?.bump_end_min ?? 240),
@@ -303,6 +313,29 @@ export async function saveEsutamaAppealRow(input: { row: string; enabled: boolea
   const { error } = await r.svc.from('conecf_esutama_appeal_rows').upsert(row, { onConflict: 'salon_id,row_key' });
   if (error) return { ok: false, error: '保存できませんでした。時間をおいてお試しください' };
   return { ok: true, data: { perDay: bumpSlotsPerDay({ ...setting, times: times ?? null }) } };
+}
+
+/**
+ * ★ 第2048便（オイルクエスト様のご要望）: 曜日ごとの時刻指定を保存する（行ごと・曜日ごとに10個まで）。
+ *   空の曜日は「毎日同じ時刻（上の設定）」で押す。★ 保存した時刻より前の、過ぎたばかりの時刻はあとから押さない（times_done_at を今に）
+ */
+export async function saveEsutamaAppealWeekTimes(input: { row: string; week: Record<string, string> }): Promise<Result<{ days: number }>> {
+  if (!isEsutamaAppealRowKey(input.row)) return { ok: false, error: '行の指定が不正です' };
+  const r = await resolve(true);
+  if (!r.ok) return r;
+  const raw: Record<string, number[]> = {};
+  for (const k of APPEAL_WEEK_KEYS) {
+    const { times, bad } = parseBumpTimesText(String(input.week?.[k] ?? ''));
+    if (bad.length > 0) return { ok: false, error: `${APPEAL_WEEK_LABEL[k]}曜日：「${bad[0]}」を時刻として読めません（例 10:04）` };
+    if (times.length > APPEAL_WEEK_TIMES_MAX) return { ok: false, error: `${APPEAL_WEEK_LABEL[k]}曜日：時刻は${APPEAL_WEEK_TIMES_MAX}個までです（エステ魂は1日10回）` };
+    if (times.length > 0) raw[k] = times;
+  }
+  const week = normalizeAppealWeekTimes(raw);
+  const { error } = await r.svc.from('conecf_esutama_appeal_rows')
+    .update({ week_times: hasAppealWeekTimes(week) ? week : null, times_done_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('salon_id', r.salonId).eq('row_key', input.row);
+  if (error) return { ok: false, error: '保存できませんでした（曜日ごとの時刻は準備中の可能性があります。運営事務局までご連絡ください）' };
+  return { ok: true, data: { days: APPEAL_WEEK_KEYS.filter((k) => (week[k]?.length ?? 0) > 0).length } };
 }
 
 export async function runEsutamaAppealRowNow(input: { row: string }): Promise<Result<{ note: string }>> {

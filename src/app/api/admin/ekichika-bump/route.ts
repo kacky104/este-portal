@@ -13,6 +13,7 @@ import { normalizeRankImagePairs, normalizeRankImageInterval, shouldRotateRankIm
 import { shouldRunZenkokuOpt, normalizeNewsItems, normalizeRecItems, newsItemProblem } from '@/lib/zenkokuOption';
 import { shouldRunVanillaBlog, normalizeVanillaBlogItems, pickVanillaBlogItem } from '@/lib/vanillaBlog';
 import { normalizeEsutamaNoteItems, pickEsutamaNoteItem } from '@/lib/esutamaNote';
+import { normalizeAppealWeekTimes, appealTimesForNow, type AppealWeekTimes } from '@/lib/esutamaAppealWeek';
 // ★ 第1958便: 「印を書く → 流れを始める → 始められなかったら印を戻す」の手順はここ1か所（前は12か所に同じ形を書いていた）
 import { runMarked, type RoundResult } from '@/lib/markedStart';
 
@@ -87,6 +88,11 @@ export async function POST(req: Request) {
   const appealRowsRes = await svc.from('conecf_esutama_appeal_rows')
     .select('salon_id, row_key, auto, start_min, end_min, interval_min, times, times_done_at, auto_at, last_at, remaining, read_at');
   const appealRows = appealRowsRes.error ? [] : (appealRowsRes.data ?? []);
+  // ★ 第2048便: 曜日ごとの時刻指定（week_times）。列が無い（SQL 前）・読めないときは今までどおり（曜日なし）
+  const weekRes = await svc.from('conecf_esutama_appeal_rows').select('salon_id, row_key, week_times');
+  const weekOf = new Map<string, AppealWeekTimes>(
+    (weekRes.error ? [] : (weekRes.data ?? [])).map((w) => [String(w.salon_id) + '#' + String(w.row_key), normalizeAppealWeekTimes(w.week_times)]),
+  );
   // ★ 第1960便: 行ごとの設定を読めなかった回は、エステ魂の「3行まとめて」も押さない（行ごとの店を前の押し方で押してしまわないように）
   const appealUnknown = !!appealRowsRes.error;
   const appealRowSalons = new Set(appealRows.map((x) => Number(x.salon_id)));
@@ -141,7 +147,8 @@ export async function POST(req: Request) {
     for (const [sid, rows] of bySalon) {
       const due: Array<{ x: (typeof appealRows)[number]; dueAt: string | null }> = [];
       for (const x of rows) {
-        const times = normalizeBumpTimes(x.times);
+        // ★ 第2048便: その曜日（朝6時はじまり）の時刻があればそれ、無ければ毎日同じ時刻（null＝タイマー更新）
+        const times = appealTimesForNow(now, weekOf.get(String(x.salon_id) + '#' + String(x.row_key)) ?? {}, normalizeBumpTimes(x.times));
         const setting: BumpSetting = { enabled: true, startMin: Number(x.start_min), endMin: Number(x.end_min), intervalMin: Number(x.interval_min), times };
         const judge = shouldBumpNow({
           now, setting,
